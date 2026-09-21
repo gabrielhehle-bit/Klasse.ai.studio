@@ -186,7 +186,7 @@ import { BoardInk, type InkItem } from "./cockpit/BoardInk";
 import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
 import { PLANNED_COCKPIT_WIDGETS } from "./cockpit/plannedCockpitCatalog";
 import ClassroomWeeklyPlanWidget from "./cockpit/widgets/ClassroomWeeklyPlanWidget";
-import { getCheckInMode } from "../lib/checkInWidgetMode";
+import { getCheckInMode, getCheckInPreferences } from "../lib/checkInWidgetMode";
 import { COCKPIT_PAPERS, getCockpitPaperStyle, normalizeCockpitPaperSpacing, type CockpitPaper } from "../lib/cockpitPaper";
 import { COCKPIT_QUICKBAR_ITEMS, normalizeCockpitQuickbarSettings, toggleCockpitQuickbarItem } from "../lib/cockpitQuickbar";
 import { PublicStudentListWidget as StudentListWidgetContent } from "./cockpit/PublicStudentListWidget";
@@ -2956,6 +2956,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [isBirthdayCelebrationOpen, setIsBirthdayCelebrationOpen] = useState(false);
   useEffect(() => { setIsBirthdayCelebrationOpen(false); }, [app.activeClassId]);
   const boardTextClassKey = app.activeClassId || "unassigned";
+  const checkInDefaults = getCheckInPreferences(app.boardSettings?.cockpitCheckInDefaultsByClass?.[boardTextClassKey]);
   const cockpitPaper = ((app.boardSettings as any)?.cockpitPaperByClass?.[boardTextClassKey] || "blank") as CockpitPaper;
   const setCockpitPaper = (paper: CockpitPaper) => setApp((prev: any) => ({
     ...prev,
@@ -3741,6 +3742,8 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     const updated = cockpitWidgets.map((w) => {
       if (w.type === type) {
         const def = DEFAULT_COCKPIT_LAYOUT.find((d) => d.type === type);
+        const checkInStartSize = getCheckInPreferences(app.boardSettings?.cockpitCheckInDefaultsByClass?.[boardTextClassKey]).startSize;
+        const checkInSize = checkInStartSize === "compact" ? { w: 48, h: 55 } : checkInStartSize === "standard" ? { w: 70, h: 70 } : { w: 86, h: 82 };
         const useOld = w.hasBeenOpened || w.visible;
         const isMaxWidget = type === "randomname" || type === "wheel" || type === "classweeklyplan";
         const isWhiteboard = type === "drawing";
@@ -3750,15 +3753,17 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
           hasBeenOpened: true, // Mark it as opened!
           x: isWhiteboard || isMaxWidget && !useOld ? 0 : useOld ? w.x : finalX,
           y: isWhiteboard || isMaxWidget && !useOld ? 0 : useOld ? w.y : finalY,
-          w: isWhiteboard || isMaxWidget && !useOld ? 100 : useOld ? w.w : Math.min(def?.w || w.w, 46),
-          h: isWhiteboard || isMaxWidget && !useOld ? 100 : type === "pet" && !useOld ? 66 : useOld ? w.h : Math.min(def?.h || w.h, 46),
+          w: isWhiteboard || isMaxWidget && !useOld ? 100 : useOld ? w.w : type === "kidattendance" ? checkInSize.w : Math.min(def?.w || w.w, 46),
+          h: isWhiteboard || isMaxWidget && !useOld ? 100 : type === "pet" && !useOld ? 66 : useOld ? w.h : type === "kidattendance" ? checkInSize.h : Math.min(def?.h || w.h, 46),
           settings: isWhiteboard
             ? {
                 ...(w.settings || {}),
                 boardMode: w.settings?.boardMode || "whiteboard",
                 isDirectMode: true,
               }
-            : w.settings,
+            : type === "kidattendance" && !useOld
+              ? { ...(w.settings || {}), ...getCheckInPreferences(app.boardSettings?.cockpitCheckInDefaultsByClass?.[boardTextClassKey]) }
+              : w.settings,
         };
       }
       return w;
@@ -8270,7 +8275,7 @@ ${content}
                                 </div>
 
                                 <button type="button" onClick={() => setIsAddWidgetMenuOpen(false)} className="self-end min-h-11 px-4 rounded-lg border text-sm font-semibold">Auswahl schließen</button>
-                                <section className="rounded-2xl border border-indigo-200 bg-indigo-50 p-3 text-slate-900"
+                                <section id="cockpit-widget-settings" className="rounded-2xl border border-indigo-200 bg-indigo-50 p-3 text-slate-900"
                                   aria-label="Widget-Einstellungen im Menü Widget hinzufügen">
                                   <button type="button" onClick={() => setIsWidgetConfigurationOpen(open => !open)}
                                     aria-expanded={isWidgetConfigurationOpen}
@@ -8291,10 +8296,28 @@ ${content}
                                         </select>
                                       </label>
                                       {(() => {
-                                        const configured = cockpitWidgets.find(widget => widget.type === selectedWidgetConfiguration);
-                                        if (!configured) return <p role="status" className="text-sm">Füge dieses Widget zuerst hinzu, um seine Einstellungen zu speichern.</p>;
-                                        const saveSetting = (key: string, value: string) =>
-                                          handleUpdateWidgetPos(configured.id, { settings: { ...(configured.settings || {}), [key]: value } });
+                                        const configured = cockpitWidgets.find(widget => widget.type === selectedWidgetConfiguration)
+                                          || DEFAULT_COCKPIT_LAYOUT.find(widget => widget.type === selectedWidgetConfiguration);
+                                        if (!configured) return <p role="status" className="text-sm">Keine Konfiguration für dieses Widget verfügbar.</p>;
+                                        const saveSetting = (key: string, value: string | boolean) => {
+                                          if (selectedWidgetConfiguration === "kidattendance") {
+                                            setApp(prev => ({
+                                              ...prev,
+                                              boardSettings: {
+                                                ...prev.boardSettings,
+                                                cockpitCheckInDefaultsByClass: {
+                                                  ...(prev.boardSettings?.cockpitCheckInDefaultsByClass || {}),
+                                                  [boardTextClassKey]: {
+                                                    ...getCheckInPreferences(prev.boardSettings?.cockpitCheckInDefaultsByClass?.[boardTextClassKey]),
+                                                    [key]: value,
+                                                  },
+                                                },
+                                              },
+                                            }));
+                                          } else {
+                                            handleUpdateWidgetPos(configured.id, { settings: { ...(configured.settings || {}), [key]: value } });
+                                          }
+                                        };
                                         return selectedWidgetConfiguration === "randomname" ? (
                                           <fieldset className="space-y-2">
                                             <legend className="text-sm font-black">Zufälliges Kind · Ton</legend>
@@ -8318,13 +8341,42 @@ ${content}
                                             ] as const).map(([mode, label, detail]) => (
                                               <label key={mode} className="flex min-h-11 items-start gap-3 rounded-xl border border-slate-200 bg-white p-3">
                                                 <input type="radio" name="cockpit-checkin-mode" value={mode}
-                                                  checked={getCheckInMode(configured.settings) === mode}
+                                                  checked={getCheckInMode(checkInDefaults) === mode}
                                                   onChange={() => saveSetting("checkInMode", mode)}
                                                   className="mt-1 h-5 w-5 shrink-0" />
                                                 <span><strong className="block text-sm">{label}</strong>
                                                   <span className="block text-xs text-slate-600">{detail}</span></span>
                                               </label>
                                             ))}
+                                            <label className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
+                                              <input type="checkbox" checked={checkInDefaults.moodEnabled} onChange={event => saveSetting("moodEnabled", event.target.checked)}
+                                                className="h-5 w-5 shrink-0" />
+                                              <span className="text-sm font-semibold">Freiwillige Befindensabfrage nach dem Check-in</span>
+                                            </label>
+                                            <div role="group" aria-label="Standardgröße des Check-in-Widgets" className="rounded-xl border border-slate-200 bg-white p-3">
+                                              <p className="mb-2 text-sm font-bold">Größe beim ersten Hinzufügen</p>
+                                              <div className="flex flex-wrap gap-2">
+                                                {([["compact", "Klein"], ["standard", "Mittel"], ["large", "Groß"]] as const).map(([size, label]) => (
+                                                  <button key={size} type="button" onClick={() => saveSetting("startSize", size)}
+                                                    aria-pressed={checkInDefaults.startSize === size}
+                                                    className={`min-h-11 rounded-lg border px-3 text-sm font-semibold ${checkInDefaults.startSize === size ? "border-indigo-600 bg-indigo-600 text-white" : "border-slate-200 bg-white text-slate-800"}`}>{label}</button>
+                                                ))}
+                                              </div>
+                                            </div>
+                                            <p className="text-xs text-slate-600">Das sind Voreinstellungen für neue Widgets dieser Klasse. Vorhandene Widgets ändern sich nicht automatisch.</p>
+                                            {configured.visible && (
+                                              <button type="button" onClick={() => handleUpdateWidgetPos(configured.id, {
+                                                settings: { ...(configured.settings || {}), checkInMode: checkInDefaults.checkInMode, moodEnabled: checkInDefaults.moodEnabled },
+                                              })} className="min-h-11 w-full rounded-xl border border-indigo-300 bg-white px-3 text-sm font-bold text-indigo-700">
+                                                Auf vorhandenes Widget anwenden
+                                              </button>
+                                            )}
+                                            <button type="button" onClick={() => {
+                                              handleOpenWidgetInCockpitLayout("kidattendance");
+                                              setIsAddWidgetMenuOpen(false);
+                                            }} className="min-h-11 w-full rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white">
+                                              Ich bin da! hinzufügen
+                                            </button>
                                           </fieldset>
                                         ) : (
                                           <fieldset className="space-y-2">
@@ -9338,19 +9390,41 @@ ${content}
                                             const expanded = expandedCoreWidget === group.id;
                                             return (
                                               <div key={group.id} data-testid={`cockpit-core-group-${group.id}`} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 text-slate-900 shadow-sm dark:border-white/15 dark:bg-zinc-900 dark:text-white">
-                                                <button type="button" className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-left text-sm font-bold hover:bg-indigo-50 dark:hover:bg-white/10"
-                                                  aria-expanded={variants.length > 1 ? expanded : undefined}
-                                                  onClick={() => {
-                                                    if (variants.length === 1) {
-                                                      handleOpenWidgetInCockpitLayout(variants[0].type as CockpitWidgetConfig["type"]);
-                                                      setIsAddWidgetMenuOpen(false);
-                                                    } else {
-                                                      setExpandedCoreWidget(expanded ? null : group.id);
-                                                    }
-                                                  }}>
-                                                  <span>{group.label}</span>
-                                                  <span aria-hidden="true" className="text-indigo-600 dark:text-indigo-300">{variants.length > 1 ? (expanded ? "−" : "+") : "＋"}</span>
-                                                </button>
+                                                {group.id === "kidattendance" ? (
+                                                  <div className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-sm font-bold">
+                                                    <span>{group.label}</span>
+                                                    <div className="flex shrink-0 items-center gap-1">
+                                                      <button type="button" aria-label="Ich bin da! einstellen" title="Voreinstellungen für Ich bin da!"
+                                                        onClick={() => {
+                                                          setSelectedWidgetConfiguration("kidattendance");
+                                                          setIsWidgetConfigurationOpen(true);
+                                                          window.requestAnimationFrame(() => document.getElementById("cockpit-widget-settings")?.scrollIntoView({ block: "start", behavior: "smooth" }));
+                                                        }}
+                                                        className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 dark:text-slate-200 dark:hover:bg-white/10">
+                                                        <Settings size={18} aria-hidden="true" />
+                                                      </button>
+                                                      <button type="button" aria-label="Ich bin da! hinzufügen" title="Ich bin da! hinzufügen"
+                                                        onClick={() => { handleOpenWidgetInCockpitLayout("kidattendance"); setIsAddWidgetMenuOpen(false); }}
+                                                        className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-indigo-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 dark:text-indigo-300 dark:hover:bg-white/10">
+                                                        <Plus size={19} aria-hidden="true" />
+                                                      </button>
+                                                    </div>
+                                                  </div>
+                                                ) : (
+                                                  <button type="button" className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-left text-sm font-bold hover:bg-indigo-50 dark:hover:bg-white/10"
+                                                    aria-expanded={variants.length > 1 ? expanded : undefined}
+                                                    onClick={() => {
+                                                      if (variants.length === 1) {
+                                                        handleOpenWidgetInCockpitLayout(variants[0].type as CockpitWidgetConfig["type"]);
+                                                        setIsAddWidgetMenuOpen(false);
+                                                      } else {
+                                                        setExpandedCoreWidget(expanded ? null : group.id);
+                                                      }
+                                                    }}>
+                                                    <span>{group.label}</span>
+                                                    <span aria-hidden="true" className="text-indigo-600 dark:text-indigo-300">{variants.length > 1 ? (expanded ? "−" : "+") : "＋"}</span>
+                                                  </button>
+                                                )}
                                                 {variants.length > 1 && expanded && (
                                                   <div className="mt-2 flex flex-col gap-1 border-t border-slate-200 pt-2 dark:border-white/15">
                                                     {variants.map((variant) => (
