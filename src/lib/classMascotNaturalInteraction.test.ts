@@ -15,6 +15,7 @@ test('Freistehendes Maskottchen: Figur direkt verschieben, kurzes Tippen öffnet
   assert.match(host, /setPointerCapture\(pointerId\)/);
   assert.match(host, /onUpdate\(\{ x: \(nextX \/ stageRect\.width\) \* 100, y: \(nextY \/ stageRect\.height\) \* 100 \}\)/);
   assert.match(host, /onClickCapture=\{isFreeMascot \? handleMascotClickCapture/);
+  assert.match(host, /data-mascot-focused=\{isFreeMascot && isFocused/);
   assert.match(host, /event\.stopPropagation\(\)/);
   assert.match(host, /layoutLocked \|\| isMaximized/);
 });
@@ -23,6 +24,7 @@ test('Die Figur bleibt ohne Kartenhintergrund und der Werkzeugstreifen erscheint
   const css = readFileSync('src/index.css', 'utf8');
   assert.match(css, /\.cockpit-free-mascot:focus-within \.mascot-widget-toolbar/);
   assert.match(css, /\.cockpit-free-mascot:focus-within \.mascot-widget-resize/);
+  assert.match(css, /\.cockpit-free-mascot\[data-mascot-focused="true"\] \.mascot-widget-toolbar/);
   assert.match(css, /opacity: 0 !important;\s*pointer-events: none;/);
   const widget = readFileSync('src/components/cockpit/ClassMascotWidget.tsx', 'utf8');
   assert.match(widget, /class-mascot-character[^"]*touch-none cursor-grab/);
