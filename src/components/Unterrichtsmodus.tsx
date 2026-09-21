@@ -5920,10 +5920,12 @@ ${content}
   const boardRef = useRef<HTMLDivElement>(null);
   const outerContainerRef = useRef<HTMLDivElement>(null);
   const [mascotPortalTarget, setMascotPortalTarget] = useState<HTMLDivElement | null>(null);
-  // Once the cockpit root exists, only the mascot is rendered directly inside
-  // that root. Normal widgets and the white writing area stay untouched.
-  useEffect(() => {
-    setMascotPortalTarget(outerContainerRef.current);
+  // A callback ref also reconnects the mascot after switching to/from the
+  // remote controller (the cockpit DOM root is replaced without unmounting
+  // this React component). A mount-only effect would point to a detached node.
+  const attachCockpitRoot = useCallback((node: HTMLDivElement | null) => {
+    outerContainerRef.current = node;
+    setMascotPortalTarget(node);
   }, []);
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
@@ -7536,7 +7538,7 @@ ${content}
 
   return (
     <div
-      ref={outerContainerRef}
+      ref={attachCockpitRoot}
       className={`fixed inset-0 z-[1000] ${isFocusModeLightOff ? "is-light-off" : ""} ${currentIsLight ? "" : "cockpit-contrast-dark"} ${true ? (activePultTheme === "custom_theme" ? "" : activePultThemeVars.bg) : activeFokusThemeVars.bg} ${true ? (customTextColor ? "" : activePultThemeVars.textColor) : activeFokusThemeVars.textColor} ${derivedFontClass} overflow-hidden flex flex-col p-2 sm:p-3 gap-2 sm:gap-3`}
       style={{
         backgroundColor:
