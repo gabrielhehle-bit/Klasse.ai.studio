@@ -38,7 +38,7 @@ test('Mascot uses character-sized hit area, viewport bounds and saved class-loca
   assert.match(host, /const stage = activeStageRef\.current/);
   assert.match(host, /onUpdate\(\{ x: \(nextX \/ stageRect\.width\) \* 100, y: \(nextY \/ stageRect\.height\) \* 100 \}\)/);
   assert.match(art, /class-mascot-freestanding pointer-events-none/);
-  assert.match(art, /class-mascot-character pointer-events-auto/);
+  assert.match(art, /class-mascot-character pointer-events-none/);
   assert.doesNotMatch(art, /class-mascot-details|class-mascot-settings|floating-classpet-outer/);
 });
 
