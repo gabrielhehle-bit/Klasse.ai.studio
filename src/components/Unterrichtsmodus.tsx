@@ -188,9 +188,8 @@ import { PLANNED_COCKPIT_WIDGETS } from "./cockpit/plannedCockpitCatalog";
 import ClassroomWeeklyPlanWidget from "./cockpit/widgets/ClassroomWeeklyPlanWidget";
 import { getCheckInMode, getCheckInPreferences } from "../lib/checkInWidgetMode";
 import { getRandomNameWidgetPreferences } from "../lib/randomNameWidgetModel";
-import { getGroupWidgetPreferences } from "../lib/groupWidgetPreferences";
+import { getGroupWidgetPreferences, applyGroupWidgetPreference, type GroupWidgetPreferences } from "../lib/groupWidgetPreferences";
 import { getClassroomWeeklyWidgetPreferences } from "../lib/classroomWeeklyWidgetPreferences";
-import { getGroupName } from "../lib/groupsAlgorithm";
 import { COCKPIT_PAPERS, getCockpitPaperStyle, normalizeCockpitPaperSpacing, type CockpitPaper } from "../lib/cockpitPaper";
 import { COCKPIT_QUICKBAR_ITEMS, normalizeCockpitQuickbarSettings, toggleCockpitQuickbarItem } from "../lib/cockpitQuickbar";
 import { PublicStudentListWidget as StudentListWidgetContent } from "./cockpit/PublicStudentListWidget";
@@ -8316,28 +8315,44 @@ ${content}
                                           || DEFAULT_COCKPIT_LAYOUT.find(widget => widget.type === selectedWidgetConfiguration);
                                         if (!configured) return <p role="status" className="text-sm">Einstellungen nicht verfügbar.</p>;
                                         const saveSetting = (key: string, value: string | number | boolean) => {
-                                          if (selectedWidgetConfiguration === "kidattendance" || selectedWidgetConfiguration === "groups") {
+                                          if (selectedWidgetConfiguration === "groups") {
+                                            const groupKey = key as keyof GroupWidgetPreferences;
+                                            const groupValue = value as GroupWidgetPreferences[keyof GroupWidgetPreferences];
+                                            // One UI action updates both the per-class future preset AND an existing
+                                            // widget's settings. No second hidden "apply" step is required.
+                                            // Stored group membership is preserved until the teacher explicitly mixes.
+                                            const updateExistingGroup = (w: CockpitWidgetConfig) =>
+                                              w.type === "groups" && (w.visible || w.hasBeenOpened) && key !== "startSize"
+                                                ? { ...w, settings: applyGroupWidgetPreference(w.settings, groupKey, groupValue) }
+                                                : w;
+                                            setCockpitWidgets(current => current.map(updateExistingGroup));
+                                            setApp(prev => ({
+                                              ...prev,
+                                              cockpitLayout: (prev.cockpitLayout || cockpitWidgets).map(updateExistingGroup),
+                                              boardSettings: {
+                                                ...prev.boardSettings,
+                                                cockpitGroupDefaultsByClass: {
+                                                  ...(prev.boardSettings?.cockpitGroupDefaultsByClass || {}),
+                                                  [boardTextClassKey]: {
+                                                    ...getGroupWidgetPreferences(prev.boardSettings?.cockpitGroupDefaultsByClass?.[boardTextClassKey]),
+                                                    [key]: value,
+                                                    ...(key === "mode" ? { targetValue: 4 } : {}),
+                                                  },
+                                                },
+                                              },
+                                            }));
+                                          } else if (selectedWidgetConfiguration === "kidattendance") {
                                             setApp(prev => ({
                                               ...prev,
                                               boardSettings: {
                                                 ...prev.boardSettings,
-                                                ...(selectedWidgetConfiguration === "kidattendance" ? {
-                                                  cockpitCheckInDefaultsByClass: {
-                                                    ...(prev.boardSettings?.cockpitCheckInDefaultsByClass || {}),
-                                                    [boardTextClassKey]: {
-                                                      ...getCheckInPreferences(prev.boardSettings?.cockpitCheckInDefaultsByClass?.[boardTextClassKey]),
-                                                      [key]: value,
-                                                    },
+                                                cockpitCheckInDefaultsByClass: {
+                                                  ...(prev.boardSettings?.cockpitCheckInDefaultsByClass || {}),
+                                                  [boardTextClassKey]: {
+                                                    ...getCheckInPreferences(prev.boardSettings?.cockpitCheckInDefaultsByClass?.[boardTextClassKey]),
+                                                    [key]: value,
                                                   },
-                                                } : {
-                                                  cockpitGroupDefaultsByClass: {
-                                                    ...(prev.boardSettings?.cockpitGroupDefaultsByClass || {}),
-                                                    [boardTextClassKey]: {
-                                                      ...getGroupWidgetPreferences(prev.boardSettings?.cockpitGroupDefaultsByClass?.[boardTextClassKey]),
-                                                      [key]: value,
-                                                    },
-                                                  },
-                                                }),
+                                                },
                                               },
                                             }));
                                           } else {
@@ -8590,23 +8605,14 @@ ${content}
                                                 ))}
                                               </div>
                                             </div>
-                                            <p className="text-xs text-slate-600">Diese Voreinstellungen gelten für neue Gruppenwidgets der aktiven Klasse. Bestehende Gruppen werden nicht ungefragt neu gemischt oder verändert.</p>
+                                            <p role="status" className="text-xs font-semibold text-slate-700">
+                                              {configured.visible
+                                                ? "Einstellungen übernommen. Größe, Anzahl und Teilnehmerauswahl gelten beim nächsten Tippen auf „Neu mischen“. Gruppennamen werden sofort angepasst; die bisherigen Kinder bleiben bis dahin in ihren Gruppen. Die Startgröße gilt nur für neue Widgets."
+                                                : "Einstellungen gespeichert. Sie gelten für das nächste Hinzufügen des Gruppenwidgets; vorhandene Einteilungen bleiben erhalten."}
+                                            </p>
                                             {configured.visible && (
                                               <>
-                                                <button type="button" onClick={() => {
-                                                  const previousGroups = Array.isArray(configured.settings?.groups) ? configured.settings.groups : [];
-                                                  handleUpdateWidgetPos(configured.id, {
-                                                    settings: {
-                                                      ...(configured.settings || {}), ...groupDefaults,
-                                                      groups: previousGroups.map((group: any, index: number) => ({
-                                                        ...group, ...getGroupName(index, groupDefaults.namingStyle),
-                                                      })),
-                                                    },
-                                                  });
-                                                }} className="min-h-11 w-full rounded-xl border border-indigo-300 bg-white px-3 text-sm font-bold text-indigo-700">
-                                                  Voreinstellungen auf vorhandenes Widget anwenden
-                                                </button>
-                                                <p className="text-xs text-slate-600">Weitere Optionen für das aktuell geöffnete Widget: Kinder pausieren, Paare und Benennung.</p>
+                                                <p className="text-xs text-slate-600">Weitere Optionen: Kinder pausieren, Paare und Benennung.</p>
                                                 <div id="cockpit-groups-settings-host" className="w-full" aria-label="Weitere Gruppen-Einstellungen: Kinder pausieren, Paar-Wünsche, Namen" />
                                               </>
                                             )}
