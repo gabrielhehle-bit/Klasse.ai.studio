@@ -252,6 +252,80 @@ export const UnterrichtsmodusThemePicker: React.FC<ThemePickerProps> = ({ app, s
                                 </button>
                             ))}
                         </div>
+                        {/* All personalization lives here, never as controls or a card on the cockpit. */}
+                        <div className="space-y-3 border-t pt-3" style={{ borderColor: currentTheme.colors.border }}>
+                            <label htmlFor="class-mascot-name" className="block text-xs font-black"
+                                style={{ color: currentTheme.colors.textPrimary }}>
+                                Name des Klassenmaskottchens
+                            </label>
+                            <input
+                                id="class-mascot-name"
+                                type="text"
+                                autoComplete="off"
+                                maxLength={24}
+                                value={app.classMascot?.name ?? normalizeClassMascot(app.classMascot).name}
+                                onChange={event => {
+                                    const nextName = event.target.value;
+                                    setApp(prev => ({
+                                        ...prev,
+                                        classMascot: { ...normalizeClassMascot(prev.classMascot), name: nextName },
+                                    }));
+                                }}
+                                onBlur={() => setApp(prev => ({
+                                    ...prev,
+                                    classMascot: normalizeClassMascot(prev.classMascot),
+                                }))}
+                                className="w-full min-h-11 rounded-xl border-2 px-3 py-2 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                                style={{
+                                    color: currentTheme.colors.textPrimary,
+                                    borderColor: currentTheme.colors.border,
+                                    backgroundColor: currentTheme.colors.surface,
+                                }}
+                                aria-describedby="class-mascot-name-help"
+                            />
+                            <p id="class-mascot-name-help" className="text-xs"
+                                style={{ color: currentTheme.colors.textSecondary }}>
+                                Nur für diese Klasse. Ein leerer Name wird beim Verlassen des Feldes auf den Figurennamen zurückgesetzt.
+                            </p>
+                            <div role="group" aria-label="Stimmung des Klassenmaskottchens" className="space-y-2">
+                                <p className="text-xs font-black" style={{ color: currentTheme.colors.textPrimary }}>
+                                    Stimmung auswählen
+                                </p>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {([
+                                        { mood: 'happy' as const, label: '😊 Fröhlich' },
+                                        { mood: 'calm' as const, label: '😌 Ruhig' },
+                                        { mood: 'sleepy' as const, label: '😴 Müde' },
+                                        { mood: 'proud' as const, label: '⭐ Stolz' },
+                                    ]).map(option => (
+                                        <button
+                                            key={option.mood}
+                                            type="button"
+                                            aria-pressed={normalizeClassMascot(app.classMascot).mood === option.mood}
+                                            onClick={() => setApp(prev => ({
+                                                ...prev,
+                                                classMascot: {
+                                                    ...normalizeClassMascot(prev.classMascot),
+                                                    mood: option.mood,
+                                                },
+                                            }))}
+                                            className="min-h-11 rounded-xl border-2 px-2 py-2 text-xs font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                                            style={{
+                                                color: currentTheme.colors.textPrimary,
+                                                borderColor: normalizeClassMascot(app.classMascot).mood === option.mood
+                                                    ? currentTheme.colors.accent : currentTheme.colors.border,
+                                                backgroundColor: currentTheme.colors.surface,
+                                            }}
+                                        >
+                                            {option.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>
+                                    Die Stimmung wird bewusst von dir eingestellt, nicht aus Daten einzelner Kinder abgeleitet.
+                                </p>
+                            </div>
+                        </div>
                         <div className="border-t pt-3" style={{ borderColor: currentTheme.colors.border }}>
                             <p className="mb-2 text-xs font-black" style={{ color: currentTheme.colors.textPrimary }}>
                                 Größe auf der Tafel
