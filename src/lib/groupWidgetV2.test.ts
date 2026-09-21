@@ -71,3 +71,32 @@ test('Widget 2: undo, stored constraints, and private pair settings remain avail
   assert.match(widget, /window\.confirm\(/);
   assert.match(widget, /widget\?\.settings\?\.groups/);
 });
+
+test('Widget 2: all groups are accessible together in expanded view, never silently dropped by a page slice', () => {
+  const groups = generateStudentGroups(
+    Array.from({ length: 30 }, (_, index) => 'pupil-' + index),
+    { mode: 'size', value: 2 },
+  ).groups;
+  const compact = getGroupPageLayout(340, 360, groups, 0);
+  assert.equal(groups.length, 15);
+  assert.ok(compact.pageCount > 1);
+  assert.match(widget, /const displayedGroups = isExpanded/);
+  assert.match(widget, /\? groupLayout\.cards/);
+  assert.match(widget, /Alle \{groups\.length\} Gruppen anzeigen/);
+  assert.match(widget, /if \(!preview\.fits \|\| preview\.pageCount > 1\) setIsExpanded\(true\)/);
+  assert.match(widget, /isExpanded \? 'overflow-auto' : 'overflow-hidden'/);
+  assert.match(widget, /!isExpanded && groupLayout\.pageCount > 1/);
+});
+
+test('Widget 2: rapid picker updates do not get overwritten by group edits', () => {
+  assert.match(widget, /only persist fields changed by this group action/i);
+  const persist = widget.slice(widget.indexOf('const persistState'), widget.indexOf('// Die Auswahl kommt aus'));
+  assert.doesNotMatch(persist, /mode: updatedMode|targetValue: updatedValue/);
+  assert.match(persist, /\.\.\.\(persistNamingStyle \? \{ namingStyle: updatedNamingStyle \} : \{\}\)/);
+  assert.match(widget, /const namingStyle: 'numbered'/);
+  assert.match(widget, /setPausedStudentIds\(next\)/);
+  assert.doesNotMatch(widget, /setPausedStudentIds\(prev =>/);
+  assert.match(widget, /studentScope === 'all' \? allStudents : presentStudents\)\.map/);
+  assert.match(surface, /w\.type === "groups" && updates\.settings/);
+  assert.match(surface, /settings: \{ \.\.\.\(w\.settings \|\| \{\}\), \.\.\.updates\.settings \}/);
+});
