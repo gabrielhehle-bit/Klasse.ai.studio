@@ -27,10 +27,10 @@ test('Schülernavigation: Klassenliste und Schülerdossier sind getrennte direkt
   // vorherigen Klasse offen bleibt. Der direkte Einstieg bleibt unverändert.
   assert.match(app, /case 'schueler': return istSekundarstufe\(app\.schulart\)/);
   assert.match(app, /: <StudentList key=\{app.activeClassId \|\| 'class'\} \/>/);
-  assert.match(app, /: <Sek1Students key=\{app.activeClassId \|\| 'class'\} \/>/);
+  assert.match(app, /\\? <Sek1Students key=\{app.activeClassId \|\| 'class'\} \/>/);
   assert.match(app, /case 'dossier': return istSekundarstufe\(app\.schulart\)/);
   assert.match(app, /: <StudentDossierHub \/>/);
-  assert.match(app, /: <Sek1DossierHub key=\{app.activeClassId \|\| 'class'\} \/>/);
+  assert.match(app, /\\? <Sek1DossierHub key=\{app.activeClassId \|\| 'class'\} \/>/);
   assert.match(dossierHub, /Wähle ein Kind und öffne direkt das vollständige Dossier/);
 });
 
