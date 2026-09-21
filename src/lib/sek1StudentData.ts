@@ -17,7 +17,7 @@ export type Sek1GradebookComment = {
 
 /** Display of teacher-entered secondary grade values, not a Zeugnisnoten calculator. */
 export function sek1GradeEntries(app: AppState, studentId: string, semester: '1' | '2'): Sek1GradeEntry[] {
-  return faecherFuerKlasse(app).flatMap(fach => {
+  return faecherFuerKlasse(app).flatMap((fach): Sek1GradeEntry[] => {
     const data = app.noten?.[studentId]?.[fach]?.[semester];
     const explicit = String(data?.endnote ?? '').trim();
     if (explicit) return [{fach, wert: explicit, quelle: 'direkt_eingetragen' as const}];
