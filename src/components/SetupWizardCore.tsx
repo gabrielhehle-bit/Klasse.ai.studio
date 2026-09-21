@@ -865,7 +865,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
           <div>
             <h2 className="text-[1.25rem] leading-normal font-black text-slate-900 tracking-tight">Klassen-Einstellungen</h2>
             <p className="text-[0.75rem] leading-tight font-medium text-slate-500 mt-1 uppercase tracking-wider">
-              Schritt {currStep + 1} von {STEPS.length}: {STEPS[currStep].title}
+              Schritt {currStep + 1} von {STEPS.length}: {STEPS[currStep].title === 'Klasse & Theme' ? 'Klasse & Aufgabe' : STEPS[currStep].title}
             </p>
           </div>
           
@@ -880,7 +880,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                   <button
                     type="button"
                     onClick={() => handleStepClick(idx)}
-                    title={`Gehe zu Schritt: ${step.title}`}
+                    title={`Gehe zu Schritt: ${step.title === 'Klasse & Theme' ? 'Klasse & Aufgabe' : step.title}`}
                     className={`w-8 h-8 rounded-full flex items-center justify-center text-[0.625rem] font-bold shadow-sm transition-all cursor-pointer hover:scale-115 active:scale-90 ${isActive ? 'bg-emerald-500 text-white scale-110 shadow-emerald-500/20 ring-2 ring-emerald-400 ring-offset-2' : isPast ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
                   >
                     <Icon size={14} />
