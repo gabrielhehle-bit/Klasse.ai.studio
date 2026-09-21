@@ -37,9 +37,13 @@ export function getGroupPageLayout(
   height: number,
   groups: readonly GeneratedGroup[],
   requestedPage: number,
+  options: { reservedHeight?: number } = {},
 ): GroupPageLayout {
+  const reservedHeight = Number.isFinite(options.reservedHeight)
+    ? Math.max(0, options.reservedHeight ?? GROUP_WIDGET_GRID.reservedHeight)
+    : GROUP_WIDGET_GRID.reservedHeight;
   const availableWidth = Number.isFinite(width) ? Math.max(0, width - 24) : 0;
-  const availableHeight = Number.isFinite(height) ? Math.max(0, height - GROUP_WIDGET_GRID.reservedHeight) : 0;
+  const availableHeight = Number.isFinite(height) ? Math.max(0, height - reservedHeight) : 0;
   const columns = Math.max(1, Math.min(6, Math.floor(
     (availableWidth + GROUP_WIDGET_GRID.gap) / (GROUP_WIDGET_GRID.minCardWidth + GROUP_WIDGET_GRID.gap),
   )));
