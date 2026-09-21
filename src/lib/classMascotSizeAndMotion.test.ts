@@ -21,7 +21,7 @@ test('Mascot grows and shrinks without acquiring a card, floating overlay or ove
       app: { ...initialAppState, classMascot: { ...DEFAULT_CLASS_MASCOT, displaySize: size } },
     }));
     assert.match(output, new RegExp('width:min\\(100%, ' + size + 'px\\)'));
-    assert.match(output, /class-mascot-character pointer-events-auto/);
+    assert.match(output, /class-mascot-character pointer-events-none/);
     assert.match(output, /class-mascot-freestanding pointer-events-none/);
     assert.doesNotMatch(output, /class-mascot-name|class-mascot-details|class-mascot-settings|floating-classpet-outer/);
   }
