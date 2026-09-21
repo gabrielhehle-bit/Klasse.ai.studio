@@ -30,8 +30,8 @@ test('E-Mail-Anmeldung und SMTP-Konfiguration verwenden keine zweite, kostenpfli
   const server = readFileSync('server.ts', 'utf8');
   const exampleEnv = readFileSync('.env.example', 'utf8');
   for (const content of [source, login, server, exampleEnv]) {
-    assert.doesNotMatch(content, /(?<!no)reply@klassio\\.at/);
+    assert.doesNotMatch(content, /(?<!no)reply@klassio\.at/);
   }
-  assert.match(login, /mailto:noreply@klassio\\.at/);
-  assert.match(exampleEnv, /SMTP_FROM="KLASSIO <noreply@klassio\\.at>"/);
+  assert.match(login, /mailto:noreply@klassio\.at/);
+  assert.match(exampleEnv, /SMTP_FROM="KLASSIO <noreply@klassio\.at>"/);
 });
