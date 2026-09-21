@@ -19,6 +19,7 @@ import { getFachHexColor, STANDARD_COLOR_MAP } from '../lib/fachColorUtils';
 import { getActiveVaultKey } from '../lib/vaultStorage';
 import { prepareBackupRestore, parseBackupText } from '../lib/backupRestore';
 import { parseLegacyTeacherName, resolveTeacherDisplayName } from '../lib/teacherProfile';
+import { SCHULARTEN, normalizeSchulart, passendeSchulstufe, schulstufenFuerSchulart, schulstufenText, type Schulart } from '../lib/schularten';
 
 export default function SetupWizard({ onComplete, isNewClass }: { onComplete: () => void, isNewClass?: boolean }) {
   const { app, setApp, restoreAppData } = useApp();
@@ -54,7 +55,9 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
 
   const [klassenbezeichnung, setKlassenbezeichnung] = useState(isNewClass ? '' : (activeClassLocal ? activeClassLocal.name : app.klassenbezeichnung || ''));
   const [schuljahr, setSchuljahr] = useState(isNewClass ? getCurrentSchuljahr() : (activeClassLocal?.schuljahr || app.schuljahr || getCurrentSchuljahr()));
-  const [stufe, setStufe] = useState<number>(isNewClass ? 1 : (activeClassLocal?.stufe !== undefined ? Number(activeClassLocal.stufe) : (app.stufe !== undefined ? Number(app.stufe) : 1)));
+  const initialSchulart = normalizeSchulart(isNewClass ? app.schulart : (activeClassLocal?.schulart ?? app.schulart));
+  const [schulart, setSchulart] = useState<Schulart>(initialSchulart);
+  const [stufe, setStufe] = useState<number>(isNewClass ? passendeSchulstufe(initialSchulart, 1) : (activeClassLocal?.stufe !== undefined ? Number(activeClassLocal.stufe) : (app.stufe !== undefined ? Number(app.stufe) : 1)));
   const [theme, setTheme] = useState<any>(isNewClass ? 'classic_light' : (activeClassLocal?.theme || (activeClassLocal?.settings as any)?.theme || app.theme || 'classic_light'));
   const [fontFamily, setFontFamily] = useState<any>(isNewClass ? 'standard' : (activeClassLocal?.settings?.fontFamily || (activeClassLocal as any)?.fontFamily || 'standard'));
 
@@ -113,6 +116,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   const LEGACY_WIZARD_PROGRESS_KEY = 'gabic_setup_wizard_progress';
 
   const magicAutofillStammplan = () => {
+    if (schulart !== 'volksschule') return;
     if (!window.confirm("Bist du sicher? Dein aktueller Stammplan wird überschrieben.")) return;
     
     let newStammplan: any = {};
@@ -396,6 +400,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                ...updatedClasses[activeIndex],
                name: klassenbezeichnung,
                stufe,
+               schulart,
                theme,
                settings: { ...(updatedClasses[activeIndex].settings || {} as any), fontFamily, uiScale },
                faecher,
@@ -472,6 +477,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
              ...classes[activeIdx],
              name: klassenbezeichnung,
              stufe,
+             schulart,
              theme,
              settings: { ...(classes[activeIdx].settings || {} as any), fontFamily, uiScale },
              faecher,
@@ -495,7 +501,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
            nachname,
            lehrerProfil: { ...(prev.lehrerProfil || {}), name: resolvedLehrerName, schule: schulName },
            schulName, schulkennzahl, schulOrt, schulPlz, bundesland,
-           klassenbezeichnung, stufe, schueler: finalStudents,
+           klassenbezeichnung, stufe, schulart, schueler: finalStudents,
            classes,
            currentPage: 'dashboard',
            schuljahr: schuljahr,
@@ -514,7 +520,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     } else {
        const classId = isFirstSetup ? (app.activeClassId || 'class_first_setup') : 'class-' + Math.random().toString(36).substring(2, 9);
        const mainClass = {
-         id: classId, name: klassenbezeichnung, stufe, theme, settings: { theme, fontFamily, uiScale, verhaltenSymbol: 'star', showVerhaltenOnBoard: true },
+         id: classId, name: klassenbezeichnung, stufe, schulart, theme, settings: { theme, fontFamily, uiScale, verhaltenSymbol: 'star', showVerhaltenOnBoard: true },
          faecher, fachConfig, klassenvorstand: true, schueler: finalStudents,
          noten: {}, mitarbeit: {}, verhalten: {}, karten: {}, jahresplanung: {}, jahresplan_faecher: yearlySubjects, wochenplanung: {},
          anwesenheit: {}, anwesenheitDetail: {}, dienste: [], saAssessments: {}, klassenglas_count: 0, klassenglas_ziel: 20,
@@ -535,12 +541,12 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
            nachname,
            lehrerProfil: { ...(prev.lehrerProfil || {}), name: resolvedLehrerName, schule: schulName },
            schulName, schulkennzahl, schulOrt, schulPlz, bundesland,
-           klassenbezeichnung, stufe, schuljahr: schuljahr, schueler: finalStudents,
+           klassenbezeichnung, stufe, schulart, schuljahr: schuljahr, schueler: finalStudents,
            classes: [mainClass], activeClassId: classId, firstLogin: true, tourAbgeschlossen: false
          } : {
            classes: [...(prev.classes || []), mainClass], 
            activeClassId: classId,
-           klassenbezeichnung, stufe, schuljahr: schuljahr, schueler: finalStudents
+           klassenbezeichnung, stufe, schulart, schuljahr: schuljahr, schueler: finalStudents
          }),
          currentPage: 'dashboard',
          schuljahr: schuljahr,
@@ -702,8 +708,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   };
 
   const safeStufe = stufe === 0 ? 1 : stufe;
-  const currentStundentafel = STUNDENTAFEL[safeStufe] || STUNDENTAFEL[1];
-  const maxStunden = Math.max(...Object.values(currentStundentafel).map(v => typeof v === 'number' ? v : 0));
+  const currentStundentafel = schulart === 'volksschule' ? (STUNDENTAFEL[safeStufe] || STUNDENTAFEL[1]) : {};
+  const maxStunden = Math.max(1, ...Object.values(currentStundentafel).map(v => typeof v === 'number' ? v : 0));
 
   const bgDict: any = new Proxy(STANDARD_COLOR_MAP, {
     get(target, prop: string) {
