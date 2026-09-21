@@ -52,6 +52,7 @@ import {
 import { registerActiveAppStateGetter } from '../services/aiService';
 import { ensureRegisteredTeamTeachingDevice, pullSharedClass, pushSharedClass } from '../lib/teamTeachingService';
 import { classRoomFingerprint } from '../lib/teamTeachingCrypto';
+import { normalizeSchulart } from '../lib/schularten';
 
 localforage.config({
   name: 'LehrerApp',
@@ -1327,6 +1328,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         id,
         name,
         stufe,
+        schulart: normalizeSchulart(prev.schulart),
         klassenvorstand: isKV,
         schueler: [],
         noten: {},
@@ -1398,6 +1400,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         classes: [...classes, newClass],
         klassenbezeichnung: newClass.name,
         stufe: newClass.stufe,
+        schulart: newClass.schulart,
         klassenvorstand: newClass.klassenvorstand,
         schueler: newClass.schueler ? JSON.parse(JSON.stringify(newClass.schueler)) : [],
         saAssessments: newClass.saAssessments || {},
@@ -1565,6 +1568,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           classes: remainingClasses,
           klassenbezeichnung: nextClass.name,
           stufe: nextClass.stufe,
+          schulart: normalizeSchulart(nextClass.schulart),
           klassenvorstand: nextClass.klassenvorstand,
           schuljahr: nextClass.schuljahr || prev.schuljahr || getCurrentSchuljahr(),
           schueler: nextClass.schueler ? JSON.parse(JSON.stringify(nextClass.schueler)) : [],
@@ -1645,6 +1649,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           classes: [],
           klassenbezeichnung: '',
           stufe: 1,
+          schulart: 'volksschule',
           klassenvorstand: true,
           schueler: [],
           noten: {},
