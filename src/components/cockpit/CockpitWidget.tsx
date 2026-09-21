@@ -42,7 +42,7 @@ const OPTIMAL_WIDGET_SIZES: Record<string, { w: number; h: number }> = {
   klassenglas: { w: 42, h: 50 },
   links: { w: 28, h: 42 },
   drawing: { w: 60, h: 60 },
-  pet: { w: 44, h: 66 },
+  pet: { w: 30, h: 48 },
   stopwatch: { w: 24, h: 34 },
   calculator: { w: 24, h: 46 },
   dice: { w: 24, h: 32 },
@@ -492,13 +492,16 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
         height: `${renderedH}%`,
         zIndex: isDirect ? 0 : isMaximized ? 9999 : zIndex,
         touchAction: isDirect || layoutLocked || isFreeMascot ? "auto" : "none",
+        // The transparent mascot slot must not swallow Smartboard taps and drawing gestures.
+        // Only the illustration, open controls and explicit layout handles receive pointer input.
+        pointerEvents: isFreeMascot ? "none" : undefined,
       }}
       onClick={onFocus}
     >
       {/* Header bar / Drag handle - static in flow so it doesn't overlap content */}
       <div
         onPointerDown={isDirect || isMaximized || layoutLocked ? undefined : handlePointerDownDrag}
-        className={`${isFreeMascot ? "mascot-widget-toolbar w-full relative h-11 border-0 bg-transparent text-inherit opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100" : isDirect ? "absolute top-0 left-0 right-0 h-11 opacity-40 hover:opacity-100 pointer-events-auto border-b-0 bg-black/10 dark:bg-white/10 text-slate-400 backdrop-blur-md rounded-t-xl" : "w-full relative h-11 opacity-100 pointer-events-auto " + (currentIsLight ? "bg-white/95 border-slate-200/60 text-slate-700 shadow-sm backdrop-blur-xl rounded-t-[23px]" : "bg-zinc-900/95 border-white/10 text-neutral-200 shadow-sm backdrop-blur-xl rounded-t-[23px]")} z-40 px-3 py-1 flex items-center justify-between select-none shrink-0 border-b transition-all duration-300 cursor-default`}
+        className={`${isFreeMascot ? "mascot-widget-toolbar absolute inset-x-0 top-0 h-11 border-0 bg-transparent text-inherit opacity-0 pointer-events-none transition-opacity duration-200 group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto" : isDirect ? "absolute top-0 left-0 right-0 h-11 opacity-40 hover:opacity-100 pointer-events-auto border-b-0 bg-black/10 dark:bg-white/10 text-slate-400 backdrop-blur-md rounded-t-xl" : "w-full relative h-11 opacity-100 pointer-events-auto " + (currentIsLight ? "bg-white/95 border-slate-200/60 text-slate-700 shadow-sm backdrop-blur-xl rounded-t-[23px]" : "bg-zinc-900/95 border-white/10 text-neutral-200 shadow-sm backdrop-blur-xl rounded-t-[23px]")} z-40 px-3 py-1 flex items-center justify-between select-none shrink-0 border-b transition-all duration-300 cursor-default`}
         style={{ touchAction: isDirect || layoutLocked ? "auto" : "none" }}
       >
         {/* Left Side: status dot, Title, and Pen icon button placed directly right next to the title label */}
@@ -800,7 +803,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       {!layoutLocked && !isDirect && (
         <div
           onPointerDown={handlePointerDownResize}
-          className={`absolute bottom-0 right-0 w-4.5 h-4.5 cursor-se-resize flex items-end justify-end p-0.5 group z-50 touch-none ${isFreeMascot ? "mascot-widget-resize opacity-0 group-hover:opacity-100 focus-within:opacity-100" : ""}`}
+          className={`absolute bottom-0 right-0 w-4.5 h-4.5 cursor-se-resize flex items-end justify-end p-0.5 group z-50 touch-none ${isFreeMascot ? "mascot-widget-resize pointer-events-auto opacity-0 group-hover:opacity-100 focus-within:opacity-100" : ""}`}
           style={{ touchAction: "none" }}
         >
           <svg
