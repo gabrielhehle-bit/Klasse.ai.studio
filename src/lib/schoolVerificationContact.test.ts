@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 const source = readFileSync('src/components/settings/SchoolIdentitySettings.tsx', 'utf8');
 
 test('school support e-mail is visible for pending and new school verification', () => {
-  assert.match(source, /reply@klassio\.at/);
+  assert.match(source, /SCHOOL_SUPPORT_EMAIL = 'noreply@klassio\.at'/);
   assert.match(source, /E-Mail an \{SCHOOL_SUPPORT_EMAIL\} schreiben/);
   assert.match(source, /makeSchoolVerificationMailto\(/);
 });
