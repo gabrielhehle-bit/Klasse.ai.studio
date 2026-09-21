@@ -12,6 +12,7 @@ import { KlassenlistenImport } from './KlassenlistenImport';
 import { DebouncedInput } from './DebouncedInput';
 import { motion, AnimatePresence } from 'motion/react';
 import StudentDossier from './StudentDossier';
+import Sek1ClassPicker from './Sek1ClassPicker';
 import ClassOverviewStats from './ClassOverviewStats';
 import StudentPortfolio from './StudentPortfolio';
 const StudentMap = React.lazy(() => import('./StudentMap'));
@@ -260,6 +261,7 @@ export default function StudentList() {
   if (selectedFolderStudent) {
     return (
       <div className="space-y-4 w-full min-w-0 overflow-hidden">
+        <Sek1ClassPicker />
         <StudentDossier 
           schuelerId={selectedFolderStudent} 
           onBack={() => setSelectedFolderStudent(null)} 
@@ -271,6 +273,7 @@ export default function StudentList() {
 
   return (
     <>
+      <Sek1ClassPicker />
       {schueler.length === 0 ? (
         <div className="py-20 print:hidden">
           <EmptyState 

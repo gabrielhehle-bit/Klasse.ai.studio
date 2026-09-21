@@ -33,6 +33,7 @@ function lazyRetry<T extends React.ComponentType<any>>(
 
 const Dashboard = lazyRetry(() => import('./components/Dashboard'));
 const Sek1Dashboard = lazyRetry(() => import('./components/Sek1Dashboard'));
+const TeacherTimetable = lazyRetry(() => import('./components/TeacherTimetable'));
 const KlasseHub = lazyRetry(() => import('./components/KlasseHub'));
 const PlanungHub = lazyRetry(() => import('./components/PlanungHub'));
 const LeistungenHub = lazyRetry(() => import('./components/LeistungenHub'));
@@ -601,7 +602,7 @@ function AppContent() {
       <React.Suspense fallback={<div className="h-screen w-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div></div>}>
         <SetupWizard 
           isNewClass={currentPage === 'setup_new'} 
-          key={currentPage === 'setup_new' ? 'new_setup' : (app?.activeClassId || 'setup')} 
+          key={currentPage === 'setup_new' ? `new_setup_${app.classes?.length || 0}` : (app?.activeClassId || 'setup')} 
           onComplete={() => {
             setShowSetup(false);
             setPage('dashboard');
@@ -621,7 +622,8 @@ function AppContent() {
       case 'unterricht': return null; // Legacy alias is resolved to 'cockpit' above.
       case 'lehrerzimmer': return <Lehrerzimmer />;
       case 'teamteaching': return <ClassTeam />;
-      case 'schueler': return <StudentList />;
+      case 'schueler': return <StudentList key={app.activeClassId || 'class'} />;
+      case 'stundenplan': return istSekundarstufe(app.schulart) ? <TeacherTimetable /> : <Dashboard />;
       case 'dossier': return <StudentDossierHub />;
       case 'noten': return <Gradebook />;
       case 'ki-helfer': 
