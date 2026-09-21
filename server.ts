@@ -145,7 +145,9 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     const configuredOrigin = (() => {
       try { return new URL(process.env.APP_URL || '').origin; } catch { return ''; }
     })();
-    const requestOrigin = req.protocol + '://' + req.get('host');
+    // Production TLS may terminate at a reverse proxy. Never infer the public
+    // origin from an untrusted forwarded-proto header or the internal HTTP socket.
+    const requestOrigin = (process.env.NODE_ENV === 'production' ? 'https' : req.protocol) + '://' + req.get('host');
     if ((origin && origin !== (configuredOrigin || requestOrigin)) || fetchSite === 'cross-site') {
       return res.status(403).json({ error: 'Anfrage von einer nicht erlaubten Website abgewiesen.' });
     }
