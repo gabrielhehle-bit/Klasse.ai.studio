@@ -33,6 +33,7 @@ function lazyRetry<T extends React.ComponentType<any>>(
 
 const Dashboard = lazyRetry(() => import('./components/Dashboard'));
 const Sek1Dashboard = lazyRetry(() => import('./components/Sek1Dashboard'));
+const TeacherTimetable = lazyRetry(() => import('./components/TeacherTimetable'));
 const KlasseHub = lazyRetry(() => import('./components/KlasseHub'));
 const PlanungHub = lazyRetry(() => import('./components/PlanungHub'));
 const LeistungenHub = lazyRetry(() => import('./components/LeistungenHub'));
@@ -622,6 +623,7 @@ function AppContent() {
       case 'lehrerzimmer': return <Lehrerzimmer />;
       case 'teamteaching': return <ClassTeam />;
       case 'schueler': return <StudentList />;
+      case 'stundenplan': return istSekundarstufe(app.schulart) ? <TeacherTimetable /> : <Dashboard />;
       case 'dossier': return <StudentDossierHub />;
       case 'noten': return <Gradebook />;
       case 'ki-helfer': 
