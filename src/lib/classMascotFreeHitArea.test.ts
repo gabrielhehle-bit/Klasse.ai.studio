@@ -14,10 +14,18 @@ test('Maskottchen steht frei und seine unsichtbare Widgetfläche blockiert keine
   assert.match(host, /mascot-widget-toolbar absolute inset-x-0 top-0/);
   assert.match(host, /cockpit-free-mascot rounded-none border-0 bg-transparent shadow-none/);
   assert.match(styles, /\.cockpit-widget-container\.cockpit-free-mascot \{\s*pointer-events: none !important;/);
-  assert.match(styles, /\.cockpit-free-mascot \.class-mascot-character,[\s\S]{0,200}\.cockpit-free-mascot \.class-mascot-settings \{\s*pointer-events: auto;/);
+  assert.match(styles, /\.cockpit-free-mascot \.class-mascot-character \{\s*pointer-events: none;/);
+  assert.match(styles, /\.cockpit-free-mascot svg\.class-mascot-painted-artwork \{\s*pointer-events: visiblePainted;/);
+  assert.match(widget, /<ClassMascotArtwork kind=/);
+  const art = readFileSync('src/components/cockpit/ClassMascotArtwork.tsx', 'utf8');
+  assert.match(art, /class-mascot-painted-artwork/);
+  assert.match(art, /\{kind === 'otter' &&/);
+  assert.match(art, /\{kind === 'dog' &&/);
+  assert.match(art, /\{kind === 'cat' &&/);
+  assert.match(art, /\{kind === 'elf' &&/);
   assert.match(styles, /\.cockpit-free-mascot \.mascot-widget-resize \{\s*display: none !important;/);
   assert.match(widget, /class-mascot-freestanding pointer-events-none/);
-  assert.match(widget, /class-mascot-character pointer-events-auto mx-auto/);
+  assert.match(widget, /class-mascot-character pointer-events-none mx-auto/);
   assert.match(widget, /style=\{\{ width: `min\(100%, \$\{state\.displaySize\}px\)` \}\}/);
 });
 
@@ -28,7 +36,7 @@ test('Das freigestellte Maskottchen lässt sich gezielt greifen, ohne Namenszeil
   }));
   assert.match(markup, /aria-label="Klassenmaskottchen"/);
   assert.doesNotMatch(markup, /aria-expanded|class-mascot-name/);
-  assert.match(markup, /class-mascot-character pointer-events-auto/);
+  assert.match(markup, /class-mascot-character pointer-events-none/);
   assert.match(markup, /role="img"/);
   assert.doesNotMatch(markup, /class-mascot-details|class-mascot-settings|fixed bottom-|floating-classpet-outer/);
 });

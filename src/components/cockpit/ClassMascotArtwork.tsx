@@ -33,7 +33,7 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
 
   return (
     <svg viewBox="0 0 180 182" data-mascot-kind={kind} role="img" aria-label={`${name}, ${kind === 'elf' ? 'ein kleiner Hauself' : kind === 'otter' ? 'ein Otter' : kind === 'dog' ? 'ein Hund' : 'eine Katze'}, ${mood === 'happy' ? 'fröhlich' : mood === 'proud' ? 'stolz' : mood === 'calm' ? 'ruhig' : 'schläfrig'}`}
-      className={`mx-auto block h-auto max-h-[280px] w-full max-w-[280px] drop-shadow-sm ${animationEnabled ? 'class-mascot-idle' : ''}`}>
+      className={`class-mascot-painted-artwork mx-auto block h-auto max-h-[280px] w-full max-w-[280px] drop-shadow-sm ${animationEnabled ? 'class-mascot-idle' : ''}`}>
       <ellipse cx="90" cy="166" rx="56" ry="8" fill="#94A3B8" opacity=".19"/>
       {mood === 'proud' && <g fill="#F7C84B"><path d="M28 42l3 7 8 1-6 5 2 8-7-4-7 4 2-8-6-5 8-1z"/><path d="M148 37l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/></g>}
       {kind === 'otter' && <>

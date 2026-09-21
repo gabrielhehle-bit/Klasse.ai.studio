@@ -1025,7 +1025,15 @@ html body .class-mascot-v1.class-mascot-freestanding,
 html body .cockpit-widget-container.cockpit-free-mascot {
   pointer-events: none !important;
 }
-html body .cockpit-free-mascot .class-mascot-character,
+/* The former square hit target caught taps in the fully transparent corners
+   of the animal. Keep the HTML host and button click-through. Only SVG pixels
+   that are actually drawn can be grabbed; focus/arrow keys still work. */
+html body .cockpit-free-mascot .class-mascot-character {
+  pointer-events: none;
+}
+html body .cockpit-free-mascot svg.class-mascot-painted-artwork {
+  pointer-events: visiblePainted;
+}
 html body .cockpit-free-mascot .class-mascot-details,
 html body .cockpit-free-mascot .class-mascot-settings {
   pointer-events: auto;
