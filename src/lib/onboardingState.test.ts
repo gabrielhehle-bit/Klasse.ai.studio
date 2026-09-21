@@ -58,7 +58,7 @@ test('Tour kann nur über den vorhandenen bewussten Neustart wieder erscheinen',
 
   assert.match(generalSettings, /Tour erneut starten/);
   assert.match(generalSettings, /tourAbgeschlossen:\s*false/);
-  assert.match(generalSettings, /currentPage:\s*'cockpit'/);
+  assert.match(generalSettings, /currentPage:\s*'dashboard'/);
   assert.match(tour, /const explicitRestart = onboardingCompleted/);
-  assert.match(tour, /app\.currentPage === 'cockpit'/);
+  assert.match(tour, /app\.currentPage === 'dashboard'/);
 });
