@@ -247,7 +247,7 @@ test('Alte Domain-Platzhalter erhalten offizielle Schulnamen ohne ihre Gruppen-I
 test('Fehlende Schulmail und ausbleibende Codes verweisen auf das Antwortpostfach', () => {
   const login = read('src/components/EmailAccountLogin.tsx');
   const schoolSettings = read('src/components/settings/SchoolIdentitySettings.tsx');
-  assert.match(login, /reply@klassio\.at/);
+  assert.match(login, /noreply@klassio\.at/);
   assert.match(login, /Bestätigungscode kommt nicht an/);
-  assert.match(schoolSettings, /SCHOOL_SUPPORT_EMAIL = 'reply@klassio\.at'/);
+  assert.match(schoolSettings, /SCHOOL_SUPPORT_EMAIL = 'noreply@klassio\.at'/);
 });

@@ -587,7 +587,6 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     try {
       await mailTransporter.sendMail({
         from: SMTP_FROM,
-        replyTo: 'reply@klassio.at',
         to: email,
         subject: 'Dein Klassio-Anmeldecode',
         text: 'Dein Klassio-Anmeldecode lautet: ' + code + '\n\nDer Code ist 10 Minuten gültig. Wenn du diese Anmeldung nicht angefordert hast, kannst du diese Nachricht ignorieren.',

@@ -16,7 +16,7 @@ const AUSTRIAN_FEDERAL_STATES = [
 
 type FederalState = typeof AUSTRIAN_FEDERAL_STATES[number];
 
-const SCHOOL_SUPPORT_EMAIL = 'reply@klassio.at';
+const SCHOOL_SUPPORT_EMAIL = 'noreply@klassio.at';
 
 /** Opens the user's e-mail app; sending an e-mail is NOT an automatic verification. */
 export function makeSchoolVerificationMailto(input: {
