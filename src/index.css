@@ -1058,7 +1058,9 @@ html body .cockpit-free-mascot .class-mascot-details .text-teal-950 { color: #13
     pointer-events: none;
   }
   html body .cockpit-free-mascot:focus-within .mascot-widget-toolbar,
-  html body .cockpit-free-mascot:focus-within .mascot-widget-resize {
+  html body .cockpit-free-mascot:focus-within .mascot-widget-resize,
+  html body .cockpit-free-mascot[data-mascot-focused="true"] .mascot-widget-toolbar,
+  html body .cockpit-free-mascot[data-mascot-focused="true"] .mascot-widget-resize {
     opacity: .85 !important;
     pointer-events: auto;
   }
