@@ -256,6 +256,86 @@ function evaluateConstraints(
 }
 
 /**
+ * Place connected "together" children as indivisible blocks, then fit them
+ * into the requested balanced group sizes without violating "apart" pairs.
+ * A bounded search avoids random failure for straightforward buddy rules
+ * (e.g. four prescribed pairs in a partner-work class). Impossible or very
+ * complex combinations fall back to the warning-producing best effort below.
+ */
+function findConstraintSafePartition(
+  pool: string[],
+  sizes: number[],
+  notTogether: GroupConstraint[],
+  keepTogether: GroupConstraint[],
+): string[][] | null {
+  const present = new Set(pool);
+  const parent = new Map(pool.map(id => [id, id]));
+
+  const rootOf = (id: string): string => {
+    const current = parent.get(id)!;
+    if (current === id) return id;
+    const root = rootOf(current);
+    parent.set(id, root);
+    return root;
+  };
+
+  for (const { studentIdA: a, studentIdB: b } of keepTogether) {
+    if (a !== b && present.has(a) && present.has(b)) {
+      parent.set(rootOf(a), rootOf(b));
+    }
+  }
+
+  const blocksByRoot = new Map<string, string[]>();
+  for (const id of pool) {
+    const root = rootOf(id);
+    const block = blocksByRoot.get(root) || [];
+    block.push(id);
+    blocksByRoot.set(root, block);
+  }
+
+  const apart = new Map<string, Set<string>>();
+  for (const { studentIdA: a, studentIdB: b } of notTogether) {
+    if (!present.has(a) || !present.has(b)) continue;
+    if (a === b || rootOf(a) === rootOf(b)) return null;
+    if (!apart.has(a)) apart.set(a, new Set());
+    if (!apart.has(b)) apart.set(b, new Set());
+    apart.get(a)!.add(b);
+    apart.get(b)!.add(a);
+  }
+
+  const blocks = shuffle([...blocksByRoot.values()]).sort((a, b) => b.length - a.length);
+  if (blocks.some(block => block.length > Math.max(...sizes))) return null;
+  const partition: string[][] = sizes.map(() => []);
+  const free = [...sizes];
+  let nodes = 0;
+  const search = (blockIndex: number): boolean => {
+    if (++nodes > 25000) return false;
+    if (blockIndex === blocks.length) return free.every(remaining => remaining === 0);
+
+    const block = blocks[blockIndex];
+    const options = shuffle(sizes.map((_, index) => index)).sort((a, b) => free[a] - free[b]);
+    const triedEmptyCapacities = new Set<number>();
+    for (const groupIndex of options) {
+      const remaining = free[groupIndex];
+      if (remaining < block.length) continue;
+      if (partition[groupIndex].length === 0) {
+        if (triedEmptyCapacities.has(remaining)) continue;
+        triedEmptyCapacities.add(remaining);
+      }
+      if (block.some(id => partition[groupIndex].some(other => apart.get(id)?.has(other)))) continue;
+      partition[groupIndex].push(...block);
+      free[groupIndex] -= block.length;
+      if (search(blockIndex + 1)) return true;
+      free[groupIndex] += block.length;
+      partition[groupIndex].splice(partition[groupIndex].length - block.length, block.length);
+    }
+    return false;
+  };
+
+  return search(0) ? partition.map(shuffle) : null;
+}
+
+/**
  * Hauptfunktion zur Erstellung der Gruppen.
  * Vollständig offline, ohne Leistungs-/Verhaltensdaten oder KI.
  */
@@ -275,11 +355,14 @@ export function generateStudentGroups(
   const keepTogether = config.keepTogether || [];
   const hasConstraints = notTogether.length > 0 || keepTogether.length > 0;
 
-  let bestPartition: string[][] = [];
-  let minViolations = Infinity;
+  const exactPartition = hasConstraints
+    ? findConstraintSafePartition(pool, sizes, notTogether, keepTogether)
+    : null;
+  let bestPartition: string[][] = exactPartition || [];
+  let minViolations = exactPartition ? 0 : Infinity;
   const maxAttempts = hasConstraints ? 60 : 1;
 
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+  for (let attempt = 0; !exactPartition && attempt < maxAttempts; attempt++) {
     const shuffled = shuffle(pool);
     const currentPartition: string[][] = [];
     let currentIdx = 0;
