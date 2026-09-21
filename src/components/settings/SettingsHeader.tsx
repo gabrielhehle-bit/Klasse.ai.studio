@@ -11,11 +11,12 @@ import {
   Sparkles,
   Check,
   Heart,
-  Mail
+  Mail,
+  HelpCircle,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
-export type SettingsCategory = 'overview' | 'account' | 'general' | 'display' | 'modules' | 'sync' | 'backup' | 'support' | 'advanced';
+export type SettingsCategory = 'overview' | 'account' | 'general' | 'display' | 'modules' | 'sync' | 'backup' | 'support' | 'advanced' | 'help';
 
 interface SettingsHeaderProps {
   activeCategory: SettingsCategory;
@@ -33,6 +34,7 @@ export const CATEGORIES: { id: SettingsCategory; label: string; icon: any; short
   { id: 'backup', label: 'Daten & Backup', icon: Download, shortDesc: 'Sichern, Laden & App-Install' },
   { id: 'support', label: 'Unterstützung', icon: Heart, shortDesc: 'Freiwillige Beiträge & Unterstützer:innen' },
   { id: 'advanced', label: 'Erweitert', icon: Shield, shortDesc: 'Datenschutz & Gefahrenbereich' },
+  { id: 'help', label: 'Hilfe', icon: HelpCircle, shortDesc: 'Anleitungen zu allen Seiten und Widgets' },
 ];
 
 export default function SettingsHeader({
@@ -69,6 +71,7 @@ export default function SettingsHeader({
                 {activeCategory === 'backup' && 'Daten & Datensicherung'}
                 {activeCategory === 'support' && 'Klassio unterstützen'}
                 {activeCategory === 'advanced' && 'Erweitert & Sicherheit'}
+                {activeCategory === 'help' && 'Hilfe & Anleitungen'}
               </h1>
               <span className="px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[0.625rem] font-bold uppercase tracking-wider">
                 {einfachModus ? 'Einfachmodus' : 'Alle Optionen'}
