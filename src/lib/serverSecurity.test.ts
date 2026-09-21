@@ -224,6 +224,16 @@ test('E3: Produktionshärtung von server.ts', async (t) => {
     assert.equal(blocked.status, 429);
   });
 
+  await t.test('Unknown Smartboard pairing codes are rate-limited without exposing encrypted sessions', async () => {
+    for (let i = 0; i < 30; i++) {
+      const code = 'AAAA' + i.toString(32).padStart(2, '0').toUpperCase();
+      const res = await fetch(baseUrl + '/api/sync/' + code);
+      assert.equal(res.status, 404);
+    }
+    const blocked = await fetch(baseUrl + '/api/sync/AAAAZZ');
+    assert.equal(blocked.status, 429);
+  });
+
   server.close();
 
   await t.test('Production refuses missing secrets and default access codes', async () => {
