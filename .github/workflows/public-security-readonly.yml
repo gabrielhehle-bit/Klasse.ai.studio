@@ -1,0 +1,30 @@
+name: Public KLASSIO Security Baseline (Read Only)
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-security-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout (no credentials)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Inspect existing public production headers without signing in
+        continue-on-error: true
+        run: node scripts/public-security-readonly.mjs
+
+      - name: Explain scope
+        run: |
+          echo "This read-only diagnostic inspects the PRE-DEPLOYMENT live site."
+          echo "Its result is informational; it cannot confirm how this PR will behave after deployment."
+          echo "No login, student data, active probing or production writes were performed."
