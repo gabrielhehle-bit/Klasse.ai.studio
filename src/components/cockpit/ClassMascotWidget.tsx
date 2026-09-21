@@ -7,6 +7,7 @@ import ClassMascotArtwork from './ClassMascotArtwork';
 interface Props {
   app: AppState;
   setApp: React.Dispatch<React.SetStateAction<AppState>>;
+  currentIsLight?: boolean;
 }
 
 const ACTIONS: ReadonlyArray<{ action: ClassMascotAction; label: string; icon: string }> = [
@@ -22,9 +23,10 @@ const MOODS: ReadonlyArray<{ mood: ClassMascotMood; label: string }> = [
 ];
 
 /** Self-contained cockpit widget; never floats, never reads individual pupil records. */
-export default function ClassMascotWidget({ app, setApp }: Props) {
+export default function ClassMascotWidget({ app, setApp, currentIsLight = true }: Props) {
   const state = normalizeClassMascot(app.classMascot);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [detailsOpen, setDetailsOpen] = React.useState(false);
   const [nameDraft, setNameDraft] = React.useState(state.name);
   React.useEffect(() => setNameDraft(state.name), [state.name, app.activeClassId]);
 
@@ -41,60 +43,66 @@ export default function ClassMascotWidget({ app, setApp }: Props) {
   };
 
   return (
-    <section aria-label="Klassenmaskottchen" className="class-mascot-v1 h-full min-h-0 w-full overflow-y-auto rounded-2xl bg-white p-3 text-slate-950 sm:p-4" style={{ colorScheme: 'light' }}>
-      <header className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="text-[10px] font-extrabold uppercase tracking-wider text-teal-800">Unser Klassenmaskottchen</div>
-          <h3 className="break-words text-lg font-black text-slate-950">{state.name}</h3>
-        </div>
-        <button type="button" onClick={() => setSettingsOpen(open => !open)} aria-expanded={settingsOpen}
-          aria-label={settingsOpen ? 'Maskottchen-Einstellungen schließen' : 'Maskottchen auswählen und Einstellungen öffnen'}
-          className="min-h-10 shrink-0 rounded-xl border border-teal-300 bg-teal-50 px-3 text-xs font-bold text-teal-950 hover:bg-teal-100">
-          {settingsOpen ? 'Fertig' : '⚙️ Ändern'}
-        </button>
-      </header>
-
-      <div className="mt-2 grid min-w-0 grid-cols-[minmax(92px,1fr)_minmax(0,1.4fr)] items-center gap-2 rounded-2xl bg-gradient-to-br from-teal-50 via-white to-amber-50 p-2 sm:gap-3">
-        <div className="min-w-0" style={{ maxHeight: 190 }}>
+    <section aria-label="Klassenmaskottchen" className="class-mascot-v1 class-mascot-freestanding flex h-full min-h-0 w-full flex-col items-center overflow-y-auto overflow-x-hidden p-1 sm:p-2">
+      {/* The illustration is the resting UI: no widget card, backdrop, border, or global floating layer. */}
+      <button type="button" aria-expanded={detailsOpen || settingsOpen}
+        aria-label={detailsOpen || settingsOpen ? 'Maskottchen-Interaktionen schließen' : state.name + ' begrüßen und Interaktionen öffnen'}
+        title={state.name + ' · antippen für Aktionen'}
+        onClick={() => {
+          setDetailsOpen(value => !value);
+          if (detailsOpen) setSettingsOpen(false);
+        }}
+        className="class-mascot-character flex min-h-0 w-full flex-1 items-end justify-center bg-transparent p-0 focus-visible:rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-500"
+        style={{ flex: detailsOpen || settingsOpen ? '0 0 auto' : '1 1 auto' }}>
+        <div className="pointer-events-none w-full" style={{ maxWidth: detailsOpen || settingsOpen ? 128 : 280, maxHeight: detailsOpen || settingsOpen ? 128 : '100%' }}>
           <ClassMascotArtwork kind={state.kind} mood={state.mood} name={state.name} animationEnabled={state.animationEnabled} />
         </div>
-        <div className="min-w-0 space-y-2">
-          <p aria-live="polite" className="break-words text-sm font-semibold leading-relaxed text-slate-900">
-            {mascotMessage(state)}
-          </p>
-          <span className="inline-flex rounded-full border border-teal-200 bg-white px-2.5 py-1 text-[11px] font-extrabold text-teal-900">
+      </button>
+      <p className={'class-mascot-name mt-0.5 text-center text-base font-black tracking-tight ' + (currentIsLight ? 'text-slate-950' : 'text-white')}
+        style={{ textShadow: currentIsLight ? '0 1px 2px rgba(255,255,255,.85)' : '0 1px 3px rgba(0,0,0,.9)' }}>
+        {state.name}
+      </p>
+
+      {(detailsOpen || settingsOpen) && (
+        <div className="class-mascot-details mt-2 w-full max-w-md space-y-2 rounded-2xl border border-teal-200 bg-white/95 p-3 text-slate-950 shadow-lg backdrop-blur-sm"
+          aria-label="Klassenmaskottchen-Interaktionen">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="text-sm font-black text-slate-950">Unser Klassenmaskottchen</h3>
+              <p aria-live="polite" className="text-xs font-semibold leading-relaxed text-slate-800">{mascotMessage(state)}</p>
+            </div>
+            <button type="button" onClick={() => setSettingsOpen(open => !open)} aria-expanded={settingsOpen}
+              aria-label={settingsOpen ? 'Maskottchen-Einstellungen schließen' : 'Maskottchen auswählen und Einstellungen öffnen'}
+              className="min-h-11 shrink-0 rounded-xl border border-teal-300 bg-teal-50 px-3 text-xs font-bold text-teal-950 hover:bg-teal-100">
+              {settingsOpen ? 'Fertig' : '⚙️ Ändern'}
+            </button>
+          </div>
+          <span className="inline-flex rounded-full border border-teal-200 bg-teal-50 px-2.5 py-1 text-[11px] font-extrabold text-teal-950">
             {MOODS.find(item => item.mood === state.mood)?.label}
           </span>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {ACTIONS.map(item => (
+              <button key={item.action} type="button"
+                onClick={() => update(previous => reactToMascotAction(previous, item.action))}
+                className="min-h-11 rounded-xl border-2 border-teal-500 bg-teal-50 px-2 py-2 text-xs font-extrabold text-teal-950 hover:bg-teal-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700">
+                <span aria-hidden="true">{item.icon} </span>{item.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs font-extrabold text-amber-950">
+            <span>Gemeinsam gesammelt:</span>
+            <span role="img" aria-label={state.stars + ' von 5 Klassensternen gesammelt'}>
+              {Array.from({ length: 5 }, (_, index) => <span key={index} aria-hidden="true" className={index < state.stars ? 'text-amber-600' : 'text-slate-300'}>★</span>)}
+            </span>
+            {state.stars === 5 && (
+              <button type="button" onClick={() => update(previous => ({ ...previous, stars: 0 }))}
+                className="min-h-9 rounded-lg border border-amber-300 bg-amber-50 px-2 text-xs font-extrabold text-amber-950">
+                Gemeinsames Ziel gefeiert · Sterne neu starten
+              </button>
+            )}
+          </div>
         </div>
-      </div>
-
-      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-        {ACTIONS.map(item => (
-          <button key={item.action} type="button"
-            onClick={() => update(previous => reactToMascotAction(previous, item.action))}
-            className="min-h-11 rounded-xl border-2 border-teal-500 bg-teal-50 px-2 py-2 text-sm font-extrabold text-teal-950 hover:bg-teal-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700">
-            <span aria-hidden="true">{item.icon} </span>{item.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-extrabold text-amber-950">Gemeinsam gesammelt</span>
-          <span className="text-xs font-bold text-amber-900">{state.stars} / 5 Sterne</span>
-        </div>
-        <div className="mt-1 flex gap-1" role="img" aria-label={`${state.stars} von 5 Klassensternen gesammelt`}>
-          {Array.from({ length: 5 }, (_, index) => (
-            <span key={index} className={`text-lg ${index < state.stars ? 'text-amber-600' : 'text-slate-300'}`} aria-hidden="true">★</span>
-          ))}
-        </div>
-        {state.stars === 5 && (
-          <button type="button" onClick={() => update(previous => ({ ...previous, stars: 0 }))}
-            className="mt-1 min-h-9 rounded-lg bg-white px-3 text-xs font-extrabold text-amber-950 underline underline-offset-2 hover:bg-amber-100">
-            Gemeinsames Ziel gefeiert · Sterne neu starten
-          </button>
-        )}
-      </div>
+      )}
 
       {settingsOpen && (
         <div className="mt-3 space-y-3 rounded-2xl border-2 border-teal-200 bg-slate-50 p-3">
