@@ -4,6 +4,7 @@ export interface GroupWidgetPreferences {
   mode: 'size' | 'count';
   targetValue: number;
   startSize: 'compact' | 'standard' | 'large';
+  namingStyle: 'numbered' | 'colors' | 'symbols' | 'animals';
 }
 
 export function getGroupWidgetPreferences(input: unknown): GroupWidgetPreferences {
@@ -17,5 +18,6 @@ export function getGroupWidgetPreferences(input: unknown): GroupWidgetPreference
     mode,
     targetValue,
     startSize: value.startSize === 'compact' || value.startSize === 'standard' ? value.startSize : 'large',
+    namingStyle: value.namingStyle === 'colors' || value.namingStyle === 'symbols' || value.namingStyle === 'animals' ? value.namingStyle : 'numbered',
   };
 }
