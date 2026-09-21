@@ -27,8 +27,8 @@ test('groups: full 30-pupil class, partner work and short surfaces remain reacha
   const groups = sampleGroups(30, 2);
   const page = getGroupPageLayout(1280, 690, groups, 0);
   assert.equal(page.fits, true);
-  assert.ok(page.pageCount >= 2);
-  assert.ok(page.pageSize < groups.length);
+  assert.equal(page.pageCount, 1, 'all 15 two-person groups fit into the available 1280×690 area');
+  assert.ok(page.pageSize >= groups.length);
   const last = getGroupPageLayout(1280, 690, groups, 5000);
   assert.equal(last.page, last.pageCount - 1);
   assert.ok(last.start < groups.length);
@@ -91,7 +91,7 @@ test('25 children in only two groups: all are visible in non-scrolling group seg
   assert.ok(page.pageCount <= Math.ceil(page.cards.length / page.pageSize));
 });
 
-test('25 children in one large group remain reachable even with two pages; no grow-button loop', () => {
+test('25 children in one large group remain reachable by complete segments; no grow-button loop', () => {
   const groups = generateStudentGroups(
     Array.from({ length: 25 }, (_, index) => `synthetic-${index}`),
     { mode: 'count', value: 1 },
@@ -99,7 +99,7 @@ test('25 children in one large group remain reachable even with two pages; no gr
   const page = getGroupPageLayout(1280, 690, groups, 0);
   assert.equal(page.fits, true);
   assert.equal(groups.length, 1);
-  assert.ok(page.cards.length >= 4);
+  assert.ok(page.cards.length >= 2);
   const last = getGroupPageLayout(1280, 690, groups, 1000);
   assert.equal(last.page, last.pageCount - 1);
   assert.deepEqual(page.cards.flatMap(segment => segment.memberIds).sort(), groups[0].studentIds.slice().sort());
