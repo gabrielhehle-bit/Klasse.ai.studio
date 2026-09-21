@@ -1006,15 +1006,29 @@ html body .classroom-weekly-plan .weekly-plan-dark-action :is(span, svg) {
   color: #ffffff !important;
 }
 
-/* A calm, theme-independent canvas for the new class mascot widget. */
-html body .class-mascot-v1,
-[data-style] .class-mascot-v1,
-[data-style] main .class-mascot-v1.bg-white {
-  background-color: #ffffff !important;
+/* The mascot looks like a free-standing character inside its movable cockpit slot.
+   No forced white widget/card or dark-theme backdrop; only tapped controls have a surface. */
+html body .cockpit-widget-container.cockpit-free-mascot,
+[data-style] main .cockpit-widget-container.cockpit-free-mascot,
+[data-style] .cockpit-widget-container.cockpit-free-mascot,
+html body .cockpit-free-mascot > .mascot-widget-toolbar,
+html body .class-mascot-v1.class-mascot-freestanding,
+[data-style] .class-mascot-v1.class-mascot-freestanding {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  border-color: transparent !important;
+}
+html body .cockpit-free-mascot { color-scheme: normal; }
+html body .cockpit-free-mascot .class-mascot-details {
+  background-color: rgba(255,255,255,.96) !important;
   color: #0f172a !important;
   color-scheme: light;
 }
-[data-style] .class-mascot-v1 .bg-white,
+html body .cockpit-free-mascot .class-mascot-details button.bg-teal-50,
+html body .cockpit-free-mascot .class-mascot-details span.bg-teal-50 { background-color: #f0fdfa !important; }
+html body .cockpit-free-mascot .class-mascot-details .text-teal-950 { color: #134e4a !important; }
 [data-style] .class-mascot-v1 button.bg-white,
 [data-style] .class-mascot-v1 select.bg-white,
 [data-style] .class-mascot-v1 input.bg-white { background-color: #ffffff !important; }
@@ -1026,7 +1040,6 @@ html body .class-mascot-v1,
   background-color: #ccfbf1 !important;
   color: #134e4a !important;
 }
-
 [data-style] .class-mascot-v1 :is(.text-slate-950, .text-slate-900, .text-slate-800, .text-slate-700) {
   color: #0f172a !important;
 }
@@ -1035,6 +1048,11 @@ html body .class-mascot-v1,
 }
 [data-style] .class-mascot-v1 :is(.text-amber-950, .text-amber-900) {
   color: #78350f !important;
+}
+@media (hover: none) {
+  /* Touchscreens still expose the drag, close and resize handles. */
+  html body .cockpit-free-mascot .mascot-widget-toolbar { opacity: .7 !important; }
+  html body .cockpit-free-mascot .mascot-widget-resize { opacity: .7 !important; }
 }
 @keyframes class-mascot-gentle-bob {
   0%, 100% { transform: translateY(0); }

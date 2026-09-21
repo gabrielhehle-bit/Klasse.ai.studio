@@ -62,7 +62,27 @@ test('the new widget fully replaces the old widget and no floating pet or access
   assert.doesNotMatch(app, /<UnifiedFAB\s*\/>/);
 });
 
-test('the real React widget renders all four figures and the teacher controls', () => {
+test('the transparent mascot rests freely in the cockpit and shows actions only after a deliberate tap', () => {
+  const artwork = readFileSync('src/components/cockpit/ClassMascotArtwork.tsx', 'utf8');
+  const widget = readFileSync('src/components/cockpit/ClassMascotWidget.tsx', 'utf8');
+  const host = readFileSync('src/components/cockpit/CockpitWidget.tsx', 'utf8');
+  const styles = readFileSync('src/index.css', 'utf8');
+  assert.match(widget, /class-mascot-freestanding/);
+  assert.match(widget, /class-mascot-character/);
+  assert.match(widget, /setDetailsOpen\(value => !value\)/);
+  assert.match(widget, /\{\(detailsOpen \|\| settingsOpen\) && \(/);
+  assert.match(widget, /ClassMascotArtwork/);
+  assert.match(host, /isFreeMascot = widget\.type === "pet"/);
+  assert.match(host, /cockpit-free-mascot rounded-none border-0 bg-transparent shadow-none/);
+  assert.match(host, /mascot-widget-toolbar/);
+  assert.match(styles, /html body \.cockpit-widget-container\.cockpit-free-mascot/);
+  assert.match(styles, /background-color: transparent !important/);
+  assert.match(styles, /prefers-reduced-motion/);
+  assert.match(artwork, /<svg viewBox=/);
+  assert.doesNotMatch(widget, /fixed bottom-|absolute bottom-|floating-classpet-outer/);
+});
+
+test('the real React widget renders all four figures with no always-visible control panel', () => {
   const render = (kind: 'otter' | 'dog' | 'cat' | 'elf') => renderToStaticMarkup(
     React.createElement(ClassMascotWidget, {
       app: { ...initialAppState, classMascot: { ...DEFAULT_CLASS_MASCOT, kind, name: MASCOT_OPTIONS.find(option => option.kind === kind)!.name } },
@@ -71,11 +91,11 @@ test('the real React widget renders all four figures and the teacher controls', 
   );
   for (const kind of ['otter', 'dog', 'cat', 'elf'] as const) {
     const output = render(kind);
-    assert.match(output, /Unser Klassenmaskottchen/);
+    assert.match(output, /Klassenmaskottchen/);
     assert.match(output, /role="img"/);
-    assert.match(output, /Loben/);
-    assert.match(output, /Zur Ruhe kommen/);
-    assert.match(output, /Mut machen/);
+    assert.match(output, /class-mascot-freestanding/);
+    assert.match(output, /aria-expanded="false"/);
+    assert.doesNotMatch(output, /Loben|Zur Ruhe kommen|Mut machen|Gemeinsam gesammelt/);
     assert.match(output, new RegExp(MASCOT_OPTIONS.find(option => option.kind === kind)!.name));
     assert.doesNotMatch(output, /floating-classpet-outer|HAUSTIER-KOMMANDOZENTRALE/);
   }
