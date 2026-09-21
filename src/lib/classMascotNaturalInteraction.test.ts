@@ -25,7 +25,8 @@ test('Die Figur bleibt ohne Kartenhintergrund; Werkzeugstreifen und Namenszeile 
   assert.match(css, /\.cockpit-free-mascot \.mascot-widget-resize \{\s*display: none !important;/);
   const widget = readFileSync('src/components/cockpit/ClassMascotWidget.tsx', 'utf8');
   assert.match(widget, /class-mascot-character[^"]*touch-none cursor-grab/);
-  assert.match(widget, /ziehen zum Verschieben/);
+  assert.match(widget, /Klassenmaskottchen verschieben/);
+  assert.doesNotMatch(widget, /title="Maskottchen|onClick=|setDetailsOpen/);
   assert.doesNotMatch(widget, /setDetailsOpen|setSettingsOpen|class-mascot-name|class-mascot-details|class-mascot-settings/);
   const rendered = renderToStaticMarkup(React.createElement(ClassMascotWidget, {
     app: { ...initialAppState, classMascot: DEFAULT_CLASS_MASCOT },
