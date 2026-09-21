@@ -49,7 +49,7 @@ test('Group pause, pair constraints and naming options render only in Widget hin
   const main = widget.slice(widget.indexOf('The teaching surface contains actions and results only.'), widget.indexOf('OPTIONEN MODAL'));
   assert.match(main, /onClick=\{\(\) => handleGenerate\(\)\}/);
   assert.doesNotMatch(main, /setTargetValue\(|setMode\(|setShowOptions\(|Settings2|MoreHorizontal/);
-  assert.match(widget, /widget\?\.settings\?\.targetValue/);
-  assert.match(widget, /widget\?\.settings\?\.mode/);
+  assert.match(widget, /const targetValue = typeof savedSettings\.targetValue/);
+  assert.match(widget, /const mode: GroupingMode = savedSettings\.mode === 'count'/);
 
 });
