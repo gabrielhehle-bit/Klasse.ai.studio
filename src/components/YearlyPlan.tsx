@@ -635,14 +635,14 @@ export default function YearlyPlan() {
             </>
           ) : (
             <>
-              {/* Sparkles Suggestion */}
-              <button 
+              {/* Volksschul-Vorschläge nicht für Sek I als Lehrplan ausgeben. */}
+              {app.schulart !== 'mittelschule' && app.schulart !== 'ahs_unterstufe' && <button 
                 onClick={() => setSuggestingCell({ kw, subjectId: s.id })}
                 className="p-1 rounded text-amber-500 hover:bg-amber-50 animate-pulse transition-colors"
                 title="Vorschläge anzeigen (KI)"
               >
                 <Sparkles size={11} className="fill-current" />
-              </button>
+              </button>}
 
               {/* Paste Topic if copied */}
               {copiedTopic && (
@@ -797,7 +797,7 @@ export default function YearlyPlan() {
             densityMode === 'kompakt' ? 'min-h-[28px] py-0.5' : densityMode === 'normal' ? 'min-h-[44px] py-1' : 'min-h-[60px] py-2'
           }`}>
             <Plus size={densityMode === 'kompakt' ? 12 : 15} className="text-stone-400 hover:scale-125 transition-transform" />
-            {densityMode !== 'kompakt' && (
+            {densityMode !== 'kompakt' && app.schulart !== 'mittelschule' && app.schulart !== 'ahs_unterstufe' && (
               <button 
                 onClick={(e) => { e.stopPropagation(); setSuggestingCell({ kw, subjectId: s.id }); }} 
                 className="p-1 rounded bg-amber-50 text-amber-500 hover:bg-amber-100 border border-amber-200 flex items-center gap-1 text-[0.55rem] font-black uppercase tracking-tight scale-90"
@@ -1049,7 +1049,7 @@ export default function YearlyPlan() {
             <Settings size={14} /> {showMoreTools ? 'Werkzeuge schließen' : 'Weitere Werkzeuge'}
           </button>
           <div id="yearly-tools" className={`${showMoreTools ? 'flex' : 'hidden'} flex-wrap items-center gap-1.5`}>
-          <button
+          {app.schulart !== 'mittelschule' && app.schulart !== 'ahs_unterstufe' && <button
             onClick={() => {
               setAiSuggestions([]);
               setAiGeneratingError(null);
@@ -1058,10 +1058,10 @@ export default function YearlyPlan() {
             className="inline-flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-[0.75rem] font-black transition-all active:scale-95 shadow-sm cursor-pointer"
           >
             <span>✨</span> Themen-Assistent (KI)
-          </button>
+          </button>}
           
-          {/* Lehrplan-Seitenlade Button */}
-          <button 
+          {/* Lehrplan-Seitenlade Button: vorhandener Katalog gilt nur für Volksschule. */}
+          {app.schulart !== 'mittelschule' && app.schulart !== 'ahs_unterstufe' && <button 
             onClick={() => setShowLehrplanDrawer(prev => !prev)}
             className={`flex-1 md:flex-none inline-flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl text-[0.52rem] xs:text-[0.58rem] sm:text-[0.6875rem] md:text-[0.8125rem] font-black transition-all border active:scale-95 shadow-sm cursor-pointer ${
               showLehrplanDrawer 
@@ -1071,7 +1071,7 @@ export default function YearlyPlan() {
           >
             <BookOpen size={11} className="sm:w-[15px] sm:h-[15px]" /> 
             <span>Lehrplan {showLehrplanDrawer ? 'ausblenden' : 'anzeigen'}</span>
-          </button>
+          </button>}
 
           {/* Designer-Farbschemas Preset Picker */}
           <div className="relative group shrink-0">
@@ -1417,7 +1417,7 @@ export default function YearlyPlan() {
 
           {/* Sliding Lehrplan Side-Cabinet (Lehrplan-Seitenlade) */}
           <AnimatePresence>
-            {showLehrplanDrawer && (
+            {showLehrplanDrawer && app.schulart !== 'mittelschule' && app.schulart !== 'ahs_unterstufe' && (
               <motion.div
                 initial={{ width: 0, opacity: 0 }}
                 animate={{ width: 350, opacity: 1 }}
@@ -2502,7 +2502,7 @@ export default function YearlyPlan() {
 
       {/* Sparkles suggestions popup */}
       <AnimatePresence>
-        {suggestingCell && (
+        {suggestingCell && app.schulart !== 'mittelschule' && app.schulart !== 'ahs_unterstufe' && (
           <div className="fixed inset-0 z-[310] flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm shadow-xl">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
