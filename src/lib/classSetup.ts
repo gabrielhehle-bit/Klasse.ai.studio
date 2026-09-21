@@ -8,7 +8,7 @@ export function standardKlassenrolle(schulart: Schulart | string | null | undefi
 }
 
 export function leererSek1Tageplan(): typeof DEFAULT_TAGEPLAN {
-  return Object.fromEntries(TAGE_NAMEN.map(tag => [tag, { stunden: [] }])) as typeof DEFAULT_TAGEPLAN;
+  return Object.fromEntries(TAGE_NAMEN.map(tag => [tag, { vm: 0, nm: false, stunden: [] }])) as typeof DEFAULT_TAGEPLAN;
 }
 
 export function istUnveraenderterVsTageplan(value: unknown): boolean {
