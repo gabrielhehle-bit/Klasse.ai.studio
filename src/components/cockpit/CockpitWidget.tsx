@@ -152,6 +152,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   const widgetRef = useRef<HTMLDivElement>(null);
   const dragStartPos = useRef({ x: 0, y: 0, left: 0, top: 0 });
   const resizeStartPos = useRef({ startX: 0, startY: 0, startW: 0, startH: 0 });
+  const suppressMascotTap = useRef(false);
 
   const [showSizeConfig, setShowSizeConfig] = useState(false);
   const [showWidgetMenu, setShowWidgetMenu] = useState(false);
@@ -469,7 +470,6 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
 
   // Moving a free-standing mascot should feel like picking up the animal, not dragging
   // an invisible widget rectangle. A short tap must still open mascot interactions.
-  const suppressMascotTap = useRef(false);
   const handleMascotPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!isFreeMascot || layoutLocked || isMaximized || !event.isPrimary || event.button !== 0) return;
     const target = event.target;
