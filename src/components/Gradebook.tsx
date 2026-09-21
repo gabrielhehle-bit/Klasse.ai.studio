@@ -1630,6 +1630,11 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
               {availableSubjects.length === 0 && <option value="">Bitte zuerst im Klassen-Setup Fächer anlegen</option>}
               {availableSubjects.map(fach => <option key={fach} value={fach}>{fach}</option>)}
             </select>
+            <button type="button" aria-label="Neues Fach hinzufügen" title="Fach hinzufügen · Klassen-Setup öffnen"
+              onClick={() => setApp(prev => ({ ...prev, setupInitialStepMode: 'Fächer', currentPage: 'setup' }))}
+              className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border-2 border-emerald-700 bg-emerald-600 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800">
+              <Plus size={18} aria-hidden="true" /> Fach hinzufügen
+            </button>
             <label className="sr-only" htmlFor="gradebook-semester">Semester auswählen</label>
             <select id="gradebook-semester" value={sem} onChange={event => setSem(event.target.value as '1' | '2')}
               className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-600">
