@@ -108,10 +108,12 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     }
 
-    // E3.6 Content-Security-Policy
+    // E3.6 Per-response nonces let OAuth callback scripts run without arbitrary inline JavaScript.
+    const cspNonce = crypto.randomBytes(16).toString('base64');
+    res.locals.cspNonce = cspNonce;
     const csp = [
       "default-src 'self'",
-      process.env.NODE_ENV === 'production' ? "script-src 'self' 'unsafe-inline'" : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      process.env.NODE_ENV === 'production' ? `script-src 'self' 'nonce-${cspNonce}'` : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://unpkg.com https://*.canva.com",
@@ -1704,7 +1706,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     });
     if (flowId) canvaOauthFlows.delete(flowId);
 
-    const fail = (message: string) => res.status(400).type('html').send(`<!doctype html><html><body style="font-family:system-ui;padding:2rem"><h2>Canva-Verbindung fehlgeschlagen</h2><p>${escapeHtml(message)}</p><script>if(window.opener){window.opener.postMessage({type:'CANVA_AUTH_ERROR',error:${scriptJson(message)}},${scriptJson(callbackOrigin)});}setTimeout(()=>window.close(),1500);</script></body></html>`);
+    const fail = (message: string) => res.status(400).type('html').send(`<!doctype html><html><body style="font-family:system-ui;padding:2rem"><h2>Canva-Verbindung fehlgeschlagen</h2><p>${escapeHtml(message)}</p><script nonce="${res.locals.cspNonce}">if(window.opener){window.opener.postMessage({type:'CANVA_AUTH_ERROR',error:${scriptJson(message)}},${scriptJson(callbackOrigin)});}setTimeout(()=>window.close(),1500);</script></body></html>`);
 
     if (oauthError) return fail('Canva-Anmeldung wurde abgebrochen oder abgelehnt.');
     const cookies = parseCookies(req);
@@ -1726,7 +1728,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       const sessionId = crypto.randomBytes(32).toString('base64url');
       await canvaTokenStore.put(callbackAccount.userId, sessionId, tokenData);
       setCanvaSessionCookie(req, res, sessionId);
-      return res.type('html').send(`<!doctype html><html><body style="font-family:system-ui;padding:2rem"><h2>Canva verbunden</h2><p>Du kannst zu Klassio zurückkehren.</p><script>if(window.opener){window.opener.postMessage({type:'CANVA_AUTH_SUCCESS'},${scriptJson(callbackOrigin)});}setTimeout(()=>window.close(),700);</script></body></html>`);
+      return res.type('html').send(`<!doctype html><html><body style="font-family:system-ui;padding:2rem"><h2>Canva verbunden</h2><p>Du kannst zu Klassio zurückkehren.</p><script nonce="${res.locals.cspNonce}">if(window.opener){window.opener.postMessage({type:'CANVA_AUTH_SUCCESS'},${scriptJson(callbackOrigin)});}setTimeout(()=>window.close(),700);</script></body></html>`);
     } catch (error: any) {
       return fail(error?.message || 'Canva-Token konnte nicht erzeugt werden.');
     }
@@ -3514,8 +3516,9 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
           <div class="error-icon">❌</div>
           <h2>Verbindung fehlgeschlagen</h2>
           <p>${escapeHtml(errMsg)}</p>
-          <button onclick="window.close()">Fenster schließen</button>
-          <script>
+          <button type="button" id="klassio-close-window">Fenster schließen</button>
+          <script nonce="${res.locals.cspNonce}">
+            document.getElementById('klassio-close-window')?.addEventListener('click', () => window.close());
             if (window.opener) {
               window.opener.postMessage({ type: 'ONEDRIVE_AUTH_ERROR', error: ${scriptJson(errMsg)} }, ${scriptJson(callbackOrigin)});
             }
@@ -3588,7 +3591,8 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
           <div class="spinner"></div>
           <h2>Verbindung erfolgreich!</h2>
           <p>Dieses Fenster schließt sich in Kürze automatisch...</p>
-          <script>
+          <script nonce="${res.locals.cspNonce}">
+            document.getElementById('klassio-close-window')?.addEventListener('click', () => window.close());
             if (window.opener) {
               window.opener.postMessage({ 
                 type: 'ONEDRIVE_AUTH_SUCCESS', 
@@ -3640,8 +3644,9 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
           <div class="error-icon">❌</div>
           <h2>Token-Austausch fehlgeschlagen</h2>
           <p>${escapeHtml(errMsg)}</p>
-          <button onclick="window.close()">Fenster schließen</button>
-          <script>
+          <button type="button" id="klassio-close-window">Fenster schließen</button>
+          <script nonce="${res.locals.cspNonce}">
+            document.getElementById('klassio-close-window')?.addEventListener('click', () => window.close());
             if (window.opener) {
               window.opener.postMessage({ type: 'ONEDRIVE_AUTH_ERROR', error: ${scriptJson(errMsg)} }, ${scriptJson(callbackOrigin)});
             }
