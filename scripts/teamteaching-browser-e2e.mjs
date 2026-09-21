@@ -316,7 +316,10 @@ async function main() {
     console.log('✓ Lehrkraft A: class encrypted and shared');
 
     await loginWithSchoolMail(berta, EMAIL_B, VAULT_B);
-    console.log('✓ Lehrkraft B: separate school-mail login and vault/device identity ready');
+    // A second teacher must also complete the one-time school/class setup
+    // before opening classroom tools; their shared class is added afterwards.
+    await createClassInUi(berta, 'Berta eigene Klasse 1B');
+    console.log('✓ Lehrkraft B: separate school-mail login, first setup and vault/device identity ready');
 
     // Remount A's team page so the newly registered colleague/device appears.
     await openClassTeam(anna);
