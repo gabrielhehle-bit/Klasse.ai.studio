@@ -413,6 +413,8 @@ export interface Student {
   anschrift?: string;
   plz?: string;
   ort?: string;
+  /** Manuell markierter Wohnort – nur im verschlüsselten Schülerdatensatz, nie an Geocoder senden. */
+  homeMapPin?: { lat: number; lon: number };
   telefon_mutter?: string;
   telefon_vater?: string;
   email_eltern?: string;
