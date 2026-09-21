@@ -386,6 +386,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     groupPage,
   );
   const displayedGroups = groupLayout.cards.slice(groupLayout.start, groupLayout.start + groupLayout.pageSize);
+  const hasMissingClassMembers = groups.some(group => group.studentIds.some(id => !allStudents.some(student => student.id === id)));
 
   const widgetContent = (
     <div
@@ -819,7 +820,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                       const student = allStudents.find((s) => s.id === studentId);
                       const displayName = student
                         ? getDisplayStudentName(student, allStudents)
-                        : 'Nicht in dieser Klasse – Einteilung prüfen';
+                        : 'Nicht zugeordnet';
                       const isSelected = selectedStudentForAction === studentId;
 
                       return (
@@ -873,6 +874,12 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
           </>
         )}
       </div>
+
+      {hasMissingClassMembers && (
+        <div role="status" className="shrink-0 border-t border-amber-300 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-900">
+          Die gespeicherte Einteilung enthält Kinder, die nicht zur aktiven Klasse gehören. Bitte Gruppen neu bilden.
+        </div>
+      )}
 
       {/* Footer Schnellübersicht */}
       {groups.length > 0 && (
