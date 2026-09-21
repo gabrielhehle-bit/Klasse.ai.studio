@@ -424,6 +424,9 @@ async function main() {
     await waitForAdminNotification();
 
     await loginWithMail(admin, ADMIN_EMAIL, ADMIN_VAULT);
+    // First-time accounts, including school administrators, complete setup
+    // before settings are unlocked. This is the intended onboarding contract.
+    await createClassInUi(admin, 'Admin-Einrichtung 1A');
     await openAccountSettings(admin);
     await waitFor(admin, 'admin school queue visible', 'document.body?.innerText.includes("Schulverwaltung") && document.body?.innerText.includes("Volksschule Neu")', 20000);
     await clickButton(admin, 'Freigeben');
