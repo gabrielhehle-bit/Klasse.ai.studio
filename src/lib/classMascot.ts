@@ -41,6 +41,29 @@ const MOODS = new Set<ClassMascotMood>(['happy', 'calm', 'sleepy', 'proud']);
 const clampStars = (value: unknown) => typeof value === 'number' && Number.isFinite(value)
   ? Math.max(0, Math.min(5, Math.floor(value))) : 0;
 
+/**
+ * Recenter the independent mascot within the current cockpit viewport.
+ * Use actual measured space, not the old whiteboard's width/height or saved
+ * dimensions from another device. Positions remain percentages in cockpitLayout.
+ */
+export function centerClassMascotInViewport(
+  viewportWidth: number,
+  viewportHeight: number,
+  preferredSize: number,
+): { x: number; y: number } {
+  if (!Number.isFinite(viewportWidth) || !Number.isFinite(viewportHeight) ||
+      viewportWidth <= 0 || viewportHeight <= 0) {
+    return { x: 0, y: 0 };
+  }
+  const figureSize = Number.isFinite(preferredSize)
+    ? Math.max(1, Math.min(preferredSize, viewportWidth, viewportHeight))
+    : Math.min(220, viewportWidth, viewportHeight);
+  return {
+    x: ((viewportWidth - figureSize) / (2 * viewportWidth)) * 100,
+    y: ((viewportHeight - figureSize) / (2 * viewportHeight)) * 100,
+  };
+}
+
 export function normalizeClassMascot(value?: Partial<ClassMascotState> | null): ClassMascotState {
   const kind = value?.kind && KINDS.has(value.kind) ? value.kind : DEFAULT_CLASS_MASCOT.kind;
   const defaultName = MASCOT_OPTIONS.find(option => option.kind === kind)?.name || 'Olivia';
