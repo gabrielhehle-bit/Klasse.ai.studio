@@ -1553,6 +1553,18 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     return <LeistungsAuswertungen initialSubject={activeFach} initialSemester={sem} onBack={() => setShowDetailedAnalysis(false)} />;
   }
 
+  // Sek-I-Klassen ohne ausgewählte Fächer dürfen keine Noten in einem impliziten
+  // Volksschul-Fach oder unter einem leeren Fachnamen erzeugen.
+  if (istSekundarstufe(app.schulart) && availableSubjects.length === 0) {
+    return (
+      <div className="mx-auto max-w-xl rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center shadow-sm">
+        <h2 className="text-xl font-black text-[var(--text)]">Noch keine Fächer eingerichtet</h2>
+        <p className="mt-3 text-sm text-[var(--text2)]">Wähle im Klassen-Setup die Fächer aus, die du in dieser Klasse unterrichtest. Anschließend kannst du hier Leistungen dokumentieren.</p>
+        <button type="button" className="mt-5 rounded-xl bg-[var(--accent)] px-5 py-3 font-bold text-white" onClick={() => { setApp(prev => ({ ...prev, setupInitialStepMode: 'Fächer', currentPage: 'setup' })); }}>Fächer einrichten</button>
+      </div>
+    );
+  }
+
   // One feedback editor, reusing the existing grade and observation data.
   if (showFeedback) {
     return <VerbalAssessment mode="feedback" initialSubject={activeFach} initialSemester={sem} onBack={() => setShowFeedback(false)} />;
