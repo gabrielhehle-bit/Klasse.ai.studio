@@ -4,7 +4,7 @@ import { Cloud, CloudOff, Loader2, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import type { AppState } from '../types';
 import { UNTERRICHTSMODUS_THEMES } from '../lib/unterrichtsmodusThemes';
-import { MASCOT_OPTIONS, MASCOT_SURPRISE_EVENT, normalizeClassMascot, reactToMascotAction, selectClassMascot } from '../lib/classMascot';
+import { MASCOT_OPTIONS, MASCOT_RITUAL_EVENT, MASCOT_SURPRISE_EVENT, normalizeClassMascot, reactToMascotAction, selectClassMascot } from '../lib/classMascot';
 import ClassMascotArtwork from './cockpit/ClassMascotArtwork';
 
 interface ClassMascotSettingsPanelProps {
@@ -144,7 +144,7 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                             Gemeinsame Klassenrituale
                         </h3>
                         <p className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>
-                            Nur du löst diese Gesten aus. Es werden keine Daten einzelner Kinder bewertet.
+                            Nur du löst die kurze Geste aus. Die gewählte Haltung bleibt danach erhalten; keine Bewertung einzelner Kinder.
                         </p>
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                             {([
@@ -158,6 +158,7 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                                             ...prev,
                                             classMascot: reactToMascotAction(normalizeClassMascot(prev.classMascot), ritual.action),
                                         }));
+                                        window.dispatchEvent(new CustomEvent(MASCOT_RITUAL_EVENT, { detail: ritual.action }));
                                         onClose();
                                     }}
                                     className="min-h-11 rounded-xl border-2 px-2 py-2 text-xs font-black focus-visible:outline focus-visible:outline-2"
