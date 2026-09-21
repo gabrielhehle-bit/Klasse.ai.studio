@@ -293,25 +293,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const pushAccountStateIfReady = React.useCallback(async (state: AppState, vaultKey: CryptoKey) => {
     if (!accountSyncReadyRef.current || accountSyncBusyRef.current) return;
-    const vaultRecord = await loadVaultRecord();
-    if (!vaultRecord) return;
+    // Lock before the first await: simultaneous autosave + pagehide must not start
+    // two PUTs with the same revision and manufacture a conflict on one device.
+    accountSyncBusyRef.current = true;
+    try {
+      const vaultRecord = await loadVaultRecord();
+      if (!vaultRecord || getActiveVaultKey() !== vaultKey) return;
+      if (currentAppRef.current !== state || locallySavedStateRef.current !== state) return;
 
-    const baseline = loadAccountSyncMetadata(vaultRecord.id);
-    const expectedRevision = accountSyncRevisionRef.current || baseline?.revision || 0;
-    if (baseline && appStateFingerprint(state) === baseline.fingerprint && expectedRevision === baseline.revision) {
-      if (locallySavedStateRef.current === currentAppRef.current
-        && appStateFingerprint(currentAppRef.current) === baseline.fingerprint) {
-        cloudConfirmedStateRef.current = currentAppRef.current;
+      const baseline = loadAccountSyncMetadata(vaultRecord.id);
+      const expectedRevision = accountSyncRevisionRef.current || baseline?.revision || 0;
+      if (baseline && appStateFingerprint(state) === baseline.fingerprint
+        && expectedRevision === baseline.revision) {
+        cloudConfirmedStateRef.current = state;
         setAccountSyncHealthy(true);
         setAccountSyncLastAt(baseline.updatedAt);
         setAccountSyncStatus('synced');
+        return;
       }
-      return;
-    }
 
-    accountSyncBusyRef.current = true;
-    setAccountSyncStatus('syncing');
-    try {
+      setAccountSyncStatus('syncing');
       const snapshot = await pushAccountSyncSnapshot(state, vaultKey, vaultRecord, expectedRevision);
       markAccountSynced(snapshot, state);
     } catch (error: any) {
