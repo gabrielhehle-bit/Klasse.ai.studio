@@ -135,7 +135,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
     { id: 'settings', label: 'Einstellungen', icon: <SettingsIcon size={18} />, section: 'Ausgabe & Daten' },
   ];
 
-  const SEK1_MODULES = [...ALL_MODULES, { id: 'stundenplan', label: 'Stundenplan', icon: <Calendar size={18} />, section: 'Planung' }];
+  const SEK1_MODULES = [...ALL_MODULES, { id: 'stundenplan', label: 'Mein Stundenplan', icon: <Calendar size={18} />, section: 'Planung' }];
   const utilityIds = new Set(['drucken', 'datensicherung', 'settings']);
   const restrictedForSubjectTeachers = new Set(['orga', 'uebergabemappe', 'diagnostik', 'klassengemeinschaft', 'jahresbericht']);
 
@@ -404,8 +404,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                   } ${isCollapsed ? 'justify-center px-0' : ''}`}
                   style={currentPage === item.id ? { backgroundColor: 'var(--accent, #10b981)', color: 'var(--btn-text, #ffffff)' } : {}}
                   onClick={() => {
-                    if (item.id === 'stundenplan') setApp(prev => ({ ...prev, setupInitialStepMode: 'Stundenplan', currentPage: 'setup' }));
-                    else setPage(item.id);
+                    setPage(item.id);
                     if (window.innerWidth < 1024) setIsOpen(false);
                   }}
                 >
