@@ -255,6 +255,11 @@ test('E3: Produktionshärtung von server.ts', async (t) => {
       const prodAddress = prodServer.address() as any;
       const res = await fetch(`http://127.0.0.1:${prodAddress.port}/api/health`);
       assert.equal(res.headers.get("strict-transport-security"), "max-age=31536000; includeSubDomains");
+      const csp = res.headers.get('content-security-policy') || '';
+      assert.match(csp, /script-src 'self' 'nonce-[^']+'/);
+      assert.ok(!csp.includes("'unsafe-inline'") || csp.includes("style-src 'self' 'unsafe-inline'"), 'styles may remain inline, scripts may not');
+      assert.ok(!csp.includes("'unsafe-eval'"));
+      assert.match(csp, /frame-ancestors 'self'/);
       prodServer.close();
     } finally {
       process.env.NODE_ENV = origEnv;
