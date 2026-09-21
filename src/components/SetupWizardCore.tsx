@@ -78,6 +78,24 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   const [tageplan, setTageplan] = useState<any>(isNewClass ? (initialSchulart === 'volksschule' ? DEFAULT_TAGEPLAN : leererSek1Tageplan()) : (activeClassLocal?.tageplan || app.tageplan || (initialSchulart === 'volksschule' ? DEFAULT_TAGEPLAN : leererSek1Tageplan())));
   const [stammplan, setStammplan] = useState<any>(isNewClass ? {} : (activeClassLocal?.stammplan || app.stammplan || {}));
 
+  const handleSchulartChange = (next: Schulart) => {
+    if (next === schulart) return;
+    setSchulart(next);
+    setStufe(previous => passendeSchulstufe(next, previous));
+    // Bestehende Klassen-/Leistungsdaten niemals automatisch beim Wechsel löschen.
+    if (isEditing) return;
+    setKlassenvorstand(standardKlassenrolle(next));
+    if (next === 'volksschule') {
+      setFaecher(previous => previous.length ? previous : [...FAECHER_ALLE]);
+      setFachConfig(previous => Object.keys(previous).length ? previous : DEFAULT_FACH_COLORS);
+      setTageplan(previous => istLeererTageplan(previous) ? DEFAULT_TAGEPLAN : previous);
+    } else {
+      setFaecher(previous => previous.length === FAECHER_ALLE.length && previous.every((fach, index) => fach === FAECHER_ALLE[index]) ? [] : previous);
+      setFachConfig(previous => JSON.stringify(previous) === JSON.stringify(DEFAULT_FACH_COLORS) ? {} : previous);
+      setTageplan(previous => istUnveraenderterVsTageplan(previous) && Object.keys(stammplan).length === 0 ? leererSek1Tageplan() : previous);
+    }
+  };
+
   const initialStudents = isNewClass ? [] : (activeClassLocal?.schueler?.length ? activeClassLocal.schueler : (isEditing ? (app.schueler || []) : []));
   const [studentsList, setStudentsList] = useState<any[]>(initialStudents);
   const [currentStudent, setCurrentStudent] = useState({ vorname: '', nachname: '' });
@@ -1020,7 +1038,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
            {STEPS[currStep].title === 'Klasse & Theme' && (
            <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out">
              <div className="border-b border-slate-100 pb-2">
-                <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><GraduationCap className="text-emerald-500" size={22}/> Klasse & Theme</h3>
+                <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><GraduationCap className="text-emerald-500" size={22}/> Klasse & mein Einsatz</h3>
              </div>
              
              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
@@ -1028,11 +1046,25 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-6 rounded-[24px] border border-slate-100">
                  <div className="space-y-1.5 sm:col-span-2">
                    <label htmlFor="klassio-schulart" className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Schulart *</label>
-                   <select id="klassio-schulart" value={schulart} onChange={e => { const next = e.target.value as Schulart; setSchulart(next); setStufe(previous => passendeSchulstufe(next, previous)); if (!isEditing && next !== 'volksschule') setFaecher(previous => previous.length === FAECHER_ALLE.length && previous.every((fach, index) => fach === FAECHER_ALLE[index]) ? [] : previous); }} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 font-semibold">
+                   <select id="klassio-schulart" value={schulart} onChange={e => handleSchulartChange(e.target.value as Schulart)} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 font-semibold">
                      {SCHULARTEN.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
                    </select>
-                   {schulart !== 'volksschule' && <p className="text-xs text-amber-700">Für die Unterstufe wählst du die unterrichteten Fächer und die Stunden selbst. Die Volksschul-Stundentafel wird nicht übernommen.</p>}
+                   {isSek1 && <p className="text-xs text-slate-600">Wähle anschließend nur die Fächer und Stunden, die du in dieser Klasse unterrichtest. Weitere Klassen kannst du einzeln hinzufügen.</p>}
                  </div>
+                 <fieldset className="space-y-2 sm:col-span-2">
+                   <legend className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Meine Aufgabe in dieser Klasse</legend>
+                   <div className="grid gap-2 sm:grid-cols-2">
+                     <label className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-3 transition-colors ${!klassenvorstand ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+                       <input type="radio" name="klassio-klassenrolle" value="fachunterricht" checked={!klassenvorstand} onChange={() => setKlassenvorstand(false)} className="mt-1 accent-emerald-600" />
+                       <span><strong className="block text-sm text-slate-800">{isSek1 ? 'Fachlehrperson' : 'Fach- oder Teamunterricht'}</strong><span className="mt-1 block text-xs text-slate-600">Ich unterrichte ausgewählte Fächer in dieser Klasse.</span></span>
+                     </label>
+                     <label className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-3 transition-colors ${klassenvorstand ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+                       <input type="radio" name="klassio-klassenrolle" value="klassenvorstand" checked={klassenvorstand} onChange={() => setKlassenvorstand(true)} className="mt-1 accent-emerald-600" />
+                       <span><strong className="block text-sm text-slate-800">{isSek1 ? 'Fachlehrperson & Klassenvorstand' : 'Klassenlehrperson'}</strong><span className="mt-1 block text-xs text-slate-600">{isSek1 ? 'Zusätzlich bin ich für diese Klasse Klassenvorstand.' : 'Ich führe diese Klasse als Klassenlehrperson.'}</span></span>
+                     </label>
+                   </div>
+                   <p className="text-xs text-slate-500">Die Aufgabe wird für jede Klasse getrennt gespeichert. Sie ersetzt keine Berechtigungsfreigabe für gemeinsame Daten.</p>
+                 </fieldset>
                  <div className="space-y-1.5 sm:col-span-1">
                     <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Klassenbezeichnung *</label>
                     <input autoFocus type="text" placeholder="z.B. 1A" value={klassenbezeichnung} onChange={e => {setKlassenbezeichnung(e.target.value); if(e.target.value.trim()) setShowMissingKlassenbezeichnung(false);}} className={`w-full px-4 py-2.5 bg-white shadow-sm border focus:ring-4 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all ${showMissingKlassenbezeichnung ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/10' : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'}`} />
@@ -1059,7 +1091,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                         <button key={st} type="button" onClick={() => setStufe(st)} title={schulstufenText(schulart, st)} className={`py-2 rounded-xl text-[0.875rem] leading-snug font-black border transition-all ${stufe === st ? 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/10' : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'}`}>{st === 0 ? 'V' : schulart === 'volksschule' ? st+'.' : (st - 4)+'.'}</button>
                       ))}
                     </div>
-                    {schulart !== 'volksschule' && <p className="text-xs text-slate-500">1.–4. Klasse der Unterstufe entsprechen der 5.–8. Schulstufe.</p>}
+                    {isSek1 && <p className="text-xs text-slate-500">1.–4. Klasse der Unterstufe entsprechen der 5.–8. Schulstufe.</p>}
+                    {abweichendeKlassenbezeichnung(klassenbezeichnung, schulart, stufe) && <p role="status" className="text-xs font-semibold text-amber-700">Die Bezeichnung {klassenbezeichnung.trim()} passt möglicherweise nicht zur gewählten Schulstufe ({schulstufenText(schulart, stufe)}). Bitte prüfen.</p>}
                  </div>
                  <div className="space-y-2 sm:col-span-2">
                     <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Visuelles Theme</label>
@@ -1110,11 +1143,11 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                    <div className="grid grid-cols-2 gap-4">
                      <div className="bg-[var(--surface)] border border-[var(--border)] shadow-sm rounded-[var(--radius-xl)] p-4 transition-colors duration-300">
                        <h5 className="text-[0.625rem] font-bold text-[var(--text3)] uppercase tracking-wider mb-2 transition-colors duration-300">Schüler</h5>
-                       <div className="text-[1.5rem] leading-normal font-black transition-colors duration-300" style={{ color: 'var(--accent)' }}>{studentsList.length || 24}</div>
+                       <div className="text-[1.5rem] leading-normal font-black transition-colors duration-300" style={{ color: 'var(--accent)' }}>{studentsList.length}</div>
                      </div>
                      <div className="rounded-[var(--radius-xl)] p-4 shadow-sm transition-colors duration-300 flex flex-col justify-center" style={{ backgroundColor: 'var(--accent)', color: 'var(--btn-text)' }}>
                        <h5 className="text-[0.625rem] font-bold opacity-80 uppercase tracking-wider mb-1">Aktuell</h5>
-                       <div className="text-[1.125rem] leading-normal font-black">{faecher[0] || (schulart === 'volksschule' ? 'Mathematik' : 'Fach auswählen')}</div>
+                       <div className="text-[1.125rem] leading-normal font-black">{faecher[0] || 'Fach auswählen'}</div>
                      </div>
                    </div>
                  </div>
