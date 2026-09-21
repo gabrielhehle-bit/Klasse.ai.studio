@@ -74,14 +74,13 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
 
   // Settings aus dem Widget oder Standardwerte
   const savedSettings = widget?.settings || {};
-  const [mode, setMode] = useState<GroupingMode>(savedSettings.mode || 'size');
-  const [targetValue, setTargetValue] = useState<number>(savedSettings.targetValue || 4);
-  // Changes from the central widget picker must reach an already-open widget.
-  useEffect(() => {
-    setMode(widget?.settings?.mode === 'count' ? 'count' : 'size');
-    const saved = widget?.settings?.targetValue;
-    setTargetValue(typeof saved === 'number' && Number.isFinite(saved) && saved >= 2 ? Math.floor(saved) : 4);
-  }, [widget?.settings?.mode, widget?.settings?.targetValue]);
+  // Derive the active mode/target directly from the latest widget settings:
+  // after pressing a picker option, the very next draw must use that value,
+  // not a delayed effect's previous local state.
+  const mode: GroupingMode = savedSettings.mode === 'count' ? 'count' : 'size';
+  const targetValue = typeof savedSettings.targetValue === 'number'
+    && Number.isFinite(savedSettings.targetValue) && savedSettings.targetValue >= 2
+    ? Math.floor(savedSettings.targetValue) : 4;
 
   const [namingStyle, setNamingStyle] = useState<'numbered' | 'colors' | 'symbols' | 'animals'>(
     savedSettings.namingStyle || 'numbered'
@@ -452,7 +451,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
         currentIsLight ? 'bg-white border-stone-200' : 'bg-stone-900/90 border-stone-800'
       }`}>
         <div className="min-w-0">
-          <p className="text-xs font-black">{mode === 'count' ? `${targetValue} Gruppen` : `${targetValue}er-Gruppen`}</p>
+          <p className="text-xs font-black">{groups.length > 0 ? "Nächste Einteilung: " : ""}{mode === 'count' ? `${targetValue} Gruppen` : `${targetValue}er-Gruppen`}</p>
           <p className="text-xs opacity-70">{activeStudentIds.length} Kinder {studentScope === 'all' ? 'aus der Klasse' : 'heute anwesend'}</p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
