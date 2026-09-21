@@ -1172,11 +1172,17 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                 <p className="mt-2 text-sm text-slate-600">{isSek1 ? 'Wähle die Fächer, die du selbst in dieser Klasse unterrichtest. Du musst nicht alle Fächer der Schule hinzufügen. Deine Auswahl bestimmt auch die Notenmappe und die Fachvorschläge im Stundenplan.' : 'Lege die Fächer fest, die du für deine Klasse verwendest. Du kannst sie später jederzeit ändern.'}</p>
              </div>
              
-             <div className="bg-slate-50 p-6 rounded-[24px] border border-slate-100 space-y-5">
-               <div className="flex gap-2">
-                  <input 
+             <div className="rounded-[24px] border-2 border-emerald-300 bg-emerald-50 p-4 shadow-sm sm:p-6 space-y-4" aria-label="Fach hinzufügen">
+               <div className="space-y-1">
+                 <h4 className="text-lg font-black text-emerald-950">＋ Fach hinzufügen</h4>
+                 <p className="text-sm font-medium text-emerald-900">Gib ein eigenes Unterrichtsfach ein und bestätige mit „Fach hinzufügen“. Die bisherigen Fächer bleiben erhalten.</p>
+               </div>
+               <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                  <label htmlFor="klassio-add-subject" className="flex min-w-0 flex-1 flex-col gap-1 text-sm font-bold text-slate-900">Name des neuen Fachs
+                  <input
+                    id="klassio-add-subject"
                     type="text" 
-                    placeholder="Neues Fach..." 
+                    placeholder="z. B. Informatik" 
                     value={newFach} 
                     onChange={e => setNewFach(e.target.value)}
                     onKeyDown={e => {
@@ -1187,19 +1193,21 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                         setNewFach('');
                       }
                     }}
-                    className="flex-1 px-4 py-2.5 bg-white shadow-sm border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-[0.875rem] leading-snug font-semibold transition-all"
-                  />
-                  <button onClick={() => {
+                    className="w-full min-h-12 rounded-xl border-2 border-emerald-600 bg-white px-4 py-3 text-base font-semibold text-slate-900 shadow-sm focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/10 sm:w-auto"
+                  /></label>
+                  <button type="button" onClick={() => {
                       if (newFach.trim() && !faecher.includes(newFach.trim())) {
                         setFaecher([...faecher, newFach.trim()]);
                         setFachConfig({...fachConfig, [newFach.trim()]: { color: 'slate' }});
                         setNewFach('');
                       }
-                  }} className="px-6 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold transition-all shadow-sm">
-                    Hinzufügen
+                  }} disabled={!newFach.trim() || faecher.some(f => f.toLocaleLowerCase('de-AT') === newFach.trim().toLocaleLowerCase('de-AT'))}
+                    className="min-h-12 shrink-0 rounded-xl bg-emerald-700 px-6 py-3 text-base font-black text-white shadow-md transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50">
+                    ＋ Fach hinzufügen
                   </button>
                </div>
 
+               <p className="text-sm font-semibold text-slate-800">Oder wähle ein Fach aus diesen Vorschlägen:</p>
                <div className="flex flex-wrap gap-2 pt-1 pb-1">
                   {fachVorschlaege(schulart).map(f => (
                     !faecher.includes(f) && (
