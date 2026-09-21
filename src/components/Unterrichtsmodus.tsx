@@ -9419,6 +9419,14 @@ ${content}
         className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-indigo-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 dark:text-indigo-300 dark:hover:bg-white/10">
         <Plus size={19} aria-hidden="true" />
       </button>
+      {variants.length > 1 && (
+        <button type="button" aria-label="Weitere Varianten der Zufallsauswahl" aria-expanded={expanded}
+          onClick={() => setExpandedCoreWidget(expanded ? null : group.id)}
+          className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 dark:border-white/20 dark:text-slate-200 dark:hover:bg-white/10"
+          title="Weitere Varianten (z. B. Glücksrad, Fair-Call)">
+          <span aria-hidden="true">{expanded ? "▴" : "▾"}</span>
+        </button>
+      )}
     </div>
   </div>
 ) : (<button type="button" className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-left text-sm font-bold hover:bg-indigo-50 dark:hover:bg-white/10"
