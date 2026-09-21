@@ -82,9 +82,10 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     && Number.isFinite(savedSettings.targetValue) && savedSettings.targetValue >= 2
     ? Math.floor(savedSettings.targetValue) : 4;
 
-  const [namingStyle, setNamingStyle] = useState<'numbered' | 'colors' | 'symbols' | 'animals'>(
-    savedSettings.namingStyle || 'numbered'
-  );
+  // The picker is the source of truth; no lagging local naming choice during a quick re-draw.
+  const namingStyle: 'numbered' | 'colors' | 'symbols' | 'animals' =
+    savedSettings.namingStyle === 'colors' || savedSettings.namingStyle === 'symbols' || savedSettings.namingStyle === 'animals'
+      ? savedSettings.namingStyle : 'numbered';
 
   // Temporäre Ausschlüsse & Constraints
   const [pausedStudentIds, setPausedStudentIds] = useState<string[]>(
@@ -138,11 +139,10 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     setSelectedStudentForAction(null);
   }, [widget?.settings?.groups]);
   useEffect(() => {
-    setNamingStyle(widget?.settings?.namingStyle || 'numbered');
     setPausedStudentIds(Array.isArray(widget?.settings?.pausedStudentIds) ? widget.settings.pausedStudentIds : []);
     setNotTogether(Array.isArray(widget?.settings?.notTogether) ? widget.settings.notTogether : []);
     setKeepTogether(Array.isArray(widget?.settings?.keepTogether) ? widget.settings.keepTogether : []);
-  }, [widget?.settings?.namingStyle, widget?.settings?.pausedStudentIds, widget?.settings?.notTogether, widget?.settings?.keepTogether]);
+  }, [widget?.settings?.pausedStudentIds, widget?.settings?.notTogether, widget?.settings?.keepTogether]);
   useEffect(() => {
     setIsExpanded(false);
     setPreviousGroups(null);
@@ -174,19 +174,20 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     updatedPaused: string[],
     updatedNotTogether: GroupConstraint[],
     updatedKeepTogether: GroupConstraint[],
-    updatedNamingStyle: 'numbered' | 'colors' | 'symbols' | 'animals'
+    updatedNamingStyle: 'numbered' | 'colors' | 'symbols' | 'animals',
+    persistNamingStyle = false,
   ) => {
     if (onUpdate && widget) {
+      // Only persist fields changed by this group action. In particular do NOT
+      // overwrite a freshly selected mode/count/scope from the picker with an
+      // earlier render's values. The parent merges this partial settings patch.
       onUpdate({
         settings: {
-          ...(widget.settings || {}),
           groups: updatedGroups,
-          mode: updatedMode,
-          targetValue: updatedValue,
           pausedStudentIds: updatedPaused,
           notTogether: updatedNotTogether,
           keepTogether: updatedKeepTogether,
-          namingStyle: updatedNamingStyle
+          ...(persistNamingStyle ? { namingStyle: updatedNamingStyle } : {}),
         }
       });
     }
@@ -244,6 +245,10 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     setGroups(result.groups);
     setSelectedStudentForAction(null);
     setGroupPage(0);
+    // A group division must never silently hide half the class behind pages.
+    // When the current widget cannot show every card, open the all-groups view.
+    const preview = getGroupPageLayout(groupBodySize.width, groupBodySize.height, result.groups, 0, { reservedHeight: 76 });
+    if (!preview.fits || preview.pageCount > 1) setIsExpanded(true);
 
     persistState(
       result.groups,
@@ -266,7 +271,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
         type: 'success'
       });
     }
-  }, [mode, targetValue, namingStyle, pausedStudentIds, notTogether, keepTogether, activeStudentIds, studentScope, persistState, groups, allStudents]);
+  }, [mode, targetValue, namingStyle, pausedStudentIds, notTogether, keepTogether, activeStudentIds, studentScope, persistState, groups, allStudents, groupBodySize.width, groupBodySize.height]);
 
   const undoMix = () => {
     if (!previousGroups) return;
@@ -339,15 +344,13 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
 
   // Toggle Pausierung eines Schülers
   const handleTogglePause = useCallback((studentId: string) => {
-    setPausedStudentIds(prev => {
-      const next = prev.includes(studentId)
-        ? prev.filter(id => id !== studentId)
-        : [...prev, studentId];
-
-      persistState(groups, mode, targetValue, next, notTogether, keepTogether, namingStyle);
-      return next;
-    });
-  }, [groups, mode, targetValue, notTogether, keepTogether, namingStyle, persistState]);
+    const next = pausedStudentIds.includes(studentId)
+      ? pausedStudentIds.filter(id => id !== studentId)
+      : [...pausedStudentIds, studentId];
+    setPausedStudentIds(next);
+    // Never invoke a parent state update from inside another state updater.
+    persistState(groups, mode, targetValue, next, notTogether, keepTogether, namingStyle);
+  }, [pausedStudentIds, groups, mode, targetValue, notTogether, keepTogether, namingStyle, persistState]);
 
   // Hinzufügen von Paar-Regeln
   const handleAddNotTogether = () => {
@@ -541,7 +544,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                   Kinder, die temporär nicht eingeteilt werden sollen:
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-48 overflow-y-auto pr-1">
-                  {presentStudents.map((st) => {
+                  {(studentScope === 'all' ? allStudents : presentStudents).map((st) => {
                     const isPaused = pausedStudentIds.includes(st.id);
                     return (
                       <button
@@ -717,13 +720,12 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                     key={s.id}
                     onClick={() => {
                       const nextStyle = s.id as typeof namingStyle;
-                      setNamingStyle(nextStyle);
                       // Changing the display style must never reshuffle established groups.
                       const renamed = groups.map((group, index) => ({
                         ...group, ...getGroupName(index, nextStyle),
                       }));
                       setGroups(renamed);
-                      persistState(renamed, mode, targetValue, pausedStudentIds, notTogether, keepTogether, nextStyle);
+                      persistState(renamed, mode, targetValue, pausedStudentIds, notTogether, keepTogether, nextStyle, true);
                     }}
                     className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
                       namingStyle === s.id
