@@ -23,7 +23,7 @@ export default function ClassMascotWidget({ app }: Props) {
     <section aria-label="Klassenmaskottchen" className="class-mascot-v1 class-mascot-freestanding pointer-events-none flex h-full min-h-0 w-full items-center justify-center overflow-hidden bg-transparent p-0">
       <button
         type="button"
-        aria-label={state.name + ' – Klassenmaskottchen ziehen oder mit Pfeiltasten verschieben (Umschalt für Feinschritt)'}
+        aria-label={state.name + ' – Klassenmaskottchen verschieben: ziehen oder Pfeiltasten nutzen (Umschalt für Feinschritt)'}
         className="class-mascot-character pointer-events-auto mx-auto flex max-w-full shrink-0 touch-none cursor-grab items-end justify-center bg-transparent p-0 active:cursor-grabbing focus-visible:rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-500"
         style={{ width: `min(100%, ${state.displaySize}px)` }}
       >
