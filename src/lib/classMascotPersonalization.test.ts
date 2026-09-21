@@ -8,8 +8,8 @@ import { DEFAULT_CLASS_MASCOT, normalizeClassMascot, selectClassMascot } from '.
 import ClassMascotArtwork from '../components/cockpit/ClassMascotArtwork';
 import ClassMascotWidget from '../components/cockpit/ClassMascotWidget';
 
-test('Name und vier Stimmungen lassen sich nur unter Farbe & Design bewusst wählen, ohne neue Tafelbedienelemente', () => {
-  const picker = readFileSync('src/components/UnterrichtsmodusThemePicker.tsx', 'utf8');
+test('Name und vier Stimmungen lassen sich nur unter den eigenen Maskottchen-Einstellungen bewusst wählen, ohne neue Tafelbedienelemente', () => {
+  const picker = readFileSync('src/components/ClassMascotSettingsPanel.tsx', 'utf8');
   assert.match(picker, /id="class-mascot-name"/);
   assert.match(picker, /maxLength=\{24\}/);
   assert.match(picker, /classMascot: \{ \.\.\.normalizeClassMascot\(prev\.classMascot\), name: nextName \}/);

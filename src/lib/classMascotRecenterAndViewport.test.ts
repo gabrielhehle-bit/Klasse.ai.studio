@@ -20,9 +20,9 @@ test('Nach Fernbedienung oder Viewport-Wechsel wird am neuen Cockpit-Root neu ge
   assert.match(widget, /if \(isFreeMascot\) setStageSize\(\{ width: 0, height: 0 \}\)/);
 });
 
-test('Zurückholen ist ausschließlich über Design & Farben möglich; keine neue schwebende Steuerung', () => {
+test('Zurückholen ist über das eigene Maskottchen-Fach möglich; keine neue schwebende Steuerung', () => {
   const cockpit = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
-  const chooser = readFileSync('src/components/UnterrichtsmodusThemePicker.tsx', 'utf8');
+  const chooser = readFileSync('src/components/ClassMascotSettingsPanel.tsx', 'utf8');
   assert.match(cockpit, /onRecenterMascot=\{recenterClassMascot\}/);
   assert.match(cockpit, /outerContainerRef\.current/);
   assert.match(cockpit, /const centered = cockpitWidgets\.some\(widget => widget\.type === "pet"\)/);

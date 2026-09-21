@@ -27,8 +27,8 @@ test('Mascot grows and shrinks without acquiring a card, floating overlay or ove
   }
 });
 
-test('Mascot choice, size and reduced-motion-sensitive gentle animation live in design settings only', () => {
-  const settings = readFileSync('src/components/UnterrichtsmodusThemePicker.tsx', 'utf8');
+test('Mascot choice, size and gentle animation live in separate mascot settings', () => {
+  const settings = readFileSync('src/components/ClassMascotSettingsPanel.tsx', 'utf8');
   const art = readFileSync('src/components/cockpit/ClassMascotArtwork.tsx', 'utf8');
   const css = readFileSync('src/index.css', 'utf8');
   assert.match(settings, /Größe auf der Tafel/);
