@@ -1789,7 +1789,7 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
       isDirectMode: true,
     },
   },
-  { id: "widget-pet", type: "pet", x: 22, y: 16, w: 44, h: 66, visible: false },
+  { id: "widget-pet", type: "pet", x: 67, y: 44, w: 30, h: 48, visible: false },
   {
     id: "widget-stopwatch",
     type: "stopwatch",
@@ -3737,10 +3737,10 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
           ...w,
           visible: true,
           hasBeenOpened: true, // Mark it as opened!
-          x: isWhiteboard || isMaxWidget && !useOld ? 0 : useOld ? w.x : finalX,
-          y: isWhiteboard || isMaxWidget && !useOld ? 0 : useOld ? w.y : finalY,
+          x: isWhiteboard || isMaxWidget && !useOld ? 0 : useOld ? w.x : type === "pet" ? (def?.x ?? 67) : finalX,
+          y: isWhiteboard || isMaxWidget && !useOld ? 0 : useOld ? w.y : type === "pet" ? (def?.y ?? 44) : finalY,
           w: isWhiteboard || isMaxWidget && !useOld ? 100 : useOld ? w.w : Math.min(def?.w || w.w, 46),
-          h: isWhiteboard || isMaxWidget && !useOld ? 100 : type === "pet" && !useOld ? 66 : useOld ? w.h : Math.min(def?.h || w.h, 46),
+          h: isWhiteboard || isMaxWidget && !useOld ? 100 : type === "pet" && !useOld ? (def?.h ?? 48) : useOld ? w.h : Math.min(def?.h || w.h, 46),
           settings: isWhiteboard
             ? {
                 ...(w.settings || {}),
