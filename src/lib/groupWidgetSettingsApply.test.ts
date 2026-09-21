@@ -77,7 +77,7 @@ test('picker updates both class defaults and the open class widget without extra
 test('group settings chosen before the very first add are not masked by old hidden defaults', () => {
   const source = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
   assert.match(source, /type === "groups" && Array\.isArray\(w\.settings\?\.groups\) && w\.settings\.groups\.length > 0/);
-  assert.match(source, /type === "groups" && !useOld \? \{ \.*\(w\.settings \|\| \{\}\), \.\.\.groupPreset \}/);
+  assert.match(source, /type === "groups" && !useOld \? \{ \.\.\.\(w\.settings \|\| \{\}\), \.\.\.groupPreset \}/);
   assert.match(source, /type === "groups" \? groupStartSize\.w/);
   assert.match(source, /type === "groups" \? groupStartSize\.h/);
 });
