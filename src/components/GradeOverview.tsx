@@ -4,12 +4,15 @@ import { useApp } from '../context/AppContext';
 import { berechne } from '../lib/GradeUtils';
 import { getOverviewNote } from '../lib/gradeOverviewValues';
 import { FAECHER_ALLE } from '../constants';
+import { faecherFuerKlasse } from '../lib/sek1Subjects';
 import { Download, ArrowLeft, Users } from 'lucide-react';
 
 export default function GradeOverview({ embedded = false, onBack }: { embedded?: boolean; onBack?: () => void } = {}) {
   const { app, setApp, setPage, switchClass } = useApp();
   const students = [...app.schueler].sort((a, b) => a.nachname.localeCompare(b.nachname, 'de'));
-  const activeFaecher = (app.faecher && app.faecher.length > 0) ? app.faecher : FAECHER_ALLE;
+  const activeFaecher = app.schulart === 'volksschule' || !app.schulart
+    ? ((app.faecher && app.faecher.length > 0) ? app.faecher : FAECHER_ALLE)
+    : faecherFuerKlasse(app);
 
   const [selectedSemester, setSelectedSemester] = useState<'1' | '2' | 'combined'>('combined');
   const [isEditMode, setIsEditMode] = useState<boolean>(false);

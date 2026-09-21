@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { AVAILABLE_MODULES } from '../../lib/settingsModuleCatalog';
+import { istSekundarstufe, istSek1Navigationsziel } from '../../lib/sek1Navigation';
 
 interface ModuleSettingsProps {
   app: any;
@@ -21,7 +22,10 @@ export default function ModuleSettings({
 
   const disabledModules: string[] = app.settings?.disabledModules || [];
 
-  const categories = Array.from(new Set(AVAILABLE_MODULES.map(module => module.category)));
+  const availableModules = istSekundarstufe(app.schulart)
+    ? AVAILABLE_MODULES.filter(module => istSek1Navigationsziel(module.id))
+    : AVAILABLE_MODULES;
+  const categories = Array.from(new Set(availableModules.map(module => module.category)));
 
   return (
     <div className="space-y-6">
@@ -60,7 +64,7 @@ export default function ModuleSettings({
       {/* Module Groups */}
       <div className="space-y-6">
         {categories.map(category => {
-          const modulesInGroup = AVAILABLE_MODULES.filter(m => {
+          const modulesInGroup = availableModules.filter(m => {
             if (m.category !== category) return false;
             if (m.condition && !m.condition(app)) return false;
             if (searchTerm.trim()) {

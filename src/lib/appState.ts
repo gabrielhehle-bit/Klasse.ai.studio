@@ -6,6 +6,7 @@ import { sanitizeSeatingRules } from './seatingPlanRules';
 import { normalizeKlassenkasse } from './orgaData';
 import { normalizeArchivedClasses } from './archiveData';
 import { normalizeKelMeetings } from './kelData';
+import { normalizeSchulart } from './schularten';
 
 export const initialAppState: AppState = {
   ipsativeGewichtung: 70,
@@ -13,6 +14,7 @@ export const initialAppState: AppState = {
   schuljahr: getCurrentSchuljahr(),
   activeClassId: '',
   classes: [],
+  schulart: 'volksschule',
   stufe: 4,
   lehrplanText: '',
   tageplan: DEFAULT_TAGEPLAN,
@@ -185,6 +187,7 @@ export function syncActiveClass(state: AppState): AppState {
     ...currentClass,
     name: state.klassenbezeichnung,
     stufe: state.stufe,
+    schulart: normalizeSchulart(state.schulart ?? currentClass.schulart),
     klassenvorstand: state.klassenvorstand,
     schuljahr: state.schuljahr,
     schueler: state.schueler ? JSON.parse(JSON.stringify(state.schueler)) : [],
@@ -344,6 +347,7 @@ export function normalizeAppState(raw: any): AppState {
       id: defaultClassId,
       name: parsed.klassenbezeichnung || 'Meine Klasse',
       stufe: parsed.stufe !== undefined ? Number(parsed.stufe) : 4,
+      schulart: normalizeSchulart(raw.schulart),
       klassenvorstand: parsed.klassenvorstand !== undefined ? parsed.klassenvorstand : true,
       schueler: parsed.schueler || [],
       noten: parsed.noten || {},
@@ -407,6 +411,7 @@ export function normalizeAppState(raw: any): AppState {
         id: c.id || 'class-' + Math.random().toString(36).substring(2, 9),
         name: c.name || 'Meine Klasse',
         stufe: c.stufe !== undefined ? Number(c.stufe) : 4,
+        schulart: normalizeSchulart(c.schulart),
         klassenvorstand: c.klassenvorstand !== undefined ? c.klassenvorstand : true,
         schueler: c.schueler || [],
         noten: c.noten || {},
@@ -572,6 +577,7 @@ export function normalizeAppState(raw: any): AppState {
     // A mascot belongs to the active class, not to the teacher or another room.
     parsed.classMascot = activeClass.classMascot ? { ...activeClass.classMascot } : undefined;
     parsed.stufe = activeClass.stufe;
+    parsed.schulart = normalizeSchulart(activeClass.schulart);
     parsed.klassenvorstand = activeClass.klassenvorstand;
     parsed.schueler = activeClass.schueler;
     parsed.noten = activeClass.noten;
@@ -826,6 +832,7 @@ export function switchClassState(prev: AppState, id: string): AppState {
     klassenbezeichnung: targetClass.name,
     classMascot: targetClass.classMascot ? { ...targetClass.classMascot } : undefined,
     stufe: targetClass.stufe,
+    schulart: normalizeSchulart(targetClass.schulart),
     klassenvorstand: targetClass.klassenvorstand,
     schuljahr: targetClass.schuljahr || prev.schuljahr || '2024/25',
     schueler: targetClass.schueler ? JSON.parse(JSON.stringify(targetClass.schueler)) : [],

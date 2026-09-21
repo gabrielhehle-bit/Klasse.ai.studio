@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { exportSchuelerPDF } from '../lib/exportService';
 import { berechne } from '../lib/GradeUtils';
 import { FAECHER_ALLE } from '../constants';
+import { faecherFuerKlasse } from '../lib/sek1Subjects';
 import {
   getStudentAttendanceSummary,
   getStudentBehaviorSummary,
@@ -224,7 +225,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
   const changeSemester = (nextSemester: '1' | '2') => {
     setSem(nextSemester);
   };
-  const activeFaecher = FAECHER_ALLE.filter(f => !app.faecher || app.faecher.includes(f));
+  const activeFaecher = faecherFuerKlasse(app).filter(f => !app.faecher || app.faecher.includes(f));
 
   const [lernzieleInitialFach, setLernzieleInitialFach] = useState<string | undefined>(undefined);
 

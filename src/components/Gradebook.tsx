@@ -21,6 +21,8 @@ import { CanvasBarChart } from './charts/CanvasBarChart';
 import { DebouncedInput } from './DebouncedInput';
 import BehaviorSettings from './gradebook/BehaviorSettings';
 import { AssessmentItemModal } from './gradebook/AssessmentItemModal';
+import { faecherFuerKlasse } from '../lib/sek1Subjects';
+import { istSekundarstufe } from '../lib/sek1Navigation';
 
 const StudentRowWrapper = React.memo(({ s, i, avg, nd, miRaw, isItemSelected, isRowHovered, studentErrors, activeFach, sem, cfg, colCounts, isolatedCol, heatmapMode, mitarbeitSettings, currentSymbol, relativeMiDivisor, studentsCount, assessmentMode, maxPointsMeta, renderRow }: any) => {
   return renderRow();
@@ -124,7 +126,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
   const { app, setApp, setPage } = useApp();
   const [activeFach, setActiveFach] = useState<string>(() => {
     const currentSubject = getCurrentSubject(app);
-    const validFaecher = FAECHER_ALLE.filter(f => (!app.faecher || app.faecher.includes(f)));
+    const validFaecher = faecherFuerKlasse(app).filter(f => !app.faecher || app.faecher.includes(f));
     
     if (currentSubject && validFaecher.includes(currentSubject)) {
       return currentSubject;
@@ -134,37 +136,37 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     const hasUnterrichtData = Object.values(app.mitarbeit || {}).some((mi: any) => mi["Unterricht"]);
     if (hasUnterrichtData && !validFaecher.includes("Unterricht")) validFaecher.push("Unterricht");
 
-    return validFaecher.length > 0 ? validFaecher[0] : 'Deutsch';
+    return validFaecher.length > 0 ? validFaecher[0] : (istSekundarstufe(app.schulart) ? '' : 'Deutsch');
   });
 
   useEffect(() => {
-    const allPossible = [...FAECHER_ALLE];
+    const allPossible = faecherFuerKlasse(app);
     const hasUnterrichtData = Object.values(app.mitarbeit || {}).some((mi: any) => mi["Unterricht"]);
     if (hasUnterrichtData) allPossible.push("Unterricht");
 
     if (!allPossible.includes(activeFach)) {
       const currentSubject = getCurrentSubject(app);
-      const validFaecher = FAECHER_ALLE.filter(f => (!app.faecher || app.faecher.includes(f)));
+      const validFaecher = faecherFuerKlasse(app).filter(f => !app.faecher || app.faecher.includes(f));
       if (currentSubject && validFaecher.includes(currentSubject)) {
         setActiveFach(currentSubject);
       } else if (validFaecher.length > 0) {
         setActiveFach(validFaecher[0]);
       } else {
-        setActiveFach('Deutsch');
+        setActiveFach(istSekundarstufe(app.schulart) ? '' : 'Deutsch');
       }
     }
-  }, [app.faecher, app.mitarbeit, activeFach]);
+  }, [app.faecher, app.mitarbeit, app.schulart, activeFach]);
   const [activeView, setActiveView] = useState<'noten' | 'mitarbeit' | 'hue' | 'verhalten'>(() => {
     const currentSubject = getCurrentSubject(app);
     return currentSubject ? 'mitarbeit' : 'noten';
   });
   const isFachActive = !app.faecher || app.faecher.includes(activeFach) || activeFach === 'Unterricht';
   const availableSubjects = useMemo(() => {
-    const subjects = [...FAECHER_ALLE];
+    const subjects = faecherFuerKlasse(app);
     const hasUnterrichtData = Object.values(app.mitarbeit || {}).some((mi: any) => mi["Unterricht"]);
     if (hasUnterrichtData && !subjects.includes('Unterricht')) subjects.push('Unterricht');
     return subjects;
-  }, [app.mitarbeit]);
+  }, [app.mitarbeit, app.faecher, app.schulart]);
 
   useEffect(() => {
     if (!isFachActive) {
@@ -1551,6 +1553,18 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     return <LeistungsAuswertungen initialSubject={activeFach} initialSemester={sem} onBack={() => setShowDetailedAnalysis(false)} />;
   }
 
+  // Sek-I-Klassen ohne ausgewählte Fächer dürfen keine Noten in einem impliziten
+  // Volksschul-Fach oder unter einem leeren Fachnamen erzeugen.
+  if (istSekundarstufe(app.schulart) && availableSubjects.length === 0) {
+    return (
+      <div className="mx-auto max-w-xl rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center shadow-sm">
+        <h2 className="text-xl font-black text-[var(--text)]">Noch keine Fächer eingerichtet</h2>
+        <p className="mt-3 text-sm text-[var(--text2)]">Wähle im Klassen-Setup die Fächer aus, die du in dieser Klasse unterrichtest. Anschließend kannst du hier Leistungen dokumentieren.</p>
+        <button type="button" className="mt-5 rounded-xl bg-[var(--accent)] px-5 py-3 font-bold text-white" onClick={() => { setApp(prev => ({ ...prev, setupInitialStepMode: 'Fächer', currentPage: 'setup' })); }}>Fächer einrichten</button>
+      </div>
+    );
+  }
+
   // One feedback editor, reusing the existing grade and observation data.
   if (showFeedback) {
     return <VerbalAssessment mode="feedback" initialSubject={activeFach} initialSemester={sem} onBack={() => setShowFeedback(false)} />;
@@ -1563,6 +1577,11 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
 
   return (
     <div className="space-y-3 pb-20">
+      {istSekundarstufe(app.schulart) && (
+        <p role="note" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 print:hidden">
+          Die Notenmappe dokumentiert deine Bewertungen. Die schulartspezifische amtliche Beurteilung – insbesondere die Leistungsniveaus der Mittelschule – wird hier noch nicht automatisch abgebildet. Prüfe Zeugnisnoten unabhängig davon.
+        </p>
+      )}
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           @page {
@@ -1608,6 +1627,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                 }
               }}
               className="max-w-[15rem] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600">
+              {availableSubjects.length === 0 && <option value="">Bitte zuerst im Klassen-Setup Fächer anlegen</option>}
               {availableSubjects.map(fach => <option key={fach} value={fach}>{fach}</option>)}
             </select>
             <label className="sr-only" htmlFor="gradebook-semester">Semester auswählen</label>
