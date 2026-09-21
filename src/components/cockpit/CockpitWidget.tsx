@@ -162,7 +162,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   const dragStartPos = useRef({ x: 0, y: 0, left: 0, top: 0 });
   const resizeStartPos = useRef({ startX: 0, startY: 0, startW: 0, startH: 0 });
   const suppressMascotTap = useRef(false);
-  const suppressMascotTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressMascotTapTimer = useRef<number | null>(null);
   useEffect(() => () => { if (suppressMascotTapTimer.current !== null) clearTimeout(suppressMascotTapTimer.current); }, []);
 
   const [showSizeConfig, setShowSizeConfig] = useState(false);
