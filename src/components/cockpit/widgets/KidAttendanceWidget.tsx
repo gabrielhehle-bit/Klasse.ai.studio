@@ -49,6 +49,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   const app = propApp || contextApp;
   const setApp = propSetApp || contextSetApp;
   const checkInMode = getCheckInMode(widget?.settings);
+  const moodEnabled = widget?.settings?.moodEnabled !== false;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef);
@@ -121,6 +122,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     setIsFinalizeModalOpen(false);
     setIsStudentPageOpen(false);
     setStudentPage(0);
+    if (widget?.id) window.dispatchEvent(new CustomEvent('klassio:checkin-expand', { detail: { id: widget.id, expanded: false } }));
     setSelectedStudentId(null);
     setRecentlyTappedId(null);
   }, [app.activeClassId]);
@@ -136,7 +138,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   const handleStudentCardTap = useCallback((studentId: string) => {
     const currentStatus = getStudentAttendanceStatus(studentId, app, todayStr);
     if (checkInMode === 'teacher') {
-      if (currentStatus.status !== 'present') return;
+      if (!moodEnabled || currentStatus.status !== 'present') return;
       const student = students.find((child) => child.id === studentId);
       setActiveMoodStudent({
         id: studentId,
@@ -168,6 +170,12 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     // Anwesenheit auf 'da' setzen
     setApp(res.updatedAppState);
 
+    // The optional mood question must never hold up the attendance check-in.
+    if (!moodEnabled) {
+      setSelectedStudentId(null);
+      return;
+    }
+
     // Unmittelbar danach: 5-stufige Befindensabfrage öffnen
     const student = students.find((s) => s.id === studentId);
     const dName = displayNames.get(studentId) || student?.vorname || 'Schüler/in';
@@ -176,7 +184,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
       displayName: dName,
       step: 'prompt',
     });
-  }, [app, setApp, todayStr, students, displayNames, checkInMode, selectedStudentId]);
+  }, [app, setApp, todayStr, students, displayNames, checkInMode, selectedStudentId, moodEnabled]);
 
   // Kind wählt einen der 5 Smileys (1 = sehr gut bis 5 = schlecht)
   const handleChildSelectMood = useCallback((value: number) => {
@@ -300,8 +308,25 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   const expandStudentGrid = () => {
     setIsStudentPageOpen(true);
     setStudentPage(0);
-    onUpdate?.({ x: 2, y: 2, w: 96, h: 90 });
+    // Use the shared frame's LOCAL maximize state: never overwrite saved layout.
+    if (widget?.id) window.dispatchEvent(new CustomEvent('klassio:checkin-expand', { detail: { id: widget.id, expanded: true } }));
   };
+  const collapseStudentGrid = () => {
+    setIsStudentPageOpen(false);
+    setStudentPage(0);
+    if (widget?.id) window.dispatchEvent(new CustomEvent('klassio:checkin-expand', { detail: { id: widget.id, expanded: false } }));
+  };
+  React.useEffect(() => {
+    const handleFrameSize = (event: Event) => {
+      const detail = (event as CustomEvent<{ id: string; expanded: boolean }>).detail;
+      if (detail?.id === widget?.id && !detail.expanded) {
+        setIsStudentPageOpen(false);
+        setStudentPage(0);
+      }
+    };
+    window.addEventListener('klassio:checkin-frame-size', handleFrameSize);
+    return () => window.removeEventListener('klassio:checkin-frame-size', handleFrameSize);
+  }, [widget?.id]);
   const denseStudentGrid = students.length >= 16;
 
   // Render einer einzelnen Schülerkarte
@@ -309,7 +334,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     const displayName = displayNames.get(student.id) || student.vorname;
     const { status, isPreExistingAbsent, delayMinutes } = getStudentAttendanceStatus(student.id, app, todayStr);
     const isJustCheckedIn = recentlyTappedId === student.id;
-    const canTapMood = checkInMode === 'teacher' && status === 'present';
+    const canTapMood = moodEnabled && checkInMode === 'teacher' && status === 'present';
 
     // Farb- und Styling-Definition gemäß Status
     let cardClasses = '';
@@ -355,7 +380,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
         key={student.id}
         type="button"
         onClick={() => handleStudentCardTap(student.id)}
-        disabled={status === 'absent' || (checkInMode === 'teacher' && status !== 'present')}
+        disabled={status === 'absent' || (checkInMode === 'teacher' && (status !== 'present' || !moodEnabled))}
         title={
           status === 'absent'
             ? `${displayName} ist bereits als abwesend erfasst`
@@ -424,7 +449,9 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           }`}
         >
           {statusIcon}
-          <span className="whitespace-nowrap">{canTapMood ? 'Befinden' : statusLabel}</span>
+          {denseStudentGrid && size.width / studentGrid.columns < 190 ? (
+            <span className="sr-only">{canTapMood ? 'Befinden' : statusLabel}</span>
+          ) : <span className="whitespace-nowrap">{canTapMood ? 'Befinden' : statusLabel}</span>}
         </div>
       </button>
     );
@@ -538,6 +565,11 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
 
         {/* Aktionsbuttons oben rechts */}
         <div className="flex items-center gap-1.5 shrink-0">
+          {isStudentPageOpen && (
+            <button type="button" onClick={collapseStudentGrid} className="min-h-11 rounded-lg border px-3 text-xs font-bold" aria-label="Zur ursprünglichen Widgetgröße zurückkehren">
+              <Maximize2 size={14} className="inline-block rotate-180 mr-1" /> Zurück zur Widgetgröße
+            </button>
+          )}
           {/* Lehrer-Korrektur */}
           <button
             type="button"
@@ -574,7 +606,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           <div className="flex h-full min-h-0 flex-col items-center justify-center gap-3 overflow-hidden px-2">
             <p className="text-sm font-bold">Ist das dein Name?</p>
             <div className="w-full max-w-md">
-              {renderStudentCard(students.find(child => child.id === selectedStudentId)!)}
+              <div className="pointer-events-none" aria-hidden="true">{renderStudentCard(students.find(child => child.id === selectedStudentId)!)}</div>
             </div>
             <button type="button" onClick={() => handleStudentCardTap(selectedStudentId)}
               disabled={getStudentAttendanceStatus(selectedStudentId, app, todayStr).status !== 'open'}
