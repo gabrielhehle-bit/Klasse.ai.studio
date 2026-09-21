@@ -23,7 +23,9 @@ test('Schülerdaten: Geschlecht wird aus dem bestehenden Feld an allen drei Stel
 test('Schülernavigation: Klassenliste und Schülerdossier sind getrennte direkte Einstiege', () => {
   assert.match(sidebar, /id: 'schueler', label: 'Klassenliste'/);
   assert.match(sidebar, /id: 'dossier', label: 'Schülerdossier'/);
-  assert.match(app, /case 'schueler': return <StudentList \/>/);
+  // Beim Klassenwechsel wird die Liste neu gemountet, damit kein Dossier aus der
+  // vorherigen Klasse offen bleibt. Der direkte Einstieg bleibt unverändert.
+  assert.match(app, /case 'schueler': return <StudentList key=\{app.activeClassId \|\| 'class'\} \/>/);
   assert.match(app, /case 'dossier': return <StudentDossierHub \/>/);
   assert.match(dossierHub, /Wähle ein Kind und öffne direkt das vollständige Dossier/);
 });
