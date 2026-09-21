@@ -177,7 +177,7 @@ import LernwoerterWidget from "./LernwoerterWidget";
 import FlowerPuzzleWidget from "./FlowerPuzzleWidget";
 const MemoizedFlowerPuzzleWidget = memo(FlowerPuzzleWidget);
 import { PenLine, Copy, AlignRight } from "lucide-react";
-import { generateStudentGroups } from "../lib/groupsAlgorithm";
+import { generateStudentGroups, getGroupName } from "../lib/groupsAlgorithm";
 import { getPresentStudents, getDisplayStudentName } from "./cockpit/studentSelectionUtils";
 import { CockpitWidget } from "./cockpit/CockpitWidget";
 import { CockpitVorlagenModal } from "./cockpit/CockpitVorlagenModal";
@@ -187,6 +187,7 @@ import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
 import { PLANNED_COCKPIT_WIDGETS } from "./cockpit/plannedCockpitCatalog";
 import ClassroomWeeklyPlanWidget from "./cockpit/widgets/ClassroomWeeklyPlanWidget";
 import { getCheckInMode } from "../lib/checkInWidgetMode";
+import { getGroupWidgetPreferences } from "../lib/groupWidgetPreferences";
 import { COCKPIT_PAPERS, getCockpitPaperStyle, normalizeCockpitPaperSpacing, type CockpitPaper } from "../lib/cockpitPaper";
 import { COCKPIT_QUICKBAR_ITEMS, normalizeCockpitQuickbarSettings, toggleCockpitQuickbarItem } from "../lib/cockpitQuickbar";
 import { PublicStudentListWidget as StudentListWidgetContent } from "./cockpit/PublicStudentListWidget";
@@ -2956,6 +2957,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [isBirthdayCelebrationOpen, setIsBirthdayCelebrationOpen] = useState(false);
   useEffect(() => { setIsBirthdayCelebrationOpen(false); }, [app.activeClassId]);
   const boardTextClassKey = app.activeClassId || "unassigned";
+  const groupDefaults = getGroupWidgetPreferences(app.boardSettings?.cockpitGroupDefaultsByClass?.[boardTextClassKey]);
   const cockpitPaper = ((app.boardSettings as any)?.cockpitPaperByClass?.[boardTextClassKey] || "blank") as CockpitPaper;
   const setCockpitPaper = (paper: CockpitPaper) => setApp((prev: any) => ({
     ...prev,
@@ -3741,7 +3743,10 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     const updated = cockpitWidgets.map((w) => {
       if (w.type === type) {
         const def = DEFAULT_COCKPIT_LAYOUT.find((d) => d.type === type);
-        const useOld = w.hasBeenOpened || w.visible;
+        const useOld = w.hasBeenOpened || w.visible || (type === "groups" && Boolean(w.settings && Object.keys(w.settings).length));
+        const groupPreset = getGroupWidgetPreferences(app.boardSettings?.cockpitGroupDefaultsByClass?.[boardTextClassKey]);
+        const groupStartSize = groupPreset.startSize === "compact" ? { w: 44, h: 48 }
+          : groupPreset.startSize === "standard" ? { w: 65, h: 72 } : { w: 85, h: 86 };
         const isMaxWidget = type === "randomname" || type === "wheel" || type === "classweeklyplan";
         const isWhiteboard = type === "drawing";
         return {
@@ -3750,15 +3755,15 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
           hasBeenOpened: true, // Mark it as opened!
           x: isWhiteboard || isMaxWidget && !useOld ? 0 : useOld ? w.x : finalX,
           y: isWhiteboard || isMaxWidget && !useOld ? 0 : useOld ? w.y : finalY,
-          w: isWhiteboard || isMaxWidget && !useOld ? 100 : useOld ? w.w : Math.min(def?.w || w.w, 46),
-          h: isWhiteboard || isMaxWidget && !useOld ? 100 : type === "pet" && !useOld ? 66 : useOld ? w.h : Math.min(def?.h || w.h, 46),
+          w: isWhiteboard || isMaxWidget && !useOld ? 100 : useOld ? w.w : type === "groups" ? groupStartSize.w : Math.min(def?.w || w.w, 46),
+          h: isWhiteboard || isMaxWidget && !useOld ? 100 : type === "pet" && !useOld ? 66 : useOld ? w.h : type === "groups" ? groupStartSize.h : Math.min(def?.h || w.h, 46),
           settings: isWhiteboard
             ? {
                 ...(w.settings || {}),
                 boardMode: w.settings?.boardMode || "whiteboard",
                 isDirectMode: true,
               }
-            : w.settings,
+            : type === "groups" && !useOld ? { ...(w.settings || {}), ...groupPreset } : w.settings,
         };
       }
       return w;
@@ -8291,10 +8296,28 @@ ${content}
                                         </select>
                                       </label>
                                       {(() => {
-                                        const configured = cockpitWidgets.find(widget => widget.type === selectedWidgetConfiguration);
-                                        if (!configured) return <p role="status" className="text-sm">Füge dieses Widget zuerst hinzu, um seine Einstellungen zu speichern.</p>;
-                                        const saveSetting = (key: string, value: string) =>
-                                          handleUpdateWidgetPos(configured.id, { settings: { ...(configured.settings || {}), [key]: value } });
+                                        const configured = cockpitWidgets.find(widget => widget.type === selectedWidgetConfiguration)
+                                          || DEFAULT_COCKPIT_LAYOUT.find(widget => widget.type === selectedWidgetConfiguration);
+                                        if (!configured) return <p role="status" className="text-sm">Einstellungen nicht verfügbar.</p>;
+                                        const saveSetting = (key: string, value: string | number) => {
+                                          if (selectedWidgetConfiguration === "groups") {
+                                            setApp(prev => ({
+                                              ...prev,
+                                              boardSettings: {
+                                                ...prev.boardSettings,
+                                                cockpitGroupDefaultsByClass: {
+                                                  ...(prev.boardSettings?.cockpitGroupDefaultsByClass || {}),
+                                                  [boardTextClassKey]: {
+                                                    ...getGroupWidgetPreferences(prev.boardSettings?.cockpitGroupDefaultsByClass?.[boardTextClassKey]),
+                                                    [key]: value,
+                                                  },
+                                                },
+                                              },
+                                            }));
+                                          } else {
+                                            handleUpdateWidgetPos(configured.id, { settings: { ...(configured.settings || {}), [key]: value } });
+                                          }
+                                        };
                                         return selectedWidgetConfiguration === "randomname" ? (
                                           <fieldset className="space-y-2">
                                             <legend className="text-sm font-black">Zufälliges Kind · Ton</legend>
