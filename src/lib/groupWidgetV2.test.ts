@@ -19,6 +19,9 @@ test('Widget 2: 17 real class IDs in 4er groups fit together on a moderately lar
   assert.equal(layout.pageCount, 1);
   assert.deepEqual(layout.cards.flatMap(card => card.memberIds).sort(),
     groups.flatMap(group => group.studentIds).sort());
+  const measuredContent = getGroupPageLayout(960, 420, groups, 0, { reservedHeight: 76 });
+  assert.equal(measuredContent.fits, true);
+  assert.equal(measuredContent.pageCount, 1);
 });
 
 test('Widget 2: old or invalid stored presets use safe class-local defaults', () => {
@@ -50,6 +53,9 @@ test('Widget 2: enlarging is local; editing names does not rerandomize student g
   assert.match(widget, /isExpanded \? createPortal\(/);
   assert.match(widget, /Zurück zur Widgetgröße/);
   assert.match(widget, /setIsExpanded\(true\)/);
+  assert.match(widget, /groupBodySize\.height/);
+  assert.match(widget, /ref=\{groupBodyRef\}/);
+  assert.doesNotMatch(widget, /size\.height - \(feedbackMessage/);
   assert.doesNotMatch(widget, /onUpdate\?\.\(\{ x: 2, y: 2, w: 96, h: 90 \}\)/);
   const style = widget.slice(widget.indexOf('Tab 3: Namen & Stil'), widget.indexOf('HAUPTBEREICH: GRUPPEN-KARTEN'));
   assert.match(style, /getGroupName\(index, nextStyle\)/);
