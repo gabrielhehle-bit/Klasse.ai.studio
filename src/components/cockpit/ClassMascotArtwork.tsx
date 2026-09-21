@@ -1,5 +1,5 @@
 import React from 'react';
-import type { ClassMascotKind, ClassMascotMood } from '../../lib/classMascot';
+import type { ClassMascotAccessory, ClassMascotKind, ClassMascotMood } from '../../lib/classMascot';
 
 interface Props {
   kind: ClassMascotKind;
@@ -8,10 +8,13 @@ interface Props {
   animationEnabled?: boolean;
   reactionActive?: boolean;
   reactionTick?: number;
+  accessory?: ClassMascotAccessory;
+  surpriseActive?: boolean;
+  surpriseTick?: number;
 }
 
 /** Original, self-contained SVG designs. No third-party character assets or network requests. */
-export default function ClassMascotArtwork({ kind, mood, name, animationEnabled = false, reactionActive = false, reactionTick = 0 }: Props) {
+export default function ClassMascotArtwork({ kind, mood, name, animationEnabled = false, reactionActive = false, reactionTick = 0, accessory = 'none', surpriseActive = false, surpriseTick = 0 }: Props) {
   const colors = {
     otter: { fur: '#B87346', light: '#F4D3A2', inner: '#D58D8A', blush: '#D88677' },
     dog: { fur: '#C68B52', light: '#F6E1BD', inner: '#C67E76', blush: '#D78B78' },
@@ -39,7 +42,7 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
       </g>;
 
   return (
-    <svg viewBox="0 0 180 182" data-mascot-kind={kind} role="img" aria-label={`${name}, ${kind === 'elf' ? 'ein kleiner Hauself' : kind === 'otter' ? 'ein Otter' : kind === 'dog' ? 'ein Hund' : 'eine Katze'}, ${mood === 'happy' ? 'fröhlich' : mood === 'proud' ? 'stolz' : mood === 'calm' ? 'ruhig' : 'schläfrig'}`}
+    <svg viewBox="0 0 180 182" data-mascot-kind={kind} data-mascot-accessory={accessory} role="img" aria-label={`${name}, ${kind === 'elf' ? 'ein kleiner Hauself' : kind === 'otter' ? 'ein Otter' : kind === 'dog' ? 'ein Hund' : 'eine Katze'}, ${mood === 'happy' ? 'fröhlich' : mood === 'proud' ? 'stolz' : mood === 'calm' ? 'ruhig' : 'schläfrig'}`}
       className={`class-mascot-painted-artwork mx-auto block h-auto max-h-[280px] w-full max-w-[280px] drop-shadow-sm ${animationEnabled && !asleep ? 'class-mascot-idle' : ''}`}>
       <defs>
         <radialGradient id={`mascot-fur-${kind}`} cx="40%" cy="28%" r="80%">
@@ -127,8 +130,54 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
       {asleep ? <path d="M82 120q8 5 16 0" fill="none" stroke="#604B49" strokeWidth="2.2" strokeLinecap="round" /> :
         <path d="M81 118q9 11 18 0" fill="none" stroke="#604B49" strokeWidth="2.5" strokeLinecap="round" />}
       {mood === 'sleepy' && <text x="134" y="40" fill="#64748B" fontSize="14" fontWeight="800" aria-hidden="true">Zz</text>}
+      {/* All accessories are authored in SVG: no raster assets, foreignObject or external fetch. */}
+      {accessory === 'scarf' && (
+        <g data-mascot-outfit="scarf">
+          <path d="M56 128Q89 144 124 128L127 137Q91 151 54 137Z" fill="#4E8D93" stroke="#2D646B" strokeWidth="1.6"/>
+          <path d="M107 136q19-1 20 13l-5 17-12-2 4-18-13-7Z" fill="#2D727C" stroke="#28535C" strokeWidth="1.6"/>
+          <path d="M116 164l-1 5m7-5v5" stroke="#D3EEE7" strokeWidth="1.7" strokeLinecap="round"/>
+        </g>
+      )}
+      {accessory === 'glasses' && !asleep && (
+        <g data-mascot-outfit="glasses" fill="none" stroke="#57443D" strokeWidth="2.9" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="53" y="80" width="32" height="24" rx="10"/><rect x="95" y="80" width="32" height="24" rx="10"/>
+          <path d="M85 86q5-5 10 0M53 85l-12-5m86 5 12-5"/>
+          <path d="M57 84q6-4 11-3m31 3q6-4 11-3" stroke="#FFFFFF" opacity=".65" strokeWidth="1.6"/>
+        </g>
+      )}
+      {accessory === 'star' && (
+        <g data-mascot-outfit="star">
+          <path d="M90 24l4.3 8.7 9.7 1.4-7 6.8 1.6 9.6-8.6-4.5-8.6 4.5 1.6-9.6-7-6.8 9.7-1.4Z" fill="#F7D66D" stroke="#B98A3D" strokeWidth="2"/>
+          <path d="M86 35l4-6 4 6" fill="none" stroke="#FFFBDE" strokeWidth="1.7" strokeLinecap="round"/>
+        </g>
+      )}
       </g>
       </g>
+      {/* Deliberately triggered, short surprise; distinct prop and gesture per original mascot. */}
+      {surpriseActive && (
+        <g key={surpriseTick} data-mascot-surprise={kind} className={`class-mascot-surprise class-mascot-surprise-${kind}`} pointerEvents="none" aria-hidden="true">
+          {kind === 'otter' && <>
+            <ellipse cx="132" cy="122" rx="9" ry="7" fill="#9CA3AF" stroke="#526070" strokeWidth="1.8"/>
+            <path d="M129 120q3-3 6-1" stroke="#E9EEF2" strokeWidth="1.3" fill="none" strokeLinecap="round"/>
+            <path d="M116 129q8-13 16-7" stroke={colors.fur} strokeWidth="5" fill="none" strokeLinecap="round"/>
+          </>}
+          {kind === 'dog' && <>
+            <path d="M128 69q-17-21-15-34q14-3 19 9q11-13 20-3q0 16-24 28Z" fill="#F8CA71" stroke="#A77C3B" strokeWidth="1.4"/>
+            <path d="M129 66q4-15-4-27m9 16q5-9 10-11" stroke="#8D764D" strokeWidth="1.5" fill="none"/>
+            <path d="M129 69q2 9 8 11" stroke="#64748B" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+          </>}
+          {kind === 'cat' && <>
+            <circle cx="130" cy="142" r="12" fill="#CC98AE" stroke="#956377" strokeWidth="1.8"/>
+            <path d="M120 137q16-13 22 9m-21-3q17-1 17 7m-15-18q-3 7 1 19" stroke="#FBE6EC" strokeWidth="1.7" fill="none" strokeLinecap="round"/>
+            <path d="M142 148q14 1 18-11" stroke="#956377" strokeWidth="1.7" fill="none" strokeLinecap="round"/>
+          </>}
+          {kind === 'elf' && <>
+            <path d="M133 43l4 9 10 2-8 7 2 10-8-5-9 5 2-10-7-7 10-2Z" fill="#FFE092" stroke="#B78540" strokeWidth="1.4"/>
+            <path d="M111 49l2-4 2 4 5 1-5 2-2 5-2-5-5-2Zm38 25 2-5 2 5 4 2-4 2-2 5-2-5-4-2Z" fill="#F4D47B"/>
+            <path d="M115 98q10-11 18-24" fill="none" stroke="#D4B369" strokeWidth="2.4" strokeLinecap="round" strokeDasharray="2 5"/>
+          </>}
+        </g>
+      )}
     </svg>
   );
 }

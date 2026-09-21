@@ -1210,6 +1210,43 @@ html body .cockpit-free-mascot .class-mascot-details .text-teal-950 { color: #13
   }
 }
 
+/* Deliberate one-shot surprises are part of the SVG painting, not global overlays.
+   No audio, autoplay, timers outside the mascot or independent hit area. */
+@keyframes class-mascot-surprise-appear {
+  0%, 100% { opacity: 0; transform: translateY(6px) scale(.8); }
+  18%, 75% { opacity: 1; transform: translateY(0) scale(1); }
+  47% { opacity: 1; transform: translateY(-7px) rotate(-4deg) scale(1.04); }
+}
+@keyframes class-mascot-surprise-butterfly {
+  0%, 100% { opacity: 0; transform: translate(0, 9px) rotate(-5deg); }
+  17%, 80% { opacity: 1; }
+  38% { transform: translate(-9px, -3px) rotate(10deg); }
+  62% { transform: translate(3px, -13px) rotate(-8deg); }
+  85% { transform: translate(13px, -19px) rotate(6deg); }
+}
+@keyframes class-mascot-surprise-yarn {
+  0%, 100% { opacity: 0; transform: translateX(0) rotate(0deg); }
+  15%, 77% { opacity: 1; }
+  35% { transform: translateX(-13px) rotate(-18deg); }
+  55% { transform: translateX(9px) rotate(16deg); }
+}
+@keyframes class-mascot-surprise-magic {
+  0%, 100% { opacity: 0; transform: scale(.3) rotate(-35deg); }
+  20%, 80% { opacity: 1; }
+  50% { opacity: 1; transform: scale(1.16) rotate(14deg); }
+}
+.class-mascot-surprise {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: class-mascot-surprise-appear 1.8s ease-in-out both;
+}
+.class-mascot-surprise-dog { animation-name: class-mascot-surprise-butterfly; }
+.class-mascot-surprise-cat { animation-name: class-mascot-surprise-yarn; }
+.class-mascot-surprise-elf { animation-name: class-mascot-surprise-magic; }
+@media (prefers-reduced-motion: reduce) {
+  .class-mascot-surprise { animation: none !important; }
+}
+
 /* Strong, theme-independent contrast inside dark classroom cockpit designs. */
 .cockpit-contrast-dark .text-slate-400,
 .cockpit-contrast-dark .text-neutral-400 { color: #cbd5e1 !important; }

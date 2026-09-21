@@ -4,7 +4,7 @@ import { Cloud, CloudOff, Loader2, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import type { AppState } from '../types';
 import { UNTERRICHTSMODUS_THEMES } from '../lib/unterrichtsmodusThemes';
-import { MASCOT_OPTIONS, normalizeClassMascot, reactToMascotAction, selectClassMascot } from '../lib/classMascot';
+import { MASCOT_OPTIONS, MASCOT_SURPRISE_EVENT, normalizeClassMascot, reactToMascotAction, selectClassMascot } from '../lib/classMascot';
 import ClassMascotArtwork from './cockpit/ClassMascotArtwork';
 
 interface ClassMascotSettingsPanelProps {
@@ -125,6 +125,7 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                                     mood={normalizeClassMascot(app.classMascot).mood}
                                     name={normalizeClassMascot(app.classMascot).name}
                                     animationEnabled={false}
+                                    accessory={normalizeClassMascot(app.classMascot).accessory}
                                 />
                             </span>
                             <div className="min-w-0">
@@ -164,6 +165,56 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                                     {ritual.label}
                                 </button>
                             ))}
+                        </div>
+                        <div className="space-y-2 border-t pt-3" style={{ borderColor: currentTheme.colors.border }}>
+                            <h3 className="text-xs font-black" style={{ color: currentTheme.colors.textPrimary }}>
+                                Eine kleine Überraschung
+                            </h3>
+                            <p className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>
+                                Olivia betrachtet einen Stein, Bruno entdeckt einen Schmetterling,
+                                Mimi spielt mit Wolle und Elio lässt einen Stern erscheinen.
+                                Die Aktion ist nur kurz sichtbar und wird nicht gespeichert.
+                            </p>
+                            <button type="button"
+                                onClick={() => {
+                                    window.dispatchEvent(new Event(MASCOT_SURPRISE_EVENT));
+                                    onClose();
+                                }}
+                                className="min-h-11 w-full rounded-xl border-2 px-3 py-2 text-xs font-black focus-visible:outline focus-visible:outline-2"
+                                style={{ borderColor: currentTheme.colors.accent, color: currentTheme.colors.textPrimary }}>
+                                ✨ Überraschung zeigen
+                            </button>
+                        </div>
+                        <div className="space-y-2 border-t pt-3" style={{ borderColor: currentTheme.colors.border }}>
+                            <h3 className="text-xs font-black" style={{ color: currentTheme.colors.textPrimary }}>
+                                Ein kleines Accessoire
+                            </h3>
+                            <div role="group" aria-label="Accessoire des Klassenmaskottchens" className="grid grid-cols-2 gap-2">
+                                {([
+                                    { accessory: 'none' as const, label: 'Ohne' },
+                                    { accessory: 'scarf' as const, label: '🧣 Schal' },
+                                    { accessory: 'glasses' as const, label: '👓 Brille' },
+                                    { accessory: 'star' as const, label: '⭐ Stern' },
+                                ]).map(item => (
+                                    <button key={item.accessory} type="button"
+                                        aria-pressed={normalizeClassMascot(app.classMascot).accessory === item.accessory}
+                                        onClick={() => setApp(prev => ({
+                                            ...prev,
+                                            classMascot: { ...normalizeClassMascot(prev.classMascot), accessory: item.accessory },
+                                        }))}
+                                        className="min-h-11 rounded-xl border-2 px-2 py-2 text-xs font-bold focus-visible:outline focus-visible:outline-2"
+                                        style={{
+                                            borderColor: normalizeClassMascot(app.classMascot).accessory === item.accessory
+                                                ? currentTheme.colors.accent : currentTheme.colors.border,
+                                            color: currentTheme.colors.textPrimary,
+                                        }}>
+                                        {item.label}
+                                    </button>
+                                ))}
+                            </div>
+                            <p className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>
+                                Das Accessoire gehört zu dieser Klasse und wird verschlüsselt mit dem KLASSIO-Kontostand synchronisiert.
+                            </p>
                         </div>
                     </section>
                     {/* Keep configuration off the whiteboard: the mascot itself has no visible controls. */}
