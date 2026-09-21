@@ -11619,7 +11619,7 @@ ${content}
                                       );
 
                                     case "pet":
-                                      return <ClassMascotWidget app={app} setApp={setApp} />;
+                                      return <ClassMascotWidget app={app} setApp={setApp} currentIsLight={currentIsLight} />;
 
                                     case "weather":
                                       return (
