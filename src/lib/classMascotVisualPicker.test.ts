@@ -8,7 +8,7 @@ import { MASCOT_OPTIONS } from './classMascot';
 
 test('Alle vier Figuren besitzen eigene transparente Vorschauen, ohne Fremd-Assets oder Hintergrundbild', () => {
   const widget = readFileSync('src/components/cockpit/ClassMascotWidget.tsx', 'utf8');
-  const picker = readFileSync('src/components/UnterrichtsmodusThemePicker.tsx', 'utf8');
+  const picker = readFileSync('src/components/ClassMascotSettingsPanel.tsx', 'utf8');
   assert.doesNotMatch(widget, /MASCOT_OPTIONS\.map|✓ Ausgewählt|Name des Maskottchens/);
   assert.match(picker, /MASCOT_OPTIONS\.map\(option => \(/);
   assert.match(picker, /<ClassMascotArtwork kind=\{option\.kind\} mood="happy" name=\{option\.name\} animationEnabled=\{false\} \/>/);
