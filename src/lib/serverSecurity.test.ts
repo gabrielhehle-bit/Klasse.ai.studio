@@ -257,7 +257,8 @@ test('E3: Produktionshärtung von server.ts', async (t) => {
       assert.equal(res.headers.get("strict-transport-security"), "max-age=31536000; includeSubDomains");
       const csp = res.headers.get('content-security-policy') || '';
       assert.match(csp, /script-src 'self' 'nonce-[^']+'/);
-      assert.ok(!csp.includes("'unsafe-inline'") || csp.includes("style-src 'self' 'unsafe-inline'"), 'styles may remain inline, scripts may not');
+      const scripts = csp.split(';').map(part => part.trim()).find(part => part.startsWith('script-src ')) || '';
+      assert.doesNotMatch(scripts, /'unsafe-inline'|'unsafe-eval'/, 'production JavaScript must require a nonce or same-origin asset');
       assert.ok(!csp.includes("'unsafe-eval'"));
       assert.match(csp, /frame-ancestors 'self'/);
       prodServer.close();
