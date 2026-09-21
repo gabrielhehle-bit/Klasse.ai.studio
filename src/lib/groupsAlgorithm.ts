@@ -185,13 +185,17 @@ export function calculateGroupSizes(totalStudents: number, mode: GroupingMode, v
  */
 export function getGroupName(index: number, style: string = 'numbered'): { name: string; symbol?: string } {
   const palette = GROUP_COLOR_PALETTES[index % GROUP_COLOR_PALETTES.length];
+  // A 30-child class can have 15 partner groups: color/animal names must not
+  // silently repeat after the palette's eighth entry.
+  const suffix = index >= GROUP_COLOR_PALETTES.length
+    ? ` ${Math.floor(index / GROUP_COLOR_PALETTES.length) + 1}` : '';
   switch (style) {
     case 'colors':
-      return { name: `Team ${palette.colorName}`, symbol: palette.symbol };
+      return { name: `Team ${palette.colorName}${suffix}`, symbol: palette.symbol };
     case 'symbols':
-      return { name: `Gruppe ${palette.symbol}`, symbol: palette.symbol };
+      return { name: `Gruppe ${palette.symbol}${suffix}`, symbol: palette.symbol };
     case 'animals':
-      return { name: `Team ${palette.animal}`, symbol: palette.symbol };
+      return { name: `Team ${palette.animal}${suffix}`, symbol: palette.symbol };
     case 'numbered':
     default:
       return { name: `Gruppe ${index + 1}`, symbol: palette.symbol };
