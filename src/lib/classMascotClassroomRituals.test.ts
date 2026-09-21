@@ -50,7 +50,7 @@ test('Teacher menu triggers local gesture while only conscious mood changes the 
   assert.match(widget, /window\.removeEventListener\(MASCOT_RITUAL_EVENT, triggerRitual\)/);
   assert.match(widget, /if \(!isClassMascotAction\(action\)\) return;/);
   assert.match(widget, /setRitualAction\(null\)/);
-  assert.match(widget, /\[app\.activeClassId\]/);
+  assert.match(widget, /\[app\.activeClassId, state\.quietMode\]/);
   assert.match(settings, /window\.dispatchEvent\(new CustomEvent\(MASCOT_RITUAL_EVENT, \{ detail: ritual\.action \}\)\)/);
   assert.match(settings, /classMascot: reactToMascotAction\(normalizeClassMascot\(prev\.classMascot\), ritual\.action\)/);
   assert.doesNotMatch(widget, /setApp\(|localStorage|sessionStorage|fetch\(|Audio\(|speechSynthesis/);

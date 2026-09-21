@@ -1,5 +1,5 @@
 import React from 'react';
-import type { ClassMascotAccessory, ClassMascotAction, ClassMascotKind, ClassMascotMood } from '../../lib/classMascot';
+import type { ClassMascotAccessory, ClassMascotAction, ClassMascotKind, ClassMascotMood, ClassMascotSeason } from '../../lib/classMascot';
 
 interface Props {
   kind: ClassMascotKind;
@@ -9,6 +9,7 @@ interface Props {
   reactionActive?: boolean;
   reactionTick?: number;
   accessory?: ClassMascotAccessory;
+  season?: ClassMascotSeason;
   surpriseActive?: boolean;
   surpriseTick?: number;
   ritualAction?: ClassMascotAction | null;
@@ -16,7 +17,7 @@ interface Props {
 }
 
 /** Original, self-contained SVG designs. No third-party character assets or network requests. */
-export default function ClassMascotArtwork({ kind, mood, name, animationEnabled = false, reactionActive = false, reactionTick = 0, accessory = 'none', surpriseActive = false, surpriseTick = 0, ritualAction = null, ritualTick = 0 }: Props) {
+export default function ClassMascotArtwork({ kind, mood, name, animationEnabled = false, reactionActive = false, reactionTick = 0, accessory = 'none', season = 'none', surpriseActive = false, surpriseTick = 0, ritualAction = null, ritualTick = 0 }: Props) {
   const colors = {
     otter: { fur: '#B87346', light: '#F4D3A2', inner: '#D58D8A', blush: '#D88677' },
     dog: { fur: '#C68B52', light: '#F6E1BD', inner: '#C67E76', blush: '#D78B78' },
@@ -44,7 +45,7 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
       </g>;
 
   return (
-    <svg viewBox="0 0 180 182" data-mascot-kind={kind} data-mascot-accessory={accessory} role="img" aria-label={`${name}, ${kind === 'elf' ? 'ein kleiner Hauself' : kind === 'otter' ? 'ein Otter' : kind === 'dog' ? 'ein Hund' : 'eine Katze'}, ${mood === 'happy' ? 'fröhlich' : mood === 'proud' ? 'stolz' : mood === 'calm' ? 'ruhig' : 'schläfrig'}`}
+    <svg viewBox="0 0 180 182" data-mascot-kind={kind} data-mascot-accessory={accessory} data-mascot-season={season} role="img" aria-label={`${name}, ${kind === 'elf' ? 'ein kleiner Hauself' : kind === 'otter' ? 'ein Otter' : kind === 'dog' ? 'ein Hund' : 'eine Katze'}, ${mood === 'happy' ? 'fröhlich' : mood === 'proud' ? 'stolz' : mood === 'calm' ? 'ruhig' : 'schläfrig'}`}
       className={`class-mascot-painted-artwork mx-auto block h-auto max-h-[280px] w-full max-w-[280px] drop-shadow-sm ${animationEnabled && !asleep ? 'class-mascot-idle' : ''}`}>
       <defs>
         <radialGradient id={`mascot-fur-${kind}`} cx="40%" cy="28%" r="80%">
@@ -159,6 +160,43 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
       </g>
       </g>
       </g>
+      {/* The teacher chooses a single tiny seasonal detail, not a background,
+          automatic calendar event or decoration outside this transparent SVG. */}
+      {season === 'spring' && (
+        <g data-mascot-season-accent="spring" pointerEvents="none" aria-hidden="true">
+          <path d="M145 153q-3-10-2-20" stroke="#539A70" strokeWidth="2" strokeLinecap="round" fill="none"/>
+          <path d="M142 146q-8-8-11-2q2 5 11 5m2-8q5-8 10-4q0 5-9 8" fill="#81B989"/>
+          <g fill="#F3A4C3" stroke="#CE789C" strokeWidth=".8">
+            <ellipse cx="143" cy="130" rx="3.4" ry="5"/><ellipse cx="143" cy="130" rx="3.4" ry="5" transform="rotate(72 143 130)"/>
+            <ellipse cx="143" cy="130" rx="3.4" ry="5" transform="rotate(144 143 130)"/>
+            <ellipse cx="143" cy="130" rx="3.4" ry="5" transform="rotate(216 143 130)"/>
+            <ellipse cx="143" cy="130" rx="3.4" ry="5" transform="rotate(288 143 130)"/>
+          </g>
+          <circle cx="143" cy="130" r="3" fill="#F9D47A"/>
+        </g>
+      )}
+      {season === 'summer' && (
+        <g data-mascot-season-accent="summer" pointerEvents="none" aria-hidden="true">
+          <circle cx="145" cy="37" r="7" fill="#F9DB7B" stroke="#D7A74B" strokeWidth="1.5"/>
+          <path d="M145 25v-4m0 32v-4m-12-12h-4m32 0h-4m-20-8-3-3m23 23-3-3m-17 0-3 3m23-23-3 3"
+            stroke="#E8BA5C" strokeWidth="2" strokeLinecap="round" fill="none"/>
+        </g>
+      )}
+      {season === 'autumn' && (
+        <g data-mascot-season-accent="autumn" pointerEvents="none" aria-hidden="true">
+          <path d="M141 149q-17-10-11-20q5-3 8 2q5-9 12-5q5 7-1 12q8 5 2 11l-10 3Z"
+            fill="#DB9559" stroke="#A96240" strokeWidth="1.6"/>
+          <path d="M142 150q-1-12 2-17m-2 12-9-11m10 4 7-7m-9 18 1 5"
+            stroke="#A96240" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+        </g>
+      )}
+      {season === 'winter' && (
+        <g data-mascot-season-accent="winter" pointerEvents="none" aria-hidden="true"
+          stroke="#82B7CF" strokeWidth="1.9" strokeLinecap="round" fill="none">
+          <path d="M144 23v26m-13-13h26m-22-9 18 18m0-18-18 18"/>
+          <path d="M140 26l4 4 4-4m-8 20 4-4 4 4m-14-14 4 4-4 4m20-8-4 4 4 4"/>
+        </g>
+      )}
       {/* Small SVG-only accents for teacher-chosen class rituals: no scores,
           pupils, overlay, sound or autonomous events. */}
       {ritualAction === 'praise' && (

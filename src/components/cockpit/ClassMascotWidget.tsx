@@ -33,6 +33,7 @@ export default function ClassMascotWidget({ app }: Props) {
   const triggerRitual = React.useCallback((event: Event) => {
     const action = (event as CustomEvent<unknown>).detail;
     if (!isClassMascotAction(action)) return;
+    if (state.quietMode) return;
     // Only the latest chosen ritual may finish; never queue background surprises.
     if (ritualTimer.current !== null) clearTimeout(ritualTimer.current);
     if (surpriseTimer.current !== null) clearTimeout(surpriseTimer.current);
@@ -45,8 +46,9 @@ export default function ClassMascotWidget({ app }: Props) {
       setRitualAction(null);
       ritualTimer.current = null;
     }, action === 'calm' ? 5400 : 1750);
-  }, []);
+  }, [state.quietMode]);
   const triggerSurprise = React.useCallback(() => {
+    if (state.quietMode) return;
     if (ritualTimer.current !== null) clearTimeout(ritualTimer.current);
     setRitualAction(null);
     if (surpriseTimer.current !== null) clearTimeout(surpriseTimer.current);
@@ -56,7 +58,7 @@ export default function ClassMascotWidget({ app }: Props) {
       setSurpriseActive(false);
       surpriseTimer.current = null;
     }, 1900);
-  }, []);
+  }, [state.quietMode]);
   React.useEffect(() => {
     window.addEventListener(MASCOT_SURPRISE_EVENT, triggerSurprise);
     window.addEventListener(MASCOT_RITUAL_EVENT, triggerRitual);
@@ -77,8 +79,9 @@ export default function ClassMascotWidget({ app }: Props) {
     setRitualAction(null);
     setSurpriseActive(false);
     setReactionActive(false);
-  }, [app.activeClassId]);
+  }, [app.activeClassId, state.quietMode]);
   const reactToTap = () => {
+    if (state.quietMode) return;
     if (reactionTimer.current !== null) clearTimeout(reactionTimer.current);
     setReactionTick(tick => tick + 1);
     setReactionActive(true);
@@ -91,14 +94,16 @@ export default function ClassMascotWidget({ app }: Props) {
     <section aria-label="Klassenmaskottchen" className="class-mascot-v1 class-mascot-freestanding pointer-events-none flex h-full min-h-0 w-full items-center justify-center overflow-hidden bg-transparent p-0">
       <button
         type="button"
-        aria-label={state.name + ' – Klassenmaskottchen verschieben: ziehen oder Pfeiltasten nutzen (Umschalt für Feinschritt); antippen für eine Reaktion'}
+        aria-label={state.name + (state.quietMode
+          ? ' – Klassenmaskottchen in Tafelruhe; verschieben mit Ziehen oder Pfeiltasten'
+          : ' – Klassenmaskottchen verschieben: ziehen oder Pfeiltasten nutzen (Umschalt für Feinschritt); antippen für eine Reaktion')}
         onClick={reactToTap}
         onDoubleClick={triggerSurprise}
         className="class-mascot-character pointer-events-none mx-auto flex max-w-full shrink-0 touch-none cursor-grab items-end justify-center bg-transparent p-0 active:cursor-grabbing focus-visible:rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-500"
         style={{ width: `min(100%, ${state.displaySize}px)` }}
       >
         <span className="pointer-events-none block w-full">
-          <ClassMascotArtwork kind={state.kind} mood={state.mood} name={state.name} animationEnabled={state.animationEnabled} reactionActive={reactionActive} reactionTick={reactionTick} accessory={state.accessory} surpriseActive={surpriseActive} surpriseTick={surpriseTick} ritualAction={ritualAction} ritualTick={ritualTick} />
+          <ClassMascotArtwork kind={state.kind} mood={state.mood} name={state.name} animationEnabled={state.animationEnabled && !state.quietMode} reactionActive={reactionActive && !state.quietMode} reactionTick={reactionTick} accessory={state.accessory} season={state.season} surpriseActive={surpriseActive && !state.quietMode} surpriseTick={surpriseTick} ritualAction={state.quietMode ? null : ritualAction} ritualTick={ritualTick} />
         </span>
       </button>
     </section>

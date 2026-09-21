@@ -3,6 +3,7 @@ export type ClassMascotKind = 'otter' | 'dog' | 'cat' | 'elf';
 export type ClassMascotMood = 'happy' | 'calm' | 'sleepy' | 'proud';
 export type ClassMascotAction = 'praise' | 'calm' | 'encourage';
 export type ClassMascotAccessory = 'none' | 'scarf' | 'glasses' | 'star';
+export type ClassMascotSeason = 'none' | 'spring' | 'summer' | 'autumn' | 'winter';
 /** Local UI signal: a brief surprise is never persisted or broadcast via account sync. */
 export const MASCOT_SURPRISE_EVENT = 'klassio:mascot-surprise';
 /** Classroom ritual gestures are intentionally ephemeral; teacher-selected mood still syncs. */
@@ -21,6 +22,10 @@ export interface ClassMascotState {
   animationEnabled: boolean;
   /** Optional class-local outfit, restored with the rest of the encrypted app state. */
   accessory?: ClassMascotAccessory;
+  /** One discreet SVG-only seasonal accent; never chosen from location, date or pupil data. */
+  season?: ClassMascotSeason;
+  /** Keep the visible figure still and ignore all temporary touch/menu gestures. */
+  quietMode?: boolean;
   /** Visible figure size on the board in CSS pixels; the surrounding widget stays transparent. */
   displaySize?: 160 | 220 | 280;
 }
@@ -45,12 +50,15 @@ export const DEFAULT_CLASS_MASCOT: ClassMascotState = {
   stars: 0,
   animationEnabled: false,
   accessory: 'none',
+  season: 'none',
+  quietMode: false,
   displaySize: 220,
 };
 
 const KINDS = new Set<ClassMascotKind>(['otter', 'dog', 'cat', 'elf']);
 const MOODS = new Set<ClassMascotMood>(['happy', 'calm', 'sleepy', 'proud']);
 const ACCESSORIES = new Set<ClassMascotAccessory>(['none', 'scarf', 'glasses', 'star']);
+const SEASONS = new Set<ClassMascotSeason>(['none', 'spring', 'summer', 'autumn', 'winter']);
 const clampStars = (value: unknown) => typeof value === 'number' && Number.isFinite(value)
   ? Math.max(0, Math.min(5, Math.floor(value))) : 0;
 
@@ -105,6 +113,8 @@ export function normalizeClassMascot(value?: Partial<ClassMascotState> | null): 
     stars: clampStars(value?.stars),
     animationEnabled: value?.animationEnabled === true,
     accessory: value?.accessory && ACCESSORIES.has(value.accessory) ? value.accessory : 'none',
+    season: value?.season && SEASONS.has(value.season) ? value.season : 'none',
+    quietMode: value?.quietMode === true,
     displaySize: value?.displaySize === 160 || value?.displaySize === 280 ? value.displaySize : 220,
   };
 }
