@@ -1,6 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { Cloud, CloudOff, Loader2, X } from 'lucide-react';
+import { useApp } from '../context/AppContext';
 import type { AppState } from '../types';
 import { UNTERRICHTSMODUS_THEMES } from '../lib/unterrichtsmodusThemes';
 import { MASCOT_OPTIONS, normalizeClassMascot, selectClassMascot } from '../lib/classMascot';
@@ -16,6 +17,20 @@ interface ClassMascotSettingsPanelProps {
 
 /** Dedicated mascot settings; the board continues to display only the transparent figure. */
 export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose, onRecenterMascot }: ClassMascotSettingsPanelProps) {
+    const { accountSyncStatus, accountSyncLastAt, accountSyncMessage, retryAccountSync } = useApp();
+    const [retryingSync, setRetryingSync] = React.useState(false);
+    const syncIsConfirmed = accountSyncStatus === 'synced';
+    const syncNeedsAttention = accountSyncStatus === 'error' || accountSyncStatus === 'conflict' || accountSyncStatus === 'local-error';
+    const mascotSyncLabel = syncIsConfirmed
+        ? 'Änderungen auf dem Server bestätigt'
+        : accountSyncStatus === 'saving-local' ? 'Wird verschlüsselt auf diesem Gerät gespeichert …'
+        : accountSyncStatus === 'saved-local' ? 'Lokal gespeichert · Cloud-Bestätigung steht aus'
+        : accountSyncStatus === 'syncing' ? 'Verschlüsselte Übertragung läuft …'
+        : accountSyncStatus === 'disabled' ? 'Geräteübergreifender Sync nicht aktiv'
+        : accountSyncStatus === 'conflict' ? 'Zwei Geräte haben unterschiedliche Änderungen'
+        : accountSyncStatus === 'local-error' ? 'Letzte Änderung nicht lokal gespeichert'
+        : accountSyncStatus === 'error' ? 'Cloud-Abgleich fehlgeschlagen'
+        : 'Geräteübergreifenden Sync prüfen …';
     const currentTheme = UNTERRICHTSMODUS_THEMES[app.unterrichtsmodus_theme || app.theme || 'classic_light']
         || UNTERRICHTSMODUS_THEMES.classic_light;
     React.useEffect(() => {
@@ -51,6 +66,51 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                     </button>
                 </header>
                 <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain p-4 sm:p-5">
+                    <section aria-label="Geräteübergreifender Maskottchen-Sync" className="space-y-2 rounded-2xl border p-4"
+                        style={{ borderColor: currentTheme.colors.border, backgroundColor: currentTheme.colors.surface }}>
+                        <div className="flex items-center gap-2 text-sm font-black" style={{ color: currentTheme.colors.textPrimary }}>
+                            {syncIsConfirmed ? <Cloud size={17} aria-hidden="true" /> :
+                                syncNeedsAttention || accountSyncStatus === 'disabled' ? <CloudOff size={17} aria-hidden="true" /> :
+                                    <Loader2 size={17} className="animate-spin" aria-hidden="true" />}
+                            Geräteübergreifender Sync
+                        </div>
+                        <p role="status" aria-live="polite" className="text-xs font-bold"
+                            style={{ color: currentTheme.colors.textPrimary }}>{mascotSyncLabel}</p>
+                        {syncIsConfirmed && accountSyncLastAt && (
+                            <p className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>
+                                Letzte Serverbestätigung: {new Date(accountSyncLastAt).toLocaleString('de-AT')}
+                            </p>
+                        )}
+                        <p className="text-xs leading-relaxed" style={{ color: currentTheme.colors.textSecondary }}>
+                            Figur, Name, Stimmung, Größe und Position werden mit deinem verschlüsselten KLASSIO-Konto übertragen.
+                            Öffne auf dem zweiten Gerät dasselbe Konto und entsperre deinen Tresor.
+                            Wechsle erst, wenn hier die aktuelle Änderung vom Server bestätigt ist.
+                        </p>
+                        {accountSyncStatus === 'disabled' && (
+                            <p className="text-xs font-semibold" style={{ color: currentTheme.colors.textPrimary }}>
+                                Melde dich unter Einstellungen → Konto & Schulmail mit derselben E-Mail-Adresse an.
+                            </p>
+                        )}
+                        {syncNeedsAttention && (
+                            <>
+                                <p className="text-xs font-semibold" style={{ color: currentTheme.colors.textPrimary }}>
+                                    {accountSyncMessage || 'Bitte KLASSIO auf diesem Gerät geöffnet lassen und den Kontostatus prüfen.'}
+                                </p>
+                                <button type="button" disabled={retryingSync}
+                                    onClick={() => { setRetryingSync(true); void retryAccountSync().finally(() => setRetryingSync(false)); }}
+                                    className="min-h-11 rounded-xl border px-3 py-2 text-xs font-black disabled:opacity-50"
+                                    style={{ color: currentTheme.colors.textPrimary, borderColor: currentTheme.colors.border }}>
+                                    {retryingSync ? 'Prüfe …' : 'Sync erneut prüfen'}
+                                </button>
+                                {accountSyncStatus === 'conflict' && (
+                                    <p className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>
+                                        Einen Konflikt bewusst unter Einstellungen → Konto & Schulmail lösen. Nichts wird automatisch überschrieben.
+                                    </p>
+                                )}
+                            </>
+                        )}
+                    </section>
+
                     {/* Keep configuration off the whiteboard: the mascot itself has no visible controls. */}
                     <section className="space-y-3 p-4 rounded-2xl border" aria-label="Klassenmaskottchen auswählen"
                         style={{ borderColor: currentTheme.colors.border, backgroundColor: currentTheme.colors.surface }}>
