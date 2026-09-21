@@ -9588,7 +9588,7 @@ ${content}
                                                       </button>
                                                     </div>
                                                   </div>
-                                                ) :                                                 {group.id === "groups" ? (
+                                                ) : group.id === "groups" ? (
                                                   <div className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-sm font-bold">
                                                     <span>{group.label}</span>
                                                     <div className="flex shrink-0 items-center gap-1">
@@ -9608,7 +9608,7 @@ ${content}
                                                       </button>
                                                     </div>
                                                   </div>
-                                                ) :                                                 {group.id === "classweeklyplan" ? (
+                                                ) : group.id === "classweeklyplan" ? (
                                                   <div className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-sm font-bold">
                                                     <span>{group.label}</span>
                                                     <div className="flex shrink-0 items-center gap-1">
@@ -9628,7 +9628,7 @@ ${content}
                                                       </button>
                                                     </div>
                                                   </div>
-                                                ) : {group.id === "randomname" ? (
+                                                ) : group.id === "randomname" ? (
   <div className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-sm font-bold">
     <span>{group.label}</span>
     <div className="flex shrink-0 items-center gap-1">
