@@ -82,9 +82,10 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     && Number.isFinite(savedSettings.targetValue) && savedSettings.targetValue >= 2
     ? Math.floor(savedSettings.targetValue) : 4;
 
-  const [namingStyle, setNamingStyle] = useState<'numbered' | 'colors' | 'symbols' | 'animals'>(
-    savedSettings.namingStyle || 'numbered'
-  );
+  // The picker is the source of truth; no lagging local naming choice during a quick re-draw.
+  const namingStyle: 'numbered' | 'colors' | 'symbols' | 'animals' =
+    savedSettings.namingStyle === 'colors' || savedSettings.namingStyle === 'symbols' || savedSettings.namingStyle === 'animals'
+      ? savedSettings.namingStyle : 'numbered';
 
   // Temporäre Ausschlüsse & Constraints
   const [pausedStudentIds, setPausedStudentIds] = useState<string[]>(
@@ -138,11 +139,10 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     setSelectedStudentForAction(null);
   }, [widget?.settings?.groups]);
   useEffect(() => {
-    setNamingStyle(widget?.settings?.namingStyle || 'numbered');
     setPausedStudentIds(Array.isArray(widget?.settings?.pausedStudentIds) ? widget.settings.pausedStudentIds : []);
     setNotTogether(Array.isArray(widget?.settings?.notTogether) ? widget.settings.notTogether : []);
     setKeepTogether(Array.isArray(widget?.settings?.keepTogether) ? widget.settings.keepTogether : []);
-  }, [widget?.settings?.namingStyle, widget?.settings?.pausedStudentIds, widget?.settings?.notTogether, widget?.settings?.keepTogether]);
+  }, [widget?.settings?.pausedStudentIds, widget?.settings?.notTogether, widget?.settings?.keepTogether]);
   useEffect(() => {
     setIsExpanded(false);
     setPreviousGroups(null);
@@ -174,19 +174,20 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     updatedPaused: string[],
     updatedNotTogether: GroupConstraint[],
     updatedKeepTogether: GroupConstraint[],
-    updatedNamingStyle: 'numbered' | 'colors' | 'symbols' | 'animals'
+    updatedNamingStyle: 'numbered' | 'colors' | 'symbols' | 'animals',
+    persistNamingStyle = false,
   ) => {
     if (onUpdate && widget) {
+      // Only persist fields changed by this group action. In particular do NOT
+      // overwrite a freshly selected mode/count/scope from the picker with an
+      // earlier render's values. The parent merges this partial settings patch.
       onUpdate({
         settings: {
-          ...(widget.settings || {}),
           groups: updatedGroups,
-          mode: updatedMode,
-          targetValue: updatedValue,
           pausedStudentIds: updatedPaused,
           notTogether: updatedNotTogether,
           keepTogether: updatedKeepTogether,
-          namingStyle: updatedNamingStyle
+          ...(persistNamingStyle ? { namingStyle: updatedNamingStyle } : {}),
         }
       });
     }
@@ -244,6 +245,10 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     setGroups(result.groups);
     setSelectedStudentForAction(null);
     setGroupPage(0);
+    // A group division must never silently hide half the class behind pages.
+    // When the current widget cannot show every card, open the all-groups view.
+    const preview = getGroupPageLayout(groupBodySize.width, groupBodySize.height, result.groups, 0, { reservedHeight: 76 });
+    if (!preview.fits || preview.pageCount > 1) setIsExpanded(true);
 
     persistState(
       result.groups,
@@ -266,7 +271,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
         type: 'success'
       });
     }
-  }, [mode, targetValue, namingStyle, pausedStudentIds, notTogether, keepTogether, activeStudentIds, studentScope, persistState, groups, allStudents]);
+  }, [mode, targetValue, namingStyle, pausedStudentIds, notTogether, keepTogether, activeStudentIds, studentScope, persistState, groups, allStudents, groupBodySize.width, groupBodySize.height]);
 
   const undoMix = () => {
     if (!previousGroups) return;
@@ -339,15 +344,13 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
 
   // Toggle Pausierung eines Schülers
   const handleTogglePause = useCallback((studentId: string) => {
-    setPausedStudentIds(prev => {
-      const next = prev.includes(studentId)
-        ? prev.filter(id => id !== studentId)
-        : [...prev, studentId];
-
-      persistState(groups, mode, targetValue, next, notTogether, keepTogether, namingStyle);
-      return next;
-    });
-  }, [groups, mode, targetValue, notTogether, keepTogether, namingStyle, persistState]);
+    const next = pausedStudentIds.includes(studentId)
+      ? pausedStudentIds.filter(id => id !== studentId)
+      : [...pausedStudentIds, studentId];
+    setPausedStudentIds(next);
+    // Never invoke a parent state update from inside another state updater.
+    persistState(groups, mode, targetValue, next, notTogether, keepTogether, namingStyle);
+  }, [pausedStudentIds, groups, mode, targetValue, notTogether, keepTogether, namingStyle, persistState]);
 
   // Hinzufügen von Paar-Regeln
   const handleAddNotTogether = () => {
@@ -390,7 +393,11 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     groupPage,
     { reservedHeight: 76 }, // content padding, page navigation and card gaps
   );
-  const displayedGroups = groupLayout.cards.slice(groupLayout.start, groupLayout.start + groupLayout.pageSize);
+  // In the all-groups view every segment stays mounted, not just the first page.
+  // Compact widgets may page, but explicitly reveal every group in the expanded view.
+  const displayedGroups = isExpanded
+    ? groupLayout.cards
+    : groupLayout.cards.slice(groupLayout.start, groupLayout.start + groupLayout.pageSize);
   const hasMissingClassMembers = groups.some(group => group.studentIds.some(id => !allStudents.some(student => student.id === id)));
 
   const widgetContent = (
@@ -455,10 +462,11 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
           <p className="text-xs opacity-70">{activeStudentIds.length} Kinder {studentScope === 'all' ? 'aus der Klasse' : 'heute anwesend'}</p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-          {!isExpanded && groups.length > 0 && groupLayout.pageCount > 1 && (
+          {!isExpanded && groups.length > 0 && (
             <button type="button" onClick={() => setIsExpanded(true)}
+              aria-label="Alle Gruppen anzeigen"
               className="min-h-11 rounded-xl border border-indigo-200 px-3 text-xs font-bold text-indigo-700 dark:text-indigo-300">
-              Großansicht
+              Alle {groups.length} Gruppen anzeigen
             </button>
           )}
           {previousGroups && groups.length > 0 && (size.width >= 550 || isExpanded) && (
@@ -541,7 +549,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                   Kinder, die temporär nicht eingeteilt werden sollen:
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-48 overflow-y-auto pr-1">
-                  {presentStudents.map((st) => {
+                  {(studentScope === 'all' ? allStudents : presentStudents).map((st) => {
                     const isPaused = pausedStudentIds.includes(st.id);
                     return (
                       <button
@@ -717,13 +725,12 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                     key={s.id}
                     onClick={() => {
                       const nextStyle = s.id as typeof namingStyle;
-                      setNamingStyle(nextStyle);
                       // Changing the display style must never reshuffle established groups.
                       const renamed = groups.map((group, index) => ({
                         ...group, ...getGroupName(index, nextStyle),
                       }));
                       setGroups(renamed);
-                      persistState(renamed, mode, targetValue, pausedStudentIds, notTogether, keepTogether, nextStyle);
+                      persistState(renamed, mode, targetValue, pausedStudentIds, notTogether, keepTogether, nextStyle, true);
                     }}
                     className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
                       namingStyle === s.id
@@ -754,7 +761,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
       {/* ========================================================================= */}
       {/* HAUPTBEREICH: GRUPPEN-KARTEN ODER INITIALER STATE                         */}
       {/* ========================================================================= */}
-      <div ref={groupBodyRef} className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-2 sm:p-3">
+      <div ref={groupBodyRef} className={`flex min-h-0 flex-1 flex-col gap-2 p-2 sm:p-3 ${isExpanded ? 'overflow-auto' : 'overflow-hidden'}`}>
         {groups.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-4">
             <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-2 shadow-inner">
@@ -766,7 +773,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
             </p>
             <p className="text-xs font-semibold text-indigo-700">Mit „Gruppen bilden“ oben starten.</p>
           </div>
-        ) : !groupLayout.fits ? (
+        ) : !groupLayout.fits && !isExpanded ? (
           <div role="status" className="flex h-full min-h-0 flex-col items-center justify-center gap-3 rounded-xl bg-indigo-50 p-3 text-center text-slate-900">
             <p className="text-sm font-bold">{groups.length} Gruppen mit {groups.reduce((sum, group) => sum + group.studentIds.length, 0)} Kindern sind eingeteilt.</p>
             <p className="text-xs">Damit alle Namen und Schaltflächen lesbar bleiben, braucht die Gruppendarstellung mehr Platz.</p>
@@ -778,9 +785,11 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
           </div>
         ) : (
           <>
-          <div className="grid min-h-0 flex-1 content-start gap-2 overflow-hidden"
+          <div className={`grid min-h-0 content-start gap-2 ${isExpanded ? 'flex-none overflow-visible pb-2' : 'flex-1 overflow-hidden'}`}
             style={{ gridTemplateColumns: `repeat(${groupLayout.columns}, minmax(0, 1fr))`, gridAutoRows: `${groupLayout.cardHeight}px` }}
-            role="list" aria-label={`Gruppenkarten ${groupLayout.start + 1} bis ${Math.min(groupLayout.cards.length, groupLayout.start + groupLayout.pageSize)} von ${groupLayout.cards.length}`}>
+            role="list" aria-label={isExpanded
+              ? `Alle ${groups.length} Gruppen mit ${groups.reduce((sum, group) => sum + group.studentIds.length, 0)} Kindern`
+              : `Gruppenkarten ${groupLayout.start + 1} bis ${Math.min(groupLayout.cards.length, groupLayout.start + groupLayout.pageSize)} von ${groupLayout.cards.length}`}>
             {displayedGroups.map((segment) => {
               const group = segment.group;
               const palette = GROUP_COLOR_PALETTES[group.colorIndex % GROUP_COLOR_PALETTES.length];
@@ -863,13 +872,13 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
               );
             })}
           </div>
-          {groupLayout.pageCount > 1 && (
+          {!isExpanded && groupLayout.pageCount > 1 && (
             <nav aria-label="Gruppenseiten" className="flex shrink-0 items-center justify-between gap-2 text-xs font-bold">
               <button type="button" aria-label="Vorherige Gruppenseite"
                 className="min-h-11 rounded-lg border px-3 disabled:opacity-40"
                 disabled={groupLayout.page === 0}
                 onClick={() => setGroupPage(groupLayout.page - 1)}>← Zurück</button>
-              <span aria-live="polite" className="tabular-nums">{groupLayout.page + 1} / {groupLayout.pageCount}</span>
+              <span aria-live="polite" className="tabular-nums">{groupLayout.page + 1} / {groupLayout.pageCount} · {groups.length} Gruppen</span>
               <button type="button" aria-label="Nächste Gruppenseite"
                 className="min-h-11 rounded-lg border px-3 disabled:opacity-40"
                 disabled={groupLayout.page >= groupLayout.pageCount - 1}
@@ -892,7 +901,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
           currentIsLight ? 'bg-stone-100 border-stone-200 text-stone-600' : 'bg-stone-900 border-stone-800 text-stone-400'
         }`}>
           <span>
-            <strong>{groups.length} Gruppen</strong> ({activeStudentIds.length} Kinder)
+            <strong>{groups.length} Gruppen</strong> ({groups.reduce((sum, group) => sum + group.studentIds.length, 0)} eingeteilte Kinder)
           </span>
           <span className="font-semibold">{studentScope === 'all' ? 'Gesamte Klasse' : 'Heute anwesend'}</span>
         </div>
@@ -903,7 +912,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     <div role="dialog" aria-modal="true" aria-label="Gruppen groß anzeigen"
       className="fixed inset-0 z-[10000] flex min-h-0 flex-col bg-white p-2 text-slate-900 shadow-2xl sm:p-4 dark:bg-zinc-950 dark:text-white">
       <div className="mb-2 flex min-h-11 shrink-0 items-center justify-between gap-3">
-        <span className="text-sm font-black">👥 Gruppen bilden · Großansicht</span>
+        <span className="text-sm font-black">👥 Alle {groups.length} Gruppen · {groups.reduce((sum, group) => sum + group.studentIds.length, 0)} Kinder</span>
         <button type="button" onClick={() => setIsExpanded(false)}
           className="min-h-11 rounded-xl border border-slate-300 px-4 text-sm font-bold dark:border-zinc-700">
           Zurück zur Widgetgröße
