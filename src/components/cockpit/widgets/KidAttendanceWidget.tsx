@@ -174,7 +174,9 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     }, 1200);
 
     // Anwesenheit auf 'da' setzen
-    setApp(res.updatedAppState);
+    setApp((prev) => prev.activeClassId === app.activeClassId && prev.schueler?.some((child) => child.id === studentId)
+      ? checkInStudent(prev, studentId, todayStr).updatedAppState
+      : prev);
 
     // The optional mood question must never hold up the attendance check-in.
     if (!moodEnabled) {
@@ -198,7 +200,9 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     const studentId = activeMoodStudent.id;
 
     // Speichern im verschlüsselten AppState unter app.schuelerStimmung
-    setApp((prev) => recordStudentMood(prev, studentId, value, todayStr));
+    setApp((prev) => prev.activeClassId === app.activeClassId && prev.schueler?.some((child) => child.id === studentId)
+      ? recordStudentMood(prev, studentId, value, todayStr)
+      : prev);
 
     // Sofort auf die neutrale Danke-Ansicht umstellen (ohne den gewählten Smiley zu zeigen!)
     setActiveMoodStudent((prev) => (prev ? { ...prev, step: 'thanks' } : null));
@@ -208,7 +212,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
       setActiveMoodStudent(null);
       setSelectedStudentId(null);
     }, 1200);
-  }, [activeMoodStudent, setApp, todayStr]);
+  }, [activeMoodStudent, setApp, todayStr, app.activeClassId]);
 
   // Kind überspringt das Befinden (freiwillig)
   const handleChildSkipMood = useCallback(() => {
@@ -248,27 +252,31 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   }, [setApp, todayStr]);
 
   const handleTeacherBatchAllPresent = useCallback(() => {
-    let nextApp = app;
-    students.forEach((s) => {
-      const status = getStudentAttendanceStatus(s.id, nextApp, todayStr);
-      if (status.status === 'open') {
-        nextApp = teacherSetStudentPresent(nextApp, s.id, todayStr);
-      }
+    setApp((prev) => {
+      if (prev.activeClassId !== app.activeClassId) return prev;
+      let nextApp = prev;
+      students.forEach((student) => {
+        if (getStudentAttendanceStatus(student.id, nextApp, todayStr).status === 'open') {
+          nextApp = teacherSetStudentPresent(nextApp, student.id, todayStr);
+        }
+      });
+      return nextApp;
     });
-    setApp(nextApp);
-  }, [app, setApp, students, todayStr]);
+  }, [app.activeClassId, setApp, students, todayStr]);
 
   const handleTeacherFinalizeRemainingAbsent = useCallback(() => {
-    let nextApp = app;
-    students.forEach((s) => {
-      const status = getStudentAttendanceStatus(s.id, nextApp, todayStr);
-      if (status.status === 'open') {
-        nextApp = teacherSetStudentAbsent(nextApp, s.id, todayStr, undefined, 'u');
-      }
+    setApp((prev) => {
+      if (prev.activeClassId !== app.activeClassId) return prev;
+      let nextApp = prev;
+      students.forEach((student) => {
+        if (getStudentAttendanceStatus(student.id, nextApp, todayStr).status === 'open') {
+          nextApp = teacherSetStudentAbsent(nextApp, student.id, todayStr, undefined, 'u');
+        }
+      });
+      return nextApp;
     });
-    setApp(nextApp);
     setIsFinalizeModalOpen(false);
-  }, [app, setApp, students, todayStr]);
+  }, [app.activeClassId, setApp, students, todayStr]);
 
   // Liste der aktuell noch offenen Kinder
   const openStudents = useMemo(() => {
