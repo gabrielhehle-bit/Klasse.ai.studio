@@ -25,11 +25,11 @@ test('Both roster choices live inside Widget hinzufügen settings and preserve c
   assert.match(picker, /saveSetting\("mode", mode\)/);
   assert.match(picker, /saveSetting\("targetValue", value\)/);
   assert.match(picker, /cockpitGroupDefaultsByClass/);
-  assert.match(picker, /Voreinstellungen auf vorhandenes Widget anwenden/);
-  assert.match(picker, /getGroupName\(index, groupDefaults.namingStyle\)/);
+  assert.match(picker, /applyGroupWidgetPreference\(w.settings, groupKey, groupValue\)/);
+  assert.match(picker, /setCockpitWidgets\(current => current.map\(updateExistingGroup\)\)/);
 
-  assert.match(picker, /Bestehende Gruppen werden nicht ungefragt neu gemischt/);
-  assert.match(picker, /\.\.\.\(configured\.settings \|\| \{\}\)/);
+  assert.match(picker, /die bisherigen Kinder bleiben bis dahin in ihren Gruppen/);
+  assert.match(picker, /cockpitLayout: \(prev.cockpitLayout \|\| cockpitWidgets\).map\(updateExistingGroup\)/);
   assert.match(surface, /<GroupsWidgetContent/);
 });
 
