@@ -39,16 +39,6 @@ export default function ClassroomWeeklyPlanWidget({ widget }: { widget?: Cockpit
   const preferences = getClassroomWeeklyWidgetPreferences(widget?.settings);
   const [taskPage, setTaskPage] = useState(0);
   const [namePage, setNamePage] = useState(0);
-  useEffect(() => {
-    if (!isExpanded) return;
-    const onEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      if (childId) setChildId(null);
-      else setIsExpanded(false);
-    };
-    window.addEventListener('keydown', onEscape);
-    return () => window.removeEventListener('keydown', onEscape);
-  }, [isExpanded, childId]);
   const [todayWeek, setTodayWeek] = useState(() => getKW(new Date()));
   const [week, setWeek] = useState(() => app.currentKW || getKW(new Date()));
   useEffect(() => {
@@ -61,6 +51,16 @@ export default function ClassroomWeeklyPlanWidget({ widget }: { widget?: Cockpit
   const scope = JSON.stringify([classId, app.schuljahr, week]);
   const [selectionScope, setSelectionScope] = useState(scope);
   const [childId, setChildId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isExpanded) return;
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (childId) setChildId(null);
+      else setIsExpanded(false);
+    };
+    window.addEventListener('keydown', onEscape);
+    return () => window.removeEventListener('keydown', onEscape);
+  }, [isExpanded, childId]);
   const tasks = useMemo(() => getClassroomWeeklyTasks(app, week), [app.wochenplanung, app.schuljahr, week]);
   const pupils = useMemo(() => (app.schueler || [])
     .filter(s => !s.id.startsWith('demo-'))
