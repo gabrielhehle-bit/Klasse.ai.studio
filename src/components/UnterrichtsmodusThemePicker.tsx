@@ -251,6 +251,53 @@ export const UnterrichtsmodusThemePicker: React.FC<ThemePickerProps> = ({ app, s
                                 </button>
                             ))}
                         </div>
+                        <div className="border-t pt-3" style={{ borderColor: currentTheme.colors.border }}>
+                            <p className="mb-2 text-xs font-black" style={{ color: currentTheme.colors.textPrimary }}>
+                                Größe auf der Tafel
+                            </p>
+                            <div className="grid grid-cols-3 gap-2" role="group" aria-label="Maskottchengröße">
+                                {([
+                                    { size: 160 as const, label: 'Klein' },
+                                    { size: 220 as const, label: 'Mittel' },
+                                    { size: 280 as const, label: 'Groß' },
+                                ]).map(option => (
+                                    <button
+                                        key={option.size}
+                                        type="button"
+                                        aria-pressed={normalizeClassMascot(app.classMascot).displaySize === option.size}
+                                        onClick={() => setApp(prev => ({
+                                            ...prev,
+                                            classMascot: { ...normalizeClassMascot(prev.classMascot), displaySize: option.size },
+                                        }))}
+                                        className="min-h-11 rounded-xl border-2 px-2 py-2 text-xs font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                                        style={{
+                                            color: currentTheme.colors.textPrimary,
+                                            borderColor: normalizeClassMascot(app.classMascot).displaySize === option.size
+                                                ? currentTheme.colors.accent : currentTheme.colors.border,
+                                            backgroundColor: currentTheme.colors.surface,
+                                        }}
+                                    >
+                                        {option.label}
+                                    </button>
+                                ))}
+                            </div>
+                            <label className="mt-3 flex min-h-11 items-center justify-between gap-3 text-xs font-bold"
+                                style={{ color: currentTheme.colors.textPrimary }}>
+                                <span>Sanftes Atmen aktivieren</span>
+                                <input
+                                    type="checkbox"
+                                    checked={normalizeClassMascot(app.classMascot).animationEnabled}
+                                    onChange={event => setApp(prev => ({
+                                        ...prev,
+                                        classMascot: { ...normalizeClassMascot(prev.classMascot), animationEnabled: event.target.checked },
+                                    }))}
+                                    className="h-5 w-5 accent-teal-600"
+                                />
+                            </label>
+                            <p className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>
+                                Auf der Tafel bleibt nur die freistehende Figur sichtbar. Die Animation bleibt bei reduzierter Bewegung ausgeschaltet.
+                            </p>
+                        </div>
                     </section>
 
                     {/* CUSTOM COLORS */}
