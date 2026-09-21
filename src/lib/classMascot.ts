@@ -10,6 +10,8 @@ export interface ClassMascotState {
   mood: ClassMascotMood;
   stars: number;
   animationEnabled: boolean;
+  /** Visible figure size on the board in CSS pixels; the surrounding widget stays transparent. */
+  displaySize?: 160 | 220 | 280;
 }
 
 export const MASCOT_OPTIONS: ReadonlyArray<{
@@ -31,6 +33,7 @@ export const DEFAULT_CLASS_MASCOT: ClassMascotState = {
   mood: 'happy',
   stars: 0,
   animationEnabled: false,
+  displaySize: 220,
 };
 
 const KINDS = new Set<ClassMascotKind>(['otter', 'dog', 'cat', 'elf']);
@@ -49,6 +52,7 @@ export function normalizeClassMascot(value?: Partial<ClassMascotState> | null): 
     mood: value?.mood && MOODS.has(value.mood) ? value.mood : 'happy',
     stars: clampStars(value?.stars),
     animationEnabled: value?.animationEnabled === true,
+    displaySize: value?.displaySize === 160 || value?.displaySize === 280 ? value.displaySize : 220,
   };
 }
 
