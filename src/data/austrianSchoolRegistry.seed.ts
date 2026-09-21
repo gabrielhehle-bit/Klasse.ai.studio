@@ -997,7 +997,7 @@ const VORARLBERG_VS: ReadonlyArray<readonly [id: string, code: string, name: str
 ];
 
 export const INITIAL_VERIFIED_AUSTRIAN_SCHOOLS: Array<Omit<SchoolRecord, 'createdAt' | 'updatedAt'>> =
-  VORARLBERG_VS.map(([id, code, name, emailDomain]) => ({
+  VORARLBERG_VS.map(([id, code, name, emailDomain]): Omit<SchoolRecord, 'createdAt' | 'updatedAt'> => ({
     id, code, name, country: 'AT', federalState: 'Vorarlberg',
     domains: [emailDomain], status: 'verified',
   }));
