@@ -99,7 +99,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isRestoring, setIsRestoring] = useState(false);
   const teamSyncBusyRef = useRef(false);
   const locallySavedStateRef = useRef<AppState | null>(null);
-  const localSaveBusyRef = useRef(false);
+  const localSaveBusyRef = useRef(0);
   const cloudConfirmedStateRef = useRef<AppState | null>(null);
 
   const setApp = React.useCallback((val: React.SetStateAction<AppState>) => {
@@ -156,6 +156,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localState: AppState | null,
     vaultKey: CryptoKey,
     hadLocalState: boolean,
+    isStillCurrent?: () => boolean,
   ): Promise<AppState> => {
     // Einen wirklich neuen Tresor nicht vorschnell durch die Legacy-/Klassenmigration
     // schicken: Der bestehende First-Run muss weiterhin mit leerer Klasse starten.
@@ -181,6 +182,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       const remote = await fetchAccountSyncSnapshot();
+      if (isStillCurrent && !isStillCurrent()) return currentAppRef.current;
 
       if (!remote) {
         const created = await pushAccountSyncSnapshot(current, vaultKey, vaultRecord, 0);
@@ -200,6 +202,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const decryptedRemote = await decryptAccountSyncSnapshot(remote, vaultKey);
       assertRestorableAppState(decryptedRemote);
       const normalizedRemoteState = normalizeAppState(decryptedRemote);
+      if (isStillCurrent && !isStillCurrent()) return currentAppRef.current;
       // Der Server-Baseline-Fingerprint muss exakt dem State entsprechen, den setApp
       // anschließend im UI hält. Sonst kann ein frisch wiederhergestelltes Gerät allein
       // durch die lokale Klassen-Normalisierung eine unnötige neue Serverrevision erzeugen.
@@ -334,15 +337,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const refreshAccountState = React.useCallback(async () => {
     if (!isVaultUnlocked || restoringRef.current || accountSyncBusyRef.current
-      || localSaveBusyRef.current || locallySavedStateRef.current !== currentAppRef.current) return;
+      || localSaveBusyRef.current > 0 || locallySavedStateRef.current !== currentAppRef.current) return;
     const vaultKey = getActiveVaultKey();
     if (!vaultKey) return;
 
     accountSyncBusyRef.current = true;
     try {
       const before = currentAppRef.current;
-      const reconciled = await reconcileAccountState(before, vaultKey, true);
-      if (appStateFingerprint(reconciled) !== appStateFingerprint(before)) {
+      const reconciled = await reconcileAccountState(before, vaultKey, true,
+        () => currentAppRef.current === before);
+      // A teacher may have typed while the network response was in flight.
+      // A stale remote response must NEVER replace those new edits.
+      if (currentAppRef.current === before
+        && appStateFingerprint(reconciled) !== appStateFingerprint(before)) {
         setApp(reconciled);
       }
     } catch (error) {
@@ -463,6 +470,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, [isLoaded, isVaultUnlocked, refreshAccountState]);
 
+  // Retry an already encrypted/local-durable generation if it could not be pushed
+  // while another upload was in flight. Never push data before local durability.
+  useEffect(() => {
+    if (!isLoaded || !isVaultUnlocked) return;
+    const interval = window.setInterval(() => {
+      const latest = currentAppRef.current;
+      const key = getActiveVaultKey();
+      if (!key || restoringRef.current || accountSyncBusyRef.current
+        || !accountSyncReadyRef.current || locallySavedStateRef.current !== latest
+        || cloudConfirmedStateRef.current === latest || !navigator.onLine) return;
+      void pushAccountStateIfReady(latest, key);
+    }, 3_000);
+    return () => window.clearInterval(interval);
+  }, [isLoaded, isVaultUnlocked, pushAccountStateIfReady]);
+
   // In-Memory Getter für AI-Pseudonymisierung registrieren (kein Namenscache im localStorage)
   useEffect(() => {
     registerActiveAppStateGetter(() => currentAppRef.current);
@@ -532,7 +554,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (restoringRef.current || !getActiveVaultKey()) return;
     const vaultKey = getActiveVaultKey();
     if (!vaultKey) return;
-    localSaveBusyRef.current = true;
+    localSaveBusyRef.current += 1;
     try {
       await saveEncryptedAppState(snapshot, vaultKey);
       if (restoringRef.current || getActiveVaultKey() !== vaultKey
@@ -558,7 +580,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setAccountSyncMessage('Die letzte Änderung konnte nicht verschlüsselt auf diesem Gerät gesichert werden. Bitte KLASSIO geöffnet lassen und erneut versuchen.');
       console.error('[Datenschutz] Verschlüsseltes Speichern fehlgeschlagen:', error);
     } finally {
-      localSaveBusyRef.current = false;
+      localSaveBusyRef.current -= 1;
     }
   }, [pushAccountStateIfReady]);
 
@@ -768,7 +790,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isPendingPushRef.current || restoringRef.current
-        || localSaveBusyRef.current || locallySavedStateRef.current !== currentAppRef.current
+        || localSaveBusyRef.current > 0 || locallySavedStateRef.current !== currentAppRef.current
         || (accountSyncReadyRef.current && cloudConfirmedStateRef.current !== currentAppRef.current)) {
         const message = 'Änderungen sind noch nicht sicher auf allen Geräten verfügbar. Bitte KLASSIO geöffnet lassen, bis der Konto-Status grün ist!';
         e.returnValue = message;
