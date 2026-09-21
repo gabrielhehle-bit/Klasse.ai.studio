@@ -1027,6 +1027,8 @@ export interface ClassRoom {
   id: string;
   name: string;
   stufe: number;
+  /** Klassenlokale Schulart; fehlender Wert aus Altbeständen bedeutet Volksschule. */
+  schulart?: import('./lib/schularten').Schulart;
   schuljahr?: string;
   klassenvorstand: boolean;
   schueler: Student[];
@@ -1397,6 +1399,8 @@ export interface AppState {
   morningWidgets?: MorningWidget[];
   customRiddles?: any[];
   // Global / User settings
+  /** Projektion der Schulart der aktiven Klasse (Altbestände: Volksschule). */
+  schulart?: import('./lib/schularten').Schulart;
   stufe: number;
   lehrplanText: string;
   tageplan: Record<string, any> | null;
