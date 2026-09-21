@@ -5,7 +5,8 @@ import {
   generateStudentGroups,
   swapStudentsInGroups,
   moveStudentToGroup,
-  GroupingConfig
+  GroupingConfig,
+  getGroupName
 } from './groupsAlgorithm';
 import {
   getDisplayStudentName,
@@ -194,4 +195,51 @@ test('F8: Gruppen-Einteiler (widget-groups) Algorithmus & Pädagogische Validier
     // Keinerlei Noten-, Verhaltens-, Diagnostik- oder Netzwerk-Felder.
     assert.ok(typeof generateStudentGroups === 'function');
   });
+});
+
+test('Group naming: all 15 partner teams have distinct names even with 8-color palette', () => {
+  for (const style of ['numbered', 'colors', 'animals', 'symbols']) {
+    const names = Array.from({ length: 15 }, (_, i) => getGroupName(i, style).name);
+    assert.equal(new Set(names).size, names.length, style);
+  }
+});
+
+test('Buddy wishes are enforced in repeated partner grouping, not left to 60 random tries', () => {
+  const ids = Array.from({ length: 16 }, (_, i) => 'kid-' + i);
+  const keepTogether = [
+    { studentIdA: 'kid-0', studentIdB: 'kid-1' },
+    { studentIdA: 'kid-2', studentIdB: 'kid-3' },
+    { studentIdA: 'kid-4', studentIdB: 'kid-5' },
+    { studentIdA: 'kid-6', studentIdB: 'kid-7' },
+  ];
+  const notTogether = [
+    { studentIdA: 'kid-8', studentIdB: 'kid-9' },
+    { studentIdA: 'kid-10', studentIdB: 'kid-11' },
+  ];
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const result = generateStudentGroups(ids, {
+      mode: 'size', value: 2, keepTogether, notTogether,
+    });
+    assert.equal(result.warning, null);
+    assert.equal(result.groups.length, 8);
+    assert.deepEqual(result.groups.flatMap(group => group.studentIds).sort(), [...ids].sort());
+    for (const pair of keepTogether) {
+      assert.ok(result.groups.some(group =>
+        group.studentIds.includes(pair.studentIdA) && group.studentIds.includes(pair.studentIdB)), 'buddy pair was separated');
+    }
+    for (const pair of notTogether) {
+      assert.ok(result.groups.every(group =>
+        !group.studentIds.includes(pair.studentIdA) || !group.studentIds.includes(pair.studentIdB)), 'apart pair was joined');
+    }
+  }
+});
+
+test('Unsolvable contradictory buddy/apart rules remain visible as a warning', () => {
+  const result = generateStudentGroups(['kid-0', 'kid-1', 'kid-2', 'kid-3'], {
+    mode: 'size', value: 2,
+    keepTogether: [{ studentIdA: 'kid-0', studentIdB: 'kid-1' }],
+    notTogether: [{ studentIdA: 'kid-0', studentIdB: 'kid-1' }],
+  });
+  assert.ok(result.groups.length > 0);
+  assert.equal(result.warning, 'Nicht alle Wünsche konnten gleichzeitig erfüllt werden.');
 });
