@@ -482,7 +482,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!key || restoringRef.current || accountSyncBusyRef.current
         || !accountSyncReadyRef.current || locallySavedStateRef.current !== latest
         || cloudConfirmedStateRef.current === latest || !navigator.onLine) return;
-      void pushAccountStateIfReady(latest, key);
+      void pushAccountStateIfReady(latest, key).catch(error => {
+        setAccountSyncHealthy(false);
+        setAccountSyncMessage(accountSyncErrorMessage(error));
+        setAccountSyncStatus('error');
+      });
     }, 3_000);
     return () => window.clearInterval(interval);
   }, [isLoaded, isVaultUnlocked, pushAccountStateIfReady]);
@@ -568,8 +572,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ? 'saved-local' : previous);
       // A local snapshot is durable now; cloud confirmation still requires a server ACK.
       // Do not delay upload behind a session copy or the daily emergency backup.
-      void pushAccountStateIfReady(snapshot, vaultKey);
-      await saveEncryptedSessionBackup(snapshot, vaultKey);
+      void pushAccountStateIfReady(snapshot, vaultKey).catch(error => {
+        setAccountSyncHealthy(false);
+        setAccountSyncMessage(accountSyncErrorMessage(error));
+        setAccountSyncStatus('error');
+      });
+      try {
+        await saveEncryptedSessionBackup(snapshot, vaultKey);
+      } catch (error) {
+        // Primary encrypted IndexedDB write has already succeeded.
+        console.warn('[Datenschutz] Zusätzliches Session-Backup fehlgeschlagen:', error);
+      }
       try {
         const todayDate = toLocalDateKey();
         const lastKopieDate = localStorage.getItem('hehle_v3_notfallkopie_date');
@@ -1154,6 +1167,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setIsRestoring(true);
     try {
       await restoreEncryptedAppState(currentAppRef.current, next, key);
+      locallySavedStateRef.current = next;
+      cloudConfirmedStateRef.current = null;
+      setAccountSyncHealthy(false);
+      setAccountSyncStatus('saved-local');
       // A lock/logout during the write must not expose the restored data in RAM/UI.
       if (getActiveVaultKey() === key) {
         currentAppRef.current = next;
@@ -1188,6 +1205,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const lockAppVault = React.useCallback(() => {
     accountSyncReadyRef.current = false;
     accountSyncRevisionRef.current = 0;
+    locallySavedStateRef.current = null;
+    cloudConfirmedStateRef.current = null;
+    setAccountSyncStatus('idle');
+    setAccountSyncHealthy(false);
     clearActiveVaultSession();
     currentAppRef.current = initialAppState;
     setAppInternal(initialAppState);
