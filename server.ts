@@ -82,9 +82,15 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   app.disable('x-powered-by');
 
   // E3.9 Proxy / HTTPS-Erkennung für Cloud Run / Reverse-Proxies (1 Hop)
-  // Only the reverse proxy's socket address is used for security throttles.
-  // Do not trust a caller-controlled X-Forwarded-For header for authentication limits.
-  app.set('trust proxy', 1);
+  // Trust only explicitly configured reverse-proxy addresses. By default the
+  // peer socket is the client identity: trusting one anonymous proxy hop would
+  // let direct clients forge X-Forwarded-For and defeat security throttles.
+  const trustedProxyAddresses = (process.env.KLASSIO_TRUSTED_PROXY_ADDRESSES || '')
+    .split(',').map(value => value.trim()).filter(Boolean);
+  if (trustedProxyAddresses.some(address => address === '*' || address === '0.0.0.0/0' || address === '::/0')) {
+    throw new Error('KLASSIO_TRUSTED_PROXY_ADDRESSES must list only trusted proxy IPs/CIDRs.');
+  }
+  app.set('trust proxy', trustedProxyAddresses.length ? trustedProxyAddresses : false);
 
   // E3.28-30 Produktionsumgebungs-Validierung
   validateProductionEnvironment();
@@ -278,7 +284,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   const emailRequestThrottle = new Map<string, number>();
   const emailGlobalThrottle = new Map<string, number>();
   // Security throttles must not be keyed by a user-supplied proxy header.
-  const securityPeer = (req: express.Request): string => req.socket.remoteAddress || 'unknown';
+  const securityPeer = (req: express.Request): string => req.ip || req.socket.remoteAddress || 'unknown';
 
   function normalizeEmail(value: unknown): string | null {
     if (typeof value !== 'string') return null;
