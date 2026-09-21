@@ -27,7 +27,7 @@ test('Vier originelle freigestellte Figuren haben je vier anatomisch verschieden
       const markup = outputs[i];
       assert.match(markup, new RegExp('data-mascot-posture="' + postures[mood] + '"'));
       assert.match(markup, new RegExp('data-mascot-kind="' + kind + '"'));
-      assert.doesNotMatch(markup, /<image\\b|https?:\\/\\/|class-mascot-details|class-mascot-settings|floating-classpet-outer/);
+      assert.doesNotMatch(markup, /<image\b|https?:\/\/|class-mascot-details|class-mascot-settings|floating-classpet-outer/);
       assert.match(markup, /class-mascot-painted-artwork/);
     }
     assert.doesNotMatch(outputs[2], /class-mascot-idle|class-mascot-gaze|class-mascot-ear-twitch/,
@@ -45,8 +45,8 @@ test('Die Maskottchenkonfiguration zeigt eine aktuelle Vorschau und kontrolliert
   const styles = readFileSync('src/index.css', 'utf8');
   assert.match(settings, /Maskottchenprofil und Klassenrituale/);
   assert.match(settings, /Gemeinsame Klassenrituale/);
-  assert.match(settings, /reactToMascotAction\\(normalizeClassMascot\\(prev\\.classMascot\\), ritual\\.action\\)/);
-  assert.match(settings, /<ClassMascotArtwork[\\s\\S]*?mood=\\{normalizeClassMascot\\(app\\.classMascot\\)\\.mood\\}/);
+  assert.match(settings, /reactToMascotAction\(normalizeClassMascot\(prev\.classMascot\), ritual\.action\)/);
+  assert.match(settings, /<ClassMascotArtwork[\s\S]*?mood=\{normalizeClassMascot\(app\.classMascot\)\.mood\}/);
   assert.doesNotMatch(board, /Gemeinsame Klassenrituale|Maskottchenprofil und Klassenrituale/);
   assert.match(styles, /class-mascot-gaze/);
   assert.match(styles, /class-mascot-ear-twitch/);
