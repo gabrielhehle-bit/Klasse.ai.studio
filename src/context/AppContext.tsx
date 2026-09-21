@@ -139,18 +139,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     accountSyncRevisionRef.current = snapshot.revision;
     accountSyncReadyRef.current = true;
     setAccountSyncLastAt(snapshot.updatedAt || new Date().toISOString());
-    setAccountSyncMessage(null);
     setAccountSyncConflictResolvable(false);
     const latest = currentAppRef.current;
     const latestOnDisk = locallySavedStateRef.current === latest;
     if (isLatestAccountSnapshotConfirmed(latest, locallySavedStateRef.current, state)) {
       cloudConfirmedStateRef.current = latest;
       setAccountSyncHealthy(true);
+      setAccountSyncMessage(null);
       setAccountSyncStatus('synced');
     } else {
       cloudConfirmedStateRef.current = null;
       setAccountSyncHealthy(false);
-      setAccountSyncStatus(latestOnDisk ? 'saved-local' : 'saving-local');
+      setAccountSyncStatus(previous => previous === 'local-error' ? previous
+        : latestOnDisk ? 'saved-local' : 'saving-local');
     }
   }, []);
 
