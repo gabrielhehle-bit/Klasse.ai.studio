@@ -8350,65 +8350,97 @@ ${content}
                                             ))}
                                           </fieldset>
                                         ) : (
-                                          <fieldset className="space-y-2">
+                                          <fieldset className="space-y-3">
                                             <legend className="text-sm font-black">Gruppen bilden · Wer wird eingeteilt?</legend>
                                             {([
-                                              ["present", "Heute anwesende Kinder", "Die bestehende Auswahl der anwesenden Kinder verwenden."],
-                                              ["all", "Alle Kinder der Klasse", "Alle Kinder der aktiven Klasse berücksichtigen, auch bei Abwesenheit."],
+                                              ["present", "Heute anwesende Kinder", "Kinder mit erfasster Abwesenheit werden nicht eingeteilt."],
+                                              ["all", "Alle Kinder der Klasse", "Auch abwesend erfasste Kinder werden berücksichtigt."],
                                             ] as const).map(([scope, label, detail]) => (
                                               <label key={scope} className="flex min-h-11 items-start gap-3 rounded-xl border border-slate-200 bg-white p-3">
                                                 <input type="radio" name="cockpit-group-scope" value={scope}
-                                                  checked={(configured.settings?.studentScope === "all" ? "all" : "present") === scope}
+                                                  checked={groupDefaults.studentScope === scope}
                                                   onChange={() => saveSetting("studentScope", scope)}
                                                   className="mt-1 h-5 w-5 shrink-0" />
                                                 <span><strong className="block text-sm">{label}</strong>
                                                   <span className="block text-xs text-slate-600">{detail}</span></span>
                                               </label>
                                             ))}
-                                            <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3"
+                                            <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-3"
                                               role="group" aria-label="Gruppengröße oder Gruppenanzahl einstellen">
                                               <h4 className="text-sm font-black">Gruppenaufteilung</h4>
                                               <div className="grid grid-cols-2 gap-2">
-                                                {([
-                                                  ["size", "Kinder pro Gruppe"],
-                                                  ["count", "Anzahl Gruppen"],
-                                                ] as const).map(([mode, label]) => (
+                                                {([["size", "Kinder pro Gruppe"], ["count", "Anzahl Gruppen"]] as const).map(([mode, label]) => (
                                                   <label key={mode} className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 px-2 text-xs font-bold">
                                                     <input type="radio" name="cockpit-group-mode" value={mode}
-                                                      checked={(configured.settings?.mode === "count" ? "count" : "size") === mode}
-                                                      onChange={() => handleUpdateWidgetPos(configured.id, {
-                                                        settings: { ...(configured.settings || {}), mode, targetValue: 4 },
-                                                      })}
+                                                      checked={groupDefaults.mode === mode}
+                                                      onChange={() => saveSetting("mode", mode)}
                                                       className="h-5 w-5 shrink-0" />{label}
                                                   </label>
                                                 ))}
                                               </div>
                                               <div className="flex flex-wrap gap-2">
-                                                {(configured.settings?.mode === "count" ? [2, 3, 4, 5, 6] : [2, 3, 4, 5]).map(value => (
+                                                {(groupDefaults.mode === "count" ? [2, 3, 4, 5, 6] : [2, 3, 4, 5]).map(value => (
                                                   <button key={value} type="button"
-                                                    aria-pressed={(typeof configured.settings?.targetValue === "number" ? configured.settings.targetValue : 4) === value}
-                                                    onClick={() => handleUpdateWidgetPos(configured.id, {
-                                                      settings: { ...(configured.settings || {}), mode: configured.settings?.mode === "count" ? "count" : "size", targetValue: value },
-                                                    })}
-                                                    className={`min-h-11 min-w-11 rounded-lg border px-3 text-sm font-bold ${
-                                                      (typeof configured.settings?.targetValue === "number" ? configured.settings.targetValue : 4) === value
-                                                        ? "border-indigo-500 bg-indigo-600 text-white" : "border-slate-300 bg-white text-slate-900"
-                                                    }`}>
-                                                    {value}{configured.settings?.mode === "count" ? " Gr." : "er"}
+                                                    aria-pressed={groupDefaults.targetValue === value}
+                                                    onClick={() => saveSetting("targetValue", value)}
+                                                    className={groupDefaults.targetValue === value
+                                                      ? "min-h-11 min-w-11 rounded-lg border border-indigo-600 bg-indigo-600 px-3 text-sm font-bold text-white"
+                                                      : "min-h-11 min-w-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-bold text-slate-900"}>
+                                                    {value}{groupDefaults.mode === "count" ? " Gr." : "er"}
                                                   </button>
                                                 ))}
                                               </div>
                                             </div>
-                                            <p className="text-xs text-slate-600">Die Auswahl gilt bei der nächsten Einteilung. Bestehende Gruppen werden nicht ungefragt neu gemischt.</p>
-                                            {!configured.visible && (
-                                              <button type="button" onClick={() => handleOpenWidgetInCockpitLayout("groups")}
-                                                className="min-h-11 w-full rounded-xl bg-indigo-600 px-3 text-sm font-bold text-white">
-                                                Gruppen-Widget öffnen, um die weiteren Optionen zu bearbeiten
-                                              </button>
-                                            )}
+                                            <div role="group" aria-label="Namen neuer Gruppen" className="rounded-xl border border-slate-200 bg-white p-3">
+                                              <h4 className="mb-2 text-sm font-black">Gruppennamen</h4>
+                                              <div className="grid grid-cols-2 gap-2">
+                                                {([["numbered", "Nummeriert"], ["colors", "Farben"], ["symbols", "Symbole"], ["animals", "Tiere"]] as const).map(([style, label]) => (
+                                                  <button type="button" key={style} aria-pressed={groupDefaults.namingStyle === style}
+                                                    onClick={() => saveSetting("namingStyle", style)}
+                                                    className={groupDefaults.namingStyle === style
+                                                      ? "min-h-11 rounded-lg border border-indigo-600 bg-indigo-600 px-2 text-sm font-semibold text-white"
+                                                      : "min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-sm font-semibold text-slate-900"}>{label}</button>
+                                                ))}
+                                              </div>
+                                            </div>
+                                            <div role="group" aria-label="Startgröße neuer Gruppenwidgets" className="rounded-xl border border-slate-200 bg-white p-3">
+                                              <h4 className="mb-2 text-sm font-black">Größe beim ersten Hinzufügen</h4>
+                                              <div className="flex flex-wrap gap-2">
+                                                {([["compact", "Klein"], ["standard", "Mittel"], ["large", "Groß"]] as const).map(([size, label]) => (
+                                                  <button type="button" key={size} aria-pressed={groupDefaults.startSize === size}
+                                                    onClick={() => saveSetting("startSize", size)}
+                                                    className={groupDefaults.startSize === size
+                                                      ? "min-h-11 rounded-lg border border-indigo-600 bg-indigo-600 px-3 text-sm font-semibold text-white"
+                                                      : "min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-900"}>{label}</button>
+                                                ))}
+                                              </div>
+                                            </div>
+                                            <p className="text-xs text-slate-600">Diese Voreinstellungen gelten für neue Gruppenwidgets der aktiven Klasse. Bestehende Gruppen werden nicht ungefragt neu gemischt oder verändert.</p>
                                             {configured.visible && (
-                                              <div id="cockpit-groups-settings-host" className="w-full" aria-label="Weitere Gruppen-Einstellungen: Kinder pausieren, Paar-Wünsche, Namen" />
+                                              <>
+                                                <button type="button" onClick={() => {
+                                                  const previousGroups = Array.isArray(configured.settings?.groups) ? configured.settings.groups : [];
+                                                  handleUpdateWidgetPos(configured.id, {
+                                                    settings: {
+                                                      ...(configured.settings || {}), ...groupDefaults,
+                                                      groups: previousGroups.map((group: any, index: number) => ({
+                                                        ...group, ...getGroupName(index, groupDefaults.namingStyle),
+                                                      })),
+                                                    },
+                                                  });
+                                                }} className="min-h-11 w-full rounded-xl border border-indigo-300 bg-white px-3 text-sm font-bold text-indigo-700">
+                                                  Voreinstellungen auf vorhandenes Widget anwenden
+                                                </button>
+                                                <p className="text-xs text-slate-600">Weitere Optionen für das aktuell geöffnete Widget: Kinder pausieren, Paare und Benennung.</p>
+                                                <div id="cockpit-groups-settings-host" className="w-full" aria-label="Weitere Gruppen-Einstellungen: Kinder pausieren, Paar-Wünsche, Namen" />
+                                              </>
                                             )}
+                                            <button type="button" onClick={() => {
+                                              handleOpenWidgetInCockpitLayout("groups");
+                                              setIsAddWidgetMenuOpen(false);
+                                            }} className="min-h-11 w-full rounded-xl bg-indigo-600 px-3 text-sm font-bold text-white">
+                                              Gruppen-Widget hinzufügen
+                                            </button>
                                           </fieldset>
                                         );
                                       })()}
