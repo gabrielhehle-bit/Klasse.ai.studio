@@ -67,7 +67,7 @@ export default function Sek1Students() {
           {([['vorname', 'Vorname'], ['nachname', 'Nachname']] as const).map(([key,label]) => <label key={key} className="block text-sm font-semibold">{label} *<input required value={form[key]} onChange={e => setForm(f => f && ({...f,[key]: e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"/></label>)}
           <label className="block text-sm font-semibold">Geburtsdatum (optional)<input type="date" value={form.geburtstag} onChange={e => setForm(f => f && ({...f,geburtstag:e.target.value}))} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"/></label>
           <label className="block text-sm font-semibold">Kurzer Hinweis (optional)<textarea value={form.notiz} onChange={e => setForm(f => f && ({...f,notiz:e.target.value}))} rows={2} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"/></label>
-          <p className="text-xs text-slate-600">Vorhandene weitere Stammdaten und frühere Einträge bleiben bei Änderungen erhalten. Förderprofile und Sitzplatz-Beziehungsregeln gehören nicht zum Unterstufen-Setup.</p>
+          <p className="text-xs text-slate-600">Vorhandene weitere Stammdaten und frühere Einträge bleiben bei Änderungen erhalten.</p>
           <div className="flex justify-end gap-2"><button type="button" onClick={() => setForm(null)} className="rounded-xl border border-slate-300 px-4 py-2">Abbrechen</button><button type="submit" className="rounded-xl bg-emerald-700 px-4 py-2 font-bold text-white">Speichern</button></div>
         </form>
       </div>}
