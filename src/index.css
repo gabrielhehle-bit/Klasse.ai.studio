@@ -1129,6 +1129,64 @@ html body .cockpit-free-mascot .class-mascot-details .text-teal-950 { color: #13
   .class-mascot-tail-sway { animation: none !important; }
 }
 
+/* Character-specific, one-shot reactions: pointer/keyboard taps only. No
+   autonomous roaming, sound, opaque surfaces, or movement of the widget anchor. */
+@keyframes class-mascot-otter-greet {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  35% { transform: translateY(-5px) rotate(-4deg); }
+  70% { transform: translateY(-2px) rotate(3deg); }
+}
+@keyframes class-mascot-dog-greet {
+  0%, 100% { transform: rotate(0deg); }
+  25%, 65% { transform: rotate(-5deg); }
+  45%, 85% { transform: rotate(5deg); }
+}
+@keyframes class-mascot-cat-stretch {
+  0%, 100% { transform: scale(1, 1); }
+  45% { transform: scale(1.05, .94) translateY(3px); }
+  75% { transform: scale(.98, 1.04) translateY(-3px); }
+}
+@keyframes class-mascot-elf-bow {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  45% { transform: rotate(7deg) translateY(5px); }
+}
+@keyframes class-mascot-wave-paw {
+  0%, 100% { transform: rotate(0deg); }
+  35%, 65% { transform: rotate(-22deg); }
+  50%, 80% { transform: rotate(12deg); }
+}
+@keyframes class-mascot-greeting-tail {
+  0%, 100% { transform: rotate(0deg); }
+  25%, 75% { transform: rotate(15deg); }
+  50% { transform: rotate(-13deg); }
+}
+.class-mascot-react {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation-duration: .7s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: 1;
+}
+.class-mascot-react-otter { animation-name: class-mascot-otter-greet; }
+.class-mascot-react-dog { animation-name: class-mascot-dog-greet; }
+.class-mascot-react-cat { animation-name: class-mascot-cat-stretch; }
+.class-mascot-react-elf { animation-name: class-mascot-elf-bow; }
+.class-mascot-otter-wave {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: class-mascot-wave-paw .7s ease-in-out 1;
+}
+.class-mascot-tail-reaction {
+  transform-box: fill-box;
+  transform-origin: left bottom;
+  animation: class-mascot-greeting-tail .7s ease-in-out 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .class-mascot-react, .class-mascot-otter-wave, .class-mascot-tail-reaction {
+    animation: none !important;
+  }
+}
+
 /* Strong, theme-independent contrast inside dark classroom cockpit designs. */
 .cockpit-contrast-dark .text-slate-400,
 .cockpit-contrast-dark .text-neutral-400 { color: #cbd5e1 !important; }
