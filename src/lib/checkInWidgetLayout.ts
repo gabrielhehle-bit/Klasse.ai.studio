@@ -4,8 +4,8 @@ import type { StudentGridLayout } from './studentWidgetGrid';
  * Widget rendering must not silently omit individual students.
  */
 export const CHECK_IN_GRID_OPTIONS = {
-  reservedHeight: 168,
-  minCardWidth: 185,
+  reservedHeight: 146,
+  minCardWidth: 155,
   minCardHeight: 64,
   gap: 6,
 } as const;

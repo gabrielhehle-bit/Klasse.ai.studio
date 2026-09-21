@@ -24,7 +24,8 @@ test('both public student widgets have an explicit enlargement action and a fitt
   const checkIn = readFileSync('src/components/cockpit/widgets/KidAttendanceWidget.tsx', 'utf8');
   const points = readFileSync('src/components/cockpit/PublicStudentListWidget.tsx', 'utf8');
   assert.match(checkIn, /getStudentGridLayout\(size\.width, size\.height, students\.length/);
-  assert.match(checkIn, /onUpdate\?\.\(\{ x: 2, y: 2, w: 96, h: 90 \}\)/);
+  assert.match(checkIn, /klassio:checkin-expand/);
+  assert.doesNotMatch(checkIn, /onUpdate\?\.\(\{ x: 2, y: 2, w: 96, h: 90 \}\)/);
   assert.match(checkIn, /studentGrid\.fits \? \(/);
   assert.match(checkIn, /Alle \{students\.length\} Kinder groß anzeigen/);
   assert.match(points, /gridMode && !grid\.fits/);
