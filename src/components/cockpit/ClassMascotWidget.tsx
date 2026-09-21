@@ -43,7 +43,7 @@ export default function ClassMascotWidget({ app, setApp, currentIsLight = true }
   };
 
   return (
-    <section aria-label="Klassenmaskottchen" className="class-mascot-v1 class-mascot-freestanding flex h-full min-h-0 w-full flex-col items-center overflow-y-auto overflow-x-hidden p-1 sm:p-2">
+    <section aria-label="Klassenmaskottchen" className="class-mascot-v1 class-mascot-freestanding pointer-events-none flex h-full min-h-0 w-full flex-col items-center justify-end overflow-y-auto overflow-x-hidden p-1 sm:p-2">
       {/* The illustration is the resting UI: no widget card, backdrop, border, or global floating layer. */}
       <button type="button" aria-expanded={detailsOpen || settingsOpen}
         aria-label={detailsOpen || settingsOpen ? 'Maskottchen-Interaktionen schließen' : state.name + ' begrüßen und Interaktionen öffnen'}
@@ -52,9 +52,9 @@ export default function ClassMascotWidget({ app, setApp, currentIsLight = true }
           setDetailsOpen(value => !value);
           if (detailsOpen) setSettingsOpen(false);
         }}
-        className="class-mascot-character flex min-h-0 w-full flex-1 items-end justify-center bg-transparent p-0 focus-visible:rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-500"
-        style={{ flex: detailsOpen || settingsOpen ? '0 0 auto' : '1 1 auto' }}>
-        <div className="pointer-events-none w-full" style={{ maxWidth: detailsOpen || settingsOpen ? 128 : 280, maxHeight: detailsOpen || settingsOpen ? 128 : '100%' }}>
+        className="class-mascot-character pointer-events-auto inline-flex min-h-0 max-w-full shrink-0 self-center items-end justify-center bg-transparent p-0 focus-visible:rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-500"
+        style={{ width: detailsOpen || settingsOpen ? 128 : 'min(280px, 100%)', maxHeight: detailsOpen || settingsOpen ? 128 : 'calc(100% - 34px)', aspectRatio: '180 / 182' }}>
+        <div className="pointer-events-none h-full w-full">
           <ClassMascotArtwork kind={state.kind} mood={state.mood} name={state.name} animationEnabled={state.animationEnabled} />
         </div>
       </button>
@@ -64,7 +64,7 @@ export default function ClassMascotWidget({ app, setApp, currentIsLight = true }
       </p>
 
       {(detailsOpen || settingsOpen) && (
-        <div className="class-mascot-details mt-2 w-full max-w-md space-y-2 rounded-2xl border border-teal-200 bg-white/95 p-3 text-slate-950 shadow-lg backdrop-blur-sm"
+        <div className="class-mascot-details pointer-events-auto mt-2 w-full max-w-md space-y-2 rounded-2xl border border-teal-200 bg-white/95 p-3 text-slate-950 shadow-lg backdrop-blur-sm"
           aria-label="Klassenmaskottchen-Interaktionen">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
@@ -105,7 +105,7 @@ export default function ClassMascotWidget({ app, setApp, currentIsLight = true }
       )}
 
       {settingsOpen && (
-        <div className="mt-3 space-y-3 rounded-2xl border-2 border-teal-200 bg-slate-50 p-3">
+        <div className="class-mascot-settings pointer-events-auto mt-3 w-full max-w-md space-y-3 rounded-2xl border-2 border-teal-200 bg-slate-50 p-3">
           <fieldset>
             <legend className="text-xs font-black text-slate-900">Figur auswählen</legend>
             <div className="mt-2 grid grid-cols-2 gap-2">
