@@ -8364,7 +8364,7 @@ ${content}
                                               </div>
                                             </div>
                                             <p className="text-xs text-slate-600">Das sind Voreinstellungen für neue Widgets dieser Klasse. Vorhandene Widgets ändern sich nicht automatisch.</p>
-                                            {configured.visible && (
+                                            {(configured.visible || configured.hasBeenOpened) && (
                                               <button type="button" onClick={() => handleUpdateWidgetPos(configured.id, {
                                                 settings: { ...(configured.settings || {}), checkInMode: checkInDefaults.checkInMode, moodEnabled: checkInDefaults.moodEnabled },
                                               })} className="min-h-11 w-full rounded-xl border border-indigo-300 bg-white px-3 text-sm font-bold text-indigo-700">
@@ -9663,6 +9663,17 @@ ${content}
                                                     : "bg-zinc-900 border-white/5 hover:border-indigo-500/30 hover:bg-zinc-850 text-slate-200 active:bg-zinc-800"
                                               }`}
                                             >
+                                              {item.type === "kidattendance" && (
+                                                <button type="button" aria-label="Ich bin da! einstellen" title="Voreinstellungen für Ich bin da!"
+                                                  onClick={() => {
+                                                    setSelectedWidgetConfiguration("kidattendance");
+                                                    setIsWidgetConfigurationOpen(true);
+                                                    window.requestAnimationFrame(() => document.getElementById("cockpit-widget-settings")?.scrollIntoView({ block: "start", behavior: "smooth" }));
+                                                  }}
+                                                  className="absolute right-12 top-2 z-[1001] flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white/90 text-slate-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 dark:bg-zinc-800 dark:text-slate-200">
+                                                  <Settings size={18} aria-hidden="true" />
+                                                </button>
+                                              )}
                                               {/* Toggle Favorite Star Button */}
                                               <button
                                                 type="button"
@@ -9704,7 +9715,7 @@ ${content}
                                                 className="w-full h-full text-left flex flex-col justify-between items-start cursor-pointer disabled:cursor-not-allowed"
                                               >
                                                 <div className="w-full flex items-center justify-between font-semibold text-sm">
-                                                  <span className="truncate pr-7 group-hover:text-indigo-500 transition-colors">
+                                                  <span className={`${item.type === "kidattendance" ? "truncate pr-24" : "truncate pr-7"} group-hover:text-indigo-500 transition-colors`}>
                                                     {item.label}
                                                   </span>
                                                   {isActive && (
