@@ -25,10 +25,9 @@ test('Both roster choices live inside Widget hinzufügen settings and preserve c
   assert.match(picker, /saveSetting\("mode", mode\)/);
   assert.match(picker, /saveSetting\("targetValue", value\)/);
   assert.match(picker, /cockpitGroupDefaultsByClass/);
-  assert.match(picker, /Voreinstellungen auf vorhandenes Widget anwenden/);
-  assert.match(picker, /getGroupName\(index, groupDefaults.namingStyle\)/);
-
-  assert.match(picker, /Bestehende Gruppen werden nicht ungefragt neu gemischt/);
+  assert.match(picker, /applyGroupPreferenceToInstance\(/);
+  assert.match(picker, /if \(selectedWidgetConfiguration === "groups" && configured\.visible && key !== "startSize"\)/);
+  assert.match(picker, /Vorhandene Gruppen bleiben erhalten/);
   assert.match(picker, /\.\.\.\(configured\.settings \|\| \{\}\)/);
   assert.match(surface, /<GroupsWidgetContent/);
 });
