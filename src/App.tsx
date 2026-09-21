@@ -43,7 +43,9 @@ const TextAnalysisTool = lazyRetry(() => import('./components/TextAnalysisTool')
 const Lehrerzimmer = lazyRetry(() => import('./components/Lehrerzimmer'));
 const ClassTeam = lazyRetry(() => import('./components/ClassTeam'));
 const StudentList = lazyRetry(() => import('./components/StudentList'));
+const Sek1Students = lazyRetry(() => import('./components/Sek1Students'));
 const StudentDossierHub = lazyRetry(() => import('./components/StudentDossierHub'));
+const Sek1DossierHub = lazyRetry(() => import('./components/Sek1DossierHub'));
 const Gradebook = lazyRetry(() => import('./components/Gradebook'));
 const AIAssistant = lazyRetry(() => import('./components/AIAssistant'));
 const SetupWizard = lazyRetry(() => import('./components/SetupWizard'));
@@ -51,6 +53,7 @@ const Attendance = lazyRetry(() => import('./components/Attendance'));
 const Behavior = lazyRetry(() => import('./components/Behavior'));
 const YearlyPlan = lazyRetry(() => import('./components/YearlyPlan'));
 const WeeklyPlan = lazyRetry(() => import('./components/WeeklyPlan'));
+const Sek1WeeklyPlan = lazyRetry(() => import('./components/Sek1WeeklyPlan'));
 const SeatingPlan = lazyRetry(() => import('./components/SeatingPlan'));
 const Uebergabemappe = lazyRetry(() => import('./components/Uebergabemappe'));
 const Materialbibliothek = lazyRetry(() => import('./components/Materialbibliothek'));
@@ -69,6 +72,7 @@ const Backup = lazyRetry(() => import('./components/Backup'));
 const Settings = lazyRetry(() => import('./components/Settings'));
 const WorksheetGenerator = lazyRetry(() => import('./components/WorksheetGenerator'));
 const PrintCenter = lazyRetry(() => import('./components/PrintCenter'));
+const Sek1PrintCenter = lazyRetry(() => import('./components/Sek1PrintCenter'));
 const Unterrichtsmodus = lazyRetry(() => import('./components/Unterrichtsmodus'));
 const Diagnostik = lazyRetry(() => import('./components/Diagnostik'));
 const Klassengemeinschaft = lazyRetry(() => import('./components/WirGefuehl'));
@@ -622,9 +626,13 @@ function AppContent() {
       case 'unterricht': return null; // Legacy alias is resolved to 'cockpit' above.
       case 'lehrerzimmer': return <Lehrerzimmer />;
       case 'teamteaching': return <ClassTeam />;
-      case 'schueler': return <StudentList key={app.activeClassId || 'class'} />;
+      case 'schueler': return istSekundarstufe(app.schulart)
+        ? <Sek1Students key={app.activeClassId || 'class'} />
+        : <StudentList key={app.activeClassId || 'class'} />;
       case 'stundenplan': return istSekundarstufe(app.schulart) ? <TeacherTimetable /> : <Dashboard />;
-      case 'dossier': return <StudentDossierHub />;
+      case 'dossier': return istSekundarstufe(app.schulart)
+        ? <Sek1DossierHub key={app.activeClassId || 'class'} />
+        : <StudentDossierHub />;
       case 'noten': return <Gradebook />;
       case 'ki-helfer': 
       case 'ki-paedagogik':
@@ -646,7 +654,9 @@ function AppContent() {
       case 'anwesenheit': return <Attendance />;
       case 'verhalten': return <Behavior />;
       case 'jahresplanung': return <YearlyPlan />;
-      case 'wochenplanung': return <WeeklyPlan />;
+      case 'wochenplanung': return istSekundarstufe(app.schulart)
+        ? <Sek1WeeklyPlan key={app.activeClassId || 'class'} />
+        : <WeeklyPlan />;
       case 'sitzplan': return <SeatingPlan />;
       case 'uebergabemappe': return <Uebergabemappe />;
       case 'materialien': return <Materialbibliothek />;
@@ -667,7 +677,9 @@ function AppContent() {
       case 'datensicherung': return <Backup />;
       case 'settings': return <Settings />;
       case 'arbeitsblatt': return <WorksheetGenerator />;
-      case 'drucken': return <PrintCenter />;
+      case 'drucken': return istSekundarstufe(app.schulart)
+        ? <Sek1PrintCenter key={app.activeClassId || 'class'} />
+        : <PrintCenter />;
       case 'verbal': return <VerbalAssessment mode="formal" />;
       case 'portfolio': return <Portfolio />;
       case 'vertretung': return <Uebergabemappe />;

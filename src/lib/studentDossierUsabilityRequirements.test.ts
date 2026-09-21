@@ -25,8 +25,12 @@ test('Schülernavigation: Klassenliste und Schülerdossier sind getrennte direkt
   assert.match(sidebar, /id: 'dossier', label: 'Schülerdossier'/);
   // Beim Klassenwechsel wird die Liste neu gemountet, damit kein Dossier aus der
   // vorherigen Klasse offen bleibt. Der direkte Einstieg bleibt unverändert.
-  assert.match(app, /case 'schueler': return <StudentList key=\{app.activeClassId \|\| 'class'\} \/>/);
-  assert.match(app, /case 'dossier': return <StudentDossierHub \/>/);
+  assert.match(app, /case 'schueler': return istSekundarstufe\(app\.schulart\)/);
+  assert.match(app, /: <StudentList key=\{app.activeClassId \|\| 'class'\} \/>/);
+  assert.match(app, /\\? <Sek1Students key=\{app.activeClassId \|\| 'class'\} \/>/);
+  assert.match(app, /case 'dossier': return istSekundarstufe\(app\.schulart\)/);
+  assert.match(app, /: <StudentDossierHub \/>/);
+  assert.match(app, /\\? <Sek1DossierHub key=\{app.activeClassId \|\| 'class'\} \/>/);
   assert.match(dossierHub, /Wähle ein Kind und öffne direkt das vollständige Dossier/);
 });
 
