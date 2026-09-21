@@ -174,7 +174,10 @@ test('child board has visible name bar, no name-selection dialog and single-tap 
   const widget = readFileSync('src/components/cockpit/widgets/ClassroomWeeklyPlanWidget.tsx', 'utf8');
   const dossier = readFileSync('src/components/dossier/DossierLeistungen.tsx', 'utf8');
   assert.match(widget, /aria-label="Wähle deinen Namen"/);
-  assert.match(widget, /pupils\.map\(student => <button/);
+  assert.match(widget, /visiblePupils\.map\(student => <button/);
+  assert.match(widget, /aria-label="Namensseiten"/);
+  assert.match(widget, /Alle Aufgaben und \{pupils\.length\} Namen groß öffnen/);
+  assert.doesNotMatch(widget, /getChildTaskProgress\(pupil, task\.id\)/);
   assert.doesNotMatch(widget, /setPanel\('names'\)|Seite \{namePage \+ 1\} von/);
   assert.match(widget, /saveFeedback\(task, 'hilfe'\)/);
   assert.match(widget, /onClick=\{\(\) => saveFeedback\(task, choice\.value\)\}/);
