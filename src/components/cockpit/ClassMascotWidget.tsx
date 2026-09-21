@@ -43,7 +43,7 @@ export default function ClassMascotWidget({ app, setApp, currentIsLight = true }
   };
 
   return (
-    <section aria-label="Klassenmaskottchen" className="class-mascot-v1 class-mascot-freestanding pointer-events-none flex h-full min-h-0 w-full flex-col items-center justify-end overflow-y-auto overflow-x-hidden p-1 sm:p-2">
+    <section aria-label="Klassenmaskottchen" className={`class-mascot-v1 class-mascot-freestanding flex h-full min-h-0 w-full flex-col items-center overflow-y-auto overflow-x-hidden p-1 sm:p-2 ${detailsOpen || settingsOpen ? "pointer-events-auto justify-start pt-11" : "pointer-events-none justify-end"}`}> 
       {/* The illustration is the resting UI: no widget card, backdrop, border, or global floating layer. */}
       <button type="button" aria-expanded={detailsOpen || settingsOpen}
         aria-label={detailsOpen || settingsOpen ? 'Maskottchen-Interaktionen schließen' : state.name + ' begrüßen und Interaktionen öffnen'}
