@@ -1,3 +1,5 @@
+import { getGroupName } from './groupsAlgorithm';
+
 /** Settings for NEW group widgets; existing widget instances are never rewritten implicitly. */
 export interface GroupWidgetPreferences {
   studentScope: 'present' | 'all';
@@ -20,4 +22,21 @@ export function getGroupWidgetPreferences(input: unknown): GroupWidgetPreference
     startSize: value.startSize === 'compact' || value.startSize === 'standard' ? value.startSize : 'large',
     namingStyle: value.namingStyle === 'colors' || value.namingStyle === 'symbols' || value.namingStyle === 'animals' ? value.namingStyle : 'numbered',
   };
+}
+
+
+/** Apply a picker preference to an already placed group widget, without
+ * generating new random groups or destroying per-instance pair rules/history. */
+export function applyGroupPreferenceToInstance<T extends Record<string, any>>(
+  current: T,
+  key: 'studentScope' | 'mode' | 'targetValue' | 'namingStyle',
+  value: string | number,
+): T {
+  const next = { ...current, [key]: value };
+  if (key === 'namingStyle' && Array.isArray(current.groups)) {
+    next.groups = current.groups.map((group: Record<string, any>, index: number) => ({
+      ...group, ...getGroupName(index, String(value)),
+    }));
+  }
+  return next as T;
 }
