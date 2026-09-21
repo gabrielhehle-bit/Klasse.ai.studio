@@ -3748,7 +3748,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     const updated = cockpitWidgets.map((w) => {
       if (w.type === type) {
         const def = DEFAULT_COCKPIT_LAYOUT.find((d) => d.type === type);
-        const useOld = w.hasBeenOpened || w.visible || (["kidattendance", "groups", "classweeklyplan", "randomname"].includes(type) && Boolean(w.settings && Object.keys(w.settings).length));
+        const useOld = w.hasBeenOpened || w.visible || (type === "groups" && Array.isArray(w.settings?.groups) && w.settings.groups.length > 0) || (["kidattendance", "classweeklyplan", "randomname"].includes(type) && Boolean(w.settings && Object.keys(w.settings).length));
         const checkInPreset = getCheckInPreferences(app.boardSettings?.cockpitCheckInDefaultsByClass?.[boardTextClassKey]);
         const checkInSize = checkInPreset.startSize === "compact" ? { w: 48, h: 55 } : checkInPreset.startSize === "standard" ? { w: 70, h: 70 } : { w: 86, h: 82 };
         const groupPreset = getGroupWidgetPreferences(app.boardSettings?.cockpitGroupDefaultsByClass?.[boardTextClassKey]);
