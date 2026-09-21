@@ -9,7 +9,8 @@ import {
   Heart,
   ChevronRight,
   Info,
-  Mail
+  Mail,
+  HelpCircle,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { SettingsCategory } from './SettingsHeader';
@@ -28,6 +29,15 @@ export default function SettingsDashboard({
   hasDemoData
 }: SettingsDashboardProps) {
   const TILES = [
+    {
+      id: 'help' as SettingsCategory,
+      title: 'Hilfe & Anleitungen',
+      subtitle: 'Alle Seiten und Unterrichtswerkzeuge erklärt',
+      desc: 'Suche nach einem KLASSIO-Bereich oder Widget und lies Schritt für Schritt, was du damit machen kannst.',
+      icon: HelpCircle,
+      badge: 'Anleitungen',
+      color: 'bg-indigo-500/10 text-indigo-600 border-indigo-200'
+    },
     {
       id: 'account' as SettingsCategory,
       title: 'Konto & Schulmail',
