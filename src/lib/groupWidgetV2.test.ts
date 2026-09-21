@@ -39,13 +39,13 @@ test('Widget 2: old or invalid stored presets use safe class-local defaults', ()
   assert.equal(getGroupWidgetPreferences({ targetValue: -90, startSize: 'bad' }).targetValue, 2);
 });
 
-test('Widget 2: dedicated gear saves defaults without replacing the existing instance', () => {
+test('Widget 2: dedicated gear saves defaults and applies the change to an existing instance without mixing', () => {
   assert.match(surface, /aria-label="Gruppen bilden einstellen"/);
   assert.match(surface, /aria-label="Gruppen bilden hinzufügen"/);
   assert.match(surface, /cockpitGroupDefaultsByClass/);
-  assert.match(surface, /Voreinstellungen auf vorhandenes Widget anwenden/);
-  assert.match(surface, /Bestehende Gruppen werden nicht ungefragt neu gemischt/);
-  assert.match(surface, /groups: previousGroups\.map/);
+  assert.match(surface, /applyGroupWidgetPreference\(w.settings, groupKey, groupValue\)/);
+  assert.match(surface, /Einstellungen übernommen/);
+  assert.match(surface, /die bisherigen Kinder bleiben bis dahin in ihren Gruppen/);
   assert.match(surface, /type === "groups" && !useOld/);
 });
 
