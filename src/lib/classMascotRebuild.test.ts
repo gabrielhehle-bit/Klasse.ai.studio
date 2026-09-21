@@ -82,6 +82,29 @@ test('the transparent mascot rests freely in the cockpit and shows actions only 
   assert.doesNotMatch(widget, /fixed bottom-|absolute bottom-|floating-classpet-outer/);
 });
 
+test('empty transparent mascot area does not block board taps and layout handles stay reachable', () => {
+  const host = readFileSync('src/components/cockpit/CockpitWidget.tsx', 'utf8');
+  const widget = readFileSync('src/components/cockpit/ClassMascotWidget.tsx', 'utf8');
+  const artwork = readFileSync('src/components/cockpit/ClassMascotArtwork.tsx', 'utf8');
+  const cockpit = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
+  const css = readFileSync('src/index.css', 'utf8');
+
+  assert.match(host, /pointerEvents: isFreeMascot \? "none" : undefined/);
+  assert.match(host, /mascot-widget-toolbar absolute inset-x-0 top-0/);
+  assert.match(host, /mascot-widget-resize pointer-events-auto/);
+  assert.match(widget, /class-mascot-freestanding pointer-events-none/);
+  assert.match(widget, /class-mascot-character pointer-events-auto/);
+  assert.match(widget, /class-mascot-details pointer-events-auto/);
+  assert.match(widget, /class-mascot-settings pointer-events-auto/);
+  assert.match(artwork, /className=\{\`mx-auto block h-full w-full drop-shadow-sm/);
+  assert.match(css, /\.cockpit-free-mascot \.class-mascot-character/);
+  assert.match(css, /\.cockpit-free-mascot > \.mascot-widget-toolbar:not\(:hover\):not\(:focus-within\) \*/);
+  assert.match(css, /@media \(hover: none\)/);
+  assert.match(cockpit, /type: "pet", x: 67, y: 44, w: 30, h: 48/);
+  assert.match(cockpit, /useOld \? w\.x : type === "pet" \?/);
+  assert.match(cockpit, /useOld \? w\.y : type === "pet" \?/);
+});
+
 test('the real React widget renders all four figures with no always-visible control panel', () => {
   const render = (kind: 'otter' | 'dog' | 'cat' | 'elf') => renderToStaticMarkup(
     React.createElement(ClassMascotWidget, {
