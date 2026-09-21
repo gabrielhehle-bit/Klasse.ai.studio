@@ -18,6 +18,7 @@ import { createCanvaTokenStore, type CanvaStoredTokens } from "./src/server/canv
 import { createEncryptedAttachmentStore, AttachmentStorageError } from "./src/server/encryptedAttachmentStore.ts";
 import { createAccountSyncStore } from "./src/server/accountSyncStore.ts";
 import { createAiUsageStore, type AiUsageSnapshot } from "./src/server/aiUsageStore.ts";
+import { AccessSessionStore } from './src/server/accessSessionStore.ts';
 import { INITIAL_VERIFIED_AUSTRIAN_SCHOOLS } from "./src/data/austrianSchoolRegistry.seed.ts";
 
 // Fix: In tsx environments, global __dirname is injected as "." which breaks ESM packages
@@ -222,6 +223,8 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   const supporterStore = createSupporterStore(KLASSIO_DATA_DIR);
   const accountSyncStore = createAccountSyncStore(KLASSIO_DATA_DIR);
   const aiUsageStore = createAiUsageStore(KLASSIO_DATA_DIR);
+  const accessSessions = new AccessSessionStore(options.isTest ? null : KLASSIO_DATA_DIR);
+  const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
 
   const readPositiveIntEnv = (name: string, fallback: number, max: number) => {
     const parsed = Number.parseInt(process.env[name] || '', 10);
@@ -374,7 +377,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   }
 
   function createAccessToken(): string {
-    const expiry = Date.now() + 30 * 24 * 60 * 60 * 1000; // 30 days
+    const expiry = Date.now() + SESSION_MAX_AGE_SECONDS * 1000; // 7 days
     const nonce = crypto.randomBytes(16).toString('hex');
     const payload = `${expiry}.${nonce}`;
     const hmac = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('hex');
@@ -390,7 +393,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     if (isNaN(expiry) || expiry < Date.now()) return false;
     const expectedHmac = crypto.createHmac('sha256', SESSION_SECRET).update(`${expiryStr}.${nonce}`).digest('hex');
     try {
-      return crypto.timingSafeEqual(Buffer.from(hmac, 'hex'), Buffer.from(expectedHmac, 'hex'));
+      return crypto.timingSafeEqual(Buffer.from(hmac, 'hex'), Buffer.from(expectedHmac, 'hex')) && accessSessions.isActive(token);
     } catch (e) {
       return false;
     }
@@ -439,7 +442,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     return createSignedIdentityToken('klassio-account:', {
       ...identity,
       v: 1,
-      exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
+      exp: Date.now() + SESSION_MAX_AGE_SECONDS * 1000,
     } satisfies AccountSessionPayload);
   }
 
@@ -459,7 +462,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     return createSignedIdentityToken('klassio-identity:', {
       ...identity,
       v: 1,
-      exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
+      exp: Date.now() + SESSION_MAX_AGE_SECONDS * 1000,
     } satisfies IdentitySessionPayload);
   }
 
@@ -486,11 +489,13 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     return (isProd || isSecure) ? '; Secure' : '';
   }
 
-  function setAccessSession(req: express.Request, res: express.Response): string {
+  function setAccessSession(req: express.Request, res: express.Response, userId?: string): string {
     const token = createAccessToken();
+    // Only issue a cookie after the server-side allowlist was persisted.
+    accessSessions.issue(token, Date.now() + SESSION_MAX_AGE_SECONDS * 1000, userId);
     res.setHeader(
       'Set-Cookie',
-      'lehrerapp_access_token=' + token + '; Max-Age=' + (30 * 24 * 60 * 60) + '; Path=/; HttpOnly; SameSite=Lax' + secureCookieSuffix(req)
+      'lehrerapp_access_token=' + token + '; Max-Age=' + SESSION_MAX_AGE_SECONDS + '; Path=/; HttpOnly; SameSite=Lax' + secureCookieSuffix(req)
     );
     return token;
   }
@@ -498,7 +503,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   function setEmailAccountSession(req: express.Request, res: express.Response, identity: EmailAccountIdentity): void {
     res.append(
       'Set-Cookie',
-      'klassio_email_account=' + createAccountToken(identity) + '; Max-Age=' + (30 * 24 * 60 * 60) + '; Path=/; HttpOnly; SameSite=Lax' + secureCookieSuffix(req)
+      'klassio_email_account=' + createAccountToken(identity) + '; Max-Age=' + SESSION_MAX_AGE_SECONDS + '; Path=/; HttpOnly; SameSite=Lax' + secureCookieSuffix(req)
     );
   }
 
@@ -506,7 +511,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     const token = createIdentityToken(identity);
     res.append(
       'Set-Cookie',
-      'klassio_email_identity=' + token + '; Max-Age=' + (30 * 24 * 60 * 60) + '; Path=/; HttpOnly; SameSite=Lax' + secureCookieSuffix(req)
+      'klassio_email_identity=' + token + '; Max-Age=' + SESSION_MAX_AGE_SECONDS + '; Path=/; HttpOnly; SameSite=Lax' + secureCookieSuffix(req)
     );
   }
 
@@ -667,7 +672,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
 
     emailAccessChallenges.delete(email);
     resetFailedAttempts(ip);
-    setAccessSession(req, res);
+    setAccessSession(req, res, account.userId);
     setEmailAccountSession(req, res, account);
 
     if (identity) {
@@ -727,6 +732,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   });
 
   app.post("/api/access/logout", (req, res) => {
+    accessSessions.revoke(parseCookies(req).lehrerapp_access_token);
     const secureFlag = secureCookieSuffix(req);
     res.setHeader('Set-Cookie', [
       `lehrerapp_access_token=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${secureFlag}`,
@@ -768,6 +774,18 @@ export async function createApp(options: { isTest?: boolean } = {}) {
 
   const getEmailAccount = (req: express.Request): EmailAccountIdentity =>
     (req as AccountRequest).klassioAccount as EmailAccountIdentity;
+
+  // User-initiated revocation for all devices; always revoke the current device too.
+  app.post('/api/access/logout-all', requireEmailAccount, (req, res) => {
+    accessSessions.revokeUser(getEmailAccount(req).userId);
+    const secure = secureCookieSuffix(req);
+    res.setHeader('Set-Cookie', [
+      'lehrerapp_access_token=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax' + secure,
+      'klassio_email_account=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax' + secure,
+      'klassio_email_identity=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax' + secure,
+    ]);
+    res.json({ success: true });
+  });
 
   // Separate binary material storage is deliberately off until an attachment-
   // inclusive encrypted backup/restore is available. Old inline materials and
