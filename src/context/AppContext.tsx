@@ -569,7 +569,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       locallySavedStateRef.current = snapshot;
       setAccountSyncStatus(previous => cloudConfirmedStateRef.current === snapshot
         ? previous
-        : previous === 'saving-local' || previous === 'synced' || previous === 'syncing'
+        : previous === 'saving-local' || previous === 'synced' || previous === 'syncing' || previous === 'local-error'
           ? 'saved-local' : previous);
       // A local snapshot is durable now; cloud confirmation still requires a server ACK.
       // Do not delay upload behind a session copy or the daily emergency backup.
@@ -594,7 +594,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         console.warn('[Datenschutz] Fehler beim Erstellen der Notfallkopie:', error);
       }
     } catch (error) {
-      setAccountSyncStatus(previous => previous === 'conflict' ? previous : 'error');
+      setAccountSyncStatus(previous => previous === 'conflict' ? previous : 'local-error');
       setAccountSyncMessage('Die letzte Änderung konnte nicht verschlüsselt auf diesem Gerät gesichert werden. Bitte KLASSIO geöffnet lassen und erneut versuchen.');
       console.error('[Datenschutz] Verschlüsseltes Speichern fehlgeschlagen:', error);
     } finally {
@@ -611,6 +611,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }, 150);
     return () => window.clearTimeout(timeout);
   }, [app, isLoaded, isVaultUnlocked, persistLatestState]);
+
+  // A transient IndexedDB failure must not leave the latest edit unsaved forever.
+  useEffect(() => {
+    if (!isLoaded || !isVaultUnlocked) return;
+    const interval = window.setInterval(() => {
+      if (restoringRef.current || localSaveBusyRef.current > 0
+        || locallySavedStateRef.current === currentAppRef.current) return;
+      void persistLatestState(currentAppRef.current);
+    }, 5_000);
+    return () => window.clearInterval(interval);
+  }, [isLoaded, isVaultUnlocked, persistLatestState]);
 
   // Best effort only: pagehide/visibilitychange may be suspended immediately by the OS.
   // A pending write still needs an explicit leave warning instead of a false green badge.
