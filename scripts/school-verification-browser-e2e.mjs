@@ -315,10 +315,10 @@ async function verifyRandomPickerInRealBrowser(client) {
   const chosen = await evaluate(client,
     String.raw`(() => {const select=document.querySelector('select[aria-label="Widget für Einstellungen"]');if(!select)return false;select.value='randomname';select.dispatchEvent(new Event('change',{bubbles:true}));return true;})()`);
   if (!chosen) throw new Error('Random-name missing from central settings selector.');
-  await waitFor(client, 'central random-name sound settings',
-    String.raw`document.body.innerText.includes('Zufälliges Kind · Ton') && Array.from(document.querySelectorAll('label')).some(l=>l.textContent.includes('Ton bei der Ziehung abspielen'))`);
+  await waitFor(client, 'central random-name sound and fair-round defaults',
+    String.raw`document.body.innerText.includes('Zufallsauswahl · Voreinstellungen') && document.body.innerText.includes('Faire Runde') && Array.from(document.querySelectorAll('label')).some(l=>l.textContent.includes('Dezenten Ton bei der Ziehung abspielen'))`);
   const saved = await evaluate(client,
-    String.raw`(() => {const label=[...document.querySelectorAll('label')].find(l=>l.textContent.includes('Ton bei der Ziehung abspielen'));const input=label?.querySelector('input[type="checkbox"]');if(!input||!input.checked)return false;input.click();return !input.checked;})()`);
+    String.raw`(() => {const label=[...document.querySelectorAll('label')].find(l=>l.textContent.includes('Dezenten Ton bei der Ziehung abspielen'));const input=label?.querySelector('input[type="checkbox"]');if(!input||!input.checked)return false;input.click();return !input.checked;})()`);
   if (!saved) throw new Error('Could not disable sound in central settings.');
   await clickButton(client, 'Auswahl schließen');
   await saveScreenshot(client, SCREENSHOT_RANDOM);
