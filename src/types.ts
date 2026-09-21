@@ -1668,6 +1668,8 @@ export interface AppState {
     cockpitPaperSpacingByClass?: Record<string, number>;
     cockpitTextByClass?: Record<string, string>;
     cockpitQuickbarByClass?: Record<string, { enabled: boolean; itemIds: import('./lib/cockpitQuickbar').CockpitQuickbarId[] }>;
+    /** Class-local presets for NEW children-week widgets (no pupil data). */
+    cockpitChildrenWeekDefaultsByClass?: Record<string, import('./lib/classroomWeeklyWidgetPreferences').ClassroomWeeklyWidgetPreferences>;
     cockpitInkByClass?: Record<string, import('./components/cockpit/BoardInk').InkItem[]>;
     sidebarMode?: 'expanded' | 'mini' | 'hidden';
     activeFont?: string;
