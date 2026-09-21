@@ -2021,3 +2021,15 @@ div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-
     display: none;
   }
 }
+
+
+/* The class mascot is a freestanding illustration, never a popup or card.
+   Its legacy widget chrome (title, options, close, resize handle) must stay
+   absent even on hover, focus and touch. Layout position remains draggable
+   by picking up the character itself; the chooser lives in Design & Farben. */
+html body .cockpit-free-mascot .mascot-widget-toolbar,
+html body .cockpit-free-mascot .mascot-widget-resize {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
