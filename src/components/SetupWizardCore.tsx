@@ -1673,7 +1673,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
              )}
 
              {studentsList.length === 0 && activeInputMode === 'choice' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 py-6">
+              <div className={`grid grid-cols-1 sm:grid-cols-2 ${isSek1 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-4 py-6`}>
                 <div 
                   onClick={() => setActiveInputMode('manual')}
                   className="p-6 bg-white border border-slate-200 rounded-[24px] shadow-sm hover:border-emerald-500 hover:shadow-lg hover:shadow-slate-100 cursor-pointer transition-all flex flex-col items-center text-center group"
@@ -1713,7 +1713,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                   </p>
                 </div>
 
-                <div 
+                {!isSek1 && <div 
                   onClick={() => {
                     const demoNames = [
                       { v: 'Lukas', n: 'Gruber', g: 'm' },
@@ -1757,7 +1757,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                   <p className="text-[0.75rem] text-indigo-600 mt-2 leading-relaxed">
                     Lade sofort 15 Beispielschüler, um das Klassenbuch direkt live vorzuführen.
                   </p>
-                </div>
+                </div>}
               </div>
             ) : (
               <div className="p-6 bg-slate-50 rounded-[24px] border border-slate-100 relative">
