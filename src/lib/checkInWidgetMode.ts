@@ -16,6 +16,7 @@ export function getCheckInMode(settings: unknown): CheckInMode {
 export interface CheckInPreferences {
   checkInMode: CheckInMode;
   moodEnabled: boolean;
+  startSize: 'compact' | 'standard' | 'large';
 }
 
 export function getCheckInPreferences(settings: unknown): CheckInPreferences {
@@ -23,5 +24,6 @@ export function getCheckInPreferences(settings: unknown): CheckInPreferences {
   return {
     checkInMode: getCheckInMode(value),
     moodEnabled: value.moodEnabled !== false,
+    startSize: value.startSize === 'compact' || value.startSize === 'standard' ? value.startSize : 'large',
   };
 }
