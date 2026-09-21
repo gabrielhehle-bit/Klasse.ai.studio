@@ -467,6 +467,71 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   const scaleY = renderedH / opt.h;
   const contentScale = Math.min(4, Math.min(scaleX, scaleY));
 
+  // Moving a free-standing mascot should feel like picking up the animal, not dragging
+  // an invisible widget rectangle. A short tap must still open mascot interactions.
+  const suppressMascotTap = useRef(false);
+  const handleMascotPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isFreeMascot || layoutLocked || isMaximized || !event.isPrimary || event.button !== 0) return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const character = target.closest<HTMLButtonElement>('.class-mascot-character');
+    const stage = stageRef.current;
+    if (!character || !stage) return;
+
+    const pointerId = event.pointerId;
+    const stageRect = stage.getBoundingClientRect();
+    const originX = (widget.x / 100) * stageRect.width;
+    const originY = (widget.y / 100) * stageRect.height;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    let dragging = false;
+    character.setPointerCapture(pointerId);
+
+    const onMove = (move: PointerEvent) => {
+      if (move.pointerId !== pointerId) return;
+      const dx = move.clientX - startX;
+      const dy = move.clientY - startY;
+      // A finger tap or a tiny pointer tremor must not move the mascot.
+      if (!dragging && Math.hypot(dx, dy) < 9) return;
+      if (!dragging) {
+        dragging = true;
+        suppressMascotTap.current = true;
+        onFocus();
+      }
+      const rect = widgetRef.current?.getBoundingClientRect();
+      const width = rect?.width || (widget.w / 100) * stageRect.width;
+      const height = rect?.height || (widget.h / 100) * stageRect.height;
+      const nextX = Math.max(0, Math.min(stageRect.width - width, Math.round((originX + dx) / 10) * 10));
+      const nextY = Math.max(0, Math.min(stageRect.height - height, Math.round((originY + dy) / 10) * 10));
+      onUpdate({ x: (nextX / stageRect.width) * 100, y: (nextY / stageRect.height) * 100 });
+    };
+
+    const finish = (up: PointerEvent) => {
+      if (up.pointerId !== pointerId) return;
+      character.removeEventListener('pointermove', onMove);
+      character.removeEventListener('pointerup', finish);
+      character.removeEventListener('pointercancel', finish);
+      if (character.hasPointerCapture(pointerId)) character.releasePointerCapture(pointerId);
+      // Browser-generated click follows pointerup in the same task; suppress only
+      // the drag's click, never the next deliberate tap.
+      window.setTimeout(() => { suppressMascotTap.current = false; }, 0);
+    };
+
+    character.addEventListener('pointermove', onMove);
+    character.addEventListener('pointerup', finish);
+    character.addEventListener('pointercancel', finish);
+  };
+
+  const handleMascotClickCapture = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!suppressMascotTap.current) return;
+    const target = event.target;
+    if (target instanceof Element && target.closest('.class-mascot-character')) {
+      event.preventDefault();
+      event.stopPropagation();
+      suppressMascotTap.current = false;
+    }
+  };
+
   return (
     <div
       ref={widgetRef}
@@ -775,6 +840,8 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       <div className="flex-grow overflow-hidden relative min-h-0">
         <div
           className="absolute inset-0 flex flex-col overflow-auto no-scrollbar"
+          onPointerDown={isFreeMascot ? handleMascotPointerDown : undefined}
+          onClickCapture={isFreeMascot ? handleMascotClickCapture : undefined}
           style={
             isDirect || isFreeMascot || !!WIDGET_MIN_SIZES[widget.type] || widget.type === "instruction"
               ? {
