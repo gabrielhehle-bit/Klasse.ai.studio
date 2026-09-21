@@ -7,7 +7,9 @@ import { normalizeSchulart } from '../lib/schularten';
 /** In der Sekundarstufe wechseln Lehrpersonen zwischen ihren Klassen direkt bei Schüler:innen. */
 export default function Sek1ClassPicker() {
   const { app, switchClass, setPage } = useApp();
-  if (!istSekundarstufe(app.schulart)) return null;
+  // Wenn eine Lehrkraft auch VS-Klassen hat, bleibt der Klassenwechsel nach dem
+  // Wechsel zu einer VS-Klasse weiterhin direkt in Schüler:innen erreichbar.
+  if (!(app.classes || []).some(klasse => istSekundarstufe(klasse.schulart))) return null;
 
   const classes = app.classes || [];
   const schulartText = (value: unknown) => {
