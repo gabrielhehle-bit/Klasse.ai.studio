@@ -455,6 +455,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
 
   const opt = OPTIMAL_WIDGET_SIZES[widget.type] || { w: 35, h: 45 };
   const isDirect = !!widget.settings?.isDirectMode;
+  const isFreeMascot = widget.type === "pet" && !isDirect;
   const safeMinSize = getWidgetMinSizeConfig(widget.type);
   const minWPercent = stageSize.width > 0 ? Math.min(100, (safeMinSize.minW / stageSize.width) * 100) : 0;
   const minHPercent = stageSize.height > 0 ? Math.min(100, (safeMinSize.minH / stageSize.height) * 100) : 0;
@@ -471,8 +472,8 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       ref={widgetRef}
       role="group"
       aria-label={`${labelMapping[widget.type] || widget.type} Widget`}
-      className={`cockpit-widget-container absolute flex flex-col transition-[transform,border-color,shadow,background-color,opacity,border-radius,box-shadow,ring-color] duration-300 ease-out select-none group animate-in fade-in zoom-in-95 ${
-        isDirect
+      className={`cockpit-widget-container absolute flex flex-col transition-[transform,border-color,shadow,background-color,opacity,border-radius,box-shadow,ring-color] duration-300 ease-out select-none group animate-in fade-in zoom-in-95 ${isFreeMascot ? "cockpit-free-mascot rounded-none border-0 bg-transparent shadow-none ring-0 backdrop-blur-none" : ""} ${
+        isDirect || isFreeMascot
           ? "rounded-none border-none bg-transparent shadow-none"
           : "rounded-[24px] backdrop-blur-3xl ring-offset-transparent transition-all " +
             (currentIsLight
@@ -497,7 +498,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       {/* Header bar / Drag handle - static in flow so it doesn't overlap content */}
       <div
         onPointerDown={isDirect || isMaximized || layoutLocked ? undefined : handlePointerDownDrag}
-        className={`${isDirect ? "absolute top-0 left-0 right-0 h-11 opacity-40 hover:opacity-100 pointer-events-auto border-b-0 bg-black/10 dark:bg-white/10 text-slate-400 backdrop-blur-md rounded-t-xl" : "w-full relative h-11 opacity-100 pointer-events-auto " + (currentIsLight ? "bg-white/95 border-slate-200/60 text-slate-700 shadow-sm backdrop-blur-xl rounded-t-[23px]" : "bg-zinc-900/95 border-white/10 text-neutral-200 shadow-sm backdrop-blur-xl rounded-t-[23px]")} z-40 px-3 py-1 flex items-center justify-between select-none shrink-0 border-b transition-all duration-300 cursor-default`}
+        className={`${isFreeMascot ? "mascot-widget-toolbar w-full relative h-11 border-0 bg-transparent text-inherit opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100" : isDirect ? "absolute top-0 left-0 right-0 h-11 opacity-40 hover:opacity-100 pointer-events-auto border-b-0 bg-black/10 dark:bg-white/10 text-slate-400 backdrop-blur-md rounded-t-xl" : "w-full relative h-11 opacity-100 pointer-events-auto " + (currentIsLight ? "bg-white/95 border-slate-200/60 text-slate-700 shadow-sm backdrop-blur-xl rounded-t-[23px]" : "bg-zinc-900/95 border-white/10 text-neutral-200 shadow-sm backdrop-blur-xl rounded-t-[23px]")} z-40 px-3 py-1 flex items-center justify-between select-none shrink-0 border-b transition-all duration-300 cursor-default`}
         style={{ touchAction: isDirect || layoutLocked ? "auto" : "none" }}
       >
         {/* Left Side: status dot, Title, and Pen icon button placed directly right next to the title label */}
@@ -775,7 +776,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
         <div
           className="absolute inset-0 flex flex-col overflow-auto no-scrollbar"
           style={
-            isDirect || !!WIDGET_MIN_SIZES[widget.type] || widget.type === "instruction"
+            isDirect || isFreeMascot || !!WIDGET_MIN_SIZES[widget.type] || widget.type === "instruction"
               ? {
                   width: "100%",
                   height: "100%",
@@ -799,7 +800,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       {!layoutLocked && !isDirect && (
         <div
           onPointerDown={handlePointerDownResize}
-          className="absolute bottom-0 right-0 w-4.5 h-4.5 cursor-se-resize flex items-end justify-end p-0.5 group z-50 touch-none"
+          className={`absolute bottom-0 right-0 w-4.5 h-4.5 cursor-se-resize flex items-end justify-end p-0.5 group z-50 touch-none ${isFreeMascot ? "mascot-widget-resize opacity-0 group-hover:opacity-100 focus-within:opacity-100" : ""}`}
           style={{ touchAction: "none" }}
         >
           <svg
