@@ -1,4 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { normalizeClassMascot } from "../../lib/classMascot";
 import { X, Settings, PenTool, SlidersHorizontal, Check, Maximize2, Minimize2, LockKeyhole, MoreHorizontal, Rocket } from "lucide-react";
 import { CockpitWidgetConfig } from "../../types";
 import { useApp } from "../../context/AppContext";
@@ -11,6 +13,8 @@ interface CockpitWidgetProps {
   onFocus: () => void;
   zIndex: number;
   stageRef: React.RefObject<HTMLDivElement | null>;
+  mascotStageRef?: React.RefObject<HTMLDivElement | null>;
+  mascotPortalTarget?: HTMLElement | null;
   currentIsLight: boolean;
   activePultThemeVars: any;
   showSettingsButton?: boolean;
@@ -140,6 +144,8 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   onFocus,
   zIndex,
   stageRef,
+  mascotStageRef,
+  mascotPortalTarget,
   currentIsLight,
   showSettingsButton,
   onSettingsToggle,
@@ -148,7 +154,10 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   isFocused = false,
   layoutLocked = false,
 }) => {
-  const { calculateWidgetFontSize } = useApp();
+  const { app, calculateWidgetFontSize } = useApp();
+  const isDirect = !!widget.settings?.isDirectMode;
+  const isFreeMascot = widget.type === "pet" && !isDirect;
+  const activeStageRef = isFreeMascot && mascotStageRef ? mascotStageRef : stageRef;
   const widgetRef = useRef<HTMLDivElement>(null);
   const dragStartPos = useRef({ x: 0, y: 0, left: 0, top: 0 });
   const resizeStartPos = useRef({ startX: 0, startY: 0, startW: 0, startH: 0 });
@@ -162,7 +171,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
-    const stage = stageRef.current;
+    const stage = activeStageRef.current;
     if (!stage) return;
 
     const updateStageSize = () => {
@@ -180,7 +189,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
 
     window.addEventListener("resize", updateStageSize);
     return () => window.removeEventListener("resize", updateStageSize);
-  }, [stageRef]);
+  }, [activeStageRef]);
 
   // Sync inputs with widget dimensions when config opens or dims change externally
   useEffect(() => {
@@ -455,15 +464,19 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   };
 
   const opt = OPTIMAL_WIDGET_SIZES[widget.type] || { w: 35, h: 45 };
-  const isDirect = !!widget.settings?.isDirectMode;
-  const isFreeMascot = widget.type === "pet" && !isDirect;
   const safeMinSize = getWidgetMinSizeConfig(widget.type);
   const minWPercent = stageSize.width > 0 ? Math.min(100, (safeMinSize.minW / stageSize.width) * 100) : 0;
   const minHPercent = stageSize.height > 0 ? Math.min(100, (safeMinSize.minH / stageSize.height) * 100) : 0;
-  const renderedW = isDirect ? 100 : isMaximized ? 96 : Math.max(5, widget.w, minWPercent);
-  const renderedH = isDirect ? 100 : isMaximized ? 96 : Math.max(5, widget.h, minHPercent);
-  const renderedX = isDirect ? 0 : isMaximized ? 2 : Math.max(0, Math.min(widget.x, 100 - renderedW));
-  const renderedY = isDirect ? 0 : isMaximized ? 2 : Math.max(0, Math.min(widget.y, 100 - renderedH));
+  // A freestanding mascot uses the *whole cockpit*, not an oversized widget
+  // rectangle in the white writing area. x/y stay class-local and persistent.
+  const mascotSize = normalizeClassMascot(app.classMascot).displaySize || 220;
+  const mascotPixels = Math.max(1, Math.min(mascotSize, stageSize.width || mascotSize, stageSize.height || mascotSize));
+  const mascotWPercent = stageSize.width > 0 ? (mascotPixels / stageSize.width) * 100 : 25;
+  const mascotHPercent = stageSize.height > 0 ? (mascotPixels / stageSize.height) * 100 : 25;
+  const renderedW = isFreeMascot ? mascotWPercent : isDirect ? 100 : isMaximized ? 96 : Math.max(5, widget.w, minWPercent);
+  const renderedH = isFreeMascot ? mascotHPercent : isDirect ? 100 : isMaximized ? 96 : Math.max(5, widget.h, minHPercent);
+  const renderedX = isFreeMascot ? Math.max(0, Math.min(widget.x, 100 - renderedW)) : isDirect ? 0 : isMaximized ? 2 : Math.max(0, Math.min(widget.x, 100 - renderedW));
+  const renderedY = isFreeMascot ? Math.max(0, Math.min(widget.y, 100 - renderedH)) : isDirect ? 0 : isMaximized ? 2 : Math.max(0, Math.min(widget.y, 100 - renderedH));
   const scaleX = renderedW / opt.w;
   const scaleY = renderedH / opt.h;
   const contentScale = Math.min(4, Math.min(scaleX, scaleY));
@@ -475,13 +488,13 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     const target = event.target;
     if (!(target instanceof Element)) return;
     const character = target.closest<HTMLButtonElement>('.class-mascot-character');
-    const stage = stageRef.current;
+    const stage = activeStageRef.current;
     if (!character || !stage) return;
 
     const pointerId = event.pointerId;
     const stageRect = stage.getBoundingClientRect();
-    const originX = (widget.x / 100) * stageRect.width;
-    const originY = (widget.y / 100) * stageRect.height;
+    const originX = (renderedX / 100) * stageRect.width;
+    const originY = (renderedY / 100) * stageRect.height;
     const startX = event.clientX;
     const startY = event.clientY;
     let dragging = false;
@@ -533,7 +546,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       ArrowUp: [0, -1], ArrowDown: [0, 1],
     }[event.key] as [number, number] | undefined;
     if (!delta) return;
-    const stage = stageRef.current;
+    const stage = activeStageRef.current;
     if (!stage) return;
     const stageRect = stage.getBoundingClientRect();
     if (stageRect.width <= 0 || stageRect.height <= 0) return;
@@ -543,8 +556,8 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     const width = widgetRect?.width || (widget.w / 100) * stageRect.width;
     const height = widgetRect?.height || (widget.h / 100) * stageRect.height;
     const step = event.shiftKey ? 1 : 10;
-    const x = Math.max(0, Math.min(stageRect.width - width, (widget.x / 100) * stageRect.width + delta[0] * step));
-    const y = Math.max(0, Math.min(stageRect.height - height, (widget.y / 100) * stageRect.height + delta[1] * step));
+    const x = Math.max(0, Math.min(stageRect.width - width, (renderedX / 100) * stageRect.width + delta[0] * step));
+    const y = Math.max(0, Math.min(stageRect.height - height, (renderedY / 100) * stageRect.height + delta[1] * step));
     onFocus();
     onUpdate({ x: (x / stageRect.width) * 100, y: (y / stageRect.height) * 100 });
   };
@@ -559,7 +572,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     }
   };
 
-  return (
+  const widgetNode = (
     <div
       ref={widgetRef}
       role="group"
@@ -581,9 +594,9 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
         containerType: "inline-size",
         left: `${renderedX}%`,
         top: `${renderedY}%`,
-        width: `${renderedW}%`,
-        height: `${renderedH}%`,
-        zIndex: isDirect ? 0 : isMaximized ? 9999 : zIndex,
+        width: isFreeMascot ? `${mascotPixels}px` : `${renderedW}%`,
+        height: isFreeMascot ? `${mascotPixels}px` : `${renderedH}%`,
+        zIndex: isFreeMascot ? 120 : isDirect ? 0 : isMaximized ? 9999 : zIndex,
         touchAction: isDirect || layoutLocked || isFreeMascot ? "auto" : "none",
       }}
       onClick={onFocus}
@@ -917,4 +930,6 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       )}
     </div>
   );
+  // Only the class mascot is portaled to the local cockpit root; no global FAB.
+  return isFreeMascot ? (mascotPortalTarget ? createPortal(widgetNode, mascotPortalTarget) : null) : widgetNode;
 };
