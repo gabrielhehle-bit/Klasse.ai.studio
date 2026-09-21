@@ -1668,6 +1668,8 @@ export interface AppState {
     cockpitPaperSpacingByClass?: Record<string, number>;
     cockpitTextByClass?: Record<string, string>;
     cockpitQuickbarByClass?: Record<string, { enabled: boolean; itemIds: import('./lib/cockpitQuickbar').CockpitQuickbarId[] }>;
+    /** Class-local presets for NEW random-selection widgets, never student records. */
+    cockpitRandomNameDefaultsByClass?: Record<string, import('./lib/randomNameWidgetModel').RandomNameWidgetPreferences>;
     cockpitInkByClass?: Record<string, import('./components/cockpit/BoardInk').InkItem[]>;
     sidebarMode?: 'expanded' | 'mini' | 'hidden';
     activeFont?: string;
