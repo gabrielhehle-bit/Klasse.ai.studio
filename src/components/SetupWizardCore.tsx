@@ -1013,6 +1013,13 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                {/* Controls */}
                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-6 rounded-[24px] border border-slate-100">
+                 <div className="space-y-1.5 sm:col-span-2">
+                   <label htmlFor="klassio-schulart" className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Schulart *</label>
+                   <select id="klassio-schulart" value={schulart} onChange={e => { const next = e.target.value as Schulart; setSchulart(next); setStufe(previous => passendeSchulstufe(next, previous)); }} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 font-semibold">
+                     {SCHULARTEN.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
+                   </select>
+                   {schulart !== 'volksschule' && <p className="text-xs text-amber-700">Die Unterstufe wird schrittweise ergänzt. Volksschul-Stundentafel und Volksschul-Diagnostik gelten hier nicht automatisch.</p>}
+                 </div>
                  <div className="space-y-1.5 sm:col-span-1">
                     <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Klassenbezeichnung *</label>
                     <input autoFocus type="text" placeholder="z.B. 1A" value={klassenbezeichnung} onChange={e => {setKlassenbezeichnung(e.target.value); if(e.target.value.trim()) setShowMissingKlassenbezeichnung(false);}} className={`w-full px-4 py-2.5 bg-white shadow-sm border focus:ring-4 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all ${showMissingKlassenbezeichnung ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/10' : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'}`} />
@@ -1034,11 +1041,12 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                  </div>
                  <div className="space-y-2 sm:col-span-2">
                     <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Schulstufe *</label>
-                    <div className="grid grid-cols-5 gap-2">
-                      {[0, 1, 2, 3, 4].map(st => (
-                        <button key={st} type="button" onClick={() => setStufe(st)} className={`py-2 rounded-xl text-[0.875rem] leading-snug font-black border transition-all ${stufe === st ? 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/10' : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'}`}>{st === 0 ? 'V' : st+'.'}</button>
+                    <div className={`grid gap-2 ${schulart === 'volksschule' ? 'grid-cols-5' : 'grid-cols-4'}`}>
+                      {schulstufenFuerSchulart(schulart).map(st => (
+                        <button key={st} type="button" onClick={() => setStufe(st)} title={schulstufenText(schulart, st)} className={`py-2 rounded-xl text-[0.875rem] leading-snug font-black border transition-all ${stufe === st ? 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/10' : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'}`}>{st === 0 ? 'V' : schulart === 'volksschule' ? st+'.' : (st - 4)+'.'}</button>
                       ))}
                     </div>
+                    {schulart !== 'volksschule' && <p className="text-xs text-slate-500">1.–4. Klasse der Unterstufe entsprechen der 5.–8. Schulstufe.</p>}
                  </div>
                  <div className="space-y-2 sm:col-span-2">
                     <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Visuelles Theme</label>
@@ -1251,9 +1259,9 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                  <div className="flex justify-between items-center mb-4">
                    <h4 className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Tägliche Stunden</h4>
                    <div className="flex items-center gap-2">
-                     <button onClick={magicAutofillStammplan} className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all shadow-sm flex items-center gap-1.5">
+                     {schulart === 'volksschule' && <button onClick={magicAutofillStammplan} className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all shadow-sm flex items-center gap-1.5">
                        <Sparkles size={12} /> Automatisch verteilen
-                     </button>
+                     </button>}
                      <span className="text-[0.625rem] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">Rahmen definieren</span>
                    </div>
                  </div>
@@ -1459,12 +1467,13 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                  <div className="flex justify-between items-end mb-4 border-b border-slate-100 pb-3">
                    <div>
                      <h4 className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide mb-1">Stundentafel Chart</h4>
-                     <p className="text-[0.625rem] text-slate-500 font-medium leading-tight">Wochenstunden lt. Lehrplan {stufe === 0 ? 'V' : stufe}.Klasse</p>
+                     <p className="text-[0.625rem] text-slate-500 font-medium leading-tight">{schulart === 'volksschule' ? `Wochenstunden aus der VS-Vorlage, ${stufe === 0 ? 'V' : stufe}. Klasse` : 'Keine Stundentafel für die Unterstufe hinterlegt.'}</p>
                    </div>
                    <div className="w-8 h-8 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center border border-violet-100"><Calendar size={14} /></div>
                  </div>
                  
                  <div className="space-y-3">
+                   {schulart !== 'volksschule' && <p className="text-sm text-slate-600">Trage deine tatsächlichen Unterrichtsstunden selbst ein. Es werden keine Volksschul-Wochenstunden übernommen.</p>}
                    {Object.entries(currentStundentafel).map(([fach, defaultAnzahl]) => {
                      if (fach === 'Gesamt') return null;
                      const istZahl = typeof defaultAnzahl === 'number';
@@ -1810,8 +1819,9 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                  {[
                    ['Klasse', klassenbezeichnung || '–'],
+                   ['Schulart', SCHULARTEN.find(option => option.id === schulart)?.label || '–'],
                    ['Schuljahr', schuljahr || '–'],
-                   ['Schulstufe', stufe === 0 ? 'Vorschule' : `${stufe}. Klasse`],
+                   ['Schulstufe', schulstufenText(schulart, stufe)],
                    ['Schüler:innen', String(studentsList.length)],
                    ['Aktive Fächer', String(activeSubjects.length)],
                    ['Stundenplan', `${assignedLessonSlots} von ${availableLessonSlots} Feldern`]
