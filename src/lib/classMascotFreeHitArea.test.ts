@@ -18,7 +18,7 @@ test('Maskottchen steht frei und seine unsichtbare Widgetfläche blockiert keine
   assert.match(styles, /\.cockpit-free-mascot \.mascot-widget-resize \{\s*display: none !important;/);
   assert.match(widget, /class-mascot-freestanding pointer-events-none/);
   assert.match(widget, /class-mascot-character pointer-events-auto mx-auto/);
-  assert.match(widget, /style=\{\{ width: 'min\(100%, 280px\)' \}\}/);
+  assert.match(widget, /style=\{\{ width: `min\(100%, \$\{state\.displaySize\}px\)` \}\}/);
 });
 
 test('Das freigestellte Maskottchen lässt sich gezielt greifen, ohne Namenszeile oder Aktionen', () => {
