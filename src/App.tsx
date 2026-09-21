@@ -622,7 +622,7 @@ function AppContent() {
       case 'unterricht': return null; // Legacy alias is resolved to 'cockpit' above.
       case 'lehrerzimmer': return <Lehrerzimmer />;
       case 'teamteaching': return <ClassTeam />;
-      case 'schueler': return <StudentList />;
+      case 'schueler': return <StudentList key={app.activeClassId || 'class'} />;
       case 'stundenplan': return istSekundarstufe(app.schulart) ? <TeacherTimetable /> : <Dashboard />;
       case 'dossier': return <StudentDossierHub />;
       case 'noten': return <Gradebook />;
