@@ -187,6 +187,7 @@ import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
 import { PLANNED_COCKPIT_WIDGETS } from "./cockpit/plannedCockpitCatalog";
 import ClassroomWeeklyPlanWidget from "./cockpit/widgets/ClassroomWeeklyPlanWidget";
 import { getCheckInMode } from "../lib/checkInWidgetMode";
+import { getClassroomWeeklyWidgetPreferences } from "../lib/classroomWeeklyWidgetPreferences";
 import { COCKPIT_PAPERS, getCockpitPaperStyle, normalizeCockpitPaperSpacing, type CockpitPaper } from "../lib/cockpitPaper";
 import { COCKPIT_QUICKBAR_ITEMS, normalizeCockpitQuickbarSettings, toggleCockpitQuickbarItem } from "../lib/cockpitQuickbar";
 import { PublicStudentListWidget as StudentListWidgetContent } from "./cockpit/PublicStudentListWidget";
@@ -2943,7 +2944,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [isQuickBarSettingsOpen, setIsQuickBarSettingsOpen] = useState(false);
   const [isAddWidgetMenuOpen, setIsAddWidgetMenuOpen] = useState(false);
   const [isWidgetConfigurationOpen, setIsWidgetConfigurationOpen] = useState(false);
-  const [selectedWidgetConfiguration, setSelectedWidgetConfiguration] = useState<"kidattendance" | "groups" | "randomname">("kidattendance");
+  const [selectedWidgetConfiguration, setSelectedWidgetConfiguration] = useState<"kidattendance" | "groups" | "randomname" | "classweeklyplan">("kidattendance");
   const [isVorlagenModalOpen, setIsVorlagenModalOpen] = useState(false);
   const [vorlagenStartTab, setVorlagenStartTab] = useState<"browse" | "create">("browse");
   const [activeWidgetCategory, setActiveWidgetCategory] =
@@ -2956,6 +2957,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [isBirthdayCelebrationOpen, setIsBirthdayCelebrationOpen] = useState(false);
   useEffect(() => { setIsBirthdayCelebrationOpen(false); }, [app.activeClassId]);
   const boardTextClassKey = app.activeClassId || "unassigned";
+  const weeklyWidgetDefaults = getClassroomWeeklyWidgetPreferences(app.boardSettings?.cockpitChildrenWeekDefaultsByClass?.[boardTextClassKey]);
   const cockpitPaper = ((app.boardSettings as any)?.cockpitPaperByClass?.[boardTextClassKey] || "blank") as CockpitPaper;
   const setCockpitPaper = (paper: CockpitPaper) => setApp((prev: any) => ({
     ...prev,
@@ -3741,8 +3743,11 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     const updated = cockpitWidgets.map((w) => {
       if (w.type === type) {
         const def = DEFAULT_COCKPIT_LAYOUT.find((d) => d.type === type);
-        const useOld = w.hasBeenOpened || w.visible;
-        const isMaxWidget = type === "randomname" || type === "wheel" || type === "classweeklyplan";
+        const useOld = w.hasBeenOpened || w.visible || (type === "classweeklyplan" && Boolean(w.settings && Object.keys(w.settings).length));
+        const weeklyPreset = getClassroomWeeklyWidgetPreferences(app.boardSettings?.cockpitChildrenWeekDefaultsByClass?.[boardTextClassKey]);
+        const weeklyStartSize = weeklyPreset.startSize === "compact" ? { w: 52, h: 60 }
+          : weeklyPreset.startSize === "standard" ? { w: 78, h: 80 } : { w: 100, h: 100 };
+        const isMaxWidget = type === "randomname" || type === "wheel" || (type === "classweeklyplan" && weeklyPreset.startSize === "large");
         const isWhiteboard = type === "drawing";
         return {
           ...w,
@@ -3750,15 +3755,15 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
           hasBeenOpened: true, // Mark it as opened!
           x: isWhiteboard || isMaxWidget && !useOld ? 0 : useOld ? w.x : finalX,
           y: isWhiteboard || isMaxWidget && !useOld ? 0 : useOld ? w.y : finalY,
-          w: isWhiteboard || isMaxWidget && !useOld ? 100 : useOld ? w.w : Math.min(def?.w || w.w, 46),
-          h: isWhiteboard || isMaxWidget && !useOld ? 100 : type === "pet" && !useOld ? 66 : useOld ? w.h : Math.min(def?.h || w.h, 46),
+          w: isWhiteboard || isMaxWidget && !useOld ? 100 : useOld ? w.w : type === "classweeklyplan" ? weeklyStartSize.w : Math.min(def?.w || w.w, 46),
+          h: isWhiteboard || isMaxWidget && !useOld ? 100 : type === "pet" && !useOld ? 66 : useOld ? w.h : type === "classweeklyplan" ? weeklyStartSize.h : Math.min(def?.h || w.h, 46),
           settings: isWhiteboard
             ? {
                 ...(w.settings || {}),
                 boardMode: w.settings?.boardMode || "whiteboard",
                 isDirectMode: true,
               }
-            : w.settings,
+            : type === "classweeklyplan" && !useOld ? { ...(w.settings || {}), ...weeklyPreset } : w.settings,
         };
       }
       return w;
@@ -8283,18 +8288,34 @@ ${content}
                                       <label className="block text-sm font-semibold">
                                         Widget auswählen
                                         <select aria-label="Widget für Einstellungen" value={selectedWidgetConfiguration}
-                                          onChange={event => setSelectedWidgetConfiguration(event.target.value as "kidattendance" | "groups" | "randomname")}
+                                          onChange={event => setSelectedWidgetConfiguration(event.target.value as "kidattendance" | "groups" | "randomname" | "classweeklyplan")}
                                           className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
                                           <option value="kidattendance">🖐️ Ich bin da!</option>
                                           <option value="groups">👥 Gruppen bilden</option>
+                                          <option value="classweeklyplan">📋 Wochenplan der Kinder</option>
                                           <option value="randomname">🎯 Zufälliges Kind</option>
                                         </select>
                                       </label>
                                       {(() => {
-                                        const configured = cockpitWidgets.find(widget => widget.type === selectedWidgetConfiguration);
-                                        if (!configured) return <p role="status" className="text-sm">Füge dieses Widget zuerst hinzu, um seine Einstellungen zu speichern.</p>;
+                                        const configured = cockpitWidgets.find(widget => widget.type === selectedWidgetConfiguration)
+                                          || DEFAULT_COCKPIT_LAYOUT.find(widget => widget.type === selectedWidgetConfiguration);
+                                        if (!configured) return <p role="status" className="text-sm">Einstellungen nicht verfügbar.</p>;
                                         const saveSetting = (key: string, value: string) =>
                                           handleUpdateWidgetPos(configured.id, { settings: { ...(configured.settings || {}), [key]: value } });
+                                        const saveWeeklyPreset = (key: "taskCardsPerPage" | "showMaterials" | "startSize", value: number | string | boolean) =>
+                                          setApp(prev => ({
+                                            ...prev,
+                                            boardSettings: {
+                                              ...prev.boardSettings,
+                                              cockpitChildrenWeekDefaultsByClass: {
+                                                ...(prev.boardSettings?.cockpitChildrenWeekDefaultsByClass || {}),
+                                                [boardTextClassKey]: {
+                                                  ...getClassroomWeeklyWidgetPreferences(prev.boardSettings?.cockpitChildrenWeekDefaultsByClass?.[boardTextClassKey]),
+                                                  [key]: value,
+                                                },
+                                              },
+                                            },
+                                          }));
                                         return selectedWidgetConfiguration === "randomname" ? (
                                           <fieldset className="space-y-2">
                                             <legend className="text-sm font-black">Zufälliges Kind · Ton</legend>
@@ -11061,7 +11082,7 @@ ${content}
                                       );
 
                                     case "classweeklyplan":
-                                      return <ClassroomWeeklyPlanWidget />;
+                                      return <ClassroomWeeklyPlanWidget widget={widget} />;
 
                                     case "randomname":
                                       return (
