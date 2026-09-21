@@ -3284,6 +3284,21 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     return true;
   }
 
+  // Pairing codes remain unauthenticated for a newly paired device. Bound failed
+  // guesses independently from valid polling so guessing cannot exhaust the code space.
+  const unknownSyncCodeAttempts = new Map<string, { count: number; resetAt: number }>();
+  function allowUnknownSyncCode(req: express.Request): boolean {
+    const peer = securityPeer(req);
+    const now = Date.now();
+    const entry = unknownSyncCodeAttempts.get(peer);
+    if (!entry || entry.resetAt < now) {
+      unknownSyncCodeAttempts.set(peer, { count: 1, resetAt: now + 60_000 });
+      return true;
+    }
+    entry.count += 1;
+    return entry.count <= 30;
+  }
+
   function isValidEncryptedPayload(p: any): boolean {
     if (!p || typeof p !== 'object') return false;
     if (p.protocolVersion !== 1) return false;
@@ -3360,9 +3375,12 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     // E3.16 Kryptographisch sicherer 6-Zeichen-Code (CSPRNG, hohe Entropie)
     const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Keine leicht verwechselbaren Zeichen
     let code = "";
-    for (let i = 0; i < 6; i++) {
-      code += characters.charAt(crypto.randomInt(0, characters.length));
-    }
+    do {
+      code = "";
+      for (let i = 0; i < 6; i++) {
+        code += characters.charAt(crypto.randomInt(0, characters.length));
+      }
+    } while (syncSessions[code]);
 
     const timing = getServerSyncTimestamps(encryptedPayload.updatedAt);
     syncSessions[code] = {
@@ -3389,6 +3407,7 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     }
 
     if (!syncSessions[code]) {
+      if (!allowUnknownSyncCode(req)) return res.status(429).json({ error: "Zu viele ungültige Sitzungscodes." });
       return res.status(404).json({ error: "Sitzung nicht gefunden oder abgelaufen." });
     }
 
@@ -3419,6 +3438,7 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     const session = syncSessions[code];
 
     if (!session) {
+      if (!allowUnknownSyncCode(req)) return res.status(429).json({ error: "Zu viele ungültige Sitzungscodes." });
       return res.status(404).json({ error: "Sitzung nicht gefunden oder abgelaufen." });
     }
 
