@@ -301,7 +301,10 @@ export function getFachCfg(app: AppState, fach: string) {
 
   const isHueAllowed = ['deutsch', 'mathematik', 'sachunterricht', 'mathe'].some(s => lowerFach.includes(s));
   
-  const customSaCount = app.notenMeta?.[fach]?.saCount ?? app.notenMeta?.[baseKey]?.saCount ?? BASE[baseKey].saCount;
+  // Keine Volksschul-Standardzahl für Schularbeiten auf Sek-I-Fächer übertragen.
+  // Vorhandene explizite Fach-Konfiguration bleibt erhalten; neue Fächer starten neutral.
+  const secondary = app.schulart === 'mittelschule' || app.schulart === 'ahs_unterstufe';
+  const customSaCount = app.notenMeta?.[fach]?.saCount ?? (secondary ? 0 : app.notenMeta?.[baseKey]?.saCount ?? BASE[baseKey].saCount);
   const defaultObjLabel = BASE[baseKey]?.objLabel || 'Aufgabe';
   const customObjLabel = getNotenLabel(app, fach, 'obj', defaultObjLabel);
 
