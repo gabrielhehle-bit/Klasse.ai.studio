@@ -44,13 +44,13 @@ export default function WelcomeTour() {
     {
       targetId: 'tour-dashboard',
       title: 'Dashboard',
-      text: 'Deine Klasse ist eingerichtet! Hier findest du deinen Tagesüberblick mit Unterricht, Terminen und Aufgaben.'
+      text: 'Deine Klasse ist eingerichtet! Hier findest du deinen Tagesüberblick mit Unterricht, Terminen und Aufgaben.',
       icon: <LayoutDashboard className="text-emerald-500" size={24} />
     },
     {
       targetId: 'tour-schueler',
       title: 'Schülerliste',
-      text: 'Öffne deine Klasse und die Klassenliste. Dort findest du Kinder, Stammdaten und Schülerdossiers; Anwesenheit und Noten sind eigene Bereiche.'
+      text: 'Öffne deine Klasse und die Klassenliste. Dort findest du Kinder, Stammdaten und Schülerdossiers; Anwesenheit und Noten sind eigene Bereiche.',
       icon: <Users className="text-emerald-500" size={24} />
     },
     {
@@ -68,7 +68,7 @@ export default function WelcomeTour() {
     {
       targetId: 'tour-settings',
       title: 'Einstellungen',
-      text: 'Unter Einstellungen → Hilfe findest du eine Suchfunktion und eine Anleitung zu allen Bereichen und Unterrichtswerkzeugen. Hier kannst du auch die Willkommenstour erneut starten.'
+      text: 'Unter Einstellungen → Hilfe findest du eine Suchfunktion und eine Anleitung zu allen Bereichen und Unterrichtswerkzeugen. Hier kannst du auch die Willkommenstour erneut starten.',
       icon: <Settings className="text-emerald-500" size={24} />
     }
   ];
