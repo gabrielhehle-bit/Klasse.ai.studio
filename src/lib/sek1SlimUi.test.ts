@@ -40,8 +40,8 @@ test('Secondary basic student form does not expose primary pedagogy or seating-p
 });
 
 test('Secondary dossier uses existing class-local data sources and no diagnostics or funding UI', () => {
-  for (const method of ['getStudentNotes', 'getStudentBehaviorSummary', 'getStudentGradeSummary', 'getStudentAttendanceSummary']) assert.ok(dossier.includes(method));
-  assert.match(dossier, /freitext/);
+  for (const method of ['getStudentNotes', 'getStudentBehaviorSummary', 'sek1GradeEntries', 'getStudentAttendanceSummary']) assert.ok(dossier.includes(method));
+  assert.match(dossier, /sek1GradebookComments/);
   assert.match(dossier, /logObservation\(setApp, studentId/);
   assert.match(dossierHub, /Sek1ClassPicker/);
   for (const unwanted of ['DossierDiagnostik','DossierFoerderprofil','KELPresentation','Sitzplatz-Beziehungen']) assert.ok(!dossier.includes(unwanted));
@@ -60,7 +60,7 @@ test('Sek-I print center has a deliberately restricted, class-local set of templ
   const ids = [...print.matchAll(/\{id:'([^']+)', label:/g)].map(m=>m[1]);
   assert.deepEqual(ids, ['liste','anwesenheit','noten','wochenplanung','lehrerstundenplan','klassenbuch','dossier','sitzplan']);
   assert.match(print, /getStudentAttendanceSummary/);
-  assert.match(print, /getStudentGradeSummary/);
+  assert.match(print, /sek1GradeEntries/);
   assert.match(print, /erstelleLehrerstundenplan/);
   assert.match(print, /app\.klassenbuchErgaenzungen/);
   for (const unwanted of ['schueler_wochenplan','kel_presentation','eltern_diagnostik','kassenuebersicht','smart_tools','materialabholung']) assert.ok(!print.includes(unwanted));
