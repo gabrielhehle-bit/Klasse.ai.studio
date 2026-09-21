@@ -59,7 +59,7 @@ export default function ClassMascotWidget({ app, setApp, currentIsLight = true }
         </div>
       </button>
       <p className={'class-mascot-name mt-0.5 text-center text-base font-black tracking-tight ' + (currentIsLight ? 'text-slate-950' : 'text-white')}
-        style={{ textShadow: currentIsLight ? '0 1px 2px rgba(255,255,255,.85)' : '0 1px 3px rgba(0,0,0,.9)' }}>
+        style={{ color: currentIsLight ? '#0f172a' : '#ffffff', textShadow: currentIsLight ? '0 1px 2px rgba(255,255,255,.85)' : '0 1px 3px rgba(0,0,0,.9)' }}>
         {state.name}
       </p>
 
