@@ -4,7 +4,7 @@ import { Cloud, CloudOff, Loader2, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import type { AppState } from '../types';
 import { UNTERRICHTSMODUS_THEMES } from '../lib/unterrichtsmodusThemes';
-import { MASCOT_OPTIONS, normalizeClassMascot, selectClassMascot } from '../lib/classMascot';
+import { MASCOT_OPTIONS, normalizeClassMascot, reactToMascotAction, selectClassMascot } from '../lib/classMascot';
 import ClassMascotArtwork from './cockpit/ClassMascotArtwork';
 
 interface ClassMascotSettingsPanelProps {
@@ -115,6 +115,57 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                         )}
                     </section>
 
+                    {/* Preview belongs only to the options panel. The board stays one freely painted character. */}
+                    <section aria-label="Maskottchenprofil und Klassenrituale" className="space-y-3 rounded-2xl border p-4"
+                        style={{ borderColor: currentTheme.colors.border, backgroundColor: currentTheme.colors.surface }}>
+                        <div className="flex items-center gap-4">
+                            <span className="block h-32 w-32 shrink-0" aria-hidden="true">
+                                <ClassMascotArtwork
+                                    kind={normalizeClassMascot(app.classMascot).kind}
+                                    mood={normalizeClassMascot(app.classMascot).mood}
+                                    name={normalizeClassMascot(app.classMascot).name}
+                                    animationEnabled={false}
+                                />
+                            </span>
+                            <div className="min-w-0">
+                                <h3 className="text-base font-black" style={{ color: currentTheme.colors.textPrimary }}>
+                                    {normalizeClassMascot(app.classMascot).name}
+                                </h3>
+                                <p className="mt-1 text-xs" style={{ color: currentTheme.colors.textSecondary }}>
+                                    {MASCOT_OPTIONS.find(option => option.kind === normalizeClassMascot(app.classMascot).kind)?.character}
+                                </p>
+                                <p className="mt-2 text-xs" style={{ color: currentTheme.colors.textSecondary }}>
+                                    Vier Körperhaltungen: fröhlich, ruhig, müde und stolz.
+                                </p>
+                            </div>
+                        </div>
+                        <h3 className="text-xs font-black" style={{ color: currentTheme.colors.textPrimary }}>
+                            Gemeinsame Klassenrituale
+                        </h3>
+                        <p className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>
+                            Nur du löst diese Gesten aus. Es werden keine Daten einzelner Kinder bewertet.
+                        </p>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                            {([
+                                { action: 'praise' as const, label: '⭐ Geschafft!', title: 'Gemeinsamen Erfolg feiern' },
+                                { action: 'calm' as const, label: '🌿 Ruhepause', title: 'Ruhige Haltung zeigen' },
+                                { action: 'encourage' as const, label: '💛 Mut machen', title: 'Freundliche Haltung zeigen' },
+                            ]).map(ritual => (
+                                <button key={ritual.action} type="button" title={ritual.title}
+                                    onClick={() => {
+                                        setApp(prev => ({
+                                            ...prev,
+                                            classMascot: reactToMascotAction(normalizeClassMascot(prev.classMascot), ritual.action),
+                                        }));
+                                        onClose();
+                                    }}
+                                    className="min-h-11 rounded-xl border-2 px-2 py-2 text-xs font-black focus-visible:outline focus-visible:outline-2"
+                                    style={{ color: currentTheme.colors.textPrimary, borderColor: currentTheme.colors.border }}>
+                                    {ritual.label}
+                                </button>
+                            ))}
+                        </div>
+                    </section>
                     {/* Keep configuration off the whiteboard: the mascot itself has no visible controls. */}
                     <section className="space-y-3 p-4 rounded-2xl border" aria-label="Klassenmaskottchen auswählen"
                         style={{ borderColor: currentTheme.colors.border, backgroundColor: currentTheme.colors.surface }}>
