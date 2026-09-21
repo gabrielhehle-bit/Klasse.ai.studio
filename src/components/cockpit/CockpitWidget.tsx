@@ -170,6 +170,26 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   const [sizeInputWidth, setSizeInputWidth] = useState("");
   const [sizeInputHeight, setSizeInputHeight] = useState("");
   const [isMaximized, setIsMaximized] = useState(false);
+  // The check-in widget can request a temporary larger teaching view without
+  // persisting width, height or position into a class layout / backup.
+  useEffect(() => {
+    if (widget.type !== "kidattendance") return;
+    const handleExpand = (event: Event) => {
+      const detail = (event as CustomEvent<{ id: string; expanded: boolean }>).detail;
+      if (detail?.id === widget.id) setIsMaximized(detail.expanded);
+    };
+    window.addEventListener("klassio:checkin-expand", handleExpand);
+    return () => window.removeEventListener("klassio:checkin-expand", handleExpand);
+  }, [widget.id, widget.type]);
+
+  useEffect(() => {
+    if (widget.type === "kidattendance") {
+      window.dispatchEvent(new CustomEvent("klassio:checkin-frame-size", {
+        detail: { id: widget.id, expanded: isMaximized },
+      }));
+    }
+  }, [isMaximized, widget.id, widget.type]);
+
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
