@@ -1020,6 +1020,30 @@ html body .class-mascot-v1.class-mascot-freestanding,
   backdrop-filter: none !important;
   border-color: transparent !important;
 }
+/* An invisible widget rectangle must never swallow board clicks. Only the animal,
+   its deliberately opened controls, and the focused resize/menu targets accept input. */
+html body .cockpit-widget-container.cockpit-free-mascot {
+  pointer-events: none !important;
+}
+html body .cockpit-free-mascot .class-mascot-character,
+html body .cockpit-free-mascot .class-mascot-details,
+html body .cockpit-free-mascot .class-mascot-settings {
+  pointer-events: auto;
+}
+html body .cockpit-free-mascot .mascot-widget-toolbar,
+html body .cockpit-free-mascot .mascot-widget-resize {
+  visibility: hidden;
+  pointer-events: none;
+}
+html body .cockpit-free-mascot:hover .mascot-widget-toolbar,
+html body .cockpit-free-mascot:hover .mascot-widget-resize,
+html body .cockpit-free-mascot:focus-within .mascot-widget-toolbar,
+html body .cockpit-free-mascot:focus-within .mascot-widget-resize,
+html body .cockpit-free-mascot[data-mascot-focused="true"] .mascot-widget-toolbar,
+html body .cockpit-free-mascot[data-mascot-focused="true"] .mascot-widget-resize {
+  visibility: visible;
+  pointer-events: auto;
+}
 html body .cockpit-free-mascot { color-scheme: normal; }
 html body .cockpit-free-mascot .class-mascot-details {
   background-color: rgba(255,255,255,.96) !important;
