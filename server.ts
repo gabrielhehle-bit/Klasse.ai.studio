@@ -284,7 +284,8 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     if (typeof value !== 'string') return null;
     const normalized = value.trim().toLowerCase();
     if (normalized.length < 5 || normalized.length > 254) return null;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return null;
+    // Restrict user-controlled SMTP recipients to one mailbox; no address-list or header syntax.
+    if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/.test(normalized)) return null;
     return normalized;
   }
 
