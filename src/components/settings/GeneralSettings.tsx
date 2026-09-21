@@ -349,9 +349,9 @@ export default function GeneralSettings({
               setApp((prev: any) => ({
                 ...prev,
                 tourAbgeschlossen: false,
-                currentPage: 'cockpit'
+                currentPage: 'dashboard'
               }));
-              showToast('Die Tour wurde zurückgesetzt. Wechsel zum Cockpit, um sie zu starten.', 'success');
+              showToast('Die Willkommenstour startet auf dem Dashboard.', 'success');
             }}
             className="w-full h-11 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/60 rounded-xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2"
           >
