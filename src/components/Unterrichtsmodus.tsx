@@ -8316,7 +8316,56 @@ ${content}
                                               },
                                             },
                                           }));
-                                        return selectedWidgetConfiguration === "randomname" ? (
+                                        return selectedWidgetConfiguration === "classweeklyplan" ? (
+                                          <fieldset className="space-y-3">
+                                            <legend className="text-sm font-black">Wochenplan der Kinder · Voreinstellungen</legend>
+                                            <p className="text-xs text-slate-600">Der Wochenplan zeigt ausschließlich die Aufgaben, die du in der Wochenplanung ausdrücklich für Kinder freigegeben hast.</p>
+                                            <div className="rounded-xl border border-slate-200 bg-white p-3" role="group" aria-label="Aufgaben pro Seite">
+                                              <p className="mb-2 text-sm font-black">Aufgaben pro Seite in der Großansicht</p>
+                                              <div className="flex gap-2">
+                                                {([1, 2] as const).map(count => (
+                                                  <button type="button" key={count} aria-pressed={weeklyWidgetDefaults.taskCardsPerPage === count}
+                                                    onClick={() => saveWeeklyPreset("taskCardsPerPage", count)}
+                                                    className={weeklyWidgetDefaults.taskCardsPerPage === count
+                                                      ? "min-h-11 rounded-xl border border-indigo-600 bg-indigo-600 px-4 text-sm font-bold text-white"
+                                                      : "min-h-11 rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-900"}>{count} {count === 1 ? "Aufgabe" : "Aufgaben"}</button>
+                                                ))}
+                                              </div>
+                                            </div>
+                                            <label className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
+                                              <input type="checkbox" className="h-5 w-5 shrink-0"
+                                                checked={weeklyWidgetDefaults.showMaterials}
+                                                onChange={event => saveWeeklyPreset("showMaterials", event.target.checked)} />
+                                              <span className="text-sm font-semibold">Freigegebenes Material anzeigen</span>
+                                            </label>
+                                            <div role="group" aria-label="Startgröße des Kinder-Wochenplans" className="rounded-xl border border-slate-200 bg-white p-3">
+                                              <p className="mb-2 text-sm font-black">Größe beim ersten Hinzufügen</p>
+                                              <div className="flex flex-wrap gap-2">
+                                                {([["compact", "Klein"], ["standard", "Mittel"], ["large", "Groß"]] as const).map(([size, label]) => (
+                                                  <button type="button" key={size} aria-pressed={weeklyWidgetDefaults.startSize === size}
+                                                    onClick={() => saveWeeklyPreset("startSize", size)}
+                                                    className={weeklyWidgetDefaults.startSize === size
+                                                      ? "min-h-11 rounded-xl border border-indigo-600 bg-indigo-600 px-3 text-sm font-bold text-white"
+                                                      : "min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-900"}>{label}</button>
+                                                ))}
+                                              </div>
+                                            </div>
+                                            <p className="text-xs text-slate-600">Die Voreinstellungen gelten für neue Widgets der aktiven Klasse. Bestehende Wochenpläne und Rückmeldungen der Kinder werden nicht verändert.</p>
+                                            {configured.visible && (
+                                              <button type="button" onClick={() => handleUpdateWidgetPos(configured.id, {
+                                                settings: { ...(configured.settings || {}), ...weeklyWidgetDefaults },
+                                              })} className="min-h-11 w-full rounded-xl border border-indigo-300 bg-white px-3 text-sm font-bold text-indigo-700">
+                                                Voreinstellungen auf vorhandenes Widget anwenden
+                                              </button>
+                                            )}
+                                            <button type="button" onClick={() => {
+                                              handleOpenWidgetInCockpitLayout("classweeklyplan");
+                                              setIsAddWidgetMenuOpen(false);
+                                            }} className="min-h-11 w-full rounded-xl bg-indigo-600 px-3 text-sm font-bold text-white">
+                                              Wochenplan-Widget hinzufügen
+                                            </button>
+                                          </fieldset>
+                                        ) : selectedWidgetConfiguration === "randomname" ? (
                                           <fieldset className="space-y-2">
                                             <legend className="text-sm font-black">Zufälliges Kind · Ton</legend>
                                             <label className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
