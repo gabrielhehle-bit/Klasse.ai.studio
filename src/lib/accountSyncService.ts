@@ -2,7 +2,7 @@ import type { AppState } from '../types';
 import { decryptData, encryptData, type EncryptedPayloadV1 } from './crypto';
 import type { VaultRecordV1 } from './vaultService';
 
-export type AccountSyncStatus = 'disabled' | 'idle' | 'saving-local' | 'saved-local' | 'syncing' | 'synced' | 'conflict' | 'error';
+export type AccountSyncStatus = 'disabled' | 'idle' | 'saving-local' | 'saved-local' | 'local-error' | 'syncing' | 'synced' | 'conflict' | 'error';
 
 export interface AccountSyncSnapshot {
   version: 1;
