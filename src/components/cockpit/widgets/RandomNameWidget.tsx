@@ -87,13 +87,17 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
     () => getPresentStudents(allStudents, app),
     [allStudents, app, dayKey],
   );
+  // Only the central Widget hinzufügen settings can change this class-local
+  // attendance scope. The session participant selector remains transient.
+  const { soundEnabled, animationEnabled, selectionMode, studentScope } = getRandomNameWidgetPreferences(widget.settings);
+  const selectableStudents: typeof presentStudents = studentScope === 'all' ? allStudents : presentStudents;
 
   const [sessionExcludedIds, setSessionExcludedIds] = useState<string[]>([]);
   const [sessionScope, setSessionScope] = useState(scopeKey);
   const excludedIds = sessionScope === scopeKey ? sessionExcludedIds : [];
   const eligibleStudents = useMemo(
-    () => eligibleRandomStudents(presentStudents, excludedIds),
-    [presentStudents, excludedIds],
+    () => eligibleRandomStudents(selectableStudents, excludedIds),
+    [selectableStudents, excludedIds],
   );
   // A teaching SESSION only: no class roll-call history or random result is
   // written to persistent app state or exposed to other device screens.
@@ -114,7 +118,6 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
   }));
   const [widgetSize, setWidgetSize] = useState({ width: 350, height: 350 });
   const containerRef = useRef<HTMLDivElement>(null);
-  const { soundEnabled, animationEnabled, selectionMode } = getRandomNameWidgetPreferences(widget.settings);
 
   useEffect(() => {
     const onResize = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
@@ -172,8 +175,8 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
   const remainingCount = remainingStudents.length;
   const compact = widgetSize.width < 320 || widgetSize.height < 280;
   const poolFingerprint = eligibleStudents.map(student => student.id).join('|');
-  const livePoolRef = useRef({ scopeKey, poolFingerprint, selectionMode });
-  livePoolRef.current = { scopeKey, poolFingerprint, selectionMode };
+  const livePoolRef = useRef({ scopeKey, poolFingerprint, selectionMode, studentScope });
+  livePoolRef.current = { scopeKey, poolFingerprint, selectionMode, studentScope };
   useEffect(() => {
     if (animationIntervalRef.current) clearInterval(animationIntervalRef.current);
     animationIntervalRef.current = null;
@@ -185,7 +188,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
     if (selectedStudentId && !eligibleStudents.some(student => student.id === selectedStudentId)) {
       setSelectedStudentId(null);
     }
-  }, [scopeKey, poolFingerprint, selectedStudentId]);
+  }, [scopeKey, poolFingerprint, selectedStudentId, studentScope]);
   useEffect(() => {
     if (animationIntervalRef.current) clearInterval(animationIntervalRef.current);
     animationIntervalRef.current = null;
@@ -198,7 +201,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
   const pageSize = viewport.height < 480 ? 2
     : viewport.width < 640 || viewport.height < 650 ? 4
     : viewport.height < 850 ? 6 : 8;
-  const selectionPage = randomSelectionPage(presentStudents, selectorPage, pageSize);
+  const selectionPage = randomSelectionPage(selectableStudents, selectorPage, pageSize);
 
   const pickPupil = useCallback(() => {
     if (isAnimating || drawLockRef.current || sessionScope !== scopeKey || remainingStudents.length === 0) return;
@@ -213,7 +216,8 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
       const live = livePoolRef.current;
       if (live.scopeKey !== initialPool.scopeKey ||
           live.poolFingerprint !== initialPool.poolFingerprint ||
-          live.selectionMode !== initialPool.selectionMode) {
+          live.selectionMode !== initialPool.selectionMode ||
+          live.studentScope !== initialPool.studentScope) {
         setIsAnimating(false);
         setAnimatingName('');
         drawLockRef.current = false;
@@ -282,9 +286,11 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
             className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-300"
             aria-label="Kinderauswahl schließen"><X size={20} /></button>
         </div>
-        <p className="text-xs sm:text-sm">Wähle, wer in dieser Unterrichtsphase gezogen werden darf. Die Auswahl wird nicht dauerhaft gespeichert.</p>
+        <p className="text-xs sm:text-sm">{studentScope === 'present'
+          ? 'Nur heute anwesende Kinder. Für alle Kinder ändere die zentrale Einstellung unter Widget hinzufügen → Zufallsauswahl.'
+          : 'Alle Kinder der Klasse – auch abwesende. Du kannst einzelne Kinder für diese Unterrichtsphase pausieren.'} Die Auswahl wird nicht dauerhaft gespeichert.</p>
         <p className="text-sm font-semibold" role="status">
-          {eligibleStudents.length} von {presentStudents.length} anwesenden Kindern aktiv
+          {eligibleStudents.length} von {selectableStudents.length} {studentScope === 'all' ? 'Kindern der Klasse' : 'anwesenden Kindern'} aktiv
           {selectionMode === 'round' && ` · ${remainingCount} noch nicht gezogen`}
         </p>
         <div className="grid min-h-0 grid-cols-1 gap-2 sm:grid-cols-2" aria-label="Anwesende Kinder auf dieser Seite">
@@ -307,7 +313,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
             );
           })}
         </div>
-        {presentStudents.length === 0 && <p role="status">Keine anwesenden Kinder in dieser Klasse.</p>}
+        {selectableStudents.length === 0 && <p role="status">{studentScope === 'all' ? 'Keine Kinder in dieser Klasse.' : 'Keine anwesenden Kinder in dieser Klasse.'}</p>}
         <nav className="flex shrink-0 items-center justify-between gap-2" aria-label="Seiten der Kinderauswahl">
           <button type="button" disabled={selectionPage.page === 0}
             onClick={() => setSelectorPage(page => Math.max(0, page - 1))}
@@ -337,7 +343,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
         <div className="min-w-0">
           <span className="block text-sm font-black">🎯 Zufallsauswahl</span>
           {!compact && <span className="block text-xs font-medium opacity-75">
-            {selectionMode === 'round' ? 'Jedes Kind einmal' : 'Zufällig · Wiederholungen möglich'}
+            {selectionMode === 'round' ? 'Jedes Kind einmal' : 'Zufällig · Wiederholungen möglich'} · {studentScope === 'all' ? 'Ganze Klasse' : 'Heute anwesend'}
           </span>}
         </div>
         <button type="button" onClick={() => { setSelectorPage(0); setShowPupilSelector(true); }}
@@ -355,7 +361,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
         ) : eligibleStudents.length === 0 ? (
           <span role="status" className="break-words text-sm font-bold">
             {allStudents.length === 0 ? 'In dieser Klasse sind noch keine Kinder angelegt.'
-              : presentStudents.length === 0 ? 'Heute sind keine Kinder zur Auswahl anwesend.'
+              : selectableStudents.length === 0 ? studentScope === 'all' ? 'In dieser Klasse sind keine Kinder zur Auswahl vorhanden.' : 'Heute sind keine Kinder zur Auswahl anwesend.'
               : 'Alle Kinder sind pausiert. Wähle mindestens ein Kind aus.'}
           </span>
         ) : roundComplete && !selectedName ? (

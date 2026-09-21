@@ -14,17 +14,17 @@ const roster = (count: number) =>
 
 test('Widget 4: independent selection remains the default for existing layouts', () => {
   assert.deepEqual(getRandomNameWidgetPreferences(undefined), {
-    selectionMode: 'independent', soundEnabled: true, animationEnabled: true, startSize: 'large',
+    selectionMode: 'independent', studentScope: 'present', soundEnabled: true, animationEnabled: true, startSize: 'large',
   });
   assert.deepEqual(getRandomNameWidgetPreferences({
-    selectionMode: 'round', soundEnabled: false, animationEnabled: false, startSize: 'compact',
+    selectionMode: 'round', studentScope: 'all', soundEnabled: false, animationEnabled: false, startSize: 'compact',
   }), {
-    selectionMode: 'round', soundEnabled: false, animationEnabled: false, startSize: 'compact',
+    selectionMode: 'round', studentScope: 'all', soundEnabled: false, animationEnabled: false, startSize: 'compact',
   });
   assert.deepEqual(getRandomNameWidgetPreferences({
     selectionMode: 'invalid', startSize: 'huge',
   }), {
-    selectionMode: 'independent', soundEnabled: true, animationEnabled: true, startSize: 'large',
+    selectionMode: 'independent', studentScope: 'present', soundEnabled: true, animationEnabled: true, startSize: 'large',
   });
 });
 
@@ -89,4 +89,15 @@ test('Widget 4: pupils with equal first name and initial remain individually ide
   assert.match(widget, /getUnambiguousPickerName\(student, allStudents\)/);
   assert.match(widget, /sameFull\.findIndex\(child => child\.id === student\.id\)/);
   assert.doesNotMatch(widget, /\{student\.id\}<\/span>/);
+});
+
+test('Widget 4: central attendance scope is predictable and invalid scope falls back to present-only', () => {
+  assert.equal(getRandomNameWidgetPreferences(undefined).studentScope, 'present');
+  assert.equal(getRandomNameWidgetPreferences({ studentScope: 'all' }).studentScope, 'all');
+  assert.equal(getRandomNameWidgetPreferences({ studentScope: 'invalid' }).studentScope, 'present');
+  assert.match(picker, /saveRandomPreset\("studentScope", scope\)/);
+  assert.match(picker, /Wer soll gezogen werden\?/);
+  assert.match(widget, /const selectableStudents: typeof presentStudents = studentScope === 'all' \? allStudents : presentStudents/);
+  assert.match(widget, /randomSelectionPage\(selectableStudents, selectorPage, pageSize\)/);
+  assert.match(widget, /live\.studentScope !== initialPool\.studentScope/);
 });

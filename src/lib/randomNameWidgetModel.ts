@@ -46,6 +46,7 @@ export function randomSelectionPage<T>(
 /** Configuration of new widget instances. Existing instance settings are independent. */
 export interface RandomNameWidgetPreferences {
   selectionMode: 'independent' | 'round';
+  studentScope: 'present' | 'all';
   soundEnabled: boolean;
   animationEnabled: boolean;
   startSize: 'compact' | 'standard' | 'large';
@@ -55,6 +56,7 @@ export function getRandomNameWidgetPreferences(settings: unknown): RandomNameWid
   const value = settings && typeof settings === 'object' ? settings as Record<string, unknown> : {};
   return {
     selectionMode: value.selectionMode === 'round' ? 'round' : 'independent',
+    studentScope: value.studentScope === 'all' ? 'all' : 'present',
     soundEnabled: value.soundEnabled !== false,
     animationEnabled: value.animationEnabled !== false,
     startSize: value.startSize === 'compact' || value.startSize === 'standard' ? value.startSize : 'large',
