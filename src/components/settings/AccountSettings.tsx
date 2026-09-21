@@ -102,13 +102,19 @@ export default function AccountSettings() {
   };
 
   const syncMeta = accountSyncStatus === 'synced'
-    ? { title: 'Daten aktuell', detail: accountSyncLastAt ? 'Zuletzt aktualisiert: ' + new Date(accountSyncLastAt).toLocaleString('de-AT') : 'Deine Daten sind auf dem aktuellen Stand.', tone: 'emerald' }
-    : accountSyncStatus === 'syncing'
-      ? { title: 'Daten werden aktualisiert …', detail: 'Du kannst währenddessen normal weiterarbeiten.', tone: 'indigo' }
-      : accountSyncStatus === 'conflict'
+    ? { title: 'Auf allen Geräten verfügbar', detail: accountSyncLastAt ? 'Letzte Änderung vom Server bestätigt: ' + new Date(accountSyncLastAt).toLocaleString('de-AT') : 'Der neueste Stand wurde vom Server bestätigt.', tone: 'emerald' }
+    : accountSyncStatus === 'saving-local'
+      ? { title: 'Änderungen werden gespeichert …', detail: 'Bitte KLASSIO geöffnet lassen: Die neueste Eingabe wird gerade verschlüsselt auf diesem Gerät gesichert.', tone: 'amber' }
+      : accountSyncStatus === 'saved-local'
+        ? { title: 'Auf diesem Gerät gespeichert', detail: 'Auf den anderen Geräten noch nicht bestätigt. Internetverbindung prüfen und KLASSIO geöffnet lassen.', tone: 'amber' }
+        : accountSyncStatus === 'local-error'
+          ? { title: 'Lokales Speichern fehlgeschlagen', detail: accountSyncMessage || 'Die letzte Eingabe ist nicht dauerhaft gesichert. KLASSIO geöffnet lassen und den Gerätespeicher prüfen.', tone: 'rose' }
+          : accountSyncStatus === 'syncing'
+          ? { title: 'Übertragung auf andere Geräte läuft …', detail: 'Noch nicht auf allen Geräten verfügbar. Bitte auf die grüne Bestätigung warten.', tone: 'indigo' }
+          : accountSyncStatus === 'conflict'
         ? { title: 'Änderungen auf zwei Geräten', detail: accountSyncMessage || 'Auf zwei Geräten wurden unterschiedliche Änderungen gefunden. Wähle, welchen Stand du weiterverwenden möchtest.', tone: 'amber' }
         : accountSyncStatus === 'error'
-          ? { title: 'Datenabgleich gerade nicht möglich', detail: accountSyncMessage || 'Deine Daten auf diesem Gerät bleiben erhalten. Versuche es später erneut.', tone: 'rose' }
+          ? { title: 'Cloud-Abgleich fehlgeschlagen', detail: accountSyncMessage || 'Deine letzte Änderung ist lokal gespeichert, aber noch nicht auf dem anderen Gerät verfügbar.', tone: 'rose' }
           : accountSyncStatus === 'disabled'
             ? { title: 'Geräte-Sync nicht aktiv', detail: accountSyncMessage || 'Melde dich mit deiner E-Mail-Adresse an, um deine Daten auch auf weiteren Geräten verwenden zu können.', tone: 'slate' }
             : { title: 'Geräte-Sync bereit', detail: 'Nach der Anmeldung hält Klassio deine Geräte automatisch auf demselben Stand.', tone: 'slate' };
@@ -229,7 +235,7 @@ export default function AccountSettings() {
           <p className="mt-4 text-xs font-bold text-slate-500">Entsperre zuerst deinen Datentresor.</p>
         ) : accountSyncStatus !== 'synced' ? (
           <p className="mt-4 text-xs font-bold text-slate-500">
-            Warte zuerst, bis oben „Daten aktuell“ angezeigt wird. So wird der neue Recovery-Code sicher auf allen Geräten übernommen.
+            Warte zuerst, bis oben „Auf allen Geräten verfügbar“ angezeigt wird. So wird der neue Recovery-Code sicher auf allen Geräten übernommen.
           </p>
         ) : (
           <div className="mt-4 space-y-3">

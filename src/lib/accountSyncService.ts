@@ -2,7 +2,7 @@ import type { AppState } from '../types';
 import { decryptData, encryptData, type EncryptedPayloadV1 } from './crypto';
 import type { VaultRecordV1 } from './vaultService';
 
-export type AccountSyncStatus = 'disabled' | 'idle' | 'syncing' | 'synced' | 'conflict' | 'error';
+export type AccountSyncStatus = 'disabled' | 'idle' | 'saving-local' | 'saved-local' | 'local-error' | 'syncing' | 'synced' | 'conflict' | 'error';
 
 export interface AccountSyncSnapshot {
   version: 1;
@@ -18,6 +18,16 @@ export interface AccountSyncMetadata {
   revision: number;
   fingerprint: string;
   updatedAt: string;
+}
+
+/** Never display a green cloud receipt for an older generation or an unsaved local edit. */
+export function isLatestAccountSnapshotConfirmed(
+  latest: AppState,
+  locallySaved: AppState | null,
+  serverAcknowledged: AppState,
+): boolean {
+  return locallySaved === latest
+    && appStateFingerprint(latest) === appStateFingerprint(serverAcknowledged);
 }
 
 export class AccountSyncError extends Error {
