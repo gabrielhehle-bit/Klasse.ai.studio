@@ -265,6 +265,7 @@ async function loginWithSchoolMail(client, email, password) {
 
 async function createClassInUi(client, className) {
   await waitFor(client, 'start setup', 'document.body?.innerText.includes("Willkommen bei Klassio!")', 30000);
+  await clickButton(client, 'Vollständig einrichten');
   await clickButton(client, 'Einrichtung starten');
   await waitFor(client, 'teacher and school setup', 'document.body?.innerText.includes("Profil & Schule")', 20000);
   await clickButton(client, 'Nächster Schritt');
