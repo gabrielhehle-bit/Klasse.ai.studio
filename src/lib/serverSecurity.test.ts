@@ -174,6 +174,56 @@ test('E3: Produktionshärtung von server.ts', async (t) => {
     assert.equal(res.status, 413);
   });
 
+
+  await t.test('Student assessment imports never forward PDFs or names to Gemini', async () => {
+    for (const route of ['/api/ai/analyze-ikm', '/api/ai/analyze-antolin']) {
+      const response = await authenticatedFetch(baseUrl + route, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pdfBase64: 'SENSITIVE_TEST_DATA', students: [{ name: 'Dummy Student' }] }),
+      });
+      assert.equal(response.status, 403, route);
+      assert.equal((await response.json()).code, 'AI_STUDENT_IMPORT_DISABLED');
+    }
+  });
+
+  await t.test('Cross-origin writes are blocked even with a valid session cookie', async () => {
+    const response = await authenticatedFetch(baseUrl + '/api/access/logout', {
+      method: 'POST',
+      headers: { Origin: 'https://evil.invalid', 'Sec-Fetch-Site': 'cross-site' },
+    });
+    assert.equal(response.status, 403);
+    assert.equal((await authenticatedFetch(baseUrl + '/api/access/status')).status, 200);
+    const status = await authenticatedFetch(baseUrl + '/api/access/status');
+    assert.equal((await status.json()).authenticated, true);
+  });
+
+  await t.test('Logout revokes issued sessions; a copied cookie cannot be replayed', async () => {
+    const response = await authenticatedFetch(baseUrl + '/api/access/logout', { method: 'POST' });
+    assert.equal(response.status, 200);
+    const replay = await authenticatedFetch(baseUrl + '/api/access/status');
+    assert.equal((await replay.json()).authenticated, false);
+    const protectedRoute = await authenticatedFetch(baseUrl + '/api/ai/status');
+    assert.equal(protectedRoute.status, 401);
+  });
+
+  await t.test('Forwarded-for spoofing cannot reset failed access-code throttles', async () => {
+    for (let i = 0; i < 10; i++) {
+      const failed = await fetch(baseUrl + '/api/access/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': '198.51.100.' + (i + 1) },
+        body: JSON.stringify({ code: 'wrong-' + i }),
+      });
+      assert.equal((await failed.json()).success, false);
+    }
+    const blocked = await fetch(baseUrl + '/api/access/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': '203.0.113.250' },
+      body: JSON.stringify({ code: 'wrong-again' }),
+    });
+    assert.equal(blocked.status, 429);
+  });
+
   server.close();
 
   await t.test('Production refuses missing secrets and default access codes', async () => {
