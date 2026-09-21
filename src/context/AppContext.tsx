@@ -38,6 +38,7 @@ import {
   ACCOUNT_SESSION_CHANGED_EVENT,
   accountSyncErrorMessage,
   appStateFingerprint,
+  isLatestAccountSnapshotConfirmed,
   decryptAccountSyncSnapshot,
   fetchAccountSyncSnapshot,
   hasEmailAccountSession,
@@ -124,6 +125,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [accountSyncStatus, setAccountSyncStatus] = useState<AccountSyncStatus>('idle');
   const [accountSyncLastAt, setAccountSyncLastAt] = useState<string | null>(null);
   const [accountSyncMessage, setAccountSyncMessage] = useState<string | null>(null);
+  const accountSyncStatusRef = useRef<AccountSyncStatus>(accountSyncStatus);
+  accountSyncStatusRef.current = accountSyncStatus;
   const [accountSyncConflictResolvable, setAccountSyncConflictResolvable] = useState(false);
   const accountSyncReadyRef = useRef(false);
   const accountSyncBusyRef = useRef(false);
@@ -140,8 +143,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAccountSyncConflictResolvable(false);
     const latest = currentAppRef.current;
     const latestOnDisk = locallySavedStateRef.current === latest;
-    const latestOnServer = appStateFingerprint(latest) === appStateFingerprint(state);
-    if (latestOnDisk && latestOnServer) {
+    if (isLatestAccountSnapshotConfirmed(latest, locallySavedStateRef.current, state)) {
       cloudConfirmedStateRef.current = latest;
       setAccountSyncHealthy(true);
       setAccountSyncStatus('synced');
@@ -560,8 +562,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (restoringRef.current || getActiveVaultKey() !== vaultKey
         || currentAppRef.current !== snapshot) return;
       locallySavedStateRef.current = snapshot;
-      setAccountSyncStatus(previous => previous === 'saving-local' || previous === 'synced'
-        || previous === 'syncing' ? 'saved-local' : previous);
+      setAccountSyncStatus(previous => cloudConfirmedStateRef.current === snapshot
+        ? previous
+        : previous === 'saving-local' || previous === 'synced' || previous === 'syncing'
+          ? 'saved-local' : previous);
       // A local snapshot is durable now; cloud confirmation still requires a server ACK.
       // Do not delay upload behind a session copy or the daily emergency backup.
       void pushAccountStateIfReady(snapshot, vaultKey);
@@ -789,9 +793,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Tab Close & Refresh Intercept: Ensure synced / pending changes are secured
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!getActiveVaultKey()) return;
       if (isPendingPushRef.current || restoringRef.current
         || localSaveBusyRef.current > 0 || locallySavedStateRef.current !== currentAppRef.current
-        || (accountSyncReadyRef.current && cloudConfirmedStateRef.current !== currentAppRef.current)) {
+        || (accountSyncStatusRef.current !== 'idle'
+          && accountSyncStatusRef.current !== 'disabled'
+          && (accountSyncStatusRef.current !== 'synced'
+            || cloudConfirmedStateRef.current !== currentAppRef.current))) {
         const message = 'Änderungen sind noch nicht sicher auf allen Geräten verfügbar. Bitte KLASSIO geöffnet lassen, bis der Konto-Status grün ist!';
         e.returnValue = message;
         return message;
