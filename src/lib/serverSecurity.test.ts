@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'http';
+import crypto from 'node:crypto';
 
 test('E3: Produktionshärtung von server.ts', async (t) => {
   process.env.IS_TEST_RUNNER = "true";
@@ -113,7 +114,12 @@ test('E3: Produktionshärtung von server.ts', async (t) => {
     });
     assert.equal(legacyRes.status, 400);
 
+    const syncWriteToken = 'abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE';
+    const writeTokenHash = crypto.createHash('sha256')
+      .update('klassio-sync-write-verifier:v1:' + syncWriteToken)
+      .digest('hex');
     const validPayload = {
+      writeTokenHash,
       encryptedPayload: {
         protocolVersion: 1,
         updatedAt: Date.now(),
@@ -133,6 +139,20 @@ test('E3: Produktionshärtung von server.ts', async (t) => {
     assert.equal(validRes.status, 200);
     const data = await validRes.json();
     assert.ok(/^[A-HJ-NP-Z2-9]{6}$/.test(data.code));
+
+    const unauthorizedWrite = await fetch(baseUrl + '/api/sync/' + data.code, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ encryptedPayload: validPayload.encryptedPayload }),
+    });
+    assert.equal(unauthorizedWrite.status, 403, 'pairing code alone must not authorize writes');
+
+    const authorizedWrite = await fetch(baseUrl + '/api/sync/' + data.code, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Klassio-Sync-Write': syncWriteToken },
+      body: JSON.stringify({ encryptedPayload: validPayload.encryptedPayload }),
+    });
+    assert.equal(authorizedWrite.status, 200);
 
     // Cleanup session
     const delRes = await authenticatedFetch(`${baseUrl}/api/sync/${data.code}`, { method: "DELETE" });
