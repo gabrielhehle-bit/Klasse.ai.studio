@@ -2169,6 +2169,11 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     return usage;
   }
 
+  // External AI is opt-in at deployment level. A consent checkbox or regex masking
+  // cannot establish anonymization of pupil observations and assessment records.
+  // Never expose Gemini merely because an API key happens to be installed.
+  const EXTERNAL_AI_ENABLED = process.env.KLASSIO_AI_EXTERNAL_ENABLED === 'true';
+
   // E3.24 API Route for AI status (minimal status without secrets + Kostenbremse)
   app.get("/api/ai/status", async (req, res) => {
     const usage = await aiUsageStore.get(
@@ -2177,8 +2182,9 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       AI_DAILY_GLOBAL_LIMIT,
     );
     res.json({
-      available: !!process.env.GEMINI_API_KEY,
+      available: EXTERNAL_AI_ENABLED && !!process.env.GEMINI_API_KEY,
       hasKey: !!process.env.GEMINI_API_KEY,
+      privacyRestricted: !EXTERNAL_AI_ENABLED,
       usage: aiUsagePublicView(usage),
     });
   });
@@ -2291,6 +2297,15 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       return res.status(400).json({ error: "Unbekannte oder unzulässige KI-Aktion." });
     }
 
+    if (!EXTERNAL_AI_ENABLED) {
+      return res.status(503).json({ code: 'AI_EXTERNAL_DISABLED', error: 'Externe KI ist aus Datenschutzgründen noch nicht freigegeben. Andere Funktionen von KLASSIO bleiben verfügbar.' });
+    }
+    // Independent of the general AI flag, individual performance histories and
+    // portfolio records must never be forwarded to an external model.
+    if (action === 'portfolioSummary' || action === 'gradeProjection') {
+      return res.status(403).json({ code: 'AI_STUDENT_PROFILE_DISABLED', error: 'Individuelle Schülerprofile und Notenverläufe dürfen nicht an die externe KI übertragen werden.' });
+    }
+
     let params = req.body.params || {};
 
     // Bilddaten dürfen nicht durch Textfilter laufen: Regex-Ersetzungen würden Base64 beschädigen.
@@ -2301,6 +2316,11 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     const imageRequestError = validateAiServerImageRequest(action, imageBase64, imagePrivacyConfirmed);
     if (imageRequestError) {
       return res.status(400).json({ error: imageRequestError });
+    }
+    // A checkbox cannot remove identifiable children, school documents or
+    // metadata embedded in images. Wait for a separately approved media workflow.
+    if (imageBase64) {
+      return res.status(403).json({ code: 'AI_MEDIA_DISABLED', error: 'Bildanalyse durch externe KI ist aus Datenschutzgründen deaktiviert.' });
     }
 
     const { imageBase64: _image, imagePrivacyConfirmed: _confirmation, ...textParams } = params;
