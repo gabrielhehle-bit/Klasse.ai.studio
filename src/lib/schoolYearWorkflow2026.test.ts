@@ -17,9 +17,10 @@ test('Fachbezogene Notiz bleibt einem Kind und seinem Bereich zugeordnet', () =>
 
   logObservation(setApp, undefined, 'Allgemeine Klassennotiz', 'Journal',
     'Notizen-Hauptbereich', undefined, { fach: 'Deutsch', teilbereich: 'Schreiben' });
-  assert.equal(state.notes[1].fach, undefined,
+  // New entries are PREPENDED, not appended, in the shared chronicle.
+  assert.equal(state.notes[0].fach, undefined,
     'Eine allgemeine Notiz darf kein vorher gewähltes Kinder-Fach erben.');
-  assert.equal(state.notes[1].teilbereich, undefined);
+  assert.equal(state.notes[0].teilbereich, undefined);
 });
 
 test('Wochenplanung startet aktuell, ohne Unterrichtsplan oder Noten zu überschreiben', () => {
