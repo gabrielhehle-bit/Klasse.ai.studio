@@ -46,7 +46,8 @@ jobs:
           }
 
           # The predeployment workflow is already green for RELEASE_SHA.
-          # The other two global browser workflows run independently on each push to main.
+          # All three browser workflows run independently on each push to main.
+          # Do not publish when the real same-email two-device sync test fails or is pending.
           for attempt in $(seq 1 90); do
             current="$(api "$API/branches/main" | jq -r '.commit.sha')"
             if [[ "$current" != "$RELEASE_SHA" ]]; then
@@ -56,7 +57,7 @@ jobs:
 
             checks="$(api "$API/commits/$RELEASE_SHA/check-runs?per_page=100&filter=latest")"
             pending=0
-            for name in school-verification-browser-e2e teamteaching-browser-e2e; do
+            for name in school-verification-browser-e2e teamteaching-browser-e2e account-sync-browser-e2e; do
               state="$(jq -r --arg name "$name" '
                 [.check_runs[] | select(.name == $name)] |
                 sort_by(.started_at) | last |
