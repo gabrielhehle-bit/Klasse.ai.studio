@@ -434,8 +434,12 @@ async function main() {
     await school.send('Emulation.setEmulatedMedia', { features: [{ name: 'pointer', value: 'coarse' }] });
     await waitFor(school, 'mobile home shown on a narrow touch device',
       'Boolean(document.querySelector("[data-testid=klassio-mobile-home]"))', 20000);
-    await waitFor(school, 'all mobile shortcuts and cockpit remote pairing are visible',
-      '(() => {const home=document.querySelector("[data-testid=klassio-mobile-home]");if(!home)return false;const txt=home.textContent||"";return ["Heute","Meine Klasse","Anwesenheit","Notizen","Wochenplanung","Lehrercockpit Remote","Fernbedienung verbinden"].every(label=>txt.includes(label));})()');
+    const mobileLabels = await evaluate(school,
+      '(() => {const home=document.querySelector("[data-testid=klassio-mobile-home]");const txt=home?.textContent||"";return {present:!!home,missing:["Heute","Meine Klasse","Anwesenheit","Notizen","Wochenplanung","Lehrercockpit Remote","Fernbedienung verbinden"].filter(label=>!txt.includes(label)),actual:txt.slice(0,800)};})()');
+    console.log('Synthetic mobile launcher diagnostic: ' + JSON.stringify(mobileLabels));
+    if (!mobileLabels.present || mobileLabels.missing.length) {
+      throw new Error('Mobile launcher labels missing: ' + JSON.stringify(mobileLabels));
+    }
     await clickButton(school, 'Meine Klasse');
     await waitFor(school, 'phone shortcut opened the same pupil list',
       'Boolean(document.querySelector("button[aria-label=\\\"Zur KLASSIO-Mobile-Startseite\\\"]"))', 15000);
