@@ -22,6 +22,8 @@ export function filterChronicleEntries(
     const haystack = [
       entry.inhalt,
       entry.kategorie,
+      entry.fach,
+      entry.teilbereich,
       linkedStudent?.vorname,
       linkedStudent?.nachname,
     ]
