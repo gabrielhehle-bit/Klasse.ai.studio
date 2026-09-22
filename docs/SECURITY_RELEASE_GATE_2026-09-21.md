@@ -5,10 +5,14 @@ Status: DRAFT / NOT DEPLOYED. Do not handle new live pupil reports through the a
 
 ## Implemented in this branch
 - Block Antolin and IKM Gemini document analysis server-side (403) and stop the two UIs from uploading the documents. These features intentionally remain unavailable until an independently reviewed local parser and lawful workflow exist.
-- Do not trust a caller-supplied X-Forwarded-For value for security throttles; add an email-wide request cooldown.
+- Disable weekly/yearly Excel workbook imports that used the vulnerable `xlsx@0.18.5` parser. Excel template/export generation remains available; no untrusted workbook bytes are parsed on this branch.
+- Trust reverse-proxy client addresses only from explicit `KLASSIO_TRUSTED_PROXY_ADDRESSES`; add per-address, per-IP and global verification-email limits.
 - Validate Origin/Fetch Metadata for state-changing API requests. Review any legitimate cross-origin integrations before release.
 - Persist SHA-256 access-token hashes in a server-side allowlist. Logout revokes the current token; the email-account logout-all API revokes all sessions for that account. Sessions are valid for at most seven days.
 - Use per-response CSP script nonces in production; no unsafe-eval or unsafe-inline JavaScript. Permit only same-origin framing in production.
+- Keep Smartboard pairing secrets fragment-only (`#sync=...&key=...`), remove the legacy query-string fallback, and require a session-key-derived write token for sync PUT operations so the six-character code alone cannot overwrite ciphertext.
+- Replace persistent student IDs with temporary `S01`-style aliases for voice AI and expand the server AI fallback to filter structured student-name and student-ID fields.
+- Harden SMTP use with strict mailbox parsing, header sanitization, TLS requirements, content-access restrictions and timeouts.
 - Add API and unit regression tests for origin filtering, blocked AI imports, throttling, revocation, and CSP.
 
 ## Required deployment checks (not yet completed)
@@ -19,7 +23,7 @@ Status: DRAFT / NOT DEPLOYED. Do not handle new live pupil reports through the a
 5. Existing access sessions will require sign-in after release. Verify one account can log out and that copied cookies fail after logout and after process restart. Verify logout-all on multiple browsers; separately lock decrypted local vaults on devices.
 6. With **dummy records only**, verify that user A cannot read/update user B's private account snapshot, that uninvited users cannot access team classes, and that viewer roles cannot write. Include simultaneous sync conflicts and offline/reconnect.
 7. Inspect all remaining AI actions for plaintext personally identifiable information and document a permissible external AI processing agreement before using them with identifiable pupils. The text-pattern filter is not reliable anonymization.
-8. Perform dependency-advisory review before production: npm xlsx 0.18.5 is affected by CVE-2023-30533 and CVE-2024-22363; nodemailer 6.10.1 has documented later advisories. Do not silently change package versions without regenerating bun.lock and running import, mail, browser and build tests.
+8. Dependency follow-up remains tracked in GitHub issue #270. The reachable `xlsx@0.18.5` import path is disabled in this release, but the dependency must still be replaced before Excel imports return. Before upgrading Nodemailer to the current 10.x line, verify the actual World4You Node.js runtime supports Node 20+; regenerate `bun.lock` and run mail, browser and build tests.
 9. Obtain an independent security/privacy review and appropriate school-level approval before broadening processing of real pupil data.
 
 ## Rollback and incident response
