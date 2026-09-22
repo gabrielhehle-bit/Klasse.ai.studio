@@ -16,7 +16,12 @@ test('Topbar: Mehr-Menü enthält nur noch zentrale Werkzeuge ohne tote Doppelst
   assert.match(topbar, /Datenkonsistenz/);
   assert.doesNotMatch(topbar, /header_simple_mode/);
   assert.doesNotMatch(topbar, /Einfachmodus/);
-  assert.doesNotMatch(topbar, /triggerBackupDownload/);
+  // Manuelle verschlüsselte Sicherung ist als eigenständige, immer sichtbare
+  // Sicherheitsfunktion ausdrücklich wieder in der Kopfzeile erlaubt.
+  assert.match(topbar, /aria-label="Jetzt verschlüsseltes Backup herunterladen"/);
+  assert.match(topbar, /await triggerBackupDownload\(app\)/);
+  assert.match(topbar, /disabled=\{manualBackupBusy \|\| !isVaultUnlocked\}/);
+  assert.match(topbar, /const \[manualBackupBusy, setManualBackupBusy\]/);
   assert.doesNotMatch(topbar, /JSON-Sicherungsdatei herunterladen/);
 });
 
