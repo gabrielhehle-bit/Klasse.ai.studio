@@ -422,10 +422,16 @@ async function main() {
 
     // Both profiles reload independently: encrypted state must survive browser refresh.
     console.log('✓ Starting two-profile encrypted persistence check after browser reload');
-    await home.send('Page.reload', { ignoreCache: true });
-    console.log('✓ Home browser reloaded');
-    await school.send('Page.reload', { ignoreCache: true });
-    console.log('✓ School browser reloaded');
+    // CDP Page.reload acknowledges the request before the old DOM disappears.
+    // A class name from the previous page must not be mistaken for a successful
+    // reload or a correctly unlocked vault on the new document.
+    for (const client of [home, school]) {
+      await evaluate(client, 'window.__klassioBeforeSyncReload = true');
+      await client.send('Page.reload', { ignoreCache: true });
+      await waitFor(client, 'new document after browser reload',
+        'document.readyState === "complete" && window.__klassioBeforeSyncReload !== true', 45000);
+      console.log('✓ ' + client.name + ': new document loaded');
+    }
     for (const client of [home, school]) {
       await waitFor(client, 'after browser reload: class or local vault prompt',
         'document.body?.innerText.includes("Sync Testklasse A") || document.body?.innerText.includes("Tresor entsperren") || document.body?.innerText.includes("Daten laden & KLASSIO öffnen")', 45000);
