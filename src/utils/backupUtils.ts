@@ -12,7 +12,6 @@ import {
 } from '../lib/vaultStorage';
 import type { VaultRecordV1 } from '../lib/vaultService';
 import { syncActiveClass } from '../lib/appState';
-import { isAccountSyncHealthy } from '../lib/accountSyncService';
 
 export const BACKUP_REMINDER_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 export const BACKUP_REMINDER_SNOOZE_MS = 24 * 60 * 60 * 1000;
@@ -66,9 +65,9 @@ export const triggerBackupDownload = async (
 };
 
 export const isBackupDue = (app: AppState, nowDate: Date = new Date()) => {
-  // Wenn der komplette App-Stand gesund mit dem E-Mail-Konto synchronisiert wird,
-  // sind Datei-Backups eine freiwillige Zusatzsicherung und werden nicht mehr angemahnt.
-  if (isAccountSyncHealthy()) return false;
+  // Successful account sync is not a replacement for an independent encrypted
+  // backup: a valid but incorrect cloud snapshot can still propagate to devices.
+  // Reminders remain user-configurable and are never triggered more than weekly.
   if (app.settings?.disableBackupReminders) return false;
 
   const now = nowDate.getTime();
