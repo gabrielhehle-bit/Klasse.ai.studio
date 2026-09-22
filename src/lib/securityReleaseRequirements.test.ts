@@ -10,6 +10,7 @@ const excel = readFileSync('src/lib/planerExcelService.ts', 'utf8');
 const weeklyExcelUi = readFileSync('src/components/WochenplanExcelModal.tsx', 'utf8');
 const yearlyExcelUi = readFileSync('src/components/JahresplanExcelModal.tsx', 'utf8');
 const appContext = readFileSync('src/context/AppContext.tsx', 'utf8');
+const classroomMode = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
 
 
 test('security release keeps direct student report AI uploads disabled at UI and server', () => {
@@ -51,4 +52,6 @@ test('zero-knowledge sync never accepts encryption keys from URL query strings a
   assert.match(appContext, /X-Klassio-Sync-Write/);
   assert.match(server, /writeTokenHash/);
   assert.match(server, /verifySyncWriteToken/);
+  assert.doesNotMatch(classroomMode, /\?sync=/, 'QR/copy links must never put sync material in query strings');
+  assert.match(classroomMode, /createSyncUrl\(/);
 });
