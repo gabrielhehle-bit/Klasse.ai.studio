@@ -92,6 +92,7 @@ import { hasCompletedInitialSetup } from './lib/firstRunFlow';
 import PrivacyLock from './components/PrivacyLock';
 import MobileHome from './components/MobileHome';
 import MobileWorkspace, { type MobileDestination } from './components/MobileWorkspace';
+import MobileNotes from './components/MobileNotes';
 const Cockpit = lazyRetry(() => import('./components/Cockpit'));
 import PrintHeader from './components/PrintHeader';
 import AccessGate from './components/AccessGate';
@@ -752,7 +753,7 @@ function AppContent() {
                 <Loader2 size={20} className="animate-spin" /> Wird geladen…
               </div>
             }>
-              {renderPage()}
+              {currentPage === 'verhalten' ? <MobileNotes /> : renderPage()}
             </React.Suspense>
           </ErrorBoundary>
         </MobileWorkspace>
