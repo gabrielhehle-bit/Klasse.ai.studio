@@ -21,7 +21,7 @@ test('Mobile remote requires the existing live-session key and does not change P
   const home = readFileSync('src/components/MobileHome.tsx', 'utf8');
   const accountSync = readFileSync('src/lib/accountSyncService.ts', 'utf8');
   assert.match(app, /\(max-width: 767px\) and \(pointer: coarse\)/);
-  assert.match(app, /mobileDevice && mobileHomeVisible/);
+  assert.match(app, /if \(mobileDevice\) \{/);
   assert.ok(!home.includes('remoteReady'), 'A local smartboard host session is not a paired phone remote.');
   assert.ok(!app.includes('onOpenRemote={() =>'), 'The phone must join an explicit QR session before remote activation.');
   assert.match(app, /isRemoteController\) \{/);
