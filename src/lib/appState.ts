@@ -349,9 +349,14 @@ export function normalizeAppState(raw: any): AppState {
     || (Array.isArray(parsed.schueler) && parsed.schueler.length > 0)
     || Object.keys(parsed.wochenplanung || {}).length > 0
     || Object.keys(parsed.stammplan || {}).length > 0
-    || Object.keys(parsed.stundenZeiten || {}).length > 0
-    || Object.keys(parsed.scheduleAnalysis || {}).length > 0
-    || Object.keys(parsed.saAssessments || {}).length > 0
+    // Legacy single-class records did not have a `classes` field. Current
+    // initialAppState DOES have classes: [] and also default clock/assessment
+    // settings, so those settings alone must not manufacture a class.
+    || (!Array.isArray(raw.classes) && (
+      Object.keys(raw.stundenZeiten || {}).length > 0
+      || Object.keys(raw.scheduleAnalysis || {}).length > 0
+      || Object.keys(raw.saAssessments || {}).length > 0
+    ))
   );
   if ((!parsed.classes || !Array.isArray(parsed.classes) || parsed.classes.length === 0)
     && hasLegacyClassContent) {
