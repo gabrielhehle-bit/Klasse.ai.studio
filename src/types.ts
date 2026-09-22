@@ -345,6 +345,10 @@ export interface AppNote {
   kategorie: 'Journal' | 'Verhalten' | 'Eltern' | 'Erfolg' | 'Notiz' | 'reflexion' | 'allgemein';
   inhalt: string;
   schuelerId?: string;
+  /** Optional school subject for an individual pupil note, e.g. Deutsch. */
+  fach?: string;
+  /** Optional subject sub-area, e.g. Lesen or Schreiben. */
+  teilbereich?: string;
   quelle?: string;
   icon?: string;
   /** Optional class-local pinned status. Legacy notes default to unpinned. */
