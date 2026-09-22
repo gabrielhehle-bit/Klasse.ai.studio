@@ -340,8 +340,18 @@ export function normalizeAppState(raw: any): AppState {
     ))),
   };
 
-  // Migration: Multi-Class Support
-  if (!parsed.classes || !Array.isArray(parsed.classes) || parsed.classes.length === 0) {
+  // Migration only for legacy data that actually contained a class. Never
+  // manufacture a random "4. Klasse Meine Klasse" from a failed or empty
+  // initial state: that placeholder can otherwise be automatically encrypted,
+  // mistaken for the teacher's account, and propagated to their other devices.
+  const hasLegacyClassContent = Boolean(
+    parsed.klassenbezeichnung?.trim()
+    || (Array.isArray(parsed.schueler) && parsed.schueler.length > 0)
+    || Object.keys(parsed.wochenplanung || {}).length > 0
+    || Object.keys(parsed.stammplan || {}).length > 0
+  );
+  if ((!parsed.classes || !Array.isArray(parsed.classes) || parsed.classes.length === 0)
+    && hasLegacyClassContent) {
     const defaultClassId = 'default-' + Math.random().toString(36).substring(2, 9);
     const defaultClass: any = {
       id: defaultClassId,
