@@ -125,7 +125,7 @@ export class AccountSyncStore {
     const cleanup = async (kind: 'recent' | 'daily', max: number) => {
       const directory = this.historyDirectory(userId, kind);
       const files = (await fs.readdir(directory))
-        .filter(name => kind === 'recent' ? /^[1-9][0-9]*\\.json$/.test(name) : /^\\d{4}-\\d{2}-\\d{2}\\.json$/.test(name))
+        .filter(name => kind === 'recent' ? /^[1-9][0-9]*\.json$/.test(name) : /^\d{4}-\d{2}-\d{2}\.json$/.test(name))
         .sort(kind === 'recent'
           ? (a, b) => Number.parseInt(b, 10) - Number.parseInt(a, 10)
           : (a, b) => b.localeCompare(a));
@@ -146,7 +146,7 @@ export class AccountSyncStore {
         throw error;
       });
       for (const name of names) {
-        if (kind === 'recent' ? !/^[1-9][0-9]*\\.json$/.test(name) : !/^\\d{4}-\\d{2}-\\d{2}\\.json$/.test(name)) continue;
+        if (kind === 'recent' ? !/^[1-9][0-9]*\.json$/.test(name) : !/^\d{4}-\d{2}-\d{2}\.json$/.test(name)) continue;
         const record = await this.readHistoryFile(userId, path.join(dir, name));
         entries.set(record.revision, { revision: record.revision, updatedAt: record.updatedAt });
       }
@@ -181,7 +181,7 @@ export class AccountSyncStore {
       throw error;
     });
     for (const name of names) {
-      if (!/^\\d{4}-\\d{2}-\\d{2}\\.json$/.test(name)) continue;
+      if (!/^\d{4}-\d{2}-\d{2}\.json$/.test(name)) continue;
       const record = await this.readHistoryFile(userId, path.join(daily, name));
       if (record.revision === revision) return cloneRecord(record);
     }
