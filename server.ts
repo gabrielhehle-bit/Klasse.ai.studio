@@ -3288,6 +3288,7 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     lastUpdated: number;
     lastActivityAt: number;
     protocolVersion: 1;
+    writeTokenHash: string;
   }
   const syncSessions: Record<string, ServerSyncSession> = {};
   const MAX_SYNC_PAYLOAD_BYTES = 15 * 1024 * 1024; // 15 MB DoS-Schutz
@@ -3321,6 +3322,21 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     }
     entry.count += 1;
     return entry.count <= 30;
+  }
+
+  function verifySyncWriteToken(session: ServerSyncSession, value: unknown): boolean {
+    if (typeof value !== 'string' || value.length < 40 || value.length > 100) return false;
+    const actualHex = crypto.createHash('sha256')
+      .update('klassio-sync-write-verifier:v1:' + value.trim())
+      .digest('hex');
+    try {
+      return crypto.timingSafeEqual(
+        Buffer.from(session.writeTokenHash, 'hex'),
+        Buffer.from(actualHex, 'hex'),
+      );
+    } catch {
+      return false;
+    }
   }
 
   function isValidEncryptedPayload(p: any): boolean {
@@ -3383,7 +3399,10 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       });
     }
 
-    const { encryptedPayload } = req.body;
+    const { encryptedPayload, writeTokenHash } = req.body;
+    if (typeof writeTokenHash !== 'string' || !/^[a-f0-9]{64}$/i.test(writeTokenHash)) {
+      return res.status(400).json({ error: "Sync-Schreibschutz fehlt oder ist ungültig." });
+    }
     if (!isValidEncryptedPayload(encryptedPayload)) {
       return res.status(400).json({
         error: "Ungültiges oder unverschlüsseltes Payload-Format. Erwartet wird protocolVersion 1 (AES-GCM-256)."
@@ -3411,7 +3430,8 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       encryptedPayload,
       lastUpdated: timing.lastUpdated,
       lastActivityAt: timing.lastActivityAt,
-      protocolVersion: 1
+      protocolVersion: 1,
+      writeTokenHash: writeTokenHash.toLowerCase()
     };
 
     // E3.18 Logging ohne Offenlegung des Sitzungscodes
@@ -3433,6 +3453,10 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     if (!syncSessions[code]) {
       if (!allowUnknownSyncCode(req)) return res.status(429).json({ error: "Zu viele ungültige Sitzungscodes." });
       return res.status(404).json({ error: "Sitzung nicht gefunden oder abgelaufen." });
+    }
+
+    if (!verifySyncWriteToken(syncSessions[code], req.get('x-klassio-sync-write'))) {
+      return res.status(403).json({ error: "Schreibzugriff auf diese Sync-Sitzung ist nicht autorisiert." });
     }
 
     const { encryptedPayload } = req.body;
