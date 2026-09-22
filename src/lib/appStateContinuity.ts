@@ -26,8 +26,11 @@ export function hasEstablishedClassroom(state: Pick<AppState, 'classes' | 'schue
 export function isUnexpectedEmptyClassReplacement(previous: AppState, next: AppState): boolean {
   const previouslyPopulated = (previous.schueler?.length || 0) > 0
     || previous.classes?.some(room => (room.schueler?.length || 0) > 0);
-  if (!previouslyPopulated) return false;
   const nextHasStudents = (next.schueler?.length || 0) > 0
     || next.classes?.some(room => (room.schueler?.length || 0) > 0);
-  return !nextHasStudents;
+  if (previouslyPopulated && !nextHasStudents) return true;
+  // Also protect a teacher's prepared class/weekly plan *before* they have
+  // entered any children. A fabricated default-4th-grade class is not a
+  // replacement for an established classroom.
+  return hasEstablishedClassroom(previous) && !hasEstablishedClassroom(next);
 }
