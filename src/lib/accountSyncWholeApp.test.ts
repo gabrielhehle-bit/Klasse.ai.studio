@@ -99,7 +99,7 @@ test('Zwei E-Mail-Geräte: Wochenplanung wird verschlüsselt übertragen und par
 
     // Gerät B lädt denselben, serverseitig verschlüsselten Stand und erhält
     // seine eigene lokale Navigation, ohne die Klassenplanung zu verlieren.
-    const receivedB = await decryptData(first.encryptedState, vault.vaultKey);
+    const receivedB = await decryptData<any>(first.encryptedState, vault.vaultKey);
     const deviceB = syncActiveClass(mergeAccountSyncState(
       normalizeAppState(receivedB),
       { ...initialAppState, currentPage: 'dashboard' },
@@ -141,7 +141,7 @@ test('Zwei E-Mail-Geräte: Wochenplanung wird verschlüsselt übertragen und par
     }), /REVISION_CONFLICT/, 'Gerät A darf Gerät B nicht mit seinem veralteten Stand überschreiben');
     const cloudAfterConflict = await store.get(userId);
     assert.equal(cloudAfterConflict?.revision, 2);
-    const remoteAfterConflict = await decryptData(cloudAfterConflict!.encryptedState, vault.vaultKey);
+    const remoteAfterConflict = await decryptData<any>(cloudAfterConflict!.encryptedState, vault.vaultKey);
     assert.equal(remoteAfterConflict.wochenplanung[39].Montag[1].thema, 'Vom Gerät B synchronisiert');
     assert.equal(remoteAfterConflict.wochenplanung[39].Montag[2], undefined);
     assert.equal(deviceAOffline.wochenplanung[39].Montag[2].thema, 'Nur lokal auf Gerät A',
