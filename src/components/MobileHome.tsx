@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  BookOpen, CalendarDays, CheckCircle2, ClipboardCheck, MonitorSmartphone,
+  BookOpen, CalendarDays, ClipboardCheck, MonitorSmartphone,
   NotebookPen, UsersRound, ArrowRight, ShieldCheck,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -9,8 +9,6 @@ type MobileDestination = 'dashboard' | 'schueler' | 'anwesenheit' | 'verhalten' 
 
 interface MobileHomeProps {
   onNavigate: (destination: MobileDestination) => void;
-  onOpenRemote: () => void;
-  remoteReady: boolean;
 }
 
 const shortcuts: {
@@ -26,7 +24,7 @@ const shortcuts: {
   { id: 'wochenplanung', title: 'Wochenplanung', detail: 'Plan ansehen', icon: BookOpen },
 ];
 
-export default function MobileHome({ onNavigate, onOpenRemote, remoteReady }: MobileHomeProps) {
+export default function MobileHome({ onNavigate }: MobileHomeProps) {
   const { app } = useApp();
   const [showPairing, setShowPairing] = useState(false);
   const activeClass = app.classes?.find(room => room.id === app.activeClassId);
@@ -75,16 +73,7 @@ export default function MobileHome({ onNavigate, onOpenRemote, remoteReady }: Mo
               </p>
             </div>
           </div>
-          {remoteReady ? (
-            <button
-              type="button"
-              onClick={onOpenRemote}
-              className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-extrabold text-indigo-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-            >
-              <CheckCircle2 size={18} /> Fernbedienung öffnen <ArrowRight size={18} />
-            </button>
-          ) : (
-            <>
+          <>
               <button
                 type="button"
                 onClick={() => setShowPairing(open => !open)}
@@ -99,15 +88,14 @@ export default function MobileHome({ onNavigate, onOpenRemote, remoteReady }: Mo
                   <p className="font-extrabold">So verbindest du dein Handy:</p>
                   <p className="mt-2">1. Öffne am PC das Lehrercockpit und starte dort die Live-Verbindung.</p>
                   <p className="mt-1">2. Zeige den Kopplungs-QR-Code an und scanne ihn mit der Handykamera.</p>
-                  <p className="mt-1">3. Öffne den KLASSIO-Link. Nach der sicheren Kopplung startet die Fernbedienung.</p>
+                  <p className="mt-1">3. Öffne den KLASSIO-Link. Nach der sicheren Kopplung startet die Fernbedienung automatisch.</p>
                   <p className="mt-3 flex items-start gap-2 text-xs text-indigo-100/80">
                     <ShieldCheck size={16} className="mt-0.5 shrink-0" />
                     Die Fernbedienung braucht den Sitzungsschlüssel aus dem QR-Code. Die E-Mail-Anmeldung allein ersetzt die Kopplung nicht.
                   </p>
                 </div>
               )}
-            </>
-          )}
+          </>
         </section>
         <p className="mt-5 text-center text-xs text-slate-500">
           Die mobile Ansicht und der PC verwenden denselben verschlüsselten KLASSIO-Datenbestand.
