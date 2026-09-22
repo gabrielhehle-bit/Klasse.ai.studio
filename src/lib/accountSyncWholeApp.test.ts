@@ -7,6 +7,7 @@ import { AccountSyncStore } from '../server/accountSyncStore';
 import { createVault } from './vaultService';
 import { encryptData, decryptData } from './crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -151,4 +152,62 @@ test('Zwei E-Mail-Geräte: Wochenplanung wird verschlüsselt übertragen und par
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+
+test('Ältere verschlüsselte Kontostände bleiben bei wiederholtem Überschreiben wiederherstellbar und kontoisoliert', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'klassio-encrypted-account-history-'));
+  try {
+    const vault = await createVault('Klassio-Verschluesselte-Historie-Test-2026!');
+    const store = new AccountSyncStore(directory);
+    const userId = 'a'.repeat(24);
+    const otherUser = 'b'.repeat(24);
+    let revision = 0;
+    const snapshots: Array<{ revision: number; topic: string }> = [];
+    for (let change = 1; change <= 14; change++) {
+      const topic = change === 1 ? 'Wichtige ursprüngliche Wochenplanung' : 'Teständerung ' + change;
+      const state = syncActiveClass({
+        ...source,
+        wochenplanung: { 39: { Montag: { 0: { fach: 'Deutsch', thema: topic } } } },
+      } as any);
+      const next = await store.put(userId, {
+        vaultRecord: vault.vaultRecord,
+        encryptedState: await encryptData(accountSyncState(state), vault.vaultKey),
+        expectedRevision: revision,
+      });
+      revision = next.revision;
+      snapshots.push({ revision, topic });
+    }
+    assert.equal(revision, 14);
+    const history = await store.listHistory(userId);
+    assert.ok(history.length <= 38);
+    assert.ok(history.some(item => item.revision === 1), 'Die erste Tagesversion muss auch nach vielen Autosaves erhalten sein.');
+    assert.ok(history.some(item => item.revision === 13), 'Neuere Versionen müssen als separate Wiederherstellungspunkte erhalten sein.');
+    const previous = await store.getHistoryRevision(userId, 1);
+    assert.ok(previous);
+    const decrypted = await decryptData<any>(previous!.encryptedState, vault.vaultKey);
+    assert.equal(decrypted.wochenplanung[39].Montag[0].thema, 'Wichtige ursprüngliche Wochenplanung');
+    const live = await store.get(userId);
+    assert.equal(live?.revision, 14, 'Das Lesen historischer Backups darf den Live-Stand nicht verändern.');
+    assert.equal(await store.getHistoryRevision(otherUser, 1), null,
+      'Wiederherstellungspunkte dürfen nicht in den Speicher eines anderen Kontos hineinreichen.');
+    assert.deepEqual(await store.listHistory(otherUser), []);
+    assert.equal(await store.getHistoryRevision(userId, -1), null);
+    const historicalJson = JSON.stringify(previous);
+    assert.ok(!historicalJson.includes('Wichtige ursprüngliche Wochenplanung'),
+      'Der Server darf in historischen Snapshots keine Schüler- oder Planungsdaten im Klartext speichern.');
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('Wiederherstellungs-Endpunkte verlangen E-Mail-Konto und liefern keine fremden Klartextdaten', () => {
+  const server = readFileSync('server.ts', 'utf8');
+  assert.match(server, /app\\.get\\('\/api\/account-sync\/history', requireEmailAccount/);
+  assert.match(server, /app\\.get\\('\/api\/account-sync\/history\/:revision', requireEmailAccount/);
+  assert.match(server, /getHistoryRevision\\(account\\.userId, revision\\)/);
+  const ui = readFileSync('src/components/settings/BackupSettings.tsx', 'utf8');
+  assert.match(ui, /LehrerAPP_Encrypted_Local_State/);
+  assert.match(ui, /verschlüsselte Sicherung/i);
+  assert.match(ui, /snapshot\\.vaultRecord\\.id !== localVault\\.id/);
 });
