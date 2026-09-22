@@ -56,7 +56,8 @@ export const triggerBackupDownload = async (
     document.body.removeChild(linkElement);
     // Releasing the object URL in the same event tick can cancel downloads in
     // slower browsers. Keep it alive briefly while the browser accepts the file.
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    if (typeof window === 'undefined') URL.revokeObjectURL(url);
+    else window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }
 
   // This only means the browser download was initiated. The user must confirm
