@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Circle, NotebookPen, Plus, Search } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { logObservation } from '../lib/utils';
@@ -11,6 +11,13 @@ export default function MobileNotes() {
   const [studentId, setStudentId] = useState('');
   const [search, setSearch] = useState('');
   const [saved, setSaved] = useState(false);
+  // A class change from another device must never attach an unsent draft to a different class.
+  useEffect(() => {
+    setDraft('');
+    setStudentId('');
+    setSearch('');
+    setSaved(false);
+  }, [app.activeClassId]);
   const students = useMemo(
     () => [...(app.schueler || [])].sort((a, b) => a.nachname.localeCompare(b.nachname, 'de')),
     [app.schueler],
@@ -87,9 +94,9 @@ export default function MobileNotes() {
         </button>
         {saved && (
           <p role="status" className="mt-2 text-sm text-violet-700">
-            Gespeichert in KLASSIO. {accountSyncStatus === 'synced'
-              ? 'Der neueste Stand ist auf dem Server bestätigt.'
-              : 'Der geräteübergreifende Abgleich kann noch laufen.'}
+            Eintrag übernommen. {accountSyncStatus === 'synced'
+              ? 'Der aktuelle Stand ist auf dem Server bestätigt.'
+              : 'Bitte vor dem Gerätewechsel den abgeschlossenen Abgleich prüfen.'}
           </p>
         )}
       </form>
