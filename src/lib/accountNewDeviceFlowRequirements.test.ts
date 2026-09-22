@@ -39,10 +39,10 @@ test('Zugangscode bleibt ausdrücklich ohne persönlichen Geräte-Sync', () => {
   assert.match(access, /Daten von anderen PCs werden damit nicht automatisch geladen oder synchronisiert/);
 });
 
-test('Datei-Backups bleiben bei gesundem Konto-Sync freiwillig und Erinnerungen aus', () => {
-  assert.match(backupSettings, /Zusätzliche Sicherung \(optional\)/);
-  assert.match(backupSettings, /Für den Wechsel auf einen anderen PC reicht dein E-Mail-Konto/);
-  assert.match(backupSettings, /Automatisch synchronisiert/);
-  assert.match(backupSettings, /Sicherungsdatei ist nur eine optionale zusätzliche Rückfallebene/);
-  assert.match(backupUtils, /if \(isAccountSyncHealthy\(\)\) return false/);
+test('Regelmäßige unabhängige Sicherungen bleiben auch bei funktionierendem Konto-Sync empfohlen', () => {
+  assert.ok(backupSettings.includes('Verschlüsselte Datensicherung'));
+  assert.ok(backupSettings.includes('Auch bei aktivem E-Mail-Sync regelmäßig eine zusätzliche verschlüsselte Sicherungsdatei'));
+  assert.ok(backupSettings.includes('Erinnerung an zusätzliche Datensicherung'));
+  assert.ok(backupUtils.includes('if (app.settings?.disableBackupReminders) return false'));
+  assert.ok(!backupUtils.includes('if (isAccountSyncHealthy()) return false'));
 });
