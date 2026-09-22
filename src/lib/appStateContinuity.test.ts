@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { initialAppState, normalizeAppState, syncActiveClass } from './appState';
+import { createVault } from './vaultService';
+import { saveEncryptedAppState, loadEncryptedAppState, __resetSecureStorageForTesting } from './secureStorageService';
 import { hasEstablishedClassroom, isUnexpectedEmptyClassReplacement } from './appStateContinuity';
 
 const oneA = syncActiveClass({
@@ -49,4 +51,33 @@ test('An existing vault may not silently bootstrap a missing account as empty or
   assert.match(gate, /unlockAppVault\(activeVaultKey, true\)/);
   assert.match(storage, /isUnexpectedEmptyClassReplacement\(prior, appState\)/);
   assert.match(storage, /STORAGE_KEYS\.NOTFALLKOPIE/);
+});
+
+test('Verschlüsselter Primärstand bleibt nach abgewiesenem leerem Autosave vollständig erhalten', async () => {
+  __resetSecureStorageForTesting();
+  const vault = await createVault('SynthetischesTestpasswort2026!NurTests');
+  try {
+    await saveEncryptedAppState(oneA, vault.vaultKey);
+    await assert.rejects(
+      saveEncryptedAppState(normalizeAppState(structuredClone(initialAppState)), vault.vaultKey),
+      /verhindert das Überschreiben einer bisher gefüllten Klasse/,
+    );
+    const restored = await loadEncryptedAppState(vault.vaultKey);
+    assert.equal(restored?.classes.find(room => room.id === 'class-synthetic-1a')?.schueler?.length, 1);
+    assert.equal(restored?.activeClassId, 'class-synthetic-1a');
+  } finally {
+    __resetSecureStorageForTesting();
+  }
+});
+
+test('Ausdrücklich neue Installation darf initial ohne Klasse verschlüsselt gespeichert werden', async () => {
+  __resetSecureStorageForTesting();
+  const vault = await createVault('SynthetischesZweitesTestpasswort2026!');
+  try {
+    await saveEncryptedAppState(initialAppState, vault.vaultKey);
+    const restored = await loadEncryptedAppState(vault.vaultKey);
+    assert.equal(restored?.classes.length, 0);
+  } finally {
+    __resetSecureStorageForTesting();
+  }
 });
