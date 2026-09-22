@@ -25,7 +25,11 @@ test('Mobile remote requires the existing live-session key and does not change P
   assert.ok(!home.includes('remoteReady'), 'A local smartboard host session is not a paired phone remote.');
   assert.ok(!app.includes('onOpenRemote={() =>'), 'The phone must join an explicit QR session before remote activation.');
   assert.match(app, /isRemoteController\) \{/);
-  assert.match(app, /Zur KLASSIO-Mobile-Startseite/);
+  const workspace = readFileSync('src/components/MobileWorkspace.tsx', 'utf8');
+  assert.match(workspace, /Zur KLASSIO-Mobile-Startseite/);
+  assert.match(workspace, /data-testid="klassio-mobile-workspace"/);
+  assert.match(workspace, /Mobile Navigation/);
+  assert.ok(!workspace.includes('Autospeichern'), 'The wide PC status toolbar must not appear on mobile.');
   assert.match(accountSync, /activeSyncCode: undefined,/);
   assert.match(accountSync, /isRemoteController: undefined,/);
 });
