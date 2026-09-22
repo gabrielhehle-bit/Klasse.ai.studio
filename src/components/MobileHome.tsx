@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   BookOpen, CalendarDays, CheckCircle2, ClipboardCheck, MonitorSmartphone,
-  NotebookPen, UsersRound, X, ArrowRight, ShieldCheck,
+  NotebookPen, UsersRound, ArrowRight, ShieldCheck,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
