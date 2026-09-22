@@ -10,7 +10,6 @@ test('Mobile launcher exposes the five requested tools plus cockpit remote', () 
     assert.ok(home.includes(`id: '${destination}'`), `Missing mobile shortcut ${destination}`);
   }
   assert.match(home, /Lehrercockpit Remote/);
-  assert.match(home, /remoteReady \? \(/);
   assert.match(home, /Fernbedienung verbinden/);
   assert.match(home, /Kopplungs-QR-Code/);
   assert.ok(!home.includes('createVault('), 'A mobile launcher must never make a second vault.');
@@ -22,8 +21,9 @@ test('Mobile remote requires the existing live-session key and does not change P
   const accountSync = readFileSync('src/lib/accountSyncService.ts', 'utf8');
   assert.match(app, /\(max-width: 767px\) and \(pointer: coarse\)/);
   assert.match(app, /mobileDevice && mobileHomeVisible/);
-  assert.match(app, /!app\.boardSettings\?\.activeSyncCode \|\| !getActiveSessionKey\(\)/);
-  assert.match(app, /remoteReady=\{Boolean\(app\.boardSettings\?\.activeSyncCode && getActiveSessionKey\(\)\)\}/);
+  assert.ok(!home.includes('remoteReady'), 'A local smartboard host session is not a paired phone remote.');
+  assert.ok(!app.includes('onOpenRemote={() =>'), 'The phone must join an explicit QR session before remote activation.');
+  assert.match(app, /isRemoteController\) \{/);
   assert.match(app, /Zur KLASSIO-Mobile-Startseite/);
   assert.match(accountSync, /activeSyncCode: undefined,/);
   assert.match(accountSync, /isRemoteController: undefined,/);
