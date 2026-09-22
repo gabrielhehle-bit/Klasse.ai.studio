@@ -9,6 +9,7 @@ const ikm = readFileSync('src/components/DiagnostikLegacy.tsx', 'utf8');
 const excel = readFileSync('src/lib/planerExcelService.ts', 'utf8');
 const weeklyExcelUi = readFileSync('src/components/WochenplanExcelModal.tsx', 'utf8');
 const yearlyExcelUi = readFileSync('src/components/JahresplanExcelModal.tsx', 'utf8');
+const appContext = readFileSync('src/context/AppContext.tsx', 'utf8');
 
 
 test('security release keeps direct student report AI uploads disabled at UI and server', () => {
@@ -41,4 +42,13 @@ test('mail transport is hardened against parser, header and content-access abuse
   assert.match(server, /requireTLS: Boolean\(SMTP_USER && SMTP_PASS\) && !SMTP_SECURE/);
   assert.match(server, /safeMailHeaderText\(request\.schoolName, 120\)/);
   assert.match(server, /tls: \{ minVersion: 'TLSv1\.2', rejectUnauthorized: true \}/);
+});
+
+
+test('zero-knowledge sync never accepts encryption keys from URL query strings and protects writes', () => {
+  assert.doesNotMatch(appContext, /query\.get\(['"]key['"]\)/);
+  assert.doesNotMatch(appContext, /query\.get\(['"]sync['"]\)/);
+  assert.match(appContext, /X-Klassio-Sync-Write/);
+  assert.match(server, /writeTokenHash/);
+  assert.match(server, /verifySyncWriteToken/);
 });
