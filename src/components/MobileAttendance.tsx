@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, ClipboardCheck } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { getTodayName } from '../lib/utils';
@@ -18,6 +18,8 @@ export default function MobileAttendance() {
   const [pending, setPending] = useState<{ id: string; status: DayStatus } | null>(null);
   const dayName = getTodayName(new Date());
   const dateKey = getLocalAttendanceDateKey();
+  // Cancel unfinished whole-day edits when another device changes class or day.
+  useEffect(() => setPending(null), [app.activeClassId, dateKey]);
   const activeHours = (dayName ? app.tageplan?.[dayName]?.stunden : []) || [];
   const students = useMemo(
     () => [...(app.schueler || [])].sort((a, b) => a.nachname.localeCompare(b.nachname, 'de-AT')),
