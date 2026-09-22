@@ -1,5 +1,6 @@
 import { assertRestorableAppState } from '../lib/backupRestore';
 import { initialAppState, syncActiveClass, normalizeAppState, switchClassState } from '../lib/appState';
+import { hasEstablishedClassroom } from '../lib/appStateContinuity';
 import { removeStudentFromAppState } from '../lib/studentState';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
@@ -83,7 +84,7 @@ interface AppContextType {
   setScreenLocked: (locked: boolean) => void;
   isVaultUnlocked: boolean;
   lockAppVault: () => void;
-  unlockAppVault: (key: CryptoKey) => Promise<boolean>;
+  unlockAppVault: (key: CryptoKey, allowFreshSetup?: boolean) => Promise<boolean>;
   accountSyncStatus: AccountSyncStatus;
   accountSyncLastAt: string | null;
   accountSyncMessage: string | null;
@@ -164,6 +165,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     vaultKey: CryptoKey,
     hadLocalState: boolean,
     isStillCurrent?: () => boolean,
+    allowFreshSetup = false,
   ): Promise<AppState> => {
     // Einen wirklich neuen Tresor nicht vorschnell durch die Legacy-/Klassenmigration
     // schicken: Der bestehende First-Run muss weiterhin mit leerer Klasse starten.
@@ -192,6 +194,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (isStillCurrent && !isStillCurrent()) return currentAppRef.current;
 
       if (!remote) {
+        // An existing vault whose former account snapshot is unavailable must
+        // never silently recreate and upload a new empty account after logout.
+        // Only the explicitly confirmed first-run vault setup may initialize
+        // a genuinely new account with no class yet.
+        const previousReceipt = loadAccountSyncMetadata(vaultRecord.id);
+        if (previousReceipt?.revision || (!hadLocalState && !allowFreshSetup)
+          || (!hasEstablishedClassroom(current) && !allowFreshSetup)) {
+          throw Object.assign(new Error(
+            'Der bisherige verschlüsselte Konto-Datenstand ist nicht erreichbar. Zur Sicherheit wurde kein leerer Ersatzstand erzeugt oder hochgeladen. Bitte denselben E-Mail-Zugang prüfen und einen vorhandenen Datenstand bzw. ein Backup sichern.'
+          ), { code: 'EMPTY_STATE_BLOCKED' });
+        }
         const created = await pushAccountSyncSnapshot(current, vaultKey, vaultRecord, 0);
         markAccountSynced(created, current);
         return current;
@@ -214,6 +227,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // anschließend im UI hält. Sonst kann ein frisch wiederhergestelltes Gerät allein
       // durch die lokale Klassen-Normalisierung eine unnötige neue Serverrevision erzeugen.
       const remoteState = syncActiveClass(mergeAccountSyncState(normalizedRemoteState, current));
+      // A fabricated "4. Klasse Meine Klasse" with no pupils or lessons is
+      // not a successfully restored existing account. Refuse to open an empty
+      // replacement even when a previous buggy client uploaded that placeholder.
+      if (!allowFreshSetup && !hasEstablishedClassroom(current) && !hasEstablishedClassroom(remoteState)) {
+        throw Object.assign(new Error(
+          'Der vorhandene Tresor enthält derzeit weder lokal noch im E-Mail-Konto eine wiederherstellbare Klasse. KLASSIO zeigt deshalb keine erfundene leere Klasse an und speichert nichts darüber. Bitte Backup oder Konto-Zuordnung prüfen.'
+        ), { code: 'EMPTY_STATE_BLOCKED' });
+      }
+      if (hasEstablishedClassroom(current) && !hasEstablishedClassroom(remoteState)) {
+        accountSyncReadyRef.current = false;
+        setAccountSyncHealthy(false);
+        setAccountSyncMessage('Der Server liefert einen leeren oder unvollständigen Klassenstand. Deine lokalen Daten bleiben erhalten und werden nicht automatisch ersetzt. Bitte zuerst ein verschlüsseltes Backup erstellen.');
+        setAccountSyncConflictResolvable(false);
+        setAccountSyncStatus('conflict');
+        return current;
+      }
       const localFingerprint = appStateFingerprint(current);
       const remoteFingerprint = appStateFingerprint(remoteState);
       const baseline = loadAccountSyncMetadata(vaultRecord.id);
@@ -282,6 +311,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return current;
     } catch (error: any) {
       accountSyncReadyRef.current = false;
+      if (error?.code === 'EMPTY_STATE_BLOCKED') {
+        setAccountSyncHealthy(false);
+        setAccountSyncMessage(error.message);
+        setAccountSyncStatus('error');
+        throw error;
+      }
       if (error?.status === 401 || error?.status === 403) {
         setAccountSyncHealthy(false);
         setAccountSyncMessage('Die E-Mail-Anmeldung ist nicht mehr aktiv. Melde dich erneut an, damit der verschlüsselte Konto-Abgleich weiterläuft.');
@@ -1207,17 +1242,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const unlockAppVault = React.useCallback(async (key: CryptoKey): Promise<boolean> => {
+  const unlockAppVault = React.useCallback(async (key: CryptoKey, allowFreshSetup = false): Promise<boolean> => {
     try {
       const decrypted = await loadEncryptedAppState(key);
       const reconciled = await reconcileAccountState(
         decrypted ? normalizeAppState(decrypted) : null,
         key,
         Boolean(decrypted),
+        undefined,
+        allowFreshSetup,
       );
       setApp(reconciled);
       setIsVaultUnlocked(true);
-      if (!decrypted) {
+      if (!decrypted && allowFreshSetup) {
         await saveEncryptedAppState(reconciled, key);
       }
       return true;
