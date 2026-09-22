@@ -494,6 +494,11 @@ async function main() {
     await clientReloadForLogout(home);
     await waitFor(home, 'home browser shows login after sign-out',
       'Boolean(document.querySelector("input[type=email]"))', 30000);
+    // Both Chrome profiles request a code for the SAME email. The server
+    // enforces a 60-second global email cooldown; the school-profile request
+    // happened shortly before this logout. Wait rather than misclassifying
+    // the intentional 429 throttle as a classroom recovery failure.
+    await sleep(65_000);
     await fs.rm(SMTP_CODES, { force: true }).catch(() => {});
     await setInputByLabel(home, 'E-Mail', SYNC_EMAIL);
     await clickButton(home, 'Anmeldecode senden');
