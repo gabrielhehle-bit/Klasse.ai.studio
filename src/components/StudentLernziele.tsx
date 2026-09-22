@@ -56,6 +56,11 @@ export default function StudentLernziele({
   const [showOnlyRated, setShowOnlyRated] = useState(false);
   const [activeSubjectTab, setActiveSubjectTab] = useState<string>('Alle');
   const [collapsedAreas, setCollapsedAreas] = useState<Record<string, boolean>>({});
+  const [manualGoalId, setManualGoalId] = useState<string | null>(null);
+  const [manualSubject, setManualSubject] = useState('Deutsch');
+  const [manualArea, setManualArea] = useState('Allgemein');
+  const [manualText, setManualText] = useState('');
+  const [manualError, setManualError] = useState('');
 
   useEffect(() => {
     if (semester) setSelectedSemester(semester);
@@ -68,7 +73,10 @@ export default function StudentLernziele({
   }, [initialSubject]);
 
   const currentLernziele = LERNZIELE_BY_STUFE[selectedStufe] || LERNZIELE_BY_STUFE[1];
-  const FAECHER = useMemo(() => Object.keys(currentLernziele), [currentLernziele]);
+  const FAECHER = useMemo(() => Array.from(new Set([
+    ...Object.keys(currentLernziele),
+    ...(student?.manuelleLernziele || []).filter(goal => goal.stufe === selectedStufe).map(goal => goal.fach),
+  ])), [currentLernziele, student?.manuelleLernziele, selectedStufe]);
 
   // Load evaluations
   useEffect(() => {
@@ -143,6 +151,9 @@ export default function StudentLernziele({
     setSelectedStufe(Math.max(1, Math.min(4, Number(app.stufe) || initialClassLevel)));
     setSearchTerm('');
     setShowOnlyRated(false);
+    setManualGoalId(null);
+    setManualText('');
+    setManualError('');
   }, [schuelerId]);
 
   // Parse all goals into structured model: Fach -> Kompetenzbereich -> Lernziel
@@ -163,8 +174,70 @@ export default function StudentLernziele({
         });
       });
     });
+    (student?.manuelleLernziele || []).filter(goal => goal.stufe === selectedStufe).forEach(goal => {
+      if (list.some(existing => existing.id === goal.id)) return;
+      list.push({
+        id: goal.id,
+        rawText: `${goal.kompetenzbereich}: ${goal.text}`,
+        kompetenzbereich: goal.kompetenzbereich || 'Allgemein',
+        zielText: goal.text,
+        fach: goal.fach,
+      });
+    });
     return list;
-  }, [FAECHER, currentLernziele]);
+  }, [FAECHER, currentLernziele, student?.manuelleLernziele, selectedStufe]);
+
+  // Manually authored goals live exclusively in the encrypted student record.
+  // Editing preserves a goal's ID and therefore all existing ratings.
+  const saveManualGoal = (event: React.FormEvent) => {
+    event.preventDefault();
+    const fach = manualSubject.trim();
+    const text = manualText.trim();
+    const kompetenzbereich = manualArea.trim() || 'Allgemein';
+    if (!fach || !text) {
+      setManualError('Bitte Fach und Lernziel eingeben.');
+      return;
+    }
+    const updatedAt = new Date().toISOString();
+    setApp(previous => ({
+      ...previous,
+      schueler: previous.schueler.map(pupil => {
+        if (pupil.id !== schuelerId) return pupil;
+        const current = pupil.manuelleLernziele || [];
+        const existing = manualGoalId ? current.find(goal => goal.id === manualGoalId) : undefined;
+        const goal = {
+          id: existing?.id || `custom-goal-${crypto.randomUUID()}`,
+          fach,
+          kompetenzbereich,
+          text,
+          stufe: existing?.stufe || selectedStufe,
+          createdAt: existing?.createdAt || updatedAt,
+          updatedAt,
+        };
+        return {
+          ...pupil,
+          manuelleLernziele: existing
+            ? current.map(item => item.id === existing.id ? goal : item)
+            : [...current, goal],
+        };
+      }),
+    }));
+    setManualGoalId(null);
+    setManualText('');
+    setManualError('');
+    setActiveSubjectTab(fach);
+  };
+
+  const editManualGoal = (goalId: string) => {
+    const goal = student?.manuelleLernziele?.find(item => item.id === goalId);
+    if (!goal) return;
+    setManualGoalId(goal.id);
+    setManualSubject(goal.fach);
+    setManualArea(goal.kompetenzbereich);
+    setManualText(goal.text);
+    setManualError('');
+    document.getElementById('klassio-manual-goal-form')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  };
 
   // Save handler (Datenschutz B6/B8: Ausschließlich im verschlüsselten AppState speichern, kein Klartext-localStorage)
   const handleSave = () => {
@@ -357,6 +430,42 @@ export default function StudentLernziele({
           <LernzielVisualisierung goalIds={allParsedGoals.map(goal => goal.id)} ratings={evaluationData} model={goalModel} mode={goalModel.views.teachers} title="Für Lehrpersonen" />
         </div>
       </details>
+
+      <form id="klassio-manual-goal-form" onSubmit={saveManualGoal}
+        className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-4 print:hidden">
+        <h4 className="text-sm font-black text-indigo-900">
+          {manualGoalId ? 'Eigenes Lernziel bearbeiten' : 'Eigenes Lernziel hinzufügen'}
+        </h4>
+        <p className="mt-1 text-xs text-slate-600">Individuelles Lernziel für dieses Kind, ohne vorgegebene Lehrplanziele zu ändern.</p>
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <label className="text-xs font-bold text-slate-700">Fach
+            <input required aria-label="Fach des eigenen Lernziels" list="klassio-manual-goal-subjects"
+              value={manualSubject} onChange={event => setManualSubject(event.target.value)}
+              className="mt-1 min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm" />
+            <datalist id="klassio-manual-goal-subjects">{FAECHER.map(fach => <option key={fach} value={fach} />)}</datalist>
+          </label>
+          <label className="text-xs font-bold text-slate-700">Bereich
+            <input aria-label="Bereich des eigenen Lernziels" value={manualArea}
+              onChange={event => setManualArea(event.target.value)}
+              placeholder="z. B. Lesen oder Schreiben"
+              className="mt-1 min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm" />
+          </label>
+        </div>
+        <label className="mt-2 block text-xs font-bold text-slate-700">Lernziel
+          <textarea required aria-label="Eigenes Lernziel" value={manualText}
+            onChange={event => setManualText(event.target.value)} rows={2}
+            placeholder="Was soll dieses Kind lernen oder erreichen?"
+            className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-3 text-sm" />
+        </label>
+        {manualError && <p role="alert" className="mt-2 text-xs text-rose-700">{manualError}</p>}
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="submit" className="min-h-11 rounded-lg bg-indigo-700 px-4 text-sm font-bold text-white">
+            {manualGoalId ? 'Änderungen speichern' : 'Lernziel hinzufügen'}
+          </button>
+          {manualGoalId && <button type="button" onClick={() => { setManualGoalId(null); setManualText(''); setManualError(''); }}
+            className="min-h-11 rounded-lg border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700">Abbrechen</button>}
+        </div>
+      </form>
 
       {/* Requirement 10: Lernziel-Fokus (Kompakte Zusammenfassung ganz zu Beginn) */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 print:hidden">
@@ -657,8 +766,14 @@ export default function StudentLernziele({
                                 key={goal.id}
                                 className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition"
                               >
-                                <div className="text-xs font-medium text-slate-800 leading-relaxed pr-2">
+                                <div className="min-w-0 text-xs font-medium text-slate-800 leading-relaxed pr-2">
                                   {goal.zielText}
+                                  {student?.manuelleLernziele?.some(item => item.id === goal.id) && (
+                                    <button type="button" onClick={() => editManualGoal(goal.id)}
+                                      className="mt-2 block rounded-md border border-indigo-200 bg-white px-2 py-1 text-xs font-bold text-indigo-700">
+                                      Eigenes Lernziel bearbeiten
+                                    </button>
+                                  )}
                                 </div>
 
                                 {/* Status Switcher (Requirement 9: keine Schulnoten erzeugen!) */}
