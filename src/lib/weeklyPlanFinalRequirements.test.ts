@@ -35,17 +35,12 @@ test('Wochenplanung: aktuelle Stunde und Schnellplanung verwenden konfigurierte 
   assert.doesNotMatch(weekly, /VM_ZEITEN/);
 });
 
-test('Wochenplanung Excel: Vorlage hat zehn Slots und Import erfindet weder Tag noch Stunde', () => {
+test('Wochenplanung Excel: Vorlage behält zehn Slots, unsicherer Workbook-Import bleibt gesperrt', () => {
   assert.match(excel, /stunde <= MAX_LESSON_SLOTS/);
   assert.match(excel, /configuredLessonTime\(app\.stundenZeiten, STUNDEN_INFO, stunde\)/);
-  assert.match(excel, /if \(!dayKey \|\| !stundeKey\)/);
-  assert.match(excel, /parsedStunde > MAX_LESSON_SLOTS/);
-  assert.match(excel, /let currentDayFallback: string \| null = null/);
-  assert.match(excel, /const finalDay = normalizedDay \|\| \(!rawDayText \? currentDayFallback : null\)/);
-  assert.match(excel, /uhrzeit: uhrzeitVal,/);
-  assert.doesNotMatch(excel, /currentDayFallback = 'Montag'/);
-  assert.doesNotMatch(excel, /let stundeNum = 1/);
-  assert.doesNotMatch(excel, /parsed <= 12/);
+  assert.match(excel, /parseWochenplanExcel\(_file: File\)/);
+  assert.match(excel, /Excel-Import ist vorübergehend aus Sicherheitsgründen deaktiviert/);
+  assert.doesNotMatch(excel, /XLSX\.read|sheet_to_json/);
 });
 
 test('Schüler-Wochenplan: Stunde 9 und 10 werden als Aufgaben übernommen', () => {
