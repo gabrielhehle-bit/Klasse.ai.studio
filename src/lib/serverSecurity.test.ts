@@ -195,6 +195,20 @@ test('E3: Produktionshärtung von server.ts', async (t) => {
   });
 
 
+  await t.test('External AI defaults to off', async () => {
+    const status = await authenticatedFetch(baseUrl + '/api/ai/status');
+    const meta = await status.json();
+    assert.equal(meta.available, false);
+    assert.equal(meta.privacyRestricted, true);
+    const response = await authenticatedFetch(baseUrl + '/api/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'askAI', params: { modusId: 'ki-helfer', userMessage: 'Test request' } }),
+    });
+    assert.equal(response.status, 503);
+    assert.equal((await response.json()).code, 'AI_EXTERNAL_DISABLED');
+  });
+
   await t.test('Student assessment imports never forward PDFs or names to Gemini', async () => {
     for (const route of ['/api/ai/analyze-ikm', '/api/ai/analyze-antolin']) {
       const response = await authenticatedFetch(baseUrl + route, {
