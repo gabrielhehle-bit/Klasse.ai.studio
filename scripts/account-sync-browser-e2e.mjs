@@ -399,6 +399,14 @@ async function main() {
   try {
     const loginStarted = Date.now();
     await loginWithMail(home, SYNC_EMAIL, TEACHER_VAULT);
+    // Keep only an encrypted SYNTHETIC empty first-run snapshot to recreate
+    // the real-world bug of an old mobile browser holding a blank local state.
+    // No real teacher or student data enters this browser test.
+    const earlyEmptySnapshot = await evaluate(home,
+      'fetch("/api/account-sync",{cache:"no-store"}).then(r=>r.json()).then(j=>j.snapshot && ({revision:j.snapshot.revision, encryptedState:j.snapshot.encryptedState}))');
+    if (!earlyEmptySnapshot?.encryptedState?.ciphertext) {
+      throw new Error('Initial encrypted empty snapshot was not yet available for mobile stale-cache regression.');
+    }
     await createClassInUi(home, 'Sync Testklasse A');
     await openAppPage(home, 'wochenplanung');
     await waitFor(home, 'editable weekly plan grid',
@@ -494,6 +502,27 @@ async function main() {
     await clientReloadForLogout(home);
     await waitFor(home, 'home browser shows login after sign-out',
       'Boolean(document.querySelector("input[type=email]"))', 30000);
+    // Simulate the already-logged-out normal mobile browser: an older,
+    // *validly encrypted* blank state under the SAME vault, while its account
+    // now has the complete planning class. The previous complete local backup
+    // and server data are never touched by this synthetic fixture.
+    const staleEncryptedLocal = JSON.stringify({
+      format: 'LehrerAPP_Encrypted_Local_State', version: 1,
+      savedAt: Date.now(), encryptedState: earlyEmptySnapshot.encryptedState,
+    });
+    const injected = await evaluate(home,
+      'new Promise((resolve,reject)=>{const open=indexedDB.open("LehrerApp");' +
+      'open.onerror=()=>reject(open.error);open.onsuccess=()=>{' +
+      'const db=open.result;if(!db.objectStoreNames.contains("app_state")){' +
+      'db.close();reject(new Error("Missing Klassio localforage store"));return;}' +
+      'const tx=db.transaction("app_state","readwrite");' +
+      'tx.objectStore("app_state").put(' + q(staleEncryptedLocal) + ',"hehle_v3");' +
+      'tx.oncomplete=()=>{db.close();resolve(true);};' +
+      'tx.onerror=()=>{db.close();reject(tx.error);};' +
+      'tx.onabort=()=>{db.close();reject(tx.error);};' +
+      '};})');
+    if (!injected) throw new Error('Stale mobile encrypted browser snapshot could not be seeded.');
+    console.log('✓ Synthetic mobile fixture: logged-out browser holds a validly encrypted old empty snapshot.');
     // Both Chrome profiles request a code for the SAME email. The server
     // enforces a 60-second global email cooldown; the school-profile request
     // happened shortly before this logout. Wait rather than misclassifying
@@ -512,6 +541,7 @@ async function main() {
     await clickButton(home, 'Tresor entsperren');
     await waitFor(home, 'real class restored after logout and later login',
       'document.body?.innerText.includes("Sync Testklasse A")', 45000);
+    console.log('✓ Stale mobile placeholder was replaced by the verified original encrypted cloud classroom.');
     await openWeeklyAndCheck(home, TOPIC_SCHOOL);
     await checkClassNote(home, NOTE_SCHOOL);
     console.log('✓ Real Chrome: the original planning class and notes survived account logout and a fresh login.');
