@@ -88,9 +88,26 @@ export default function VaultGate({ children }: VaultGateProps) {
         const activeKey = getActiveVaultKey();
         if (activeKey) {
           if (!isVaultUnlocked) {
-            await unlockAppVault(activeKey);
+            const loaded = await unlockAppVault(activeKey);
+            if (!loaded) {
+              // A valid RAM key is NOT proof that the encrypted local/cloud
+              // state was loaded. Never show an empty initialAppState as if the
+              // teacher's actual planning disappeared.
+              if (isMounted) {
+                setErrorMessage(
+                  'Dein verschlüsselter Datenstand konnte nicht geladen werden. ' +
+                  'Zur Sicherheit zeigt KLASSIO keinen leeren Ersatzstand an und richtet nichts neu ein. ' +
+                  'Bitte Internetverbindung und E-Mail-Anmeldung prüfen und erneut versuchen.'
+                );
+                setGateState('checking');
+              }
+              return;
+            }
           }
-          if (isMounted) setGateState('unlocked');
+          if (isMounted) {
+            setErrorMessage(null);
+            setGateState('unlocked');
+          }
           return;
         }
 
@@ -246,7 +263,10 @@ export default function VaultGate({ children }: VaultGateProps) {
       }
 
       // 4. AppState im React-Kontext entsperren und laden
-      await unlockAppVault(activeVaultKey);
+      const loaded = await unlockAppVault(activeVaultKey);
+      if (!loaded) {
+        throw new Error('Der Datentresor wurde eingerichtet, aber die vorhandenen Daten konnten nicht geladen werden. Bitte nicht neu einrichten; Verbindung prüfen und erneut versuchen.');
+      }
       setGateState('unlocked');
       showToast('Datentresor erfolgreich eingerichtet! 🔐', 'success');
     } catch (err: any) {
