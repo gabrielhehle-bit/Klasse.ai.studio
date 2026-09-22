@@ -321,8 +321,7 @@ export default function BackupSettings({
             </p>
           </div>
 
-          {(
-            <button
+          <button
               type="button"
               role="switch"
               aria-checked={!app.settings?.disableBackupReminders}
@@ -336,7 +335,6 @@ export default function BackupSettings({
                 !app.settings?.disableBackupReminders ? 'translate-x-6' : 'translate-x-0'
               }`} />
             </button>
-          )}
         </div>
       </div>
 
