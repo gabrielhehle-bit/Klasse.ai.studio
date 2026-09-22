@@ -23,6 +23,46 @@ nicht abgeschlossen ist. Vor dem ersten aktivierten Deploy prüfen, welcher
 Commit tatsächlich auf dem Server läuft und dass das neue `main` mit
 vorhandenen verschlüsselten Daten/Backups kompatibel ist.
 
+## Pflichtprüfung vor Freigabe der verschlüsselten Konto-Versionsgeschichte
+
+Der Server archiviert ab PR #283 vor jedem verschlüsselten Konto-Upload die
+vorige Version unter `KLASSIO_DATA_DIR/account-sync/history/<account-id>/`.
+Die Versionsgeschichte bietet **keine** Wiederherstellung älterer Datenstände,
+die bereits vor der Aktivierung verloren gingen. Der Klartext bleibt auf dem
+Endgerät und wird zur Historisierung niemals zum Server übertragen.
+
+**PR #283 nicht auf main mergen, bevor diese Prüfung am produktiven Host
+erfolgreich war.** Die automatischen GitHub-Browsertests können die tatsächlichen
+World4You-Speicherpfade und Berechtigungen nicht überprüfen. Das bereits
+installierte Release-Skript und die reale Serverkonfiguration sind nicht Teil
+des GitHub-Repositories.
+
+Als Serveradministrator auf dem echten World4You-Host die auf dem Branch
+geprüfte Datei `ops/klassio-storage-preflight.sh` bereitstellen und ausführen:
+
+```bash
+sudo bash /root/klassio-deploy/gh-setup/klassio-storage-preflight.sh
+```
+
+Die Prüfung gibt ausschließlich PASS/FAIL ohne Schülerdaten, Kennwörter,
+E-Mail-Adressen oder absolute Datenpfade aus. Sie kontrolliert eine **absolute,
+release-unabhängige** `KLASSIO_DATA_DIR`-Konfiguration, vorhandenen
+Service-Benutzer, dessen Probe-Schreib-/Lesezugriff mit atomarer Umbenennung,
+ein nichtflüchtiges Dateisystem und mindestens 2 GiB freie Kapazität.
+Ein isoliertes Probe-Verzeichnis wird wieder gelöscht; existierende
+Klassen- oder Kontodatensätze werden weder gelesen noch verändert.
+
+Bei FAIL zuerst die Produktionskonfiguration nach einer unabhängigen
+verschlüsselten Sicherung fachgerecht korrigieren und dieselbe Prüfung
+wiederholen. **Nicht** aus dem Web-UI eine Klasse neu anlegen, das lokale
+Profil zurücksetzen oder Daten löschen. Eine gemeldete PASS-Ausgabe
+ersetzt weder ein externes, unabhängig gespeichertes Server-Backup
+noch einen tatsächlich getesteten Restore nach Serverausfall.
+
+Die Sicherungsdateien im persönlichen E-Mail-Konto sind weiterhin eine
+zusätzliche Rückfallebene, bis Backup und Restore auch unabhängig vom
+World4You-Host praktisch nachgewiesen sind.
+
 ## Einmalige Server-Einrichtung
 
 Keinen bestehenden Root-SSH-Schlüssel in GitHub hinterlegen. Stattdessen einen
