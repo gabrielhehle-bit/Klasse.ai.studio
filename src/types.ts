@@ -424,6 +424,16 @@ export interface Student {
   stammdatenAktualisiertAm?: string;
   ikmNummer?: number; // Customizable number for matching IKM Plus records
   foerderprofil?: Foerderprofil;
+  /** Individuell erstellte Lernziele des Kindes; IDs bleiben bei Textänderungen stabil. */
+  manuelleLernziele?: {
+    id: string;
+    fach: string;
+    kompetenzbereich: string;
+    text: string;
+    stufe: number;
+    createdAt: string;
+    updatedAt: string;
+  }[];
   foto?: string;
   emoji?: string;
   badges?: { id: string, name: string, date: string, icon: string }[];
