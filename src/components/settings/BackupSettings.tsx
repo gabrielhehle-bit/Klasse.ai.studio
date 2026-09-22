@@ -12,7 +12,12 @@ import {
 import { triggerBackupDownload } from '../../utils/backupUtils';
 import { getActiveVaultKey, loadVaultRecord } from '../../lib/vaultStorage';
 import { prepareBackupRestore, parseBackupText } from '../../lib/backupRestore';
-import { loadPreImportBackup } from '../../lib/secureStorageService';
+import {
+  loadPreImportBackup,
+  inspectLocalRecoveryPoints,
+  getEncryptedLocalRecoveryPoint,
+  type LocalRecoveryPoint,
+} from '../../lib/secureStorageService';
 import { useApp } from '../../context/AppContext';
 
 interface BackupSettingsProps {
@@ -37,6 +42,48 @@ export default function BackupSettings({
 
   const { restoreAppData, accountSyncStatus, accountSyncLastAt } = useApp();
   const accountSyncHealthy = accountSyncStatus === 'synced';
+  const [localRecoveryPoints, setLocalRecoveryPoints] = React.useState<LocalRecoveryPoint[] | null>(null);
+  const [localRecoveryBusy, setLocalRecoveryBusy] = React.useState(false);
+
+  const inspectLocalSnapshots = async () => {
+    setLocalRecoveryBusy(true);
+    try {
+      const key = getActiveVaultKey();
+      if (!key) throw new Error('Bitte den Tresor zuerst entsperren.');
+      setLocalRecoveryPoints(await inspectLocalRecoveryPoints(key));
+    } catch (error: any) {
+      showToast(error?.message || 'Lokale Sicherungen konnten nicht geprüft werden.', 'error');
+    } finally {
+      setLocalRecoveryBusy(false);
+    }
+  };
+
+  const downloadLocalSnapshot = async (point: LocalRecoveryPoint) => {
+    setLocalRecoveryBusy(true);
+    try {
+      const key = getActiveVaultKey();
+      if (!key) throw new Error('Bitte den Tresor zuerst entsperren.');
+      const record = await getEncryptedLocalRecoveryPoint(key, point.source, point.savedAt);
+      const url = URL.createObjectURL(new Blob([JSON.stringify(record)], { type: 'application/json' }));
+      try {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'klassio-lokale-rettung-' + point.source + '-' + point.savedAt + '.json';
+        document.body.append(link);
+        link.click();
+        link.remove();
+      } finally {
+        window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      }
+      showToast('Verschlüsselte lokale Sicherung zum Herunterladen bereitgestellt. Der aktive Datenstand wurde nicht verändert.', 'success');
+    } catch (error: any) {
+      showToast(error?.message || 'Lokale Sicherung konnte nicht heruntergeladen werden.', 'error');
+      await inspectLocalSnapshots();
+    } finally {
+      setLocalRecoveryBusy(false);
+    }
+  };
+
   const [history, setHistory] = React.useState<Array<{ revision: number; updatedAt: string }>>([]);
   const [historyLoading, setHistoryLoading] = React.useState(false);
   const [historyError, setHistoryError] = React.useState<string | null>(null);
@@ -256,6 +303,59 @@ export default function BackupSettings({
             </button>
           </div>
         )}
+      </div>
+
+      {/* Read-only inventory: only scan when explicitly requested in the unlocked
+          browser. Never send decrypted class details or metadata to the server. */}
+      <div className="bg-white rounded-[2.5rem] border border-stone-200/80 p-6 md:p-8 space-y-4 shadow-sm">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="text-base font-black text-slate-900">Lokale Wiederherstellungspunkte prüfen</h2>
+            <p className="text-xs text-slate-600 font-medium mt-1 max-w-2xl">
+              Prüfe auf diesem Gerät vorhandene verschlüsselte Speicherstände, auch die
+              tägliche Notfallkopie und den Stand vor einem Import. Die Prüfung verändert
+              keine Daten und lädt keine Schülerdaten zum Server hoch.
+            </p>
+          </div>
+          <button type="button" onClick={() => void inspectLocalSnapshots()} disabled={localRecoveryBusy}
+            className="px-4 py-2 rounded-xl border border-stone-300 text-xs font-bold disabled:opacity-50">
+            {localRecoveryBusy ? 'Prüfe …' : 'Lokale Sicherungen prüfen'}
+          </button>
+        </div>
+        {localRecoveryPoints !== null && localRecoveryPoints.length === 0 && (
+          <p className="text-xs text-slate-600">Auf diesem Gerät wurden keine lokalen Wiederherstellungspunkte gefunden.</p>
+        )}
+        {localRecoveryPoints !== null && localRecoveryPoints.length > 0 && (
+          <div className="max-h-72 overflow-y-auto space-y-2">
+            {localRecoveryPoints.map(point => (
+              <div key={point.source} className="flex items-center justify-between flex-wrap gap-3 rounded-xl border border-stone-200 px-4 py-3">
+                <div className="text-xs text-slate-700">
+                  <strong>{point.title}</strong>
+                  {point.readable ? (
+                    <span className="block text-slate-500">
+                      {new Date(point.savedAt).toLocaleString('de-AT')} · {point.classes} Klassen · {point.students} Kinder
+                    </span>
+                  ) : (
+                    <span className="block text-amber-800">Mit diesem Tresor nicht lesbar oder beschädigt. Nicht löschen.</span>
+                  )}
+                </div>
+                {point.readable && (
+                  <button type="button" onClick={() => void downloadLocalSnapshot(point)}
+                    disabled={localRecoveryBusy}
+                    className="px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold disabled:opacity-50">
+                    Verschlüsselt herunterladen
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="text-xs text-amber-800 font-medium">
+          Das Herunterladen ändert keinen Datenstand. Zum Wiederherstellen zuerst den
+          aktuellen Stand separat sichern, dann die gewählte Datei bewusst über
+          „Sicherung einlesen“ importieren. Diese lokalen Dateien benötigen weiterhin
+          den ursprünglichen Datentresor und ersetzen kein vollständiges Gerätewechsel-Backup.
+        </p>
       </div>
 
       {/* Server retains older encrypted revisions separately from the live sync slot.
