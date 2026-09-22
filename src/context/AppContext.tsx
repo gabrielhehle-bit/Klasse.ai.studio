@@ -193,7 +193,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // An access-code login is not an authenticated e-mail account. If the
         // browser lost its local state, NEVER open a fabricated empty class
         // while the teacher's encrypted original may still exist in e-mail sync.
-        if (!hadLocalState && !allowFreshSetup) {
+        if (!allowFreshSetup && (!hadLocalState || !hasEstablishedClassroom(current))) {
           throw Object.assign(new Error(
             'Auf diesem Gerät wurde kein bisheriger Klassenstand gefunden und die E-Mail-Synchronisierung ist nicht angemeldet. Bitte mit derselben E-Mail-Adresse wie zuvor anmelden; keinen neuen Tresor oder Klasse erstellen.'
           ), { code: 'EMPTY_STATE_BLOCKED' });
