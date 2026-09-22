@@ -91,11 +91,12 @@ import DenkzettelWidget from './components/DenkzettelWidget';
 import { hasCompletedInitialSetup } from './lib/firstRunFlow';
 import PrivacyLock from './components/PrivacyLock';
 import MobileHome from './components/MobileHome';
+import MobileWorkspace, { type MobileDestination } from './components/MobileWorkspace';
 const Cockpit = lazyRetry(() => import('./components/Cockpit'));
 import PrintHeader from './components/PrintHeader';
 import AccessGate from './components/AccessGate';
 import { AnimatePresence, motion } from 'motion/react';
-import { X, Mic, Sparkles, HelpCircle, Loader2, House } from 'lucide-react';
+import { X, Mic, Sparkles, HelpCircle, Loader2 } from 'lucide-react';
 import { getKW, getTodayName, getAccentTextColor } from './lib/utils';
 import { istSekundarstufe, sek1Seite } from './lib/sek1Navigation';
 const DiagnostikAnleitung = lazyRetry(() => import('./components/DiagnostikAnleitung'));
@@ -631,17 +632,6 @@ function AppContent() {
     );
   }
 
-  if (mobileDevice && mobileHomeVisible) {
-    return (
-      <MobileHome
-        onNavigate={(destination) => {
-          setPage(destination);
-          setMobileHomeVisible(false);
-        }}
-      />
-    );
-  }
-
   const renderPage = () => {
     switch (currentPage) {
       case 'cockpit': return null;
@@ -733,6 +723,45 @@ function AppContent() {
     }
   };
 
+  if (mobileDevice) {
+    const mobilePages: MobileDestination[] = ['dashboard', 'schueler', 'anwesenheit', 'verhalten', 'wochenplanung'];
+    const navigateMobile = (destination: MobileDestination) => {
+      setPage(destination);
+      setMobileHomeVisible(false);
+    };
+    const activeRoom = app.classes?.find(room => room.id === app.activeClassId);
+    const classLabel = activeRoom?.name || app.klassenbezeichnung || 'Meine Klasse';
+    if (mobileHomeVisible || !mobilePages.some(destination => destination === currentPage)) {
+      return (
+        <MobileHome
+          onNavigate={navigateMobile}
+        />
+      );
+    }
+    return (
+      <>
+        <MobileWorkspace
+          page={currentPage as MobileDestination}
+          classLabel={classLabel}
+          onHome={() => setMobileHomeVisible(true)}
+          onNavigate={navigateMobile}
+        >
+          <ErrorBoundary>
+            <React.Suspense fallback={
+              <div className="flex min-h-40 items-center justify-center gap-3 text-sm text-violet-700">
+                <Loader2 size={20} className="animate-spin" /> Wird geladen…
+              </div>
+            }>
+              {renderPage()}
+            </React.Suspense>
+          </ErrorBoundary>
+        </MobileWorkspace>
+        <PrivacyLock />
+        <DataConsistencyModal isOpen={showConsistencyModal} onClose={() => setShowConsistencyModal(false)} />
+      </>
+    );
+  }
+
   const getPageTitle = () => {
     switch (currentPage) {
       case 'dashboard': return 'Heute';
@@ -821,16 +850,6 @@ function AppContent() {
             className="print:hidden relative z-[60]"
             actions={
               <div className="flex items-center gap-2">
-                {mobileDevice && (
-                  <button
-                    type="button"
-                    onClick={() => setMobileHomeVisible(true)}
-                    aria-label="Zur KLASSIO-Mobile-Startseite"
-                    className="flex min-h-10 items-center gap-1 rounded-xl border border-teal-200 bg-teal-50 px-3 text-sm font-bold text-teal-800"
-                  >
-                    <House size={17} /> <span>Mobile</span>
-                  </button>
-                )}
                 {currentPage === 'diagnostik' && (
                   <button 
                     onClick={() => setShowDiagnostikAnleitung(true)}
