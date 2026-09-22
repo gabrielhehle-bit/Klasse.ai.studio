@@ -40,7 +40,7 @@ test('An existing vault may not silently bootstrap a missing account as empty or
   const context = readFileSync('src/context/AppContext.tsx', 'utf8');
   const gate = readFileSync('src/components/VaultGate.tsx', 'utf8');
   const storage = readFileSync('src/lib/secureStorageService.ts', 'utf8');
-  assert.match(context, /if \(!hadLocalState && !allowFreshSetup\)/);
+  assert.match(context, /!hadLocalState \|\| !hasEstablishedClassroom\(current\)/);
   assert.match(context, /previousReceipt\?\.revision/);
   assert.match(context, /hasEstablishedClassroom\(remoteState\)/);
   assert.match(context, /setIsAppHydrated\(true\)/);
