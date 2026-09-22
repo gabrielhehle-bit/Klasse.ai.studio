@@ -16,7 +16,10 @@ import {
   importSessionKey,
   cleanSyncUrlFromHistory,
   getActiveSessionKey,
+  getActiveSyncWriteToken,
+  deriveSyncWriteToken,
   setActiveSessionKey,
+  setActiveSyncWriteToken,
   clearActiveSessionKey,
 } from '../lib/syncService';
 import {
@@ -875,12 +878,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const query = new URLSearchParams(window.location.search);
       const gabicRole = query.get('gabicRole'); // either 'child' or 'teacher' or null
 
-      // Fallback auf Query-Parameter (falls alte Verlinkung)
-      if (!code) {
-        code = query.get('sync')?.trim().toUpperCase() || undefined;
-        keyStr = query.get('key')?.trim() || undefined;
-      }
-
+      // SECURITY: Session-Code und Schlüssel werden ausschließlich aus dem URL-Fragment akzeptiert.
+      // Query-Parameter würden an Server/Reverse-Proxy übertragen und könnten in Logs landen.
       if (code) {
         if (!keyStr) {
           console.warn("[Sync Startup] Session-Key fehlt! Zero-Knowledge-Sync kann ohne Schlüssel im URL-Fragment nicht entschlüsselt werden.");
@@ -890,8 +889,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         try {
           console.log("[Sync Startup] Zero-Knowledge Verbindung wird aufgebaut für Code:", code);
           const sessionKey = await importSessionKey(keyStr);
+          const writeToken = await deriveSyncWriteToken(keyStr);
           activeSessionKeyRef.current = sessionKey;
           setActiveSessionKey(sessionKey, keyStr);
+          setActiveSyncWriteToken(writeToken);
 
           const res = await fetch(`/api/sync/${code}`);
           if (!res.ok) throw new Error("Sync status error: " + res.status);
@@ -1067,7 +1068,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     const sessionKey = activeSessionKeyRef.current || getActiveSessionKey();
-    if (!sessionKey) return;
+    const writeToken = getActiveSyncWriteToken();
+    if (!sessionKey || !writeToken) return;
 
     // Mark as pending push to lock the pulling effect while we push
     isPendingPushRef.current = true;
@@ -1078,7 +1080,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const res = await fetch(`/api/sync/${activeSyncCode}`, {
           method: 'PUT',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-Klassio-Sync-Write': writeToken,
           },
           body: JSON.stringify({ encryptedPayload })
         });
