@@ -306,6 +306,22 @@ async function clickFirstSchedulableWeeklyCell(client) {
 }
 
 
+async function openAppPage(client, pageId) {
+  const selector = 'nav button[data-menu-id="' + pageId + '"]';
+  if (!await evaluate(client, 'Boolean(document.querySelector(' + q(selector) + '))')) {
+    const expanded = await evaluate(client,
+      '(() => {const b=document.querySelector("nav button[title=\\\"Alle Bereiche anzeigen\\\"]");if(!b)return false;b.click();return true;})()');
+    if (!expanded) throw new Error(client.name + ': missing sidebar entry ' + pageId + ' and no expand button');
+    await waitFor(client, 'expanded menu entry ' + pageId,
+      'Boolean(document.querySelector(' + q(selector) + '))');
+  }
+  const clicked = await evaluate(client,
+    '(() => {const b=document.querySelector(' + q(selector) + ');if(!b)return false;b.click();return true;})()');
+  if (!clicked) throw new Error(client.name + ': could not open page ' + pageId);
+  await waitFor(client, 'active sidebar route ' + pageId,
+    'Boolean(document.querySelector(' + q(selector + '[aria-current="page"]') + '))', 25000);
+}
+
 const SYNC_EMAIL = 'zwei-geraete-sync@vs-neu.wien';
 const TOPIC = 'E2E Zuhause Wochenplan A';
 const NOTE_HOME = 'E2E Zuhause Klassen-Notiz A';
@@ -317,7 +333,7 @@ async function waitForCloud(client) {
 }
 
 async function addClassNote(client, text) {
-  await clickSidebar(client, 'Notizen');
+  await openAppPage(client, 'verhalten');
   await waitFor(client, 'class notes input', 'Boolean(document.querySelector("textarea#klassio-note-input"))', 30000);
   await setInputByPlaceholder(client, 'Allgemeine Notiz für die Klasse eingeben...', text);
   await clickButton(client, 'Notiz speichern', true);
@@ -327,13 +343,13 @@ async function addClassNote(client, text) {
 }
 
 async function openWeeklyAndCheck(client, topic) {
-  await clickSidebar(client, 'Wochenplan');
+  await openAppPage(client, 'wochenplanung');
   await waitFor(client, 'weekly grid contains previously saved plan',
     'Array.from(document.querySelectorAll("div")).some(el=>String(el.className||"").includes("group/cell")&&String(el.className||"").includes("min-h-[5.3125rem]")&&String(el.textContent||"").includes(' + q(topic) + '))', 30000);
 }
 
 async function checkClassNote(client, note) {
-  await clickSidebar(client, 'Notizen');
+  await openAppPage(client, 'verhalten');
   await waitFor(client, 'synced class note is present', 'document.body?.innerText.includes(' + q(note) + ')', 45000);
 }
 
@@ -369,7 +385,7 @@ async function main() {
     const loginStarted = Date.now();
     await loginWithMail(home, SYNC_EMAIL, TEACHER_VAULT);
     await createClassInUi(home, 'Sync Testklasse A');
-    await clickSidebar(home, 'Wochenplan');
+    await openAppPage(home, 'wochenplanung');
     await waitFor(home, 'editable weekly plan grid',
       'Array.from(document.querySelectorAll("svg.lucide-plus")).some(svg=>{let n=svg.parentElement;while(n&&n!==document.body){if(String(n.className||"").includes("group/cell")&&String(n.className||"").includes("min-h-[5.3125rem]"))return true;n=n.parentElement;}return false;})', 30000);
     await clickFirstSchedulableWeeklyCell(home);
