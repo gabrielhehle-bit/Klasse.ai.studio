@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { WochenplanImportRow, WochenplanImportResult, parseWochenplanExcel, generateWochenplanTemplate } from '../lib/planerExcelService';
 import { AppState } from '../types';
 
+const EXCEL_IMPORT_DISABLED = true;
+
 interface WochenplanExcelModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -109,6 +111,11 @@ export default function WochenplanExcelModal({
 
         {/* Modal Body */}
         <div className="p-5 overflow-y-auto space-y-4 flex-1">
+          {EXCEL_IMPORT_DISABLED && (
+            <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold leading-relaxed text-amber-950">
+              Sicherheitsupdate: Der Excel-Import ist vorübergehend deaktiviert, weil die bisherige Tabellenbibliothek bekannte Sicherheitslücken beim Einlesen präparierter Dateien hat. Excel-Vorlagen und Exporte bleiben verfügbar.
+            </div>
+          )}
           {/* Download Template Bar */}
           <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-start sm:items-center gap-2.5">
@@ -128,7 +135,7 @@ export default function WochenplanExcelModal({
           </div>
 
           {/* Upload Area */}
-          {!parseResult && (
+          {!EXCEL_IMPORT_DISABLED && !parseResult && (
             <div
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
