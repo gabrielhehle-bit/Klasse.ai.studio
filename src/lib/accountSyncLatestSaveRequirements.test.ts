@@ -66,7 +66,7 @@ test('Fehlgeschlagener Tresorstart darf nie eine scheinbar leere Wochenplanung f
   assert.match(gate, /const loaded = await unlockAppVault\(activeKey\)/);
   assert.match(gate, /if \(!loaded\) \{[\s\S]*setGateState\('checking'\);[\s\S]*return;/);
   assert.match(gate, /Zur Sicherheit zeigt KLASSIO keinen leeren Ersatzstand an/);
-  assert.match(gate, /const loaded = await unlockAppVault\(activeVaultKey\)/);
+  assert.match(gate, /const loaded = await unlockAppVault\(activeVaultKey, true\)/);
   assert.match(gate, /if \(!loaded\) \{\s*throw new Error/);
 });
 
