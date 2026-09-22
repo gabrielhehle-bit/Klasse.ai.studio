@@ -3,7 +3,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { initialAppState, normalizeAppState, syncActiveClass } from './appState';
 import { createVault } from './vaultService';
-import { saveEncryptedAppState, loadEncryptedAppState, __resetSecureStorageForTesting } from './secureStorageService';
+import {
+  saveEncryptedAppState, loadEncryptedAppState, saveEncryptedEmergencyBackup,
+  inspectLocalRecoveryPoints, getEncryptedLocalRecoveryPoint,
+  saveEncryptedPreImportBackup, __resetSecureStorageForTesting,
+} from './secureStorageService';
+import { decryptData } from './crypto';
 import { hasEstablishedClassroom, isUnexpectedEmptyClassReplacement, hasUnexpectedClassDisappearance } from './appStateContinuity';
 
 const oneA = syncActiveClass({
@@ -121,4 +126,76 @@ test('Auch eine andere gefüllte Klasse darf die bisherige 1a nicht unbemerkt ve
   assert.ok(context.includes('hasUnexpectedClassDisappearance(current, remoteState)'),
     'Der automatische Konto-Download muss die stabile Klassen-ID prüfen.');
   assert.ok(context.includes('setAccountSyncConflictResolvable(true)'));
+});
+
+
+test('Tägliche Notfallkopie bewahrt die ursprüngliche Klasse auch gegen einen anderen gefüllten Ersatz', async () => {
+  __resetSecureStorageForTesting();
+  const vault = await createVault('SyntheticEmergencyPreservationTest2026!');
+  try {
+    await saveEncryptedAppState(oneA, vault.vaultKey);
+    await saveEncryptedEmergencyBackup(oneA, vault.vaultKey);
+    const original = (await inspectLocalRecoveryPoints(vault.vaultKey))
+      .find(point => point.source === 'emergency');
+    assert.equal(original?.readable, true);
+    assert.equal(original?.students, 1);
+    const previousFile = await getEncryptedLocalRecoveryPoint(vault.vaultKey, 'emergency', original!.savedAt);
+
+    const alternative = syncActiveClass({
+      ...initialAppState,
+      activeClassId: 'class-synthetic-replacement',
+      classes: [{ id: 'class-synthetic-replacement', name: '4b', stufe: 4,
+        schueler: [{ id: 'another-synthetic-child', vorname: 'Demo' }] }],
+      schueler: [{ id: 'another-synthetic-child', vorname: 'Demo' }],
+    } as any);
+    await saveEncryptedEmergencyBackup(alternative, vault.vaultKey);
+    await saveEncryptedEmergencyBackup(initialAppState, vault.vaultKey);
+    const afterFile = await getEncryptedLocalRecoveryPoint(vault.vaultKey, 'emergency', original!.savedAt);
+    assert.deepEqual(afterFile, previousFile);
+    const restored = await decryptData<any>(afterFile.encryptedState, vault.vaultKey);
+    assert.equal(restored.activeClassId, 'class-synthetic-1a');
+    assert.equal(restored.classes[0].schueler[0].id, 'synthetic-child');
+  } finally {
+    __resetSecureStorageForTesting();
+  }
+});
+
+test('Lokale Recovery-Inventur liest alle vorhandenen verschlüsselten Generationen ohne Mutation', async () => {
+  __resetSecureStorageForTesting();
+  const vault = await createVault('SyntheticRecoveryInventoryTest2026!');
+  try {
+    await saveEncryptedAppState(oneA, vault.vaultKey);
+    await saveEncryptedEmergencyBackup(oneA, vault.vaultKey);
+    await saveEncryptedPreImportBackup(oneA, vault.vaultKey);
+    const first = await inspectLocalRecoveryPoints(vault.vaultKey);
+    assert.ok(first.some(point => point.source === 'primary' && point.readable));
+    assert.ok(first.some(point => point.source === 'fallback' && point.readable));
+    assert.ok(first.some(point => point.source === 'backup' && point.readable));
+    assert.ok(first.some(point => point.source === 'emergency' && point.readable));
+    assert.ok(first.some(point => point.source === 'pre-import' && point.readable));
+    assert.ok(first.every(point => point.classes === 1 && point.students === 1));
+    assert.ok(!JSON.stringify(first).includes('synthetic-child'),
+      'Keine Schüler-ID oder Name darf in die Inventur-Metadaten gelangen.');
+    const source = first.find(point => point.source === 'pre-import')!;
+    const exported = await getEncryptedLocalRecoveryPoint(vault.vaultKey, source.source, source.savedAt);
+    assert.ok(!JSON.stringify(exported).includes('synthetic-child'));
+    await assert.rejects(
+      getEncryptedLocalRecoveryPoint(vault.vaultKey, source.source, source.savedAt + 1),
+      /Sicherungsstand hat sich verändert/,
+    );
+    const second = await inspectLocalRecoveryPoints(vault.vaultKey);
+    assert.deepEqual(second, first, 'Die reine Inventur darf weder Daten noch Zeitstempel ändern.');
+    const stillActive = await loadEncryptedAppState(vault.vaultKey);
+    assert.equal(stillActive?.activeClassId, 'class-synthetic-1a');
+  } finally {
+    __resetSecureStorageForTesting();
+  }
+});
+
+test('Lokale Wiederherstellung ist ausdrücklich und führt keinen automatischen Cloud-Rollback aus', () => {
+  const settings = readFileSync('src/components/settings/BackupSettings.tsx', 'utf8');
+  assert.ok(settings.includes('Lokale Wiederherstellungspunkte prüfen'));
+  assert.ok(settings.includes('getEncryptedLocalRecoveryPoint(key, point.source, point.savedAt)'));
+  assert.ok(settings.includes('Sicherung einlesen'));
+  assert.ok(!settings.includes('await restoreAppData(record)'));
 });
