@@ -18,6 +18,7 @@ test('Mobile launcher exposes the five requested tools plus cockpit remote', () 
 
 test('Mobile remote requires the existing live-session key and does not change PC layout', () => {
   const app = readFileSync('src/App.tsx', 'utf8');
+  const home = readFileSync('src/components/MobileHome.tsx', 'utf8');
   const accountSync = readFileSync('src/lib/accountSyncService.ts', 'utf8');
   assert.match(app, /\(max-width: 767px\) and \(pointer: coarse\)/);
   assert.match(app, /mobileDevice && mobileHomeVisible/);
