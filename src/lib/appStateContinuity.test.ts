@@ -36,6 +36,15 @@ test('Neither default 4th-grade placeholder nor empty state may overwrite an exi
   assert.equal(isUnexpectedEmptyClassReplacement(oneA, placeholder), true);
   assert.equal(isUnexpectedEmptyClassReplacement(oneA, initialAppState), true);
   assert.equal(isUnexpectedEmptyClassReplacement(oneA, oneA), false);
+  const plannedWithoutPupils = normalizeAppState({
+    activeClassId: 'class-synthetic-planned',
+    classes: [{
+      id: 'class-synthetic-planned', name: '1a', stufe: 1, schueler: [],
+      wochenplanung: { 39: { Montag: { 0: { thema: 'Synthetischer Wochenplan' } } } },
+    }],
+  });
+  assert.equal(isUnexpectedEmptyClassReplacement(plannedWithoutPupils, placeholder), true,
+    'Auch eine schon geplante Klasse ohne erfasste Kinder darf kein leerer Ersatzstand verdrängen');
 });
 
 test('An existing vault may not silently bootstrap a missing account as empty or open before hydration', () => {
