@@ -240,7 +240,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       if (remote.revision > baseline.revision) {
         if (localFingerprint === baseline.fingerprint) {
-          await saveEncryptedAppState(remoteState, vaultKey);
+          // During background refresh, a teacher may type while the async
+          // IndexedDB write is in flight. Never write the remote snapshot over
+          // such a newer edit: the guarded caller adopts it in RAM first and
+          // the ordinary latest-generation autosave persists it afterwards.
+          // Initial vault unlock has no editable UI yet and may persist here.
+          if (!isStillCurrent) await saveEncryptedAppState(remoteState, vaultKey);
+          if (isStillCurrent && !isStillCurrent()) return currentAppRef.current;
           markAccountSynced(remote, remoteState);
           return remoteState;
         }
