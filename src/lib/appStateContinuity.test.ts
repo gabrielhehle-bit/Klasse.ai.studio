@@ -93,12 +93,14 @@ test('Ausdrücklich neue Installation darf initial ohne Klasse verschlüsselt ge
 
 
 test('Auch eine andere gefüllte Klasse darf die bisherige 1a nicht unbemerkt verdrängen', () => {
+  const fourthGradePupils = [{ id: 'other-synthetic-child', vorname: 'Test' }];
   const wrongFourthGrade = syncActiveClass({
     ...initialAppState,
     activeClassId: 'class-synthetic-4b',
+    schueler: fourthGradePupils,
     classes: [{
       id: 'class-synthetic-4b', name: '4b', stufe: 4,
-      schueler: [{ id: 'other-synthetic-child', vorname: 'Test' }],
+      schueler: fourthGradePupils,
     }],
   } as any);
   assert.equal(hasEstablishedClassroom(wrongFourthGrade), true);
