@@ -1,0 +1,53 @@
+name: One-time Security Dependency Refresh
+
+on:
+  push:
+    branches:
+      - security/dependency-modernization-2026-09-22
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-lockfile:
+    if: github.event.head_commit.message == 'chore: request dependency lockfile refresh'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: security/dependency-modernization-2026-09-22
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install current lockfile
+        run: bun install --frozen-lockfile
+      - name: Install patched official SheetJS and supported Nodemailer
+        shell: bash
+        run: |
+          set -euo pipefail
+          bun add 'xlsx@https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz' 'nodemailer@10.0.10'
+          bun remove '@types/nodemailer'
+          sed -i 's/Node.js 18.20 oder neuer/Node.js 20 oder neuer/' README.md
+          node -e "const p=require('./package.json'); if(!String(p.dependencies.xlsx).includes('xlsx-0.20.3.tgz') || p.dependencies.nodemailer!=='10.0.10' || p.devDependencies['@types/nodemailer']) process.exit(1)"
+          grep -q 'Node.js 20 oder neuer' README.md
+      - name: TypeScript, all tests and build on patched dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          bun run lint
+          bun run test
+          bun run build
+          test -f dist/server.cjs
+          test -f dist/index.html
+      - name: Commit only manifest, lockfile and runtime documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json bun.lock README.md
+          git diff --cached --check
+          git diff --cached --quiet && { echo 'Dependencies already updated'; exit 0; }
+          git commit -m 'chore: regenerate lockfile for patched XLSX and Nodemailer 10'
+          git push origin HEAD:security/dependency-modernization-2026-09-22
