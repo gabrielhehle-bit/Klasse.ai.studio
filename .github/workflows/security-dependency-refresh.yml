@@ -1,6 +1,9 @@
 name: One-time Security Dependency Refresh
 
 on:
+  pull_request:
+    branches:
+      - security/harden-2026-09-21
   push:
     branches:
       - security/dependency-modernization-2026-09-22
@@ -10,7 +13,7 @@ permissions:
 
 jobs:
   refresh-lockfile:
-    if: github.event.head_commit.message == 'chore: request dependency lockfile refresh'
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'security/dependency-modernization-2026-09-22'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
