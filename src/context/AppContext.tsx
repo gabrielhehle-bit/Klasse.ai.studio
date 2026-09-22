@@ -83,6 +83,7 @@ interface AppContextType {
   screenLocked: boolean;
   setScreenLocked: (locked: boolean) => void;
   isVaultUnlocked: boolean;
+  isAppHydrated: boolean;
   lockAppVault: () => void;
   unlockAppVault: (key: CryptoKey, allowFreshSetup?: boolean) => Promise<boolean>;
   accountSyncStatus: AccountSyncStatus;
@@ -127,6 +128,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [screenLocked, setScreenLocked] = useState(false);
   const [isVaultUnlocked, setIsVaultUnlocked] = useState<boolean>(() => getActiveVaultKey() !== null);
+  // A RAM key or a successful HTTP login is NOT proof that encrypted
+  // classroom data was decrypted and the account reconcile has completed.
+  const [isAppHydrated, setIsAppHydrated] = useState(false);
   const [accountSyncStatus, setAccountSyncStatus] = useState<AccountSyncStatus>('idle');
   const [accountSyncLastAt, setAccountSyncLastAt] = useState<string | null>(null);
   const [accountSyncMessage, setAccountSyncMessage] = useState<string | null>(null);
@@ -554,7 +558,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Synchronisation des Vault-Session-Status (RAM-Only)
   useEffect(() => {
     const unsubscribe = subscribeVaultSession((unlocked) => {
-      setIsVaultUnlocked(unlocked);
+      // On setup/unlock, only unlockAppVault may announce success AFTER data
+      // was loaded. Publishing "unlocked" as soon as a key enters RAM showed
+      // the initial empty dashboard before the real class was restored.
+      if (!unlocked) {
+        setIsAppHydrated(false);
+        setIsVaultUnlocked(false);
+      }
     });
     return unsubscribe;
   }, []);
@@ -577,6 +587,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             );
             if (isMounted) {
               setApp(reconciled);
+              setIsAppHydrated(true);
               setIsVaultUnlocked(true);
               setIsLoaded(true);
               return;
@@ -1261,6 +1272,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         allowFreshSetup,
       );
       setApp(reconciled);
+      setIsAppHydrated(true);
       setIsVaultUnlocked(true);
       if (!decrypted && allowFreshSetup) {
         await saveEncryptedAppState(reconciled, key);
@@ -1279,6 +1291,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     cloudConfirmedStateRef.current = null;
     setAccountSyncStatus('idle');
     setAccountSyncHealthy(false);
+    setIsAppHydrated(false);
     clearActiveVaultSession();
     currentAppRef.current = initialAppState;
     setAppInternal(initialAppState);
@@ -1797,6 +1810,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     screenLocked,
     setScreenLocked,
     isVaultUnlocked,
+    isAppHydrated,
     lockAppVault,
     unlockAppVault,
     accountSyncStatus,
@@ -1805,7 +1819,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     accountSyncConflictResolvable,
     retryAccountSync,
     resolveAccountSyncConflict
-  }), [app, notenUpdateTrigger, calculateWidgetFontSize, screenLocked, updateApp, deleteClass, switchClass, addClass, removeClass, updateStudent, deleteStudent, setPage, saveApp, restoreAppData, isVaultUnlocked, lockAppVault, unlockAppVault, accountSyncStatus, accountSyncLastAt, accountSyncMessage, accountSyncConflictResolvable, retryAccountSync, resolveAccountSyncConflict]);
+  }), [app, notenUpdateTrigger, calculateWidgetFontSize, screenLocked, updateApp, deleteClass, switchClass, addClass, removeClass, updateStudent, deleteStudent, setPage, saveApp, restoreAppData, isVaultUnlocked, isAppHydrated, lockAppVault, unlockAppVault, accountSyncStatus, accountSyncLastAt, accountSyncMessage, accountSyncConflictResolvable, retryAccountSync, resolveAccountSyncConflict]);
 
   if (!isLoaded) {
     return (
