@@ -60,8 +60,16 @@ class CdpClient {
     if (!this.ws) throw new Error(this.name + ': CDP client is not connected.');
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
-      this.ws.send(JSON.stringify({ id, method, params }));
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error(this.name + ': Chrome CDP ' + method + ' timed out'));
+      }, 20000);
+      this.pending.set(id, {
+        resolve: value => { clearTimeout(timer); resolve(value); },
+        reject: error => { clearTimeout(timer); reject(error); },
+      });
+      try { this.ws.send(JSON.stringify({ id, method, params })); }
+      catch (error) { clearTimeout(timer); this.pending.delete(id); reject(error); }
     });
   }
   close() { this.ws?.close(); }
@@ -413,8 +421,11 @@ async function main() {
     console.log('✓ Real Chrome: new school note returned automatically to already open home PC.');
 
     // Both profiles reload independently: encrypted state must survive browser refresh.
+    console.log('✓ Starting two-profile encrypted persistence check after browser reload');
     await home.send('Page.reload', { ignoreCache: true });
+    console.log('✓ Home browser reloaded');
     await school.send('Page.reload', { ignoreCache: true });
+    console.log('✓ School browser reloaded');
     for (const client of [home, school]) {
       await waitFor(client, 'after browser reload: class or local vault prompt',
         'document.body?.innerText.includes("Sync Testklasse A") || document.body?.innerText.includes("Tresor entsperren") || document.body?.innerText.includes("Daten laden & KLASSIO öffnen")', 45000);
