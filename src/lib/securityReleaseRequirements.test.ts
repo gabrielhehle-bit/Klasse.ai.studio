@@ -11,6 +11,7 @@ const weeklyExcelUi = readFileSync('src/components/WochenplanExcelModal.tsx', 'u
 const yearlyExcelUi = readFileSync('src/components/JahresplanExcelModal.tsx', 'utf8');
 const appContext = readFileSync('src/context/AppContext.tsx', 'utf8');
 const classroomMode = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
+const aiService = readFileSync('src/services/aiService.ts', 'utf8');
 
 
 test('security release keeps direct student report AI uploads disabled at UI and server', () => {
@@ -54,4 +55,14 @@ test('zero-knowledge sync never accepts encryption keys from URL query strings a
   assert.match(server, /verifySyncWriteToken/);
   assert.doesNotMatch(classroomMode, /\?sync=/, 'QR/copy links must never put sync material in query strings');
   assert.match(classroomMode, /createSyncUrl\(/);
+});
+
+
+test('voice AI uses temporary student aliases and server fallback filters structured names', () => {
+  assert.match(aiService, /TEMP-ID/);
+  assert.match(aiService, /temporaryIds\.get\(tempId\)/);
+  assert.doesNotMatch(aiService, /\(ID: \$\{s\.id\}\)/);
+  assert.match(server, /'vorname', 'firstname', 'studentname', 'schuelername'/);
+  assert.match(server, /isSafeStudentAlias/);
+  assert.match(server, /'studentid', 'schuelerid'/);
 });
