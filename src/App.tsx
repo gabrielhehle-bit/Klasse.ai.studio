@@ -94,6 +94,8 @@ import MobileHome from './components/MobileHome';
 import MobileWorkspace, { type MobileDestination } from './components/MobileWorkspace';
 import MobileNotes from './components/MobileNotes';
 import MobileToday from './components/MobileToday';
+import MobileClass from './components/MobileClass';
+import MobileWeeklyPlan from './components/MobileWeeklyPlan';
 const Cockpit = lazyRetry(() => import('./components/Cockpit'));
 import PrintHeader from './components/PrintHeader';
 import AccessGate from './components/AccessGate';
@@ -758,7 +760,11 @@ function AppContent() {
                 ? <MobileToday onNavigate={navigateMobile} />
                 : currentPage === 'verhalten'
                   ? <MobileNotes />
-                  : renderPage()}
+                  : currentPage === 'schueler'
+                    ? <MobileClass />
+                    : currentPage === 'wochenplanung'
+                      ? <MobileWeeklyPlan />
+                      : renderPage()}
             </React.Suspense>
           </ErrorBoundary>
         </MobileWorkspace>
