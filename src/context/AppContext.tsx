@@ -1,6 +1,6 @@
 import { assertRestorableAppState } from '../lib/backupRestore';
 import { initialAppState, syncActiveClass, normalizeAppState, switchClassState } from '../lib/appState';
-import { hasEstablishedClassroom } from '../lib/appStateContinuity';
+import { hasEstablishedClassroom, hasUnexpectedClassDisappearance } from '../lib/appStateContinuity';
 import { removeStudentFromAppState } from '../lib/studentState';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
@@ -290,6 +290,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       if (remote.revision > baseline.revision) {
         if (localFingerprint === baseline.fingerprint) {
+          // A plausible non-empty but WRONG remote class is still data loss:
+          // never silently replace 1a with an unrelated 4th grade merely because
+          // the server has a newer revision. Require explicit conflict handling.
+          if (hasUnexpectedClassDisappearance(current, remoteState)) {
+            accountSyncReadyRef.current = false;
+            setAccountSyncHealthy(false);
+            setAccountSyncMessage('Der neuere E-Mail-Kontostand enthält nicht mehr alle bisher vorhandenen Klassen. KLASSIO behält die lokalen Klassen und hat nichts automatisch überschrieben. Bitte vor der bewussten Konfliktauflösung eine verschlüsselte Sicherung erstellen und frühere Kontostände prüfen.');
+            setAccountSyncConflictResolvable(true);
+            setAccountSyncStatus('conflict');
+            return current;
+          }
           // During background refresh, a teacher may type while the async
           // IndexedDB write is in flight. Never write the remote snapshot over
           // such a newer edit: the guarded caller adopts it in RAM first and
