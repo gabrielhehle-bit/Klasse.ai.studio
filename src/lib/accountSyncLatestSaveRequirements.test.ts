@@ -69,3 +69,16 @@ test('Fehlgeschlagener Tresorstart darf nie eine scheinbar leere Wochenplanung f
   assert.match(gate, /const loaded = await unlockAppVault\(activeVaultKey\)/);
   assert.match(gate, /if \(!loaded\) \{\s*throw new Error/);
 });
+
+test('Produktivfreigabe verlangt erfolgreichen echten Zwei-Geräte-E-Mail-Sync', () => {
+  const deploy = readFileSync('.github/workflows/production-deploy.yml', 'utf8');
+  const browser = readFileSync('.github/workflows/account-sync-browser-e2e.yml', 'utf8');
+  const script = readFileSync('scripts/account-sync-browser-e2e.mjs', 'utf8');
+  assert.match(deploy, /for name in school-verification-browser-e2e teamteaching-browser-e2e account-sync-browser-e2e; do/);
+  assert.match(deploy, /Blocking deployment: \$name = \$state/);
+  assert.match(browser, /account-sync-browser-e2e:/);
+  assert.match(browser, /bun scripts\/account-sync-browser-e2e\.mjs/);
+  assert.match(script, /home weekly plan and class note appeared on freshly signed-in school PC/);
+  assert.match(script, /new school note returned automatically to already open home PC/);
+  assert.match(script, /after vault unlock, same planning class persisted/);
+});
