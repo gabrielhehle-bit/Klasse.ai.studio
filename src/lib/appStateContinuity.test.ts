@@ -116,7 +116,7 @@ test('Auch eine andere gefüllte Klasse darf die bisherige 1a nicht unbemerkt ve
     ...wrongFourthGrade, retiredClasses: [...(wrongFourthGrade.retiredClasses || []), oneA.classes[0]],
   }), false, 'Das bestätigte Stilllegen der alten Klasse bewahrt die Klassen-ID.');
   const context = readFileSync('src/context/AppContext.tsx', 'utf8');
-  assert.match(context, /hasUnexpectedClassDisappearance\\(current, remoteState\\)/,
+  assert.ok(context.includes('hasUnexpectedClassDisappearance(current, remoteState)'),
     'Der automatische Konto-Download muss die stabile Klassen-ID prüfen.');
-  assert.match(context, /setAccountSyncConflictResolvable\\(true\\)/);
+  assert.ok(context.includes('setAccountSyncConflictResolvable(true)'));
 });
