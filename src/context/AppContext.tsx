@@ -240,7 +240,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       if (remote.revision > baseline.revision) {
         if (localFingerprint === baseline.fingerprint) {
-          await saveEncryptedAppState(remoteState, vaultKey);
+          // During background refresh, a teacher may type while the async
+          // IndexedDB write is in flight. Never write the remote snapshot over
+          // such a newer edit: the guarded caller adopts it in RAM first and
+          // the ordinary latest-generation autosave persists it afterwards.
+          // Initial vault unlock has no editable UI yet and may persist here.
+          if (!isStillCurrent) await saveEncryptedAppState(remoteState, vaultKey);
+          if (isStillCurrent && !isStillCurrent()) return currentAppRef.current;
           markAccountSynced(remote, remoteState);
           return remoteState;
         }
@@ -826,10 +832,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!getActiveVaultKey()) return;
       if (isPendingPushRef.current || restoringRef.current
         || localSaveBusyRef.current > 0 || locallySavedStateRef.current !== currentAppRef.current
+        // A read-only background refresh temporarily sets status='syncing' even
+        // when the exact latest encrypted snapshot is already confirmed.
+        // That is NOT an unsaved edit and must not block a safe browser reload.
         || (accountSyncStatusRef.current !== 'idle'
           && accountSyncStatusRef.current !== 'disabled'
-          && (accountSyncStatusRef.current !== 'synced'
-            || cloudConfirmedStateRef.current !== currentAppRef.current))) {
+          && cloudConfirmedStateRef.current !== currentAppRef.current)) {
         const message = 'Änderungen sind noch nicht sicher auf allen Geräten verfügbar. Bitte KLASSIO geöffnet lassen, bis der Konto-Status grün ist!';
         e.returnValue = message;
         return message;

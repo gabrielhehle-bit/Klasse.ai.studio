@@ -420,6 +420,11 @@ async function main() {
     await openWeeklyAndCheck(home, TOPIC);
     console.log('✓ Real Chrome: new school note returned automatically to already open home PC.');
 
+    // The real application prompts before leaving while a local write or cloud upload
+    // is pending. Never bypass that safety dialog in the test: explicitly wait for
+    // both devices to have acknowledged their *latest* encrypted state first.
+    await waitForCloud(home);
+    await waitForCloud(school);
     // Both profiles reload independently: encrypted state must survive browser refresh.
     console.log('✓ Starting two-profile encrypted persistence check after browser reload');
     // CDP Page.reload acknowledges the request before the old DOM disappears.
