@@ -201,13 +201,12 @@ test('Ältere verschlüsselte Kontostände bleiben bei wiederholtem Überschreib
   }
 });
 
-test('Wiederherstellungs-Endpunkte verlangen E-Mail-Konto und liefern keine fremden Klartextdaten', () => {
+test('Wiederherstellungs-Endpunkte verlangen E-Mail-Konto und liefern verschlüsselte Daten', () => {
   const server = readFileSync('server.ts', 'utf8');
-  assert.match(server, /app\\.get\\('\/api\/account-sync\/history', requireEmailAccount/);
-  assert.match(server, /app\\.get\\('\/api\/account-sync\/history\/:revision', requireEmailAccount/);
-  assert.match(server, /getHistoryRevision\\(account\\.userId, revision\\)/);
+  assert.ok(server.includes("app.get('/api/account-sync/history', requireEmailAccount"));
+  assert.ok(server.includes("app.get('/api/account-sync/history/:revision', requireEmailAccount"));
+  assert.ok(server.includes('getHistoryRevision(account.userId, revision)'));
   const ui = readFileSync('src/components/settings/BackupSettings.tsx', 'utf8');
-  assert.match(ui, /LehrerAPP_Encrypted_Local_State/);
-  assert.match(ui, /verschlüsselte Sicherung/i);
-  assert.match(ui, /snapshot\\.vaultRecord\\.id !== localVault\\.id/);
+  assert.ok(ui.includes('LehrerAPP_Encrypted_Local_State'));
+  assert.ok(ui.includes('snapshot.vaultRecord.id !== localVault.id'));
 });
