@@ -90,6 +90,13 @@ import GlobalActions from './components/GlobalActions';
 import DenkzettelWidget from './components/DenkzettelWidget';
 import { hasCompletedInitialSetup } from './lib/firstRunFlow';
 import PrivacyLock from './components/PrivacyLock';
+import MobileHome from './components/MobileHome';
+import MobileWorkspace, { type MobileDestination } from './components/MobileWorkspace';
+import MobileNotes from './components/MobileNotes';
+import MobileToday from './components/MobileToday';
+import MobileClass from './components/MobileClass';
+import MobileWeeklyPlan from './components/MobileWeeklyPlan';
+import MobileAttendance from './components/MobileAttendance';
 const Cockpit = lazyRetry(() => import('./components/Cockpit'));
 import PrintHeader from './components/PrintHeader';
 import AccessGate from './components/AccessGate';
@@ -240,6 +247,19 @@ function AppContent() {
   // the very first login. Existing configured accounts skip setup as before.
   const needsFirstSetup = !hasCompletedInitialSetup(app);
   const [showSetup, setShowSetup] = useState(false);
+  // A mobile home is a device-local view, not a shared class/account setting.
+  // Keep narrow desktop windows in the full PC interface.
+  const [mobileDevice, setMobileDevice] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 767px) and (pointer: coarse)').matches
+  );
+  const [mobileHomeVisible, setMobileHomeVisible] = useState(true);
+  React.useEffect(() => {
+    const media = window.matchMedia('(max-width: 767px) and (pointer: coarse)');
+    const update = () => setMobileDevice(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
 
   React.useEffect(() => {
     if (!landOnDashboardAfterLogin) return;
@@ -707,6 +727,55 @@ function AppContent() {
       );
     }
   };
+
+  if (mobileDevice) {
+    const mobilePages: MobileDestination[] = ['dashboard', 'schueler', 'anwesenheit', 'verhalten', 'wochenplanung'];
+    const navigateMobile = (destination: MobileDestination) => {
+      setPage(destination);
+      setMobileHomeVisible(false);
+    };
+    const activeRoom = app.classes?.find(room => room.id === app.activeClassId);
+    const classLabel = activeRoom?.name || app.klassenbezeichnung || 'Meine Klasse';
+    if (mobileHomeVisible || !mobilePages.some(destination => destination === currentPage)) {
+      return (
+        <MobileHome
+          onNavigate={navigateMobile}
+        />
+      );
+    }
+    return (
+      <>
+        <MobileWorkspace
+          page={currentPage as MobileDestination}
+          classLabel={classLabel}
+          onHome={() => setMobileHomeVisible(true)}
+          onNavigate={navigateMobile}
+        >
+          <ErrorBoundary>
+            <React.Suspense fallback={
+              <div className="flex min-h-40 items-center justify-center gap-3 text-sm text-violet-700">
+                <Loader2 size={20} className="animate-spin" /> Wird geladen…
+              </div>
+            }>
+              {currentPage === 'dashboard'
+                ? <MobileToday onNavigate={navigateMobile} />
+                : currentPage === 'verhalten'
+                  ? <MobileNotes />
+                  : currentPage === 'schueler'
+                    ? <MobileClass />
+                    : currentPage === 'wochenplanung'
+                      ? <MobileWeeklyPlan />
+                      : currentPage === 'anwesenheit'
+                        ? <MobileAttendance />
+                        : renderPage()}
+            </React.Suspense>
+          </ErrorBoundary>
+        </MobileWorkspace>
+        <PrivacyLock />
+        <DataConsistencyModal isOpen={showConsistencyModal} onClose={() => setShowConsistencyModal(false)} />
+      </>
+    );
+  }
 
   const getPageTitle = () => {
     switch (currentPage) {
