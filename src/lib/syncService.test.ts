@@ -11,7 +11,11 @@ import {
   isEncryptedSyncPayloadV1,
   getActiveSessionKey,
   getActiveEncodedSessionKey,
+  getActiveSyncWriteToken,
   setActiveSessionKey,
+  setActiveSyncWriteToken,
+  deriveSyncWriteToken,
+  hashSyncWriteToken,
   clearActiveSessionKey,
   EncryptedSyncPayloadV1,
 } from './syncService';
@@ -24,7 +28,7 @@ if (typeof globalThis.crypto === 'undefined' || !globalThis.crypto.subtle) {
 }
 
 test('Zero-Knowledge Sync – generateSyncSessionKey erzeugt frischen 256-Bit Key und URL-sicheres Base64', async () => {
-  const { sessionKey, encodedKey } = await generateSyncSessionKey();
+  const { sessionKey, encodedKey, writeToken, writeTokenHash } = await generateSyncSessionKey();
   assert.ok(sessionKey, 'SessionKey muss existieren');
   assert.equal(sessionKey.algorithm.name, 'AES-GCM');
   // @ts-ignore
@@ -35,6 +39,9 @@ test('Zero-Knowledge Sync – generateSyncSessionKey erzeugt frischen 256-Bit Ke
   assert.ok(!encodedKey.includes('+'), 'Darf kein + enthalten');
   assert.ok(!encodedKey.includes('/'), 'Darf kein / enthalten');
   assert.ok(!encodedKey.includes('='), 'Darf kein Padding = enthalten');
+  assert.equal(writeToken, await deriveSyncWriteToken(encodedKey));
+  assert.equal(writeTokenHash, await hashSyncWriteToken(writeToken));
+  assert.match(writeTokenHash, /^[a-f0-9]{64}$/);
 
   // Re-Import prüfen
   const reimported = await importSessionKey(encodedKey, true);
@@ -158,14 +165,18 @@ test('Zero-Knowledge Sync – In-Memory SessionKey Speicher arbeitet flüchtig u
   clearActiveSessionKey();
   assert.equal(getActiveSessionKey(), null);
   assert.equal(getActiveEncodedSessionKey(), null);
+  assert.equal(getActiveSyncWriteToken(), null);
 
-  const { sessionKey, encodedKey } = await generateSyncSessionKey();
+  const { sessionKey, encodedKey, writeToken } = await generateSyncSessionKey();
   setActiveSessionKey(sessionKey, encodedKey);
+  setActiveSyncWriteToken(writeToken);
 
   assert.equal(getActiveSessionKey(), sessionKey);
   assert.equal(getActiveEncodedSessionKey(), encodedKey);
+  assert.equal(getActiveSyncWriteToken(), writeToken);
 
   clearActiveSessionKey();
   assert.equal(getActiveSessionKey(), null);
   assert.equal(getActiveEncodedSessionKey(), null);
+  assert.equal(getActiveSyncWriteToken(), null);
 });
