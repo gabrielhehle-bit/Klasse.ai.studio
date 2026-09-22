@@ -10,7 +10,7 @@ import {
   Check
 } from 'lucide-react';
 import { triggerBackupDownload } from '../../utils/backupUtils';
-import { getActiveVaultKey } from '../../lib/vaultStorage';
+import { getActiveVaultKey, loadVaultRecord } from '../../lib/vaultStorage';
 import { prepareBackupRestore, parseBackupText } from '../../lib/backupRestore';
 import { loadPreImportBackup } from '../../lib/secureStorageService';
 import { useApp } from '../../context/AppContext';
@@ -37,6 +37,67 @@ export default function BackupSettings({
 
   const { restoreAppData, accountSyncStatus, accountSyncLastAt } = useApp();
   const accountSyncHealthy = accountSyncStatus === 'synced';
+  const [history, setHistory] = React.useState<Array<{ revision: number; updatedAt: string }>>([]);
+  const [historyLoading, setHistoryLoading] = React.useState(false);
+  const [historyError, setHistoryError] = React.useState<string | null>(null);
+
+  const refreshHistory = async () => {
+    setHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      const response = await fetch('/api/account-sync/history', { credentials: 'same-origin', cache: 'no-store' });
+      if (!response.ok) throw new Error(response.status === 401 || response.status === 403
+        ? 'Bitte zuerst mit deinem E-Mail-Konto anmelden.'
+        : 'Frühere Kontostände konnten nicht geladen werden.');
+      const data = await response.json();
+      setHistory(Array.isArray(data.history) ? data.history : []);
+    } catch (error: any) {
+      setHistoryError(error?.message || 'Kontostände konnten nicht geladen werden.');
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  React.useEffect(() => { void refreshHistory(); }, []);
+
+  /** Export only: no background restore and no write to the active account. */
+  const downloadHistoricalRevision = async (revision: number) => {
+    try {
+      const response = await fetch('/api/account-sync/history/' + revision, {
+        credentials: 'same-origin', cache: 'no-store',
+      });
+      if (!response.ok) throw new Error('Diese ältere Sicherung konnte nicht geladen werden.');
+      const data = await response.json();
+      const snapshot = data?.snapshot;
+      const localVault = await loadVaultRecord();
+      if (!snapshot?.encryptedState || !snapshot?.vaultRecord || !localVault
+        || snapshot.vaultRecord.id !== localVault.id) {
+        throw new Error('Dieser ältere Stand verwendet einen anderen Tresor. Bitte nicht den aktuellen Tresor ersetzen; zur Wiederherstellung ist der ursprüngliche Tresor erforderlich.');
+      }
+      // Standard encrypted local-state JSON, compatible with the existing
+      // backup importer; teachers never download personal data as plaintext.
+      const exportRecord = {
+        format: 'LehrerAPP_Encrypted_Local_State',
+        version: 1,
+        savedAt: Date.parse(snapshot.updatedAt) || Date.now(),
+        encryptedState: snapshot.encryptedState,
+      };
+      const url = URL.createObjectURL(new Blob([JSON.stringify(exportRecord)], { type: 'application/json' }));
+      try {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'klassio-konto-rettung-revision-' + revision + '.json';
+        document.body.append(link);
+        link.click();
+        link.remove();
+      } finally {
+        window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      }
+      showToast('Ältere verschlüsselte Sicherung heruntergeladen. Der aktuelle Stand wurde nicht verändert.', 'success');
+    } catch (error: any) {
+      showToast(error?.message || 'Sicherung konnte nicht heruntergeladen werden.', 'error');
+    }
+  };
 
   const restoreInput = async (input: unknown) => {
     const key = getActiveVaultKey();
@@ -195,6 +256,53 @@ export default function BackupSettings({
             </button>
           </div>
         )}
+      </div>
+
+      {/* Server retains older encrypted revisions separately from the live sync slot.
+          Download first; use the normal guarded backup import only if needed. */}
+      <div className="bg-white rounded-[2.5rem] border border-stone-200/80 p-6 md:p-8 space-y-4 shadow-sm">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="text-base font-black text-slate-900">Frühere verschlüsselte Kontostände</h2>
+            <p className="text-xs text-slate-600 font-medium mt-1 max-w-2xl">
+              KLASSIO bewahrt bei neuen Synchronisierungen ältere verschlüsselte Versionen auf:
+              die letzten acht Änderungen und bis zu 30 tägliche Wiederherstellungspunkte.
+              Frühere Versionen werden nur angezeigt, soweit sie tatsächlich vorhanden sind.
+              Ein Download verändert weder deine aktuelle Klasse noch den Konto-Sync.
+            </p>
+          </div>
+          <button type="button" onClick={() => void refreshHistory()} disabled={historyLoading}
+            className="px-4 py-2 rounded-xl border border-stone-300 text-xs font-bold disabled:opacity-50">
+            {historyLoading ? 'Lade …' : 'Sicherungen aktualisieren'}
+          </button>
+        </div>
+        {historyError && <p role="alert" className="text-xs font-semibold text-amber-800">{historyError}</p>}
+        {!historyLoading && !historyError && history.length === 0 && (
+          <p className="text-xs text-slate-600">Noch keine früheren Kontostände vorhanden. Erstelle vorsorglich eine verschlüsselte Sicherungsdatei.</p>
+        )}
+        {history.length > 0 && (
+          <div className="max-h-72 overflow-y-auto space-y-2">
+            {history.map(item => (
+              <div key={item.revision} className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 px-4 py-3">
+                <div className="text-xs text-slate-700">
+                  <strong>Revision {item.revision}</strong>
+                  <span className="block text-slate-500">
+                    {new Date(item.updatedAt).toLocaleString('de-AT')}
+                  </span>
+                </div>
+                <button type="button" onClick={() => void downloadHistoricalRevision(item.revision)}
+                  className="px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold">
+                  Verschlüsselt herunterladen
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="text-xs text-amber-800 font-medium">
+          Wichtig: Zum Wiederherstellen zuerst auch den aktuellen Stand sichern. Eine ältere
+          Version kann neuere Einträge nicht enthalten. Die Wahl einer früheren Sicherung
+          erfolgt ausschließlich bewusst über „Sicherung einlesen“.
+        </p>
       </div>
 
       <button onClick={handleUndoImport} className="px-4 py-3 rounded-xl border border-stone-300 text-sm font-bold">
