@@ -415,8 +415,19 @@ async function main() {
     // Both profiles reload independently: encrypted state must survive browser refresh.
     await home.send('Page.reload', { ignoreCache: true });
     await school.send('Page.reload', { ignoreCache: true });
-    await waitFor(home, 'home reload restored account and class', 'document.body?.innerText.includes("Sync Testklasse A")', 45000);
-    await waitFor(school, 'school reload restored account and class', 'document.body?.innerText.includes("Sync Testklasse A")', 45000);
+    for (const client of [home, school]) {
+      await waitFor(client, 'after browser reload: class or local vault prompt',
+        'document.body?.innerText.includes("Sync Testklasse A") || document.body?.innerText.includes("Tresor entsperren") || document.body?.innerText.includes("Daten laden & KLASSIO öffnen")', 45000);
+      const locked = await evaluate(client,
+        'Boolean(document.querySelector("input[placeholder=\\\"Passwort eingeben\\\"]"))');
+      if (locked) {
+        await setInputByLabel(client, 'Passwort eingeben', TEACHER_VAULT);
+        const fromAccount = await evaluate(client, 'document.body?.innerText.includes("Daten laden & KLASSIO öffnen")');
+        await clickButton(client, fromAccount ? 'Daten laden & KLASSIO öffnen' : 'Tresor entsperren');
+      }
+      await waitFor(client, 'after vault unlock, same planning class persisted',
+        'document.body?.innerText.includes("Sync Testklasse A")', 45000);
+    }
     await openWeeklyAndCheck(home, TOPIC);
     await openWeeklyAndCheck(school, TOPIC);
     await checkClassNote(home, NOTE_SCHOOL);
