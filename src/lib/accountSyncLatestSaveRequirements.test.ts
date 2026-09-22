@@ -69,3 +69,19 @@ test('Fehlgeschlagener Tresorstart darf nie eine scheinbar leere Wochenplanung f
   assert.match(gate, /const loaded = await unlockAppVault\(activeVaultKey\)/);
   assert.match(gate, /if \(!loaded\) \{\s*throw new Error/);
 });
+
+
+test('Hintergrundabgleich darf keine neue Eingabe durch asynchrones Remote-Schreiben überholen', () => {
+  const context = readFileSync('src/context/AppContext.tsx', 'utf8');
+  assert.match(context, /if \(!isStillCurrent\) await saveEncryptedAppState\(remoteState, vaultKey\);/,
+    'Nur der gesperrte Tresorstart darf den Remote-Stand direkt auf die Festplatte schreiben');
+  assert.match(context, /if \(isStillCurrent && !isStillCurrent\(\)\) return currentAppRef\.current;/,
+    'Nach dem Remote-Lesen und vor dem Übernehmen muss der aktuelle Zustand erneut geprüft werden');
+  assert.match(context, /currentAppRef\.current === before[\s\S]*setApp\(reconciled\)/,
+    'Im Hintergrund übernimmt die UI Remote-Daten nur bei unverändertem Ausgangsstand');
+});
+
+test('Zwei-Geräte-Browsertest prüft vor dem Reload die wirklich bestätigte neueste Generation', () => {
+  const script = readFileSync('scripts/account-sync-browser-e2e.mjs', 'utf8');
+  assert.match(script, /await waitForCloud\(home\);\s*await waitForCloud\(school\);[\s\S]*Starting two-profile encrypted persistence check/);
+});
