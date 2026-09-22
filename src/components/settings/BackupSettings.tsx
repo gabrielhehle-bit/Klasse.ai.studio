@@ -177,8 +177,8 @@ export default function BackupSettings({
             <Download size={20} />
           </div>
           <div>
-            <h2 className="text-base font-black text-slate-900">Zusätzliche Sicherung (optional)</h2>
-            <p className="text-xs text-slate-500 font-medium">Datei-Backups sind eine freiwillige Zusatzsicherung. Für den Wechsel auf einen anderen PC reicht dein E-Mail-Konto.</p>
+            <h2 className="text-base font-black text-slate-900">Verschlüsselte Datensicherung</h2>
+            <p className="text-xs text-slate-500 font-medium">Auch bei aktivem E-Mail-Sync regelmäßig eine zusätzliche verschlüsselte Sicherungsdatei aufbewahren. Sie hilft, falls ein Gerät oder der synchronisierte Kontostand beschädigt wird.</p>
           </div>
         </div>
 
@@ -188,7 +188,7 @@ export default function BackupSettings({
             <span>
               <strong>Automatisch synchronisiert:</strong> Dein kompletter KLASSIO-Stand wird mit deinem E-Mail-Konto Ende-zu-Ende-verschlüsselt auf dem Server aktuell gehalten.
               {accountSyncLastAt ? ' Letzte Synchronisierung: ' + new Date(accountSyncLastAt).toLocaleString('de-AT') + '.' : ''}
-              {' '}Auf einem neuen PC meldest du dich mit derselben E-Mail an und entsperrst einmal deinen Tresor. Eine Sicherungsdatei ist nur eine optionale zusätzliche Rückfallebene.
+              {' '}Auf einem neuen PC meldest du dich mit derselben E-Mail an und entsperrst deinen Tresor. Bewahre zusätzlich regelmäßig eine verschlüsselte Sicherungsdatei auf einem getrennten, geschützten Speicherort auf.
             </span>
           </div>
         ) : (
@@ -313,15 +313,15 @@ export default function BackupSettings({
       <div className="bg-white rounded-[2.5rem] border border-stone-200/80 p-6 md:p-8 space-y-4 shadow-sm">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-sm font-black text-slate-900">Zusätzliche Backup-Erinnerungen</h2>
+            <h2 className="text-sm font-black text-slate-900">Erinnerung an zusätzliche Datensicherung</h2>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
               {accountSyncHealthy
-                ? 'Solange dein E-Mail-Konto synchronisiert ist, erinnert KLASSIO dich nicht mehr an Datei-Backups. Diese bleiben freiwillig.'
+                ? 'Auch bei funktionierendem E-Mail-Sync empfehlen wir regelmäßige zusätzliche verschlüsselte Sicherungsdateien auf einem getrennten Speicherort.'
                 : 'Ohne gesunden Konto-Sync kann KLASSIO dich alle 7 Tage dezent an eine zusätzliche Sicherungsdatei erinnern.'}
             </p>
           </div>
 
-          {!accountSyncHealthy && (
+          {(
             <button
               type="button"
               role="switch"
