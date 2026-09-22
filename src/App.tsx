@@ -96,6 +96,7 @@ import MobileNotes from './components/MobileNotes';
 import MobileToday from './components/MobileToday';
 import MobileClass from './components/MobileClass';
 import MobileWeeklyPlan from './components/MobileWeeklyPlan';
+import MobileAttendance from './components/MobileAttendance';
 const Cockpit = lazyRetry(() => import('./components/Cockpit'));
 import PrintHeader from './components/PrintHeader';
 import AccessGate from './components/AccessGate';
@@ -764,7 +765,9 @@ function AppContent() {
                     ? <MobileClass />
                     : currentPage === 'wochenplanung'
                       ? <MobileWeeklyPlan />
-                      : renderPage()}
+                      : currentPage === 'anwesenheit'
+                        ? <MobileAttendance />
+                        : renderPage()}
             </React.Suspense>
           </ErrorBoundary>
         </MobileWorkspace>
