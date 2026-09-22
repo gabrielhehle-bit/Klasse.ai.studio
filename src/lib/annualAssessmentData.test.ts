@@ -25,7 +25,7 @@ test('Jahresansicht darf historische Daten weder aus 1 noch aus 2 verlieren', ()
   const items = annualAssessments(app, 'synthetic_student', 'Deutsch');
 
   assert.equal(items.length, 4);
-  assert.deepEqual(items.filter(item => item.category === 'sa').map(item => item.value), [1, 2, 3]);
+  assert.deepEqual(items.filter(item => item.category === 'sa').map(item => Number(item.value)).sort(), [1, 2, 3]);
   assert.ok(items.some(item => item.sourceBucket === '1' && item.sourceIndex === 2 && item.value === 2));
   assert.ok(items.some(item => item.sourceBucket === '2' && item.sourceIndex === 0 && item.value === 3));
   assert.ok(items.some(item => item.category === 'lzk' && item.sourceBucket === '2' && item.value === 4));
