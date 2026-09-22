@@ -32,5 +32,9 @@ test('Topbar uses quiet badge; encrypted local and account sync timers stay unch
   assert.match(context, /\}, 150\);/);
   assert.match(context, /pushAccountStateIfReady\(snapshot, vaultKey\)/);
   assert.match(context, /\}, 15_000\);/);
-  assert.match(context, /accountSyncStatusRef\.current !== 'synced'/);
+  // A read-only refresh may temporarily show status='syncing' despite the
+  // latest generation already being durable locally and confirmed in the cloud.
+  // Warn on genuinely unconfirmed edits, not merely a transient network status.
+  assert.match(context, /cloudConfirmedStateRef\\.current !== currentAppRef\\.current/);
+  assert.doesNotMatch(context, /accountSyncStatusRef\\.current !== 'synced'/);
 });
