@@ -49,13 +49,11 @@ interface VaultGateProps {
 }
 
 export default function VaultGate({ children }: VaultGateProps) {
-  const { isVaultUnlocked, unlockAppVault } = useApp();
+  const { isVaultUnlocked, isAppHydrated, unlockAppVault } = useApp();
   const { showToast } = useToast();
 
-  const [gateState, setGateState] = useState<'checking' | 'needs_setup' | 'locked' | 'unlocked'>(() => {
-    if (getActiveVaultKey() !== null) return 'unlocked';
-    return 'checking';
-  });
+  // A key already in RAM is not sufficient to show any teacher-facing data.
+  const [gateState, setGateState] = useState<'checking' | 'needs_setup' | 'locked' | 'unlocked'>('checking');
   const [hasLegacyData, setHasLegacyData] = useState<boolean>(false);
   const [loadedVaultFromAccount, setLoadedVaultFromAccount] = useState(false);
 
@@ -87,7 +85,7 @@ export default function VaultGate({ children }: VaultGateProps) {
       try {
         const activeKey = getActiveVaultKey();
         if (activeKey) {
-          if (!isVaultUnlocked) {
+          if (!isVaultUnlocked || !isAppHydrated) {
             const loaded = await unlockAppVault(activeKey);
             if (!loaded) {
               // A valid RAM key is NOT proof that the encrypted local/cloud
@@ -150,7 +148,7 @@ export default function VaultGate({ children }: VaultGateProps) {
           return;
         }
 
-        if (isVaultUnlocked) {
+        if (isVaultUnlocked && isAppHydrated) {
           setGateState('unlocked');
           return;
         }
@@ -184,7 +182,7 @@ export default function VaultGate({ children }: VaultGateProps) {
     return () => {
       isMounted = false;
     };
-  }, [isVaultUnlocked, unlockAppVault]);
+  }, [isVaultUnlocked, isAppHydrated, unlockAppVault]);
 
   const triggerShake = () => {
     setShake(true);
@@ -263,7 +261,9 @@ export default function VaultGate({ children }: VaultGateProps) {
       }
 
       // 4. AppState im React-Kontext entsperren und laden
-      const loaded = await unlockAppVault(activeVaultKey);
+      // Only the explicitly confirmed first-time vault setup may start
+      // without a previous classroom. Ordinary re-login must fail closed.
+      const loaded = await unlockAppVault(activeVaultKey, true);
       if (!loaded) {
         throw new Error('Der Datentresor wurde eingerichtet, aber die vorhandenen Daten konnten nicht geladen werden. Bitte nicht neu einrichten; Verbindung prüfen und erneut versuchen.');
       }
@@ -391,7 +391,7 @@ export default function VaultGate({ children }: VaultGateProps) {
   };
 
   // Wenn der Tresor entsperrt ist, rendern wir die App normal
-  if (gateState === 'unlocked') {
+  if (gateState === 'unlocked' && isVaultUnlocked && isAppHydrated) {
     return <>{children}</>;
   }
 

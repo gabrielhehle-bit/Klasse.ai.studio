@@ -33,6 +33,7 @@ import {
 } from './vaultStorage.js';
 import type { AppState } from '../types.js';
 import { toLocalDateKey } from './localDate.js';
+import { isUnexpectedEmptyClassReplacement } from './appStateContinuity.js';
 
 // ==========================================
 // 1. KONSTANTEN & IDENTIFIKATOREN
@@ -249,6 +250,39 @@ async function writeEncryptedAppState(
     throw new CryptoError('INVALID_PAYLOAD', 'Kein entsperrter VaultKey im RAM verfügbar. Speichern verweigert.');
   }
 
+  // A failed login/remote load must never turn a previously populated
+  // encrypted class into an empty 4th-grade placeholder on disk. Check the
+  // existing encrypted generations BEFORE touching primary/fallback/backup.
+  // This comparison runs only on suspicious zero-pupil snapshots.
+  const storage = getStorageDriver();
+  const incomingHasPupils = (appState.schueler?.length || 0) > 0
+    || appState.classes?.some(room => (room.schueler?.length || 0) > 0);
+  if (!incomingHasPupils) {
+    const ls = getLocalStorage();
+    const candidates = [
+      await storage.getItem(STORAGE_KEYS.PRIMARY),
+      ls.getItem(STORAGE_KEYS.FALLBACK),
+      ls.getItem(STORAGE_KEYS.BACKUP),
+      ls.getItem(STORAGE_KEYS.NOTFALLKOPIE),
+    ];
+    for (const raw of candidates) {
+      if (!raw) continue;
+      let record: unknown;
+      try { record = typeof raw === 'string' ? JSON.parse(raw) : raw; }
+      catch { continue; } // A corrupt candidate is kept for later recovery.
+      if (!isEncryptedLocalState(record)) continue;
+      let prior: AppState;
+      try {
+        prior = await decryptData<AppState>(record.encryptedState, vaultKey);
+      } catch {
+        throw new Error('Ein vorhandener verschlüsselter Klassenstand kann mit diesem Tresor nicht gelesen werden. Der bisherige Speicher bleibt unverändert. Bitte Konto/Tresor und Backups prüfen.');
+      }
+      if (isUnexpectedEmptyClassReplacement(prior, appState)) {
+        throw new Error('KLASSIO verhindert das Überschreiben einer bisher gefüllten Klasse durch einen leeren Datenstand. Der bisherige verschlüsselte Speicher und die Notfallkopie bleiben erhalten. Bitte Backup und Konto-Zuordnung prüfen.');
+      }
+    }
+  }
+
   // 1. AppState per AES-GCM-256 verschlüsseln
   const encryptedPayload = await encryptData(appState, vaultKey);
 
@@ -263,7 +297,6 @@ async function writeEncryptedAppState(
   const serializedRecord = JSON.stringify(record);
 
   // 3. Im Primärspeicher ablegen
-  const storage = getStorageDriver();
   await storage.setItem(STORAGE_KEYS.PRIMARY, serializedRecord);
 
   // 4. Fallbacks verschlüsselt synchronisieren
