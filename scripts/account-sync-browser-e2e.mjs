@@ -443,7 +443,9 @@ async function main() {
     await clickButton(school, 'Meine Klasse');
     await waitFor(school, 'phone shortcut opened the same pupil list',
       'Boolean(document.querySelector("button[aria-label=\\\"Zur KLASSIO-Mobile-Startseite\\\"]"))', 15000);
-    await clickButton(school, 'Mobile');
+    const returnedHome = await evaluate(school,
+      '(() => {const button=document.querySelector("button[aria-label=\\\"Zur KLASSIO-Mobile-Startseite\\\"]");if(!button)return false;button.click();return true;})()');
+    if (!returnedHome) throw new Error('Mobile workspace home button unavailable.');
     await waitFor(school, 'phone returned to its private mobile home',
       'Boolean(document.querySelector("[data-testid=klassio-mobile-home]"))');
     await school.send('Emulation.setEmulatedMedia', { features: [] });
