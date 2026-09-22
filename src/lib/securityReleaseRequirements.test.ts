@@ -32,3 +32,13 @@ test('known-vulnerable SheetJS code is never used to parse user workbooks', () =
   assert.match(weeklyExcelUi, /EXCEL_IMPORT_DISABLED = true/);
   assert.match(yearlyExcelUi, /EXCEL_IMPORT_DISABLED = true/);
 });
+
+
+test('mail transport is hardened against parser, header and content-access abuse', () => {
+  assert.match(server, /SIMPLE_MAILBOX_RE/);
+  assert.match(server, /disableFileAccess: true/);
+  assert.match(server, /disableUrlAccess: true/);
+  assert.match(server, /requireTLS: Boolean\(SMTP_USER && SMTP_PASS\) && !SMTP_SECURE/);
+  assert.match(server, /safeMailHeaderText\(request\.schoolName, 120\)/);
+  assert.match(server, /tls: \{ minVersion: 'TLSv1\.2', rejectUnauthorized: true \}/);
+});
