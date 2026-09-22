@@ -50,10 +50,18 @@ export const triggerBackupDownload = async (
   linkElement.setAttribute('href', url);
   linkElement.setAttribute('download', fileName);
   document.body.appendChild(linkElement);
-  linkElement.click();
-  document.body.removeChild(linkElement);
-  URL.revokeObjectURL(url);
+  try {
+    linkElement.click();
+  } finally {
+    document.body.removeChild(linkElement);
+    // Releasing the object URL in the same event tick can cancel downloads in
+    // slower browsers. Keep it alive briefly while the browser accepts the file.
+    if (typeof window === 'undefined') URL.revokeObjectURL(url);
+    else window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
 
+  // This only means the browser download was initiated. The user must confirm
+  // that the encrypted file actually exists in their Downloads folder.
   markBackupCompleted();
 };
 

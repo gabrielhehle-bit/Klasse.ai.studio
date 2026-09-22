@@ -4,7 +4,7 @@ import {
   Menu, Sun, Cloud, CloudSun, CloudRain, CloudSnow, CloudLightning, Wind,
   ChevronDown, ChevronRight, FlagTriangleLeft, Wifi, Smartphone, X, Copy, Search,
   Maximize, Minimize, Lock, ShieldAlert, ShieldCheck, ExternalLink, RefreshCw,
-  MoreHorizontal, Settings, LogOut, Heart, Bug, ArrowLeft
+  MoreHorizontal, Settings, LogOut, Heart, Bug, ArrowLeft, Save
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -18,6 +18,7 @@ import { Button, IconButton, Badge } from './ui';
 import SupportModal from './SupportModal';
 import { getNavigationParent } from '../lib/navigationHierarchy';
 import { getQuietSyncBadge } from '../lib/quietSyncBadge';
+import { triggerBackupDownload } from '../utils/backupUtils';
 
 interface TopbarProps {
   title: string;
@@ -27,7 +28,7 @@ interface TopbarProps {
 }
 
 const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) => {
-  const { app, setApp, setScreenLocked, setPage, lockAppVault, accountSyncStatus } = useApp();
+  const { app, setApp, setScreenLocked, setPage, lockAppVault, accountSyncStatus, isVaultUnlocked } = useApp();
   const { showToast } = useToast();
   const consistencyIssues = React.useMemo(() => scanDataConsistency(app), [app]);
   const currentPage = app.currentPage || 'dashboard';
@@ -35,6 +36,19 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
 
   // Dropdown States
   const [showMehrMenu, setShowMehrMenu] = useState(false);
+  const [manualBackupBusy, setManualBackupBusy] = useState(false);
+  const createManualBackup = async () => {
+    if (manualBackupBusy || !isVaultUnlocked) return;
+    setManualBackupBusy(true);
+    try {
+      await triggerBackupDownload(app);
+      showToast('Verschlüsselte Backup-Datei wurde zum Herunterladen bereitgestellt. Bitte im Downloads-Ordner prüfen und sicher aufbewahren.', 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Backup konnte nicht erstellt werden. Daten bleiben unverändert.', 'error');
+    } finally {
+      setManualBackupBusy(false);
+    }
+  };
   const [showWeatherDetails, setShowWeatherDetails] = useState(false);
   const [showSchoolYearDetails, setShowSchoolYearDetails] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
@@ -323,6 +337,12 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
 
           {/* Rechter Bereich: Wetter & Schuljahr-Zeitdiagramm & PayPal & Fehler melden & Mehr */}
           <div className="flex items-center gap-2 sm:gap-2.5">
+            <button type="button" onClick={() => void createManualBackup()} disabled={manualBackupBusy || !isVaultUnlocked}
+              aria-label="Jetzt verschlüsseltes Backup herunterladen" title="Verschlüsseltes Backup dieser KLASSIO-Daten als Datei herunterladen"
+              className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-indigo-300 bg-indigo-50 px-2 text-indigo-800 shadow-xs hover:bg-indigo-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:opacity-50 sm:px-3">
+              <Save size={19} aria-hidden="true" />
+              <span className="hidden lg:inline text-xs font-extrabold">Backup</span>
+            </button>
             {cloudSaveBadge && (
               <button type="button" onClick={() => setPage('settings')}
                 aria-label={`Speicherstatus: ${cloudSaveBadge.text}. ${cloudSaveBadge.description}. Konto öffnen.`}
