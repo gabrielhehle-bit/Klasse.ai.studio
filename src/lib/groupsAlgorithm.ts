@@ -415,6 +415,43 @@ export function generateStudentGroups(
 }
 
 /**
+ * Reject newly introduced pair-rule violations during a manual group edit.
+ * Existing contradictory or legacy violations remain editable so that a
+ * teacher can repair an existing allocation one step at a time.
+ */
+export function getNewGroupRuleViolation(
+  previous: readonly GeneratedGroup[],
+  proposed: readonly GeneratedGroup[],
+  notTogether: readonly GroupConstraint[] = [],
+  keepTogether: readonly GroupConstraint[] = [],
+): string | null {
+  const groupByStudent = (groups: readonly GeneratedGroup[]) => {
+    const result = new Map<string, string>();
+    for (const group of groups) {
+      for (const id of group.studentIds) result.set(id, group.id);
+    }
+    return result;
+  };
+  const before = groupByStudent(previous);
+  const after = groupByStudent(proposed);
+  const newlyBroken = (pair: GroupConstraint, together: boolean) => {
+    const oldA = before.get(pair.studentIdA), oldB = before.get(pair.studentIdB);
+    const newA = after.get(pair.studentIdA), newB = after.get(pair.studentIdB);
+    if (!oldA || !oldB || !newA || !newB) return false;
+    const wasBroken = together ? oldA !== oldB : oldA === oldB;
+    const nowBroken = together ? newA !== newB : newA === newB;
+    return nowBroken && !wasBroken;
+  };
+  if (notTogether.some(pair => newlyBroken(pair, false))) {
+    return 'Diese Änderung würde eine „Nicht zusammen“-Regel verletzen. Passe die Paar-Regel zuerst in den Widget-Einstellungen an.';
+  }
+  if (keepTogether.some(pair => newlyBroken(pair, true))) {
+    return 'Diese Änderung würde ein Buddy-Paar trennen. Passe die Paar-Regel zuerst in den Widget-Einstellungen an.';
+  }
+  return null;
+}
+
+/**
  * Tauscht zwei Schüler zwischen zwei Positionen (oder Gruppen).
  */
 export function swapStudentsInGroups(
@@ -423,6 +460,9 @@ export function swapStudentsInGroups(
   studentIdB: string
 ): GeneratedGroup[] {
   if (studentIdA === studentIdB) return groups;
+  // An obsolete selection must not insert or duplicate a child after a class change.
+  if (groups.filter(group => group.studentIds.includes(studentIdA)).length !== 1
+    || groups.filter(group => group.studentIds.includes(studentIdB)).length !== 1) return groups;
 
   return groups.map((group) => {
     const hasA = group.studentIds.includes(studentIdA);
