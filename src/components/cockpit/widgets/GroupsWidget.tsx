@@ -19,6 +19,7 @@ import {
   GroupConstraint,
   GroupingConfig,
   generateStudentGroups,
+  getNewGroupRuleViolation,
   swapStudentsInGroups,
   moveStudentToGroup,
   GROUP_COLOR_PALETTES,
@@ -296,6 +297,17 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     }
 
     const newGroups = swapStudentsInGroups(groups, selectedStudentForAction, studentId);
+    if (newGroups === groups) {
+      setSelectedStudentForAction(null);
+      setFeedbackMessage({ text: 'Die ausgewählten Kinder sind nicht mehr in dieser Einteilung. Bitte erneut auswählen.', type: 'error' });
+      return;
+    }
+    const ruleError = getNewGroupRuleViolation(groups, newGroups, notTogether, keepTogether);
+    if (ruleError) {
+      setSelectedStudentForAction(null);
+      setFeedbackMessage({ text: ruleError, type: 'error' });
+      return;
+    }
     setPreviousGroups(groups);
     setGroups(newGroups);
     setSelectedStudentForAction(null);
@@ -324,6 +336,17 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
         type: 'error'
       });
       setSelectedStudentForAction(null);
+      return;
+    }
+
+    if (moveRes.updatedGroups === groups) {
+      setSelectedStudentForAction(null);
+      return;
+    }
+    const ruleError = getNewGroupRuleViolation(groups, moveRes.updatedGroups, notTogether, keepTogether);
+    if (ruleError) {
+      setSelectedStudentForAction(null);
+      setFeedbackMessage({ text: ruleError, type: 'error' });
       return;
     }
 
