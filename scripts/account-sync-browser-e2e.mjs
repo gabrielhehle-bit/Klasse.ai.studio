@@ -381,6 +381,12 @@ async function loginExistingVault(client, startedFirstLoginAt) {
     'document.body?.innerText.includes("Sync Testklasse A") && Array.from(document.querySelectorAll("button")).some(b=>b.textContent.trim()==="Heute")', 45000);
 }
 
+async function clientReloadForLogout(client) {
+  await client.send('Page.reload', { ignoreCache: true });
+  await waitFor(client, 'real new document after logout',
+    'document.readyState === "complete" && Boolean(document.querySelector("input[type=email]"))', 45000);
+}
+
 async function main() {
   await fs.rm(SMTP_CODES, { force: true }).catch(() => {});
   const home = await createClient(DEBUG_TEACHER, 'Zuhause (isoliertes Browserprofil)');
@@ -477,6 +483,33 @@ async function main() {
     await openWeeklyAndCheck(school, TOPIC_SCHOOL);
     await checkClassNote(home, NOTE_SCHOOL);
     await checkClassNote(school, NOTE_HOME);
+
+    // Regression for the reported production incident: after explicitly signing
+    // out for a while, the same teacher must never receive an empty fabricated
+    // "4. Klasse Meine Klasse" instead of the existing planning class.
+    await waitForCloud(home);
+    const signedOut = await evaluate(home,
+      'fetch("/api/access/logout",{method:"POST",credentials:"same-origin"}).then(r=>r.ok)');
+    if (!signedOut) throw new Error('Home account logout did not complete.');
+    await clientReloadForLogout(home);
+    await waitFor(home, 'home browser shows login after sign-out',
+      'Boolean(document.querySelector("input[type=email]"))', 30000);
+    await fs.rm(SMTP_CODES, { force: true }).catch(() => {});
+    await setInputByLabel(home, 'E-Mail', SYNC_EMAIL);
+    await clickButton(home, 'Anmeldecode senden');
+    await waitFor(home, 'home re-login code field',
+      'document.body?.innerText.toLowerCase().includes("6-stelliger anmeldecode")', 20000);
+    await setInputByLabel(home, '6-stelliger Anmeldecode', await waitForMailCode(SYNC_EMAIL));
+    await clickButton(home, 'Anmelden & Daten laden');
+    await waitFor(home, 'previous encrypted vault still exists after re-login',
+      'Boolean(document.querySelector("input[placeholder=\\\"Passwort eingeben\\\"]"))', 30000);
+    await setInputByLabel(home, 'Passwort eingeben', TEACHER_VAULT);
+    await clickButton(home, 'Tresor entsperren');
+    await waitFor(home, 'real class restored after logout and later login',
+      'document.body?.innerText.includes("Sync Testklasse A")', 45000);
+    await openWeeklyAndCheck(home, TOPIC_SCHOOL);
+    await checkClassNote(home, NOTE_SCHOOL);
+    console.log('✓ Real Chrome: the original planning class and notes survived account logout and a fresh login.');
     if (errors.length) throw new Error('Unexpected browser exceptions: ' + errors.join('\n'));
     console.log('KLASSIO two-browser e-mail account sync and reload E2E passed.');
   } catch (error) {
