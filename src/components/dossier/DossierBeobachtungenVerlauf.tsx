@@ -77,17 +77,14 @@ export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufPr
     e.preventDefault();
     if (!newNoteText.trim()) return;
 
-    const noteText = newNoteSubject.trim()
-      ? `[${newNoteSubject.trim()}] ${newNoteText.trim()}`
-      : newNoteText.trim();
-
     logObservation(
       setApp,
       student.id,
-      noteText,
+      newNoteText.trim(),
       newNoteCategory,
       'Schülerdossier',
       newNoteDate,
+      newNoteSubject.trim() ? { fach: newNoteSubject.trim() } : undefined,
     );
 
     setNewNoteText('');
