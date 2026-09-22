@@ -920,6 +920,39 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     }
   });
 
+  // Read-only recovery: only the authenticated account owner can list or
+  // retrieve historical AES-GCM ciphertext. Never change the live revision here.
+  app.get('/api/account-sync/history', requireEmailAccount, async (req, res) => {
+    try {
+      const account = getEmailAccount(req);
+      const history = await accountSyncStore.listHistory(account.userId);
+      res.setHeader('Cache-Control', 'no-store');
+      res.json({ history });
+    } catch (error) {
+      console.error('[AccountSync] Encrypted recovery list failed:', error);
+      res.status(500).json({ code: 'HISTORY_READ_FAILED', error: 'Frühere verschlüsselte Sicherungen konnten nicht geladen werden.' });
+    }
+  });
+
+  app.get('/api/account-sync/history/:revision', requireEmailAccount, async (req, res) => {
+    const revision = Number(req.params.revision);
+    if (!/^[1-9][0-9]*$/.test(req.params.revision) || !Number.isSafeInteger(revision)) {
+      return res.status(400).json({ code: 'INVALID_REVISION', error: 'Ungültige Sicherungsversion.' });
+    }
+    try {
+      const account = getEmailAccount(req);
+      const snapshot = await accountSyncStore.getHistoryRevision(account.userId, revision);
+      res.setHeader('Cache-Control', 'no-store');
+      if (!snapshot) return res.status(404).json({ code: 'HISTORY_NOT_FOUND', error: 'Diese Sicherung ist nicht mehr vorhanden.' });
+      // userId is intentionally not returned; only account-specific ciphertext.
+      const { userId: _owner, ...accountSnapshot } = snapshot;
+      res.json({ snapshot: accountSnapshot });
+    } catch (error) {
+      console.error('[AccountSync] Encrypted recovery revision failed:', error);
+      res.status(500).json({ code: 'HISTORY_READ_FAILED', error: 'Frühere verschlüsselte Sicherung konnte nicht geladen werden.' });
+    }
+  });
+
   app.put('/api/account-sync', requireEmailAccount, async (req, res) => {
     try {
       const account = getEmailAccount(req);

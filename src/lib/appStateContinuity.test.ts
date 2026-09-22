@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { initialAppState, normalizeAppState, syncActiveClass } from './appState';
 import { createVault } from './vaultService';
 import { saveEncryptedAppState, loadEncryptedAppState, __resetSecureStorageForTesting } from './secureStorageService';
-import { hasEstablishedClassroom, isUnexpectedEmptyClassReplacement } from './appStateContinuity';
+import { hasEstablishedClassroom, isUnexpectedEmptyClassReplacement, hasUnexpectedClassDisappearance } from './appStateContinuity';
 
 const oneA = syncActiveClass({
   ...initialAppState,
@@ -89,4 +89,36 @@ test('Ausdrücklich neue Installation darf initial ohne Klasse verschlüsselt ge
   } finally {
     __resetSecureStorageForTesting();
   }
+});
+
+
+test('Auch eine andere gefüllte Klasse darf die bisherige 1a nicht unbemerkt verdrängen', () => {
+  const fourthGradePupils = [{ id: 'other-synthetic-child', vorname: 'Test' }];
+  const wrongFourthGrade = syncActiveClass({
+    ...initialAppState,
+    activeClassId: 'class-synthetic-4b',
+    schueler: fourthGradePupils,
+    classes: [{
+      id: 'class-synthetic-4b', name: '4b', stufe: 4,
+      schueler: fourthGradePupils,
+    }],
+  } as any);
+  assert.equal(hasEstablishedClassroom(wrongFourthGrade), true);
+  assert.equal(isUnexpectedEmptyClassReplacement(oneA, wrongFourthGrade), false,
+    'Der alte reine Leerstand-Check erkennt den Ersatz durch eine andere gefüllte Klasse nicht.');
+  assert.equal(hasUnexpectedClassDisappearance(oneA, wrongFourthGrade), true);
+  assert.equal(hasUnexpectedClassDisappearance(oneA, oneA), false);
+  const withAdditionalRoom = syncActiveClass({
+    ...oneA,
+    classes: [...oneA.classes, ...wrongFourthGrade.classes],
+  } as any);
+  assert.equal(hasUnexpectedClassDisappearance(oneA, withAdditionalRoom), false,
+    'Das Hinzufügen einer zweiten Klasse ist kein Datenverlust.');
+  assert.equal(hasUnexpectedClassDisappearance(oneA, {
+    ...wrongFourthGrade, retiredClasses: [...(wrongFourthGrade.retiredClasses || []), oneA.classes[0]],
+  }), false, 'Das bestätigte Stilllegen der alten Klasse bewahrt die Klassen-ID.');
+  const context = readFileSync('src/context/AppContext.tsx', 'utf8');
+  assert.ok(context.includes('hasUnexpectedClassDisappearance(current, remoteState)'),
+    'Der automatische Konto-Download muss die stabile Klassen-ID prüfen.');
+  assert.ok(context.includes('setAccountSyncConflictResolvable(true)'));
 });

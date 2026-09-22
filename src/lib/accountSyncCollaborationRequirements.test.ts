@@ -155,7 +155,8 @@ test('E-Mail-Konto synchronisiert den AppState Ende-zu-Ende statt Klartext serve
   assert.match(context, /REVISION_CONFLICT/);
   assert.match(vaultGate, /fetchAccountSyncSnapshot/);
   assert.match(vaultGate, /saveVaultRecord\(remote\.vaultRecord\)/);
-  assert.match(backupUtils, /isAccountSyncHealthy\(\)/);
+  assert.match(backupUtils, /createEncryptedBackup/);
+  assert.match(backupUtils, /disableBackupReminders/);
 });
 
 test('Konto-Sync überträgt keine gerätespezifische Navigation und reagiert auf spätere E-Mail-Anmeldung', () => {

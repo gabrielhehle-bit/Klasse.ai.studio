@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Production storage preflight script syntax
+        run: bash -n ops/klassio-storage-preflight.sh
+
       - name: TypeScript
         run: bun run lint
 
