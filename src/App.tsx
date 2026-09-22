@@ -90,11 +90,13 @@ import GlobalActions from './components/GlobalActions';
 import DenkzettelWidget from './components/DenkzettelWidget';
 import { hasCompletedInitialSetup } from './lib/firstRunFlow';
 import PrivacyLock from './components/PrivacyLock';
+import { getActiveSessionKey } from './lib/syncService';
+import MobileHome from './components/MobileHome';
 const Cockpit = lazyRetry(() => import('./components/Cockpit'));
 import PrintHeader from './components/PrintHeader';
 import AccessGate from './components/AccessGate';
 import { AnimatePresence, motion } from 'motion/react';
-import { X, Mic, Sparkles, HelpCircle, Loader2 } from 'lucide-react';
+import { X, Mic, Sparkles, HelpCircle, Loader2, House } from 'lucide-react';
 import { getKW, getTodayName, getAccentTextColor } from './lib/utils';
 import { istSekundarstufe, sek1Seite } from './lib/sek1Navigation';
 const DiagnostikAnleitung = lazyRetry(() => import('./components/DiagnostikAnleitung'));
@@ -240,6 +242,19 @@ function AppContent() {
   // the very first login. Existing configured accounts skip setup as before.
   const needsFirstSetup = !hasCompletedInitialSetup(app);
   const [showSetup, setShowSetup] = useState(false);
+  // A mobile home is a device-local view, not a shared class/account setting.
+  // Keep narrow desktop windows in the full PC interface.
+  const [mobileDevice, setMobileDevice] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 767px) and (pointer: coarse)').matches
+  );
+  const [mobileHomeVisible, setMobileHomeVisible] = useState(true);
+  React.useEffect(() => {
+    const media = window.matchMedia('(max-width: 767px) and (pointer: coarse)');
+    const update = () => setMobileDevice(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
 
   React.useEffect(() => {
     if (!landOnDashboardAfterLogin) return;
@@ -617,6 +632,27 @@ function AppContent() {
     );
   }
 
+  if (mobileDevice && mobileHomeVisible) {
+    return (
+      <MobileHome
+        onNavigate={(destination) => {
+          setPage(destination);
+          setMobileHomeVisible(false);
+        }}
+        onOpenRemote={() => {
+          // Only the existing zero-knowledge smartboard pairing may enable remote.
+          // An e-mail account alone cannot provide the ephemeral session key.
+          if (!app.boardSettings?.activeSyncCode || !getActiveSessionKey()) return;
+          setApp(prev => ({
+            ...prev,
+            boardSettings: { ...prev.boardSettings, isRemoteController: true },
+          }));
+        }}
+        remoteReady={Boolean(app.boardSettings?.activeSyncCode && getActiveSessionKey())}
+      />
+    );
+  }
+
   const renderPage = () => {
     switch (currentPage) {
       case 'cockpit': return null;
@@ -796,6 +832,16 @@ function AppContent() {
             className="print:hidden relative z-[60]"
             actions={
               <div className="flex items-center gap-2">
+                {mobileDevice && (
+                  <button
+                    type="button"
+                    onClick={() => setMobileHomeVisible(true)}
+                    aria-label="Zur KLASSIO-Mobile-Startseite"
+                    className="flex min-h-10 items-center gap-1 rounded-xl border border-teal-200 bg-teal-50 px-3 text-sm font-bold text-teal-800"
+                  >
+                    <House size={17} /> <span>Mobile</span>
+                  </button>
+                )}
                 {currentPage === 'diagnostik' && (
                   <button 
                     onClick={() => setShowDiagnostikAnleitung(true)}
