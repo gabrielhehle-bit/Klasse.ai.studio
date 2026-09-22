@@ -183,8 +183,11 @@ test('Ältere verschlüsselte Kontostände bleiben bei wiederholtem Überschreib
     assert.ok(history.length <= 38);
     assert.ok(history.some(item => item.revision === 1), 'Die erste Tagesversion muss auch nach vielen Autosaves erhalten sein.');
     assert.ok(history.some(item => item.revision === 13), 'Neuere Versionen müssen als separate Wiederherstellungspunkte erhalten sein.');
-    const previous = await store.getHistoryRevision(userId, 1);
+    // Simulate a process restart: recover snapshots from disk, not an in-memory cache.
+    const afterRestart = new AccountSyncStore(directory);
+    const previous = await afterRestart.getHistoryRevision(userId, 1);
     assert.ok(previous);
+    assert.ok((await afterRestart.listHistory(userId)).some(item => item.revision === 1));
     const decrypted = await decryptData<any>(previous!.encryptedState, vault.vaultKey);
     assert.equal(decrypted.wochenplanung[39].Montag[0].thema, 'Wichtige ursprüngliche Wochenplanung');
     const live = await store.get(userId);
