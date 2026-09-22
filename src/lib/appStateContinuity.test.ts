@@ -92,7 +92,7 @@ test('Altes leeres Handy-Profil lädt verifizierte 1a statt erneut die Einrichtu
   const baseline = context.indexOf('const baseline = loadAccountSyncMetadata(vaultRecord.id);', restore);
   assert.ok(verifiedVault !== -1 && verifiedVault < restore && restore < baseline,
     'Die Wiederherstellung darf nur nach dem Tresor-ID-Abgleich und vor dem Vergleich mit einer alten lokalen Sync-Baseline erfolgen.');
-  assert.match(context, /if (!isStillCurrent) await saveEncryptedAppState\(remoteState, vaultKey\)/);
+  assert.match(context, /if \(!isStillCurrent\) await saveEncryptedAppState\(remoteState, vaultKey\)/);
   assert.match(context, /if \(!hadLocalState \|\| \(!allowFreshSetup && !hasEstablishedClassroom\(current\)\)\) throw error;/);
 });
 
