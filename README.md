@@ -17,7 +17,7 @@ Details stehen in `KLASSIO_SOURCE_OF_TRUTH.md` und `KLASSIO_FEATURE_MATRIX.md`.
 
 ## Lokal starten
 
-Voraussetzung: Node.js 18.20 oder neuer.
+Voraussetzung: Node.js 18.20 oder neuer. Für die Produktion gilt zusätzlich: ein aktueller unterstützter Node.js-Stand, HTTPS und ein nicht öffentlich erreichbarer Node-Port.
 
 ```bash
 npm install
@@ -36,7 +36,7 @@ Klassio unterstützt zwei Zugangswege:
 2. **Administrativer Zugangscode:** `LEHRERAPP_ACCESS_TEAM` bzw.
    `LEHRERAPP_ACCESS_EXTERNAL` bleibt als kontrollierter Fallback bestehen.
 
-Eine erfolgreiche Anmeldung setzt eine HttpOnly-Session für bis zu 30 Tage.
+Eine erfolgreiche Anmeldung setzt eine HttpOnly-Session für bis zu 7 Tage. Abmeldung widerruft die Server-Sitzung; unter „Konto & Schulmail“ können alle Server-Sitzungen des Kontos beendet werden.
 Sie ersetzt nicht den lokalen Datentresor: dessen AES-256-Schlüssel bleibt getrennt
 und wird weder per E-Mail versendet noch serverseitig gespeichert.
 

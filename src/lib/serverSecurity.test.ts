@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'http';
+import crypto from 'node:crypto';
 
 test('E3: Produktionshärtung von server.ts', async (t) => {
   process.env.IS_TEST_RUNNER = "true";
@@ -113,7 +114,12 @@ test('E3: Produktionshärtung von server.ts', async (t) => {
     });
     assert.equal(legacyRes.status, 400);
 
+    const syncWriteToken = 'abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE';
+    const writeTokenHash = crypto.createHash('sha256')
+      .update('klassio-sync-write-verifier:v1:' + syncWriteToken)
+      .digest('hex');
     const validPayload = {
+      writeTokenHash,
       encryptedPayload: {
         protocolVersion: 1,
         updatedAt: Date.now(),
@@ -133,6 +139,20 @@ test('E3: Produktionshärtung von server.ts', async (t) => {
     assert.equal(validRes.status, 200);
     const data = await validRes.json();
     assert.ok(/^[A-HJ-NP-Z2-9]{6}$/.test(data.code));
+
+    const unauthorizedWrite = await fetch(baseUrl + '/api/sync/' + data.code, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ encryptedPayload: validPayload.encryptedPayload }),
+    });
+    assert.equal(unauthorizedWrite.status, 403, 'pairing code alone must not authorize writes');
+
+    const authorizedWrite = await fetch(baseUrl + '/api/sync/' + data.code, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Klassio-Sync-Write': syncWriteToken },
+      body: JSON.stringify({ encryptedPayload: validPayload.encryptedPayload }),
+    });
+    assert.equal(authorizedWrite.status, 200);
 
     // Cleanup session
     const delRes = await authenticatedFetch(`${baseUrl}/api/sync/${data.code}`, { method: "DELETE" });
@@ -174,6 +194,80 @@ test('E3: Produktionshärtung von server.ts', async (t) => {
     assert.equal(res.status, 413);
   });
 
+
+  await t.test('External AI defaults to off', async () => {
+    const status = await authenticatedFetch(baseUrl + '/api/ai/status');
+    const meta = await status.json();
+    assert.equal(meta.available, false);
+    assert.equal(meta.privacyRestricted, true);
+    const response = await authenticatedFetch(baseUrl + '/api/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'askAI', params: { modusId: 'ki-helfer', userMessage: 'Test request' } }),
+    });
+    assert.equal(response.status, 503);
+    assert.equal((await response.json()).code, 'AI_EXTERNAL_DISABLED');
+  });
+
+  await t.test('Student assessment imports never forward PDFs or names to Gemini', async () => {
+    for (const route of ['/api/ai/analyze-ikm', '/api/ai/analyze-antolin']) {
+      const response = await authenticatedFetch(baseUrl + route, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pdfBase64: 'SENSITIVE_TEST_DATA', students: [{ name: 'Dummy Student' }] }),
+      });
+      assert.equal(response.status, 403, route);
+      assert.equal((await response.json()).code, 'AI_STUDENT_IMPORT_DISABLED');
+    }
+  });
+
+  await t.test('Cross-origin writes are blocked even with a valid session cookie', async () => {
+    const response = await authenticatedFetch(baseUrl + '/api/access/logout', {
+      method: 'POST',
+      headers: { Origin: 'https://evil.invalid', 'Sec-Fetch-Site': 'cross-site' },
+    });
+    assert.equal(response.status, 403);
+    assert.equal((await authenticatedFetch(baseUrl + '/api/access/status')).status, 200);
+    const status = await authenticatedFetch(baseUrl + '/api/access/status');
+    assert.equal((await status.json()).authenticated, true);
+  });
+
+  await t.test('Logout revokes issued sessions; a copied cookie cannot be replayed', async () => {
+    const response = await authenticatedFetch(baseUrl + '/api/access/logout', { method: 'POST' });
+    assert.equal(response.status, 200);
+    const replay = await authenticatedFetch(baseUrl + '/api/access/status');
+    assert.equal((await replay.json()).authenticated, false);
+    const protectedRoute = await authenticatedFetch(baseUrl + '/api/ai/status');
+    assert.equal(protectedRoute.status, 401);
+  });
+
+  await t.test('Forwarded-for spoofing cannot reset failed access-code throttles', async () => {
+    for (let i = 0; i < 10; i++) {
+      const failed = await fetch(baseUrl + '/api/access/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': '198.51.100.' + (i + 1) },
+        body: JSON.stringify({ code: 'wrong-' + i }),
+      });
+      assert.equal((await failed.json()).success, false);
+    }
+    const blocked = await fetch(baseUrl + '/api/access/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': '203.0.113.250' },
+      body: JSON.stringify({ code: 'wrong-again' }),
+    });
+    assert.equal(blocked.status, 429);
+  });
+
+  await t.test('Unknown Smartboard pairing codes are rate-limited without exposing encrypted sessions', async () => {
+    for (let i = 0; i < 30; i++) {
+      const code = 'AAAA' + i.toString(32).padStart(2, '0').toUpperCase();
+      const res = await fetch(baseUrl + '/api/sync/' + code);
+      assert.equal(res.status, 404);
+    }
+    const blocked = await fetch(baseUrl + '/api/sync/AAAAZZ');
+    assert.equal(blocked.status, 429);
+  });
+
   server.close();
 
   await t.test('Production refuses missing secrets and default access codes', async () => {
@@ -205,6 +299,12 @@ test('E3: Produktionshärtung von server.ts', async (t) => {
       const prodAddress = prodServer.address() as any;
       const res = await fetch(`http://127.0.0.1:${prodAddress.port}/api/health`);
       assert.equal(res.headers.get("strict-transport-security"), "max-age=31536000; includeSubDomains");
+      const csp = res.headers.get('content-security-policy') || '';
+      assert.match(csp, /script-src 'self' 'nonce-[^']+'/);
+      const scripts = csp.split(';').map(part => part.trim()).find(part => part.startsWith('script-src ')) || '';
+      assert.doesNotMatch(scripts, /'unsafe-inline'|'unsafe-eval'/, 'production JavaScript must require a nonce or same-origin asset');
+      assert.ok(!csp.includes("'unsafe-eval'"));
+      assert.match(csp, /frame-ancestors 'self'/);
       prodServer.close();
     } finally {
       process.env.NODE_ENV = origEnv;

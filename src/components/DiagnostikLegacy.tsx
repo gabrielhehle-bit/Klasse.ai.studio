@@ -392,7 +392,12 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
     return val > 100 ? `${val} Pkt.` : `${val} PR`;
   };
 
+  const STUDENT_REPORT_AI_DISABLED = true;
   const startAiAnalysis = async (base64: string, fileName: string) => {
+    if (STUDENT_REPORT_AI_DISABLED) {
+      setAiImportError('Der IKM-KI-Import ist aus Datenschutzgründen vorübergehend deaktiviert. Bitte keine Schülerberichte hochladen.');
+      return;
+    }
     setIsAiImporting(true);
     setAiImportError(null);
     setAiImportPreview(null);
@@ -2480,7 +2485,12 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
                   </div>
                 </div>
 
-                {!aiImportPreview && !isAiImporting && (
+                {STUDENT_REPORT_AI_DISABLED && (
+                  <p role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold text-amber-950">
+                    Datenschutz: Die automatische IKM-Auswertung über Gemini ist vorübergehend gesperrt. Bitte keine Schülerberichte hochladen. Bereits erfasste Ergebnisse bleiben erhalten.
+                  </p>
+                )}
+                {!STUDENT_REPORT_AI_DISABLED && !aiImportPreview && !isAiImporting && (
                   <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 hover:border-indigo-400 bg-white hover:bg-indigo-50/15 p-4 sm:p-8 rounded-3xl cursor-pointer transition-all text-center">
                     <input type="file" accept="application/pdf" className="hidden" onChange={(e) => {
                       const file = e.target.files?.[0];

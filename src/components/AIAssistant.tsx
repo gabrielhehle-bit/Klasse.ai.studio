@@ -229,7 +229,7 @@ export default function AIAssistant() {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<AiTab>('ki-helfer');
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
-  const [aiAvailability, setAiAvailability] = useState<'checking' | 'ready' | 'missing' | 'offline'>('checking');
+  const [aiAvailability, setAiAvailability] = useState<'checking' | 'ready' | 'missing' | 'offline' | 'privacy'>('checking');
   const [aiUsage, setAiUsage] = useState<AiUsageStatus | null>(null);
   const [useClassContext, setUseClassContext] = useState(true);
   const processedPromptTimestampRef = useRef<number>(0);
@@ -241,7 +241,7 @@ export default function AIAssistant() {
         if (!response.ok) throw new Error('status unavailable');
         const data = await response.json();
         if (!cancelled) {
-          setAiAvailability(data?.available ? 'ready' : 'missing');
+          setAiAvailability(data?.available ? 'ready' : data?.privacyRestricted ? 'privacy' : 'missing');
           if (data?.usage) setAiUsage(data.usage as AiUsageStatus);
         }
       })
@@ -383,8 +383,8 @@ export default function AIAssistant() {
   const handleSend = async (manualText?: string, manualImageBase64?: {data: string, mimeType: string} | null, imagePrivacyConfirmed: boolean = false) => {
     const userMsg = (manualText || input).trim();
     if (!userMsg || isLoading) return;
-    if (aiAvailability === 'missing') {
-      showToast('Der KI-Helfer ist serverseitig noch nicht eingerichtet.', 'error');
+    if (aiAvailability !== 'ready') {
+      showToast(aiAvailability === 'privacy' ? 'Externe KI ist bis zur Datenschutzfreigabe deaktiviert.' : 'Der KI-Helfer ist momentan nicht verfügbar.', 'error');
       return;
     }
     if (aiUsage?.blocked || aiUsage?.remaining === 0) {
@@ -712,14 +712,16 @@ export default function AIAssistant() {
 
                 {aiAvailability !== 'ready' && (
                   <div className={`mx-4 mt-3 rounded-xl border px-4 py-2.5 text-xs font-semibold ${
-                    aiAvailability === 'missing'
+                    aiAvailability === 'missing' || aiAvailability === 'privacy'
                       ? 'bg-amber-50 border-amber-200 text-amber-800'
                       : aiAvailability === 'offline'
                         ? 'bg-rose-50 border-rose-200 text-rose-700'
                         : 'bg-slate-50 border-slate-200 text-slate-600'
                   }`}>
-                    {aiAvailability === 'missing'
-                      ? 'Der KI-Helfer ist serverseitig noch nicht eingerichtet. Für den Betrieb muss GEMINI_API_KEY in der Serverumgebung gesetzt sein.'
+                    {aiAvailability === 'privacy'
+                      ? 'Datenschutz: Die externe KI ist bis zur Freigabe der Datenverarbeitung deaktiviert. Schülerdaten, Leistungsprofile und Bilder werden nicht an Gemini gesendet.'
+                      : aiAvailability === 'missing'
+                        ? 'Der KI-Helfer ist serverseitig noch nicht eingerichtet.'
                       : aiAvailability === 'offline'
                         ? 'Der KI-Status konnte nicht geprüft werden. Bei einer Anfrage zeigt Klassio die konkrete Fehlermeldung an.'
                         : 'Klassio prüft gerade die KI-Verbindung …'}
@@ -1022,10 +1024,10 @@ export default function AIAssistant() {
                             const prompt = `Analysiere diesen Schülertext der ${fkStufe}. Stufe. Fokus auf: ${foki}.`;
                             handleSend(prompt, fkImageBase64, fkPrivacyConfirmed);
                           }} 
-                          disabled={!fkImageBase64 || !fkPrivacyConfirmed || isLoading || aiAvailability === 'missing' || aiUsage?.blocked || aiUsage?.remaining === 0} 
+                          disabled={true} 
                           className="w-full py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md hover:shadow-red-500/20 transition-all active:scale-[0.99] disabled:bg-slate-200 cursor-pointer"
                         >
-                          Foto-Feedback erstellen
+                          Foto-Feedback aus Datenschutzgründen deaktiviert
                         </button>
                       </div>
                     )}

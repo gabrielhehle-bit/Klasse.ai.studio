@@ -11,14 +11,7 @@
     <meta name="description" content="Klassio – digitale Planung, Organisation und Dokumentation für den Schulalltag." />
     <meta property="og:title" content="Klassio – Lehrer- & Klassenorganisation" />
     <meta property="og:description" content="Professioneller Unterrichtsplaner mit VOBS-Kalenderintegration, Notenverwaltung, diagnostischen Live-Tests (Mengen blitzen, Zahlenspanne, Stopp-Signal) und KI-Assistent für Lehrer/innen." />
-    <script>
-      window.deferredPrompt = null;
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        window.deferredPrompt = e;
-        window.dispatchEvent(new CustomEvent('pwasupported'));
-      });
-    </script>
+    <script type="module" src="/src/registerPwaPrompt.ts"></script>
   </head>
   <body>
     <div id="root"></div>

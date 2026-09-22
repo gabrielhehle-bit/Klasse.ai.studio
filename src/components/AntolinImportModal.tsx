@@ -50,6 +50,7 @@ export default function AntolinImportModal({ open, onClose }: AntolinImportModal
   const { app, setApp } = useApp();
   const { showToast } = useToast();
   const [file, setFile] = React.useState<File | null>(null);
+  const AI_STUDENT_REPORTS_DISABLED = true;
   const [rawText, setRawText] = React.useState('');
   const [privacyConfirmed, setPrivacyConfirmed] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
@@ -81,6 +82,11 @@ export default function AntolinImportModal({ open, onClose }: AntolinImportModal
   const activeStudentIds = new Set(activeStudents.map(student => student.id));
 
   const analyze = async () => {
+    // Do not upload identifiable student reports while local parsing is being implemented.
+    if (AI_STUDENT_REPORTS_DISABLED) {
+      setError('Die KI-Auswertung von Antolin-Berichten ist vorübergehend aus Datenschutzgründen gesperrt. Bitte keine Schülerlisten hochladen.');
+      return;
+    }
     if (!file && !rawText.trim()) {
       setError('Bitte wähle eine Antolin-Datei aus oder füge den Tabelleninhalt ein.');
       return;
@@ -228,6 +234,7 @@ export default function AntolinImportModal({ open, onClose }: AntolinImportModal
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          <p role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold text-amber-950">Datenschutz: Die KI-Auswertung von Antolin-Berichten ist bis zur Einführung einer geprüften lokalen Analyse gesperrt. Es werden hier keine Dateien hochgeladen.</p>
           {!preview.length ? (
             <>
               <label className="block cursor-pointer rounded-2xl border-2 border-dashed border-amber-200 bg-amber-50/40 p-6 text-center transition-colors hover:border-amber-400 hover:bg-amber-50">
@@ -352,7 +359,7 @@ export default function AntolinImportModal({ open, onClose }: AntolinImportModal
               </div>
               <button
                 type="button"
-                disabled={loading}
+                disabled={loading || AI_STUDENT_REPORTS_DISABLED}
                 onClick={analyze}
                 className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-xs font-black text-white shadow-sm hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
               >

@@ -18,6 +18,7 @@ import { createCanvaTokenStore, type CanvaStoredTokens } from "./src/server/canv
 import { createEncryptedAttachmentStore, AttachmentStorageError } from "./src/server/encryptedAttachmentStore.ts";
 import { createAccountSyncStore } from "./src/server/accountSyncStore.ts";
 import { createAiUsageStore, type AiUsageSnapshot } from "./src/server/aiUsageStore.ts";
+import { AccessSessionStore } from './src/server/accessSessionStore.ts';
 import { INITIAL_VERIFIED_AUSTRIAN_SCHOOLS } from "./src/data/austrianSchoolRegistry.seed.ts";
 
 // Fix: In tsx environments, global __dirname is injected as "." which breaks ESM packages
@@ -81,7 +82,15 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   app.disable('x-powered-by');
 
   // E3.9 Proxy / HTTPS-Erkennung für Cloud Run / Reverse-Proxies (1 Hop)
-  app.set('trust proxy', 1);
+  // Trust only explicitly configured reverse-proxy addresses. By default the
+  // peer socket is the client identity: trusting one anonymous proxy hop would
+  // let direct clients forge X-Forwarded-For and defeat security throttles.
+  const trustedProxyAddresses = (process.env.KLASSIO_TRUSTED_PROXY_ADDRESSES || '')
+    .split(',').map(value => value.trim()).filter(Boolean);
+  if (trustedProxyAddresses.some(address => address === '*' || address === '0.0.0.0/0' || address === '::/0')) {
+    throw new Error('KLASSIO_TRUSTED_PROXY_ADDRESSES must list only trusted proxy IPs/CIDRs.');
+  }
+  app.set('trust proxy', trustedProxyAddresses.length ? trustedProxyAddresses : false);
 
   // E3.28-30 Produktionsumgebungs-Validierung
   validateProductionEnvironment();
@@ -105,10 +114,12 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     }
 
-    // E3.6 Content-Security-Policy
+    // E3.6 Per-response nonces let OAuth callback scripts run without arbitrary inline JavaScript.
+    const cspNonce = crypto.randomBytes(16).toString('base64');
+    res.locals.cspNonce = cspNonce;
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      process.env.NODE_ENV === 'production' ? `script-src 'self' 'nonce-${cspNonce}'` : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://unpkg.com https://*.canva.com",
@@ -118,10 +129,28 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self' https://login.microsoftonline.com",
-      "frame-ancestors 'self' https://ai.studio https://*.google.com https://*.run.app"
+      process.env.NODE_ENV === 'production' ? "frame-ancestors 'self'" : "frame-ancestors 'self' https://ai.studio https://*.google.com https://*.run.app"
     ].join('; ');
     res.setHeader('Content-Security-Policy', csp);
 
+    next();
+  });
+
+  // Reject cross-site state-changing requests, including ordinary HTML form submissions.
+  // SameSite cookies alone do not cover every browser and same-site subdomain scenario.
+  app.use('/api', (req, res, next) => {
+    if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
+    const origin = req.get('origin');
+    const fetchSite = req.get('sec-fetch-site');
+    const configuredOrigin = (() => {
+      try { return new URL(process.env.APP_URL || '').origin; } catch { return ''; }
+    })();
+    // Production TLS may terminate at a reverse proxy. Never infer the public
+    // origin from an untrusted forwarded-proto header or the internal HTTP socket.
+    const requestOrigin = (process.env.NODE_ENV === 'production' ? 'https' : req.protocol) + '://' + req.get('host');
+    if ((origin && origin !== (configuredOrigin || requestOrigin)) || fetchSite === 'cross-site') {
+      return res.status(403).json({ error: 'Anfrage von einer nicht erlaubten Website abgewiesen.' });
+    }
     next();
   });
 
@@ -177,11 +206,12 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   const SMTP_USER = (process.env.SMTP_USER || '').trim();
   const SMTP_PASS = process.env.SMTP_PASS || '';
   const SMTP_FROM = (process.env.SMTP_FROM || '').trim();
+  const SIMPLE_MAILBOX_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/;
   const SCHOOL_ADMIN_EMAILS = [...new Set(
     (process.env.KLASSIO_SCHOOL_ADMIN_EMAILS || SMTP_USER || '')
       .split(',')
       .map(value => value.trim().toLowerCase())
-      .filter(value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
+      .filter(value => SIMPLE_MAILBOX_RE.test(value))
   )];
   const ALLOWED_EMAIL_DOMAINS = (process.env.KLASSIO_VERIFIED_SCHOOL_DOMAINS || process.env.LEHRERAPP_ALLOWED_EMAIL_DOMAINS || '')
     .split(',')
@@ -193,6 +223,13 @@ export async function createApp(options: { isTest?: boolean } = {}) {
         host: SMTP_HOST,
         port: SMTP_PORT,
         secure: SMTP_SECURE,
+        requireTLS: Boolean(SMTP_USER && SMTP_PASS) && !SMTP_SECURE,
+        disableFileAccess: true,
+        disableUrlAccess: true,
+        tls: { minVersion: 'TLSv1.2', rejectUnauthorized: true },
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 20_000,
         ...(SMTP_USER && SMTP_PASS ? { auth: { user: SMTP_USER, pass: SMTP_PASS } } : {})
       })
     : null;
@@ -204,6 +241,8 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   const supporterStore = createSupporterStore(KLASSIO_DATA_DIR);
   const accountSyncStore = createAccountSyncStore(KLASSIO_DATA_DIR);
   const aiUsageStore = createAiUsageStore(KLASSIO_DATA_DIR);
+  const accessSessions = new AccessSessionStore(options.isTest ? null : KLASSIO_DATA_DIR);
+  const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
 
   const readPositiveIntEnv = (name: string, fallback: number, max: number) => {
     const parsed = Number.parseInt(process.env[name] || '', 10);
@@ -253,13 +292,56 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   };
   const emailAccessChallenges = new Map<string, EmailAccessChallenge>();
   const emailRequestThrottle = new Map<string, number>();
+  const emailGlobalThrottle = new Map<string, number>();
+  const emailIpWindows = new Map<string, { count: number; resetAt: number }>();
+  let emailServerWindow = { count: 0, resetAt: 0 };
+
+  function allowVerificationEmailSend(ip: string): { allowed: boolean; retryAfterSeconds?: number } {
+    const now = Date.now();
+    const windowMs = 10 * 60 * 1000;
+    const perIpLimit = 30;
+    const globalLimit = 200;
+
+    let ipWindow = emailIpWindows.get(ip);
+    if (!ipWindow || now >= ipWindow.resetAt) {
+      ipWindow = { count: 0, resetAt: now + windowMs };
+      emailIpWindows.set(ip, ipWindow);
+    }
+    if (now >= emailServerWindow.resetAt) {
+      emailServerWindow = { count: 0, resetAt: now + windowMs };
+    }
+
+    if (ipWindow.count >= perIpLimit || emailServerWindow.count >= globalLimit) {
+      const retryAt = Math.min(
+        ipWindow.count >= perIpLimit ? ipWindow.resetAt : Number.POSITIVE_INFINITY,
+        emailServerWindow.count >= globalLimit ? emailServerWindow.resetAt : Number.POSITIVE_INFINITY,
+      );
+      return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil((retryAt - now) / 1000)) };
+    }
+
+    ipWindow.count += 1;
+    emailServerWindow.count += 1;
+    return { allowed: true };
+  }
+
+  // Security throttles must not be keyed by a user-supplied proxy header.
+  const securityPeer = (req: express.Request): string => req.ip || req.socket.remoteAddress || 'unknown';
 
   function normalizeEmail(value: unknown): string | null {
     if (typeof value !== 'string') return null;
     const normalized = value.trim().toLowerCase();
     if (normalized.length < 5 || normalized.length > 254) return null;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return null;
+    // Restrict user-controlled SMTP recipients to one mailbox; no address-list or header syntax.
+    if (!SIMPLE_MAILBOX_RE.test(normalized)) return null;
     return normalized;
+  }
+
+  function safeMailHeaderText(value: unknown, maxLength = 160): string {
+    return String(value ?? '')
+      .replace(/[\r\n\0\u2028\u2029]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, maxLength);
   }
 
   function hashEmailCode(email: string, code: string): string {
@@ -289,7 +371,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       await mailTransporter.sendMail({
         from: SMTP_FROM,
         to: SCHOOL_ADMIN_EMAILS.join(','),
-        subject: 'Neue Klassio-Schulverifizierung: ' + request.schoolName,
+        subject: 'Neue Klassio-Schulverifizierung: ' + safeMailHeaderText(request.schoolName, 120),
         text:
           'In Klassio wurde eine neue Schulverifizierung angefordert.\n\n' +
           'Schule: ' + request.schoolName + '\n' +
@@ -353,7 +435,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   }
 
   function createAccessToken(): string {
-    const expiry = Date.now() + 30 * 24 * 60 * 60 * 1000; // 30 days
+    const expiry = Date.now() + SESSION_MAX_AGE_SECONDS * 1000; // 7 days
     const nonce = crypto.randomBytes(16).toString('hex');
     const payload = `${expiry}.${nonce}`;
     const hmac = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('hex');
@@ -369,7 +451,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     if (isNaN(expiry) || expiry < Date.now()) return false;
     const expectedHmac = crypto.createHmac('sha256', SESSION_SECRET).update(`${expiryStr}.${nonce}`).digest('hex');
     try {
-      return crypto.timingSafeEqual(Buffer.from(hmac, 'hex'), Buffer.from(expectedHmac, 'hex'));
+      return crypto.timingSafeEqual(Buffer.from(hmac, 'hex'), Buffer.from(expectedHmac, 'hex')) && accessSessions.isActive(token);
     } catch (e) {
       return false;
     }
@@ -418,7 +500,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     return createSignedIdentityToken('klassio-account:', {
       ...identity,
       v: 1,
-      exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
+      exp: Date.now() + SESSION_MAX_AGE_SECONDS * 1000,
     } satisfies AccountSessionPayload);
   }
 
@@ -438,7 +520,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     return createSignedIdentityToken('klassio-identity:', {
       ...identity,
       v: 1,
-      exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
+      exp: Date.now() + SESSION_MAX_AGE_SECONDS * 1000,
     } satisfies IdentitySessionPayload);
   }
 
@@ -465,11 +547,13 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     return (isProd || isSecure) ? '; Secure' : '';
   }
 
-  function setAccessSession(req: express.Request, res: express.Response): string {
+  function setAccessSession(req: express.Request, res: express.Response, userId?: string): string {
     const token = createAccessToken();
+    // Only issue a cookie after the server-side allowlist was persisted.
+    accessSessions.issue(token, Date.now() + SESSION_MAX_AGE_SECONDS * 1000, userId);
     res.setHeader(
       'Set-Cookie',
-      'lehrerapp_access_token=' + token + '; Max-Age=' + (30 * 24 * 60 * 60) + '; Path=/; HttpOnly; SameSite=Lax' + secureCookieSuffix(req)
+      'lehrerapp_access_token=' + token + '; Max-Age=' + SESSION_MAX_AGE_SECONDS + '; Path=/; HttpOnly; SameSite=Lax' + secureCookieSuffix(req)
     );
     return token;
   }
@@ -477,7 +561,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   function setEmailAccountSession(req: express.Request, res: express.Response, identity: EmailAccountIdentity): void {
     res.append(
       'Set-Cookie',
-      'klassio_email_account=' + createAccountToken(identity) + '; Max-Age=' + (30 * 24 * 60 * 60) + '; Path=/; HttpOnly; SameSite=Lax' + secureCookieSuffix(req)
+      'klassio_email_account=' + createAccountToken(identity) + '; Max-Age=' + SESSION_MAX_AGE_SECONDS + '; Path=/; HttpOnly; SameSite=Lax' + secureCookieSuffix(req)
     );
   }
 
@@ -485,7 +569,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     const token = createIdentityToken(identity);
     res.append(
       'Set-Cookie',
-      'klassio_email_identity=' + token + '; Max-Age=' + (30 * 24 * 60 * 60) + '; Path=/; HttpOnly; SameSite=Lax' + secureCookieSuffix(req)
+      'klassio_email_identity=' + token + '; Max-Age=' + SESSION_MAX_AGE_SECONDS + '; Path=/; HttpOnly; SameSite=Lax' + secureCookieSuffix(req)
     );
   }
 
@@ -558,15 +642,24 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       return res.status(503).json({ success: false, error: 'E-Mail-Anmeldung ist auf diesem Server noch nicht konfiguriert.' });
     }
 
-    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const ip = securityPeer(req);
     const email = normalizeEmail(req.body?.email);
     if (!email) {
       return res.status(400).json({ success: false, error: 'Bitte gib eine gültige E-Mail-Adresse ein.' });
     }
 
+    const sendLimit = allowVerificationEmailSend(ip);
+    if (!sendLimit.allowed) {
+      if (sendLimit.retryAfterSeconds) res.setHeader('Retry-After', String(sendLimit.retryAfterSeconds));
+      return res.status(429).json({
+        success: false,
+        error: 'Zu viele Anmeldecode-Anfragen. Bitte versuche es später erneut.'
+      });
+    }
+
     const throttleKey = ip + ':' + email;
     const now = Date.now();
-    const lastRequest = emailRequestThrottle.get(throttleKey) || 0;
+    const lastRequest = Math.max(emailRequestThrottle.get(throttleKey) || 0, emailGlobalThrottle.get(email) || 0);
     const retryAfterMs = 60_000 - (now - lastRequest);
     if (retryAfterMs > 0) {
       return res.status(429).json({
@@ -583,6 +676,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       lastSentAt: now
     });
     emailRequestThrottle.set(throttleKey, now);
+    emailGlobalThrottle.set(email, now);
 
     try {
       await mailTransporter.sendMail({
@@ -605,7 +699,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       return res.status(503).json({ success: false, error: 'E-Mail-Anmeldung ist auf diesem Server noch nicht konfiguriert.' });
     }
 
-    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const ip = securityPeer(req);
     const rateLimit = checkRateLimit(ip);
     if (!rateLimit.allowed) {
       return res.status(429).json({ success: false, error: 'Zu viele Versuche. Bitte warte ' + rateLimit.waitSeconds + ' Sekunden.' });
@@ -645,7 +739,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
 
     emailAccessChallenges.delete(email);
     resetFailedAttempts(ip);
-    setAccessSession(req, res);
+    setAccessSession(req, res, account.userId);
     setEmailAccountSession(req, res, account);
 
     if (identity) {
@@ -674,7 +768,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   });
 
   app.post("/api/access/verify", (req, res) => {
-    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const ip = securityPeer(req);
     const rateLimit = checkRateLimit(ip);
     if (!rateLimit.allowed) {
       return res.status(429).json({ 
@@ -705,6 +799,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   });
 
   app.post("/api/access/logout", (req, res) => {
+    accessSessions.revoke(parseCookies(req).lehrerapp_access_token);
     const secureFlag = secureCookieSuffix(req);
     res.setHeader('Set-Cookie', [
       `lehrerapp_access_token=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${secureFlag}`,
@@ -746,6 +841,18 @@ export async function createApp(options: { isTest?: boolean } = {}) {
 
   const getEmailAccount = (req: express.Request): EmailAccountIdentity =>
     (req as AccountRequest).klassioAccount as EmailAccountIdentity;
+
+  // User-initiated revocation for all devices; always revoke the current device too.
+  app.post('/api/access/logout-all', requireEmailAccount, (req, res) => {
+    accessSessions.revokeUser(getEmailAccount(req).userId);
+    const secure = secureCookieSuffix(req);
+    res.setHeader('Set-Cookie', [
+      'lehrerapp_access_token=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax' + secure,
+      'klassio_email_account=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax' + secure,
+      'klassio_email_identity=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax' + secure,
+    ]);
+    res.json({ success: true });
+  });
 
   // Separate binary material storage is deliberately off until an attachment-
   // inclusive encrypted backup/restore is available. Old inline materials and
@@ -1664,7 +1771,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     });
     if (flowId) canvaOauthFlows.delete(flowId);
 
-    const fail = (message: string) => res.status(400).type('html').send(`<!doctype html><html><body style="font-family:system-ui;padding:2rem"><h2>Canva-Verbindung fehlgeschlagen</h2><p>${escapeHtml(message)}</p><script>if(window.opener){window.opener.postMessage({type:'CANVA_AUTH_ERROR',error:${scriptJson(message)}},${scriptJson(callbackOrigin)});}setTimeout(()=>window.close(),1500);</script></body></html>`);
+    const fail = (message: string) => res.status(400).type('html').send(`<!doctype html><html><body style="font-family:system-ui;padding:2rem"><h2>Canva-Verbindung fehlgeschlagen</h2><p>${escapeHtml(message)}</p><script nonce="${res.locals.cspNonce}">if(window.opener){window.opener.postMessage({type:'CANVA_AUTH_ERROR',error:${scriptJson(message)}},${scriptJson(callbackOrigin)});}setTimeout(()=>window.close(),1500);</script></body></html>`);
 
     if (oauthError) return fail('Canva-Anmeldung wurde abgebrochen oder abgelehnt.');
     const cookies = parseCookies(req);
@@ -1686,7 +1793,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       const sessionId = crypto.randomBytes(32).toString('base64url');
       await canvaTokenStore.put(callbackAccount.userId, sessionId, tokenData);
       setCanvaSessionCookie(req, res, sessionId);
-      return res.type('html').send(`<!doctype html><html><body style="font-family:system-ui;padding:2rem"><h2>Canva verbunden</h2><p>Du kannst zu Klassio zurückkehren.</p><script>if(window.opener){window.opener.postMessage({type:'CANVA_AUTH_SUCCESS'},${scriptJson(callbackOrigin)});}setTimeout(()=>window.close(),700);</script></body></html>`);
+      return res.type('html').send(`<!doctype html><html><body style="font-family:system-ui;padding:2rem"><h2>Canva verbunden</h2><p>Du kannst zu Klassio zurückkehren.</p><script nonce="${res.locals.cspNonce}">if(window.opener){window.opener.postMessage({type:'CANVA_AUTH_SUCCESS'},${scriptJson(callbackOrigin)});}setTimeout(()=>window.close(),700);</script></body></html>`);
     } catch (error: any) {
       return fail(error?.message || 'Canva-Token konnte nicht erzeugt werden.');
     }
@@ -2027,7 +2134,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       return 'session-' + crypto.createHash('sha256').update(accessToken).digest('hex').slice(0, 24);
     }
 
-    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const ip = securityPeer(req);
     return 'ip-' + crypto.createHash('sha256').update(ip).digest('hex').slice(0, 24);
   }
 
@@ -2062,6 +2169,11 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     return usage;
   }
 
+  // External AI is opt-in at deployment level. A consent checkbox or regex masking
+  // cannot establish anonymization of pupil observations and assessment records.
+  // Never expose Gemini merely because an API key happens to be installed.
+  const EXTERNAL_AI_ENABLED = process.env.KLASSIO_AI_EXTERNAL_ENABLED === 'true';
+
   // E3.24 API Route for AI status (minimal status without secrets + Kostenbremse)
   app.get("/api/ai/status", async (req, res) => {
     const usage = await aiUsageStore.get(
@@ -2070,8 +2182,9 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       AI_DAILY_GLOBAL_LIMIT,
     );
     res.json({
-      available: !!process.env.GEMINI_API_KEY,
+      available: EXTERNAL_AI_ENABLED && !!process.env.GEMINI_API_KEY,
       hasKey: !!process.env.GEMINI_API_KEY,
+      privacyRestricted: !EXTERNAL_AI_ENABLED,
       usage: aiUsagePublicView(usage),
     });
   });
@@ -2142,14 +2255,24 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       const FORBIDDEN_KEYS = new Set([
         'svnr', 'email', 'telefon', 'phone', 'religion', 'geburtsdatum',
         'birthdate', 'adresse', 'street', 'strasse', 'nachname', 'lastname',
+        'vorname', 'firstname', 'studentname', 'schuelername',
+        'studentid', 'schuelerid',
         'erziehungsberechtigte', 'parents', 'plz', 'hausnummer'
       ]);
+      const ALIAS_NAME_KEYS = new Set(['vorname', 'firstname', 'studentname', 'schuelername']);
+      const isSafeStudentAlias = (value: unknown) =>
+        typeof value === 'string' && /^(?:Kind [A-Z]{1,3}|S\d{2,4})$/i.test(value.trim());
 
       const result: any = {};
       for (const key of Object.keys(val)) {
-        if (FORBIDDEN_KEYS.has(key.toLowerCase())) {
-          violations.push(`Sensibles Feld "${key}" serverseitig gefiltert`);
-          result[key] = '[SENSIBLES-FELD-GEFILTERT]';
+        const lowerKey = key.toLowerCase();
+        if (FORBIDDEN_KEYS.has(lowerKey)) {
+          if (ALIAS_NAME_KEYS.has(lowerKey) && isSafeStudentAlias(val[key])) {
+            result[key] = String(val[key]).trim();
+          } else {
+            violations.push(`Sensibles Feld "${key}" serverseitig gefiltert`);
+            result[key] = '[SENSIBLES-FELD-GEFILTERT]';
+          }
           continue;
         }
         result[key] = sanitizeAIPayloadRecursively(val[key], violations);
@@ -2163,7 +2286,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   // API Route for AI requests
   app.post("/api/ai", async (req, res) => {
     // E3.13 Rate Limit Prüfung
-    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const ip = securityPeer(req);
     if (!checkAIRateLimit(ip, AI_PER_MINUTE_LIMIT)) {
       return res.status(429).json({ error: "Zu viele KI-Anfragen. Bitte warte einen Moment." });
     }
@@ -2172,6 +2295,15 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     // E3.14 Whitelist Validierung der KI-Aktion
     if (!action || typeof action !== 'string' || !ALLOWED_AI_ACTIONS.has(action)) {
       return res.status(400).json({ error: "Unbekannte oder unzulässige KI-Aktion." });
+    }
+
+    if (!EXTERNAL_AI_ENABLED) {
+      return res.status(503).json({ code: 'AI_EXTERNAL_DISABLED', error: 'Externe KI ist aus Datenschutzgründen noch nicht freigegeben. Andere Funktionen von KLASSIO bleiben verfügbar.' });
+    }
+    // Independent of the general AI flag, individual performance histories and
+    // portfolio records must never be forwarded to an external model.
+    if (action === 'portfolioSummary' || action === 'gradeProjection') {
+      return res.status(403).json({ code: 'AI_STUDENT_PROFILE_DISABLED', error: 'Individuelle Schülerprofile und Notenverläufe dürfen nicht an die externe KI übertragen werden.' });
     }
 
     let params = req.body.params || {};
@@ -2184,6 +2316,11 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     const imageRequestError = validateAiServerImageRequest(action, imageBase64, imagePrivacyConfirmed);
     if (imageRequestError) {
       return res.status(400).json({ error: imageRequestError });
+    }
+    // A checkbox cannot remove identifiable children, school documents or
+    // metadata embedded in images. Wait for a separately approved media workflow.
+    if (imageBase64) {
+      return res.status(403).json({ code: 'AI_MEDIA_DISABLED', error: 'Bildanalyse durch externe KI ist aus Datenschutzgründen deaktiviert.' });
     }
 
     const { imageBase64: _image, imagePrivacyConfirmed: _confirmation, ...textParams } = params;
@@ -2853,10 +2990,14 @@ Antworte exakt im vorgegebenen JSON-Format.`;
     });
   });
 
+  // Sensitive assessment PDFs and name-to-performance mappings must not leave the
+  // browser through Gemini. Deliberately fail closed pending a verified local
+  // parser and an independently reviewed data-protection assessment.
   // API Route for IKM PDF Analysis with Gemini
   app.post("/api/ai/analyze-ikm", async (req, res) => {
+    return res.status(403).json({ code: "AI_STUDENT_IMPORT_DISABLED", error: "Die KI-Auswertung von IKM-Dokumenten ist aus Datenschutzgründen deaktiviert. Bitte keine Schülerdaten an Gemini senden." });
     // E3.13 Rate-Limiting für IKM-Analyse
-    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const ip = securityPeer(req);
     if (!checkAIRateLimit(ip, AI_PER_MINUTE_LIMIT)) {
       return res.status(429).json({ error: "Zu viele IKM-Analyse-Anfragen. Bitte warte einen Moment." });
     }
@@ -3039,8 +3180,9 @@ Gib die Ergebnisse ausschließlich als JSON zurück.`;
 
   // API Route for Antolin Report Analysis with Gemini
   app.post("/api/ai/analyze-antolin", async (req, res) => {
+    return res.status(403).json({ code: "AI_STUDENT_IMPORT_DISABLED", error: "Die KI-Auswertung von Antolin-Berichten ist aus Datenschutzgründen deaktiviert. Bitte keine Schülerdaten an Gemini senden." });
     // E3.13 Rate-Limiting für Antolin-Analyse
-    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const ip = securityPeer(req);
     if (!checkAIRateLimit(ip, AI_PER_MINUTE_LIMIT)) {
       return res.status(429).json({ error: "Zu viele Antolin-Analyse-Anfragen. Bitte warte einen Moment." });
     }
@@ -3216,6 +3358,7 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     lastUpdated: number;
     lastActivityAt: number;
     protocolVersion: 1;
+    writeTokenHash: string;
   }
   const syncSessions: Record<string, ServerSyncSession> = {};
   const MAX_SYNC_PAYLOAD_BYTES = 15 * 1024 * 1024; // 15 MB DoS-Schutz
@@ -3234,6 +3377,36 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     }
     entry.count++;
     return true;
+  }
+
+  // Pairing codes remain unauthenticated for a newly paired device. Bound failed
+  // guesses independently from valid polling so guessing cannot exhaust the code space.
+  const unknownSyncCodeAttempts = new Map<string, { count: number; resetAt: number }>();
+  function allowUnknownSyncCode(req: express.Request): boolean {
+    const peer = securityPeer(req);
+    const now = Date.now();
+    const entry = unknownSyncCodeAttempts.get(peer);
+    if (!entry || entry.resetAt < now) {
+      unknownSyncCodeAttempts.set(peer, { count: 1, resetAt: now + 60_000 });
+      return true;
+    }
+    entry.count += 1;
+    return entry.count <= 30;
+  }
+
+  function verifySyncWriteToken(session: ServerSyncSession, value: unknown): boolean {
+    if (typeof value !== 'string' || value.length < 40 || value.length > 100) return false;
+    const actualHex = crypto.createHash('sha256')
+      .update('klassio-sync-write-verifier:v1:' + value.trim())
+      .digest('hex');
+    try {
+      return crypto.timingSafeEqual(
+        Buffer.from(session.writeTokenHash, 'hex'),
+        Buffer.from(actualHex, 'hex'),
+      );
+    } catch {
+      return false;
+    }
   }
 
   function isValidEncryptedPayload(p: any): boolean {
@@ -3284,7 +3457,7 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
   // Create a Zero-Knowledge sync session (Modul B4)
   app.post("/api/sync/create", (req, res) => {
     // E3.15 Rate-Limiting für Sync-Session-Erstellung
-    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const ip = securityPeer(req);
     if (!checkSyncCreateRateLimit(ip)) {
       return res.status(429).json({ error: "Zu viele Sync-Sitzungen erstellt. Bitte warte einige Minuten." });
     }
@@ -3296,7 +3469,10 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       });
     }
 
-    const { encryptedPayload } = req.body;
+    const { encryptedPayload, writeTokenHash } = req.body;
+    if (typeof writeTokenHash !== 'string' || !/^[a-f0-9]{64}$/i.test(writeTokenHash)) {
+      return res.status(400).json({ error: "Sync-Schreibschutz fehlt oder ist ungültig." });
+    }
     if (!isValidEncryptedPayload(encryptedPayload)) {
       return res.status(400).json({
         error: "Ungültiges oder unverschlüsseltes Payload-Format. Erwartet wird protocolVersion 1 (AES-GCM-256)."
@@ -3312,16 +3488,20 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     // E3.16 Kryptographisch sicherer 6-Zeichen-Code (CSPRNG, hohe Entropie)
     const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Keine leicht verwechselbaren Zeichen
     let code = "";
-    for (let i = 0; i < 6; i++) {
-      code += characters.charAt(crypto.randomInt(0, characters.length));
-    }
+    do {
+      code = "";
+      for (let i = 0; i < 6; i++) {
+        code += characters.charAt(crypto.randomInt(0, characters.length));
+      }
+    } while (syncSessions[code]);
 
     const timing = getServerSyncTimestamps(encryptedPayload.updatedAt);
     syncSessions[code] = {
       encryptedPayload,
       lastUpdated: timing.lastUpdated,
       lastActivityAt: timing.lastActivityAt,
-      protocolVersion: 1
+      protocolVersion: 1,
+      writeTokenHash: writeTokenHash.toLowerCase()
     };
 
     // E3.18 Logging ohne Offenlegung des Sitzungscodes
@@ -3341,7 +3521,12 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     }
 
     if (!syncSessions[code]) {
+      if (!allowUnknownSyncCode(req)) return res.status(429).json({ error: "Zu viele ungültige Sitzungscodes." });
       return res.status(404).json({ error: "Sitzung nicht gefunden oder abgelaufen." });
+    }
+
+    if (!verifySyncWriteToken(syncSessions[code], req.get('x-klassio-sync-write'))) {
+      return res.status(403).json({ error: "Schreibzugriff auf diese Sync-Sitzung ist nicht autorisiert." });
     }
 
     const { encryptedPayload } = req.body;
@@ -3371,6 +3556,7 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     const session = syncSessions[code];
 
     if (!session) {
+      if (!allowUnknownSyncCode(req)) return res.status(429).json({ error: "Zu viele ungültige Sitzungscodes." });
       return res.status(404).json({ error: "Sitzung nicht gefunden oder abgelaufen." });
     }
 
@@ -3469,8 +3655,9 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
           <div class="error-icon">❌</div>
           <h2>Verbindung fehlgeschlagen</h2>
           <p>${escapeHtml(errMsg)}</p>
-          <button onclick="window.close()">Fenster schließen</button>
-          <script>
+          <button type="button" id="klassio-close-window">Fenster schließen</button>
+          <script nonce="${res.locals.cspNonce}">
+            document.getElementById('klassio-close-window')?.addEventListener('click', () => window.close());
             if (window.opener) {
               window.opener.postMessage({ type: 'ONEDRIVE_AUTH_ERROR', error: ${scriptJson(errMsg)} }, ${scriptJson(callbackOrigin)});
             }
@@ -3543,7 +3730,8 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
           <div class="spinner"></div>
           <h2>Verbindung erfolgreich!</h2>
           <p>Dieses Fenster schließt sich in Kürze automatisch...</p>
-          <script>
+          <script nonce="${res.locals.cspNonce}">
+            document.getElementById('klassio-close-window')?.addEventListener('click', () => window.close());
             if (window.opener) {
               window.opener.postMessage({ 
                 type: 'ONEDRIVE_AUTH_SUCCESS', 
@@ -3595,8 +3783,9 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
           <div class="error-icon">❌</div>
           <h2>Token-Austausch fehlgeschlagen</h2>
           <p>${escapeHtml(errMsg)}</p>
-          <button onclick="window.close()">Fenster schließen</button>
-          <script>
+          <button type="button" id="klassio-close-window">Fenster schließen</button>
+          <script nonce="${res.locals.cspNonce}">
+            document.getElementById('klassio-close-window')?.addEventListener('click', () => window.close());
             if (window.opener) {
               window.opener.postMessage({ type: 'ONEDRIVE_AUTH_ERROR', error: ${scriptJson(errMsg)} }, ${scriptJson(callbackOrigin)});
             }

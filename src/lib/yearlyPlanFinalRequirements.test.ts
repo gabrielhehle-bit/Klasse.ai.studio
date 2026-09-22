@@ -38,8 +38,10 @@ test('Jahresplanung: Schulwochen-Anzeigen berücksichtigen Bundesland und echtes
   assert.match(excel, /getSchulstartKW\(app\.schuljahr, bundesland\)/);
 });
 
-test('Jahresplanung: Excel verlangt Fach und Thema statt stille Fehlzuordnung', () => {
-  assert.match(excel, /if \(!fachKey \|\| !themaKey\)/);
+test('Jahresplanung: Excel-Import bleibt bis zum gepatchten Parser gesperrt', () => {
+  assert.match(excel, /export async function parseJahresplanExcel/);
+  assert.match(excel, /Der Excel-Import ist vorübergehend aus Sicherheitsgründen deaktiviert/);
+  assert.doesNotMatch(excel, /XLSX\.read\(/, 'ungeprüfte Excel-Dateien dürfen nicht eingelesen werden');
   assert.match(excel, /resolveJahresplanSubjectId/);
   assert.doesNotMatch(excel, /return availableSubjects\[0\]\?\.id/);
 });

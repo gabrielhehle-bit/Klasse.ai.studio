@@ -5,9 +5,43 @@ import SchoolIdentitySettings from './SchoolIdentitySettings';
 import SchoolVerificationAdmin from './SchoolVerificationAdmin';
 import { useApp } from '../../context/AppContext';
 import { activatePreparedRecoveryEmail, prepareRecoveryEmail, type PreparedRecoveryEmail } from '../../lib/emailRecoveryService';
+import { clearActiveVaultSession } from '../../lib/vaultStorage';
+import { notifyAccountSessionChanged } from '../../lib/accountSyncService';
 
 export default function AccountSettings() {
   const [refreshKey, setRefreshKey] = React.useState(0);
+  const [signedInEmail, setSignedInEmail] = React.useState<string | null>(null);
+  const [loggingOutAll, setLoggingOutAll] = React.useState(false);
+  const [logoutError, setLogoutError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let mounted = true;
+    void fetch('/api/access/status', { cache: 'no-store' })
+      .then(response => response.ok ? response.json() : null)
+      .then(data => { if (mounted) setSignedInEmail(data?.account?.email || null); })
+      .catch(() => { if (mounted) setSignedInEmail(null); });
+    return () => { mounted = false; };
+  }, [refreshKey]);
+
+  const logOutAllDevices = async () => {
+    if (loggingOutAll || !signedInEmail) return;
+    if (!window.confirm('Alle KLASSIO-Geräte abmelden? Nicht synchronisierte Änderungen auf anderen Geräten bleiben möglicherweise nur dort gespeichert. Lokal verschlüsselte Dateien und zuvor exportierte Backups werden dadurch nicht gelöscht.')) return;
+    setLoggingOutAll(true);
+    setLogoutError(null);
+    try {
+      const response = await fetch('/api/access/logout-all', { method: 'POST', credentials: 'same-origin' });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data?.error || 'Die Sitzungen konnten nicht beendet werden.');
+      }
+      clearActiveVaultSession();
+      notifyAccountSessionChanged();
+      window.location.reload();
+    } catch (cause) {
+      setLogoutError(cause instanceof Error ? cause.message : 'Alle Geräte abmelden ist fehlgeschlagen.');
+      setLoggingOutAll(false);
+    }
+  };
   const {
     app,
     isVaultUnlocked,
@@ -144,6 +178,17 @@ export default function AccountSettings() {
           </div>
         </div>
         <EmailAccountLogin onSuccess={() => setRefreshKey(value => value + 1)} />
+        {signedInEmail && (
+          <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4" data-testid="account-session-controls">
+            <h3 className="text-sm font-black text-amber-950">Sitzungen und Geräte schützen</h3>
+            <p className="mt-1 text-xs font-semibold leading-relaxed text-amber-900">Beende alle Server-Sitzungen deines Kontos, wenn du ein Gerät verloren hast oder einen unbefugten Zugriff vermutest. Bereits entsperrte Apps auf anderen Geräten können lokal weiterhin offen sein, bis sie gesperrt oder neu geladen werden. Nicht synchronisierte Änderungen, lokale Daten und bestehende Backups werden nicht automatisch gelöscht.</p>
+            <button type="button" onClick={() => void logOutAllDevices()} disabled={loggingOutAll}
+              className="mt-3 rounded-xl border border-amber-500 bg-white px-4 py-2.5 text-xs font-black text-amber-950 disabled:opacity-50">
+              {loggingOutAll ? 'Sitzungen werden beendet …' : 'Alle Geräte abmelden'}
+            </button>
+            {logoutError && <p role="alert" className="mt-2 text-xs font-bold text-rose-700">{logoutError}</p>}
+          </div>
+        )}
 
         <div className={`mt-5 rounded-2xl border p-4 ${syncToneClasses}`} data-testid="account-sync-status">
           <div className="flex items-start gap-3">

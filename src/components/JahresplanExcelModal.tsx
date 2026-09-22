@@ -3,6 +3,8 @@ import { X, Upload, FileSpreadsheet, AlertCircle, CheckCircle2, ArrowRight } fro
 import { motion } from 'motion/react';
 import { JahresplanImportRow, JahresplanImportResult, parseJahresplanExcel } from '../lib/planerExcelService';
 import { AppState } from '../types';
+
+const EXCEL_IMPORT_DISABLED = true;
 import { occupiedYearPlanCell } from '../lib/annualPlanSafety';
 
 interface JahresplanExcelModalProps {
@@ -118,12 +120,17 @@ export default function JahresplanExcelModal({
 
         {/* Modal Body */}
         <div className="p-5 overflow-y-auto space-y-4 flex-1">
+          {EXCEL_IMPORT_DISABLED && (
+            <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold leading-relaxed text-amber-950">
+              Sicherheitsupdate: Der Excel-Import ist vorübergehend deaktiviert, weil die bisherige Tabellenbibliothek bekannte Sicherheitslücken beim Einlesen präparierter Dateien hat. Excel-Vorlagen und Exporte bleiben verfügbar.
+            </div>
+          )}
           <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900">
             Die Excel-Vorlage und alle Dokumentenausgaben findest du im Druckzentrum unter „Jahresplanung“.
           </p>
 
           {/* Upload Area */}
-          {!parseResult && (
+          {!EXCEL_IMPORT_DISABLED && !parseResult && (
             <div
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}

@@ -138,6 +138,7 @@ import {
   Presentation,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
+import { createSyncUrl, getActiveEncodedSessionKey } from "../lib/syncService";
 import {
   getKW,
   getTodayName,
@@ -16832,11 +16833,17 @@ ${content}
                     </div>
 
                     <div className="flex flex-col items-center justify-center bg-white p-3.5 rounded-2xl shadow-inner">
-                      <QRCodeCanvas
-                        value={`${window.location.protocol}//${window.location.host}${window.location.pathname}?sync=${app.boardSettings.activeSyncCode}`}
-                        size={150}
-                        level={"Q"}
-                      />
+                      {getActiveEncodedSessionKey() ? (
+                        <QRCodeCanvas
+                          value={createSyncUrl(app.boardSettings.activeSyncCode, getActiveEncodedSessionKey()!)}
+                          size={150}
+                          level={"Q"}
+                        />
+                      ) : (
+                        <div className="flex h-[150px] w-[150px] items-center justify-center rounded-xl bg-amber-50 px-3 text-center text-[10px] font-bold text-amber-800">
+                          Sitzungsschlüssel fehlt. Bitte Live-Verbindung neu starten.
+                        </div>
+                      )}
                     </div>
 
                     <div className="text-center bg-white/5 border border-white/10 rounded-2xl p-2 font-mono">
@@ -16847,7 +16854,12 @@ ${content}
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         onClick={() => {
-                          const syncUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?sync=${app.boardSettings?.activeSyncCode}`;
+                          const key = getActiveEncodedSessionKey();
+                          if (!key || !app.boardSettings?.activeSyncCode) {
+                            showToast("Sitzungsschlüssel fehlt. Bitte Live-Verbindung neu starten.", "error");
+                            return;
+                          }
+                          const syncUrl = createSyncUrl(app.boardSettings.activeSyncCode, key);
                           navigator.clipboard.writeText(syncUrl);
                           showToast("Kopplungs-Link kopiert!", "success");
                         }}
@@ -16858,7 +16870,12 @@ ${content}
 
                       <button
                         onClick={() => {
-                          const syncUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?sync=${app.boardSettings?.activeSyncCode}`;
+                          const key = getActiveEncodedSessionKey();
+                          if (!key || !app.boardSettings?.activeSyncCode) {
+                            showToast("Sitzungsschlüssel fehlt. Bitte Live-Verbindung neu starten.", "error");
+                            return;
+                          }
+                          const syncUrl = createSyncUrl(app.boardSettings.activeSyncCode, key);
                           window.open(syncUrl, '_blank', 'width=420,height=800,resizable=yes');
                         }}
                         className="py-2 bg-white/10 hover:bg-white/20 text-stone-200 rounded-xl text-[0.625rem] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 border border-white/10"
