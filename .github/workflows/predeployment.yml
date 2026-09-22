@@ -97,6 +97,25 @@ jobs:
           test "$EMAIL_STATUS" = "503"
           grep -q '"success":false' /tmp/email-disabled.json
 
+          # Keep external Gemini fail-closed in the production bundle, even with an API key.
+          curl --fail --silent -b /tmp/klassio-cookies.txt \
+            http://127.0.0.1:3100/api/ai/status > /tmp/klassio-ai-status.json
+          node -e "const a=require('/tmp/klassio-ai-status.json'); if(a.available!==false||a.privacyRestricted!==true) process.exit(1)"
+          AI_HTTP=$(curl --silent -o /tmp/klassio-ai-disabled.json -w '%{http_code}' \
+            -b /tmp/klassio-cookies.txt -H 'Content-Type: application/json' \
+            -d '{"action":"askAI","params":{"modusId":"ki-helfer","userMessage":"test"}}' \
+            http://127.0.0.1:3100/api/ai)
+          test "$AI_HTTP" = "503"
+          grep -q '"code":"AI_EXTERNAL_DISABLED"' /tmp/klassio-ai-disabled.json
+
+          curl --fail --silent -D /tmp/klassio-security-headers.txt -o /dev/null \
+            http://127.0.0.1:3100/api/health
+          grep -qi "strict-transport-security: max-age=31536000; includeSubDomains" /tmp/klassio-security-headers.txt
+          grep -q "script-src 'self' 'nonce-" /tmp/klassio-security-headers.txt
+          if grep -i '^content-security-policy:' /tmp/klassio-security-headers.txt | grep -q "'unsafe-eval'"; then
+            echo 'Unsafe production script eval is forbidden.'; exit 1
+          fi
+
           echo "Production server, access session and email-login fallback smoke tests passed."
 
       - name: Prepare World4You staging bundle
