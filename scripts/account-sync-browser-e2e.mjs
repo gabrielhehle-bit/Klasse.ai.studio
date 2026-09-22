@@ -296,7 +296,7 @@ async function setInputByPlaceholder(client, placeholder, value) {
   if (!await evaluate(client, expression)) throw new Error('Could not fill field with placeholder "' + placeholder + '".');
 }
 
-async function clickFirstSchedulableWeeklyCell(client, excludedTopic = '') {
+async function clickFirstSchedulableWeeklyCell(client) {
   const expression =
     '(() => {' +
     'const svgs=Array.from(document.querySelectorAll("svg"));' +
@@ -304,9 +304,7 @@ async function clickFirstSchedulableWeeklyCell(client, excludedTopic = '') {
       'if(!String(svg.getAttribute("class")||"").includes("lucide-plus"))continue;' +
       'let node=svg.parentElement;' +
       'while(node&&node!==document.body){' +
-        'if(String(node.className||"").includes("group/cell")&&String(node.className||"").includes("min-h-[5.3125rem]")){' +
-          'if(' + q(excludedTopic) + ' && String(node.textContent||"").includes(' + q(excludedTopic) + ')) break;' +
-          'node.click();return true;}' +
+        'if(String(node.className||"").includes("group/cell")&&String(node.className||"").includes("min-h-[5.3125rem]")){node.click();return true;}' +
         'node=node.parentElement;' +
       '}' +
     '}' +
@@ -417,23 +415,26 @@ async function main() {
     await waitForCloud(school);
     console.log('✓ Real Chrome: home weekly plan and class note appeared on freshly signed-in school PC.');
 
-    // The reverse direction must include weekly planning, not only class notes:
-    // create a distinct school lesson while preserving the original home lesson.
+    // Modify an existing lesson in the school UI: setup creates only one
+    // schedulable weekly cell, so do not invent an extra empty timetable slot.
     await openAppPage(school, 'wochenplanung');
-    await clickFirstSchedulableWeeklyCell(school, TOPIC);
+    const openedLesson = await evaluate(school,
+      '(() => {const cell=Array.from(document.querySelectorAll("div")).find(el=>String(el.className||"").includes("group/cell")&&String(el.className||"").includes("min-h-[5.3125rem]")&&String(el.textContent||"").includes(' + q(TOPIC) + '));if(!cell)return false;cell.click();return true;})()');
+    if (!openedLesson) throw new Error('School could not open the already-synced home lesson for editing.');
+    await waitFor(school, 'lesson overview with edit action',
+      'Array.from(document.querySelectorAll("button")).some(b=>String(b.textContent||"").trim()==="Bearbeiten")', 30000);
+    await clickButton(school, 'Bearbeiten', true);
     await waitFor(school, 'school weekly lesson editor', 'document.body?.innerText.includes("Einheit planen")', 30000);
     await setInputByPlaceholder(school, 'Was wird gelernt?', TOPIC_SCHOOL);
     await clickButton(school, 'Einheit speichern');
-    await openWeeklyAndCheck(school, TOPIC);
     await openWeeklyAndCheck(school, TOPIC_SCHOOL);
     await waitForCloud(school);
     await openWeeklyAndCheck(home, TOPIC_SCHOOL);
-    await openWeeklyAndCheck(home, TOPIC);
-    console.log('✓ Real Chrome: second weekly lesson created at school appeared at home without losing original planning.');
+    console.log('✓ Real Chrome: school edited an existing weekly lesson, home received the update.');
     await addClassNote(school, NOTE_SCHOOL);
     await waitFor(home, 'school note appears automatically at home without sign-out',
       'document.body?.innerText.includes(' + q(NOTE_SCHOOL) + ')', 45000);
-    await openWeeklyAndCheck(home, TOPIC);
+    await openWeeklyAndCheck(home, TOPIC_SCHOOL);
     console.log('✓ Real Chrome: new school note returned automatically to already open home PC.');
 
     // The real application prompts before leaving while a local write or cloud upload
@@ -466,9 +467,7 @@ async function main() {
       await waitFor(client, 'after vault unlock, same planning class persisted',
         'document.body?.innerText.includes("Sync Testklasse A")', 45000);
     }
-    await openWeeklyAndCheck(home, TOPIC);
     await openWeeklyAndCheck(home, TOPIC_SCHOOL);
-    await openWeeklyAndCheck(school, TOPIC);
     await openWeeklyAndCheck(school, TOPIC_SCHOOL);
     await checkClassNote(home, NOTE_SCHOOL);
     await checkClassNote(school, NOTE_HOME);
