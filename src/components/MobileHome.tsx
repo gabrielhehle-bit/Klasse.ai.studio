@@ -35,7 +35,7 @@ export default function MobileHome({ onNavigate }: MobileHomeProps) {
     <main className="min-h-dvh overflow-y-auto bg-slate-50 text-slate-900" data-testid="klassio-mobile-home">
       <div className="mx-auto max-w-lg px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
         <header className="mb-7">
-          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-teal-700">KLASSIO Mobile</p>
+          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-violet-700">KLASSIO Mobile</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight">Dein Schulalltag.</h1>
           <p className="mt-2 text-sm text-slate-600">
             {classLabel} · {studentCount} {studentCount === 1 ? 'Kind' : 'Kinder'}
@@ -59,9 +59,9 @@ export default function MobileHome({ onNavigate }: MobileHomeProps) {
               key={id}
               type="button"
               onClick={() => onNavigate(id)}
-              className="flex min-h-32 flex-col items-start justify-between rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+              className="flex min-h-32 flex-col items-start justify-between rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-700"
             >
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-700">
                 <Icon size={21} />
               </span>
               <span className="mt-3">
