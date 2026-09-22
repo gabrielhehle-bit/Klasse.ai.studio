@@ -424,6 +424,31 @@ async function main() {
     if (!cloudA.encrypted || cloudA.revision < 2) throw new Error('Home account server did not acknowledge the encrypted plan and note: ' + JSON.stringify(cloudA));
 
     await loginExistingVault(school, loginStarted);
+    // Open the same teacher's real browser profile as a PHONE. The launcher must
+    // not create another account/class, and its remote entry must require QR
+    // pairing (the e-mail login alone has no ephemeral live-session key).
+    await school.send('Emulation.setDeviceMetricsOverride', {
+      width: 390, height: 844, deviceScaleFactor: 1, mobile: true,
+    });
+    await school.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+    await school.send('Emulation.setEmulatedMedia', { features: [{ name: 'pointer', value: 'coarse' }] });
+    await waitFor(school, 'mobile home shown on a narrow touch device',
+      'Boolean(document.querySelector("[data-testid=klassio-mobile-home]"))', 20000);
+    await waitFor(school, 'all mobile shortcuts and cockpit remote pairing are visible',
+      '(() => {const home=document.querySelector("[data-testid=klassio-mobile-home]");if(!home)return false;const txt=home.innerText;return ["Heute","Meine Klasse","Anwesenheit","Notizen","Wochenplanung","Lehrercockpit Remote","Fernbedienung verbinden"].every(label=>txt.includes(label));})()');
+    await clickButton(school, 'Meine Klasse');
+    await waitFor(school, 'phone shortcut opened the same pupil list',
+      'Boolean(document.querySelector("button[aria-label=\\\"Zur KLASSIO-Mobile-Startseite\\\"]"))', 15000);
+    await clickButton(school, 'Mobile');
+    await waitFor(school, 'phone returned to its private mobile home',
+      'Boolean(document.querySelector("[data-testid=klassio-mobile-home]"))');
+    await school.send('Emulation.setEmulatedMedia', { features: [] });
+    await school.send('Emulation.setTouchEmulationEnabled', { enabled: false });
+    await school.send('Emulation.setDeviceMetricsOverride', {
+      width: 1440, height: 1100, deviceScaleFactor: 1, mobile: false,
+    });
+    await waitFor(school, 'desktop layout restored without changing account or class',
+      '!document.querySelector("[data-testid=klassio-mobile-home]")');
     await openWeeklyAndCheck(school, TOPIC);
     await checkClassNote(school, NOTE_HOME);
     await waitForCloud(school);
