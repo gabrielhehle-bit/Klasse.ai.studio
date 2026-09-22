@@ -40,6 +40,8 @@ export interface SyncSessionCredentials {
   sessionKey: CryptoKey;
   rawBytes: Uint8Array;
   encodedKey: string; // URL-safe Base64
+  writeToken: string; // Derived in RAM from the session key; never persisted
+  writeTokenHash: string; // SHA-256 verifier sent to the server
 }
 
 export interface ParsedSyncFragment {
@@ -87,6 +89,29 @@ export function encodeSessionKey(rawBytes: Uint8Array): string {
  * Dekodiert eine URL-sichere Base64-Zeichenkette zurück in ein 32-Byte-Array.
  * Validiert strikt auf exakt 32 Bytes (256 Bit).
  */
+async function sha256Bytes(text: string): Promise<Uint8Array> {
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) throw new CryptoError('NO_CRYPTO_API', 'Web Crypto SHA-256 ist nicht verfügbar.');
+  return new Uint8Array(await subtle.digest('SHA-256', new TextEncoder().encode(text)));
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes).map(value => value.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Leitet ein separates Schreib-Token aus dem bestehenden SessionKey ab.
+ * Der Server erhält nur dessen SHA-256-Prüfwert und niemals den SessionKey.
+ */
+export async function deriveSyncWriteToken(encodedKey: string): Promise<string> {
+  const bytes = await sha256Bytes('klassio-sync-write:v1:' + encodedKey.trim());
+  return encodeSessionKey(bytes);
+}
+
+export async function hashSyncWriteToken(writeToken: string): Promise<string> {
+  return bytesToHex(await sha256Bytes('klassio-sync-write-verifier:v1:' + writeToken.trim()));
+}
+
 export function decodeSessionKey(encoded: string): Uint8Array {
   if (!encoded || typeof encoded !== 'string') {
     throw new CryptoError('INVALID_KEY_LENGTH', 'SessionKey-String ist leer oder ungültig.');
@@ -145,10 +170,15 @@ export async function generateSyncSessionKey(): Promise<SyncSessionCredentials> 
   const rawBytes = await exportAESKey(sessionKey);
   const encodedKey = encodeSessionKey(rawBytes);
 
+  const writeToken = await deriveSyncWriteToken(encodedKey);
+  const writeTokenHash = await hashSyncWriteToken(writeToken);
+
   return {
     sessionKey,
     rawBytes,
     encodedKey,
+    writeToken,
+    writeTokenHash,
   };
 }
 
@@ -338,6 +368,7 @@ export function cleanSyncUrlFromHistory(): void {
 
 let activeMemorySessionKey: CryptoKey | null = null;
 let activeMemoryEncodedKey: string | null = null;
+let activeMemoryWriteToken: string | null = null;
 
 export function getActiveSessionKey(): CryptoKey | null {
   return activeMemorySessionKey;
@@ -345,6 +376,14 @@ export function getActiveSessionKey(): CryptoKey | null {
 
 export function getActiveEncodedSessionKey(): string | null {
   return activeMemoryEncodedKey;
+}
+
+export function getActiveSyncWriteToken(): string | null {
+  return activeMemoryWriteToken;
+}
+
+export function setActiveSyncWriteToken(writeToken: string | null): void {
+  activeMemoryWriteToken = writeToken;
 }
 
 export function setActiveSessionKey(key: CryptoKey | null, encoded: string | null): void {
@@ -355,6 +394,7 @@ export function setActiveSessionKey(key: CryptoKey | null, encoded: string | nul
 export function clearActiveSessionKey(): void {
   activeMemorySessionKey = null;
   activeMemoryEncodedKey = null;
+  activeMemoryWriteToken = null;
 }
 
 // ==========================================
@@ -373,13 +413,14 @@ export async function startSyncSession(
 ): Promise<{ code: string; encodedKey: string; syncUrl: string; sessionKey: CryptoKey }> {
   const creds = await generateSyncSessionKey();
   setActiveSessionKey(creds.sessionKey, creds.encodedKey);
+  setActiveSyncWriteToken(creds.writeToken);
 
   const encryptedPayload = await encryptSyncState(appState, creds.sessionKey);
 
   const res = await fetch('/api/sync/create', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ encryptedPayload }),
+    body: JSON.stringify({ encryptedPayload, writeTokenHash: creds.writeTokenHash }),
   });
 
   if (!res.ok) {
@@ -433,6 +474,7 @@ export async function connectSyncSession(
 ): Promise<{ decryptedState: any; sessionKey: CryptoKey }> {
   const cleanCode = code.trim().toUpperCase();
   const sessionKey = await importSessionKey(encodedKey);
+  const writeToken = await deriveSyncWriteToken(encodedKey);
 
   const res = await fetch(`/api/sync/${encodeURIComponent(cleanCode)}`);
   if (!res.ok) {
@@ -446,6 +488,7 @@ export async function connectSyncSession(
 
   const decryptedState = await decryptSyncState(data.encryptedPayload, sessionKey);
   setActiveSessionKey(sessionKey, encodedKey);
+  setActiveSyncWriteToken(writeToken);
   cleanSyncUrlFromHistory();
 
   return { decryptedState, sessionKey };
