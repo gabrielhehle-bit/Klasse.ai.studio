@@ -33,7 +33,7 @@ import {
 } from './vaultStorage.js';
 import type { AppState } from '../types.js';
 import { toLocalDateKey } from './localDate.js';
-import { isUnexpectedEmptyClassReplacement } from './appStateContinuity.js';
+import { isUnexpectedEmptyClassReplacement, hasUnexpectedClassDisappearance, hasEstablishedClassroom } from './appStateContinuity.js';
 
 // ==========================================
 // 1. KONSTANTEN & IDENTIFIKATOREN
@@ -385,22 +385,135 @@ export async function saveEncryptedEmergencyBackup(
   vaultKey: CryptoKey
 ): Promise<void> {
   if (!vaultKey) return;
-  try {
-    const encryptedPayload = await encryptData(appState, vaultKey);
-    const record: EncryptedLocalStateV1 = {
-      format: ENCRYPTED_LOCAL_STATE_FORMAT,
-      version: ENCRYPTED_LOCAL_STATE_VERSION,
-      savedAt: Date.now(),
-      encryptedState: encryptedPayload,
-    };
-    const serialized = JSON.stringify(record);
-    const ls = getLocalStorage();
-    ls.setItem(STORAGE_KEYS.NOTFALLKOPIE, serialized);
-    ls.setItem(STORAGE_KEYS.NOTFALLKOPIE_DATE, toLocalDateKey());
-    ls.setItem(STORAGE_KEYS.NOTFALLKOPIE_TIME, new Date().toLocaleString('de-DE'));
-  } catch (e) {
-    console.warn('[Datenschutz] Notfallkopie konnte nicht verschlüsselt gesichert werden.', e);
+  // The daily copy is the LAST local recovery point in some older installations.
+  // Never replace an established class with a fabricated empty/wrong-class
+  // snapshot, even after the calendar day changes or during sync conflict
+  // resolution. Serialize against primary writes so two autosaves cannot race.
+  return queuePrimaryWrite(async () => {
+    try {
+      const ls = getLocalStorage();
+      const existingRaw = ls.getItem(STORAGE_KEYS.NOTFALLKOPIE);
+      if (existingRaw) {
+        let previous: AppState;
+        try {
+          const existing = JSON.parse(existingRaw);
+          if (!isEncryptedLocalState(existing)) throw new Error('INVALID_EMERGENCY_FORMAT');
+          previous = await decryptData<AppState>(existing.encryptedState, vaultKey);
+        } catch {
+          // Do not destroy an unreadable record: it might require an older vault.
+          console.warn('[Recovery] Existing encrypted emergency copy could not be verified; keeping it unchanged.');
+          return;
+        }
+        if (hasEstablishedClassroom(previous)
+          && (isUnexpectedEmptyClassReplacement(previous, appState)
+            || hasUnexpectedClassDisappearance(previous, appState))) {
+          console.warn('[Recovery] Protected earlier encrypted emergency class from a disappearing/replacement class.');
+          return;
+        }
+      }
+      const record: EncryptedLocalStateV1 = {
+        format: ENCRYPTED_LOCAL_STATE_FORMAT,
+        version: ENCRYPTED_LOCAL_STATE_VERSION,
+        savedAt: Date.now(),
+        encryptedState: await encryptData(appState, vaultKey),
+      };
+      ls.setItem(STORAGE_KEYS.NOTFALLKOPIE, JSON.stringify(record));
+      ls.setItem(STORAGE_KEYS.NOTFALLKOPIE_DATE, toLocalDateKey());
+      ls.setItem(STORAGE_KEYS.NOTFALLKOPIE_TIME, new Date().toLocaleString('de-DE'));
+    } catch {
+      console.warn('[Datenschutz] Notfallkopie konnte nicht verschlüsselt gesichert werden.');
+    }
+  });
+}
+
+/** Local encrypted generations stay entirely inside the unlocked browser.
+ * Checking or downloading one NEVER changes the live class, sync revision,
+ * storage contents or account. No pupil names are put into metadata.
+ */
+const LOCAL_RECOVERY_SOURCES = [
+  { id: 'primary', title: 'Primärspeicher' },
+  { id: 'fallback', title: 'Lokaler Fallback' },
+  { id: 'backup', title: 'Lokale Reservekopie' },
+  { id: 'emergency', title: 'Tägliche Notfallkopie' },
+  { id: 'pre-import', title: 'Stand vor dem letzten Import' },
+  { id: 'session', title: 'Temporäre Sitzungskopie' },
+] as const;
+
+export type LocalRecoverySource = typeof LOCAL_RECOVERY_SOURCES[number]['id'];
+export type LocalRecoveryPoint = {
+  source: LocalRecoverySource;
+  title: string;
+  savedAt: number;
+  classes: number;
+  students: number;
+  readable: boolean;
+};
+
+async function localRecoveryRaw(source: LocalRecoverySource): Promise<string | null> {
+  const ls = getLocalStorage();
+  switch (source) {
+    case 'primary': return getStorageDriver().getItem(STORAGE_KEYS.PRIMARY);
+    case 'fallback': return ls.getItem(STORAGE_KEYS.FALLBACK);
+    case 'backup': return ls.getItem(STORAGE_KEYS.BACKUP);
+    case 'emergency': return ls.getItem(STORAGE_KEYS.NOTFALLKOPIE);
+    case 'pre-import': return getStorageDriver().getItem(STORAGE_KEYS.PRE_IMPORT);
+    case 'session': return getSessionStorage().getItem(STORAGE_KEYS.TEMP);
   }
+}
+
+export async function inspectLocalRecoveryPoints(vaultKey: CryptoKey): Promise<LocalRecoveryPoint[]> {
+  if (!vaultKey) throw new Error('Bitte den Tresor zuerst entsperren.');
+  const points: LocalRecoveryPoint[] = [];
+  for (const source of LOCAL_RECOVERY_SOURCES) {
+    let raw: string | null = null;
+    try { raw = await localRecoveryRaw(source.id); }
+    catch { /* Browser storage blocked. A different source might still work. */ }
+    if (!raw) continue;
+    let savedAt = 0;
+    try {
+      const record = JSON.parse(raw) as unknown;
+      if (!isEncryptedLocalState(record)) throw new Error('INVALID_LOCAL_RECORD');
+      savedAt = record.savedAt;
+      const state = await decryptData<AppState>(record.encryptedState, vaultKey);
+      if (!state || typeof state !== 'object' || !Array.isArray(state.classes)
+        || !Array.isArray(state.schueler)) throw new Error('INVALID_DECRYPTED_STATE');
+      const students = new Set([
+        ...state.schueler.map(child => child?.id),
+        ...state.classes.flatMap(room => room?.schueler?.map(child => child?.id) || []),
+      ].filter(Boolean)).size;
+      points.push({
+        source: source.id, title: source.title, savedAt, readable: true,
+        classes: state.classes.length, students,
+      });
+    } catch {
+      points.push({
+        source: source.id, title: source.title, savedAt, readable: false, classes: 0, students: 0,
+      });
+    }
+  }
+  return points;
+}
+
+/** Return a verified encrypted file for the *same* vault, never plaintext.
+ * The selected timestamp must still match what the teacher inspected. The
+ * original vault/key remains necessary to open this local record.
+ */
+export async function getEncryptedLocalRecoveryPoint(
+  vaultKey: CryptoKey,
+  source: LocalRecoverySource,
+  expectedSavedAt: number,
+): Promise<EncryptedLocalStateV1> {
+  if (!LOCAL_RECOVERY_SOURCES.some(item => item.id === source)) throw new Error('Unbekannte Wiederherstellungsquelle.');
+  const raw = await localRecoveryRaw(source);
+  if (!raw) throw new Error('Diese lokale Sicherung ist nicht mehr vorhanden. Bitte Liste aktualisieren.');
+  const record: unknown = JSON.parse(raw);
+  if (!isEncryptedLocalState(record) || record.savedAt !== expectedSavedAt) {
+    throw new Error('Der lokale Sicherungsstand hat sich verändert. Bitte die Liste aktualisieren.');
+  }
+  const state = await decryptData<AppState>(record.encryptedState, vaultKey);
+  if (!state || typeof state !== 'object' || !Array.isArray(state.classes)
+    || !Array.isArray(state.schueler)) throw new Error('Der entschlüsselte Sicherungsstand ist ungültig.');
+  return record;
 }
 
 /**
