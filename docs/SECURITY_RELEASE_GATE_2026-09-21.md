@@ -5,6 +5,7 @@ Status: DRAFT / NOT DEPLOYED. Do not handle new live pupil reports through the a
 
 ## Implemented in this branch
 - Block Antolin and IKM Gemini document analysis server-side (403) and stop the two UIs from uploading the documents. These features intentionally remain unavailable until an independently reviewed local parser and lawful workflow exist.
+- Default-deny **all** outgoing Gemini requests even when an API key is set; the operator must explicitly set KLASSIO_AI_EXTERNAL_ENABLED=true after a documented privacy review. Even when enabled, student grade/portfolio actions and image uploads remain blocked.
 - Disable weekly/yearly Excel workbook imports that used the vulnerable `xlsx@0.18.5` parser. Excel template/export generation remains available; no untrusted workbook bytes are parsed on this branch.
 - Trust reverse-proxy client addresses only from explicit `KLASSIO_TRUSTED_PROXY_ADDRESSES`; add per-address, per-IP and global verification-email limits.
 - Validate Origin/Fetch Metadata for state-changing API requests. Review any legitimate cross-origin integrations before release.
@@ -22,7 +23,7 @@ Status: DRAFT / NOT DEPLOYED. Do not handle new live pupil reports through the a
 4. Current file-backed session store assumes **one application process**. For multiple servers/processes switch to a transaction-safe shared session database before scaling. The socket-peer limiter may group clients behind a shared reverse proxy; verify real-user login behavior with the actual proxy.
 5. Existing access sessions will require sign-in after release. Verify one account can log out and that copied cookies fail after logout and after process restart. Verify logout-all on multiple browsers; separately lock decrypted local vaults on devices.
 6. With **dummy records only**, verify that user A cannot read/update user B's private account snapshot, that uninvited users cannot access team classes, and that viewer roles cannot write. Include simultaneous sync conflicts and offline/reconnect.
-7. Inspect all remaining AI actions for plaintext personally identifiable information and document a permissible external AI processing agreement before using them with identifiable pupils. The text-pattern filter is not reliable anonymization.
+7. External AI now defaults to OFF. Do not set KLASSIO_AI_EXTERNAL_ENABLED=true until remaining free-text actions, processor terms and the lawful workflow have been reviewed by the school/data controller; regular-expression masking cannot guarantee anonymity.
 8. Dependency follow-up remains tracked in GitHub issue #270. The reachable `xlsx@0.18.5` import path is disabled in this release, but the dependency must still be replaced before Excel imports return. Before upgrading Nodemailer to the current 10.x line, verify the actual World4You Node.js runtime supports Node 20+; regenerate `bun.lock` and run mail, browser and build tests.
 9. Obtain an independent security/privacy review and appropriate school-level approval before broadening processing of real pupil data.
 
