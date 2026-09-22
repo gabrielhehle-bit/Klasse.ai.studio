@@ -90,7 +90,6 @@ import GlobalActions from './components/GlobalActions';
 import DenkzettelWidget from './components/DenkzettelWidget';
 import { hasCompletedInitialSetup } from './lib/firstRunFlow';
 import PrivacyLock from './components/PrivacyLock';
-import { getActiveSessionKey } from './lib/syncService';
 import MobileHome from './components/MobileHome';
 const Cockpit = lazyRetry(() => import('./components/Cockpit'));
 import PrintHeader from './components/PrintHeader';
@@ -639,16 +638,6 @@ function AppContent() {
           setPage(destination);
           setMobileHomeVisible(false);
         }}
-        onOpenRemote={() => {
-          // Only the existing zero-knowledge smartboard pairing may enable remote.
-          // An e-mail account alone cannot provide the ephemeral session key.
-          if (!app.boardSettings?.activeSyncCode || !getActiveSessionKey()) return;
-          setApp(prev => ({
-            ...prev,
-            boardSettings: { ...prev.boardSettings, isRemoteController: true },
-          }));
-        }}
-        remoteReady={Boolean(app.boardSettings?.activeSyncCode && getActiveSessionKey())}
       />
     );
   }
