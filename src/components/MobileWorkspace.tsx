@@ -1,4 +1,5 @@
 import React from 'react';
+import { useApp } from '../context/AppContext';
 import {
   ArrowLeft, BookOpen, CalendarDays, ClipboardCheck,
   House, NotebookPen, UsersRound,
@@ -32,6 +33,12 @@ export default function MobileWorkspace({
   page, classLabel, onHome, onNavigate, children,
 }: MobileWorkspaceProps) {
   const title = destinations.find(item => item.id === page)?.title || 'KLASSIO';
+  const { accountSyncStatus } = useApp();
+  const syncError = accountSyncStatus === 'error' || accountSyncStatus === 'conflict' || accountSyncStatus === 'local-error';
+  const syncLabel = accountSyncStatus === 'synced' ? 'Geräte synchronisiert'
+    : syncError ? 'Speichern / Abgleich prüfen'
+    : accountSyncStatus === 'disabled' ? 'Nur lokal – Konto prüfen'
+    : 'Speichern / Abgleich läuft';
   return (
     <div
       data-testid="klassio-mobile-workspace"
@@ -60,6 +67,9 @@ export default function MobileWorkspace({
         </button>
       </header>
 
+      <div role="status" aria-live="polite" className={`shrink-0 border-b px-4 py-1.5 text-[11px] font-semibold ${syncError ? 'border-amber-200 bg-amber-50 text-amber-800' : accountSyncStatus === 'synced' ? 'border-emerald-100 bg-emerald-50 text-emerald-800' : 'border-violet-100 bg-violet-50 text-violet-700'}`}>
+        {syncLabel}
+      </div>
       <main
         data-testid="klassio-mobile-page"
         className="klassio-mobile-page min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-4 pb-8"
