@@ -60,3 +60,12 @@ test('Konto-Status bleibt auf jeder Seite erreichbar; Topbar zeigt normale Zwisc
   assert.match(topbar, /cloudSaveBadge\.description/);
   assert.doesNotMatch(account, /title: 'Daten aktuell'/);
 });
+
+test('Fehlgeschlagener Tresorstart darf nie eine scheinbar leere Wochenplanung freigeben', () => {
+  const gate = readFileSync('src/components/VaultGate.tsx', 'utf8');
+  assert.match(gate, /const loaded = await unlockAppVault\(activeKey\)/);
+  assert.match(gate, /if \(!loaded\) \{[\s\S]*setGateState\('checking'\);[\s\S]*return;/);
+  assert.match(gate, /Zur Sicherheit zeigt KLASSIO keinen leeren Ersatzstand an/);
+  assert.match(gate, /const loaded = await unlockAppVault\(activeVaultKey\)/);
+  assert.match(gate, /if \(!loaded\) \{\s*throw new Error/);
+});
