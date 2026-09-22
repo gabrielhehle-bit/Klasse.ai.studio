@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { CheckCircle2, ClipboardCheck, MinusCircle, XCircle } from 'lucide-react';
+import { CheckCircle2, ClipboardCheck } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { getTodayName } from '../lib/utils';
 import { getAttendanceDayStats, getLocalAttendanceDateKey, markAttendancePresent } from '../lib/attendanceData';
