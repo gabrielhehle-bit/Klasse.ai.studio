@@ -85,3 +85,11 @@ test('Zwei-Geräte-Browsertest prüft vor dem Reload die wirklich bestätigte ne
   const script = readFileSync('scripts/account-sync-browser-e2e.mjs', 'utf8');
   assert.match(script, /await waitForCloud\(home\);\s*await waitForCloud\(school\);[\s\S]*Starting two-profile encrypted persistence check/);
 });
+
+
+test('Ein rein lesender Hintergrundabgleich löst keine falsche Verlassen-Warnung aus', () => {
+  const context = readFileSync('src/context/AppContext.tsx', 'utf8');
+  assert.match(context, /accountSyncStatusRef\.current !== 'disabled'\s*&& cloudConfirmedStateRef\.current !== currentAppRef\.current/);
+  assert.doesNotMatch(context, /accountSyncStatusRef\.current !== 'synced'\s*\|\|/,
+    'Der Status syncing allein darf bei bestätigten, unveränderten Daten nicht vor dem Neuladen warnen');
+});
