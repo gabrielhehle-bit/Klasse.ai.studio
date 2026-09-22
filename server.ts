@@ -206,11 +206,12 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   const SMTP_USER = (process.env.SMTP_USER || '').trim();
   const SMTP_PASS = process.env.SMTP_PASS || '';
   const SMTP_FROM = (process.env.SMTP_FROM || '').trim();
+  const SIMPLE_MAILBOX_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/;
   const SCHOOL_ADMIN_EMAILS = [...new Set(
     (process.env.KLASSIO_SCHOOL_ADMIN_EMAILS || SMTP_USER || '')
       .split(',')
       .map(value => value.trim().toLowerCase())
-      .filter(value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
+      .filter(value => SIMPLE_MAILBOX_RE.test(value))
   )];
   const ALLOWED_EMAIL_DOMAINS = (process.env.KLASSIO_VERIFIED_SCHOOL_DOMAINS || process.env.LEHRERAPP_ALLOWED_EMAIL_DOMAINS || '')
     .split(',')
@@ -222,6 +223,13 @@ export async function createApp(options: { isTest?: boolean } = {}) {
         host: SMTP_HOST,
         port: SMTP_PORT,
         secure: SMTP_SECURE,
+        requireTLS: Boolean(SMTP_USER && SMTP_PASS) && !SMTP_SECURE,
+        disableFileAccess: true,
+        disableUrlAccess: true,
+        tls: { minVersion: 'TLSv1.2', rejectUnauthorized: true },
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 20_000,
         ...(SMTP_USER && SMTP_PASS ? { auth: { user: SMTP_USER, pass: SMTP_PASS } } : {})
       })
     : null;
@@ -293,8 +301,16 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     const normalized = value.trim().toLowerCase();
     if (normalized.length < 5 || normalized.length > 254) return null;
     // Restrict user-controlled SMTP recipients to one mailbox; no address-list or header syntax.
-    if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/.test(normalized)) return null;
+    if (!SIMPLE_MAILBOX_RE.test(normalized)) return null;
     return normalized;
+  }
+
+  function safeMailHeaderText(value: unknown, maxLength = 160): string {
+    return String(value ?? '')
+      .replace(/[\r\n\0\u2028\u2029]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, maxLength);
   }
 
   function hashEmailCode(email: string, code: string): string {
@@ -324,7 +340,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       await mailTransporter.sendMail({
         from: SMTP_FROM,
         to: SCHOOL_ADMIN_EMAILS.join(','),
-        subject: 'Neue Klassio-Schulverifizierung: ' + request.schoolName,
+        subject: 'Neue Klassio-Schulverifizierung: ' + safeMailHeaderText(request.schoolName, 120),
         text:
           'In Klassio wurde eine neue Schulverifizierung angefordert.\n\n' +
           'Schule: ' + request.schoolName + '\n' +
