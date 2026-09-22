@@ -19,6 +19,22 @@ export function hasEstablishedClassroom(state: Pick<AppState, 'classes' | 'schue
   });
 }
 
+/**
+ * A mobile browser may carry an old, locally empty encrypted snapshot even
+ * while its authenticated account holds a populated classroom. Use only AFTER
+ * the remote snapshot's vault ID matches the local vault and the remote payload
+ * has been successfully decrypted and validated.
+ *
+ * Do not treat a locally established classroom as disposable: different real
+ * classrooms require explicit conflict resolution and a backup first.
+ */
+export function shouldRestoreEstablishedCloudClassroom(
+  local: AppState,
+  verifiedRemote: AppState,
+): boolean {
+  return !hasEstablishedClassroom(local) && hasEstablishedClassroom(verifiedRemote);
+}
+
 /** Never let an automated empty/placeholder state replace previously populated
  * classes. Explicit class deletion and data imports must use their separately
  * confirmed backup-first flows, not the background autosave or cloud refresh.
