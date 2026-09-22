@@ -277,8 +277,18 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
   };
 
   const handleLogout = async () => {
+    // A calm "Autospeichern" badge covers several distinct states. Logout
+    // must not silently discard a pending local write or leave the teacher
+    // believing that data is already accessible from another computer.
+    if (accountSyncStatus !== 'synced' && accountSyncStatus !== 'disabled' && accountSyncStatus !== 'idle') {
+      showToast('Bitte noch nicht abmelden: Die neuesten Daten sind nicht auf allen Geräten bestätigt. Prüfe den Speicherstatus und erstelle gegebenenfalls auf diesem Gerät ein verschlüsseltes Backup.', 'error');
+      setShowMehrMenu(false);
+      return;
+    }
     const confirmed = window.confirm(
-      'Möchtest du dich auf diesem Gerät wirklich abmelden? Deine synchronisierten Daten bleiben erhalten. Das Gerätevertrauen wird entfernt, damit beim nächsten Login wieder dein Tresor-Passwort benötigt wird.'
+      accountSyncStatus === 'synced'
+        ? 'Wirklich abmelden? Der neueste verschlüsselte Stand ist vom Server bestätigt. Beim nächsten Login benötigst du wieder dein Tresor-Passwort.'
+        : 'Wirklich abmelden? Der Geräte-Abgleich ist derzeit NICHT als erfolgreich bestätigt. Bitte vorher ein verschlüsseltes Backup erstellen und sichere es außerhalb dieses Browsers. Daten, die nur auf diesem Gerät liegen, sind auf einem anderen PC nicht verfügbar.'
     );
     if (!confirmed) return;
 
