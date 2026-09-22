@@ -68,7 +68,8 @@ export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufPr
       const matchesCategory = noteCategoryFilter === 'alle' || n.kategorie === noteCategoryFilter;
       const matchesSearch = !noteSearch.trim() || 
         (n.inhalt && n.inhalt.toLowerCase().includes(noteSearch.toLowerCase())) ||
-        (n.fach && n.fach.toLowerCase().includes(noteSearch.toLowerCase()));
+        (n.fach && n.fach.toLowerCase().includes(noteSearch.toLowerCase())) ||
+        (n.teilbereich && n.teilbereich.toLowerCase().includes(noteSearch.toLowerCase()));
       return matchesCategory && matchesSearch;
     });
   }, [studentNotes, noteCategoryFilter, noteSearch]);
