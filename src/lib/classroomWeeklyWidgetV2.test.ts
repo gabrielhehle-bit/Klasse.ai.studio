@@ -43,28 +43,32 @@ test('Widget 3: gear beside name and class-local settings do not rewrite an exis
   assert.match(picker, /Bestehende Wochenpläne und Rückmeldungen der Kinder werden nicht verändert/);
 });
 
-test('Widget 3: children can navigate all real pupils and all published tasks without internal scrolling', () => {
-  assert.match(widget, /visiblePupils = pupils\.slice\(/);
-  assert.match(widget, /namesPerPage =/);
-  assert.match(widget, /namePageCount/);
-  assert.match(widget, /aria-label="Namensseiten"/);
-  assert.match(widget, /aria-label="Vorherige Namensseite"/);
-  assert.match(widget, /aria-label="Nächste Namensseite"/);
-  assert.match(widget, /displayedTasks = tasks\.slice\(/);
-  assert.match(widget, /aria-label="Aufgabenseiten"/);
-  assert.match(widget, /Alle Aufgaben und \{pupils\.length\} Namen groß öffnen/);
+test('Widget 3: all released tasks appear directly in widget with a persistent finish button', () => {
+  assert.match(widget, /aria-label="Aufgaben dieser Woche"/);
+  assert.match(widget, /overflow-y-auto overscroll-contain/);
+  assert.match(widget, /tasks\.map\(\(task, index\) => <article/);
+  assert.match(widget, /<TaskText task=\{task\} showMaterials=\{preferences\.showMaterials\} \/>/);
+  assert.match(widget, /aria-label="Aufgabe abschließen"/);
+  assert.match(widget, /✅ Ich bin fertig mit einer Aufgabe/);
+  assert.match(widget, /disabled=\{!tasks\.length \|\| !pupils\.length\}/);
+  assert.doesNotMatch(widget, /Alle Aufgaben und \{pupils\.length\} Namen groß öffnen/);
   assert.match(widget, /isExpanded && typeof document !== 'undefined'/);
   assert.match(widget, /Zurück zur Widgetgröße/);
-  assert.doesNotMatch(widget, /onUpdate\?\.\(\{ x: 2, y: 2, w: 96, h: 90 \}\)/);
-  assert.match(widget, /overflow-y-auto p-3 sm:p-5" : "flex min-h-0 flex-1 flex-col gap-2 overflow-hidden/);
 });
 
-test('Widget 3: private past difficulty and help status never render on public child selector', () => {
+test('Widget 3: child selects task, then name, then private outcome; records are scoped', () => {
+  assert.match(widget, /type FinishStep = 'task' \| 'child' \| 'feedback'/);
+  assert.match(widget, /aria-label="Aufgabe auswählen"/);
+  assert.match(widget, /aria-label="Kind auswählen"/);
+  assert.match(widget, /aria-label="Wie ist die Aufgabe gelaufen\?"/);
+  assert.match(widget, /setSelectedTaskId\(task\.id\); setChildId\(null\); setFinishStep\('child'\)/);
+  assert.match(widget, /setChildId\(student\.id\); setFinishStep\('feedback'\)/);
+  assert.match(widget, /onClick=\{\(\) => saveFeedback\(choice\.value\)\}/);
+  assert.match(widget, /onClick=\{\(\) => saveFeedback\('hilfe'\)\}/);
+  assert.match(widget, /updateChildWeeklyFeedback\(previous\.schueler, savedStudent, currentTask, feedback\)/);
+  assert.match(widget, /previous\.schuljahr !== savedYear/);
+  assert.match(widget, /selectionScope === scope/);
   assert.doesNotMatch(widget, /getChildTaskProgress\(pupil, task\.id\)/);
   assert.doesNotMatch(widget, /progress\?\.difficulty/);
   assert.doesNotMatch(widget, /progress\.helpRequested/);
-  assert.match(widget, /updateChildWeeklyFeedback\(previous\.schueler, savedStudent, task, feedback\)/);
-  assert.match(widget, /\(previous\.activeClassId \|\| 'unassigned'\) !== savedClass/);
-  assert.match(widget, /!previous\.schueler\.some\(s => s\.id === savedStudent\)/);
-  assert.match(widget, /selectionScope === scope/);
 });

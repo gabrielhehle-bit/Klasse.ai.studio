@@ -170,18 +170,19 @@ test('one-tap feedback cannot create fabricated progress for malformed task or d
   assert.deepEqual(getChildWeeklyDossierRows({ ...pupil('a'), wochenplanFortschritt: { 'junk': { done: true, updatedAt: '' } } }), []);
 });
 
-test('child board has visible name bar, no name-selection dialog and single-tap help/difficulty actions', () => {
+test('child board reads every published task directly and records outcome from a three-step flow', () => {
   const widget = readFileSync('src/components/cockpit/widgets/ClassroomWeeklyPlanWidget.tsx', 'utf8');
   const dossier = readFileSync('src/components/dossier/DossierLeistungen.tsx', 'utf8');
-  assert.match(widget, /aria-label="Wähle deinen Namen"/);
-  assert.match(widget, /visiblePupils\.map\(student => <button/);
-  assert.match(widget, /aria-label="Namensseiten"/);
-  assert.match(widget, /Alle Aufgaben und \{pupils\.length\} Namen groß öffnen/);
+  assert.match(widget, /aria-label="Aufgaben dieser Woche"/);
+  assert.match(widget, /tasks\.map\(\(task, index\) => <article/);
+  assert.match(widget, /✅ Ich bin fertig mit einer Aufgabe/);
+  assert.match(widget, /aria-label="Aufgabe auswählen"/);
+  assert.match(widget, /aria-label="Kind auswählen"/);
+  assert.match(widget, /aria-label="Wie ist die Aufgabe gelaufen\?"/);
+  assert.match(widget, /onClick=\{\(\) => saveFeedback\('hilfe'\)\}/);
+  assert.match(widget, /onClick=\{\(\) => saveFeedback\(choice\.value\)\}/);
+  assert.match(widget, /previous\.schuljahr !== savedYear/);
   assert.doesNotMatch(widget, /getChildTaskProgress\(pupil, task\.id\)/);
-  assert.doesNotMatch(widget, /setPanel\('names'\)|Seite \{namePage \+ 1\} von/);
-  assert.match(widget, /saveFeedback\(task, 'hilfe'\)/);
-  assert.match(widget, /onClick=\{\(\) => saveFeedback\(task, choice\.value\)\}/);
-  assert.match(widget, /if \(tasks\.length === 1\) close\(\)/);
   assert.match(dossier, /getChildWeeklyDossierRows\(student\)/);
   assert.match(dossier, /bei \$\{helpTaskCount\} Aufgaben Hilfe angefragt/);
 });
