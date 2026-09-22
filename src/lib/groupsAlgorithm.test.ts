@@ -5,6 +5,7 @@ import {
   generateStudentGroups,
   swapStudentsInGroups,
   moveStudentToGroup,
+  getNewGroupRuleViolation,
   GroupingConfig,
   getGroupName
 } from './groupsAlgorithm';
@@ -242,4 +243,33 @@ test('Unsolvable contradictory buddy/apart rules remain visible as a warning', (
   });
   assert.ok(result.groups.length > 0);
   assert.equal(result.warning, 'Nicht alle Wünsche konnten gleichzeitig erfüllt werden.');
+});
+
+test('Manuelles Tauschen und Verschieben beachtet eingestellte Paar-Regeln', () => {
+  const original = [
+    { id: 'g1', name: 'Gruppe 1', colorIndex: 0, studentIds: ['synthetic-a', 'synthetic-b'] },
+    { id: 'g2', name: 'Gruppe 2', colorIndex: 1, studentIds: ['synthetic-c', 'synthetic-d'] },
+  ];
+  const apart = [{ studentIdA: 'synthetic-a', studentIdB: 'synthetic-c' }];
+  const buddy = [{ studentIdA: 'synthetic-a', studentIdB: 'synthetic-b' }];
+  const swapped = swapStudentsInGroups(original, 'synthetic-b', 'synthetic-c');
+  assert.match(getNewGroupRuleViolation(original, swapped, apart, []) || '', /Nicht zusammen/);
+  assert.match(getNewGroupRuleViolation(original, swapped, [], buddy) || '', /Buddy-Paar/);
+  const moved = moveStudentToGroup(original, 'synthetic-c', 'g1');
+  assert.equal(moved.error, undefined);
+  assert.match(getNewGroupRuleViolation(original, moved.updatedGroups, apart, []) || '', /Nicht zusammen/);
+  assert.equal(getNewGroupRuleViolation(original, original, apart, buddy), null);
+  assert.equal(getNewGroupRuleViolation(original,
+    swapStudentsInGroups(original, 'synthetic-c', 'synthetic-d'), apart, buddy), null);
+});
+
+test('Bestehende Regelverletzungen dürfen behoben werden und fremde IDs werden nie eingewechselt', () => {
+  const original = [
+    { id: 'g1', name: 'Gruppe 1', colorIndex: 0, studentIds: ['synthetic-a', 'synthetic-c'] },
+    { id: 'g2', name: 'Gruppe 2', colorIndex: 1, studentIds: ['synthetic-b', 'synthetic-d'] },
+  ];
+  const buddy = [{ studentIdA: 'synthetic-a', studentIdB: 'synthetic-b' }];
+  const repaired = moveStudentToGroup(original, 'synthetic-b', 'g1');
+  assert.equal(getNewGroupRuleViolation(original, repaired.updatedGroups, [], buddy), null);
+  assert.strictEqual(swapStudentsInGroups(original, 'synthetic-a', 'unknown'), original);
 });
