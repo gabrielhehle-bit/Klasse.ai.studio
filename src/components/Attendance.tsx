@@ -1393,6 +1393,7 @@ export default function Attendance() {
                             if (!isAbsent) {
                               setWholeDay(s.id, "e");
                             }
+                            setReasonMenuPlacement(null);
                             setActiveReasonSid(s.id);
                           }}
                           className={`px-3 py-1.5 rounded-lg text-[0.75rem] font-black transition-all cursor-pointer flex items-center gap-1 ${
@@ -1414,7 +1415,10 @@ export default function Attendance() {
                           <button
                             type="button"
                             ref={activeReasonSid === s.id ? reasonAnchorRef : undefined}
-                            onClick={() => setActiveReasonSid(s.id)}
+                            onClick={() => {
+                              setReasonMenuPlacement(null);
+                              setActiveReasonSid(s.id);
+                            }}
                             aria-expanded={activeReasonSid === s.id}
                             aria-controls={activeReasonSid === s.id ? "attendance-reason-options" : undefined}
                             className="px-2.5 py-1 rounded-lg text-[0.6875rem] font-extrabold border bg-white hover:bg-slate-50 transition-all cursor-pointer flex items-center gap-1 border-slate-200 text-slate-700"
@@ -1439,7 +1443,8 @@ export default function Attendance() {
                                 role="dialog"
                                 aria-label="Fehlgrund wählen"
                                 style={{
-                                  top: reasonMenuPlacement?.top ?? 0,
+                                  top: reasonMenuPlacement?.top,
+                                  bottom: reasonMenuPlacement?.bottom,
                                   left: reasonMenuPlacement?.left ?? 0,
                                   maxHeight: reasonMenuPlacement?.maxHeight ?? 0,
                                   visibility: reasonMenuPlacement ? "visible" : "hidden",
