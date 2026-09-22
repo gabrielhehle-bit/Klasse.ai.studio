@@ -34,3 +34,29 @@ export function isUnexpectedEmptyClassReplacement(previous: AppState, next: AppS
   // replacement for an established classroom.
   return hasEstablishedClassroom(previous) && !hasEstablishedClassroom(next);
 }
+
+
+/**
+ * Guard the other dangerous case: a non-empty replacement account may contain
+ * a different classroom (e.g. a fabricated fourth grade), so a mere pupil-count
+ * check cannot establish that the original first grade survived.
+ *
+ * A deliberate archive/retirement retains the same stable class ID. Other class
+ * deletion/migration requires an explicit, backup-first resolution; background
+ * cloud refresh must never silently discard a previously known classroom.
+ */
+export function hasUnexpectedClassDisappearance(previous: AppState, incoming: AppState): boolean {
+  const previousClasses = Array.isArray(previous.classes) ? previous.classes : [];
+  const incomingClassIds = new Set([
+    ...(Array.isArray(incoming.classes) ? incoming.classes : []),
+    ...(Array.isArray(incoming.retiredClasses) ? incoming.retiredClasses : []),
+  ].map(room => room?.id).filter((id): id is string => typeof id === 'string' && id.length > 0));
+
+  return previousClasses.some(room => {
+    if (!room || typeof room.id !== 'string' || !room.id) return false;
+    const established = (room.schueler?.length || 0) > 0
+      || !!(room.wochenplanung && Object.keys(room.wochenplanung).length > 0)
+      || !room.id.startsWith('default-');
+    return established && !incomingClassIds.has(room.id);
+  });
+}
