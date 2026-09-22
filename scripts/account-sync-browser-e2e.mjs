@@ -417,7 +417,9 @@ async function main() {
 
     // Modify an existing lesson in the school UI: setup creates only one
     // schedulable weekly cell, so do not invent an extra empty timetable slot.
-    await openAppPage(school, 'wochenplanung');
+    // The sidebar marks the route active before the lazy weekly grid has rendered.
+    // Wait for the actual lesson cell rather than searching the previous page DOM.
+    await openWeeklyAndCheck(school, TOPIC);
     const openedLesson = await evaluate(school,
       '(() => {const cell=Array.from(document.querySelectorAll("div")).find(el=>String(el.className||"").includes("group/cell")&&String(el.className||"").includes("min-h-[5.3125rem]")&&String(el.textContent||"").includes(' + q(TOPIC) + '));if(!cell)return false;cell.click();return true;})()');
     if (!openedLesson) throw new Error('School could not open the already-synced home lesson for editing.');
