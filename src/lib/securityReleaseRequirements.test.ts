@@ -66,3 +66,13 @@ test('voice AI uses temporary student aliases and server fallback filters struct
   assert.match(server, /isSafeStudentAlias/);
   assert.match(server, /'studentid', 'schuelerid'/);
 });
+
+
+test('verification email delivery is bounded per source and globally', () => {
+  assert.match(server, /emailIpWindows/);
+  assert.match(server, /emailServerWindow/);
+  assert.match(server, /allowVerificationEmailSend/);
+  assert.match(server, /const perIpLimit = 30/);
+  assert.match(server, /const globalLimit = 200/);
+  assert.match(server, /Retry-After/);
+});
