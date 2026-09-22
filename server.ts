@@ -293,6 +293,37 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   const emailAccessChallenges = new Map<string, EmailAccessChallenge>();
   const emailRequestThrottle = new Map<string, number>();
   const emailGlobalThrottle = new Map<string, number>();
+  const emailIpWindows = new Map<string, { count: number; resetAt: number }>();
+  let emailServerWindow = { count: 0, resetAt: 0 };
+
+  function allowVerificationEmailSend(ip: string): { allowed: boolean; retryAfterSeconds?: number } {
+    const now = Date.now();
+    const windowMs = 10 * 60 * 1000;
+    const perIpLimit = 30;
+    const globalLimit = 200;
+
+    let ipWindow = emailIpWindows.get(ip);
+    if (!ipWindow || now >= ipWindow.resetAt) {
+      ipWindow = { count: 0, resetAt: now + windowMs };
+      emailIpWindows.set(ip, ipWindow);
+    }
+    if (now >= emailServerWindow.resetAt) {
+      emailServerWindow = { count: 0, resetAt: now + windowMs };
+    }
+
+    if (ipWindow.count >= perIpLimit || emailServerWindow.count >= globalLimit) {
+      const retryAt = Math.min(
+        ipWindow.count >= perIpLimit ? ipWindow.resetAt : Number.POSITIVE_INFINITY,
+        emailServerWindow.count >= globalLimit ? emailServerWindow.resetAt : Number.POSITIVE_INFINITY,
+      );
+      return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil((retryAt - now) / 1000)) };
+    }
+
+    ipWindow.count += 1;
+    emailServerWindow.count += 1;
+    return { allowed: true };
+  }
+
   // Security throttles must not be keyed by a user-supplied proxy header.
   const securityPeer = (req: express.Request): string => req.ip || req.socket.remoteAddress || 'unknown';
 
@@ -615,6 +646,15 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     const email = normalizeEmail(req.body?.email);
     if (!email) {
       return res.status(400).json({ success: false, error: 'Bitte gib eine gültige E-Mail-Adresse ein.' });
+    }
+
+    const sendLimit = allowVerificationEmailSend(ip);
+    if (!sendLimit.allowed) {
+      if (sendLimit.retryAfterSeconds) res.setHeader('Retry-After', String(sendLimit.retryAfterSeconds));
+      return res.status(429).json({
+        success: false,
+        error: 'Zu viele Anmeldecode-Anfragen. Bitte versuche es später erneut.'
+      });
     }
 
     const throttleKey = ip + ':' + email;
