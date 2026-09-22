@@ -25,7 +25,7 @@ const shortcuts: {
 ];
 
 export default function MobileHome({ onNavigate }: MobileHomeProps) {
-  const { app } = useApp();
+  const { app, accountSyncStatus } = useApp();
   const [showPairing, setShowPairing] = useState(false);
   const activeClass = app.classes?.find(room => room.id === app.activeClassId);
   const classLabel = activeClass?.name || app.klassenbezeichnung || 'Meine Klasse';
@@ -39,6 +39,17 @@ export default function MobileHome({ onNavigate }: MobileHomeProps) {
           <h1 className="mt-2 text-3xl font-black tracking-tight">Dein Schulalltag.</h1>
           <p className="mt-2 text-sm text-slate-600">
             {classLabel} · {studentCount} {studentCount === 1 ? 'Kind' : 'Kinder'}
+          </p>
+          <p role="status" aria-live="polite" className={`mt-3 inline-flex rounded-full px-3 py-1.5 text-xs font-bold ${accountSyncStatus === 'synced'
+            ? 'bg-emerald-50 text-emerald-800'
+            : ['conflict', 'error', 'local-error'].includes(accountSyncStatus)
+              ? 'bg-amber-50 text-amber-800'
+              : 'bg-violet-50 text-violet-800'}`}>
+            {accountSyncStatus === 'synced'
+              ? '✓ Geräte synchronisiert'
+              : ['conflict', 'error', 'local-error'].includes(accountSyncStatus)
+                ? '⚠ Speichern / Abgleich prüfen'
+                : 'Speichern / Abgleich läuft'}
           </p>
         </header>
 
