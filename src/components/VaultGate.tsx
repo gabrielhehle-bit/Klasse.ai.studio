@@ -263,7 +263,9 @@ export default function VaultGate({ children }: VaultGateProps) {
       }
 
       // 4. AppState im React-Kontext entsperren und laden
-      const loaded = await unlockAppVault(activeVaultKey);
+      // Only the explicitly confirmed first-time vault setup may start
+      // without a previous classroom. Ordinary re-login must fail closed.
+      const loaded = await unlockAppVault(activeVaultKey, true);
       if (!loaded) {
         throw new Error('Der Datentresor wurde eingerichtet, aber die vorhandenen Daten konnten nicht geladen werden. Bitte nicht neu einrichten; Verbindung prüfen und erneut versuchen.');
       }
