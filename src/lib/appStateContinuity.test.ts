@@ -9,7 +9,7 @@ import {
   saveEncryptedPreImportBackup, __resetSecureStorageForTesting,
 } from './secureStorageService';
 import { decryptData } from './crypto';
-import { hasEstablishedClassroom, isUnexpectedEmptyClassReplacement, hasUnexpectedClassDisappearance } from './appStateContinuity';
+import { hasEstablishedClassroom, isUnexpectedEmptyClassReplacement, hasUnexpectedClassDisappearance, shouldRestoreEstablishedCloudClassroom } from './appStateContinuity';
 
 const oneA = syncActiveClass({
   ...initialAppState,
@@ -65,6 +65,35 @@ test('An existing vault may not silently bootstrap a missing account as empty or
   assert.match(gate, /unlockAppVault\(activeVaultKey, true\)/);
   assert.match(storage, /isUnexpectedEmptyClassReplacement\(prior, appState\)/);
   assert.match(storage, /STORAGE_KEYS\.NOTFALLKOPIE/);
+});
+
+test('Altes leeres Handy-Profil lädt verifizierte 1a statt erneut die Einrichtung zu öffnen', () => {
+  const staleEmptyMobile = normalizeAppState({
+    ...initialAppState,
+    klassenbezeichnung: 'Meine Klasse',
+    stufe: 4,
+    schueler: [],
+    classes: [],
+    wochenplanung: {},
+  });
+
+  assert.equal(hasEstablishedClassroom(staleEmptyMobile), false);
+  assert.equal(shouldRestoreEstablishedCloudClassroom(staleEmptyMobile, oneA), true);
+  assert.equal(shouldRestoreEstablishedCloudClassroom(oneA, staleEmptyMobile), false,
+    'Ein vorhandener lokaler Klassenstand darf niemals automatisch durch einen Platzhalter ersetzt werden.');
+  assert.equal(shouldRestoreEstablishedCloudClassroom(oneA, oneA), false,
+    'Zwei echte Klassenstände müssen durch den üblichen revisionsgeschützten Sync laufen.');
+  assert.equal(shouldRestoreEstablishedCloudClassroom(staleEmptyMobile, initialAppState), false,
+    'Zwei leere Datenstände sind keine erfolgreiche Wiederherstellung.');
+
+  const context = readFileSync('src/context/AppContext.tsx', 'utf8');
+  const verifiedVault = context.indexOf('if (remote.vaultRecord.id !== vaultRecord.id)');
+  const restore = context.indexOf('if (shouldRestoreEstablishedCloudClassroom(current, remoteState))');
+  const baseline = context.indexOf('const baseline = loadAccountSyncMetadata(vaultRecord.id);', restore);
+  assert.ok(verifiedVault !== -1 && verifiedVault < restore && restore < baseline,
+    'Die Wiederherstellung darf nur nach dem Tresor-ID-Abgleich und vor dem Vergleich mit einer alten lokalen Sync-Baseline erfolgen.');
+  assert.match(context, /if (!isStillCurrent) await saveEncryptedAppState\(remoteState, vaultKey\)/);
+  assert.match(context, /if \(!hadLocalState \|\| \(!allowFreshSetup && !hasEstablishedClassroom\(current\)\)\) throw error;/);
 });
 
 test('Verschlüsselter Primärstand bleibt nach abgewiesenem leerem Autosave vollständig erhalten', async () => {
