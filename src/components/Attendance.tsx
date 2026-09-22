@@ -1,5 +1,6 @@
 import { completeMissingAttendance } from '../lib/classroomEdits';
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useLayoutEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useApp } from "../context/AppContext";
 import { getTodayName, isHoliday } from "../lib/utils";
 import { STUNDEN_INFO } from "../constants";
@@ -54,6 +55,7 @@ import {
 } from "recharts";
 import PrintHeader from "./PrintHeader";
 import AttendanceTrends from "./AttendanceTrends";
+import { getAttendanceReasonMenuPlacement } from "../lib/attendanceReasonMenuPlacement";
 
 export default function Attendance() {
   const { app, setApp } = useApp();
@@ -99,6 +101,9 @@ export default function Attendance() {
   >([]);
 
   const mehrMenuRef = useRef<HTMLDivElement>(null);
+  const reasonAnchorRef = useRef<HTMLButtonElement>(null);
+  const reasonMenuRef = useRef<HTMLDivElement>(null);
+  const [reasonMenuPlacement, setReasonMenuPlacement] = useState<ReturnType<typeof getAttendanceReasonMenuPlacement> | null>(null);
 
   useEffect(() => {
     // Anwesenheitsbezogene UI-Zustände dürfen niemals in die nächste Klasse mitwandern.
@@ -125,6 +130,48 @@ export default function Attendance() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // The reason menu belongs to the document overlay, not the clipped student
+  // list. Measure the selected button against the viewport and flip upwards
+  // when the last children are near the bottom of the screen.
+  useLayoutEffect(() => {
+    if (!activeReasonSid) {
+      setReasonMenuPlacement(null);
+      return;
+    }
+    const reposition = () => {
+      const anchor = reasonAnchorRef.current;
+      if (!anchor) return;
+      setReasonMenuPlacement(getAttendanceReasonMenuPlacement(
+        anchor.getBoundingClientRect(), window.innerWidth, window.innerHeight,
+      ));
+    };
+    reposition();
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    return () => {
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+    };
+  }, [activeReasonSid, selectedDate, viewMode, app.activeClassId]);
+
+  useEffect(() => {
+    if (!activeReasonSid) return;
+    const onOutside = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (reasonMenuRef.current?.contains(target) || reasonAnchorRef.current?.contains(target)) return;
+      setActiveReasonSid(null);
+    };
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setActiveReasonSid(null);
+    };
+    document.addEventListener("pointerdown", onOutside);
+    document.addEventListener("keydown", onEscape);
+    return () => {
+      document.removeEventListener("pointerdown", onOutside);
+      document.removeEventListener("keydown", onEscape);
+    };
+  }, [activeReasonSid]);
 
   // Date Parsing & Day Info
   const [y, m, d] = selectedDate.split("-").map(Number);
@@ -1365,7 +1412,11 @@ export default function Attendance() {
                       {isAbsent && (
                         <div className="relative">
                           <button
+                            type="button"
+                            ref={activeReasonSid === s.id ? reasonAnchorRef : undefined}
                             onClick={() => setActiveReasonSid(s.id)}
+                            aria-expanded={activeReasonSid === s.id}
+                            aria-controls={activeReasonSid === s.id ? "attendance-reason-options" : undefined}
                             className="px-2.5 py-1 rounded-lg text-[0.6875rem] font-extrabold border bg-white hover:bg-slate-50 transition-all cursor-pointer flex items-center gap-1 border-slate-200 text-slate-700"
                           >
                             <span>
@@ -1380,14 +1431,23 @@ export default function Attendance() {
                             <ChevronRight size={12} className="rotate-90 text-slate-400" />
                           </button>
 
-                          {/* Quick Reason Popover */}
-                          <AnimatePresence>
-                            {activeReasonSid === s.id && (
+                          {/* Portal prevents the scroll-clipped list from hiding the reason options. */}
+                          {activeReasonSid === s.id && typeof document !== "undefined" && createPortal(
                               <motion.div
+                                id="attendance-reason-options"
+                                ref={reasonMenuRef}
+                                role="dialog"
+                                aria-label="Fehlgrund wählen"
+                                style={{
+                                  top: reasonMenuPlacement?.top ?? 0,
+                                  left: reasonMenuPlacement?.left ?? 0,
+                                  maxHeight: reasonMenuPlacement?.maxHeight ?? 0,
+                                  visibility: reasonMenuPlacement ? "visible" : "hidden",
+                                }}
                                 initial={{ opacity: 0, y: 5, scale: 0.95 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 exit={{ opacity: 0, y: 5, scale: 0.95 }}
-                                className="absolute right-0 mt-1 w-52 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 text-[0.75rem] space-y-1"
+                                className="fixed z-[1000] w-60 max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-2 text-[0.75rem] shadow-2xl space-y-1"
                               >
                                 <div className="px-2 py-1 font-black text-slate-400 uppercase text-[0.5625rem] tracking-wider">
                                   Grund wählen
@@ -1434,9 +1494,9 @@ export default function Attendance() {
                                   <MessageSquare size={13} className="text-slate-500" />
                                   <span>Eigene Notiz schreiben...</span>
                                 </button>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
+                              </motion.div>,
+                            document.body,
+                          )}
                         </div>
                       )}
 
