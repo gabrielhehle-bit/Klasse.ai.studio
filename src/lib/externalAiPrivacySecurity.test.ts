@@ -7,6 +7,10 @@ test('Even an explicitly enabled Gemini client cannot receive pupil reports or p
   const previousSecret = process.env.SESSION_SECRET;
   const previousTeam = process.env.LEHRERAPP_ACCESS_TEAM;
   const previousExternal = process.env.LEHRERAPP_ACCESS_EXTERNAL;
+  const previousRunner = process.env.IS_TEST_RUNNER;
+  // server.ts has a module-level startServer() fallback. Prevent an unwanted
+  // development listener from being created by this dynamic import.
+  process.env.IS_TEST_RUNNER = 'true';
   process.env.KLASSIO_AI_EXTERNAL_ENABLED = 'true';
   process.env.SESSION_SECRET = 'test-only-key-32-characters-minimum-2026';
   process.env.LEHRERAPP_ACCESS_TEAM = 'test-only-team-code';
@@ -16,6 +20,7 @@ test('Even an explicitly enabled Gemini client cannot receive pupil reports or p
     if (previousSecret === undefined) delete process.env.SESSION_SECRET; else process.env.SESSION_SECRET = previousSecret;
     if (previousTeam === undefined) delete process.env.LEHRERAPP_ACCESS_TEAM; else process.env.LEHRERAPP_ACCESS_TEAM = previousTeam;
     if (previousExternal === undefined) delete process.env.LEHRERAPP_ACCESS_EXTERNAL; else process.env.LEHRERAPP_ACCESS_EXTERNAL = previousExternal;
+    if (previousRunner === undefined) delete process.env.IS_TEST_RUNNER; else process.env.IS_TEST_RUNNER = previousRunner;
   });
   const { createApp } = await import('../../server.ts');
   const app = await createApp({ isTest: true });
