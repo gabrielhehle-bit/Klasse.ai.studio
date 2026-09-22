@@ -211,6 +211,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // Only the explicitly confirmed first-run vault setup may initialize
         // a genuinely new account with no class yet.
         const previousReceipt = loadAccountSyncMetadata(vaultRecord.id);
+        if (previousReceipt?.revision && hadLocalState && hasEstablishedClassroom(current)) {
+          // Restore access to the intact local class for emergency export, but
+          // never recreate a vanished cloud snapshot or claim cloud sync is safe.
+          accountSyncReadyRef.current = false;
+          setAccountSyncHealthy(false);
+          setAccountSyncMessage('Deine bisherigen lokalen Klassen sind noch vorhanden, aber der frühere E-Mail-Kontostand ist nicht auffindbar. KLASSIO hat nichts zum Server hochgeladen. Bitte JETZT ein verschlüsseltes Backup erstellen und die E-Mail-Konto-Zuordnung prüfen.');
+          setAccountSyncStatus('error');
+          return current;
+        }
         if (previousReceipt?.revision || (!hadLocalState && !allowFreshSetup)
           || (!hasEstablishedClassroom(current) && !allowFreshSetup)) {
           throw Object.assign(new Error(
