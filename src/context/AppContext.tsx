@@ -1,6 +1,6 @@
 import { assertRestorableAppState } from '../lib/backupRestore';
 import { initialAppState, syncActiveClass, normalizeAppState, switchClassState } from '../lib/appState';
-import { hasEstablishedClassroom, hasUnexpectedClassDisappearance } from '../lib/appStateContinuity';
+import { hasEstablishedClassroom, hasUnexpectedClassDisappearance, shouldRestoreEstablishedCloudClassroom } from '../lib/appStateContinuity';
 import { removeStudentFromAppState } from '../lib/studentState';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
@@ -232,6 +232,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       if (remote.vaultRecord.id !== vaultRecord.id) {
+        // Never open class setup when a locally empty browser points at an
+        // existing email account with a different encrypted vault.
+        if (!hasEstablishedClassroom(current)) {
+          throw Object.assign(new Error(
+            'Das E-Mail-Konto enthält einen anderen Datentresor. Zur Sicherheit zeigt KLASSIO keine leere Ersteinrichtung an. Bitte Konto und Tresor prüfen.'
+          ), { code: 'EMPTY_STATE_BLOCKED' });
+        }
         accountSyncReadyRef.current = false;
         setAccountSyncHealthy(false);
         setAccountSyncMessage('Das E-Mail-Konto enthält einen anderen Datentresor. Zur Sicherheit wurde nichts überschrieben. Prüfe Konto und Tresor, bevor du weiter synchronisierst.');
@@ -263,6 +270,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setAccountSyncConflictResolvable(false);
         setAccountSyncStatus('conflict');
         return current;
+      }
+      // A previously-used mobile browser may contain an encrypted but empty
+      // placeholder with no sync baseline. When the SAME vault has successfully
+      // decrypted a populated account snapshot, restore the real classroom
+      // instead of showing the first-run wizard or treating the placeholder as
+      // a competing classroom. Existing real local classes still take the
+      // normal conflict-safe reconciliation path below.
+      if (shouldRestoreEstablishedCloudClassroom(current, remoteState)) {
+        if (isStillCurrent && !isStillCurrent()) return currentAppRef.current;
+        // Initial unlock has no editable UI; background refresh persists the
+        // adopted generation using the standard guarded autosave pipeline.
+        if (!isStillCurrent) await saveEncryptedAppState(remoteState, vaultKey);
+        if (isStillCurrent && !isStillCurrent()) return currentAppRef.current;
+        markAccountSynced(remote, remoteState);
+        return remoteState;
       }
       const localFingerprint = appStateFingerprint(current);
       const remoteFingerprint = appStateFingerprint(remoteState);
@@ -353,7 +375,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setAccountSyncHealthy(false);
         setAccountSyncMessage('Die E-Mail-Anmeldung ist nicht mehr aktiv. Melde dich erneut an, damit der verschlüsselte Konto-Abgleich weiterläuft.');
         setAccountSyncStatus('disabled');
-        if (!hadLocalState) throw error;
+        if (!hadLocalState || (!allowFreshSetup && !hasEstablishedClassroom(current))) throw error;
         return current;
       }
       setAccountSyncHealthy(false);
@@ -364,7 +386,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ));
       setAccountSyncStatus(error?.code === 'REVISION_CONFLICT' || error?.code === 'VAULT_MISMATCH' ? 'conflict' : 'error');
       console.error('[AccountSync] Kontostand konnte nicht abgeglichen werden:', error);
-      if (!hadLocalState) throw error;
+      // A transient network, decryption or account error is NOT permission to
+      // unlock an existing vault into an unconfigured replacement classroom.
+      if (!hadLocalState || (!allowFreshSetup && !hasEstablishedClassroom(current))) throw error;
       return current;
     }
   }, [markAccountSynced]);
