@@ -786,26 +786,36 @@ export async function generateWidgetTasks(
 }
 
 export async function parseVoiceCommand(transcript: string, students: any[]): Promise<any | null> {
-  const studentsContext = students.map(s => `${s.vorname} ${s.nachname} (ID: ${s.id})`).join(', ');
+  // Never expose persistent Klassio student IDs to the external model.
+  // Names are still pseudonymized centrally by callServerAI; temporary IDs are
+  // mapped back to local IDs only after the response returns to this browser.
+  const temporaryIds = new Map<string, string>();
+  const studentsContext = students.map((student, index) => {
+    const tempId = `S${String(index + 1).padStart(2, '0')}`;
+    temporaryIds.set(tempId, String(student.id || ''));
+    return `${student.vorname || ''} ${student.nachname || ''} (TEMP-ID: ${tempId})`.trim();
+  }).join(', ');
+
   try {
     const text = await callServerAI("generateContent", {
-      contents: `Du bist eine KI, die Sprachbefehle für eine Lehrer-App verarbeitet. 
+      contents: `Du bist eine KI, die Sprachbefehle für eine Lehrer-App verarbeitet.
 Befehl der Lehrkraft: "${transcript}"
 
 Folgende Schüler sind in der Klasse: ${studentsContext}
 
 Analysiere den Befehl und extrahiere die intendierte Aktion in JSON.
-Unterstützte Aktionen: 
-1. ADD_MITARBEIT (Mitarbeitspunkte geben, z.B. "Plus für Anna", "Mitarbeitspunkte für Max")
-2. ADD_BEHAVIOR (Verhaltensrückmeldung, z.B. "Anna hat heute super mitgearbeitet", "Max war unruhig")
-3. ADD_NOTE (Allgemeine Notiz, z.B. "Erinnere mich daran, dass...")
+Unterstützte Aktionen:
+1. ADD_MITARBEIT
+2. ADD_BEHAVIOR
+3. ADD_NOTE
 
+Verwende für studentIds ausschließlich die TEMP-ID (S01, S02, ...), niemals Namen oder andere Kennungen.
 JSON Schema:
 {
   "action": "ADD_MITARBEIT" | "ADD_BEHAVIOR" | "ADD_NOTE",
-  "studentIds": ["id1", "id2"], // Liste der betroffenen Schüler-IDs
+  "studentIds": ["S01"],
   "content": "Kurze Zusammenfassung oder Notiz",
-  "points": 1 // (optional, bei ADD_MITARBEIT z.B. 1 oder -1)
+  "points": 1
 }
 
 Gib nur das JSON zurück, keine Markdown-Blöcke.`,
@@ -823,7 +833,12 @@ Gib nur das JSON zurück, keine Markdown-Blöcke.`,
         }
       }
     });
-    return JSON.parse(text);
+    const parsed = JSON.parse(text);
+    if (!parsed || !Array.isArray(parsed.studentIds)) return null;
+    parsed.studentIds = parsed.studentIds
+      .map((tempId: unknown) => typeof tempId === 'string' ? temporaryIds.get(tempId) : undefined)
+      .filter(Boolean);
+    return parsed;
   } catch (error) {
     console.error("parseVoiceCommand failed", error);
     return null;
