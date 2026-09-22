@@ -2209,14 +2209,24 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       const FORBIDDEN_KEYS = new Set([
         'svnr', 'email', 'telefon', 'phone', 'religion', 'geburtsdatum',
         'birthdate', 'adresse', 'street', 'strasse', 'nachname', 'lastname',
+        'vorname', 'firstname', 'studentname', 'schuelername',
+        'studentid', 'schuelerid',
         'erziehungsberechtigte', 'parents', 'plz', 'hausnummer'
       ]);
+      const ALIAS_NAME_KEYS = new Set(['vorname', 'firstname', 'studentname', 'schuelername']);
+      const isSafeStudentAlias = (value: unknown) =>
+        typeof value === 'string' && /^(?:Kind [A-Z]{1,3}|S\d{2,4})$/i.test(value.trim());
 
       const result: any = {};
       for (const key of Object.keys(val)) {
-        if (FORBIDDEN_KEYS.has(key.toLowerCase())) {
-          violations.push(`Sensibles Feld "${key}" serverseitig gefiltert`);
-          result[key] = '[SENSIBLES-FELD-GEFILTERT]';
+        const lowerKey = key.toLowerCase();
+        if (FORBIDDEN_KEYS.has(lowerKey)) {
+          if (ALIAS_NAME_KEYS.has(lowerKey) && isSafeStudentAlias(val[key])) {
+            result[key] = String(val[key]).trim();
+          } else {
+            violations.push(`Sensibles Feld "${key}" serverseitig gefiltert`);
+            result[key] = '[SENSIBLES-FELD-GEFILTERT]';
+          }
           continue;
         }
         result[key] = sanitizeAIPayloadRecursively(val[key], violations);
