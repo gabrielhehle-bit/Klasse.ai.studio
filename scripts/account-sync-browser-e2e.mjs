@@ -433,6 +433,10 @@ async function main() {
     await waitForCloud(school);
     await openWeeklyAndCheck(home, TOPIC_SCHOOL);
     console.log('✓ Real Chrome: school edited an existing weekly lesson, home received the update.');
+    // Note text is rendered only while the note view is open; the home device
+    // was left on weekly planning for the reverse-plan verification.
+    await openAppPage(home, 'verhalten');
+    await waitFor(home, 'home class notes view ready', 'Boolean(document.querySelector("textarea#klassio-note-input"))', 30000);
     await addClassNote(school, NOTE_SCHOOL);
     await waitFor(home, 'school note appears automatically at home without sign-out',
       'document.body?.innerText.includes(' + q(NOTE_SCHOOL) + ')', 45000);
