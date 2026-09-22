@@ -93,6 +93,7 @@ import PrivacyLock from './components/PrivacyLock';
 import MobileHome from './components/MobileHome';
 import MobileWorkspace, { type MobileDestination } from './components/MobileWorkspace';
 import MobileNotes from './components/MobileNotes';
+import MobileToday from './components/MobileToday';
 const Cockpit = lazyRetry(() => import('./components/Cockpit'));
 import PrintHeader from './components/PrintHeader';
 import AccessGate from './components/AccessGate';
@@ -753,7 +754,11 @@ function AppContent() {
                 <Loader2 size={20} className="animate-spin" /> Wird geladen…
               </div>
             }>
-              {currentPage === 'verhalten' ? <MobileNotes /> : renderPage()}
+              {currentPage === 'dashboard'
+                ? <MobileToday onNavigate={navigateMobile} />
+                : currentPage === 'verhalten'
+                  ? <MobileNotes />
+                  : renderPage()}
             </React.Suspense>
           </ErrorBoundary>
         </MobileWorkspace>
