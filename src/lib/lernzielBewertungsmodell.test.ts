@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { getLernzielModell, STANDARD_LERNZIEL_MODELL, lernzielHaeufigkeiten,
-  parseLernzielModell, pruefeModellWechsel, verwendeteLernzielStufen } from './lernzielBewertungsmodell';
+  getLernzielRadarProgress, parseLernzielModell, pruefeModellWechsel, verwendeteLernzielStufen } from './lernzielBewertungsmodell';
 
 test('legacy school-independent goal values are unchanged; unassessed is not a school grade', () => {
   const model = getLernzielModell(undefined);
@@ -32,6 +32,39 @@ test('2 to 10 named levels, order and diagrams can be configured without changin
   assert.throws(() => parseLernzielModell({ ...custom, levels: [custom.levels[0], custom.levels[0]] }), /eindeutige ID/);
   assert.throws(() => parseLernzielModell({ ...custom, levels: [{ ...custom.levels[0], color: 'url(javascript:evil)' }, custom.levels[1]] }), /gültige Farbe/);
   assert.throws(() => parseLernzielModell({ ...custom, views: { kind: 'bad', parents: 'ring', teachers: 'balken' } }), /Darstellung/);
+});
+
+test('configurable level labels, count and radar values preserve historical status IDs', () => {
+  const old = getLernzielModell(undefined);
+  assert.deepEqual(old.levels.map(level => level.value), [3, 2, 1]);
+  assert.equal(getLernzielRadarProgress(old, null), 0);
+  assert.equal(getLernzielRadarProgress(old, 3), 1 / 3);
+  assert.equal(getLernzielRadarProgress(old, 2), 2 / 3);
+  assert.equal(getLernzielRadarProgress(old, 1), 1);
+  const expanded = parseLernzielModell({
+    ...old, emptyLabel: 'Noch offen',
+    levels: [
+      { ...old.levels[0], label: 'Erste Schritte', radarPercent: 20 },
+      { ...old.levels[1], label: 'Ich übe', radarPercent: 55 },
+      { value: 4, label: 'Fast geschafft', kurz: 'Fast', color: '#2563eb',
+        symbol: '⭐', radarPercent: 85 },
+      { ...old.levels[2], radarPercent: 100 },
+    ],
+  });
+  assert.equal(expanded.levels.length, 4);
+  assert.equal(expanded.emptyLabel, 'Noch offen');
+  assert.equal(getLernzielRadarProgress(expanded, 3), 0.2);
+  assert.equal(getLernzielRadarProgress(expanded, 2), 0.55);
+  assert.equal(getLernzielRadarProgress(expanded, 4), 0.85);
+  assert.equal(getLernzielRadarProgress(expanded, 1), 1);
+  assert.equal(getLernzielRadarProgress(expanded, 99), 0);
+  assert.doesNotThrow(() => pruefeModellWechsel(old, expanded, new Set([1, 2, 3])));
+  for (const invalid of [101, -1, Infinity, NaN, '90']) {
+    assert.throws(() => parseLernzielModell({
+      ...expanded, levels: [{ ...expanded.levels[0], radarPercent: invalid }, ...expanded.levels.slice(1)],
+    }), /Diagrammwert/);
+  }
+  assert.deepEqual(old.levels.map(level => level.value), [3, 2, 1]);
 });
 
 test('used rating can only be removed after explicit student reassessment', () => {

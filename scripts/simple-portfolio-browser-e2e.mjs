@@ -289,6 +289,35 @@ async function main() {
     await setInputByLabel(client, 'Anzahl Achsen Lernziele', '6');
     await waitFor(client, 'six goal radar axes configured',
       'document.querySelectorAll(\'svg[aria-label^="Spinnennetzdiagramm Lernziele"] [data-radar-axis]\').length === 6');
+    await clickButton(client, '+ Bewertungsstufe hinzufügen');
+    await setInputByLabel(client, 'Bewertungsstufe 4 benennen', 'Zusatzstufe');
+    await setInputByLabel(client, 'Diagrammwert Stufe 4', '80');
+    await clickButton(client, 'Bewertungsstufen speichern');
+    await waitFor(client, 'four available learning-goal assessment stages',
+      '(() => {const g=document.querySelector("[role=group][aria-label^=\\\"Lernziel einschätzen:\\\"]");' +
+      'return g?.querySelectorAll("button").length===5&&Array.from(g.querySelectorAll("button")).some(b=>b.textContent?.includes("Zusatzstufe"));})()');
+    const newStageApplied = await evaluate(client,
+      '(() => {const g=document.querySelector("[role=group][aria-label^=\\\"Lernziel einschätzen:\\\"]");' +
+      'const b=Array.from(g?.querySelectorAll("button")||[]).find(item=>item.textContent?.includes("Zusatzstufe"));' +
+      'if(!b)return false;b.click();return true;})()');
+    if (!newStageApplied) throw new Error('Cannot select the fourth configurable assessment stage.');
+    await waitFor(client, 'customized stage adjusts existing goal radar radius',
+      '(() => {const first=document.querySelector("svg[aria-label^=\\\"Spinnennetzdiagramm Lernziele\\\"] [data-radar-axis]");' +
+      'return first&&Number(first.getAttribute("data-radar-progress"))>0.2;})()');
+    await setInputByLabel(client, 'Eigenes Radar-Lernziel', 'Silben selbständig lesen');
+    await clickButton(client, 'Lernziel hinzufügen');
+    await waitFor(client, 'custom goal becomes a new chart axis',
+      'document.querySelectorAll(\'svg[aria-label^="Spinnennetzdiagramm Lernziele"] [data-radar-axis]\').length===7');
+    const ownGoal = await evaluate(client,
+      '(() => {const card=document.querySelector("[data-custom-radar-goal]");' +
+      'const select=card?.querySelector("select");if(!select)return false;' +
+      'const option=Array.from(select.options).find(o=>o.textContent?.includes("Zusatzstufe"));' +
+      'if(!option)return false;const setter=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,"value")?.set;' +
+      'setter?.call(select,option.value);select.dispatchEvent(new Event("change",{bubbles:true}));return true;})()');
+    if (!ownGoal) throw new Error('Cannot rate the new own goal using customizable stages.');
+    await waitFor(client, 'individual goal radar axis reaches configured 80 percent',
+      '(() => {const axes=Array.from(document.querySelectorAll(\'svg[aria-label^="Spinnennetzdiagramm Lernziele"] [data-radar-axis]\'));' +
+      'return axes.some(axis=>axis.getAttribute("data-radar-axis")==="Silben selbständig lesen"&&Number(axis.getAttribute("data-radar-progress"))===0.8);})()');
     await saveScreenshot(client);
     await client.send('Emulation.setDeviceMetricsOverride', {
       width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false,

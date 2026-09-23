@@ -2,17 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { getAssessmentMode } from '../lib/GradeUtils';
 import { getSimpleAnnualGoalRatings, getSimpleSubjectAreas, getSimpleSubjectGrades } from '../lib/simplePortfolio';
+import { getLernzielModell, getLernzielRadarProgress, parseLernzielModell, pruefeModellWechsel, verwendeteLernzielStufen, type LernzielBewertungsmodell } from '../lib/lernzielBewertungsmodell';
 import { formatLocalDateKey } from '../lib/utils';
 import { LERNZIELE_BY_STUFE } from './LernzielTracker';
 import PortfolioFlower, { type FlowerPetal } from './PortfolioFlower';
 
-
-const GOAL_STEPS = [
-  { value: null, label: 'Noch nicht eingeschätzt', icon: '', color: '#cbd5e1' },
-  { value: 3, label: 'In Entwicklung', icon: '🌱', color: '#f59e0b' },
-  { value: 2, label: 'Im Wesentlichen', icon: '🌿', color: '#84cc16' },
-  { value: 1, label: 'Erreicht', icon: '🌸', color: '#059669' },
-] as const;
 
 export default function SimplePortfolioView() {
   const { app, setApp } = useApp();
@@ -31,6 +25,15 @@ export default function SimplePortfolioView() {
   ])).filter(Boolean), [app.faecher, app.noten, catalog, studentId, student?.manuelleLernziele, level]);
   const [subject, setSubject] = useState(() => subjects.includes('Deutsch') ? 'Deutsch' : subjects[0] || '');
   const [newNote, setNewNote] = useState('');
+  const [newRadarGoal, setNewRadarGoal] = useState('');
+  const [newRadarArea, setNewRadarArea] = useState('');
+  const [levelDraft, setLevelDraft] = useState<LernzielBewertungsmodell | null>(null);
+  const [levelError, setLevelError] = useState('');
+  const levelModel = getLernzielModell(app.lernzielBewertungsmodell);
+  const goalSteps = [
+    { value: null as number | null, label: levelModel.emptyLabel, icon: '', color: '#cbd5e1' },
+    ...levelModel.levels.map(stage => ({ value: stage.value as number | null, label: stage.label, icon: stage.symbol, color: stage.color })),
+  ];
 
   useEffect(() => {
     if (app.selectedStudentForPortfolio && students.some(s => s.id === app.selectedStudentForPortfolio)) {
@@ -45,12 +48,14 @@ export default function SimplePortfolioView() {
   useEffect(() => {
     if (!subjects.includes(subject)) setSubject(subjects.includes('Deutsch') ? 'Deutsch' : subjects[0] || '');
   }, [subjects, subject]);
-  useEffect(() => { setNewNote(''); }, [studentId, subject, classId]);
+  useEffect(() => { setNewNote(''); setNewRadarGoal(''); setNewRadarArea(''); }, [studentId, subject, classId]);
+  useEffect(() => { setLevelDraft(null); setLevelError(''); }, [classId]);
 
   const areas = useMemo(() => getSimpleSubjectAreas(subject, level, student), [subject, level, student]);
   const goals = areas.flatMap(area => area.goals);
   const ratings = getSimpleAnnualGoalRatings(app, studentId);
   const documented = goals.filter(goal => ratings[goal.id] !== undefined && ratings[goal.id] !== null).length;
+  const ownRadarGoals = (student?.manuelleLernziele || []).filter(goal => goal.stufe === level && goal.fach === subject);
   const gradeMode = getAssessmentMode(app, subject);
   const grades = getSimpleSubjectGrades(app, studentId, subject);
   const radarColors = ['#0d9488', '#4f46e5', '#d97706', '#be185d',
@@ -94,6 +99,98 @@ export default function SimplePortfolioView() {
     }
     updateAxes(key, next);
   };
+  const addRadarGoal = (event: React.FormEvent) => {
+    event.preventDefault();
+    const label = newRadarGoal.trim();
+    const areaName = areas.some(area => area.name === newRadarArea) ? newRadarArea : areas[0]?.name;
+    if (!label || label.length > 180 || !areaName || !studentId || !subject) return;
+    const ownerClass = classId, ownerStudent = studentId, ownerSubject = subject, ownerLevel = level;
+    const key = goalAxisKey, currentAxes = [...goalAxisIds];
+    const id = 'radar-' + crypto.randomUUID();
+    const timestamp = new Date().toISOString();
+    setApp(prev => {
+      if (prev.activeClassId !== ownerClass || !prev.schueler.some(item => item.id === ownerStudent)) return prev;
+      const existing = prev.schueler.find(item => item.id === ownerStudent)!;
+      const ownGoals = existing.manuelleLernziele || [];
+      if (ownGoals.filter(goal => goal.stufe === ownerLevel && goal.fach === ownerSubject).length >= 40) return prev;
+      const nextGoal = { id, fach: ownerSubject, kompetenzbereich: areaName,
+        text: label, stufe: ownerLevel, createdAt: timestamp, updatedAt: timestamp };
+      const nextAxes = currentAxes.length < 8
+        ? [...currentAxes, 'goal:' + id] : currentAxes;
+      return {
+        ...prev,
+        schueler: prev.schueler.map(item => item.id === ownerStudent ? {
+          ...item,
+          manuelleLernziele: [...ownGoals, nextGoal],
+        } : item),
+        settings: { ...prev.settings, portfolioRadarAxes: {
+          ...(prev.settings.portfolioRadarAxes || {}), [key]: nextAxes,
+        } },
+      };
+    });
+    setNewRadarGoal('');
+  };
+  const renameRadarGoal = (goalId: string, text: string) => {
+    const label = text.trim();
+    if (!label || label.length > 180) return;
+    const ownerClass = classId, ownerStudent = studentId;
+    setApp(prev => prev.activeClassId !== ownerClass ? prev : ({
+      ...prev,
+      schueler: prev.schueler.map(item => item.id !== ownerStudent ? item : ({
+        ...item,
+        manuelleLernziele: (item.manuelleLernziele || []).map(goal =>
+          goal.id === goalId && goal.stufe === level && goal.fach === subject
+            ? { ...goal, text: label, updatedAt: new Date().toISOString() } : goal),
+      })),
+    }));
+  };
+  const editLevel = (value: number, patch: Partial<LernzielBewertungsmodell['levels'][number]>) => {
+    setLevelDraft(prev => {
+      const model = prev || getLernzielModell(app.lernzielBewertungsmodell);
+      return { ...model, levels: model.levels.map(stage => stage.value === value ? { ...stage, ...patch } : stage) };
+    });
+    setLevelError('');
+  };
+  const addLevel = () => {
+    setLevelDraft(prev => {
+      const model = prev || getLernzielModell(app.lernzielBewertungsmodell);
+      if (model.levels.length >= 10) return model;
+      const nextId = Math.max(...model.levels.map(stage => stage.value), 3) + 1;
+      const position = Math.max(0, model.levels.length - 1);
+      const lower = model.levels[position - 1];
+      const upper = model.levels[position];
+      const from = lower ? getLernzielRadarProgress(model, lower.value) * 100 : 0;
+      const to = upper ? getLernzielRadarProgress(model, upper.value) * 100 : 100;
+      const newStage = { value: nextId, label: 'Neue Stufe', kurz: 'Neu', color: '#2563eb',
+        symbol: '⭐', radarPercent: Math.round(((from + to) / 2) * 10) / 10 };
+      return { ...model, levels: [...model.levels.slice(0, position), newStage, ...model.levels.slice(position)] };
+    });
+    setLevelError('');
+  };
+  const removeLevel = (value: number) => {
+    setLevelDraft(prev => {
+      const model = prev || getLernzielModell(app.lernzielBewertungsmodell);
+      if (model.levels.length <= 2) return model;
+      return { ...model, levels: model.levels.filter(stage => stage.value !== value) };
+    });
+    setLevelError('');
+  };
+  const saveLevelModel = () => {
+    if (!levelDraft || app.activeClassId !== classId) return;
+    try {
+      const next = parseLernzielModell(levelDraft);
+      const previous = getLernzielModell(app.lernzielBewertungsmodell);
+      const used = verwendeteLernzielStufen(
+        app.studentLernzielSemesterBewertungen, app.studentLernzielBewertungen,
+      );
+      pruefeModellWechsel(previous, next, used);
+      setApp(prev => prev.activeClassId !== classId ? prev : ({ ...prev, lernzielBewertungsmodell: next }));
+      setLevelDraft(null);
+      setLevelError('');
+    } catch (error) {
+      setLevelError(error instanceof Error ? error.message : 'Bewertungsstufen konnten nicht gespeichert werden.');
+    }
+  };
   const axisSettings = (key: string, selected: string[], options: { id: string; label: string }[]) =>
     <details className="group min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm shadow-sm sm:px-5">
       <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 font-bold text-slate-700 [&::-webkit-details-marker]:hidden">
@@ -121,11 +218,166 @@ export default function SimplePortfolioView() {
           </select>
         </label>)}
       </div>
-      <p className="mt-2 text-xs text-slate-500">Nur vorhandene Fachbereiche, Lernziele bzw. Leistungsarten.
-        Die Auswahl wird in den verschlüsselten Klasseneinstellungen gespeichert; Einträge werden nicht gelöscht.</p>
+      <p className="mt-2 text-xs text-slate-500">Wähle die Werte für die Achsen aus. Die Konfiguration bleibt
+        verschlüsselt in dieser Klasse gespeichert. Bestehende Bewertungen werden nicht gelöscht.</p>
+      {key.startsWith('goals:') && <div className="mt-5 space-y-5 border-t border-slate-200 pt-4">
+        <section aria-label="Bewertungsstufen bearbeiten">
+          <h4 className="text-base font-black text-slate-900">Bewertungsstufen selbst festlegen</h4>
+          <p className="mt-1 text-xs leading-relaxed text-slate-600">
+            Passe die Stufen an, die bei jedem Lernziel als Auswahl erscheinen. Du kannst 2 bis 10
+            Bewertungsstufen verwenden und zu jeder Stufe ihren Diagrammwert von 0–100 % festlegen.
+            Die Einstellung gilt für die gesamte ausgewählte Klasse; die Einschätzung bleibt pro Kind
+            und Lernziel individuell. Bereits gespeicherte Einschätzungen werden nicht umgeschrieben.
+          </p>
+          <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <label className="block text-xs font-bold text-slate-700">Unbewertet-Text
+              <input type="text" maxLength={50}
+                aria-label="Bezeichnung nicht eingeschätzt"
+                value={(levelDraft || levelModel).emptyLabel}
+                onChange={event => {
+                  const label = event.target.value;
+                  setLevelDraft(prev => ({ ...(prev || levelModel), emptyLabel: label }));
+                  setLevelError('');
+                }}
+                className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm" />
+            </label>
+            <p className="mt-1 text-xs text-slate-500">Nicht eingeschätzt bedeutet immer 0 % im Diagramm.</p>
+          </div>
+          <div className="mt-3 space-y-2">
+            {(levelDraft || levelModel).levels.map((stage, index) => {
+              const current = levelDraft || levelModel;
+              const used = verwendeteLernzielStufen(
+                app.studentLernzielSemesterBewertungen, app.studentLernzielBewertungen,
+              ).has(stage.value);
+              return <div key={stage.value} data-goal-level={stage.value}
+                className="grid min-w-0 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[minmax(0,1fr)_5rem_5rem_auto] sm:items-end">
+                <label className="min-w-0 text-xs font-bold text-slate-700">Stufe {index + 1} · Bezeichnung
+                  <input type="text" required maxLength={55}
+                    aria-label={'Bewertungsstufe ' + stage.value + ' benennen'}
+                    value={stage.label}
+                    onChange={event => editLevel(stage.value, { label: event.target.value,
+                      kurz: event.target.value.trim().slice(0, 25) || stage.kurz })}
+                    className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm" />
+                </label>
+                <label className="min-w-0 text-xs font-bold text-slate-700">Symbol
+                  <input type="text" maxLength={8} aria-label={'Symbol Stufe ' + stage.value}
+                    value={stage.symbol} onChange={event => editLevel(stage.value, { symbol: event.target.value })}
+                    className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-2 text-center text-sm" />
+                </label>
+                <label className="min-w-0 text-xs font-bold text-slate-700">Wert %
+                  <input type="number" min={0} max={100} step="0.1"
+                    aria-label={'Diagrammwert Stufe ' + stage.value}
+                    value={stage.radarPercent ?? Math.round(getLernzielRadarProgress(current, stage.value) * 1000) / 10}
+                    onChange={event => {
+                      const value = Number(event.target.value);
+                      if (event.target.value !== '' && Number.isFinite(value) && value >= 0 && value <= 100)
+                        editLevel(stage.value, { radarPercent: value });
+                    }}
+                    className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-2 text-sm" />
+                </label>
+                <button type="button" disabled={used || current.levels.length <= 2}
+                  title={used ? 'Diese Stufe wird bereits verwendet und kann nicht entfernt werden.' : 'Stufe entfernen'}
+                  onClick={() => removeLevel(stage.value)}
+                  className="min-h-11 rounded-lg border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700 disabled:cursor-not-allowed disabled:opacity-40">
+                  Entfernen
+                </button>
+                {used && <span className="text-xs text-slate-500 sm:col-span-4">
+                  Bereits verwendet · Bezeichnung und Diagrammwert bleiben bearbeitbar.
+                </span>}
+              </div>;
+            })}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button type="button" disabled={(levelDraft || levelModel).levels.length >= 10}
+              onClick={addLevel}
+              className="min-h-11 rounded-xl border border-indigo-300 px-4 py-2 text-sm font-bold text-indigo-700 disabled:opacity-40">
+              + Bewertungsstufe hinzufügen
+            </button>
+            <button type="button" disabled={!levelDraft} onClick={saveLevelModel}
+              className="min-h-11 rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-40">
+              Bewertungsstufen speichern
+            </button>
+            {levelDraft && <button type="button" onClick={() => {
+              setLevelDraft(null); setLevelError('');
+            }} className="min-h-11 rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-600">
+              Änderungen verwerfen
+            </button>}
+          </div>
+          {levelError && <p role="alert" className="mt-2 rounded-lg bg-rose-50 p-2 text-xs font-semibold text-rose-700">
+            {levelError}
+          </p>}
+          <p className="mt-2 text-xs text-slate-500">
+            Speichern aktualisiert die Lernziel-Buttons und die Radien des Spinnennetzdiagramms.
+            Die Stufen-IDs bleiben stabil; bereits verwendete Stufen sind vor dem Löschen geschützt.
+          </p>
+        </section>
+        <section aria-label="Eigene Lernziele bearbeiten" className="border-t border-slate-200 pt-4">
+          <h4 className="text-base font-black text-slate-900">Eigene Lernziele festlegen</h4>
+          <p className="mt-1 text-xs leading-relaxed text-slate-600">
+            Erstelle und bearbeite Lernziele für das ausgewählte Kind und Fach. Wähle danach für jedes
+            Lernziel eine der oben festgelegten Bewertungsstufen. Die Achse wächst entsprechend dem
+            Diagrammwert dieser Stufe.
+          </p>
+          <form onSubmit={addRadarGoal} className="mt-3 grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(9rem,0.5fr)_auto] sm:items-end">
+            <label className="min-w-0 text-xs font-bold text-slate-700">Neues Lernziel
+              <input aria-label="Eigenes Radar-Lernziel" type="text" maxLength={180} required
+                value={newRadarGoal} onChange={event => setNewRadarGoal(event.target.value)}
+                placeholder="z. B. Silben sicher lesen"
+                className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm" />
+            </label>
+            <label className="min-w-0 text-xs font-bold text-slate-700">Lernbereich
+              <select aria-label="Lernbereich für neues Radar-Lernziel"
+                value={areas.some(area => area.name === newRadarArea) ? newRadarArea : areas[0]?.name || ''}
+                onChange={event => setNewRadarArea(event.target.value)}
+                className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-2 text-sm">
+                {areas.map(area => <option key={area.name} value={area.name}>{area.name}</option>)}
+              </select>
+            </label>
+            <button type="submit" disabled={!newRadarGoal.trim() || ownRadarGoals.length >= 40}
+              className="min-h-11 rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-40">
+              Lernziel hinzufügen
+            </button>
+          </form>
+          {ownRadarGoals.length > 0 && <div className="mt-4 grid min-w-0 gap-3 lg:grid-cols-2">
+            {ownRadarGoals.map(goal => {
+              const selectedAxis = goalAxisIds.includes('goal:' + goal.id);
+              return <div key={goal.id} className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3"
+                data-custom-radar-goal={goal.id}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-slate-600">{goal.kompetenzbereich}</span>
+                  <span className="text-xs font-bold text-teal-700">
+                    {selectedAxis ? 'Eigene Diagrammachse' : 'Im Lernbereich enthalten'}
+                  </span>
+                </div>
+                <label className="mt-2 block text-xs font-bold text-slate-700">Lernziel bearbeiten
+                  <input key={goal.id} type="text" maxLength={180} defaultValue={goal.text}
+                    aria-label={'Eigenes Lernziel bearbeiten ' + goal.id}
+                    onBlur={event => {
+                      if (!event.currentTarget.value.trim()) event.currentTarget.value = goal.text;
+                      else if (event.currentTarget.value.trim() !== goal.text)
+                        renameRadarGoal(goal.id, event.currentTarget.value);
+                    }}
+                    className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm" />
+                </label>
+                <label className="mt-3 block text-xs font-bold text-slate-700">Einschätzung für dieses Kind
+                  <select aria-label={'Einschätzung eigenes Lernziel ' + goal.id}
+                    value={ratings[goal.id] ?? ''}
+                    onChange={event => setRating(goal.id, event.target.value === '' ? null : Number(event.target.value))}
+                    className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-2 text-sm">
+                    <option value="">{levelModel.emptyLabel} · 0 %</option>
+                    {levelModel.levels.map(stage => <option key={stage.value} value={stage.value}>
+                      {stage.symbol} {stage.label} · {Math.round(getLernzielRadarProgress(levelModel, stage.value) * 100)} %
+                    </option>)}
+                  </select>
+                </label>
+              </div>;
+            })}
+          </div>}
+        </section>
+      </div>}
     </details>;
-  // Goal axes use the existing four-step assessments (0, ⅓, ⅔, 1).
-  // Missing evaluations have zero weight; the existing goal records do not change.
+  // Every chart radius follows the saved class-local assessment scale.
+  // IDs and historical goal ratings are never rewritten when labels or radii change.
   const goalPetals: FlowerPetal[] = goalAxisIds.map((id, index) => {
     const axis = goalAxisChoices.find(choice => choice.id === id)!;
     const axisGoals = axis.goals;
@@ -133,10 +385,8 @@ export default function SimplePortfolioView() {
       label: axis.label, color: radarColors[index % radarColors.length],
       count: axisGoals.filter(goal => ratings[goal.id] !== null && ratings[goal.id] !== undefined).length,
       total: axisGoals.length,
-      progress: axisGoals.length ? axisGoals.reduce((sum, goal) => {
-        const rating = ratings[goal.id];
-        return sum + (rating === 1 ? 1 : rating === 2 ? 2 / 3 : rating === 3 ? 1 / 3 : 0);
-      }, 0) / axisGoals.length : 0,
+      progress: axisGoals.length ? axisGoals.reduce((sum, goal) =>
+        sum + getLernzielRadarProgress(levelModel, ratings[goal.id]), 0) / axisGoals.length : 0,
     };
   });
   // Grade axes represent entry counts, not school marks or averaged performance.
@@ -268,7 +518,7 @@ export default function SimplePortfolioView() {
         <PortfolioFlower title="Lernziele" center={documented + '/' + goals.length}
           caption={goalAxisIds.length + ' Achsen · individuell auswählbar'}
           petals={goalPetals}
-          note="Jede Achse wächst mit der dokumentierten Einschätzung der ausgewählten Ziele: in Entwicklung = ⅓, im Wesentlichen = ⅔, erreicht = vollständig. Noch nicht eingeschätzte Ziele zählen als 0. Das Diagramm ist keine Schulnote." />
+          note="Jede Achse wächst mit den dokumentierten Lernzielbewertungen. Die Stufen und ihre Diagrammwerte sind individuell einstellbar; noch nicht eingeschätzte Ziele zählen als 0. Das Diagramm ist keine Schulnote." />
         {axisSettings(goalAxisKey, goalAxisIds, goalAxisChoices)}
         {areas.map(area => <section key={area.name} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <h3 className="mb-4 text-base font-black">{area.name} <span className="text-sm font-medium text-slate-500">({area.goals.length} Lernziele)</span></h3>
@@ -276,8 +526,8 @@ export default function SimplePortfolioView() {
           <div className="space-y-3">
             {area.goals.map(goal => <div key={goal.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
               <p className="font-bold leading-relaxed">{goal.text}</p>
-              <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4" role="group" aria-label={'Lernziel einschätzen: ' + goal.text}>
-                {GOAL_STEPS.map(step => {
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5" role="group" aria-label={'Lernziel einschätzen: ' + goal.text}>
+                {goalSteps.map(step => {
                   const current = ratings[goal.id] ?? null;
                   const active = current === step.value;
                   return <button key={step.label} type="button" onClick={() => setRating(goal.id, step.value)}

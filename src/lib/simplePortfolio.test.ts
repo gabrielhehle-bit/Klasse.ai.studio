@@ -45,7 +45,7 @@ test('grade ring only counts real grades, never interprets percentages as grades
   assert.deepEqual(getSimpleSubjectGrades(app, 'pupil', 'Deutsch'), []);
 });
 
-test('portfolio display shows two configurable radar charts, notes and four goal levels', () => {
+test('portfolio display shows two configurable radar charts, notes and editable goal levels', () => {
   const outer = readFileSync('src/components/Portfolio.tsx', 'utf8');
   const view = readFileSync('src/components/SimplePortfolioView.tsx', 'utf8');
   assert.match(outer, /mergeLegacyPortfolioEntries/);
@@ -64,7 +64,14 @@ test('portfolio display shows two configurable radar charts, notes and four goal
   assert.match(flower, /data-radar-shape/);
   assert.match(flower, /axes\.map/);
   assert.match(flower, /Math\.min\(1, Math\.max\(0, raw\)\)/);
-  assert.match(view, /rating === 1 \? 1 : rating === 2 \? 2 \/ 3 : rating === 3 \? 1 \/ 3 : 0/);
+  assert.match(view, /getLernzielRadarProgress/);
+  assert.match(view, /Bewertungsstufen selbst festlegen/);
+  assert.match(view, /Bewertungsstufe hinzufügen/);
+  assert.match(view, /Bewertungsstufen speichern/);
+  assert.match(view, /Eigenes Radar-Lernziel/);
+  assert.match(view, /Lernziel hinzufügen/);
+  assert.match(view, /goalSteps\.map/);
+  assert.match(view, /pruefeModellWechsel/);
   assert.match(view, /axisGoals\.length : 0/);
   assert.match(view, /aria-label="Fach auswählen"/);
   assert.match(view, /aria-label="Kind auswählen"/);
@@ -73,7 +80,7 @@ test('portfolio display shows two configurable radar charts, notes and four goal
   assert.match(view, /changeAxisCount/);
   assert.match(flower, /axisCount/);
   assert.match(flower, /petals\.slice\(0, 8\)/);
-  assert.match(view, /GOAL_STEPS\.map/);
+  assert.doesNotMatch(view, /GOAL_STEPS\.map/);
   assert.match(view, /studentLernzielSemesterBewertungen/);
   assert.match(view, /notes: \[\.\.\.\(prev\.notes \|\| \[\]\)/);
 });
