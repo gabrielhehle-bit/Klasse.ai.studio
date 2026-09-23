@@ -17,6 +17,7 @@ import {
   Eye, Filter, CheckSquare, Settings
 } from 'lucide-react';
 import WeeklyGoalsWidget from './WeeklyGoalsWidget';
+import DailyHomeworkButton from './DailyHomeworkButton';
 
 export default function PlanungsZentrale() {
   const { app, setApp, setPage } = useApp();
@@ -1278,8 +1279,9 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
 
                       return (
                         <div key={dayName} className="p-3 bg-slate-50/50 rounded-2xl border border-slate-200 space-y-2">
-                          <div className="flex items-center justify-between text-xs font-black text-slate-700 uppercase">
-                            <span>{dayName}</span>
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-black text-slate-700 uppercase">
+                            <span>{dayName} · {new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + dIdx).toLocaleDateString('de-AT')}</span>
+                            <DailyHomeworkButton day={dayName} date={formatLocalDateKey(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + dIdx))} />
                           </div>
 
                           <div className="grid grid-cols-2 sm:grid-cols-5 xl:grid-cols-10 gap-2">
@@ -1512,17 +1514,9 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                       )}
                     </div>
 
-                    {/* Homework / Note */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-500 uppercase block">Hausübung / Notiz</label>
-                      <input
-                        type="text"
-                        value={lessonHomework}
-                        onChange={(e) => setLessonHomework(e.target.value)}
-                        placeholder="z.B. Buch S. 14 Nr. 1-3..."
-                        className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
-                      />
-                    </div>
+                    <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-900">
+                      Hausübungen separat beim Tagesdatum über „📚 HÜ“ erfassen – für die Unterrichtseinheit ist keine HÜ-Eingabe erforderlich.
+                    </p>
 
                     <section className="rounded-xl border border-indigo-200 bg-indigo-50 p-3">
                       <label className="flex min-h-11 items-center gap-3 text-xs font-black text-slate-900">

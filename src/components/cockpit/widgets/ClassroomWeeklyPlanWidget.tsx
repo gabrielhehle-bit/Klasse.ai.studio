@@ -10,6 +10,8 @@ import {
   type ChildDifficulty, type ClassroomWeeklyTask,
 } from '../../../lib/classroomWeeklyPlan';
 import { getDisplayStudentName } from '../studentSelectionUtils';
+import { homeworkForWeek } from '../../../lib/dailyHomework';
+import { HomeworkList } from './HomeworkWidget';
 
 const FEEDBACK: readonly { value: ChildDifficulty; text: string; icon: string }[] = [
   { value: 'leicht', text: 'Das war leicht', icon: '😊' },
@@ -55,6 +57,7 @@ export default function ClassroomWeeklyPlanWidget({ widget }: { widget?: Cockpit
   const scope = JSON.stringify([classId, app.schuljahr, week]);
   const [selectionScope, setSelectionScope] = useState(scope);
   const tasks = useMemo(() => getClassroomWeeklyTasks(app, week), [app.wochenplanung, app.schuljahr, week]);
+  const homework = useMemo(() => homeworkForWeek(app, week), [app.hausuebungen, app.schuljahr, app.bundesland, week]);
   const pupils = useMemo(() => (app.schueler || [])
     .filter(s => !s.id.startsWith('demo-'))
     .slice().sort((a, b) => getDisplayStudentName(a, app.schueler).localeCompare(getDisplayStudentName(b, app.schueler), 'de-AT')), [app.schueler]);
@@ -134,6 +137,10 @@ export default function ClassroomWeeklyPlanWidget({ widget }: { widget?: Cockpit
     </header>
 
     <section className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4" aria-label="Aufgaben dieser Woche">
+      {homework.length > 0 && <section aria-label="Hausübungen im Wochenplan" className="mb-4 rounded-xl border-2 border-amber-300 bg-amber-50 p-3">
+        <h3 className="mb-2 text-lg font-black text-amber-900">📚 Hausübungen · KW {week}</h3>
+        <HomeworkList items={homework} compact />
+      </section>}
       {!tasks.length
         ? <div role="status" className="flex h-full min-h-32 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 p-5 text-center">
             <span className="text-3xl" aria-hidden="true">📋</span>

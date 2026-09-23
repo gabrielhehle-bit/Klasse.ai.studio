@@ -64,6 +64,7 @@ export const initialAppState: AppState = {
   jahresplan_faecher: DEFAULT_YEARLY_SUBJECTS,
   fachConfig: DEFAULT_FACH_COLORS,
   wochenplanung: {},
+  hausuebungen: [],
   klassenbuchErgaenzungen: {},
   firstLogin: true,
   tourAbgeschlossen: false,
@@ -215,6 +216,7 @@ export function syncActiveClass(state: AppState): AppState {
     jahresplanung: state.jahresplanung ? JSON.parse(JSON.stringify(state.jahresplanung)) : {},
     jahresplan_faecher: state.jahresplan_faecher ? [...state.jahresplan_faecher] : undefined,
     wochenplanung: state.wochenplanung ? JSON.parse(JSON.stringify(state.wochenplanung)) : {},
+    hausuebungen: state.hausuebungen ? JSON.parse(JSON.stringify(state.hausuebungen)) : [],
     klassenbuchErgaenzungen: state.klassenbuchErgaenzungen ? JSON.parse(JSON.stringify(state.klassenbuchErgaenzungen)) : {},
     parkgarage: state.parkgarage ? JSON.parse(JSON.stringify(state.parkgarage)) : [],
     savedWeekTemplates: state.savedWeekTemplates ? JSON.parse(JSON.stringify(state.savedWeekTemplates)) : {},
@@ -391,6 +393,7 @@ export function normalizeAppState(raw: any): AppState {
       jahresplanung: parsed.jahresplanung || {},
       jahresplan_faecher: parsed.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS,
       wochenplanung: parsed.wochenplanung || {},
+      hausuebungen: parsed.hausuebungen || [],
       klassenbuchErgaenzungen: parsed.klassenbuchErgaenzungen || {},
       stammplan: parsed.stammplan || {},
       anwesenheit: parsed.anwesenheit || {},
@@ -456,6 +459,7 @@ export function normalizeAppState(raw: any): AppState {
         jahresplanung: c.jahresplanung || {},
         jahresplan_faecher: c.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS,
         wochenplanung: c.wochenplanung || {},
+        hausuebungen: c.hausuebungen ?? (c.id === parsed.activeClassId ? parsed.hausuebungen : undefined) ?? [],
         klassenbuchErgaenzungen: c.klassenbuchErgaenzungen ?? (c.id === parsed.activeClassId ? parsed.klassenbuchErgaenzungen : undefined) ?? {},
         // Legacy planning-center data lived at root level. Preserve it on the
         // active class only so it cannot leak into unrelated classes.
@@ -621,6 +625,7 @@ export function normalizeAppState(raw: any): AppState {
     parsed.jahresplanung = activeClass.jahresplanung;
     parsed.jahresplan_faecher = activeClass.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS;
     parsed.wochenplanung = activeClass.wochenplanung;
+    parsed.hausuebungen = activeClass.hausuebungen || [];
     parsed.klassenbuchErgaenzungen = activeClass.klassenbuchErgaenzungen || {};
     parsed.stammplan = activeClass.stammplan;
     parsed.anwesenheit = activeClass.anwesenheit;
@@ -883,6 +888,7 @@ export function switchClassState(prev: AppState, id: string): AppState {
     jahresplanung: targetClass.jahresplanung,
     jahresplan_faecher: targetClass.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS,
     wochenplanung: targetClass.wochenplanung ? JSON.parse(JSON.stringify(targetClass.wochenplanung)) : {},
+    hausuebungen: targetClass.hausuebungen ? JSON.parse(JSON.stringify(targetClass.hausuebungen)) : [],
     klassenbuchErgaenzungen: targetClass.klassenbuchErgaenzungen ? JSON.parse(JSON.stringify(targetClass.klassenbuchErgaenzungen)) : {},
     parkgarage: targetClass.parkgarage ? JSON.parse(JSON.stringify(targetClass.parkgarage)) : [],
     savedWeekTemplates: targetClass.savedWeekTemplates ? JSON.parse(JSON.stringify(targetClass.savedWeekTemplates)) : {},

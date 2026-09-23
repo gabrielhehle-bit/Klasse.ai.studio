@@ -335,6 +335,7 @@ const TOPIC = 'E2E Zuhause Wochenplan A';
 const TOPIC_SCHOOL = 'E2E Schule Wochenplan B';
 const NOTE_HOME = 'E2E Zuhause Klassen-Notiz A';
 const NOTE_SCHOOL = 'E2E Schule Klassen-Notiz B';
+const HUE_HOME = 'E2E Zuhause Hausübung Arbeitsheft Seite 14';
 
 async function waitForCloud(client) {
   await waitFor(client, 'newest local edit confirmed by encrypted account server',
@@ -349,6 +350,37 @@ async function addClassNote(client, text) {
   await waitFor(client, 'note visible in chronicle',
     'document.body?.innerText.includes(' + q(text) + ')', 20000);
   await waitForCloud(client);
+}
+
+async function openHomeworkForMonday(client) {
+  await openAppPage(client, 'wochenplanung');
+  await waitFor(client, 'daily homework action after class selection',
+    'Boolean(document.querySelector("button[aria-label^=\\\"Hausübung für Montag\\\"]"))', 30000);
+  const opened = await evaluate(client,
+    '(() => {const button=document.querySelector("button[aria-label^=\\\"Hausübung für Montag\\\"]");if(!button)return false;button.click();return true;})()');
+  if (!opened) throw new Error(client.name + ': cannot open independent homework editor.');
+  await waitFor(client, 'independent homework dialog',
+    'Boolean(document.querySelector("[role=dialog][aria-label^=\\\"Hausübungen Montag\\\"]"))');
+}
+
+async function addDailyHomework(client, text) {
+  await openHomeworkForMonday(client);
+  await setInputByPlaceholder(client, 'z. B. Deutsch', 'Deutsch');
+  await setInputByPlaceholder(client, 'z. B. Arbeitsheft Seite 12', text);
+  const due = await evaluate(client,
+    '(() => {const input=document.querySelector("[role=dialog][aria-label^=\\\"Hausübungen Montag\\\"] input[type=date]");if(!input)return false;const d=new Date(input.min+"T12:00:00Z");d.setUTCDate(d.getUTCDate()+2);const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")?.set;if(setter)setter.call(input,d.toISOString().slice(0,10));else input.value=d.toISOString().slice(0,10);input.dispatchEvent(new Event("input",{bubbles:true}));input.dispatchEvent(new Event("change",{bubbles:true}));return true;})()');
+  if (!due) throw new Error(client.name + ': missing homework due date control.');
+  await clickButton(client, 'Hausübung speichern');
+  await waitFor(client, 'new homework displayed', 'document.querySelector("[role=dialog]")?.textContent.includes(' + q(text) + ')', 15000);
+  await evaluate(client, 'Array.from(document.querySelectorAll("button")).find(b => b.getAttribute("aria-label") === "Hausübungen schließen")?.click()');
+  await waitForCloud(client);
+}
+
+async function checkDailyHomework(client, text) {
+  await openHomeworkForMonday(client);
+  await waitFor(client, 'homework synchronized from the other device',
+    'document.querySelector("[role=dialog][aria-label^=\\\"Hausübungen Montag\\\"]")?.textContent.includes(' + q(text) + ')', 45000);
+  await evaluate(client, 'Array.from(document.querySelectorAll("button")).find(b => b.getAttribute("aria-label") === "Hausübungen schließen")?.click()');
 }
 
 async function openWeeklyAndCheck(client, topic) {
@@ -418,6 +450,7 @@ async function main() {
     await waitFor(home, 'saved weekly lesson shown at home',
       'Array.from(document.querySelectorAll("div")).some(el=>String(el.className||"").includes("group/cell")&&String(el.className||"").includes("min-h-[5.3125rem]")&&String(el.textContent||"").includes(' + q(TOPIC) + '))', 20000);
     await waitForCloud(home);
+    await addDailyHomework(home, HUE_HOME);
     await addClassNote(home, NOTE_HOME);
     const cloudA = await evaluate(home,
       'fetch("/api/account-sync",{cache:"no-store"}).then(r=>r.json()).then(j=>({revision:j.snapshot?.revision,encrypted:!!j.snapshot?.encryptedState?.ciphertext}))');
@@ -425,6 +458,7 @@ async function main() {
 
     await loginExistingVault(school, loginStarted);
     await openWeeklyAndCheck(school, TOPIC);
+    await checkDailyHomework(school, HUE_HOME);
     await checkClassNote(school, NOTE_HOME);
     await waitForCloud(school);
     console.log('✓ Real Chrome: home weekly plan and class note appeared on freshly signed-in school PC.');

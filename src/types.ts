@@ -1023,6 +1023,18 @@ export interface VertretungsVorbereitung {
   contacts?: { schulleitung: string; sekretariat: string; nachbarKlasse: string };
 }
 
+/** Standalone, class-local homework for a particular teaching day. */
+export interface HomeworkAssignment {
+  id: string;
+  /** ISO date the homework was assigned; not necessarily the due date. */
+  aufgegebenAm: string;
+  /** ISO date when children should hand it in. */
+  faelligAm: string;
+  fach: string;
+  aufgabe: string;
+  schuljahr: string;
+}
+
 export interface ClassRoom {
   /** Class-local, teacher-controlled mascot. Old classPet remains as archived legacy data. */
   classMascot?: import('./lib/classMascot').ClassMascotState;
@@ -1075,6 +1087,8 @@ export interface ClassRoom {
   jahresplanung: Record<number, any>;
   jahresplan_faecher?: { id: string; label: string; color: string }[];
   wochenplanung: Record<number, any>;
+  /** Standalone homework, independent of individual lesson slots. */
+  hausuebungen?: HomeworkAssignment[];
   /** Class-local, weekly classbook additions, independent of the lesson plan. */
   klassenbuchErgaenzungen?: Record<number, Record<string, string>>;
   /** Class-local temporarily parked lessons from the planning center. */
@@ -1442,6 +1456,8 @@ export interface AppState {
   jahresplanung: Record<number, any>;
   jahresplan_faecher?: { id: string; label: string; color: string }[];
   wochenplanung: Record<number, any>;
+  /** Standalone homework, independent of individual lesson slots. */
+  hausuebungen?: HomeworkAssignment[];
   /** Class-local, weekly classbook additions, independent of the lesson plan. */
   klassenbuchErgaenzungen?: Record<number, Record<string, string>>;
   wochenplanSyncSet?: string[];
@@ -1852,7 +1868,7 @@ export interface ClassPetState {
 
 export interface CockpitWidgetConfig {
   id: string;
-  type: 'clock' | 'timer' | 'trafficlight' | 'classweeklyplan' | 'randomname' | 'instruction' | 'noisemeter' | 'vocabulary' | 'studentlist' | 'groups' | 'qrcode' | 'image' | 'phases' | 'sounds' | 'todo' | 'dienste' | 'klassenglas' | 'links' | 'pet' | 'drawing' | 'stopwatch' | 'calculator' | 'dice' | 'weather' | 'aiquiz' | 'riddle' | 'scoreboard' | 'wheel' | 'breathing' | 'kidweather' | 'mathcards' | 'wortsatzwerkstatt' | 'scrambler' | 'watertracker' | 'wordchain' | 'moodmeter' | 'colormixer' | 'wordgrid' | 'rhythm' | 'geometry' | 'fractions' | 'wordclock' | 'sorting' | 'dailyquotes' | 'dictionary' | 'piano' | 'bodyparts' | 'toothbrush' | 'challenge' | 'compass' | 'weekdays' | 'piggybank' | 'noisescales' | 'wordscramble' | 'shadowshapes' | 'emotions' | 'clocksync' | 'soundmemory' | 'spellingdetective' | 'numberline' | 'mathchain' | 'thermometer' | 'compoundsplit' | 'soundquiz' | 'mathduel' | 'shapepuzzle' | 'guitartuner' | 'secretagent' | 'fractioncake' | 'sentencebuilding' | 'patternmaker' | 'wordexplorer' | 'weightscale' | 'geographyquiz' | 'calmrain' | 'estimationjar' | 'reflexgame' | 'mathpyramid' | 'wastebin' | 'tonetrainer' | 'angledetective' | 'rhymemachine' | 'alphabetsoup' | 'divrobot' | 'classtarget' | 'morsecode' | 'punctuationzoo' | 'secretcode' | 'clockpuzzle' | 'fractiongrid' | 'trafficquiz' | 'wordbuilder' | 'watercycle' | 'soundmachine' | 'mathbalancer' | 'animalvoice' | 'constellation' | 'multitrainer' | 'moneycalc' | 'storyemojis' | 'abcorder' | 'planetarium' | 'tischcheck' | 'faircall' | 'hangman' | 'timeline' | 'anschauung' | 'kidattendance' | 'zahlenraum' | 'kopfrechnen' | 'fractionvisualizer';
+  type: 'clock' | 'timer' | 'trafficlight' | 'classweeklyplan' | 'homework' | 'randomname' | 'instruction' | 'noisemeter' | 'vocabulary' | 'studentlist' | 'groups' | 'qrcode' | 'image' | 'phases' | 'sounds' | 'todo' | 'dienste' | 'klassenglas' | 'links' | 'pet' | 'drawing' | 'stopwatch' | 'calculator' | 'dice' | 'weather' | 'aiquiz' | 'riddle' | 'scoreboard' | 'wheel' | 'breathing' | 'kidweather' | 'mathcards' | 'wortsatzwerkstatt' | 'scrambler' | 'watertracker' | 'wordchain' | 'moodmeter' | 'colormixer' | 'wordgrid' | 'rhythm' | 'geometry' | 'fractions' | 'wordclock' | 'sorting' | 'dailyquotes' | 'dictionary' | 'piano' | 'bodyparts' | 'toothbrush' | 'challenge' | 'compass' | 'weekdays' | 'piggybank' | 'noisescales' | 'wordscramble' | 'shadowshapes' | 'emotions' | 'clocksync' | 'soundmemory' | 'spellingdetective' | 'numberline' | 'mathchain' | 'thermometer' | 'compoundsplit' | 'soundquiz' | 'mathduel' | 'shapepuzzle' | 'guitartuner' | 'secretagent' | 'fractioncake' | 'sentencebuilding' | 'patternmaker' | 'wordexplorer' | 'weightscale' | 'geographyquiz' | 'calmrain' | 'estimationjar' | 'reflexgame' | 'mathpyramid' | 'wastebin' | 'tonetrainer' | 'angledetective' | 'rhymemachine' | 'alphabetsoup' | 'divrobot' | 'classtarget' | 'morsecode' | 'punctuationzoo' | 'secretcode' | 'clockpuzzle' | 'fractiongrid' | 'trafficquiz' | 'wordbuilder' | 'watercycle' | 'soundmachine' | 'mathbalancer' | 'animalvoice' | 'constellation' | 'multitrainer' | 'moneycalc' | 'storyemojis' | 'abcorder' | 'planetarium' | 'tischcheck' | 'faircall' | 'hangman' | 'timeline' | 'anschauung' | 'kidattendance' | 'zahlenraum' | 'kopfrechnen' | 'fractionvisualizer';
   x: number;
   y: number;
   w: number;
