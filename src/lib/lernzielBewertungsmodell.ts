@@ -69,7 +69,7 @@ export function parseLernzielModell(input: unknown): LernzielBewertungsmodell {
     }
     ids.add(value);
     return { value, label, kurz, color, symbol,
-      ...(radarPercent === undefined ? {} : { radarPercent }) };
+      ...(radarPercent === undefined ? {} : { radarPercent: radarPercent as number }) };
   });
   const views = obj.views as Record<string, unknown> | undefined;
   const kind = views?.kind, parents = views?.parents, teachers = views?.teachers;
