@@ -307,7 +307,7 @@ async function main() {
     await clickButton(client, 'Hausübung speichern');
     await waitFor(client, 'new standalone homework visible in day editor',
       'document.querySelector("[role=dialog][aria-label^=\\\"Hausübungen Montag\\\"]")?.textContent.includes(' + q(dayHomework) + ')', 12000);
-    await clickButton(client, 'Hausübungen schließen');
+    await evaluate(client, 'Array.from(document.querySelectorAll("button")).find(b => b.getAttribute("aria-label") === "Hausübungen schließen")?.click()');
     console.log('✓ independent day-level homework saved without a lesson');
     await clickFirstSchedulableWeeklyCell(client);
     await waitFor(client, 'large weekly editor', 'document.body?.innerText.includes("Einheit planen")');
