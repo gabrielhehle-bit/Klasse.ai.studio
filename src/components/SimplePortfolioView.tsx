@@ -54,17 +54,23 @@ export default function SimplePortfolioView() {
   const gradeMode = getAssessmentMode(app, subject);
   const grades = getSimpleSubjectGrades(app, studentId, subject);
   const flowerColors = ['#0d9488', '#4f46e5', '#d97706', '#be185d'] as const;
-  // All four petals represent the four visible subject areas. A larger petal
-  // means more goals have been documented, not a calculated attainment score.
+  // Four separate radar axes represent the four existing learning-goal areas.
+  // Never confuse the number of recorded ratings with progress: the existing
+  // four visible statuses map to 0, 1/3, 2/3 and 1, averaged across ALL goals
+  // of the area (including goals not yet assessed). No grade is calculated.
   const goalPetals = areas.map((area, index): FlowerPetal => ({
     label: area.name,
     count: area.goals.filter(goal => ratings[goal.id] !== null && ratings[goal.id] !== undefined).length,
     total: area.goals.length,
+    progress: area.goals.length ? area.goals.reduce((sum, goal) => {
+      const rating = ratings[goal.id];
+      return sum + (rating === 1 ? 1 : rating === 2 ? 2 / 3 : rating === 3 ? 1 / 3 : 0);
+    }, 0) / area.goals.length : 0,
     color: flowerColors[index],
   })) as [FlowerPetal, FlowerPetal, FlowerPetal, FlowerPetal];
 
-  // Grade petals show the count per existing gradebook assessment type, not
-  // the grade values (1–5) or an automatically calculated overall grade.
+  // Grade-chart axes show counts per existing gradebook assessment type,
+  // never the mark (1–5), attainment or an automatically calculated grade.
   const gradeGroups = ['Schularbeit', 'Lernzielkontrolle', 'Wochenplan', 'Sonstige Leistung'] as const;
   const gradeCounts = gradeGroups.map(group => grades.filter(grade => grade.label.startsWith(group + ' ')).length);
   const gradeScale = Math.max(6, ...gradeCounts);
@@ -154,7 +160,7 @@ export default function SimplePortfolioView() {
           <PortfolioFlower title="Noten" center={String(grades.length)}
             caption={grades.length + ' Noteneinträge dokumentiert'}
             petals={gradePetals} showDenominator={false}
-            note="Die Blätter zeigen die Anzahl der Einträge je Leistungsart, nicht die Höhe der Noten." />
+            note="Die vier Achsen zeigen ausschließlich die Anzahl der Einträge je Leistungsart – nicht die Notenhöhe oder Leistung." />
           <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4">
             <h2 className="text-base font-black">Noten · {subject}</h2>
             {gradeMode !== 'grades'
@@ -194,9 +200,9 @@ export default function SimplePortfolioView() {
           <p className="mt-1 text-sm font-semibold text-slate-600">{documented} von {goals.length} dokumentiert</p>
           <div className="mt-2 flex justify-center">
             <PortfolioFlower title="Lernziele" center={documented + '/' + goals.length}
-              caption="Vier Blätter · vier Fachbereiche"
+              caption="Vier Achsen · vier Fachbereiche"
               petals={goalPetals}
-              note="Je mehr Lernziele in einem Bereich eingeschätzt sind, desto weiter wächst sein Blatt. Die Blume ist keine Schulnote." />
+              note="Jede Achse wächst mit dem dokumentierten Lernstand ihres Bereichs: in Entwicklung = ⅓, im Wesentlichen = ⅔, erreicht = vollständig. Noch nicht eingeschätzte Ziele zählen als 0; Bereiche ohne Ziele bleiben leer. Das Diagramm ist keine Schulnote." />
           </div>
         </div>
         {areas.map(area => <section key={area.name} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
