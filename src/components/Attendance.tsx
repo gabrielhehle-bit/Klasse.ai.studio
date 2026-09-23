@@ -1253,7 +1253,7 @@ export default function Attendance() {
         /* ========================================================= */
         /* 5. SIMPLIFIED MAIN STUDENT LIST (COMPACT & HOURLY)        */
         /* ========================================================= */
-        <div className="bg-white rounded-2xl shadow-xs border border-slate-200/80 print:hidden overflow-hidden">
+        <div className="min-w-0 bg-white rounded-2xl shadow-xs border border-slate-200/80 print:hidden overflow-hidden">
           {viewMode === "compact" ? (
             /* COMPACT SINGLE-SCREEN VIEW (DEFAULT) */
             <div className="divide-y divide-slate-100">
@@ -1298,7 +1298,7 @@ export default function Attendance() {
                 return (
                   <div
                     key={s.id}
-                    className={`p-3 sm:px-4 sm:py-3.5 flex flex-wrap items-center justify-between gap-3 transition-colors ${
+                    className={`p-2.5 sm:px-4 sm:py-3.5 flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 transition-colors ${
                       isAbsent
                         ? isUnexcused
                           ? "bg-rose-50/25 hover:bg-rose-50/40"
@@ -1307,8 +1307,8 @@ export default function Attendance() {
                     }`}
                   >
                     {/* Left: Student Name & Info */}
-                    <div className="flex items-center gap-3 min-w-[200px] flex-1">
-                      <span className="text-[0.6875rem] font-black text-slate-300 tabular-nums w-5">
+                    <div className="flex w-full min-w-0 items-center gap-2 sm:gap-3 sm:min-w-[200px] sm:w-auto sm:flex-1">
+                      <span className="text-[0.6875rem] font-black text-slate-400 tabular-nums w-4 shrink-0">
                         {idx + 1}
                       </span>
 
@@ -1327,10 +1327,10 @@ export default function Attendance() {
                       </div>
 
                       <div className="flex flex-col min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
                           <button
                             onClick={() => setAbsencesModalSid(s.id)}
-                            className="text-[0.875rem] font-bold text-slate-900 hover:text-emerald-700 transition-colors text-left focus:outline-none truncate cursor-pointer"
+                            className="min-w-0 text-[0.8125rem] sm:text-[0.875rem] font-bold text-slate-900 hover:text-emerald-700 transition-colors text-left leading-snug break-words focus:outline-none cursor-pointer"
                           >
                             {s.nachname} <span className="font-semibold text-slate-600">{s.vorname}</span>
                           </button>
@@ -1383,13 +1383,13 @@ export default function Attendance() {
                     </div>
 
                     {/* Right: Status Toggle & Quick Reason */}
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex w-full min-w-0 flex-wrap items-center gap-1.5 sm:gap-2 sm:w-auto sm:shrink-0">
                       {/* Presence Toggle Buttons */}
-                      <div className="inline-flex p-0.5 rounded-xl bg-slate-100 border border-slate-200/80">
+                      <div className="inline-flex min-w-0 flex-1 sm:flex-none p-0.5 rounded-xl bg-slate-100 border border-slate-200/80">
                         <button
                           type="button"
                           onClick={() => setWholeDay(s.id, "a")}
-                          className={`px-3 py-1.5 rounded-lg text-[0.75rem] font-black transition-all cursor-pointer flex items-center gap-1 ${
+                          className={`min-h-10 min-w-0 flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-lg text-[0.75rem] font-black transition-all cursor-pointer flex items-center justify-center gap-1 ${
                             isPresent
                               ? "bg-emerald-600 text-white shadow-xs"
                               : "text-slate-600 hover:text-emerald-700"
@@ -1408,7 +1408,7 @@ export default function Attendance() {
                             setReasonMenuPlacement(null);
                             setActiveReasonSid(s.id);
                           }}
-                          className={`px-3 py-1.5 rounded-lg text-[0.75rem] font-black transition-all cursor-pointer flex items-center gap-1 ${
+                          className={`min-h-10 min-w-0 flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-lg text-[0.75rem] font-black transition-all cursor-pointer flex items-center justify-center gap-1 ${
                             isAbsent
                               ? isUnexcused
                                 ? "bg-rose-600 text-white shadow-xs"
@@ -1530,11 +1530,12 @@ export default function Attendance() {
                           setCurrentFehlstunden(initialVal);
                           setActiveFehlstundenSid(s.id);
                         }}
-                        className={`px-2 py-1.5 rounded-lg text-[0.75rem] font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                        className={`min-h-10 min-w-10 px-2 py-1.5 rounded-lg text-[0.75rem] font-black transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-0 sm:gap-1.5 ${
                           studentFehlstunden > 0
                             ? "bg-indigo-100 text-indigo-800 border border-indigo-200 shadow-xs hover:bg-indigo-200"
                             : "text-slate-400 hover:text-slate-700 hover:bg-slate-100 border border-transparent"
                         }`}
+                        aria-label={studentFehlstunden > 0 ? `${studentFehlstunden} Fehlstunden bearbeiten` : "Fehlstunden eintragen"}
                         title={
                           studentFehlstunden > 0
                             ? `${studentFehlstunden} Fehlstunde(n) eingetragen – Klick zum Bearbeiten`
@@ -1545,7 +1546,7 @@ export default function Attendance() {
                           size={15}
                           className={studentFehlstunden > 0 ? "text-indigo-600 stroke-[2.5]" : ""}
                         />
-                        {studentFehlstunden > 0 && <span>{studentFehlstunden} Std.</span>}
+                        {studentFehlstunden > 0 ? <span>{studentFehlstunden} <span className="hidden sm:inline">Std.</span></span> : <span className="text-[0.5625rem] font-bold sm:hidden">Std.</span>}
                       </button>
 
                       <button
@@ -1554,14 +1555,15 @@ export default function Attendance() {
                           setCurrentDelay(details?.verspaetung || 0);
                           setActiveDelaySid(s.id);
                         }}
-                        className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                        className={`min-h-10 min-w-10 p-1.5 rounded-lg transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-0 ${
                           details?.verspaetung
                             ? "bg-orange-100 text-orange-700"
                             : "text-slate-400 hover:bg-slate-100"
                         }`}
+                        aria-label="Verspätung eintragen"
                         title="Verspätung eintragen"
                       >
-                        <Clock size={15} />
+                        <Clock size={15} /><span className="text-[0.5625rem] font-bold sm:hidden">Spät</span>
                       </button>
 
                       <button
@@ -1570,14 +1572,15 @@ export default function Attendance() {
                           setActiveNoteSid(s.id);
                           setCurrentNote(details?.notiz || "");
                         }}
-                        className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                        className={`min-h-10 min-w-10 p-1.5 rounded-lg transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-0 ${
                           details?.notiz
                             ? "bg-emerald-100 text-emerald-700"
                             : "text-slate-400 hover:bg-slate-100"
                         }`}
+                        aria-label="Notiz oder Grund eintragen"
                         title="Notiz / Grund"
                       >
-                        <MessageSquare size={15} />
+                        <MessageSquare size={15} /><span className="text-[0.5625rem] font-bold sm:hidden">Notiz</span>
                       </button>
                     </div>
                   </div>
