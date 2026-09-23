@@ -2402,7 +2402,8 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
   const getGreeting = () => {
     const h = currentTime.getHours();
     const teil = h < 11 ? "Guten Morgen" : h < 16 ? "Hallo" : "Guten Abend";
-    const firstName = getTeacherFirstName(app);
+    const displayed = app.lehrerProfil?.name?.trim();
+    const firstName = displayed ? getTeacherFirstName(displayed) : getTeacherFirstName(app);
     return firstName ? `${teil}, ${firstName}!` : `${teil}!`;
   };
 
