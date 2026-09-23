@@ -42,8 +42,8 @@ test("Schülerdossier: alte Sichtbarkeits- und Einfach/Experte-Logik ist aus der
 });
 
 test("Schülerdossier: ein Schuljahr ohne Semesterwechsel", () => {
-  assert.match(dossier, /const sem: '1' \\| '2' = '1';/);
-  assert.doesNotMatch(dossier, /setSem\\(nextSemester\\)/);
+  assert.match(dossier, /const sem: '1' \| '2' = '1';/);
+  assert.doesNotMatch(dossier, /setSem\(nextSemester\)/);
 });
 
 test("Schülerdossier: Detailfunktionen der fünf Bereiche bleiben vorhanden", () => {
