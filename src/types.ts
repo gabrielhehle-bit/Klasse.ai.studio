@@ -1790,17 +1790,34 @@ export interface Anekdote {
   tags?: string[];
 }
 
+export type PersonalLessonKind = 'unterricht' | 'aufsicht' | 'foerderung' | 'besprechung' | 'dienst' | 'sonstiges';
+/** Account-level recurring teacher entry, independent of any pupil/class planning content. */
 export interface PersonalLesson {
+  id?: string;
   tag: string;
   stunde: number;
   fach: string;
   klasse: string;
   raum: string;
+  kind?: PersonalLessonKind;
+  start?: string;
+  ende?: string;
+  /** Link and last accepted class-plan snapshot, never copy weekly lesson content. */
+  quelle?: { classId: string; tag: string; stunde: number; fach: string };
+}
+export interface PersonalTimetableException {
+  id: string;
+  /** Affected calendar day. One-off exceptions do not rewrite the repeating weekly plan. */
+  datum: string;
+  type: 'add' | 'change' | 'cancel';
+  lessonId?: string;
+  lesson?: PersonalLesson;
 }
 
 export interface LehrerProfil {
   /** Persönlicher Unterrichtsplan pro Schuljahr, unabhängig von allen Klassenprojektionen. */
   stundenplanByYear?: Record<string, PersonalLesson[]>;
+  stundenplanAusnahmenByYear?: Record<string, PersonalTimetableException[]>;
   schulstundenJaehrlich?: number;
   schularbeitenManuell?: number;
   testsManuell?: number;
