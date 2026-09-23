@@ -353,8 +353,9 @@ async function main() {
     await waitFor(client, 'white classroom board', 'Boolean(document.getElementById("widget-board-stage"))', 30000);
     await clickButton(client, 'Widget hinzufügen');
     await waitFor(client, 'classroom weekly-plan picker entry',
-      'Array.from(document.querySelectorAll("button")).some(b=>b.textContent.includes("Wochenplan der Kinder"))');
-    await clickButton(client, 'Wochenplan der Kinder');
+      'Array.from(document.querySelectorAll("button")).some(b=>b.getAttribute("aria-label")==="Wochenplan der Kinder hinzufügen")');
+    const addedWidget = await evaluate(client, '(() => {const b=Array.from(document.querySelectorAll("button")).find(b=>b.getAttribute("aria-label")==="Wochenplan der Kinder hinzufügen");if(!b)return false;b.click();return true;})()');
+    if (!addedWidget) throw new Error('Could not add weekly-plan widget.');
     // After the child-plan redesign, pupil names are intentionally visible at the
     // bottom of the shared board. Only each child's progress/help/difficulty is private.
     await waitFor(client, 'published weekly task and pupil-name buttons visible',
