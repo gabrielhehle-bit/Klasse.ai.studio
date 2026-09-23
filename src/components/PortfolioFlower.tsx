@@ -14,19 +14,20 @@ export interface FlowerPetal {
  * a diagnostic statement about the pupil's ability.
  */
 export default function PortfolioFlower({
-  title, center, caption, petals, note,
+  title, center, caption, petals, note, showDenominator = true,
 }: {
   title: string;
   center: string;
   caption: string;
   petals: readonly [FlowerPetal, FlowerPetal, FlowerPetal, FlowerPetal];
   note: string;
+  showDenominator?: boolean;
 }) {
   return <div className="flex min-w-0 flex-col items-center rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-sm">
     <h3 className="text-base font-black text-slate-900">{title}</h3>
     <svg viewBox="0 0 280 280" role="img"
       aria-label={'Blumenübersicht ' + title + ': ' + petals.map(petal =>
-        petal.label + ' ' + petal.count + ' von ' + petal.total).join(', ')}
+        petal.label + ' ' + petal.count + (showDenominator ? ' von ' + petal.total : ' Einträge')).join(', ')}
       className="my-1 h-52 w-52 max-w-full overflow-visible sm:h-60 sm:w-60">
       <defs>
         <radialGradient id={'klassio-flower-center-' + (title === 'Noten' ? 'grades' : 'goals')}>
@@ -46,7 +47,7 @@ export default function PortfolioFlower({
           <ellipse data-flower-petal={petal.label} data-flower-progress={fraction.toFixed(3)}
             cx="140" cy={cy} rx={18 + fraction * 6} ry={halfLength}
             fill={petal.color} fillOpacity="0.83" stroke={petal.color} strokeWidth="1.5">
-            <title>{petal.label}: {petal.count} von {petal.total} dokumentiert</title>
+            <title>{petal.label}: {petal.count}{showDenominator ? ' von ' + petal.total : ' Einträge'} dokumentiert</title>
           </ellipse>
         </g>;
       })}
@@ -62,7 +63,7 @@ export default function PortfolioFlower({
           <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: petal.color }} aria-hidden="true" />
           <span className="break-words">{petal.label}</span>
         </div>
-        <span className="ml-4 block text-slate-600">{petal.count} von {petal.total}</span>
+        <span className="ml-4 block text-slate-600">{petal.count}{showDenominator ? ' von ' + petal.total : ' Einträge'}</span>
       </div>)}
     </div>
     <p className="mt-3 text-[11px] leading-snug text-slate-500">{note}</p>
