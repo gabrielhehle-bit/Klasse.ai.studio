@@ -14,7 +14,9 @@ test('Wochenplanung: großer Arbeitsbereich mit klaren Reitern statt Formularwan
   assert.match(weekly, /plannerEditorTab/);
   assert.match(weekly, /1 · Inhalt & Fach/);
   assert.match(weekly, /2 · Unterrichtsrahmen/);
-  assert.match(weekly, /3 · Material & HÜ/);
+  assert.match(weekly, /3 · Material/);
+  assert.match(weekly, /<DailyHomeworkButton day=\{tag\} date=\{dateStr\}/);
+  assert.doesNotMatch(weekly, /placeholder="Hausaufgabe notieren/);
   assert.match(weekly, /4 · Ablauf & Optionen/);
   assert.match(weekly, /Einheit planen/);
 });
