@@ -1,0 +1,62 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { getSimpleAnnualGoalRatings, getSimpleSubjectAreas, getSimpleSubjectGrades } from './simplePortfolio';
+import { initialAppState } from './appState';
+
+test('Deutsch in der ersten Schulstufe shows exactly four areas and all 12 unchanged goal ids', () => {
+  const areas = getSimpleSubjectAreas('Deutsch', 1);
+  assert.deepEqual(areas.map(item => item.name), ['Hören/Sprechen', 'Lesen', 'Schreiben', 'Sprachbetrachtung']);
+  assert.deepEqual(areas.map(item => item.goals.length), [3, 4, 5, 0]);
+  assert.equal(areas[0].goals[0].text, 'Aufmerksam zuhören und Erlebtes verständlich erzählen');
+  assert.equal(new Set(areas.flatMap(item => item.goals.map(goal => goal.id))).size, 12);
+});
+
+test('manual goal IDs and all subject areas are preserved, even when there are more than four prefixes', () => {
+  const student = {
+    manuelleLernziele: [{ id: 'goal-custom', fach: 'Deutsch', kompetenzbereich: 'Sprachbetrachtung', text: 'Wortarten unterscheiden', stufe: 1 }],
+  } as any;
+  const areas = getSimpleSubjectAreas('Deutsch', 1, student);
+  assert.equal(areas.length, 4);
+  assert.equal(areas[3].goals[0].id, 'goal-custom');
+  const maths = getSimpleSubjectAreas('Mathematik', 1);
+  assert.equal(maths.length, 4);
+  assert.equal(maths.flatMap(item => item.goals).length, 13);
+});
+
+test('annual assessment reads legacy root and period one without overwriting period two', () => {
+  const app = {
+    ...initialAppState,
+    studentLernzielBewertungen: { pupil: { '1_d1': 3, '1_d2': 2 } },
+    studentLernzielSemesterBewertungen: { pupil: { '1': { '1_d1': 1 }, '2': { '1_d3': 3 } } },
+  } as any;
+  assert.deepEqual(getSimpleAnnualGoalRatings(app, 'pupil'), { '1_d1': 1, '1_d2': 2 });
+  assert.deepEqual(app.studentLernzielSemesterBewertungen.pupil['2'], { '1_d3': 3 });
+});
+
+test('grade ring only counts real grades, never interprets percentages as grades', () => {
+  const app = {
+    ...initialAppState,
+    noten: { pupil: { Deutsch: { '1': { sa: ['1', '2+'], lzk: [null, '3'], wp: [], aufgaben: ['4', '65'], hue: 0, hueAnm: [] } } } },
+    notenMeta: { Deutsch: { assessmentMode: 'grades' } },
+  } as any;
+  assert.deepEqual(getSimpleSubjectGrades(app, 'pupil', 'Deutsch').map(item => item.group), [1, 2, 3, 4]);
+  app.notenMeta.Deutsch.assessmentMode = 'percent';
+  assert.deepEqual(getSimpleSubjectGrades(app, 'pupil', 'Deutsch'), []);
+});
+
+test('portfolio display only exposes student, subject, two circles, notes and four goal levels', () => {
+  const outer = readFileSync('src/components/Portfolio.tsx', 'utf8');
+  const view = readFileSync('src/components/SimplePortfolioView.tsx', 'utf8');
+  assert.match(outer, /mergeLegacyPortfolioEntries/);
+  assert.match(outer, /SimplePortfolioView/);
+  assert.doesNotMatch(outer, /StudentPortfolio\s*\//);
+  assert.doesNotMatch(outer, /Semester/);
+  assert.match(view, /<CircleDiagram title="Noten"/);
+  assert.match(view, /<CircleDiagram title="Lernziele"/);
+  assert.match(view, /aria-label="Fach auswählen"/);
+  assert.match(view, /aria-label="Kind auswählen"/);
+  assert.match(view, /GOAL_STEPS\.map/);
+  assert.match(view, /studentLernzielSemesterBewertungen/);
+  assert.match(view, /notes: \[\.\.\.\(prev\.notes \|\| \[\]\)/);
+});

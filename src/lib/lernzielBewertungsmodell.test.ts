@@ -63,7 +63,12 @@ test('integration: active class, backup, print and student dossier preserve sele
   assert.match(goals, /goalModel\.levels\.map\(level =>/);
   assert.match(goals, /const ratingLabel = rating === null/);
   assert.doesNotMatch(goals, /rating === 1 \? 'Erreicht'/);
-  assert.match(overview, /<LernzielModellEditor/);
+  // The simplified subject page intentionally has no template editor; legacy models
+  // remain class-local and the full legacy goal/dossier components remain available.
+  assert.match(overview, /<SimplePortfolioView/);
+  assert.doesNotMatch(overview, /<LernzielModellEditor/);
+  const editor = readFileSync('src/components/LernzielModellEditor.tsx', 'utf8');
+  assert.match(editor, /pruefeModellWechsel/);
 });
 
 
