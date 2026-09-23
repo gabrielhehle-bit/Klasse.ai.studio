@@ -293,6 +293,22 @@ async function main() {
     // immediately and misreporting missing planning functionality.
     await waitFor(client, 'weekly editing grid with an empty, schedulable cell',
       'Array.from(document.querySelectorAll("svg.lucide-plus")).some(svg=>{let n=svg.parentElement;while(n&&n!==document.body){if(String(n.className||"").includes("group/cell")&&String(n.className||"").includes("min-h-[5.3125rem]"))return true;n=n.parentElement;}return false;})', 30000);
+    // Homework has a standalone day-level action and must not require a lesson.
+    const openedHomework = await evaluate(client, '(() => {const b=Array.from(document.querySelectorAll("button[aria-label^=\\\"Hausübung für Montag\\\"]")).find(b=>b.getBoundingClientRect().width>0);if(!b)return false;b.click();return true;})()');
+    if (!openedHomework) throw new Error('Daily homework button under Monday date is missing.');
+    await waitFor(client, 'independent dated homework editor',
+      'Boolean(document.querySelector("[role=dialog][aria-label^=\\\"Hausübungen Montag\\\"]"))');
+    const dayHomework = 'Synthetische Hausübung: Arbeitsheft Seite 14';
+    await setInputByPlaceholder(client, 'z. B. Deutsch', 'Deutsch');
+    await setInputByPlaceholder(client, 'z. B. Arbeitsheft Seite 12', dayHomework);
+    const dueSet = await evaluate(client,
+      '(() => {const input=document.querySelector("[role=dialog][aria-label^=\\\"Hausübungen Montag\\\"] input[type=date]");if(!input)return false;const d=new Date(input.min+"T12:00:00Z");d.setUTCDate(d.getUTCDate()+2);const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")?.set;const value=d.toISOString().slice(0,10);if(setter)setter.call(input,value);else input.value=value;input.dispatchEvent(new Event("input",{bubbles:true}));input.dispatchEvent(new Event("change",{bubbles:true}));return true;})()');
+    if (!dueSet) throw new Error('Homework due date input is missing.');
+    await clickButton(client, 'Hausübung speichern');
+    await waitFor(client, 'new standalone homework visible in day editor',
+      'document.querySelector("[role=dialog][aria-label^=\\\"Hausübungen Montag\\\"]")?.textContent.includes(' + q(dayHomework) + ')', 12000);
+    await clickButton(client, 'Hausübungen schließen');
+    console.log('✓ independent day-level homework saved without a lesson');
     await clickFirstSchedulableWeeklyCell(client);
     await waitFor(client, 'large weekly editor', 'document.body?.innerText.includes("Einheit planen")');
     const weeklyLarge = await evaluate(client,
@@ -305,6 +321,10 @@ async function main() {
       throw new Error('Weekly editor did not open in the expected large layout: ' + JSON.stringify(diagnostic));
     }
     console.log('✓ weekly editor uses the large planning workspace');
+    const obsoleteLessonHomework = await evaluate(client,
+      'Boolean(document.querySelector("[role=dialog] textarea[placeholder*=\\\"Hausaufgabe notieren\\\"]"))');
+    if (obsoleteLessonHomework) throw new Error('Homework field still attached to lesson planning.');
+
 
     await setInputByPlaceholder(client, 'Was wird gelernt?', topic);
     const religionVisible = await evaluate(client, 'Array.from(document.querySelectorAll("button")).some(b=>String(b.textContent||"").replace(/\\s+/g," ").trim()==="Religion"&&!b.disabled)');
@@ -360,6 +380,8 @@ async function main() {
     // personal-plan dialog with public pupil-name buttons.
     await waitFor(client, 'published task visible on public board',
       '(() => {const b=document.querySelector("[aria-label=\\\"Wochenplan der Klasse\\\"]");return !!b&&b.textContent.includes(' + q(topic) + ')&&b.textContent.includes("Arbeitsheft Seite 12")&&!!b.querySelector("button")&&!b.textContent.includes("Das war sehr schwer");})()', 20000);
+    await waitFor(client, 'standalone homework visible in weekly-plan widget',
+      '(() => {const b=document.querySelector("[aria-label=\\\"Wochenplan der Klasse\\\"]");return !!b&&b.querySelector("[aria-label=\\\"Hausübungen im Wochenplan\\\"]")?.textContent.includes(' + q(dayHomework) + ');})()', 20000);
     await clickButton(client, 'Ich bin fertig mit einer Aufgabe');
     await waitFor(client, 'task selection dialog',
       'Boolean(document.querySelector("[role=dialog][aria-label=\\\"Ich bin fertig mit einer Aufgabe\\\"] [aria-label=\\\"Aufgabe auswählen\\\"]"))');
