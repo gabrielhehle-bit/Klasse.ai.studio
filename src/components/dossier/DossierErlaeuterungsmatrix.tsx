@@ -178,7 +178,7 @@ export default function DossierErlaeuterungsmatrix({ student, controlledSemester
                       ? group.light
                       : 'bg-white text-slate-500 hover:bg-slate-50'
                 }`}
-                aria-label={`Stufe ${value}: ${group.label}${previousValue === value ? `; 1. Semester war Stufe ${previousValue}` : ''}`}
+                aria-label={`Stufe ${value}: ${group.label}`}
                 aria-pressed={currentValue === value}
               >
                 {value}
@@ -213,11 +213,11 @@ export default function DossierErlaeuterungsmatrix({ student, controlledSemester
         <div className="mt-1 text-[0.5625rem] font-black uppercase tracking-wider text-slate-400">
           {evaluations[criterion.id] === null || evaluations[criterion.id] === undefined
             ? semester === '2' && previousEvaluations[criterion.id] !== null && previousEvaluations[criterion.id] !== undefined
-              ? `2. Semester nicht bewertet · 1. Semester: Stufe ${previousEvaluations[criterion.id]}`
+              ? 'Nicht bewertet'
               : 'Nicht bewertet'
             : `Stufe ${evaluations[criterion.id]} von 6${
                 semester === '2' && previousEvaluations[criterion.id] !== null && previousEvaluations[criterion.id] !== undefined
-                  ? ` · 1. Semester: ${previousEvaluations[criterion.id]}`
+                  ? ''
                   : ''
               }`}
         </div>
@@ -313,7 +313,7 @@ export default function DossierErlaeuterungsmatrix({ student, controlledSemester
           <div className="flex flex-wrap gap-2 text-[0.5625rem] font-black uppercase tracking-wider text-slate-500">
             {semester === '2' && previousEvaluatedCount > 0 && (
               <span className="rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1.5 normal-case tracking-normal">
-                Helle Farbe + Punkt = 1. Semester
+                Bisherige Einschätzung
               </span>
             )}
             {SCALE_GROUPS.map(group => (
