@@ -52,27 +52,27 @@ export default function DossierErlaeuterungsmatrix({ student, controlledSemester
         '1': stored.semesterBemerkungen?.['1'] || (storedSemester === '1' ? stored.bemerkung || '' : ''),
         '2': stored.semesterBemerkungen?.['2'] || (storedSemester === '2' ? stored.bemerkung || '' : '')
       });
-      setSemester(storedSemester);
+      setSemester('1');
       setLegacyLoaded(false);
     } else {
       try {
         const legacyEvaluations = localStorage.getItem(`oberau_eval_${student.id}`);
         const legacyRemarks = localStorage.getItem(`oberau_remarks_${student.id}`);
         setSemesterEvaluations({
-          '1': {},
-          '2': legacyEvaluations ? JSON.parse(legacyEvaluations) : {}
+          '1': legacyEvaluations ? JSON.parse(legacyEvaluations) : {},
+          '2': {}
         });
         setSemesterRemarks({
-          '1': '',
-          '2': legacyRemarks || student.foerderprofil?.zusatzinfo || ''
+          '1': legacyRemarks || student.foerderprofil?.zusatzinfo || '',
+          '2': ''
         });
         setLegacyLoaded(Boolean(legacyEvaluations || legacyRemarks));
       } catch {
         setSemesterEvaluations({ '1': {}, '2': {} });
-        setSemesterRemarks({ '1': '', '2': student.foerderprofil?.zusatzinfo || '' });
+        setSemesterRemarks({ '1': student.foerderprofil?.zusatzinfo || '', '2': '' });
         setLegacyLoaded(false);
       }
-      setSemester('2');
+      setSemester('1');
     }
     setSelectedCategoryId((student.spf ? OBERAU_SPF_STRUCTURE : OBERAU_STANDARD_STRUCTURE)[0]?.id || 'de');
     setExpandedSubsection(null);
