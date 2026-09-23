@@ -1,18 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { getAssessmentMode } from '../lib/GradeUtils';
-import { getSimpleAnnualGoalRatings, getSimpleManualRadarValue, getSimpleRadarGoalProgress, getSimpleSubjectAreas, getSimpleSubjectGrades } from '../lib/simplePortfolio';
+import { getSimpleAnnualGoalRatings, getSimpleSubjectAreas, getSimpleSubjectGrades } from '../lib/simplePortfolio';
+import { getLernzielModell, getLernzielRadarProgress, parseLernzielModell, pruefeModellWechsel, verwendeteLernzielStufen, type LernzielBewertungsmodell } from '../lib/lernzielBewertungsmodell';
 import { formatLocalDateKey } from '../lib/utils';
 import { LERNZIELE_BY_STUFE } from './LernzielTracker';
 import PortfolioFlower, { type FlowerPetal } from './PortfolioFlower';
 
-
-const GOAL_STEPS = [
-  { value: null, label: 'Noch nicht eingeschätzt', icon: '', color: '#cbd5e1' },
-  { value: 3, label: 'In Entwicklung', icon: '🌱', color: '#f59e0b' },
-  { value: 2, label: 'Im Wesentlichen', icon: '🌿', color: '#84cc16' },
-  { value: 1, label: 'Erreicht', icon: '🌸', color: '#059669' },
-] as const;
 
 export default function SimplePortfolioView() {
   const { app, setApp } = useApp();
@@ -33,6 +27,13 @@ export default function SimplePortfolioView() {
   const [newNote, setNewNote] = useState('');
   const [newRadarGoal, setNewRadarGoal] = useState('');
   const [newRadarArea, setNewRadarArea] = useState('');
+  const [levelDraft, setLevelDraft] = useState<LernzielBewertungsmodell | null>(null);
+  const [levelError, setLevelError] = useState('');
+  const levelModel = getLernzielModell(app.lernzielBewertungsmodell);
+  const goalSteps = [
+    { value: null as number | null, label: levelModel.emptyLabel, icon: '', color: '#cbd5e1' },
+    ...levelModel.levels.map(stage => ({ value: stage.value as number | null, label: stage.label, icon: stage.symbol, color: stage.color })),
+  ];
 
   useEffect(() => {
     if (app.selectedStudentForPortfolio && students.some(s => s.id === app.selectedStudentForPortfolio)) {
@@ -48,12 +49,12 @@ export default function SimplePortfolioView() {
     if (!subjects.includes(subject)) setSubject(subjects.includes('Deutsch') ? 'Deutsch' : subjects[0] || '');
   }, [subjects, subject]);
   useEffect(() => { setNewNote(''); setNewRadarGoal(''); setNewRadarArea(''); }, [studentId, subject, classId]);
+  useEffect(() => { setLevelDraft(null); setLevelError(''); }, [classId]);
 
   const areas = useMemo(() => getSimpleSubjectAreas(subject, level, student), [subject, level, student]);
   const goals = areas.flatMap(area => area.goals);
   const ratings = getSimpleAnnualGoalRatings(app, studentId);
-  const documented = goals.filter(goal => (ratings[goal.id] !== undefined && ratings[goal.id] !== null) ||
-    getSimpleManualRadarValue(student, goal.id) !== undefined).length;
+  const documented = goals.filter(goal => ratings[goal.id] !== undefined && ratings[goal.id] !== null).length;
   const ownRadarGoals = (student?.manuelleLernziele || []).filter(goal => goal.stufe === level && goal.fach === subject);
   const gradeMode = getAssessmentMode(app, subject);
   const grades = getSimpleSubjectGrades(app, studentId, subject);
@@ -115,13 +116,12 @@ export default function SimplePortfolioView() {
       const nextGoal = { id, fach: ownerSubject, kompetenzbereich: areaName,
         text: label, stufe: ownerLevel, createdAt: timestamp, updatedAt: timestamp };
       const nextAxes = currentAxes.length < 8
-        ? [...currentAxes, 'goal:' + id] : [...currentAxes.slice(0, -1), 'goal:' + id];
+        ? [...currentAxes, 'goal:' + id] : currentAxes;
       return {
         ...prev,
         schueler: prev.schueler.map(item => item.id === ownerStudent ? {
           ...item,
           manuelleLernziele: [...ownGoals, nextGoal],
-          portfolioRadarWerte: { ...(item.portfolioRadarWerte || {}), [id]: 0 },
         } : item),
         settings: { ...prev.settings, portfolioRadarAxes: {
           ...(prev.settings.portfolioRadarAxes || {}), [key]: nextAxes,
@@ -144,19 +144,52 @@ export default function SimplePortfolioView() {
       })),
     }));
   };
-  const setRadarValue = (goalId: string, value: number) => {
-    if (!Number.isFinite(value) || value < 0 || value > 100) return;
-    const ownerClass = classId, ownerStudent = studentId, ownerSubject = subject, ownerLevel = level;
-    const nextValue = Math.round(value);
-    setApp(prev => prev.activeClassId !== ownerClass ? prev : ({
-      ...prev,
-      schueler: prev.schueler.map(item => item.id !== ownerStudent ||
-        !(item.manuelleLernziele || []).some(goal => goal.id === goalId &&
-          goal.fach === ownerSubject && goal.stufe === ownerLevel) ? item : ({
-        ...item,
-        portfolioRadarWerte: { ...(item.portfolioRadarWerte || {}), [goalId]: nextValue },
-      })),
-    }));
+  const editLevel = (value: number, patch: Partial<LernzielBewertungsmodell['levels'][number]>) => {
+    setLevelDraft(prev => {
+      const model = prev || getLernzielModell(app.lernzielBewertungsmodell);
+      return { ...model, levels: model.levels.map(stage => stage.value === value ? { ...stage, ...patch } : stage) };
+    });
+    setLevelError('');
+  };
+  const addLevel = () => {
+    setLevelDraft(prev => {
+      const model = prev || getLernzielModell(app.lernzielBewertungsmodell);
+      if (model.levels.length >= 10) return model;
+      const nextId = Math.max(...model.levels.map(stage => stage.value), 3) + 1;
+      const position = Math.max(0, model.levels.length - 1);
+      const lower = model.levels[position - 1];
+      const upper = model.levels[position];
+      const from = lower ? getLernzielRadarProgress(model, lower.value) * 100 : 0;
+      const to = upper ? getLernzielRadarProgress(model, upper.value) * 100 : 100;
+      const newStage = { value: nextId, label: 'Neue Stufe', kurz: 'Neu', color: '#2563eb',
+        symbol: '⭐', radarPercent: Math.round(((from + to) / 2) * 10) / 10 };
+      return { ...model, levels: [...model.levels.slice(0, position), newStage, ...model.levels.slice(position)] };
+    });
+    setLevelError('');
+  };
+  const removeLevel = (value: number) => {
+    setLevelDraft(prev => {
+      const model = prev || getLernzielModell(app.lernzielBewertungsmodell);
+      if (model.levels.length <= 2) return model;
+      return { ...model, levels: model.levels.filter(stage => stage.value !== value) };
+    });
+    setLevelError('');
+  };
+  const saveLevelModel = () => {
+    if (!levelDraft || app.activeClassId !== classId) return;
+    try {
+      const next = parseLernzielModell(levelDraft);
+      const previous = getLernzielModell(app.lernzielBewertungsmodell);
+      const used = verwendeteLernzielStufen(
+        app.studentLernzielSemesterBewertungen, app.studentLernzielBewertungen,
+      );
+      pruefeModellWechsel(previous, next, used);
+      setApp(prev => prev.activeClassId !== classId ? prev : ({ ...prev, lernzielBewertungsmodell: next }));
+      setLevelDraft(null);
+      setLevelError('');
+    } catch (error) {
+      setLevelError(error instanceof Error ? error.message : 'Bewertungsstufen konnten nicht gespeichert werden.');
+    }
   };
   const axisSettings = (key: string, selected: string[], options: { id: string; label: string }[]) =>
     <details className="group min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm shadow-sm sm:px-5">
@@ -262,18 +295,17 @@ export default function SimplePortfolioView() {
         </div>}
       </div>}
     </details>;
-  // Goal axes use the existing four-step assessments (0, ⅓, ⅔, 1).
-  // Missing evaluations have zero weight; the existing goal records do not change.
+  // Every chart radius follows the saved class-local assessment scale.
+  // IDs and historical goal ratings are never rewritten when labels or radii change.
   const goalPetals: FlowerPetal[] = goalAxisIds.map((id, index) => {
     const axis = goalAxisChoices.find(choice => choice.id === id)!;
     const axisGoals = axis.goals;
     return {
       label: axis.label, color: radarColors[index % radarColors.length],
-      count: axisGoals.filter(goal => (ratings[goal.id] !== null && ratings[goal.id] !== undefined) ||
-        getSimpleManualRadarValue(student, goal.id) !== undefined).length,
+      count: axisGoals.filter(goal => ratings[goal.id] !== null && ratings[goal.id] !== undefined).length,
       total: axisGoals.length,
       progress: axisGoals.length ? axisGoals.reduce((sum, goal) =>
-        sum + getSimpleRadarGoalProgress(goal.id, ratings, student), 0) / axisGoals.length : 0,
+        sum + getLernzielRadarProgress(levelModel, ratings[goal.id]), 0) / axisGoals.length : 0,
     };
   });
   // Grade axes represent entry counts, not school marks or averaged performance.
@@ -294,18 +326,8 @@ export default function SimplePortfolioView() {
       if (prev.activeClassId !== ownerClass || !prev.schueler.some(s => s.id === ownerStudent)) return prev;
       const old = prev.studentLernzielSemesterBewertungen?.[ownerStudent] || {};
       const annual = { ...(old['1'] || {}), [goalId]: value };
-      // When an own goal is rated with the existing 4-level controls, remove only
-      // that goal's optional manual radar override so the chart follows the rating.
-      const updatedStudents = prev.schueler.map(item => {
-        if (item.id !== ownerStudent || !(item.manuelleLernziele || []).some(goal => goal.id === goalId)
-          || item.portfolioRadarWerte?.[goalId] === undefined) return item;
-        const nextRadar = { ...(item.portfolioRadarWerte || {}) };
-        delete nextRadar[goalId];
-        return { ...item, portfolioRadarWerte: nextRadar };
-      });
       return {
         ...prev,
-        schueler: updatedStudents,
         studentLernzielBewertungen: {
           ...(prev.studentLernzielBewertungen || {}),
           [ownerStudent]: { ...(prev.studentLernzielBewertungen?.[ownerStudent] || {}), [goalId]: value },
@@ -415,7 +437,7 @@ export default function SimplePortfolioView() {
         <PortfolioFlower title="Lernziele" center={documented + '/' + goals.length}
           caption={goalAxisIds.length + ' Achsen · individuell auswählbar'}
           petals={goalPetals}
-          note="Standardziele: in Entwicklung = ⅓, im Wesentlichen = ⅔, erreicht = vollständig. Eigene Lernziele können zusätzlich einen direkt einstellbaren Diagrammwert von 0–100 % haben. Dieser Wert ist eine Visualisierung, keine Schulnote." />
+          note="Jede Achse wächst mit den dokumentierten Lernzielbewertungen. Die Stufen und ihre Diagrammwerte sind individuell einstellbar; noch nicht eingeschätzte Ziele zählen als 0. Das Diagramm ist keine Schulnote." />
         {axisSettings(goalAxisKey, goalAxisIds, goalAxisChoices)}
         {areas.map(area => <section key={area.name} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <h3 className="mb-4 text-base font-black">{area.name} <span className="text-sm font-medium text-slate-500">({area.goals.length} Lernziele)</span></h3>
@@ -423,8 +445,8 @@ export default function SimplePortfolioView() {
           <div className="space-y-3">
             {area.goals.map(goal => <div key={goal.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
               <p className="font-bold leading-relaxed">{goal.text}</p>
-              <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4" role="group" aria-label={'Lernziel einschätzen: ' + goal.text}>
-                {GOAL_STEPS.map(step => {
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5" role="group" aria-label={'Lernziel einschätzen: ' + goal.text}>
+                {goalSteps.map(step => {
                   const current = ratings[goal.id] ?? null;
                   const active = current === step.value;
                   return <button key={step.label} type="button" onClick={() => setRating(goal.id, step.value)}
