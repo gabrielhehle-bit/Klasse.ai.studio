@@ -455,7 +455,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                     className="min-h-9 rounded-lg border border-current/20 px-3 text-xs font-bold disabled:opacity-30">
                     Weiter →
                   </button>
-                </div>
+                </div>}
 
                 {/* Subtitle / Details (e.g., "Arbeitsheft S. 24, Nr. 1–4") */}
                 {draftDetails && (
@@ -987,6 +987,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
               <span>Fertig & Am Smartboard anzeigen</span>
             </button>
           </div>
+        </div>
         </div>,
         document.body
       )}
