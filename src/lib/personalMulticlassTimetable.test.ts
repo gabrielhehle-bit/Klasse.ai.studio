@@ -73,7 +73,9 @@ test('updating a linked lesson in a different class does not write into the curr
 
 test('viewer classes cannot be changed or imported from using teacher profile', () => {
   const state = createState();
-  state.classes[1].teamTeaching = { sharedClassId: 'shared', role: 'viewer', revision: 1 };
+  state.classes = state.classes.map(room => room.id === demoClassB.id
+    ? { ...room, teamTeaching: { sharedClassId: 'shared', role: 'viewer', revision: 1 } }
+    : room);
   const result = importedTeacherLessons(state, demoClassB.id, []);
   assert.equal(result.available, false);
   const source = { tag: 'Donnerstag', stunde: 2, fach: 'Deutsch', klasse: '4b', raum: '',
