@@ -158,8 +158,8 @@ export function addAnnualAssessment(
     }
   }
   for (const source of Object.keys(meta.annualColumns || {})) {
-    const match = source.match(/^[12]:[a-z]+:(\d+)$/);
-    if (match) maxIndex = Math.max(maxIndex, Number(match[1]));
+    const match = source.match(/^[12]:([a-z]+):(\d+)$/);
+    if (match && match[1] === category) maxIndex = Math.max(maxIndex, Number(match[2]));
   }
   const sourceIndex = maxIndex + 1;
   return updateAnnualAssessment(app, {
