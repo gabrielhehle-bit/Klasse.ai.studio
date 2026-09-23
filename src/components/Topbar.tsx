@@ -346,7 +346,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
           </div>
 
           {/* Rechter Bereich: Wetter & Schuljahr-Zeitdiagramm & PayPal & Fehler melden & Mehr */}
-          <div className="flex items-center gap-2 sm:gap-2.5">
+          <div className="flex min-w-0 items-center justify-end gap-1.5 sm:gap-2.5">
             <button type="button" onClick={() => void createManualBackup()} disabled={manualBackupBusy || !isVaultUnlocked}
               aria-label="Jetzt verschlüsseltes Backup herunterladen" title="Verschlüsseltes Backup dieser KLASSIO-Daten als Datei herunterladen"
               className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-indigo-300 bg-indigo-50 px-2 text-indigo-800 shadow-xs hover:bg-indigo-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:opacity-50 sm:px-3">
@@ -357,12 +357,12 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
               <button type="button" onClick={() => setPage('settings')}
                 aria-label={`Speicherstatus: ${cloudSaveBadge.text}. ${cloudSaveBadge.description}. Konto öffnen.`}
                 title={cloudSaveBadge.description}
-                className={`inline-flex min-h-9 max-w-[180px] shrink-0 items-center justify-center rounded-xl border px-2 text-[0.6875rem] font-black leading-tight shadow-xs sm:px-3 ${cloudSaveBadge.color}`}>
+                className={`inline-flex min-h-10 max-w-[104px] min-w-0 items-center justify-center sm:max-w-[180px] rounded-xl border px-2 text-[0.6875rem] font-black leading-tight shadow-xs sm:px-3 ${cloudSaveBadge.color}`}>
                 <span className="truncate">{cloudSaveBadge.text}</span>
               </button>
             )}
             {/* Wetter Anzeige mit Klick-Details */}
-            <div className="relative">
+            <div className="relative hidden sm:block">
               <button 
                 type="button"
                 onClick={() => {
@@ -450,7 +450,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
             </div>
 
             {/* Schuljahr-Zeitdiagramm (% vorbei) mit Klick-Details */}
-            <div className="relative">
+            <div className="relative hidden sm:block">
               <button 
                 type="button"
                 onClick={() => {
@@ -555,7 +555,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
               href="https://docs.google.com/spreadsheets/d/15bWUTQyXcJnVKkR9VlIR-h2CMJ3a8ua5GO68JT7vmDc/edit?gid=1159556393#gid=1159556393"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] px-2.5 py-2 text-xs font-bold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))]"
+              className="hidden sm:inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] px-2.5 py-2 text-xs font-bold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))]"
               aria-label="Fehler oder Verbesserung melden"
               title="Fehler oder Verbesserung melden"
             >
@@ -569,7 +569,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                 setShowMehrMenu(false);
                 setShowSupportModal(true);
               }}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-2.5 py-2 text-xs font-bold text-rose-700 transition-colors hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+              className="hidden sm:inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-2.5 py-2 text-xs font-bold text-rose-700 transition-colors hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
               aria-label="Klassio freiwillig über PayPal unterstützen"
               title="Klassio freiwillig über PayPal unterstützen"
             >
@@ -601,6 +601,11 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                   <div className="fixed inset-0 z-[100]" onClick={() => setShowMehrMenu(false)} />
                   <div className="absolute top-full right-0 mt-2 bg-[var(--surface-card,var(--surface))]/98 backdrop-blur-2xl rounded-3xl shadow-2xl border border-[var(--border-default,var(--border))] p-4 min-w-[280px] max-w-xs sm:max-w-sm z-[101] space-y-3.5 animate-in fade-in slide-in-from-top-3 duration-200 max-h-[85vh] overflow-y-auto custom-scrollbar text-[var(--text-primary)]">
                     
+                    {/* Compact phone header: weather and year remain readable here. */}
+                    <div className="grid grid-cols-2 gap-2 sm:hidden text-xs" aria-label="Tagesinformationen">
+                      <div className="rounded-xl bg-[var(--surface-subtle,var(--surface2))] p-3"><span className="block text-[var(--text-muted)]">Wetter</span><strong>{weather ? `${Math.round(weather.temperature)}°C` : "Noch keine Wetterdaten"}</strong></div>
+                      <div className="rounded-xl bg-[var(--surface-subtle,var(--surface2))] p-3"><span className="block text-[var(--text-muted)]">Schuljahr {app.schuljahr}</span><strong>{Math.round(schoolYearProgressPercent)} % vorbei</strong></div>
+                    </div>
                     {/* Schnellauswahl: Suche */}
                     <div>
                       <button
