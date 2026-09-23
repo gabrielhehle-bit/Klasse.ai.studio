@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { BarChart3, CalendarDays, Heart, Pencil, Save, User, X, Camera, ImagePlus } from 'lucide-react';
+import { BarChart3, CalendarDays, Heart, Pencil, Save, User, X, ImagePlus } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import type { LehrerProfil } from '../types';
-import { getTeacherFirstName } from '../lib/utils';
 import { prepareProfileImage } from '../lib/profileImage';
 import TeacherAvatar, { safeProfileImage } from './TeacherAvatar';
 import PlanungsStatistik from './PlanungsStatistik';
