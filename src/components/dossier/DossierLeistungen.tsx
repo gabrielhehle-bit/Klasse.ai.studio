@@ -53,7 +53,6 @@ export interface SubjectAssessmentSummary {
 export default function DossierLeistungen({
   student,
   semester,
-  onSemesterChange,
   onNavigateTab
 }: DossierLeistungenProps) {
   const { app, setApp } = useApp();
@@ -498,7 +497,7 @@ export default function DossierLeistungen({
               <ArrowLeft size={14} /> Zurück zur Fächerübersicht
             </button>
             <span className="text-slate-300">|</span>
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{semester}. Semester</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Ganzes Schuljahr</span>
           </div>
 
           {/* Quick Subject Switcher Pills */}
@@ -595,7 +594,7 @@ export default function DossierLeistungen({
             <div className="flex items-center gap-2">
               <Clock size={16} className="text-slate-500" />
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                Leistungsentwicklung im Semester ({s.items.length} {s.items.length === 1 ? 'Nachweis' : 'Nachweise'})
+                Leistungsentwicklung im Schuljahr ({s.items.length} {s.items.length === 1 ? 'Nachweis' : 'Nachweise'})
               </h4>
             </div>
 
@@ -617,7 +616,7 @@ export default function DossierLeistungen({
 
           {s.items.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-6 text-center text-xs text-slate-500">
-              Für dieses Fach wurden in diesem Semester noch keine Einzelnoten oder Leistungsnachweise erfasst.
+              Für dieses Fach wurden in diesem Schuljahr noch keine Einzelnoten oder Leistungsnachweise erfasst.
             </div>
           ) : s.items.length < 2 ? (
             <div className="space-y-3">
@@ -965,39 +964,12 @@ export default function DossierLeistungen({
             <h3 className="text-lg font-bold text-slate-900">Leistungsübersicht</h3>
           </div>
           <p className="mt-1 text-xs text-slate-500">
-            Fachbezogene Leistungsdaten für {student.vorname} {student.nachname} · {semester}. Semester
+            Fachbezogene Leistungsdaten für {student.vorname} {student.nachname} · Ganzes Schuljahr
           </p>
         </div>
 
         {/* Semester & Filter Toggles */}
         <div className="flex flex-wrap items-center gap-2">
-          {onSemesterChange && (
-            <div className="flex bg-slate-100 rounded-xl p-1 border border-slate-200/70">
-              <button
-                type="button"
-                onClick={() => onSemesterChange('1')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                  semester === '1'
-                    ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                1. Sem.
-              </button>
-              <button
-                type="button"
-                onClick={() => onSemesterChange('2')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                  semester === '2'
-                    ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                2. Sem.
-              </button>
-            </div>
-          )}
-
           {/* Quick status filter */}
           <div className="flex bg-slate-100 rounded-xl p-1 border border-slate-200/70">
             <button
