@@ -1266,7 +1266,7 @@ function WizardModal({
     selectedWeek,
     kwYear(selectedWeek, getStartYear(app.schuljahr), app.bundesland || "VBG"),
   );
-  const selectedSemester = String(getSemester(formatLocalDateKey(selectedWeekStart))) as "1" | "2";
+  const selectedSemester: "1" | "2" = "1";
 
   // One-time migration of old browser-only learning-goal ratings into the encrypted class state.
   useEffect(() => {
