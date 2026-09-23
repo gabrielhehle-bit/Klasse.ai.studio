@@ -14,26 +14,10 @@ export default function GradeOverview({ embedded = false, onBack }: { embedded?:
     ? ((app.faecher && app.faecher.length > 0) ? app.faecher : FAECHER_ALLE)
     : faecherFuerKlasse(app);
 
-  const [selectedSemester, setSelectedSemester] = useState<'1' | '2' | 'combined'>('combined');
+  const [selectedSemester] = useState<'1' | '2' | 'combined'>('1');
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
 
-  const handleToggleEdit = () => {
-    if (!isEditMode) {
-      setIsEditMode(true);
-      if (selectedSemester === 'combined') {
-        setSelectedSemester('1');
-      }
-    } else {
-      setIsEditMode(false);
-    }
-  };
-
-  const selectSemester = (sem: '1' | '2' | 'combined') => {
-    setSelectedSemester(sem);
-    if (sem === 'combined') {
-      setIsEditMode(false);
-    }
-  };
+  const handleToggleEdit = () => setIsEditMode(previous => !previous);
 
   const exportCSV = () => {
     const safeCsvCell = (value: string | number) => {
@@ -62,7 +46,7 @@ export default function GradeOverview({ embedded = false, onBack }: { embedded?:
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", `Notenuebersicht_${app.klassenbezeichnung || 'Klasse'}_${selectedSemester === 'combined' ? 'Gesamt' : selectedSemester + '_Semester'}_SJ_${app.schuljahr || 'SJ'}.csv`);
+    link.setAttribute("download", `Notenuebersicht_${app.klassenbezeichnung || 'Klasse'}_Ganzes_Schuljahr_SJ_${app.schuljahr || 'SJ'}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -90,47 +74,10 @@ export default function GradeOverview({ embedded = false, onBack }: { embedded?:
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 no-print">
         <div className="space-y-1">
           <h2 className="text-xl font-black leading-tight text-slate-900">Notenübersicht</h2>
-          <p className="text-sm font-medium text-slate-600">{students.length} Kinder · {app.klassenbezeichnung || "Aktuelle Klasse"} · {selectedSemester === "combined" ? "Gesamtansicht" : selectedSemester + ". Semester"}</p>
+          <p className="text-sm font-medium text-slate-600">{students.length} Kinder · {app.klassenbezeichnung || "Aktuelle Klasse"} · Ganzes Schuljahr</p>
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
-          {/* Semester Selector */}
-          <div className="bg-slate-100 p-1 rounded-xl flex items-center border border-slate-200/60 shadow-xs">
-            <button
-              type="button"
-              onClick={() => selectSemester('combined')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                selectedSemester === 'combined'
-                  ? 'bg-white text-slate-800 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Gesamt (Kombiniert)
-            </button>
-            <button
-              type="button"
-              onClick={() => selectSemester('1')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                selectedSemester === '1'
-                  ? 'bg-white text-slate-800 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              1. Semester
-            </button>
-            <button
-              type="button"
-              onClick={() => selectSemester('2')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                selectedSemester === '2'
-                  ? 'bg-white text-slate-800 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              2. Semester
-            </button>
-          </div>
-
           {/* Edit Mode Toggle Button */}
           <button
             type="button"
@@ -155,7 +102,7 @@ export default function GradeOverview({ embedded = false, onBack }: { embedded?:
 
           <div className="space-y-1.5">
             <h4 className="text-[0.875rem] font-black uppercase text-amber-900 tracking-tight flex items-center gap-2">
-              <span>Direkte Notenerfassung aktiv ({selectedSemester}. Semester)</span>
+              <span>Direkte Notenerfassung aktiv (ganzes Schuljahr)</span>
               <span className="text-[0.625rem] bg-amber-200 text-amber-800 px-2.5 py-0.5 rounded-full uppercase font-black tracking-widest">Bearbeitungsmodus</span>
             </h4>
             <p className="text-[0.75rem] text-amber-700 leading-relaxed font-medium">
@@ -180,7 +127,7 @@ export default function GradeOverview({ embedded = false, onBack }: { embedded?:
                       <div>{f}</div>
                       {selectedSemester !== 'combined' && (
                         <div className="text-[0.45rem] uppercase font-black text-slate-400/80 tracking-wider mt-0.5">
-                          {selectedSemester}. Sem
+                          Schuljahr
                         </div>
                       )}
                       {!hasNotenmappe && <div className="text-[0.45rem] font-semibold text-amber-700/80 tracking-normal mt-0.5">(Manuell)</div>}
