@@ -24,6 +24,7 @@ import { EMPTY_LESSON_DRAFT, hasLessonDraftContent, lessonDraftFromMaterial, les
 import { useMaterialLibrary } from './Materialbibliothek';
 import { getChildTaskProgress, toggleClassroomWeeklyLesson, weekTaskKey } from '../lib/classroomWeeklyPlan';
 import LessonPlannerAI from './LessonPlannerAI';
+import DailyHomeworkButton from './DailyHomeworkButton';
 
 const FACH_COLORS: Record<string, { bg: string, text: string, border: string }> = {
   'Deutsch': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
@@ -2348,6 +2349,7 @@ export default function WeeklyPlan() {
             <div>
               <h2 className="text-base font-extrabold text-slate-900">Tagesplanung · {selectedDay}</h2>
               <p className="text-xs font-semibold text-slate-500">Dieselben Stunden und Daten wie im Wochenplan – Stunde anklicken zum Bearbeiten.</p>
+              <DailyHomeworkButton day={selectedDay} date={formatLocalDateKey(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + TAGE_NAMEN.indexOf(selectedDay)))} />
             </div>
             <div className="flex flex-wrap gap-1" aria-label="Wochentag auswählen">
               {TAGE_NAMEN.map((tag, index) => {
@@ -2454,6 +2456,7 @@ export default function WeeklyPlan() {
                             <span className="text-[0.6875rem] font-bold uppercase opacity-30 text-slate-500">{date.toLocaleDateString('de-AT', { month: 'short' }).toUpperCase()}</span>
                           </div>
                         </button>
+                        <DailyHomeworkButton day={tag} date={dateStr} />
 
                         <div className="h-6 flex items-center justify-center">
                           {status === 'free' ? (
@@ -3440,7 +3443,7 @@ export default function WeeklyPlan() {
 
                   <section className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-5">
                     <div className="text-[0.625rem] font-black uppercase tracking-wider text-emerald-700">Hausübung</div>
-                    <p className="mt-2 whitespace-pre-wrap text-sm font-medium text-slate-700">{lesson.housework || 'Keine Hausübung eingetragen'}</p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm font-medium text-slate-700">{lesson.housework || 'Hausübungen werden beim Tagesdatum erfasst.'}</p>
                   </section>
 
                   <section className="rounded-2xl border border-slate-200 bg-white p-5">
@@ -3559,7 +3562,7 @@ export default function WeeklyPlan() {
                   {([
                     { id: 'inhalt', label: '1 · Inhalt & Fach', hint: 'Thema, Lernziel, Fach, Lehrplan' },
                     { id: 'rahmen', label: '2 · Unterrichtsrahmen', hint: 'Typ, Dauer, Sozialform' },
-                    { id: 'organisation', label: '3 · Material & HÜ', hint: 'Materialien und Hausübung' },
+                    { id: 'organisation', label: '3 · Material', hint: 'Materialien für die Stunde' },
                     { id: 'optionen', label: '4 · Ablauf & Optionen', hint: 'Methodik, Reflexion, Wiederholung' },
                     { id: 'entwurf', label: '5 · Ausführlicher Entwurf', hint: 'Lernziele, Einstieg, Hauptteil, Schluss' },
                   ] as const).map(tab => (
@@ -4227,17 +4230,9 @@ export default function WeeklyPlan() {
                               )}
                             </div>
                          </div>
-                        <div className="space-y-3">
-                           <div className="flex items-center gap-2 ml-1">
-                              <Check size={14} className="text-emerald-500" />
-                              <label className="text-[0.625rem] font-black text-emerald-600 uppercase tracking-widest">Hausübung</label>
-                           </div>
-                           <textarea 
-                              className="input-field h-28 py-4 px-6 resize-none bg-white"
-                              placeholder="Hausaufgabe notieren..."
-                              value={tempHUE} onChange={e => setTempHUE(e.target.value)}
-                           />
-                        </div>
+                        <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
+                          Hausübungen erfasst du unabhängig von einer Stunde über „📚 HÜ“ unter dem jeweiligen Tagesdatum.
+                        </p>
                     </div>
                  </div>
 
