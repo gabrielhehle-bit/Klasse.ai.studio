@@ -43,7 +43,9 @@ test('overview signals an empty active class and export uses the same manual/cal
   assert.match(overview, /getOverviewNote\(app, student\.id, fach, selectedSemester\)/);
   assert.match(overview, /getOverviewNote\(app, s\.id, f, selectedSemester\)/);
   assert.match(overview, /CSV für Excel/);
-  assert.match(overview, /selectedSemester === 'combined' \? 'Gesamt'/);
+  assert.match(overview, /Ganzes_Schuljahr/);
+  assert.match(overview, /useState<'1' \| '2' \| 'combined'>\('1'\)/);
+  assert.doesNotMatch(overview, /onClick=\{\(\) => selectSemester/);
 });
 
 test('AltGr, inputs, repeated keys and modal overlays cannot accidentally open fullscreen cockpit', () => {
