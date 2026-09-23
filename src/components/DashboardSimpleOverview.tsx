@@ -1,4 +1,5 @@
 import TeacherAvatar from './TeacherAvatar';
+import { useApp } from '../context/AppContext';
 import React, { useState } from 'react';
 import {
   ArrowRight,
@@ -14,6 +15,7 @@ import {
 import type { DashboardTodayOverviewProps } from './DashboardTodayOverview';
 
 export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) {
+  const { app } = useApp();
   const [showAllTasks, setShowAllTasks] = useState(false);
   const button = 'min-h-11 px-4 py-2 rounded-xl text-sm font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]';
   const tasks = showAllTasks ? p.actionItems : p.actionItems.slice(0, 3);
