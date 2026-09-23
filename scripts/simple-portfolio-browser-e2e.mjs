@@ -259,7 +259,10 @@ async function main() {
       return {
         width: innerWidth,
         docWidth: document.documentElement.scrollWidth,
-        charts: document.querySelectorAll('svg[role=img][aria-label^="Noten"],svg[role=img][aria-label^="Lernziele"]').length,
+        charts: document.querySelectorAll('svg[role=img][aria-label^="Blumenübersicht Noten"],svg[role=img][aria-label^="Blumenübersicht Lernziele"]').length,
+        gradePetals: document.querySelectorAll('svg[aria-label^="Blumenübersicht Noten"] [data-flower-petal]').length,
+        goalPetals: document.querySelectorAll('svg[aria-label^="Blumenübersicht Lernziele"] [data-flower-petal]').length,
+        firstGoalProgress: Number(document.querySelector('svg[aria-label^="Blumenübersicht Lernziele"] [data-flower-petal]')?.getAttribute('data-flower-progress')),
         areas: section?.querySelectorAll(':scope > section').length ?? 0,
         controls: document.querySelectorAll('[role=group][aria-label^="Lernziel einschätzen:"]').length,
         goalCount: section?.querySelector('p')?.textContent || '',
@@ -267,13 +270,15 @@ async function main() {
       };
     })()`);
     console.log('Synthetic mobile subject portfolio:', JSON.stringify(metrics));
-    if (metrics.width !== 390 || metrics.docWidth > 395 || metrics.charts !== 2 || metrics.areas !== 4 || metrics.controls < 1 || metrics.hasSemesterSwitch) {
+    if (metrics.width !== 390 || metrics.docWidth > 395 || metrics.charts !== 2 || metrics.gradePetals !== 4 || metrics.goalPetals !== 4 || metrics.areas !== 4 || metrics.controls < 1 || metrics.hasSemesterSwitch) {
       throw new Error('Simple portfolio has a mobile layout, chart or extra-controls regression.');
     }
     const clicked = await evaluate(client, '(() => {const g=document.querySelector("[role=group][aria-label^=\\\"Lernziel einschätzen:\\\"]");const b=g?.querySelectorAll("button")[1];if(!b)return false;b.click();return true;})()');
     if (!clicked) throw new Error('Cannot rate first demo-class goal.');
     await waitFor(client, 'goal rating saved in UI',
       '(() => {const g=document.querySelector("[role=group][aria-label^=\\\"Lernziel einschätzen:\\\"]");return g?.querySelectorAll("button")[1]?.getAttribute("aria-pressed")==="true";})()');
+    await waitFor(client, 'flower petal grows when a goal receives its first assessment',
+      '(() => {const first=document.querySelector("svg[aria-label^=\\\"Blumenübersicht Lernziele\\\"] [data-flower-petal]");return first && Number(first.getAttribute("data-flower-progress")) > ' + JSON.stringify(metrics.firstGoalProgress) + ';})()');
     await setInputByLabel(client, 'Neue Notiz', 'Synthetische Testnotiz 2026');
     await clickButton(client, 'Notiz speichern');
     await waitFor(client, 'subject note saved', 'document.body?.innerText.includes("Synthetische Testnotiz 2026")', 12000);

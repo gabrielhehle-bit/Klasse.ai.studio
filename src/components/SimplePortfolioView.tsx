@@ -4,44 +4,8 @@ import { getAssessmentMode } from '../lib/GradeUtils';
 import { getSimpleAnnualGoalRatings, getSimpleSubjectAreas, getSimpleSubjectGrades } from '../lib/simplePortfolio';
 import { formatLocalDateKey } from '../lib/utils';
 import { LERNZIELE_BY_STUFE } from './LernzielTracker';
+import PortfolioFlower, { type FlowerPetal } from './PortfolioFlower';
 
-type Segment = { label: string; count: number; color: string };
-
-function CircleDiagram({
-  title, center, caption, segments, total,
-}: {
-  title: string; center: string; caption: string; segments: Segment[]; total: number;
-}) {
-  const radius = 43;
-  const perimeter = 2 * Math.PI * radius;
-  let distance = 0;
-  return (
-    <div className="flex min-w-0 flex-col items-center rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-sm">
-      <h3 className="text-base font-black text-slate-900">{title}</h3>
-      <svg viewBox="0 0 120 120" className="my-3 h-40 w-40 max-w-full" role="img"
-        aria-label={title + ': ' + caption + '. ' + segments.map(part => part.label + ' ' + part.count).join(', ')}>
-        <circle cx="60" cy="60" r={radius} fill="none" stroke="#e2e8f0" strokeWidth="14" />
-        {total > 0 && segments.filter(item => item.count > 0).map(item => {
-          const length = item.count / total * perimeter;
-          const offset = distance;
-          distance += length;
-          return <circle key={item.label} cx="60" cy="60" r={radius} fill="none" stroke={item.color}
-            strokeWidth="14" strokeDasharray={length + ' ' + perimeter} strokeDashoffset={-offset}
-            transform="rotate(-90 60 60)" />;
-        })}
-        <text x="60" y="58" textAnchor="middle" fontSize="22" fontWeight="800" fill="#0f172a">{center}</text>
-        <text x="60" y="74" textAnchor="middle" fontSize="8.5" fill="#475569">{title}</text>
-      </svg>
-      <p className="text-xs font-semibold text-slate-600">{caption}</p>
-      <div className="mt-3 flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-slate-600">
-        {segments.filter(item => item.count > 0).map(item => <span key={item.label} className="inline-flex items-center gap-1">
-          <i className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} aria-hidden="true" />
-          {item.label}: {item.count}
-        </span>)}
-      </div>
-    </div>
-  );
-}
 
 const GOAL_STEPS = [
   { value: null, label: 'Noch nicht eingeschätzt', icon: '', color: '#cbd5e1' },
@@ -89,17 +53,27 @@ export default function SimplePortfolioView() {
   const documented = goals.filter(goal => ratings[goal.id] !== undefined && ratings[goal.id] !== null).length;
   const gradeMode = getAssessmentMode(app, subject);
   const grades = getSimpleSubjectGrades(app, studentId, subject);
-  const goalSegments: Segment[] = GOAL_STEPS.map(step => ({
-    label: step.label, color: step.color,
-    count: step.value === null ? goals.length - documented : goals.filter(goal => ratings[goal.id] === step.value).length,
-  }));
-  // Keep historical nonstandard model values visible in the ring rather than hiding documented assessments.
-  const otherCount = documented - goalSegments.slice(1).reduce((sum, part) => sum + part.count, 0);
-  if (otherCount > 0) goalSegments.push({ label: 'Frühere Einschätzung', count: otherCount, color: '#64748b' });
-  const gradeSegments: Segment[] = [
-    '#059669', '#65a30d', '#eab308', '#f97316', '#e11d48',
-  ].map((color, index) => ({ label: 'Note ' + (index + 1), color,
-    count: grades.filter(grade => grade.group === index + 1).length }));
+  const flowerColors = ['#0d9488', '#4f46e5', '#d97706', '#be185d'] as const;
+  // All four petals represent the four visible subject areas. A larger petal
+  // means more goals have been documented, not a calculated attainment score.
+  const goalPetals = areas.map((area, index): FlowerPetal => ({
+    label: area.name,
+    count: area.goals.filter(goal => ratings[goal.id] !== null && ratings[goal.id] !== undefined).length,
+    total: area.goals.length,
+    color: flowerColors[index],
+  })) as [FlowerPetal, FlowerPetal, FlowerPetal, FlowerPetal];
+
+  // Grade petals show the count per existing gradebook assessment type, not
+  // the grade values (1–5) or an automatically calculated overall grade.
+  const gradeGroups = ['Schularbeit', 'Lernzielkontrolle', 'Wochenplan', 'Sonstige Leistung'] as const;
+  const gradeCounts = gradeGroups.map(group => grades.filter(grade => grade.label.startsWith(group + ' ')).length);
+  const gradeScale = Math.max(6, ...gradeCounts);
+  const gradePetals = gradeGroups.map((group, index): FlowerPetal => ({
+    label: group,
+    count: gradeCounts[index],
+    total: gradeScale,
+    color: flowerColors[index],
+  })) as [FlowerPetal, FlowerPetal, FlowerPetal, FlowerPetal];
   const notes = [...(app.notes || []), ...(app.journal || [])]
     .filter((note, index, all) => all.findIndex(item => item.id === note.id) === index)
     .filter(note => note.schuelerId === studentId && note.fach === subject)
@@ -177,8 +151,10 @@ export default function SimplePortfolioView() {
       <section aria-label={'Noten und Notizen in ' + subject}
         className="rounded-3xl border border-slate-200 bg-slate-50 p-3 sm:p-5">
         <div className="grid gap-4 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
-          <CircleDiagram title="Noten" center={String(grades.length)} caption={grades.length + ' dokumentiert'}
-            segments={gradeSegments} total={grades.length} />
+          <PortfolioFlower title="Noten" center={String(grades.length)}
+            caption={grades.length + ' Noteneinträge dokumentiert'}
+            petals={gradePetals} showDenominator={false}
+            note="Die Blätter zeigen die Anzahl der Einträge je Leistungsart, nicht die Höhe der Noten." />
           <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4">
             <h2 className="text-base font-black">Noten · {subject}</h2>
             {gradeMode !== 'grades'
@@ -217,8 +193,10 @@ export default function SimplePortfolioView() {
           <h2 className="text-xl font-black">Lernziele · {subject}</h2>
           <p className="mt-1 text-sm font-semibold text-slate-600">{documented} von {goals.length} dokumentiert</p>
           <div className="mt-2 flex justify-center">
-            <CircleDiagram title="Lernziele" center={documented + '/' + goals.length}
-              caption="Dokumentierte Lernziele" total={goals.length} segments={goalSegments} />
+            <PortfolioFlower title="Lernziele" center={documented + '/' + goals.length}
+              caption="Vier Blätter · vier Fachbereiche"
+              petals={goalPetals}
+              note="Je mehr Lernziele in einem Bereich eingeschätzt sind, desto weiter wächst sein Blatt. Die Blume ist keine Schulnote." />
           </div>
         </div>
         {areas.map(area => <section key={area.name} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
