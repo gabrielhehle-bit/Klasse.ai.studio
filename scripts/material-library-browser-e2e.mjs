@@ -254,8 +254,8 @@ async function main() {
     await waitFor(client, 'recovery code screen', 'document.body?.innerText.toLowerCase().includes("dein einmaliger wiederherstellungscode")', 30000);
     await clickCheckboxNearText(client, 'Ich habe den Wiederherstellungscode sicher notiert');
     await clickButton(client, 'Einrichtung abschließen');
-    await waitFor(client, 'first-run intro', 'document.body?.innerText.toLowerCase().includes("klassio passt sich dir an")', 30000);
-    await clickButton(client, 'Überspringen');
+    await waitFor(client, 'first-run setup', 'document.body?.innerText.toLowerCase().includes("willkommen bei klassio")', 30000);
+    await clickButton(client, 'Beispielklasse erkunden');
     await waitFor(client, 'daily dashboard',
       'Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").trim()==="Heute")', 30000);
 
