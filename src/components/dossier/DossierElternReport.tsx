@@ -44,16 +44,12 @@ const formatDate = (value?: string) => {
     : date.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-export default function DossierElternReport({ student, onStartPresentation, semester, onSemesterChange }: DossierElternReportProps) {
+export default function DossierElternReport({ student, onStartPresentation }: DossierElternReportProps) {
   const { app } = useApp();
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [reportStyle, setReportStyle] = useState('Aufbauend & Motivierend');
-  const [selectedSemester, setSelectedSemester] = useState<'1' | '2'>(semester || '2');
-
-  useEffect(() => {
-    if (semester) setSelectedSemester(semester);
-  }, [semester]);
+  const selectedSemester: '1' | '2' = '1';
 
   const diagnostics = useMemo(
     () => getValidStudentDiagnostics(app, student.id)
@@ -160,19 +156,6 @@ export default function DossierElternReport({ student, onStartPresentation, seme
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={selectedSemester}
-            onChange={event => {
-              const next = event.target.value as '1' | '2';
-              setSelectedSemester(next);
-              onSemesterChange?.(next);
-            }}
-            className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500"
-            aria-label="Semester für Elternbericht auswählen"
-          >
-            <option value="1">1. Semester</option>
-            <option value="2">2. Semester</option>
-          </select>
           {onStartPresentation && (
             <button
               type="button"
@@ -215,7 +198,7 @@ export default function DossierElternReport({ student, onStartPresentation, seme
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs font-bold text-slate-500">
               <span>{[app.stufe ? `${app.stufe}. Klasse` : '', app.klassenbezeichnung].filter(Boolean).join(' · ') || 'Klasse nicht erfasst'}</span>
               <span>Schuljahr {app.schuljahr || 'nicht erfasst'}</span>
-              <span>{selectedSemester}. Semester</span>
+              <span>Ganzes Schuljahr</span>
               <span>Stand: {new Date().toLocaleDateString('de-AT')}</span>
             </div>
           </div>
@@ -254,7 +237,7 @@ export default function DossierElternReport({ student, onStartPresentation, seme
         <section className="mt-8 grid gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <BarChart3 size={18} className="text-indigo-600" />
-            <div className="mt-3 text-[0.65rem] font-black uppercase tracking-wider text-slate-400">Lernleistungen · {selectedSemester}. Semester</div>
+            <div className="mt-3 text-[0.65rem] font-black uppercase tracking-wider text-slate-400">Lernleistungen · ganzes Schuljahr</div>
             <div className="mt-1 text-base font-black text-slate-900">
               {grades.hasData ? `${grades.gradedSubjects} ${grades.gradedSubjects === 1 ? 'Fach' : 'Fächer'} dokumentiert` : 'Noch nicht dokumentiert'}
             </div>
