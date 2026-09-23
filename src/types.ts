@@ -345,6 +345,10 @@ export interface AppNote {
   kategorie: 'Journal' | 'Verhalten' | 'Eltern' | 'Erfolg' | 'Notiz' | 'reflexion' | 'allgemein';
   inhalt: string;
   schuelerId?: string;
+  /** Optional school subject for an individual pupil note, e.g. Deutsch. */
+  fach?: string;
+  /** Optional subject sub-area, e.g. Lesen or Schreiben. */
+  teilbereich?: string;
   quelle?: string;
   icon?: string;
   /** Optional class-local pinned status. Legacy notes default to unpinned. */
@@ -420,6 +424,16 @@ export interface Student {
   stammdatenAktualisiertAm?: string;
   ikmNummer?: number; // Customizable number for matching IKM Plus records
   foerderprofil?: Foerderprofil;
+  /** Individuell erstellte Lernziele des Kindes; IDs bleiben bei Textänderungen stabil. */
+  manuelleLernziele?: {
+    id: string;
+    fach: string;
+    kompetenzbereich: string;
+    text: string;
+    stufe: number;
+    createdAt: string;
+    updatedAt: string;
+  }[];
   foto?: string;
   emoji?: string;
   badges?: { id: string, name: string, date: string, icon: string }[];
@@ -1137,6 +1151,7 @@ export interface ClassRoom {
     showSeconds?: boolean;
     yearlyColorPalette?: string;
     yearlyDensityMode?: 'kompakt' | 'normal' | 'detail';
+    defaultAttendancePresent?: boolean;
   };
   schuelerWochenplaene?: Record<string, SchuelerWochenplan>;
 }
@@ -1567,6 +1582,7 @@ export interface AppState {
     privacyPin?: string;
     vaultAutoLockMinutes?: number; // 15, 30, 60 (Standard), 120, oder 0 (nur beim Schließen)
     yearlyColorPalette?: string;
+    defaultAttendancePresent?: boolean;
   };
   mitarbeit_settings?: {
     mode?: 'absolute' | 'relative' | 'manual';
@@ -1755,7 +1771,17 @@ export interface Anekdote {
   tags?: string[];
 }
 
+export interface PersonalLesson {
+  tag: string;
+  stunde: number;
+  fach: string;
+  klasse: string;
+  raum: string;
+}
+
 export interface LehrerProfil {
+  /** Persönlicher Unterrichtsplan pro Schuljahr, unabhängig von allen Klassenprojektionen. */
+  stundenplanByYear?: Record<string, PersonalLesson[]>;
   schulstundenJaehrlich?: number;
   schularbeitenManuell?: number;
   testsManuell?: number;

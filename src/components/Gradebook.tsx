@@ -191,7 +191,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     ];
   }, [app.behavior_stages]);
   const commonIcons = ['🌟', '😊', '😐', '⚠️', '🚫', '🔥', '❤️', '👍', '👎', '👏', '🙌', '🤝', '💎', '🏆', '👑', '✨', '🚀', '⭐', '🎈', '🎉', '📝', '💬', '📖', '💡', '🍎', '🎒', '🎨', '🧩', '⚽', '💻', '🦁', '🐘', '🦎', '🦉', '🐝'];
-  const [sem, setSem] = useState<'1' | '2'>('1');
+  // The former first storage bucket now represents the complete school year.
+  // Retain historic second-bucket bytes for backup compatibility; never write there.
+  const sem: '1' | '2' = '1';
   const [showWeights, setShowWeights] = useState(false);
   const [showOverview, setShowOverview] = useState(() => initialSection === 'overview');
   const [showFeedback, setShowFeedback] = useState(false);
@@ -1635,12 +1637,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
               className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border-2 border-emerald-700 bg-emerald-600 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800">
               <Plus size={18} aria-hidden="true" /> Fach hinzufügen
             </button>
-            <label className="sr-only" htmlFor="gradebook-semester">Semester auswählen</label>
-            <select id="gradebook-semester" value={sem} onChange={event => setSem(event.target.value as '1' | '2')}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-600">
-              <option value="1">1. Semester</option>
-              <option value="2">2. Semester</option>
-            </select>
+            <span className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">Ganzes Schuljahr</span>
           </div>}
           {activeView !== 'verhalten' && (
             <div className="flex flex-wrap items-center gap-2">

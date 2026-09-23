@@ -186,6 +186,15 @@ export default function Behavior() {
   }, []);
   const dictation = useInlineDictation(appendDictation);
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
+  const [noteSubject, setNoteSubject] = useState('');
+  const [noteSubarea, setNoteSubarea] = useState('');
+  const noteSubjects = React.useMemo(() => Array.from(new Set([
+    ...(app.faecher || []), 'Deutsch', 'Mathematik', 'Sachunterricht', 'Englisch', 'Bewegung und Sport', 'Musik',
+  ])).filter(Boolean), [app.faecher]);
+  const subjectAreas: Record<string, string[]> = {
+    Deutsch: ['Lesen', 'Schreiben', 'Rechtschreiben', 'Sprechen & Hören', 'Sprachbetrachtung', 'Verfassen von Texten'],
+    Mathematik: ['Zahlen & Daten', 'Operationen', 'Größen', 'Ebene & Raum', 'Sachrechnen'],
+  };
   const [noteCategory, setNoteCategory] = useState<'Journal' | 'Verhalten' | 'Erfolg' | 'Eltern' | 'Notiz'>('Notiz');
   const [entryMode, setEntryMode] = useState<'note' | 'todo'>('note');
   const [aiLoading, setAiLoading] = useState(false);
@@ -194,6 +203,8 @@ export default function Behavior() {
     // Never carry a selected child from one class into another class's chronicle.
     dictation.cancel();
     setSelectedStudentId('');
+    setNoteSubject('');
+    setNoteSubarea('');
     setNewEntryText('');
     setEditingNoteId(null);
     setEditingNoteText('');
@@ -352,7 +363,9 @@ export default function Behavior() {
       selectedStudentId || undefined, 
       text, 
       noteCategory, 
-      'Notizen-Hauptbereich'
+      'Notizen-Hauptbereich',
+      undefined,
+      selectedStudentId && noteSubject ? { fach: noteSubject, teilbereich: noteSubarea } : undefined
     );
     
     setNewEntryText('');
@@ -472,7 +485,7 @@ export default function Behavior() {
                           className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-10 py-2.5 text-slate-800 text-sm font-semibold outline-none focus:border-indigo-400 appearance-none cursor-pointer"
                           value={selectedStudentId}
                           disabled={dictation.status !== 'idle'}
-                          onChange={e => setSelectedStudentId(e.target.value)}
+                          onChange={e => { setSelectedStudentId(e.target.value); setNoteSubject(''); setNoteSubarea(''); }}
                         >
                            <option value="" className="bg-white text-slate-900">Allgemeine Notiz</option>
                            <optgroup label="Schüler/innen" className="bg-white text-slate-900">
@@ -506,6 +519,32 @@ export default function Behavior() {
                         </div>
                      </div>
                   </div>
+                  )}
+
+                  {entryMode === 'note' && selectedStudentId && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" aria-label="Fachbezogene Schülernotiz">
+                      <label className="text-xs font-bold text-slate-700">
+                        Fach (optional)
+                        <select aria-label="Fach der Schülernotiz" value={noteSubject}
+                          onChange={e => { setNoteSubject(e.target.value); setNoteSubarea(''); }}
+                          className="mt-1 min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800">
+                          <option value="">Allgemeine Schülernotiz</option>
+                          {noteSubjects.map(fach => <option key={fach} value={fach}>{fach}</option>)}
+                        </select>
+                      </label>
+                      {noteSubject && (
+                        <label className="text-xs font-bold text-slate-700">
+                          Bereich (optional)
+                          <select aria-label="Fachbereich der Schülernotiz" value={noteSubarea}
+                            onChange={e => setNoteSubarea(e.target.value)}
+                            className="mt-1 min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800">
+                            <option value="">Ganzes Fach</option>
+                            {(subjectAreas[noteSubject] || []).map(area => <option key={area} value={area}>{area}</option>)}
+                            <option value="Sonstiges">Sonstiges</option>
+                          </select>
+                        </label>
+                      )}
+                    </div>
                   )}
 
                   <div className="relative">
@@ -668,6 +707,11 @@ export default function Behavior() {
                                  </div>
                               </div>
 
+                              {entry.fach && (
+                                <span className="self-start rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-bold text-indigo-800">
+                                  {entry.fach}{entry.teilbereich ? ` · ${entry.teilbereich}` : ''}
+                                </span>
+                              )}
                               {student && (
                                  <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white/70 px-2 py-1.5 print:border-0 print:p-0">
                                     <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-[0.875rem] leading-snug font-black text-accent  print:hidden">

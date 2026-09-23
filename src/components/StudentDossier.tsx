@@ -221,10 +221,10 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
   const activeMainArea = getActiveMainArea(activeTab);
 
   const [presentationModeActive, setPresentationModeActive] = useState<boolean>(false);
-  const [sem, setSem] = useState<'1' | '2'>('1');
-  const changeSemester = (nextSemester: '1' | '2') => {
-    setSem(nextSemester);
-  };
+  // All dossier tabs read/write the original first bucket as one school year.
+  // Do not delete any historical encrypted second-bucket records.
+  const sem: '1' | '2' = '1';
+  const changeSemester = (_nextSemester: '1' | '2') => { /* Single school-year view. */ };
   const activeFaecher = faecherFuerKlasse(app).filter(f => !app.faecher || app.faecher.includes(f));
 
   const [lernzieleInitialFach, setLernzieleInitialFach] = useState<string | undefined>(undefined);

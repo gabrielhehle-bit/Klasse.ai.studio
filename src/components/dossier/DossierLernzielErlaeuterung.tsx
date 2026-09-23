@@ -9,7 +9,7 @@ import LernzielVisualisierung from '../LernzielVisualisierung';
 /** Informal school-specific learning-goal explanation, not the independent
  * six-point Oberau certificate matrix or an automatic grade decision. */
 export default function DossierLernzielErlaeuterung({
-  student, semester, onSemesterChange,
+  student, semester,
 }: {
   student: Student;
   semester: '1' | '2';
@@ -52,7 +52,7 @@ export default function DossierLernzielErlaeuterung({
       })),
     }));
     setDirty(false);
-    showToast('Pädagogische Erläuterung bei diesem Kind und Semester gespeichert.', 'success');
+    showToast('Pädagogische Erläuterung für das Schuljahr gespeichert.', 'success');
   };
   return <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
     <header>
@@ -62,17 +62,6 @@ export default function DossierLernzielErlaeuterung({
         Kein amtliches Zeugnis. Die bestehende Oberau-Erläuterungsmatrix bleibt unter „Gespräche & Beurteilungen“ separat erhalten.
       </p>
     </header>
-    <div className="flex flex-wrap gap-2 print:hidden">
-      {(['1', '2'] as const).map(id => <button key={id} type="button"
-        onClick={() => {
-          if (dirty && !window.confirm('Ungespeicherte Änderungen verwerfen und Semester wechseln?')) return;
-          onSemesterChange(id);
-        }} aria-pressed={semester === id}
-        className={'rounded-xl border px-3 py-2 text-xs font-bold ' +
-          (semester === id ? 'border-emerald-700 bg-emerald-700 text-white' : 'border-slate-200 text-slate-700')}>
-        {id}. Semester
-      </button>)}
-    </div>
     <LernzielVisualisierung goalIds={goals} ratings={ratings} model={model} mode={model.views.parents} title="Dokumentierte Lernziel-Einschätzungen" />
     <label className="block text-sm font-bold text-slate-800">Pädagogische Erläuterung der Lehrperson
       <textarea className="input-field mt-2 min-h-40 w-full resize-y p-4 font-normal"

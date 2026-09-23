@@ -698,6 +698,22 @@ export default function WeeklyPlan() {
   const actualKW = getKW(actualToday);
   const activeKW = app.currentKW || actualKW;
 
+  // Opening the weekly planner always starts at the actual calendar week.
+  // Reset only the UI week pointer; never alter or delete any week's lessons.
+  // Subsequent prev/next/week-picker navigation remains under the teacher's control.
+  React.useEffect(() => {
+    // AppContext.setApp intentionally schedules encrypted persistence even
+    // for an unchanged object. Do not initiate a redundant encrypted save
+    // every time the planner opens on the already-current week.
+    if (app.currentKW !== actualKW) {
+      setApp(previous => previous.currentKW === actualKW
+        ? previous
+        : { ...previous, currentKW: actualKW });
+    }
+    // Only on this planner mount; changing the week must not reset navigation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const parkedLessons = app.parkgarage || [];
 
   const incompleteWeeklySlots = useMemo(

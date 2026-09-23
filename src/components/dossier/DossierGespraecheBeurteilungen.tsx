@@ -24,7 +24,7 @@ interface DossierGespraecheBeurteilungenProps {
 
 export default function DossierGespraecheBeurteilungen({
   student,
-  semester = '2',
+  semester = '1',
   onSemesterChange
 }: DossierGespraecheBeurteilungenProps) {
   const { app } = useApp();
@@ -163,7 +163,7 @@ export default function DossierGespraecheBeurteilungen({
       {/* Footer */}
       <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between text-[0.6875rem] text-slate-400">
         <span>Beurteilungsgrundlagen nach Lehrplan 2023 & Schulunterrichtsgesetz</span>
-        <span>Semester: {semester}. Semester</span>
+        <span>Ganzes Schuljahr</span>
       </div>
     </div>
   );

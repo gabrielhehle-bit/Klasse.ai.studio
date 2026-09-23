@@ -41,11 +41,9 @@ test("Schülerdossier: alte Sichtbarkeits- und Einfach/Experte-Logik ist aus der
   assert.ok(!dossier.includes("Sichtbare Bereiche konfigurieren"));
 });
 
-test("Schülerdossier: Semesterwechsel übernimmt die gewählte Hälfte", () => {
-  assert.match(
-    dossier,
-    /const changeSemester = \(nextSemester: '1' \| '2'\) => \{\s*setSem\(nextSemester\);\s*\};/,
-  );
+test("Schülerdossier: ein Schuljahr ohne Semesterwechsel", () => {
+  assert.match(dossier, /const sem: '1' \| '2' = '1';/);
+  assert.doesNotMatch(dossier, /setSem\(nextSemester\)/);
 });
 
 test("Schülerdossier: Detailfunktionen der fünf Bereiche bleiben vorhanden", () => {

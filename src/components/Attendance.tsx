@@ -214,6 +214,9 @@ export default function Attendance() {
   const tageInfo = dayName ? app.tageplan?.[dayName] || {} : {};
   const activeHours: number[] = tageInfo.stunden || [];
   const hasConfiguredHours = activeHours.length > 0;
+  // Only preview presence on the current school day; never write records until confirmed.
+  const tentativePresent = !!app.settings?.defaultAttendancePresent && !isFree &&
+    selectedDate === getLocalAttendanceDateKey() && hasConfiguredHours;
 
   // Active class name – keine erfundene Fallback-Klasse anzeigen.
   const classLabel = app.klassenbezeichnung || app.klasse || "";
@@ -956,9 +959,13 @@ export default function Attendance() {
 
         {/* Main Header Actions */}
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700" title="Nur Vorauswahl für den aktuellen Schultag. Vorhandene Fehlzeiten bleiben erhalten.">
+            <input type="checkbox" checked={!!app.settings?.defaultAttendancePresent} onChange={event => setApp(prev => ({ ...prev, settings: { ...prev.settings, defaultAttendancePresent: event.target.checked } }))} />
+            Standardmäßig anwesend
+          </label>
           {/* Quick "Alle anwesend" Action */}
           <button
-            onClick={() => setAllStudents("a")}
+            onClick={() => setAllStudents("a", true)}
             disabled={isFree || sortedStudents.length === 0 || activeHours.length === 0}
             className={`px-3.5 py-2.5 rounded-xl text-[0.75rem] font-extrabold flex items-center gap-1.5 transition-all cursor-pointer border ${
               isFree || sortedStudents.length === 0
@@ -968,8 +975,10 @@ export default function Attendance() {
             title="Alle Schüler für heute anwesend markieren"
           >
             <UserCheck size={16} className="text-emerald-600" />
-            <span>Alle anwesend</span>
+            <span>Nur offene anwesend</span>
           </button>
+
+          {tentativePresent && dayStats.untracked > 0 && <span className="text-xs text-amber-700" role="status">Anwesend ist nur vorausgewählt – bitte täglich bestätigen.</span>}
 
           {/* Primary Action "Abschließen" */}
           <button
@@ -1140,7 +1149,7 @@ export default function Attendance() {
               </span>
             ) : dayStats.untracked > 0 ? (
               <button
-                onClick={() => setAllStudents("a")}
+                onClick={() => setAllStudents("a", true)}
                 className="text-amber-800 font-bold text-[0.75rem] flex items-center gap-1 hover:underline cursor-pointer bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200"
               >
                 <AlertCircle size={13} className="text-amber-600" />
@@ -1257,7 +1266,10 @@ export default function Attendance() {
               )}
 
               {sortedStudents.map((s, idx) => {
-                const statusData = app.anwesenheit[s.id]?.[selectedDate] || {};
+                const storedStatus = app.anwesenheit[s.id]?.[selectedDate] || {};
+                const statusData = tentativePresent
+                  ? Object.fromEntries(activeHours.map(hour => [hour, storedStatus[hour] || 'a']))
+                  : storedStatus;
                 const details = app.anwesenheitDetail?.[s.id]?.[selectedDate];
 
                 const states = activeHours.map(hour => statusData[hour]).filter(Boolean);
@@ -1590,7 +1602,10 @@ export default function Attendance() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {sortedStudents.map((s, idx) => {
-                    const statusData = app.anwesenheit[s.id]?.[selectedDate] || {};
+                    const storedStatus = app.anwesenheit[s.id]?.[selectedDate] || {};
+                    const statusData = tentativePresent
+                      ? Object.fromEntries(activeHours.map(hour => [hour, storedStatus[hour] || 'a']))
+                      : storedStatus;
                     return (
                       <tr key={s.id} className="hover:bg-slate-50">
                         <td className="p-3 font-bold text-slate-300">{idx + 1}</td>

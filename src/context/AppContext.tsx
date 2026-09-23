@@ -446,6 +446,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const vaultKey = getActiveVaultKey();
     if (!vaultKey) return;
 
+    // Periodic account refresh only makes sense for an authenticated email
+    // session. Newly created local-only vaults must not be treated as lost
+    // cloud accounts before the teacher has even finished the class setup.
+    if (!await hasEmailAccountSession()) return;
+    // The teacher may lock the vault or switch account during the async check.
+    if (getActiveVaultKey() !== vaultKey || restoringRef.current) return;
+
     accountSyncBusyRef.current = true;
     try {
       const before = currentAppRef.current;

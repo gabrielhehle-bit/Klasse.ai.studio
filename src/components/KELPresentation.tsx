@@ -545,7 +545,7 @@ export default function KELPresentation({
         if (slideData.type === 'cover') {
           slide.addText(student.vorname, { x: 1.2, y: 2.0, w: 10.9, h: 1.0, align: 'center', fontFace: 'Aptos Display', fontSize: 40, bold: true, color: colors.ink, margin: 0 });
           slide.addText(t.welcome, { x: 1.2, y: 3.1, w: 10.9, h: 0.7, align: 'center', fontFace: 'Aptos', fontSize: 20, color: colors.primary, margin: 0 });
-          slide.addText(`${classLabel} · ${sem}. Semester · ${app.schuljahr || ''}`, { x: 2.2, y: 4.25, w: 8.9, h: 0.45, align: 'center', fontSize: 14, color: colors.muted, margin: 0 });
+          slide.addText(`${classLabel} · Schuljahr ${app.schuljahr || ''}`, { x: 2.2, y: 4.25, w: 8.9, h: 0.45, align: 'center', fontSize: 14, color: colors.muted, margin: 0 });
           continue;
         }
         if (slideData.type === 'path') {
@@ -670,7 +670,7 @@ export default function KELPresentation({
         </div>
         <div className="flex flex-wrap justify-center gap-2 text-xs font-bold text-slate-600">
           <span className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2">{classLabel}</span>
-          <span className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2">{sem}. Semester</span>
+          <span className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2">Ganzes Schuljahr</span>
           {app.schuljahr && <span className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2">{app.schuljahr}</span>}
         </div>
         <div className="max-w-2xl rounded-2xl border border-emerald-100 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-900">
@@ -865,7 +865,7 @@ export default function KELPresentation({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="text-base font-black text-slate-950">Notenmappe für dieses Gespräch auswählen</h2>
-              <p className="mt-1 text-xs text-slate-600">Nur für {student.vorname} · {sem}. Semester. Fächer und einzelne Bewertungen erscheinen erst, wenn du sie selbst auswählst. Es werden keine anderen Kinder oder Klassenvergleiche gezeigt.</p>
+              <p className="mt-1 text-xs text-slate-600">Nur für {student.vorname} · ganzes Schuljahr. Fächer und einzelne Bewertungen erscheinen erst, wenn du sie selbst auswählst. Es werden keine anderen Kinder oder Klassenvergleiche gezeigt.</p>
             </div>
             <button type="button" onClick={() => setShowConfig(true)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold">Weitere Folien wählen</button>
           </div>

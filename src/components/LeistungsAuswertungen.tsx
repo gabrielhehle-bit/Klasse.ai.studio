@@ -7,7 +7,7 @@ export default function LeistungsAuswertungen({
 }: { initialSubject: string; initialSemester: '1' | '2'; onBack: () => void }) {
   const { app, setPage } = useApp();
   const [subject, setSubject] = useState(initialSubject);
-  const [semester, setSemester] = useState<'1' | '2'>(initialSemester);
+  const semester: '1' | '2' = '1';
   const subjects = useMemo(() => [...new Set([
     ...(app.faecher || []),
     ...Object.values(app.noten || {}).flatMap(subjectMap => Object.keys(subjectMap || {})),
@@ -27,11 +27,7 @@ export default function LeistungsAuswertungen({
             {subjects.map(fach => <option key={fach} value={fach}>{fach}</option>)}
           </select>
         </label>
-        <label className="text-xs font-bold text-slate-700">Zeitraum
-          <select value={semester} onChange={e => setSemester(e.target.value as '1' | '2')} className="input-field mt-1 block">
-            <option value="1">1. Semester</option><option value="2">2. Semester</option>
-          </select>
-        </label>
+        <span className="self-end rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">Ganzes Schuljahr</span>
       </div>
     </div>
     {summary.totalCount === 0 ? <div className="rounded-2xl border border-slate-200 bg-white p-5">
@@ -40,7 +36,7 @@ export default function LeistungsAuswertungen({
       <button onClick={onBack} type="button" className="mt-3 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white">Zur Notenerfassung</button>
     </div> : <>
       <div className="rounded-2xl border border-slate-200 bg-white p-5">
-        <p className="text-xs font-bold text-slate-600">{summary.totalCount} auswertbare Fachstände · {semester}. Semester</p>
+        <p className="text-xs font-bold text-slate-600">{summary.totalCount} auswertbare Fachstände · Ganzes Schuljahr</p>
         {subject !== 'alle' && <p className="mt-2 text-lg font-black text-slate-900">{summary.averageDescriptor}: {summary.averageLabel}</p>}
         {subject === 'alle' && <p className="mt-2 text-sm text-slate-600">Kein fachübergreifender Durchschnitt: Schulnoten, Punkte und Prozente sind nicht dieselbe Skala.</p>}
         {subject !== 'alle' && summary.scale !== 'mixed' && <div className="mt-4 space-y-2" aria-label={summary.distributionDescriptor}>

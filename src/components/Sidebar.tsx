@@ -28,6 +28,7 @@ interface SidebarProps {
 const CORE_MODULE_IDS = new Set([
   'dashboard',
   'klasse',
+  'klassenstundenplan',
   'verhalten',
   'planung',
   'leistungen',
@@ -114,6 +115,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
     { id: 'dossier', label: 'Schülerdossier', icon: <GraduationCap size={18} />, section: 'Klasse & Kinder' },
     { id: 'sitzplan', label: 'Sitzplan & Gruppen', icon: <MapIcon size={18} />, section: 'Klasse & Kinder' },
     { id: 'anwesenheit', label: 'Anwesenheit & Befinden', icon: <Pin size={18} />, section: 'Klasse & Kinder' },
+    { id: 'klassenstundenplan', label: 'Klassenstundenplan', icon: <CalendarDays size={18} />, section: 'Klasse & Kinder' },
     { id: 'teamteaching', label: 'Teamteaching', icon: <UserPlus size={18} />, section: 'Klasse & Kinder' },
     { id: 'orga', label: 'Kasse & Orga', icon: <Wallet size={18} />, section: 'Klasse & Kinder' },
     { id: 'noten', label: 'Notenmappe', icon: <BarChart3 size={18} />, section: 'Leistungen' },
@@ -132,11 +134,12 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
     { id: 'archiv', label: 'Archiv', icon: <Archive size={18} />, section: 'Entwicklung & Berichte' },
     { id: 'drucken', label: 'Druckzentrum', icon: <Printer size={18} />, section: 'Ausgabe & Daten' },
     { id: 'datensicherung', label: 'Datensicherung', icon: <Database size={18} />, section: 'Ausgabe & Daten' },
+    { id: 'profil', label: 'Mein Profil & Stundenplan', icon: <GraduationCap size={18} />, section: 'Profil' },
     { id: 'settings', label: 'Einstellungen', icon: <SettingsIcon size={18} />, section: 'Ausgabe & Daten' },
   ];
 
   const SEK1_MODULES = [...ALL_MODULES, { id: 'stundenplan', label: 'Mein Stundenplan', icon: <Calendar size={18} />, section: 'Planung' }];
-  const utilityIds = new Set(['drucken', 'datensicherung', 'settings']);
+  const utilityIds = new Set(['profil', 'drucken', 'datensicherung', 'settings']);
   const restrictedForSubjectTeachers = new Set(['orga', 'uebergabemappe', 'diagnostik', 'klassengemeinschaft', 'jahresbericht']);
 
   const availableModules = (sek1 ? SEK1_MODULES : ALL_MODULES).filter(item =>
