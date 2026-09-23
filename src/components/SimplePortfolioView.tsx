@@ -153,7 +153,7 @@ export default function SimplePortfolioView() {
         <div className="grid gap-4 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
           <PortfolioFlower title="Noten" center={String(grades.length)}
             caption={grades.length + ' Noteneinträge dokumentiert'}
-            petals={gradePetals}
+            petals={gradePetals} showDenominator={false}
             note="Die Blätter zeigen die Anzahl der Einträge je Leistungsart, nicht die Höhe der Noten." />
           <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4">
             <h2 className="text-base font-black">Noten · {subject}</h2>
