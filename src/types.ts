@@ -1151,6 +1151,7 @@ export interface ClassRoom {
     showSeconds?: boolean;
     yearlyColorPalette?: string;
     yearlyDensityMode?: 'kompakt' | 'normal' | 'detail';
+    defaultAttendancePresent?: boolean;
   };
   schuelerWochenplaene?: Record<string, SchuelerWochenplan>;
 }
@@ -1581,6 +1582,7 @@ export interface AppState {
     privacyPin?: string;
     vaultAutoLockMinutes?: number; // 15, 30, 60 (Standard), 120, oder 0 (nur beim Schließen)
     yearlyColorPalette?: string;
+    defaultAttendancePresent?: boolean;
   };
   mitarbeit_settings?: {
     mode?: 'absolute' | 'relative' | 'manual';
