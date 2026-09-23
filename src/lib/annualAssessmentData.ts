@@ -46,6 +46,7 @@ export function annualAssessments(
         const value = values[index];
         if (value === undefined || value === null || String(value).trim() === '') continue;
         const key = CATEGORY_META[category];
+        const override = meta?.annualColumns?.[annualColumnKey(bucket, category, index)] || {};
         results.push({
           id: `${studentId}:${fach}:${bucket}:${category}:${index}`,
           studentId,
@@ -54,9 +55,9 @@ export function annualAssessments(
           sourceBucket: bucket,
           sourceIndex: index,
           value,
-          label: meta?.colLabels?.[key]?.[index],
-          date: meta?.colDates?.[key]?.[index],
-          maxPoints: meta?.maxPoints?.[key]?.[index],
+          label: override.label ?? meta?.colLabels?.[key]?.[index],
+          date: override.date ?? meta?.colDates?.[key]?.[index],
+          maxPoints: override.maxPoints ?? meta?.maxPoints?.[key]?.[index],
         });
       }
     }
@@ -64,3 +65,105 @@ export function annualAssessments(
 
   return results.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 }
+
+// Individual annual metadata must be source-aware: two historical columns with
+// the same category/index can have different dates or labels. Never overwrite
+// the legacy per-subject metadata merely to display them together.
+export type AnnualCategory = AnnualAssessment['category'];
+export type AnnualLegacyBucket = AnnualAssessment['sourceBucket'];
+export interface AnnualColumnMetadata {
+  label?: string;
+  date?: string;
+  maxPoints?: number;
+}
+export function annualColumnKey(bucket: AnnualLegacyBucket, category: AnnualCategory, index: number): string {
+  return `${bucket}:${category}:${index}`;
+}
+
+export function updateAnnualAssessment(
+  app: AppState,
+  entry: Pick<AnnualAssessment, 'studentId' | 'fach' | 'category' | 'sourceBucket' | 'sourceIndex'>,
+  value: number | string | null,
+  override?: AnnualColumnMetadata,
+): AppState {
+  const { studentId, fach, category, sourceBucket, sourceIndex } = entry;
+  const studentGrades = app.noten?.[studentId] || {};
+  const subjectGrades = studentGrades[fach] || {};
+  const dayGrades = subjectGrades[sourceBucket] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
+  const values = [...(dayGrades[category] || [])];
+  // Never shift indices or alter any other student's scores when editing.
+  if (sourceIndex < 0 || !Number.isSafeInteger(sourceIndex)) return app;
+  values[sourceIndex] = value;
+  const updated = {
+    ...app,
+    noten: {
+      ...app.noten,
+      [studentId]: {
+        ...studentGrades,
+        [fach]: {
+          ...subjectGrades,
+          [sourceBucket]: { ...dayGrades, [category]: values },
+        },
+      },
+    },
+  };
+  if (!override) return updated;
+  const currentMeta = app.notenMeta?.[fach] || {};
+  const annualColumns = currentMeta.annualColumns || {};
+  const key = annualColumnKey(sourceBucket, category, sourceIndex);
+  return {
+    ...updated,
+    notenMeta: {
+      ...app.notenMeta,
+      [fach]: {
+        ...currentMeta,
+        annualColumns: {
+          ...annualColumns,
+          [key]: { ...(annualColumns[key] || {}), ...override },
+        },
+      },
+    },
+  };
+}
+
+/**
+ * Annual additions append to a never-used column index across BOTH historical
+ * buckets. This avoids changing subject-wide column labels for existing rows.
+ * Newly saved items remain in the canonical first bucket; there is no user-
+ * visible academic term selector. All legacy rows remain editable by origin.
+ */
+export function addAnnualAssessment(
+  app: AppState,
+  studentId: string,
+  fach: string,
+  category: AnnualCategory,
+  value: number | string | null,
+  metadata: AnnualColumnMetadata = {},
+): AppState {
+  const allStudentGrades = app.noten || {};
+  const meta = app.notenMeta?.[fach] || {};
+  const key = category === 'aufgaben' ? 'obj' : category;
+  let maxIndex = -1;
+  for (const studentGrades of Object.values(allStudentGrades)) {
+    const subjects = studentGrades?.[fach];
+    for (const bucket of ['1', '2'] as const) {
+      const list = subjects?.[bucket]?.[category];
+      if (Array.isArray(list)) maxIndex = Math.max(maxIndex, list.length - 1);
+    }
+  }
+  const columnMetadata = [meta.colLabels?.[key], meta.colDates?.[key], meta.maxPoints?.[key]];
+  for (const data of columnMetadata) {
+    for (const index of Object.keys(data || {})) {
+      if (Number.isSafeInteger(Number(index)) && Number(index) >= 0) maxIndex = Math.max(maxIndex, Number(index));
+    }
+  }
+  for (const source of Object.keys(meta.annualColumns || {})) {
+    const match = source.match(/^[12]:[a-z]+:(\d+)$/);
+    if (match) maxIndex = Math.max(maxIndex, Number(match[1]));
+  }
+  const sourceIndex = maxIndex + 1;
+  return updateAnnualAssessment(app, {
+    studentId, fach, category, sourceBucket: '1', sourceIndex,
+  }, value, metadata);
+}
+
