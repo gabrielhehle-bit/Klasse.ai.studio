@@ -220,79 +220,160 @@ export default function SimplePortfolioView() {
       </div>
       <p className="mt-2 text-xs text-slate-500">Wähle die Werte für die Achsen aus. Die Konfiguration bleibt
         verschlüsselt in dieser Klasse gespeichert. Bestehende Bewertungen werden nicht gelöscht.</p>
-      {key.startsWith('goals:') && <div className="mt-5 border-t border-slate-200 pt-4">
-        <h4 className="text-base font-black text-slate-900">Eigene Lernziele und Diagrammwerte</h4>
-        <p className="mt-1 text-xs leading-relaxed text-slate-600">
-          Erstelle ein Lernziel für das ausgewählte Kind und Fach. Es erscheint sofort als eigene Achse und
-          im passenden Lernbereich. Den Diagrammwert kannst du von 0 bis 100 % einstellen.
-          Er ist eine individuelle Visualisierung und keine Schulnote oder automatische Lernzielbewertung.
-        </p>
-        <form onSubmit={addRadarGoal} className="mt-3 grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(9rem,0.5fr)_auto] sm:items-end">
-          <label className="min-w-0 text-xs font-bold text-slate-700">Neues Lernziel
-            <input aria-label="Eigenes Radar-Lernziel" type="text" maxLength={180} required
-              value={newRadarGoal} onChange={event => setNewRadarGoal(event.target.value)}
-              placeholder="z. B. Silben sicher lesen"
-              className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm" />
-          </label>
-          <label className="min-w-0 text-xs font-bold text-slate-700">Lernbereich
-            <select aria-label="Lernbereich für neues Radar-Lernziel"
-              value={areas.some(area => area.name === newRadarArea) ? newRadarArea : areas[0]?.name || ''}
-              onChange={event => setNewRadarArea(event.target.value)}
-              className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-2 text-sm">
-              {areas.map(area => <option key={area.name} value={area.name}>{area.name}</option>)}
-            </select>
-          </label>
-          <button type="submit" disabled={!newRadarGoal.trim() || ownRadarGoals.length >= 40}
-            className="min-h-11 rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-40">
-            Lernziel hinzufügen
-          </button>
-        </form>
-        {ownRadarGoals.length > 0 && <div className="mt-4 grid min-w-0 gap-3 lg:grid-cols-2">
-          {ownRadarGoals.map(goal => {
-            const value = getSimpleManualRadarValue(student, goal.id);
-            const selectedAxis = goalAxisIds.includes('goal:' + goal.id);
-            return <div key={goal.id} className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3"
-              data-custom-radar-goal={goal.id}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs font-semibold text-slate-600">{goal.kompetenzbereich}</span>
-                <span className="text-xs font-bold text-teal-700">
-                  {selectedAxis ? 'Eigene Diagrammachse' : 'Im Lernbereich enthalten'}
-                </span>
-              </div>
-              <label className="mt-2 block text-xs font-bold text-slate-700">Lernziel bearbeiten
-                <input key={goal.id} type="text" maxLength={180} defaultValue={goal.text}
-                  aria-label={'Eigenes Lernziel bearbeiten ' + goal.id}
-                  onBlur={event => {
-                    if (!event.currentTarget.value.trim()) event.currentTarget.value = goal.text;
-                    else if (event.currentTarget.value.trim() !== goal.text)
-                      renameRadarGoal(goal.id, event.currentTarget.value);
-                  }}
-                  className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm" />
-              </label>
-              <div className="mt-3 flex items-end gap-3">
-                <label className="min-w-0 flex-1 text-xs font-bold text-slate-700">
-                  Diagrammwert für dieses Kind
-                  <input type="range" min={0} max={100} step={1}
-                    aria-label={'Radarwert-Regler ' + goal.id}
-                    value={value ?? 0}
-                    onChange={event => setRadarValue(goal.id, Number(event.target.value))}
-                    className="mt-3 w-full accent-teal-700" />
+      {key.startsWith('goals:') && <div className="mt-5 space-y-5 border-t border-slate-200 pt-4">
+        <section aria-label="Bewertungsstufen bearbeiten">
+          <h4 className="text-base font-black text-slate-900">Bewertungsstufen selbst festlegen</h4>
+          <p className="mt-1 text-xs leading-relaxed text-slate-600">
+            Passe die Stufen an, die bei jedem Lernziel als Auswahl erscheinen. Du kannst 2 bis 10
+            Bewertungsstufen verwenden und zu jeder Stufe ihren Diagrammwert von 0–100 % festlegen.
+            Die Einstellung gilt für die gesamte ausgewählte Klasse; die Einschätzung bleibt pro Kind
+            und Lernziel individuell. Bereits gespeicherte Einschätzungen werden nicht umgeschrieben.
+          </p>
+          <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <label className="block text-xs font-bold text-slate-700">Unbewertet-Text
+              <input type="text" maxLength={50}
+                aria-label="Bezeichnung nicht eingeschätzt"
+                value={(levelDraft || levelModel).emptyLabel}
+                onChange={event => {
+                  const label = event.target.value;
+                  setLevelDraft(prev => ({ ...(prev || levelModel), emptyLabel: label }));
+                  setLevelError('');
+                }}
+                className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm" />
+            </label>
+            <p className="mt-1 text-xs text-slate-500">Nicht eingeschätzt bedeutet immer 0 % im Diagramm.</p>
+          </div>
+          <div className="mt-3 space-y-2">
+            {(levelDraft || levelModel).levels.map((stage, index) => {
+              const current = levelDraft || levelModel;
+              const used = verwendeteLernzielStufen(
+                app.studentLernzielSemesterBewertungen, app.studentLernzielBewertungen,
+              ).has(stage.value);
+              return <div key={stage.value} data-goal-level={stage.value}
+                className="grid min-w-0 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[minmax(0,1fr)_5rem_5rem_auto] sm:items-end">
+                <label className="min-w-0 text-xs font-bold text-slate-700">Stufe {index + 1} · Bezeichnung
+                  <input type="text" required maxLength={55}
+                    aria-label={'Bewertungsstufe ' + stage.value + ' benennen'}
+                    value={stage.label}
+                    onChange={event => editLevel(stage.value, { label: event.target.value,
+                      kurz: event.target.value.trim().slice(0, 25) || stage.kurz })}
+                    className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm" />
                 </label>
-                <label className="w-20 shrink-0 text-xs font-bold text-slate-700">Wert %
-                  <input type="number" min={0} max={100} step={1}
-                    aria-label={'Diagrammwert ' + goal.id}
-                    value={value ?? 0}
+                <label className="min-w-0 text-xs font-bold text-slate-700">Symbol
+                  <input type="text" maxLength={8} aria-label={'Symbol Stufe ' + stage.value}
+                    value={stage.symbol} onChange={event => editLevel(stage.value, { symbol: event.target.value })}
+                    className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-2 text-center text-sm" />
+                </label>
+                <label className="min-w-0 text-xs font-bold text-slate-700">Wert %
+                  <input type="number" min={0} max={100} step="0.1"
+                    aria-label={'Diagrammwert Stufe ' + stage.value}
+                    value={stage.radarPercent ?? Math.round(getLernzielRadarProgress(current, stage.value) * 1000) / 10}
                     onChange={event => {
-                      if (event.target.value !== '') setRadarValue(goal.id, Number(event.target.value));
+                      const value = Number(event.target.value);
+                      if (event.target.value !== '' && Number.isFinite(value) && value >= 0 && value <= 100)
+                        editLevel(stage.value, { radarPercent: value });
                     }}
                     className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-2 text-sm" />
                 </label>
-              </div>
-              <p className="mt-2 text-xs text-slate-500">Eine neue vierstufige Einschätzung dieses Ziels setzt
-                den manuellen Diagrammwert zurück. Andere Kinder behalten ihre eigenen Werte.</p>
-            </div>;
-          })}
-        </div>}
+                <button type="button" disabled={used || current.levels.length <= 2}
+                  title={used ? 'Diese Stufe wird bereits verwendet und kann nicht entfernt werden.' : 'Stufe entfernen'}
+                  onClick={() => removeLevel(stage.value)}
+                  className="min-h-11 rounded-lg border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700 disabled:cursor-not-allowed disabled:opacity-40">
+                  Entfernen
+                </button>
+                {used && <span className="text-xs text-slate-500 sm:col-span-4">
+                  Bereits verwendet · Bezeichnung und Diagrammwert bleiben bearbeitbar.
+                </span>}
+              </div>;
+            })}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button type="button" disabled={(levelDraft || levelModel).levels.length >= 10}
+              onClick={addLevel}
+              className="min-h-11 rounded-xl border border-indigo-300 px-4 py-2 text-sm font-bold text-indigo-700 disabled:opacity-40">
+              + Bewertungsstufe hinzufügen
+            </button>
+            <button type="button" disabled={!levelDraft} onClick={saveLevelModel}
+              className="min-h-11 rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-40">
+              Bewertungsstufen speichern
+            </button>
+            {levelDraft && <button type="button" onClick={() => {
+              setLevelDraft(null); setLevelError('');
+            }} className="min-h-11 rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-600">
+              Änderungen verwerfen
+            </button>}
+          </div>
+          {levelError && <p role="alert" className="mt-2 rounded-lg bg-rose-50 p-2 text-xs font-semibold text-rose-700">
+            {levelError}
+          </p>}
+          <p className="mt-2 text-xs text-slate-500">
+            Speichern aktualisiert die Lernziel-Buttons und die Radien des Spinnennetzdiagramms.
+            Die Stufen-IDs bleiben stabil; bereits verwendete Stufen sind vor dem Löschen geschützt.
+          </p>
+        </section>
+        <section aria-label="Eigene Lernziele bearbeiten" className="border-t border-slate-200 pt-4">
+          <h4 className="text-base font-black text-slate-900">Eigene Lernziele festlegen</h4>
+          <p className="mt-1 text-xs leading-relaxed text-slate-600">
+            Erstelle und bearbeite Lernziele für das ausgewählte Kind und Fach. Wähle danach für jedes
+            Lernziel eine der oben festgelegten Bewertungsstufen. Die Achse wächst entsprechend dem
+            Diagrammwert dieser Stufe.
+          </p>
+          <form onSubmit={addRadarGoal} className="mt-3 grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(9rem,0.5fr)_auto] sm:items-end">
+            <label className="min-w-0 text-xs font-bold text-slate-700">Neues Lernziel
+              <input aria-label="Eigenes Radar-Lernziel" type="text" maxLength={180} required
+                value={newRadarGoal} onChange={event => setNewRadarGoal(event.target.value)}
+                placeholder="z. B. Silben sicher lesen"
+                className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm" />
+            </label>
+            <label className="min-w-0 text-xs font-bold text-slate-700">Lernbereich
+              <select aria-label="Lernbereich für neues Radar-Lernziel"
+                value={areas.some(area => area.name === newRadarArea) ? newRadarArea : areas[0]?.name || ''}
+                onChange={event => setNewRadarArea(event.target.value)}
+                className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-2 text-sm">
+                {areas.map(area => <option key={area.name} value={area.name}>{area.name}</option>)}
+              </select>
+            </label>
+            <button type="submit" disabled={!newRadarGoal.trim() || ownRadarGoals.length >= 40}
+              className="min-h-11 rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-40">
+              Lernziel hinzufügen
+            </button>
+          </form>
+          {ownRadarGoals.length > 0 && <div className="mt-4 grid min-w-0 gap-3 lg:grid-cols-2">
+            {ownRadarGoals.map(goal => {
+              const selectedAxis = goalAxisIds.includes('goal:' + goal.id);
+              return <div key={goal.id} className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3"
+                data-custom-radar-goal={goal.id}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-slate-600">{goal.kompetenzbereich}</span>
+                  <span className="text-xs font-bold text-teal-700">
+                    {selectedAxis ? 'Eigene Diagrammachse' : 'Im Lernbereich enthalten'}
+                  </span>
+                </div>
+                <label className="mt-2 block text-xs font-bold text-slate-700">Lernziel bearbeiten
+                  <input key={goal.id} type="text" maxLength={180} defaultValue={goal.text}
+                    aria-label={'Eigenes Lernziel bearbeiten ' + goal.id}
+                    onBlur={event => {
+                      if (!event.currentTarget.value.trim()) event.currentTarget.value = goal.text;
+                      else if (event.currentTarget.value.trim() !== goal.text)
+                        renameRadarGoal(goal.id, event.currentTarget.value);
+                    }}
+                    className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm" />
+                </label>
+                <label className="mt-3 block text-xs font-bold text-slate-700">Einschätzung für dieses Kind
+                  <select aria-label={'Einschätzung eigenes Lernziel ' + goal.id}
+                    value={ratings[goal.id] ?? ''}
+                    onChange={event => setRating(goal.id, event.target.value === '' ? null : Number(event.target.value))}
+                    className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-2 text-sm">
+                    <option value="">{levelModel.emptyLabel} · 0 %</option>
+                    {levelModel.levels.map(stage => <option key={stage.value} value={stage.value}>
+                      {stage.symbol} {stage.label} · {Math.round(getLernzielRadarProgress(levelModel, stage.value) * 100)} %
+                    </option>)}
+                  </select>
+                </label>
+              </div>;
+            })}
+          </div>}
+        </section>
       </div>}
     </details>;
   // Every chart radius follows the saved class-local assessment scale.
