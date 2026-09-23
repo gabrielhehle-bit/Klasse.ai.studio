@@ -12,15 +12,15 @@ export interface FlowerPetal {
 
 const CENTER = 160;
 const RADIUS = 102;
-const point = (index: number, radius: number) => {
-  const angle = -Math.PI / 2 + index * Math.PI / 2;
+const point = (index: number, radius: number, axisCount: number) => {
+  const angle = -Math.PI / 2 + index * 2 * Math.PI / axisCount;
   return [CENTER + radius * Math.cos(angle), CENTER + radius * Math.sin(angle)] as const;
 };
 const points = (values: readonly number[]) =>
-  values.map((value, index) => point(index, value).join(',')).join(' ');
+  values.map((value, index) => point(index, value, values.length).join(',')).join(' ');
 
 /**
- * Four-axis radar / spider chart: each sharp, straight-edged tip points towards
+ * Configurable 3–8 axis radar / spider chart: each straight-edged tip points towards
  * its own subject area or assessment type, rather than forming flower petals.
  * The chart is a visualisation of explicitly recorded statuses or entry counts,
  * not a grade, diagnosis or automatically inferred student ability.
@@ -31,11 +31,12 @@ export default function PortfolioFlower({
   title: string;
   center: string;
   caption: string;
-  petals: readonly [FlowerPetal, FlowerPetal, FlowerPetal, FlowerPetal];
+  petals: readonly FlowerPetal[];
   note: string;
   showDenominator?: boolean;
 }) {
-  const progress = petals.map(petal => {
+  const axes = petals.slice(0, 8);
+  const progress = axes.map(petal => {
     const raw = petal.progress ?? (petal.total > 0 ? petal.count / petal.total : 0);
     return Number.isFinite(raw) ? Math.min(1, Math.max(0, raw)) : 0;
   });
@@ -44,25 +45,25 @@ export default function PortfolioFlower({
   return <div className="flex min-w-0 flex-col items-center rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-sm">
     <h3 className="text-base font-black text-slate-900">{title}</h3>
     <svg viewBox="0 0 320 320" role="img"
-      aria-label={'Spinnennetzdiagramm ' + title + ': ' + petals.map((petal, index) =>
+      aria-label={'Spinnennetzdiagramm ' + title + ': ' + axes.map((petal, index) =>
         petal.label + ' ' + petal.count + (showDenominator ? ' von ' + petal.total + ' eingeschätzt' : ' Einträge') +
         (showDenominator ? ', Stand ' + Math.round(progress[index] * 100) + ' Prozent' : '')).join(', ')}
       className="my-1 h-52 w-52 max-w-full sm:h-60 sm:w-60">
       {([1, 0.75, 0.5, 0.25] as const).map(step =>
-        <polygon key={step} data-radar-grid={step} points={points([0, 1, 2, 3].map(() => RADIUS * step))}
+        <polygon key={step} data-radar-grid={step} points={points(axes.map(() => RADIUS * step))}
           fill={step === 1 ? '#f8fafc' : 'none'} stroke="#cbd5e1"
           strokeWidth={step === 1 ? 1.7 : 1} strokeDasharray={step === 1 ? undefined : '3 3'} />)}
-      {[0, 1, 2, 3].map(index => {
-        const [x, y] = point(index, RADIUS);
+      {axes.map((petal, index) => {
+        const [x, y] = point(index, RADIUS, axes.length);
         return <line key={index} x1={CENTER} y1={CENTER} x2={x} y2={y}
           stroke="#cbd5e1" strokeWidth="1.5" />;
       })}
       <polygon data-radar-shape points={points(values)} fill="#14b8a6"
         fillOpacity="0.22" stroke="#0f766e" strokeWidth="2.5"
         strokeLinejoin="round" />
-      {petals.map((petal, index) => {
-        const [x, y] = point(index, values[index]);
-        const [labelX, labelY] = point(index, 139);
+      {axes.map((petal, index) => {
+        const [x, y] = point(index, values[index], axes.length);
+        const [labelX, labelY] = point(index, 139, axes.length);
         return <g key={petal.label}>
           <line x1={CENTER} y1={CENTER} x2={x} y2={y}
             stroke={petal.color} strokeWidth="3" strokeLinecap="round" />
@@ -82,7 +83,7 @@ export default function PortfolioFlower({
     </svg>
     <p className="text-xs font-semibold text-slate-600">{caption}</p>
     <div className="mt-3 grid w-full grid-cols-2 gap-2 text-left">
-      {petals.map((petal, index) => <div key={petal.label}
+      {axes.map((petal, index) => <div key={petal.label}
         className="rounded-xl bg-slate-50 px-2.5 py-2 text-xs text-slate-700">
         <div className="flex items-start gap-1.5 font-bold">
           <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white"
