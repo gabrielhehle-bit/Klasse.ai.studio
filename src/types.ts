@@ -1166,6 +1166,8 @@ export interface ClassRoom {
     yearlyColorPalette?: string;
     yearlyDensityMode?: 'kompakt' | 'normal' | 'detail';
     defaultAttendancePresent?: boolean;
+    /** Selected existing subject areas / goal IDs for configurable radar charts. */
+    portfolioRadarAxes?: Record<string, string[]>;
   };
   schuelerWochenplaene?: Record<string, SchuelerWochenplan>;
 }
@@ -1599,6 +1601,7 @@ export interface AppState {
     vaultAutoLockMinutes?: number; // 15, 30, 60 (Standard), 120, oder 0 (nur beim Schließen)
     yearlyColorPalette?: string;
     defaultAttendancePresent?: boolean;
+    portfolioRadarAxes?: Record<string, string[]>;
   };
   mitarbeit_settings?: {
     mode?: 'absolute' | 'relative' | 'manual';

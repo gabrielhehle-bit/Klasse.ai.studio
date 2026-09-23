@@ -259,10 +259,10 @@ async function main() {
       return {
         width: innerWidth,
         docWidth: document.documentElement.scrollWidth,
-        charts: document.querySelectorAll('svg[role=img][aria-label^="Blumenübersicht Noten"],svg[role=img][aria-label^="Blumenübersicht Lernziele"]').length,
-        gradePetals: document.querySelectorAll('svg[aria-label^="Blumenübersicht Noten"] [data-flower-petal]').length,
-        goalPetals: document.querySelectorAll('svg[aria-label^="Blumenübersicht Lernziele"] [data-flower-petal]').length,
-        firstGoalProgress: Number(document.querySelector('svg[aria-label^="Blumenübersicht Lernziele"] [data-flower-petal]')?.getAttribute('data-flower-progress')),
+        charts: document.querySelectorAll('svg[role=img][aria-label^="Spinnennetzdiagramm Noten"],svg[role=img][aria-label^="Spinnennetzdiagramm Lernziele"]').length,
+        gradePetals: document.querySelectorAll('svg[aria-label^="Spinnennetzdiagramm Noten"] [data-radar-axis]').length,
+        goalPetals: document.querySelectorAll('svg[aria-label^="Spinnennetzdiagramm Lernziele"] [data-radar-axis]').length,
+        firstGoalProgress: Number(document.querySelector('svg[aria-label^="Spinnennetzdiagramm Lernziele"] [data-radar-axis]')?.getAttribute('data-radar-progress')),
         areas: section?.querySelectorAll(':scope > section').length ?? 0,
         controls: document.querySelectorAll('[role=group][aria-label^="Lernziel einschätzen:"]').length,
         goalCount: section?.querySelector('p')?.textContent || '',
@@ -277,11 +277,16 @@ async function main() {
     if (!clicked) throw new Error('Cannot rate first demo-class goal.');
     await waitFor(client, 'goal rating saved in UI',
       '(() => {const g=document.querySelector("[role=group][aria-label^=\\\"Lernziel einschätzen:\\\"]");return g?.querySelectorAll("button")[1]?.getAttribute("aria-pressed")==="true";})()');
-    await waitFor(client, 'flower petal grows when a goal receives its first assessment',
-      '(() => {const first=document.querySelector("svg[aria-label^=\\\"Blumenübersicht Lernziele\\\"] [data-flower-petal]");return first && Number(first.getAttribute("data-flower-progress")) > ' + JSON.stringify(metrics.firstGoalProgress) + ';})()');
+    await waitFor(client, 'radar axis grows when a goal receives its first assessment',
+      '(() => {const first=document.querySelector("svg[aria-label^=\\\"Spinnennetzdiagramm Lernziele\\\"] [data-radar-axis]");return first && Number(first.getAttribute("data-radar-progress")) > ' + JSON.stringify(metrics.firstGoalProgress) + ';})()');
     await setInputByLabel(client, 'Neue Notiz', 'Synthetische Testnotiz 2026');
     await clickButton(client, 'Notiz speichern');
     await waitFor(client, 'subject note saved', 'document.body?.innerText.includes("Synthetische Testnotiz 2026")', 12000);
+    const expanded = await evaluate(client, '(() => {const item=Array.from(document.querySelectorAll("summary")).find(node=>node.textContent?.includes("Diagramm einstellen · 4 Werte") && node.closest("section[aria-label^=Lernziele]"));if(!item)return false;item.click();return true;})()');
+    if (!expanded) throw new Error('Cannot expand radar axis settings.');
+    await setInputByLabel(client, 'Anzahl Achsen Lernziele', '6');
+    await waitFor(client, 'six goal radar axes configured',
+      'document.querySelectorAll(\'svg[aria-label^="Spinnennetzdiagramm Lernziele"] [data-radar-axis]\').length === 6');
     await saveScreenshot(client);
     console.log('KLASSIO simple subject portfolio E2E passed with synthetic class only.');
   } finally { client.close(); }

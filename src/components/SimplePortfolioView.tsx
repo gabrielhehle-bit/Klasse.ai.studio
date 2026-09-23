@@ -53,27 +53,94 @@ export default function SimplePortfolioView() {
   const documented = goals.filter(goal => ratings[goal.id] !== undefined && ratings[goal.id] !== null).length;
   const gradeMode = getAssessmentMode(app, subject);
   const grades = getSimpleSubjectGrades(app, studentId, subject);
-  const flowerColors = ['#0d9488', '#4f46e5', '#d97706', '#be185d'] as const;
-  // All four petals represent the four visible subject areas. A larger petal
-  // means more goals have been documented, not a calculated attainment score.
-  const goalPetals = areas.map((area, index): FlowerPetal => ({
-    label: area.name,
-    count: area.goals.filter(goal => ratings[goal.id] !== null && ratings[goal.id] !== undefined).length,
-    total: area.goals.length,
-    color: flowerColors[index],
-  })) as [FlowerPetal, FlowerPetal, FlowerPetal, FlowerPetal];
-
-  // Grade petals show the count per existing gradebook assessment type, not
-  // the grade values (1–5) or an automatically calculated overall grade.
-  const gradeGroups = ['Schularbeit', 'Lernzielkontrolle', 'Wochenplan', 'Sonstige Leistung'] as const;
+  const radarColors = ['#0d9488', '#4f46e5', '#d97706', '#be185d',
+    '#0284c7', '#7c3aed', '#b45309', '#047857'];
+  const gradeGroups = ['Schularbeit', 'Lernzielkontrolle', 'Wochenplan', 'Sonstige Leistung'];
   const gradeCounts = gradeGroups.map(group => grades.filter(grade => grade.label.startsWith(group + ' ')).length);
   const gradeScale = Math.max(6, ...gradeCounts);
-  const gradePetals = gradeGroups.map((group, index): FlowerPetal => ({
-    label: group,
-    count: gradeCounts[index],
-    total: gradeScale,
-    color: flowerColors[index],
-  })) as [FlowerPetal, FlowerPetal, FlowerPetal, FlowerPetal];
+  const goalAxisChoices = [
+    ...areas.map(area => ({ id: 'area:' + area.name, label: area.name, goals: area.goals })),
+    ...goals.map(goal => ({ id: 'goal:' + goal.id, label: goal.text, goals: [goal] })),
+  ];
+  const goalAxisKey = 'goals:' + level + ':' + subject;
+  const gradeAxisKey = 'grades:' + subject;
+  const configuredAxes = app.settings.portfolioRadarAxes || {};
+  const selectAxes = (key: string, options: { id: string }[], defaults: string[]) => {
+    const selected = configuredAxes[key];
+    if (!Array.isArray(selected)) return defaults;
+    const unique = Array.from(new Set(selected)).filter(id => options.some(option => option.id === id)).slice(0, 8);
+    return unique.length >= 3 ? unique : defaults;
+  };
+  const goalAxisIds = selectAxes(goalAxisKey, goalAxisChoices, areas.map(area => 'area:' + area.name));
+  const gradeAxisChoices = gradeGroups.map(group => ({ id: group, label: group }));
+  const gradeAxisIds = selectAxes(gradeAxisKey, gradeAxisChoices, gradeGroups);
+  const updateAxes = (key: string, ids: string[]) => {
+    if (ids.length < 3 || ids.length > 8 || new Set(ids).size !== ids.length) return;
+    const ownerClass = classId;
+    setApp(prev => prev.activeClassId !== ownerClass ? prev : ({
+      ...prev,
+      settings: {
+        ...prev.settings,
+        portfolioRadarAxes: { ...(prev.settings.portfolioRadarAxes || {}), [key]: ids },
+      },
+    }));
+  };
+  const changeAxisCount = (key: string, selected: string[], options: { id: string }[], count: number) => {
+    if (!Number.isInteger(count) || count < 3 || count > Math.min(8, options.length)) return;
+    const next = selected.slice(0, count);
+    for (const option of options) {
+      if (next.length >= count) break;
+      if (!next.includes(option.id)) next.push(option.id);
+    }
+    updateAxes(key, next);
+  };
+  const axisSettings = (key: string, selected: string[], options: { id: string; label: string }[]) =>
+    <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+      <summary className="cursor-pointer font-bold">Diagramm einstellen · {selected.length} Werte</summary>
+      <label className="mt-3 block text-sm font-semibold">Anzahl der Achsen
+        <select aria-label={'Anzahl Achsen ' + (key.startsWith('goals:') ? 'Lernziele' : 'Noten')}
+          className="mt-1 block min-h-11 w-full rounded-lg border border-slate-300 bg-white px-2"
+          value={selected.length}
+          onChange={event => changeAxisCount(key, selected, options, Number(event.target.value))}>
+          {Array.from({ length: Math.min(8, options.length) - 2 }, (_, index) => index + 3)
+            .map(count => <option key={count} value={count}>{count} Werte</option>)}
+        </select>
+      </label>
+      <div className="mt-3 space-y-2">
+        {selected.map((id, index) => <label key={index} className="block text-xs font-semibold">
+          Achse {index + 1}
+          <select aria-label={'Radar ' + (key.startsWith('goals:') ? 'Lernziele' : 'Noten') + ' Achse ' + (index + 1)}
+            className="mt-1 block min-h-11 w-full rounded-lg border border-slate-300 bg-white px-2 text-sm"
+            value={id}
+            onChange={event => updateAxes(key, selected.map((current, i) => i === index ? event.target.value : current))}>
+            {options.map(option => <option key={option.id} value={option.id}
+              disabled={selected.includes(option.id) && option.id !== id}>{option.label}</option>)}
+          </select>
+        </label>)}
+      </div>
+      <p className="mt-2 text-xs text-slate-500">Nur vorhandene Fachbereiche, Lernziele bzw. Leistungsarten.
+        Die Auswahl wird in den verschlüsselten Klasseneinstellungen gespeichert; Einträge werden nicht gelöscht.</p>
+    </details>;
+  // Goal axes use the existing four-step assessments (0, ⅓, ⅔, 1).
+  // Missing evaluations have zero weight; the existing goal records do not change.
+  const goalPetals: FlowerPetal[] = goalAxisIds.map((id, index) => {
+    const axis = goalAxisChoices.find(choice => choice.id === id)!;
+    const axisGoals = axis.goals;
+    return {
+      label: axis.label, color: radarColors[index % radarColors.length],
+      count: axisGoals.filter(goal => ratings[goal.id] !== null && ratings[goal.id] !== undefined).length,
+      total: axisGoals.length,
+      progress: axisGoals.length ? axisGoals.reduce((sum, goal) => {
+        const rating = ratings[goal.id];
+        return sum + (rating === 1 ? 1 : rating === 2 ? 2 / 3 : rating === 3 ? 1 / 3 : 0);
+      }, 0) / axisGoals.length : 0,
+    };
+  });
+  // Grade axes represent entry counts, not school marks or averaged performance.
+  const gradePetals: FlowerPetal[] = gradeAxisIds.map((id, index) => ({
+    label: id, count: gradeCounts[gradeGroups.indexOf(id)], total: gradeScale,
+    color: radarColors[index % radarColors.length],
+  }));
   const notes = [...(app.notes || []), ...(app.journal || [])]
     .filter((note, index, all) => all.findIndex(item => item.id === note.id) === index)
     .filter(note => note.schuelerId === studentId && note.fach === subject)
@@ -154,7 +221,8 @@ export default function SimplePortfolioView() {
           <PortfolioFlower title="Noten" center={String(grades.length)}
             caption={grades.length + ' Noteneinträge dokumentiert'}
             petals={gradePetals} showDenominator={false}
-            note="Die Blätter zeigen die Anzahl der Einträge je Leistungsart, nicht die Höhe der Noten." />
+            note="Die Achsen zeigen ausschließlich die Anzahl der Einträge je Leistungsart – nicht die Notenhöhe oder Leistung." />
+          {axisSettings(gradeAxisKey, gradeAxisIds, gradeAxisChoices)}
           <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4">
             <h2 className="text-base font-black">Noten · {subject}</h2>
             {gradeMode !== 'grades'
@@ -194,10 +262,11 @@ export default function SimplePortfolioView() {
           <p className="mt-1 text-sm font-semibold text-slate-600">{documented} von {goals.length} dokumentiert</p>
           <div className="mt-2 flex justify-center">
             <PortfolioFlower title="Lernziele" center={documented + '/' + goals.length}
-              caption="Vier Blätter · vier Fachbereiche"
+              caption={goalAxisIds.length + ' Achsen · individuell auswählbar'}
               petals={goalPetals}
-              note="Je mehr Lernziele in einem Bereich eingeschätzt sind, desto weiter wächst sein Blatt. Die Blume ist keine Schulnote." />
+              note="Jede Achse wächst mit der dokumentierten Einschätzung der ausgewählten Ziele: in Entwicklung = ⅓, im Wesentlichen = ⅔, erreicht = vollständig. Noch nicht eingeschätzte Ziele zählen als 0. Das Diagramm ist keine Schulnote." />
           </div>
+          {axisSettings(goalAxisKey, goalAxisIds, goalAxisChoices)}
         </div>
         {areas.map(area => <section key={area.name} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <h3 className="mb-4 text-base font-black">{area.name} <span className="text-sm font-medium text-slate-500">({area.goals.length} Lernziele)</span></h3>
