@@ -45,7 +45,7 @@ test('grade ring only counts real grades, never interprets percentages as grades
   assert.deepEqual(getSimpleSubjectGrades(app, 'pupil', 'Deutsch'), []);
 });
 
-test('portfolio display shows two four-petal flowers, notes and four goal levels', () => {
+test('portfolio display shows two four-axis radar charts, notes and four goal levels', () => {
   const outer = readFileSync('src/components/Portfolio.tsx', 'utf8');
   const view = readFileSync('src/components/SimplePortfolioView.tsx', 'utf8');
   assert.match(outer, /mergeLegacyPortfolioEntries/);
@@ -58,10 +58,14 @@ test('portfolio display shows two four-petal flowers, notes and four goal levels
   assert.match(view, /areas\.map\(\(area, index\): FlowerPetal/);
   assert.match(view, /area\.goals\.filter\(goal => ratings\[goal\.id\]/);
   const flower = readFileSync('src/components/PortfolioFlower.tsx', 'utf8');
-  assert.match(flower, /data-flower-petal/);
-  assert.match(flower, /data-flower-progress/);
+  assert.match(flower, /data-radar-axis/);
+  assert.match(flower, /data-radar-progress/);
+  assert.match(flower, /data-radar-grid/);
+  assert.match(flower, /data-radar-shape/);
   assert.match(flower, /petals\.map\(\(petal, index\)/);
-  assert.match(flower, /Math\.min\(1, Math\.max\(0, petal\.count \/ petal\.total\)\)/);
+  assert.match(flower, /Math\.min\(1, Math\.max\(0, raw\)\)/);
+  assert.match(view, /rating === 1 \? 1 : rating === 2 \? 2 \/ 3 : rating === 3 \? 1 \/ 3 : 0/);
+  assert.match(view, /\}, 0\) \/ area\.goals\.length : 0/);
   assert.match(view, /aria-label="Fach auswählen"/);
   assert.match(view, /aria-label="Kind auswählen"/);
   assert.match(view, /GOAL_STEPS\.map/);
