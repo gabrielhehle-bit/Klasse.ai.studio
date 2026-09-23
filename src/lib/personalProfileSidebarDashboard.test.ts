@@ -22,12 +22,12 @@ test('teacher profile belongs to the account, never to a class projection or ano
     ],
   } as any;
   const stored = syncActiveClass(state);
-  assert.equal(stored.classes[0].lehrerProfil, undefined);
+  assert.equal((stored.classes[0] as any).lehrerProfil, undefined);
   const second = switchClassState(stored, 'b');
   assert.equal(second.lehrerProfil.name, 'Lea Beispiel');
   assert.equal(second.lehrerProfil.kuerzel, 'LBe');
   assert.equal(second.lehrerProfil.fotoDataUrl, profile.fotoDataUrl);
-  assert.equal(second.classes[1].lehrerProfil, undefined);
+  assert.equal((second.classes[1] as any).lehrerProfil, undefined);
   const restored = normalizeAppState(JSON.parse(JSON.stringify(second)));
   assert.equal(restored.lehrerProfil.titelbildDataUrl, profile.titelbildDataUrl);
 });
