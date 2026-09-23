@@ -48,7 +48,7 @@ export default function PortfolioFlower({
         petal.label + ' ' + petal.count + (showDenominator ? ' von ' + petal.total + ' eingeschätzt' : ' Einträge') +
         (showDenominator ? ', Stand ' + Math.round(progress[index] * 100) + ' Prozent' : '')).join(', ')}
       className="my-1 h-52 w-52 max-w-full sm:h-60 sm:w-60">
-      {([0.25, 0.5, 0.75, 1] as const).map(step =>
+      {([1, 0.75, 0.5, 0.25] as const).map(step =>
         <polygon key={step} data-radar-grid={step} points={points([0, 1, 2, 3].map(() => RADIUS * step))}
           fill={step === 1 ? '#f8fafc' : 'none'} stroke="#cbd5e1"
           strokeWidth={step === 1 ? 1.7 : 1} strokeDasharray={step === 1 ? undefined : '3 3'} />)}
