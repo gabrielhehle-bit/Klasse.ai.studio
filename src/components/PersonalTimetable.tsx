@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, Plus, ArrowRight, RotateCcw, Link2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, ArrowRight, Link2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { TAGE_NAMEN, LESSON_SLOT_NUMBERS, STUNDEN_INFO } from '../constants';
 import type { PersonalLesson, PersonalLessonKind, PersonalTimetableException } from '../types';
@@ -60,7 +60,6 @@ export default function PersonalTimetable() {
   const storePlan = (
     updater: (old: PersonalLesson[], oldExceptions: PersonalTimetableException[]) =>
       { lessons: PersonalLesson[]; exceptions: PersonalTimetableException[] },
-    baseApp = app,
   ) => {
     setApp(prev => {
       const old = prev.lehrerProfil?.stundenplanByYear?.[year] || [];
@@ -68,7 +67,6 @@ export default function PersonalTimetable() {
       const updated = updater(old, oldExceptions);
       return {
         ...prev,
-        ...(baseApp !== app ? {} : {}),
         lehrerProfil: {
           ...(prev.lehrerProfil || {}),
           stundenplanByYear: { ...(prev.lehrerProfil?.stundenplanByYear || {}), [year]: updated.lessons },
@@ -270,7 +268,7 @@ export default function PersonalTimetable() {
       } };
     });
   };
-  const openClassPlanning = (lesson: PersonalLesson, datum: string) => {
+  const openClassPlanning = (lesson: PersonalLesson) => {
     const room = rooms.find(item => item.id === lesson.quelle?.classId);
     if (!room) return;
     if (app.activeClassId !== room.id) switchClass(room.id);
@@ -311,7 +309,7 @@ export default function PersonalTimetable() {
       </div>}
       {lesson.quelle && <div className="border-t border-current/10 pt-1">
         {classPlanningPreview(lesson, datum) && <p className="mb-1 line-clamp-2">Diese Woche: {classPlanningPreview(lesson, datum)}</p>}
-        <button type="button" onClick={() => openClassPlanning(lesson, datum)}
+        <button type="button" onClick={() => openClassPlanning(lesson)}
           className="inline-flex min-h-9 items-center gap-1 font-bold text-indigo-700">
           <Link2 size={13} /> Wochenplanung der Klasse öffnen <ArrowRight size={12} />
         </button>
@@ -462,7 +460,21 @@ export default function PersonalTimetable() {
             onChange={event => setDraft(prev => ({ ...prev, raum: event.target.value }))}
             className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3" />
         </label>
-        {editing.onlyDate ? <p className="text-sm font-bold">Tag · {editing.datum}</p> :
+        {editing.onlyDate ? (editing.original
+          ? <p className="text-sm font-bold">Tag · {editing.datum}</p>
+          : <label className="text-sm font-bold">Tag dieser Woche
+              <select aria-label="Datum des einmaligen Termins" value={editing.datum}
+                onChange={event => {
+                  const day = dates.find(item => item.datum === event.target.value);
+                  if (day) {
+                    setEditing(prev => prev ? { ...prev, datum: day.datum, tag: day.tag } : prev);
+                    setDraft(prev => ({ ...prev, tag: day.tag }));
+                  }
+                }}
+                className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-2">
+                {dates.map(day => <option key={day.datum} value={day.datum}>{day.tag} · {day.datum}</option>)}
+              </select>
+            </label>) :
           <label className="text-sm font-bold">Wochentag
             <select value={draft.tag} aria-label="Persönlicher Wochentag"
               onChange={event => setDraft(prev => ({ ...prev, tag: event.target.value }))}
