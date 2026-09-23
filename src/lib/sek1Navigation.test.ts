@@ -5,7 +5,7 @@ import { istSekundarstufe, istSek1Navigationsziel, SEK1_NAVIGATION_IDS, sek1Seit
 test('secondary schools get exactly the requested pedagogical modules plus essential data utilities', () => {
   const expected = [
     'dashboard', 'jahresplanung', 'wochenplanung', 'schueler', 'sitzplan',
-    'noten', 'anwesenheit', 'stundenplan', 'verhalten', 'dossier', 'drucken',
+    'noten', 'anwesenheit', 'stundenplan', 'klassenstundenplan', 'profil', 'verhalten', 'dossier', 'drucken',
     'datensicherung', 'settings',
   ];
   assert.deepEqual([...SEK1_NAVIGATION_IDS], expected);
