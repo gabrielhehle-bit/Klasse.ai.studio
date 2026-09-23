@@ -187,6 +187,7 @@ import { BoardInk, type InkItem } from "./cockpit/BoardInk";
 import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
 import { PLANNED_COCKPIT_WIDGETS } from "./cockpit/plannedCockpitCatalog";
 import ClassroomWeeklyPlanWidget from "./cockpit/widgets/ClassroomWeeklyPlanWidget";
+import HomeworkWidget from "./cockpit/widgets/HomeworkWidget";
 import { getCheckInMode, getCheckInPreferences } from "../lib/checkInWidgetMode";
 import { getRandomNameWidgetPreferences } from "../lib/randomNameWidgetModel";
 import { getGroupWidgetPreferences, applyGroupWidgetPreference, type GroupWidgetPreferences } from "../lib/groupWidgetPreferences";
@@ -1663,6 +1664,7 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     visible: false,
   },
   { id: "widget-classweeklyplan", type: "classweeklyplan", x: 0, y: 0, w: 100, h: 100, visible: false },
+  { id: "widget-homework", type: "homework", x: 30, y: 22, w: 50, h: 58, visible: false },
   {
     id: "widget-noisemeter",
     type: "noisemeter",
@@ -2600,6 +2602,7 @@ const loadAndSanitizeLayout = (layout: any): CockpitWidgetConfig[] => {
     "trafficlight",
     "randomname",
     "classweeklyplan",
+    "homework",
     "noisemeter",
     "vocabulary",
     "studentlist",
@@ -3319,6 +3322,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       "trafficlight",
       "randomname",
       "classweeklyplan",
+    "homework",
       "noisemeter",
       "vocabulary",
       "studentlist",
@@ -8683,6 +8687,7 @@ ${content}
                                       },
                                       { type: "todo", category: "struct" },
                                       { type: "classweeklyplan", category: "struct" },
+                                      { type: "homework", category: "struct" },
                                       { type: "dienste", category: "struct" },
                                       { type: "links", category: "struct" },
                                       { type: "phases", category: "struct" },
@@ -9049,6 +9054,12 @@ ${content}
                                         type: "classweeklyplan",
                                         label: "📋 Wochenplan der Kinder",
                                         desc: "Gemeinsamer Plan, persönliche Häkchen und Schwierigkeitseinschätzung",
+                                        category: "struct",
+                                      },
+                                      {
+                                        type: "homework",
+                                        label: "📚 Hausübungen",
+                                        desc: "Alle HÜ nach Ausgabetag, Fach und Abgabetermin",
                                         category: "struct",
                                       },
                                       {
@@ -11451,6 +11462,9 @@ ${content}
 
                                     case "classweeklyplan":
                                       return <ClassroomWeeklyPlanWidget widget={widget} />;
+
+                                    case "homework":
+                                      return <HomeworkWidget />;
 
                                     case "randomname":
                                       return (
