@@ -9,6 +9,8 @@ export interface LernzielStufe {
   kurz: string;
   color: string;
   symbol: string;
+  /** Optional visual radius (0–100%) for the portfolio radar, not a school mark. */
+  radarPercent?: number;
 }
 export interface LernzielBewertungsmodell {
   version: 1;
@@ -60,8 +62,14 @@ export function parseLernzielModell(input: unknown): LernzielBewertungsmodell {
         ids.has(value) || !label || !kurz || !colorPattern.test(color)) {
       throw new Error('Jede Stufe benötigt eindeutige ID, Namen, Kurzform und gültige Farbe.');
     }
+    const radarPercent = entry.radarPercent;
+    if (radarPercent !== undefined && (typeof radarPercent !== 'number' ||
+        !Number.isFinite(radarPercent) || radarPercent < 0 || radarPercent > 100)) {
+      throw new Error('Der Diagrammwert muss zwischen 0 und 100 % liegen.');
+    }
     ids.add(value);
-    return { value, label, kurz, color, symbol };
+    return { value, label, kurz, color, symbol,
+      ...(radarPercent === undefined ? {} : { radarPercent }) };
   });
   const views = obj.views as Record<string, unknown> | undefined;
   const kind = views?.kind, parents = views?.parents, teachers = views?.teachers;
@@ -74,6 +82,22 @@ export function parseLernzielModell(input: unknown): LernzielBewertungsmodell {
 export function getLernzielModell(stored: unknown): LernzielBewertungsmodell {
   try { return parseLernzielModell(stored); }
   catch { return STANDARD_LERNZIEL_MODELL; }
+}
+
+/** Computes a plotted radius only; the stored status ID remains stable.
+ * Legacy statuses 3/2/1 retain their historical radius when no explicit value
+ * was set. Unknown historical IDs must not be silently promoted to a status. */
+export function getLernzielRadarProgress(model: LernzielBewertungsmodell, value: number | null | undefined): number {
+  if (value === null || value === undefined) return 0;
+  const index = model.levels.findIndex(level => level.value === value);
+  if (index < 0) return 0;
+  const level = model.levels[index];
+  if (level.radarPercent !== undefined) return level.radarPercent / 100;
+  // Original values remain ⅓, ⅔, 1 even when another level is added.
+  if (value === 3) return 1 / 3;
+  if (value === 2) return 2 / 3;
+  if (value === 1) return 1;
+  return (index + 1) / model.levels.length;
 }
 
 export function verwendeteLernzielStufen(
