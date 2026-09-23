@@ -167,3 +167,49 @@ export function addAnnualAssessment(
   }, value, metadata);
 }
 
+
+
+// A class-wide annual column is identified by its source, not just its
+// original numeric index; legacy columns from two terms can overlap.
+export interface AnnualColumn extends AnnualColumnMetadata {
+  id: string;
+  category: AnnualCategory;
+  sourceBucket: AnnualLegacyBucket;
+  sourceIndex: number;
+}
+export function annualColumns(app: AppState, fach: string): AnnualColumn[] {
+  const meta = app.notenMeta?.[fach] || {};
+  const columns = new Map<string, AnnualColumn>();
+  const categories: AnnualCategory[] = ['sa', 'lzk', 'wp', 'aufgaben'];
+  for (const category of categories) {
+    const key = category === 'aufgaben' ? 'obj' : category;
+    for (const bucket of ['1', '2'] as const) {
+      const indices = new Set<number>();
+      for (const data of Object.values(app.noten || {})) {
+        const list = data?.[fach]?.[bucket]?.[category];
+        if (Array.isArray(list)) list.forEach((_, i) => { if (i in list) indices.add(i); });
+      }
+      for (const entry of Object.keys(meta.annualColumns || {})) {
+        const match = entry.match(new RegExp(`^${bucket}:${category}:(\\d+)$`));
+        if (match) indices.add(Number(match[1]));
+      }
+      for (const index of indices) {
+        const id = annualColumnKey(bucket, category, index);
+        const override = meta.annualColumns?.[id] || {};
+        columns.set(id, {
+          id, sourceBucket: bucket, category, sourceIndex: index,
+          label: override.label ?? meta.colLabels?.[key]?.[index],
+          date: override.date ?? meta.colDates?.[key]?.[index],
+          maxPoints: override.maxPoints ?? meta.maxPoints?.[key]?.[index],
+        });
+      }
+    }
+  }
+  return [...columns.values()].sort((a, b) =>
+    (a.date || '').localeCompare(b.date || '') ||
+    categories.indexOf(a.category) - categories.indexOf(b.category) ||
+    a.sourceBucket.localeCompare(b.sourceBucket) ||
+    a.sourceIndex - b.sourceIndex
+  );
+}
+
