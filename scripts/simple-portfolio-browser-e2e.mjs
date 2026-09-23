@@ -284,7 +284,7 @@ async function main() {
     await waitFor(client, 'subject note saved', 'document.body?.innerText.includes("Synthetische Testnotiz 2026")', 12000);
     const expanded = await evaluate(client, '(() => {const item=Array.from(document.querySelectorAll("summary")).find(node=>node.textContent?.includes("Diagramm einstellen · 4 Werte") && node.closest("section[aria-label^=Lernziele]"));if(!item)return false;item.click();return true;})()');
     if (!expanded) throw new Error('Cannot expand radar axis settings.');
-    await setInputByLabel(client, 'Anzahl der Achsen', '6');
+    await setInputByLabel(client, 'Anzahl Achsen Lernziele', '6');
     await waitFor(client, 'six goal radar axes configured',
       'document.querySelectorAll(\'svg[aria-label^="Spinnennetzdiagramm Lernziele"] [data-radar-axis]\').length === 6');
     await saveScreenshot(client);
