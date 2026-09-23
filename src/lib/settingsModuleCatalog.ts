@@ -29,6 +29,7 @@ export const AVAILABLE_MODULES: KlassioModuleCatalogEntry[] = [
   { id: 'dossier', label: 'Schülerdossier', desc: 'Individuelle Dossiers, Entwicklung und Stammdaten', category: 'Klasse & Kinder' },
   { id: 'sitzplan', label: 'Sitzplan & Gruppen', desc: 'Sitzordnung und Gruppen organisieren', category: 'Klasse & Kinder' },
   { id: 'anwesenheit', label: 'Anwesenheit & Befinden', desc: 'Präsenz, Befinden und Tagesstatus erfassen', category: 'Klasse & Kinder' },
+  { id: 'klassenstundenplan', label: 'Klassenstundenplan', desc: 'Wochenstunden und Fächer der aktiven Klasse bearbeiten', category: 'Klasse & Kinder' },
   { id: 'teamteaching', label: 'Teamteaching', desc: 'Klasse gezielt mit Kolleg:innen derselben Schule teilen', category: 'Klasse & Kinder' },
   { id: 'verhalten', label: 'Notizen', desc: 'Alle Klassen- und Schülernotizen zentral erfassen und durchsuchen', category: 'Start' },
   { id: 'orga', label: 'Kasse & Orga', desc: 'Klassenkasse, Geldsammlungen und Organisation', category: 'Klasse & Kinder', condition: (app: any) => app.klassenvorstand },
@@ -50,5 +51,6 @@ export const AVAILABLE_MODULES: KlassioModuleCatalogEntry[] = [
   { id: 'jahresbericht', label: 'Jahresbericht', desc: 'Jahresrückblick und Berichte erstellen', category: 'Entwicklung & Berichte', condition: (app: any) => app.klassenvorstand },
   { id: 'archiv', label: 'Archiv', desc: 'Abgeschlossene Schuljahre und Verläufe', category: 'Entwicklung & Berichte' },
 
+  { id: 'profil', label: 'Mein Profil & Stundenplan', desc: 'Persönliche Lehrkraftdaten und eigenen Stundenplan verwalten', category: 'Profil' },
   { id: 'drucken', label: 'Druckzentrum', desc: 'Druck- und Ausgabeformate zentral aufrufen', category: 'Ausgabe & Daten' },
 ];
