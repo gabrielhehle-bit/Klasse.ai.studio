@@ -905,21 +905,21 @@ export default function Attendance() {
       {/* ========================================================= */}
       {/* 3. SIMPLIFIED HEADER SECTION                             */}
       {/* ========================================================= */}
-      <header className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 print:hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <header className="min-w-0 bg-white rounded-2xl p-3 sm:p-5 shadow-sm border border-slate-200/80 print:hidden flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 md:gap-4">
         {/* Title, Date & Class */}
-        <div className="flex items-center gap-3">
+        <div className="flex w-full min-w-0 items-center gap-2 sm:gap-3 md:w-auto">
           <button
             onClick={() => navDate(-1)}
             aria-label="Vorheriger Schultag"
             title="Vorheriger Schultag"
-            className="p-2.5 hover:bg-slate-100 text-slate-600 rounded-xl border border-slate-200/70 transition-all active:scale-95 cursor-pointer shrink-0"
+            className="flex h-10 w-10 items-center justify-center hover:bg-slate-100 text-slate-600 rounded-xl border border-slate-200/70 transition-all active:scale-95 cursor-pointer shrink-0"
           >
             <ChevronLeft size={20} />
           </button>
 
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-[1.125rem] font-black text-slate-900 tracking-tight leading-none uppercase">
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
+              <h1 className="text-[0.9375rem] sm:text-[1.125rem] font-black text-slate-900 tracking-tight leading-none uppercase">
                 Anwesenheit
               </h1>
               {classLabel && (
@@ -928,10 +928,10 @@ export default function Attendance() {
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex min-w-0 items-center gap-1.5 mt-2 sm:mt-1">
               <label className="text-[0.875rem] font-bold text-slate-600 hover:text-emerald-700 transition-colors cursor-pointer flex items-center gap-1.5">
                 <Calendar size={14} className="text-emerald-600" />
-                <span>{formattedDate}</span>
+                <span className="block min-w-0 truncate text-[0.75rem] sm:text-[0.875rem]">{formattedDate}</span>
                 <input
                   type="date"
                   className="sr-only"
@@ -951,15 +951,15 @@ export default function Attendance() {
             onClick={() => navDate(1)}
             aria-label="Nächster Schultag"
             title="Nächster Schultag"
-            className="p-2.5 hover:bg-slate-100 text-slate-600 rounded-xl border border-slate-200/70 transition-all active:scale-95 cursor-pointer shrink-0"
+            className="flex h-10 w-10 items-center justify-center hover:bg-slate-100 text-slate-600 rounded-xl border border-slate-200/70 transition-all active:scale-95 cursor-pointer shrink-0"
           >
             <ChevronRight size={20} />
           </button>
         </div>
 
         {/* Main Header Actions */}
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700" title="Nur Vorauswahl für den aktuellen Schultag. Vorhandene Fehlzeiten bleiben erhalten.">
+        <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-2 md:flex md:w-auto md:flex-wrap md:justify-end">
+          <label className="col-span-3 inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold md:col-auto text-slate-700" title="Nur Vorauswahl für den aktuellen Schultag. Vorhandene Fehlzeiten bleiben erhalten.">
             <input type="checkbox" checked={!!app.settings?.defaultAttendancePresent} onChange={event => setApp(prev => ({ ...prev, settings: { ...prev.settings, defaultAttendancePresent: event.target.checked } }))} />
             Standardmäßig anwesend
           </label>
@@ -967,15 +967,15 @@ export default function Attendance() {
           <button
             onClick={() => setAllStudents("a", true)}
             disabled={isFree || sortedStudents.length === 0 || activeHours.length === 0}
-            className={`px-3.5 py-2.5 rounded-xl text-[0.75rem] font-extrabold flex items-center gap-1.5 transition-all cursor-pointer border ${
+            className={`min-h-11 min-w-0 px-2 sm:px-3.5 py-2.5 rounded-xl text-[0.75rem] font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer border ${
               isFree || sortedStudents.length === 0
                 ? "opacity-40 grayscale cursor-not-allowed bg-slate-50 text-slate-400 border-slate-200"
                 : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border-emerald-200/80 active:scale-95 shadow-xs"
             }`}
-            title="Alle Schüler für heute anwesend markieren"
+            title="Nur offene Stunden als anwesend markieren"
           >
             <UserCheck size={16} className="text-emerald-600" />
-            <span>Nur offene anwesend</span>
+            <span className="sm:hidden">Offene anwesend</span><span className="hidden sm:inline">Nur offene anwesend</span>
           </button>
 
           {tentativePresent && dayStats.untracked > 0 && <span className="text-xs text-amber-700" role="status">Anwesend ist nur vorausgewählt – bitte täglich bestätigen.</span>}
@@ -984,21 +984,21 @@ export default function Attendance() {
           <button
             onClick={handleCompleteCheck}
             disabled={isFree || sortedStudents.length === 0 || activeHours.length === 0}
-            className={`px-4 py-2.5 rounded-xl text-[0.75rem] font-black flex items-center gap-2 transition-all cursor-pointer active:scale-95 shadow-sm ${
+            className={`min-h-11 min-w-0 px-2 sm:px-4 py-2.5 rounded-xl text-[0.75rem] font-black flex items-center justify-center gap-1.5 sm:gap-2 transition-all cursor-pointer active:scale-95 shadow-sm ${
               isChecked
                 ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/10"
                 : "bg-slate-900 text-white hover:bg-slate-800 shadow-slate-900/10"
             }`}
           >
             <CheckCircle2 size={16} />
-            <span>{isChecked ? "Vollständig erfasst" : "Offene Einträge als anwesend bestätigen"}</span>
+            <span className="sm:hidden">{isChecked ? "Tag geprüft" : "Tag bestätigen"}</span><span className="hidden sm:inline">{isChecked ? "Vollständig erfasst" : "Offene Einträge als anwesend bestätigen"}</span>
           </button>
 
           {/* "Mehr" Dropdown Menu */}
-          <div className="relative" ref={mehrMenuRef}>
+          <div className="relative col-start-3 row-start-2 md:col-auto md:row-auto" ref={mehrMenuRef}>
             <button
               onClick={() => setShowMehrMenu(!showMehrMenu)}
-              className="px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-700 text-[0.75rem] font-bold flex items-center gap-1.5 transition-all cursor-pointer border border-slate-200/60"
+              className="min-h-11 min-w-11 px-2 sm:px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-700 text-[0.75rem] font-bold flex items-center gap-1.5 transition-all cursor-pointer border border-slate-200/60"
             >
               <MoreHorizontal size={18} />
               <span className="hidden sm:inline">Mehr</span>
@@ -1013,7 +1013,7 @@ export default function Attendance() {
                   initial={{ opacity: 0, y: 8, scale: 0.96 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                  className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 text-[0.8125rem]"
+                  className="absolute right-0 mt-2 w-[min(16rem,calc(100vw-2rem))] bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 text-[0.8125rem]"
                 >
                   <div className="px-3 py-1.5 text-[0.625rem] font-black text-slate-400 uppercase tracking-wider">
                     Anzeige & Ansicht
@@ -1110,8 +1110,8 @@ export default function Attendance() {
       {/* 4. COMPACT DAY STATUS BANNER                              */}
       {/* ========================================================= */}
       {!isFree && hasConfiguredHours && (
-        <div className="bg-slate-50/80 rounded-xl px-4 py-2.5 border border-slate-200/60 flex flex-wrap items-center justify-between gap-3 text-[0.8125rem] print:hidden">
-          <div className="flex items-center gap-3 font-semibold text-slate-700">
+        <div className="bg-slate-50/80 rounded-xl px-3 sm:px-4 py-2.5 border border-slate-200/60 flex flex-wrap items-center justify-between gap-2 sm:gap-3 text-[0.8125rem] print:hidden">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 font-semibold text-slate-700">
             <span className="inline-flex items-center gap-1 text-emerald-700 font-bold bg-emerald-100/60 px-2.5 py-0.5 rounded-full">
               <Check size={14} className="stroke-[3]" />
               {dayStats.present} anwesend
@@ -1144,7 +1144,7 @@ export default function Attendance() {
 
           <div className="flex items-center gap-2">
             {isChecked ? (
-              <span className="text-emerald-700 font-extrabold flex items-center gap-1 text-[0.75rem] bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+              <span className="hidden sm:flex text-emerald-700 font-extrabold items-center gap-1 text-[0.75rem] bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
                 ✓ Anwesenheit geprüft
               </span>
             ) : dayStats.untracked > 0 ? (
