@@ -6,11 +6,12 @@ const gradebook = readFileSync('src/components/Gradebook.tsx', 'utf8');
 const weights = readFileSync('src/components/WeightSettings.tsx', 'utf8');
 const gradeUtils = readFileSync('src/lib/GradeUtils.ts', 'utf8');
 
-test('gradebook offers one subject picker and an accessible semester selection', () => {
+test('gradebook offers one subject picker and uses one school-year period', () => {
   assert.equal((gradebook.match(/<select id="gradebook-active-subject"/g) || []).length, 1);
   assert.equal((gradebook.match(/value=\{activeFach\}/g) || []).length, 1);
-  assert.match(gradebook, /<select id="gradebook-semester" value=\{sem\}/);
-  assert.match(gradebook, /setSem\(event\.target\.value as '1' \| '2'\)/);
+  assert.match(gradebook, /const sem: '1' \| '2' = '1';/);
+  assert.match(gradebook, /Ganzes Schuljahr/);
+  assert.doesNotMatch(gradebook, /<select id="gradebook-semester"/);
   assert.match(gradebook, /gradebookDataStatus\.studentsWithEntries/);
   assert.match(gradebook, /setShowAddAssessmentModal\(true\)/);
 });
