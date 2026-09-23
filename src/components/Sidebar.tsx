@@ -3,6 +3,7 @@ import React, { memo } from 'react';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { getCurrentSchuljahr, getTeacherFirstName } from '../lib/utils';
+import TeacherAvatar from './TeacherAvatar';
 import { motion } from 'motion/react';
 import { 
   LayoutDashboard, Users, Map as MapIcon, Pin, BarChart3, Edit3, 
@@ -270,10 +271,22 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
             {!isCollapsed ? (
               <>
                 <div className="text-[0.625rem] text-text-muted font-black uppercase tracking-[0.25em] mb-1 leading-none">{app.schuljahr || getCurrentSchuljahr()}</div>
-                <h1 className="font-sans text-[1.125rem] font-black text-text-primary leading-tight">
-                  {teacherDisplayName || 'KLASSIO'}<br />
-                  <span className="text-[0.75rem] text-accent font-bold uppercase tracking-widest leading-none mt-1 inline-block">{SCHULARTEN.find(option => option.id === schulart)?.label || 'Volksschule'}</span>
-                </h1>
+                <button type="button" aria-label="Mein Profil öffnen" title="Mein Profil"
+                  onClick={() => { setPage('profil'); if (window.innerWidth < 1024) setIsOpen(false); }}
+                  className="flex w-full min-w-0 items-center gap-3 rounded-2xl p-1 text-left hover:bg-[var(--accent-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]">
+                  <TeacherAvatar app={app} size="md" />
+                  <span className="min-w-0">
+                    <span className="block break-words font-sans text-[1rem] font-black leading-tight text-text-primary">
+                      {app.lehrerProfil?.name?.trim() || teacherDisplayName || 'KLASSIO'}
+                    </span>
+                    <span className="mt-1 block text-[0.75rem] font-bold text-accent">
+                      {app.lehrerProfil?.kuerzel?.trim() || 'Mein Profil einrichten'}
+                    </span>
+                    <span className="mt-1 block text-[0.625rem] font-medium text-text-muted">
+                      {SCHULARTEN.find(option => option.id === schulart)?.label || 'Volksschule'}
+                    </span>
+                  </span>
+                </button>
                 
                 <div className="mt-2 flex items-center justify-between gap-2 w-full">
                   <span className="text-xs font-semibold text-text-muted">Klassio</span>
@@ -360,9 +373,11 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
               </>
             ) : (
               <div className="flex flex-col items-center gap-6">
-                <div className="w-10 h-10 bg-[var(--accent)] rounded-xl flex items-center justify-center text-[var(--accent-text,var(--btn-text,#ffffff))] font-black text-[0.75rem] leading-tight shadow-md shadow-[var(--accent)]/20">
-                  {teacherDisplayName ? teacherDisplayName.charAt(0).toUpperCase() : 'K'}
-                </div>
+                <button type="button" aria-label="Mein Profil öffnen" title="Mein Profil"
+                  onClick={() => { setPage('profil'); if (window.innerWidth < 1024) setIsOpen(false); }}
+                  className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]">
+                  <TeacherAvatar app={app} size="sm" />
+                </button>
                 <IconButton 
                   onClick={toggleCollapse}
                   variant="ghost"

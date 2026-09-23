@@ -306,7 +306,7 @@ function AppContent() {
   // Sync theme to root element for CSS variables usage in body
   React.useEffect(() => {
     const root = document.documentElement;
-    const activeStyle = app?.theme || 'classic_light';
+    const activeStyle = app?.lehrerProfil?.akzentfarbe ? 'custom_theme' : (app?.theme || 'classic_light');
     root.setAttribute('data-style', activeStyle);
     const isLightTheme = activeStyle !== 'deep_dark';
     root.setAttribute('data-theme', isLightTheme ? 'light' : 'dark');
@@ -315,7 +315,7 @@ function AppContent() {
       const bgCol = app.customBgColor || '#f3f4f6';
       const fgCol = app.customTextColor || '#171717';
       const fg2Col = app.customText2Color || '#525252';
-      const accentCol = app.customAccentColor || '#10b981';
+      const accentCol = app.lehrerProfil?.akzentfarbe || app.customAccentColor || '#10b981';
 
       const cleanHex = bgCol.replace('#', '');
       let isBgLight = true;
@@ -396,7 +396,7 @@ function AppContent() {
       root.style.removeProperty('--accent-active');
       root.style.removeProperty('--focus-ring');
     }
-  }, [app?.theme, app?.customBgColor, app?.customTextColor, app?.customText2Color, app?.customAccentColor]);
+  }, [app?.theme, app?.customBgColor, app?.customTextColor, app?.customText2Color, app?.customAccentColor, app?.lehrerProfil?.akzentfarbe]);
 
   // Sync fontFamily and font CSS custom properties to root element for live changes
   React.useEffect(() => {
@@ -773,8 +773,8 @@ function AppContent() {
   return (
     <div 
       className={`flex h-dvh bg-bg transition-colors duration-300 print:block print:h-auto print:bg-white print-only-parent font-${app?.settings?.fontFamily || 'standard'}`} 
-      data-theme={(app?.theme || 'classic_light') !== 'deep_dark' ? 'light' : 'dark'}
-      data-style={app?.theme || 'classic_light'}
+      data-theme={(app?.lehrerProfil?.akzentfarbe ? 'custom_theme' : (app?.theme || 'classic_light')) !== 'deep_dark' ? 'light' : 'dark'}
+      data-style={app?.lehrerProfil?.akzentfarbe ? 'custom_theme' : (app?.theme || 'classic_light')}
     >
       {isPending && (
         <div className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-amber-500 to-emerald-500 animate-pulse z-[9999]" />

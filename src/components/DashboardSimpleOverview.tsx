@@ -1,3 +1,5 @@
+import TeacherAvatar from './TeacherAvatar';
+import { useApp } from '../context/AppContext';
 import React, { useState } from 'react';
 import {
   ArrowRight,
@@ -13,6 +15,7 @@ import {
 import type { DashboardTodayOverviewProps } from './DashboardTodayOverview';
 
 export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) {
+  const { app } = useApp();
   const [showAllTasks, setShowAllTasks] = useState(false);
   const button = 'min-h-11 px-4 py-2 rounded-xl text-sm font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]';
   const tasks = showAllTasks ? p.actionItems : p.actionItems.slice(0, 3);
@@ -61,7 +64,12 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
       )}
       <header className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7">
         <div className="flex flex-wrap items-start gap-4">
-          <div>
+          <button type="button" onClick={() => p.onNavigate('profil')}
+            title="Mein Profil öffnen" aria-label="Profil auf dem Dashboard öffnen"
+            className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]">
+            <TeacherAvatar app={app} size="md" />
+          </button>
+          <div className="min-w-0">
             <p className="text-sm font-medium text-slate-600">{p.klasseLabel || 'Deine Klasse'}</p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{p.greeting}</h1>
             <p className="mt-1 text-sm font-medium text-slate-500">{p.dateLabel}</p>
