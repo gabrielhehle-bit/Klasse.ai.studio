@@ -1805,9 +1805,18 @@ export interface LehrerProfil {
   schularbeitenManuell?: number;
   testsManuell?: number;
   ausfluegeManuell?: number;
+  /** Account-wide teacher identity, never part of a pupil/class record. */
   name?: string;
+  kuerzel?: string;
+  anrede?: string;
   schule?: string;
   motto?: string;
+  mottoAnzeige?: 'motto' | 'spruch' | 'aus';
+  spruch?: string;
+  /** Constrained raster data URLs for encrypted cross-device transport. */
+  fotoDataUrl?: string;
+  titelbildDataUrl?: string;
+  akzentfarbe?: string;
   gegruendetYear?: string;
   anekdoten?: Anekdote[];
   selfCareChecks?: string[];
