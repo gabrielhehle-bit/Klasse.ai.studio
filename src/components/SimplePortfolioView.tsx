@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { getAssessmentMode } from '../lib/GradeUtils';
-import { getSimpleAnnualGoalRatings, getSimpleSubjectAreas, getSimpleSubjectGrades } from '../lib/simplePortfolio';
+import { getSimpleAnnualGoalRatings, getSimpleManualRadarValue, getSimpleRadarGoalProgress, getSimpleSubjectAreas, getSimpleSubjectGrades } from '../lib/simplePortfolio';
 import { formatLocalDateKey } from '../lib/utils';
 import { LERNZIELE_BY_STUFE } from './LernzielTracker';
 import PortfolioFlower, { type FlowerPetal } from './PortfolioFlower';
@@ -31,6 +31,8 @@ export default function SimplePortfolioView() {
   ])).filter(Boolean), [app.faecher, app.noten, catalog, studentId, student?.manuelleLernziele, level]);
   const [subject, setSubject] = useState(() => subjects.includes('Deutsch') ? 'Deutsch' : subjects[0] || '');
   const [newNote, setNewNote] = useState('');
+  const [newRadarGoal, setNewRadarGoal] = useState('');
+  const [newRadarArea, setNewRadarArea] = useState('');
 
   useEffect(() => {
     if (app.selectedStudentForPortfolio && students.some(s => s.id === app.selectedStudentForPortfolio)) {
@@ -45,12 +47,14 @@ export default function SimplePortfolioView() {
   useEffect(() => {
     if (!subjects.includes(subject)) setSubject(subjects.includes('Deutsch') ? 'Deutsch' : subjects[0] || '');
   }, [subjects, subject]);
-  useEffect(() => { setNewNote(''); }, [studentId, subject, classId]);
+  useEffect(() => { setNewNote(''); setNewRadarGoal(''); setNewRadarArea(''); }, [studentId, subject, classId]);
 
   const areas = useMemo(() => getSimpleSubjectAreas(subject, level, student), [subject, level, student]);
   const goals = areas.flatMap(area => area.goals);
   const ratings = getSimpleAnnualGoalRatings(app, studentId);
-  const documented = goals.filter(goal => ratings[goal.id] !== undefined && ratings[goal.id] !== null).length;
+  const documented = goals.filter(goal => (ratings[goal.id] !== undefined && ratings[goal.id] !== null) ||
+    getSimpleManualRadarValue(student, goal.id) !== undefined).length;
+  const ownRadarGoals = (student?.manuelleLernziele || []).filter(goal => goal.stufe === level && goal.fach === subject);
   const gradeMode = getAssessmentMode(app, subject);
   const grades = getSimpleSubjectGrades(app, studentId, subject);
   const radarColors = ['#0d9488', '#4f46e5', '#d97706', '#be185d',
@@ -94,6 +98,66 @@ export default function SimplePortfolioView() {
     }
     updateAxes(key, next);
   };
+  const addRadarGoal = (event: React.FormEvent) => {
+    event.preventDefault();
+    const label = newRadarGoal.trim();
+    const areaName = areas.some(area => area.name === newRadarArea) ? newRadarArea : areas[0]?.name;
+    if (!label || label.length > 180 || !areaName || !studentId || !subject) return;
+    const ownerClass = classId, ownerStudent = studentId, ownerSubject = subject, ownerLevel = level;
+    const key = goalAxisKey, currentAxes = [...goalAxisIds];
+    const id = 'radar-' + crypto.randomUUID();
+    const timestamp = new Date().toISOString();
+    setApp(prev => {
+      if (prev.activeClassId !== ownerClass || !prev.schueler.some(item => item.id === ownerStudent)) return prev;
+      const existing = prev.schueler.find(item => item.id === ownerStudent)!;
+      const ownGoals = existing.manuelleLernziele || [];
+      if (ownGoals.filter(goal => goal.stufe === ownerLevel && goal.fach === ownerSubject).length >= 40) return prev;
+      const nextGoal = { id, fach: ownerSubject, kompetenzbereich: areaName,
+        text: label, stufe: ownerLevel, createdAt: timestamp, updatedAt: timestamp };
+      const nextAxes = currentAxes.length < 8
+        ? [...currentAxes, 'goal:' + id] : [...currentAxes.slice(0, -1), 'goal:' + id];
+      return {
+        ...prev,
+        schueler: prev.schueler.map(item => item.id === ownerStudent ? {
+          ...item,
+          manuelleLernziele: [...ownGoals, nextGoal],
+          portfolioRadarWerte: { ...(item.portfolioRadarWerte || {}), [id]: 0 },
+        } : item),
+        settings: { ...prev.settings, portfolioRadarAxes: {
+          ...(prev.settings.portfolioRadarAxes || {}), [key]: nextAxes,
+        } },
+      };
+    });
+    setNewRadarGoal('');
+  };
+  const renameRadarGoal = (goalId: string, text: string) => {
+    const label = text.trim();
+    if (!label || label.length > 180) return;
+    const ownerClass = classId, ownerStudent = studentId;
+    setApp(prev => prev.activeClassId !== ownerClass ? prev : ({
+      ...prev,
+      schueler: prev.schueler.map(item => item.id !== ownerStudent ? item : ({
+        ...item,
+        manuelleLernziele: (item.manuelleLernziele || []).map(goal =>
+          goal.id === goalId && goal.stufe === level && goal.fach === subject
+            ? { ...goal, text: label, updatedAt: new Date().toISOString() } : goal),
+      })),
+    }));
+  };
+  const setRadarValue = (goalId: string, value: number) => {
+    if (!Number.isFinite(value) || value < 0 || value > 100) return;
+    const ownerClass = classId, ownerStudent = studentId, ownerSubject = subject, ownerLevel = level;
+    const nextValue = Math.round(value);
+    setApp(prev => prev.activeClassId !== ownerClass ? prev : ({
+      ...prev,
+      schueler: prev.schueler.map(item => item.id !== ownerStudent ||
+        !(item.manuelleLernziele || []).some(goal => goal.id === goalId &&
+          goal.fach === ownerSubject && goal.stufe === ownerLevel) ? item : ({
+        ...item,
+        portfolioRadarWerte: { ...(item.portfolioRadarWerte || {}), [goalId]: nextValue },
+      })),
+    }));
+  };
   const axisSettings = (key: string, selected: string[], options: { id: string; label: string }[]) =>
     <details className="group min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm shadow-sm sm:px-5">
       <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 font-bold text-slate-700 [&::-webkit-details-marker]:hidden">
@@ -121,8 +185,82 @@ export default function SimplePortfolioView() {
           </select>
         </label>)}
       </div>
-      <p className="mt-2 text-xs text-slate-500">Nur vorhandene Fachbereiche, Lernziele bzw. Leistungsarten.
-        Die Auswahl wird in den verschlüsselten Klasseneinstellungen gespeichert; Einträge werden nicht gelöscht.</p>
+      <p className="mt-2 text-xs text-slate-500">Wähle die Werte für die Achsen aus. Die Konfiguration bleibt
+        verschlüsselt in dieser Klasse gespeichert. Bestehende Bewertungen werden nicht gelöscht.</p>
+      {key.startsWith('goals:') && <div className="mt-5 border-t border-slate-200 pt-4">
+        <h4 className="text-base font-black text-slate-900">Eigene Lernziele und Diagrammwerte</h4>
+        <p className="mt-1 text-xs leading-relaxed text-slate-600">
+          Erstelle ein Lernziel für das ausgewählte Kind und Fach. Es erscheint sofort als eigene Achse und
+          im passenden Lernbereich. Den Diagrammwert kannst du von 0 bis 100 % einstellen.
+          Er ist eine individuelle Visualisierung und keine Schulnote oder automatische Lernzielbewertung.
+        </p>
+        <form onSubmit={addRadarGoal} className="mt-3 grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(9rem,0.5fr)_auto] sm:items-end">
+          <label className="min-w-0 text-xs font-bold text-slate-700">Neues Lernziel
+            <input aria-label="Eigenes Radar-Lernziel" type="text" maxLength={180} required
+              value={newRadarGoal} onChange={event => setNewRadarGoal(event.target.value)}
+              placeholder="z. B. Silben sicher lesen"
+              className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm" />
+          </label>
+          <label className="min-w-0 text-xs font-bold text-slate-700">Lernbereich
+            <select aria-label="Lernbereich für neues Radar-Lernziel"
+              value={areas.some(area => area.name === newRadarArea) ? newRadarArea : areas[0]?.name || ''}
+              onChange={event => setNewRadarArea(event.target.value)}
+              className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-2 text-sm">
+              {areas.map(area => <option key={area.name} value={area.name}>{area.name}</option>)}
+            </select>
+          </label>
+          <button type="submit" disabled={!newRadarGoal.trim() || ownRadarGoals.length >= 40}
+            className="min-h-11 rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-40">
+            Lernziel hinzufügen
+          </button>
+        </form>
+        {ownRadarGoals.length > 0 && <div className="mt-4 grid min-w-0 gap-3 lg:grid-cols-2">
+          {ownRadarGoals.map(goal => {
+            const value = getSimpleManualRadarValue(student, goal.id);
+            const selectedAxis = goalAxisIds.includes('goal:' + goal.id);
+            return <div key={goal.id} className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3"
+              data-custom-radar-goal={goal.id}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-slate-600">{goal.kompetenzbereich}</span>
+                <span className="text-xs font-bold text-teal-700">
+                  {selectedAxis ? 'Eigene Diagrammachse' : 'Im Lernbereich enthalten'}
+                </span>
+              </div>
+              <label className="mt-2 block text-xs font-bold text-slate-700">Lernziel bearbeiten
+                <input key={goal.id} type="text" maxLength={180} defaultValue={goal.text}
+                  aria-label={'Eigenes Lernziel bearbeiten ' + goal.id}
+                  onBlur={event => {
+                    if (!event.currentTarget.value.trim()) event.currentTarget.value = goal.text;
+                    else if (event.currentTarget.value.trim() !== goal.text)
+                      renameRadarGoal(goal.id, event.currentTarget.value);
+                  }}
+                  className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm" />
+              </label>
+              <div className="mt-3 flex items-end gap-3">
+                <label className="min-w-0 flex-1 text-xs font-bold text-slate-700">
+                  Diagrammwert für dieses Kind
+                  <input type="range" min={0} max={100} step={1}
+                    aria-label={'Radarwert-Regler ' + goal.id}
+                    value={value ?? 0}
+                    onChange={event => setRadarValue(goal.id, Number(event.target.value))}
+                    className="mt-3 w-full accent-teal-700" />
+                </label>
+                <label className="w-20 shrink-0 text-xs font-bold text-slate-700">Wert %
+                  <input type="number" min={0} max={100} step={1}
+                    aria-label={'Diagrammwert ' + goal.id}
+                    value={value ?? 0}
+                    onChange={event => {
+                      if (event.target.value !== '') setRadarValue(goal.id, Number(event.target.value));
+                    }}
+                    className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-2 text-sm" />
+                </label>
+              </div>
+              <p className="mt-2 text-xs text-slate-500">Eine neue vierstufige Einschätzung dieses Ziels setzt
+                den manuellen Diagrammwert zurück. Andere Kinder behalten ihre eigenen Werte.</p>
+            </div>;
+          })}
+        </div>}
+      </div>}
     </details>;
   // Goal axes use the existing four-step assessments (0, ⅓, ⅔, 1).
   // Missing evaluations have zero weight; the existing goal records do not change.
@@ -131,12 +269,11 @@ export default function SimplePortfolioView() {
     const axisGoals = axis.goals;
     return {
       label: axis.label, color: radarColors[index % radarColors.length],
-      count: axisGoals.filter(goal => ratings[goal.id] !== null && ratings[goal.id] !== undefined).length,
+      count: axisGoals.filter(goal => (ratings[goal.id] !== null && ratings[goal.id] !== undefined) ||
+        getSimpleManualRadarValue(student, goal.id) !== undefined).length,
       total: axisGoals.length,
-      progress: axisGoals.length ? axisGoals.reduce((sum, goal) => {
-        const rating = ratings[goal.id];
-        return sum + (rating === 1 ? 1 : rating === 2 ? 2 / 3 : rating === 3 ? 1 / 3 : 0);
-      }, 0) / axisGoals.length : 0,
+      progress: axisGoals.length ? axisGoals.reduce((sum, goal) =>
+        sum + getSimpleRadarGoalProgress(goal.id, ratings, student), 0) / axisGoals.length : 0,
     };
   });
   // Grade axes represent entry counts, not school marks or averaged performance.
@@ -157,8 +294,18 @@ export default function SimplePortfolioView() {
       if (prev.activeClassId !== ownerClass || !prev.schueler.some(s => s.id === ownerStudent)) return prev;
       const old = prev.studentLernzielSemesterBewertungen?.[ownerStudent] || {};
       const annual = { ...(old['1'] || {}), [goalId]: value };
+      // When an own goal is rated with the existing 4-level controls, remove only
+      // that goal's optional manual radar override so the chart follows the rating.
+      const updatedStudents = prev.schueler.map(item => {
+        if (item.id !== ownerStudent || !(item.manuelleLernziele || []).some(goal => goal.id === goalId)
+          || item.portfolioRadarWerte?.[goalId] === undefined) return item;
+        const nextRadar = { ...(item.portfolioRadarWerte || {}) };
+        delete nextRadar[goalId];
+        return { ...item, portfolioRadarWerte: nextRadar };
+      });
       return {
         ...prev,
+        schueler: updatedStudents,
         studentLernzielBewertungen: {
           ...(prev.studentLernzielBewertungen || {}),
           [ownerStudent]: { ...(prev.studentLernzielBewertungen?.[ownerStudent] || {}), [goalId]: value },
@@ -268,7 +415,7 @@ export default function SimplePortfolioView() {
         <PortfolioFlower title="Lernziele" center={documented + '/' + goals.length}
           caption={goalAxisIds.length + ' Achsen · individuell auswählbar'}
           petals={goalPetals}
-          note="Jede Achse wächst mit der dokumentierten Einschätzung der ausgewählten Ziele: in Entwicklung = ⅓, im Wesentlichen = ⅔, erreicht = vollständig. Noch nicht eingeschätzte Ziele zählen als 0. Das Diagramm ist keine Schulnote." />
+          note="Standardziele: in Entwicklung = ⅓, im Wesentlichen = ⅔, erreicht = vollständig. Eigene Lernziele können zusätzlich einen direkt einstellbaren Diagrammwert von 0–100 % haben. Dieser Wert ist eine Visualisierung, keine Schulnote." />
         {axisSettings(goalAxisKey, goalAxisIds, goalAxisChoices)}
         {areas.map(area => <section key={area.name} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <h3 className="mb-4 text-base font-black">{area.name} <span className="text-sm font-medium text-slate-500">({area.goals.length} Lernziele)</span></h3>
