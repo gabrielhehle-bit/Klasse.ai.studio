@@ -1023,6 +1023,18 @@ export interface VertretungsVorbereitung {
   contacts?: { schulleitung: string; sekretariat: string; nachbarKlasse: string };
 }
 
+/** Standalone, class-local homework for a particular teaching day. */
+export interface HomeworkAssignment {
+  id: string;
+  /** ISO date the homework was assigned; not necessarily the due date. */
+  aufgegebenAm: string;
+  /** ISO date when children should hand it in. */
+  faelligAm: string;
+  fach: string;
+  aufgabe: string;
+  schuljahr: string;
+}
+
 export interface ClassRoom {
   /** Class-local, teacher-controlled mascot. Old classPet remains as archived legacy data. */
   classMascot?: import('./lib/classMascot').ClassMascotState;
@@ -1075,6 +1087,8 @@ export interface ClassRoom {
   jahresplanung: Record<number, any>;
   jahresplan_faecher?: { id: string; label: string; color: string }[];
   wochenplanung: Record<number, any>;
+  /** Standalone homework, independent of individual lesson slots. */
+  hausuebungen?: HomeworkAssignment[];
   /** Class-local, weekly classbook additions, independent of the lesson plan. */
   klassenbuchErgaenzungen?: Record<number, Record<string, string>>;
   /** Class-local temporarily parked lessons from the planning center. */
@@ -1442,6 +1456,8 @@ export interface AppState {
   jahresplanung: Record<number, any>;
   jahresplan_faecher?: { id: string; label: string; color: string }[];
   wochenplanung: Record<number, any>;
+  /** Standalone homework, independent of individual lesson slots. */
+  hausuebungen?: HomeworkAssignment[];
   /** Class-local, weekly classbook additions, independent of the lesson plan. */
   klassenbuchErgaenzungen?: Record<number, Record<string, string>>;
   wochenplanSyncSet?: string[];
