@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { BarChart3, Heart, Pencil, Save, User, X } from 'lucide-react';
+import { BarChart3, CalendarDays, Heart, Pencil, Save, User, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import PlanungsStatistik from './PlanungsStatistik';
 import TeacherSelfCare from './TeacherSelfCare';
+import PersonalTimetable from './PersonalTimetable';
 
-type TeacherProfileTab = 'profile' | 'planning' | 'selfcare';
+type TeacherProfileTab = 'profile' | 'timetable' | 'planning' | 'selfcare';
 
 type ProfileDraft = {
   name: string;
@@ -72,6 +73,7 @@ export default function LehrerProfilView() {
 
   const tabs: Array<{ id: TeacherProfileTab; label: string; icon: React.ReactNode }> = [
     { id: 'profile', label: 'Profil', icon: <User size={15} /> },
+    { id: 'timetable', label: 'Mein Stundenplan', icon: <CalendarDays size={15} /> },
     { id: 'planning', label: 'Planungsstatistik', icon: <BarChart3 size={15} /> },
     { id: 'selfcare', label: 'Self-Care', icon: <Heart size={15} /> },
   ];
@@ -237,6 +239,7 @@ export default function LehrerProfilView() {
         </div>
       )}
 
+      {activeTab === 'timetable' && <PersonalTimetable />}
       {activeTab === 'planning' && <PlanungsStatistik />}
       {activeTab === 'selfcare' && <TeacherSelfCare />}
     </div>
