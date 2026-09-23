@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { instructionChecklistWindow, instructionTextPages } from '../../../lib/instructionPaging';
 import { 
   Edit3, Eye, Check, Trash2, Plus, X, 
   Clock, Users, BookOpen, Sparkles, CheckSquare, 
@@ -88,6 +90,8 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
 
   // New checklist input in edit mode
   const [newChecklistText, setNewChecklistText] = useState('');
+  const [textPage, setTextPage] = useState(0);
+  const [checklistPage, setChecklistPage] = useState(0);
 
   // Clear confirmation protection
   const [clearConfirmState, setClearConfirmState] = useState<'idle' | 'confirm'>('idle');
@@ -300,6 +304,12 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
   const isCompactHeight = containerSize.height < 260;
   const isVerySmall = containerSize.width < 340 || containerSize.height < 220;
   const isLargeOrFullscreen = containerSize.width > 700 || containerSize.height > 550;
+  const assignmentPages = instructionTextPages(draftTaskText,
+    isVerySmall ? 60 : isCompactHeight ? 105 : isLargeOrFullscreen ? 310 : 175);
+  const safeTextPage = Math.min(textPage, assignmentPages.length - 1);
+  const checklistWindow = instructionChecklistWindow(draftChecklist.length, checklistPage,
+    isVerySmall ? 1 : isCompactHeight ? 2 : isLargeOrFullscreen ? 5 : 3);
+  useEffect(() => { setTextPage(0); setChecklistPage(0); }, [widget.id]);
 
   // Compute typography scale based on scale setting and container size
   const getTaskFontSizeClass = () => {
@@ -363,7 +373,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
       {/* 1. ANZEIGEMODUS (Student Smartboard View)                                */}
       {/* ========================================================================= */}
       {!isEditing && (
-        <div className="flex flex-col justify-between w-full h-full p-4 sm:p-6 overflow-y-auto">
+        <div className="flex flex-col justify-between w-full h-full p-2 sm:p-4 overflow-hidden">
           {/* TOP BAR: Subject / Header & Teacher Controls */}
           <div className="flex items-center justify-between gap-3 shrink-0 pb-2 border-b border-black/5 dark:border-white/10">
             {/* Subject Badge or Placeholder */}
@@ -430,7 +440,21 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                     isDarkCanvas ? 'text-white drop-shadow-sm' : 'text-slate-900'
                   }`}
                 >
-                  {draftTaskText}
+                  {assignmentPages[safeTextPage]}
+                </div>
+                {assignmentPages.length > 1 && <div role="group" aria-label="Arbeitsauftrag-Textseiten"
+                  className="mt-2 flex items-center justify-center gap-2">
+                  <button type="button" disabled={safeTextPage === 0}
+                    onClick={() => setTextPage(page => Math.max(0, page - 1))}
+                    className="min-h-9 rounded-lg border border-current/20 px-3 text-xs font-bold disabled:opacity-30">
+                    ← Zurück
+                  </button>
+                  <span aria-live="polite" className="text-xs font-bold">Text {safeTextPage + 1}/{assignmentPages.length}</span>
+                  <button type="button" disabled={safeTextPage + 1 >= assignmentPages.length}
+                    onClick={() => setTextPage(page => Math.min(assignmentPages.length - 1, page + 1))}
+                    className="min-h-9 rounded-lg border border-current/20 px-3 text-xs font-bold disabled:opacity-30">
+                    Weiter →
+                  </button>
                 </div>
 
                 {/* Subtitle / Details (e.g., "Arbeitsheft S. 24, Nr. 1–4") */}
@@ -444,10 +468,12 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
 
                 {/* Optional Interactive Checklist */}
                 {draftChecklist.length > 0 && (
-                  <div className={`pt-3 space-y-1.5 w-full ${isCompactHeight ? 'hidden sm:block' : ''}`}>
-                    {draftChecklist.map((item) => (
-                      <div
+                  <div className="pt-2 space-y-1.5 w-full">
+                    {draftChecklist.slice(checklistWindow.start, checklistWindow.end).map((item) => (
+                      <button type="button"
                         key={item.id}
+                        aria-label={`Arbeitsschritt ${item.text} ${item.done ? 'wieder öffnen' : 'abhaken'}`}
+                        aria-pressed={item.done}
                         onClick={() => handleToggleCheckItem(item.id)}
                         className={`flex items-center gap-2.5 p-2 rounded-xl transition-all cursor-pointer border ${
                           item.done
@@ -468,8 +494,24 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                           {item.done ? <Check size={13} strokeWidth={3} /> : null}
                         </div>
                         <span className="text-sm sm:text-base font-bold select-none">{item.text}</span>
-                      </div>
+                      </button>
                     ))}
+                    {checklistWindow.pageCount > 1 && <div role="group" aria-label="Arbeitsschritte-Seiten"
+                      className="flex items-center justify-center gap-2">
+                      <button type="button" disabled={checklistWindow.page === 0}
+                        onClick={() => setChecklistPage(page => Math.max(0, page - 1))}
+                        className="min-h-9 rounded-lg border border-current/20 px-3 text-xs font-bold disabled:opacity-30">
+                        ← Schritte
+                      </button>
+                      <span aria-live="polite" className="text-xs font-bold">
+                        {checklistWindow.page + 1}/{checklistWindow.pageCount}
+                      </span>
+                      <button type="button" disabled={checklistWindow.page + 1 >= checklistWindow.pageCount}
+                        onClick={() => setChecklistPage(page => Math.min(checklistWindow.pageCount - 1, page + 1))}
+                        className="min-h-9 rounded-lg border border-current/20 px-3 text-xs font-bold disabled:opacity-30">
+                        Weitere Schritte →
+                      </button>
+                    </div>}
                   </div>
                 )}
               </div>
@@ -554,8 +596,9 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
       {/* ========================================================================= */}
       {/* 2. EDITIERMODUS (Compact Teacher Form)                                   */}
       {/* ========================================================================= */}
-      {isEditing && (
-        <div className={`flex flex-col justify-between w-full h-full p-4 sm:p-5 overflow-y-auto ${
+      {isEditing && createPortal(
+        <div role="dialog" aria-modal="true" aria-label="Arbeitsauftrag bearbeiten"
+          className={`fixed inset-0 z-[99999] mx-auto flex w-full max-w-4xl flex-col justify-between overflow-y-auto p-4 shadow-2xl sm:p-6 ${
           currentIsLight ? 'bg-slate-50 text-slate-900' : 'bg-zinc-950 text-white'
         }`}>
           <div className="space-y-4">
@@ -944,7 +987,8 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
               <span>Fertig & Am Smartboard anzeigen</span>
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
