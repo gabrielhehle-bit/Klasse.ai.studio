@@ -55,7 +55,8 @@ export default function LehrerProfilView() {
       anrede: draft.anrede.trim().slice(0, 30), schule,
       motto: draft.motto.trim().slice(0, 240), spruch: draft.spruch.trim().slice(0, 240),
       mottoAnzeige: draft.mottoAnzeige,
-      akzentfarbe: color, gegruendetYear: draft.gegruendetYear.trim().slice(0, 4),
+      ...(profile.akzentfarbe || color !== previousColor ? { akzentfarbe: color } : {}),
+      gegruendetYear: draft.gegruendetYear.trim().slice(0, 4),
     };
     setApp(prev => ({
       ...prev,
