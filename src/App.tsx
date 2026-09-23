@@ -34,6 +34,8 @@ function lazyRetry<T extends React.ComponentType<any>>(
 const Dashboard = lazyRetry(() => import('./components/Dashboard'));
 const Sek1Dashboard = lazyRetry(() => import('./components/Sek1Dashboard'));
 const TeacherTimetable = lazyRetry(() => import('./components/TeacherTimetable'));
+const ClassTimetable = lazyRetry(() => import('./components/ClassTimetable'));
+const LehrerProfilView = lazyRetry(() => import('./components/LehrerProfilView'));
 const KlasseHub = lazyRetry(() => import('./components/KlasseHub'));
 const PlanungHub = lazyRetry(() => import('./components/PlanungHub'));
 const LeistungenHub = lazyRetry(() => import('./components/LeistungenHub'));
@@ -630,7 +632,9 @@ function AppContent() {
       case 'schueler': return istSekundarstufe(app.schulart)
         ? <Sek1Students key={app.activeClassId || 'class'} />
         : <StudentList key={app.activeClassId || 'class'} />;
-      case 'stundenplan': return istSekundarstufe(app.schulart) ? <TeacherTimetable /> : <Dashboard />;
+      case 'stundenplan': return istSekundarstufe(app.schulart) ? <TeacherTimetable /> : <ClassTimetable />;
+      case 'klassenstundenplan': return <ClassTimetable />;
+      case 'profil': return <LehrerProfilView />;
       case 'dossier': return istSekundarstufe(app.schulart)
         ? <Sek1DossierHub key={app.activeClassId || 'class'} />
         : <StudentDossierHub />;
