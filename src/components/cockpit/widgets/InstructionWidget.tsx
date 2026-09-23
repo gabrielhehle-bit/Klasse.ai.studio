@@ -987,7 +987,6 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
               <span>Fertig & Am Smartboard anzeigen</span>
             </button>
           </div>
-        </div>
         </div>,
         document.body
       )}
