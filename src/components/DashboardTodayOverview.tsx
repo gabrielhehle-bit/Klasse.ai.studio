@@ -1,3 +1,4 @@
+import TeacherAvatar from './TeacherAvatar';
 import DashboardSimpleOverview from './DashboardSimpleOverview';
 import type { DashboardFreeDayMessage } from '../lib/dashboardDayContext';
 import React, { useState } from "react";
@@ -184,7 +185,13 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           
           {/* Linke Seite: Begrüßung & Datum & Klasse */}
-          <div className="space-y-0.5">
+          <div className="flex min-w-0 items-center gap-3">
+            <button type="button" onClick={() => onNavigate('profil')}
+              title="Mein Profil öffnen" aria-label="Profil auf dem Dashboard öffnen"
+              className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]">
+              <TeacherAvatar app={app} size="md" />
+            </button>
+            <div className="min-w-0 space-y-0.5">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[0.6875rem] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200/60 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -206,6 +213,7 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
               <CalendarDays size={13} className="text-slate-400 shrink-0" />
               <span>{dateLabel}</span>
             </p>
+            </div>
           </div>
 
           {/* Rechte Seite: Schnelle Aktionen */}
