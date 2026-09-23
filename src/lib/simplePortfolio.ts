@@ -94,26 +94,6 @@ export function getSimpleSubjectAreas(subject: string, level: number, student?: 
   return buckets;
 }
 
-/** Individual radar value only for a pupil's own manual goals; unrelated or invalid values are ignored.
- * Value 0 is a documented starting point, not an absent assessment. */
-export function getSimpleManualRadarValue(student: Student | undefined, goalId: string): number | undefined {
-  if (!student?.manuelleLernziele?.some(goal => goal.id === goalId)) return undefined;
-  const value = student.portfolioRadarWerte?.[goalId];
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100
-    ? value : undefined;
-}
-
-/** Render-only progress: manual goal slider takes precedence on that manual goal alone.
- * All ordinary catalog goals remain derived from the existing 4-level assessments. */
-export function getSimpleRadarGoalProgress(
-  goalId: string, ratings: Record<string, number | null>, student?: Student,
-): number {
-  const customValue = getSimpleManualRadarValue(student, goalId);
-  if (customValue !== undefined) return customValue / 100;
-  const rating = ratings[goalId];
-  return rating === 1 ? 1 : rating === 2 ? 2 / 3 : rating === 3 ? 1 / 3 : 0;
-}
-
 /** One school-year view: period 1 holds current data; legacy root fills missing keys only.
  * Period 2 is retained in storage without being silently overwritten. */
 export function getSimpleAnnualGoalRatings(app: AppState, studentId: string): Record<string, number | null> {
