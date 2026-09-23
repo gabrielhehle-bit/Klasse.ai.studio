@@ -372,7 +372,7 @@ async function addDailyHomework(client, text) {
   if (!due) throw new Error(client.name + ': missing homework due date control.');
   await clickButton(client, 'Hausübung speichern');
   await waitFor(client, 'new homework displayed', 'document.querySelector("[role=dialog]")?.textContent.includes(' + q(text) + ')', 15000);
-  await clickButton(client, 'Hausübungen schließen');
+  await evaluate(client, 'Array.from(document.querySelectorAll("button")).find(b => b.getAttribute("aria-label") === "Hausübungen schließen")?.click()');
   await waitForCloud(client);
 }
 
@@ -380,7 +380,7 @@ async function checkDailyHomework(client, text) {
   await openHomeworkForMonday(client);
   await waitFor(client, 'homework synchronized from the other device',
     'document.querySelector("[role=dialog][aria-label^=\\\"Hausübungen Montag\\\"]")?.textContent.includes(' + q(text) + ')', 45000);
-  await clickButton(client, 'Hausübungen schließen');
+  await evaluate(client, 'Array.from(document.querySelectorAll("button")).find(b => b.getAttribute("aria-label") === "Hausübungen schließen")?.click()');
 }
 
 async function openWeeklyAndCheck(client, topic) {
