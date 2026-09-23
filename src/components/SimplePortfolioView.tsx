@@ -95,8 +95,11 @@ export default function SimplePortfolioView() {
     updateAxes(key, next);
   };
   const axisSettings = (key: string, selected: string[], options: { id: string; label: string }[]) =>
-    <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-      <summary className="cursor-pointer font-bold">Diagramm einstellen · {selected.length} Werte</summary>
+    <details className="group min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm shadow-sm sm:px-5">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 font-bold text-slate-700 [&::-webkit-details-marker]:hidden">
+        <span>Diagramm einstellen · {selected.length} Werte</span>
+        <span aria-hidden="true" className="text-slate-400 transition-transform group-open:rotate-180">⌄</span>
+      </summary>
       <label className="mt-3 block text-sm font-semibold">Anzahl der Achsen
         <select aria-label={'Anzahl Achsen ' + (key.startsWith('goals:') ? 'Lernziele' : 'Noten')}
           className="mt-1 block min-h-11 w-full rounded-lg border border-slate-300 bg-white px-2"
@@ -106,8 +109,8 @@ export default function SimplePortfolioView() {
             .map(count => <option key={count} value={count}>{count} Werte</option>)}
         </select>
       </label>
-      <div className="mt-3 space-y-2">
-        {selected.map((id, index) => <label key={index} className="block text-xs font-semibold">
+      <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {selected.map((id, index) => <label key={index} className="block min-w-0 text-xs font-semibold">
           Achse {index + 1}
           <select aria-label={'Radar ' + (key.startsWith('goals:') ? 'Lernziele' : 'Noten') + ' Achse ' + (index + 1)}
             className="mt-1 block min-h-11 w-full rounded-lg border border-slate-300 bg-white px-2 text-sm"
@@ -215,15 +218,13 @@ export default function SimplePortfolioView() {
         </div>
       </header>
 
-      <section aria-label={'Noten und Notizen in ' + subject}
-        className="rounded-3xl border border-slate-200 bg-slate-50 p-3 sm:p-5">
-        <div className="grid gap-4 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
-          <PortfolioFlower title="Noten" center={String(grades.length)}
-            caption={grades.length + ' Noteneinträge dokumentiert'}
-            petals={gradePetals} showDenominator={false}
-            note="Die Achsen zeigen ausschließlich die Anzahl der Einträge je Leistungsart – nicht die Notenhöhe oder Leistung." />
-          {axisSettings(gradeAxisKey, gradeAxisIds, gradeAxisChoices)}
-          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4">
+      <section aria-label={'Noten und Notizen in ' + subject} className="min-w-0 space-y-4">
+        <PortfolioFlower title="Noten" center={String(grades.length)}
+          caption={grades.length + ' Noteneinträge dokumentiert'}
+          petals={gradePetals} showDenominator={false}
+          note="Die Achsen zeigen ausschließlich die Anzahl der Einträge je Leistungsart – nicht die Notenhöhe oder Leistung." />
+        <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <h2 className="text-base font-black">Noten · {subject}</h2>
             {gradeMode !== 'grades'
               ? <p className="mt-2 text-sm text-slate-600">Für dieses Fach werden in der Notenmappe {gradeMode === 'percent' ? 'Prozentwerte' : 'Punkte'} erfasst. Diese Werte werden nicht als Schulnoten dargestellt.</p>
@@ -233,7 +234,9 @@ export default function SimplePortfolioView() {
                   {grade.label}: {grade.value}
                 </span>)}
               </div> : <p className="mt-2 text-sm text-slate-500">Noch keine Noten eingetragen.</p>}
-            <h2 className="mt-5 text-base font-black">Notizen</h2>
+          </div>
+          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <h2 className="text-base font-black">Notizen · {subject}</h2>
             {previousGradeNote && <p className="mt-2 rounded-xl bg-slate-50 p-3 text-sm whitespace-pre-wrap">
               {previousGradeNote}
             </p>}
@@ -254,20 +257,19 @@ export default function SimplePortfolioView() {
             </form>
           </div>
         </div>
+        {axisSettings(gradeAxisKey, gradeAxisIds, gradeAxisChoices)}
       </section>
 
       <section aria-label={'Lernziele ' + subject} className="space-y-4">
-        <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:px-5">
           <h2 className="text-xl font-black">Lernziele · {subject}</h2>
           <p className="mt-1 text-sm font-semibold text-slate-600">{documented} von {goals.length} dokumentiert</p>
-          <div className="mt-2 flex justify-center">
-            <PortfolioFlower title="Lernziele" center={documented + '/' + goals.length}
-              caption={goalAxisIds.length + ' Achsen · individuell auswählbar'}
-              petals={goalPetals}
-              note="Jede Achse wächst mit der dokumentierten Einschätzung der ausgewählten Ziele: in Entwicklung = ⅓, im Wesentlichen = ⅔, erreicht = vollständig. Noch nicht eingeschätzte Ziele zählen als 0. Das Diagramm ist keine Schulnote." />
-          </div>
-          {axisSettings(goalAxisKey, goalAxisIds, goalAxisChoices)}
         </div>
+        <PortfolioFlower title="Lernziele" center={documented + '/' + goals.length}
+          caption={goalAxisIds.length + ' Achsen · individuell auswählbar'}
+          petals={goalPetals}
+          note="Jede Achse wächst mit der dokumentierten Einschätzung der ausgewählten Ziele: in Entwicklung = ⅓, im Wesentlichen = ⅔, erreicht = vollständig. Noch nicht eingeschätzte Ziele zählen als 0. Das Diagramm ist keine Schulnote." />
+        {axisSettings(goalAxisKey, goalAxisIds, goalAxisChoices)}
         {areas.map(area => <section key={area.name} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <h3 className="mb-4 text-base font-black">{area.name} <span className="text-sm font-medium text-slate-500">({area.goals.length} Lernziele)</span></h3>
           {!area.goals.length && <p className="text-sm text-slate-500">Noch keine Lernziele in diesem Bereich.</p>}

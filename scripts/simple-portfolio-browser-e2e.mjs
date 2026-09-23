@@ -260,6 +260,8 @@ async function main() {
         width: innerWidth,
         docWidth: document.documentElement.scrollWidth,
         charts: document.querySelectorAll('svg[role=img][aria-label^="Spinnennetzdiagramm Noten"],svg[role=img][aria-label^="Spinnennetzdiagramm Lernziele"]').length,
+        heroCards: document.querySelectorAll('[data-radar-layout="hero"]').length,
+        mobileRadarWidth: document.querySelector('svg[aria-label^="Spinnennetzdiagramm Lernziele"]')?.getBoundingClientRect().width || 0,
         gradePetals: document.querySelectorAll('svg[aria-label^="Spinnennetzdiagramm Noten"] [data-radar-axis]').length,
         goalPetals: document.querySelectorAll('svg[aria-label^="Spinnennetzdiagramm Lernziele"] [data-radar-axis]').length,
         firstGoalProgress: Number(document.querySelector('svg[aria-label^="Spinnennetzdiagramm Lernziele"] [data-radar-axis]')?.getAttribute('data-radar-progress')),
@@ -270,7 +272,7 @@ async function main() {
       };
     })()`);
     console.log('Synthetic mobile subject portfolio:', JSON.stringify(metrics));
-    if (metrics.width !== 390 || metrics.docWidth > 395 || metrics.charts !== 2 || metrics.gradePetals !== 4 || metrics.goalPetals !== 4 || metrics.areas !== 4 || metrics.controls < 1 || metrics.hasSemesterSwitch) {
+    if (metrics.width !== 390 || metrics.docWidth > 395 || metrics.charts !== 2 || metrics.heroCards !== 2 || metrics.mobileRadarWidth < 260 || metrics.gradePetals !== 4 || metrics.goalPetals !== 4 || metrics.areas !== 4 || metrics.controls < 1 || metrics.hasSemesterSwitch) {
       throw new Error('Simple portfolio has a mobile layout, chart or extra-controls regression.');
     }
     const clicked = await evaluate(client, '(() => {const g=document.querySelector("[role=group][aria-label^=\\\"Lernziel einschätzen:\\\"]");const b=g?.querySelectorAll("button")[1];if(!b)return false;b.click();return true;})()');
@@ -288,7 +290,36 @@ async function main() {
     await waitFor(client, 'six goal radar axes configured',
       'document.querySelectorAll(\'svg[aria-label^="Spinnennetzdiagramm Lernziele"] [data-radar-axis]\').length === 6');
     await saveScreenshot(client);
-    console.log('KLASSIO simple subject portfolio E2E passed with synthetic class only.');
+    await client.send('Emulation.setDeviceMetricsOverride', {
+      width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false,
+    });
+    await client.send('Emulation.setTouchEmulationEnabled', { enabled: false });
+    await waitFor(client, 'large radar renders on desktop', '(() => {' +
+      'const radars=Array.from(document.querySelectorAll(\'svg[aria-label^="Spinnennetzdiagramm"]\'));' +
+      'return innerWidth===1440&&radars.length===2&&radars.every(svg=>svg.getBoundingClientRect().width>=380)' +
+      '&&document.documentElement.scrollWidth<=innerWidth+4;' +
+      '})()');
+    const desktopLayout = await evaluate(client, `(() => {
+      const grade = document.querySelector('section[aria-label^="Noten und Notizen"]');
+      const goal = document.querySelector('section[aria-label^="Lernziele"]');
+      const hero = grade?.querySelector('[data-radar-layout="hero"]');
+      const settings = grade?.querySelector('details');
+      const cards = grade?.querySelectorAll('.grid > .rounded-2xl');
+      return {
+        gradeHeroWidth: hero?.getBoundingClientRect().width || 0,
+        desktopRadarWidth: hero?.querySelector('svg')?.getBoundingClientRect().width || 0,
+        hasSeparatedCards: (cards?.length || 0) >= 2,
+        settingsAfterChart: !!hero && !!settings &&
+          settings.getBoundingClientRect().top >= hero.getBoundingClientRect().bottom,
+        goalsAfterHeader: !!goal?.querySelector('[data-radar-layout="hero"]'),
+      };
+    })()`);
+    console.log('Desktop portfolio layout:', JSON.stringify(desktopLayout));
+    if (desktopLayout.gradeHeroWidth < 700 || desktopLayout.desktopRadarWidth < 380 ||
+        !desktopLayout.hasSeparatedCards || !desktopLayout.settingsAfterChart || !desktopLayout.goalsAfterHeader) {
+      throw new Error('Portfolio desktop radar hero or grade/notes layout regressed.');
+    }
+    console.log('KLASSIO portfolio responsive hero E2E passed with synthetic class only.');
   } finally { client.close(); }
 }
 
