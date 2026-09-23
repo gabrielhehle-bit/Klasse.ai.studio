@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Clock, Coffee, ArrowRight, MapPin, CheckCircle2, Calendar, AlertCircle } from 'lucide-react';
+import { Clock, Coffee, ArrowRight, MapPin, CheckCircle2, Calendar, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { CockpitWidgetConfig, AppState } from '../../../types';
 import { useApp } from '../../../context/AppContext';
 import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
@@ -50,6 +50,7 @@ export const TimelineWidget: React.FC<TimelineWidgetProps> = ({
 
   // Selected unit in timeline for inspect / detail view on touch
   const [inspectedUnitId, setInspectedUnitId] = useState<string | null>(null);
+  const [timelinePage, setTimelinePage] = useState(0);
 
   // Daily timeline units calculation
   const units = useMemo(() => {
@@ -60,6 +61,8 @@ export const TimelineWidget: React.FC<TimelineWidgetProps> = ({
     app?.stundenZeiten,
     app?.wochenplanung,
     app?.fachConfig,
+    app?.activeClassId,
+    app?.schuljahr,
     now.getFullYear(),
     now.getMonth(),
     now.getDate(),
@@ -194,6 +197,18 @@ export const TimelineWidget: React.FC<TimelineWidgetProps> = ({
   const isFullscreen = size.category === 'fullscreen';
   const isStandard = size.category === 'standard';
   const isShortHeight = size.height < 210;
+  // Explicit pages keep even a long school day fully usable inside a small board
+  // widget. Never force horizontal scroll or shrink every hour to illegibility.
+  const unitsPerPage = Math.max(3, Math.min(8, Math.floor(Math.max(0, size.width - 70) / 42)));
+  const pageCount = Math.max(1, Math.ceil(units.length / unitsPerPage));
+  const safePage = Math.min(timelinePage, pageCount - 1);
+  const visibleUnits = units.slice(safePage * unitsPerPage, (safePage + 1) * unitsPerPage);
+  useEffect(() => {
+    const nextIndex = timelineState.currentUnit
+      ? units.findIndex(unit => unit.id === timelineState.currentUnit?.id)
+      : timelineState.nextUnit ? units.findIndex(unit => unit.id === timelineState.nextUnit?.id) : -1;
+    if (nextIndex >= 0) setTimelinePage(Math.floor(nextIndex / unitsPerPage));
+  }, [timelineState.currentUnit?.id, timelineState.nextUnit?.id, app?.activeClassId, unitsPerPage]);
 
   // Empty state: no lessons scheduled
   if (timelineState.status === 'no_lessons') {
@@ -300,9 +315,9 @@ export const TimelineWidget: React.FC<TimelineWidgetProps> = ({
               }`}
             >
               {timelineState.status === 'before_school' &&
-                `Beginnt um ${formatMinutes(nextUnit?.startMinutes || 480)}`}
+                `Beginnt um ${formatMinutes(nextUnit?.startMinutes ?? 480)}`}
               {timelineState.status === 'after_school' && 'Feierabend'}
-              {timelineState.status === 'pause' && 'Große Pause'}
+              {timelineState.status === 'pause' && (currentUnit?.label || 'Pause')}
               {timelineState.status === 'lesson' && currentUnit?.fach}
             </h2>
           </div>
@@ -405,6 +420,19 @@ export const TimelineWidget: React.FC<TimelineWidgetProps> = ({
             <span className="text-[0.625rem] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
               Tagesverlauf
             </span>
+            {pageCount > 1 && <div role="group" aria-label="Tagesabschnitte" className="flex items-center gap-1">
+              <button type="button" aria-label="Vorheriger Tagesabschnitt" disabled={safePage === 0}
+                onClick={() => { setTimelinePage(page => Math.max(0, page - 1)); setInspectedUnitId(null); }}
+                className="min-h-8 min-w-8 rounded-lg border border-slate-300 disabled:opacity-30">
+                <ChevronLeft size={14} className="mx-auto" />
+              </button>
+              <span className="text-[0.625rem] font-bold" aria-live="polite">{safePage + 1}/{pageCount}</span>
+              <button type="button" aria-label="Nächster Tagesabschnitt" disabled={safePage + 1 >= pageCount}
+                onClick={() => { setTimelinePage(page => Math.min(pageCount - 1, page + 1)); setInspectedUnitId(null); }}
+                className="min-h-8 min-w-8 rounded-lg border border-slate-300 disabled:opacity-30">
+                <ChevronRight size={14} className="mx-auto" />
+              </button>
+            </div>}
             <span className="text-[0.625rem] font-medium text-slate-400 dark:text-zinc-500">
               {units.filter((u) => !u.isPause).length} Unterrichtsstunden
             </span>
@@ -412,7 +440,7 @@ export const TimelineWidget: React.FC<TimelineWidgetProps> = ({
 
           {/* Timeline Blocks Container */}
           <div className="flex items-stretch gap-1 w-full h-11 sm:h-12 min-h-[44px]">
-            {units.map((unit) => {
+            {visibleUnits.map((unit) => {
               const isCurrent = currentUnit?.id === unit.id;
               const isDone = unit.endTimestamp <= now.getTime();
               const isInspected = inspectedUnitId === unit.id;
@@ -428,7 +456,7 @@ export const TimelineWidget: React.FC<TimelineWidgetProps> = ({
                   onClick={() => {
                     setInspectedUnitId(inspectedUnitId === unit.id ? null : unit.id);
                   }}
-                  className={`relative flex flex-col items-center justify-center px-1 rounded-lg border text-center transition-all min-w-[32px] cursor-pointer focus:outline-hidden ${flexGrow} ${
+                  className={`relative flex flex-col items-center justify-center px-1 rounded-lg border text-center transition-all min-w-0 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 ${flexGrow} ${
                     style.bg
                   } ${
                     isInspected ? 'ring-2 ring-indigo-500' : ''
