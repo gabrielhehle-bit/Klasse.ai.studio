@@ -48,7 +48,7 @@ export default function StudentLernziele({
   const initialClassLevel = Number(app.stufe) || (initialClassMatch ? parseInt(initialClassMatch[1]) : 1);
   
   const [selectedStufe, setSelectedStufe] = useState<number>(Math.max(1, Math.min(4, initialClassLevel)));
-  const [selectedSemester, setSelectedSemester] = useState<'1' | '2'>(semester || '1');
+  const [selectedSemester, setSelectedSemester] = useState<'1' | '2'>('1');
   const [semesterEvaluations, setSemesterEvaluations] = useState<SemesterGoalRatings>({});
   const [evaluationData, setEvaluationData] = useState<GoalRatings>({});
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -63,7 +63,7 @@ export default function StudentLernziele({
   const [manualError, setManualError] = useState('');
 
   useEffect(() => {
-    if (semester) setSelectedSemester(semester);
+    setSelectedSemester('1');
   }, [semester]);
 
   useEffect(() => {
@@ -827,7 +827,7 @@ export default function StudentLernziele({
       <div className="hidden print:block space-y-6 text-black bg-white p-8 max-w-[210mm] mx-auto min-h-[297mm]">
         <div className="text-center mb-6 border-b-2 border-black pb-3">
           <h1 className="text-xl font-black uppercase tracking-widest">Lehrplan-Lernziele</h1>
-          <p className="text-sm mt-1">{student.vorname} {student.nachname} · {selectedStufe}. Schulstufe · {selectedSemester}. Semester</p>
+          <p className="text-sm mt-1">{student.vorname} {student.nachname} · {selectedStufe}. Schulstufe · Ganzes Schuljahr</p>
         </div>
 
         {FAECHER.map(fach => {
