@@ -1771,7 +1771,17 @@ export interface Anekdote {
   tags?: string[];
 }
 
+export interface PersonalLesson {
+  tag: string;
+  stunde: number;
+  fach: string;
+  klasse: string;
+  raum: string;
+}
+
 export interface LehrerProfil {
+  /** Persönlicher Unterrichtsplan pro Schuljahr, unabhängig von allen Klassenprojektionen. */
+  stundenplanByYear?: Record<string, PersonalLesson[]>;
   schulstundenJaehrlich?: number;
   schularbeitenManuell?: number;
   testsManuell?: number;
