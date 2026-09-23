@@ -34,7 +34,7 @@ function CircleDiagram({
       </svg>
       <p className="text-xs font-semibold text-slate-600">{caption}</p>
       <div className="mt-3 flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-slate-600">
-        {segments.map(item => <span key={item.label} className="inline-flex items-center gap-1">
+        {segments.filter(item => item.count > 0).map(item => <span key={item.label} className="inline-flex items-center gap-1">
           <i className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} aria-hidden="true" />
           {item.label}: {item.count}
         </span>)}
