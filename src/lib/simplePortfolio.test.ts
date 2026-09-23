@@ -45,7 +45,7 @@ test('grade ring only counts real grades, never interprets percentages as grades
   assert.deepEqual(getSimpleSubjectGrades(app, 'pupil', 'Deutsch'), []);
 });
 
-test('portfolio display shows two four-axis radar charts, notes and four goal levels', () => {
+test('portfolio display shows two configurable radar charts, notes and four goal levels', () => {
   const outer = readFileSync('src/components/Portfolio.tsx', 'utf8');
   const view = readFileSync('src/components/SimplePortfolioView.tsx', 'utf8');
   assert.match(outer, /mergeLegacyPortfolioEntries/);
@@ -55,19 +55,24 @@ test('portfolio display shows two four-axis radar charts, notes and four goal le
   assert.match(view, /<PortfolioFlower title="Noten"/);
   assert.match(view, /<PortfolioFlower title="Lernziele"/);
   assert.doesNotMatch(view, /<CircleDiagram/);
-  assert.match(view, /areas\.map\(\(area, index\): FlowerPetal/);
-  assert.match(view, /area\.goals\.filter\(goal => ratings\[goal\.id\]/);
+  assert.match(view, /goalAxisIds\.map/);
+  assert.match(view, /axisGoals\.filter/);
   const flower = readFileSync('src/components/PortfolioFlower.tsx', 'utf8');
   assert.match(flower, /data-radar-axis/);
   assert.match(flower, /data-radar-progress/);
   assert.match(flower, /data-radar-grid/);
   assert.match(flower, /data-radar-shape/);
-  assert.match(flower, /petals\.map\(\(petal, index\)/);
+  assert.match(flower, /axes\.map/);
   assert.match(flower, /Math\.min\(1, Math\.max\(0, raw\)\)/);
   assert.match(view, /rating === 1 \? 1 : rating === 2 \? 2 \/ 3 : rating === 3 \? 1 \/ 3 : 0/);
-  assert.match(view, /\}, 0\) \/ area\.goals\.length : 0/);
+  assert.match(view, /axisGoals\.length : 0/);
   assert.match(view, /aria-label="Fach auswählen"/);
   assert.match(view, /aria-label="Kind auswählen"/);
+  assert.match(view, /portfolioRadarAxes/);
+  assert.match(view, /Anzahl Achsen/);
+  assert.match(view, /changeAxisCount/);
+  assert.match(flower, /axisCount/);
+  assert.match(flower, /petals\.slice\(0, 8\)/);
   assert.match(view, /GOAL_STEPS\.map/);
   assert.match(view, /studentLernzielSemesterBewertungen/);
   assert.match(view, /notes: \[\.\.\.\(prev\.notes \|\| \[\]\)/);
