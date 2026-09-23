@@ -978,7 +978,7 @@ export default function Attendance() {
             <span className="sm:hidden">Offene anwesend</span><span className="hidden sm:inline">Nur offene anwesend</span>
           </button>
 
-          {tentativePresent && dayStats.untracked > 0 && <span className="text-xs text-amber-700" role="status">Anwesend ist nur vorausgewählt – bitte täglich bestätigen.</span>}
+          {tentativePresent && dayStats.untracked > 0 && <span className="order-last col-span-3 text-xs text-amber-700 md:order-none" role="status">Anwesend ist nur vorausgewählt – bitte täglich bestätigen.</span>}
 
           {/* Primary Action "Abschließen" */}
           <button
