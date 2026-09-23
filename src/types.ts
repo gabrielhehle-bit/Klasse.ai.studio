@@ -434,9 +434,6 @@ export interface Student {
     createdAt: string;
     updatedAt: string;
   }[];
-  /** Optional individual 0–100 radar values for this pupil's own manual goals.
-   * Does not overwrite annual goal assessments or grades. Saved with encrypted class state. */
-  portfolioRadarWerte?: Record<string, number>;
   foto?: string;
   emoji?: string;
   badges?: { id: string, name: string, date: string, icon: string }[];
