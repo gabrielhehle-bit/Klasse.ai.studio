@@ -7,6 +7,7 @@ import {
 import { CockpitWidgetConfig } from '../../../types';
 import { useApp } from '../../../context/AppContext';
 import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
+import { MAX_CLASS_TIMER_SECONDS, normalizeClassTimerSeconds, classTimerOwnsShortcut } from '../../../lib/classTimerInput';
 
 export interface TimerWidgetProps {
   widget: CockpitWidgetConfig;
@@ -39,7 +40,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
 
   // Settings from widget.settings
   const savedSettings = widget.settings || {};
-  const defaultDuration = typeof savedSettings.preferredDuration === 'number' ? savedSettings.preferredDuration : 300;
+  const defaultDuration = typeof savedSettings.preferredDuration === 'number' && Number.isInteger(savedSettings.preferredDuration) && savedSettings.preferredDuration >= 1 && savedSettings.preferredDuration <= MAX_CLASS_TIMER_SECONDS ? savedSettings.preferredDuration : 300;
   const initialVisualMode: VisualMode = savedSettings.visualMode || 'ring';
   const initialAlarmSound: AlarmSound = savedSettings.alarmSound || 'bell';
   const initialIsMuted: boolean = savedSettings.isMuted ?? false;
@@ -58,6 +59,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
   const [isCustomTimeOpen, setIsCustomTimeOpen] = useState(false);
   const [customMinInput, setCustomMinInput] = useState('5');
   const [customSecInput, setCustomSecInput] = useState('0');
+  const [customTimeError, setCustomTimeError] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
@@ -226,10 +228,9 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
-        return;
-      }
-
+      // A classroom board can contain multiple timers, notes and stopwatches.
+      // Never hijack global typing or control other widgets.
+      if (!classTimerOwnsShortcut(containerRef.current, target)) return;
       if (e.code === 'Space') {
         e.preventDefault();
         if (status === 'ready') handleStart();
@@ -344,9 +345,14 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
   };
 
   const handleApplyCustomTime = () => {
-    const m = parseInt(customMinInput, 10) || 0;
-    const s = parseInt(customSecInput, 10) || 0;
-    const total = Math.max(1, m * 60 + s);
+    let total: number;
+    try {
+      total = normalizeClassTimerSeconds(customMinInput, customSecInput);
+    } catch (error) {
+      setCustomTimeError(error instanceof Error ? error.message : 'Bitte eine gültige Zeit eingeben.');
+      return;
+    }
+    setCustomTimeError('');
     setInitialSeconds(total);
     setRemainingSeconds(total);
     setEndTimestamp(null);
@@ -400,6 +406,8 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
   return (
     <div
       ref={containerRef}
+      tabIndex={0}
+      aria-label="Countdown-Timer: Leertaste startet oder pausiert bei fokussiertem Widget, R setzt zurück"
       className={`relative flex flex-col justify-between w-full h-full select-none overflow-hidden transition-colors duration-300 ${
         size.isCompact ? 'p-2.5' : size.isStandard ? 'p-3.5' : 'p-5'
       } ${
@@ -1146,15 +1154,16 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                 </button>
               </div>
 
+              {customTimeError && <p role="alert" className="rounded-lg bg-rose-100 p-2 text-xs font-bold text-rose-800">{customTimeError}</p>}
               <div className="flex items-center justify-center gap-3 my-4">
                 <div className="flex flex-col items-center">
                   <label className="text-[10px] font-bold text-slate-400 mb-1">Minuten</label>
                   <input
                     type="number"
                     min="0"
-                    max="180"
+                    max="720"
                     value={customMinInput}
-                    onChange={(e) => setCustomMinInput(e.target.value)}
+                    onChange={(e) => { setCustomMinInput(e.target.value); setCustomTimeError(''); }}
                     className={`w-20 text-center text-3xl font-black rounded-xl p-2 border outline-none focus:border-indigo-500 ${
                       currentIsLight ? 'bg-slate-50 border-slate-300 text-slate-800' : 'bg-zinc-800 border-white/10 text-white'
                     }`}
@@ -1168,7 +1177,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                     min="0"
                     max="59"
                     value={customSecInput}
-                    onChange={(e) => setCustomSecInput(e.target.value)}
+                    onChange={(e) => { setCustomSecInput(e.target.value); setCustomTimeError(''); }}
                     className={`w-20 text-center text-3xl font-black rounded-xl p-2 border outline-none focus:border-indigo-500 ${
                       currentIsLight ? 'bg-slate-50 border-slate-300 text-slate-800' : 'bg-zinc-800 border-white/10 text-white'
                     }`}
