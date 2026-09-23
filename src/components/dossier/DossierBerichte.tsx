@@ -35,7 +35,7 @@ interface DossierBerichteProps {
 export default function DossierBerichte({
   student,
   initialSubView = 'ki_summary',
-  semester = '2',
+  semester = '1',
   onSemesterChange,
   onStartPresentation
 }: DossierBerichteProps) {
