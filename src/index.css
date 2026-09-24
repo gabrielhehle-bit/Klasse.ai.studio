@@ -2377,3 +2377,64 @@ html body .cockpit-free-mascot .mascot-widget-resize {
   font-size: clamp(12px, 3.5cqw, 16px) !important;
   overflow-wrap: anywhere;
 }
+
+/* KLASSIO whiteboard-first teaching cockpit. These rules are presentation only;
+   no saved layout, pupil record or synced teaching state is changed. */
+html body .klassio-cockpit-shell .klassio-whiteboard,
+html body [data-style] .klassio-cockpit-shell .klassio-whiteboard {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+  min-width: 0;
+  min-height: 0;
+}
+html body .klassio-cockpit-shell .klassio-widget-dock,
+html body [data-style] .klassio-cockpit-shell .klassio-widget-dock,
+html body .klassio-cockpit-shell .klassio-dock-config,
+html body [data-style] .klassio-cockpit-shell .klassio-dock-config,
+html body .klassio-cockpit-shell .klassio-student-sidebar,
+html body [data-style] .klassio-cockpit-shell .klassio-student-sidebar {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+  color-scheme: light;
+}
+html body [data-style] .klassio-cockpit-shell .klassio-widget-dock button:not(.klassio-dock-add),
+html body [data-style] .klassio-cockpit-shell .klassio-dock-config button,
+html body [data-style] .klassio-cockpit-shell .klassio-dock-config label {
+  color: #1e293b !important;
+  -webkit-text-fill-color: #1e293b !important;
+}
+html body [data-style] .klassio-cockpit-shell .klassio-widget-dock .klassio-dock-add {
+  background-color: #3730a3 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body [data-style] .klassio-cockpit-shell .klassio-widget-dock .klassio-dock-favorite[aria-pressed="true"] {
+  background-color: #e0e7ff !important;
+  color: #312e81 !important;
+}
+html body [data-style] .klassio-cockpit-shell .klassio-student-sidebar .bg-white,
+html body [data-style] .klassio-cockpit-shell .klassio-student-sidebar .bg-slate-50 {
+  background-color: #ffffff !important;
+}
+html body [data-style] .klassio-cockpit-shell .klassio-student-sidebar .text-slate-900,
+html body [data-style] .klassio-cockpit-shell .klassio-student-sidebar .text-slate-800 {
+  color: #0f172a !important;
+}
+@media (max-width: 960px) {
+  .klassio-cockpit-shell .klassio-student-sidebar {
+    position: absolute !important;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    z-index: 150;
+    max-width: calc(100vw - 0.75rem);
+    box-shadow: -12px 0 30px rgba(15, 23, 42, 0.16);
+  }
+}
+@media (min-width: 961px) {
+  .klassio-cockpit-shell .klassio-student-sidebar {
+    max-width: min(620px, calc(100% - 320px));
+  }
+}
