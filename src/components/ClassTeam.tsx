@@ -8,6 +8,8 @@ import {
   deleteSharedClass,
   ensureRegisteredTeamTeachingDevice,
   listSharedClasses,
+  listSharedClassHistory,
+  pullSharedClassRevision,
   listTeamTeachingColleagues,
   listTeamTeachingSchoolUsers,
   pullSharedClass,
@@ -16,15 +18,32 @@ import {
   refreshTeamTeachingMemberDevices,
   updateTeamTeachingMemberRole,
   type SharedClassSummary,
+  type SharedClassHistoryVersion,
   type TeamTeachingColleague,
 } from '../lib/teamTeachingService';
 import { classRoomFingerprint, classRoomWithoutTeamMetadata } from '../lib/teamTeachingCrypto';
 import { adoptAcknowledgedTeamRoom } from '../lib/teamTeachingProjection';
+import { describeTeamClassChanges, type TeamClassChange } from '../lib/teamTeachingChanges';
 import type { ClassRoom } from '../types';
 import EmailAccountLogin from './EmailAccountLogin';
 
 function replaceOrAddRoom(prev: any, room: ClassRoom) {
-  return adoptAcknowledgedTeamRoom(prev, room);
+  const current = syncActiveClass(prev);
+  const existing = (current.classes || []).find((candidate: ClassRoom) => candidate.id === room.id);
+  if (!existing || classRoomFingerprint(existing) === classRoomFingerprint(room)) return adoptAcknowledgedTeamRoom(current, room);
+  // A new device may have an older personal-account class with this ID.
+  // Keep its entire old content in a visibly separate local copy before connecting to the authoritative team snapshot.
+  const copy = classRoomWithoutTeamMetadata(existing);
+  const safeCopy = { ...copy, id: copy.id + '-vor-teambeitritt-' + Date.now().toString(36),
+    name: copy.name + ' – lokale Kopie vor Teambeitritt' };
+  return adoptAcknowledgedTeamRoom({ ...current, classes: [...current.classes, safeCopy] }, room);
+}
+
+function formatTeamDate(value?: string): string {
+  if (!value) return 'noch nicht bekannt';
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? 'noch nicht bekannt'
+    : parsed.toLocaleString('de-AT', { dateStyle: 'short', timeStyle: 'short' });
 }
 
 export default function ClassTeam() {
@@ -37,6 +56,12 @@ export default function ClassTeam() {
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
   const [needsSchoolLogin, setNeedsSchoolLogin] = React.useState(false);
+  const [history, setHistory] = React.useState<SharedClassHistoryVersion[]>([]);
+  const [historyBusy, setHistoryBusy] = React.useState(false);
+  const [changesPreview, setChangesPreview] = React.useState<{
+    title: string; changes: TeamClassChange[]; revision: number; room?: ClassRoom;
+  } | null>(null);
+  const [historyVisible, setHistoryVisible] = React.useState(false);
 
   const synced = React.useMemo(() => syncActiveClass(app), [app]);
   const activeRoom = synced.classes?.find(room => room.id === synced.activeClassId);
