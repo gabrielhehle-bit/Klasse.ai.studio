@@ -2249,6 +2249,14 @@ html body .cockpit-free-mascot .mascot-widget-resize {
   min-width: 0;
   max-width: 100%;
 }
+/* A widget with one normal content root gets the entire inner window, not
+ * just its intrinsic text height. Several deliberate sibling blocks keep
+ * their own flow/scroll behavior (no forced 100% height per sibling). */
+.cockpit-widget-container:not(.cockpit-free-mascot) .cockpit-widget-content
+  > :is(div, section, article, main):only-child {
+  min-height: 100%;
+  flex-grow: 1;
+}
 .cockpit-widget-content :is(.truncate, .break-words, .whitespace-normal) {
   min-width: 0;
 }
