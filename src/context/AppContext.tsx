@@ -899,7 +899,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const localRoom = current.classes?.find(room => room.id === current.activeClassId);
         const initialMeta = localRoom?.teamTeaching;
         if (!localRoom || !initialMeta || initialMeta.sharedClassId !== activeTeamSharedId) return;
-        if (initialMeta.syncStatus === 'conflict') return;
 
         const remote = await pullSharedClass(activeTeamSharedId);
         if (!active) return;
@@ -910,7 +909,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (latest.activeClassId !== current.activeClassId) return;
         const latestRoom = latest.classes?.find(room => room.id === localRoom.id);
         const latestMeta = latestRoom?.teamTeaching;
-        if (!latestRoom || !latestMeta || latestMeta.sharedClassId !== activeTeamSharedId || latestMeta.syncStatus === 'conflict') return;
+        if (!latestRoom || !latestMeta || latestMeta.sharedClassId !== activeTeamSharedId) return;
         if (remote.room.id !== latestRoom.id) {
           setLocalTeamStatus('conflict', 'Die Teamklasse hat eine andere Klassen-ID als deine lokale Klasse. Nichts wurde überschrieben.');
           return;
@@ -920,8 +919,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const baseline = latestMeta.lastSyncedHash;
         const meta = latestMeta;
 
+        // Adding a colleague/device bumps the server revision even if the
+        // encrypted class contents did NOT change. Do not label a teacher's
+        // unsent weekly lesson as a conflicting edit in this case.
+        const metadataOnlyRevision = Boolean(
+          baseline && remoteHash === baseline && remote.detail.revision > meta.revision
+        );
+        if (meta.syncStatus === 'conflict' && localHash !== baseline && remoteHash !== baseline) {
+          // Genuine competing lesson changes: no automatic overwrite.
+          return;
+        }
+
         if (remote.detail.revision > meta.revision) {
-          if (baseline && localHash !== baseline && meta.role !== 'viewer') {
+          if (baseline && localHash !== baseline) {
+            if (metadataOnlyRevision && meta.role !== 'viewer') {
+              setLocalTeamStatus('syncing', 'Neue Teamfreigabe erkannt. Deine lokale Wochenplanung wird ohne Überschreiben abgeglichen.');
+              try {
+                const ready = {
+                  ...latestRoom,
+                  teamTeaching: { ...meta, revision: remote.detail.revision, role: remote.detail.myRole },
+                };
+                const pushed = await pushSharedClass(ready);
+                if (active) updateAfterPush(pushed.revision, localHash);
+              } catch (error: any) {
+                setLocalTeamStatus(
+                  error?.code === 'REVISION_CONFLICT' || error?.status === 409 ? 'conflict' : 'error',
+                  error instanceof Error ? error.message : 'Der gemeinsame Wochenplan konnte noch nicht übertragen werden.',
+                );
+              }
+              return;
+            }
             setLocalTeamStatus(
               'conflict',
               'Die Klasse wurde gleichzeitig auf einem anderen Gerät geändert. Deine lokale Änderung wurde nicht überschrieben.',
