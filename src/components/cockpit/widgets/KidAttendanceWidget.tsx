@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Users, Check, Clock, ShieldCheck, X, AlertCircle,
   Maximize2, UserCheck, UserX, RotateCcw, Sparkles
@@ -13,6 +14,7 @@ import {
 import {
   getTodayIsoDate,
   getStudentAttendanceStatus,
+  getStudentAbsenceCode,
   checkInStudent,
   teacherSetStudentPresent,
   teacherSetStudentAbsent,
@@ -236,16 +238,19 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
 
   // Lehrer-Aktionen
   const handleTeacherSetPresent = useCallback((studentId: string) => {
-    setApp((prev) => teacherSetStudentPresent(prev, studentId, todayStr));
-  }, [setApp, todayStr]);
+    setApp((prev) => prev.activeClassId === app.activeClassId && prev.schueler?.some(child => child.id === studentId)
+      ? teacherSetStudentPresent(prev, studentId, todayStr) : prev);
+  }, [app.activeClassId, setApp, todayStr]);
 
   const handleTeacherSetAbsent = useCallback((studentId: string, absenceCode: 'u' | 'e' = 'u') => {
-    setApp((prev) => teacherSetStudentAbsent(prev, studentId, todayStr, undefined, absenceCode));
-  }, [setApp, todayStr]);
+    setApp((prev) => prev.activeClassId === app.activeClassId && prev.schueler?.some(child => child.id === studentId)
+      ? teacherSetStudentAbsent(prev, studentId, todayStr, undefined, absenceCode) : prev);
+  }, [app.activeClassId, setApp, todayStr]);
 
   const handleTeacherResetToOpen = useCallback((studentId: string) => {
-    setApp((prev) => teacherResetStudentToOpen(prev, studentId, todayStr));
-  }, [setApp, todayStr]);
+    setApp((prev) => prev.activeClassId === app.activeClassId && prev.schueler?.some(child => child.id === studentId)
+      ? teacherResetStudentToOpen(prev, studentId, todayStr) : prev);
+  }, [app.activeClassId, setApp, todayStr]);
 
   const handleTeacherSetDelay = useCallback((studentId: string, minutes: number) => {
     setApp((prev) => teacherSetStudentDelay(prev, studentId, todayStr, minutes));
@@ -519,7 +524,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
         >
           <Maximize2 size={17} aria-hidden="true" /> Alle Kinder öffnen
         </button>
-        {isTeacherModalOpen && renderTeacherModal()}
+        {isTeacherModalOpen && createPortal(renderTeacherModal(), document.body)}
         {isFinalizeModalOpen && renderFinalizeModal()}
         {activeMoodStudent && renderChildMoodModal()}
       </div>
@@ -726,9 +731,10 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   // ==========================================
   function renderTeacherModal() {
     return (
-      <div className="absolute inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-xs font-sans select-none animate-in fade-in-50">
+      <div role="dialog" aria-modal="true" aria-label="Lehrer-Anwesenheitskorrektur"
+        className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-xs font-sans animate-in fade-in-50">
         <div
-          className={`w-full max-w-xl max-h-[90%] flex flex-col rounded-2xl border shadow-xl overflow-hidden ${
+          className={`w-full max-w-2xl max-h-[95dvh] sm:max-h-[90dvh] flex flex-col rounded-2xl border shadow-xl overflow-hidden ${
             currentIsLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-zinc-900 border-zinc-700 text-zinc-100'
           }`}
         >
@@ -790,11 +796,12 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           <div className="flex-1 overflow-y-auto no-scrollbar p-3 divide-y divide-slate-100 dark:divide-zinc-800 min-h-0">
             {students.map((student) => {
               const displayName = displayNames.get(student.id) || student.vorname;
-              const { status, isPreExistingAbsent, delayMinutes } = getStudentAttendanceStatus(
+              const { status, delayMinutes } = getStudentAttendanceStatus(
                 student.id,
                 app,
                 todayStr
               );
+              const absenceCode = getStudentAbsenceCode(student.id, app, todayStr);
               const currentMood = getStudentMood(student.id, app, todayStr);
               const currentMoodMeta = currentMood ? getMoodMeta(currentMood) : undefined;
 
@@ -803,7 +810,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                   key={student.id}
                   className="py-2.5 flex flex-col gap-1.5"
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="font-bold text-sm whitespace-normal break-words leading-tight">
                         {displayName}
@@ -817,7 +824,9 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                             : 'bg-slate-100 dark:bg-zinc-800 border-slate-200 text-slate-600 dark:text-zinc-400'
                         }`}
                       >
-                        {status === 'present' ? '✓ Da' : status === 'absent' ? '– Fehlt' : '○ Offen'}
+                        {status === 'present' ? '✓ Da' : status === 'absent'
+                          ? absenceCode === 'e' ? '✓ Entschuldigt' : absenceCode === 'u' ? '– Fehlt' : '– Abwesend'
+                          : '○ Offen'}
                       </span>
                       {delayMinutes > 0 && (
                         <span className="text-[10px] font-bold text-amber-600">
@@ -827,7 +836,8 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                     </div>
 
                     {/* Lehrer-Korrekturknöpfe */}
-                    <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                    <div role="group" aria-label={`Anwesenheit von ${displayName} bearbeiten`}
+                      className="grid w-full grid-cols-2 gap-2 sm:grid-cols-5">
                       <button
                         type="button"
                         onClick={() => handleTeacherSetPresent(student.id)}
@@ -837,6 +847,8 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                             : 'bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 hover:bg-emerald-50'
                         }`}
                         title="Als anwesend setzen"
+                        aria-label={`${displayName}: Da`}
+                        aria-pressed={status === 'present'}
                       >
                         <Check size={12} strokeWidth={3} />
                         Da
@@ -846,11 +858,13 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                         type="button"
                         onClick={() => handleTeacherSetAbsent(student.id, 'u')}
                         className={`min-h-11 px-2.5 rounded-md text-xs font-bold flex items-center gap-1 cursor-pointer border ${
-                          status === 'absent'
+                          status === 'absent' && absenceCode === 'u'
                             ? 'bg-rose-600 text-white border-rose-600'
                             : 'bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 hover:bg-rose-50'
                         }`}
                         title="Als unentschuldigt abwesend setzen"
+                        aria-label={`${displayName}: Fehlt (unentschuldigt)`}
+                        aria-pressed={status === 'absent' && absenceCode === 'u'}
                       >
                         Fehlt
                       </button>
@@ -858,10 +872,14 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                       <button
                         type="button"
                         onClick={() => handleTeacherSetAbsent(student.id, 'e')}
-                        className="min-h-11 px-2 rounded-md text-xs font-bold flex items-center gap-1 cursor-pointer border bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-600 text-slate-600 dark:text-zinc-300 hover:bg-amber-50"
-                        title="Als entschuldigt setzen (z.B. Krankmeldung)"
+                        className={`min-h-11 min-w-0 px-2 rounded-md text-xs font-bold flex items-center justify-center cursor-pointer border ${status === 'absent' && absenceCode === 'e'
+                          ? 'bg-amber-500 border-amber-600 text-slate-950'
+                          : 'bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 hover:bg-amber-50'}`}
+                        title="Als entschuldigt abwesend setzen"
+                        aria-label={`${displayName}: Entschuldigt`}
+                        aria-pressed={status === 'absent' && absenceCode === 'e'}
                       >
-                        Entsch.
+                        Entschuldigt
                       </button>
 
                       <button
@@ -869,6 +887,8 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                         onClick={() => handleTeacherResetToOpen(student.id)}
                         className="min-h-11 px-2 rounded-md text-xs font-medium flex items-center gap-1 cursor-pointer border bg-slate-50 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-100"
                         title="Check-In zurücksetzen auf Offen"
+                        aria-label={`${displayName}: Offen`}
+                        aria-pressed={status === 'open'}
                       >
                         <RotateCcw size={11} />
                         Offen
@@ -1120,11 +1140,12 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                           {displayName}
                         </span>
 
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        <div role="group" aria-label={`Offenen Check-in für ${displayName} abschließen`}
+                          className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-3">
                           <button
                             type="button"
                             onClick={() => handleTeacherSetPresent(student.id)}
-                            className="h-8 px-2.5 rounded-lg font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 cursor-pointer"
+                            className="min-h-11 rounded-lg px-3 font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1 cursor-pointer"
                           >
                             <Check size={12} strokeWidth={3} />
                             Ist da
@@ -1133,10 +1154,15 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                           <button
                             type="button"
                             onClick={() => handleTeacherSetAbsent(student.id, 'u')}
-                            className="h-8 px-2.5 rounded-lg font-bold text-xs bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1 cursor-pointer"
+                            className="min-h-11 rounded-lg px-3 font-bold text-xs bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center gap-1 cursor-pointer"
                           >
                             <UserX size={12} />
-                            Abwesend
+                            Fehlt
+                          </button>
+                          <button type="button"
+                            onClick={() => handleTeacherSetAbsent(student.id, 'e')}
+                            className="min-h-11 rounded-lg px-3 font-bold text-xs bg-amber-500 hover:bg-amber-600 text-slate-950 cursor-pointer">
+                            Entschuldigt
                           </button>
                         </div>
                       </div>
