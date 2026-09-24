@@ -95,6 +95,9 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
   const contentInfo: QRCodeContentInfo = useMemo(() => {
     return parseQRCodeInput(inputVal, inputLabel);
   }, [inputVal, inputLabel]);
+  // Oversize legacy content is retained and editable, but must not crash the
+  // QR encoder when pupils open a classroom widget containing long text.
+  const qrTooLong = new TextEncoder().encode(contentInfo.encodedValue).length > 1000;
 
   // Dynamische QR-Größenberechnung
   const qrPixelSize = useMemo(() => {
@@ -167,6 +170,7 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
           QR-Code
         </button>
         <button type="button" aria-pressed={activePanel === 'links'} onClick={() => {
+          persistSettings(inputVal, inputLabel, true);
           setIsLightboxOpen(false); setActivePanel('links');
         }}
           className={`min-h-11 rounded-xl px-2 text-xs font-bold ${activePanel === 'links'
@@ -225,7 +229,8 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
           <button
             id="qrcode-zoom-btn"
             type="button"
-            onClick={() => setIsLightboxOpen(true)}
+            onClick={() => { if (!qrTooLong && inputVal) setIsLightboxOpen(true); }}
+            disabled={!inputVal || qrTooLong}
             title="Großanzeige auf Tafel / Beamer"
             aria-label="Großanzeige öffnen"
             className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs rounded-lg transition-all cursor-pointer min-h-[34px]"
@@ -250,9 +255,9 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
               aria-label="URL oder Text für den QR-Code"
               placeholder="Web-Adresse (https://...) oder Text (z. B. Aufgabe S. 42 Nr. 3)..."
               value={inputVal}
-              maxLength={1200}
+              maxLength={1000}
               onChange={(e) => {
-                const val = e.target.value.slice(0, 1200);
+                const val = e.target.value.slice(0, 1000);
                 setInputVal(val);
                 persistSettings(val, inputLabel);
               }}
@@ -274,6 +279,9 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
             )}
           </div>
 
+          {qrTooLong && <p role="alert" className="rounded-lg bg-rose-100 p-2 text-[11px] font-bold text-rose-800">
+            Zu viel Inhalt für einen zuverlässig lesbaren QR-Code. Bitte Text oder Link kürzen.
+          </p>}
           {/* Dezenter Sicherheitshinweis & neutrale Beispiele im Bearbeitungsbereich */}
           <div className="flex items-center justify-between text-[9px] text-slate-400 dark:text-zinc-500 px-1 pt-0.5 truncate">
             <span className="truncate">z. B. „Aufgabe S. 42 Nr. 3“ oder „Lösungswort: Regenbogen“</span>
@@ -309,7 +317,7 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
 
         {/* Mittiger Bereich: QR-Code Canvas */}
         <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative py-1">
-          {inputVal ? (
+          {inputVal && !qrTooLong ? (
             <div
               id="qrcode-canvas-wrapper"
               onClick={() => setIsLightboxOpen(true)}
@@ -395,7 +403,7 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
       </div>
 
       {/* 3. Lightbox / Tafel-Vollbild Modal */}
-      {isLightboxOpen && createPortal(
+      {isLightboxOpen && !!inputVal && !qrTooLong && createPortal(
         <div
           id="qrcode-lightbox-overlay"
           onClick={() => setIsLightboxOpen(false)}
@@ -437,8 +445,8 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
             {/* Riesiger QR Code Canvas */}
             <div className="p-5 bg-white rounded-3xl shadow-lg border border-slate-200 mb-4 flex items-center justify-center">
               <QRCodeCanvas
-                value={contentInfo.encodedValue || DEFAULT_QR_VALUE}
-                size={Math.min(size.width ? size.width - 96 : 300, 320)}
+                value={contentInfo.encodedValue}
+                size={Math.max(180, Math.min(window.innerWidth - 100, window.innerHeight - 310, 380))}
                 level="H"
                 includeMargin={false}
               />
