@@ -47,9 +47,11 @@ test('Saving a profile color no longer forces custom_theme and the scoped app us
 
 test('Wheel fills the actual widget viewport while compact controls preserve portrait and landscape layout', () => {
   const wheel = readFileSync('src/components/cockpit/widgets/WheelWidget.tsx', 'utf8');
-  assert.match(wheel, /Math\.min\(containerSize\.width - 16, containerSize\.height - 93, 680\)/);
-  assert.match(wheel, /min-h-\[34px\] sm:min-h-\[38px\]/);
-  assert.match(wheel, /min-h-\[28px\] min-w-\[28px\]/);
+  assert.match(wheel, /observer\.observe\(wheelArea\)/);
+  assert.match(wheel, /wheelAreaSize\.width \|\| containerSize\.width - 16/);
+  assert.match(wheel, /wheelAreaSize\.height \|\| containerSize\.height - 144/);
+  assert.match(wheel, /w-full min-h-11 rounded-lg font-black/);
+  assert.match(wheel, /min-h-11 min-w-11 p-1 rounded-lg border/);
   assert.match(wheel, /h-7 sm:h-8/);
   assert.match(wheel, /my-0\.5 min-h-0/);
   assert.doesNotMatch(wheel, /Math\.max\(180,\s*Math\.min\(containerSize/);
