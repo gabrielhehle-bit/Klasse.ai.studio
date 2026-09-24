@@ -21,8 +21,4 @@ export function dienstPageWindow(total: number, width: number, height: number, p
     end: Math.min(total, (current + 1) * perPage) };
 }
 
-/** Local calendar day, not UTC: substitute appointments must not spill into tomorrow. */
-export function localDienstDate(now: Date = new Date()): string {
-  return [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0')].join('-');
-}
+export { localDienstDate } from './diensteAlgorithm';
