@@ -1,4 +1,6 @@
 import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { nextClassGoalCount, validateClassGoalInput } from '../../../lib/classGoalWidgetModel';
 import {
   Sparkles,
   RotateCcw,
@@ -71,8 +73,9 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
   useWidgetOverflowGuard('ClassRewardWidget', containerRef);
 
   // Kanonische Daten aus AppContext
-  const count = typeof app?.klassenglas_count === 'number' ? app.klassenglas_count : DEFAULT_REWARD_STATE.count;
-  const goal = typeof app?.klassenglas_ziel === 'number' ? app.klassenglas_ziel : DEFAULT_REWARD_STATE.goal;
+  const count = Number.isFinite(app?.klassenglas_count)
+    ? Math.max(0, Math.floor(app.klassenglas_count)) : DEFAULT_REWARD_STATE.count;
+  const goal = Number.isInteger(app?.klassenglas_ziel) && app.klassenglas_ziel > 0 ? app.klassenglas_ziel : DEFAULT_REWARD_STATE.goal;
   const rewardTitle = app?.klassenglas_belohnung || DEFAULT_REWARD_STATE.rewardTitle;
   const symbol = app?.settings?.klassenglasIcon || widget?.settings?.symbol || DEFAULT_REWARD_STATE.symbol;
   const style: RewardVisualizationStyle =
@@ -80,6 +83,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isConfirmingReset, setIsConfirmingReset] = useState(false);
+  const [settingsError, setSettingsError] = useState('');
   const [animatingGem, setAnimatingGem] = useState(false);
 
   // Form State für Settings
@@ -95,8 +99,9 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
       setEditTitle(rewardTitle);
       setEditSymbol(symbol);
       setEditStyle(style);
+      setSettingsError('');
     }
-  }, [isSettingsOpen, goal, rewardTitle, symbol, style]);
+  }, [isSettingsOpen]);
 
   const progressPercent = useMemo(() => calculateProgressPercent(count, goal), [count, goal]);
   const goalAchieved = useMemo(() => isGoalReached(count, goal), [count, goal]);
@@ -148,7 +153,8 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
 
     setApp((prev: any) => ({
       ...prev,
-      klassenglas_count: nextState.count,
+      // Read the latest account/class state, not a captured count before rapid taps.
+      klassenglas_count: nextClassGoalCount(prev.klassenglas_count, 1),
     }));
 
     setAnimatingGem(true);
@@ -177,15 +183,17 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
     if (corrected) {
       setApp((prev: any) => ({
         ...prev,
-        klassenglas_count: nextState.count,
+        klassenglas_count: nextClassGoalCount(prev.klassenglas_count, -1),
       }));
     }
   };
 
   // Einstellungen speichern
   const handleSaveSettings = () => {
-    const safeGoal = Math.max(1, Math.min(1000, Number(editGoal) || 20));
-    const safeTitle = editTitle.trim() || DEFAULT_REWARD_STATE.rewardTitle;
+    const checked = validateClassGoalInput(editGoal);
+    if (checked.goal === null) { setSettingsError(checked.error); return; }
+    const safeGoal = checked.goal;
+    const safeTitle = editTitle.trim().slice(0, 100) || DEFAULT_REWARD_STATE.rewardTitle;
 
     setApp((prev: any) => ({
       ...prev,
@@ -443,8 +451,9 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
       </div>
 
       {/* MODAL / SETTINGS DRAWER */}
-      {isSettingsOpen && (
-        <div className="absolute inset-0 z-30 p-3 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md flex flex-col justify-between overflow-y-auto">
+      {isSettingsOpen && createPortal(
+        <div role="dialog" aria-modal="true" aria-label="Klassenziel anpassen"
+          className="fixed inset-0 z-[99999] mx-auto flex w-full max-w-xl flex-col justify-between overflow-y-auto bg-white p-4 text-slate-900 shadow-2xl dark:bg-zinc-900 dark:text-white sm:inset-y-4 sm:rounded-2xl sm:p-6">
           <div className="space-y-3">
             <div className="flex items-center justify-between border-b border-black/5 dark:border-white/10 pb-2">
               <h4 className="text-xs font-black uppercase tracking-wider">Klassenziel anpassen</h4>
@@ -466,6 +475,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
                 type="text"
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
+                maxLength={100}
                 placeholder="z.B. Gemeinsame Spielzeit"
                 className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-white/10 bg-transparent focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />
@@ -476,7 +486,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
               <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
                 Ziel-Anzahl (1 – 1000)
               </label>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {[10, 20, 30, 50, 100].map((quick) => (
                   <button
                     key={quick}
@@ -496,10 +506,12 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
                   min="1"
                   max="1000"
                   value={editGoal}
-                  onChange={(e) => setEditGoal(Number(e.target.value))}
+                  onChange={(e) => { setEditGoal(Number(e.target.value)); setSettingsError(''); }}
+                  aria-label="Zielanzahl"
                   className="w-16 px-2 py-1 text-xs rounded border border-slate-200 dark:border-white/10 bg-transparent text-center font-bold"
                 />
               </div>
+              {settingsError && <p role="alert" className="mt-2 rounded-lg bg-rose-50 p-2 text-xs font-bold text-rose-700">{settingsError}</p>}
             </div>
 
             {/* Symbol-Auswahl */}
@@ -567,12 +579,14 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
               Speichern
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* RESET BESTÄTIGUNGS-MODAL */}
-      {isConfirmingReset && (
-        <div className="absolute inset-0 z-30 p-4 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md flex flex-col items-center justify-center text-center">
+      {isConfirmingReset && createPortal(
+        <div role="alertdialog" aria-modal="true" aria-label="Klassenziel zurücksetzen"
+          className="fixed inset-0 z-[99999] mx-auto flex w-full max-w-md flex-col items-center justify-center bg-white p-6 text-center text-slate-900 shadow-2xl dark:bg-zinc-900 dark:text-white sm:inset-y-4 sm:rounded-2xl">
           <RotateCcw size={28} className="text-rose-500 mb-2 animate-spin-once" />
           <h4 className="text-sm font-black mb-1">Klassenziel neu starten?</h4>
           <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 max-w-[220px]">
@@ -594,7 +608,8 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
               Ja, leeren
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
