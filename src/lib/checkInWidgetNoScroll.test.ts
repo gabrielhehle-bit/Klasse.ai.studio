@@ -2,16 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { getStudentGridLayout } from './studentWidgetGrid';
-import { CHECK_IN_GRID_OPTIONS, getCheckInPageLayout, shouldShowCheckInSummary } from './checkInWidgetLayout';
+import { CHECK_IN_GRID_OPTIONS, getAdaptiveCheckInOptions, getCheckInPageLayout, shouldShowCheckInSummary } from './checkInWidgetLayout';
 
 const source = readFileSync('src/components/cockpit/widgets/KidAttendanceWidget.tsx', 'utf8');
 
-test('Ich bin da: compact always shows a summary, never a clipped student list', () => {
-  assert.equal(shouldShowCheckInSummary(340, false), true);
-  assert.equal(shouldShowCheckInSummary(340, true), true);
-  assert.equal(shouldShowCheckInSummary(500, false), true);
-  assert.equal(shouldShowCheckInSummary(900, false), false);
-  assert.equal(shouldShowCheckInSummary(900, true), false);
+test('Ich bin da: small widgets display pupil pages instead of hiding names behind a summary', () => {
+  assert.equal(shouldShowCheckInSummary(340, false, 360), false);
+  assert.equal(shouldShowCheckInSummary(340, true, 360), false);
+  assert.equal(shouldShowCheckInSummary(500, false, 360), false);
+  assert.equal(shouldShowCheckInSummary(900, false, 650), false);
+  assert.equal(shouldShowCheckInSummary(220, false, 170), true);
   assert.match(source, /if \(showCompactSummary\)/);
   assert.match(source, /Alle Kinder öffnen/);
   assert.match(source, /setIsStudentPageOpen\(true\)/);
@@ -24,9 +24,9 @@ test('Ich bin da: 25 pupils fit with 64px cards and actionable names on 1280×69
   assert.ok(grid.columns * grid.rows >= 25);
   assert.ok(grid.cardHeight >= CHECK_IN_GRID_OPTIONS.minCardHeight);
   assert.equal(getStudentGridLayout(340, 360, 25, CHECK_IN_GRID_OPTIONS).fits, false);
-  assert.match(source, /students\.map\(\(student\) => renderStudentCard\(student\)\)/);
-  assert.match(source, /min-h-\[64px\] px-2 py-1/);
-  assert.match(source, /minHeight: 64, height: Math\.min\(96, studentGrid\.cardHeight\)/);
+  assert.match(source, /students\.map\(\(student\) => renderStudentCard\(student,/);
+  assert.match(source, /minHeight: adaptiveLayout\.grid\.minCardHeight/);
+  assert.match(source, /gridTemplateRows: `repeat\(\$\{studentGrid\.rows\}, minmax\(0, 1fr\)\)`/);
   assert.match(source, /whitespace-normal break-words font-black leading-tight/);
 });
 
