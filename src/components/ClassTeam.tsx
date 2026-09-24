@@ -115,22 +115,32 @@ export default function ClassTeam() {
     setError(null);
     try {
       const { room } = await pullSharedClass(activeSharedId);
-      const preserveConflictCopy = activeRoom?.teamTeaching?.syncStatus === 'conflict';
+      const hasUnsyncedLocalWork = Boolean(activeRoom?.teamTeaching && (
+        activeRoom.teamTeaching.syncStatus === 'conflict'
+        || !activeRoom.teamTeaching.lastSyncedHash
+        || classRoomFingerprint(activeRoom) !== activeRoom.teamTeaching.lastSyncedHash
+      ));
+      let preservedCopy = hasUnsyncedLocalWork;
 
       setApp(prev => {
         const current = syncActiveClass(prev);
         let classes = [...(current.classes || [])];
-
-        if (preserveConflictCopy) {
-          const currentLocal = classes.find(candidate => candidate.id === activeRoom?.id);
-          if (currentLocal) {
-            const localCopy = classRoomWithoutTeamMetadata(currentLocal);
-            classes.push({
-              ...localCopy,
-              id: localCopy.id + '-conflict-' + Date.now().toString(36),
-              name: localCopy.name + ' – Konfliktkopie',
-            });
-          }
+        const currentLocal = classes.find(candidate => candidate.teamTeaching?.sharedClassId === activeSharedId);
+        // Recheck INSIDE the updater: editing might continue while fetching.
+        // A manual remote load must never erase unsent lesson drafts or notes.
+        const needsCopy = Boolean(currentLocal?.teamTeaching && (
+          currentLocal.teamTeaching.syncStatus === 'conflict'
+          || !currentLocal.teamTeaching.lastSyncedHash
+          || classRoomFingerprint(currentLocal) !== currentLocal.teamTeaching.lastSyncedHash
+        ));
+        if (needsCopy && currentLocal) {
+          preservedCopy = true;
+          const localCopy = classRoomWithoutTeamMetadata(currentLocal);
+          classes.push({
+            ...localCopy,
+            id: localCopy.id + '-conflict-' + Date.now().toString(36),
+            name: localCopy.name + ' – Konfliktkopie',
+          });
         }
 
         const remoteIndex = classes.findIndex(candidate => candidate.id === room.id);
@@ -141,7 +151,7 @@ export default function ClassTeam() {
       });
 
       setNotice(
-        preserveConflictCopy
+        preservedCopy
           ? 'Neuester Teamstand geladen. Deine vorherigen lokalen Änderungen wurden zusätzlich als „Konfliktkopie“ behalten.'
           : 'Neuester verschlüsselter Stand wurde geladen.'
       );
