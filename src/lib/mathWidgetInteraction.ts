@@ -12,7 +12,7 @@ export function numberLineValueAtClick(
 /** Never accept a partially parsed response such as '12abc' as 12. */
 export function parseWholeNumberAnswer(input: string): number | null {
   const normalized = input.trim();
-  if (!/^\\d+$/.test(normalized)) return null;
+  if (!/^\d+$/.test(normalized)) return null;
   const value = Number(normalized);
   return Number.isSafeInteger(value) ? value : null;
 }
