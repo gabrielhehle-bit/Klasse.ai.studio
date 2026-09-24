@@ -156,7 +156,13 @@ export function accountSyncState(state: AppState): AppState {
     clone.classes = clone.classes.map(room => {
       if (!room.teamTeaching) return room;
       const { teamTeaching: _deviceLocalTeamTeaching, ...accountRoom } = room;
-      return accountRoom;
+      // Unlike the revision/hash/private key, this opaque shared-class ID is
+      // needed on a teacher's OTHER device to reconnect to the same team
+      // instead of accidentally creating a second, disconnected team class.
+      return {
+        ...accountRoom,
+        teamTeachingSharedClassId: room.teamTeaching.sharedClassId,
+      };
     });
   }
 
@@ -180,8 +186,8 @@ export function hasSharedClassAccountDrift(remote: AppState, local: AppState): b
     if (!localRoom.teamTeaching) continue;
     const remoteRoom = (remote.classes || []).find(room => room.id === localRoom.id);
     if (!remoteRoom) return true;
-    const { teamTeaching: _localMeta, ...localContent } = localRoom;
-    const { teamTeaching: _remoteMeta, ...remoteContent } = remoteRoom;
+    const { teamTeaching: _localMeta, teamTeachingSharedClassId: _localLink, ...localContent } = localRoom;
+    const { teamTeaching: _remoteMeta, teamTeachingSharedClassId: _remoteLink, ...remoteContent } = remoteRoom;
     if (stableSerialize(localContent) !== stableSerialize(remoteContent)) return true;
   }
   return false;
