@@ -260,7 +260,24 @@ export async function pushSharedClass(room: ClassRoom): Promise<SharedClassSumma
 
   const { device } = await ensureRegisteredTeamTeachingDevice();
   const detail = await getSharedClassDetail(meta.sharedClassId);
+  if (detail.revision !== meta.revision) {
+    const error = new Error('Es gibt eine neuere Teamversion. Deine lokale Klasse wurde nicht gesendet.');
+    Object.assign(error, { code: 'REVISION_CONFLICT', status: 409, currentRevision: detail.revision });
+    throw error;
+  }
   const classKey = await classKeyForDetail(detail, device);
+  const existingRoom = await decryptSharedClass(detail.encryptedSnapshot, classKey);
+  if (existingRoom.id !== room.id) throw new Error('Die Teamklasse hat eine andere Klassen-ID. Nichts wurde überschrieben.');
+  // If an unhydrated device reports an empty projection of a populated team class,
+  // never allow that blank projection to replace real pupil, planning or note data.
+  const hasEntries = (value: unknown): boolean => Array.isArray(value)
+    ? value.length > 0 : !!value && typeof value === 'object' && Object.keys(value).length > 0;
+  if ((hasEntries(existingRoom.schueler) && !hasEntries(room.schueler))
+    || (hasEntries(existingRoom.wochenplanung) && !hasEntries(room.wochenplanung))
+    || (hasEntries(existingRoom.notes) && !hasEntries(room.notes))
+    || (hasEntries(existingRoom.noten) && !hasEntries(room.noten))) {
+    throw new Error('Schutz vor Datenverlust: Dieses Gerät zeigt wesentliche Klassendaten leer, obwohl sie im Team vorhanden sind. Senden gesperrt. Bitte im Klassenteam die Unterschiede prüfen.');
+  }
   const encryptedSnapshot = await encryptSharedClass(room, classKey);
 
   const data = await fetch('/api/teamteaching/classes/' + encodeURIComponent(meta.sharedClassId) + '/snapshot', {
