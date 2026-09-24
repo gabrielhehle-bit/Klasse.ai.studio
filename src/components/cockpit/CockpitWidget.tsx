@@ -683,7 +683,9 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
         width: isFreeMascot ? `${mascotPixels}px` : `${renderedW}%`,
         height: isFreeMascot ? `${mascotPixels}px` : `${renderedH}%`,
         zIndex: isFreeMascot ? 120 : isDirect ? 0 : isMaximized ? 9999 : zIndex,
-        touchAction: isDirect || layoutLocked || isFreeMascot ? "auto" : "none",
+        // Drag is restricted to the toolbar / resize handle. Let pupils scroll
+        // overfull widget contents even while the board layout is editable.
+        touchAction: "auto",
       }}
       onClick={onFocus}
       onKeyDown={isFreeMascot ? handleMascotKeyDown : undefined}
