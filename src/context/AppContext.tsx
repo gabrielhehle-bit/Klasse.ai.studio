@@ -822,6 +822,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       status: 'idle' | 'syncing' | 'synced' | 'conflict' | 'error',
       message?: string,
     ) => {
+      const activeRoom = currentAppRef.current.classes?.find(room => room.id === currentAppRef.current.activeClassId);
+      if (activeRoom?.teamTeaching?.sharedClassId !== activeTeamSharedId) return;
+      if (activeRoom.teamTeaching.syncStatus === status && activeRoom.teamTeaching.syncMessage === message) return;
       setApp(prev => {
         const current = syncActiveClass(prev);
         const classes = (current.classes || []).map(room => {
@@ -970,7 +973,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           setLocalTeamStatus('synced');
         }
       } catch (error: any) {
-        if (error?.status !== 401 && error?.status !== 403) {
+        if (error?.status === 401 || error?.status === 403) {
+          // A school-mail session can expire while the personal-account sync
+          // remains green. Never silently retain an outdated green team badge.
+          setLocalTeamStatus('error', 'Teamteaching-Anmeldung oder Schulfreigabe fehlt. Bitte im Klassenteam erneut anmelden bzw. die Berechtigung prüfen.');
+        } else {
           setLocalTeamStatus('error', error instanceof Error ? error.message : 'Teamteaching-Sync fehlgeschlagen.');
         }
       } finally {
