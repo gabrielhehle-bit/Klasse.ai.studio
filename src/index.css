@@ -998,12 +998,32 @@ html body .classroom-weekly-plan :is(.text-slate-900, .text-slate-800, .text-sla
   color: #0f172a !important;
 }
 html body .classroom-weekly-plan .text-slate-600 { color: #334155 !important; }
-html body .classroom-weekly-plan .weekly-plan-dark-action {
-  background-color: #3730a3 !important;
+/* Classroom-weekly action buttons remain readable in every profile accent/theme.
+   Theme text overrides and WebKit text fill must not turn the label black on blue.
+   Disabled is a separate high-contrast state rather than a faded active button. */
+html body .classroom-weekly-plan button.weekly-plan-dark-action,
+html body [data-style] .classroom-weekly-plan button.weekly-plan-dark-action {
+  background-color: #312e81 !important;
   color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
-html body .classroom-weekly-plan .weekly-plan-dark-action :is(span, svg) {
+html body .classroom-weekly-plan button.weekly-plan-dark-action :is(span, svg),
+html body [data-style] .classroom-weekly-plan button.weekly-plan-dark-action :is(span, svg) {
   color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body .classroom-weekly-plan button.weekly-plan-dark-action:not(:disabled):hover {
+  background-color: #1e1b4b !important;
+}
+html body .classroom-weekly-plan button.weekly-plan-dark-action:disabled {
+  background-color: #e0e7ff !important;
+  color: #312e81 !important;
+  -webkit-text-fill-color: #312e81 !important;
+  opacity: 1 !important;
+}
+html body .classroom-weekly-plan button.weekly-plan-dark-action:disabled :is(span, svg) {
+  color: #312e81 !important;
+  -webkit-text-fill-color: #312e81 !important;
 }
 
 /* The mascot looks like a free-standing character inside its movable cockpit slot.
