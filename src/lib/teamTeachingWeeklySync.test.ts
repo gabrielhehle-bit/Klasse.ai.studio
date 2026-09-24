@@ -35,6 +35,8 @@ test('Personal-account refresh cannot erase more recent Teamteaching weekly plan
     'Neu im Team geplant');
   assert.equal(restored.classes[0].teamTeaching.revision, 3);
   assert.equal(accountSyncState(restored).classes[0].teamTeaching, undefined);
+  assert.equal(accountSyncState(restored).classes[0].teamTeachingSharedClassId, 'shared-1',
+    'The opaque team link must travel in the encrypted personal account to another device.');
 });
 
 test('A personal-account backup missing the shared class cannot drop an adopted Teamteaching classroom', () => {
@@ -81,4 +83,36 @@ test('Adopting an acknowledged shared classroom normalizes imported fields witho
   const stable = syncActiveClass(adopted);
   assert.equal(classRoomFingerprint(stable.classes.find((room: any) => room.id === initialRoom.id)!),
     target.teamTeaching?.lastSyncedHash, 'Repeated app hydration must not manufacture a new classroom edit');
+});
+
+test('Fresh device retains the team link without copying another device\'s keys, role or revision', () => {
+  const owner = asTeam(makeState(newPlan));
+  const encryptedAccount = accountSyncState(owner);
+  assert.equal(encryptedAccount.classes[0].teamTeachingSharedClassId, 'shared-1');
+  assert.equal(encryptedAccount.classes[0].teamTeaching, undefined);
+  const newDevice = syncActiveClass(mergeAccountSyncState(encryptedAccount,
+    { ...initialAppState, classes: [], activeClassId: '' } as any));
+  assert.equal(newDevice.classes[0].teamTeachingSharedClassId, 'shared-1');
+  assert.equal(newDevice.classes[0].teamTeaching, undefined);
+  assert.equal(newDevice.wochenplanung[39].Montag[0].thema, 'Neu im Team geplant');
+  // The new device has a link but cannot decrypt the live shared class until
+  // its own public device key has been explicitly approved.
+});
+
+test('Team link is absent from the E2E-encrypted shared-class contents and does not trigger phantom edits', async () => {
+  const owner = asTeam(makeState(newPlan)).classes[0];
+  owner.teamTeachingSharedClassId = 'shared-1';
+  const hashWithLink = classRoomFingerprint(owner);
+  const { teamTeachingSharedClassId: _link, ...withoutLink } = owner;
+  assert.equal(hashWithLink, classRoomFingerprint(withoutLink as any));
+  const key = await generateSharedClassKey();
+  const received = await decryptSharedClass(await encryptSharedClass(owner, key), key);
+  assert.equal(received.teamTeachingSharedClassId, undefined);
+  assert.equal(received.wochenplanung[39].Montag[0].thema, 'Neu im Team geplant');
+});
+
+test('New shared-class pointer alone does not manufacture a team account conflict', () => {
+  const local = asTeam(makeState(newPlan));
+  const remote = accountSyncState(local);
+  assert.equal(hasSharedClassAccountDrift(remote, local), false);
 });

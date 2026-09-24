@@ -18,6 +18,12 @@ export function adoptAcknowledgedTeamRoom(state: AppState, receivedRoom: ClassRo
   if (index >= 0) classes[index] = receivedRoom;
   else classes.push(receivedRoom);
 
+  // The shared-class pointer follows the teacher's encrypted E-Mail account
+  // to their other devices; revision, role and keys remain strictly device-local.
+  if (receivedRoom.teamTeaching) {
+    const linkedIndex = classes.findIndex(room => room.id === receivedRoom.id);
+    classes[linkedIndex] = { ...classes[linkedIndex], teamTeachingSharedClassId: receivedRoom.teamTeaching.sharedClassId };
+  }
   const projected = syncActiveClass(
     switchClassState({ ...current, classes, activeClassId: undefined }, receivedRoom.id),
   );

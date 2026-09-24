@@ -1039,6 +1039,8 @@ export interface ClassRoom {
   /** Class-local, teacher-controlled mascot. Old classPet remains as archived legacy data. */
   classMascot?: import('./lib/classMascot').ClassMascotState;
   /** Zero-knowledge Teamteaching metadata. This metadata remains local and is stripped before class encryption. */
+  /** Encrypted-account-safe pointer identifying this class's Teamteaching workspace on other devices. */
+  teamTeachingSharedClassId?: string;
   teamTeaching?: {
     sharedClassId: string;
     role: 'owner' | 'editor' | 'viewer';

@@ -201,7 +201,8 @@ const getContrastTextClass = (bgColor?: string): string => {
 export default function WeeklyPlan() {
   const { app, setApp, setPage } = useApp();
   // Personal-account sync alone does not confirm that another teacher has the current team revision.
-  const weeklyTeam = app.classes?.find(room => room.id === app.activeClassId)?.teamTeaching;
+  const weeklyRoom = app.classes?.find(room => room.id === app.activeClassId);
+  const weeklyTeam = weeklyRoom?.teamTeaching;
   const hasOtherTeamClass = app.classes?.some(room => room.id !== app.activeClassId && Boolean(room.teamTeaching));
   const weeklyTeamLabel = weeklyTeam?.syncStatus === 'synced'
     ? 'Teamstand synchronisiert'
@@ -1906,7 +1907,9 @@ export default function WeeklyPlan() {
                           ? 'border-rose-300 bg-rose-50 text-rose-800'
                           : 'border-amber-300 bg-amber-50 text-amber-900'}`}
                     >
-                      👥 {weeklyTeam ? weeklyTeamLabel : hasOtherTeamClass ? 'Eigene Klasse – geteilte Klasse im Klassenteam öffnen' : 'Diese Klasse ist nicht für Teamteaching freigegeben'}
+                      👥 {weeklyTeam ? weeklyTeamLabel : weeklyRoom?.teamTeachingSharedClassId
+                        ? 'Teamklasse auf diesem Gerät verbinden – Planung möglicherweise veraltet'
+                        : hasOtherTeamClass ? 'Eigene Klasse – geteilte Klasse im Klassenteam öffnen' : 'Diese Klasse ist nicht für Teamteaching freigegeben'}
                     </button>
                   )}
                   {sw && (
