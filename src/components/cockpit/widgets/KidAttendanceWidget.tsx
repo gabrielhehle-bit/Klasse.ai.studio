@@ -354,8 +354,6 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     setStudentPage(0);
     if (widget?.id) window.dispatchEvent(new CustomEvent('klassio:checkin-expand', { detail: { id: widget.id, expanded: false } }));
   };
-  const denseStudentGrid = students.length >= 16;
-
   // Render einer einzelnen Schülerkarte
   const renderStudentCard = (student: Student, cardWidth = (size.width - 32) / studentGrid.columns, cardHeight = studentGrid.cardHeight) => {
     const displayName = displayNames.get(student.id) || student.vorname;
@@ -541,87 +539,49 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
       ref={containerRef}
       className="w-full h-full flex flex-col min-h-0 select-none font-sans overflow-hidden relative"
     >
-      {/* OBERE LEISTE (Kopfbereich, fest, kein Scroll) */}
-      <div
-        className={`px-3 py-2 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2 border-b shrink-0 ${
-          currentIsLight
-            ? 'bg-slate-50/95 border-slate-200 text-slate-800'
-            : 'bg-zinc-900/95 border-zinc-800 text-zinc-100'
-        }`}
-      >
-        {/* Titel & Status */}
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xl sm:text-2xl shrink-0 leading-none">🖐️</span>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="font-black text-xs sm:text-sm uppercase tracking-wider truncate">
-                {size.isXL ? 'Schüler-Check-In' : 'Ich bin da!'}
-              </span>
-              <span className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 tabular-nums">
-                {formattedToday}
-              </span>
-            </div>
-
-            {/* Fortschrittstext */}
-            <div className="text-[11px] sm:text-xs font-bold leading-tight mt-0.5">
-              {summary.isComplete ? (
-                <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-black">
-                  <Check size={12} strokeWidth={3} />
-                  Alle {summary.total} Kinder erfasst
-                </span>
-              ) : (
-                <span className="text-slate-600 dark:text-zinc-300">
-                  <strong className="text-emerald-600 dark:text-emerald-400 font-black">{summary.present}</strong> von{' '}
-                  <strong className="font-black">{summary.total}</strong> da
-                  {summary.open > 0 && (
-                    <span className="text-amber-600 dark:text-amber-400 ml-1.5">
-                      ({summary.open} noch offen)
-                    </span>
-                  )}
-                </span>
-              )}
-            </div>
+      {/* Nur eine flache Kopfzeile im kleinen Widget: fast alle Pixel gehören den Kinderkarten. */}
+      <div className={`flex shrink-0 items-center justify-between gap-1 border-b ${compactControls ? 'min-h-12 px-2 py-1' : 'px-3 py-2 sm:px-4 sm:py-2.5'} ${
+        currentIsLight ? 'bg-slate-50/95 border-slate-200 text-slate-800' : 'bg-zinc-900/95 border-zinc-800 text-zinc-100'
+      }`}>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 min-w-0">
+            {!compactControls && <span className="text-xl leading-none" aria-hidden="true">🖐️</span>}
+            <strong className={`min-w-0 truncate font-black ${compactControls ? 'text-xs' : 'text-sm'}`}>Ich bin da!</strong>
+            {!compactControls && <span className="text-[11px] font-bold tabular-nums opacity-70">{formattedToday}</span>}
           </div>
+          <p className={`truncate font-semibold leading-tight ${compactControls ? 'text-[11px]' : 'mt-0.5 text-xs'}`}
+            aria-live="polite">
+            {compactControls
+              ? `${summary.present}/${summary.total} da · ${summary.open} offen`
+              : summary.isComplete
+                ? `Alle ${summary.total} Kinder erfasst`
+                : `${summary.present} von ${summary.total} da · ${summary.open} noch offen`}
+          </p>
         </div>
-
-        {/* Aktionsbuttons oben rechts */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          {isStudentPageOpen && (
-            <button type="button" onClick={collapseStudentGrid} className="min-h-11 rounded-lg border px-3 text-xs font-bold" aria-label="Zur ursprünglichen Widgetgröße zurückkehren">
-              <Maximize2 size={14} className="inline-block rotate-180 mr-1" /> Zurück zur Widgetgröße
-            </button>
-          )}
-          {/* Lehrer-Korrektur */}
-          <button
-            type="button"
-            onClick={() => setIsTeacherModalOpen(true)}
-            className="h-9 px-3 rounded-lg border font-bold text-xs flex items-center gap-1.5 cursor-pointer text-slate-700 dark:text-zinc-300 border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 shadow-2xs"
+        <div className="flex shrink-0 items-center gap-1">
+          {isStudentPageOpen && <button type="button" onClick={collapseStudentGrid}
+            className="min-h-11 min-w-11 rounded-lg border px-2 text-xs font-bold"
+            title="Zur ursprünglichen Widgetgröße zurückkehren" aria-label="Zur ursprünglichen Widgetgröße zurückkehren">
+            <Maximize2 size={16} className="inline-block rotate-180" aria-hidden="true" />
+          </button>}
+          <button type="button" onClick={() => setIsTeacherModalOpen(true)}
+            className={`min-h-11 rounded-lg border px-2 font-bold text-xs ${compactControls ? 'min-w-11' : 'flex items-center gap-1.5'} ${currentIsLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-zinc-800 border-zinc-700 text-white'}`}
             title="Anwesenheit der Kinder bearbeiten: Da, Fehlt, Entschuldigt"
-            aria-label="Anwesenheit bearbeiten: Da, Fehlt oder Entschuldigt"
-          >
-            <ShieldCheck size={14} className="text-slate-500 dark:text-zinc-400" />
-            <span className="inline">Anwesenheit bearbeiten</span>
+            aria-label="Anwesenheit bearbeiten: Da, Fehlt oder Entschuldigt">
+            <ShieldCheck size={16} className="inline-block" aria-hidden="true" />
+            {!compactControls && <span>Anwesenheit bearbeiten</span>}
           </button>
-
-          {/* Abschlussbutton im Header für große Bildschirme */}
-          {!summary.isComplete && (
-            <button
-              type="button"
-              onClick={() => setIsFinalizeModalOpen(true)}
-              className="h-9 px-3 rounded-lg font-black text-xs flex items-center gap-1.5 cursor-pointer bg-amber-500 hover:bg-amber-600 active:scale-98 text-white shadow-2xs"
-              title="Check-In abschließen"
-            >
-              <Check size={14} strokeWidth={3} />
-              <span className={size.isStandard && !size.isLarge ? 'hidden md:inline' : 'inline'}>
-                Abschließen
-              </span>
-            </button>
-          )}
+          {compactControls && !summary.isComplete && <button type="button"
+            onClick={() => setIsFinalizeModalOpen(true)}
+            className="min-h-11 min-w-11 rounded-lg bg-emerald-600 px-2 text-white"
+            title="Check-In abschließen" aria-label="Check-In abschließen">
+            <Check size={17} strokeWidth={3} className="inline-block" aria-hidden="true" />
+          </button>}
         </div>
       </div>
 
       {/* B shows one selected child, A and C use the fitted class grid. */}
-      <div className="flex-1 overflow-hidden p-2 sm:p-3 min-h-0">
+      <div className={`flex-1 overflow-hidden min-h-0 ${compactControls ? 'p-1' : 'p-2 sm:p-3'}`}>
         {checkInMode === 'individual' && selectedStudentId && students.some(child => child.id === selectedStudentId) ? (
           <div className="flex h-full min-h-0 flex-col items-center justify-center gap-3 overflow-hidden px-2">
             <p className="text-sm font-bold">Ist das dein Name?</p>
@@ -637,26 +597,41 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
               className="min-h-11 rounded-xl border px-4 text-sm font-bold">Anderen Namen wählen</button>
           </div>
         ) : studentGrid.fits ? (
-          <div className="grid w-full content-start gap-1.5" style={{
+          <div className={`grid h-full min-h-0 w-full ${compactControls ? 'gap-1' : 'gap-1.5'}`} style={{
             gridTemplateColumns: `repeat(${studentGrid.columns}, minmax(0, 1fr))`,
+            gridTemplateRows: `repeat(${studentGrid.rows}, minmax(0, 1fr))`,
           }} aria-label="Anwesenheitsliste mit allen Kindern">
-            {students.map((student) => renderStudentCard(student))}
+            {students.map((student) => renderStudentCard(student,
+              (size.width - (compactControls ? 8 : 24) - adaptiveLayout.grid.gap * (studentGrid.columns - 1)) / studentGrid.columns))}
           </div>
-        ) : pageLayout.canRender && isStudentPageOpen ? (
-          <div className="flex h-full min-h-0 flex-col gap-2" aria-label="Anwesenheit nach Schülerseiten">
-            <div className="grid w-full min-h-0 flex-1 content-start gap-1.5 overflow-hidden" style={{
+        ) : pageLayout.canRender ? (
+          <div className="flex h-full min-h-0 flex-col gap-1" aria-label="Anwesenheit nach Schülerseiten">
+            <div className={`grid w-full min-h-0 flex-1 overflow-hidden ${compactControls ? 'gap-1' : 'gap-1.5'}`} style={{
               gridTemplateColumns: `repeat(${pageLayout.columns}, minmax(0, 1fr))`,
+              gridTemplateRows: `repeat(${pageRows}, minmax(0, 1fr))`,
             }} aria-label={`Kinder ${pageLayout.start + 1} bis ${Math.min(students.length, pageLayout.start + pageLayout.pageSize)} von ${students.length}`}>
-              {students.slice(pageLayout.start, pageLayout.start + pageLayout.pageSize).map((student) => renderStudentCard(student))}
+              {visiblePageStudents.map((student) => renderStudentCard(student,
+                (size.width - (compactControls ? 8 : 24) - adaptiveLayout.pages.gap * (pageLayout.columns - 1)) / pageLayout.columns,
+                Math.max(adaptiveLayout.pages.minCardHeight,
+                  (size.height - adaptiveLayout.pages.reservedHeight - adaptiveLayout.pages.gap * (pageRows - 1)) / pageRows)))}
             </div>
-            <nav aria-label="Schülerseiten" className="flex shrink-0 items-center justify-between gap-2 text-xs font-bold">
+            <nav aria-label="Schülerseiten" className="flex shrink-0 items-center justify-between gap-1 text-xs font-bold">
               <button type="button" disabled={pageLayout.currentPage === 0}
                 onClick={() => setStudentPage(page => Math.max(0, page - 1))}
-                aria-label="Vorherige Schülerseite" className="min-h-11 rounded-lg border px-2 disabled:opacity-40">← Zurück</button>
-              <span aria-live="polite">{pageLayout.currentPage + 1} / {pageLayout.pageCount}</span>
+                aria-label="Vorherige Schülerseite" className="min-h-11 min-w-11 rounded-lg border px-2 disabled:opacity-40">
+                {compactControls ? '←' : '← Zurück'}
+              </button>
+              <span aria-live="polite" className="tabular-nums">{pageLayout.currentPage + 1} / {pageLayout.pageCount}</span>
+              {!isStudentPageOpen && <button type="button" onClick={expandStudentGrid}
+                className="min-h-11 rounded-lg border px-2 text-xs font-bold"
+                aria-label="Alle Kinder groß anzeigen" title="Widget vorübergehend vergrößern">
+                <Maximize2 size={15} className="inline-block" aria-hidden="true" /> {!compactControls && 'Groß'}
+              </button>}
               <button type="button" disabled={pageLayout.currentPage >= pageLayout.pageCount - 1}
                 onClick={() => setStudentPage(page => Math.min(pageLayout.pageCount - 1, page + 1))}
-                aria-label="Nächste Schülerseite" className="min-h-11 rounded-lg border px-2 disabled:opacity-40">Weiter →</button>
+                aria-label="Nächste Schülerseite" className="min-h-11 min-w-11 rounded-lg border px-2 disabled:opacity-40">
+                {compactControls ? '→' : 'Weiter →'}
+              </button>
             </nav>
           </div>
         ) : (
@@ -673,7 +648,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
       </div>
 
       {/* UNTERE LEISTE (Fußbereich, fest, kein Scroll) */}
-      <div
+      {!compactControls && <div
         className={`px-3 py-2 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2 border-t shrink-0 ${
           currentIsLight
             ? 'bg-slate-50/90 border-slate-200 text-slate-600'
@@ -712,7 +687,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
             Übersicht & Korrektur
           </button>
         )}
-      </div>
+      </div>}
 
       {/* KINDER-BEFINDENSABFRAGE (unmittelbar nach Check-in) */}
       {activeMoodStudent && renderChildMoodModal()}
