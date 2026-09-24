@@ -48,6 +48,7 @@ import {
   hasEmailAccountSession,
   loadAccountSyncMetadata,
   mergeAccountSyncState,
+  hasSharedClassAccountDrift,
   pushAccountSyncSnapshot,
   saveAccountSyncMetadata,
   setAccountSyncHealthy,
@@ -254,6 +255,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Der Server-Baseline-Fingerprint muss exakt dem State entsprechen, den setApp
       // anschließend im UI hält. Sonst kann ein frisch wiederhergestelltes Gerät allein
       // durch die lokale Klassen-Normalisierung eine unnötige neue Serverrevision erzeugen.
+      // A personal-account copy can lag behind the independently encrypted
+      // shared class. Never adopt that stale copy as the newest team week plan.
+      if (hasSharedClassAccountDrift(normalizedRemoteState, current)) {
+        accountSyncReadyRef.current = false;
+        setAccountSyncHealthy(false);
+        setAccountSyncMessage('Der E-Mail-Kontostand enthält eine ältere oder abweichende Kopie deiner Teamklasse. Deine lokale Teamplanung bleibt erhalten. Im Konto-Abgleich kannst du den aktuellen Teamstand mit den übrigen Kontodaten bewusst zusammenführen.');
+        setAccountSyncConflictResolvable(true);
+        setAccountSyncStatus('conflict');
+        return current;
+      }
       const remoteState = syncActiveClass(mergeAccountSyncState(normalizedRemoteState, current));
       // A fabricated "4. Klasse Meine Klasse" with no pupils or lessons is
       // not a successfully restored existing account. Refuse to open an empty
@@ -528,11 +539,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const decryptedRemote = await decryptAccountSyncSnapshot(remote, vaultKey);
       assertRestorableAppState(decryptedRemote);
       const normalizedRemote = normalizeAppState(decryptedRemote);
+      const sharedClassDrift = hasSharedClassAccountDrift(normalizedRemote, localState);
       const remoteState = syncActiveClass(mergeAccountSyncState(normalizedRemote, localState));
-      await saveEncryptedAppState(remoteState, vaultKey);
-      currentAppRef.current = remoteState;
-      setApp(remoteState);
-      markAccountSynced(remote, remoteState);
+      // An explicit 'Konto-Stand laden' must NEVER silently reintroduce an older
+      // team class, nor claim a cloud receipt for content the server never got.
+      // Save the merged personal-account + authoritative local team snapshot
+      // with the latest server revision before announcing successful sync.
+      if (sharedClassDrift) {
+        const pushed = await pushAccountSyncSnapshot(remoteState, vaultKey, vaultRecord, remote.revision);
+        await saveEncryptedAppState(remoteState, vaultKey);
+        currentAppRef.current = remoteState;
+        setApp(remoteState);
+        markAccountSynced(pushed, remoteState);
+      } else {
+        await saveEncryptedAppState(remoteState, vaultKey);
+        currentAppRef.current = remoteState;
+        setApp(remoteState);
+        markAccountSynced(remote, remoteState);
+      }
     } catch (error: any) {
       accountSyncReadyRef.current = false;
       setAccountSyncHealthy(false);
