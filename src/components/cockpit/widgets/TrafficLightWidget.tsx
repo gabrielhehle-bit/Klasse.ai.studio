@@ -130,7 +130,7 @@ export const TrafficLightWidget: React.FC<TrafficLightWidgetProps> = ({
   const safeSettings = widget?.settings || {};
   const scaleSettings = {
     ...safeSettings,
-    activeScaleId: safeSettings.noiseScaleId ?? safeSettings.activeScaleId,
+    activeScaleId: safeSettings.noiseScaleId ?? safeSettings.activeLevel ?? 'fluestern',
   };
   const meterSettings = {
     ...safeSettings,
