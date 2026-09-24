@@ -1393,6 +1393,8 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       revision: record.revision,
       updatedAt: record.updatedAt,
       updatedBy: record.updatedBy,
+      contentUpdatedAt: record.contentUpdatedAt || (record.revision === 1 ? record.createdAt : undefined),
+      contentUpdatedBy: record.contentUpdatedBy || (record.revision === 1 ? record.ownerUserId : undefined),
       myRole: currentMember.role,
       members: record.members.map(member => ({
         userId: member.userId,
@@ -1418,6 +1420,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     if (code === 'MEMBER_NOT_FOUND') return res.status(404).json({ code, error: 'Die Lehrperson ist nicht im Klassenteam.' });
     if (code === 'OWNER_REQUIRED') return res.status(403).json({ code, error: 'Nur die Klassenbesitzerin bzw. der Klassenbesitzer darf das Team verwalten.' });
     if (code === 'READ_ONLY') return res.status(403).json({ code, error: 'Diese Klasse ist für dieses Konto nur lesbar.' });
+    if (code === 'ACTIVE_TEAM_MEMBERS') return res.status(409).json({ code, error: 'Die gemeinsame Klasse hat noch weitere Lehrpersonen. Solange Kolleginnen und Kollegen damit arbeiten, kann die Teamklasse nicht beendet werden.' });
     if (code === 'FORBIDDEN') return res.status(403).json({ code, error: 'Kein Zugriff auf diese geteilte Klasse.' });
     if (code === 'REVISION_CONFLICT') {
       let currentRevision: number | undefined;
@@ -1532,6 +1535,27 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     } catch (error) {
       await handleTeamTeachingError(res, error, getTeacherIdentity(req), req.params.classId);
     }
+  });
+
+  // History contains ciphertext only. A current team member must authorize every request.
+  app.get('/api/teamteaching/classes/:classId/history', requireTeacherIdentity, async (req, res) => {
+    const identity = getTeacherIdentity(req);
+    try {
+      const history = await classCollaborationStore.listClassHistory(identity, req.params.classId);
+      res.json({ history });
+    } catch (error) { await handleTeamTeachingError(res, error, identity, req.params.classId); }
+  });
+
+  app.get('/api/teamteaching/classes/:classId/history/:revision', requireTeacherIdentity, async (req, res) => {
+    const identity = getTeacherIdentity(req);
+    try {
+      if (!/^[1-9][0-9]*$/.test(req.params.revision)) return res.status(400).json({ code: 'INVALID_REVISION', error: 'Ungültige Versionsnummer.' });
+      const revision = Number(req.params.revision);
+      if (!Number.isSafeInteger(revision)) return res.status(400).json({ code: 'INVALID_REVISION', error: 'Ungültige Versionsnummer.' });
+      const entry = await classCollaborationStore.getClassHistoryRevision(identity, req.params.classId, revision);
+      if (!entry) return res.status(404).json({ code: 'HISTORY_NOT_FOUND', error: 'Diese Teamversion ist nicht verfügbar.' });
+      res.json({ entry });
+    } catch (error) { await handleTeamTeachingError(res, error, identity, req.params.classId); }
   });
 
   app.put('/api/teamteaching/classes/:classId/snapshot', requireTeacherIdentity, async (req, res) => {

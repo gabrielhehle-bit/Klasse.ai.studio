@@ -54,8 +54,20 @@ export interface SharedClassSummary {
   revision: number;
   updatedAt: string;
   updatedBy: string;
+  contentUpdatedAt?: string;
+  contentUpdatedBy?: string;
   myRole: TeamTeachingRole;
   members: TeamTeachingMemberInfo[];
+}
+
+export interface SharedClassHistoryVersion {
+  revision: number;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export interface SharedClassRevision extends SharedClassHistoryVersion {
+  encryptedSnapshot: EncryptedPayloadV1;
 }
 
 export interface SharedClassDetail extends SharedClassSummary {
@@ -130,6 +142,28 @@ export async function getSharedClassDetail(sharedClassId: string): Promise<Share
   await ensureRegisteredTeamTeachingDevice();
   return fetch('/api/teamteaching/classes/' + encodeURIComponent(sharedClassId), { cache: 'no-store' })
     .then(readJson<SharedClassDetail>);
+}
+
+export async function listSharedClassHistory(sharedClassId: string): Promise<SharedClassHistoryVersion[]> {
+  await ensureRegisteredTeamTeachingDevice();
+  const data = await fetch('/api/teamteaching/classes/' + encodeURIComponent(sharedClassId) + '/history', { cache: 'no-store' })
+    .then(readJson<{ history: SharedClassHistoryVersion[] }>);
+  return data.history || [];
+}
+
+/** Historical content is decrypted only here on a device authorized for the CURRENT team. */
+export async function pullSharedClassRevision(sharedClassId: string, revision: number): Promise<{
+  revision: SharedClassHistoryVersion;
+  room: ClassRoom;
+}> {
+  if (!Number.isSafeInteger(revision) || revision < 1) throw new Error('Ungültige Teamversion.');
+  const { device } = await ensureRegisteredTeamTeachingDevice();
+  const detail = await getSharedClassDetail(sharedClassId);
+  const classKey = await classKeyForDetail(detail, device);
+  const data = await fetch('/api/teamteaching/classes/' + encodeURIComponent(sharedClassId)
+    + '/history/' + revision, { cache: 'no-store' }).then(readJson<{ entry: SharedClassRevision }>);
+  const room = await decryptSharedClass(data.entry.encryptedSnapshot, classKey);
+  return { revision: data.entry, room };
 }
 
 async function classKeyForDetail(
@@ -213,14 +247,37 @@ export async function pullSharedClass(sharedClassId: string): Promise<{
   };
 }
 
-export async function pushSharedClass(room: ClassRoom): Promise<SharedClassSummary> {
+export async function pushSharedClass(room: ClassRoom, options?: { allowContentRemoval?: boolean }): Promise<SharedClassSummary> {
   const meta = room.teamTeaching;
   if (!meta) throw new Error('Diese Klasse ist nicht für Teamteaching freigegeben.');
   if (meta.role === 'viewer') throw new Error('Diese Teamklasse ist auf diesem Konto nur lesbar.');
+  if (!Number.isSafeInteger(meta.revision) || meta.revision < 1 || !meta.lastSyncedHash) {
+    throw new Error('Teamklasse auf diesem Gerät noch nicht vollständig geladen. Senden gesperrt, bis der aktuelle gemeinsame Stand bestätigt ist.');
+  }
+  if (!room.id || !room.name || !Array.isArray(room.schueler) || !room.wochenplanung) {
+    throw new Error('Unvollständige Klassendaten – nicht gesendet. Die bisherige Teamversion bleibt erhalten.');
+  }
 
   const { device } = await ensureRegisteredTeamTeachingDevice();
   const detail = await getSharedClassDetail(meta.sharedClassId);
+  if (detail.revision !== meta.revision) {
+    const error = new Error('Es gibt eine neuere Teamversion. Deine lokale Klasse wurde nicht gesendet.');
+    Object.assign(error, { code: 'REVISION_CONFLICT', status: 409, currentRevision: detail.revision });
+    throw error;
+  }
   const classKey = await classKeyForDetail(detail, device);
+  const existingRoom = await decryptSharedClass(detail.encryptedSnapshot, classKey);
+  if (existingRoom.id !== room.id) throw new Error('Die Teamklasse hat eine andere Klassen-ID. Nichts wurde überschrieben.');
+  // If an unhydrated device reports an empty projection of a populated team class,
+  // never allow that blank projection to replace real pupil, planning or note data.
+  const hasEntries = (value: unknown): boolean => Array.isArray(value)
+    ? value.length > 0 : !!value && typeof value === 'object' && Object.keys(value).length > 0;
+  if (!options?.allowContentRemoval && ((hasEntries(existingRoom.schueler) && !hasEntries(room.schueler))
+    || (hasEntries(existingRoom.wochenplanung) && !hasEntries(room.wochenplanung))
+    || (hasEntries(existingRoom.notes) && !hasEntries(room.notes))
+    || (hasEntries(existingRoom.noten) && !hasEntries(room.noten)))) {
+    throw new Error('Schutz vor Datenverlust: Dieses Gerät zeigt wesentliche Klassendaten leer, obwohl sie im Team vorhanden sind. Senden gesperrt. Bitte im Klassenteam die Unterschiede prüfen.');
+  }
   const encryptedSnapshot = await encryptSharedClass(room, classKey);
 
   const data = await fetch('/api/teamteaching/classes/' + encodeURIComponent(meta.sharedClassId) + '/snapshot', {

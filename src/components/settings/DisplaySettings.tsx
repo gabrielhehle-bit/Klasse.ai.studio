@@ -125,6 +125,46 @@ export default function DisplaySettings({
         )}
       </div>
 
+      {/* Schriftart: personal app preference, independent of the class content and accent color. */}
+      <section className="bg-white rounded-[2.5rem] border border-stone-200/80 p-6 md:p-8 space-y-4 shadow-sm" aria-labelledby="klassio-font-heading">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center"><Type size={20} /></div>
+          <div>
+            <h2 id="klassio-font-heading" className="text-base font-black text-slate-900">Schriftart auswählen</h2>
+            <p className="text-xs text-slate-500">Ändere die Schrift für deine KLASSIO-Oberfläche, ohne Unterrichtsdaten oder Farben zu verändern.</p>
+          </div>
+        </div>
+        <label htmlFor="klassio-display-font" className="block text-sm font-bold text-slate-800">Schriftart der Anwendung</label>
+        <select id="klassio-display-font" value={app.settings?.fontFamily || 'standard'}
+          onChange={(event) => setApp((prev: any) => ({ ...prev, settings: { ...prev.settings, fontFamily: event.target.value } }))}
+          className="w-full min-h-11 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500">
+          <option value="standard">Standard · Systemschrift</option>
+          <option value="geometric">Geometrisch · Outfit</option>
+          <option value="friendly">Freundlich · Fredoka</option>
+          <option value="druckschrift">Druckschrift · Schule</option>
+          <option value="schulschrift">Schulschrift</option>
+          <option value="dyslexic">Lesefreundlich · Lexend</option>
+          <option value="comfort">Rund · Comfortaa</option>
+          <option value="handwritten">Handschrift</option>
+          <option value="elegant">Elegant</option>
+          <option value="serif">Serif</option>
+          <option value="mono">Monospace</option>
+        </select>
+        <div className={`rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-900 font-${app.settings?.fontFamily || 'standard'}`}
+          aria-label="Schriftart-Vorschau">Die Kinder lesen, schreiben und rechnen. 123 · ABC</div>
+        <label htmlFor="klassio-board-font" className="block text-sm font-bold text-slate-800">Schriftart der digitalen Tafel</label>
+        <select id="klassio-board-font" value={app.boardSettings?.activeFont || 'font-standard'}
+          onChange={(event) => setApp((prev: any) => ({ ...prev, boardSettings: { ...prev.boardSettings, activeFont: event.target.value } }))}
+          className="w-full min-h-11 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500">
+          <option value="font-standard">Standard</option>
+          <option value="font-sans">Klare Druckschrift</option>
+          <option value="font-druckschrift">Druckschrift (Schule)</option>
+          <option value="font-schulschrift">Schulschrift</option>
+          <option value="font-dyslexic">Lesefreundliche Schrift</option>
+        </select>
+        <p className="text-xs text-slate-500">Die Tafelschrift kannst du weiterhin unter „Farben & Design“ im Lehrercockpit ändern.</p>
+      </section>
+
       {/* Schriftgröße & Anzeige-Modus */}
       <div className="bg-white rounded-[2.5rem] border border-stone-200/80 p-6 md:p-8 space-y-6 shadow-sm">
         <div className="flex items-center gap-3 border-b border-stone-150 pb-4">

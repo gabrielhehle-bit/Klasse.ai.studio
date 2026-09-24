@@ -8,6 +8,8 @@ import {
   deleteSharedClass,
   ensureRegisteredTeamTeachingDevice,
   listSharedClasses,
+  listSharedClassHistory,
+  pullSharedClassRevision,
   listTeamTeachingColleagues,
   listTeamTeachingSchoolUsers,
   pullSharedClass,
@@ -16,19 +18,39 @@ import {
   refreshTeamTeachingMemberDevices,
   updateTeamTeachingMemberRole,
   type SharedClassSummary,
+  type SharedClassHistoryVersion,
   type TeamTeachingColleague,
 } from '../lib/teamTeachingService';
 import { classRoomFingerprint, classRoomWithoutTeamMetadata } from '../lib/teamTeachingCrypto';
 import { adoptAcknowledgedTeamRoom } from '../lib/teamTeachingProjection';
+import { describeTeamClassChanges, type TeamClassChange } from '../lib/teamTeachingChanges';
+import { mergeTeamClassRevisions } from '../lib/teamTeachingMerge';
 import type { ClassRoom } from '../types';
 import EmailAccountLogin from './EmailAccountLogin';
 
 function replaceOrAddRoom(prev: any, room: ClassRoom) {
-  return adoptAcknowledgedTeamRoom(prev, room);
+  const current = syncActiveClass(prev);
+  const existing = (current.classes || []).find((candidate: ClassRoom) => candidate.id === room.id);
+  if (!existing || classRoomFingerprint(existing) === classRoomFingerprint(room)) return adoptAcknowledgedTeamRoom(current, room);
+  // A new device may have an older personal-account class with this ID.
+  // Keep its entire old content in a visibly separate local copy before connecting to the authoritative team snapshot.
+  const copy = classRoomWithoutTeamMetadata(existing);
+  const safeCopy = { ...copy, id: copy.id + '-vor-teambeitritt-' + Date.now().toString(36),
+    name: copy.name + ' – lokale Kopie vor Teambeitritt' };
+  return adoptAcknowledgedTeamRoom({ ...current, classes: [...current.classes, safeCopy] }, room);
+}
+
+function formatTeamDate(value?: string): string {
+  if (!value) return 'noch nicht bekannt';
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? 'noch nicht bekannt'
+    : parsed.toLocaleString('de-AT', { dateStyle: 'short', timeStyle: 'short' });
 }
 
 export default function ClassTeam() {
   const { app, setApp } = useApp();
+  const liveAppRef = React.useRef(app);
+  liveAppRef.current = app;
   const [shared, setShared] = React.useState<SharedClassSummary[]>([]);
   const [colleagues, setColleagues] = React.useState<TeamTeachingColleague[]>([]);
   const [schoolUsers, setSchoolUsers] = React.useState<TeamTeachingColleague[]>([]);
@@ -37,6 +59,18 @@ export default function ClassTeam() {
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
   const [needsSchoolLogin, setNeedsSchoolLogin] = React.useState(false);
+  const [history, setHistory] = React.useState<SharedClassHistoryVersion[]>([]);
+  const [historyBusy, setHistoryBusy] = React.useState(false);
+  const [changesPreview, setChangesPreview] = React.useState<{
+    title: string; changes: TeamClassChange[]; revision: number; room?: ClassRoom;
+  } | null>(null);
+  const [historyVisible, setHistoryVisible] = React.useState(false);
+  const [mergePreview, setMergePreview] = React.useState<{
+    base: ClassRoom; local: ClassRoom; remote: ClassRoom;
+    remoteRevision: number; localRevision: number; localHash: string;
+    conflicts: string[]; changes: TeamClassChange[];
+  } | null>(null);
+  const [mergeDecisions, setMergeDecisions] = React.useState<Record<string, 'local' | 'team'>>({});
 
   const synced = React.useMemo(() => syncActiveClass(app), [app]);
   const activeRoom = synced.classes?.find(room => room.id === synced.activeClassId);
@@ -73,6 +107,17 @@ export default function ClassTeam() {
   }, []);
 
   React.useEffect(() => { void load(); }, [load]);
+  // Update the visible content revision even while the colleague works on another device.
+  React.useEffect(() => {
+    if (!activeSharedId) return;
+    const refresh = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      void listSharedClasses().then(setShared).catch(() => {
+        // The live team sync badge still reports authentication / connectivity failures.
+      });
+    }, 10000);
+    return () => window.clearInterval(refresh);
+  }, [activeSharedId]);
 
   const enableSharing = async () => {
     if (!activeRoom) return;
@@ -187,19 +232,28 @@ export default function ClassTeam() {
     setBusy('push');
     setError(null);
     try {
+      if (activeRoom.teamTeaching.syncStatus === 'conflict') {
+        throw new Error('Konflikt erkannt: Bitte zuerst deine Änderungen und den aktuellen Teamstand vergleichen. Deine lokale Planung bleibt erhalten.');
+      }
       const summary = await pushSharedClass(activeRoom);
       const hash = classRoomFingerprint(activeRoom);
       setApp(prev => {
         const current = syncActiveClass(prev);
-        const classes = (current.classes || []).map(room => room.id === activeRoom.id ? {
-          ...room,
-          teamTeaching: {
-            ...room.teamTeaching!,
-            revision: summary.revision,
-            lastSyncedHash: hash,
-            lastSyncedAt: new Date().toISOString(),
-          },
-        } : room);
+        const classes = (current.classes || []).map(room => {
+          if (room.id !== activeRoom.id || room.teamTeaching?.sharedClassId !== activeSharedId) return room;
+          const latestHash = classRoomFingerprint(room);
+          return {
+            ...room,
+            teamTeaching: {
+              ...room.teamTeaching!,
+              revision: summary.revision,
+              lastSyncedHash: hash,
+              lastSyncedAt: summary.updatedAt,
+              syncStatus: latestHash === hash ? ('synced' as const) : ('idle' as const),
+              syncMessage: latestHash === hash ? undefined : 'Weitere lokale Änderungen wurden während des Sendens vorgenommen und müssen noch synchronisiert werden.',
+            },
+          };
+        });
         return { ...current, classes };
       });
       setNotice('Deine Änderungen wurden verschlüsselt für das Klassenteam gespeichert.');
@@ -211,6 +265,215 @@ export default function ClassTeam() {
     } finally {
       setBusy(null);
     }
+  };
+
+  const prepareSafeMerge = async () => {
+    if (!activeSharedId) return;
+    setBusy('prepare-merge');
+    setError(null);
+    setMergePreview(null);
+    setMergeDecisions({});
+    try {
+      const current = syncActiveClass(liveAppRef.current);
+      const local = current.classes.find(room => room.teamTeaching?.sharedClassId === activeSharedId);
+      const meta = local?.teamTeaching;
+      if (!local || !meta || !meta.lastSyncedHash || meta.role === 'viewer') {
+        throw new Error('Auf diesem Gerät fehlt noch ein bestätigter bearbeitbarer Teamstand. Zusammenführen ist gesperrt.');
+      }
+      const latest = await pullSharedClass(activeSharedId);
+      if (latest.room.id !== local.id) throw new Error('Die Klassen-IDs stimmen nicht überein.');
+      if (latest.detail.revision <= meta.revision) {
+        throw new Error('Der Teamstand ist nicht neuer als deine lokale Version. Bitte die lokale Synchronisierung prüfen.');
+      }
+      const base = await pullSharedClassRevision(activeSharedId, meta.revision);
+      const prepared = mergeTeamClassRevisions(base.room, local, latest.room);
+      setMergePreview({
+        base: base.room, local, remote: latest.room,
+        remoteRevision: latest.detail.revision, localRevision: meta.revision,
+        localHash: classRoomFingerprint(local), conflicts: prepared.conflicts,
+        changes: describeTeamClassChanges(local, latest.room),
+      });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Der sichere Teamvergleich war nicht möglich. Deine lokale Arbeit bleibt erhalten.');
+    } finally { setBusy(null); }
+  };
+
+  const confirmSafeMerge = async () => {
+    if (!activeSharedId || !mergePreview) return;
+    setBusy('merge');
+    setError(null);
+    try {
+      const combined = mergeTeamClassRevisions(mergePreview.base, mergePreview.local,
+        mergePreview.remote, mergeDecisions);
+      if (!combined.room || combined.conflicts.length) {
+        throw new Error('Bitte entscheide für alle gleichzeitig bearbeiteten Felder, welche Fassung übernommen werden soll.');
+      }
+      const current = syncActiveClass(liveAppRef.current);
+      const local = current.classes.find(room => room.teamTeaching?.sharedClassId === activeSharedId);
+      if (!local?.teamTeaching || local.teamTeaching.revision !== mergePreview.localRevision
+        || classRoomFingerprint(local) !== mergePreview.localHash) {
+        throw new Error('Deine lokale Klasse hat sich seit dem Vergleich geändert. Bitte erneut vergleichen. Nichts wurde überschrieben.');
+      }
+      const latest = await pullSharedClass(activeSharedId);
+      if (latest.detail.revision !== mergePreview.remoteRevision
+        || classRoomFingerprint(latest.room) !== classRoomFingerprint(mergePreview.remote)) {
+        throw new Error('Die Teamlehrperson hat inzwischen erneut gespeichert. Bitte mit der neuesten Teamversion vergleichen.');
+      }
+      if (!window.confirm('Deine ausgewählten Änderungen und den aktuellen Teamstand als NEUE gemeinsame Version speichern? Beide vorherigen Versionen bleiben in der verschlüsselten Versionsgeschichte.')) return;
+      const afterConfirm = syncActiveClass(liveAppRef.current).classes.find(room => room.id === local.id);
+      if (!afterConfirm || classRoomFingerprint(afterConfirm) !== mergePreview.localHash) {
+        throw new Error('Während der Bestätigung gab es weitere lokale Änderungen. Zusammenführen gestoppt.');
+      }
+      const ready: ClassRoom = {
+        ...combined.room,
+        teamTeaching: {
+          ...local.teamTeaching, role: latest.detail.myRole, revision: latest.detail.revision,
+          lastSyncedHash: classRoomFingerprint(latest.room),
+        },
+      };
+      const saved = await pushSharedClass(ready);
+      const merged: ClassRoom = {
+        ...ready,
+        teamTeaching: { ...ready.teamTeaching!, revision: saved.revision,
+          lastSyncedHash: classRoomFingerprint(ready), lastSyncedAt: saved.updatedAt,
+          syncStatus: 'synced', syncMessage: undefined },
+      };
+      let localChangedMeanwhile = false;
+      setApp(prev => {
+        const state = syncActiveClass(prev);
+        const nowLocal = state.classes.find(room => room.id === local.id);
+        if (!nowLocal || classRoomFingerprint(nowLocal) !== mergePreview.localHash
+          || nowLocal.teamTeaching?.revision !== mergePreview.localRevision) {
+          localChangedMeanwhile = true;
+          return prev;
+        }
+        return adoptAcknowledgedTeamRoom({ ...state, activeClassId: undefined }, merged);
+      });
+      setMergePreview(null);
+      setMergeDecisions({});
+      setChangesPreview(null);
+      setNotice(localChangedMeanwhile
+        ? 'Teamänderungen wurden zusammengeführt. Zwischenzeitliche Änderungen auf deinem Gerät bleiben erhalten und müssen erneut verglichen werden.'
+        : 'Änderungen wurden sicher in Teamversion ' + saved.revision + ' zusammengeführt. Frühere Versionen bleiben erhalten.');
+      await load();
+    } catch (cause: any) {
+      setError(cause?.code === 'REVISION_CONFLICT'
+        ? 'Die Teamversion hat sich während des Zusammenführens geändert. Der Server hat den alten Schreibversuch abgelehnt. Bitte erneut vergleichen.'
+        : cause instanceof Error ? cause.message : 'Sicheres Zusammenführen nicht möglich. Deine lokale Planung bleibt erhalten.');
+    } finally { setBusy(null); }
+  };
+
+  const showLatestChanges = async () => {
+    if (!activeSharedId) return;
+    setBusy('preview-latest');
+    setError(null);
+    try {
+      const latest = await pullSharedClass(activeSharedId);
+      const current = syncActiveClass(liveAppRef.current);
+      const local = current.classes.find(room => room.teamTeaching?.sharedClassId === activeSharedId);
+      if (!local) throw new Error('Die lokale Teamklasse konnte nicht gefunden werden. Nichts wurde überschrieben.');
+      setChangesPreview({
+        title: 'Deine lokale Klasse im Vergleich zum aktuellen Teamstand',
+        changes: describeTeamClassChanges(local, latest.room),
+        revision: latest.detail.revision,
+      });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Die aktuelle Teamversion konnte nicht geladen werden.');
+    } finally { setBusy(null); }
+  };
+
+  const showHistory = async () => {
+    if (!activeSharedId) return;
+    if (historyVisible) { setHistoryVisible(false); return; }
+    setHistoryBusy(true);
+    setError(null);
+    try {
+      setHistory(await listSharedClassHistory(activeSharedId));
+      setHistoryVisible(true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Die Versionsgeschichte konnte nicht geladen werden.');
+    } finally { setHistoryBusy(false); }
+  };
+
+  const previewHistoryVersion = async (version: SharedClassHistoryVersion) => {
+    if (!activeSharedId) return;
+    setBusy('preview-history');
+    setError(null);
+    try {
+      const [historical, latest] = await Promise.all([
+        pullSharedClassRevision(activeSharedId, version.revision),
+        pullSharedClass(activeSharedId),
+      ]);
+      if (historical.room.id !== latest.room.id) throw new Error('Die Klassen-IDs der Versionen stimmen nicht überein.');
+      setChangesPreview({
+        title: 'Teamversion ' + version.revision + ' im Vergleich zum aktuellen Teamstand ' + latest.detail.revision,
+        changes: describeTeamClassChanges(historical.room, latest.room),
+        revision: version.revision,
+        room: historical.room,
+      });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Die ältere Teamversion konnte nicht entschlüsselt werden.');
+    } finally { setBusy(null); }
+  };
+
+  const restoreHistoryVersion = async () => {
+    if (!activeSharedId || !changesPreview?.room || !activeRoom?.teamTeaching) return;
+    if (activeRoom.teamTeaching.role === 'viewer') return;
+    setBusy('restore-history');
+    setError(null);
+    try {
+      const latest = await pullSharedClass(activeSharedId);
+      const current = syncActiveClass(liveAppRef.current);
+      const local = current.classes.find(room => room.teamTeaching?.sharedClassId === activeSharedId);
+      if (!local?.teamTeaching || local.teamTeaching.revision !== latest.detail.revision
+        || !local.teamTeaching.lastSyncedHash
+        || classRoomFingerprint(local) !== local.teamTeaching.lastSyncedHash
+        || classRoomFingerprint(local) !== classRoomFingerprint(latest.room)) {
+        throw new Error('Du hast noch lokale Änderungen oder eine ältere Teamversion. Bitte zuerst vergleichen und abgleichen. Deine Arbeit wurde nicht überschrieben.');
+      }
+      if (changesPreview.room.id !== latest.room.id || changesPreview.revision >= latest.detail.revision) {
+        throw new Error('Diese Version kann nicht wiederhergestellt werden. Bitte die Versionsgeschichte aktualisieren.');
+      }
+      const beforeHash = classRoomFingerprint(local);
+      if (!window.confirm('Teamversion ' + changesPreview.revision + ' als NEUE gemeinsame Version wiederherstellen? Die heutige Version bleibt in der verschlüsselten Versionsgeschichte erhalten.')) return;
+      const currentAfterConfirm = syncActiveClass(liveAppRef.current).classes.find(room => room.id === local.id);
+      if (!currentAfterConfirm || classRoomFingerprint(currentAfterConfirm) !== beforeHash) {
+        throw new Error('Während der Bestätigung wurden lokale Änderungen vorgenommen. Wiederherstellung gestoppt.');
+      }
+      const restoreRoom: ClassRoom = {
+        ...changesPreview.room,
+        teamTeaching: { ...local.teamTeaching, revision: latest.detail.revision, role: latest.detail.myRole,
+          lastSyncedHash: beforeHash },
+      };
+      const saved = await pushSharedClass(restoreRoom, { allowContentRemoval: true });
+      const restored: ClassRoom = {
+        ...restoreRoom,
+        teamTeaching: { ...restoreRoom.teamTeaching!, revision: saved.revision,
+          lastSyncedHash: classRoomFingerprint(restoreRoom), lastSyncedAt: saved.updatedAt,
+          syncStatus: 'synced', syncMessage: undefined },
+      };
+      let concurrentLocalEdits = false;
+      setApp(prev => {
+        const state = syncActiveClass(prev);
+        const nowLocal = state.classes.find(room => room.id === local.id);
+        if (!nowLocal || classRoomFingerprint(nowLocal) !== beforeHash
+          || nowLocal.teamTeaching?.revision !== local.teamTeaching?.revision) {
+          concurrentLocalEdits = true;
+          return prev; // Keep the new local changes intact; the server still archives both versions.
+        }
+        return adoptAcknowledgedTeamRoom({ ...state, activeClassId: undefined }, restored);
+      });
+      setChangesPreview(null);
+      setHistory(await listSharedClassHistory(activeSharedId));
+      setNotice(concurrentLocalEdits
+        ? 'Die ältere Version wurde im Team wiederhergestellt. Deine zwischenzeitlichen lokalen Änderungen sind erhalten; bitte den Teamstand vergleichen.'
+        : 'Version ' + changesPreview.revision + ' wurde als neue Teamversion ' + saved.revision + ' wiederhergestellt. Vorherige Stände bleiben erhalten.');
+      await load();
+    } catch (cause: any) {
+      setError(cause?.code === 'REVISION_CONFLICT'
+        ? 'Die Teamklasse wurde inzwischen geändert. Wiederherstellung abgebrochen; keine lokale Änderung wurde überschrieben.'
+        : cause instanceof Error ? cause.message : 'Wiederherstellung fehlgeschlagen.');
+    } finally { setBusy(null); }
   };
 
   const addMember = async (colleague: TeamTeachingColleague) => {
@@ -360,6 +623,21 @@ export default function ClassTeam() {
                       : 'Synchronisiert'}
               </div>
             )}
+            {activeRoom?.teamTeaching && (
+              <div className="mt-3 space-y-1 rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-3 py-3 text-xs text-[var(--text2)]" aria-live="polite">
+                <p className="font-bold text-[var(--text)]">Gemeinsamer Teamstand: Version {activeSummary?.revision ?? 'wird geprüft'}</p>
+                <p>{activeSummary?.contentUpdatedAt
+                  ? 'Zuletzt inhaltlich geändert am ' + formatTeamDate(activeSummary.contentUpdatedAt) + ' von '
+                    + (activeSummary.members.find(member => member.userId === activeSummary.contentUpdatedBy)?.displayName || 'einer Teamlehrperson')
+                  : 'Der genaue Zeitpunkt der letzten Inhaltsänderung ist für diese ältere Teamversion nicht erfasst.'}</p>
+                <p>Dein Gerät: Version {activeRoom.teamTeaching.revision} · zuletzt abgeglichen am {formatTeamDate(activeRoom.teamTeaching.lastSyncedAt)}</p>
+                <p className="font-semibold">{activeRoom.teamTeaching.lastSyncedHash
+                  ? classRoomFingerprint(activeRoom) === activeRoom.teamTeaching.lastSyncedHash
+                    ? 'Keine ungesendeten lokalen Inhaltsänderungen erkannt.'
+                    : 'Du hast lokale Änderungen, die noch nicht bestätigt wurden.'
+                  : 'Dieses Gerät hat noch keinen bestätigten Teamstand. Senden ist gesperrt.'}</p>
+              </div>
+            )}
             {activeRoom?.teamTeaching?.syncMessage && (
               <p className="mt-2 max-w-2xl text-xs leading-5 text-[var(--text2)]">
                 {activeRoom.teamTeaching.syncMessage}
@@ -381,12 +659,90 @@ export default function ClassTeam() {
             )
           ) : (
             <div className="flex flex-wrap gap-2">
+              <button onClick={showLatestChanges} disabled={Boolean(busy)} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-bold disabled:opacity-50">Änderungen vergleichen</button>
+              {activeRoom.teamTeaching.role !== 'viewer' && <button onClick={() => void prepareSafeMerge()} disabled={Boolean(busy) || !activeRoom.teamTeaching.lastSyncedHash} className="inline-flex items-center gap-2 rounded-xl border border-indigo-400 px-3 py-2 text-sm font-bold disabled:opacity-50">Änderungen zusammenführen</button>}
+              <button onClick={() => void showHistory()} disabled={Boolean(busy) || historyBusy} aria-expanded={historyVisible} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-bold disabled:opacity-50">{historyVisible ? 'Versionsgeschichte schließen' : 'Versionsgeschichte'}</button>
               <button onClick={pull} disabled={Boolean(busy)} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-bold"><Download size={16}/> Neueste Version laden</button>
-              {activeRoom.teamTeaching.role !== 'viewer' && <button onClick={push} disabled={Boolean(busy)} className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-3 py-2 text-sm font-black text-white"><Upload size={16}/> Änderungen senden</button>}
+              {activeRoom.teamTeaching.role !== 'viewer' && <button onClick={push} disabled={Boolean(busy) || activeRoom.teamTeaching.syncStatus === 'conflict' || !activeRoom.teamTeaching.lastSyncedHash} className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-3 py-2 text-sm font-black text-white disabled:opacity-50"><Upload size={16}/> Änderungen senden</button>}
             </div>
           )}
         </div>
       </section>
+
+      {activeSharedId && mergePreview && (
+        <section aria-label="Sicheres Zusammenführen" className="rounded-[1.75rem] border border-indigo-400 bg-[var(--surface)] p-5 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-black">Änderungen sicher zusammenführen</h2><button type="button" onClick={() => setMergePreview(null)} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-bold">Schließen</button></div>
+          <p className="text-sm text-[var(--text2)]">Dein Stand: Version {mergePreview.localRevision} · aktueller Teamstand: Version {mergePreview.remoteRevision}. Verschiedene bearbeitete Felder werden kombiniert. Wo beide dasselbe Feld geändert haben, entscheidest du ausdrücklich.</p>
+          <div className="max-h-64 space-y-2 overflow-y-auto">
+            {mergePreview.changes.map((change, index) => (
+              <div key={index} className="rounded-xl border border-[var(--border)] p-3 text-xs">
+                <p className="font-bold text-sm break-words">{change.path}</p>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2"><p className="break-words rounded-lg bg-blue-500/5 p-2"><strong className="block">Dein Gerät</strong>{change.before}</p><p className="break-words rounded-lg bg-emerald-500/5 p-2"><strong className="block">Gemeinsamer Stand</strong>{change.after}</p></div>
+              </div>
+            ))}
+          </div>
+          {mergePreview.conflicts.length > 0 && <div className="space-y-2 rounded-xl border border-amber-400 bg-amber-50 p-3 text-amber-950">
+            <p className="text-sm font-black">{mergePreview.conflicts.length} gleichzeitig bearbeitete Felder brauchen eine Entscheidung.</p>
+            {mergePreview.conflicts.map(location => <label key={location} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+              <span className="min-w-0 break-words font-semibold">{location}</span>
+              <select aria-label={'Fassung wählen für ' + location} value={mergeDecisions[location] || ''}
+                onChange={event => setMergeDecisions(prev => ({ ...prev, [location]: event.target.value as 'local' | 'team' }))}
+                className="min-h-11 rounded-lg border border-amber-500 bg-white px-2 text-amber-950">
+                <option value="">Fassung wählen …</option><option value="local">Meine Fassung</option><option value="team">Fassung im Team</option>
+              </select>
+            </label>)}
+          </div>}
+          <button type="button" onClick={() => void confirmSafeMerge()}
+            disabled={Boolean(busy) || mergePreview.conflicts.some(location => !mergeDecisions[location])}
+            className="min-h-11 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">Geprüfte Änderungen gemeinsam speichern</button>
+          <p className="text-xs text-[var(--text2)]">Falls sich die Teamklasse zwischen Vorschau und Speichern erneut ändert, wird das Speichern abgebrochen. Dein lokaler Stand bleibt erhalten.</p>
+        </section>
+      )}
+
+      {activeSharedId && changesPreview && (
+        <section aria-label="Teamteaching-Vorschau" className="rounded-[1.75rem] border border-indigo-300 bg-[var(--surface)] p-5 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-black">{changesPreview.title}</h2>
+            <button type="button" onClick={() => setChangesPreview(null)} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Vorschau schließen</button>
+          </div>
+          <p className="text-sm text-[var(--text2)]">Nur auf deinem berechtigten Gerät entschlüsselt. Die Vorschau ändert weder deine lokalen Daten noch den Teamstand.</p>
+          {changesPreview.changes.length === 0
+            ? <p className="rounded-xl bg-emerald-500/10 p-3 text-sm font-semibold">Keine inhaltlichen Unterschiede zwischen den verglichenen Versionen.</p>
+            : <div className="max-h-[440px] overflow-auto space-y-2" aria-label="Geänderte Felder">
+                {changesPreview.changes.map((change, index) => (
+                  <div key={index} className="rounded-xl border border-[var(--border)] bg-[var(--surface2)] p-3">
+                    <div className="mb-2 text-sm font-bold break-words">{change.path}</div>
+                    <div className="grid gap-2 sm:grid-cols-2 text-xs">
+                      <div className="rounded-lg bg-rose-500/5 p-2 break-words"><strong className="block mb-1">Bisher / lokal</strong>{change.before}</div>
+                      <div className="rounded-lg bg-emerald-500/5 p-2 break-words"><strong className="block mb-1">Aktuell / im Team</strong>{change.after}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>}
+          {changesPreview.changes.length >= 100 && <p className="text-xs font-semibold text-amber-700">Es gibt möglicherweise weitere Unterschiede. Die Vorschau zeigt die ersten 100 geänderten Felder.</p>}
+          {changesPreview.room && changesPreview.revision !== activeSummary?.revision && activeRoom?.teamTeaching?.role !== 'viewer' && (
+            <button type="button" onClick={() => void restoreHistoryVersion()} disabled={Boolean(busy)} className="rounded-xl border border-amber-400 bg-amber-50 px-4 py-2.5 text-sm font-bold text-amber-900 disabled:opacity-50">Diese historische Version als neue Teamversion wiederherstellen</button>
+          )}
+        </section>
+      )}
+
+      {activeSharedId && historyVisible && (
+        <section aria-label="Verschlüsselte Team-Versionsgeschichte" className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-black">Versionsgeschichte der Teamklasse</h2>
+            <button type="button" disabled={historyBusy || Boolean(busy)} onClick={() => void listSharedClassHistory(activeSharedId).then(setHistory).catch(cause => setError(cause instanceof Error ? cause.message : 'Versionsgeschichte nicht verfügbar.'))} className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-bold disabled:opacity-50">Aktualisieren</button>
+          </div>
+          <p className="text-xs text-[var(--text2)]">Vor dem Ersetzen wurde jede frühere Teamversion verschlüsselt gesichert. Eine Wiederherstellung erzeugt eine neue Version; keine ältere Version wird dazu gelöscht.</p>
+          <div className="max-h-72 overflow-auto space-y-2">
+            {history.map(version => (
+              <div key={version.revision} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--surface2)] p-3">
+                <div className="text-sm"><strong>Version {version.revision}</strong> · {formatTeamDate(version.updatedAt)}<div className="text-xs text-[var(--text2)]">{activeSummary?.members.find(member => member.userId === version.updatedBy)?.displayName || 'Teamlehrperson'}</div></div>
+                <button type="button" onClick={() => void previewHistoryVersion(version)} disabled={Boolean(busy)} className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-bold disabled:opacity-50">Änderungen ansehen</button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {activeSummary && (
         <section className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm space-y-4">
@@ -459,7 +815,8 @@ export default function ClassTeam() {
 
           {activeSummary.myRole === 'owner' && (
             <div className="border-t border-[var(--border)] pt-4">
-              <button onClick={stopSharing} disabled={Boolean(busy)} className="text-sm font-bold text-rose-600">Teamteaching für diese Klasse beenden</button>
+              {activeSummary.members.length > 1 && <p className="text-xs font-semibold text-amber-700">Solange weitere Lehrpersonen zur Teamklasse gehören, darf die gemeinsame Klasse nicht gelöscht werden.</p>}
+              <button onClick={stopSharing} disabled={Boolean(busy) || activeSummary.members.length > 1} className="text-sm font-bold text-rose-600 disabled:cursor-not-allowed disabled:opacity-40">Teamteaching für diese Klasse beenden</button>
             </div>
           )}
         </section>

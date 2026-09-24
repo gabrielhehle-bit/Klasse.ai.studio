@@ -34,6 +34,16 @@ export interface SharedClassRecord {
   createdAt: string;
   updatedAt: string;
   updatedBy: string;
+  /** Content timestamps do not change when a colleague or device is added. */
+  contentUpdatedAt?: string;
+  contentUpdatedBy?: string;
+}
+
+export interface SharedClassHistoryEntry {
+  revision: number;
+  updatedAt: string;
+  updatedBy: string;
+  encryptedSnapshot: unknown;
 }
 
 type StoreData = {
@@ -109,10 +119,12 @@ function cloneRecord(record: SharedClassRecord): SharedClassRecord {
 
 export class ClassCollaborationStore {
   private readonly filePath: string;
+  private readonly historyRoot: string;
   private writeQueue: Promise<unknown> = Promise.resolve();
 
   constructor(dataDir: string) {
     this.filePath = path.join(dataDir, 'teamteaching.json');
+    this.historyRoot = path.join(dataDir, 'teamteaching-history');
   }
 
   private async read(): Promise<StoreData> {
@@ -138,6 +150,70 @@ export class ClassCollaborationStore {
     const tempPath = this.filePath + '.tmp-' + process.pid;
     await fs.writeFile(tempPath, JSON.stringify(data, null, 2), { encoding: 'utf8', mode: 0o600 });
     await fs.rename(tempPath, this.filePath);
+  }
+
+  /** Persist ciphertext before replacing the live snapshot. Fail closed if the recovery copy fails. */
+  private async archiveSnapshot(record: SharedClassRecord): Promise<void> {
+    const dir = path.join(this.historyRoot, record.id);
+    await fs.mkdir(dir, { recursive: true, mode: 0o700 });
+    const archived: SharedClassHistoryEntry = {
+      revision: record.revision,
+      updatedAt: record.contentUpdatedAt || (record.revision === 1 ? record.createdAt : record.updatedAt),
+      updatedBy: record.contentUpdatedBy || (record.revision === 1 ? record.ownerUserId : record.updatedBy),
+      encryptedSnapshot: record.encryptedSnapshot,
+    };
+    const filename = path.join(dir, String(record.revision) + '.json');
+    try {
+      await fs.writeFile(filename, JSON.stringify(archived), { flag: 'wx', mode: 0o600 });
+    } catch (error: any) {
+      if (error?.code !== 'EEXIST') throw error;
+      const previous = JSON.parse(await fs.readFile(filename, 'utf8')) as SharedClassHistoryEntry;
+      if (previous.revision !== archived.revision || JSON.stringify(previous.encryptedSnapshot) !== JSON.stringify(archived.encryptedSnapshot)) throw new Error('HISTORY_INTEGRITY_ERROR');
+    }
+  }
+
+  /** Authorization is checked against the CURRENT membership, not historical memberships. */
+  async listClassHistory(identity: TeacherIdentity, classId: string): Promise<Array<Omit<SharedClassHistoryEntry, 'encryptedSnapshot'>>> {
+    const current = await this.getClass(identity, classId);
+    const directory = path.join(this.historyRoot, current.id);
+    const result: Array<Omit<SharedClassHistoryEntry, 'encryptedSnapshot'>> = [{
+      revision: current.revision,
+      updatedAt: current.contentUpdatedAt || (current.revision === 1 ? current.createdAt : current.updatedAt),
+      updatedBy: current.contentUpdatedBy || (current.revision === 1 ? current.ownerUserId : current.updatedBy),
+    }];
+    let filenames: string[];
+    try { filenames = await fs.readdir(directory); }
+    catch (error: any) { if (error?.code === 'ENOENT') return result; throw error; }
+    for (const filename of filenames) {
+      if (!/^[1-9][0-9]*\.json$/.test(filename)) continue;
+      const revision = Number(filename.slice(0, -5));
+      if (!Number.isSafeInteger(revision) || revision >= current.revision) continue;
+      const entry = await this.readClassHistoryEntry(current.id, revision);
+      if (entry) result.push({ revision: entry.revision, updatedAt: entry.updatedAt, updatedBy: entry.updatedBy });
+    }
+    return result.sort((a, b) => b.revision - a.revision);
+  }
+
+  private async readClassHistoryEntry(classId: string, revision: number): Promise<SharedClassHistoryEntry | null> {
+    if (!Number.isSafeInteger(revision) || revision < 1) return null;
+    try {
+      const entry = JSON.parse(await fs.readFile(path.join(this.historyRoot, classId, String(revision) + '.json'), 'utf8')) as SharedClassHistoryEntry;
+      if (entry.revision !== revision || !isEncryptedSnapshot(entry.encryptedSnapshot)
+        || typeof entry.updatedAt !== 'string' || typeof entry.updatedBy !== 'string') throw new Error('HISTORY_INTEGRITY_ERROR');
+      return entry;
+    } catch (error: any) { if (error?.code === 'ENOENT') return null; throw error; }
+  }
+
+  async getClassHistoryRevision(identity: TeacherIdentity, classId: string, revision: number): Promise<SharedClassHistoryEntry | null> {
+    const current = await this.getClass(identity, classId);
+    if (revision === current.revision) return {
+      revision: current.revision,
+      updatedAt: current.contentUpdatedAt || (current.revision === 1 ? current.createdAt : current.updatedAt),
+      updatedBy: current.contentUpdatedBy || (current.revision === 1 ? current.ownerUserId : current.updatedBy),
+      encryptedSnapshot: current.encryptedSnapshot,
+    };
+    if (revision >= current.revision) return null;
+    return this.readClassHistoryEntry(current.id, revision);
   }
 
   private mutate<T>(fn: (data: StoreData) => T | Promise<T>): Promise<T> {
@@ -238,6 +314,8 @@ export class ClassCollaborationStore {
         createdAt: now,
         updatedAt: now,
         updatedBy: identity.userId,
+        contentUpdatedAt: now,
+        contentUpdatedBy: identity.userId,
       };
       const classes = data.classes[identity.schoolId] || (data.classes[identity.schoolId] = []);
       classes.push(record);
@@ -398,7 +476,7 @@ export class ClassCollaborationStore {
       throw new Error('INVALID_SHARED_CLASS');
     }
 
-    return this.mutate(data => {
+    return this.mutate(async data => {
       const record = (data.classes[identity.schoolId] || []).find(item => item.id === classId);
       if (!record) throw new Error('CLASS_NOT_FOUND');
       const member = record.members.find(item => item.userId === identity.userId);
@@ -406,20 +484,26 @@ export class ClassCollaborationStore {
       if (member.role === 'viewer') throw new Error('READ_ONLY');
       if (record.revision !== input.expectedRevision) throw new Error('REVISION_CONFLICT');
 
+      await this.archiveSnapshot(record);
       record.encryptedSnapshot = input.encryptedSnapshot;
       record.revision += 1;
       record.updatedAt = new Date().toISOString();
       record.updatedBy = identity.userId;
+      record.contentUpdatedAt = record.updatedAt;
+      record.contentUpdatedBy = identity.userId;
       return cloneRecord(record);
     });
   }
 
   async deleteClass(identity: TeacherIdentity, classId: string): Promise<void> {
-    return this.mutate(data => {
+    return this.mutate(async data => {
       const classes = data.classes[identity.schoolId] || [];
       const index = classes.findIndex(item => item.id === classId);
       if (index < 0) throw new Error('CLASS_NOT_FOUND');
       if (classes[index].ownerUserId !== identity.userId) throw new Error('OWNER_REQUIRED');
+      if (classes[index].members.length > 1) throw new Error('ACTIVE_TEAM_MEMBERS');
+      // Keep the final encrypted snapshot recoverable even after a deliberate team shutdown.
+      await this.archiveSnapshot(classes[index]);
       classes.splice(index, 1);
     });
   }
