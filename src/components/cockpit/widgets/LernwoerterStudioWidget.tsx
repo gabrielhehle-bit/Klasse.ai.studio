@@ -83,8 +83,8 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
   });
   useWidgetOverflowGuard('LernwoerterStudio', containerRef);
 
-  // Initialer State mit Berücksichtigung von Legacy-Widgetdaten
-  const [state, setState] = useState<LernwoerterStudioState>(() => {
+  // Resolve legacy and modern words from the active class's widget only.
+  const loadCurrentWords = (): LernwoerterStudioState => {
     const legacyType = widget?.type || 'vocabulary';
     const oldSettings = widget?.settings;
     if (oldSettings && oldSettings.words && oldSettings.words.length > 0) {
@@ -111,7 +111,19 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
 
     // Migration von Altdaten
     return migrateLegacyWidgetSettings(legacyType, oldSettings, app?.lernwoerter);
-  });
+  };
+  const [state, setState] = useState<LernwoerterStudioState>(loadCurrentWords);
+  const previousWordsRef = useRef(JSON.stringify(state.words.map(w => w.text)));
+  const classWidgetKey = String(app?.activeClassId || '') + ':' + String(widget?.id || '');
+  const loadedWidgetKey = useRef(classWidgetKey);
+  useEffect(() => {
+    if (loadedWidgetKey.current === classWidgetKey) return;
+    loadedWidgetKey.current = classWidgetKey;
+    const loaded = loadCurrentWords();
+    previousWordsRef.current = JSON.stringify(loaded.words.map(w => w.text));
+    setState(loaded);
+    setCharSelectionStart(null);
+  }, [classWidgetKey]);
 
   // State in widget.settings und app.lernwoerter synchronisieren
   const persistState = useCallback(
@@ -131,10 +143,13 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
           },
         });
       }
-      // Wenn setApp vorhanden ist, Wortliste synchron halten
-      if (setApp && app) {
-        const plainWords = newState.words.map((w) => w.text);
-        if (JSON.stringify(app.lernwoerter?.aktuelleListe) !== JSON.stringify(plainWords)) {
+      // Only actual word-list edits update the class-wide list. Presenting,
+      // covering or sorting words must never overwrite another teacher's list.
+      const plainWords = newState.words.map((w) => w.text);
+      const nextWordsKey = JSON.stringify(plainWords);
+      if (setApp && app && nextWordsKey !== previousWordsRef.current) {
+        previousWordsRef.current = nextWordsKey;
+        if (JSON.stringify(app.lernwoerter?.aktuelleListe) !== nextWordsKey) {
           setApp((prev: any) => ({
             ...prev,
             lernwoerter: {
@@ -192,9 +207,11 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
   // Tastaturbedienung
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Wenn ein Modal oder Input fokussiert ist, Tastaturkürzel ignorieren
-      const activeTag = document.activeElement?.tagName.toLowerCase();
-      if (activeTag === 'input' || activeTag === 'textarea') return;
+      // Only the focused widget owns shortcuts; don't intercept board/editors.
+      if (showManageModal || !containerRef.current ||
+          !containerRef.current.contains(document.activeElement) ||
+          !containerRef.current.contains(e.target as Node) ||
+          (e.target as HTMLElement)?.closest('button, input, textarea, select, [contenteditable="true"]')) return;
 
       if (e.key === 'ArrowRight') {
         e.preventDefault();
@@ -210,7 +227,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state.mode]);
+  }, [state.mode, showManageModal, classWidgetKey]);
 
   // Modus wechseln
   const handleSetMode = (mode: LernwoerterMode) => {
@@ -329,6 +346,8 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
     <div
       ref={containerRef}
       id="lernwoerter-studio"
+      tabIndex={0}
+      aria-label="Lernwörter: zum Blättern Widget auswählen, dann Pfeiltasten verwenden"
       className={`w-full h-full flex flex-col select-none overflow-hidden ${
         currentIsLight ? 'bg-slate-50 text-slate-800' : 'bg-slate-900 text-slate-100'
       }`}
