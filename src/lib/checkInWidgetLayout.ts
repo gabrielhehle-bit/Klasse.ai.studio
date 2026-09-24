@@ -49,7 +49,7 @@ export function shouldShowCheckInSummary(width: number, _gridFits: StudentGridLa
  */
 export function getCheckInPageLayout(
   width: number, height: number, count: number, page: number,
-  options: Partial<typeof CHECK_IN_GRID_OPTIONS> & { maxColumns?: number } = {},
+  options: { minCardWidth?: number; minCardHeight?: number; reservedHeight?: number; gap?: number; maxColumns?: number } = {},
 ) {
   const { minCardWidth = CHECK_IN_GRID_OPTIONS.minCardWidth,
     minCardHeight = CHECK_IN_GRID_OPTIONS.minCardHeight,
