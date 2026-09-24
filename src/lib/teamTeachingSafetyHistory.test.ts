@@ -44,6 +44,16 @@ test('Every prior encrypted team revision remains recoverable after two subseque
   });
 });
 
+test('Owner cannot erase a shared class while a colleague still belongs to the team', async () => {
+  await withClass(async (store, owner, id) => {
+    const colleague = createTeacherIdentity('colleague@vsfoa.vobs.at', ['vsfoa.vobs.at'])!;
+    await store.registerDevice(colleague, { deviceId: 'device-colleague01', publicKeyJwk: rsaJwk });
+    await store.addMember(owner, id, { userId: colleague.userId, displayName: 'Team', role: 'editor', wrappedKeys: { 'device-colleague01': wrapped } });
+    await assert.rejects(() => store.deleteClass(owner, id), /ACTIVE_TEAM_MEMBERS/);
+    assert.equal((await store.getClass(colleague, id)).revision, 1);
+  });
+});
+
 test('Team member administration never changes the last CONTENT edit time and does not add fake versions', async () => {
   await withClass(async (store, owner, id) => {
     const first = await store.getClass(owner, id);
