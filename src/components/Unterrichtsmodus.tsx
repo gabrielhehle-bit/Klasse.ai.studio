@@ -298,7 +298,7 @@ import { PhasesWidgetContent } from "./cockpit/PhasesWidgetContent";
 import { TrafficLightWidgetContent } from "./cockpit/TrafficLightWidgetContent";
 import { NoiseMeterWidgetContent } from "./cockpit/NoiseMeterWidgetContent";
 import { NoiseScaleWidgetContent } from "./cockpit/NoiseScaleWidgetContent";
-import { SoundsWidgetContent } from "./cockpit/SoundsWidgetContent";
+import { MusicSoundsStudio } from "./cockpit/widgets/MusicSoundsStudio";
 import { TodoWidgetContent } from "./cockpit/TodoWidgetContent";
 import { RandomNameWidgetContent } from "./cockpit/RandomNameWidgetContent";
 import { AnschauungWidgetContent } from "./cockpit/AnschauungWidgetContent";
@@ -3709,7 +3709,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       w.id !== id ? w : {
         ...w,
         ...updates,
-        ...(((w.type === "groups" && updates.settings) || (w.type === "wheel" && updates.settings))
+        ...(((w.type === "groups" && updates.settings) || (w.type === "wheel" && updates.settings) || (w.type === "sounds" && updates.settings))
           ? { settings: { ...(w.settings || {}), ...updates.settings } }
           : {}),
         hasBeenOpened: true,
@@ -10748,6 +10748,7 @@ ${content}
                                   "fractions",
                                   "fractioncake",
                                   "fractiongrid",
+                                  "sounds",
                                 ].includes(widget.type)}
                                 settingsOpen={widgetSettingsOpenId === widget.id}
                                 onSettingsToggle={() =>
@@ -12324,16 +12325,15 @@ ${content}
 
                                     case "sounds":
                                       return (
-                                        <SoundsWidgetContent
+                                        <MusicSoundsStudio
                                           widget={widget}
                                           onUpdate={(updates) =>
-                                            handleUpdateWidgetPos(
-                                              widget.id,
-                                              updates,
-                                            )
+                                            handleUpdateWidgetPos(widget.id, updates)
                                           }
-                                          playSound={playSound}
                                           currentIsLight={currentIsLight}
+                                          isFullscreen={fullscreenWidgetId === widget.id}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
