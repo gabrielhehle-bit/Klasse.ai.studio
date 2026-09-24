@@ -246,16 +246,13 @@ export function getCanonicalQRSettings(widgetSettings?: any): {
   content: string;
   label: string;
 } {
-  const content = (
-    widgetSettings?.content ||
-    widgetSettings?.link ||
-    DEFAULT_QR_VALUE
-  ).trim();
-
-  const label = (
-    widgetSettings?.label ||
-    DEFAULT_QR_LABEL
-  ).trim();
+  // An intentionally cleared QR must stay empty after a reload or remote sync.
+  // Only missing settings receive the original example/preset.
+  const rawContent = typeof widgetSettings?.content === 'string' ? widgetSettings.content
+    : typeof widgetSettings?.link === 'string' ? widgetSettings.link : DEFAULT_QR_VALUE;
+  const content = rawContent.trim();
+  const label = (typeof widgetSettings?.label === 'string'
+    ? widgetSettings.label : DEFAULT_QR_LABEL).trim();
 
   return { content, label };
 }

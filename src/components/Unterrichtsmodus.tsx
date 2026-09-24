@@ -12015,6 +12015,7 @@ ${content}
                                       return (
                                         <QrCodeWidgetContent
                                           widget={widget}
+                                          app={app}
                                           onUpdate={(updates) =>
                                             handleUpdateWidgetPos(
                                               widget.id,
@@ -12249,6 +12250,7 @@ ${content}
                                       return (
                                         <DiceWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -14481,6 +14483,7 @@ ${content}
                             <div className="w-full h-full min-h-[300px]">
                               <QrCodeWidgetContent
                                 widget={widget}
+                                app={app}
                                 onUpdate={(updates) =>
                                   handleUpdateWidgetPos(widget.id, updates)
                                 }

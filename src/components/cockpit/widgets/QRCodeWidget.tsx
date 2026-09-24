@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import { LinksWidget } from './LinksWidget';
 import {
   QrCode,
   ExternalLink,
@@ -31,6 +33,7 @@ export interface QRCodeWidgetProps {
   onCloseSettings?: () => void;
   currentIsLight?: boolean;
   isFullscreen?: boolean;
+  app?: any;
 }
 
 export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
@@ -38,6 +41,7 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
   onUpdate,
   currentIsLight = true,
   isFullscreen = false,
+  app,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef, { isFullscreen, defaultCategory: 'standard' });
@@ -53,6 +57,8 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
   const [inputLabel, setInputLabel] = useState(initialSettings.label);
   const [copied, setCopied] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [activePanel, setActivePanel] = useState<'qr' | 'links'>('qr');
+  const [copyError, setCopyError] = useState(false);
 
   // Synchronisieren, wenn sich widget.settings von außen ändert (z. B. Vorlagenwechsel)
   useEffect(() => {
@@ -62,30 +68,36 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
   }, [widget?.settings?.content, widget?.settings?.link, widget?.settings?.label]);
 
   // Persistenz via onUpdate (debounced oder bei Preset-Klick)
-  const persistTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const persistSettings = (newContent: string, newLabel: string) => {
-    if (onUpdate && widget?.id) {
-      if (persistTimeoutRef.current) {
-        clearTimeout(persistTimeoutRef.current);
-      }
-      persistTimeoutRef.current = setTimeout(() => {
-        onUpdate({
-          settings: {
-            ...(widget.settings || {}),
-            content: newContent,
-            link: newContent, // Abwärtskompatibel
-            label: newLabel,
-            lastUpdated: new Date().toISOString(),
-          },
-        });
-      }, 350);
-    }
+  const persistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestSettingsRef = useRef(widget?.settings);
+  latestSettingsRef.current = widget?.settings;
+  const persistSettings = (newContent: string, newLabel: string, immediate = false) => {
+    if (!onUpdate || !widget?.id) return;
+    if (persistTimeoutRef.current) clearTimeout(persistTimeoutRef.current);
+    const apply = () => {
+      persistTimeoutRef.current = null;
+      onUpdate({ settings: {
+        ...(latestSettingsRef.current || {}),
+        content: newContent,
+        link: newContent, // Abwärtskompatibel
+        label: newLabel,
+        lastUpdated: new Date().toISOString(),
+      } });
+    };
+    if (immediate) apply();
+    else persistTimeoutRef.current = setTimeout(apply, 350);
   };
+  useEffect(() => () => {
+    if (persistTimeoutRef.current) clearTimeout(persistTimeoutRef.current);
+  }, []);
 
   // Reaktiv analysierter QR-Inhalt
   const contentInfo: QRCodeContentInfo = useMemo(() => {
     return parseQRCodeInput(inputVal, inputLabel);
   }, [inputVal, inputLabel]);
+  // Oversize legacy content is retained and editable, but must not crash the
+  // QR encoder when pupils open a classroom widget containing long text.
+  const qrTooLong = new TextEncoder().encode(contentInfo.encodedValue).length > 1000;
 
   // Dynamische QR-Größenberechnung
   const qrPixelSize = useMemo(() => {
@@ -101,15 +113,15 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
   const handleCopy = async () => {
     if (!inputVal) return;
     try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(contentInfo.encodedValue || inputVal);
-      }
+      if (!navigator?.clipboard?.writeText) throw new Error('Zwischenablage nicht verfügbar');
+      await navigator.clipboard.writeText(contentInfo.encodedValue || inputVal);
+      setCopyError(false);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback falls Clipboard API geblockt ist
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      setCopied(false);
+      setCopyError(true);
+      setTimeout(() => setCopyError(false), 2500);
     }
   };
 
@@ -117,14 +129,14 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
   const handleSelectPreset = (value: string, label: string) => {
     setInputVal(value);
     setInputLabel(label);
-    persistSettings(value, label);
+    persistSettings(value, label, true);
   };
 
   // Eingabe leeren
   const handleClear = () => {
     setInputVal('');
     setInputLabel('Leer');
-    persistSettings('', 'Leer');
+    persistSettings('', 'Leer', true);
   };
 
   // Typ-Icon
@@ -151,6 +163,26 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
       id="widget-qrcode-container"
       className="flex flex-col h-full w-full min-h-0 select-none overflow-hidden relative"
     >
+      <nav role="group" aria-label="QR-Code und Links" className="grid shrink-0 grid-cols-2 gap-1 border-b border-slate-200 p-2 dark:border-zinc-700">
+        <button type="button" aria-pressed={activePanel === 'qr'} onClick={() => setActivePanel('qr')}
+          className={`min-h-11 rounded-xl px-2 text-xs font-bold ${activePanel === 'qr'
+            ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-800 dark:bg-zinc-800 dark:text-white'}`}>
+          QR-Code
+        </button>
+        <button type="button" aria-pressed={activePanel === 'links'} onClick={() => {
+          persistSettings(inputVal, inputLabel, true);
+          setIsLightboxOpen(false); setActivePanel('links');
+        }}
+          className={`min-h-11 rounded-xl px-2 text-xs font-bold ${activePanel === 'links'
+            ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-800 dark:bg-zinc-800 dark:text-white'}`}>
+          Meine Links
+        </button>
+      </nav>
+      {activePanel === 'links' && <div className="min-h-0 flex-1">
+        <LinksWidget widget={widget} app={app} onUpdate={onUpdate}
+          isFullscreen={isFullscreen} currentIsLight={currentIsLight} />
+      </div>}
+      {activePanel === 'qr' && <div className="flex min-h-0 flex-1 flex-col">
       {/* 1. Header */}
       <div
         id="qrcode-header"
@@ -197,7 +229,8 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
           <button
             id="qrcode-zoom-btn"
             type="button"
-            onClick={() => setIsLightboxOpen(true)}
+            onClick={() => { if (!qrTooLong && inputVal) setIsLightboxOpen(true); }}
+            disabled={!inputVal || qrTooLong}
             title="Großanzeige auf Tafel / Beamer"
             aria-label="Großanzeige öffnen"
             className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs rounded-lg transition-all cursor-pointer min-h-[34px]"
@@ -222,8 +255,9 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
               aria-label="URL oder Text für den QR-Code"
               placeholder="Web-Adresse (https://...) oder Text (z. B. Aufgabe S. 42 Nr. 3)..."
               value={inputVal}
+              maxLength={1000}
               onChange={(e) => {
-                const val = e.target.value;
+                const val = e.target.value.slice(0, 1000);
                 setInputVal(val);
                 persistSettings(val, inputLabel);
               }}
@@ -245,6 +279,9 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
             )}
           </div>
 
+          {qrTooLong && <p role="alert" className="rounded-lg bg-rose-100 p-2 text-[11px] font-bold text-rose-800">
+            Zu viel Inhalt für einen zuverlässig lesbaren QR-Code. Bitte Text oder Link kürzen.
+          </p>}
           {/* Dezenter Sicherheitshinweis & neutrale Beispiele im Bearbeitungsbereich */}
           <div className="flex items-center justify-between text-[9px] text-slate-400 dark:text-zinc-500 px-1 pt-0.5 truncate">
             <span className="truncate">z. B. „Aufgabe S. 42 Nr. 3“ oder „Lösungswort: Regenbogen“</span>
@@ -280,7 +317,7 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
 
         {/* Mittiger Bereich: QR-Code Canvas */}
         <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative py-1">
-          {inputVal ? (
+          {inputVal && !qrTooLong ? (
             <div
               id="qrcode-canvas-wrapper"
               onClick={() => setIsLightboxOpen(true)}
@@ -319,6 +356,7 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
         {/* Aktionsleiste unten */}
         <div className="flex items-center gap-1.5 shrink-0 pt-1 border-t border-slate-200/60 dark:border-white/5">
           {/* Kopieren-Button */}
+          {copyError && <span role="alert" className="text-xs font-bold text-rose-600">Kopieren fehlgeschlagen</span>}
           <button
             id="qrcode-copy-btn"
             type="button"
@@ -365,11 +403,12 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
       </div>
 
       {/* 3. Lightbox / Tafel-Vollbild Modal */}
-      {isLightboxOpen && (
+      {isLightboxOpen && !!inputVal && !qrTooLong && createPortal(
         <div
           id="qrcode-lightbox-overlay"
           onClick={() => setIsLightboxOpen(false)}
-          className="absolute inset-0 z-50 bg-black/85 backdrop-blur-xs flex flex-col items-center justify-center p-4 select-none cursor-zoom-out"
+          role="dialog" aria-modal="true" aria-label="QR-Code Großanzeige"
+          className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-xs flex flex-col items-center justify-center p-4 select-none cursor-zoom-out"
         >
           <div
             id="qrcode-lightbox-dialog"
@@ -406,8 +445,8 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
             {/* Riesiger QR Code Canvas */}
             <div className="p-5 bg-white rounded-3xl shadow-lg border border-slate-200 mb-4 flex items-center justify-center">
               <QRCodeCanvas
-                value={contentInfo.encodedValue || DEFAULT_QR_VALUE}
-                size={Math.min(size.width ? size.width - 96 : 300, 320)}
+                value={contentInfo.encodedValue}
+                size={Math.max(180, Math.min(window.innerWidth - 100, window.innerHeight - 310, 380))}
                 level="H"
                 includeMargin={false}
               />
@@ -442,8 +481,10 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
+      </div>}
     </div>
   );
 };
