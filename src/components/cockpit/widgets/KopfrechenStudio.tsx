@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { CockpitWidgetConfig } from '../../../types';
+import { parseWholeNumberAnswer } from '../../../lib/mathWidgetInteraction';
 import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
 import {
   MentalMathMode,
@@ -63,6 +64,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
   }, [widget?.type, widget?.settings]);
 
   const [settings, setSettings] = useState<KopfrechenSettings>(initialSettings);
+  const settingsRef = useRef(settings);
   const [currentTask, setCurrentTask] = useState<MentalMathTask>(() => generateMentalMathTask(initialSettings));
   const [isRevealed, setIsRevealed] = useState<boolean>(false);
   const [studentInput, setStudentInput] = useState<string>('');
@@ -72,15 +74,13 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
   // Sync to backend/cockpit persistence
   const updateSettings = useCallback(
     (newSettings: Partial<KopfrechenSettings>) => {
-      setSettings((prev) => {
-        const updated = { ...prev, ...newSettings };
-        if (onUpdate) {
-          onUpdate({ settings: updated });
-        }
-        return updated;
-      });
+      const updated = { ...settingsRef.current, ...newSettings };
+      settingsRef.current = updated;
+      setSettings(updated);
+      // Notify the cockpit outside a React state updater; keep any legacy fields.
+      onUpdate?.({ settings: { ...(widget?.settings || {}), ...updated } });
     },
-    [onUpdate]
+    [onUpdate, widget?.settings]
   );
 
   // Neue Aufgabe generieren
@@ -116,8 +116,8 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
   // Prüfen der Schülerantwort
   const checkAnswer = useCallback(() => {
     if (!studentInput.trim()) return;
-    const num = parseInt(studentInput.trim(), 10);
-    if (isNaN(num)) return;
+    const num = parseWholeNumberAnswer(studentInput);
+    if (num === null) return;
 
     if (num === currentTask.correctAnswer) {
       setFeedbackState('correct');
@@ -133,6 +133,10 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
       // Wenn ein Eingabefeld fokussiert ist, Leertaste nicht abfangen
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+      // Interactive controls own Enter/Space: a focused button must not also
+      // reveal a solution or move to the next problem through bubbling.
+      if (target.closest('button, select, textarea, [contenteditable="true"]')) return;
+      if (isInput && settings.presentationMode !== 'student') return;
 
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -697,8 +701,10 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
+                  maxLength={5}
+                  aria-label="Ergebnis eingeben"
                   value={studentInput}
-                  onChange={(e) => setStudentInput(e.target.value.replace(/[^0-9]/g, ''))}
+                  onChange={(e) => setStudentInput(e.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
                   placeholder="Ergebnis..."
                   className="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono text-lg font-bold text-center outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 min-h-[44px]"
                 />
