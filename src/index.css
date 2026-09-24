@@ -2228,3 +2228,55 @@ html body .cockpit-free-mascot .mascot-widget-resize {
   visibility: hidden !important;
   pointer-events: none !important;
 }
+
+
+/* UNIVERSAL COCKPIT SPACE RULES
+ * All legacy and new widgets share this frame. Its actual inner rectangle is
+ * measured in CockpitWidget; we never guess based on the full Smartboard size.
+ * These rules only reclaim existing root padding/gaps and retain usable
+ * touch targets. Individual widgets may additionally paginate their data.
+ */
+.cockpit-widget-content {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100,116,139,.45) transparent;
+}
+.cockpit-widget-content > :is(div, section, article, main) {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+.cockpit-widget-content :is(.truncate, .break-words, .whitespace-normal) {
+  min-width: 0;
+}
+@container (max-width: 535px) {
+  .cockpit-widget-container:not(.cockpit-free-mascot) .cockpit-widget-content > :is(div,section,article,main)[class*=" p-"],
+  .cockpit-widget-container:not(.cockpit-free-mascot) .cockpit-widget-content > :is(div,section,article,main)[class^="p-"] {
+    padding: 6px !important;
+  }
+  .cockpit-widget-container:not(.cockpit-free-mascot) .cockpit-widget-content > :is(div,section,article,main)[class*=" gap-"] {
+    gap: 6px !important;
+  }
+}
+@container (max-width: 345px) {
+  .cockpit-widget-container:not(.cockpit-free-mascot) .cockpit-widget-content > :is(div,section,article,main)[class*=" p-"],
+  .cockpit-widget-container:not(.cockpit-free-mascot) .cockpit-widget-content > :is(div,section,article,main)[class^="p-"] {
+    padding: 3px !important;
+  }
+  .cockpit-widget-container:not(.cockpit-free-mascot) .cockpit-widget-content > :is(div,section,article,main)[class*=" gap-"] {
+    gap: 4px !important;
+  }
+}
+/* Height matters as well as width: a short widget on a wide board is compact.
+ * Do not force font-size on timers, numerals or user-formatted text. Only long
+ * word-wrapping labels compress; 12px is the minimum and the original text
+ * remains available through the frame's native overflow fallback.
+ */
+.cockpit-widget-container[data-widget-density="tight"]:not([data-widget-type="instruction"])
+  .cockpit-widget-content :is(.break-words,.whitespace-normal) {
+  font-size: clamp(12px, 3.5cqw, 16px) !important;
+  overflow-wrap: anywhere;
+}
