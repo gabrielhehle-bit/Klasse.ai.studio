@@ -337,7 +337,7 @@ async function main() {
     // Unlike the previous smoke test, check an actual weekly lesson on a
     // second, separately signed-in teacher account BEFORE any manual push.
     const weeklyTopic = 'E2E Teamteaching gemeinsamer Wochenplan';
-    await clickSidebar(anna, 'Wochenplanung');
+    await clickSidebar(anna, 'Wochenplan');
     await waitFor(anna, 'weekly planning grid', 'document.body?.innerText.includes("WOCHENPLANUNG")');
     await waitFor(anna, 'editable weekly cell', 'Array.from(document.querySelectorAll("svg.lucide-plus")).some(svg=>String(svg.parentElement?.parentElement?.className||"").includes("group/cell"))', 30000);
     const opened = await evaluate(anna,
@@ -347,7 +347,7 @@ async function main() {
     await setInputByLabel(anna, 'Was wird gelernt?', weeklyTopic);
     await clickButton(anna, 'Einheit speichern');
     await waitFor(anna, 'teacher A saved weekly lesson', 'document.body?.innerText.includes(' + q(weeklyTopic) + ')');
-    await clickSidebar(berta, 'Wochenplanung');
+    await clickSidebar(berta, 'Wochenplan');
     await waitFor(berta, 'teacher B sees teacher A weekly lesson automatically',
       'document.body?.innerText.includes(' + q(weeklyTopic) + ')', 60000);
     console.log('✓ Cross-account weekly lesson shared automatically without manual send');
