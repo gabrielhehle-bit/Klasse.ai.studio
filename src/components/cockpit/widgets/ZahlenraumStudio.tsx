@@ -15,6 +15,7 @@ import {
   Split
 } from 'lucide-react';
 import { CockpitWidgetConfig } from '../../../types';
+import { numberLineValueAtClick } from '../../../lib/mathWidgetInteraction';
 import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
 import {
   ZahlenraumMode,
@@ -148,9 +149,10 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
         // Marker und Sprünge anpassen
         const safeMarkers = validateMarkers(markers, preset.min, preset.max);
         const safeJumps = validateJumps(jumps, preset.min, preset.max);
-        setMarkers(safeMarkers.length > 0 ? safeMarkers : [{ id: 'm1', value: Math.min(preset.max, preset.min + Math.floor((preset.max - preset.min) / 2)) }]);
+        const nextMarkers = safeMarkers.length > 0 ? safeMarkers : [{ id: 'm1', value: Math.min(preset.max, preset.min + Math.floor((preset.max - preset.min) / 2)) }];
+        setMarkers(nextMarkers);
         setJumps(safeJumps);
-        persist({ range: r, markers: safeMarkers, jumps: safeJumps });
+        persist({ range: r, markers: nextMarkers, jumps: safeJumps });
       }
     }
   };
@@ -248,8 +250,8 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
   const handleLineClick = (e: React.MouseEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
-    const ratio = Math.max(0, Math.min(1, (clickX - 40) / (rect.width - 80)));
-    const computedVal = Math.round(currentMin + ratio * (currentMax - currentMin));
+    const computedVal = numberLineValueAtClick(clickX, rect.width, currentMin, currentMax);
+    if (computedVal === null) return;
     handleAddOrUpdateMarker(computedVal);
   };
 
