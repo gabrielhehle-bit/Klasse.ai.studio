@@ -2829,24 +2829,52 @@ const getDieStyles = (idx: number, mode: 'sum' | 'diff' | 'prod') => {
   }
 };
 
-export const DiceWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [dice, setDice] = useState([0, 0]); // Start with 2 dice by default, which is perfect for arithmetic!
+type ClassroomDiceMode = 'sum' | 'diff' | 'prod';
+const validDice = (values: unknown): number[] =>
+  Array.isArray(values) && values.length >= 1 && values.length <= 6 &&
+  values.every(value => Number.isInteger(value) && value >= 0 && value < 6)
+    ? values : [0, 0];
+export const DiceWidgetContent: React.FC<{
+  widget: any; onUpdate?: (updates: any) => void; currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
+  const [dice, setDice] = useState<number[]>(() => validDice(widget?.settings?.diceValues));
   const [rolling, setRolling] = useState(false);
-  const [mathMode, setMathMode] = useState<'sum' | 'diff' | 'prod'>('sum');
+  const [mathMode, setMathMode] = useState<ClassroomDiceMode>(() =>
+    widget?.settings?.diceMathMode === 'diff' || widget?.settings?.diceMathMode === 'prod'
+      ? widget.settings.diceMathMode : 'sum');
   const [revealed, setRevealed] = useState(false);
+  const rollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const persistDice = (values: number[], mode: ClassroomDiceMode) => {
+    if (onUpdate && widget?.id) onUpdate({ settings: {
+      ...(widget.settings || {}), diceValues: values, diceMathMode: mode,
+    } });
+  };
+  useEffect(() => {
+    return () => { if (rollTimerRef.current) clearInterval(rollTimerRef.current); };
+  }, []);
+  useEffect(() => {
+    if (!rolling) {
+      setDice(validDice(widget?.settings?.diceValues));
+      if (widget?.settings?.diceMathMode === 'sum' || widget?.settings?.diceMathMode === 'diff' ||
+          widget?.settings?.diceMathMode === 'prod') setMathMode(widget.settings.diceMathMode);
+    }
+  }, [widget?.settings?.diceValues, widget?.settings?.diceMathMode]);
 
   const roll = () => {
-    if (rolling) return;
+    if (rollTimerRef.current) return;
     setRolling(true);
     setRevealed(false);
     let rolls = 0;
-    const interval = setInterval(() => {
-      setDice(prev => prev.map(() => Math.floor(Math.random() * 6)));
-      rolls++;
-      if (rolls > 15) {
-        clearInterval(interval);
+    rollTimerRef.current = setInterval(() => {
+      rolls += 1;
+      if (rolls >= 16) {
+        if (rollTimerRef.current) clearInterval(rollTimerRef.current);
+        rollTimerRef.current = null;
+        const nextValues = dice.map(() => Math.floor(Math.random() * 6));
+        setDice(nextValues);
         setRolling(false);
-      }
+        persistDice(nextValues, mathMode);
+      } else setDice(prev => prev.map(() => Math.floor(Math.random() * 6)));
     }, 50);
   };
 
@@ -2870,12 +2898,12 @@ export const DiceWidgetContent: React.FC<{ widget: any, currentIsLight: boolean 
   }, [mathMode]);
 
   const changeDiceCount = (action: 'add' | 'remove') => {
+    if (rolling || rollTimerRef.current) return;
     setRevealed(false);
-    if (action === 'remove' && dice.length > 1) {
-      setDice(prev => prev.slice(0, prev.length - 1));
-    } else if (action === 'add' && dice.length < 6) {
-      setDice(prev => [...prev, 0]);
-    }
+    const next = action === 'remove' && dice.length > 1 ? dice.slice(0, -1)
+      : action === 'add' && dice.length < 6 ? [...dice, 0] : dice;
+    setDice(next);
+    persistDice(next, mathMode);
   };
 
   const equationDisplay = useMemo(() => {
@@ -2933,8 +2961,12 @@ export const DiceWidgetContent: React.FC<{ widget: any, currentIsLight: boolean 
             disabled={rolling}
             onClick={() => {
               setRevealed(false);
-              setDice(Array.from({ length: num }, () => Math.floor(Math.random() * 6)));
+              const next = Array.from({ length: num }, () => Math.floor(Math.random() * 6));
+              setDice(next);
+              persistDice(next, mathMode);
             }}
+            aria-label={`${num} Würfel auswählen`}
+            aria-pressed={dice.length === num}
             className={`w-6 h-6 rounded-lg text-xs font-black transition-all cursor-pointer hover:scale-105 active:scale-95 border ${
               dice.length === num
                 ? 'bg-indigo-500 border-transparent text-white shadow-sm'
@@ -2957,7 +2989,9 @@ export const DiceWidgetContent: React.FC<{ widget: any, currentIsLight: boolean 
             return (
               <div key={i} className="flex flex-col items-center gap-1 select-none">
                 <motion.div 
-                  onClick={roll} 
+                  onClick={roll}
+                  role="button" tabIndex={0} aria-label={`Würfel ${i + 1} werfen`}
+                  onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); roll(); } }}
                   animate={rolling ? { 
                     rotate: [0, 180, 360], 
                     scale: [1, 1.15, 1],
@@ -3023,8 +3057,12 @@ export const DiceWidgetContent: React.FC<{ widget: any, currentIsLight: boolean 
                   <button
                     key={item.mode}
                     onClick={() => {
-                      setMathMode(item.mode as any);
+                      const mode = item.mode as ClassroomDiceMode;
+                      setMathMode(mode);
+                      setRevealed(false);
+                      persistDice(dice, mode);
                     }}
+                    aria-pressed={mathMode === item.mode}
                     className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase transition-all whitespace-nowrap cursor-pointer ${
                       mathMode === item.mode
                         ? 'bg-indigo-500 text-white shadow-xs'
@@ -3044,9 +3082,9 @@ export const DiceWidgetContent: React.FC<{ widget: any, currentIsLight: boolean 
       </div>
 
       <div className="flex gap-1.5 w-full justify-center shrink-0">
-        <button onClick={() => changeDiceCount('remove')} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer active:scale-95 border ${currentIsLight ? 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200' : 'bg-white/5 hover:bg-white/10 text-white border-white/10'}`}>-1</button>
-        <button onClick={roll} className="flex-1 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-[10px] uppercase font-black tracking-widest shadow-md hover:scale-102 cursor-pointer active:scale-95 transition-all">Würfeln!</button>
-        <button onClick={() => changeDiceCount('add')} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer active:scale-95 border ${currentIsLight ? 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200' : 'bg-white/5 hover:bg-white/10 text-white border-white/10'}`}>+1</button>
+        <button type="button" aria-label="Einen Würfel entfernen" disabled={rolling || dice.length <= 1} onClick={() => changeDiceCount('remove')} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer active:scale-95 border ${currentIsLight ? 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200' : 'bg-white/5 hover:bg-white/10 text-white border-white/10'}`}>-1</button>
+        <button type="button" aria-label="Würfel werfen" disabled={rolling} onClick={roll} className="flex-1 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-[10px] uppercase font-black tracking-widest shadow-md hover:scale-102 cursor-pointer active:scale-95 transition-all">Würfeln!</button>
+        <button type="button" aria-label="Einen Würfel hinzufügen" disabled={rolling || dice.length >= 6} onClick={() => changeDiceCount('add')} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer active:scale-95 border ${currentIsLight ? 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200' : 'bg-white/5 hover:bg-white/10 text-white border-white/10'}`}>+1</button>
       </div>
     </div>
   );
