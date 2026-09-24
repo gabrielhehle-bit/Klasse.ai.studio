@@ -30,7 +30,7 @@ test('Cockpit-Zielkatalog: Quellen überschneiden sich nicht und bleiben bisher 
     assert.ok(defaultTypes.includes(alias), `Vor einer Zusammenführung prüfen: ${alias}`);
     assert.ok(getPlannedCockpitWidgetForLegacyType(alias));
   }
-  assert.equal(defaultTypes.length, 110, '109 historische Widgets plus neues HÜ-Widget vollständig inventarisieren');
+  assert.equal(defaultTypes.length, 111, '109 historische Widgets plus HÜ-Widget und Sterneauswertung vollständig inventarisieren');
   const knownTypesBlock = source.slice(
     source.indexOf('const knownTypes = ['),
     source.indexOf('];', source.indexOf('const knownTypes = [')),
