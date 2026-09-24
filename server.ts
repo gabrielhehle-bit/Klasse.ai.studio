@@ -2,6 +2,7 @@ import { escapeHtml, scriptJson, createOAuthState, verifyOAuthState } from './sr
 import { ONEDRIVE_BACKUP_PRIMARY_NAME, getOneDriveBackupCandidateNames } from './src/lib/cloudBackupNames';
 import express from "express";
 import path from "path";
+import fs from "node:fs";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
 import { createServer as createViteServer } from "vite";
@@ -184,6 +185,20 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   // E3.23 Health Endpoint
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+  // The health endpoint only proves that the server responds. This endpoint
+  // identifies the exact active release so the PWA and deploy checks can
+  // distinguish fresh assets from an outdated browser cache.
+  app.get("/api/release", (_req, res) => {
+    const marker = path.join(process.cwd(), 'KLASSIO_DEPLOYMENT_COMMIT.txt');
+    try {
+      const commit = fs.readFileSync(marker, 'utf8').trim();
+      if (!/^[a-f0-9]{40}$/.test(commit)) throw new Error('Invalid release marker');
+      res.setHeader('Cache-Control', 'no-store, max-age=0');
+      res.json({ commit });
+    } catch {
+      res.status(503).json({ error: 'Release marker unavailable' });
+    }
   });
 
   // E3.12 Differentiierte Request-Größenlimits
