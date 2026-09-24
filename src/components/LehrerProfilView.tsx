@@ -63,7 +63,8 @@ export default function LehrerProfilView() {
       // The display identity is account-level: do not overwrite the active
       // classroom's school/teacher fields, which may belong to a colleague.
       lehrerProfil: { ...(prev.lehrerProfil || {}), ...newProfile },
-      ...(color !== previousColor ? { theme: 'custom_theme', customAccentColor: color } : {}),
+      // Accent changes must NOT replace the selected full-page design.
+      ...(color !== previousColor ? { customAccentColor: color } : {}),
     }));
     setIsEditing(false);
   };
@@ -195,7 +196,7 @@ export default function LehrerProfilView() {
               <option value="aus">Kein Text</option><option value="motto">Mein Motto</option><option value="spruch">Mein Spruch</option>
             </select>
           </label>
-          <label className="text-sm font-bold text-slate-700">Meine Akzentfarbe
+          <label className="text-sm font-bold text-slate-700">Meine Akzentfarbe (ändert nicht das gewählte Design)
             <input type="color" aria-label="Persönliche Akzentfarbe" value={draft.akzentfarbe}
               onChange={event => setDraft(prev => ({ ...prev, akzentfarbe: event.target.value }))}
               className="mt-1 h-11 w-full cursor-pointer rounded-xl border border-slate-300 bg-white p-1" />

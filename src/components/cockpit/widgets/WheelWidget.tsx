@@ -372,21 +372,23 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
   // Responsive Layoutgrößen
   const isSmall = containerSize.width < 280 || containerSize.height < 280;
   const isLarge = containerSize.width > 560 || containerSize.height > 520;
-  const wheelPxSize = Math.max(100, Math.min(containerSize.width - 32, containerSize.height - 170, 480));
+  // Keep the wheel as large as its actual viewport allows. Do not force a
+  // minimum diameter larger than the widget (that clipped small screens).
+  const wheelPxSize = Math.max(0, Math.min(containerSize.width - 16, containerSize.height - 93, 680));
 
   return (
     <div
       ref={containerRef}
-      className={`relative flex flex-col justify-between w-full h-full p-2.5 sm:p-4 rounded-2xl overflow-hidden select-none border transition-colors duration-200 ${
+      className={`relative flex flex-col justify-between w-full h-full p-1.5 sm:p-2 rounded-2xl overflow-hidden select-none border transition-colors duration-200 ${
         currentIsLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-950 border-white/10'
       }`}
     >
       {/* ========================================================================= */}
       {/* TOP BAR: Modus-Status, Einstellungen & Sound-Toggle                       */}
       {/* ========================================================================= */}
-      <div className="flex items-center justify-between gap-1.5 pb-2 border-b border-slate-200 dark:border-white/10 shrink-0">
+      <div className="flex items-center justify-between gap-1 pb-0.5 border-b border-slate-200 dark:border-white/10 shrink-0">
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-base sm:text-lg">🎡</span>
+          <span className="text-sm">🎡</span>
           <div className="min-w-0">
             <span className="text-xs sm:text-sm font-black uppercase tracking-wider block text-slate-800 dark:text-white leading-tight truncate">
               {mode === 'custom' ? 'Glücksrad' : mode === 'numbers' ? 'Zahlenrad' : 'Schülerrad'}
@@ -424,7 +426,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
           <button
             type="button"
             onClick={() => updateSettings({ soundEnabled: !soundEnabled })}
-            className={`min-h-[32px] min-w-[32px] p-1.5 rounded-xl border text-xs transition-all cursor-pointer flex items-center justify-center ${
+            className={`min-h-[28px] min-w-[28px] p-1 rounded-lg border text-xs transition-all cursor-pointer flex items-center justify-center ${
               soundEnabled
                 ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400'
                 : 'bg-black/5 dark:bg-white/5 border-transparent text-slate-400'
@@ -440,7 +442,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
             type="button"
             onClick={() => setShowConfigModal(true)}
             disabled={isSpinning}
-            className={`min-h-[32px] px-2.5 rounded-xl border text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 active:scale-95 ${
+            className={`min-h-[28px] px-1.5 rounded-lg border text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 active:scale-95 ${
               currentIsLight
                 ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
                 : 'bg-zinc-900 hover:bg-zinc-800 border-white/10 text-slate-200'
@@ -457,7 +459,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
       {/* ========================================================================= */}
       {/* MAIN RAD VIEWPORT: Responsives SVG mit Zeiger und Animation               */}
       {/* ========================================================================= */}
-      <div className="flex-grow flex flex-col items-center justify-center my-1.5 min-h-0 relative overflow-hidden">
+      <div className="flex-grow flex flex-col items-center justify-center my-0.5 min-h-0 relative overflow-hidden">
         {baseItems.length >= 2 ? (
           <div
             onClick={handleSpin}
@@ -600,11 +602,11 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
       {/* ========================================================================= */}
       {/* RESULT ANNOUNCEMENT: Groß und lesbar nach der Drehung                     */}
       {/* ========================================================================= */}
-      <div className="h-10 sm:h-12 flex items-center justify-center shrink-0 px-2">
+      <div className="h-7 sm:h-8 flex items-center justify-center shrink-0 px-1">
         {winner && !isSpinning ? (
           <div
             onClick={handleSpin}
-            className="w-full max-w-md py-1.5 px-3 rounded-2xl bg-indigo-100/90 dark:bg-indigo-950/40 border border-indigo-300 dark:border-indigo-500/40 text-indigo-950 dark:text-white shadow-sm flex items-center justify-center gap-2 cursor-pointer transition-transform active:scale-98"
+            className="w-full max-w-md py-0.5 px-2 rounded-lg bg-indigo-100/90 dark:bg-indigo-950/40 border border-indigo-300 dark:border-indigo-500/40 text-indigo-950 dark:text-white shadow-sm flex items-center justify-center gap-2 cursor-pointer transition-transform active:scale-98"
             title="Klicken für nochmal drehen"
           >
             <span className="text-sm sm:text-base">🎉</span>
@@ -624,19 +626,19 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
       {/* ========================================================================= */}
       {/* BOTTOM ACTION BUTTON: Mindestens 48px Touch-Höhe                          */}
       {/* ========================================================================= */}
-      <div className="shrink-0 pt-2 border-t border-slate-200 dark:border-white/10">
+      <div className="shrink-0 pt-0.5 border-t border-slate-200 dark:border-white/10">
         <button
           type="button"
           onClick={handleSpin}
           disabled={isSpinning || !hasEnoughItems}
-          className={`w-full min-h-[48px] sm:min-h-[52px] rounded-2xl font-black text-sm sm:text-base uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-98 cursor-pointer ${
+          className={`w-full min-h-[34px] sm:min-h-[38px] rounded-lg font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-98 cursor-pointer ${
             isSpinning || !hasEnoughItems
               ? 'bg-slate-200 dark:bg-zinc-800 text-slate-400 cursor-not-allowed'
               : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20'
           }`}
           aria-label={winner ? 'Noch einmal drehen' : 'Glücksrad drehen'}
         >
-          <Sparkles size={18} />
+          <Sparkles size={14} />
           <span>
             {isSpinning
               ? 'Dreht …'
