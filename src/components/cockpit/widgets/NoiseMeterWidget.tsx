@@ -40,10 +40,14 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
   const animFrameRef = useRef<number | null>(null);
   const lastVolRef = useRef(0);
   const isActiveRef = useRef(false);
+  const startInFlightRef = useRef(false);
+  const requestGenerationRef = useRef(0);
   const lastRenderTimeRef = useRef(0);
 
   // Sauberes Beenden von Stream & AudioContext
   const stopMeasurement = useCallback(() => {
+    requestGenerationRef.current += 1; // Cancel a pending microphone permission dialog.
+    startInFlightRef.current = false;
     isActiveRef.current = false;
     if (animFrameRef.current) {
       cancelAnimationFrame(animFrameRef.current);
@@ -97,11 +101,13 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
 
   // Start der Mikrofonmessung
   const startMeasurement = async () => {
-    if (isActiveRef.current) return; // Doppelten Stream verhindern
-
+    if (isActiveRef.current || startInFlightRef.current) return;
+    startInFlightRef.current = true;
+    const requestGeneration = ++requestGenerationRef.current;
     setPermissionState('requesting');
 
     if (!navigator?.mediaDevices?.getUserMedia) {
+      startInFlightRef.current = false;
       setPermissionState('unavailable');
       return;
     }
@@ -115,10 +121,18 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
         },
       });
 
+      // If the user switched tabs while the browser permission prompt was
+      // visible, release the stream instead of activating the hidden meter.
+      if (requestGenerationRef.current !== requestGeneration) {
+        cleanupMediaStream(stream);
+        return;
+      }
       streamRef.current = stream;
 
       const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtxClass) {
+        cleanupMediaStream(stream);
+        streamRef.current = null;
         setPermissionState('unavailable');
         return;
       }
@@ -128,6 +142,13 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
 
       if (ctx.state === 'suspended') {
         await ctx.resume();
+      }
+      if (requestGenerationRef.current !== requestGeneration) {
+        cleanupMediaStream(stream);
+        streamRef.current = null;
+        await ctx.close().catch(() => {});
+        audioContextRef.current = null;
+        return;
       }
 
       const analyser = ctx.createAnalyser();
@@ -142,11 +163,16 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
       setPermissionState('active');
       runAudioLoop();
     } catch (err: any) {
-      if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
-        setPermissionState('denied');
-      } else {
-        setPermissionState('unavailable');
+      if (requestGenerationRef.current !== requestGeneration) return;
+      if (streamRef.current) { cleanupMediaStream(streamRef.current); streamRef.current = null; }
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {});
+        audioContextRef.current = null;
       }
+      setPermissionState(err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError'
+        ? 'denied' : 'unavailable');
+    } finally {
+      if (requestGenerationRef.current === requestGeneration) startInFlightRef.current = false;
     }
   };
 
