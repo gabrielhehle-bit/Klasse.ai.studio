@@ -827,9 +827,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
     };
 
-    const applyRemoteRoom = (remoteRoom: any) => {
+    const applyRemoteRoom = (remoteRoom: any, expectedLocalId: string, expectedRevision: number, expectedHash: string) => {
       setApp(prev => {
         const current = syncActiveClass(prev);
+        const stillActive = current.classes?.find(room => room.id === expectedLocalId);
+        // The teacher may have typed another lesson or switched classes while
+        // the remote HTTP + decrypt request was in flight. Never erase it.
+        if (current.activeClassId !== expectedLocalId
+          || !stillActive || stillActive.teamTeaching?.sharedClassId !== activeTeamSharedId
+          || stillActive.teamTeaching.revision !== expectedRevision
+          || classRoomFingerprint(stillActive) !== expectedHash
+          || remoteRoom.id !== expectedLocalId) return prev;
         const room = {
           ...remoteRoom,
           teamTeaching: {
@@ -878,12 +886,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (!localRoom || !meta || meta.sharedClassId !== activeTeamSharedId) return;
         if (meta.syncStatus === 'conflict') return;
 
-        const localHash = classRoomFingerprint(localRoom);
         const remote = await pullSharedClass(activeTeamSharedId);
         if (!active) return;
-
+        // Refresh the local baseline AFTER the asynchronous request. A lesson
+        // edited during the fetch must not be silently replaced or sent with
+        // the revision captured before the edit.
+        const latest = syncActiveClass(currentAppRef.current);
+        if (latest.activeClassId !== current.activeClassId) return;
+        const latestRoom = latest.classes?.find(room => room.id === localRoom.id);
+        const latestMeta = latestRoom?.teamTeaching;
+        if (!latestRoom || !latestMeta || latestMeta.sharedClassId !== activeTeamSharedId || latestMeta.syncStatus === 'conflict') return;
+        if (remote.room.id !== latestRoom.id) {
+          setLocalTeamStatus('conflict', 'Die Teamklasse hat eine andere Klassen-ID als deine lokale Klasse. Nichts wurde überschrieben.');
+          return;
+        }
+        const localHash = classRoomFingerprint(latestRoom);
         const remoteHash = classRoomFingerprint(remote.room);
-        const baseline = meta.lastSyncedHash;
+        const baseline = latestMeta.lastSyncedHash;
+        const meta = latestMeta;
 
         if (remote.detail.revision > meta.revision) {
           if (baseline && localHash !== baseline && meta.role !== 'viewer') {
@@ -893,7 +913,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             );
             return;
           }
-          applyRemoteRoom(remote.room);
+          applyRemoteRoom(remote.room, latestRoom.id, meta.revision, localHash);
           return;
         }
 
@@ -922,7 +942,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (localHash !== baseline) {
           setLocalTeamStatus('syncing');
           try {
-            const pushed = await pushSharedClass(localRoom);
+            const pushed = await pushSharedClass(latestRoom);
             if (active) updateAfterPush(pushed.revision, localHash);
           } catch (error: any) {
             if (error?.code === 'REVISION_CONFLICT' || error?.status === 409) {
