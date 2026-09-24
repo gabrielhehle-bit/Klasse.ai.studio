@@ -10736,7 +10736,20 @@ ${content}
                                   "image",
                                   "timer",
                                   "drawing",
+                                  "instruction",
+                                  "zahlenraum",
+                                  "anschauung",
+                                  "numberline",
+                                  "kopfrechnen",
+                                  "mathcards",
+                                  "multitrainer",
+                                  "mathchain",
+                                  "fractionvisualizer",
+                                  "fractions",
+                                  "fractioncake",
+                                  "fractiongrid",
                                 ].includes(widget.type)}
+                                settingsOpen={widgetSettingsOpenId === widget.id}
                                 onSettingsToggle={() =>
                                   setWidgetSettingsOpenId((prev) =>
                                     prev === widget.id ? null : widget.id,
@@ -10828,6 +10841,8 @@ ${content}
                                             )
                                           }
                                           currentIsLight={currentIsLight}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
@@ -11011,6 +11026,8 @@ ${content}
                                             )
                                           }
                                           currentIsLight={currentIsLight}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
@@ -11383,6 +11400,8 @@ ${content}
                                             )
                                           }
                                           currentIsLight={currentIsLight}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
@@ -11452,6 +11471,9 @@ ${content}
                                             )
                                           }
                                           currentIsLight={currentIsLight}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onOpenSettings={() => setWidgetSettingsOpenId(widget.id)}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
@@ -11960,6 +11982,8 @@ ${content}
                                             )
                                           }
                                           currentIsLight={currentIsLight}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
@@ -12182,6 +12206,8 @@ ${content}
                                             )
                                           }
                                           currentIsLight={currentIsLight}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 

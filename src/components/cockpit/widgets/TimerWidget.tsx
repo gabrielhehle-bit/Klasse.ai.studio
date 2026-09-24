@@ -13,6 +13,9 @@ export interface TimerWidgetProps {
   widget: CockpitWidgetConfig;
   onUpdate?: (updates: Partial<CockpitWidgetConfig>) => void;
   currentIsLight: boolean;
+  showSettings?: boolean;
+  onOpenSettings?: () => void;
+  onCloseSettings?: () => void;
 }
 
 type TimerStatus = 'ready' | 'running' | 'paused' | 'expired';
@@ -32,6 +35,9 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
   widget,
   onUpdate,
   currentIsLight,
+  showSettings: externalShowSettings,
+  onOpenSettings,
+  onCloseSettings,
 }) => {
   const { setApp } = useApp();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -60,7 +66,13 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
   const [customMinInput, setCustomMinInput] = useState('5');
   const [customSecInput, setCustomSecInput] = useState('0');
   const [customTimeError, setCustomTimeError] = useState('');
-  const [showSettings, setShowSettings] = useState(false);
+  const [localShowSettings, setLocalShowSettings] = useState(false);
+  const showSettings = externalShowSettings ?? localShowSettings;
+  const setShowSettings = (open: boolean) => {
+    if (externalShowSettings === undefined) setLocalShowSettings(open);
+    else if (open) onOpenSettings?.();
+    else onCloseSettings?.();
+  };
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   // Audio Context
@@ -610,7 +622,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                 <span className="text-[10px] font-bold">{isMuted ? 'Stumm' : alarmSound === 'bell' ? 'Gong' : alarmSound === 'bowl' ? 'Schale' : 'Beep'}</span>
               </button>
 
-              <button
+              {externalShowSettings === undefined && (<button
                 onClick={() => setShowSettings(!showSettings)}
                 className={`min-h-[32px] min-w-[32px] p-1.5 rounded-lg border flex items-center justify-center cursor-pointer active:scale-95 transition-all ${
                   showSettings ? 'bg-indigo-600 text-white border-indigo-700' : currentIsLight ? 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200' : 'bg-zinc-800 border-white/10 text-slate-400 hover:bg-zinc-700'
@@ -618,7 +630,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                 title="Einstellungen"
               >
                 <Settings2 size={14} />
-              </button>
+              </button>)}
             </div>
           </div>
 
@@ -862,7 +874,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                 </button>
               )}
 
-              <button
+              {externalShowSettings === undefined && (<button
                 onClick={() => setShowSettings(!showSettings)}
                 className={`min-h-[38px] min-w-[38px] p-2 rounded-xl border flex items-center justify-center cursor-pointer active:scale-95 ${
                   showSettings ? 'bg-indigo-600 text-white border-indigo-700' : currentIsLight ? 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200' : 'bg-zinc-800 border-white/10 text-slate-400 hover:bg-zinc-700'
@@ -870,7 +882,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                 title="Optionen"
               >
                 <Settings2 size={16} />
-              </button>
+              </button>)}
             </div>
           </div>
 

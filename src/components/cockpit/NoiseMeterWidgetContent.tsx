@@ -6,6 +6,8 @@ export interface NoiseMeterWidgetContentProps {
   onUpdate?: (updates: any) => void;
   currentIsLight: boolean;
   isFullscreen?: boolean;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
 }
 
 export const NoiseMeterWidgetContent: React.FC<NoiseMeterWidgetContentProps> = (props) => {

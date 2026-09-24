@@ -17,6 +17,8 @@ interface NoiseMeterWidgetProps {
   onUpdate?: (updates: any) => void;
   currentIsLight: boolean;
   isFullscreen?: boolean;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
 }
 
 export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
@@ -24,6 +26,8 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
   onUpdate,
   currentIsLight,
   isFullscreen = false,
+  showSettings = false,
+  onCloseSettings,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef, { isFullscreen, defaultCategory: 'standard' });
@@ -196,6 +200,19 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
         currentIsLight ? 'text-slate-800' : 'text-slate-100'
       }`}
     >
+      {showSettings && (
+        <div role="region" aria-label="Lärmmesser-Einstellungen" className="shrink-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-zinc-900 p-2 flex flex-wrap items-center gap-2 text-xs">
+          <span className="font-semibold">Empfindlichkeit:</span>
+          {(['low', 'normal', 'high'] as SensitivityLevel[]).map(level => (
+            <button key={level} type="button" onClick={() => setSensitivity(level)}
+              aria-pressed={sensitivity === level}
+              className={`min-h-9 px-2 rounded-lg border ${sensitivity === level ? 'bg-indigo-600 text-white border-indigo-600' : 'border-slate-300 dark:border-slate-600'}`}>
+              {level === 'low' ? 'Niedrig' : level === 'normal' ? 'Normal' : 'Hoch'}
+            </button>
+          ))}
+          <button type="button" onClick={onCloseSettings} className="min-h-9 px-2 rounded-lg border border-slate-300 dark:border-slate-600 ml-auto">Fertig</button>
+        </div>
+      )}
       {/* 1. Header / Status Bar */}
       <div className="flex items-center justify-between gap-2 shrink-0">
         <div className="flex items-center gap-1.5 min-w-0">
@@ -364,31 +381,7 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
       <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-white/5 shrink-0">
         {permissionState === 'active' ? (
           <>
-            {/* Sensitivity selector */}
-            {!size.isCompact ? (
-              <div className="flex items-center gap-1">
-                <Sliders size={12} className="text-slate-400" />
-                <span className="text-[9px] font-bold text-slate-400 mr-1">Empfindlichkeit:</span>
-                {(['low', 'normal', 'high'] as SensitivityLevel[]).map((lvl) => (
-                  <button
-                    key={lvl}
-                    type="button"
-                    onClick={() => setSensitivity(lvl)}
-                    className={`px-2 py-0.5 text-[9px] font-bold rounded-md transition-all cursor-pointer ${
-                      sensitivity === lvl
-                        ? 'bg-indigo-500 text-white shadow-sm'
-                        : currentIsLight
-                          ? 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-                          : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
-                    }`}
-                  >
-                    {lvl === 'low' ? 'Niedrig' : lvl === 'normal' ? 'Normal' : 'Hoch'}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <span className="text-[9px] text-slate-400 font-medium">Aktiv</span>
-            )}
+            <span className="text-[9px] text-slate-400 font-medium">Aktiv</span>
 
             {/* Stop button */}
             <button

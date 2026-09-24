@@ -40,12 +40,16 @@ export interface ZahlenraumStudioProps {
   widget?: CockpitWidgetConfig;
   onUpdate?: (updates: Partial<CockpitWidgetConfig>) => void;
   currentIsLight?: boolean;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
 }
 
 export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
   widget,
   onUpdate,
   currentIsLight = true,
+  showSettings = false,
+  onCloseSettings,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef);
@@ -282,13 +286,18 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
         currentIsLight ? 'bg-slate-50 text-slate-800' : 'bg-slate-900 text-slate-100'
       }`}
     >
-      {/* Header-Toolbar */}
-      <div 
+      {/* The widget title's gear controls this configuration toolbar. */}
+      {showSettings && <div 
         id="zahlenraum-toolbar"
         className={`shrink-0 flex items-center justify-between border-b px-3 py-2 gap-2 flex-wrap ${
           currentIsLight ? 'border-slate-200 bg-white' : 'border-slate-800 bg-slate-950'
         }`}
       >
+        <div className="w-full flex items-center justify-between gap-2">
+          <span className="text-sm font-bold">Zahlenraum einstellen</span>
+          <button type="button" onClick={onCloseSettings} aria-label="Zahlenraum-Einstellungen schließen"
+            className="min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 px-3 text-xs font-semibold">Fertig</button>
+        </div>
         {/* Modus-Umschalter */}
         <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg">
           <button
@@ -372,7 +381,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
             </>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* Hauptbereich */}
       <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden p-3 gap-3">
