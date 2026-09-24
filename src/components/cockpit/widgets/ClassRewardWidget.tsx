@@ -232,6 +232,10 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
   const maxVisibleGems = 60;
   const gemDisplayCount = Math.min(count, maxVisibleGems);
   const remainingUntilGoal = Math.max(0, goal - count);
+  // Fill the measured inner classroom window instead of capping every
+  // visualization at 160px, even when the teacher enlarges the widget.
+  // Reserve the header, +1 action bar and counter; never grow past the frame.
+  const visualSize = Math.max(84, Math.min(size.width * 0.68, size.height - 142, 480));
 
   return (
     <div
@@ -293,7 +297,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
           <div className="flex-1 w-full flex flex-col items-center justify-center relative min-h-0 py-1">
             {/* Das Glas-Gefäß */}
             <div
-              className={`relative w-28 sm:w-32 md:w-36 max-h-[160px] h-full flex flex-col justify-end items-center rounded-b-3xl rounded-t-lg border-2 border-dashed transition-all overflow-hidden ${
+              className={`relative h-full min-h-0 flex flex-col justify-end items-center rounded-b-3xl rounded-t-lg border-2 border-dashed transition-all overflow-hidden ${
                 animatingGem ? 'scale-105' : 'scale-100'
               } ${
                 goalAchieved
@@ -302,6 +306,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
                   ? 'border-slate-300 bg-slate-100/50 shadow-inner'
                   : 'border-white/20 bg-white/5 shadow-inner'
               }`}
+              style={{ width: visualSize, maxWidth: '100%', maxHeight: '100%' }}
             >
               {/* Glas-Deckel / Rand oben */}
               <div className="absolute top-0 inset-x-2 h-2 rounded-full bg-white/30 border border-white/40" />
@@ -346,7 +351,8 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
         {style === 'thermometer' && (
           <div className="flex-1 w-full flex items-center justify-center gap-4 py-1">
             {/* Vertikales Thermometer */}
-            <div className="relative w-8 h-full max-h-[160px] flex flex-col justify-end items-center rounded-full border-2 border-slate-300 dark:border-white/20 bg-slate-100 dark:bg-white/5 overflow-hidden shadow-inner">
+            <div className="relative h-full min-h-0 flex flex-col justify-end items-center rounded-full border-2 border-slate-300 dark:border-white/20 bg-slate-100 dark:bg-white/5 overflow-hidden shadow-inner"
+              style={{ width: Math.max(32, Math.min(72, size.width * 0.13)), maxHeight: '100%' }}>
               <div
                 className="w-full bg-gradient-to-t from-rose-500 via-amber-500 to-emerald-500 transition-all duration-500 rounded-b-full"
                 style={{ height: `${progressPercent}%` }}
@@ -354,7 +360,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
             </div>
 
             {/* Skala und Text */}
-            <div className="flex flex-col justify-between h-full max-h-[160px] py-1 text-left">
+            <div className="flex min-h-0 flex-col justify-between h-full py-1 text-left">
               <div>
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
                   Ziel: {goal}
@@ -376,7 +382,8 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
         {/* 3. VISUALISIERUNGS-STIL: BAROMETER (RING) */}
         {style === 'barometer' && (
           <div className="flex-1 w-full flex flex-col items-center justify-center relative py-1">
-            <div className="relative w-28 h-28 flex items-center justify-center">
+            <div className="relative flex min-h-0 items-center justify-center"
+              style={{ width: visualSize, height: visualSize, maxWidth: '100%', maxHeight: '100%', aspectRatio: '1' }}>
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                 <circle
                   cx="50"

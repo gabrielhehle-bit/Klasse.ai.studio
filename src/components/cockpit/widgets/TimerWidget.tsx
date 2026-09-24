@@ -408,6 +408,10 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
   const circleRadius = 42;
   const circumference = 2 * Math.PI * circleRadius;
   const strokeDashoffset = circumference * (1 - progressRatio);
+  // The original 144px ring left a large empty center when the widget grew.
+  // Reserve real controls first; scale only the graphic/numerals, never buttons.
+  const ringPixels = Math.max(92, Math.min(size.width * 0.62, size.height - 242, 440));
+  const clockTextPixels = Math.max(36, Math.min(82, ringPixels * 0.23));
 
   const getDigitColorClass = () => {
     if (status === 'expired') return 'text-rose-500 animate-pulse';
@@ -637,7 +641,8 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
           {/* Central Time & Optional Ring (Ring never overlaps controls) */}
           <div className="flex-1 flex flex-col items-center justify-center min-h-0 my-1">
             {visualMode === 'ring' && !size.isShort ? (
-              <div className="relative flex items-center justify-center w-36 h-36 max-h-[38vh] shrink-0">
+              <div className="relative flex min-h-0 items-center justify-center shrink-0"
+                style={{ width: ringPixels, height: ringPixels, maxWidth: '100%', maxHeight: '100%', aspectRatio: '1' }}>
                 <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
                   <circle
                     cx="50"
@@ -670,7 +675,8 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                         setIsCustomTimeOpen(true);
                       }
                     }}
-                    className={`font-mono font-black tracking-tight tabular-nums cursor-pointer leading-none text-4xl select-none ${getDigitColorClass()}`}
+                    className={`font-mono font-black tracking-tight tabular-nums cursor-pointer leading-none select-none ${getDigitColorClass()}`}
+                    style={{ fontSize: clockTextPixels }}
                     title={status !== 'running' ? 'Klicken für eigene Zeit' : undefined}
                   >
                     {formatTime(remainingSeconds)}
@@ -687,7 +693,8 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                       setIsCustomTimeOpen(true);
                     }
                   }}
-                  className={`font-mono font-black tracking-tight tabular-nums cursor-pointer leading-none text-5xl select-none ${getDigitColorClass()}`}
+                  className={`font-mono font-black tracking-tight tabular-nums cursor-pointer leading-none select-none ${getDigitColorClass()}`}
+                  style={{ fontSize: Math.max(40, Math.min(108, size.width * 0.16, size.height * 0.22)) }}
                 >
                   {formatTime(remainingSeconds)}
                 </span>
