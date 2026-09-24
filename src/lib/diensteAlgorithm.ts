@@ -3,6 +3,12 @@
  * 100 % offline, frei von KI, frei von Benotung/Tracking, vollständig deterministisch testbar.
  */
 
+/** Calendar-based replacement date, independent of UTC midnight. */
+export function localDienstDate(now: Date = new Date()): string {
+  return [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0')].join('-');
+}
+
 export interface DiensteItem {
   id: string;
   titel: string;
@@ -205,14 +211,14 @@ export function setTemporarySubstitution(
   dienstId: string,
   originalStudentId: string,
   substituteStudentId: string,
-  dateStr = new Date().toISOString().split("T")[0]
+  dateStr = localDienstDate()
 ): DiensteItem[] {
   return dienste.map((item) => {
     if (item.id !== dienstId) return item;
     return {
       ...item,
       substitutions: {
-        ...(item.substitutions || {}),
+        ...(item.substitutionsDate === dateStr ? (item.substitutions || {}) : {}),
         [originalStudentId]: substituteStudentId,
       },
       substitutionsDate: dateStr,
@@ -251,6 +257,7 @@ export function rotateDienste(dienste: DiensteItem[]): DiensteItem[] {
   const dutyAssignments = dienste.map((d) => ({
     ids: [...d.schuelerIds],
     substitutions: { ...(d.substitutions || {}) },
+    substitutionsDate: d.substitutionsDate,
   }));
 
   // [last, 0, 1, ..., N-2]
@@ -262,6 +269,7 @@ export function rotateDienste(dienste: DiensteItem[]): DiensteItem[] {
     ...d,
     schuelerIds: rotated[idx].ids,
     substitutions: rotated[idx].substitutions,
+    substitutionsDate: rotated[idx].substitutionsDate,
   }));
 }
 
@@ -321,9 +329,13 @@ export interface EffectiveAssignee {
 
 export function getEffectiveDienstAssignees(
   dienst: DiensteItem,
-  isAbsentFn: (studentId: string) => boolean
+  isAbsentFn: (studentId: string) => boolean,
+  today = localDienstDate(),
 ): EffectiveAssignee[] {
-  const substitutions = dienst.substitutions || {};
+  // Legacy lists without a date retain their previous behaviour; dated daily
+  // substitutions are automatically ignored on following calendar days.
+  const substitutions = !dienst.substitutionsDate || dienst.substitutionsDate === today
+    ? (dienst.substitutions || {}) : {};
 
   return dienst.schuelerIds.map((origId) => {
     const isAbsent = isAbsentFn(origId);
