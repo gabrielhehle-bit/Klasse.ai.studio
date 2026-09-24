@@ -496,11 +496,14 @@ export class ClassCollaborationStore {
   }
 
   async deleteClass(identity: TeacherIdentity, classId: string): Promise<void> {
-    return this.mutate(data => {
+    return this.mutate(async data => {
       const classes = data.classes[identity.schoolId] || [];
       const index = classes.findIndex(item => item.id === classId);
       if (index < 0) throw new Error('CLASS_NOT_FOUND');
       if (classes[index].ownerUserId !== identity.userId) throw new Error('OWNER_REQUIRED');
+      if (classes[index].members.length > 1) throw new Error('ACTIVE_TEAM_MEMBERS');
+      // Keep the final encrypted snapshot recoverable even after a deliberate team shutdown.
+      await this.archiveSnapshot(classes[index]);
       classes.splice(index, 1);
     });
   }
