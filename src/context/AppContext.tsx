@@ -258,6 +258,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // A personal-account copy can lag behind the independently encrypted
       // shared class. Never adopt that stale copy as the newest team week plan.
       if (hasSharedClassAccountDrift(normalizedRemoteState, current)) {
+        const ownAccountBaseline = loadAccountSyncMetadata(vaultRecord.id);
+        if (ownAccountBaseline && remote.revision === ownAccountBaseline.revision) {
+          // Only this device has changed since the last personal-account
+          // receipt. Re-upload the full current state (including the freshly
+          // received shared week plan), guarded by the server revision. This
+          // prevents a permanent account conflict after every teammate edit.
+          // If the account server advanced meanwhile, the existing CAS guard
+          // refuses the upload rather than destroying either teacher's work.
+          const pushed = await pushAccountSyncSnapshot(current, vaultKey, vaultRecord, remote.revision);
+          markAccountSynced(pushed, current);
+          return current;
+        }
         accountSyncReadyRef.current = false;
         setAccountSyncHealthy(false);
         setAccountSyncMessage('Der E-Mail-Kontostand enthält eine ältere oder abweichende Kopie deiner Teamklasse. Deine lokale Teamplanung bleibt erhalten. Im Konto-Abgleich kannst du den aktuellen Teamstand mit den übrigen Kontodaten bewusst zusammenführen.');
