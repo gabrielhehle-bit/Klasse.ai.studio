@@ -99,6 +99,7 @@ import AccessGate from './components/AccessGate';
 import { AnimatePresence, motion } from 'motion/react';
 import { X, Mic, Sparkles, HelpCircle, Loader2 } from 'lucide-react';
 import { getKW, getTodayName, getAccentTextColor } from './lib/utils';
+import { getProfileAccentTokens, resolveAppVisualStyle } from './lib/profileAccentTheme';
 import { istSekundarstufe, sek1Seite } from './lib/sek1Navigation';
 const DiagnostikAnleitung = lazyRetry(() => import('./components/DiagnostikAnleitung'));
 const DataConsistencyModal = lazyRetry(() => import('./components/DataConsistencyModal'));
@@ -304,10 +305,14 @@ function AppContent() {
     return () => window.removeEventListener('hashchange', checkHash);
   }, [setPage]);
 
+  // The profile accent is a palette override, not a design/theme selection.
+  const activeVisualStyle = resolveAppVisualStyle(app?.theme, app?.lehrerProfil?.akzentfarbe, app?.customBgColor);
+  const profileAccentTokens = getProfileAccentTokens(app?.lehrerProfil?.akzentfarbe, activeVisualStyle === 'deep_dark');
+
   // Sync theme to root element for CSS variables usage in body
   React.useEffect(() => {
     const root = document.documentElement;
-    const activeStyle = app?.lehrerProfil?.akzentfarbe ? 'custom_theme' : (app?.theme || 'classic_light');
+    const activeStyle = activeVisualStyle;
     root.setAttribute('data-style', activeStyle);
     const isLightTheme = activeStyle !== 'deep_dark';
     root.setAttribute('data-theme', isLightTheme ? 'light' : 'dark');
@@ -397,7 +402,13 @@ function AppContent() {
       root.style.removeProperty('--accent-active');
       root.style.removeProperty('--focus-ring');
     }
-  }, [app?.theme, app?.customBgColor, app?.customTextColor, app?.customText2Color, app?.customAccentColor, app?.lehrerProfil?.akzentfarbe]);
+    // Apply only the selected accent on top of the actual visual theme.
+    // Root variables alone are not enough: the app root also has a nested
+    // data-style attribute with CSS declarations overriding inherited tokens.
+    for (const [name, value] of Object.entries(getProfileAccentTokens(app?.lehrerProfil?.akzentfarbe, activeStyle === 'deep_dark'))) {
+      root.style.setProperty(name, value);
+    }
+  }, [activeVisualStyle, app?.customBgColor, app?.customTextColor, app?.customText2Color, app?.customAccentColor, app?.lehrerProfil?.akzentfarbe]);
 
   // Sync fontFamily and font CSS custom properties to root element for live changes
   React.useEffect(() => {
@@ -774,8 +785,9 @@ function AppContent() {
   return (
     <div 
       className={`flex h-dvh bg-bg transition-colors duration-300 print:block print:h-auto print:bg-white print-only-parent font-${app?.settings?.fontFamily || 'standard'}`} 
-      data-theme={(app?.lehrerProfil?.akzentfarbe ? 'custom_theme' : (app?.theme || 'classic_light')) !== 'deep_dark' ? 'light' : 'dark'}
-      data-style={app?.lehrerProfil?.akzentfarbe ? 'custom_theme' : (app?.theme || 'classic_light')}
+      data-theme={activeVisualStyle !== 'deep_dark' ? 'light' : 'dark'}
+      data-style={activeVisualStyle}
+      style={profileAccentTokens as React.CSSProperties}
     >
       {isPending && (
         <div className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-amber-500 to-emerald-500 animate-pulse z-[9999]" />
