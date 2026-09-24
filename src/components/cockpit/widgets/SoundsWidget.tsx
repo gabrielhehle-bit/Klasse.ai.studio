@@ -13,6 +13,8 @@ interface SoundsWidgetProps {
   onUpdate?: (updates: any) => void;
   currentIsLight: boolean;
   isFullscreen?: boolean;
+  /** Studio shows volume in the header gear instead of duplicating footer controls. */
+  showVolumeControls?: boolean;
 }
 
 export const SoundsWidget: React.FC<SoundsWidgetProps> = ({
@@ -20,6 +22,7 @@ export const SoundsWidget: React.FC<SoundsWidgetProps> = ({
   onUpdate,
   currentIsLight,
   isFullscreen = false,
+  showVolumeControls = true,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef, { isFullscreen, defaultCategory: 'standard' });
@@ -46,7 +49,10 @@ export const SoundsWidget: React.FC<SoundsWidgetProps> = ({
       playTimeoutRef.current = null;
     }
 
-    classroomSoundEngine.play(soundId, volume);
+    if (!classroomSoundEngine.play(soundId, volume)) {
+      setActivePlayingId(null);
+      return;
+    }
     setActivePlayingId(soundId);
 
     const sound = CLASSROOM_SOUNDS.find((s) => s.id === soundId);
@@ -188,7 +194,7 @@ export const SoundsWidget: React.FC<SoundsWidgetProps> = ({
       </div>
 
       {/* 3. Footer: Lautstärke-Einstellung */}
-      <div className="pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between gap-2 shrink-0">
+      {showVolumeControls && <div className="pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between gap-2 shrink-0">
         <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400">
           <Volume2 size={12} />
           <span>Lautstärke:</span>
@@ -212,7 +218,7 @@ export const SoundsWidget: React.FC<SoundsWidgetProps> = ({
             </button>
           ))}
         </div>
-      </div>
+      </div>}
     </div>
   );
 };
