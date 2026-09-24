@@ -12092,6 +12092,7 @@ ${content}
                                       return (
                                         <AIQuizWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -12214,6 +12215,7 @@ ${content}
                                       return (
                                         <RiddleWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}
                                         />
                                       );
