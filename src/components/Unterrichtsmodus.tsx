@@ -11028,8 +11028,6 @@ ${content}
                                           currentIsLight={currentIsLight}
                                           showSettings={widgetSettingsOpenId === widget.id}
                                           onCloseSettings={() => setWidgetSettingsOpenId(null)}
-                                          showSettings={widgetSettingsOpenId === widget.id}
-                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
