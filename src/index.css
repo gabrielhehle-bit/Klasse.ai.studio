@@ -1063,28 +1063,35 @@ html body [data-style] .cockpit-widget-container[data-widget-ux="v2"] .cockpit-w
 
 /* Homework is a child-facing reading surface, unaffected by a teacher's
    dark theme or custom profile accent. Do not recolor teacher-side planning. */
-html body .classroom-homework-widget {
+html body .classroom-homework-widget,
+html body [data-style] .classroom-homework-widget {
   background-color: #fffbeb !important;
   color: #0f172a !important;
   border-color: #d97706 !important;
   color-scheme: light;
 }
-html body .classroom-homework-widget > header {
+html body .classroom-homework-widget > header,
+html body [data-style] .classroom-homework-widget > header {
   background-color: #fef3c7 !important;
   color: #78350f !important;
 }
-html body .classroom-homework-widget :is(article, button) {
+html body .classroom-homework-widget :is(article, button),
+html body [data-style] .classroom-homework-widget :is(article, button) {
   background-color: #ffffff !important;
   color: #0f172a !important;
   -webkit-text-fill-color: #0f172a !important;
 }
 html body .classroom-homework-widget article .text-amber-800,
 html body .classroom-homework-widget article .text-amber-900,
-html body .classroom-homework-widget header .text-amber-900 {
+html body .classroom-homework-widget header .text-amber-900,
+html body [data-style] .classroom-homework-widget article .text-amber-800,
+html body [data-style] .classroom-homework-widget article .text-amber-900,
+html body [data-style] .classroom-homework-widget header .text-amber-900 {
   color: #78350f !important;
   -webkit-text-fill-color: #78350f !important;
 }
-html body .classroom-homework-widget article .bg-amber-50 {
+html body .classroom-homework-widget article .bg-amber-50,
+html body [data-style] .classroom-homework-widget article .bg-amber-50 {
   background-color: #fffbeb !important;
 }
 
