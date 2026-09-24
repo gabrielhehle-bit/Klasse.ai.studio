@@ -339,7 +339,7 @@ async function main() {
     const weeklyTopic = 'E2E Teamteaching gemeinsamer Wochenplan';
     await clickSidebar(anna, 'Wochenplan');
     await waitFor(anna, 'weekly planning grid', 'document.body?.innerText.includes("WOCHENPLANUNG")');
-    await waitFor(anna, 'editable weekly cell', 'Array.from(document.querySelectorAll("svg.lucide-plus")).some(svg=>String(svg.parentElement?.parentElement?.className||"").includes("group/cell"))', 30000);
+    await waitFor(anna, 'editable weekly cell', 'Array.from(document.querySelectorAll("svg.lucide-plus")).some(svg=>{let n=svg.parentElement;while(n&&n!==document.body){if(String(n.className||"").includes("group/cell")&&String(n.className||"").includes("min-h-[5.3125rem]"))return true;n=n.parentElement;}return false;})', 30000);
     const opened = await evaluate(anna,
       '(() => { for(const svg of document.querySelectorAll("svg.lucide-plus")) { let el=svg.parentElement; while(el && el!==document.body) { if(String(el.className||"").includes("group/cell") && String(el.className||"").includes("min-h-[5.3125rem]")) { el.click(); return true; } el=el.parentElement; } } return false; })()');
     if (!opened) throw new Error('Could not open first editable weekly cell on teacher A.');
