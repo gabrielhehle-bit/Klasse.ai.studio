@@ -24,7 +24,7 @@ test('Ich bin da: 25 pupils fit with 64px cards and actionable names on 1280×69
   assert.ok(grid.columns * grid.rows >= 25);
   assert.ok(grid.cardHeight >= CHECK_IN_GRID_OPTIONS.minCardHeight);
   assert.equal(getStudentGridLayout(340, 360, 25, CHECK_IN_GRID_OPTIONS).fits, false);
-  assert.match(source, /students\.map\(\(student\) => renderStudentCard\(student\)\)/);
+  assert.match(source, /students\.map\(\(student\) => renderStudentCard\(student,/);
   assert.match(source, /minHeight: adaptiveLayout\.grid\.minCardHeight/);
   assert.match(source, /gridTemplateRows: `repeat\(\$\{studentGrid\.rows\}, minmax\(0, 1fr\)\)`/);
   assert.match(source, /whitespace-normal break-words font-black leading-tight/);
