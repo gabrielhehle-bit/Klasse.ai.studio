@@ -90,6 +90,7 @@ export async function generateSharedClassKey(): Promise<CryptoKey> {
 export function classRoomWithoutTeamMetadata(room: ClassRoom): ClassRoom {
   const clone = JSON.parse(JSON.stringify(room)) as ClassRoom;
   delete clone.teamTeaching;
+  delete clone.teamTeachingSharedClassId;
   return clone;
 }
 
