@@ -100,6 +100,17 @@ export default function ClassTeam() {
   }, []);
 
   React.useEffect(() => { void load(); }, [load]);
+  // Update the visible content revision even while the colleague works on another device.
+  React.useEffect(() => {
+    if (!activeSharedId) return;
+    const refresh = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      void listSharedClasses().then(setShared).catch(() => {
+        // The live team sync badge still reports authentication / connectivity failures.
+      });
+    }, 10000);
+    return () => window.clearInterval(refresh);
+  }, [activeSharedId]);
 
   const enableSharing = async () => {
     if (!activeRoom) return;
@@ -214,19 +225,28 @@ export default function ClassTeam() {
     setBusy('push');
     setError(null);
     try {
+      if (activeRoom.teamTeaching.syncStatus === 'conflict') {
+        throw new Error('Konflikt erkannt: Bitte zuerst deine Änderungen und den aktuellen Teamstand vergleichen. Deine lokale Planung bleibt erhalten.');
+      }
       const summary = await pushSharedClass(activeRoom);
       const hash = classRoomFingerprint(activeRoom);
       setApp(prev => {
         const current = syncActiveClass(prev);
-        const classes = (current.classes || []).map(room => room.id === activeRoom.id ? {
-          ...room,
-          teamTeaching: {
-            ...room.teamTeaching!,
-            revision: summary.revision,
-            lastSyncedHash: hash,
-            lastSyncedAt: new Date().toISOString(),
-          },
-        } : room);
+        const classes = (current.classes || []).map(room => {
+          if (room.id !== activeRoom.id || room.teamTeaching?.sharedClassId !== activeSharedId) return room;
+          const latestHash = classRoomFingerprint(room);
+          return {
+            ...room,
+            teamTeaching: {
+              ...room.teamTeaching!,
+              revision: summary.revision,
+              lastSyncedHash: hash,
+              lastSyncedAt: summary.updatedAt,
+              syncStatus: latestHash === hash ? 'synced' : 'idle',
+              syncMessage: latestHash === hash ? undefined : 'Weitere lokale Änderungen wurden während des Sendens vorgenommen und müssen noch synchronisiert werden.',
+            },
+          };
+        });
         return { ...current, classes };
       });
       setNotice('Deine Änderungen wurden verschlüsselt für das Klassenteam gespeichert.');
@@ -500,6 +520,21 @@ export default function ClassTeam() {
                       : 'Synchronisiert'}
               </div>
             )}
+            {activeRoom?.teamTeaching && (
+              <div className="mt-3 space-y-1 rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-3 py-3 text-xs text-[var(--text2)]" aria-live="polite">
+                <p className="font-bold text-[var(--text)]">Gemeinsamer Teamstand: Version {activeSummary?.revision ?? 'wird geprüft'}</p>
+                <p>{activeSummary?.contentUpdatedAt
+                  ? 'Zuletzt inhaltlich geändert am ' + formatTeamDate(activeSummary.contentUpdatedAt) + ' von '
+                    + (activeSummary.members.find(member => member.userId === activeSummary.contentUpdatedBy)?.displayName || 'einer Teamlehrperson')
+                  : 'Der genaue Zeitpunkt der letzten Inhaltsänderung ist für diese ältere Teamversion nicht erfasst.'}</p>
+                <p>Dein Gerät: Version {activeRoom.teamTeaching.revision} · zuletzt abgeglichen am {formatTeamDate(activeRoom.teamTeaching.lastSyncedAt)}</p>
+                <p className="font-semibold">{activeRoom.teamTeaching.lastSyncedHash
+                  ? classRoomFingerprint(activeRoom) === activeRoom.teamTeaching.lastSyncedHash
+                    ? 'Keine ungesendeten lokalen Inhaltsänderungen erkannt.'
+                    : 'Du hast lokale Änderungen, die noch nicht bestätigt wurden.'
+                  : 'Dieses Gerät hat noch keinen bestätigten Teamstand. Senden ist gesperrt.'}</p>
+              </div>
+            )}
             {activeRoom?.teamTeaching?.syncMessage && (
               <p className="mt-2 max-w-2xl text-xs leading-5 text-[var(--text2)]">
                 {activeRoom.teamTeaching.syncMessage}
@@ -521,12 +556,59 @@ export default function ClassTeam() {
             )
           ) : (
             <div className="flex flex-wrap gap-2">
+              <button onClick={showLatestChanges} disabled={Boolean(busy)} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-bold disabled:opacity-50">Änderungen vergleichen</button>
+              <button onClick={() => void showHistory()} disabled={Boolean(busy) || historyBusy} aria-expanded={historyVisible} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-bold disabled:opacity-50">{historyVisible ? 'Versionsgeschichte schließen' : 'Versionsgeschichte'}</button>
               <button onClick={pull} disabled={Boolean(busy)} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-bold"><Download size={16}/> Neueste Version laden</button>
-              {activeRoom.teamTeaching.role !== 'viewer' && <button onClick={push} disabled={Boolean(busy)} className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-3 py-2 text-sm font-black text-white"><Upload size={16}/> Änderungen senden</button>}
+              {activeRoom.teamTeaching.role !== 'viewer' && <button onClick={push} disabled={Boolean(busy) || activeRoom.teamTeaching.syncStatus === 'conflict' || !activeRoom.teamTeaching.lastSyncedHash} className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-3 py-2 text-sm font-black text-white disabled:opacity-50"><Upload size={16}/> Änderungen senden</button>}
             </div>
           )}
         </div>
       </section>
+
+      {activeSharedId && changesPreview && (
+        <section aria-label="Teamteaching-Vorschau" className="rounded-[1.75rem] border border-indigo-300 bg-[var(--surface)] p-5 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-black">{changesPreview.title}</h2>
+            <button type="button" onClick={() => setChangesPreview(null)} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Vorschau schließen</button>
+          </div>
+          <p className="text-sm text-[var(--text2)]">Nur auf deinem berechtigten Gerät entschlüsselt. Die Vorschau ändert weder deine lokalen Daten noch den Teamstand.</p>
+          {changesPreview.changes.length === 0
+            ? <p className="rounded-xl bg-emerald-500/10 p-3 text-sm font-semibold">Keine inhaltlichen Unterschiede zwischen den verglichenen Versionen.</p>
+            : <div className="max-h-[440px] overflow-auto space-y-2" aria-label="Geänderte Felder">
+                {changesPreview.changes.map((change, index) => (
+                  <div key={index} className="rounded-xl border border-[var(--border)] bg-[var(--surface2)] p-3">
+                    <div className="mb-2 text-sm font-bold break-words">{change.path}</div>
+                    <div className="grid gap-2 sm:grid-cols-2 text-xs">
+                      <div className="rounded-lg bg-rose-500/5 p-2 break-words"><strong className="block mb-1">Bisher / lokal</strong>{change.before}</div>
+                      <div className="rounded-lg bg-emerald-500/5 p-2 break-words"><strong className="block mb-1">Aktuell / im Team</strong>{change.after}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>}
+          {changesPreview.changes.length >= 100 && <p className="text-xs font-semibold text-amber-700">Es gibt möglicherweise weitere Unterschiede. Die Vorschau zeigt die ersten 100 geänderten Felder.</p>}
+          {changesPreview.room && changesPreview.revision !== activeSummary?.revision && activeRoom?.teamTeaching?.role !== 'viewer' && (
+            <button type="button" onClick={() => void restoreHistoryVersion()} disabled={Boolean(busy)} className="rounded-xl border border-amber-400 bg-amber-50 px-4 py-2.5 text-sm font-bold text-amber-900 disabled:opacity-50">Diese historische Version als neue Teamversion wiederherstellen</button>
+          )}
+        </section>
+      )}
+
+      {activeSharedId && historyVisible && (
+        <section aria-label="Verschlüsselte Team-Versionsgeschichte" className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-black">Versionsgeschichte der Teamklasse</h2>
+            <button type="button" disabled={historyBusy || Boolean(busy)} onClick={() => void listSharedClassHistory(activeSharedId).then(setHistory).catch(cause => setError(cause instanceof Error ? cause.message : 'Versionsgeschichte nicht verfügbar.'))} className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-bold disabled:opacity-50">Aktualisieren</button>
+          </div>
+          <p className="text-xs text-[var(--text2)]">Vor dem Ersetzen wurde jede frühere Teamversion verschlüsselt gesichert. Eine Wiederherstellung erzeugt eine neue Version; keine ältere Version wird dazu gelöscht.</p>
+          <div className="max-h-72 overflow-auto space-y-2">
+            {history.map(version => (
+              <div key={version.revision} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--surface2)] p-3">
+                <div className="text-sm"><strong>Version {version.revision}</strong> · {formatTeamDate(version.updatedAt)}<div className="text-xs text-[var(--text2)]">{activeSummary?.members.find(member => member.userId === version.updatedBy)?.displayName || 'Teamlehrperson'}</div></div>
+                <button type="button" onClick={() => void previewHistoryVersion(version)} disabled={Boolean(busy)} className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-bold disabled:opacity-50">Änderungen ansehen</button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {activeSummary && (
         <section className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm space-y-4">
