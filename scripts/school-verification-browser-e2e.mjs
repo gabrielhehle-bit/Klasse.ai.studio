@@ -277,7 +277,9 @@ async function createClassInUi(client, className) {
 }
 
 async function verifyRandomPickerInRealBrowser(client) {
-  await clickButton(client, 'Widget hinzufügen');
+  const pickerOpened = await evaluate(client,
+    String.raw`(() => {const b=document.querySelector('nav[aria-label="Meine Widget-Favoriten"] button[aria-label="Weitere Widgets hinzufügen"]');if(!b)return false;b.click();return true;})()`);
+  if (!pickerOpened) throw new Error('Bottom dock could not open the complete widget catalogue.');
   await waitFor(client, 'widget catalogue open',
     String.raw`Boolean(document.querySelector('input[aria-label="Widget suchen"]'))`);
   await setInputByLabel(client, 'Widget suchen', 'Zufallsauswahl');
@@ -306,7 +308,9 @@ async function verifyRandomPickerInRealBrowser(client) {
   }
   await client.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1100, deviceScaleFactor: 1, mobile: false });
   await clickButton(client, 'Fertig', true);
-  await clickButton(client, 'Widget hinzufügen');
+  const openedSettingsPicker = await evaluate(client,
+    String.raw`(() => {const b=document.querySelector('nav[aria-label="Meine Widget-Favoriten"] button[aria-label="Weitere Widgets hinzufügen"]');if(!b)return false;b.click();return true;})()`);
+  if (!openedSettingsPicker) throw new Error('Bottom widget picker unavailable after random-name selection.');
   await clickButton(client, 'Widget-Einstellungen');
   const chosen = await evaluate(client,
     String.raw`(() => {const select=document.querySelector('select[aria-label="Widget für Einstellungen"]');if(!select)return false;select.value='randomname';select.dispatchEvent(new Event('change',{bubbles:true}));return true;})()`);
@@ -337,25 +341,42 @@ async function verifyDirectCockpitNavigation(client) {
     '})()',
     30000,
   );
-  const hasPublicNoDemoState = await evaluate(client,
-    'document.body?.innerText.includes("In dieser Klasse sind noch keine Kinder angelegt.") && !document.body?.innerText.includes("Max M.")'
-  );
-  if (!hasPublicNoDemoState) throw new Error('Empty real class showed demo children or lost the public class list.');
+  // New classrooms start with a full-width whiteboard and the right pupil
+  // panel is opened only when the teacher needs it.
+  await waitFor(client, 'visible favorites dock and full board',
+    String.raw`(() => {const dock=document.querySelector('nav[aria-label="Meine Widget-Favoriten"]');const board=document.getElementById('widget-board-stage');return !!dock&&!!board&&board.getBoundingClientRect().width>800&&!!dock.querySelector('button[aria-label="Weitere Widgets hinzufügen"]')&&!!dock.querySelector('button[aria-label="Schülerliste einblenden"]');})()`);
+  const openedStudentSidebar = await evaluate(client,
+    String.raw`(() => {const b=document.querySelector('nav[aria-label="Meine Widget-Favoriten"] button[aria-label="Schülerliste einblenden"]');if(!b)return false;b.click();return true;})()`);
+  if (!openedStudentSidebar) throw new Error('Bottom dock cannot open the student panel.');
+  await waitFor(client, 'empty real class appears only after opening public student panel',
+    String.raw`(() => {const panel=document.querySelector('.klassio-student-sidebar');return !!panel&&panel.textContent.includes('In dieser Klasse sind noch keine Kinder angelegt.')&&!panel.textContent.includes('Max M.');})()`);
+  const closedStudentSidebar = await evaluate(client,
+    String.raw`(() => {const b=document.querySelector('.klassio-student-sidebar button[aria-label="Schülerliste schließen"]');if(!b)return false;b.click();return true;})()`);
+  if (!closedStudentSidebar) throw new Error('Student panel cannot be collapsed.');
+  await waitFor(client, 'full width restored after closing student list',
+    String.raw`(() => {const board=document.getElementById('widget-board-stage');return !!board&&board.getBoundingClientRect().width>800&&!document.querySelector('.klassio-student-sidebar');})()`);
 
-  // Cockpit options must own the optional class-local bar; resetting it must
-  // neither change the existing widget layout nor hide the regular picker.
+  // Favorites remain configurable per class and do not seed demo widgets.
+  const openedDockSettings = await evaluate(client,
+    String.raw`(() => {const b=document.querySelector('nav[aria-label="Meine Widget-Favoriten"] button[aria-label="Meine Widget-Leiste anpassen"]');if(!b)return false;b.click();return true;})()`);
+  if (!openedDockSettings) throw new Error('Could not open new dock settings.');
+  await waitFor(client, 'favorite choices above the dock',
+    String.raw`(() => {const panel=document.querySelector('[role="dialog"][aria-label="Widget-Leiste anpassen"]');return !!panel&&panel.textContent.includes('Wochenplan')&&panel.textContent.includes('Glücksrad');})()`);
+  const disabledFavorites = await evaluate(client,
+    String.raw`(() => {const panel=document.querySelector('[role="dialog"][aria-label="Widget-Leiste anpassen"]');const input=panel?.querySelector('input[type="checkbox"]');if(!input||!input.checked)return false;input.click();return true;})()`);
+  if (!disabledFavorites) throw new Error('Could not hide favorite shortcuts.');
+  await waitFor(client, 'full widget picker remains available without favorites',
+    String.raw`(() => {const dock=document.querySelector('nav[aria-label="Meine Widget-Favoriten"]');return !!dock&&dock.querySelectorAll('.klassio-dock-favorite').length===0&&!!dock.querySelector('button[aria-label="Weitere Widgets hinzufügen"]');})()`);
+  await clickButton(client, 'Favoriten zurücksetzen');
+  await waitFor(client, 'dock reset restores favorites',
+    String.raw`(() => {const dock=document.querySelector('nav[aria-label="Meine Widget-Favoriten"]');return !!dock&&dock.querySelectorAll('.klassio-dock-favorite').length>=6;})()`);
+  await evaluate(client,
+    String.raw`(() => {document.querySelector('nav[aria-label="Meine Widget-Favoriten"] button[aria-label="Meine Widget-Leiste anpassen"]')?.click();return true;})()`);
   await clickButton(client, 'Optionen', true);
-  await waitFor(client, 'design and birthday are in options',
+  await waitFor(client, 'design and birthday stay in cockpit options',
     'document.body?.innerText.includes("Design & Farben") && document.body?.innerText.includes("Geburtstag")');
-  await clickButton(client, 'Widget-Leiste');
-  await waitFor(client, 'quickbar settings', 'Boolean(document.querySelector("[aria-label=\\\"Zusätzliche Widget-Leiste konfigurieren\\\"]"))');
-  await clickCheckboxNearText(client, 'Zusätzliche Widget-Leiste anzeigen');
-  await waitFor(client, 'opt-in quickbar visible',
-    'Boolean(document.querySelector("nav[aria-label=\\\"Zusätzliche Widget-Leiste\\\"]"))');
-  await clickButton(client, 'Widget-Leiste zurücksetzen');
-  await waitFor(client, 'quickbar reset returns to invisible default',
-    '!document.querySelector("nav[aria-label=\\\"Zusätzliche Widget-Leiste\\\"]")');
   await clickButton(client, 'Optionen', true);
+  await clickButton(client, 'Schreiben & Papier');
   const paperVerified = await evaluate(client,
     '(() => {' +
     'const select=document.querySelector("select[aria-label=\\\"Papierart der Unterrichtsfläche\\\"]");' +
@@ -367,6 +388,7 @@ async function verifyDirectCockpitNavigation(client) {
   await waitFor(client, 'handwriting paper is rendered on shared board',
     'Boolean(getComputedStyle(document.getElementById("widget-board-stage")).backgroundImage.includes("svg"))');
   await saveScreenshot(client, SCREENSHOT_COCKPIT);
+  await clickButton(client, 'Fertig', true); // Close drawing toolbar before random-name modal.
   await verifyRandomPickerInRealBrowser(client);
   const closed = await evaluate(client,
     '(() => {const b=document.querySelector("button[aria-label=\\\"Lehrercockpit schließen · Zurück zu Heute\\\"]");if(!b)return false;b.click();return true;})()'
