@@ -1896,7 +1896,7 @@ export default function WeeklyPlan() {
                   <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[0.625rem] font-extrabold rounded-full">
                     KW {activeKW}
                   </span>
-                  {(weeklyTeam || hasOtherTeamClass) && (
+                  {(
                     <button type="button" data-testid="weekly-team-status"
                       onClick={() => setPage('teamteaching')}
                       title={weeklyTeam?.syncMessage || 'Klassenteam öffnen, um Freigabe, Stand und ggf. einen Konflikt zu prüfen'}
@@ -1906,7 +1906,7 @@ export default function WeeklyPlan() {
                           ? 'border-rose-300 bg-rose-50 text-rose-800'
                           : 'border-amber-300 bg-amber-50 text-amber-900'}`}
                     >
-                      👥 {weeklyTeam ? weeklyTeamLabel : 'Eigene Klasse – geteilte Klasse im Klassenteam öffnen'}
+                      👥 {weeklyTeam ? weeklyTeamLabel : hasOtherTeamClass ? 'Eigene Klasse – geteilte Klasse im Klassenteam öffnen' : 'Diese Klasse ist nicht für Teamteaching freigegeben'}
                     </button>
                   )}
                   {sw && (
