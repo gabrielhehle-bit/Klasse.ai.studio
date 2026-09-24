@@ -3709,7 +3709,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       w.id !== id ? w : {
         ...w,
         ...updates,
-        ...(w.type === "groups" && updates.settings
+        ...((w.type === "groups" || w.type === "wheel") && updates.settings
           ? { settings: { ...(w.settings || {}), ...updates.settings } }
           : {}),
         hasBeenOpened: true,
@@ -12139,6 +12139,9 @@ ${content}
                                         <WheelWidgetContent
                                           widget={widget}
                                           app={app}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(widget.id, updates)
+                                          }
                                           currentIsLight={currentIsLight}
                                         />
                                       );
