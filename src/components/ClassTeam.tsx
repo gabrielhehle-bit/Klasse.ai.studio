@@ -42,6 +42,10 @@ export default function ClassTeam() {
   const activeRoom = synced.classes?.find(room => room.id === synced.activeClassId);
   const activeSharedId = activeRoom?.teamTeaching?.sharedClassId;
   const activeSummary = shared.find(item => item.id === activeSharedId);
+  const knownTeamReference = activeRoom?.teamTeachingSharedClassId;
+  const reconnectableTeam = knownTeamReference
+    ? shared.find(item => item.id === knownTeamReference)
+    : undefined;
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -72,6 +76,12 @@ export default function ClassTeam() {
 
   const enableSharing = async () => {
     if (!activeRoom) return;
+    if (activeRoom.teamTeachingSharedClassId) {
+      setError('Diese Klasse ist bereits mit einem Klassenteam verbunden. Öffne das bestehende Team auf diesem Gerät, statt eine zweite Teamklasse zu erstellen.');
+      return;
+    }
+    if (shared.some(item => item.classLabel === activeRoom.name)
+      && !window.confirm('Im Klassenteam gibt es bereits eine Klasse mit diesem Namen. Soll wirklich eine NEUE, separate Teamklasse erstellt werden? Vorhandene Wochenplanungen werden dadurch nicht verbunden.')) return;
     setBusy('enable');
     setError(null);
     try {
@@ -84,7 +94,8 @@ export default function ClassTeam() {
         // in flight. Keep those unsent edits; only the initial remote snapshot
         // may be stamped as acknowledged.
         if (classRoomFingerprint(latestRoom) !== classRoomFingerprint(activeRoom)) {
-          const withTeam = { ...latestRoom, teamTeaching: result.localRoom.teamTeaching };
+          const withTeam = { ...latestRoom, teamTeaching: result.localRoom.teamTeaching,
+            teamTeachingSharedClassId: result.summary.id };
           const classes = (current.classes || []).map(room => room.id === activeRoom.id ? withTeam : room);
           return { ...current, classes };
         }
@@ -108,7 +119,10 @@ export default function ClassTeam() {
       setNotice(summary.classLabel + ' wurde auf diesem Gerät geöffnet.');
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Die geteilte Klasse konnte nicht geöffnet werden.');
+      const message = cause instanceof Error ? cause.message : 'Die geteilte Klasse konnte nicht geöffnet werden.';
+      setError(message.includes('noch nicht freigegeben')
+        ? 'Dieses Gerät ist noch nicht für die geteilte Klasse freigegeben. Bitte die Klassenbesitzerin oder den Klassenbesitzer auf einem bereits berechtigten Gerät im Klassenteam → Lehrpersonen → „Geräte“ die neuen Geräteschlüssel freigeben lassen. Danach hier erneut „Teamklasse verbinden“ wählen.'
+        : message);
     } finally {
       setBusy(null);
     }
@@ -271,6 +285,7 @@ export default function ClassTeam() {
           if (room.id !== activeRoom?.id) return room;
           const clone = { ...room };
           delete clone.teamTeaching;
+          delete clone.teamTeachingSharedClassId;
           return clone;
         });
         return { ...current, classes };
@@ -352,9 +367,18 @@ export default function ClassTeam() {
             )}
           </div>
           {!activeRoom?.teamTeaching ? (
-            <button onClick={enableSharing} disabled={!activeRoom || busy === 'enable'} className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">
-              {busy === 'enable' ? 'Wird vorbereitet …' : 'Gemeinsame Klasse aktivieren'}
-            </button>
+            knownTeamReference ? (
+              <div className="flex max-w-xl flex-col gap-2">
+                <p className="text-sm font-semibold text-amber-800">Diese Klasse ist bereits geteilt, aber auf diesem Gerät noch nicht mit dem Klassenteam verbunden. Die angezeigte Wochenplanung kann deshalb älter sein.</p>
+                {reconnectableTeam
+                  ? <button onClick={() => void adopt(reconnectableTeam)} disabled={Boolean(busy)} className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">Teamklasse verbinden und neueste Planung laden</button>
+                  : <p className="text-xs font-semibold text-rose-700">Die ursprüngliche Teamklasse ist mit diesem Schulkonto derzeit nicht erreichbar. Bitte Mitgliedschaft und Schulmail prüfen; keine neue Teamklasse erstellen.</p>}
+              </div>
+            ) : (
+              <button onClick={enableSharing} disabled={!activeRoom || busy === 'enable'} className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">
+                {busy === 'enable' ? 'Wird vorbereitet …' : 'Gemeinsame Klasse aktivieren'}
+              </button>
+            )
           ) : (
             <div className="flex flex-wrap gap-2">
               <button onClick={pull} disabled={Boolean(busy)} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-bold"><Download size={16}/> Neueste Version laden</button>
