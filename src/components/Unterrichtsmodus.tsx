@@ -10545,7 +10545,7 @@ ${content}
                       {/* A single shared toolbar, outside the white teaching surface. */}
                       <div id="klassio-board-tools"
                         role="toolbar"
-                        aria-label="Unterrichtsfläche: Stift, Text und Papier"
+                        aria-label="Unterrichtsfläche: Text und Papier"
                         className={`${showBoardTools || boardTool !== "select" ? "flex" : "hidden"} shrink-0 flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5 text-slate-800 shadow-sm`}
                       >
                         <button type="button" aria-pressed={boardTool === "pen"}
