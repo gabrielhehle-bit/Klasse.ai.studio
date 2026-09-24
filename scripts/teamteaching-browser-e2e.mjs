@@ -180,28 +180,25 @@ async function clickAnyText(client, text) {
 }
 
 async function clickSidebar(client, label) {
-  const visible = await evaluate(client,
-    'Array.from(document.querySelectorAll("button")).some(button=>{' +
-    'const text=String(button.textContent||"").replace(/\\s+/g," ").trim();' +
-    'const style=getComputedStyle(button); const rect=button.getBoundingClientRect();' +
-    'return text===' + q(label) + '&&style.visibility!=="hidden"&&style.display!=="none"&&rect.width>0&&rect.height>0;' +
-    '})'
-  );
-  if (!visible) {
-    const hasMore = await evaluate(client,
-      'Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").replace(/\\s+/g," ").trim().startsWith("Mehr ("))'
-    );
-    if (hasMore) {
-      await clickButton(client, 'Mehr');
-      await sleep(250);
+  const id = label === 'Wochenplan' ? 'wochenplanung' : label === 'Klasse' ? 'klasse' : null;
+  if (id) {
+    const selector = 'nav button[data-menu-id="' + id + '"]';
+    if (!await evaluate(client, 'Boolean(document.querySelector(' + q(selector) + '))')) {
+      const expanded = await evaluate(client,
+        '(() => {const b=document.querySelector("nav button[title=\\"Alle Bereiche anzeigen\\"]");if(!b)return false;b.click();return true;})()');
+      if (!expanded) throw new Error(client.name + ': could not reveal sidebar ' + label);
+      await waitFor(client, 'expanded sidebar entry ' + label, 'Boolean(document.querySelector(' + q(selector) + '))');
     }
+    const clicked = await evaluate(client,
+      '(() => {const b=document.querySelector(' + q(selector) + ');if(!b)return false;b.click();return true;})()');
+    if (!clicked) throw new Error(client.name + ': could not open sidebar ' + label);
+    await waitFor(client, 'sidebar page ' + label,
+      'Boolean(document.querySelector(' + q(selector + '[aria-current="page"]') + '))');
+    return;
   }
   await clickButton(client, label, true);
-  await waitFor(
-    client,
-    'sidebar page ' + label,
-    'Array.from(document.querySelectorAll("button[aria-current=page]")).some(current=>String(current.textContent||"").replace(/\\s+/g," ").trim()===' + q(label) + ')',
-  );
+  await waitFor(client, 'sidebar page ' + label,
+    'Array.from(document.querySelectorAll("button[aria-current=page]")).some(current=>String(current.textContent||"").replace(/\\s+/g," ").trim()===' + q(label) + ')');
 }
 
 async function clickCheckboxNearText(client, text) {
