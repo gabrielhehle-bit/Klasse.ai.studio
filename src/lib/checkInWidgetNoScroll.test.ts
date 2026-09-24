@@ -38,7 +38,7 @@ test('Ich bin da: compact 25-child view has no internal scrolling and keeps teac
   assert.match(compact, /expandStudentGrid/);
   assert.doesNotMatch(compact, /overflow-y-auto|overflow-auto|no-scrollbar|students\.map/);
   assert.match(source, /activeMoodStudent && renderChildMoodModal\(\)/);
-  assert.match(source, /isTeacherModalOpen && renderTeacherModal\(\)/);
+  assert.match(source, /isTeacherModalOpen && createPortal\(renderTeacherModal\(\), document\.body\)/);
   assert.match(source, /isFinalizeModalOpen && renderFinalizeModal\(\)/);
   assert.match(source, /document\.addEventListener\('visibilitychange', refreshToday\)/);
 });
