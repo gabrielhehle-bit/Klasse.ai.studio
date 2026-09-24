@@ -73,18 +73,17 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
   }, [widget?.type, widget?.settings]);
 
   const [settings, setSettings] = useState<FractionVisualizerSettings>(initialSettings);
+  const settingsRef = useRef(settings);
 
   const updateSettings = useCallback(
     (newSettings: Partial<FractionVisualizerSettings>) => {
-      setSettings((prev) => {
-        const updated = validateSettings({ ...prev, ...newSettings });
-        if (onUpdate) {
-          onUpdate({ settings: updated });
-        }
-        return updated;
-      });
+      const updated = validateSettings({ ...settingsRef.current, ...newSettings });
+      settingsRef.current = updated;
+      setSettings(updated);
+      // Keep legacy fields; never update the cockpit from inside a state updater.
+      onUpdate?.({ settings: { ...(widget?.settings || {}), ...updated } });
     },
-    [onUpdate]
+    [onUpdate, widget?.settings]
   );
 
   const setMode = (mode: FractionMode) => {
@@ -279,8 +278,17 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
               <path
                 key={i}
                 d={pathData}
+                role={interactive && onSliceClick ? 'button' : undefined}
+                tabIndex={interactive && onSliceClick ? 0 : -1}
+                aria-label={interactive && onSliceClick ? `Kreisteil ${i + 1} von ${total} auswählen` : undefined}
+                aria-pressed={interactive && onSliceClick ? isFilled : undefined}
                 onClick={() => {
-                  if (interactive && onSliceClick) {
+                  if (interactive && onSliceClick) onSliceClick(i);
+                }}
+                onKeyDown={(event) => {
+                  if (interactive && onSliceClick && (event.key === 'Enter' || event.key === ' ')) {
+                    event.preventDefault();
+                    event.stopPropagation();
                     onSliceClick(i);
                   }
                 }}
@@ -289,7 +297,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
                     ? 'fill-sky-500 hover:fill-sky-400 dark:fill-sky-500 dark:hover:fill-sky-400'
                     : 'fill-slate-100 dark:fill-slate-800 hover:fill-slate-200 dark:hover:fill-slate-700'
                 } stroke-white dark:stroke-slate-900 ${
-                  interactive ? 'cursor-pointer' : 'cursor-default'
+                  interactive ? 'cursor-pointer focus:outline-none focus:stroke-indigo-600 dark:focus:stroke-indigo-300' : 'cursor-default'
                 }`}
                 strokeWidth="2.5"
                 strokeLinejoin="round"
