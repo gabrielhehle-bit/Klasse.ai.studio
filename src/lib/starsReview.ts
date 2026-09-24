@@ -95,8 +95,14 @@ export function aggregateStarsReview(
     stars: Math.max(0, totals.get(student.id) ?? 0),
     rank: 0,
   })).sort((a, b) => b.stars - a.stars || a.firstName.localeCompare(b.firstName, 'de-AT') || a.studentId.localeCompare(b.studentId));
-  return sorted.map((row, index) => ({
+  const ranked = sorted.map((row, index) => ({
     ...row,
-    rank: index > 0 && row.stars === sorted[index - 1].stars ? sorted[index - 1].rank : index + 1,
-  })).slice(0, settings.limit === 'all' ? sorted.length : settings.limit);
+    rank: index > 0 && row.stars === sorted[index - 1].stars
+      ? 0 // resolved below after previous row has its rank
+      : index + 1,
+  }));
+  for (let index = 1; index < ranked.length; index++) {
+    if (ranked[index].rank === 0) ranked[index].rank = ranked[index - 1].rank;
+  }
+  return ranked.slice(0, settings.limit === 'all' ? ranked.length : settings.limit);
 }
