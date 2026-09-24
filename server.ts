@@ -1420,6 +1420,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     if (code === 'MEMBER_NOT_FOUND') return res.status(404).json({ code, error: 'Die Lehrperson ist nicht im Klassenteam.' });
     if (code === 'OWNER_REQUIRED') return res.status(403).json({ code, error: 'Nur die Klassenbesitzerin bzw. der Klassenbesitzer darf das Team verwalten.' });
     if (code === 'READ_ONLY') return res.status(403).json({ code, error: 'Diese Klasse ist für dieses Konto nur lesbar.' });
+    if (code === 'ACTIVE_TEAM_MEMBERS') return res.status(409).json({ code, error: 'Die gemeinsame Klasse hat noch weitere Lehrpersonen. Solange Kolleginnen und Kollegen damit arbeiten, kann die Teamklasse nicht beendet werden.' });
     if (code === 'FORBIDDEN') return res.status(403).json({ code, error: 'Kein Zugriff auf diese geteilte Klasse.' });
     if (code === 'REVISION_CONFLICT') {
       let currentRevision: number | undefined;
