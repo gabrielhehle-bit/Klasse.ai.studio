@@ -882,9 +882,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       try {
         const current = syncActiveClass(currentAppRef.current);
         const localRoom = current.classes?.find(room => room.id === current.activeClassId);
-        const meta = localRoom?.teamTeaching;
-        if (!localRoom || !meta || meta.sharedClassId !== activeTeamSharedId) return;
-        if (meta.syncStatus === 'conflict') return;
+        const initialMeta = localRoom?.teamTeaching;
+        if (!localRoom || !initialMeta || initialMeta.sharedClassId !== activeTeamSharedId) return;
+        if (initialMeta.syncStatus === 'conflict') return;
 
         const remote = await pullSharedClass(activeTeamSharedId);
         if (!active) return;
@@ -935,7 +935,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
 
         if (meta.role === 'viewer') {
-          if (localHash !== remoteHash) applyRemoteRoom(remote.room);
+          if (localHash !== remoteHash) applyRemoteRoom(remote.room, latestRoom.id, meta.revision, localHash);
           return;
         }
 
