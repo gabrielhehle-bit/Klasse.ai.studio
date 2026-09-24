@@ -2387,6 +2387,7 @@ html body [data-style] .klassio-cockpit-shell .klassio-whiteboard {
   border-color: #cbd5e1 !important;
   min-width: 0;
   min-height: 0;
+  isolation: isolate; /* ink never blocks the sibling student panel */
 }
 html body .klassio-cockpit-shell .klassio-widget-dock,
 html body [data-style] .klassio-cockpit-shell .klassio-widget-dock,
