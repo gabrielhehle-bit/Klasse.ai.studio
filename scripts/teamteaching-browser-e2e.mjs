@@ -334,6 +334,25 @@ async function main() {
     await waitFor(berta, 'shared class decrypted locally', 'document.body?.innerText.includes("Aktuelle Klasse: E2E 1A") && document.body?.innerText.includes("Rolle: editor")', 30000);
     console.log('✓ Lehrkraft B: shared class decrypted locally');
 
+    // Unlike the previous smoke test, check an actual weekly lesson on a
+    // second, separately signed-in teacher account BEFORE any manual push.
+    const weeklyTopic = 'E2E Teamteaching gemeinsamer Wochenplan';
+    await clickSidebar(anna, 'Wochenplanung');
+    await waitFor(anna, 'weekly planning grid', 'document.body?.innerText.includes("WOCHENPLANUNG")');
+    await waitFor(anna, 'editable weekly cell', 'Array.from(document.querySelectorAll("svg.lucide-plus")).some(svg=>String(svg.parentElement?.parentElement?.className||"").includes("group/cell"))', 30000);
+    const opened = await evaluate(anna,
+      '(() => { for(const svg of document.querySelectorAll("svg.lucide-plus")) { let el=svg.parentElement; while(el && el!==document.body) { if(String(el.className||"").includes("group/cell") && String(el.className||"").includes("min-h-[5.3125rem]")) { el.click(); return true; } el=el.parentElement; } } return false; })()');
+    if (!opened) throw new Error('Could not open first editable weekly cell on teacher A.');
+    await waitFor(anna, 'weekly lesson edit dialog', 'document.body?.innerText.includes("Einheit planen")');
+    await setInputByLabel(anna, 'Was wird gelernt?', weeklyTopic);
+    await clickButton(anna, 'Einheit speichern');
+    await waitFor(anna, 'teacher A saved weekly lesson', 'document.body?.innerText.includes(' + q(weeklyTopic) + ')');
+    await clickSidebar(berta, 'Wochenplanung');
+    await waitFor(berta, 'teacher B sees teacher A weekly lesson automatically',
+      'document.body?.innerText.includes(' + q(weeklyTopic) + ')', 60000);
+    console.log('✓ Cross-account weekly lesson shared automatically without manual send');
+
+    await openClassTeam(berta);
     await clickButton(berta, 'Änderungen senden');
     await waitFor(berta, 'editor can push encrypted class', 'document.body?.innerText.includes("Änderungen wurden verschlüsselt")', 30000);
     console.log('✓ Lehrkraft B: editor write path accepted');
