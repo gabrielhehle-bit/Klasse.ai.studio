@@ -63,11 +63,11 @@ test("Cockpit: alle erhaltenen Standard-Widgettypen sind im Picker und in den Ka
   const pickerEnd = teachingSurface.indexOf("const resolvedActiveFach", starts[1]);
   const pickerCatalog = widgetTypes(teachingSurface.slice(starts[1], pickerEnd));
 
-  assert.equal(defaults.length, 110, "Standardlayout muss alle 109 bisherigen Typen und das neue HÜ-Widget enthalten");
-  assert.equal(counterCatalog.length, 109, "Kategorie-Zähler bietet das neue HÜ-Widget an, aber nicht das doppelte Pluspunkte-Widget");
-  assert.equal(pickerCatalog.length, 109, "Widget-Picker bietet das neue HÜ-Widget an, aber nicht das doppelte Pluspunkte-Widget");
+  assert.equal(defaults.length, 111, "Standardlayout muss alle bisherigen Typen, HÜ und Sterneauswertung enthalten");
+  assert.equal(counterCatalog.length, 110, "Kategorie-Zähler bietet HÜ und Sterneauswertung an, nicht das doppelte Pluspunkte-Widget");
+  assert.equal(pickerCatalog.length, 110, "Widget-Picker bietet HÜ und Sterneauswertung an, nicht das doppelte Pluspunkte-Widget");
 
-  // Historic studentlist remains in the 110-entry layout/backup schema but
+  // Historic studentlist remains in the 111-entry layout/backup schema but
   // must not be offered as a duplicate of the existing student sidebar.
   assert.ok(defaults.includes("studentlist"), "Historische Schülerliste muss beim Backup-Laden erhalten bleiben");
   assert.equal(counterCatalog.includes("studentlist"), false);
