@@ -3709,7 +3709,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       w.id !== id ? w : {
         ...w,
         ...updates,
-        ...((w.type === "groups" || w.type === "wheel") && updates.settings
+        ...(((w.type === "groups" && updates.settings) || (w.type === "wheel" && updates.settings))
           ? { settings: { ...(w.settings || {}), ...updates.settings } }
           : {}),
         hasBeenOpened: true,
