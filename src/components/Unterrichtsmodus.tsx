@@ -9381,8 +9381,8 @@ ${content}
                                       },
                                       {
                                         type: "sounds",
-                                        label: "🎵 Soundboard Töne",
-                                        desc: "Klassenzimmersignale abspielen",
+                                        label: "🎵 Musik & Klänge",
+                                        desc: "Signale, Klavier, Rhythmus, Tontraining & Naturklänge",
                                         category: "tools",
                                       },
                                       {
