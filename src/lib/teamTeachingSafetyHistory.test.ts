@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
 import { createClassCollaborationStore } from '../server/classCollaborationStore';
 import { createTeacherIdentity } from '../server/teacherIdentity';
 import { mergeTeamClassRevisions } from './teamTeachingMerge';
@@ -102,4 +103,33 @@ test('Class preview reveals lesson-level changes on authorized device and drops 
   b.teamTeaching = { sharedClassId: 'secret', role: 'owner', revision: 8 };
   const changes = describeTeamClassChanges(a, b);
   assert.deepEqual(changes, [{ path: 'Wochenplanung › KW 39 › Donnerstag › Stunde 2 › thema', before: 'Alt', after: 'Neu' }]);
+});
+
+
+test('Settings display offers independent persisted app font and cockpit font controls', () => {
+  const display = readFileSync('src/components/settings/DisplaySettings.tsx', 'utf8');
+  assert.match(display, /id="klassio-display-font"/);
+  assert.match(display, /fontFamily: event\.target\.value/);
+  assert.match(display, /id="klassio-board-font"/);
+  assert.match(display, /boardSettings: \{ \.\.\.prev\.boardSettings, activeFont: event\.target\.value \}/);
+});
+
+test('Team history REST access is membership-guarded and never publishes decrypted class data', () => {
+  const server = readFileSync('server.ts', 'utf8');
+  assert.match(server, /app\.get\('\/api\/teamteaching\/classes\/:classId\/history', requireTeacherIdentity/);
+  assert.match(server, /app\.get\('\/api\/teamteaching\/classes\/:classId\/history\/:revision', requireTeacherIdentity/);
+  assert.match(server, /getClassHistoryRevision\(identity, req\.params\.classId, revision\)/);
+  const store = readFileSync('src/server/classCollaborationStore.ts', 'utf8');
+  assert.match(store, /await this\.archiveSnapshot\(record\);\s*record\.encryptedSnapshot = input\.encryptedSnapshot/);
+  assert.match(store, /const current = await this\.getClass\(identity, classId\);/);
+});
+
+test('Concurrent editor notes are shown field-by-field in the local preview without auto-merging them', () => {
+  const before = room({}, [{ id: 'entry-1', text: 'Lesen' }]);
+  const after = room({}, [{ id: 'entry-1', text: 'Schreiben' }]);
+  assert.deepEqual(describeTeamClassChanges(before, after), [
+    { path: 'Notizen › entry-1 › text', before: 'Lesen', after: 'Schreiben' },
+  ]);
+  assert.deepEqual(mergeTeamClassRevisions(before, after,
+    room({}, [{ id: 'entry-1', text: 'Mathematik' }])).conflicts, ['notes']);
 });
