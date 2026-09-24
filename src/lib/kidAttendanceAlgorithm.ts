@@ -91,6 +91,23 @@ export function getStudentAttendanceStatus(
   return { status: 'open', isPreExistingAbsent: false, delayMinutes };
 }
 
+/** Teacher-only explanation of the stored day attendance code.
+ * The pupil-facing status stays simply "absent" (never expose the reason
+ * on the projected check-in cards). Existing per-hour "u" takes precedence
+ * over "e" if a day contains both codes. No mutation or migration needed. */
+export function getStudentAbsenceCode(
+  studentId: string,
+  appState?: AppState | null,
+  dateStr: string = getTodayIsoDate(),
+): 'e' | 'u' | null {
+  const entries = appState?.anwesenheit?.[studentId]?.[dateStr];
+  if (!entries || typeof entries !== 'object') return null;
+  const values = Object.values(entries);
+  if (values.includes('u')) return 'u';
+  if (values.includes('e')) return 'e';
+  return null;
+}
+
 /**
  * Schüler-Check-In Aktion (Tippen auf Karte im Schülermodus):
  * - Darf NUR 'open' auf 'present' umstellen.
