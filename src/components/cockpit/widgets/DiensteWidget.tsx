@@ -12,21 +12,20 @@ import {
   AlertCircle,
   MoreHorizontal,
   Sparkles,
-  ChevronDown,
-  ChevronUp,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
 import {
   getDisplayStudentName,
   isStudentAbsentToday,
   getPresentStudents,
-  DEFAULT_MOCK_STUDENTS,
   CockpitStudent,
 } from '../studentSelectionUtils';
 import { getKW } from '../../../lib/utils';
+import { readClassDienste, dienstPageWindow } from '../../../lib/diensteWidgetModel';
 import {
   initializeDefaultDienste,
-  migrateLegacyDienste,
   addDienst,
   editDienst,
   deleteDienst,
@@ -63,29 +62,28 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
   useWidgetOverflowGuard('DiensteWidget', containerRef);
   const isFs = isFullscreen || size.category === 'fullscreen';
 
-  // Basisliste der Schüler aus zentralen Daten oder Mock-Fallback
-  const allStudents: CockpitStudent[] = useMemo(() => {
-    if (app?.schueler && Array.isArray(app.schueler) && app.schueler.length > 0) {
-      return app.schueler;
-    }
-    return DEFAULT_MOCK_STUDENTS;
-  }, [app?.schueler]);
+  // Actual classroom pupils only: never show demo children on the board.
+  const allStudents: CockpitStudent[] = useMemo(() =>
+    Array.isArray(app?.schueler) ? app.schueler : [], [app?.schueler]);
 
-  // Aktuelle Kalenderwoche für den Wochenbezug
-  const currentKW = useMemo(() => getKW(new Date()), []);
+  // Refresh calendar week even when the board stays open overnight.
+  const [clockDate, setClockDate] = useState(() => new Date());
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockDate(new Date()), 60_000);
+    const refresh = () => setClockDate(new Date());
+    window.addEventListener('focus', refresh);
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', refresh); };
+  }, []);
+  const currentKW = getKW(clockDate);
 
   // Lokaler synchroner Zustand der Dienste für verzögerungsfreie Interaktion
-  const [dienste, setDienste] = useState<DiensteItem[]>(() => {
-    const rawList = app?.dienste || widget?.settings?.diensteState?.dienste;
-    return migrateLegacyDienste(rawList);
-  });
+  const [dienste, setDienste] = useState<DiensteItem[]>(() =>
+    readClassDienste(app?.dienste, widget?.settings?.diensteState?.dienste));
 
   // Synchronisation bei externen Updates (z. B. Klassenwechsel)
   useEffect(() => {
-    if (app?.dienste && Array.isArray(app.dienste)) {
-      setDienste(migrateLegacyDienste(app.dienste));
-    }
-  }, [app?.dienste]);
+    setDienste(readClassDienste(app?.dienste, widget?.settings?.diensteState?.dienste));
+  }, [app?.activeClassId, app?.dienste, widget?.settings?.diensteState?.dienste]);
 
   // Persistenz-Helfer (aktualisiert app.dienste und optional widget.settings)
   const commitDienste = (newList: DiensteItem[]) => {
@@ -125,8 +123,8 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
   const [editingTitel, setEditingTitel] = useState('');
   const [editingEmoji, setEditingEmoji] = useState('');
 
-  // Kompaktmodus: "Alle anzeigen" Umschalter
-  const [compactShowAll, setCompactShowAll] = useState(false);
+  // Keep every service reachable on small and large boards.
+  const [dienstPage, setDienstPage] = useState(0);
 
   // Bestätigungsabfragen
   const [confirmClear, setConfirmClear] = useState(false);
@@ -149,7 +147,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
   const handleAddDienstSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!newDienstTitel.trim()) return;
-    const updated = addDienst(dienste, newDienstTitel, newDienstEmoji);
+    const updated = addDienst(dienste, newDienstTitel.trim().slice(0, 80), newDienstEmoji);
     commitDienste(updated);
     setNewDienstTitel('');
     setShowAddModal(false);
@@ -165,7 +163,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
   const handleSaveEdit = (dienstId: string) => {
     if (!editingTitel.trim()) return;
     const updated = editDienst(dienste, dienstId, {
-      titel: editingTitel,
+      titel: editingTitel.trim().slice(0, 80),
       emoji: editingEmoji,
     });
     commitDienste(updated);
@@ -227,12 +225,10 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
   // ==========================================
   // RENDER-FILTER
   // ==========================================
-  const displayedDienste = useMemo(() => {
-    if (size.isCompact && !compactShowAll) {
-      return dienste.slice(0, 3);
-    }
-    return dienste;
-  }, [dienste, size.isCompact, compactShowAll]);
+  const dutyWindow = dienstPageWindow(dienste.length, size.width, size.height, dienstPage);
+  const displayedDienste = dienste.slice(dutyWindow.start, dutyWindow.end);
+  useEffect(() => { setDienstPage(0); setActiveAssignDienstId(null); setStudentSearchQuery(''); },
+    [app?.activeClassId]);
 
   // Theme Styles
   const isLight = currentIsLight;
@@ -734,29 +730,16 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
           </div>
         )}
 
-        {/* COMPACT: "Alle anzeigen" Schalter */}
-        {size.isCompact && dienste.length > 3 && (
-          <button
-            onClick={() => setCompactShowAll(!compactShowAll)}
-            className={`w-full py-1.5 rounded-xl border text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-              isLight
-                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
-                : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'
-            }`}
-          >
-            {compactShowAll ? (
-              <>
-                <ChevronUp size={12} />
-                <span>Weniger anzeigen</span>
-              </>
-            ) : (
-              <>
-                <ChevronDown size={12} />
-                <span>Alle Dienste anzeigen ({dienste.length})</span>
-              </>
-            )}
-          </button>
-        )}
+        {dutyWindow.pageCount > 1 && <div role="group" aria-label="Klassendienste-Seiten"
+          className="sticky bottom-0 flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/95 p-1 text-xs font-bold text-slate-800 shadow-sm dark:border-white/10 dark:bg-zinc-900/95 dark:text-white">
+          <button type="button" aria-label="Vorherige Klassendienste" disabled={dutyWindow.page === 0}
+            onClick={() => { setDienstPage(page => Math.max(0, page - 1)); setActiveAssignDienstId(null); }}
+            className="min-h-10 rounded-lg border border-slate-300 px-3 disabled:opacity-30"><ChevronLeft size={16} /></button>
+          <span aria-live="polite">{dutyWindow.page + 1}/{dutyWindow.pageCount} · {dienste.length} Dienste</span>
+          <button type="button" aria-label="Weitere Klassendienste" disabled={dutyWindow.page + 1 >= dutyWindow.pageCount}
+            onClick={() => { setDienstPage(page => Math.min(dutyWindow.pageCount - 1, page + 1)); setActiveAssignDienstId(null); }}
+            className="min-h-10 rounded-lg border border-slate-300 px-3 disabled:opacity-30"><ChevronRight size={16} /></button>
+        </div>}
       </div>
 
       {/* ========================================== */}
