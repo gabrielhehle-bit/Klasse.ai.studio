@@ -42,7 +42,11 @@ test('both responsive teacher modal and finalize dialog offer a visible, labelle
   const ui = readFileSync('src/components/cockpit/widgets/KidAttendanceWidget.tsx', 'utf8');
   assert.equal((ui.match(/createPortal\(renderTeacherModal\(\), document\.body\)/g) || []).length, 2);
   assert.match(ui, /role="dialog" aria-modal="true" aria-label="Lehrer-Anwesenheitskorrektur"/);
-  assert.match(ui, /grid w-full grid-cols-2 gap-2 sm:grid-cols-5/);
+  assert.match(ui, /grid w-full grid-cols-3 gap-2/);
+  assert.match(ui, /aria-label="Anwesenheit bearbeiten: Da, Fehlt oder Entschuldigt"/);
+  const compact = ui.slice(ui.indexOf('if (showCompactSummary)'), ui.indexOf('// AUSREICHEND GROSSE ANSICHT'));
+  assert.match(compact, /setIsTeacherModalOpen\(true\)/);
+  assert.match(compact, /Da · Fehlt · Entschuldigt/);
   assert.match(ui, /aria-pressed=\{status === 'absent' && absenceCode === 'e'\}/);
   assert.match(ui, /getStudentAbsenceCode\(student\.id, app, todayStr\)/);
   assert.match(ui, /absenceCode === 'e' \? '✓ Entschuldigt'/);
@@ -52,4 +56,18 @@ test('both responsive teacher modal and finalize dialog offer a visible, labelle
   assert.match(ui, /prev\.activeClassId === app\.activeClassId && prev\.schueler\?\.some/);
   const pupilCards = ui.slice(ui.indexOf('const renderStudentCard ='), ui.indexOf('// KLEINE WIDGET-FLÄCHE:'));
   assert.doesNotMatch(pupilCards, /getStudentAbsenceCode|Entschuldigt/);
+});
+
+test('the three principal teacher choices stay in one visible row, while pupil cards never reveal absence reasons', () => {
+  const ui = readFileSync('src/components/cockpit/widgets/KidAttendanceWidget.tsx', 'utf8');
+  const teacherButtons = ui.slice(ui.indexOf('{/* Lehrer-Korrekturknöpfe */}'), ui.indexOf('{/* Lehrkraft Befindens-Verwaltung'));
+  const firstThree = teacherButtons.slice(0, teacherButtons.indexOf('onClick={() => handleTeacherResetToOpen'));
+  assert.match(firstThree, /grid w-full grid-cols-3 gap-2/);
+  assert.match(firstThree, /handleTeacherSetPresent\(student.id\)/);
+  assert.match(firstThree, /handleTeacherSetAbsent\(student.id, 'u'\)/);
+  assert.match(firstThree, /handleTeacherSetAbsent\(student.id, 'e'\)/);
+  assert.match(teacherButtons, /aria-pressed=\{status === 'absent' && absenceCode === 'e'\}/);
+  const pupilCards = ui.slice(ui.indexOf('const renderStudentCard ='), ui.indexOf('// KLEINE WIDGET-FLÄCHE:'));
+  assert.doesNotMatch(pupilCards, /getStudentAbsenceCode|Entschuldigt/);
+  assert.match(pupilCards, /statusLabel = 'Abwesend'/);
 });
