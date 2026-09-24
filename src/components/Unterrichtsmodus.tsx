@@ -181,6 +181,8 @@ import { PenLine, Copy, AlignRight } from "lucide-react";
 import { generateStudentGroups } from "../lib/groupsAlgorithm";
 import { getPresentStudents, getDisplayStudentName } from "./cockpit/studentSelectionUtils";
 import { CockpitWidget } from "./cockpit/CockpitWidget";
+import { CockpitWidgetDock } from "./cockpit/CockpitWidgetDock";
+import { clampCockpitSidebarWidth, resizeCockpitSidebarWidth } from "../lib/cockpitSidebarLayout";
 import { CockpitVorlagenModal } from "./cockpit/CockpitVorlagenModal";
 import { BoardTextEditor } from "./cockpit/BoardTextEditor";
 import { BoardInk, type InkItem } from "./cockpit/BoardInk";
@@ -2951,6 +2953,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const isLayoutEditing = true;
   const [isMoreOptionsMenuOpen, setIsMoreOptionsMenuOpen] = useState(false);
   const [isQuickBarSettingsOpen, setIsQuickBarSettingsOpen] = useState(false);
+  const [showBoardTools, setShowBoardTools] = useState(false);
   const [isAddWidgetMenuOpen, setIsAddWidgetMenuOpen] = useState(false);
   const [isWidgetConfigurationOpen, setIsWidgetConfigurationOpen] = useState(false);
   const [selectedWidgetConfiguration, setSelectedWidgetConfiguration] = useState<"kidattendance" | "groups" | "randomname" | "classweeklyplan">("kidattendance");
@@ -2961,7 +2964,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [expandedCoreWidget, setExpandedCoreWidget] = useState<string | null>(null);
   const [widgetSearch, setWidgetSearch] = useState<string>("");
   const [isBoardTextEditing, setIsBoardTextEditing] = useState(false);
-  const [boardTool, setBoardTool] = useState<'select' | 'text'>('select');
+  const [boardTool, setBoardTool] = useState<'select' | 'text' | 'pen' | 'erase'>('select');
   const boardTextCommandRef = useRef<((command: string, argument?: string) => void) | null>(null);
   const [isBirthdayCelebrationOpen, setIsBirthdayCelebrationOpen] = useState(false);
   useEffect(() => { setIsBirthdayCelebrationOpen(false); }, [app.activeClassId]);
@@ -5288,7 +5291,9 @@ ${content}
       "success",
     );
   };
-  const sidebarMode = app.boardSettings?.sidebarMode || "expanded";
+  const sidebarMode = app.boardSettings?.sidebarMode || "hidden";
+  const sidebarPreferredWidth = clampCockpitSidebarWidth((app.boardSettings as any)?.cockpitStudentSidebarWidthByClass?.[boardTextClassKey]);
+  const [sidebarResizePreview, setSidebarResizePreview] = useState<number | null>(null);
   const [prevSidebarMode, setPrevSidebarMode] = useState<"expanded" | "mini">(
     "expanded",
   );
@@ -5319,33 +5324,39 @@ ${content}
     }));
   };
 
-  // Keep the widget board usable on tablets and smaller laptop windows. The
-  // full student list otherwise consumes most of the available board width.
-  useEffect(() => {
-    const adaptSidebarToViewport = () => {
-      const nextMode =
-        window.innerWidth < 720
-          ? "hidden"
-          : window.innerWidth < 1100 && sidebarMode === "expanded"
-            ? "mini"
-            : null;
-
-      if (!nextMode || nextMode === sidebarMode) return;
-
-      setApp((prev: any) => ({
-        ...prev,
-        boardSettings: {
-          ...prev.boardSettings,
-          sidebarMode: nextMode,
-        },
-      }));
+  // Narrow screens overlay the sidebar instead of shrinking or hiding it.
+  // Resize is a local preview; persist the final width only once.
+  const handleSidebarResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (sidebarMode !== "expanded" || !app.activeClassId || event.button !== 0) return;
+    event.preventDefault(); event.stopPropagation();
+    const startX = event.clientX;
+    const startWidth = sidebarResizePreview ?? sidebarPreferredWidth;
+    let finalWidth = startWidth;
+    const move = (next: PointerEvent) => {
+      finalWidth = resizeCockpitSidebarWidth(startWidth, startX, next.clientX);
+      setSidebarResizePreview(finalWidth);
     };
-
-    adaptSidebarToViewport();
-    window.addEventListener("resize", adaptSidebarToViewport);
-    return () => window.removeEventListener("resize", adaptSidebarToViewport);
-  }, [sidebarMode, setApp]);
-
+    const cancel = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", cancel);
+      setSidebarResizePreview(null);
+    };
+    const finish = (next: PointerEvent) => {
+      finalWidth = resizeCockpitSidebarWidth(startWidth, startX, next.clientX);
+      cancel();
+      setApp((prev: any) => ({ ...prev, boardSettings: {
+        ...(prev.boardSettings || {}),
+        cockpitStudentSidebarWidthByClass: {
+          ...(prev.boardSettings?.cockpitStudentSidebarWidthByClass || {}),
+          [boardTextClassKey]: finalWidth,
+        },
+      } }));
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", cancel);
+  };
   // Student list sidebar options and long-click settings
   const [activeStudentSettingsId, setActiveStudentSettingsId] = useState<
     string | null
@@ -7616,7 +7627,7 @@ ${content}
   return (
     <div
       ref={attachCockpitRoot}
-      className={`fixed inset-0 z-[1000] ${isFocusModeLightOff ? "is-light-off" : ""} ${currentIsLight ? "" : "cockpit-contrast-dark"} ${true ? (activePultTheme === "custom_theme" ? "" : activePultThemeVars.bg) : activeFokusThemeVars.bg} ${true ? (customTextColor ? "" : activePultThemeVars.textColor) : activeFokusThemeVars.textColor} ${derivedFontClass} overflow-hidden flex flex-col p-2 sm:p-3 gap-2 sm:gap-3`}
+      className={`klassio-cockpit-shell fixed inset-0 z-[1000] ${isFocusModeLightOff ? "is-light-off" : ""} ${currentIsLight ? "" : "cockpit-contrast-dark"} ${true ? (activePultTheme === "custom_theme" ? "" : activePultThemeVars.bg) : activeFokusThemeVars.bg} ${true ? (customTextColor ? "" : activePultThemeVars.textColor) : activeFokusThemeVars.textColor} ${derivedFontClass} overflow-hidden flex flex-col p-2 sm:p-3 gap-2 sm:gap-3`}
       style={{
         backgroundColor:
           activePultTheme === "custom_theme" ? customBgColor : undefined,
@@ -7938,8 +7949,8 @@ ${content}
       {false ? (
         <div className="flex-1 flex flex-col w-full min-h-0 relative z-10 rounded-[2.5rem] overflow-hidden shadow-2xl"></div>
       ) : (
-        <div className="flex-1 flex flex-col gap-2 sm:gap-3 min-h-0 relative z-10 mb-2 overflow-hidden">
-          <div className="flex-1 flex gap-4 min-h-0 overflow-hidden relative">
+        <div className="flex-1 flex flex-col gap-1 min-h-0 relative z-10 overflow-hidden">
+          <div className="flex-1 flex gap-1.5 min-h-0 overflow-hidden relative">
             {false ? (
               // SMARTBOARD EXCLUSIVE GRID
               <div className="flex-1 flex flex-col gap-6 bg-slate-950/80 backdrop-blur-3xl rounded-[2.5rem] border border-white/10 p-8 shadow-2xl relative overflow-hidden text-left select-none">
@@ -8177,7 +8188,7 @@ ${content}
             ) : (
               <>
                 {/* LEFT COLUMN: CONTROL CENTER */}
-                <div className="flex-1 flex gap-4 min-h-0 relative">
+                <div className="flex-1 flex gap-1.5 min-h-0 relative">
                   {cockpitView === "seating" ? (
                     <div
                       className={`flex-1 flex flex-col ${activePultThemeVars.box || "bg-black/20"} rounded-2xl border ${activePultThemeVars.border || "border-white/10"} overflow-hidden shadow-2xl relative`}
@@ -8227,14 +8238,17 @@ ${content}
                       </div>
                     </div>
                   ) : (
-                    <div className="flex-1 flex flex-col min-h-0 h-full w-full relative">
+                    <div className="flex-1 flex flex-col min-h-0 h-full w-full relative gap-1">
                       {/* Board Utility Toolbar Header (outside stage, prevents overlapping with stage active widgets or drawing board) */}
-                      <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 px-3.5 py-2 rounded-xl no-print shrink-0 bg-white/90 dark:bg-zinc-900/80 border border-slate-200 dark:border-white/10 shadow-sm relative z-50">
+                      <div className="flex items-center justify-between gap-1 px-2 py-1 rounded-xl no-print shrink-0 bg-white/95 border border-slate-200 text-slate-900 shadow-sm relative z-50">
                         <div className="flex items-center gap-2">
                           <span className={`w-2 h-2 rounded-full ${isLayoutLocked ? "bg-amber-500" : "bg-emerald-500"} animate-pulse`} />
                           <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-neutral-300">
-                            Unterrichtsfläche
+                            Tafel
                           </h3>
+                          <button type="button" onClick={() => setShowBoardTools(open => !open)}
+                            aria-expanded={showBoardTools} aria-controls="klassio-board-tools"
+                            className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800">✍️ Schreiben & Papier</button>
                           {isLayoutLocked && (
                             <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                               Fixiert
@@ -8251,7 +8265,7 @@ ${content}
                               onClick={() =>
                                 setIsAddWidgetMenuOpen(!isAddWidgetMenuOpen)
                               }
-                              className="min-h-11 px-4 rounded-xl font-semibold text-sm flex items-center gap-1.5 transition-all shadow-sm cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white"
+                              className="sr-only"
                               title="Widget auf die gemeinsame Fläche legen"
                             >
                               <Plus size={13} strokeWidth={2.5} />
@@ -8260,7 +8274,7 @@ ${content}
 
                             {isAddWidgetMenuOpen && (
                               <div
-                                className={`fixed left-4 top-[8.5rem] w-[880px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-9.5rem)] overflow-y-auto overscroll-contain rounded-2xl border p-3.5 shadow-2xl flex flex-col gap-3 z-[1000] ${
+                                className={`fixed left-1/2 -translate-x-1/2 bottom-[5.5rem] top-auto w-[min(880px,calc(100vw-1rem))] max-h-[calc(100dvh-7.5rem)] overflow-y-auto overscroll-contain rounded-2xl border p-3.5 shadow-2xl flex flex-col gap-3 z-[1000] ${
                                   currentIsLight
                                     ? "bg-white border-slate-100 animate-in fade-in slide-in-from-top-3 duration-200"
                                     : "bg-zinc-900 border-white/10 animate-in fade-in slide-in-from-top-3 duration-200"
@@ -10529,11 +10543,19 @@ ${content}
                       </div>
 
                       {/* A single shared toolbar, outside the white teaching surface. */}
-                      <div
+                      <div id="klassio-board-tools"
                         role="toolbar"
-                        aria-label="Unterrichtsfläche: Text und Papier"
-                        className="flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-2 text-slate-800 shadow-sm"
+                        aria-label="Unterrichtsfläche: Stift, Text und Papier"
+                        className={`${showBoardTools || boardTool !== "select" ? "flex" : "hidden"} shrink-0 flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5 text-slate-800 shadow-sm`}
                       >
+                        <button type="button" aria-pressed={boardTool === "pen"}
+                          onClick={() => { setBoardTool(boardTool === "pen" ? "select" : "pen"); setIsBoardTextEditing(false); }}
+                          className={`min-h-11 rounded-lg border px-3 text-sm font-semibold ${boardTool === "pen" ? "border-indigo-600 bg-indigo-700 text-white" : "border-slate-200 bg-white text-slate-800"}`}>✍️ Stift</button>
+                        <button type="button" aria-pressed={boardTool === "erase"}
+                          onClick={() => { setBoardTool(boardTool === "erase" ? "select" : "erase"); setIsBoardTextEditing(false); }}
+                          className={`min-h-11 rounded-lg border px-3 text-sm font-semibold ${boardTool === "erase" ? "border-indigo-600 bg-indigo-700 text-white" : "border-slate-200 bg-white text-slate-800"}`}>🧽 Radierer</button>
+                        <button type="button" onClick={() => { setBoardTool("select"); setIsBoardTextEditing(false); setShowBoardTools(false); }}
+                          className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800">Fertig</button>
                         <button type="button" aria-pressed={boardTool === 'text'}
                           onClick={() => { const editing = boardTool !== 'text'; setBoardTool(editing ? 'text' : 'select'); setIsBoardTextEditing(editing); }}
                           className={`min-h-11 rounded-lg border px-4 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 ${boardTool === 'text' ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}
@@ -10617,7 +10639,7 @@ ${content}
                       {/* Widget Board (classroomscreen.com style) */}
                       <div
                         ref={boardRef}
-                        className={`flex-1 relative group rounded-2xl border overflow-hidden pointer-events-auto h-full w-full min-h-[460px] ${isBoardTextEditing ? "select-text" : "select-none"} ${
+                        className={`klassio-whiteboard flex-1 relative group rounded-2xl border overflow-hidden pointer-events-auto w-full min-h-0 ${isBoardTextEditing ? "select-text" : "select-none"} ${
                           currentIsLight
                             ? "bg-white border-slate-200 shadow-sm"
                             : "bg-white border-slate-200 shadow-inner"
@@ -10639,8 +10661,8 @@ ${content}
                         <BoardInk
                           key={boardTextClassKey}
                           items={boardInkItems}
-                          active={false}
-                          externalTool="pen"
+                          active={boardTool === "pen" || boardTool === "erase"}
+                          externalTool={boardTool === "erase" ? "erase" : "pen"}
                           externalColor="#172554"
                           externalWidth={4}
                           hideToolbar
