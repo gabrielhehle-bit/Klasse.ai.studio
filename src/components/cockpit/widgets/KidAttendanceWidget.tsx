@@ -253,8 +253,9 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   }, [app.activeClassId, setApp, todayStr]);
 
   const handleTeacherSetDelay = useCallback((studentId: string, minutes: number) => {
-    setApp((prev) => teacherSetStudentDelay(prev, studentId, todayStr, minutes));
-  }, [setApp, todayStr]);
+    setApp((prev) => prev.activeClassId === app.activeClassId && prev.schueler?.some(child => child.id === studentId)
+      ? teacherSetStudentDelay(prev, studentId, todayStr, minutes) : prev);
+  }, [app.activeClassId, setApp, todayStr]);
 
   const handleTeacherBatchAllPresent = useCallback(() => {
     setApp((prev) => {
@@ -719,7 +720,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
       {activeMoodStudent && renderChildMoodModal()}
 
       {/* LEHRER-KORREKTURMODAL */}
-      {isTeacherModalOpen && renderTeacherModal()}
+      {isTeacherModalOpen && createPortal(renderTeacherModal(), document.body)}
 
       {/* ABSCHLUSSDIALOG */}
       {isFinalizeModalOpen && renderFinalizeModal()}
@@ -1134,7 +1135,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                     return (
                       <div
                         key={student.id}
-                        className="p-2.5 flex items-center justify-between gap-2 bg-white dark:bg-zinc-800/40"
+                        className="p-2.5 flex flex-col gap-2 bg-white dark:bg-zinc-800/40 sm:flex-row sm:items-center sm:justify-between"
                       >
                         <span className="font-bold text-sm whitespace-normal break-words leading-tight">
                           {displayName}
