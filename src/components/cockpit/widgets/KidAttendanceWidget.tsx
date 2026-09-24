@@ -29,7 +29,7 @@ import {
 } from '../../../lib/kidAttendanceAlgorithm';
 import { KID_MOOD_SCALE, getMoodMeta } from '../../../lib/moodTypes';
 import { getStudentGridLayout } from '../../../lib/studentWidgetGrid';
-import { CHECK_IN_GRID_OPTIONS, getCheckInPageLayout, shouldShowCheckInSummary } from '../../../lib/checkInWidgetLayout';
+import { getAdaptiveCheckInOptions, getCheckInPageLayout, shouldShowCheckInSummary } from '../../../lib/checkInWidgetLayout';
 import { getCheckInMode } from '../../../lib/checkInWidgetMode';
 
 export interface KidAttendanceWidgetProps {
@@ -334,9 +334,15 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     );
   }
 
-  const studentGrid = getStudentGridLayout(size.width, size.height, students.length, CHECK_IN_GRID_OPTIONS);
-  const showCompactSummary = shouldShowCheckInSummary(size.width, studentGrid.fits) && !isStudentPageOpen;
-  const pageLayout = getCheckInPageLayout(size.width, size.height, students.length, studentPage);
+  // Use the measured widget rectangle. Do not replace the class list with a
+  // summary just because 17+ children cannot fit on one page of a small widget.
+  const adaptiveLayout = getAdaptiveCheckInOptions(size.width, size.height);
+  const compactControls = adaptiveLayout.compactControls;
+  const studentGrid = getStudentGridLayout(size.width, size.height, students.length, adaptiveLayout.grid);
+  const showCompactSummary = shouldShowCheckInSummary(size.width, studentGrid.fits, size.height) && !isStudentPageOpen;
+  const pageLayout = getCheckInPageLayout(size.width, size.height, students.length, studentPage, adaptiveLayout.pages);
+  const visiblePageStudents = students.slice(pageLayout.start, pageLayout.start + pageLayout.pageSize);
+  const pageRows = Math.max(1, Math.ceil(visiblePageStudents.length / pageLayout.columns));
   const expandStudentGrid = () => {
     setIsStudentPageOpen(true);
     setStudentPage(0);
@@ -351,8 +357,10 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   const denseStudentGrid = students.length >= 16;
 
   // Render einer einzelnen Schülerkarte
-  const renderStudentCard = (student: Student, isCompactView = false) => {
+  const renderStudentCard = (student: Student, cardWidth = (size.width - 32) / studentGrid.columns, cardHeight = studentGrid.cardHeight) => {
     const displayName = displayNames.get(student.id) || student.vorname;
+    const compactCard = cardWidth < 190 || cardHeight < 68;
+    const tinyCard = cardWidth < 155 || cardHeight < 53;
     const { status, isPreExistingAbsent, delayMinutes } = getStudentAttendanceStatus(student.id, app, todayStr);
     const isJustCheckedIn = recentlyTappedId === student.id;
     const canTapMood = moodEnabled && checkInMode === 'teacher' && status === 'present';
@@ -384,15 +392,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     }
 
     // Touch-Target-Größen je nach Modus
-    const cardHeight = denseStudentGrid
-      ? 'min-h-[64px] px-2 py-1'
-      : size.isXL
-      ? 'min-h-[80px] px-4 py-3'
-      : size.isLarge
-      ? 'min-h-[64px] px-3.5 py-2.5'
-      : size.isStandard
-      ? 'min-h-[56px] px-3 py-2.5'
-      : 'min-h-[52px] px-2.5 py-2';
+    const cardPadding = tinyCard ? 'px-1.5 py-1' : compactCard ? 'px-2 py-1.5' : 'px-3 py-2';
 
     const initial = (student.vorname || '?')[0].toUpperCase();
 
@@ -410,14 +410,15 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
             ? checkInMode === 'teacher' ? `${displayName}: Freiwilliges Befinden angeben` : `${displayName} ist eingecheckt`
             : checkInMode === 'teacher' ? `${displayName}: Anwesenheit zuerst durch Lehrkraft erfassen` : checkInMode === 'individual' ? `${displayName} auswählen` : `${displayName}: Hier tippen für "Ich bin da!"`
         }
-        style={denseStudentGrid ? { minHeight: 64, height: Math.min(96, studentGrid.cardHeight) } : undefined}
-        className={`w-full ${cardHeight} rounded-xl border flex items-center justify-between gap-2.5 text-left transition-all duration-150 select-none ${
+        aria-label={`${displayName}: ${canTapMood ? 'Befinden auswählen' : statusLabel}`}
+        style={{ height: '100%', minHeight: adaptiveLayout.grid.minCardHeight }}
+        className={`w-full min-w-0 min-h-0 ${cardPadding} rounded-xl border flex items-center justify-between ${compactCard ? 'gap-1' : 'gap-2.5'} text-left transition-all duration-150 select-none ${
           status === 'open' ? 'cursor-pointer active:scale-97' : ''
         } ${cardClasses}`}
       >
         {/* Linke Seite: Avatar-Initiale + Name */}
-        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          <div
+        <div className={`flex items-center ${compactCard ? 'gap-1.5' : 'gap-2.5'} min-w-0 flex-1`}>
+          {!compactCard && <div
             className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs shrink-0 ${
               status === 'present'
                 ? 'bg-emerald-500 text-white shadow-2xs'
@@ -429,18 +430,12 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
             }`}
           >
             {initial}
-          </div>
+          </div>}
 
           <div className="min-w-0 flex-1">
             <span
-              className={`block whitespace-normal break-words font-black leading-tight ${
-                denseStudentGrid
-                  ? 'text-xs sm:text-sm tracking-tight'
-                  : size.isXL
-                  ? 'text-lg sm:text-xl tracking-tight'
-                  : size.isLarge
-                  ? 'text-base font-bold'
-                  : 'text-sm'
+              className={`block whitespace-normal break-words font-black leading-tight tracking-tight ${
+                tinyCard ? 'text-xs' : compactCard ? 'text-sm' : size.width >= 850 ? 'text-lg' : 'text-base'
               }`}
             >
               {displayName}
@@ -456,7 +451,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
 
         {/* Rechte Seite: Ruhiger Status-Badge */}
         <div
-          className={`shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-black tabular-nums border ${
+          className={`shrink-0 flex items-center ${compactCard ? 'gap-0 px-1 py-1' : 'gap-1.5 px-2 py-1'} rounded-lg text-xs font-black tabular-nums border ${
             status === 'present'
               ? currentIsLight
                 ? 'bg-emerald-100/90 border-emerald-300/80 text-emerald-900'
@@ -471,7 +466,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           }`}
         >
           {statusIcon}
-          {denseStudentGrid && size.width / studentGrid.columns < 190 ? (
+          {compactCard ? (
             <span className="sr-only">{canTapMood ? 'Befinden' : statusLabel}</span>
           ) : <span className="whitespace-nowrap">{canTapMood ? 'Befinden' : statusLabel}</span>}
         </div>
