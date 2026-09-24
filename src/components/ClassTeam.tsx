@@ -48,6 +48,8 @@ function formatTeamDate(value?: string): string {
 
 export default function ClassTeam() {
   const { app, setApp } = useApp();
+  const liveAppRef = React.useRef(app);
+  liveAppRef.current = app;
   const [shared, setShared] = React.useState<SharedClassSummary[]>([]);
   const [colleagues, setColleagues] = React.useState<TeamTeachingColleague[]>([]);
   const [schoolUsers, setSchoolUsers] = React.useState<TeamTeachingColleague[]>([]);
@@ -236,6 +238,119 @@ export default function ClassTeam() {
     } finally {
       setBusy(null);
     }
+  };
+
+  const showLatestChanges = async () => {
+    if (!activeSharedId) return;
+    setBusy('preview-latest');
+    setError(null);
+    try {
+      const latest = await pullSharedClass(activeSharedId);
+      const current = syncActiveClass(liveAppRef.current);
+      const local = current.classes.find(room => room.teamTeaching?.sharedClassId === activeSharedId);
+      if (!local) throw new Error('Die lokale Teamklasse konnte nicht gefunden werden. Nichts wurde überschrieben.');
+      setChangesPreview({
+        title: 'Deine lokale Klasse im Vergleich zum aktuellen Teamstand',
+        changes: describeTeamClassChanges(local, latest.room),
+        revision: latest.detail.revision,
+      });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Die aktuelle Teamversion konnte nicht geladen werden.');
+    } finally { setBusy(null); }
+  };
+
+  const showHistory = async () => {
+    if (!activeSharedId) return;
+    if (historyVisible) { setHistoryVisible(false); return; }
+    setHistoryBusy(true);
+    setError(null);
+    try {
+      setHistory(await listSharedClassHistory(activeSharedId));
+      setHistoryVisible(true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Die Versionsgeschichte konnte nicht geladen werden.');
+    } finally { setHistoryBusy(false); }
+  };
+
+  const previewHistoryVersion = async (version: SharedClassHistoryVersion) => {
+    if (!activeSharedId) return;
+    setBusy('preview-history');
+    setError(null);
+    try {
+      const [historical, latest] = await Promise.all([
+        pullSharedClassRevision(activeSharedId, version.revision),
+        pullSharedClass(activeSharedId),
+      ]);
+      if (historical.room.id !== latest.room.id) throw new Error('Die Klassen-IDs der Versionen stimmen nicht überein.');
+      setChangesPreview({
+        title: 'Teamversion ' + version.revision + ' im Vergleich zum aktuellen Teamstand ' + latest.detail.revision,
+        changes: describeTeamClassChanges(historical.room, latest.room),
+        revision: version.revision,
+        room: historical.room,
+      });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Die ältere Teamversion konnte nicht entschlüsselt werden.');
+    } finally { setBusy(null); }
+  };
+
+  const restoreHistoryVersion = async () => {
+    if (!activeSharedId || !changesPreview?.room || !activeRoom?.teamTeaching) return;
+    if (activeRoom.teamTeaching.role === 'viewer') return;
+    setBusy('restore-history');
+    setError(null);
+    try {
+      const latest = await pullSharedClass(activeSharedId);
+      const current = syncActiveClass(liveAppRef.current);
+      const local = current.classes.find(room => room.teamTeaching?.sharedClassId === activeSharedId);
+      if (!local?.teamTeaching || local.teamTeaching.revision !== latest.detail.revision
+        || !local.teamTeaching.lastSyncedHash
+        || classRoomFingerprint(local) !== local.teamTeaching.lastSyncedHash
+        || classRoomFingerprint(local) !== classRoomFingerprint(latest.room)) {
+        throw new Error('Du hast noch lokale Änderungen oder eine ältere Teamversion. Bitte zuerst vergleichen und abgleichen. Deine Arbeit wurde nicht überschrieben.');
+      }
+      if (changesPreview.room.id !== latest.room.id || changesPreview.revision >= latest.detail.revision) {
+        throw new Error('Diese Version kann nicht wiederhergestellt werden. Bitte die Versionsgeschichte aktualisieren.');
+      }
+      const beforeHash = classRoomFingerprint(local);
+      if (!window.confirm('Teamversion ' + changesPreview.revision + ' als NEUE gemeinsame Version wiederherstellen? Die heutige Version bleibt in der verschlüsselten Versionsgeschichte erhalten.')) return;
+      const currentAfterConfirm = syncActiveClass(liveAppRef.current).classes.find(room => room.id === local.id);
+      if (!currentAfterConfirm || classRoomFingerprint(currentAfterConfirm) !== beforeHash) {
+        throw new Error('Während der Bestätigung wurden lokale Änderungen vorgenommen. Wiederherstellung gestoppt.');
+      }
+      const restoreRoom: ClassRoom = {
+        ...changesPreview.room,
+        teamTeaching: { ...local.teamTeaching, revision: latest.detail.revision, role: latest.detail.myRole,
+          lastSyncedHash: beforeHash },
+      };
+      const saved = await pushSharedClass(restoreRoom);
+      const restored: ClassRoom = {
+        ...restoreRoom,
+        teamTeaching: { ...restoreRoom.teamTeaching!, revision: saved.revision,
+          lastSyncedHash: classRoomFingerprint(restoreRoom), lastSyncedAt: saved.updatedAt,
+          syncStatus: 'synced', syncMessage: undefined },
+      };
+      let concurrentLocalEdits = false;
+      setApp(prev => {
+        const state = syncActiveClass(prev);
+        const nowLocal = state.classes.find(room => room.id === local.id);
+        if (!nowLocal || classRoomFingerprint(nowLocal) !== beforeHash
+          || nowLocal.teamTeaching?.revision !== local.teamTeaching?.revision) {
+          concurrentLocalEdits = true;
+          return prev; // Keep the new local changes intact; the server still archives both versions.
+        }
+        return adoptAcknowledgedTeamRoom({ ...state, activeClassId: undefined }, restored);
+      });
+      setChangesPreview(null);
+      setHistory(await listSharedClassHistory(activeSharedId));
+      setNotice(concurrentLocalEdits
+        ? 'Die ältere Version wurde im Team wiederhergestellt. Deine zwischenzeitlichen lokalen Änderungen sind erhalten; bitte den Teamstand vergleichen.'
+        : 'Version ' + changesPreview.revision + ' wurde als neue Teamversion ' + saved.revision + ' wiederhergestellt. Vorherige Stände bleiben erhalten.');
+      await load();
+    } catch (cause: any) {
+      setError(cause?.code === 'REVISION_CONFLICT'
+        ? 'Die Teamklasse wurde inzwischen geändert. Wiederherstellung abgebrochen; keine lokale Änderung wurde überschrieben.'
+        : cause instanceof Error ? cause.message : 'Wiederherstellung fehlgeschlagen.');
+    } finally { setBusy(null); }
   };
 
   const addMember = async (colleague: TeamTeachingColleague) => {
