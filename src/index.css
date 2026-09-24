@@ -1026,6 +1026,41 @@ html body .classroom-weekly-plan button.weekly-plan-dark-action:disabled :is(spa
   -webkit-text-fill-color: #312e81 !important;
 }
 
+/* Common UX contract for every existing cockpit widget, including legacy
+   configurations. This only touches presentation, never widget settings/data. */
+html body .cockpit-widget-container[data-widget-ux="v2"] .cockpit-widget-content {
+  --widget-gap: 12px;
+  --widget-touch-target: 44px;
+  min-width: 0;
+  min-height: 0;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+html body .cockpit-widget-container[data-widget-ux="v2"] .cockpit-widget-content[data-density="compact"] {
+  --widget-gap: 8px;
+}
+html body .cockpit-widget-container[data-widget-ux="v2"] .cockpit-widget-content[data-density="tight"] {
+  --widget-gap: 4px;
+}
+html body .cockpit-widget-container[data-widget-ux="v2"] .cockpit-widget-content :is(button, [role="button"]):focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
+}
+/* Profile accent changes must not turn white labels dark on blue/green actions.
+   Only explicit white-on-dark primary buttons are matched; pale/disabled and
+   other semantic status controls keep their own intended text colors. */
+html body [data-style] .cockpit-widget-container[data-widget-ux="v2"] .cockpit-widget-content button.text-white:not(:disabled):is(
+  .bg-indigo-600, .bg-indigo-700, .bg-blue-600, .bg-blue-700,
+  .bg-emerald-600, .bg-emerald-700, .bg-purple-600, .bg-violet-600, .bg-rose-600
+),
+html body [data-style] .cockpit-widget-container[data-widget-ux="v2"] .cockpit-widget-content button.text-white:not(:disabled):is(
+  .bg-indigo-600, .bg-indigo-700, .bg-blue-600, .bg-blue-700,
+  .bg-emerald-600, .bg-emerald-700, .bg-purple-600, .bg-violet-600, .bg-rose-600
+) :is(span, svg) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
 /* The mascot looks like a free-standing character inside its movable cockpit slot.
    No forced white widget/card or dark-theme backdrop; only tapped controls have a surface. */
 html body .cockpit-widget-container.cockpit-free-mascot,
