@@ -156,4 +156,10 @@ jobs:
           health="$(curl --fail --silent --show-error --retry 5 --retry-delay 2 \
             --connect-timeout 10 --max-time 20 https://klassio.at/api/health)"
           echo "$health" | jq -e '.status == "ok"' >/dev/null
-          echo "KLASSIO is responding on https://klassio.at/api/health"
+          # A responding server can still serve old assets. Verify the exact
+          # active release, rather than reporting an obsolete UI as published.
+          published="$(curl --fail --silent --show-error --retry 5 --retry-delay 2 \
+            --connect-timeout 10 --max-time 20 -H 'Cache-Control: no-cache' \
+            https://klassio.at/api/release)"
+          echo "$published" | jq -e --arg commit "$RELEASE_SHA" '.commit == $commit' >/dev/null
+          echo "KLASSIO production health and exact release verified: $RELEASE_SHA"

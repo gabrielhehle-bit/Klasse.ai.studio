@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import ErrorBoundary from './components/ErrorBoundary';
 import VaultGate from './components/VaultGate';
+import ReleaseUpdateNotice from './components/ReleaseUpdateNotice';
 
 // Robust lazy-load helper with retry mechanism to gracefully recover from network or bundler stale-chunk hashing errors
 function lazyRetry<T extends React.ComponentType<any>>(
@@ -969,7 +970,9 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AccessGuard>
+    <>
+      <ReleaseUpdateNotice />
+      <AccessGuard>
       <AppProvider>
         <ToastProvider>
           <ErrorBoundary>
@@ -980,5 +983,6 @@ export default function App() {
         </ToastProvider>
       </AppProvider>
     </AccessGuard>
+    </>
   );
 }
