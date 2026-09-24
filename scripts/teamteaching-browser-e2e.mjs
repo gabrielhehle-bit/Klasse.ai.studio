@@ -345,8 +345,34 @@ async function main() {
     await clickButton(anna, 'Einheit speichern');
     await waitFor(anna, 'teacher A saved weekly lesson', 'document.body?.innerText.includes(' + q(weeklyTopic) + ')');
     await clickSidebar(berta, 'Wochenplan');
-    await waitFor(berta, 'teacher B sees teacher A weekly lesson automatically',
-      'document.body?.innerText.includes(' + q(weeklyTopic) + ')', 60000);
+    try {
+      await waitFor(berta, 'teacher B sees teacher A weekly lesson automatically',
+        'document.body?.innerText.includes(' + q(weeklyTopic) + ')', 18000);
+    } catch (failure) {
+      // Diagnose real cross-account failures without reading actual user data:
+      // these browser profiles contain only synthetic E2E classroom records.
+      for (const client of [anna, berta]) {
+        const state = await evaluate(client,
+          '({teamStatus:document.querySelector("[data-testid=weekly-team-status]")?.textContent, ' +
+          'page:document.querySelector("nav button[aria-current=page]")?.getAttribute("data-menu-id"),' +
+          'week:document.querySelector("h1")?.parentElement?.textContent?.slice(0,130)})');
+        const team = await evaluate(client,
+          'fetch("/api/teamteaching/classes",{cache:"no-store"}).then(r=>r.json()).then(j=>(j.classes||[]).map(c=>({id:c.id,revision:c.revision,role:c.myRole,classLabel:c.classLabel})))');
+        console.log('DIAGNOSTIC ' + client.name + ': ' + JSON.stringify({state,team}));
+      }
+      // Distinguish missing automatic refresh from a failed source upload:
+      // never silently turn this failed automatic-sync regression green.
+      await openClassTeam(berta);
+      const manualStatus = await evaluate(berta,
+        'document.body?.innerText.slice(0,1800)');
+      console.log('DIAGNOSTIC teacher B Klassenteam: ' + manualStatus);
+      await clickButton(berta, 'Neueste Version laden');
+      await clickSidebar(berta, 'Wochenplan');
+      const visibleAfterManual = await evaluate(berta,
+        'document.body?.innerText.includes(' + q(weeklyTopic) + ')');
+      console.log('DIAGNOSTIC teacher B receives lesson after manual pull: ' + visibleAfterManual);
+      throw failure;
+    }
     console.log('✓ Cross-account weekly lesson shared automatically without manual send');
 
     await openClassTeam(berta);
