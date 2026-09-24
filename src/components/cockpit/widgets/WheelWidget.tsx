@@ -339,6 +339,8 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
     if (customItems.length >= 24) return;
     const updated = [...customItems, trimmed];
     updateSettings({ customItems: updated });
+    setDrawnHistory([]);
+    setWinner(null);
     setNewItemText('');
   };
 
@@ -346,6 +348,8 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
   const handleRemoveCustomItem = (index: number) => {
     const updated = customItems.filter((_, idx) => idx !== index);
     updateSettings({ customItems: updated });
+    setDrawnHistory([]);
+    setWinner(null);
   };
 
   // Preset anwenden
@@ -355,6 +359,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
       customItems: [...preset.items],
     });
     setDrawnHistory([]);
+    setWinner(null);
   };
 
   // SVG Dimensionen
@@ -401,7 +406,8 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
           {withoutReplacement && mode !== 'students' && (
             <button
               type="button"
-              onClick={() => setDrawnHistory([])}
+              onClick={() => { if (!isSpinning) { setDrawnHistory([]); setWinner(null); } }}
+              disabled={isSpinning}
               className="text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-all cursor-pointer flex items-center gap-1"
               title="Alle gezogenen Optionen wieder ins Rad legen"
             >
@@ -431,6 +437,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
           <button
             type="button"
             onClick={() => setShowConfigModal(true)}
+            disabled={isSpinning}
             className={`min-h-[32px] px-2.5 rounded-xl border text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 active:scale-95 ${
               currentIsLight
                 ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
@@ -452,6 +459,17 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
         {baseItems.length >= 2 ? (
           <div
             onClick={handleSpin}
+            role="button"
+            tabIndex={hasEnoughItems ? 0 : -1}
+            aria-label={activePool.length === 0 ? 'Runde beendet – bitte zurücksetzen' : 'Glücksrad drehen'}
+            onKeyDown={(event) => {
+              if (event.target !== event.currentTarget) return;
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                event.stopPropagation();
+                handleSpin();
+              }
+            }}
             style={{ width: `${wheelPxSize}px`, height: `${wheelPxSize}px` }}
             className={`relative rounded-full shadow-xl flex items-center justify-center shrink-0 cursor-pointer transition-transform duration-200 ${
               isSpinning ? 'pointer-events-none scale-[0.99]' : 'hover:scale-[1.01]'
@@ -560,7 +578,11 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
               Mindestens 2 Optionen erforderlich
             </h4>
             <p className="text-xs font-bold text-slate-400 mt-1 mb-3">
-              Das Glücksrad benötigt mindestens zwei Einträge, um sinnvoll gedreht werden zu können.
+              {mode === 'students' && allStudents.length === 0
+                ? 'In dieser Klasse sind noch keine Kinder eingetragen.'
+                : mode === 'students'
+                  ? 'Aktuell sind weniger als zwei Kinder anwesend.'
+                  : 'Das Glücksrad benötigt mindestens zwei Einträge. Bitte Optionen hinzufügen.'}
             </p>
             <button
               type="button"
@@ -590,7 +612,9 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
           </div>
         ) : (
           <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-            {isSpinning ? 'Rad dreht sich... 🎢' : 'Leertaste oder Klick zum Drehen 🎡'}
+            {isSpinning ? 'Rad dreht sich … 🎡' : activePool.length === 0 && noRepeat
+              ? 'Alle Optionen gezogen – oben die Runde zurücksetzen'
+              : 'Rad anklicken oder auf „Glücksrad drehen“ drücken 🎡'}
           </span>
         )}
       </div>
@@ -613,10 +637,12 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
           <Sparkles size={18} />
           <span>
             {isSpinning
-              ? 'Dreht...'
-              : winner
-                ? 'Noch einmal drehen'
-                : 'Glücksrad drehen'}
+              ? 'Dreht …'
+              : activePool.length === 0 && noRepeat
+                ? 'Runde beendet – oben zurücksetzen'
+                : winner
+                  ? 'Noch einmal drehen'
+                  : 'Glücksrad drehen'}
           </span>
         </button>
       </div>
@@ -661,6 +687,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                     onClick={() => {
                       updateSettings({ mode: 'custom' });
                       setDrawnHistory([]);
+                      setWinner(null);
                     }}
                     className={`p-2 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 cursor-pointer transition-all ${
                       mode === 'custom'
@@ -679,6 +706,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                     onClick={() => {
                       updateSettings({ mode: 'numbers' });
                       setDrawnHistory([]);
+                      setWinner(null);
                     }}
                     className={`p-2 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 cursor-pointer transition-all ${
                       mode === 'numbers'
@@ -697,6 +725,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                     onClick={() => {
                       updateSettings({ mode: 'students' });
                       setDrawnHistory([]);
+                      setWinner(null);
                     }}
                     className={`p-2 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 cursor-pointer transition-all ${
                       mode === 'students'
@@ -777,7 +806,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                       {customItems.length > 0 && (
                         <button
                           type="button"
-                          onClick={() => updateSettings({ customItems: [] })}
+                          onClick={() => { updateSettings({ customItems: [] }); setDrawnHistory([]); setWinner(null); }}
                           className="text-[10px] font-black text-rose-500 hover:underline cursor-pointer"
                         >
                           Alle leeren
@@ -825,6 +854,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                         onChange={(e) => {
                           updateSettings({ withoutReplacement: e.target.checked });
                           setDrawnHistory([]);
+                          setWinner(null);
                         }}
                         className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                       />
@@ -847,6 +877,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                         onClick={() => {
                           updateSettings({ numberRange: count });
                           setDrawnHistory([]);
+                          setWinner(null);
                         }}
                         className={`p-3 rounded-2xl border text-xs font-black flex flex-col items-center gap-1 cursor-pointer transition-all ${
                           numberRange === count
@@ -879,6 +910,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                         onChange={(e) => {
                           updateSettings({ withoutReplacement: e.target.checked });
                           setDrawnHistory([]);
+                          setWinner(null);
                         }}
                         className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                       />
@@ -900,7 +932,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                     Das Glücksrad ist eine spielerische Präsentationsform. Für den schnellen 1-Klick-Aufruf nutze bitte das Widget <strong>Zufallsname</strong>. Für gerechte Runden ohne Wiederholungen nutze das Widget <strong>Fair-Call</strong>.
                   </p>
                   <p className="text-[11px] font-bold text-slate-400">
-                    Aktuell anwesend: <strong>{presentStudents.length} Schüler</strong> (Abwesende automatisch herausgefiltert).
+                    Aktuell anwesend: <strong>{presentStudents.length} Kinder</strong> (Abwesende automatisch herausgefiltert).
                   </p>
                 </div>
               )}
