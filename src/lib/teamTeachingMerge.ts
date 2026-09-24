@@ -13,7 +13,8 @@ const plain = (value: unknown): value is Record<string, JsonValue> =>
 /** Three-way merge of explicitly reviewed, decrypted class revisions. Arrays are atomic:
  * two concurrent edits to the same list (pupils, notes, homework, grades) must be resolved
  * by a person, never by last-writer-wins. Disjoint weekly slots can merge recursively. */
-export function mergeTeamClassRevisions(base: ClassRoom, local: ClassRoom, remote: ClassRoom): TeamMergeResult {
+export function mergeTeamClassRevisions(base: ClassRoom, local: ClassRoom, remote: ClassRoom,
+  decisions: Record<string, 'local' | 'team'> = {}): TeamMergeResult {
   if (base.id !== local.id || local.id !== remote.id) {
     return { room: null, conflicts: ['Die Klassen-IDs stimmen nicht überein.'] };
   }
@@ -31,7 +32,10 @@ export function mergeTeamClassRevisions(base: ClassRoom, local: ClassRoom, remot
       }
       return result;
     }
-    conflicts.push(path.join(' › ') || 'Klassendaten');
+    const location = path.join(' › ') || 'Klassendaten';
+    if (decisions[location] === 'local') return l;
+    if (decisions[location] === 'team') return r;
+    conflicts.push(location);
     return r; // Never publish this partial result if ANY conflict exists.
   };
   const combined = merge(classRoomWithoutTeamMetadata(base), classRoomWithoutTeamMetadata(local),
