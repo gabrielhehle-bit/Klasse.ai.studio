@@ -188,7 +188,16 @@ export function hasSharedClassAccountDrift(remote: AppState, local: AppState): b
     if (!remoteRoom) return true;
     const { teamTeaching: _localMeta, teamTeachingSharedClassId: _localLink, ...localContent } = localRoom;
     const { teamTeaching: _remoteMeta, teamTeachingSharedClassId: _remoteLink, ...remoteContent } = remoteRoom;
-    if (stableSerialize(localContent) !== stableSerialize(remoteContent)) return true;
+    // The personal-account payload normalizes sparse legacy class defaults.
+    // An absent vs. empty mission list is not a teammate's changed lesson.
+    // Apply the SAME defaults on both sides before checking for real drift.
+    const comparableLocal = canonicalizeSyncDefaults({
+      classes: [JSON.parse(JSON.stringify(localContent))],
+    } as AppState).classes[0];
+    const comparableRemote = canonicalizeSyncDefaults({
+      classes: [JSON.parse(JSON.stringify(remoteContent))],
+    } as AppState).classes[0];
+    if (stableSerialize(comparableLocal) !== stableSerialize(comparableRemote)) return true;
   }
   return false;
 }
