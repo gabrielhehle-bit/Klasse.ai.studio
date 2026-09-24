@@ -87,7 +87,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
   const loadCurrentWords = (): LernwoerterStudioState => {
     const legacyType = widget?.type || 'vocabulary';
     const oldSettings = widget?.settings;
-    if (oldSettings && oldSettings.words && oldSettings.words.length > 0) {
+    if (Array.isArray(oldSettings?.words)) {
       // Existierender Lernwörter-Studio State
       const items: LernwortItem[] = oldSettings.words.map((w: any, idx: number) => {
         if (typeof w === 'string') return createInitialLernwortItem(w, `w-${idx}`);
