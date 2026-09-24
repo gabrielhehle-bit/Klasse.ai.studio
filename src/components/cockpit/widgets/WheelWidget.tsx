@@ -171,7 +171,9 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
   // Helper zum Aktualisieren der Einstellungen
   const updateSettings = useCallback(
     (newSettings: Record<string, any>) => {
-      onUpdate({ settings: { ...settings, ...newSettings } });
+      // Pass only changed keys; the cockpit merges them against the latest
+      // widget state so quick consecutive clicks do not restore stale options.
+      onUpdate({ settings: newSettings });
     },
     [onUpdate, settings]
   );
