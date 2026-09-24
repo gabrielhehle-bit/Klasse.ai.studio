@@ -1,20 +1,20 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { 
   Sparkles, RotateCcw, Volume2, VolumeX, Settings2, 
-  X, Check, Plus, Trash2, Users, ListFilter, HelpCircle,
+  X, Plus, Trash2, Users, HelpCircle,
   Hash, Layers, AlertCircle
 } from 'lucide-react';
 import { CockpitWidgetConfig, AppState } from '../../../types';
 import { useApp } from '../../../context/AppContext';
 import {
   getDisplayStudentName,
-  isStudentAbsentToday,
-  DEFAULT_MOCK_STUDENTS,
+  getPresentStudents,
 } from '../studentSelectionUtils';
+import { availableWheelIndices, wheelTargetRotation } from '../../../lib/wheelWidgetModel';
 
 export interface WheelWidgetProps {
   widget: CockpitWidgetConfig;
-  onUpdate?: (updates: Partial<CockpitWidgetConfig>) => void;
+  onUpdate: (updates: Partial<CockpitWidgetConfig>) => void;
   app?: AppState;
   currentIsLight: boolean;
 }
@@ -160,8 +160,8 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
   const settings = useMemo(() => widget?.settings || {}, [widget?.settings]);
 
   const mode: WheelMode = settings.mode || 'custom';
-  const customItems: string[] = Array.isArray(settings.customItems) && settings.customItems.length > 0
-    ? settings.customItems
+  const customItems: string[] = Array.isArray(settings.customItems)
+    ? settings.customItems.filter((item: unknown): item is string => typeof item === 'string' && Boolean(item.trim()))
     : ['Einzelarbeit', 'Partnerarbeit', 'Gruppenarbeit', 'Im Plenum'];
 
   const numberRange: number = settings.numberRange || 6;
@@ -171,30 +171,17 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
   // Helper zum Aktualisieren der Einstellungen
   const updateSettings = useCallback(
     (newSettings: Record<string, any>) => {
-      if (onUpdate) {
-        onUpdate({
-          settings: {
-            ...settings,
-            ...newSettings,
-          },
-        });
-      }
+      onUpdate({ settings: { ...settings, ...newSettings } });
     },
     [onUpdate, settings]
   );
 
   // Schülerliste (falls Schüler-Modus aktiv)
-  const allStudents = useMemo(() => {
-    return app?.schueler && app.schueler.length > 0 ? app.schueler : DEFAULT_MOCK_STUDENTS;
-  }, [app?.schueler]);
-
-  // Automatisch anwesende Schüler filtern
-  const presentStudents = useMemo(() => {
-    return allStudents.filter((s) => !isStudentAbsentToday(s.id, app));
-  }, [allStudents, app]);
+  const allStudents = app?.schueler ?? [];
+  const presentStudents = getPresentStudents(allStudents, app);
 
   // Historie für "Ohne Zurücklegen" (flüchtig im Speicher)
-  const [drawnHistory, setDrawnHistory] = useState<string[]>([]);
+  const [drawnHistory, setDrawnHistory] = useState<number[]>([]);
 
   // Aktive Items berechnen
   const baseItems = useMemo(() => {
@@ -207,17 +194,15 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
     return customItems;
   }, [mode, presentStudents, allStudents, numberRange, customItems]);
 
-  // Pool nach Anwendung von "Ohne Zurücklegen" (nur für custom & numbers!)
-  const activePool = useMemo(() => {
-    if (withoutReplacement && mode !== 'students') {
-      const remaining = baseItems.filter((item) => !drawnHistory.includes(item));
-      return remaining.length > 0 ? remaining : baseItems;
-    }
-    return baseItems;
-  }, [baseItems, withoutReplacement, mode, drawnHistory]);
+  // Keep all original segments visible: changing slice count after the
+  // draw previously moved the result away from the fixed pointer.
+  const noRepeat = withoutReplacement && mode !== 'students';
+  const availableIndices = availableWheelIndices(baseItems.length, drawnHistory, noRepeat);
+  const activePool = availableIndices.map(index => baseItems[index]);
 
   // Dreh-Status & Physik
   const [isSpinning, setIsSpinning] = useState(false);
+  const spinningRef = useRef(false);
   const [rotationAngle, setRotationAngle] = useState(0);
   const [winner, setWinner] = useState<string | null>(null);
 
@@ -248,6 +233,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
     return () => {
       timeoutsRef.current.forEach((t) => clearTimeout(t));
       timeoutsRef.current = [];
+      spinningRef.current = false;
       if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
         try {
           audioCtxRef.current.close();
@@ -264,6 +250,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
 
   useEffect(() => {
     if (!containerRef.current) return;
+    if (typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
@@ -277,7 +264,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
   }, []);
 
   // Mindestanzahl Segmente für ein Rad: 2
-  const hasEnoughItems = activePool.length >= 2;
+  const hasEnoughItems = baseItems.length >= 2 && availableIndices.length > 0;
 
   /**
    * Deterministische und unvoreingenommene Zufallsauswahl:
@@ -286,7 +273,8 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
    * 3. Rad dorthin mit schöner Ease-Out-Kurve drehen
    */
   const handleSpin = useCallback(() => {
-    if (isSpinning || !hasEnoughItems) return;
+    if (spinningRef.current || !hasEnoughItems) return;
+    spinningRef.current = true;
 
     // Laufende Timeouts säubern
     timeoutsRef.current.forEach((t) => clearTimeout(t));
@@ -295,30 +283,13 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
     setIsSpinning(true);
     setWinner(null);
 
-    const pool = [...activePool];
-    const N = pool.length;
+    const N = baseItems.length;
 
-    // 1. Zufälligen Gewinnerindex im aktuellen Pool bestimmen
-    const winnerIndex = Math.floor(Math.random() * N);
-    const chosenWinner = pool[winnerIndex];
+    // Index-based selection treats duplicate labels as separate segments.
+    const winnerIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+    const chosenWinner = baseItems[winnerIndex];
 
-    // 2. Mittelwinkel des Segments relativ zum Rad (0° = 12 Uhr)
-    const midAngle = (winnerIndex + 0.5) * (360 / N);
-
-    // 3. Volle Umdrehungen für 2.6 Sekunden Drehung
-    const fullSpins = 5 * 360;
-
-    // Leichter Zufallsversatz innerhalb des Segments (±25% der Segmentbreite)
-    const segmentWidth = 360 / N;
-    const jitter = (Math.random() - 0.5) * (segmentWidth * 0.45);
-
-    // Drehwinkel so ansetzen, dass midAngle am oberen Zeiger (0° bzw. 360°) stoppt
-    const targetMod360 = (360 - midAngle + jitter + 360) % 360;
-    const currentMod360 = ((rotationAngle % 360) + 360) % 360;
-    let delta = targetMod360 - currentMod360;
-    if (delta < 0) delta += 360;
-
-    const nextRotation = rotationAngle + fullSpins + delta;
+    const nextRotation = wheelTargetRotation(rotationAngle, winnerIndex, N, Math.random() - 0.5);
     setRotationAngle(nextRotation);
 
     const audioCtx = getAudioContext();
@@ -340,6 +311,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
 
     // Abschluss nach Ablauf der Drehdauer
     const finishId = window.setTimeout(() => {
+      spinningRef.current = false;
       setIsSpinning(false);
       setWinner(chosenWinner);
 
@@ -348,28 +320,16 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
       }
 
       // Bei "Ohne Zurücklegen" in die Historie aufnehmen (nur custom & numbers)
-      if (withoutReplacement && mode !== 'students') {
-        setDrawnHistory((prev) => [...prev, chosenWinner]);
+      if (noRepeat) {
+        setDrawnHistory((prev) => [...prev, winnerIndex]);
       }
     }, duration);
 
     timeoutsRef.current.push(finishId);
-  }, [isSpinning, hasEnoughItems, activePool, rotationAngle, getAudioContext, soundEnabled, withoutReplacement, mode]);
+  }, [hasEnoughItems, baseItems, availableIndices, rotationAngle, getAudioContext, soundEnabled, noRepeat]);
 
-  // Tastaturbedienung: Leertaste oder Enter startet die Drehung
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) {
-        return;
-      }
-      if (e.key === ' ' || e.key === 'Enter') {
-        e.preventDefault();
-        handleSpin();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleSpin]);
+  // Native spin button and the focused wheel handle keyboard input locally;
+  // a global listener must not steal Enter or Space from the whiteboard.
 
   // Hinzufügen einer Option
   const handleAddCustomItem = (e: React.FormEvent) => {
@@ -400,12 +360,12 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
   // SVG Dimensionen
   const wheelRadius = 88;
   const center = 100;
-  const numSlices = activePool.length;
+  const numSlices = baseItems.length;
 
   // Responsive Layoutgrößen
   const isSmall = containerSize.width < 280 || containerSize.height < 280;
   const isLarge = containerSize.width > 560 || containerSize.height > 520;
-  const wheelPxSize = Math.max(130, Math.min(containerSize.width - 24, containerSize.height - 130));
+  const wheelPxSize = Math.max(100, Math.min(containerSize.width - 32, containerSize.height - 170, 480));
 
   return (
     <div
@@ -489,7 +449,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
       {/* MAIN RAD VIEWPORT: Responsives SVG mit Zeiger und Animation               */}
       {/* ========================================================================= */}
       <div className="flex-grow flex flex-col items-center justify-center my-1.5 min-h-0 relative overflow-hidden">
-        {hasEnoughItems ? (
+        {baseItems.length >= 2 ? (
           <div
             onClick={handleSpin}
             style={{ width: `${wheelPxSize}px`, height: `${wheelPxSize}px` }}
@@ -513,7 +473,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
               className="w-full h-full rounded-full overflow-hidden"
             >
               {/* Segmente */}
-              {activePool.map((item, idx) => {
+              {baseItems.map((item, idx) => {
                 const sliceAngle = 360 / numSlices;
                 const startAngle = idx * sliceAngle;
                 const endAngle = (idx + 1) * sliceAngle;
@@ -541,6 +501,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                     <path
                       d={pathData}
                       fill={color}
+                      opacity={noRepeat && drawnHistory.includes(idx) ? 0.28 : 1}
                       stroke="rgba(255, 255, 255, 0.25)"
                       strokeWidth="1"
                     />
