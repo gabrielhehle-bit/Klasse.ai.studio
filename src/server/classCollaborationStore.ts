@@ -185,7 +185,7 @@ export class ClassCollaborationStore {
     try { filenames = await fs.readdir(directory); }
     catch (error: any) { if (error?.code === 'ENOENT') return result; throw error; }
     for (const filename of filenames) {
-      if (!/^[1-9][0-9]*\\.json$/.test(filename)) continue;
+      if (!/^[1-9][0-9]*\.json$/.test(filename)) continue;
       const revision = Number(filename.slice(0, -5));
       if (!Number.isSafeInteger(revision) || revision >= current.revision) continue;
       const entry = await this.readClassHistoryEntry(current.id, revision);
