@@ -40,12 +40,16 @@ export interface KopfrechenStudioProps {
   widget?: CockpitWidgetConfig;
   onUpdate?: (updates: Partial<CockpitWidgetConfig>) => void;
   currentIsLight?: boolean;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
 }
 
 export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
   widget,
   onUpdate,
   currentIsLight = true,
+  showSettings = false,
+  onCloseSettings,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef);
@@ -69,7 +73,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
   const [isRevealed, setIsRevealed] = useState<boolean>(false);
   const [studentInput, setStudentInput] = useState<string>('');
   const [feedbackState, setFeedbackState] = useState<'idle' | 'correct' | 'try_again'>('idle');
-  const [showSettingsDrawer, setShowSettingsDrawer] = useState<boolean>(false);
+  const showSettingsDrawer = showSettings;
 
   // Sync to backend/cockpit persistence
   const updateSettings = useCallback(
@@ -379,25 +383,14 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
             </button>
           </div>
 
-          {/* Settings-Button */}
-          <button
-            type="button"
-            onClick={() => setShowSettingsDrawer((prev) => !prev)}
-            title="Einstellungen"
-            className={`p-1.5 rounded-lg border min-h-[32px] min-w-[32px] flex items-center justify-center transition-all ${
-              showSettingsDrawer
-                ? 'bg-indigo-50 border-indigo-300 text-indigo-600 dark:bg-indigo-950/50 dark:border-indigo-700 dark:text-indigo-400'
-                : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
-          >
-            <Settings2 className="w-4 h-4" />
-          </button>
+
         </div>
       </div>
 
       {/* 2. Optional: Settings Drawer (oder Bar in Standard/Large) */}
       {showSettingsDrawer && (
-        <div className="shrink-0 p-2.5 my-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 shadow-sm text-xs flex flex-col gap-2">
+        <div role="region" aria-label="Kopfrechnen-Einstellungen" className="shrink-0 p-2.5 my-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 shadow-sm text-xs flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-2"><span className="font-bold text-sm">Kopfrechnen einstellen</span><button type="button" onClick={onCloseSettings} className="min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 px-3 font-semibold" aria-label="Kopfrechnen-Einstellungen schließen">Fertig</button></div>
           {/* Settings nach Modus */}
           {settings.mode === 'flash' && (
             <div className="flex flex-wrap items-center justify-between gap-2">
