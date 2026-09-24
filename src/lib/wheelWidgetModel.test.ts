@@ -35,7 +35,7 @@ test('Wheel: production cockpit wires updates so custom options, presets and mod
   const wrapper = readFileSync('src/components/cockpit/CockpitWidgetContents.tsx', 'utf8');
   const wheel = readFileSync('src/components/cockpit/widgets/WheelWidget.tsx', 'utf8');
   assert.match(cockpit, /case "wheel":[\s\S]*?<WheelWidgetContent[\s\S]*?onUpdate=\{\(updates\) =>[\s\S]*?handleUpdateWidgetPos\(widget\.id, updates\)/);
-  assert.match(cockpit, /w\.type === "groups" \|\| w\.type === "wheel"/);
+  assert.match(cockpit, /w\.type === "wheel" && updates\.settings/);
   assert.match(wrapper, /<WheelWidget[\s\S]*?onUpdate=\{onUpdate\}/);
   assert.doesNotMatch(wheel, /DEFAULT_MOCK_STUDENTS|window\.addEventListener\('keydown'/);
   assert.match(wheel, /Array\.isArray\(settings\.customItems\)/);
