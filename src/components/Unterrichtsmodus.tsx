@@ -10617,24 +10617,7 @@ ${content}
                         )}
                       </div>
 
-                      {quickBarSettings.enabled && quickBarSettings.itemIds.length > 0 && app.activeClassId && (
-                        <nav aria-label="Zusätzliche Widget-Leiste"
-                          className="flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-2 text-slate-800 shadow-sm">
-                          {COCKPIT_QUICKBAR_ITEMS.filter(item => quickBarSettings.itemIds.includes(item.id)).map(item => (
-                            <button type="button" key={item.id}
-                              className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm font-semibold hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
-                              onClick={() => {
-                                if (item.id === 'termine') {
-                                  // Preserve the older, separately stored date widget without creating duplicate data.
-                                  toggleWidget('termine');
-                                } else {
-                                  handleOpenWidgetInCockpitLayout(item.id as CockpitWidgetConfig['type']);
-                                }
-                              }}
-                            >{item.label}</button>
-                          ))}
-                        </nav>
-                      )}
+                      {/* Quick-access widgets now live in the bottom favorites dock. */}
 
                       {/* Widget Board (classroomscreen.com style) */}
                       <div
@@ -12445,21 +12428,7 @@ ${content}
                     </div>
                   )}
 
-                  {/* Sidebar toggle floating handle when hidden */}
-                  {sidebarMode === "hidden" && (
-                    <button
-                      onClick={() =>
-                        changeSidebarMode(prevSidebarMode || "expanded")
-                      }
-                      className="absolute right-0 top-1/2 -translate-y-1/2 z-50 w-6 h-14 bg-black/20 hover:bg-black/60 dark:bg-white/10 dark:hover:bg-white/20 border-y border-l border-white/10 text-neutral-500 hover:text-white rounded-l-xl flex items-center justify-center cursor-pointer transition-all duration-300 shadow-md group"
-                      title="Schülerliste einblenden"
-                    >
-                      <ChevronLeft
-                        size={16}
-                        className="stroke-[3] group-hover:-translate-x-0.5 transition-transform"
-                      />
-                    </button>
-                  )}
+                  {/* The always-visible student-list toggle is in the bottom dock. */}
                 </div>
 
                 {/* RIGHT COLUMN: STUDENT LIST SIDEBAR */}
@@ -12469,7 +12438,7 @@ ${content}
                       ref={sidebarRef}
                       initial={{ width: 0, opacity: 0, x: 24 }}
                       animate={{
-                        width: sidebarMode === "mini" ? 240 : 335,
+                        width: sidebarMode === "mini" ? 240 : sidebarResizePreview ?? sidebarPreferredWidth,
                         opacity: 1,
                         x: 0,
                       }}
@@ -12483,12 +12452,33 @@ ${content}
                         stiffness: 350,
                         damping: 32,
                       }}
-                      className={`flex flex-col ${activePultThemeVars.box} rounded-2xl border ${activePultThemeVars.border} overflow-hidden min-h-0 relative shrink-0 dim-in-focus group/sidebar`}
+                      className="klassio-student-sidebar flex flex-col rounded-2xl border border-slate-200 bg-white text-slate-900 overflow-hidden min-h-0 relative shrink-0 dim-in-focus group/sidebar"
                     >
+                      {sidebarMode === "expanded" && (
+                        <div role="separator" tabIndex={0} aria-orientation="vertical"
+                          aria-label="Breite der Schülerliste ändern" aria-valuemin={300} aria-valuemax={620}
+                          aria-valuenow={sidebarResizePreview ?? sidebarPreferredWidth}
+                          onPointerDown={handleSidebarResizeStart}
+                          onKeyDown={event => {
+                            if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+                            event.preventDefault();
+                            const next = clampCockpitSidebarWidth(sidebarPreferredWidth + (event.key === "ArrowLeft" ? 20 : -20));
+                            setApp((prev: any) => ({ ...prev, boardSettings: {
+                              ...(prev.boardSettings || {}), cockpitStudentSidebarWidthByClass: {
+                                ...(prev.boardSettings?.cockpitStudentSidebarWidthByClass || {}), [boardTextClassKey]: next,
+                              },
+                            } }));
+                          }}
+                          className="absolute inset-y-0 left-0 z-[70] w-2.5 cursor-col-resize touch-none bg-slate-200/40 hover:bg-indigo-300 focus-visible:bg-indigo-300"
+                          title="Ziehen, um die Schülerliste breiter oder schmaler zu machen" />
+                      )}
+                      <button type="button" onClick={() => changeSidebarMode("hidden")}
+                        aria-label="Schülerliste schließen"
+                        className="absolute right-2 top-2 z-[80] flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-800 shadow-sm">✕</button>
                       {/* Subtle Collapse Toggle Handle inside the sidebar edge */}
                       <button
                         onClick={() => changeSidebarMode("hidden")}
-                        className="absolute left-0 top-1/2 -translate-y-1/2 z-50 w-6 h-14 bg-black/10 hover:bg-rose-500/80 dark:bg-black/30 dark:hover:bg-rose-600/90 border-y border-r border-transparent hover:border-rose-400/50 text-neutral-400 hover:text-white rounded-r-xl flex items-center justify-center cursor-pointer transition-all duration-300 shadow-sm opacity-0 group-hover/sidebar:opacity-100 group/btn"
+                        className="hidden"
                         title="Seitenleiste einfahren"
                       >
                         <ChevronRight
@@ -12498,7 +12488,7 @@ ${content}
                       </button>
 
                       {/* Compact Header with state controls */}
-                      <div className="p-2.5 border-b border-neutral-200/40 dark:border-white/5 bg-black/10 dark:bg-black/40 flex flex-col gap-1.5 shrink-0">
+                      <div className="flex shrink-0 flex-col gap-1.5 border-b border-slate-200 bg-slate-50 p-2.5 pr-14 text-slate-900">
                         {sidebarMode === "mini" && (
                           <div className="flex flex-row items-center justify-between gap-1 py-0.5 select-none w-full">
                             <button
@@ -12577,6 +12567,25 @@ ${content}
               </>
             )}
           </div>
+          {cockpitView === "cockpit" && (
+            <CockpitWidgetDock
+              settings={quickBarSettings}
+              onChange={updateQuickBarSettings}
+              onReset={resetQuickBarSettings}
+              onOpenWidget={(id) => {
+                if (id === "termine") {
+                  toggleWidget("termine");
+                } else {
+                  handleOpenWidgetInCockpitLayout(id as CockpitWidgetConfig["type"]);
+                }
+              }}
+              onAddWidget={() => { setIsAddWidgetMenuOpen(open => !open); setIsMoreOptionsMenuOpen(false); }}
+              onToggleSidebar={() => changeSidebarMode(sidebarMode === "hidden" ? (prevSidebarMode || "expanded") : "hidden")}
+              sidebarOpen={sidebarMode !== "hidden"}
+              activeTypes={cockpitWidgets.filter(widget => widget.visible).map(widget => widget.type)}
+              hasClass={Boolean(app.activeClassId)}
+            />
+          )}
         </div>
       )}
 
