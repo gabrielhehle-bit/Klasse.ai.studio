@@ -401,7 +401,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     qrcode: "🔗 QR-Code",
     image: "🖼️ Tafelbild-Projektor",
     phases: "📈 Stundenverlauf",
-    sounds: "🎵 Signal-Töne",
+    sounds: "🎵 Musik & Klänge",
     todo: "✅ To-Do-Liste",
     dienste: "🧹 Klassendienste",
     klassenglas: "🫙 Klassenglas",
