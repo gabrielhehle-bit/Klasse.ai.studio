@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   WortSatzMode,
   WordTask,
@@ -78,6 +79,16 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
   const [newCompoundParts, setNewCompoundParts] = useState('');
   const [newCompoundArticle, setNewCompoundArticle] = useState('die');
   const [newSentenceText, setNewSentenceText] = useState('');
+  const [taskError, setTaskError] = useState('');
+  const currentWidgetKey = String(widget?.id || '') + ':' + String(widget?.type || '');
+  const loadedWidgetKey = useRef(currentWidgetKey);
+  useEffect(() => {
+    if (loadedWidgetKey.current === currentWidgetKey) return;
+    loadedWidgetKey.current = currentWidgetKey;
+    setState(migrateLegacyWortSatzWidgetSettings(widget?.type || 'wordbuilder', widget?.settings));
+    setTaskError('');
+    setEditorOpen(false);
+  }, [currentWidgetKey]);
 
   // Persistenz über bestehenden verschlüsselten Pfad (widget.settings)
   const persistState = useCallback(
@@ -85,6 +96,7 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
       if (onUpdate) {
         onUpdate({
           settings: {
+            ...(widget?.settings || {}),
             mode: nextState.mode,
             wordTasks: nextState.wordTasks,
             compoundTasks: nextState.compoundTasks,
@@ -252,7 +264,10 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
   // Tastaturbedienung für Barrierefreiheit (Links/Rechts-Pfeile)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (state.selectedIndex === null) return;
+      if (state.selectedIndex === null || editorOpen || !containerRef.current ||
+          !containerRef.current.contains(document.activeElement) ||
+          !containerRef.current.contains(e.target as Node) ||
+          (e.target as HTMLElement)?.closest('button, input, select, textarea, [contenteditable="true"]')) return;
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
         handleMoveLeft();
@@ -263,7 +278,7 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state.selectedIndex, state.currentItems]);
+  }, [state.selectedIndex, state.currentItems, editorOpen, currentWidgetKey]);
 
   // Prüfen (nur "Passt." oder "Noch nicht ganz.", absolut keine Gamification)
   const handleCheck = () => {
@@ -317,15 +332,20 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
   // Aufgaben hinzufügen (Editor)
   const handleAddWordTask = () => {
     if (!newWordTarget.trim()) return;
-    const targetWord = newWordTarget.trim().toUpperCase();
+    setTaskError('');
+    const targetWord = newWordTarget.trim().toLocaleUpperCase('de-AT');
     let parts: string[] = [];
     if (newWordParts.trim()) {
       parts = newWordParts
         .split(/[-–,/|]/)
-        .map((p) => p.trim().toUpperCase())
+        .map((p) => p.trim().toLocaleUpperCase('de-AT'))
         .filter(Boolean);
     } else {
-      parts = targetWord.split('');
+      parts = Array.from(targetWord);
+    }
+    if (parts.join('').normalize('NFC') !== targetWord.normalize('NFC')) {
+      setTaskError('Die Buchstaben oder Silben müssen zusammen genau das Zielwort ergeben.');
+      return;
     }
     const newTask: WordTask = {
       id: `w-${Date.now()}`,
@@ -350,9 +370,12 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
       .split(/[-–,/|+]/)
       .map((p) => p.trim())
       .filter(Boolean);
-    if (parts.length < 2) {
-      parts = [word];
+    if (parts.length < 2 || parts.join('').normalize('NFC').toLocaleLowerCase('de-AT') !==
+        word.normalize('NFC').toLocaleLowerCase('de-AT')) {
+      setTaskError('Bitte mindestens zwei Wortteile angeben, die zusammen genau das zusammengesetzte Wort ergeben.');
+      return;
     }
+    setTaskError('');
     const newTask: CompoundTask = {
       id: `c-${Date.now()}`,
       word,
@@ -396,7 +419,9 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
         compoundTasks: DEFAULT_COMPOUND_TASKS,
         sentenceTasks: DEFAULT_SENTENCE_TASKS,
         currentTaskIndex: 0,
-        currentItems: initializeTaskItems(prev.mode, DEFAULT_WORD_TASKS[0]),
+        currentItems: initializeTaskItems(prev.mode,
+          prev.mode === 'compound' ? DEFAULT_COMPOUND_TASKS[0] :
+          prev.mode === 'sentence' ? DEFAULT_SENTENCE_TASKS[0] : DEFAULT_WORD_TASKS[0]),
         selectedIndex: null,
         isSolved: false,
         checkFeedback: null,
@@ -420,6 +445,8 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
     <div
       ref={containerRef}
       id="wort-satz-werkstatt-container"
+      tabIndex={0}
+      aria-label="Wörter und Sätze: die Werkstatt auswählen, dann Karten mit den Pfeiltasten bewegen"
       className={`relative flex flex-col w-full h-full min-h-0 overflow-x-hidden select-none transition-colors duration-150 ${
         currentIsLight
           ? 'bg-slate-50/90 text-slate-900'
@@ -792,10 +819,10 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
       </div>
 
       {/* 5. Aufgaben-Editor (Aufgaben verwalten & Presets) */}
-      {editorOpen && (
-        <div
+      {editorOpen && createPortal(
+        <div role="dialog" aria-modal="true" aria-label="Wörter und Sätze bearbeiten"
           id="task-editor-panel"
-          className="absolute inset-0 z-30 flex flex-col p-4 bg-slate-50 dark:bg-neutral-900 overflow-y-auto"
+          className="fixed inset-0 z-[99999] mx-auto flex w-full max-w-4xl flex-col p-4 bg-slate-50 text-slate-900 dark:bg-neutral-900 dark:text-white overflow-y-auto sm:inset-y-4 sm:rounded-2xl sm:shadow-2xl"
         >
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-neutral-800 pb-3 mb-3">
             <div className="flex items-center gap-2">
