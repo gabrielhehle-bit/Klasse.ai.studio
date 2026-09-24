@@ -134,15 +134,10 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
         lastUpdated: new Date().toISOString(),
       };
 
-      // Kompatibilität: widget.settings direkt mutieren falls vorhanden
-      if (widget) {
-        widget.settings = { ...(widget.settings || {}), ...merged };
-      }
-
+      // Widget settings are immutable AppState. Mutating props here used to
+      // corrupt undo/sync state when a different device updated the board.
       if (onUpdate && widget?.id) {
-        onUpdate({
-          settings: widget.settings,
-        });
+        onUpdate({ settings: { ...(widget.settings || {}), ...merged } });
       }
     },
     [widget, onUpdate, imageUrl, altText, fileName, rotation, scale, pan]
@@ -279,10 +274,13 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
       setErrorMessage('Bitte eine Bild-URL eingeben.');
       return;
     }
-    if (!isSafeImageUrl(trimmed)) {
-      setErrorMessage('Unsichere oder ungültige URL. Bitte HTTPS- oder Daten-URL verwenden.');
+    if (!isSafeImageUrl(trimmed) || !/^https:\/\//i.test(trimmed)) {
+      setErrorMessage('Bitte eine gültige HTTPS-Bildadresse verwenden. Lokale Bilder kannst du direkt hochladen.');
       return;
     }
+    // Opening a remote image makes a request to that server. Do not imply that
+    // externally hosted photographs are processed entirely offline.
+    if (!window.confirm('Ein externes Bild lädt Daten von der angegebenen Website. Verwende keine vertraulichen Schülerfotos oder privaten Dateien. Bildadresse übernehmen?')) return;
 
     setErrorMessage(null);
     setImageUrl(trimmed);
@@ -931,7 +929,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
 
           {/* Fußzeile mit Tastaturhinweis */}
           <div className="text-[11px] text-white/50 font-medium">
-            Smartboard-Ansicht • 100 % lokal ohne Netzwerkübertragung
+            Smartboard-Ansicht {/^https?:\/\//i.test(imageUrl) ? '• Externes Bild wird vom angegebenen Server geladen' : '• Lokal bereitgestelltes Bild'}
           </div>
         </div>
       )}
