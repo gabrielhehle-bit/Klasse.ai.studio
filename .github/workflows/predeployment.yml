@@ -40,6 +40,8 @@ jobs:
         run: bun run test
 
       - name: Production build
+        env:
+          VITE_KLASSIO_BUILD_SHA: ${{ github.sha }}
         run: bun run build
 
       - name: Verify build output
@@ -49,6 +51,8 @@ jobs:
           test -f dist/manifest.webmanifest
           test -f dist/sw.js
           echo "Build and PWA output present."
+          # Marker exists at runtime and in the tested artifact, never a secret.
+          printf '%s\n' "$GITHUB_SHA" > KLASSIO_DEPLOYMENT_COMMIT.txt
 
       - name: Production server smoke test
         env:
