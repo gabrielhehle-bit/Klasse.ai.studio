@@ -19,16 +19,12 @@ import {
   type TeamTeachingColleague,
 } from '../lib/teamTeachingService';
 import { classRoomFingerprint, classRoomWithoutTeamMetadata } from '../lib/teamTeachingCrypto';
+import { adoptAcknowledgedTeamRoom } from '../lib/teamTeachingProjection';
 import type { ClassRoom } from '../types';
 import EmailAccountLogin from './EmailAccountLogin';
 
 function replaceOrAddRoom(prev: any, room: ClassRoom) {
-  const synced = syncActiveClass(prev);
-  const existing = synced.classes?.findIndex((candidate: ClassRoom) => candidate.id === room.id) ?? -1;
-  const classes = [...(synced.classes || [])];
-  if (existing >= 0) classes[existing] = room;
-  else classes.push(room);
-  return switchClassState({ ...synced, classes, activeClassId: undefined }, room.id);
+  return adoptAcknowledgedTeamRoom(prev, room);
 }
 
 export default function ClassTeam() {
@@ -82,8 +78,17 @@ export default function ClassTeam() {
       const result = await createSharedClass(activeRoom);
       setApp(prev => {
         const current = syncActiveClass(prev);
-        const classes = (current.classes || []).map(room => room.id === activeRoom.id ? result.localRoom : room);
-        return { ...current, classes };
+        const latestRoom = (current.classes || []).find(room => room.id === activeRoom.id);
+        if (!latestRoom) return prev;
+        // A teacher might edit a lesson while the share-creation request is
+        // in flight. Keep those unsent edits; only the initial remote snapshot
+        // may be stamped as acknowledged.
+        if (classRoomFingerprint(latestRoom) !== classRoomFingerprint(activeRoom)) {
+          const withTeam = { ...latestRoom, teamTeaching: result.localRoom.teamTeaching };
+          const classes = (current.classes || []).map(room => room.id === activeRoom.id ? withTeam : room);
+          return { ...current, classes };
+        }
+        return adoptAcknowledgedTeamRoom({ ...current, activeClassId: undefined }, result.localRoom);
       });
       setNotice('Die Klasse ist jetzt verschlüsselt für Teamteaching vorbereitet.');
       await load();
@@ -115,33 +120,43 @@ export default function ClassTeam() {
     setError(null);
     try {
       const { room } = await pullSharedClass(activeSharedId);
-      const preserveConflictCopy = activeRoom?.teamTeaching?.syncStatus === 'conflict';
+      const hasUnsyncedLocalWork = Boolean(activeRoom?.teamTeaching && (
+        activeRoom.teamTeaching.syncStatus === 'conflict'
+        || !activeRoom.teamTeaching.lastSyncedHash
+        || classRoomFingerprint(activeRoom) !== activeRoom.teamTeaching.lastSyncedHash
+      ));
+      let preservedCopy = hasUnsyncedLocalWork;
 
       setApp(prev => {
         const current = syncActiveClass(prev);
         let classes = [...(current.classes || [])];
-
-        if (preserveConflictCopy) {
-          const currentLocal = classes.find(candidate => candidate.id === activeRoom?.id);
-          if (currentLocal) {
-            const localCopy = classRoomWithoutTeamMetadata(currentLocal);
-            classes.push({
-              ...localCopy,
-              id: localCopy.id + '-conflict-' + Date.now().toString(36),
-              name: localCopy.name + ' – Konfliktkopie',
-            });
-          }
+        const currentLocal = classes.find(candidate => candidate.teamTeaching?.sharedClassId === activeSharedId);
+        // Recheck INSIDE the updater: editing might continue while fetching.
+        // A manual remote load must never erase unsent lesson drafts or notes.
+        const needsCopy = Boolean(currentLocal?.teamTeaching && (
+          currentLocal.teamTeaching.syncStatus === 'conflict'
+          || !currentLocal.teamTeaching.lastSyncedHash
+          || classRoomFingerprint(currentLocal) !== currentLocal.teamTeaching.lastSyncedHash
+        ));
+        if (needsCopy && currentLocal) {
+          preservedCopy = true;
+          const localCopy = classRoomWithoutTeamMetadata(currentLocal);
+          classes.push({
+            ...localCopy,
+            id: localCopy.id + '-conflict-' + Date.now().toString(36),
+            name: localCopy.name + ' – Konfliktkopie',
+          });
         }
 
         const remoteIndex = classes.findIndex(candidate => candidate.id === room.id);
         if (remoteIndex >= 0) classes[remoteIndex] = room;
         else classes.push(room);
 
-        return switchClassState({ ...current, classes, activeClassId: undefined }, room.id);
+        return adoptAcknowledgedTeamRoom({ ...current, classes, activeClassId: undefined }, room);
       });
 
       setNotice(
-        preserveConflictCopy
+        preservedCopy
           ? 'Neuester Teamstand geladen. Deine vorherigen lokalen Änderungen wurden zusätzlich als „Konfliktkopie“ behalten.'
           : 'Neuester verschlüsselter Stand wurde geladen.'
       );

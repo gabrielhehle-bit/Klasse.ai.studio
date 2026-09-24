@@ -48,6 +48,7 @@ import {
   hasEmailAccountSession,
   loadAccountSyncMetadata,
   mergeAccountSyncState,
+  hasSharedClassAccountDrift,
   pushAccountSyncSnapshot,
   saveAccountSyncMetadata,
   setAccountSyncHealthy,
@@ -56,6 +57,7 @@ import {
 import { registerActiveAppStateGetter } from '../services/aiService';
 import { ensureRegisteredTeamTeachingDevice, pullSharedClass, pushSharedClass } from '../lib/teamTeachingService';
 import { classRoomFingerprint } from '../lib/teamTeachingCrypto';
+import { adoptAcknowledgedTeamRoom } from '../lib/teamTeachingProjection';
 import { normalizeSchulart } from '../lib/schularten';
 
 localforage.config({
@@ -254,6 +256,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Der Server-Baseline-Fingerprint muss exakt dem State entsprechen, den setApp
       // anschließend im UI hält. Sonst kann ein frisch wiederhergestelltes Gerät allein
       // durch die lokale Klassen-Normalisierung eine unnötige neue Serverrevision erzeugen.
+      // A personal-account copy can lag behind the independently encrypted
+      // shared class. Never adopt that stale copy as the newest team week plan.
+      if (hasSharedClassAccountDrift(normalizedRemoteState, current)) {
+        const ownAccountBaseline = loadAccountSyncMetadata(vaultRecord.id);
+        if (ownAccountBaseline && remote.revision === ownAccountBaseline.revision) {
+          // Only this device has changed since the last personal-account
+          // receipt. Re-upload the full current state (including the freshly
+          // received shared week plan), guarded by the server revision. This
+          // prevents a permanent account conflict after every teammate edit.
+          // If the account server advanced meanwhile, the existing CAS guard
+          // refuses the upload rather than destroying either teacher's work.
+          const pushed = await pushAccountSyncSnapshot(current, vaultKey, vaultRecord, remote.revision);
+          markAccountSynced(pushed, current);
+          return current;
+        }
+        accountSyncReadyRef.current = false;
+        setAccountSyncHealthy(false);
+        setAccountSyncMessage('Der E-Mail-Kontostand enthält eine ältere oder abweichende Kopie deiner Teamklasse. Deine lokale Teamplanung bleibt erhalten. Im Konto-Abgleich kannst du den aktuellen Teamstand mit den übrigen Kontodaten bewusst zusammenführen.');
+        setAccountSyncConflictResolvable(true);
+        setAccountSyncStatus('conflict');
+        return current;
+      }
       const remoteState = syncActiveClass(mergeAccountSyncState(normalizedRemoteState, current));
       // A fabricated "4. Klasse Meine Klasse" with no pupils or lessons is
       // not a successfully restored existing account. Refuse to open an empty
@@ -528,11 +552,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const decryptedRemote = await decryptAccountSyncSnapshot(remote, vaultKey);
       assertRestorableAppState(decryptedRemote);
       const normalizedRemote = normalizeAppState(decryptedRemote);
+      const sharedClassDrift = hasSharedClassAccountDrift(normalizedRemote, localState);
       const remoteState = syncActiveClass(mergeAccountSyncState(normalizedRemote, localState));
-      await saveEncryptedAppState(remoteState, vaultKey);
-      currentAppRef.current = remoteState;
-      setApp(remoteState);
-      markAccountSynced(remote, remoteState);
+      // An explicit 'Konto-Stand laden' must NEVER silently reintroduce an older
+      // team class, nor claim a cloud receipt for content the server never got.
+      // Save the merged personal-account + authoritative local team snapshot
+      // with the latest server revision before announcing successful sync.
+      if (sharedClassDrift) {
+        const pushed = await pushAccountSyncSnapshot(remoteState, vaultKey, vaultRecord, remote.revision);
+        await saveEncryptedAppState(remoteState, vaultKey);
+        currentAppRef.current = remoteState;
+        setApp(remoteState);
+        markAccountSynced(pushed, remoteState);
+      } else {
+        await saveEncryptedAppState(remoteState, vaultKey);
+        currentAppRef.current = remoteState;
+        setApp(remoteState);
+        markAccountSynced(remote, remoteState);
+      }
     } catch (error: any) {
       accountSyncReadyRef.current = false;
       setAccountSyncHealthy(false);
@@ -786,6 +823,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       status: 'idle' | 'syncing' | 'synced' | 'conflict' | 'error',
       message?: string,
     ) => {
+      const activeRoom = currentAppRef.current.classes?.find(room => room.id === currentAppRef.current.activeClassId);
+      if (activeRoom?.teamTeaching?.sharedClassId !== activeTeamSharedId) return;
+      if (activeRoom.teamTeaching.syncStatus === status && activeRoom.teamTeaching.syncMessage === message) return;
       setApp(prev => {
         const current = syncActiveClass(prev);
         const classes = (current.classes || []).map(room => {
@@ -803,9 +843,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
     };
 
-    const applyRemoteRoom = (remoteRoom: any) => {
+    const applyRemoteRoom = (remoteRoom: any, expectedLocalId: string, expectedRevision: number, expectedHash: string) => {
       setApp(prev => {
         const current = syncActiveClass(prev);
+        const stillActive = current.classes?.find(room => room.id === expectedLocalId);
+        // The teacher may have typed another lesson or switched classes while
+        // the remote HTTP + decrypt request was in flight. Never erase it.
+        if (current.activeClassId !== expectedLocalId
+          || !stillActive || stillActive.teamTeaching?.sharedClassId !== activeTeamSharedId
+          || stillActive.teamTeaching.revision !== expectedRevision
+          || classRoomFingerprint(stillActive) !== expectedHash
+          || remoteRoom.id !== expectedLocalId) return prev;
         const room = {
           ...remoteRoom,
           teamTeaching: {
@@ -814,11 +862,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             syncMessage: undefined,
           },
         };
-        const classes = [...(current.classes || [])];
-        const index = classes.findIndex(candidate => candidate.id === room.id);
-        if (index >= 0) classes[index] = room;
-        else classes.push(room);
-        return switchClassState({ ...current, classes, activeClassId: undefined }, room.id);
+        return adoptAcknowledgedTeamRoom({ ...current, activeClassId: undefined }, room);
       });
     };
 
@@ -850,26 +894,65 @@ export function AppProvider({ children }: { children: ReactNode }) {
       try {
         const current = syncActiveClass(currentAppRef.current);
         const localRoom = current.classes?.find(room => room.id === current.activeClassId);
-        const meta = localRoom?.teamTeaching;
-        if (!localRoom || !meta || meta.sharedClassId !== activeTeamSharedId) return;
-        if (meta.syncStatus === 'conflict') return;
+        const initialMeta = localRoom?.teamTeaching;
+        if (!localRoom || !initialMeta || initialMeta.sharedClassId !== activeTeamSharedId) return;
 
-        const localHash = classRoomFingerprint(localRoom);
         const remote = await pullSharedClass(activeTeamSharedId);
         if (!active) return;
-
+        // Refresh the local baseline AFTER the asynchronous request. A lesson
+        // edited during the fetch must not be silently replaced or sent with
+        // the revision captured before the edit.
+        const latest = syncActiveClass(currentAppRef.current);
+        if (latest.activeClassId !== current.activeClassId) return;
+        const latestRoom = latest.classes?.find(room => room.id === localRoom.id);
+        const latestMeta = latestRoom?.teamTeaching;
+        if (!latestRoom || !latestMeta || latestMeta.sharedClassId !== activeTeamSharedId) return;
+        if (remote.room.id !== latestRoom.id) {
+          setLocalTeamStatus('conflict', 'Die Teamklasse hat eine andere Klassen-ID als deine lokale Klasse. Nichts wurde überschrieben.');
+          return;
+        }
+        const localHash = classRoomFingerprint(latestRoom);
         const remoteHash = classRoomFingerprint(remote.room);
-        const baseline = meta.lastSyncedHash;
+        const baseline = latestMeta.lastSyncedHash;
+        const meta = latestMeta;
+
+        // Adding a colleague/device bumps the server revision even if the
+        // encrypted class contents did NOT change. Do not label a teacher's
+        // unsent weekly lesson as a conflicting edit in this case.
+        const metadataOnlyRevision = Boolean(
+          baseline && remoteHash === baseline && remote.detail.revision > meta.revision
+        );
+        if (meta.syncStatus === 'conflict' && localHash !== baseline && remoteHash !== baseline) {
+          // Genuine competing lesson changes: no automatic overwrite.
+          return;
+        }
 
         if (remote.detail.revision > meta.revision) {
-          if (baseline && localHash !== baseline && meta.role !== 'viewer') {
+          if (baseline && localHash !== baseline) {
+            if (metadataOnlyRevision && meta.role !== 'viewer') {
+              setLocalTeamStatus('syncing', 'Neue Teamfreigabe erkannt. Deine lokale Wochenplanung wird ohne Überschreiben abgeglichen.');
+              try {
+                const ready = {
+                  ...latestRoom,
+                  teamTeaching: { ...meta, revision: remote.detail.revision, role: remote.detail.myRole },
+                };
+                const pushed = await pushSharedClass(ready);
+                if (active) updateAfterPush(pushed.revision, localHash);
+              } catch (error: any) {
+                setLocalTeamStatus(
+                  error?.code === 'REVISION_CONFLICT' || error?.status === 409 ? 'conflict' : 'error',
+                  error instanceof Error ? error.message : 'Der gemeinsame Wochenplan konnte noch nicht übertragen werden.',
+                );
+              }
+              return;
+            }
             setLocalTeamStatus(
               'conflict',
               'Die Klasse wurde gleichzeitig auf einem anderen Gerät geändert. Deine lokale Änderung wurde nicht überschrieben.',
             );
             return;
           }
-          applyRemoteRoom(remote.room);
+          applyRemoteRoom(remote.room, latestRoom.id, meta.revision, localHash);
           return;
         }
 
@@ -891,14 +974,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
 
         if (meta.role === 'viewer') {
-          if (localHash !== remoteHash) applyRemoteRoom(remote.room);
+          if (localHash !== remoteHash) applyRemoteRoom(remote.room, latestRoom.id, meta.revision, localHash);
           return;
         }
 
         if (localHash !== baseline) {
           setLocalTeamStatus('syncing');
           try {
-            const pushed = await pushSharedClass(localRoom);
+            const pushed = await pushSharedClass(latestRoom);
             if (active) updateAfterPush(pushed.revision, localHash);
           } catch (error: any) {
             if (error?.code === 'REVISION_CONFLICT' || error?.status === 409) {
@@ -914,7 +997,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           setLocalTeamStatus('synced');
         }
       } catch (error: any) {
-        if (error?.status !== 401 && error?.status !== 403) {
+        if (error?.status === 401 || error?.status === 403) {
+          // A school-mail session can expire while the personal-account sync
+          // remains green. Never silently retain an outdated green team badge.
+          setLocalTeamStatus('error', 'Teamteaching-Anmeldung oder Schulfreigabe fehlt. Bitte im Klassenteam erneut anmelden bzw. die Berechtigung prüfen.');
+        } else {
           setLocalTeamStatus('error', error instanceof Error ? error.message : 'Teamteaching-Sync fehlgeschlagen.');
         }
       } finally {

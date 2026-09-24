@@ -180,28 +180,25 @@ async function clickAnyText(client, text) {
 }
 
 async function clickSidebar(client, label) {
-  const visible = await evaluate(client,
-    'Array.from(document.querySelectorAll("button")).some(button=>{' +
-    'const text=String(button.textContent||"").replace(/\\s+/g," ").trim();' +
-    'const style=getComputedStyle(button); const rect=button.getBoundingClientRect();' +
-    'return text===' + q(label) + '&&style.visibility!=="hidden"&&style.display!=="none"&&rect.width>0&&rect.height>0;' +
-    '})'
-  );
-  if (!visible) {
-    const hasMore = await evaluate(client,
-      'Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").replace(/\\s+/g," ").trim().startsWith("Mehr ("))'
-    );
-    if (hasMore) {
-      await clickButton(client, 'Mehr');
-      await sleep(250);
+  const id = label === 'Wochenplan' ? 'wochenplanung' : label === 'Klasse' ? 'klasse' : null;
+  if (id) {
+    const selector = 'nav button[data-menu-id="' + id + '"]';
+    if (!await evaluate(client, 'Boolean(document.querySelector(' + q(selector) + '))')) {
+      const expanded = await evaluate(client,
+        '(() => {const b=document.querySelector("nav button[title=\\"Alle Bereiche anzeigen\\"]");if(!b)return false;b.click();return true;})()');
+      if (!expanded) throw new Error(client.name + ': could not reveal sidebar ' + label);
+      await waitFor(client, 'expanded sidebar entry ' + label, 'Boolean(document.querySelector(' + q(selector) + '))');
     }
+    const clicked = await evaluate(client,
+      '(() => {const b=document.querySelector(' + q(selector) + ');if(!b)return false;b.click();return true;})()');
+    if (!clicked) throw new Error(client.name + ': could not open sidebar ' + label);
+    await waitFor(client, 'sidebar page ' + label,
+      'Boolean(document.querySelector(' + q(selector + '[aria-current="page"]') + '))');
+    return;
   }
   await clickButton(client, label, true);
-  await waitFor(
-    client,
-    'sidebar page ' + label,
-    'Array.from(document.querySelectorAll("button[aria-current=page]")).some(current=>String(current.textContent||"").replace(/\\s+/g," ").trim()===' + q(label) + ')',
-  );
+  await waitFor(client, 'sidebar page ' + label,
+    'Array.from(document.querySelectorAll("button[aria-current=page]")).some(current=>String(current.textContent||"").replace(/\\s+/g," ").trim()===' + q(label) + ')');
 }
 
 async function clickCheckboxNearText(client, text) {
@@ -334,6 +331,51 @@ async function main() {
     await waitFor(berta, 'shared class decrypted locally', 'document.body?.innerText.includes("Aktuelle Klasse: E2E 1A") && document.body?.innerText.includes("Rolle: editor")', 30000);
     console.log('✓ Lehrkraft B: shared class decrypted locally');
 
+    // Unlike the previous smoke test, check an actual weekly lesson on a
+    // second, separately signed-in teacher account BEFORE any manual push.
+    const weeklyTopic = 'E2E Teamteaching gemeinsamer Wochenplan';
+    await clickSidebar(anna, 'Wochenplan');
+    await waitFor(anna, 'weekly planning grid', 'document.body?.innerText.includes("WOCHENPLANUNG")');
+    await waitFor(anna, 'editable weekly cell', 'Array.from(document.querySelectorAll("svg.lucide-plus")).some(svg=>{let n=svg.parentElement;while(n&&n!==document.body){if(String(n.className||"").includes("group/cell")&&String(n.className||"").includes("min-h-[5.3125rem]"))return true;n=n.parentElement;}return false;})', 30000);
+    const opened = await evaluate(anna,
+      '(() => { for(const svg of document.querySelectorAll("svg.lucide-plus")) { let el=svg.parentElement; while(el && el!==document.body) { if(String(el.className||"").includes("group/cell") && String(el.className||"").includes("min-h-[5.3125rem]")) { el.click(); return true; } el=el.parentElement; } } return false; })()');
+    if (!opened) throw new Error('Could not open first editable weekly cell on teacher A.');
+    await waitFor(anna, 'weekly lesson edit dialog', 'document.body?.innerText.includes("Einheit planen")');
+    await setInputByLabel(anna, 'Was wird gelernt?', weeklyTopic);
+    await clickButton(anna, 'Einheit speichern');
+    await waitFor(anna, 'teacher A saved weekly lesson', 'document.body?.innerText.includes(' + q(weeklyTopic) + ')');
+    await clickSidebar(berta, 'Wochenplan');
+    try {
+      await waitFor(berta, 'teacher B sees teacher A weekly lesson automatically',
+        'document.body?.innerText.includes(' + q(weeklyTopic) + ')', 18000);
+    } catch (failure) {
+      // Diagnose real cross-account failures without reading actual user data:
+      // these browser profiles contain only synthetic E2E classroom records.
+      for (const client of [anna, berta]) {
+        const state = await evaluate(client,
+          '({teamStatus:document.querySelector("[data-testid=weekly-team-status]")?.textContent, ' +
+          'page:document.querySelector("nav button[aria-current=page]")?.getAttribute("data-menu-id"),' +
+          'week:document.querySelector("h1")?.parentElement?.textContent?.slice(0,130)})');
+        const team = await evaluate(client,
+          'fetch("/api/teamteaching/classes",{cache:"no-store"}).then(r=>r.json()).then(j=>(j.classes||[]).map(c=>({id:c.id,revision:c.revision,role:c.myRole,classLabel:c.classLabel})))');
+        console.log('DIAGNOSTIC ' + client.name + ': ' + JSON.stringify({state,team}));
+      }
+      // Distinguish missing automatic refresh from a failed source upload:
+      // never silently turn this failed automatic-sync regression green.
+      await openClassTeam(berta);
+      const manualStatus = await evaluate(berta,
+        'document.body?.innerText.slice(0,1800)');
+      console.log('DIAGNOSTIC teacher B Klassenteam: ' + manualStatus);
+      await clickButton(berta, 'Neueste Version laden');
+      await clickSidebar(berta, 'Wochenplan');
+      const visibleAfterManual = await evaluate(berta,
+        'document.body?.innerText.includes(' + q(weeklyTopic) + ')');
+      console.log('DIAGNOSTIC teacher B receives lesson after manual pull: ' + visibleAfterManual);
+      throw failure;
+    }
+    console.log('✓ Cross-account weekly lesson shared automatically without manual send');
+
+    await openClassTeam(berta);
     await clickButton(berta, 'Änderungen senden');
     await waitFor(berta, 'editor can push encrypted class', 'document.body?.innerText.includes("Änderungen wurden verschlüsselt")', 30000);
     console.log('✓ Lehrkraft B: editor write path accepted');

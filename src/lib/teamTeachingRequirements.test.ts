@@ -51,5 +51,7 @@ test('Hintergrundsync überschreibt Konflikte nicht still', () => {
   assert.match(context, /remote\.detail\.revision > meta\.revision/);
   assert.match(context, /localHash !== baseline/);
   assert.match(context, /syncStatus: 'conflict'|setLocalTeamStatus\(\s*'conflict'/s);
-  assert.match(context, /pushSharedClass\(localRoom\)/);
+  assert.match(context, /pushSharedClass\(latestRoom\)/);
+  assert.match(context, /const latest = syncActiveClass\(currentAppRef\.current\)/);
+  assert.match(context, /classRoomFingerprint\(stillActive\) !== expectedHash/);
 });

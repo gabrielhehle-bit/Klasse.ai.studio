@@ -1,4 +1,5 @@
-import type { AppState } from '../types';
+import type { AppState, ClassRoom } from '../types';
+import { switchClassState } from './appState';
 import { decryptData, encryptData, type EncryptedPayloadV1 } from './crypto';
 import type { VaultRecordV1 } from './vaultService';
 
@@ -173,21 +174,37 @@ export function accountSyncState(state: AppState): AppState {
   return clone;
 }
 
+/** The team server, not a teacher's older personal account snapshot, owns shared class contents. */
+export function hasSharedClassAccountDrift(remote: AppState, local: AppState): boolean {
+  for (const localRoom of local.classes || []) {
+    if (!localRoom.teamTeaching) continue;
+    const remoteRoom = (remote.classes || []).find(room => room.id === localRoom.id);
+    if (!remoteRoom) return true;
+    const { teamTeaching: _localMeta, ...localContent } = localRoom;
+    const { teamTeaching: _remoteMeta, ...remoteContent } = remoteRoom;
+    if (stableSerialize(localContent) !== stableSerialize(remoteContent)) return true;
+  }
+  return false;
+}
+
 export function mergeAccountSyncState(remote: AppState, local: AppState): AppState {
-  const localTeamTeaching = new Map(
+  const localSharedRooms = new Map<string, ClassRoom>(
     (local.classes || [])
-      .filter(room => room.teamTeaching)
-      .map(room => [room.id, room.teamTeaching] as const),
+      .filter(room => Boolean(room.teamTeaching))
+      .map(room => [room.id, room] as const),
   );
   const classes = (remote.classes || []).map(room => {
     const { teamTeaching: _remoteTeamTeaching, ...accountRoom } = room;
-    const deviceLocalTeamTeaching = localTeamTeaching.get(room.id);
-    return deviceLocalTeamTeaching
-      ? { ...accountRoom, teamTeaching: deviceLocalTeamTeaching }
-      : accountRoom;
+    // Retain the FULL class, not just its device-local team metadata. Otherwise
+    // a delayed personal-account refresh can silently replace a colleague's
+    // newer weekly plan with an older copy and then publish that stale copy.
+    return localSharedRooms.get(room.id) || accountRoom;
   });
+  for (const [id, room] of localSharedRooms) {
+    if (!classes.some(candidate => candidate.id === id)) classes.push(room);
+  }
 
-  return {
+  const merged: AppState = {
     ...remote,
     classes,
     currentPage: local.currentPage,
@@ -203,6 +220,17 @@ export function mergeAccountSyncState(remote: AppState, local: AppState): AppSta
       isTafelOpen: local.boardSettings?.isTafelOpen ?? false,
     },
   };
+  // If the shared class is active, also restore its ROOT projection.
+  // syncActiveClass() otherwise writes the stale remote root back into the
+  // protected room, undoing the protection above.
+  const activeSharedId = local.activeClassId && localSharedRooms.has(local.activeClassId)
+    ? local.activeClassId
+    : remote.activeClassId && localSharedRooms.has(remote.activeClassId)
+      ? remote.activeClassId
+      : null;
+  return activeSharedId
+    ? switchClassState({ ...merged, activeClassId: undefined }, activeSharedId)
+    : merged;
 }
 
 function stableSerialize(value: unknown): string {
