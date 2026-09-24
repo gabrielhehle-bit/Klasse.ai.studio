@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { initialAppState, syncActiveClass } from './appState';
 import { accountSyncState, hasSharedClassAccountDrift, mergeAccountSyncState } from './accountSyncService';
 import { decryptSharedClass, encryptSharedClass, generateSharedClassKey } from './teamTeachingCrypto';
+import { classRoomFingerprint } from './teamTeachingCrypto';
+import { adoptAcknowledgedTeamRoom } from './teamTeachingProjection';
 
 const oldPlan = { 39: { Montag: { 0: { fach: 'Deutsch', thema: 'Alte Kopie im persönlichen Konto' } } } };
 const newPlan = { 39: { Montag: { 0: { fach: 'Deutsch', thema: 'Neu im Team geplant' } } } };
@@ -61,4 +63,22 @@ test('Encrypted shared-class snapshots include the actual weekly plan for anothe
   const otherTeacher = await decryptSharedClass(payload, key);
   assert.equal(otherTeacher.wochenplanung[39].Montag[0].thema, 'Neu im Team geplant');
   assert.equal(otherTeacher.teamTeaching, undefined);
+});
+
+test('Adopting an acknowledged shared classroom normalizes imported fields without creating phantom changes', () => {
+  const remote = asTeam(makeState(oldPlan));
+  const initialRoom = { ...remote.classes[0], teamTeaching: {
+    ...remote.classes[0].teamTeaching, lastSyncedHash: classRoomFingerprint(remote.classes[0]),
+  } };
+  const colleague = makeState({ 39: { Dienstag: { 1: { fach: 'Sport', thema: 'Meine andere Klasse' } } } });
+  const colleagueOwnRoom = { ...colleague.classes[0], id: 'colleague-own', name: 'Andere Klasse' };
+  const adopted = adoptAcknowledgedTeamRoom({
+    ...colleague, activeClassId: colleagueOwnRoom.id, classes: [colleagueOwnRoom],
+  } as any, initialRoom);
+  const target = adopted.classes.find((room: any) => room.id === initialRoom.id)!;
+  assert.equal(target.wochenplanung[39].Montag[0].thema, 'Alte Kopie im persönlichen Konto');
+  assert.equal(classRoomFingerprint(target), target.teamTeaching?.lastSyncedHash);
+  const stable = syncActiveClass(adopted);
+  assert.equal(classRoomFingerprint(stable.classes.find((room: any) => room.id === initialRoom.id)!),
+    target.teamTeaching?.lastSyncedHash, 'Repeated app hydration must not manufacture a new classroom edit');
 });
