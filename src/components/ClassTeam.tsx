@@ -815,7 +815,8 @@ export default function ClassTeam() {
 
           {activeSummary.myRole === 'owner' && (
             <div className="border-t border-[var(--border)] pt-4">
-              <button onClick={stopSharing} disabled={Boolean(busy)} className="text-sm font-bold text-rose-600">Teamteaching für diese Klasse beenden</button>
+              {activeSummary.members.length > 1 && <p className="text-xs font-semibold text-amber-700">Solange weitere Lehrpersonen zur Teamklasse gehören, darf die gemeinsame Klasse nicht gelöscht werden.</p>}
+              <button onClick={stopSharing} disabled={Boolean(busy) || activeSummary.members.length > 1} className="text-sm font-bold text-rose-600 disabled:cursor-not-allowed disabled:opacity-40">Teamteaching für diese Klasse beenden</button>
             </div>
           )}
         </section>
