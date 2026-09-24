@@ -57,6 +57,7 @@ import {
 import { registerActiveAppStateGetter } from '../services/aiService';
 import { ensureRegisteredTeamTeachingDevice, pullSharedClass, pushSharedClass } from '../lib/teamTeachingService';
 import { classRoomFingerprint } from '../lib/teamTeachingCrypto';
+import { adoptAcknowledgedTeamRoom } from '../lib/teamTeachingProjection';
 import { normalizeSchulart } from '../lib/schularten';
 
 localforage.config({
@@ -861,11 +862,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             syncMessage: undefined,
           },
         };
-        const classes = [...(current.classes || [])];
-        const index = classes.findIndex(candidate => candidate.id === room.id);
-        if (index >= 0) classes[index] = room;
-        else classes.push(room);
-        return switchClassState({ ...current, classes, activeClassId: undefined }, room.id);
+        return adoptAcknowledgedTeamRoom({ ...current, activeClassId: undefined }, room);
       });
     };
 
