@@ -2414,6 +2414,11 @@ html body [data-style] .klassio-cockpit-shell .klassio-widget-dock .klassio-dock
   background-color: #e0e7ff !important;
   color: #312e81 !important;
 }
+html body [data-style] .klassio-cockpit-shell .klassio-student-sidebar > div[class*="border-b"],
+html body .klassio-cockpit-shell .klassio-student-sidebar > div[class*="border-b"] {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
 html body [data-style] .klassio-cockpit-shell .klassio-student-sidebar .bg-white,
 html body [data-style] .klassio-cockpit-shell .klassio-student-sidebar .bg-slate-50 {
   background-color: #ffffff !important;
