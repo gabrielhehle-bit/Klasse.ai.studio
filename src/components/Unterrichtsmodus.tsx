@@ -11028,6 +11028,8 @@ ${content}
                                           currentIsLight={currentIsLight}
                                           showSettings={widgetSettingsOpenId === widget.id}
                                           onCloseSettings={() => setWidgetSettingsOpenId(null)}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
@@ -11469,6 +11471,9 @@ ${content}
                                             )
                                           }
                                           currentIsLight={currentIsLight}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onOpenSettings={() => setWidgetSettingsOpenId(widget.id)}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
@@ -11977,6 +11982,8 @@ ${content}
                                             )
                                           }
                                           currentIsLight={currentIsLight}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
