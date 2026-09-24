@@ -188,6 +188,7 @@ import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
 import { PLANNED_COCKPIT_WIDGETS } from "./cockpit/plannedCockpitCatalog";
 import ClassroomWeeklyPlanWidget from "./cockpit/widgets/ClassroomWeeklyPlanWidget";
 import HomeworkWidget from "./cockpit/widgets/HomeworkWidget";
+import StarsReviewWidget from "./cockpit/widgets/StarsReviewWidget";
 import { getCheckInMode, getCheckInPreferences } from "../lib/checkInWidgetMode";
 import { getRandomNameWidgetPreferences } from "../lib/randomNameWidgetModel";
 import { getGroupWidgetPreferences, applyGroupWidgetPreference, type GroupWidgetPreferences } from "../lib/groupWidgetPreferences";
@@ -2590,6 +2591,7 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     h: 48,
     visible: false,
   },
+  { id: "widget-starsreview", type: "starsreview", x: 32, y: 25, w: 55, h: 65, visible: false },
 ];
 
 const DEFAULT_WORKSPACE_PROFILES: any[] = [];
@@ -2625,6 +2627,7 @@ const loadAndSanitizeLayout = (layout: any): CockpitWidgetConfig[] => {
     "aiquiz",
     "riddle",
     "scoreboard",
+    "starsreview",
     "wheel",
     "breathing",
     "kidweather",
@@ -3344,6 +3347,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       "weather",
       "aiquiz",
       "riddle",
+      "starsreview",
       "toothbrush",
       "challenge",
       "compass",
@@ -8713,6 +8717,7 @@ ${content}
                                         type: "scoreboard",
                                         category: "interactivity",
                                       },
+                                      { type: "starsreview", category: "interactivity" },
                                       {
                                         type: "challenge",
                                         category: "interactivity",
@@ -9090,6 +9095,12 @@ ${content}
                                         type: "scoreboard",
                                         label: "🏆 Gruppen-Punkte",
                                         desc: "Team-Punktetafel",
+                                        category: "interactivity",
+                                      },
+                                      {
+                                        type: "starsreview",
+                                        label: "⭐ Sterne der Woche",
+                                        desc: "Sterne nach Woche, Monat oder eigener Zeit, Top 3, Top 10 und einzelne Fächer",
                                         category: "interactivity",
                                       },
                                       {
@@ -12091,6 +12102,15 @@ ${content}
                                     case "aiquiz":
                                       return (
                                         <AIQuizWidgetContent
+                                          widget={widget}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
+                                          currentIsLight={currentIsLight}
+                                        />
+                                      );
+
+                                    case "starsreview":
+                                      return (
+                                        <StarsReviewWidget
                                           widget={widget}
                                           onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}

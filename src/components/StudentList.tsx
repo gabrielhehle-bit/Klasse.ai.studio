@@ -1445,13 +1445,24 @@ export default function StudentList() {
                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-4">
                      <div className="space-y-0.5">
                        <label className="text-[0.5625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-1">Geburtsdatum</label>
-                       <input 
-                         type="date"
-                         aria-label="Geburtsdatum"
-                         className="input-field py-2 sm:py-3"
-                         value={toDateInputValue(editingStudent?.geburtstag)}
-                         onChange={e => setEditingStudent({...editingStudent, geburtstag: e.target.value})}
-                       />
+                       <input
+                          key={editingStudent?.id || 'new-student-birthday'}
+                          type="date"
+                          aria-label="Geburtsdatum"
+                          data-testid="student-birthday-input"
+                          className="input-field py-2 sm:py-3"
+                          defaultValue={toDateInputValue(editingStudent?.geburtstag)}
+                          onChange={event => {
+                            // Browser date fields are edited one segment at a time.
+                            // Never reset their partial input by controlling the value.
+                            const value = event.currentTarget.value;
+                            if (value && toDateInputValue(value) === value) {
+                              setEditingStudent(previous => previous ? { ...previous, geburtstag: value } : previous);
+                            } else if (!value && !event.currentTarget.validity.badInput) {
+                              setEditingStudent(previous => previous ? { ...previous, geburtstag: '' } : previous);
+                            }
+                          }}
+                        />
                      </div>
                      <div className="space-y-0.5">
                        <label className="text-[0.5625rem] font-black uppercase tracking-[0.1em] text-slate-400 px-1">SV-Nummer</label>
