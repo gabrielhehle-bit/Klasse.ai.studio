@@ -46,6 +46,7 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   stopwatch: { minW: 280, minH: 200, prefW: 380, prefH: 300 },
   klassenglas: { minW: 280, minH: 220, prefW: 380, prefH: 340 },
   scoreboard: { minW: 280, minH: 220, prefW: 380, prefH: 320 },
+  starsreview: { minW: 320, minH: 280, prefW: 680, prefH: 600 },
   calmrain: { minW: 280, minH: 220, prefW: 380, prefH: 320 },
   breathing: { minW: 280, minH: 220, prefW: 380, prefH: 340 },
   soundmachine: { minW: 280, minH: 220, prefW: 380, prefH: 320 },
