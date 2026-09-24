@@ -824,6 +824,7 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
           id="task-editor-panel"
           className="fixed inset-0 z-[99999] mx-auto flex w-full max-w-4xl flex-col p-4 bg-slate-50 text-slate-900 dark:bg-neutral-900 dark:text-white overflow-y-auto sm:inset-y-4 sm:rounded-2xl sm:shadow-2xl"
         >
+          {taskError && <p role="alert" className="mb-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-bold text-rose-800">{taskError}</p>}
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-neutral-800 pb-3 mb-3">
             <div className="flex items-center gap-2">
               <Settings className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
@@ -956,7 +957,8 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
