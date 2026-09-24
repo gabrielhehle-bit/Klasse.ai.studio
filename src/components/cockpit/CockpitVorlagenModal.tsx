@@ -78,6 +78,7 @@ const WIDGET_NAME_MAP: Record<string, string> = {
   aiquiz: "KI-Quiz",
   riddle: "Rätsel",
   scoreboard: "Punkte",
+  starsreview: "Sterne der Woche",
   wheel: "Glücksrad",
   breathing: "Atemübung",
   drawing: "Whiteboard",
