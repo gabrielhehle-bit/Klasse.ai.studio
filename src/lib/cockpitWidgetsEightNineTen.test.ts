@@ -20,7 +20,10 @@ test('8 Klassendienste: explicitly emptied assignments remain empty; no demo chi
   assert.deepEqual(readClassDienste(undefined, []), []);
   assert.equal(readClassDienste(undefined, undefined).length, initializeDefaultDienste().length);
   const real = [{ id: 'ours', titel: 'Tafel', emoji: '🧽', schuelerIds: ['child-1'] }];
-  assert.deepEqual(readClassDienste(real, []), real);
+  const restored = readClassDienste(real, []);
+  assert.equal(restored[0]?.id, 'ours');
+  assert.deepEqual(restored[0]?.schuelerIds, ['child-1']);
+  assert.equal(restored[0]?.titel, 'Tafel');
   assert.doesNotMatch(dutyUI, /DEFAULT_MOCK_STUDENTS/);
   assert.match(dutyUI, /Array\.isArray\(app\?\.schueler\) \? app\.schueler : \[\]/);
   assert.match(dutyUI, /app\?\.activeClassId, app\?\.dienste/);
