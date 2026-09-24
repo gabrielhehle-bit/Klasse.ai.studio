@@ -168,7 +168,7 @@ export class ClassCollaborationStore {
     } catch (error: any) {
       if (error?.code !== 'EEXIST') throw error;
       const previous = JSON.parse(await fs.readFile(filename, 'utf8')) as SharedClassHistoryEntry;
-      if (JSON.stringify(previous) !== JSON.stringify(archived)) throw new Error('HISTORY_INTEGRITY_ERROR');
+      if (previous.revision !== archived.revision || JSON.stringify(previous.encryptedSnapshot) !== JSON.stringify(archived.encryptedSnapshot)) throw new Error('HISTORY_INTEGRITY_ERROR');
     }
   }
 
