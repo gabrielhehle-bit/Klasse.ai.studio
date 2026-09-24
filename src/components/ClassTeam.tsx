@@ -342,7 +342,7 @@ export default function ClassTeam() {
         teamTeaching: { ...local.teamTeaching, revision: latest.detail.revision, role: latest.detail.myRole,
           lastSyncedHash: beforeHash },
       };
-      const saved = await pushSharedClass(restoreRoom);
+      const saved = await pushSharedClass(restoreRoom, { allowContentRemoval: true });
       const restored: ClassRoom = {
         ...restoreRoom,
         teamTeaching: { ...restoreRoom.teamTeaching!, revision: saved.revision,
