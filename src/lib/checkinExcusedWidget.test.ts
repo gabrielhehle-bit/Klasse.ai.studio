@@ -22,7 +22,7 @@ test('teacher can select Entschuldigt, switch from Fehlt, and see the saved excu
   assert.equal(getStudentAttendanceStatus(pupil.id, restored, DATE).status, 'absent');
   assert.deepEqual(restored.anwesenheit[pupil.id][DATE], { '1': 'e', '2': 'e' });
   assert.deepEqual(restored.anwesenheit[pupil.id]['2026-09-23'], { '1': 'a' });
-  assert.equal(computeKidAttendanceSummary([pupil], restored, DATE).absent, 1);
+  assert.equal(computeKidAttendanceSummary([pupil as any], restored, DATE).absent, 1);
 });
 
 test('changing an excused entry to Da or Offen only updates the specified day', () => {
