@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { validClassroomQuiz, validClassroomRiddle } from '../../lib/classroomQuizRiddle';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Mic, MicOff, Search, Sparkles, AlertTriangle, Plus, Minus, 
@@ -3113,8 +3114,9 @@ const safeExtractJSON = (text: string) => {
   }
 };
 
-export const AIQuizWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [topic, setTopic] = useState("Tiere");
+export const AIQuizWidgetContent: React.FC<{ widget: any, onUpdate?: (updates: any) => void, currentIsLight: boolean }> = ({ widget, onUpdate, currentIsLight }) => {
+  const storedQuiz = validClassroomQuiz(widget?.settings?.classroomQuiz);
+  const [topic, setTopic] = useState(storedQuiz?.t || "Tiere");
   const [selectedCategory, setSelectedCategory] = useState("Zufall");
   const [customTopic, setCustomTopic] = useState("");
   const [popularTopics, setPopularTopics] = useState<string[]>([
@@ -3125,13 +3127,27 @@ export const AIQuizWidgetContent: React.FC<{ widget: any, currentIsLight: boolea
     "Multiplikation",
     "Wald"
   ]);
-  const [question, setQuestion] = useState("Welches Tier ist das größte landlebende Säugetier?");
-  const [options, setOptions] = useState(["Elefant", "Giraffe", "Nashorn", "Nilpferd"]);
-  const [answer, setAnswer] = useState(0);
+  const [question, setQuestion] = useState(storedQuiz?.q || "Welches Tier ist das größte landlebende Säugetier?");
+  const [options, setOptions] = useState<string[]>(storedQuiz?.o || ["Elefant", "Giraffe", "Nashorn", "Nilpferd"]);
+  const [answer, setAnswer] = useState(storedQuiz?.a ?? 0);
   const [selected, setSelected] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
-  const [difficulty, setDifficulty] = useState<'Leicht' | 'Mittel' | 'Schwer'>('Mittel');
+  const [difficulty, setDifficulty] = useState<'Leicht' | 'Mittel' | 'Schwer'>(() =>
+    ['Leicht', 'Mittel', 'Schwer'].includes(widget?.settings?.quizDifficulty)
+      ? widget.settings.quizDifficulty : 'Mittel');
+  const saveQuestion = (candidate: unknown, chosenDifficulty: 'Leicht' | 'Mittel' | 'Schwer') => {
+    const valid = validClassroomQuiz(candidate);
+    if (!valid) return false;
+    setTopic(valid.t);
+    setQuestion(valid.q);
+    setOptions(valid.o);
+    setAnswer(valid.a);
+    if (onUpdate && widget?.id) onUpdate({ settings: {
+      ...(widget.settings || {}), classroomQuiz: valid, quizDifficulty: chosenDifficulty,
+    } });
+    return true;
+  };
 
   const categories = [
     { id: "Zufall", label: "🎲 Zufall" },
@@ -3143,6 +3159,7 @@ export const AIQuizWidgetContent: React.FC<{ widget: any, currentIsLight: boolea
   ];
 
   const generateNew = async (forcedCategory?: string, forcedDifficulty?: 'Leicht' | 'Mittel' | 'Schwer') => {
+    if (isLoading) return;
     setIsLoading(true);
     setSelected(null);
     setFeedbackMessage(null);
@@ -3162,12 +3179,7 @@ Strikte JSON-Struktur:
       const response = await askAI('ki-quiz', prompt);
       if (response) {
         const data = safeExtractJSON(response.trim());
-        if (data && data.q && data.o && Array.isArray(data.o) && data.a !== undefined) {
-          setTopic(data.t || catToUse);
-          setQuestion(data.q);
-          setOptions(data.o);
-          setAnswer(Number(data.a));
-        }
+        if (!saveQuestion(data, diffToUse)) throw new Error('Ungültige Quizfrage erhalten');
       }
     } catch (err) {
       console.error("AI Quiz generation error:", err);
@@ -3178,15 +3190,13 @@ Strikte JSON-Struktur:
         { t: "Mathe", q: "Wie viele Minuten hat eine ganze Stunde?", o: ["60 Minuten", "100 Minuten", "50 Minuten", "120 Minuten"], a: 0 }
       ];
       const selectedFallback = fallbackQuestions[Math.floor(Math.random() * fallbackQuestions.length)];
-      setTopic(selectedFallback.t);
-      setQuestion(selectedFallback.q);
-      setOptions(selectedFallback.o);
-      setAnswer(selectedFallback.a);
+      saveQuestion(selectedFallback, diffToUse);
     }
     setIsLoading(false);
   };
 
   const handleSelect = (idx: number) => {
+    if (isLoading || selected !== null || idx < 0 || idx >= options.length) return;
     setSelected(idx);
     if (idx === answer) {
       setFeedbackMessage("🎉 Richtig gelöst! Großartig gemacht! 🌟");
@@ -3388,17 +3398,58 @@ Strikte JSON-Struktur:
   );
 };
 
-export const RiddleWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+/** One visible Quiz & Rätsel entry; older standalone AI-Quiz widgets remain readable. */
+export const RiddleWidgetContent: React.FC<{
+  widget: any; onUpdate?: (updates: any) => void; currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
+  const [activePanel, setActivePanel] = useState<'riddle' | 'quiz'>(
+    widget?.settings?.quizRiddlePanel === 'quiz' ? 'quiz' : 'riddle');
+  const selectPanel = (panel: 'riddle' | 'quiz') => {
+    setActivePanel(panel);
+    if (onUpdate && widget?.id) onUpdate({ settings: {
+      ...(widget.settings || {}), quizRiddlePanel: panel,
+    } });
+  };
+  return <div className="flex h-full w-full min-h-0 flex-col">
+    <nav role="group" aria-label="Quiz und Rätsel" className="grid shrink-0 grid-cols-2 gap-1 p-2">
+      <button type="button" aria-pressed={activePanel === 'riddle'} onClick={() => selectPanel('riddle')}
+        className={`min-h-11 rounded-xl px-2 text-xs font-bold ${activePanel === 'riddle' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-900 dark:bg-zinc-800 dark:text-white'}`}>
+        Rätsel
+      </button>
+      <button type="button" aria-pressed={activePanel === 'quiz'} onClick={() => selectPanel('quiz')}
+        className={`min-h-11 rounded-xl px-2 text-xs font-bold ${activePanel === 'quiz' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-900 dark:bg-zinc-800 dark:text-white'}`}>
+        Quiz
+      </button>
+    </nav>
+    <div className="min-h-0 flex-1">
+      {activePanel === 'quiz'
+        ? <AIQuizWidgetContent widget={widget} onUpdate={onUpdate} currentIsLight={currentIsLight} />
+        : <ClassroomRiddleGame widget={widget} onUpdate={onUpdate} currentIsLight={currentIsLight} />}
+    </div>
+  </div>;
+};
+
+const ClassroomRiddleGame: React.FC<{ widget: any, onUpdate?: (updates: any) => void, currentIsLight: boolean }> = ({ widget, onUpdate, currentIsLight }) => {
   const [revealed, setRevealed] = useState(false);
   const [hintsRevealed, setHintsRevealed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [riddleCategory, setRiddleCategory] = useState("Zufall");
   const [customRiddleTopic, setCustomRiddleTopic] = useState("");
-  const [item, setItem] = useState<{q: string, a: string, emoji: string}>({
-    q: "Was hat einen Hals, aber keinen Kopf?", 
-    a: "Eine Flasche", 
-    emoji: "Flasche 🍾"
-  });
+  const [item, setItem] = useState<{q: string, a: string, emoji: string}>(
+    () => validClassroomRiddle(widget?.settings?.classroomRiddle) || {
+      q: "Was hat einen Hals, aber keinen Kopf?",
+      a: "Eine Flasche",
+      emoji: "Flasche 🍾",
+    });
+  const saveRiddle = (candidate: unknown) => {
+    const valid = validClassroomRiddle(candidate);
+    if (!valid) return false;
+    setItem(valid);
+    if (onUpdate && widget?.id) onUpdate({ settings: {
+      ...(widget.settings || {}), classroomRiddle: valid,
+    } });
+    return true;
+  };
 
   const categories = [
     { id: "Zufall", label: "🎲 Alles" },
@@ -3409,6 +3460,7 @@ export const RiddleWidgetContent: React.FC<{ widget: any, currentIsLight: boolea
   ];
 
   const generateNew = async (forcedCategory?: string) => {
+    if (isLoading) return;
     setIsLoading(true);
     setRevealed(false);
     setHintsRevealed(false);
@@ -3426,9 +3478,7 @@ Strikte JSON-Struktur:
       const response = await askAI('ki-raetsel', prompt);
       if (response) {
         const data = safeExtractJSON(response.trim());
-        if (data && data.q && data.a) {
-          setItem(data);
-        }
+        if (!saveRiddle(data)) throw new Error('Ungültiges Rätsel erhalten');
       }
     } catch (err) {
       console.error("AI Riddle error", err);
@@ -3457,7 +3507,7 @@ Strikte JSON-Struktur:
 
       const selectedCat = catToUse === "Zufall" ? ["Tiere", "Schule", "Natur", "Scherzfragen"][Math.floor(Math.random() * 4)] : catToUse;
       const list = offlineRiddles[selectedCat] || offlineRiddles["Scherzfragen"];
-      setItem(list[Math.floor(Math.random() * list.length)]);
+      saveRiddle(list[Math.floor(Math.random() * list.length)]);
     }
     setIsLoading(false);
   };
