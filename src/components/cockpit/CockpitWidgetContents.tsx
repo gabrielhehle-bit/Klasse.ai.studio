@@ -3796,7 +3796,7 @@ export const WheelWidgetContent: React.FC<{
   widget: any;
   app?: any;
   currentIsLight: boolean;
-  onUpdate?: (updates: any) => void;
+  onUpdate: (updates: any) => void;
 }> = ({ widget, app, currentIsLight, onUpdate }) => {
   return (
     <WheelWidget
