@@ -45,6 +45,22 @@ export function describeTeamClassChanges(before: ClassRoom, after: ClassRoom, li
     if (changes.length >= limit || Object.is(a, b)) return;
     const same = JSON.stringify(a) === JSON.stringify(b);
     if (same) return;
+    // Lists with stable IDs (students, homework, observations, notes) can be previewed
+    // item by item even though safe automatic merges still treat a modified list atomically.
+    if (depth < 7 && Array.isArray(a) && Array.isArray(b)
+      && a.length <= 500 && b.length <= 500
+      && [...a, ...b].every(item => item && typeof item === 'object'
+        && (typeof item.id === 'string' || typeof item.id === 'number'))
+      && new Set(a.map(item => String(item.id))).size === a.length
+      && new Set(b.map(item => String(item.id))).size === b.length) {
+      const prior = new Map(a.map(item => [String(item.id), item]));
+      const next = new Map(b.map(item => [String(item.id), item]));
+      for (const key of new Set([...prior.keys(), ...next.keys()])) {
+        if (changes.length >= limit) break;
+        visit(prior.get(key), next.get(key), [...parts, key], depth + 1);
+      }
+      return;
+    }
     if (depth < 7 && a && b && typeof a === 'object' && typeof b === 'object'
       && !Array.isArray(a) && !Array.isArray(b)) {
       const old = a as Record<string, unknown>;
