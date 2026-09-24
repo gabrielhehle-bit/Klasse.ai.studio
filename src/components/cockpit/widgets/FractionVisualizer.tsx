@@ -34,6 +34,8 @@ export interface FractionVisualizerProps {
   widget?: CockpitWidgetConfig;
   onUpdate?: (updates: Partial<CockpitWidgetConfig>) => void;
   currentIsLight?: boolean;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
 }
 
 const COMMON_PRESETS: FractionValue[] = [
@@ -55,6 +57,8 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
   widget,
   onUpdate,
   currentIsLight = true,
+  showSettings = false,
+  onCloseSettings,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef);
@@ -423,7 +427,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
         </div>
 
         {/* Modus-Umschalter */}
-        <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+        {showSettings && <div role="group" aria-label="Bruchdarstellung einstellen" className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
           <button
             type="button"
             onClick={() => setMode('circle')}
@@ -460,7 +464,11 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
             <GitCompare className="w-3.5 h-3.5" />
             <span>Vergleich</span>
           </button>
-        </div>
+        </div>}
+        {showSettings && <button type="button" onClick={onCloseSettings}
+          aria-label="Bruch-Einstellungen schließen"
+          className="min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 px-3 text-xs font-semibold">Fertig</button>}
+
       </div>
 
       {/* 2. Hauptbereich je nach Modus */}
