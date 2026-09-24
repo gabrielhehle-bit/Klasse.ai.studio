@@ -156,7 +156,7 @@ class SoundEngine {
 
     const now = ctx.currentTime;
     this.lastPlayTimestamp = Date.now();
-    const clampedVol = Math.max(0.05, Math.min(1.0, volumeFactor));
+    const clampedVol = Math.max(0, Math.min(1.0, Number.isFinite(volumeFactor) ? volumeFactor : 0.7));
 
     const masterGain = ctx.createGain();
     masterGain.gain.setValueAtTime(clampedVol, now);
