@@ -42,6 +42,8 @@ test('Density uses the actual widget width AND height without shrinking unmounte
 test('All widget roots gain flexible width and compact SPACE, but not a global tiny touch-target transform', () => {
   assert.match(stylesheet, /UNIVERSAL COCKPIT SPACE RULES/);
   assert.match(stylesheet, /\.cockpit-widget-content > :is\(div, section, article, main\)/);
+  assert.match(stylesheet, /min-height: 100%/);
+  assert.match(stylesheet, /:only-child/);
   assert.match(stylesheet, /@container \(max-width: 535px\)/);
   assert.match(stylesheet, /@container \(max-width: 345px\)/);
   assert.match(stylesheet, /\[data-widget-density="tight"\]/);
