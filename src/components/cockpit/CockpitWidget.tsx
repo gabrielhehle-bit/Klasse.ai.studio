@@ -5,6 +5,7 @@ import { X, Settings, PenTool, SlidersHorizontal, Check, Maximize2, Minimize2, L
 import { CockpitWidgetConfig } from "../../types";
 import { useApp } from "../../context/AppContext";
 import { WIDGET_MIN_SIZES, getWidgetMinSizeConfig } from "./widgetLayout";
+import { getWidgetViewportDensity, getLegacyWidgetPadding, WIDGET_VIEWPORT_OVERFLOW } from "../../lib/widgetViewport";
 
 interface CockpitWidgetProps {
   widget: CockpitWidgetConfig;
@@ -163,6 +164,8 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   const isFreeMascot = widget.type === "pet" && !isDirect;
   const activeStageRef = isFreeMascot && mascotStageRef ? mascotStageRef : stageRef;
   const widgetRef = useRef<HTMLDivElement>(null);
+  const contentViewportRef = useRef<HTMLDivElement>(null);
+  const [contentPixels, setContentPixels] = useState({ width: 0, height: 0 });
   const dragStartPos = useRef({ x: 0, y: 0, left: 0, top: 0 });
   const resizeStartPos = useRef({ startX: 0, startY: 0, startW: 0, startH: 0 });
   const suppressMascotTap = useRef(false);
@@ -515,6 +518,36 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   const scaleY = renderedH / opt.h;
   const contentScale = Math.min(4, Math.min(scaleX, scaleY));
 
+  // The actual INNER viewport, after the shared header, drives every widget's
+  // responsive rules. Avoid using the board size: two widgets on the same
+  // Smartboard can have completely different available teaching areas.
+  useEffect(() => {
+    const viewport = contentViewportRef.current;
+    if (!viewport) return;
+    let frameId: number | null = null;
+    const measure = () => {
+      const next = { width: Math.round(viewport.clientWidth), height: Math.round(viewport.clientHeight) };
+      setContentPixels(prev =>
+        prev.width === next.width && prev.height === next.height ? prev : next);
+    };
+    measure();
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(() => {
+        if (frameId !== null) cancelAnimationFrame(frameId);
+        frameId = requestAnimationFrame(measure);
+      });
+      observer.observe(viewport);
+      return () => { observer.disconnect(); if (frameId !== null) cancelAnimationFrame(frameId); };
+    }
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [widget.type, isDirect, isFreeMascot]);
+
+  const viewportDensity = getWidgetViewportDensity(contentPixels.width, contentPixels.height);
+  const isLegacyScaled = !isDirect && !isFreeMascot &&
+    !WIDGET_MIN_SIZES[widget.type] && widget.type !== "instruction";
+  const legacyPadding = getLegacyWidgetPadding(contentPixels.width, contentPixels.height);
+
   // Moving a free-standing mascot should feel like picking up the animal, not dragging
   // an invisible widget rectangle. A short tap must still open mascot interactions.
   const handleMascotPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -629,6 +662,8 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       role="group"
       aria-label={`${labelMapping[widget.type] || widget.type} Widget`}
       data-mascot-focused={isFreeMascot && isFocused ? "true" : undefined}
+      data-widget-type={widget.type}
+      data-widget-density={viewportDensity}
       className={`cockpit-widget-container absolute flex flex-col transition-[transform,border-color,shadow,background-color,opacity,border-radius,box-shadow,ring-color] duration-300 ease-out select-none group animate-in fade-in zoom-in-95 ${isFreeMascot ? "cockpit-free-mascot rounded-none border-0 bg-transparent shadow-none ring-0 backdrop-blur-none" : ""} ${
         isDirect || isFreeMascot
           ? "rounded-none border-none bg-transparent shadow-none"
@@ -648,7 +683,9 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
         width: isFreeMascot ? `${mascotPixels}px` : `${renderedW}%`,
         height: isFreeMascot ? `${mascotPixels}px` : `${renderedH}%`,
         zIndex: isFreeMascot ? 120 : isDirect ? 0 : isMaximized ? 9999 : zIndex,
-        touchAction: isDirect || layoutLocked || isFreeMascot ? "auto" : "none",
+        // Drag is restricted to the toolbar / resize handle. Let pupils scroll
+        // overfull widget contents even while the board layout is editable.
+        touchAction: "auto",
       }}
       onClick={onFocus}
       onKeyDown={isFreeMascot ? handleMascotKeyDown : undefined}
@@ -941,25 +978,29 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       </div>
 
       {/* Widget Content Area */}
-      <div className="flex-grow overflow-hidden relative min-h-0">
+      <div ref={contentViewportRef} className="flex-grow overflow-hidden relative min-h-0 min-w-0">
         <div
-          className="absolute inset-0 flex flex-col overflow-auto no-scrollbar"
+          data-widget-content={widget.type}
+          data-density={viewportDensity}
+          className="cockpit-widget-content absolute inset-0 flex min-h-0 min-w-0 flex-col overflow-auto"
           onPointerDown={isFreeMascot ? handleMascotPointerDown : undefined}
           onClickCapture={isFreeMascot ? handleMascotClickCapture : undefined}
           style={
-            isDirect || isFreeMascot || !!WIDGET_MIN_SIZES[widget.type] || widget.type === "instruction"
+            !isLegacyScaled
               ? {
                   width: "100%",
                   height: "100%",
                   padding: "0px",
+                  overflow: WIDGET_VIEWPORT_OVERFLOW,
                 }
               : {
                   transformOrigin: "top left",
                   transform: `scale(${contentScale})`,
                   width: `${100 / contentScale}%`,
                   height: `${100 / contentScale}%`,
-                  padding: "16px",
+                  padding: `${legacyPadding}px`,
                   fontSize: calculateWidgetFontSize(contentScale),
+                  overflow: WIDGET_VIEWPORT_OVERFLOW,
                 }
           }
         >
