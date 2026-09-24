@@ -249,7 +249,7 @@ export default function ClassTeam() {
               revision: summary.revision,
               lastSyncedHash: hash,
               lastSyncedAt: summary.updatedAt,
-              syncStatus: latestHash === hash ? 'synced' : 'idle',
+              syncStatus: latestHash === hash ? ('synced' as const) : ('idle' as const),
               syncMessage: latestHash === hash ? undefined : 'Weitere lokale Änderungen wurden während des Sendens vorgenommen und müssen noch synchronisiert werden.',
             },
           };
