@@ -200,6 +200,19 @@ const getContrastTextClass = (bgColor?: string): string => {
 
 export default function WeeklyPlan() {
   const { app, setApp, setPage } = useApp();
+  // Personal-account sync alone does not confirm that another teacher has the current team revision.
+  const weeklyTeam = app.classes?.find(room => room.id === app.activeClassId)?.teamTeaching;
+  const hasOtherTeamClass = app.classes?.some(room => room.id !== app.activeClassId && Boolean(room.teamTeaching));
+  const weeklyTeamLabel = weeklyTeam?.syncStatus === 'synced'
+    ? 'Teamstand synchronisiert'
+    : weeklyTeam?.syncStatus === 'syncing'
+      ? 'Teamstand wird übertragen'
+      : weeklyTeam?.syncStatus === 'conflict'
+        ? 'Teamkonflikt: Planung nicht geteilt'
+        : weeklyTeam?.syncStatus === 'error'
+          ? 'Teamabgleich fehlgeschlagen'
+          : 'Teamabgleich noch nicht bestätigt';
+
 
   const getFachColorKey = (fachName?: string) => {
     if (!fachName) return 'slate';
@@ -1883,6 +1896,19 @@ export default function WeeklyPlan() {
                   <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[0.625rem] font-extrabold rounded-full">
                     KW {activeKW}
                   </span>
+                  {(weeklyTeam || hasOtherTeamClass) && (
+                    <button type="button" data-testid="weekly-team-status"
+                      onClick={() => setPage('teamteaching')}
+                      title={weeklyTeam?.syncMessage || 'Klassenteam öffnen, um Freigabe, Stand und ggf. einen Konflikt zu prüfen'}
+                      className={`min-h-9 max-w-full rounded-lg border px-2.5 py-1 text-left text-xs font-bold ${weeklyTeam?.syncStatus === 'synced'
+                        ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                        : weeklyTeam?.syncStatus === 'conflict' || weeklyTeam?.syncStatus === 'error'
+                          ? 'border-rose-300 bg-rose-50 text-rose-800'
+                          : 'border-amber-300 bg-amber-50 text-amber-900'}`}
+                    >
+                      👥 {weeklyTeam ? weeklyTeamLabel : 'Eigene Klasse – geteilte Klasse im Klassenteam öffnen'}
+                    </button>
+                  )}
                   {sw && (
                     <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[0.625rem] font-bold rounded-full">
                       SW {sw}
