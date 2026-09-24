@@ -142,8 +142,9 @@ test("Cockpit: weiße Unterrichtsfläche hat direkte Schreibebene und eine gemei
   assert.match(teachingSurface, /externalToolbar/);
   assert.match(teachingSurface, /hideToolbar/);
   assert.match(teachingSurface, /aria-label="Unterrichtsfläche: Text und Papier"/);
-  assert.doesNotMatch(teachingSurface, /setBoardTool\('pen'\)|setBoardTool\('erase'\)/);
-  assert.match(teachingSurface, /active=\{false\}/);
+  assert.match(teachingSurface, /setBoardTool\(boardTool === "pen" \? "select" : "pen"\)/);
+  assert.match(teachingSurface, /setBoardTool\(boardTool === "erase" \? "select" : "erase"\)/);
+  assert.match(teachingSurface, /active=\{boardTool === "pen" \|\| boardTool === "erase"\}/);
   assert.match(teachingSurface, /boardTool === 'text'/);
   assert.doesNotMatch(teachingSurface, /Weiße Smartboard-Fläche/);
 });
