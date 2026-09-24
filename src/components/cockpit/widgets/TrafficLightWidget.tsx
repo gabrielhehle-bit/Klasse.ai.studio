@@ -1,5 +1,7 @@
-import React, { useRef, useMemo, useCallback } from 'react';
+import React, { useRef, useMemo, useCallback, useState } from 'react';
 import { CockpitWidgetConfig } from '../../../types';
+import { NoiseScaleWidget } from './NoiseScaleWidget';
+import { NoiseMeterWidget } from './NoiseMeterWidget';
 import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
 import {
   TRAFFIC_LIGHT_MODES,
@@ -27,16 +29,15 @@ export const TrafficLightWidget: React.FC<TrafficLightWidgetProps> = ({
   const size = useWidgetSize(containerRef);
   useWidgetOverflowGuard('TrafficLightWidget', containerRef);
 
-  // Active mode ID resolved from widget settings or app.ampel_status
+  // Class-wide legacy ampel_status is the shared source of truth so a second
+  // lamp or a synced device does not display a stale widget-local selection.
   const activeModeId: TrafficLightModeId = useMemo(() => {
-    if (widget?.settings?.activeModeId) {
-      return widget.settings.activeModeId;
-    }
-    if (app?.ampel_status) {
-      return migrateLegacyAmpelStatus(app.ampel_status);
-    }
-    return 'leise';
+    if (app?.ampel_status) return migrateLegacyAmpelStatus(app.ampel_status);
+    return migrateLegacyAmpelStatus(widget?.settings?.activeModeId);
   }, [widget?.settings?.activeModeId, app?.ampel_status]);
+  // The selected view is local UI state. Microphone access is NEVER started
+  // when the widget mounts or simply switches views.
+  const [view, setView] = useState<'ampel' | 'vorgabe' | 'pegel'>('ampel');
 
   const activeMode = useMemo(
     () => getTrafficLightMode(activeModeId),
@@ -126,6 +127,27 @@ export const TrafficLightWidget: React.FC<TrafficLightWidgetProps> = ({
   };
 
   const activeTheme = getActiveThemeClasses(activeMode.colorName);
+  const safeSettings = widget?.settings || {};
+  const scaleSettings = {
+    ...safeSettings,
+    activeScaleId: safeSettings.noiseScaleId ?? safeSettings.activeScaleId,
+  };
+  const meterSettings = {
+    ...safeSettings,
+    sensitivity: safeSettings.noiseSensitivity || safeSettings.sensitivity || 'normal',
+  };
+  const updateScale = (updates: any) => {
+    if (onUpdate && widget) onUpdate({ settings: {
+      ...widget.settings,
+      noiseScaleId: updates.settings?.activeScaleId,
+    } });
+  };
+  const updateMeter = (updates: any) => {
+    if (onUpdate && widget) onUpdate({ settings: {
+      ...widget.settings,
+      noiseSensitivity: updates.settings?.sensitivity,
+    } });
+  };
 
   return (
     <div
@@ -136,6 +158,29 @@ export const TrafficLightWidget: React.FC<TrafficLightWidgetProps> = ({
         currentIsLight ? 'bg-slate-50/70' : 'bg-zinc-950/70'
       }`}
     >
+      <nav aria-label="Lautstärke und Arbeitsampel" className="mb-2 grid shrink-0 grid-cols-3 gap-1">
+        {([
+          ['ampel', 'Arbeitsampel'],
+          ['vorgabe', 'Lautstärke'],
+          ['pegel', 'Live-Pegel'],
+        ] as const).map(([key, label]) => <button type="button" key={key}
+          aria-pressed={view === key} title={label}
+          onClick={() => setView(key)}
+          className={`min-h-10 min-w-0 rounded-xl border px-1 py-1 text-[10px] font-bold sm:text-xs ${view === key
+            ? 'border-indigo-400 bg-indigo-100 text-indigo-900'
+            : currentIsLight ? 'border-slate-200 bg-white text-slate-700' : 'border-zinc-700 bg-zinc-900 text-zinc-200'}`}>
+          {label}
+        </button>)}
+      </nav>
+      {view === 'vorgabe' && <div className="min-h-0 flex-1">
+        <NoiseScaleWidget widget={{ ...(widget || {}), settings: scaleSettings }}
+          onUpdate={updateScale} currentIsLight={currentIsLight} />
+      </div>}
+      {view === 'pegel' && <div className="min-h-0 flex-1">
+        <NoiseMeterWidget widget={{ ...(widget || {}), settings: meterSettings }}
+          onUpdate={updateMeter} currentIsLight={currentIsLight} />
+      </div>}
+      {view === 'ampel' && <div className="min-h-0 flex-1">
       {/* COMPACT VIEW (280–379 px) */}
       {isCompact && (
         <div className="flex flex-col justify-between h-full w-full">
@@ -161,6 +206,7 @@ export const TrafficLightWidget: React.FC<TrafficLightWidgetProps> = ({
                   key={m.id}
                   type="button"
                   onClick={() => handleSelectMode(m.id)}
+                  aria-pressed={isCurrent}
                   className={`min-h-[44px] flex flex-col items-center justify-center rounded-xl p-1 transition-all cursor-pointer border ${
                     isCurrent
                       ? `${getActiveThemeClasses(m.colorName).banner} font-black shadow-xs`
@@ -239,6 +285,7 @@ export const TrafficLightWidget: React.FC<TrafficLightWidgetProps> = ({
                   key={m.id}
                   type="button"
                   onClick={() => handleSelectMode(m.id)}
+                  aria-pressed={isCurrent}
                   className={`min-h-[48px] px-3 py-2 rounded-xl border flex items-center gap-2.5 transition-all cursor-pointer ${
                     isCurrent
                       ? `${theme.banner} font-black shadow-sm scale-102`
@@ -264,6 +311,7 @@ export const TrafficLightWidget: React.FC<TrafficLightWidgetProps> = ({
           </div>
         </div>
       )}
+      </div>}
     </div>
   );
 };
