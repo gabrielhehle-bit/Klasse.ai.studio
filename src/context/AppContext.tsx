@@ -871,6 +871,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const current = syncActiveClass(prev);
         const classes = (current.classes || []).map(room => {
           if (room.id !== current.activeClassId || room.teamTeaching?.sharedClassId !== activeTeamSharedId) return room;
+          const latestLocalHash = classRoomFingerprint(room);
           return {
             ...room,
             teamTeaching: {
@@ -878,8 +879,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
               revision,
               lastSyncedHash: hash,
               lastSyncedAt: new Date().toISOString(),
-              syncStatus: 'synced' as const,
-              syncMessage: undefined,
+              syncStatus: latestLocalHash === hash ? 'synced' as const : 'idle' as const,
+              syncMessage: latestLocalHash === hash ? undefined
+                : 'Während des Sendens wurden weitere lokale Änderungen vorgenommen. Sie sind noch nicht im Team bestätigt.',
             },
           };
         });
