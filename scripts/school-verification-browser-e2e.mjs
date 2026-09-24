@@ -308,7 +308,9 @@ async function verifyRandomPickerInRealBrowser(client) {
   }
   await client.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1100, deviceScaleFactor: 1, mobile: false });
   await clickButton(client, 'Fertig', true);
-  await clickButton(client, 'Widget hinzufügen');
+  const openedSettingsPicker = await evaluate(client,
+    String.raw`(() => {const b=document.querySelector('nav[aria-label="Meine Widget-Favoriten"] button[aria-label="Weitere Widgets hinzufügen"]');if(!b)return false;b.click();return true;})()`);
+  if (!openedSettingsPicker) throw new Error('Bottom widget picker unavailable after random-name selection.');
   await clickButton(client, 'Widget-Einstellungen');
   const chosen = await evaluate(client,
     String.raw`(() => {const select=document.querySelector('select[aria-label="Widget für Einstellungen"]');if(!select)return false;select.value='randomname';select.dispatchEvent(new Event('change',{bubbles:true}));return true;})()`);
@@ -386,6 +388,7 @@ async function verifyDirectCockpitNavigation(client) {
   await waitFor(client, 'handwriting paper is rendered on shared board',
     'Boolean(getComputedStyle(document.getElementById("widget-board-stage")).backgroundImage.includes("svg"))');
   await saveScreenshot(client, SCREENSHOT_COCKPIT);
+  await clickButton(client, 'Fertig', true); // Close drawing toolbar before random-name modal.
   await verifyRandomPickerInRealBrowser(client);
   const closed = await evaluate(client,
     '(() => {const b=document.querySelector("button[aria-label=\\\"Lehrercockpit schließen · Zurück zu Heute\\\"]");if(!b)return false;b.click();return true;})()'
