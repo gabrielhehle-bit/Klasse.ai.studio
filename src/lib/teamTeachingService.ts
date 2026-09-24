@@ -247,7 +247,7 @@ export async function pullSharedClass(sharedClassId: string): Promise<{
   };
 }
 
-export async function pushSharedClass(room: ClassRoom): Promise<SharedClassSummary> {
+export async function pushSharedClass(room: ClassRoom, options?: { allowContentRemoval?: boolean }): Promise<SharedClassSummary> {
   const meta = room.teamTeaching;
   if (!meta) throw new Error('Diese Klasse ist nicht für Teamteaching freigegeben.');
   if (meta.role === 'viewer') throw new Error('Diese Teamklasse ist auf diesem Konto nur lesbar.');
@@ -272,10 +272,10 @@ export async function pushSharedClass(room: ClassRoom): Promise<SharedClassSumma
   // never allow that blank projection to replace real pupil, planning or note data.
   const hasEntries = (value: unknown): boolean => Array.isArray(value)
     ? value.length > 0 : !!value && typeof value === 'object' && Object.keys(value).length > 0;
-  if ((hasEntries(existingRoom.schueler) && !hasEntries(room.schueler))
+  if (!options?.allowContentRemoval && ((hasEntries(existingRoom.schueler) && !hasEntries(room.schueler))
     || (hasEntries(existingRoom.wochenplanung) && !hasEntries(room.wochenplanung))
     || (hasEntries(existingRoom.notes) && !hasEntries(room.notes))
-    || (hasEntries(existingRoom.noten) && !hasEntries(room.noten))) {
+    || (hasEntries(existingRoom.noten) && !hasEntries(room.noten)))) {
     throw new Error('Schutz vor Datenverlust: Dieses Gerät zeigt wesentliche Klassendaten leer, obwohl sie im Team vorhanden sind. Senden gesperrt. Bitte im Klassenteam die Unterschiede prüfen.');
   }
   const encryptedSnapshot = await encryptSharedClass(room, classKey);
