@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useWidgetSize } from '../widgetLayout';
 import { useApp } from '../../../context/AppContext';
 import type { CockpitWidgetConfig } from '../../../types';
 import {
@@ -33,6 +34,9 @@ function formatDate(value: string) {
 /** Public presentation is opt-in each time the widget opens: no pupil rankings on the board by default. */
 export default function StarsReviewWidget({ widget, onUpdate, currentIsLight }: Props) {
   const { app } = useApp();
+  const containerRef = useRef<HTMLElement>(null);
+  const size = useWidgetSize(containerRef);
+  const compact = size.width < 540 || size.height < 380;
   const [today, setToday] = useState(() => new Date());
   const [showSettings, setShowSettings] = useState(false);
   const [presenting, setPresenting] = useState(false);
@@ -78,16 +82,16 @@ export default function StarsReviewWidget({ widget, onUpdate, currentIsLight }: 
   };
   const surface = currentIsLight ? 'bg-amber-50 text-slate-900' : 'bg-zinc-900 text-white';
   const button = 'min-h-11 rounded-xl border border-amber-300 bg-white px-3 py-2 text-sm font-bold text-slate-900 hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500';
-  return <section aria-label="Sterne der Klasse im gewählten Zeitraum" className={`flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border-2 border-amber-400 ${surface}`}>
-    <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-amber-400/60 p-3">
+  return <section ref={containerRef} aria-label="Sterne der Klasse im gewählten Zeitraum" className={`flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border-2 border-amber-400 ${surface}`}>
+    <header className={`flex shrink-0 flex-wrap items-center justify-between border-b border-amber-400/60 ${compact ? "gap-1 p-1.5" : "gap-2 p-3"}`}>
       <div className="min-w-0">
-        <h2 className="text-lg font-black">⭐ Unsere gesammelten Sterne</h2>
+        <h2 className={`${compact ? "text-base" : "text-lg"} font-black leading-tight`}>⭐ Unsere gesammelten Sterne</h2>
         <p className="text-xs font-semibold opacity-80">
           {range ? `${formatDate(range.start)} – ${formatDate(range.end)}` : 'Bitte einen gültigen Zeitraum auswählen'}
           {' · '}{settings.subjects.length ? settings.subjects.join(', ') : 'Alle Fächer'}
         </p>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className={`flex flex-wrap ${compact ? "gap-1" : "gap-2"}`}>
         <button type="button" className={button} aria-expanded={showSettings} onClick={() => { setShowSettings(value => !value); setPresenting(false); }}>⚙️ Einstellen</button>
         {presenting && <button type="button" className={button} onClick={() => setPresenting(false)}>🔒 Verbergen</button>}
       </div>
@@ -126,14 +130,14 @@ export default function StarsReviewWidget({ widget, onUpdate, currentIsLight }: 
       <p className="max-w-md text-base font-semibold">Die Sterneauswertung ist vorbereitet. Die Namen und Punktzahlen sind erst nach deiner Freigabe auf der Tafel sichtbar.</p>
       <button type="button" disabled={!range || !children.length} className={`${button} border-amber-600 bg-amber-400 disabled:opacity-40`} onClick={() => setPresenting(true)}>⭐ Ergebnisse jetzt zeigen</button>
       {!children.length && <p className="text-sm font-semibold">In dieser Klasse sind noch keine Kinder eingetragen.</p>}
-    </div> : <div className="min-h-0 flex-1 overflow-y-auto p-3" aria-live="polite">
+    </div> : <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${compact ? "p-1.5" : "p-3"}`} aria-live="polite">
       <p className="mb-3 text-xs font-semibold opacity-80">{settings.limit === 'all' ? 'Alle Kinder' : `Top ${settings.limit}`} · {ranked.length} {ranked.length === 1 ? 'Kind' : 'Kinder'} · dokumentierte Sterne im gewählten Zeitraum</p>
       <ol className="space-y-2">{ranked.map(row => {
         const child = children.find(item => item.id === row.studentId);
         const duplicate = (duplicateFirstNames.get(row.firstName.toLocaleLowerCase('de-AT')) || 0) > 1;
         const label = duplicate && child?.nachname ? `${row.firstName} ${child.nachname.slice(0, 1)}.` : row.firstName;
-        return <li key={row.studentId} className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-amber-300 bg-white px-3 py-2 text-slate-900">
-          <span className="min-w-0 truncate text-base font-extrabold"><span className="mr-2 text-amber-700">{row.rank}.</span>{label}</span>
+        return <li key={row.studentId} className={`flex min-h-12 items-center justify-between rounded-xl border border-amber-300 bg-white py-2 text-slate-900 ${compact ? "gap-1 px-2" : "gap-3 px-3"}`}>
+          <span className={`min-w-0 break-words [overflow-wrap:anywhere] font-extrabold leading-snug ${compact ? "text-sm" : "text-base"}`}><span className="mr-2 text-amber-700">{row.rank}.</span>{label}</span>
           <span className="shrink-0 text-base font-black text-amber-800" aria-label={`${row.stars} Sterne`}>⭐ {row.stars}</span>
         </li>;
       })}</ol>
