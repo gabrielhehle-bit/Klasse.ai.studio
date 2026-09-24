@@ -248,20 +248,36 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
 
   // Responsive Rad-Größe
   const containerRef = useRef<HTMLDivElement>(null);
+  const wheelAreaRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ width: 320, height: 320 });
+  const [wheelAreaSize, setWheelAreaSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
 
   useEffect(() => {
-    if (!containerRef.current) return;
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const { width, height } = entry.contentRect;
-        if (width > 0 && height > 0) {
-          setContainerSize({ width, height });
-        }
+    const container = containerRef.current;
+    const wheelArea = wheelAreaRef.current;
+    if (!container || !wheelArea) return;
+    const measure = () => {
+      const outer = container.getBoundingClientRect();
+      const inner = wheelArea.getBoundingClientRect();
+      if (outer.width > 0 && outer.height > 0) {
+        setContainerSize(previous =>
+          previous.width === Math.round(outer.width) && previous.height === Math.round(outer.height)
+            ? previous : { width: Math.round(outer.width), height: Math.round(outer.height) });
       }
-    });
-    observer.observe(containerRef.current);
+      if (inner.width > 0 && inner.height > 0) {
+        setWheelAreaSize(previous =>
+          previous.width === Math.round(inner.width) && previous.height === Math.round(inner.height)
+            ? previous : { width: Math.round(inner.width), height: Math.round(inner.height) });
+      }
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measure);
+      return () => window.removeEventListener('resize', measure);
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    observer.observe(wheelArea);
     return () => observer.disconnect();
   }, []);
 
@@ -374,7 +390,12 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
   const isLarge = containerSize.width > 560 || containerSize.height > 520;
   // Keep the wheel as large as its actual viewport allows. Do not force a
   // minimum diameter larger than the widget (that clipped small screens).
-  const wheelPxSize = Math.max(0, Math.min(containerSize.width - 16, containerSize.height - 93, 680));
+  // Measure the true flex area *after* header, winner line and spin button.
+  // Fixed height reserves clipped the wheel on short widgets and wasted large ones.
+  const wheelPxSize = Math.max(0, Math.min(
+    wheelAreaSize.width || containerSize.width - 16,
+    wheelAreaSize.height || containerSize.height - 144,
+  ) - 8);
 
   return (
     <div
@@ -426,7 +447,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
           <button
             type="button"
             onClick={() => updateSettings({ soundEnabled: !soundEnabled })}
-            className={`min-h-[28px] min-w-[28px] p-1 rounded-lg border text-xs transition-all cursor-pointer flex items-center justify-center ${
+            className={`min-h-11 min-w-11 p-1 rounded-lg border text-xs transition-all cursor-pointer flex items-center justify-center ${
               soundEnabled
                 ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400'
                 : 'bg-black/5 dark:bg-white/5 border-transparent text-slate-400'
@@ -442,7 +463,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
             type="button"
             onClick={() => setShowConfigModal(true)}
             disabled={isSpinning}
-            className={`min-h-[28px] px-1.5 rounded-lg border text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 active:scale-95 ${
+            className={`min-h-11 min-w-11 px-1.5 rounded-lg border text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-95 ${
               currentIsLight
                 ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
                 : 'bg-zinc-900 hover:bg-zinc-800 border-white/10 text-slate-200'
@@ -459,7 +480,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
       {/* ========================================================================= */}
       {/* MAIN RAD VIEWPORT: Responsives SVG mit Zeiger und Animation               */}
       {/* ========================================================================= */}
-      <div className="flex-grow flex flex-col items-center justify-center my-0.5 min-h-0 relative overflow-hidden">
+      <div ref={wheelAreaRef} className="flex-grow flex flex-col items-center justify-center my-0.5 min-h-0 relative overflow-hidden" aria-label="Glücksradfläche">
         {baseItems.length >= 2 ? (
           <div
             onClick={handleSpin}
@@ -631,7 +652,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
           type="button"
           onClick={handleSpin}
           disabled={isSpinning || !hasEnoughItems}
-          className={`w-full min-h-[34px] sm:min-h-[38px] rounded-lg font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-98 cursor-pointer ${
+          className={`w-full min-h-11 rounded-lg font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-98 cursor-pointer ${
             isSpinning || !hasEnoughItems
               ? 'bg-slate-200 dark:bg-zinc-800 text-slate-400 cursor-not-allowed'
               : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20'
