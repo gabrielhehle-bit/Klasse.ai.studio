@@ -369,7 +369,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
         ? 'bg-emerald-50/90 border-emerald-300 text-emerald-950 shadow-2xs hover:bg-emerald-100/70'
         : 'bg-emerald-950/40 border-emerald-600/50 text-emerald-100 hover:bg-emerald-950/60';
     } else if (status === 'absent') {
-      statusLabel = isPreExistingAbsent ? 'Abwesend' : 'Fehlt';
+      statusLabel = 'Abwesend';
       statusIcon = <UserX size={14} className="text-rose-500 dark:text-rose-400 shrink-0" />;
       cardClasses = currentIsLight
         ? 'bg-rose-50/50 border-rose-200 text-rose-900/80 cursor-not-allowed opacity-85'
@@ -510,21 +510,25 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           </div>
           <div className="flex min-h-14 flex-col justify-center rounded-xl border border-rose-200 bg-rose-50 px-1 text-rose-900">
             <strong className="text-xl tabular-nums leading-none">{summary.absent}</strong>
-            <span className="mt-1 text-xs font-bold">Fehlt</span>
+            <span className="mt-1 text-xs font-bold">Abwesend</span>
           </div>
         </div>
 
         <div className="min-h-0 flex-1 content-center text-center text-xs font-medium leading-snug">
           {summary.isComplete ? 'Alle Kinder sind erfasst.' : `${summary.open} von ${summary.total} Kindern noch offen.`}
         </div>
-        <button
-          type="button"
-          onClick={expandStudentGrid}
-          className="flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50"
-          aria-label={`Ich bin da vergrößern: ${summary.total} Kinder anzeigen und bearbeiten`}
-        >
-          <Maximize2 size={17} aria-hidden="true" /> Alle Kinder öffnen
-        </button>
+        <div className="flex w-full shrink-0 flex-col gap-1.5">
+          <button type="button" onClick={() => setIsTeacherModalOpen(true)}
+            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-2 py-2 text-xs font-black text-white"
+            aria-label="Anwesenheit bearbeiten: Da, Fehlt oder Entschuldigt">
+            <ShieldCheck size={16} aria-hidden="true" /> Da · Fehlt · Entschuldigt
+          </button>
+          <button type="button" onClick={expandStudentGrid}
+            className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-800 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+            aria-label={`Ich bin da vergrößern: ${summary.total} Kinder anzeigen und bearbeiten`}>
+            <Maximize2 size={15} aria-hidden="true" /> Alle Kinder öffnen
+          </button>
+        </div>
         {isTeacherModalOpen && createPortal(renderTeacherModal(), document.body)}
         {isFinalizeModalOpen && renderFinalizeModal()}
         {activeMoodStudent && renderChildMoodModal()}
@@ -597,12 +601,11 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
             type="button"
             onClick={() => setIsTeacherModalOpen(true)}
             className="h-9 px-3 rounded-lg border font-bold text-xs flex items-center gap-1.5 cursor-pointer text-slate-700 dark:text-zinc-300 border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 shadow-2xs"
-            title="Lehrer-Korrekturmodus öffnen"
+            title="Anwesenheit der Kinder bearbeiten: Da, Fehlt, Entschuldigt"
+            aria-label="Anwesenheit bearbeiten: Da, Fehlt oder Entschuldigt"
           >
             <ShieldCheck size={14} className="text-slate-500 dark:text-zinc-400" />
-            <span className={size.isStandard && !size.isLarge ? 'hidden sm:inline' : 'inline'}>
-              Korrigieren
-            </span>
+            <span className="inline">Anwesenheit bearbeiten</span>
           </button>
 
           {/* Abschlussbutton im Header für große Bildschirme */}
@@ -837,12 +840,12 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                     </div>
 
                     {/* Lehrer-Korrekturknöpfe */}
-                    <div role="group" aria-label={`Anwesenheit von ${displayName} bearbeiten`}
-                      className="grid w-full grid-cols-2 gap-2 sm:grid-cols-5">
+                    <div role="group" aria-label={`Anwesenheit von ${displayName}: Da, Fehlt oder Entschuldigt`}
+                      className="grid w-full grid-cols-3 gap-2">
                       <button
                         type="button"
                         onClick={() => handleTeacherSetPresent(student.id)}
-                        className={`min-h-11 px-2.5 rounded-md text-xs font-bold flex items-center gap-1 cursor-pointer border ${
+                        className={`min-h-11 min-w-0 px-1 rounded-md text-xs font-bold flex items-center justify-center gap-1 cursor-pointer border ${
                           status === 'present'
                             ? 'bg-emerald-600 text-white border-emerald-600'
                             : 'bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 hover:bg-emerald-50'
@@ -858,7 +861,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                       <button
                         type="button"
                         onClick={() => handleTeacherSetAbsent(student.id, 'u')}
-                        className={`min-h-11 px-2.5 rounded-md text-xs font-bold flex items-center gap-1 cursor-pointer border ${
+                        className={`min-h-11 min-w-0 px-1 rounded-md text-xs font-bold flex items-center justify-center gap-1 cursor-pointer border ${
                           status === 'absent' && absenceCode === 'u'
                             ? 'bg-rose-600 text-white border-rose-600'
                             : 'bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 hover:bg-rose-50'
@@ -873,7 +876,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                       <button
                         type="button"
                         onClick={() => handleTeacherSetAbsent(student.id, 'e')}
-                        className={`min-h-11 min-w-0 px-2 rounded-md text-xs font-bold flex items-center justify-center cursor-pointer border ${status === 'absent' && absenceCode === 'e'
+                        className={`min-h-11 min-w-0 px-1 rounded-md text-[11px] sm:text-xs font-bold flex items-center justify-center break-words cursor-pointer border ${status === 'absent' && absenceCode === 'e'
                           ? 'bg-amber-500 border-amber-600 text-slate-950'
                           : 'bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 hover:bg-amber-50'}`}
                         title="Als entschuldigt abwesend setzen"
@@ -886,7 +889,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                       <button
                         type="button"
                         onClick={() => handleTeacherResetToOpen(student.id)}
-                        className="min-h-11 px-2 rounded-md text-xs font-medium flex items-center gap-1 cursor-pointer border bg-slate-50 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-100"
+                        className="col-span-2 min-h-11 rounded-md text-xs font-medium flex items-center justify-center gap-1 cursor-pointer border bg-slate-50 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-100"
                         title="Check-In zurücksetzen auf Offen"
                         aria-label={`${displayName}: Offen`}
                         aria-pressed={status === 'open'}
@@ -902,7 +905,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                           const nextDelay = delayMinutes > 0 ? 0 : 5;
                           handleTeacherSetDelay(student.id, nextDelay);
                         }}
-                        className={`min-h-11 px-1.5 rounded-md text-[11px] font-bold border cursor-pointer ${
+                        className={`min-h-11 rounded-md text-[11px] font-bold border cursor-pointer ${
                           delayMinutes > 0
                             ? 'bg-amber-500 text-white border-amber-500'
                             : 'bg-slate-100 dark:bg-zinc-800 border-slate-200 text-slate-500'
