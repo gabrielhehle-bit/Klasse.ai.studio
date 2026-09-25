@@ -697,7 +697,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
           only when intentionally focused/hovered, leaving its artwork centered in the slot. */}
       <div
         onPointerDown={isDirect || isMaximized || layoutLocked ? undefined : handlePointerDownDrag}
-        className={`${isFreeMascot ? "mascot-widget-toolbar absolute inset-x-0 top-0 w-full h-11 border-0 bg-transparent text-inherit opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100" : isDirect ? "absolute top-0 left-0 right-0 h-11 opacity-40 hover:opacity-100 pointer-events-auto border-b-0 bg-black/10 dark:bg-white/10 text-slate-400 backdrop-blur-md rounded-t-xl" : "w-full relative h-11 opacity-100 pointer-events-auto " + (currentIsLight ? "bg-white/95 border-slate-200/60 text-slate-700 shadow-sm backdrop-blur-xl rounded-t-[23px]" : "bg-zinc-900/95 border-white/10 text-neutral-200 shadow-sm backdrop-blur-xl rounded-t-[23px]")} z-40 ${viewportDensity === "tight" && !isFreeMascot ? "px-1.5" : "px-3"} py-1 flex items-center justify-between select-none shrink-0 border-b transition-all duration-300 cursor-default`}
+        className={`${isFreeMascot ? "mascot-widget-toolbar absolute inset-x-0 top-0 w-full h-11 border-0 bg-transparent text-inherit opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100" : isDirect ? "absolute top-0 left-0 right-0 h-11 opacity-40 hover:opacity-100 pointer-events-auto border-b-0 bg-black/10 dark:bg-white/10 text-slate-400 backdrop-blur-md rounded-t-xl" : "w-full relative " + (viewportDensity === "tight" ? "h-9 " : "h-11 ") + "opacity-100 pointer-events-auto " + (currentIsLight ? "bg-white/95 border-slate-200/60 text-slate-700 shadow-sm backdrop-blur-xl rounded-t-[23px]" : "bg-zinc-900/95 border-white/10 text-neutral-200 shadow-sm backdrop-blur-xl rounded-t-[23px]")} z-40 ${viewportDensity === "tight" && !isFreeMascot ? "px-1.5 py-0.5" : "px-3 py-1"} flex items-center justify-between select-none shrink-0 border-b transition-all duration-300 cursor-default`}
         style={{ touchAction: isDirect || layoutLocked ? "auto" : "none" }}
       >
         {/* Left Side: status dot, Title, and Pen icon button placed directly right next to the title label */}
@@ -738,7 +738,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
             />
           )}
 
-          <span className="cockpit-widget-title text-xs font-semibold truncate opacity-90 text-inherit select-none min-w-0" title={labelMapping[widget.type] || widget.type}>
+          <span className={`cockpit-widget-title font-semibold truncate opacity-90 text-inherit select-none min-w-0 ${viewportDensity === "tight" ? "text-[10px]" : "text-xs"}`} title={labelMapping[widget.type] || widget.type}>
             {labelMapping[widget.type] || widget.type.toUpperCase()}
           </span>
 
@@ -801,7 +801,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
               setShowWidgetMenu((value) => !value);
               setShowSizeConfig(false);
             }}
-            className={`w-9 h-9 flex items-center justify-center rounded-lg border shadow-sm transition-all outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 cursor-pointer ${
+            className={`${viewportDensity === "tight" ? "w-8 h-8" : "w-9 h-9"} flex items-center justify-center rounded-lg border shadow-sm transition-all outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 cursor-pointer ${
               showWidgetMenu
                 ? "bg-indigo-600 border-indigo-600 text-white"
                 : currentIsLight
