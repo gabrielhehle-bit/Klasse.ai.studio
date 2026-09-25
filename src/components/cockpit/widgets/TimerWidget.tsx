@@ -465,7 +465,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {/* Ton Toggle Quick */}
             <button
               onClick={handleToggleMute}
-              className={`p-1.5 rounded-lg border text-xs cursor-pointer active:scale-95 transition-all ${
+              className={`min-h-11 min-w-11 p-1.5 rounded-lg border text-xs cursor-pointer active:scale-95 transition-all ${
                 isMuted
                   ? 'bg-rose-500/10 border-rose-500/30 text-rose-500'
                   : currentIsLight ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-zinc-800 border-white/10 text-slate-300'
@@ -829,7 +829,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                   setCustomSecInput((initialSeconds % 60).toString());
                   setIsCustomTimeOpen(true);
                 }}
-                className="flex items-center gap-1 text-indigo-500 hover:text-indigo-600 font-bold cursor-pointer"
+                className="flex min-h-11 items-center gap-1 rounded-lg px-2 text-indigo-500 hover:bg-indigo-50 hover:text-indigo-600 font-bold cursor-pointer dark:hover:bg-indigo-950/30"
               >
                 <Clock size={12} />
                 <span>Eigene Zeit einstellen</span>
@@ -1217,13 +1217,13 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             <div className="flex gap-2">
               <button
                 onClick={() => setIsCustomTimeOpen(false)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800 cursor-pointer"
+                className="flex-1 min-h-11 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800 cursor-pointer"
               >
                 Abbrechen
               </button>
               <button
                 onClick={handleApplyCustomTime}
-                className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                className="flex-1 min-h-11 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
               >
                 <Check size={14} />
                 Übernehmen
@@ -1253,7 +1253,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                 </span>
                 <button
                   onClick={() => setShowSettings(false)}
-                  className="px-2.5 py-1 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 cursor-pointer"
+                  className="min-h-11 px-3 py-1 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 cursor-pointer"
                 >
                   Schließen
                 </button>
@@ -1273,7 +1273,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                     <button
                       key={s.id}
                       onClick={() => handleSelectSound(s.id as AlarmSound)}
-                      className={`py-2 px-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-1 ${
+                      className={`min-h-11 py-2 px-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-1 ${
                         alarmSound === s.id
                           ? 'bg-indigo-500 text-white border-indigo-600 shadow-sm'
                           : currentIsLight
@@ -1301,7 +1301,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                     <button
                       key={m.id}
                       onClick={() => handleSelectVisualMode(m.id as VisualMode)}
-                      className={`py-2 px-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-1 ${
+                      className={`min-h-11 py-2 px-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-1 ${
                         visualMode === m.id
                           ? 'bg-indigo-500 text-white border-indigo-600 shadow-sm'
                           : currentIsLight
@@ -1318,7 +1318,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
 
             <button
               onClick={() => setShowSettings(false)}
-              className="w-full py-2.5 mt-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer transition-all shadow-sm"
+              className="w-full min-h-11 py-2.5 mt-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer transition-all shadow-sm"
             >
               Fertig
             </button>
