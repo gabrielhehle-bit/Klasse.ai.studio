@@ -10127,6 +10127,8 @@ ${content}
 
                             {isMoreOptionsMenuOpen && (
                               <div
+                                role="menu"
+                                aria-label="Weitere Cockpit-Optionen"
                                 className={`absolute right-0 top-12 w-[min(20rem,calc(100vw-1rem))] max-h-[min(72vh,calc(100dvh-6rem))] overflow-y-auto overscroll-contain rounded-2xl border p-2.5 shadow-2xl flex flex-col gap-1.5 z-[1000] ${
                                   currentIsLight
                                     ? "bg-white border-slate-200 text-slate-800 animate-in fade-in slide-in-from-top-2 duration-150"
@@ -10373,6 +10375,8 @@ ${content}
                             {/* Layout Slot Menu Modal if opened */}
                             {isSlotMenuOpen && (
                               <div
+                                role="dialog"
+                                aria-label="Layouts und Schnell-Slots"
                                 className={`absolute top-12 right-0 w-64 rounded-2xl border p-2 shadow-2xl flex flex-col gap-2 z-[1000] ${
                                   currentIsLight
                                     ? "bg-white border-slate-100 animate-in fade-in slide-in-from-top-3 duration-200"
@@ -10386,6 +10390,7 @@ ${content}
                                   <button
                                     type="button"
                                     onClick={() => setIsSlotMenuOpen(false)}
+                                    aria-label="Layouts und Schnell-Slots schließen"
                                     className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 text-xs font-bold dark:hover:bg-white/10"
                                   >
                                     ✕
