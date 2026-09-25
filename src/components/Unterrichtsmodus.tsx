@@ -2947,6 +2947,10 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       return loadAndSanitizeLayout(app.cockpitLayout);
     },
   );
+  // Minimize is intentionally session-local: it never rewrites the saved
+  // widget rectangle or stops timers. Closing remains the persistent action.
+  const [minimizedWidgetIds, setMinimizedWidgetIds] = useState<string[]>([]);
+  useEffect(() => { setMinimizedWidgetIds([]); }, [app.activeClassId]);
   // Widgets bleiben immer frei verschiebbar. So muss im Unterricht kein
   // separater Layout-Modus ein- oder ausgeschaltet werden.
   const isLayoutLocked = false;
@@ -3727,6 +3731,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const handleOpenWidgetInCockpitLayout = (
     type: CockpitWidgetConfig["type"],
   ) => {
+    setMinimizedWidgetIds(current => current.filter(id => cockpitWidgets.find(widget => widget.id === id)?.type !== type));
     // Only the sidebar may provide public plus points now.
     if (type === "studentlist") return;
     setRecentWidgetTypes((previous) => {
@@ -3870,6 +3875,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       return;
     }
     const cleared = cockpitWidgets.map((w) => ({ ...w, visible: false }));
+    setMinimizedWidgetIds([]);
     setCockpitWidgets(cleared);
     setApp((p: any) => ({
       ...p,
@@ -3887,6 +3893,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   };
 
   const executeWidgetClose = (id: string) => {
+    setMinimizedWidgetIds(current => current.filter(widgetId => widgetId !== id));
     setCockpitWidgets((prev) => {
       const updated = prev.map((w) =>
         w.id === id ? { ...w, visible: false } : w,
@@ -7627,7 +7634,7 @@ ${content}
   return (
     <div
       ref={attachCockpitRoot}
-      className={`klassio-cockpit-shell fixed inset-0 z-[1000] ${isFocusModeLightOff ? "is-light-off" : ""} ${currentIsLight ? "" : "cockpit-contrast-dark"} ${true ? (activePultTheme === "custom_theme" ? "" : activePultThemeVars.bg) : activeFokusThemeVars.bg} ${true ? (customTextColor ? "" : activePultThemeVars.textColor) : activeFokusThemeVars.textColor} ${derivedFontClass} overflow-hidden flex flex-col p-2 sm:p-3 gap-2 sm:gap-3`}
+      className={`klassio-cockpit-shell fixed inset-0 z-[1000] ${isFocusModeLightOff ? "is-light-off" : ""} ${currentIsLight ? "" : "cockpit-contrast-dark"} ${true ? (activePultTheme === "custom_theme" ? "" : activePultThemeVars.bg) : activeFokusThemeVars.bg} ${true ? (customTextColor ? "" : activePultThemeVars.textColor) : activeFokusThemeVars.textColor} ${derivedFontClass} overflow-hidden flex flex-col p-1 sm:p-1.5 gap-1`}
       style={{
         backgroundColor:
           activePultTheme === "custom_theme" ? customBgColor : undefined,
@@ -7683,7 +7690,7 @@ ${content}
       />
       {/* HEADER ROOM */}
       <header
-        className={`w-full px-3 sm:px-4 min-h-[50px] py-1.5 flex justify-between items-center relative z-[500] shrink-0 border shadow-sm backdrop-blur-xl rounded-xl gap-2 overflow-visible ${currentIsLight ? "bg-white/90 border-slate-200" : "bg-black/60 border-white/10"} dim-in-focus`}
+        className={`w-full px-2 sm:px-3 min-h-[46px] py-1 flex justify-between items-center relative z-[500] shrink-0 border shadow-sm backdrop-blur-xl rounded-xl gap-2 overflow-visible ${currentIsLight ? "bg-white/90 border-slate-200" : "bg-black/60 border-white/10"} dim-in-focus`}
       >
         {/* Left: Branding & Status */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 flex-initial shrink-0 min-w-0">
@@ -8240,7 +8247,7 @@ ${content}
                   ) : (
                     <div className="flex-1 flex flex-col min-h-0 h-full w-full relative gap-1">
                       {/* Board Utility Toolbar Header (outside stage, prevents overlapping with stage active widgets or drawing board) */}
-                      <div className="flex items-center justify-between gap-1 px-2 py-1 rounded-xl no-print shrink-0 bg-white/95 border border-slate-200 text-slate-900 shadow-sm relative z-50">
+                      <div className="flex min-h-11 items-center justify-between gap-1 px-1.5 py-0.5 rounded-xl no-print shrink-0 bg-white/95 border border-slate-200 text-slate-900 shadow-sm relative z-50">
                         <div className="flex items-center gap-2">
                           <span className={`w-2 h-2 rounded-full ${isLayoutLocked ? "bg-amber-500" : "bg-emerald-500"} animate-pulse`} />
                           <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-neutral-300">
@@ -8248,7 +8255,7 @@ ${content}
                           </h3>
                           <button type="button" onClick={() => setShowBoardTools(open => !open)}
                             aria-expanded={showBoardTools} aria-controls="klassio-board-tools"
-                            className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800">✍️ Schreiben & Papier</button>
+                            className="min-h-10 rounded-xl border border-slate-200 bg-white px-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50">✍️ Schreiben & Papier</button>
                           {isLayoutLocked && (
                             <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                               Fixiert
@@ -10083,13 +10090,21 @@ ${content}
 
 
 
+                          <button type="button" onClick={toggleFullscreen}
+                            className="min-h-10 rounded-xl border border-slate-200 bg-white px-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                            aria-label={isFullscreen ? "Vollbild beenden" : "Vollbild öffnen"}
+                            title={isFullscreen ? "Vollbild beenden" : "Vollbild"}>
+                            {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
+                            <span className="hidden lg:inline ml-1">{isFullscreen ? "Vollbild aus" : "Vollbild"}</span>
+                          </button>
+
                           <button
                             type="button"
                             onClick={() => {
                               setVorlagenStartTab("create");
                               setIsVorlagenModalOpen(true);
                             }}
-                            className={`min-h-11 px-3 rounded-xl border text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                            className={`min-h-10 px-2.5 rounded-xl border text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                               currentIsLight
                                 ? "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
                                 : "bg-zinc-900 border-white/10 text-white/80 hover:bg-zinc-800"
@@ -10106,7 +10121,7 @@ ${content}
                             <button
                               type="button"
                               onClick={() => setIsMoreOptionsMenuOpen((prev) => !prev)}
-                              className={`h-8 px-2.5 rounded-lg border text-[10px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                              className={`min-h-10 px-2.5 rounded-xl border text-[10px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                                 isMoreOptionsMenuOpen
                                   ? "bg-indigo-600 border-indigo-600 text-white"
                                   : currentIsLight
@@ -10542,11 +10557,11 @@ ${content}
                         </div>
                       </div>
 
-                      {/* A single shared toolbar, outside the white teaching surface. */}
+                      {/* Floating writing toolbox: the board keeps its full height. */}
                       <div id="klassio-board-tools"
                         role="toolbar"
                         aria-label="Unterrichtsfläche: Text und Papier"
-                        className={`${showBoardTools || boardTool !== "select" ? "flex" : "hidden"} shrink-0 flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5 text-slate-800 shadow-sm`}
+                        className={`${showBoardTools || boardTool !== "select" ? "flex" : "hidden"} klassio-board-toolbox absolute left-2 top-14 z-[26000] max-h-[calc(100%-4rem)] w-[min(15rem,calc(100%-1rem))] flex-col items-stretch gap-1.5 overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 p-2 text-slate-800 shadow-xl backdrop-blur`}
                       >
                         <button type="button" aria-pressed={boardTool === "pen"}
                           onClick={() => { setBoardTool(boardTool === "pen" ? "select" : "pen"); setIsBoardTextEditing(false); }}
@@ -10711,7 +10726,7 @@ ${content}
 
                         {/* Render active cockpit widgets */}
                         {cockpitWidgets
-                          .filter((w) => w.visible && w.type !== "studentlist")
+                          .filter((w) => w.visible && w.type !== "studentlist" && !minimizedWidgetIds.includes(w.id))
                           .map((widget) => {
                             const zIn = 10 + focusOrder.indexOf(widget.id);
                             const isFocused =
@@ -10731,6 +10746,7 @@ ${content}
                                 onClose={() =>
                                   handleCloseWidget(widget.id, widget.type)
                                 }
+                                onMinimize={() => setMinimizedWidgetIds(current => current.includes(widget.id) ? current : [...current, widget.id])}
                                 onUpdate={(updates) =>
                                   handleUpdateWidgetPos(widget.id, updates)
                                 }
@@ -12428,7 +12444,17 @@ ${content}
                     </div>
                   )}
 
-                  {/* The always-visible student-list toggle is in the bottom dock. */}
+                  {sidebarMode === "hidden" && cockpitView === "cockpit" && (
+                    <button type="button"
+                      onClick={() => changeSidebarMode(prevSidebarMode || "expanded")}
+                      className="klassio-student-edge-tab absolute right-0 top-1/2 z-[160] flex min-h-12 -translate-y-1/2 items-center gap-1 rounded-l-2xl border border-r-0 border-slate-200 bg-white px-2.5 text-sm font-bold text-slate-800 shadow-lg"
+                      aria-label="Schülerliste einblenden"
+                      title="Schülerliste einblenden">
+                      <span aria-hidden="true">👥</span>
+                      <span>{app.schueler?.length || 0}</span>
+                    </button>
+                  )}
+                  {/* Schülerliste bleibt zusätzlich über das Dock erreichbar. */}
                 </div>
 
                 {/* RIGHT COLUMN: STUDENT LIST SIDEBAR */}
@@ -12573,7 +12599,11 @@ ${content}
               onChange={updateQuickBarSettings}
               onReset={resetQuickBarSettings}
               onOpenWidget={(id) => {
-                if (id === "termine") {
+                const minimized = cockpitWidgets.find(widget => widget.type === id && minimizedWidgetIds.includes(widget.id));
+                if (minimized) {
+                  setMinimizedWidgetIds(current => current.filter(widgetId => widgetId !== minimized.id));
+                  bringToFront(minimized.id);
+                } else if (id === "termine") {
                   toggleWidget("termine");
                 } else {
                   handleOpenWidgetInCockpitLayout(id as CockpitWidgetConfig["type"]);
@@ -12583,6 +12613,13 @@ ${content}
               onToggleSidebar={() => changeSidebarMode(sidebarMode === "hidden" ? (prevSidebarMode || "expanded") : "hidden")}
               sidebarOpen={sidebarMode !== "hidden"}
               activeTypes={cockpitWidgets.filter(widget => widget.visible).map(widget => widget.type)}
+              minimizedTypes={cockpitWidgets.filter(widget => minimizedWidgetIds.includes(widget.id)).map(widget => String(widget.type))}
+              onRestoreMinimized={(type) => {
+                const widget = cockpitWidgets.find(candidate => String(candidate.type) === type && minimizedWidgetIds.includes(candidate.id));
+                if (!widget) return;
+                setMinimizedWidgetIds(current => current.filter(widgetId => widgetId !== widget.id));
+                bringToFront(widget.id);
+              }}
               hasClass={Boolean(app.activeClassId)}
             />
           )}
