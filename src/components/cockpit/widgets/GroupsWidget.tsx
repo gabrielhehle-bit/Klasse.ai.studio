@@ -489,7 +489,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
           {!isExpanded && groups.length > 0 && (
             <button type="button" onClick={() => setIsExpanded(true)}
               aria-label="Alle Gruppen anzeigen"
-              className={`${compactGroupWidget ? 'min-h-9 px-2' : 'min-h-11 px-3'} rounded-xl border border-indigo-200 text-xs font-bold text-indigo-700 dark:text-indigo-300`}>
+              className={`min-h-11 px-2 rounded-xl border border-indigo-200 text-xs font-bold text-indigo-700 dark:text-indigo-300`}>
               {compactGroupWidget ? '⛶ Alle' : `Alle ${groups.length} Gruppen anzeigen`}
             </button>
           )}
@@ -499,7 +499,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
               title="Vorherige Gruppeneinteilung wiederherstellen">↶ Rückgängig</button>
           )}
           <button type="button" onClick={() => handleGenerate()}
-            className={`${compactGroupWidget ? 'min-h-9 px-3 py-1 text-xs' : 'min-h-11 px-4 py-2 text-sm'} shrink-0 rounded-xl bg-indigo-600 font-black text-white hover:bg-indigo-700`}>
+            className={`${compactGroupWidget ? 'min-h-11 px-3 py-1 text-xs' : 'min-h-11 px-4 py-2 text-sm'} shrink-0 rounded-xl bg-indigo-600 font-black text-white hover:bg-indigo-700`}>
             {groups.length === 0 ? 'Gruppen bilden' : 'Neu mischen'}
           </button>
         </div>
@@ -579,7 +579,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                       <button
                         key={st.id}
                         onClick={() => handleTogglePause(st.id)}
-                        className={`min-h-[38px] px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center justify-between gap-1 border transition-all cursor-pointer text-left ${
+                        className={`min-h-11 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center justify-between gap-1 border transition-all cursor-pointer text-left ${
                           isPaused
                             ? 'bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300'
                             : currentIsLight
@@ -865,7 +865,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                         <button
                           key={studentId}
                           onClick={() => handleStudentClick(studentId)}
-                          className={`w-full ${compactGroupWidget ? 'min-h-[38px] px-2 py-1 rounded-lg gap-1' : 'min-h-[44px] px-2.5 py-1.5 rounded-xl gap-1.5'} text-left font-bold flex items-center justify-between transition-all cursor-pointer border ${
+                          className={`w-full ${compactGroupWidget ? 'min-h-11 px-2 py-1 rounded-lg gap-1' : 'min-h-[44px] px-2.5 py-1.5 rounded-xl gap-1.5'} text-left font-bold flex items-center justify-between transition-all cursor-pointer border ${
                             isSelected
                               ? 'bg-amber-400 text-stone-900 border-amber-500 shadow-md ring-2 ring-amber-500 scale-[1.02]'
                               : selectedStudentForAction
@@ -899,12 +899,12 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
           {!isExpanded && groupLayout.pageCount > 1 && (
             <nav aria-label="Gruppenseiten" className={`flex shrink-0 items-center justify-between font-bold ${compactGroupWidget ? 'gap-1 text-[10px]' : 'gap-2 text-xs'}`}>
               <button type="button" aria-label="Vorherige Gruppenseite"
-                className={`${compactGroupWidget ? 'min-h-9 px-2' : 'min-h-11 px-3'} rounded-lg border disabled:opacity-40`}
+                className={`min-h-11 px-2 rounded-lg border disabled:opacity-40`}
                 disabled={groupLayout.page === 0}
                 onClick={() => setGroupPage(groupLayout.page - 1)}>← Zurück</button>
               <span aria-live="polite" className="tabular-nums">{groupLayout.page + 1} / {groupLayout.pageCount} · {groups.length} Gruppen</span>
               <button type="button" aria-label="Nächste Gruppenseite"
-                className={`${compactGroupWidget ? 'min-h-9 px-2' : 'min-h-11 px-3'} rounded-lg border disabled:opacity-40`}
+                className={`min-h-11 px-2 rounded-lg border disabled:opacity-40`}
                 disabled={groupLayout.page >= groupLayout.pageCount - 1}
                 onClick={() => setGroupPage(groupLayout.page + 1)}>Weiter →</button>
             </nav>
