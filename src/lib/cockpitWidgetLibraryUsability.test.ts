@@ -31,3 +31,14 @@ test('Widget-Bibliothek: leere Zustände bleiben normal lesbar', () => {
   assert.match(cockpit, /mt-1 max-w-sm text-xs leading-relaxed/);
   assert.doesNotMatch(cockpit, /text-\[7\.5px\] mt-1 max-w-\[240px\]/);
 });
+
+
+test('Widget-Bibliothek: mobile Kopfzeile gibt der Suche eine eigene Zeile', () => {
+  assert.match(cockpit, /klassio-widget-library-heading min-w-0 shrink-0/);
+  assert.match(cockpit, /klassio-widget-library-search relative min-w-0 flex-1/);
+  assert.match(cockpit, /type="search"/);
+  assert.match(cockpit, /data-widget-library-action="settings"/);
+  assert.match(cockpit, /data-widget-library-action="close"/);
+  assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.klassio-widget-library-header \{[\s\S]*flex-wrap: wrap;/);
+  assert.match(css, /\.klassio-widget-library-search \{[\s\S]*order: 3;[\s\S]*flex: 1 0 100%;/);
+});
