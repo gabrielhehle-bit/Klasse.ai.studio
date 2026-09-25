@@ -196,7 +196,7 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`w-full h-full flex flex-col justify-between select-none p-3 overflow-hidden transition-colors ${
+      className={`w-full h-full flex flex-col justify-between select-none ${size.isCompact ? 'p-1.5' : 'p-3'} overflow-hidden transition-colors ${
         currentIsLight ? 'text-slate-800' : 'text-slate-100'
       }`}
     >
@@ -214,7 +214,7 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
         </div>
       )}
       {/* 1. Header / Status Bar */}
-      <div className="flex items-center justify-between gap-2 shrink-0">
+      <div className={`flex items-center justify-between shrink-0 ${size.isCompact ? 'gap-1' : 'gap-2'}`}>
         <div className="flex items-center gap-1.5 min-w-0">
           <Volume2
             size={size.isCompact ? 14 : 16}
@@ -237,12 +237,12 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
       </div>
 
       {/* 2. Main Content Area */}
-      <div className="flex-1 flex flex-col items-center justify-center my-2 min-h-0 w-full">
+      <div className={`flex-1 flex flex-col items-center justify-center min-h-0 w-full ${size.isCompact ? 'my-0.5' : 'my-2'}`}>
         {/* State A: Idle (Noch nicht gestartet) */}
         {permissionState === 'idle' && (
-          <div className="flex flex-col items-center justify-center text-center p-3 max-w-sm">
+          <div className={`flex flex-col items-center justify-center text-center max-w-sm ${size.isCompact ? 'p-1.5' : 'p-3'}`}>
             <div
-              className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 shadow-inner ${
+              className={`${size.isCompact ? 'w-11 h-11 mb-1.5' : 'w-14 h-14 mb-3'} rounded-2xl flex items-center justify-center shadow-inner ${
                 currentIsLight ? 'bg-indigo-50 text-indigo-600' : 'bg-indigo-500/10 text-indigo-400'
               }`}
             >
