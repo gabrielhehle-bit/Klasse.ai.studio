@@ -318,7 +318,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
           <button
             type="button"
             onClick={() => updateSettings({ mode: 'flash' })}
-            className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 min-h-[32px] ${
+            className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 min-h-11 ${
               settings.mode === 'flash'
                 ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm font-bold'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -330,7 +330,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
           <button
             type="button"
             onClick={() => updateSettings({ mode: 'tables' })}
-            className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 min-h-[32px] ${
+            className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 min-h-11 ${
               settings.mode === 'tables'
                 ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm font-bold'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -342,7 +342,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
           <button
             type="button"
             onClick={() => updateSettings({ mode: 'chain' })}
-            className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 min-h-[32px] ${
+            className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 min-h-11 ${
               settings.mode === 'chain'
                 ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm font-bold'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -361,7 +361,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
               type="button"
               title="Lehrkraft-Modus (Smartboard / Aufdecken)"
               onClick={() => updateSettings({ presentationMode: 'teacher' })}
-              className={`p-1.5 rounded-md min-h-[32px] min-w-[32px] flex items-center justify-center transition-all ${
+              className={`p-1.5 rounded-md min-h-11 min-w-11 flex items-center justify-center transition-all ${
                 settings.presentationMode === 'teacher'
                   ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm font-bold'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
@@ -373,7 +373,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
               type="button"
               title="Schüler-Modus (Direkteingabe & Prüfung)"
               onClick={() => updateSettings({ presentationMode: 'student' })}
-              className={`p-1.5 rounded-md min-h-[32px] min-w-[32px] flex items-center justify-center transition-all ${
+              className={`p-1.5 rounded-md min-h-11 min-w-11 flex items-center justify-center transition-all ${
                 settings.presentationMode === 'student'
                   ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm font-bold'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
@@ -390,7 +390,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
       {/* 2. Optional: Settings Drawer (oder Bar in Standard/Large) */}
       {showSettingsDrawer && (
         <div role="region" aria-label="Kopfrechnen-Einstellungen" className="shrink-0 p-2.5 my-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 shadow-sm text-xs flex flex-col gap-2">
-          <div className="flex items-center justify-between gap-2"><span className="font-bold text-sm">Kopfrechnen einstellen</span><button type="button" onClick={onCloseSettings} className="min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 px-3 font-semibold" aria-label="Kopfrechnen-Einstellungen schließen">Fertig</button></div>
+          <div className="flex items-center justify-between gap-2"><span className="font-bold text-sm">Kopfrechnen einstellen</span><button type="button" onClick={onCloseSettings} className="min-h-11 rounded-lg border border-slate-300 dark:border-slate-700 px-3 font-semibold" aria-label="Kopfrechnen-Einstellungen schließen">Fertig</button></div>
           {/* Settings nach Modus */}
           {settings.mode === 'flash' && (
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -594,7 +594,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
               <button
                 type="button"
                 onClick={() => updateSettings({ showIntermediates: !settings.showIntermediates })}
-                className={`px-2.5 py-1 rounded text-xs font-medium flex items-center gap-1.5 transition-all ${
+                className={`min-h-11 px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
                   settings.showIntermediates
                     ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300 border border-indigo-300'
                     : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
@@ -705,7 +705,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                   <button
                     type="button"
                     onClick={() => setStudentInput('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                    className="absolute right-1 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -750,7 +750,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                   key={digit}
                   type="button"
                   onClick={() => handleKeypadPress(digit)}
-                  className="py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-mono font-bold text-sm text-slate-800 dark:text-slate-200 min-h-[40px] flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
+                  className="py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-mono font-bold text-sm text-slate-800 dark:text-slate-200 min-h-11 flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
                 >
                   {digit}
                 </button>
@@ -759,7 +759,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                 type="button"
                 onClick={() => handleKeypadPress('backspace')}
                 title="Löschen"
-                className="py-2 rounded-lg bg-slate-200/80 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 min-h-[40px] flex items-center justify-center cursor-pointer active:scale-95 transition-transform col-span-2"
+                className="py-2 rounded-lg bg-slate-200/80 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 min-h-11 flex items-center justify-center cursor-pointer active:scale-95 transition-transform col-span-2"
               >
                 <Delete className="w-4 h-4" />
               </button>
