@@ -61,6 +61,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
   const size = useWidgetSize(containerRef, { isFullscreen, defaultCategory: 'standard' });
   useWidgetOverflowGuard('DiensteWidget', containerRef);
   const isFs = isFullscreen || size.category === 'fullscreen';
+  const compactDienste = size.isCompact || size.height < 360;
 
   // Actual classroom pupils only: never show demo children on the board.
   const allStudents: CockpitStudent[] = useMemo(() =>
@@ -248,10 +249,10 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
       {/* ========================================== */}
       <div
         id="dienste-header"
-        className={`shrink-0 px-3 py-2 flex items-center justify-between gap-2 ${headerBg}`}
+        className={`shrink-0 flex items-center justify-between ${compactDienste ? 'px-2 py-1 gap-1' : 'px-3 py-2 gap-2'} ${headerBg}`}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 text-base font-black shadow-xs">
+          <div className={`${compactDienste ? 'w-7 h-7 text-sm' : 'w-8 h-8 text-base'} rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 font-black shadow-xs`}>
             🧽
           </div>
           <div className="min-w-0">
@@ -395,7 +396,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
       {/* ========================================== */}
       <div
         id="dienste-content-scrollable"
-        className="flex-grow overflow-y-auto px-3 py-2 space-y-2 min-h-0 relative"
+        className={`flex-grow overflow-y-auto min-h-0 relative ${compactDienste ? 'px-1.5 py-1 space-y-1' : 'px-3 py-2 space-y-2'}`}
       >
         {/* LEERZUSTAND */}
         {dienste.length === 0 ? (
@@ -440,7 +441,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                 <div
                   key={dienst.id}
                   id={`dienst-item-${dienst.id}`}
-                  className={`rounded-xl border p-2.5 transition-all flex flex-col gap-2 relative ${bgCard} ${
+                  className={`rounded-xl border ${compactDienste ? 'p-1.5 gap-1' : 'p-2.5 gap-2'} transition-all flex flex-col relative ${bgCard} ${
                     isAssigningThis ? 'ring-2 ring-amber-500' : ''
                   }`}
                 >
