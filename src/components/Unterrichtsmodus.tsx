@@ -8362,24 +8362,26 @@ ${content}
                     </div>
                   ) : (
                     <div className="flex-1 flex flex-col min-h-0 h-full w-full relative gap-1">
-                      {/* Board Utility Toolbar Header (outside stage, prevents overlapping with stage active widgets or drawing board) */}
-                      <div className="flex min-h-11 items-center justify-between gap-1 px-1.5 py-0.5 rounded-xl no-print shrink-0 bg-white/95 border border-slate-200 text-slate-900 shadow-sm relative z-50">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${isLayoutLocked ? "bg-amber-500" : "bg-emerald-500"} animate-pulse`} />
-                          <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-neutral-300">
-                            Tafel
-                          </h3>
+                      {/* Compact board header: pages and writing controls stay visible without stealing stage space. */}
+                      <div className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white/95 px-2 py-1 text-slate-900 shadow-sm no-print shrink-0 relative z-50">
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          <div className="flex shrink-0 items-center gap-1.5 rounded-lg px-1.5" title="Tafel">
+                            <span className={`h-2 w-2 rounded-full ${isLayoutLocked ? "bg-amber-500" : "bg-emerald-500"}`} />
+                            <span className="hidden text-[10px] font-black uppercase tracking-wider text-slate-500 sm:inline">Tafel</span>
+                          </div>
+
                           <div role="tablist" aria-label="Tafelseiten"
-                            className="flex max-w-[min(42vw,22rem)] items-center gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1">
+                            className="flex min-w-0 max-w-[min(44vw,20rem)] items-center gap-1 overflow-x-auto rounded-lg bg-slate-100 p-0.5">
                             {boardPageIds.map((pageId, index) => (
                               <button key={pageId} type="button" role="tab"
                                 aria-selected={activeBoardPageId === pageId}
                                 aria-label={`Tafelseite ${index + 1}`}
+                                title={`Tafelseite ${index + 1}`}
                                 onClick={() => switchCockpitBoardPage(pageId)}
-                                className={`flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-lg px-2 text-xs font-black transition-colors ${
+                                className={`flex h-8 min-w-8 shrink-0 items-center justify-center rounded-md px-2 text-xs font-black transition-colors ${
                                   activeBoardPageId === pageId
                                     ? "bg-indigo-700 text-white shadow-sm"
-                                    : "bg-white text-slate-700 hover:bg-indigo-50 hover:text-indigo-800"
+                                    : "bg-white text-slate-600 hover:bg-indigo-50 hover:text-indigo-800"
                                 }`}>
                                 {index + 1}
                               </button>
@@ -8387,14 +8389,24 @@ ${content}
                             <button type="button" onClick={addCockpitBoardPage}
                               disabled={!app.activeClassId || boardPageIds.length >= MAX_COCKPIT_BOARD_PAGES}
                               aria-label="Neue Tafelseite hinzufügen" title="Neue Tafelseite"
-                              className="flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-lg border border-dashed border-indigo-300 bg-white text-lg font-black text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-40">+</button>
+                              className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-md border border-dashed border-indigo-300 bg-white text-base font-black text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-40">+</button>
                           </div>
+
                           <button type="button" onClick={() => setShowBoardTools(open => !open)}
                             aria-expanded={showBoardTools} aria-controls="klassio-board-tools"
-                            className="min-h-10 rounded-xl border border-slate-200 bg-white px-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50">✍️ Schreiben & Papier</button>
-                          {isLayoutLocked && (
-                            <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                              Fixiert
+                            title="Schreiben & Papier"
+                            className={`flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-bold transition-colors ${
+                              showBoardTools
+                                ? "border-indigo-600 bg-indigo-700 text-white"
+                                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                            }`}>
+                            <span aria-hidden="true">✍️</span>
+                            <span className="hidden md:inline">Schreiben</span>
+                          </button>
+
+                          {boardTool !== 'select' && (
+                            <span className="hidden rounded-md bg-indigo-50 px-2 py-1 text-[10px] font-bold text-indigo-700 lg:inline">
+                              {boardTool === 'text' ? 'Text' : boardTool === 'pen' ? 'Stift' : 'Radierer'}
                             </span>
                           )}
                         </div>
