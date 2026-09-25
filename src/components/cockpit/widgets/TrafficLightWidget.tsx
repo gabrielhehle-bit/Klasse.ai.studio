@@ -80,6 +80,7 @@ export const TrafficLightWidget: React.FC<TrafficLightWidgetProps> = ({
 
   const isCompact = size.category === 'compact';
   const isLarge = size.category === 'large';
+  const roomyDisplay = isFullscreen || (size.width >= 720 && size.height >= 500);
   const isFullscreen = size.category === 'fullscreen';
 
   const textColor = currentIsLight ? 'text-slate-900' : 'text-slate-100';
@@ -188,7 +189,7 @@ export const TrafficLightWidget: React.FC<TrafficLightWidgetProps> = ({
           <div
             className={`my-auto ${size.height < 300 ? 'p-2' : 'p-3'} rounded-2xl border transition-all text-center flex flex-col items-center justify-center ${cardBg} ${borderColor} shadow-xs`}
           >
-            <div className={`${size.height < 300 ? 'text-4xl' : 'text-3xl'} mb-1`}>{activeMode.icon}</div>
+            <div className={`${size.height < 300 ? 'text-3xl' : 'text-4xl'} mb-1`}>{activeMode.icon}</div>
             <h2 className="text-lg font-black tracking-tight leading-snug line-clamp-1">
               {activeMode.label}
             </h2>
@@ -251,23 +252,25 @@ export const TrafficLightWidget: React.FC<TrafficLightWidgetProps> = ({
           >
             <div
               className={`mb-2 transition-transform ${
-                isFullscreen ? 'text-6xl sm:text-7xl' : 'text-4xl sm:text-5xl'
+                roomyDisplay ? 'text-7xl sm:text-8xl' : isLarge ? 'text-5xl sm:text-6xl' : 'text-4xl sm:text-5xl'
               }`}
             >
               {activeMode.icon}
             </div>
             <h2
               className={`font-black tracking-tight leading-tight ${
-                isFullscreen
+                roomyDisplay
                   ? 'text-4xl sm:text-5xl md:text-6xl'
-                  : 'text-xl sm:text-2xl text-slate-900 dark:text-white'
+                  : isLarge
+                    ? 'text-3xl sm:text-4xl text-slate-900 dark:text-white'
+                    : 'text-xl sm:text-2xl text-slate-900 dark:text-white'
               }`}
             >
               {activeMode.label}
             </h2>
             <p
               className={`mt-1.5 font-medium ${subTextColor} max-w-md ${
-                isFullscreen ? 'text-lg sm:text-xl mt-3' : 'text-xs sm:text-sm'
+                roomyDisplay ? 'text-lg sm:text-xl mt-3' : isLarge ? 'text-base' : 'text-xs sm:text-sm'
               }`}
             >
               {activeMode.description}
@@ -294,9 +297,9 @@ export const TrafficLightWidget: React.FC<TrafficLightWidgetProps> = ({
                       : 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
                   }`}
                 >
-                  <span className="text-xl shrink-0">{m.icon}</span>
+                  <span className={`${roomyDisplay ? 'text-2xl' : 'text-xl'} shrink-0`}>{m.icon}</span>
                   <div className="text-left min-w-0 flex-1">
-                    <div className="text-xs font-bold truncate leading-tight">
+                    <div className={`${roomyDisplay ? 'text-sm' : 'text-xs'} font-bold truncate leading-tight`}>
                       {m.shortLabel}
                     </div>
                     {!isCurrent && (
