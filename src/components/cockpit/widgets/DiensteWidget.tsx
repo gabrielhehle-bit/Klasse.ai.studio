@@ -279,7 +279,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
             <button
               id="dienste-rotate-btn-header"
               onClick={handleRotate}
-              className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/15 hover:bg-amber-500 hover:text-white text-amber-700 dark:text-amber-300 flex items-center gap-1 transition-all cursor-pointer active:scale-95"
+              className="min-h-11 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/15 hover:bg-amber-500 hover:text-white text-amber-700 dark:text-amber-300 flex items-center gap-1 transition-all cursor-pointer active:scale-95"
               title="Klassendienste um 1 Position weiterdrehen"
             >
               <RotateCcw size={12} />
@@ -292,7 +292,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
             <button
               id="dienste-menu-toggle-btn"
               onClick={() => setShowManageMenu(!showManageMenu)}
-              className={`p-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+              className={`flex min-h-11 min-w-11 items-center justify-center rounded-lg border text-xs font-bold transition-all cursor-pointer ${
                 showManageMenu
                   ? 'bg-amber-500 text-white border-amber-600'
                   : isLight
@@ -317,7 +317,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                     setShowAddModal(true);
                     setShowManageMenu(false);
                   }}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+                  className={`w-full min-h-11 text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
                     isLight ? 'hover:bg-slate-100 text-slate-800' : 'hover:bg-zinc-800 text-zinc-200'
                   }`}
                 >
@@ -328,7 +328,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                 {dienste.length > 1 && (
                   <button
                     onClick={handleRotate}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+                    className={`w-full min-h-11 text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
                       isLight ? 'hover:bg-slate-100 text-slate-800' : 'hover:bg-zinc-800 text-zinc-200'
                     }`}
                   >
@@ -340,7 +340,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                 {dienste.length > 0 && presentStudents.length > 0 && (
                   <button
                     onClick={handleShuffle}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+                    className={`w-full min-h-11 text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
                       isLight ? 'hover:bg-slate-100 text-slate-800' : 'hover:bg-zinc-800 text-zinc-200'
                     }`}
                     title="Zufällige Neuverteilung an anwesende Kinder"
@@ -360,13 +360,13 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                         <div className="flex gap-1">
                           <button
                             onClick={() => setConfirmClear(false)}
-                            className="flex-1 py-1 text-[10px] font-bold rounded bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300"
+                            className="flex-1 min-h-11 py-1 text-[10px] font-bold rounded bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300"
                           >
                             Nein
                           </button>
                           <button
                             onClick={handleClearAll}
-                            className="flex-1 py-1 text-[10px] font-bold rounded bg-rose-500 text-white hover:bg-rose-600"
+                            className="flex-1 min-h-11 py-1 text-[10px] font-bold rounded bg-rose-500 text-white hover:bg-rose-600"
                           >
                             Ja, leeren
                           </button>
@@ -375,7 +375,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                     ) : (
                       <button
                         onClick={() => setConfirmClear(true)}
-                        className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer text-rose-500 ${
+                        className={`w-full min-h-11 text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer text-rose-500 ${
                           isLight ? 'hover:bg-rose-50' : 'hover:bg-rose-950/30'
                         }`}
                       >
@@ -417,7 +417,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
             </p>
             <button
               onClick={handleLoadDefaultDienste}
-              className="px-4 py-2 rounded-xl text-xs font-black bg-amber-500 hover:bg-amber-600 text-white shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+              className="min-h-11 px-4 py-2 rounded-xl text-xs font-black bg-amber-500 hover:bg-amber-600 text-white shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
             >
               <Sparkles size={14} />
               <span>Dienste einrichten</span>
@@ -513,7 +513,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                                 isAssigningThis ? null : dienst.id
                               )
                             }
-                            className={`px-2 py-0.8 rounded-lg text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
+                            className={`min-h-11 px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
                               isAssigningThis
                                 ? 'bg-amber-500 text-white border-amber-600'
                                 : isLight
@@ -528,7 +528,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
 
                           <button
                             onClick={(e) => handleStartEdit(dienst, e)}
-                            className={`p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors cursor-pointer`}
+                            className={`flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-zinc-800 dark:hover:text-white transition-colors cursor-pointer`}
                             title="Dienst umbenennen"
                           >
                             <Edit2 size={12} />
@@ -536,7 +536,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
 
                           <button
                             onClick={(e) => handleDeleteDienst(dienst.id, e)}
-                            className={`p-1 rounded-md text-slate-400 hover:text-rose-500 transition-colors cursor-pointer`}
+                            className={`flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-950/30 transition-colors cursor-pointer`}
                             title="Dienst löschen"
                           >
                             <Trash2 size={12} />
@@ -622,7 +622,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                                     absentStudentId: assignee.originalStudentId,
                                   })
                                 }
-                                className="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-500 text-white hover:bg-amber-600 cursor-pointer transition-all shrink-0"
+                                className="min-h-11 px-2 py-0.5 rounded-lg text-[9px] font-black bg-amber-500 text-white hover:bg-amber-600 cursor-pointer transition-all shrink-0"
                                 title="Heutige Vertretung auswählen"
                               >
                                 + Vertretung
@@ -637,7 +637,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                                   assignee.originalStudentId
                                 )
                               }
-                              className="ml-0.5 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
+                              className="ml-0.5 flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
                               title="Schüler abteilen"
                             >
                               <X size={11} />
@@ -666,7 +666,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                         </span>
                         <button
                           onClick={() => setActiveAssignDienstId(null)}
-                          className="text-[10px] font-bold text-slate-400 hover:text-slate-700 dark:hover:text-white"
+                          className="min-h-11 rounded-lg px-2 text-[10px] font-bold text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-zinc-800 dark:hover:text-white"
                         >
                           Schließen ✕
                         </button>
@@ -679,7 +679,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                           placeholder="Name suchen..."
                           value={studentSearchQuery}
                           onChange={(e) => setStudentSearchQuery(e.target.value)}
-                          className={`px-2 py-1 text-xs rounded-lg border outline-none ${
+                          className={`min-h-11 px-2 py-1 text-xs rounded-lg border outline-none ${
                             isLight ? 'bg-white border-slate-300' : 'bg-zinc-900 border-white/10'
                           }`}
                         />
@@ -702,7 +702,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                               <button
                                 key={s.id}
                                 onClick={() => handleToggleStudent(dienst.id, s.id)}
-                                className={`px-2 py-1.5 rounded-lg border text-left text-xs font-bold flex items-center justify-between gap-1 transition-all cursor-pointer ${
+                                className={`min-h-11 px-2 py-1.5 rounded-lg border text-left text-xs font-bold flex items-center justify-between gap-1 transition-all cursor-pointer ${
                                   isAssigned
                                     ? 'bg-amber-500 border-amber-600 text-white shadow-xs'
                                     : studentAbsent
@@ -762,7 +762,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
               </span>
               <button
                 onClick={() => setShowAddModal(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-800 dark:hover:text-white"
               >
                 <X size={15} />
               </button>
@@ -773,7 +773,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                 <select
                   value={newDienstEmoji}
                   onChange={(e) => setNewDienstEmoji(e.target.value)}
-                  className={`px-2 py-1.5 text-base rounded-xl border outline-none cursor-pointer ${
+                  className={`min-h-11 px-2 py-1.5 text-base rounded-xl border outline-none cursor-pointer ${
                     isLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-800 border-white/10'
                   }`}
                 >
@@ -790,7 +790,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                   value={newDienstTitel}
                   onChange={(e) => setNewDienstTitel(e.target.value)}
                   autoFocus
-                  className={`flex-grow px-3 py-1.5 text-xs font-bold rounded-xl border outline-none ${
+                  className={`min-h-11 flex-grow px-3 py-1.5 text-xs font-bold rounded-xl border outline-none ${
                     isLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-800 border-white/10'
                   }`}
                 />
@@ -800,14 +800,14 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-3 py-1.5 text-xs font-bold rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800"
+                  className="min-h-11 px-3 py-1.5 text-xs font-bold rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800"
                 >
                   Abbrechen
                 </button>
                 <button
                   type="submit"
                   disabled={!newDienstTitel.trim()}
-                  className="px-4 py-1.5 text-xs font-black rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white shadow-xs"
+                  className="min-h-11 px-4 py-1.5 text-xs font-black rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white shadow-xs"
                 >
                   Hinzufügen
                 </button>
@@ -841,7 +841,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
               </div>
               <button
                 onClick={() => setActiveSubstituteModal(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-800 dark:hover:text-white"
               >
                 <X size={15} />
               </button>
@@ -856,7 +856,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                     <button
                       key={s.id}
                       onClick={() => handleSelectSubstitute(s.id)}
-                      className={`px-2.5 py-2 rounded-xl border text-left text-xs font-bold transition-all cursor-pointer flex items-center justify-between ${
+                      className={`min-h-11 px-2.5 py-2 rounded-xl border text-left text-xs font-bold transition-all cursor-pointer flex items-center justify-between ${
                         isLight
                           ? 'bg-slate-50 hover:bg-amber-500 hover:text-white border-slate-200'
                           : 'bg-zinc-800 hover:bg-amber-500 hover:text-white border-white/10'
@@ -872,7 +872,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
             <div className="flex justify-end pt-1">
               <button
                 onClick={() => setActiveSubstituteModal(null)}
-                className="px-3 py-1 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white"
+                className="min-h-11 rounded-lg px-3 py-1 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-zinc-800 dark:hover:text-white"
               >
                 Abbrechen
               </button>
