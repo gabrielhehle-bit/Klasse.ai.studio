@@ -1096,7 +1096,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
               <span className="text-xs font-black uppercase tracking-wider text-indigo-500">Schnellauswahl & Optionen</span>
               <button
                 onClick={() => setShowMoreMenu(false)}
-                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 cursor-pointer"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 cursor-pointer"
               >
                 <X size={15} />
               </button>
@@ -1176,7 +1176,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                 </span>
                 <button
                   onClick={() => setIsCustomTimeOpen(false)}
-                  className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 cursor-pointer"
+                  className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 cursor-pointer"
                 >
                   <X size={15} />
                 </button>
