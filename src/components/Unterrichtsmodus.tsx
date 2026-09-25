@@ -193,7 +193,7 @@ import {
 } from "../lib/cockpitBoardPages";
 import { CockpitVorlagenModal } from "./cockpit/CockpitVorlagenModal";
 import { BoardTextEditor } from "./cockpit/BoardTextEditor";
-import { BoardInk, type InkItem } from "./cockpit/BoardInk";
+import { BoardInk, type BoardInkHandle, type InkItem } from "./cockpit/BoardInk";
 import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
 import { PLANNED_COCKPIT_WIDGETS } from "./cockpit/plannedCockpitCatalog";
 import ClassroomWeeklyPlanWidget from "./cockpit/widgets/ClassroomWeeklyPlanWidget";
@@ -2987,6 +2987,9 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [widgetSearch, setWidgetSearch] = useState<string>("");
   const [isBoardTextEditing, setIsBoardTextEditing] = useState(false);
   const [boardTool, setBoardTool] = useState<'select' | 'text' | 'pen' | 'erase'>('select');
+  const [boardInkColor, setBoardInkColor] = useState("#172554");
+  const [boardInkWidth, setBoardInkWidth] = useState(4);
+  const boardInkRef = useRef<BoardInkHandle | null>(null);
   const boardTextCommandRef = useRef<((command: string, argument?: string) => void) | null>(null);
   const [isBirthdayCelebrationOpen, setIsBirthdayCelebrationOpen] = useState(false);
   useEffect(() => { setIsBirthdayCelebrationOpen(false); }, [app.activeClassId]);
@@ -10640,6 +10643,88 @@ ${content}
                         </div>
                       )}
 
+                      {(boardTool === 'pen' || boardTool === 'erase') && (
+                        <div
+                          role="toolbar"
+                          aria-label={boardTool === 'pen' ? "Stift einstellen" : "Radierer bedienen"}
+                          className="no-print shrink-0 flex min-h-11 flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white/95 px-2 py-1 text-slate-800 shadow-sm"
+                        >
+                          <span className="px-1 text-[10px] font-black uppercase tracking-wider text-indigo-700">
+                            {boardTool === 'pen' ? '✍️ Stift' : '🧽 Radierer'}
+                          </span>
+
+                          {boardTool === 'pen' ? (
+                            <>
+                              <div className="flex items-center gap-1" role="group" aria-label="Stiftfarbe">
+                                {[
+                                  ["#172554", "Dunkelblau"],
+                                  ["#111827", "Schwarz"],
+                                  ["#dc2626", "Rot"],
+                                  ["#2563eb", "Blau"],
+                                  ["#16a34a", "Grün"],
+                                ].map(([value, label]) => (
+                                  <button
+                                    key={value}
+                                    type="button"
+                                    aria-label={label}
+                                    aria-pressed={boardInkColor === value}
+                                    onClick={() => setBoardInkColor(value)}
+                                    className={`h-8 w-8 rounded-full border-2 shadow-sm transition-transform hover:scale-105 ${
+                                      boardInkColor === value ? "border-indigo-600 ring-2 ring-indigo-200" : "border-white ring-1 ring-slate-300"
+                                    }`}
+                                    style={{ backgroundColor: value }}
+                                  />
+                                ))}
+                                <label className="flex h-9 items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 text-xs font-semibold">
+                                  Farbe
+                                  <input
+                                    type="color"
+                                    aria-label="Eigene Stiftfarbe"
+                                    value={boardInkColor}
+                                    onChange={event => setBoardInkColor(event.target.value)}
+                                    className="h-7 w-7 cursor-pointer rounded border-0 bg-transparent p-0"
+                                  />
+                                </label>
+                              </div>
+                              <select
+                                aria-label="Strichstärke"
+                                value={boardInkWidth}
+                                onChange={event => setBoardInkWidth(Number(event.target.value))}
+                                className="min-h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm"
+                              >
+                                <option value={2}>Fein</option>
+                                <option value={4}>Normal</option>
+                                <option value={8}>Breit</option>
+                                <option value={12}>Sehr breit</option>
+                              </select>
+                            </>
+                          ) : (
+                            <span className="px-2 text-xs font-semibold text-slate-500">
+                              Strich antippen, um ihn zu entfernen.
+                            </span>
+                          )}
+
+                          <button type="button"
+                            onClick={() => boardInkRef.current?.undo()}
+                            className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-sm font-semibold hover:bg-slate-100"
+                            title="Rückgängig">↶</button>
+                          <button type="button"
+                            onClick={() => boardInkRef.current?.redo()}
+                            className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-sm font-semibold hover:bg-slate-100"
+                            title="Wiederholen">↷</button>
+                          <button type="button"
+                            onClick={() => setShowBoardTools(true)}
+                            className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-semibold hover:bg-slate-100">
+                            Papier & Werkzeuge
+                          </button>
+                          <button type="button"
+                            onClick={() => setBoardTool('select')}
+                            className="ml-auto min-h-9 rounded-lg bg-indigo-700 px-3 text-sm font-bold text-white hover:bg-indigo-600">
+                            Fertig
+                          </button>
+                        </div>
+                      )}
+
                       {/* Quick-access widgets now live in the bottom favorites dock. */}
 
                       {/* Widget Board (classroomscreen.com style) */}
@@ -10665,12 +10750,13 @@ ${content}
                           }}
                         />
                         <BoardInk
+                          ref={boardInkRef}
                           key={boardPageStorageKey}
                           items={boardInkItems}
                           active={boardTool === "pen" || boardTool === "erase"}
                           externalTool={boardTool === "erase" ? "erase" : "pen"}
-                          externalColor="#172554"
-                          externalWidth={4}
+                          externalColor={boardInkColor}
+                          externalWidth={boardInkWidth}
                           hideToolbar
                           onChange={saveBoardInkItems}
                           onDone={() => setBoardTool('select')}
