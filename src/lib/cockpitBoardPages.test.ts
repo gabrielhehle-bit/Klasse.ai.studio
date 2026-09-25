@@ -19,6 +19,7 @@ test("board pages keep legacy page one storage without migrating existing conten
 
 test("board page metadata is bounded, unique and always has page one fallback", () => {
   assert.deepEqual(normalizeCockpitBoardPageIds(undefined), ["page-1"]);
+  assert.deepEqual(normalizeCockpitBoardPageIds(["page-2"]), ["page-1", "page-2"]);
   assert.deepEqual(normalizeCockpitBoardPageIds(["bad", "page-1", "page-1", "page-3"]), ["page-1", "page-3"]);
   const many = Array.from({ length: 30 }, (_, index) => `page-${index + 1}`);
   assert.equal(normalizeCockpitBoardPageIds(many).length, MAX_COCKPIT_BOARD_PAGES);
