@@ -72,17 +72,17 @@ function HeroPreview() {
             <div className="mb-5 flex h-9 items-center justify-center rounded-xl bg-white/10 text-xs font-black">K</div>
             <div className="space-y-2">
               {[
-                ['Heute', LayoutDashboard],
-                ['Klasse', Users],
-                ['Planung', CalendarDays],
-                ['Cockpit', Presentation],
-              ].map(([label, Icon], index) => (
+                { label: 'Heute', icon: LayoutDashboard },
+                { label: 'Klasse', icon: Users },
+                { label: 'Planung', icon: CalendarDays },
+                { label: 'Cockpit', icon: Presentation },
+              ].map(({ label, icon: Icon }, index) => (
                 <div
-                  key={label as string}
+                  key={label}
                   className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-[0.68rem] font-bold ${index === 0 ? 'bg-white text-slate-950' : 'text-white/55'}`}
                 >
                   <Icon size={14} />
-                  <span className="hidden sm:inline">{label as string}</span>
+                  <span className="hidden sm:inline">{label}</span>
                 </div>
               ))}
             </div>
@@ -100,14 +100,14 @@ function HeroPreview() {
             </div>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
               {[
-                ['19', 'Kinder', Users],
-                ['4', 'Einheiten', BookOpen],
-                ['3', 'Aufgaben', ListChecks],
-              ].map(([value, label, Icon]) => (
-                <div key={label as string} className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm">
+                { value: '19', label: 'Kinder', icon: Users },
+                { value: '4', label: 'Einheiten', icon: BookOpen },
+                { value: '3', label: 'Aufgaben', icon: ListChecks },
+              ].map(({ value, label, icon: Icon }) => (
+                <div key={label} className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm">
                   <Icon size={16} className="mb-3 text-indigo-500" />
-                  <div className="text-xl font-black text-slate-950">{value as string}</div>
-                  <div className="text-[0.68rem] font-bold text-slate-400">{label as string}</div>
+                  <div className="text-xl font-black text-slate-950">{value}</div>
+                  <div className="text-[0.68rem] font-bold text-slate-400">{label}</div>
                 </div>
               ))}
             </div>
@@ -191,14 +191,14 @@ function Landing({ onLogin, onDemo }: Pick<PublicWelcomeProps, 'onLogin' | 'onDe
                 Dein Unterricht.<br />
                 <span className="text-indigo-600">Alles an einem Ort.</span>
               </h1>
-              <p className="mt-7 max-w-xl text-base font-medium leading-7 text-slate-550 sm:text-lg">
+              <p className="mt-7 max-w-xl text-base font-medium leading-7 text-slate-500 sm:text-lg">
                 Wochenplanung, Schülerverwaltung, Diagnostik, Leistungen und eine digitale Unterrichtsfläche – ohne dass dein Lehreralltag in fünf verschiedenen Werkzeugen auseinanderfällt.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <button
                   type="button"
                   onClick={onDemo}
-                  className="inline-flex min-h-13 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-6 text-sm font-black text-white shadow-xl shadow-slate-950/15 transition-all hover:-translate-y-0.5 hover:bg-indigo-600"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-6 text-sm font-black text-white shadow-xl shadow-slate-950/15 transition-all hover:-translate-y-0.5 hover:bg-indigo-600"
                 >
                   KLASSIO ausprobieren
                   <ArrowRight size={17} />
@@ -206,7 +206,7 @@ function Landing({ onLogin, onDemo }: Pick<PublicWelcomeProps, 'onLogin' | 'onDe
                 <button
                   type="button"
                   onClick={onLogin}
-                  className="inline-flex min-h-13 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 text-sm font-black text-slate-800 shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 text-sm font-black text-slate-800 shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
                 >
                   Ich habe schon einen Zugang
                 </button>
@@ -284,7 +284,7 @@ function Landing({ onLogin, onDemo }: Pick<PublicWelcomeProps, 'onLogin' | 'onDe
               <button
                 type="button"
                 onClick={onDemo}
-                className="mt-8 inline-flex min-h-13 items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-6 text-sm font-black text-white shadow-lg shadow-indigo-600/20 transition-all hover:bg-indigo-700"
+                className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-6 text-sm font-black text-white shadow-lg shadow-indigo-600/20 transition-all hover:bg-indigo-700"
               >
                 Interaktive Vorschau öffnen
                 <ArrowRight size={17} />
@@ -311,15 +311,15 @@ function DashboardDemo() {
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-3">
         {[
-          ['19', 'Kinder heute', Users, '1 fehlt'],
-          ['4', 'Unterrichtseinheiten', BookOpen, 'bis 11:35'],
-          ['3', 'Offene Aufgaben', ClipboardCheck, '1 wichtig'],
-        ].map(([value, label, Icon, note]) => (
-          <div key={label as string} className="rounded-2xl border border-slate-200 bg-white p-4">
+          { value: '19', label: 'Kinder heute', icon: Users, note: '1 fehlt' },
+          { value: '4', label: 'Unterrichtseinheiten', icon: BookOpen, note: 'bis 11:35' },
+          { value: '3', label: 'Offene Aufgaben', icon: ClipboardCheck, note: '1 wichtig' },
+        ].map(({ value, label, icon: Icon, note }) => (
+          <div key={label} className="rounded-2xl border border-slate-200 bg-white p-4">
             <Icon size={17} className="text-indigo-500" />
-            <div className="mt-4 text-2xl font-black text-slate-950">{value as string}</div>
-            <div className="text-xs font-black text-slate-700">{label as string}</div>
-            <div className="mt-1 text-[0.68rem] font-semibold text-slate-400">{note as string}</div>
+            <div className="mt-4 text-2xl font-black text-slate-950">{value}</div>
+            <div className="text-xs font-black text-slate-700">{label}</div>
+            <div className="mt-1 text-[0.68rem] font-semibold text-slate-400">{note}</div>
           </div>
         ))}
       </div>
