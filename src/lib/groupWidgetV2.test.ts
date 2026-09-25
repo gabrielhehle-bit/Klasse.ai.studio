@@ -83,9 +83,9 @@ test('Widget 2: all groups are accessible together in expanded view, never silen
   assert.ok(compact.pageCount > 1);
   assert.match(widget, /const displayedGroups = isExpanded/);
   assert.match(widget, /\? groupLayout\.cards/);
-  assert.match(widget, /Alle \{groups\.length\} Gruppen anzeigen/);
+  assert.match(widget, /compactGroupWidget \? '⛶ Alle' : `Alle \${groups.length} Gruppen anzeigen`/);
   assert.match(widget, /if \(!preview\.fits \|\| preview\.pageCount > 1\) setIsExpanded\(true\)/);
-  assert.match(widget, /isExpanded \? 'overflow-auto' : 'overflow-hidden'/);
+  assert.match(widget, /isExpanded \? 'flex-none overflow-visible pb-2' : 'flex-1 overflow-hidden'/);
   assert.match(widget, /!isExpanded && groupLayout\.pageCount > 1/);
 });
 
