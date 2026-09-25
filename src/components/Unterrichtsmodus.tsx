@@ -9764,7 +9764,7 @@ ${content}
                                         }
 
                                         return matchesCategory;
-                                      }).sort((a, b) => activeWidgetCategory === "recent"
+                                      }).sort((a, b) => activeWidgetCategory === "recent" && !query
                                         ? recentWidgetTypes.indexOf(a.type) - recentWidgetTypes.indexOf(b.type)
                                         : 0);
 
