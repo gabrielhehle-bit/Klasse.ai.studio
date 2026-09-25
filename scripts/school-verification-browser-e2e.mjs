@@ -392,7 +392,9 @@ async function verifyDirectCockpitNavigation(client) {
   await waitFor(client, 'design and birthday stay in cockpit options',
     'document.body?.innerText.includes("Design & Farben") && document.body?.innerText.includes("Geburtstag")');
   await clickButton(client, 'Optionen', true);
-  await clickButton(client, 'Schreiben & Papier');
+  const openedPaperTools = await evaluate(client,
+    String.raw`(() => {const b=document.querySelector('button[aria-controls="klassio-board-tools"]');if(!b)return false;b.click();return true;})()`);
+  if (!openedPaperTools) throw new Error('Could not reopen writing and paper tools.');
   const paperVerified = await evaluate(client,
     '(() => {' +
     'const select=document.querySelector("select[aria-label=\\\"Papierart der Unterrichtsfläche\\\"]");' +
@@ -404,7 +406,8 @@ async function verifyDirectCockpitNavigation(client) {
   await waitFor(client, 'handwriting paper is rendered on shared board',
     'Boolean(getComputedStyle(document.getElementById("widget-board-stage")).backgroundImage.includes("svg"))');
   await saveScreenshot(client, SCREENSHOT_COCKPIT);
-  await clickButton(client, 'Fertig', true); // Close drawing toolbar before random-name modal.
+  await evaluate(client,
+    String.raw`(() => {const b=document.querySelector('#klassio-board-tools button[aria-label="Schreiben und Papier schließen"]');if(!b)return false;b.click();return true;})()`);
   await verifyRandomPickerInRealBrowser(client);
   const closed = await evaluate(client,
     '(() => {const b=document.querySelector("button[aria-label=\\\"Lehrercockpit schließen · Zurück zu Heute\\\"]");if(!b)return false;b.click();return true;})()'
