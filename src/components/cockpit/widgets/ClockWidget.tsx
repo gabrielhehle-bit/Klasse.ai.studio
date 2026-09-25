@@ -140,7 +140,7 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
         <button
           type="button"
           onClick={() => setShowSettings(!showSettings)}
-          className={`${isCompact ? 'w-9 h-9' : 'w-11 h-11'} flex items-center justify-center rounded-xl border transition-all cursor-pointer focus:outline-hidden ${
+          className={`w-11 h-11 flex items-center justify-center rounded-xl border transition-all cursor-pointer focus:outline-hidden ${
             showSettings
               ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
               : currentIsLight
@@ -303,7 +303,7 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
             <button
               type="button"
               onClick={() => setShowSettings(false)}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 cursor-pointer"
+              className="w-11 h-11 flex items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
               aria-label="Einstellungen schließen"
             >
               <X size={18} />
