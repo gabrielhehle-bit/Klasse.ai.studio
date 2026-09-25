@@ -447,7 +447,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
           <button
             type="button"
             onClick={() => updateSettings({ soundEnabled: !soundEnabled })}
-            className={`${isSmall ? 'min-h-9 min-w-9' : 'min-h-11 min-w-11'} p-1 rounded-lg border text-xs transition-all cursor-pointer flex items-center justify-center ${
+            className={`min-h-11 min-w-11 p-1 rounded-lg border text-xs transition-all cursor-pointer flex items-center justify-center ${
               soundEnabled
                 ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400'
                 : 'bg-black/5 dark:bg-white/5 border-transparent text-slate-400'
@@ -463,7 +463,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
             type="button"
             onClick={() => setShowConfigModal(true)}
             disabled={isSpinning}
-            className={`${isSmall ? 'min-h-9 min-w-9' : 'min-h-11 min-w-11'} px-1.5 rounded-lg border text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-95 ${
+            className={`min-h-11 min-w-11 px-1.5 rounded-lg border text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-95 ${
               currentIsLight
                 ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
                 : 'bg-zinc-900 hover:bg-zinc-800 border-white/10 text-slate-200'
@@ -652,7 +652,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
           type="button"
           onClick={handleSpin}
           disabled={isSpinning || !hasEnoughItems}
-          className={`w-full ${isSmall ? 'min-h-10' : 'min-h-11'} rounded-lg font-black ${isSmall ? 'text-xs' : 'text-xs sm:text-sm'} uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-98 cursor-pointer ${
+          className={`w-full min-h-11 rounded-lg font-black ${isSmall ? 'text-xs' : 'text-xs sm:text-sm'} uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-98 cursor-pointer ${
             isSpinning || !hasEnoughItems
               ? 'bg-slate-200 dark:bg-zinc-800 text-slate-400 cursor-not-allowed'
               : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20'
