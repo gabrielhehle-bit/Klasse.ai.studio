@@ -391,7 +391,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
             : `${eligibleStudents.length} Kinder zur Auswahl`}
         </span>}
         <button type="button" onClick={pickPupil} disabled={isAnimating || remainingStudents.length === 0}
-          className={`flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 font-black text-white ${compact ? 'min-h-10 text-xs' : 'min-h-12 text-sm'} disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600">
+          className={`flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 font-black text-white ${compact ? 'min-h-10 text-xs' : 'min-h-12 text-sm'} disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600`}>
           <Sparkles size={18}/>{isAnimating ? 'Wählt aus …' : roundComplete ? 'Runde abgeschlossen' : selectedName ? 'Nächstes Kind' : 'Kind auswählen'}
         </button>
         {(drawnIds.length > 0 || roundComplete) && (
