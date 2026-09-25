@@ -9754,7 +9754,9 @@ ${content}
                                         }
 
                                         return matchesCategory;
-                                      });
+                                      }).sort((a, b) => activeWidgetCategory === "recent"
+                                        ? recentWidgetTypes.indexOf(a.type) - recentWidgetTypes.indexOf(b.type)
+                                        : 0);
 
                                     if (
                                       activeWidgetCategory === "recent" &&
@@ -9778,7 +9780,7 @@ ${content}
                                     ) {
                                       return (
                                         <>
-                                          <div className="col-span-2 sm:col-span-3 flex flex-wrap gap-1.5 p-2 mb-3 bg-black/10 dark:bg-white/5 rounded-2xl border border-white/5">
+                                          <div className="col-span-full flex flex-wrap gap-1.5 p-2 mb-3 bg-black/10 dark:bg-white/5 rounded-2xl border border-white/5">
                                             <div className="w-full text-[8.5px] font-black uppercase tracking-wider text-slate-400 mb-1 px-1 flex justify-between items-center">
                                               <span>📁 FAVORITEN-ORDNER:</span>
                                               <span className="font-mono text-indigo-400">
@@ -9825,7 +9827,7 @@ ${content}
                                               );
                                             })}
                                           </div>
-                                          <div className="col-span-2 sm:col-span-3 py-10 flex flex-col items-center justify-center text-center opacity-70">
+                                          <div className="col-span-full py-10 flex flex-col items-center justify-center text-center opacity-70">
                                             <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-500 mb-2">
                                               <Star
                                                 size={18}
@@ -9850,7 +9852,7 @@ ${content}
 
                                     const renderedFoldersHeader =
                                       activeWidgetCategory === "favorites" ? (
-                                        <div className="col-span-2 sm:col-span-3 flex flex-wrap gap-1.5 p-2 mb-3 bg-black/10 dark:bg-white/5 rounded-2xl border border-white/5">
+                                        <div className="col-span-full flex flex-wrap gap-1.5 p-2 mb-3 bg-black/10 dark:bg-white/5 rounded-2xl border border-white/5">
                                           <div className="w-full text-[8.5px] font-black uppercase tracking-wider text-slate-400 mb-1 px-1 flex justify-between items-center">
                                             <span>📁 FAVORITEN-ORDNER:</span>
                                             <span className="font-mono text-indigo-400">
@@ -9901,7 +9903,7 @@ ${content}
                                       <>
                                         {renderedFoldersHeader}
                                         {filteredList.length === 0 && (
-                                          <div className="col-span-2 sm:col-span-3 py-10 flex flex-col items-center justify-center text-center opacity-70">
+                                          <div className="col-span-full py-10 flex flex-col items-center justify-center text-center opacity-70">
                                             <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-500 mb-2">
                                               🔍
                                             </div>
@@ -9916,126 +9918,53 @@ ${content}
                                           </div>
                                         )}
                                         {filteredList.map((item) => {
-                                          const widgetObj = cockpitWidgets.find(
-                                            (w) => w.type === item.type,
-                                          );
-                                          const isActive = widgetObj?.visible;
-                                          const isFav = (
-                                            favoritesBySubject[
-                                              getResolvedFavFolder()
-                                            ] || []
-                                          ).includes(item.type);
+                                          const widgetObj = cockpitWidgets.find((w) => w.type === item.type);
+                                          const isActive = Boolean(widgetObj?.visible);
+                                          const isFav = (favoritesBySubject[getResolvedFavFolder()] || []).includes(item.type);
+                                          const parts = String(item.label || "").trim().split(/\s+/);
+                                          const icon = parts.length > 1 ? parts[0] : "🧩";
+                                          const name = parts.length > 1 ? parts.slice(1).join(" ") : item.label;
                                           return (
-                                            <div
-                                              key={item.type}
-                                              className={`w-full p-2.5 rounded-xl text-left flex flex-col justify-between items-start transition-all border group relative min-h-[104px] ${
+                                            <article key={item.type}
+                                              className={`group flex min-h-[92px] items-center gap-3 rounded-2xl border p-3 transition-all ${
                                                 isActive
-                                                  ? "opacity-60 bg-slate-100 dark:bg-zinc-800/50 border-transparent"
-                                                  : currentIsLight
-                                                    ? "bg-white border-slate-100 hover:border-indigo-200 hover:bg-slate-50 text-slate-700 active:bg-slate-100"
-                                                    : "bg-zinc-900 border-white/5 hover:border-indigo-500/30 hover:bg-zinc-850 text-slate-200 active:bg-zinc-800"
-                                              }`}
-                                            >
-{item.type === "kidattendance" && (
-                                                <button type="button" aria-label="Ich bin da! einstellen" title="Voreinstellungen für Ich bin da!"
-                                                  onClick={() => {
-                                                    setSelectedWidgetConfiguration("kidattendance");
-                                                    setIsWidgetConfigurationOpen(true);
-                                                    window.requestAnimationFrame(() => document.getElementById("cockpit-widget-settings")?.scrollIntoView({ block: "start", behavior: "smooth" }));
-                                                  }}
-                                                  className="absolute right-12 top-2 z-[1001] flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white/90 text-slate-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 dark:bg-zinc-800 dark:text-slate-200">
-                                                  <Settings size={18} aria-hidden="true" />
-                                                </button>
-                                              )}
-{item.type === "groups" && (
-                                                <button type="button" aria-label="Gruppen bilden einstellen" title="Voreinstellungen für Gruppen bilden"
-                                                  onClick={() => {
-                                                    setSelectedWidgetConfiguration("groups");
-                                                    setIsWidgetConfigurationOpen(true);
-                                                    window.requestAnimationFrame(() => document.getElementById("cockpit-widget-settings")?.scrollIntoView({ block: "start", behavior: "smooth" }));
-                                                  }}
-                                                  className="absolute right-12 top-2 z-[1001] flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white/90 text-slate-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 dark:bg-zinc-800 dark:text-slate-200">
-                                                  <Settings size={18} aria-hidden="true" />
-                                                </button>
-                                              )}
-{item.type === "classweeklyplan" && (
-                                                <button type="button" aria-label="Wochenplan der Kinder einstellen" title="Voreinstellungen für Wochenplan der Kinder"
-                                                  onClick={() => {
-                                                    setSelectedWidgetConfiguration("classweeklyplan");
-                                                    setIsWidgetConfigurationOpen(true);
-                                                    window.requestAnimationFrame(() => document.getElementById("cockpit-widget-settings")?.scrollIntoView({ block: "start", behavior: "smooth" }));
-                                                  }}
-                                                  className="absolute right-12 top-2 z-[1001] flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white/90 text-slate-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 dark:bg-zinc-800 dark:text-slate-200">
-                                                  <Settings size={18} aria-hidden="true" />
-                                                </button>
-                                              )}
-                                              {item.type === "randomname" && (
-                                                <button type="button" aria-label="Zufallsauswahl einstellen" title="Zufallsauswahl einstellen"
-                                                  onClick={() => {
-                                                    setSelectedWidgetConfiguration("randomname");
-                                                    setIsWidgetConfigurationOpen(true);
-                                                    window.requestAnimationFrame(() => document.getElementById("cockpit-widget-settings")?.scrollIntoView({ block: "start", behavior: "smooth" }));
-                                                  }}
-                                                  className="absolute right-12 top-2 z-[1001] flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white/90 text-slate-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 dark:bg-zinc-800 dark:text-slate-200">
-                                                  <Settings size={18} aria-hidden="true" />
-                                                </button>
-                                              )}
-                                              {/* Toggle Favorite Star Button */}
-                                              <button
-                                                type="button"
-                                                onClick={(e) =>
-                                                  toggleFavorite(item.type, e)
-                                                }
-                                                className={`absolute top-2 right-2 p-1.5 rounded-lg hover:bg-slate-200/50 dark:hover:bg-zinc-850 transition-colors z-[1001] ${
-                                                  isFav
-                                                    ? "text-amber-500"
-                                                    : "text-slate-300 dark:text-zinc-600 hover:text-amber-500"
-                                                } scale-100 active:scale-95 cursor-pointer`}
-                                                title={
-                                                  isFav
-                                                    ? "Von Favoriten entfernen"
-                                                    : "Zu Favoriten hinzufügen"
-                                                }
-                                              >
-                                                <Star
-                                                  size={11}
-                                                  fill={
-                                                    isFav
-                                                      ? "currentColor"
-                                                      : "none"
-                                                  }
-                                                  className="stroke-[2.5]"
-                                                />
-                                              </button>
-
-                                              <button
-                                                disabled={isActive}
-                                                onClick={() => {
-                                                  if (widgetObj) {
-                                                    handleOpenWidgetInCockpitLayout(
-                                                      item.type as any,
-                                                    );
-                                                  }
-                                                  setIsAddWidgetMenuOpen(false);
-                                                }}
-                                                className="w-full h-full text-left flex flex-col justify-between items-start cursor-pointer disabled:cursor-not-allowed"
-                                              >
-                                                <div className="w-full flex items-center justify-between font-semibold text-sm">
-                                                  <span className={["randomname", "kidattendance", "groups", "classweeklyplan"].includes(item.type) ? "truncate pr-24 group-hover:text-indigo-500 transition-colors" : "truncate pr-7 group-hover:text-indigo-500 transition-colors"}>
-                                                    {item.label}
-                                                  </span>
-                                                  {isActive && (
-                                                    <Check
-                                                      size={11}
-                                                      className="text-emerald-500 stroke-[3] shrink-0 absolute top-[11px] right-8"
-                                                    />
-                                                  )}
+                                                  ? "border-emerald-200 bg-emerald-50/60"
+                                                  : "border-slate-200 bg-white hover:border-indigo-200 hover:shadow-sm"
+                                              }`}>
+                                              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-2xl" aria-hidden="true">
+                                                {icon}
+                                              </div>
+                                              <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-2">
+                                                  <h3 className="truncate text-sm font-black text-slate-900">{name}</h3>
+                                                  {isActive && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">offen</span>}
                                                 </div>
-                                                <p className="text-xs mt-2 opacity-80 font-medium leading-relaxed pr-7">
-                                                  {item.desc}
-                                                </p>
-                                              </button>
-                                            </div>
+                                                <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">{item.desc}</p>
+                                              </div>
+                                              <div className="flex shrink-0 items-center gap-1">
+                                                <button type="button"
+                                                  onClick={(event) => toggleFavorite(item.type, event)}
+                                                  aria-label={isFav ? `${name} aus Favoriten entfernen` : `${name} zu Favoriten hinzufügen`}
+                                                  title={isFav ? "Von Favoriten entfernen" : "Zu Favoriten hinzufügen"}
+                                                  className={`flex min-h-11 min-w-11 items-center justify-center rounded-xl border transition-colors ${
+                                                    isFav
+                                                      ? "border-amber-200 bg-amber-50 text-amber-500"
+                                                      : "border-slate-200 bg-white text-slate-400 hover:border-amber-200 hover:text-amber-500"
+                                                  }`}>
+                                                  <Star size={17} fill={isFav ? "currentColor" : "none"} aria-hidden="true" />
+                                                </button>
+                                                <button type="button" disabled={isActive}
+                                                  onClick={() => {
+                                                    handleOpenWidgetInCockpitLayout(item.type as CockpitWidgetConfig["type"]);
+                                                    setIsAddWidgetMenuOpen(false);
+                                                  }}
+                                                  aria-label={isActive ? `${name} ist bereits geöffnet` : `${name} hinzufügen`}
+                                                  title={isActive ? "Bereits auf der Tafel" : "Zur Tafel hinzufügen"}
+                                                  className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-indigo-600 text-xl font-black text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500">
+                                                  {isActive ? <Check size={18} aria-hidden="true" /> : "＋"}
+                                                </button>
+                                              </div>
+                                            </article>
                                           );
                                         })}
                                       </>
