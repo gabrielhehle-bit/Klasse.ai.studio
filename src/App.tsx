@@ -107,6 +107,7 @@ const DataConsistencyModal = lazyRetry(() => import('./components/DataConsistenc
 
 function AccessGuard({ children }: { children: React.ReactNode }) {
   type PublicMode = PublicEntryMode | 'login';
+  const returningUserKey = 'klassio_returning_user';
 
   const modeFromPath = React.useCallback((): PublicMode => {
     const path = window.location.pathname.replace(/\/+$/, '') || '/';
@@ -132,8 +133,31 @@ function AccessGuard({ children }: { children: React.ReactNode }) {
     fetch('/api/access/status')
       .then((res) => res.json())
       .then((data) => {
-        if (isMounted) {
-          setIsAuthenticated(data?.authenticated === true);
+        if (!isMounted) return;
+        const authenticated = data?.authenticated === true;
+        setIsAuthenticated(authenticated);
+
+        if (authenticated) {
+          try {
+            localStorage.setItem(returningUserKey, '1');
+          } catch {
+            // Local storage can be unavailable in hardened/private browser modes.
+          }
+          return;
+        }
+
+        // First-time visitors should discover KLASSIO on the public landing page.
+        // A browser that has already used KLASSIO should keep the former fast-login
+        // experience after a sign-out or expired session.
+        if (modeFromPath() === 'landing') {
+          try {
+            if (localStorage.getItem(returningUserKey) === '1') {
+              window.history.replaceState({}, '', '/login');
+              setPublicMode('login');
+            }
+          } catch {
+            // Without persistent browser storage, fall back to the public landing page.
+          }
         }
       })
       .catch(() => {
@@ -172,6 +196,7 @@ function AccessGuard({ children }: { children: React.ReactNode }) {
   const handleLoginSuccess = () => {
     try {
       sessionStorage.setItem('klassio_after_login', 'dashboard');
+      localStorage.setItem(returningUserKey, '1');
     } catch {
       // Session storage can be unavailable in hardened/private browser modes.
     }
