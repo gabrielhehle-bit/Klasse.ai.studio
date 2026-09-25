@@ -417,6 +417,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     groupPage,
     { reservedHeight: compactGroupWidget ? 52 : 76 }, // keep more room for actual group cards
   );
+  const roomyGroupCards = isExpanded || (size.width >= 900 && groupLayout.cardHeight >= 92);
   // In the all-groups view every segment stays mounted, not just the first page.
   // Compact widgets may page, but explicitly reveal every group in the expanded view.
   const displayedGroups = isExpanded
@@ -450,7 +451,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
           </div>
           <button
             onClick={() => setFeedbackMessage(null)}
-            className="p-0.5 hover:bg-black/10 rounded cursor-pointer shrink-0"
+            className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg hover:bg-black/10 cursor-pointer"
           >
             <X size={12} />
           </button>
@@ -519,7 +520,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
               </span>
               <button
                 onClick={onClosePickerSettings}
-                className="p-1 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-500 cursor-pointer"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-500 cursor-pointer"
                 aria-label="Optionen schließen"
               >
                 <X size={16} />
@@ -530,7 +531,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
             <div className="flex items-center gap-1 bg-stone-200/60 dark:bg-stone-800 p-0.5 rounded-xl mb-3">
               <button
                 onClick={() => setOptionsTab('pause')}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex-1 min-h-11 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   optionsTab === 'pause'
                     ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-white shadow-xs'
                     : 'text-stone-600 dark:text-stone-400'
@@ -546,7 +547,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                   }
                   setOptionsTab('constraints');
                 }}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex-1 min-h-11 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   optionsTab === 'constraints'
                     ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-white shadow-xs'
                     : 'text-stone-600 dark:text-stone-400'
@@ -556,7 +557,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
               </button>
               <button
                 onClick={() => setOptionsTab('names')}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex-1 min-h-11 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   optionsTab === 'names'
                     ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-white shadow-xs'
                     : 'text-stone-600 dark:text-stone-400'
@@ -624,7 +625,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                     <select
                       value={newNotA}
                       onChange={(e) => setNewNotA(e.target.value)}
-                      className="text-xs p-1.5 rounded-lg border bg-white dark:bg-stone-800 border-stone-300 dark:border-stone-700 max-w-[130px] cursor-pointer"
+                      className="min-h-11 min-w-[8rem] flex-1 text-xs p-1.5 rounded-lg border bg-white dark:bg-stone-800 border-stone-300 dark:border-stone-700 cursor-pointer"
                     >
                       <option value="">Kind 1</option>
                       {presentStudents.map((s) => (
@@ -635,7 +636,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                     <select
                       value={newNotB}
                       onChange={(e) => setNewNotB(e.target.value)}
-                      className="text-xs p-1.5 rounded-lg border bg-white dark:bg-stone-800 border-stone-300 dark:border-stone-700 max-w-[130px] cursor-pointer"
+                      className="min-h-11 min-w-[8rem] flex-1 text-xs p-1.5 rounded-lg border bg-white dark:bg-stone-800 border-stone-300 dark:border-stone-700 cursor-pointer"
                     >
                       <option value="">Kind 2</option>
                       {presentStudents.map((s) => (
@@ -645,7 +646,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                     <button
                       onClick={handleAddNotTogether}
                       disabled={!newNotA || !newNotB || newNotA === newNotB}
-                      className="px-2.5 py-1.5 rounded-lg bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600 disabled:opacity-40 text-xs font-bold cursor-pointer"
+                      className="min-h-11 px-2.5 py-1.5 rounded-lg bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600 disabled:opacity-40 text-xs font-bold cursor-pointer"
                     >
                       + Hinzufügen
                     </button>
@@ -665,7 +666,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                             setNotTogether(updated);
                             persistState(groups, mode, targetValue, pausedStudentIds, updated, keepTogether, namingStyle);
                           }}
-                          className="p-0.5 hover:text-rose-900 dark:hover:text-rose-100 cursor-pointer"
+                          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-rose-100 hover:text-rose-900 dark:hover:bg-rose-950/40 dark:hover:text-rose-100 cursor-pointer"
                         >
                           <X size={12} />
                         </button>
@@ -684,7 +685,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                     <select
                       value={newKeepA}
                       onChange={(e) => setNewKeepA(e.target.value)}
-                      className="text-xs p-1.5 rounded-lg border bg-white dark:bg-stone-800 border-stone-300 dark:border-stone-700 max-w-[130px] cursor-pointer"
+                      className="min-h-11 min-w-[8rem] flex-1 text-xs p-1.5 rounded-lg border bg-white dark:bg-stone-800 border-stone-300 dark:border-stone-700 cursor-pointer"
                     >
                       <option value="">Kind 1</option>
                       {presentStudents.map((s) => (
@@ -695,7 +696,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                     <select
                       value={newKeepB}
                       onChange={(e) => setNewKeepB(e.target.value)}
-                      className="text-xs p-1.5 rounded-lg border bg-white dark:bg-stone-800 border-stone-300 dark:border-stone-700 max-w-[130px] cursor-pointer"
+                      className="min-h-11 min-w-[8rem] flex-1 text-xs p-1.5 rounded-lg border bg-white dark:bg-stone-800 border-stone-300 dark:border-stone-700 cursor-pointer"
                     >
                       <option value="">Kind 2</option>
                       {presentStudents.map((s) => (
@@ -705,7 +706,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                     <button
                       onClick={handleAddKeepTogether}
                       disabled={!newKeepA || !newKeepB || newKeepA === newKeepB}
-                      className="px-2.5 py-1.5 rounded-lg bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600 disabled:opacity-40 text-xs font-bold cursor-pointer"
+                      className="min-h-11 px-2.5 py-1.5 rounded-lg bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600 disabled:opacity-40 text-xs font-bold cursor-pointer"
                     >
                       + Hinzufügen
                     </button>
@@ -725,7 +726,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                             setKeepTogether(updated);
                             persistState(groups, mode, targetValue, pausedStudentIds, notTogether, updated, namingStyle);
                           }}
-                          className="p-0.5 hover:text-emerald-900 dark:hover:text-emerald-100 cursor-pointer"
+                          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-emerald-100 hover:text-emerald-900 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-100 cursor-pointer"
                         >
                           <X size={12} />
                         </button>
@@ -756,7 +757,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                       setGroups(renamed);
                       persistState(renamed, mode, targetValue, pausedStudentIds, notTogether, keepTogether, nextStyle, true);
                     }}
-                    className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                    className={`min-h-11 p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
                       namingStyle === s.id
                         ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-900 dark:text-indigo-200'
                         : currentIsLight
@@ -774,7 +775,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
 
           <button
             onClick={onClosePickerSettings}
-            className="w-full py-2.5 mt-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer transition-all shadow-sm"
+            className="w-full min-h-11 py-2.5 mt-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer transition-all shadow-sm"
           >
             Fertig
           </button>
@@ -831,7 +832,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                   <div className={`${compactGroupWidget ? 'px-2 py-1' : 'px-2.5 py-1.5 sm:px-3 sm:py-2'} flex items-center justify-between shrink-0 ${palette.headerBg}`}>
                     <div className="flex items-center gap-1.5 truncate">
                       {group.symbol && <span className="text-sm">{group.symbol}</span>}
-                      <h4 className="text-xs sm:text-sm font-black tracking-wide truncate">
+                      <h4 className={`${roomyGroupCards ? 'text-base sm:text-lg' : 'text-xs sm:text-sm'} font-black tracking-wide truncate`}>
                         {group.name}{segment.parts > 1 ? ` · ${segment.part}/${segment.parts}` : ''}
                       </h4>
                     </div>
@@ -874,7 +875,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                           }`}
                         >
                           <span className={`min-w-0 break-words text-left leading-snug ${
-                            size.isXL ? 'text-base font-black' : compactGroupWidget ? 'text-[11px] font-extrabold' : 'text-xs sm:text-sm font-extrabold'
+                            roomyGroupCards ? 'text-base sm:text-lg font-black' : compactGroupWidget ? 'text-[11px] font-extrabold' : 'text-xs sm:text-sm font-extrabold'
                           }`}>
                             {displayName}
                           </span>
