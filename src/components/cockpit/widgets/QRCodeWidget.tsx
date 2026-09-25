@@ -216,7 +216,7 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
               onClick={handleClear}
               title="Eingabe leeren"
               aria-label="QR-Code leeren"
-              className={`p-1.5 rounded-lg border transition-all cursor-pointer min-h-[34px] min-w-[34px] flex items-center justify-center ${
+              className={`p-1.5 rounded-lg border transition-all cursor-pointer min-h-11 min-w-11 flex items-center justify-center ${
                 currentIsLight
                   ? 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
                   : 'bg-zinc-800 hover:bg-zinc-700 text-slate-300 border-white/10'
@@ -233,7 +233,7 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
             disabled={!inputVal || qrTooLong}
             title="Großanzeige auf Tafel / Beamer"
             aria-label="Großanzeige öffnen"
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs rounded-lg transition-all cursor-pointer min-h-[34px]"
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs rounded-lg transition-all cursor-pointer min-h-11"
           >
             <Maximize2 className="w-3.5 h-3.5 shrink-0" />
             {!size.isCompact && <span>Tafel</span>}
@@ -425,7 +425,7 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
               type="button"
               onClick={() => setIsLightboxOpen(false)}
               aria-label="Großanzeige schließen"
-              className="absolute top-3.5 right-3.5 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center"
+              className="absolute top-3.5 right-3.5 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all cursor-pointer min-w-11 min-h-11 flex items-center justify-center"
             >
               <X className="w-5 h-5" />
             </button>
