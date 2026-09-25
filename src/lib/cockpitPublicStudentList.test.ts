@@ -68,7 +68,7 @@ test('Öffentliche Plusliste zeigt für eine tatsächlich leere Klasse keine erf
   assert.doesNotMatch(html, /Max|Anna|Lukas|Emma/);
 });
 
-test('Kompakte Cockpit-Seitenleiste zeigt alle 17 echten Kinder in einem zweispaltigen Raster', () => {
+test('Kompakte Cockpit-Seitenleiste zeigt alle 17 echten Kinder in niedrigen Ein-Zeilen-Karten', () => {
   const pupils = Array.from({ length: 17 }, (_, index) => ({
     id: `student-${index}`, vorname: `Kind${index + 1}`, nachname: 'Beispiel',
   })) as unknown as Student[];
@@ -80,7 +80,9 @@ test('Kompakte Cockpit-Seitenleiste zeigt alle 17 echten Kinder in einem zweispa
     removeParticipation: () => {},
   }));
   assert.match(teaching, /sidebarCompact=\{sidebarMode === "mini"\}/);
-  assert.match(html, /grid-cols-2/);
+  assert.match(html, /space-y-1 overflow-y-auto/);
+  assert.match(html, /1 P\./);
+  assert.match(html, /min-h-9 min-w-9/);
   assert.match(html, /Unsere Pluspunkte · 17/);
   for (let i = 1; i <= 17; i++) assert.match(html, new RegExp(`Kind${i}(?!\\d)`));
   assert.equal((html.match(/Pluspunkt für/g) || []).length, 17);
@@ -146,7 +148,7 @@ test('Verhalten wird erst nach bewusster Lehrperson-Einstellung auf der öffentl
   assert.match(teaching, /showStudentBehaviorInPluspoints: event\.target\.checked/);
 });
 
-test('Die sehr schmale Schülerliste zeigt optional nur das Verhalten-Emoji, nicht zusätzliche lange Etiketten', () => {
+test('Die kompakte Schülerliste zeigt den kurzen Verhaltensstatus neben Name, Punkten und Plus-Aktion', () => {
   const html = renderToStaticMarkup(React.createElement(PublicStudentListWidget, {
     app: { activeClassId: 'test-class', schueler: [{ id: 's1', vorname: 'Mila', nachname: 'Muster' }],
       boardSettings: { showStudentBehaviorInPluspoints: true },
@@ -160,7 +162,9 @@ test('Die sehr schmale Schülerliste zeigt optional nur das Verhalten-Emoji, nic
   }));
   assert.match(html, /Verhaltensstatus: Stopp/);
   assert.match(html, /🚫/);
-  assert.doesNotMatch(html, />Stopp<\/span>/);
+  assert.match(html, />Stopp<\/span>/);
+  assert.match(html, /0 P\./);
+  assert.match(html, />\+1<\/button>/);
 });
 
 test('Mit einem Klick kann die Lehrperson die sichtbare Verhaltensstufe ändern', () => {
