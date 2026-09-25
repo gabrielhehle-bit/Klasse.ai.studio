@@ -10667,7 +10667,7 @@ ${content}
                             className="min-h-11 rounded-lg border border-slate-300 bg-white px-2.5 text-sm font-semibold">↶</button>
                           <button type="button" onMouseDown={event => event.preventDefault()}
                             onClick={() => boardTextCommandRef.current?.('redo')}
-                            className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-sm font-semibold">↷</button>
+                            className="min-h-11 rounded-lg border border-slate-300 bg-white px-2.5 text-sm font-semibold">↷</button>
                           <button type="button"
                             onClick={() => {
                               setIsBoardTextEditing(false);
@@ -10742,11 +10742,11 @@ ${content}
 
                           <button type="button"
                             onClick={() => boardInkRef.current?.undo()}
-                            className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-sm font-semibold hover:bg-slate-100"
+                            className="min-h-11 rounded-lg border border-slate-300 bg-white px-2.5 text-sm font-semibold hover:bg-slate-100"
                             title="Rückgängig">↶</button>
                           <button type="button"
                             onClick={() => boardInkRef.current?.redo()}
-                            className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-sm font-semibold hover:bg-slate-100"
+                            className="min-h-11 rounded-lg border border-slate-300 bg-white px-2.5 text-sm font-semibold hover:bg-slate-100"
                             title="Wiederholen">↷</button>
                           <button type="button"
                             onClick={() => setShowBoardTools(true)}
@@ -10755,7 +10755,7 @@ ${content}
                           </button>
                           <button type="button"
                             onClick={() => setBoardTool('select')}
-                            className="ml-auto min-h-9 rounded-lg bg-indigo-700 px-3 text-sm font-bold text-white hover:bg-indigo-600">
+                            className="ml-auto min-h-11 rounded-lg bg-indigo-700 px-3 text-sm font-bold text-white hover:bg-indigo-600">
                             Fertig
                           </button>
                         </div>
