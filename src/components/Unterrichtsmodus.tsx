@@ -8383,7 +8383,7 @@ ${content}
                                 aria-label={`Tafelseite ${index + 1}`}
                                 title={`Tafelseite ${index + 1}`}
                                 onClick={() => switchCockpitBoardPage(pageId)}
-                                className={`flex h-8 min-w-8 shrink-0 items-center justify-center rounded-md px-2 text-xs font-black transition-colors ${
+                                className={`flex h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-2 text-xs font-black transition-colors ${
                                   activeBoardPageId === pageId
                                     ? "bg-indigo-700 text-white shadow-sm"
                                     : "bg-white text-slate-600 hover:bg-indigo-50 hover:text-indigo-800"
@@ -8394,13 +8394,13 @@ ${content}
                             <button type="button" onClick={addCockpitBoardPage}
                               disabled={!app.activeClassId || boardPageIds.length >= MAX_COCKPIT_BOARD_PAGES}
                               aria-label="Neue Tafelseite hinzufügen" title="Neue Tafelseite"
-                              className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-md border border-dashed border-indigo-300 bg-white text-base font-black text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-40">+</button>
+                              className="flex h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border border-dashed border-indigo-300 bg-white text-base font-black text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-40">+</button>
                           </div>
 
                           <button type="button" onClick={() => setShowBoardTools(open => !open)}
                             aria-expanded={showBoardTools} aria-controls="klassio-board-tools"
                             title="Schreiben & Papier"
-                            className={`flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-bold transition-colors ${
+                            className={`flex h-11 min-w-11 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-bold transition-colors ${
                               showBoardTools
                                 ? "border-indigo-600 bg-indigo-700 text-white"
                                 : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
@@ -10616,14 +10616,14 @@ ${content}
                             {COCKPIT_PAPERS.map(paper => <option key={paper.id} value={paper.id}>{paper.label}</option>)}
                           </select>
                           {cockpitPaper !== 'blank' && (
-                            <label className="mt-2 flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
+                            <label className="mt-2 flex min-h-11 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
                               <span className="min-w-0 flex-1">
                                 {cockpitPaper === 'grid' ? 'Kästchengröße' : cockpitPaper === 'handwriting' ? 'Schreibzonen' : 'Zeilenabstand'}
                               </span>
                               <input type="range" min={16} max={80} step={4} value={cockpitPaperSpacing}
                                 aria-label="Papierabstand einstellen"
                                 onChange={event => setCockpitPaperSpacing(Number(event.target.value))}
-                                className="w-24 accent-indigo-600" />
+                                className="h-11 w-24 accent-indigo-600" />
                               <span className="w-10 text-right tabular-nums">{cockpitPaperSpacing}px</span>
                             </label>
                           )}
@@ -10639,32 +10639,32 @@ ${content}
                           <span className="px-1 text-[10px] font-black uppercase tracking-wider text-indigo-700">Text</span>
                           <select aria-label="Textgröße" defaultValue="p"
                             onChange={event => boardTextCommandRef.current?.('formatBlock', event.target.value)}
-                            className="min-h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm">
+                            className="min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-sm">
                             <option value="p">Normal</option>
                             <option value="h2">Groß</option>
                             <option value="h1">Sehr groß</option>
                           </select>
                           <button type="button" onMouseDown={event => event.preventDefault()}
                             onClick={() => boardTextCommandRef.current?.('bold')}
-                            className="min-h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm font-black">Fett</button>
-                          <label className="flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 text-xs font-semibold">
+                            className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-black">Fett</button>
+                          <label className="flex min-h-11 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 text-xs font-semibold">
                             Farbe
                             <input type="color" aria-label="Textfarbe auswählen" defaultValue="#172554"
                               onChange={event => boardTextCommandRef.current?.('foreColor', event.target.value)}
-                              className="h-7 w-8 rounded border border-slate-300" />
+                              className="h-11 w-11 rounded border border-slate-300" />
                           </label>
                           <button type="button" onMouseDown={event => event.preventDefault()}
                             onClick={() => boardTextCommandRef.current?.('justifyLeft')}
-                            className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-sm">Links</button>
+                            className="min-h-11 rounded-lg border border-slate-300 bg-white px-2.5 text-sm">Links</button>
                           <button type="button" onMouseDown={event => event.preventDefault()}
                             onClick={() => boardTextCommandRef.current?.('justifyCenter')}
-                            className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-sm">Mitte</button>
+                            className="min-h-11 rounded-lg border border-slate-300 bg-white px-2.5 text-sm">Mitte</button>
                           <button type="button" onMouseDown={event => event.preventDefault()}
                             onClick={() => boardTextCommandRef.current?.('justifyRight')}
-                            className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-sm">Rechts</button>
+                            className="min-h-11 rounded-lg border border-slate-300 bg-white px-2.5 text-sm">Rechts</button>
                           <button type="button" onMouseDown={event => event.preventDefault()}
                             onClick={() => boardTextCommandRef.current?.('undo')}
-                            className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-sm font-semibold">↶</button>
+                            className="min-h-11 rounded-lg border border-slate-300 bg-white px-2.5 text-sm font-semibold">↶</button>
                           <button type="button" onMouseDown={event => event.preventDefault()}
                             onClick={() => boardTextCommandRef.current?.('redo')}
                             className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-sm font-semibold">↷</button>
@@ -10673,7 +10673,7 @@ ${content}
                               setIsBoardTextEditing(false);
                               setBoardTool('select');
                             }}
-                            className="ml-auto min-h-9 rounded-lg bg-indigo-700 px-3 text-sm font-bold text-white hover:bg-indigo-600">
+                            className="ml-auto min-h-11 rounded-lg bg-indigo-700 px-3 text-sm font-bold text-white hover:bg-indigo-600">
                             Fertig
                           </button>
                         </div>
@@ -10705,20 +10705,20 @@ ${content}
                                     aria-label={label}
                                     aria-pressed={boardInkColor === value}
                                     onClick={() => setBoardInkColor(value)}
-                                    className={`h-8 w-8 rounded-full border-2 shadow-sm transition-transform hover:scale-105 ${
+                                    className={`h-11 w-11 rounded-full border-2 shadow-sm transition-transform hover:scale-105 ${
                                       boardInkColor === value ? "border-indigo-600 ring-2 ring-indigo-200" : "border-white ring-1 ring-slate-300"
                                     }`}
                                     style={{ backgroundColor: value }}
                                   />
                                 ))}
-                                <label className="flex h-9 items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 text-xs font-semibold">
+                                <label className="flex h-11 items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 text-xs font-semibold">
                                   Farbe
                                   <input
                                     type="color"
                                     aria-label="Eigene Stiftfarbe"
                                     value={boardInkColor}
                                     onChange={event => setBoardInkColor(event.target.value)}
-                                    className="h-7 w-7 cursor-pointer rounded border-0 bg-transparent p-0"
+                                    className="h-11 w-11 cursor-pointer rounded border-0 bg-transparent p-0"
                                   />
                                 </label>
                               </div>
@@ -10726,7 +10726,7 @@ ${content}
                                 aria-label="Strichstärke"
                                 value={boardInkWidth}
                                 onChange={event => setBoardInkWidth(Number(event.target.value))}
-                                className="min-h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm"
+                                className="min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-sm"
                               >
                                 <option value={2}>Fein</option>
                                 <option value={4}>Normal</option>
@@ -10750,7 +10750,7 @@ ${content}
                             title="Wiederholen">↷</button>
                           <button type="button"
                             onClick={() => setShowBoardTools(true)}
-                            className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-semibold hover:bg-slate-100">
+                            className="min-h-11 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-semibold hover:bg-slate-100">
                             Papier & Werkzeuge
                           </button>
                           <button type="button"
