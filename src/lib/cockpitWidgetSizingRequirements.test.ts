@@ -28,19 +28,22 @@ test("Cockpit-Widgets: kleiner Inhalt bleibt überlauf-sicher, Schüler-Widgets 
   assert.match(cockpitWidget, /className="cockpit-widget-content absolute inset-0 flex min-h-0 min-w-0 flex-col overflow-auto"/);
   assert.match(cockpitWidget, /touchAction: "auto"/);
   assert.match(kidAttendance, /Alle \{students\.length\} Kinder groß anzeigen/);
-  // The check-in redesign now shows all pupils using explicitly paged native controls.\n  assert.match(kidAttendance, /getCheckInPageLayout\(size\.width, size\.height, students\.length, studentPage\)/);\n  assert.match(kidAttendance, /aria-label="Vorherige Schülerseite"/);\n  assert.match(kidAttendance, /aria-label="Nächste Schülerseite"/);
+  // The check-in redesign shows all pupils using explicitly paged native controls.
+  assert.match(kidAttendance, /getCheckInPageLayout\(size\.width, size\.height, students\.length, studentPage, adaptiveLayout\.pages\)/);
+  assert.match(kidAttendance, /aria-label="Vorherige Schülerseite"/);
+  assert.match(kidAttendance, /aria-label="Nächste Schülerseite"/);
 });
 
 test("Ich-bin-da: Kindernamen werden nicht mit Ellipsen gekürzt", () => {
-  assert.match(kidAttendance, /whitespace-normal break-words font-black leading-tight/);
+  assert.match(kidAttendance, /whitespace-normal break-words font-black leading-\[1\.05\]/);
   assert.match(kidAttendance, /getStudentGridLayout\(size\.width, size\.height, students\.length/);
   assert.match(kidAttendance, /gridTemplateColumns:/);
-  assert.doesNotMatch(kidAttendance, /block truncate font-black leading-tight/);
+  assert.doesNotMatch(kidAttendance, /block truncate font-black/);
   assert.doesNotMatch(kidAttendance, /flex-1 truncate text-\[11px\] font-black/);
 });
 
 test("Lehrercockpit: Smartboard-Beschriftung belegt keinen Platz mehr in der Werkzeugleiste", () => {
   assert.doesNotMatch(teachingSurface, /Weiße Smartboard-Fläche/);
-  assert.match(teachingSurface, />TEXT<\/button>/);
+  assert.match(teachingSurface, />Text<\/span>/);
   assert.match(teachingSurface, />Vorlage erstellen</);
 });
