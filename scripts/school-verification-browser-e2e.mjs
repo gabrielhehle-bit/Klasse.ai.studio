@@ -419,8 +419,65 @@ async function verifyDirectCockpitNavigation(client) {
   if (!openedWritingTools) throw new Error('Could not open compact writing tools.');
   await waitFor(client, 'writing tools expose text, pen, eraser and paper',
     String.raw`(() => {const p=document.getElementById('klassio-board-tools');return !!p&&getComputedStyle(p).display!=='none'&&p.textContent.includes('Stift')&&p.textContent.includes('Text')&&p.textContent.includes('Radierer')&&!!p.querySelector('select[aria-label="Papierart der Unterrichtsfläche"]');})()`);
-  await evaluate(client,
-    String.raw`(() => {const b=document.querySelector('#klassio-board-tools button[aria-label="Schreiben und Papier schließen"]');if(!b)return false;b.click();return true;})()`);
+
+  const boardToolEntryTouch = await evaluate(client,
+    String.raw`(() => {
+      const tabs=document.querySelector('[role="tablist"][aria-label="Tafelseiten"]');
+      const launcher=document.querySelector('button[aria-controls="klassio-board-tools"]');
+      const dialog=document.getElementById('klassio-board-tools');
+      if(!tabs||!launcher||!dialog)return {error:'missing board tool entry controls'};
+      const controls=[...tabs.querySelectorAll('button'), launcher, ...dialog.querySelectorAll('button,select,input[type="range"]')]
+        .filter(control=>!control.disabled)
+        .map(control=>{const r=control.getBoundingClientRect();return {tag:control.tagName,label:control.getAttribute('aria-label')||control.textContent?.trim()||'',w:r.width,h:r.height};});
+      return {controls};
+    })()`);
+  if (boardToolEntryTouch.error || boardToolEntryTouch.controls.some(control => control.w < 43 || control.h < 43)) {
+    throw new Error('Board pages and writing tool picker keep 44px touch targets: ' + JSON.stringify(boardToolEntryTouch));
+  }
+
+  const openedTextMode = await evaluate(client,
+    String.raw`(() => {const dialog=document.getElementById('klassio-board-tools');const b=[...(dialog?.querySelectorAll('button')||[])].find(button=>(button.textContent||'').trim()==='Text');if(!b)return false;b.click();return true;})()`);
+  if (!openedTextMode) throw new Error('Could not activate board text mode.');
+  await waitFor(client, 'board text context toolbar',
+    String.raw`Boolean(document.querySelector('[role="toolbar"][aria-label="Text formatieren"]'))`);
+  const textToolbarTouch = await evaluate(client,
+    String.raw`(() => {
+      const toolbar=document.querySelector('[role="toolbar"][aria-label="Text formatieren"]');
+      if(!toolbar)return {error:'missing text toolbar'};
+      const controls=[...toolbar.querySelectorAll('button,select,input[type="color"]')].filter(control=>!control.disabled).map(control=>{const r=control.getBoundingClientRect();return {tag:control.tagName,label:control.getAttribute('aria-label')||control.textContent?.trim()||'',w:r.width,h:r.height};});
+      return {controls};
+    })()`);
+  if (textToolbarTouch.error || textToolbarTouch.controls.some(control => control.w < 43 || control.h < 43)) {
+    throw new Error('Board text toolbar keeps 44px touch targets: ' + JSON.stringify(textToolbarTouch));
+  }
+  const finishedTextMode = await evaluate(client,
+    String.raw`(() => {const toolbar=document.querySelector('[role="toolbar"][aria-label="Text formatieren"]');const b=[...(toolbar?.querySelectorAll('button')||[])].find(button=>(button.textContent||'').trim()==='Fertig');if(!b)return false;b.click();return true;})()`);
+  if (!finishedTextMode) throw new Error('Could not finish board text mode.');
+
+  const reopenedWritingTools = await evaluate(client,
+    String.raw`(() => {const b=document.querySelector('button[aria-controls="klassio-board-tools"]');if(!b)return false;b.click();return true;})()`);
+  if (!reopenedWritingTools) throw new Error('Could not reopen writing tools for pen mode.');
+  await waitFor(client, 'writing tools reopen for pen mode',
+    String.raw`(() => {const p=document.getElementById('klassio-board-tools');return !!p&&getComputedStyle(p).display!=='none';})()`);
+  const openedPenMode = await evaluate(client,
+    String.raw`(() => {const dialog=document.getElementById('klassio-board-tools');const b=[...(dialog?.querySelectorAll('button')||[])].find(button=>(button.textContent||'').trim()==='Stift');if(!b)return false;b.click();return true;})()`);
+  if (!openedPenMode) throw new Error('Could not activate board pen mode.');
+  await waitFor(client, 'board pen context toolbar',
+    String.raw`Boolean(document.querySelector('[role="toolbar"][aria-label="Stift einstellen"]'))`);
+  const penToolbarTouch = await evaluate(client,
+    String.raw`(() => {
+      const toolbar=document.querySelector('[role="toolbar"][aria-label="Stift einstellen"]');
+      if(!toolbar)return {error:'missing pen toolbar'};
+      const controls=[...toolbar.querySelectorAll('button,select,input[type="color"]')].filter(control=>!control.disabled).map(control=>{const r=control.getBoundingClientRect();return {tag:control.tagName,label:control.getAttribute('aria-label')||control.textContent?.trim()||'',w:r.width,h:r.height};});
+      return {controls};
+    })()`);
+  if (penToolbarTouch.error || penToolbarTouch.controls.some(control => control.w < 43 || control.h < 43)) {
+    throw new Error('Board pen toolbar keeps 44px touch targets: ' + JSON.stringify(penToolbarTouch));
+  }
+  const finishedPenMode = await evaluate(client,
+    String.raw`(() => {const toolbar=document.querySelector('[role="toolbar"][aria-label="Stift einstellen"]');const b=[...(toolbar?.querySelectorAll('button')||[])].find(button=>(button.textContent||'').trim()==='Fertig');if(!b)return false;b.click();return true;})()`);
+  if (!finishedPenMode) throw new Error('Could not finish board pen mode.');
+  console.log('✓ Board pages, writing picker, text and pen toolbars keep 44px touch targets');
 
   const toolbarTouch = await evaluate(client,
     String.raw`(() => {
