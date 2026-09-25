@@ -8281,60 +8281,69 @@ ${content}
 
                             {isAddWidgetMenuOpen && (
                               <div
-                                className={`fixed left-1/2 -translate-x-1/2 bottom-[5.5rem] top-auto w-[min(880px,calc(100vw-1rem))] max-h-[calc(100dvh-7.5rem)] overflow-y-auto overscroll-contain rounded-2xl border p-3.5 shadow-2xl flex flex-col gap-3 z-[1000] ${
+                                role="dialog"
+                                aria-modal="true"
+                                aria-label="Widget-Bibliothek"
+                                className={`klassio-widget-library fixed left-1/2 -translate-x-1/2 bottom-[5.5rem] top-auto w-[min(1040px,calc(100vw-1rem))] h-[min(760px,calc(100dvh-7rem))] overflow-hidden rounded-3xl border p-3 shadow-2xl z-[1000] ${
                                   currentIsLight
                                     ? "bg-white border-slate-100 animate-in fade-in slide-in-from-top-3 duration-200"
                                     : "bg-zinc-900 border-white/10 animate-in fade-in slide-in-from-top-3 duration-200"
                                 }`}
                               >
-                                <div className="flex flex-col sm:flex-row gap-2 justify-between items-center px-1">
-                                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5 self-start sm:self-auto">
-                                    <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                                    Widget auswählen
+                                <header className="klassio-widget-library-header flex min-w-0 items-center gap-2 border-b border-slate-200 pb-3">
+                                  <div className="min-w-0 shrink-0">
+                                    <h2 className="text-base font-black text-slate-900 dark:text-white">Widget-Bibliothek</h2>
+                                    <p className="hidden text-xs text-slate-500 md:block">Finden, hinzufügen und favorisieren.</p>
                                   </div>
-                                  {/* Responsive search bar to quickly find widgets */}
-                                  <div className="relative w-full sm:w-80 shrink-0">
+                                  <div className="relative min-w-0 flex-1">
                                     <input
                                       type="text"
-                                      aria-label="Widget suchen" placeholder="Was brauchst du? Zum Beispiel Timer …"
+                                      aria-label="Widget suchen"
+                                      placeholder="Widget suchen … z. B. Timer, Gruppen, Brüche"
                                       value={widgetSearch}
-                                      onChange={(e) =>
-                                        setWidgetSearch(e.target.value)
-                                      }
+                                      onChange={(e) => setWidgetSearch(e.target.value)}
                                       autoFocus
-                                      className={`w-full px-3 py-3 pr-8 text-sm rounded-lg border outline-none font-bold transition-all placeholder:text-slate-400 ${
+                                      className={`min-h-11 w-full rounded-xl border px-4 pr-10 text-sm font-semibold outline-none transition-all placeholder:text-slate-400 ${
                                         currentIsLight
-                                          ? "bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-400"
-                                          : "bg-white/5 border-white/10 text-white focus:border-indigo-500"
+                                          ? "bg-slate-50 border-slate-200 text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                          : "bg-white/5 border-white/15 text-white focus:border-indigo-400"
                                       }`}
                                     />
                                     {widgetSearch ? (
-                                      <button
-                                        type="button"
-                                        onClick={() => setWidgetSearch("")}
-                                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-500 text-[8px] font-bold"
-                                      >
-                                        ✕
-                                      </button>
+                                      <button type="button" onClick={() => setWidgetSearch("")}
+                                        aria-label="Widgetsuche leeren"
+                                        className="absolute right-1 top-1/2 flex min-h-9 min-w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-800">✕</button>
                                     ) : (
-                                      <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">
-                                        🔍
-                                      </span>
+                                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true">🔍</span>
                                     )}
                                   </div>
-                                </div>
-
-                                <button type="button" onClick={() => setIsAddWidgetMenuOpen(false)} className="self-end min-h-11 px-4 rounded-lg border text-sm font-semibold">Auswahl schließen</button>
-                                <section id="cockpit-widget-settings" className="rounded-2xl border border-indigo-200 bg-indigo-50 p-3 text-slate-900"
-                                  aria-label="Widget-Einstellungen im Menü Widget hinzufügen">
-                                  <button type="button" onClick={() => setIsWidgetConfigurationOpen(open => !open)}
-                                    aria-expanded={isWidgetConfigurationOpen}
-                                    className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl bg-white px-3 text-left text-sm font-black">
-                                    <span>⚙️ Widget-Einstellungen</span>
-                                    <span aria-hidden="true">{isWidgetConfigurationOpen ? "▴" : "▾"}</span>
+                                  <button type="button"
+                                    onClick={() => setIsWidgetConfigurationOpen(true)}
+                                    aria-label="Widget-Voreinstellungen öffnen"
+                                    title="Widget-Voreinstellungen"
+                                    className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100">
+                                    <Settings size={18} aria-hidden="true" />
                                   </button>
+                                  <button type="button"
+                                    onClick={() => { setIsAddWidgetMenuOpen(false); setIsWidgetConfigurationOpen(false); }}
+                                    aria-label="Widget-Bibliothek schließen"
+                                    title="Schließen"
+                                    className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-lg font-bold text-slate-700 hover:bg-slate-100">✕</button>
+                                </header>
+                                <section id="cockpit-widget-settings"
+                                  className={`${isWidgetConfigurationOpen ? "flex" : "hidden"} absolute inset-x-3 bottom-3 top-[5.25rem] z-[1200] flex-col overflow-hidden rounded-2xl border border-indigo-200 bg-indigo-50 p-3 text-slate-900 shadow-2xl`}
+                                  aria-label="Widget-Einstellungen im Menü Widget hinzufügen">
+                                  <div className="flex shrink-0 items-center justify-between gap-2 rounded-xl bg-white px-3">
+                                    <div>
+                                      <h3 className="text-sm font-black">Widget-Voreinstellungen</h3>
+                                      <p className="text-xs text-slate-500">Nur dort einstellen, wo ein Widget globale Startwerte braucht.</p>
+                                    </div>
+                                    <button type="button" onClick={() => setIsWidgetConfigurationOpen(false)}
+                                      aria-label="Widget-Voreinstellungen schließen"
+                                      className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-lg">✕</button>
+                                  </div>
                                   {isWidgetConfigurationOpen && (
-                                    <div className="mt-3 space-y-3" role="group" aria-label="Einstellungen für ein Widget auswählen">
+                                    <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1" role="group" aria-label="Einstellungen für ein Widget auswählen">
                                       <label className="block text-sm font-semibold">
                                         Widget auswählen
                                         <select aria-label="Widget für Einstellungen" value={selectedWidgetConfiguration}
