@@ -13,19 +13,37 @@ type Props = {
   onToggleSidebar: () => void;
   sidebarOpen: boolean;
   activeTypes: readonly string[];
+  minimizedTypes?: readonly string[];
+  onRestoreMinimized?: (type: string) => void;
   hasClass: boolean;
 };
 
 /** The dock only sends commands; it never copies, resets or writes widget layouts. */
 export function CockpitWidgetDock({
   settings, onChange, onReset, onOpenWidget, onAddWidget, onToggleSidebar,
-  sidebarOpen, activeTypes, hasClass,
+  sidebarOpen, activeTypes, minimizedTypes = [], onRestoreMinimized, hasClass,
 }: Props) {
   const [editing, setEditing] = useState(false);
   const favorites = COCKPIT_QUICKBAR_ITEMS.filter(item => settings.itemIds.includes(item.id))
     .sort((a, b) => settings.itemIds.indexOf(a.id) - settings.itemIds.indexOf(b.id));
+  const metaFor = (type: string) => COCKPIT_QUICKBAR_ITEMS.find(item => item.id === type);
   return (
     <div className="klassio-dock-row relative z-40 flex w-full min-w-0 shrink-0 justify-center px-1 pb-0.5 pt-1 no-print">
+      {minimizedTypes.length > 0 && (
+        <div className="klassio-minimized-strip absolute bottom-full left-1/2 mb-1 flex max-w-[min(90vw,720px)] -translate-x-1/2 gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white/95 p-1 shadow-md backdrop-blur" aria-label="Minimierte Widgets">
+          {minimizedTypes.map(type => {
+            const meta = metaFor(type);
+            return <button type="button" key={type}
+              onClick={() => onRestoreMinimized?.(type)}
+              className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-800 hover:bg-indigo-50"
+              aria-label={(meta?.label || type) + ' wiederherstellen'}
+              title={(meta?.label || type) + ' wiederherstellen'}>
+              <span aria-hidden="true">{meta?.icon || '▣'}</span>
+              <span>{meta?.label || type}</span>
+            </button>;
+          })}
+        </div>
+      )}
       <nav aria-label="Meine Widget-Favoriten"
         className="klassio-widget-dock relative flex w-fit max-w-full items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 text-slate-900 shadow-lg">
         <div className="flex min-w-0 items-center gap-1 overflow-x-auto overscroll-x-contain [scrollbar-width:thin]"
@@ -33,7 +51,11 @@ export function CockpitWidgetDock({
           {settings.enabled && favorites.map(item => (
             <button type="button" key={item.id} disabled={!hasClass}
               onClick={() => onOpenWidget(item.id)}
-              title={item.label}
+              onContextMenu={event => {
+                event.preventDefault();
+                onChange(current => toggleCockpitQuickbarItem(current, item.id));
+              }}
+              title={item.label + ' · Rechtsklick entfernt den Favoriten'}
               aria-label={item.label + ' auf der Tafel öffnen'}
               aria-pressed={activeTypes.includes(item.id)}
               className="klassio-dock-favorite flex min-h-11 min-w-11 shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-transparent px-2 py-1 text-slate-800 hover:border-indigo-200 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 aria-pressed:bg-indigo-100 aria-pressed:text-indigo-950 disabled:opacity-40">
