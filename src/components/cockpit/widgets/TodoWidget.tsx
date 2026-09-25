@@ -178,12 +178,12 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-full flex flex-col justify-between p-3 select-none overflow-hidden ${
+      className={`relative w-full h-full flex flex-col justify-between ${size.isCompact ? 'p-1.5' : 'p-3'} select-none overflow-hidden ${
         currentIsLight ? 'bg-slate-50 text-slate-800' : 'bg-slate-900/90 text-slate-100'
       }`}
     >
       {/* 1. Header: Titel, Fortschritt & Steuerungs-Aktionen */}
-      <div className="shrink-0 space-y-2 mb-2 pb-2 border-b border-slate-200/80 dark:border-slate-800">
+      <div className={`shrink-0 border-b border-slate-200/80 dark:border-slate-800 ${size.isCompact ? 'space-y-1 mb-1 pb-1' : 'space-y-2 mb-2 pb-2'}`}>
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <div
@@ -373,7 +373,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
       </div>
 
       {/* 2. Aufgabenliste: explizite Seiten statt Scrollen innerhalb des Widgets. */}
-      <div className="flex-1 min-h-0 overflow-hidden space-y-2 pr-1 my-1" aria-label={`Aufgaben ${state.items.length ? `${firstVisibleItem + 1} bis ${Math.min(firstVisibleItem + rowsPerPage, state.items.length)} von ${state.items.length}` : 'leer'}`}>
+      <div className={`flex-1 min-h-0 overflow-hidden pr-1 ${size.isCompact ? 'space-y-1 my-0.5' : 'space-y-2 my-1'}`} aria-label={`Aufgaben ${state.items.length ? `${firstVisibleItem + 1} bis ${Math.min(firstVisibleItem + rowsPerPage, state.items.length)} von ${state.items.length}` : 'leer'}`}>
         {state.items.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center p-6 text-center text-slate-400">
             <ListTodo size={36} strokeWidth={1.5} className="mb-2 opacity-50" />
@@ -390,7 +390,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
             return (
               <div
                 key={item.id}
-                className={`group rounded-xl border transition-all p-2 sm:p-2.5 flex items-center gap-2.5 ${
+                className={`group rounded-xl border transition-all ${size.isCompact ? 'p-1.5 gap-1.5' : 'p-2 sm:p-2.5 gap-2.5'} flex items-center ${
                   item.done
                     ? currentIsLight
                       ? 'bg-slate-100/70 border-slate-200 text-slate-400'
