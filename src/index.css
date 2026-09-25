@@ -2389,6 +2389,53 @@ html body [data-style] .klassio-cockpit-shell .klassio-whiteboard {
   min-height: 0;
   isolation: isolate; /* ink never blocks the sibling student panel */
 }
+/* The themed shell remains visible as a slim frame around the actual board.
+   The dock visually floats over the board edge while retaining keyboard/touch access. */
+.klassio-cockpit-shell .klassio-dock-row {
+  margin-top: -60px;
+  padding-bottom: 7px;
+  pointer-events: none;
+  z-index: 220;
+}
+.klassio-cockpit-shell .klassio-widget-dock,
+.klassio-cockpit-shell .klassio-minimized-strip {
+  pointer-events: auto;
+}
+.klassio-cockpit-shell .klassio-widget-dock {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.16);
+}
+.klassio-cockpit-shell .klassio-board-toolbox,
+html body [data-style] .klassio-cockpit-shell .klassio-board-toolbox,
+.klassio-cockpit-shell .klassio-student-edge-tab,
+html body [data-style] .klassio-cockpit-shell .klassio-student-edge-tab,
+.klassio-cockpit-shell .klassio-minimized-strip,
+html body [data-style] .klassio-cockpit-shell .klassio-minimized-strip {
+  background-color: rgba(255, 255, 255, 0.97) !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+  -webkit-text-fill-color: #0f172a !important;
+  color-scheme: light;
+}
+.klassio-cockpit-shell .klassio-student-edge-tab {
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+.klassio-cockpit-shell .klassio-student-edge-tab:hover {
+  transform: translateY(-50%) translateX(-2px);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.18);
+}
+@media (max-width: 760px) {
+  .klassio-cockpit-shell .klassio-dock-row {
+    margin-top: -54px;
+    padding-inline: 4px;
+  }
+  .klassio-cockpit-shell .klassio-board-toolbox {
+    left: 6px !important;
+    width: min(13.5rem, calc(100% - 12px)) !important;
+  }
+}
+
 html body .klassio-cockpit-shell .klassio-widget-dock,
 html body [data-style] .klassio-cockpit-shell .klassio-widget-dock,
 html body .klassio-cockpit-shell .klassio-dock-config,
