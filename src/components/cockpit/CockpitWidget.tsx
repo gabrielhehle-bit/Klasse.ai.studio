@@ -960,7 +960,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
             <form
               onSubmit={handleApplySizeConfig}
               onPointerDown={(e) => e.stopPropagation()}
-              aria-label="Widget-Größe einstellen"
+              aria-label="Größe des Widgets anpassen"
               className={`absolute top-10 right-0 p-3 rounded-xl shadow-xl border w-48 z-[80] flex flex-col gap-3 ${
                 currentIsLight
                   ? "bg-white border-slate-200"
