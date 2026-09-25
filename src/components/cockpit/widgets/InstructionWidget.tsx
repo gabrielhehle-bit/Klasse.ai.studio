@@ -751,7 +751,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                       key={mat.id}
                       type="button"
                       onClick={() => handleToggleMaterial(mat.id)}
-                      className={`min-h-[38px] px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      className={`min-h-11 px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                         isSelected
                           ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
                           : currentIsLight
