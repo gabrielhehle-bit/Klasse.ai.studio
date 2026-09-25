@@ -65,6 +65,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingItemText, setEditingItemText] = useState('');
   const [page, setPage] = useState(0);
+  const roomyTodo = isFullscreen || (size.width >= 780 && size.height >= 480);
   // A visible page replaces the former hidden inner scrolling region. On very
   // small boards use a single task instead of shrinking touch targets or text.
   const rowsPerPage = getTodoRowsPerPage(size.height, size.isCompact, showPresetsMenu, showConfirmReset);
@@ -155,21 +156,21 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
   };
 
   // Typografische Skalierung nach Breakpoints
-  const titleSizeClass = isFullscreen
+  const titleSizeClass = roomyTodo
     ? 'text-2xl font-black'
     : size.isLarge
-    ? 'text-lg font-black'
-    : 'text-sm font-bold';
+      ? 'text-xl font-black'
+      : 'text-sm font-bold';
 
-  const itemTextSizeClass = isFullscreen
+  const itemTextSizeClass = roomyTodo
     ? 'text-xl font-bold'
     : size.isLarge
-    ? 'text-base font-medium'
-    : size.isCompact
-    ? 'text-xs font-medium'
-    : 'text-sm font-medium';
+      ? 'text-lg font-semibold'
+      : size.isCompact
+        ? 'text-xs font-medium'
+        : 'text-sm font-medium';
 
-  const checkboxSizeClass = isFullscreen
+  const checkboxSizeClass = roomyTodo
     ? 'w-12 h-12 text-xl'
     : 'w-11 h-11 text-base';
 
@@ -391,7 +392,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
             return (
               <div
                 key={item.id}
-                className={`group rounded-xl border transition-all ${size.isCompact ? 'p-1.5 gap-1.5' : 'p-2 sm:p-2.5 gap-2.5'} flex items-center ${
+                className={`group rounded-xl border transition-all ${size.isCompact ? 'p-1.5 gap-1.5' : roomyTodo ? 'p-3.5 gap-3.5' : 'p-2 sm:p-2.5 gap-2.5'} flex items-center ${
                   item.done
                     ? currentIsLight
                       ? 'bg-slate-100/70 border-slate-200 text-slate-400'
@@ -420,7 +421,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
                       : 'border-slate-600 hover:border-emerald-400 bg-slate-800'
                   }`}
                 >
-                  {item.done && <Check size={isFullscreen ? 20 : 14} strokeWidth={3} />}
+                  {item.done && <Check size={roomyTodo ? 20 : 14} strokeWidth={3} />}
                 </button>
 
                 {/* Aufgabentext / Edit-Feld */}
