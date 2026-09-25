@@ -82,7 +82,7 @@ export default function StarsReviewWidget({ widget, onUpdate, currentIsLight }: 
     update({ subjects: settings.subjects.length === 0 ? [subject] : next });
   };
   const surface = currentIsLight ? 'bg-amber-50 text-slate-900' : 'bg-zinc-900 text-white';
-  const button = compact ? 'min-h-9 rounded-xl border border-amber-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-900 hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500' : 'min-h-11 rounded-xl border border-amber-300 bg-white px-3 py-2 text-sm font-bold text-slate-900 hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500';
+  const button = compact ? 'min-h-11 rounded-xl border border-amber-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-900 hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500' : 'min-h-11 rounded-xl border border-amber-300 bg-white px-3 py-2 text-sm font-bold text-slate-900 hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500';
   return <section ref={containerRef} aria-label="Sterne der Klasse im gewählten Zeitraum" className={`flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border-2 border-amber-400 ${surface}`}>
     <header className={`flex shrink-0 flex-wrap items-center justify-between border-b border-amber-400/60 ${compact ? "gap-1 p-1.5" : "gap-2 p-3"}`}>
       <div className="min-w-0">
