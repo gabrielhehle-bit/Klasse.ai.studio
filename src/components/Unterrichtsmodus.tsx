@@ -12709,8 +12709,6 @@ ${content}
                 if (minimized) {
                   setMinimizedWidgetIds(current => current.filter(widgetId => widgetId !== minimized.id));
                   bringToFront(minimized.id);
-                } else if (id === "termine") {
-                  toggleWidget("termine");
                 } else {
                   handleOpenWidgetInCockpitLayout(id as CockpitWidgetConfig["type"]);
                 }
