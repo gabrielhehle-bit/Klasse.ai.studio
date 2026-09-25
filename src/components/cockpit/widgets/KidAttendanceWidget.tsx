@@ -519,7 +519,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
             <ShieldCheck size={16} aria-hidden="true" /> Da · Fehlt · Entschuldigt
           </button>
           <button type="button" onClick={expandStudentGrid}
-            className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-800 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-800 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
             aria-label={`Ich bin da vergrößern: ${summary.total} Kinder anzeigen und bearbeiten`}>
             <Maximize2 size={15} aria-hidden="true" /> Alle Kinder öffnen
           </button>
@@ -677,7 +677,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           <button
             type="button"
             onClick={() => setIsFinalizeModalOpen(true)}
-            className="h-10 min-h-[40px] px-4 rounded-xl font-black text-xs uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white flex items-center gap-1.5 shadow-xs cursor-pointer shrink-0"
+            className="min-h-11 px-4 rounded-xl font-black text-xs uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white flex items-center gap-1.5 shadow-xs cursor-pointer shrink-0"
           >
             <Check size={15} strokeWidth={3} />
             Check-In abschließen
@@ -686,7 +686,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           <button
             type="button"
             onClick={() => setIsTeacherModalOpen(true)}
-            className="h-9 px-3 rounded-lg border font-bold text-xs text-slate-600 dark:text-zinc-300 border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-100 cursor-pointer shrink-0"
+            className="min-h-11 px-3 rounded-lg border font-bold text-xs text-slate-600 dark:text-zinc-300 border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-100 cursor-pointer shrink-0"
           >
             Übersicht & Korrektur
           </button>
