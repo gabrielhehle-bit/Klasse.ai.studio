@@ -469,7 +469,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
           </div>
           <button
             onClick={() => setSelectedStudentForAction(null)}
-            className="px-2 py-1 rounded-lg bg-amber-600 text-white text-[11px] font-bold cursor-pointer shrink-0 ml-2"
+            className="min-h-11 px-3 py-1 rounded-lg bg-amber-600 text-white text-[11px] font-bold cursor-pointer shrink-0 ml-2"
           >
             Abbrechen
           </button>
