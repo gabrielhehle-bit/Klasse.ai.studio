@@ -10098,6 +10098,7 @@ ${content}
                                 ? "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
                                 : "bg-zinc-900 border-white/10 text-white/80 hover:bg-zinc-800"
                             }`}
+                            aria-label="Vorlage erstellen"
                             title="Aktuelles Widget-Layout als neue Vorlage speichern"
                           >
                             <Save size={13} />
@@ -10117,6 +10118,7 @@ ${content}
                                     ? "bg-white border-slate-200 hover:bg-slate-50 text-slate-700"
                                     : "bg-zinc-900 border-white/10 hover:bg-zinc-800 text-white/80"
                               }`}
+                              aria-label="Weitere Optionen und Layout-Werkzeuge"
                               title="Weitere Optionen & Layout-Werkzeuge"
                             >
                               <MoreHorizontal size={14} />
@@ -10252,7 +10254,7 @@ ${content}
                                   <span>{sidebarMode !== "hidden" ? "Schülerliste ausblenden" : "Schülerliste einblenden"}</span>
                                 </button>
 
-                                <label className={`flex w-full shrink-0 cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold leading-5 ${currentIsLight ? "border-slate-200 bg-slate-50 text-slate-800" : "border-white/10 bg-white/5 text-white"}`}
+                                <label className={`flex min-h-11 w-full shrink-0 cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold leading-5 ${currentIsLight ? "border-slate-200 bg-slate-50 text-slate-800" : "border-white/10 bg-white/5 text-white"}`}
                                   title="Lehrperson schaltet die öffentliche Anzeige der aktuellen Verhaltensstufe an oder aus. Keine privaten Notizen.">
                                   <input type="checkbox" className="h-5 w-5 shrink-0 accent-indigo-600"
                                     aria-label="Verhalten der Kinder öffentlich in der Schülerliste anzeigen"
@@ -10270,7 +10272,7 @@ ${content}
                                   </span>
                                 </label>
 
-                                <label className={`flex w-full shrink-0 cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold leading-5 ${currentIsLight ? "border-slate-200 bg-slate-50 text-slate-800" : "border-white/10 bg-white/5 text-white"}`}
+                                <label className={`flex min-h-11 w-full shrink-0 cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold leading-5 ${currentIsLight ? "border-slate-200 bg-slate-50 text-slate-800" : "border-white/10 bg-white/5 text-white"}`}
                                   title="Persönliches Profil-Emoji jedes Kindes in der Schülerliste zusätzlich anzeigen.">
                                   <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0 accent-indigo-600"
                                     aria-label="Persönliche Emojis der Kinder in der Schülerliste anzeigen"
