@@ -166,6 +166,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   const isFreeMascot = widget.type === "pet" && !isDirect;
   const activeStageRef = isFreeMascot && mascotStageRef ? mascotStageRef : stageRef;
   const widgetRef = useRef<HTMLDivElement>(null);
+  const widgetMenuAreaRef = useRef<HTMLDivElement>(null);
   const contentViewportRef = useRef<HTMLDivElement>(null);
   const [contentPixels, setContentPixels] = useState({ width: 0, height: 0 });
   const dragStartPos = useRef({ x: 0, y: 0, left: 0, top: 0 });
@@ -179,6 +180,35 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   const [sizeInputWidth, setSizeInputWidth] = useState("");
   const [sizeInputHeight, setSizeInputHeight] = useState("");
   const [isMaximized, setIsMaximized] = useState(false);
+
+  // Widget menus behave like real popovers: Escape or a click/tap outside closes
+  // them. This is especially important on Smartboards where a menu otherwise
+  // easily stays open over the lesson content.
+  useEffect(() => {
+    if (!showWidgetMenu && !showSizeConfig) return;
+
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (widgetMenuAreaRef.current?.contains(target)) return;
+      setShowWidgetMenu(false);
+      setShowSizeConfig(false);
+    };
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setShowWidgetMenu(false);
+      setShowSizeConfig(false);
+    };
+
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [showWidgetMenu, showSizeConfig]);
+
   // The check-in widget can request a temporary larger teaching view without
   // persisting width, height or position into a class layout / backup.
   useEffect(() => {
@@ -790,7 +820,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
         </div>
 
         {/* Compact widget menu: editing stays inside the widget without a wide button bar. */}
-        <div className="relative flex items-center gap-1.5 shrink-0 ml-auto pointer-events-auto">
+        <div ref={widgetMenuAreaRef} className="relative flex items-center gap-1.5 shrink-0 ml-auto pointer-events-auto">
           {headerExtra}
 
           <button
@@ -818,7 +848,9 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
           {showWidgetMenu && (
             <div
               onPointerDown={(e) => e.stopPropagation()}
-              className={`absolute right-0 top-11 z-[80] w-52 rounded-xl border p-1.5 shadow-2xl ${
+              role="menu"
+              aria-label="Widget-Aktionen"
+              className={`absolute right-0 top-10 z-[80] w-52 rounded-xl border p-1.5 shadow-2xl ${
                 currentIsLight
                   ? "bg-white border-slate-200 text-slate-800"
                   : "bg-zinc-900 border-white/10 text-zinc-100"
@@ -928,7 +960,8 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
             <form
               onSubmit={handleApplySizeConfig}
               onPointerDown={(e) => e.stopPropagation()}
-              className={`absolute top-11 right-0 p-3 rounded-xl shadow-xl border w-48 z-[80] flex flex-col gap-3 ${
+              aria-label="Widget-Größe einstellen"
+              className={`absolute top-10 right-0 p-3 rounded-xl shadow-xl border w-48 z-[80] flex flex-col gap-3 ${
                 currentIsLight
                   ? "bg-white border-slate-200"
                   : "bg-zinc-900 border-white/10"
@@ -1030,12 +1063,14 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       {!layoutLocked && !isDirect && (
         <div
           onPointerDown={handlePointerDownResize}
-          className={`absolute bottom-0 right-0 w-4.5 h-4.5 cursor-se-resize flex items-end justify-end p-0.5 group z-50 touch-none ${isFreeMascot ? "mascot-widget-resize opacity-0 group-hover:opacity-100 focus-within:opacity-100" : ""}`}
+          aria-label="Widget-Größe ziehen"
+          title="Zum Vergrößern oder Verkleinern ziehen"
+          className={`absolute bottom-0 right-0 w-7 h-7 cursor-se-resize flex items-end justify-end p-1.5 group z-50 touch-none ${isFreeMascot ? "mascot-widget-resize opacity-0 group-hover:opacity-100 focus-within:opacity-100" : ""}`}
           style={{ touchAction: "none" }}
         >
           <svg
-            width="8"
-            height="8"
+            width="10"
+            height="10"
             viewBox="0 0 8 8"
             className={`transition-colors ${currentIsLight ? "text-slate-300 group-hover:text-amber-500" : "text-white/20 group-hover:text-amber-400"}`}
           >
