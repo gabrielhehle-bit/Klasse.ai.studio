@@ -388,6 +388,8 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
   // Responsive Layoutgrößen
   const isSmall = containerSize.width < 360 || containerSize.height < 360;
   const isLarge = containerSize.width > 560 || containerSize.height > 520;
+  const isXL = containerSize.width > 820 && containerSize.height > 620;
+  const maxLabelChars = isXL ? 24 : isLarge ? 19 : isSmall ? 10 : 15;
   // Keep the wheel as large as its actual viewport allows. Do not force a
   // minimum diameter larger than the widget (that clipped small screens).
   // Measure the true flex area *after* header, winner line and spin button.
@@ -411,7 +413,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="text-sm">🎡</span>
           <div className="min-w-0">
-            <span className="text-xs sm:text-sm font-black uppercase tracking-wider block text-slate-800 dark:text-white leading-tight truncate">
+            <span className={`${isXL ? 'text-lg' : isLarge ? 'text-base' : 'text-xs sm:text-sm'} font-black uppercase tracking-wider block text-slate-800 dark:text-white leading-tight truncate`}>
               {mode === 'custom' ? 'Glücksrad' : mode === 'numbers' ? 'Zahlenrad' : 'Schülerrad'}
             </span>
             {!isSmall && (
@@ -433,7 +435,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
               type="button"
               onClick={() => { if (!isSpinning) { setDrawnHistory([]); setWinner(null); } }}
               disabled={isSpinning}
-              className="text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-all cursor-pointer flex items-center gap-1"
+              className="min-h-11 px-2 rounded-lg bg-amber-500/10 text-[10px] sm:text-xs font-bold text-amber-600 dark:text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-all cursor-pointer flex items-center gap-1"
               title="Alle gezogenen Optionen wieder ins Rad legen"
             >
               <RotateCcw size={11} />
@@ -537,10 +539,11 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                 const color = WHEEL_PALETTE[idx % WHEEL_PALETTE.length];
 
                 // Dynamische Schriftgröße
-                const fontSize = Math.max(5.5, Math.min(10.5, 55 / Math.sqrt(numSlices)));
+                const fontSize = Math.max(5.5, Math.min(isXL ? 12.5 : isLarge ? 11.5 : 10.5, (isLarge ? 64 : 55) / Math.sqrt(numSlices)));
 
                 return (
                   <g key={idx}>
+                    <title>{item}</title>
                     <path
                       d={pathData}
                       fill={color}
@@ -563,7 +566,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                           textShadow: '0 1px 3px rgba(0,0,0,0.85)',
                         }}
                       >
-                        {item.length > 15 ? `${item.slice(0, 14)}…` : item}
+                        {item.length > maxLabelChars ? `${item.slice(0, maxLabelChars - 1)}…` : item}
                       </text>
                     </g>
                   </g>
@@ -612,7 +615,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
             <button
               type="button"
               onClick={() => setShowConfigModal(true)}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-wider cursor-pointer"
+              className="min-h-11 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-wider cursor-pointer"
             >
               Optionen hinzufügen
             </button>
@@ -631,7 +634,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
             title="Klicken für nochmal drehen"
           >
             <span className="text-sm sm:text-base">🎉</span>
-            <span className={`font-black tracking-tight truncate ${isLarge ? 'text-lg sm:text-xl' : 'text-sm sm:text-base'}`}>
+            <span className={`min-w-0 break-words text-center font-black tracking-tight [overflow-wrap:anywhere] ${isXL ? 'text-2xl' : isLarge ? 'text-lg sm:text-xl' : 'text-sm sm:text-base'}`}>
               {winner}
             </span>
           </div>
@@ -652,7 +655,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
           type="button"
           onClick={handleSpin}
           disabled={isSpinning || !hasEnoughItems}
-          className={`w-full min-h-11 rounded-lg font-black ${isSmall ? 'text-xs' : 'text-xs sm:text-sm'} uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-98 cursor-pointer ${
+          className={`w-full ${isXL ? 'min-h-14 text-lg' : isLarge ? 'min-h-12 text-base' : 'min-h-11 text-xs sm:text-sm'} rounded-lg font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-98 cursor-pointer ${
             isSpinning || !hasEnoughItems
               ? 'bg-slate-200 dark:bg-zinc-800 text-slate-400 cursor-not-allowed'
               : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20'
@@ -693,7 +696,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
               <button
                 type="button"
                 onClick={() => setShowConfigModal(false)}
-                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 cursor-pointer"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 cursor-pointer"
                 title="Schließen"
               >
                 <X size={18} />
