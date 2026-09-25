@@ -410,8 +410,9 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
   const strokeDashoffset = circumference * (1 - progressRatio);
   // The original 144px ring left a large empty center when the widget grew.
   // Reserve real controls first; scale only the graphic/numerals, never buttons.
-  const ringPixels = Math.max(92, Math.min(size.width * 0.62, size.height - 242, 440));
-  const clockTextPixels = Math.max(36, Math.min(82, ringPixels * 0.23));
+  const ringPixels = Math.max(92, Math.min(size.width * 0.68, size.height - 214, 440));
+  const clockTextPixels = Math.max(36, Math.min(88, ringPixels * 0.26));
+  const veryCompactTimer = size.width < 285 || size.height < 245;
 
   const getDigitColorClass = () => {
     if (status === 'expired') return 'text-rose-500 animate-pulse';
@@ -425,7 +426,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
       tabIndex={0}
       aria-label="Countdown-Timer: Leertaste startet oder pausiert bei fokussiertem Widget, R setzt zurück"
       className={`relative flex flex-col justify-between w-full h-full select-none overflow-hidden transition-colors duration-300 ${
-        size.isCompact ? 'p-2.5' : size.isStandard ? 'p-3.5' : 'p-5'
+        size.isCompact ? (veryCompactTimer ? 'p-1.5' : 'p-2') : size.isStandard ? 'p-3.5' : 'p-5'
       } ${
         status === 'expired'
           ? currentIsLight ? 'bg-amber-50/90 border border-amber-200' : 'bg-amber-950/20 border border-amber-500/20'
@@ -439,7 +440,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
       {/* Fokus: Große Zeitanzeige + Primäre Aktionen + "•••" Popover für Presets/Ton */}
       {/* ========================================================================= */}
       {size.isCompact && (
-        <div className="flex flex-col justify-between h-full w-full gap-2">
+        <div className={`flex flex-col justify-between h-full w-full ${veryCompactTimer ? 'gap-1' : 'gap-2'}`}>
           {/* Status Badge */}
           <div className="flex items-center justify-between shrink-0">
             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
@@ -478,14 +479,14 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                   setIsCustomTimeOpen(true);
                 }
               }}
-              className={`font-mono font-black tracking-tight tabular-nums transition-colors pointer-events-auto cursor-pointer leading-none text-4xl select-none ${getDigitColorClass()}`}
+              className={`font-mono font-black tracking-[-0.04em] tabular-nums transition-colors pointer-events-auto cursor-pointer leading-none select-none ${veryCompactTimer ? 'text-5xl' : 'text-5xl sm:text-6xl'} ${getDigitColorClass()}`}
               title={status !== 'running' ? 'Tippen für eigene Zeit' : undefined}
             >
               {formatTime(remainingSeconds)}
             </span>
 
             {/* Slim progress bar in compact mode */}
-            <div className={`w-36 h-1.5 rounded-full overflow-hidden mt-2 border ${
+            <div className={`${veryCompactTimer ? 'w-28 mt-1' : 'w-36 mt-2'} h-1.5 rounded-full overflow-hidden border ${
               currentIsLight ? 'bg-slate-100 border-slate-200' : 'bg-zinc-800 border-white/5'
             }`}>
               <div
@@ -502,7 +503,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {status === 'ready' && (
               <button
                 onClick={handleStart}
-                className="w-full min-h-[44px] px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98"
+                className={`w-full ${veryCompactTimer ? 'min-h-[40px]' : 'min-h-[44px]'} px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98"
               >
                 <Play size={17} fill="currentColor" />
                 <span>Start</span>
@@ -512,7 +513,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {status === 'running' && (
               <button
                 onClick={handlePause}
-                className="w-full min-h-[44px] px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98"
+                className={`w-full ${veryCompactTimer ? 'min-h-[40px]' : 'min-h-[44px]'} px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98"
               >
                 <Pause size={17} fill="currentColor" />
                 <span>Pause</span>
@@ -522,7 +523,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {status === 'paused' && (
               <button
                 onClick={handleResume}
-                className="w-full min-h-[44px] px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98"
+                className={`w-full ${veryCompactTimer ? 'min-h-[40px]' : 'min-h-[44px]'} px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98"
               >
                 <Play size={17} fill="currentColor" />
                 <span>Weiter</span>
@@ -532,7 +533,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {status === 'expired' && (
               <button
                 onClick={handleRestartSameTime}
-                className="w-full min-h-[44px] px-4 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98"
+                className={`w-full ${veryCompactTimer ? 'min-h-[40px]' : 'min-h-[44px]'} px-4 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98"
               >
                 <RefreshCw size={16} />
                 <span>Nochmals</span>
@@ -541,11 +542,11 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
           </div>
 
           {/* Secondary Controls: [-1m] [+1m] [Reset] [••• Mehr] */}
-          <div className="flex items-center gap-1.5 justify-between shrink-0 pt-1 border-t border-slate-200/60 dark:border-white/10">
+          <div className={`flex items-center justify-between shrink-0 border-t border-slate-200/60 dark:border-white/10 ${veryCompactTimer ? 'gap-1 pt-0.5' : 'gap-1.5 pt-1'}`}>
             <button
               onClick={handleSubtractMinute}
               disabled={remainingSeconds <= 0}
-              className={`flex-1 min-h-[38px] rounded-xl border text-xs font-bold flex items-center justify-center gap-0.5 cursor-pointer active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed ${
+              className={`flex-1 min-h-[36px] rounded-xl border text-xs font-bold flex items-center justify-center gap-0.5 cursor-pointer active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed ${
                 currentIsLight ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700' : 'bg-zinc-800 hover:bg-zinc-700 border-white/10 text-slate-200'
               }`}
               title="1 Minute abziehen"
@@ -556,7 +557,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
 
             <button
               onClick={handleAddMinute}
-              className={`flex-1 min-h-[38px] rounded-xl border text-xs font-bold flex items-center justify-center gap-0.5 cursor-pointer active:scale-95 ${
+              className={`flex-1 min-h-[36px] rounded-xl border text-xs font-bold flex items-center justify-center gap-0.5 cursor-pointer active:scale-95 ${
                 currentIsLight ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700' : 'bg-zinc-800 hover:bg-zinc-700 border-white/10 text-slate-200'
               }`}
               title="1 Minute hinzufügen"
@@ -567,7 +568,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
 
             <button
               onClick={handleReset}
-              className={`min-h-[38px] min-w-[38px] px-2 rounded-xl border flex items-center justify-center cursor-pointer active:scale-95 ${
+              className={`min-h-[36px] min-w-[38px] px-2 rounded-xl border flex items-center justify-center cursor-pointer active:scale-95 ${
                 currentIsLight ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700' : 'bg-zinc-800 hover:bg-zinc-700 border-white/10 text-slate-200'
               }`}
               title="Zurücksetzen"
@@ -578,7 +579,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {/* "•••" Popover trigger */}
             <button
               onClick={() => setShowMoreMenu(prev => !prev)}
-              className={`min-h-[38px] min-w-[38px] px-2 rounded-xl border flex items-center justify-center cursor-pointer active:scale-95 ${
+              className={`min-h-[36px] min-w-[38px] px-2 rounded-xl border flex items-center justify-center cursor-pointer active:scale-95 ${
                 showMoreMenu
                   ? 'bg-indigo-600 text-white border-indigo-700'
                   : currentIsLight ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700' : 'bg-zinc-800 hover:bg-zinc-700 border-white/10 text-slate-200'
@@ -852,7 +853,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
 
               <button
                 onClick={handleToggleMute}
-                className={`min-h-[38px] px-3 rounded-xl border text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all ${
+                className={`min-h-[36px] px-3 rounded-xl border text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all ${
                   isMuted
                     ? 'bg-rose-500/10 border-rose-500/30 text-rose-500'
                     : currentIsLight ? 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200' : 'bg-zinc-800 border-white/10 text-slate-300 hover:bg-zinc-700'
@@ -872,7 +873,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                     setCustomSecInput((initialSeconds % 60).toString());
                     setIsCustomTimeOpen(true);
                   }}
-                  className={`min-h-[38px] px-3 rounded-xl border text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+                  className={`min-h-[36px] px-3 rounded-xl border text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 ${
                     currentIsLight ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700' : 'bg-zinc-800 hover:bg-zinc-700 border-white/10 text-slate-300'
                   }`}
                 >
@@ -883,7 +884,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
 
               {externalShowSettings === undefined && (<button
                 onClick={() => setShowSettings(!showSettings)}
-                className={`min-h-[38px] min-w-[38px] p-2 rounded-xl border flex items-center justify-center cursor-pointer active:scale-95 ${
+                className={`min-h-[36px] min-w-[38px] p-2 rounded-xl border flex items-center justify-center cursor-pointer active:scale-95 ${
                   showSettings ? 'bg-indigo-600 text-white border-indigo-700' : currentIsLight ? 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200' : 'bg-zinc-800 border-white/10 text-slate-400 hover:bg-zinc-700'
                 }`}
                 title="Optionen"
@@ -1124,7 +1125,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                   setCustomSecInput((initialSeconds % 60).toString());
                   setIsCustomTimeOpen(true);
                 }}
-                className={`w-full min-h-[38px] px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 cursor-pointer ${
+                className={`w-full min-h-[36px] px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 cursor-pointer ${
                   currentIsLight ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700' : 'bg-zinc-800 hover:bg-zinc-700 border-white/10 text-slate-200'
                 }`}
               >
@@ -1137,7 +1138,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                   setShowMoreMenu(false);
                   setShowSettings(true);
                 }}
-                className="w-full min-h-[38px] px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full min-h-[36px] px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Settings2 size={14} />
                 <span>Signalton & Darstellung</span>
