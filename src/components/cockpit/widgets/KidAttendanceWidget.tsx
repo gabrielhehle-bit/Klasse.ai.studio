@@ -952,7 +952,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
             <button
               type="button"
               onClick={() => setIsTeacherModalOpen(false)}
-              className="h-10 px-5 rounded-xl font-bold text-xs bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 cursor-pointer"
+              className="min-h-11 px-5 rounded-xl font-bold text-xs bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 cursor-pointer"
             >
               Schließen
             </button>
@@ -989,7 +989,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
               <button
                 type="button"
                 onClick={handleChildDismissThanks}
-                className="mt-4 px-5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 cursor-pointer"
+                className="mt-4 min-h-11 px-5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 cursor-pointer"
               >
                 Weiter
               </button>
@@ -1158,7 +1158,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
             <button
               type="button"
               onClick={() => setIsFinalizeModalOpen(false)}
-              className="w-full sm:w-auto h-10 px-4 rounded-xl border font-bold text-xs text-slate-700 dark:text-zinc-300 border-slate-300 dark:border-zinc-600 hover:bg-slate-100 dark:hover:bg-zinc-700 cursor-pointer"
+              className="w-full sm:w-auto min-h-11 px-4 rounded-xl border font-bold text-xs text-slate-700 dark:text-zinc-300 border-slate-300 dark:border-zinc-600 hover:bg-slate-100 dark:hover:bg-zinc-700 cursor-pointer"
             >
               Zurück zum Check-In
             </button>
@@ -1167,7 +1167,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
               <button
                 type="button"
                 onClick={handleTeacherFinalizeRemainingAbsent}
-                className="w-full sm:w-auto h-10 px-4 rounded-xl font-black text-xs uppercase tracking-wider bg-rose-600 hover:bg-rose-700 text-white cursor-pointer shadow-xs"
+                className="w-full sm:w-auto min-h-11 px-4 rounded-xl font-black text-xs uppercase tracking-wider bg-rose-600 hover:bg-rose-700 text-white cursor-pointer shadow-xs"
               >
                 Alle Offenen als abwesend eintragen
               </button>
@@ -1175,7 +1175,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
               <button
                 type="button"
                 onClick={() => setIsFinalizeModalOpen(false)}
-                className="w-full sm:w-auto h-10 px-5 rounded-xl font-black text-xs uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs"
+                className="w-full sm:w-auto min-h-11 px-5 rounded-xl font-black text-xs uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs"
               >
                 Fertig
               </button>
