@@ -54,7 +54,7 @@ jobs:
           SMTP_FROM: klassio-e2e@klassio.local
           KLASSIO_VERIFIED_SCHOOL_DOMAINS: vsfoa.vobs.at
           KLASSIO_DATA_DIR: /tmp/klassio-e2e-data
-          KLASSIO_E2E_BASE_URL: http://localhost:3100
+          KLASSIO_E2E_BASE_URL: http://localhost:3100/login
           KLASSIO_E2E_SMTP_PORT: 2525
           KLASSIO_E2E_SMTP_CODES: /tmp/klassio-e2e-mail-codes.json
           KLASSIO_CHROME_DEBUG_A: http://127.0.0.1:9222
