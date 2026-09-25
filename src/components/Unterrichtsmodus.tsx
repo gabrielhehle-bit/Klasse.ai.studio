@@ -182,7 +182,12 @@ import { generateStudentGroups } from "../lib/groupsAlgorithm";
 import { getPresentStudents, getDisplayStudentName } from "./cockpit/studentSelectionUtils";
 import { CockpitWidget } from "./cockpit/CockpitWidget";
 import { CockpitWidgetDock } from "./cockpit/CockpitWidgetDock";
-import { clampCockpitSidebarWidth, resizeCockpitSidebarWidth } from "../lib/cockpitSidebarLayout";
+import {
+  COMPACT_COCKPIT_SIDEBAR_WIDTH,
+  clampCockpitSidebarWidth,
+  getCockpitSidebarReservedRightPx,
+  resizeCockpitSidebarWidth,
+} from "../lib/cockpitSidebarLayout";
 import {
   MAX_COCKPIT_BOARD_PAGES,
   createEmptyCockpitBoardLayout,
@@ -12570,7 +12575,7 @@ ${content}
                       ref={sidebarRef}
                       initial={{ width: 0, opacity: 0, x: 24 }}
                       animate={{
-                        width: sidebarMode === "mini" ? 240 : sidebarResizePreview ?? sidebarPreferredWidth,
+                        width: sidebarMode === "mini" ? COMPACT_COCKPIT_SIDEBAR_WIDTH : sidebarResizePreview ?? sidebarPreferredWidth,
                         opacity: 1,
                         x: 0,
                       }}
@@ -12716,7 +12721,7 @@ ${content}
               onAddWidget={() => { if (isAddWidgetMenuOpen) { setIsAddWidgetMenuOpen(false); } else { openWidgetLibrary(); } }}
               onToggleSidebar={() => changeSidebarMode(sidebarMode === "hidden" ? (prevSidebarMode || "expanded") : "hidden")}
               sidebarOpen={sidebarMode !== "hidden"}
-              reservedRightPx={sidebarMode === "hidden" ? 0 : (sidebarMode === "mini" ? 246 : (sidebarResizePreview ?? sidebarPreferredWidth) + 6)}
+              reservedRightPx={getCockpitSidebarReservedRightPx(sidebarMode, sidebarResizePreview ?? sidebarPreferredWidth)}
               activeTypes={cockpitWidgets.filter(widget => widget.visible).map(widget => widget.type)}
               minimizedTypes={cockpitWidgets.filter(widget => minimizedWidgetIds.includes(widget.id)).map(widget => String(widget.type))}
               onRestoreMinimized={(type) => {
