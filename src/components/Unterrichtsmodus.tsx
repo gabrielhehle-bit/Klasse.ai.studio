@@ -10594,46 +10594,6 @@ ${content}
                       </div>
 
                       {boardTool === 'text' && (
-                          <>
-                            <select aria-label="Textgröße" defaultValue="p"
-                              onChange={event => boardTextCommandRef.current?.('formatBlock', event.target.value)}
-                              className="min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-sm">
-                              <option value="p">Normal</option>
-                              <option value="h2">Groß</option>
-                              <option value="h1">Sehr groß</option>
-                            </select>
-                            <button type="button" onMouseDown={event => event.preventDefault()}
-                              onClick={() => boardTextCommandRef.current?.('bold')}
-                              className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-black">Fett</button>
-                            <label className="flex min-h-11 items-center gap-1.5 text-xs font-semibold">Textfarbe
-                              <input type="color" aria-label="Textfarbe auswählen" defaultValue="#172554"
-                                onChange={event => boardTextCommandRef.current?.('foreColor', event.target.value)}
-                                className="h-10 w-11 rounded border border-slate-300" />
-                            </label>
-                            <button type="button" onMouseDown={event => event.preventDefault()}
-                              onClick={() => boardTextCommandRef.current?.('justifyLeft')}
-                              className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm">Links</button>
-                            <button type="button" onMouseDown={event => event.preventDefault()}
-                              onClick={() => boardTextCommandRef.current?.('justifyCenter')}
-                              className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm">Mitte</button>
-                            <button type="button" onMouseDown={event => event.preventDefault()}
-                              onClick={() => boardTextCommandRef.current?.('justifyRight')}
-                              className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm">Rechts</button>
-                          </>
-                        )}
-                        {boardTool === 'text' && (
-                          <>
-                            <button type="button" onMouseDown={event => event.preventDefault()}
-                              onClick={() => boardTextCommandRef.current?.('undo')}
-                              className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold">↶ Rückgängig</button>
-                            <button type="button" onMouseDown={event => event.preventDefault()}
-                              onClick={() => boardTextCommandRef.current?.('redo')}
-                              className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold">↷ Wiederholen</button>
-                          </>
-                        )}
-                      </div>
-
-                      {boardTool === 'text' && (
                         <div
                           role="toolbar"
                           aria-label="Text formatieren"
