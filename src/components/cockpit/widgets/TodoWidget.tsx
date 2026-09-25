@@ -170,10 +170,8 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
     : 'text-sm font-medium';
 
   const checkboxSizeClass = isFullscreen
-    ? 'w-9 h-9 text-xl'
-    : size.isLarge
-    ? 'w-7 h-7 text-base'
-    : 'w-6 h-6 text-xs';
+    ? 'w-12 h-12 text-xl'
+    : 'w-11 h-11 text-base';
 
   return (
     <div
@@ -206,7 +204,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
             <button
               type="button"
               onClick={() => setShowPresetsMenu(prev => !prev)}
-              className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-all ${
+              className={`min-h-11 min-w-11 p-1.5 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1 transition-all ${
                 showPresetsMenu
                   ? currentIsLight
                     ? 'bg-slate-200 border-slate-300 text-slate-800'
@@ -216,6 +214,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
                   : 'bg-slate-800/60 hover:bg-slate-800 border-slate-700 text-slate-200'
               }`}
               title="Vorlagen (Stillarbeit, Partnerarbeit, etc.)"
+              aria-label="Schnell-Vorlagen öffnen"
             >
               <Layers size={14} />
               {!size.isCompact && <span>Vorlagen</span>}
@@ -225,7 +224,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
             <button
               type="button"
               onClick={() => setIsEditMode(prev => !prev)}
-              className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-all ${
+              className={`min-h-11 min-w-11 p-1.5 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1 transition-all ${
                 isEditMode
                   ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
                   : currentIsLight
@@ -233,6 +232,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
                   : 'bg-slate-800/60 hover:bg-slate-800 border-slate-700 text-slate-200'
               }`}
               title={isEditMode ? 'Bearbeitungsmodus beenden' : 'Aufgaben sortieren / bearbeiten'}
+              aria-label={isEditMode ? 'Bearbeitungsmodus beenden' : 'Aufgaben bearbeiten'}
             >
               <Edit2 size={14} />
               {!size.isCompact && <span>{isEditMode ? 'Fertig' : 'Bearbeiten'}</span>}
@@ -248,12 +248,13 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
                   setShowConfirmReset(true);
                 }
               }}
-              className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-all ${
+              className={`min-h-11 min-w-11 p-1.5 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1 transition-all ${
                 currentIsLight
                   ? 'bg-white hover:bg-rose-50 border-slate-200 text-slate-600 hover:text-rose-600'
                   : 'bg-slate-800/60 hover:bg-rose-950/40 border-slate-700 text-slate-300 hover:text-rose-400'
               }`}
               title="Neue Liste anlegen"
+              aria-label="Neue Aufgabenliste anlegen"
             >
               <RotateCcw size={14} />
               {!size.isCompact && <span>Neu</span>}
@@ -275,14 +276,14 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
               <button
                 type="button"
                 onClick={handleConfirmReset}
-                className="px-2.5 py-1 rounded bg-rose-600 hover:bg-rose-700 text-white font-bold transition-all"
+                className="min-h-11 px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold transition-all"
               >
                 Ja, leeren
               </button>
               <button
                 type="button"
                 onClick={() => setShowConfirmReset(false)}
-                className={`px-2 py-1 rounded border transition-all ${
+                className={`min-h-11 px-3 py-1 rounded-lg border transition-all ${
                   currentIsLight ? 'bg-white border-slate-300' : 'bg-slate-800 border-slate-700'
                 }`}
               >
@@ -306,7 +307,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
               <button
                 type="button"
                 onClick={() => setShowPresetsMenu(false)}
-                className="text-slate-400 hover:text-slate-600 p-0.5"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700"
               >
                 <X size={13} />
               </button>
@@ -317,7 +318,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
                   key={preset.id}
                   type="button"
                   onClick={() => handleApplyPreset(preset.id)}
-                  className={`text-left p-2 rounded-lg border transition-all hover:scale-[1.01] ${
+                  className={`min-h-11 text-left p-2 rounded-lg border transition-all hover:scale-[1.01] ${
                     currentIsLight
                       ? 'bg-slate-50 hover:bg-emerald-50/50 border-slate-200 hover:border-emerald-300 text-slate-800'
                       : 'bg-slate-900/50 hover:bg-emerald-950/30 border-slate-700 hover:border-emerald-600 text-slate-200'
@@ -444,7 +445,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
                       <button
                         type="button"
                         onClick={() => handleSaveEdit(item.id)}
-                        className="p-1 rounded bg-indigo-600 text-white text-xs font-bold shrink-0"
+                        className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white"
                       >
                         <Check size={12} />
                       </button>
@@ -481,7 +482,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
                     <button
                       type="button"
                       onClick={() => handleToggleBonus(item.id)}
-                      className={`p-1.5 rounded transition-all ${
+                      className={`min-h-11 min-w-11 p-1.5 rounded transition-all ${
                         item.isBonus
                           ? 'text-amber-500 bg-amber-100/50 dark:bg-amber-950/50'
                           : 'text-slate-400 hover:text-amber-500'
@@ -496,7 +497,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
                       type="button"
                       disabled={index === 0}
                       onClick={() => handleMoveItem(item.id, 'up')}
-                      className="p-1.5 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-25"
+                      className="min-h-11 min-w-11 p-1.5 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-25"
                       title="Nach oben verschieben"
                     >
                       <ArrowUp size={13} />
@@ -520,7 +521,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
                         setEditingItemId(item.id);
                         setEditingItemText(item.text);
                       }}
-                      className="p-1.5 rounded text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400"
+                      className="min-h-11 min-w-11 p-1.5 rounded text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400"
                       title="Text korrigieren"
                     >
                       <Edit2 size={13} />
@@ -530,7 +531,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
                     <button
                       type="button"
                       onClick={() => handleDeleteItem(item.id)}
-                      className="p-1.5 rounded text-slate-400 hover:text-rose-600 dark:hover:text-rose-400"
+                      className="min-h-11 min-w-11 p-1.5 rounded text-slate-400 hover:text-rose-600 dark:hover:text-rose-400"
                       title="Aufgabe löschen"
                     >
                       <Trash2 size={13} />
@@ -546,10 +547,10 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
       {pageCount > 1 && (
         <nav aria-label="Aufgabenseiten" className="shrink-0 flex items-center justify-between gap-2 py-1 text-xs font-semibold">
           <button type="button" disabled={visiblePage === 0} onClick={() => setPage(p => Math.max(0, p - 1))}
-            className="min-h-9 rounded-lg border px-3 disabled:opacity-40" aria-label="Vorherige Aufgabenseite">← Zurück</button>
+            className="min-h-11 rounded-lg border px-3 disabled:opacity-40" aria-label="Vorherige Aufgabenseite">← Zurück</button>
           <span aria-live="polite">Seite {visiblePage + 1} von {pageCount}</span>
           <button type="button" disabled={visiblePage >= pageCount - 1} onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
-            className="min-h-9 rounded-lg border px-3 disabled:opacity-40" aria-label="Nächste Aufgabenseite">Weiter →</button>
+            className="min-h-11 rounded-lg border px-3 disabled:opacity-40" aria-label="Nächste Aufgabenseite">Weiter →</button>
         </nav>
       )}
 
@@ -601,7 +602,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
           <button
             type="submit"
             disabled={!inputText.trim()}
-            className="shrink-0 p-2 sm:px-3 sm:py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-bold text-xs flex items-center gap-1 transition-all"
+            className="shrink-0 min-h-11 min-w-11 p-2 sm:px-3 sm:py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-bold text-xs flex items-center justify-center gap-1 transition-all"
             title="Schritt zur Liste hinzufügen"
           >
             <Plus size={15} />
