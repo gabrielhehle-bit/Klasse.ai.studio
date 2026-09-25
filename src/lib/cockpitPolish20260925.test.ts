@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import {
+  COMPACT_COCKPIT_SIDEBAR_WIDTH,
+  COCKPIT_SIDEBAR_DOCK_GAP,
+  getCockpitSidebarReservedRightPx,
+} from './cockpitSidebarLayout';
 
 const surface = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
 const dock = readFileSync('src/components/cockpit/CockpitWidgetDock.tsx', 'utf8');
@@ -51,4 +56,24 @@ test('minimize is session-local and never closes widget state or changes its rec
   assert.match(surface, /onMinimize=\{\(\) => setMinimizedWidgetIds/);
   assert.match(dock, /aria-label="Minimierte Widgets"/);
   assert.doesNotMatch(dock, /cockpitLayout\s*:/);
+});
+
+
+test('dock follows the real board width, condenses favorites and keeps system controls separate', () => {
+  assert.equal(getCockpitSidebarReservedRightPx('hidden', 420), 0);
+  assert.equal(
+    getCockpitSidebarReservedRightPx('mini', 620),
+    COMPACT_COCKPIT_SIDEBAR_WIDTH + COCKPIT_SIDEBAR_DOCK_GAP,
+  );
+  assert.equal(getCockpitSidebarReservedRightPx('expanded', 420), 420 + COCKPIT_SIDEBAR_DOCK_GAP);
+  assert.ok(surface.includes('width: sidebarMode === "mini" ? COMPACT_COCKPIT_SIDEBAR_WIDTH'));
+  assert.ok(surface.includes('reservedRightPx={getCockpitSidebarReservedRightPx('));
+  assert.match(dock, /data-board-right-inset/);
+  assert.match(dock, /favorites\.length <= 8/);
+  assert.match(dock, /showFavoriteLabels/);
+  assert.match(dock, /klassio-dock-system/);
+  assert.match(dock, /data-dock-favorite-id/);
+  assert.match(dock, /setPointerCapture/);
+  assert.match(dock, /touch-none select-none cursor-grab/);
+  assert.match(dock, /moveCockpitQuickbarItem\(current, item\.id, -1\)/);
 });
