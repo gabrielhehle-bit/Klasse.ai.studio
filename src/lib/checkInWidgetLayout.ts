@@ -19,18 +19,20 @@ export function getAdaptiveCheckInOptions(width: number, height: number) {
   return {
     compactControls,
     grid: {
-      reservedHeight: compactControls ? 82 : 146,
-      minCardWidth: compactControls ? 128 : 155,
-      minCardHeight: compactControls ? 48 : 64,
-      gap: compactControls ? 4 : 6,
-      maxColumns: 6,
+      // Compact classroom widgets should shrink typography/card chrome before
+      // hiding children. Keep the actual tap target at a safe 44px minimum.
+      reservedHeight: compactControls ? 64 : 146,
+      minCardWidth: compactControls ? 112 : 155,
+      minCardHeight: compactControls ? 44 : 64,
+      gap: compactControls ? 3 : 6,
+      maxColumns: 7,
     },
     pages: {
-      reservedHeight: compactControls ? 118 : 218,
-      minCardWidth: compactControls ? 128 : 155,
-      minCardHeight: compactControls ? 48 : 64,
-      gap: compactControls ? 4 : 6,
-      maxColumns: 6,
+      reservedHeight: compactControls ? 104 : 218,
+      minCardWidth: compactControls ? 112 : 155,
+      minCardHeight: compactControls ? 44 : 64,
+      gap: compactControls ? 3 : 6,
+      maxColumns: 7,
     },
   };
 }
