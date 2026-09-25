@@ -1,7 +1,7 @@
 /**
  * Personal teaching-dock favorites stored per class inside the existing
  * encrypted boardSettings. Never interprets favorites as a widget layout.
- * Historic IDs (including "termine") are kept without changing their behavior.
+ * Obsolete IDs are filtered out during normalization.
  */
 export const COCKPIT_QUICKBAR_ITEMS = [
   { id: 'kidattendance', icon: '🖐️', label: 'Ich bin da!' },
@@ -13,7 +13,6 @@ export const COCKPIT_QUICKBAR_ITEMS = [
   { id: 'homework', icon: '📚', label: 'Hausübungen' },
   { id: 'starsreview', icon: '⭐', label: 'Sterne' },
   { id: 'timeline', icon: '🗓️', label: 'Tagesplan' },
-  { id: 'termine', icon: '📅', label: 'Termine' },
   { id: 'clock', icon: '🕒', label: 'Uhr' },
   { id: 'dienste', icon: '🧹', label: 'Klassendienste' },
   { id: 'trafficlight', icon: '🚦', label: 'Arbeitsampel' },
