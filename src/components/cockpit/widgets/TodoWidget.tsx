@@ -508,7 +508,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
                       type="button"
                       disabled={index === state.items.length - 1}
                       onClick={() => handleMoveItem(item.id, 'down')}
-                      className="p-1.5 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-25"
+                      className="min-h-11 min-w-11 p-1.5 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-25"
                       title="Nach unten verschieben"
                     >
                       <ArrowDown size={13} />
