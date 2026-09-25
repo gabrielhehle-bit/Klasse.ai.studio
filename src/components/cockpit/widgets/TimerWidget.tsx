@@ -464,6 +464,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                   : currentIsLight ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-zinc-800 border-white/10 text-slate-300'
               }`}
               title={isMuted ? 'Stummgeschaltet' : 'Signalton aktiv'}
+              aria-label={isMuted ? 'Signalton einschalten' : 'Signalton stummschalten'}
             >
               {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
             </button>
@@ -503,7 +504,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {status === 'ready' && (
               <button
                 onClick={handleStart}
-                className={`w-full ${veryCompactTimer ? 'min-h-[40px]' : 'min-h-[44px]'} px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98`}
+                className={`w-full min-h-11 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98`}
               >
                 <Play size={17} fill="currentColor" />
                 <span>Start</span>
@@ -513,7 +514,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {status === 'running' && (
               <button
                 onClick={handlePause}
-                className={`w-full ${veryCompactTimer ? 'min-h-[40px]' : 'min-h-[44px]'} px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98`}
+                className={`w-full min-h-11 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98`}
               >
                 <Pause size={17} fill="currentColor" />
                 <span>Pause</span>
@@ -523,7 +524,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {status === 'paused' && (
               <button
                 onClick={handleResume}
-                className={`w-full ${veryCompactTimer ? 'min-h-[40px]' : 'min-h-[44px]'} px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98`}
+                className={`w-full min-h-11 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98`}
               >
                 <Play size={17} fill="currentColor" />
                 <span>Weiter</span>
@@ -533,7 +534,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {status === 'expired' && (
               <button
                 onClick={handleRestartSameTime}
-                className={`w-full ${veryCompactTimer ? 'min-h-[40px]' : 'min-h-[44px]'} px-4 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98`}
+                className={`w-full min-h-11 px-4 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98`}
               >
                 <RefreshCw size={16} />
                 <span>Nochmals</span>
