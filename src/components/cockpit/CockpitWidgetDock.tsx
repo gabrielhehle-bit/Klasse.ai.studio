@@ -136,7 +136,7 @@ export function CockpitWidgetDock({
               aria-label={editing ? item.label + ' in der Favoritenleiste verschieben' : item.label + ' auf der Tafel öffnen'}
               aria-pressed={isActive && !isMinimized}
               data-minimized={isMinimized ? "true" : "false"}
-              className={`klassio-dock-favorite relative flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1 rounded-xl border py-1 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:opacity-40 ${showFavoriteLabels ? 'px-2.5' : 'px-2'} ${editing ? 'cursor-grab active:cursor-grabbing' : ''} ${draggedFavoriteId === item.id ? 'scale-95 opacity-60 ring-2 ring-indigo-300' : ''} ${
+              className={`klassio-dock-favorite relative flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1 rounded-xl border py-1 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:opacity-40 ${showFavoriteLabels ? 'px-2.5' : 'px-2'} ${editing ? 'touch-none select-none cursor-grab active:cursor-grabbing' : ''} ${draggedFavoriteId === item.id ? 'scale-95 opacity-60 ring-2 ring-indigo-300' : ''} ${
                 isMinimized
                   ? 'border-indigo-200 bg-indigo-50/70 text-indigo-700 opacity-80'
                   : isActive
