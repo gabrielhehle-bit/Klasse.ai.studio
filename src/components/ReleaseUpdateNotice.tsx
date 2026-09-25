@@ -6,6 +6,7 @@ import React from 'react';
 export default function ReleaseUpdateNotice() {
   const localCommit = import.meta.env.VITE_KLASSIO_BUILD_SHA || '';
   const [serverCommit, setServerCommit] = React.useState('');
+  const [dismissed, setDismissed] = React.useState(false);
   React.useEffect(() => {
     if (!/^[a-f0-9]{40}$/.test(localCommit)) return;
     let live = true;
@@ -25,8 +26,21 @@ export default function ReleaseUpdateNotice() {
     window.addEventListener('focus', onFocus);
     return () => { live = false; window.clearInterval(timer); window.removeEventListener('focus', onFocus); };
   }, [localCommit]);
-  if (!serverCommit || serverCommit === localCommit) return null;
+
+  React.useEffect(() => {
+    if (!serverCommit || serverCommit === localCommit) {
+      setDismissed(false);
+      return;
+    }
+    setDismissed(false);
+    const hideTimer = window.setTimeout(() => setDismissed(true), 10_000);
+    return () => window.clearTimeout(hideTimer);
+  }, [serverCommit, localCommit]);
+
+  if (!serverCommit || serverCommit === localCommit || dismissed) return null;
   const reload = async () => {
+    // Hide the prompt immediately; the reload/update work can continue afterwards.
+    setDismissed(true);
     // Workbox autoUpdate will take the refreshed service worker on activation.
     // A new navigation URL also avoids stale cached SPA navigation responses.
     try {
