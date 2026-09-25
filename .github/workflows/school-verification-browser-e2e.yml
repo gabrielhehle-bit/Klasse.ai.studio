@@ -52,7 +52,7 @@ jobs:
           SMTP_FROM: klassio-e2e@klassio.local
           KLASSIO_SCHOOL_ADMIN_EMAILS: admin.e2e@klassio.local
           KLASSIO_DATA_DIR: /tmp/klassio-school-e2e-data
-          KLASSIO_E2E_BASE_URL: http://localhost:3100
+          KLASSIO_E2E_BASE_URL: http://localhost:3100/login
           KLASSIO_E2E_SMTP_PORT: 2525
           KLASSIO_E2E_SMTP_CODES: /tmp/klassio-school-mail.json
           KLASSIO_CHROME_DEBUG_TEACHER: http://127.0.0.1:9232
