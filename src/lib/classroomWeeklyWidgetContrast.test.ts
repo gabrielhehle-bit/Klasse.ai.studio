@@ -34,7 +34,8 @@ test('Wochenplan: narrow or short widgets prioritize task space and keep the act
   assert.match(widget, /aria-label="Wochenplan groß anzeigen"/);
   assert.match(widget, /aria-label="Aktuelle Woche anzeigen"/);
   assert.match(widget, /className=\{\`weekly-plan-dark-action w-full rounded-xl/);
-  assert.match(widget, /size\.width >= 860 && size\.height >= 470/);
+  assert.match(widget, /const taskColumns = size\.width >= 1320 \? 3 : size\.width >= 820 \? 2 : 1/);
+  assert.match(widget, /gridTemplateColumns:/);
   assert.match(widget, /selectionScope === scope/);
   assert.match(widget, /updateChildWeeklyFeedback\(previous\.schueler, savedStudent, currentTask, feedback\)/);
 });
