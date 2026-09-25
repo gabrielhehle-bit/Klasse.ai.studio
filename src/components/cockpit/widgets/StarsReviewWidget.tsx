@@ -36,7 +36,8 @@ export default function StarsReviewWidget({ widget, onUpdate, currentIsLight }: 
   const { app } = useApp();
   const containerRef = useRef<HTMLElement>(null);
   const size = useWidgetSize(containerRef);
-  const compact = size.width < 540 || size.height < 380;
+  const compact = size.width < 620 || size.height < 420;
+  const tiny = size.width < 420 || size.height < 300;
   const [today, setToday] = useState(() => new Date());
   const [showSettings, setShowSettings] = useState(false);
   const [presenting, setPresenting] = useState(false);
@@ -81,12 +82,12 @@ export default function StarsReviewWidget({ widget, onUpdate, currentIsLight }: 
     update({ subjects: settings.subjects.length === 0 ? [subject] : next });
   };
   const surface = currentIsLight ? 'bg-amber-50 text-slate-900' : 'bg-zinc-900 text-white';
-  const button = 'min-h-11 rounded-xl border border-amber-300 bg-white px-3 py-2 text-sm font-bold text-slate-900 hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500';
+  const button = compact ? 'min-h-9 rounded-xl border border-amber-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-900 hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500' : 'min-h-11 rounded-xl border border-amber-300 bg-white px-3 py-2 text-sm font-bold text-slate-900 hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500';
   return <section ref={containerRef} aria-label="Sterne der Klasse im gewählten Zeitraum" className={`flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border-2 border-amber-400 ${surface}`}>
     <header className={`flex shrink-0 flex-wrap items-center justify-between border-b border-amber-400/60 ${compact ? "gap-1 p-1.5" : "gap-2 p-3"}`}>
       <div className="min-w-0">
-        <h2 className={`${compact ? "text-base" : "text-lg"} font-black leading-tight`}>⭐ Unsere gesammelten Sterne</h2>
-        <p className="text-xs font-semibold opacity-80">
+        <h2 className={`${tiny ? "text-sm" : compact ? "text-base" : "text-lg"} font-black leading-tight`}>⭐ Unsere gesammelten Sterne</h2>
+        <p className={`${tiny ? 'text-[10px]' : 'text-xs'} font-semibold opacity-80`}>
           {range ? `${formatDate(range.start)} – ${formatDate(range.end)}` : 'Bitte einen gültigen Zeitraum auswählen'}
           {' · '}{settings.subjects.length ? settings.subjects.join(', ') : 'Alle Fächer'}
         </p>
@@ -136,7 +137,7 @@ export default function StarsReviewWidget({ widget, onUpdate, currentIsLight }: 
         const child = children.find(item => item.id === row.studentId);
         const duplicate = (duplicateFirstNames.get(row.firstName.toLocaleLowerCase('de-AT')) || 0) > 1;
         const label = duplicate && child?.nachname ? `${row.firstName} ${child.nachname.slice(0, 1)}.` : row.firstName;
-        return <li key={row.studentId} className={`flex min-h-12 items-center justify-between rounded-xl border border-amber-300 bg-white py-2 text-slate-900 ${compact ? "gap-1 px-2" : "gap-3 px-3"}`}>
+        return <li key={row.studentId} className={`flex items-center justify-between rounded-xl border border-amber-300 bg-white text-slate-900 ${compact ? "min-h-10 gap-1 px-2 py-1.5" : "min-h-12 gap-3 px-3 py-2"}`}>
           <span className={`min-w-0 break-words [overflow-wrap:anywhere] font-extrabold leading-snug ${compact ? "text-sm" : "text-base"}`}><span className="mr-2 text-amber-700">{row.rank}.</span>{label}</span>
           <span className="shrink-0 text-base font-black text-amber-800" aria-label={`${row.stars} Sterne`}>⭐ {row.stars}</span>
         </li>;
