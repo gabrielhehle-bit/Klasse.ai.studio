@@ -8688,27 +8688,20 @@ ${content}
                                   )}
                                 </section>
                                 {/* Category Switcher Tab Bar */}
-                                <div className="flex flex-wrap gap-2 p-2 bg-slate-100 dark:bg-zinc-800 rounded-xl">
+                                <aside className="klassio-widget-library-sidebar min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-2">
+                                  <div className="mb-2 px-2 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Schnellzugriff</div>
                                   {[
-                                    { id: "core", label: "20 Kernwidgets" },
-                                    { id: "categories", label: "Weitere Widgets" },
-                                    { id: "favorites", label: "★ Favoriten" },
+                                    { id: "favorites", label: "⭐ Favoriten" },
+                                    { id: "recent", label: "🕘 Zuletzt verwendet" },
+                                    { id: "core", label: "🧩 Kernwidgets" },
+                                    { id: "categories", label: "▦ Alle Widgets" },
                                     { id: "struct", label: "🗂️ Ablauf & Organisation" },
-                                    {
-                                      id: "interactivity",
-                                      label: "👥 Klasse & Interaktion",
-                                    },
+                                    { id: "interactivity", label: "👥 Klasse & Interaktion" },
                                     { id: "mathe", label: "🔢 Mathematik" },
                                     { id: "deutsch", label: "📖 Deutsch" },
-                                    {
-                                      id: "sachunterricht",
-                                      label: "🌍 Sachunterricht",
-                                    },
+                                    { id: "sachunterricht", label: "🌍 Sachunterricht" },
                                     { id: "tools", label: "🛠️ Werkzeuge" },
-                                    {
-                                      id: "mindfulness",
-                                      label: "🍃 Spiele & Fokus",
-                                    },
+                                    { id: "mindfulness", label: "🍃 Spiele & Fokus" },
                                   ].map((cat) => {
                                     const allAvailableWidgets = [
                                       { type: "timeline", category: "struct" },
@@ -8981,9 +8974,9 @@ ${content}
                                     if (cat.id === "core") {
                                       count = PLANNED_COCKPIT_WIDGETS.length;
                                     } else if (cat.id === "categories") {
-                                      count = new Set(
-                                        allAvailableWidgets.map((item) => item.category),
-                                      ).size;
+                                      count = allAvailableWidgets.length;
+                                    } else if (cat.id === "recent") {
+                                      count = recentWidgetTypes.length;
                                     } else if (cat.id === "favorites") {
                                       count = (
                                         favoritesBySubject[
@@ -9002,7 +8995,7 @@ ${content}
                                         onClick={() =>
                                           setActiveWidgetCategory(cat.id)
                                         }
-                                        className={`min-h-11 px-3 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+                                        className={`mb-1 flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold transition-all cursor-pointer ${
                                           activeWidgetCategory === cat.id
                                             ? "bg-indigo-500 text-white shadow"
                                             : currentIsLight
@@ -9010,18 +9003,19 @@ ${content}
                                               : "text-slate-400 hover:bg-zinc-800 hover:text-white"
                                         }`}
                                       >
-                                        <span>{cat.label}</span>
+                                        <span className="min-w-0 truncate">{cat.label}</span>
                                         <span
-                                          className={`text-[7px] px-1.5 py-0.2 rounded-full font-bold ${activeWidgetCategory === cat.id ? "bg-white/20 text-white" : "bg-black/5 dark:bg-white/10 text-slate-400"}`}
+                                          className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${activeWidgetCategory === cat.id ? "bg-white/20 text-white" : "bg-white text-slate-400 border border-slate-200"}`}
                                         >
                                           {count}
                                         </span>
                                       </button>
                                     );
                                   })}
-                                </div>
+                                </aside>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto scrollbar-thin pr-1 pb-1">
+                                <main className="klassio-widget-library-content min-h-0 overflow-y-auto overscroll-contain pr-1">
+                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-2.5 pb-1">
                                   {(() => {
                                     const allAvailableWidgets = [
                                       {
@@ -10092,6 +10086,7 @@ ${content}
                                     );
                                   })()}
                                 </div>
+                                </main>
                               </div>
                             )}
                           </div>
