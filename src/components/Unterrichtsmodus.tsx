@@ -9631,129 +9631,86 @@ ${content}
                                     if (activeWidgetCategory === "core" && !query) {
                                       return (
                                         <>
-                                          <p className="col-span-full text-xs font-semibold text-slate-600 dark:text-slate-300">
-                                            20 übersichtliche Einstiege. Pluspunkte findest du weiterhin rechts in der Schülerliste. Alte Layouts bleiben beim Import lesbar.
-                                          </p>
+                                          <div className="col-span-full rounded-2xl border border-indigo-100 bg-indigo-50/70 px-4 py-3">
+                                            <p className="text-sm font-black text-slate-900">20 Kernwidgets</p>
+                                            <p className="mt-0.5 text-xs text-slate-600">
+                                              Die wichtigsten Unterrichtswerkzeuge. Varianten bleiben über den kleinen Pfeil erreichbar.
+                                            </p>
+                                          </div>
                                           {PLANNED_COCKPIT_WIDGETS.map((group) => {
                                             const variants = group.sources
                                               .map((type) => allAvailableWidgets.find((item) => item.type === type))
                                               .filter((item): item is (typeof allAvailableWidgets)[number] => Boolean(item));
+                                            const primary = variants.find((variant) => variant.type === group.id) || variants[0];
+                                            const primaryType = primary?.type || String(group.id);
+                                            const primaryLabel = primary?.label || `🧩 ${group.label}`;
+                                            const icon = primaryLabel.split(" ")[0] || "🧩";
+                                            const description = primary?.desc || (variants.length > 1
+                                              ? `${variants.length} Varianten für den Unterricht`
+                                              : "Unterrichts-Widget");
                                             const expanded = expandedCoreWidget === group.id;
+                                            const isFav = (favoritesBySubject[getResolvedFavFolder()] || []).includes(primaryType);
+                                            const isActive = cockpitWidgets.some(widget => widget.type === primaryType && widget.visible);
                                             return (
-                                              <div key={group.id} data-testid={`cockpit-core-group-${group.id}`} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 text-slate-900 shadow-sm dark:border-white/15 dark:bg-zinc-900 dark:text-white">
-                                                {group.id === "kidattendance" ? (
-                                                  <div className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-sm font-bold">
-                                                    <span>{group.label}</span>
-                                                    <div className="flex shrink-0 items-center gap-1">
-                                                      <button type="button" aria-label="Ich bin da! einstellen" title="Voreinstellungen für Ich bin da!"
-                                                        onClick={() => {
-                                                          setSelectedWidgetConfiguration("kidattendance");
-                                                          setIsWidgetConfigurationOpen(true);
-                                                          window.requestAnimationFrame(() => document.getElementById("cockpit-widget-settings")?.scrollIntoView({ block: "start", behavior: "smooth" }));
-                                                        }}
-                                                        className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 dark:text-slate-200 dark:hover:bg-white/10">
-                                                        <Settings size={18} aria-hidden="true" />
-                                                      </button>
-                                                      <button type="button" aria-label="Ich bin da! hinzufügen" title="Ich bin da! hinzufügen"
-                                                        onClick={() => { handleOpenWidgetInCockpitLayout("kidattendance"); setIsAddWidgetMenuOpen(false); }}
-                                                        className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-indigo-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 dark:text-indigo-300 dark:hover:bg-white/10">
-                                                        <Plus size={19} aria-hidden="true" />
-                                                      </button>
-                                                    </div>
+                                              <div key={group.id} data-testid={`cockpit-core-group-${group.id}`}
+                                                className={`relative flex min-h-[96px] flex-wrap items-center gap-3 rounded-2xl border p-3 transition-all ${
+                                                  isActive
+                                                    ? "border-emerald-200 bg-emerald-50/50"
+                                                    : "border-slate-200 bg-white hover:border-indigo-200 hover:shadow-sm"
+                                                }`}>
+                                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-2xl" aria-hidden="true">
+                                                  {icon}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                  <div className="flex items-center gap-2">
+                                                    <h3 className="truncate text-sm font-black text-slate-900">{group.label}</h3>
+                                                    {isActive && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">offen</span>}
                                                   </div>
-                                                ) : group.id === "groups" ? (
-                                                  <div className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-sm font-bold">
-                                                    <span>{group.label}</span>
-                                                    <div className="flex shrink-0 items-center gap-1">
-                                                      <button type="button" aria-label="Gruppen bilden einstellen" title="Voreinstellungen für Gruppen bilden"
-                                                        onClick={() => {
-                                                          setSelectedWidgetConfiguration("groups");
-                                                          setIsWidgetConfigurationOpen(true);
-                                                          window.requestAnimationFrame(() => document.getElementById("cockpit-widget-settings")?.scrollIntoView({ block: "start", behavior: "smooth" }));
-                                                        }}
-                                                        className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 dark:text-slate-200 dark:hover:bg-white/10">
-                                                        <Settings size={18} aria-hidden="true" />
-                                                      </button>
-                                                      <button type="button" aria-label="Gruppen bilden hinzufügen" title="Gruppen bilden hinzufügen"
-                                                        onClick={() => { handleOpenWidgetInCockpitLayout("groups"); setIsAddWidgetMenuOpen(false); }}
-                                                        className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-indigo-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 dark:text-indigo-300 dark:hover:bg-white/10">
-                                                        <Plus size={19} aria-hidden="true" />
-                                                      </button>
-                                                    </div>
-                                                  </div>
-                                                ) : group.id === "classweeklyplan" ? (
-                                                  <div className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-sm font-bold">
-                                                    <span>{group.label}</span>
-                                                    <div className="flex shrink-0 items-center gap-1">
-                                                      <button type="button" aria-label="Wochenplan der Kinder einstellen" title="Voreinstellungen für Wochenplan der Kinder"
-                                                        onClick={() => {
-                                                          setSelectedWidgetConfiguration("classweeklyplan");
-                                                          setIsWidgetConfigurationOpen(true);
-                                                          window.requestAnimationFrame(() => document.getElementById("cockpit-widget-settings")?.scrollIntoView({ block: "start", behavior: "smooth" }));
-                                                        }}
-                                                        className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 dark:text-slate-200 dark:hover:bg-white/10">
-                                                        <Settings size={18} aria-hidden="true" />
-                                                      </button>
-                                                      <button type="button" aria-label="Wochenplan der Kinder hinzufügen" title="Wochenplan der Kinder hinzufügen"
-                                                        onClick={() => { handleOpenWidgetInCockpitLayout("classweeklyplan"); setIsAddWidgetMenuOpen(false); }}
-                                                        className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-indigo-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 dark:text-indigo-300 dark:hover:bg-white/10">
-                                                        <Plus size={19} aria-hidden="true" />
-                                                      </button>
-                                                    </div>
-                                                  </div>
-                                                ) : group.id === "randomname" ? (
-  <div className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-sm font-bold">
-    <span>{group.label}</span>
-    <div className="flex shrink-0 items-center gap-1">
-      <button type="button" aria-label="Zufallsauswahl einstellen" title="Zufallsauswahl einstellen"
-        onClick={() => {
-          setSelectedWidgetConfiguration("randomname");
-          setIsWidgetConfigurationOpen(true);
-          window.requestAnimationFrame(() => document.getElementById("cockpit-widget-settings")?.scrollIntoView({ block: "start", behavior: "smooth" }));
-        }}
-        className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 dark:text-slate-200 dark:hover:bg-white/10">
-        <Settings size={18} aria-hidden="true" />
-      </button>
-      <button type="button" aria-label="Zufallsauswahl hinzufügen" title="Zufallsauswahl hinzufügen"
-        onClick={() => { handleOpenWidgetInCockpitLayout("randomname"); setIsAddWidgetMenuOpen(false); }}
-        className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-indigo-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 dark:text-indigo-300 dark:hover:bg-white/10">
-        <Plus size={19} aria-hidden="true" />
-      </button>
-      {variants.length > 1 && (
-        <button type="button" aria-label="Weitere Varianten der Zufallsauswahl" aria-expanded={expanded}
-          onClick={() => setExpandedCoreWidget(expanded ? null : group.id)}
-          className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 dark:border-white/20 dark:text-slate-200 dark:hover:bg-white/10"
-          title="Weitere Varianten (z. B. Glücksrad, Fair-Call)">
-          <span aria-hidden="true">{expanded ? "▴" : "▾"}</span>
-        </button>
-      )}
-    </div>
-  </div>
-) : (<button type="button" className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-left text-sm font-bold hover:bg-indigo-50 dark:hover:bg-white/10"
-                                                  aria-expanded={variants.length > 1 ? expanded : undefined}
-                                                  onClick={() => {
-                                                    if (variants.length === 1) {
-                                                      handleOpenWidgetInCockpitLayout(variants[0].type as CockpitWidgetConfig["type"]);
+                                                  <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">{description}</p>
+                                                </div>
+                                                <div className="flex shrink-0 items-center gap-1">
+                                                  <button type="button"
+                                                    onClick={(event) => toggleFavorite(primaryType, event)}
+                                                    aria-label={isFav ? `${group.label} aus Favoriten entfernen` : `${group.label} zu Favoriten hinzufügen`}
+                                                    title={isFav ? "Von Favoriten entfernen" : "Zu Favoriten hinzufügen"}
+                                                    className={`flex min-h-11 min-w-11 items-center justify-center rounded-xl border transition-colors ${
+                                                      isFav ? "border-amber-200 bg-amber-50 text-amber-500" : "border-slate-200 bg-white text-slate-400 hover:text-amber-500"
+                                                    }`}>
+                                                    <Star size={17} fill={isFav ? "currentColor" : "none"} aria-hidden="true" />
+                                                  </button>
+                                                  {variants.length > 1 && (
+                                                    <button type="button"
+                                                      onClick={() => setExpandedCoreWidget(expanded ? null : group.id)}
+                                                      aria-label={`Varianten von ${group.label} ${expanded ? "schließen" : "anzeigen"}`}
+                                                      aria-expanded={expanded}
+                                                      className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">
+                                                      <span aria-hidden="true">{expanded ? "▴" : "▾"}</span>
+                                                    </button>
+                                                  )}
+                                                  <button type="button" disabled={isActive}
+                                                    onClick={() => {
+                                                      handleOpenWidgetInCockpitLayout(primaryType as CockpitWidgetConfig["type"]);
                                                       setIsAddWidgetMenuOpen(false);
-                                                    } else {
-                                                      setExpandedCoreWidget(expanded ? null : group.id);
-                                                    }
-                                                  }}>
-                                                  <span>{group.label}</span>
-                                                  <span aria-hidden="true" className="text-indigo-600 dark:text-indigo-300">{variants.length > 1 ? (expanded ? "−" : "+") : "＋"}</span>
-                                                </button>)}
+                                                    }}
+                                                    aria-label={`${group.label} hinzufügen`}
+                                                    title={isActive ? "Bereits auf der Tafel" : "Zur Tafel hinzufügen"}
+                                                    className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-indigo-600 text-xl font-black text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500">＋</button>
+                                                </div>
                                                 {variants.length > 1 && expanded && (
-                                                  <div className="mt-2 flex flex-col gap-1 border-t border-slate-200 pt-2 dark:border-white/15">
-                                                    {variants.map((variant) => (
-                                                      <button type="button" key={variant.type}
-                                                        className="min-h-11 rounded-lg px-3 text-left text-sm hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:hover:bg-white/10"
-                                                        onClick={() => {
-                                                          handleOpenWidgetInCockpitLayout(variant.type as CockpitWidgetConfig["type"]);
-                                                          setIsAddWidgetMenuOpen(false);
-                                                        }}>
-                                                        {variant.label}
-                                                      </button>
-                                                    ))}
+                                                  <div className="w-full border-t border-slate-100 pt-2">
+                                                    <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Varianten</p>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                      {variants.map((variant) => (
+                                                        <button type="button" key={variant.type}
+                                                          onClick={() => {
+                                                            handleOpenWidgetInCockpitLayout(variant.type as CockpitWidgetConfig["type"]);
+                                                            setIsAddWidgetMenuOpen(false);
+                                                          }}
+                                                          className="min-h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-left text-xs font-semibold text-slate-700 hover:border-indigo-200 hover:bg-indigo-50">
+                                                          {variant.label}
+                                                        </button>
+                                                      ))}
+                                                    </div>
                                                   </div>
                                                 )}
                                               </div>
