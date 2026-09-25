@@ -1704,6 +1704,11 @@ export interface AppState {
     cockpitPaperByClass?: Record<string, 'blank' | 'lined' | 'grid' | 'handwriting'>;
     cockpitPaperSpacingByClass?: Record<string, number>;
     cockpitTextByClass?: Record<string, string>;
+    /** Ordered classroom board pages. Page 1 keeps legacy text/ink/paper keys for compatibility. */
+    cockpitBoardPagesByClass?: Record<string, string[]>;
+    cockpitActiveBoardPageByClass?: Record<string, string>;
+    /** Inactive page widget layouts; the currently active page is also mirrored in cockpitLayout. */
+    cockpitLayoutByBoardPage?: Record<string, Record<string, CockpitWidgetConfig[]>>;
     cockpitQuickbarByClass?: Record<string, { enabled: boolean; itemIds: import('./lib/cockpitQuickbar').CockpitQuickbarId[] }>;
     /** Class-local presets for NEW children-week widgets (no pupil data). */
     cockpitChildrenWeekDefaultsByClass?: Record<string, import('./lib/classroomWeeklyWidgetPreferences').ClassroomWeeklyWidgetPreferences>;
