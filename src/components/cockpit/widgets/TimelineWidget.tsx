@@ -306,7 +306,7 @@ export const TimelineWidget: React.FC<TimelineWidgetProps> = ({
         <div className="flex items-baseline justify-between gap-3">
           <div className="min-w-0">
             <h2
-              className={`font-black tracking-tight leading-tight truncate ${
+              className={`font-black tracking-tight leading-tight break-words [overflow-wrap:anywhere] ${
                 isFullscreen
                   ? 'text-3xl sm:text-4xl'
                   : isLarge
@@ -384,7 +384,7 @@ export const TimelineWidget: React.FC<TimelineWidgetProps> = ({
                   <Coffee size={12} /> Pause
                 </span>
               ) : (
-                <span className="font-bold text-slate-800 dark:text-zinc-100 truncate">
+                <span className="min-w-0 break-words font-bold text-slate-800 dark:text-zinc-100 [overflow-wrap:anywhere]">
                   {nextUnit.fach}
                 </span>
               )}
@@ -423,13 +423,13 @@ export const TimelineWidget: React.FC<TimelineWidgetProps> = ({
             {pageCount > 1 && <div role="group" aria-label="Tagesabschnitte" className="flex items-center gap-1">
               <button type="button" aria-label="Vorheriger Tagesabschnitt" disabled={safePage === 0}
                 onClick={() => { setTimelinePage(page => Math.max(0, page - 1)); setInspectedUnitId(null); }}
-                className="min-h-8 min-w-8 rounded-lg border border-slate-300 disabled:opacity-30">
+                className="min-h-11 min-w-11 rounded-xl border border-slate-300 disabled:opacity-30">
                 <ChevronLeft size={14} className="mx-auto" />
               </button>
               <span className="text-[0.625rem] font-bold" aria-live="polite">{safePage + 1}/{pageCount}</span>
               <button type="button" aria-label="Nächster Tagesabschnitt" disabled={safePage + 1 >= pageCount}
                 onClick={() => { setTimelinePage(page => Math.min(pageCount - 1, page + 1)); setInspectedUnitId(null); }}
-                className="min-h-8 min-w-8 rounded-lg border border-slate-300 disabled:opacity-30">
+                className="min-h-11 min-w-11 rounded-xl border border-slate-300 disabled:opacity-30">
                 <ChevronRight size={14} className="mx-auto" />
               </button>
             </div>}
