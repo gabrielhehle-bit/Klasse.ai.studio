@@ -141,16 +141,16 @@ test("Cockpit: weiße Unterrichtsfläche hat direkte Schreibebene und eine gemei
   assert.match(teachingSurface, /cockpitInkByClass/);
   assert.match(teachingSurface, /externalToolbar/);
   assert.match(teachingSurface, /hideToolbar/);
-  assert.match(teachingSurface, /aria-label="Unterrichtsfläche: Text und Papier"/);
-  assert.match(teachingSurface, /setBoardTool\(boardTool === "pen" \? "select" : "pen"\)/);
-  assert.match(teachingSurface, /setBoardTool\(boardTool === "erase" \? "select" : "erase"\)/);
+  assert.match(teachingSurface, /aria-label="Schreiben und Papier"/);
+  assert.match(teachingSurface, /setBoardTool\("pen"\)/);
+  assert.match(teachingSurface, /setBoardTool\("erase"\)/);
   assert.match(teachingSurface, /active=\{boardTool === "pen" \|\| boardTool === "erase"\}/);
   assert.match(teachingSurface, /boardTool === 'text'/);
   assert.doesNotMatch(teachingSurface, /Weiße Smartboard-Fläche/);
 });
 
 test("Cockpit: TEXT macht die weiße Fläche zu einem klassenlokalen Rich-Text-Dokument", () => {
-  assert.match(teachingSurface, />TEXT<\/button>/);
+  assert.match(teachingSurface, //>Text<\\\/span>/g/);
   assert.match(teachingSurface, /<BoardTextEditor/);
   assert.match(teachingSurface, /cockpitTextByClass/);
   assert.match(teachingSurface, /boardTextClassKey = app\.activeClassId \|\| "unassigned"/);
@@ -273,7 +273,7 @@ test("Cockpit: Ich-bin-da zeigt Kindernamen vollständig und gibt ihnen ausreich
   assert.match(kidAttendance, /status === 'present' \? '✓ Da' : status === 'absent'/);
   assert.match(kidAttendance, /absenceCode === 'e' \? '✓ Entschuldigt'/);
   assert.doesNotMatch(kidAttendance, /openStudents\.slice\(0, 4\)/);
-  assert.match(kidAttendance, /whitespace-normal break-words font-black leading-tight/);
+  assert.match(kidAttendance, /whitespace-normal break-words font-black leading-\[1\.05\]/);
   assert.match(kidAttendance, /getStudentGridLayout\(size\.width, size\.height, students\.length/);
   assert.match(kidAttendance, /Alle \{students\.length\} Kinder groß anzeigen/);
   assert.match(kidAttendance, /gridTemplateColumns:/);
