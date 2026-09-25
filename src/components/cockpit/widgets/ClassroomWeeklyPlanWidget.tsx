@@ -22,12 +22,19 @@ const FEEDBACK: readonly { value: ChildDifficulty; text: string; icon: string }[
 
 type FinishStep = 'task' | 'child' | 'feedback';
 
-function TaskText({ task, showMaterials = true }: { task: ClassroomWeeklyTask; showMaterials?: boolean }) {
-  return <div className="min-w-0 space-y-1">
-    <p className="text-sm font-extrabold uppercase tracking-wide text-indigo-700">{task.fach} · {task.day}</p>
-    <p className="break-words text-lg font-extrabold leading-snug text-slate-900 sm:text-xl">{task.title}</p>
-    {task.instruction && <p className="break-words text-base font-medium text-slate-700">{task.instruction}</p>}
-    {showMaterials && task.material && <p className="break-words text-base text-slate-700"><span className="font-extrabold">Du brauchst: </span>{task.material}</p>}
+function TaskText({ task, showMaterials = true, scale = 'normal' }: {
+  task: ClassroomWeeklyTask;
+  showMaterials?: boolean;
+  scale?: 'compact' | 'normal' | 'large';
+}) {
+  const subjectClass = scale === 'large' ? 'text-base' : scale === 'compact' ? 'text-xs' : 'text-sm';
+  const titleClass = scale === 'large' ? 'text-2xl sm:text-3xl' : scale === 'compact' ? 'text-base' : 'text-lg sm:text-xl';
+  const bodyClass = scale === 'large' ? 'text-lg' : scale === 'compact' ? 'text-sm' : 'text-base';
+  return <div className={`min-w-0 ${scale === 'large' ? 'space-y-2' : 'space-y-1'}`}>
+    <p className={`${subjectClass} font-extrabold uppercase tracking-wide text-indigo-700`}>{task.fach} · {task.day}</p>
+    <p className={`break-words ${titleClass} font-extrabold leading-snug text-slate-900`}>{task.title}</p>
+    {task.instruction && <p className={`break-words ${bodyClass} font-medium text-slate-700`}>{task.instruction}</p>}
+    {showMaterials && task.material && <p className={`break-words ${bodyClass} text-slate-700`}><span className="font-extrabold">Du brauchst: </span>{task.material}</p>}
   </div>;
 }
 
@@ -42,6 +49,8 @@ export default function ClassroomWeeklyPlanWidget({ widget }: { widget?: Cockpit
   // Use the actual widget's inner rectangle, not the browser viewport.
   const compactBoard = !isExpanded && (size.width < 760 || size.height < 560);
   const tinyBoard = !isExpanded && (size.width < 520 || size.height < 390);
+  const roomyBoard = isExpanded || (size.width >= 1050 && size.height >= 620);
+  const taskColumns = size.width >= 1320 ? 3 : size.width >= 820 ? 2 : 1;
   const preferences = getClassroomWeeklyWidgetPreferences(widget?.settings);
   const [todayWeek, setTodayWeek] = useState(() => getKW(new Date()));
   const [week, setWeek] = useState(() => app.currentKW || getKW(new Date()));
@@ -130,18 +139,18 @@ export default function ClassroomWeeklyPlanWidget({ widget }: { widget?: Cockpit
           aria-label="Wochenplan groß anzeigen" title="Wochenplan groß anzeigen">{compactBoard ? "⛶" : "⛶ Groß anzeigen"}</button>}
         <button type="button" aria-label="Vorherige Woche" disabled={week <= 1}
           onClick={() => setWeek(w => Math.max(1, w - 1))}
-          className={`${compactBoard ? "min-h-9 min-w-9" : "min-h-11 min-w-11"} rounded-xl border border-indigo-200 bg-white px-2 text-xl disabled:opacity-40`}>‹</button>
+          className={`min-h-11 min-w-11 rounded-xl border border-indigo-200 bg-white px-2 text-xl disabled:opacity-40`}>‹</button>
         <button type="button" onClick={() => setWeek(todayWeek)} aria-label="Aktuelle Woche anzeigen"
           className={`min-h-11 rounded-xl border border-indigo-200 bg-white text-sm font-bold ${compactBoard ? "px-2" : "px-3"}`}>{compactBoard ? "Heute" : "Diese Woche"}</button>
         <button type="button" aria-label="Nächste Woche" disabled={week >= 53}
           onClick={() => setWeek(w => Math.min(53, w + 1))}
-          className={`${compactBoard ? "min-h-9 min-w-9" : "min-h-11 min-w-11"} rounded-xl border border-indigo-200 bg-white px-2 text-xl disabled:opacity-40`}>›</button>
+          className={`min-h-11 min-w-11 rounded-xl border border-indigo-200 bg-white px-2 text-xl disabled:opacity-40`}>›</button>
       </div>
     </header>
 
     <section className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${compactBoard ? "p-1.5" : "p-3 sm:p-4"}`} aria-label="Aufgaben dieser Woche">
       {homework.length > 0 && <section aria-label="Hausübungen im Wochenplan" className="mb-4 rounded-xl border-2 border-amber-300 bg-amber-50 p-3">
-        <h3 className="mb-2 text-lg font-black text-amber-900">📚 Hausübungen · KW {week}</h3>
+        <h3 className={`${roomyBoard ? 'text-2xl' : 'text-lg'} mb-2 font-black text-amber-900`}>📚 Hausübungen · KW {week}</h3>
         <HomeworkList items={homework} compact />
       </section>}
       {!tasks.length
@@ -150,11 +159,12 @@ export default function ClassroomWeeklyPlanWidget({ widget }: { widget?: Cockpit
             <p className="text-base font-bold text-slate-700">Für diese Woche gibt es noch keine freigegebenen Aufgaben.</p>
             <p className="text-sm text-slate-600">Die Lehrkraft kann Aufgaben im Wochenplan für Kinder freigeben.</p>
           </div>
-        : <div className={size.width >= 860 && size.height >= 470 ? "grid grid-cols-2 gap-3" : `grid grid-cols-1 ${compactBoard ? "gap-1.5" : "gap-3"}`}>
+        : <div className={`grid ${compactBoard ? "gap-1.5" : roomyBoard ? "gap-4" : "gap-3"}`}
+            style={{ gridTemplateColumns: `repeat(${taskColumns}, minmax(0, 1fr))` }}>
             {tasks.map((task, index) => <article key={task.id}
               className={`weekly-plan-light-card min-w-0 rounded-2xl border-2 border-indigo-300 bg-white shadow-sm ${compactBoard ? "p-2.5" : "p-3 sm:p-4"}`}>
               <p className="mb-2 text-sm font-extrabold text-indigo-800">Aufgabe {index + 1} · {task.day}</p>
-              <TaskText task={task} showMaterials={preferences.showMaterials} />
+              <TaskText task={task} showMaterials={preferences.showMaterials} scale={tinyBoard ? 'compact' : roomyBoard ? 'large' : 'normal'} />
             </article>)}
           </div>}
     </section>

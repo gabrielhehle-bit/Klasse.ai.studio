@@ -163,7 +163,7 @@ export const NoiseScaleWidget: React.FC<NoiseScaleWidgetProps> = ({
                   key={s.id}
                   type="button"
                   onClick={() => handleSelectStage(s.id)}
-                  className={`w-full p-2 rounded-xl border flex items-center gap-2.5 transition-all cursor-pointer text-left ${
+                  className={`w-full min-h-11 p-2 rounded-xl border flex items-center gap-2.5 transition-all cursor-pointer text-left ${
                     isSelected
                       ? `${s.activeBg} ${s.accentBorder} shadow-sm font-bold`
                       : currentIsLight

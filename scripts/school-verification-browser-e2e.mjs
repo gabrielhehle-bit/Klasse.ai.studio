@@ -290,6 +290,26 @@ async function verifyRandomPickerInRealBrowser(client) {
   if (!addedRandomWidget) throw new Error('Could not add random-name widget from redesigned library card.');
   await waitFor(client, 'empty class: random picker disabled and without demo pupils',
     String.raw`(() => {const button=document.querySelector('button[aria-label="Zufälliges Kind ziehen"]');return !!button && button.disabled && button.textContent.includes('noch keine Kinder angelegt') && !button.textContent.includes('Max M.');})()`);
+  const randomWidgetTouch = await evaluate(client,
+    String.raw`(() => {
+      const widget=document.querySelector('[data-widget-type="randomname"]');
+      if(!widget)return {error:'missing random widget'};
+      const selectors=[
+        'button[aria-label="Widget-Menü öffnen"]',
+        'button[aria-label="Kinder für diese Unterrichtsphase auswählen"]',
+        'button[aria-label="Zufälliges Kind ziehen"]'
+      ];
+      const controls=selectors.map(selector=>{
+        const button=widget.querySelector(selector);
+        if(!button)return {selector,missing:true};
+        const r=button.getBoundingClientRect();
+        return {selector,w:r.width,h:r.height};
+      });
+      return {controls};
+    })()`);
+  if (randomWidgetTouch.error || randomWidgetTouch.controls.some(control => control.missing || control.w < 43 || control.h < 43)) {
+    throw new Error('Random widget keeps board-safe touch targets: ' + JSON.stringify(randomWidgetTouch));
+  }
   const noLocalSoundSetting = await evaluate(client,
     String.raw`!Array.from(document.querySelectorAll('button')).some(b=>/Ton (?:ein|aus|um)schalten/.test(b.getAttribute('aria-label')||''))`);
   if (!noLocalSoundSetting) throw new Error('Random picker has redundant in-widget sound settings.');
@@ -366,11 +386,32 @@ async function verifyDirectCockpitNavigation(client) {
   if (!openedStudentSidebar) throw new Error('Bottom dock cannot open the student panel.');
   await waitFor(client, 'empty real class appears only after opening public student panel',
     String.raw`(() => {const panel=document.querySelector('.klassio-student-sidebar');return !!panel&&panel.textContent.includes('In dieser Klasse sind noch keine Kinder angelegt.')&&!panel.textContent.includes('Max M.');})()`);
+  const dockWithSidebar = await evaluate(client,
+    String.raw`(() => {
+      const row=document.querySelector('.klassio-dock-row');
+      const dock=document.querySelector('nav[aria-label="Meine Widget-Favoriten"]');
+      const sidebar=document.querySelector('.klassio-student-sidebar');
+      if(!row||!dock||!sidebar)return {error:'missing dock or sidebar'};
+      const d=dock.getBoundingClientRect();
+      const s=sidebar.getBoundingClientRect();
+      return {inset:Number(row.getAttribute('data-board-right-inset')||0),dockRight:d.right,sidebarLeft:s.left};
+    })()`);
+  if (dockWithSidebar.error || dockWithSidebar.inset < 240 || dockWithSidebar.dockRight > dockWithSidebar.sidebarLeft + 1) {
+    throw new Error('Bottom dock does not run under the open student sidebar: ' + JSON.stringify(dockWithSidebar));
+  }
   const closedStudentSidebar = await evaluate(client,
     String.raw`(() => {const b=document.querySelector('.klassio-student-sidebar button[aria-label="Schülerliste schließen"]');if(!b)return false;b.click();return true;})()`);
   if (!closedStudentSidebar) throw new Error('Student panel cannot be collapsed.');
   await waitFor(client, 'full width restored after closing student list',
     String.raw`(() => {const board=document.getElementById('widget-board-stage');return !!board&&board.getBoundingClientRect().width>800&&!document.querySelector('.klassio-student-sidebar');})()`);
+  const dockAfterSidebarClose = await evaluate(client,
+    String.raw`(() => {
+      const row=document.querySelector('.klassio-dock-row');
+      return row ? Number(row.getAttribute('data-board-right-inset')||0) : -1;
+    })()`);
+  if (dockAfterSidebarClose !== 0) {
+    throw new Error('Bottom dock releases the reserved sidebar width after closing: ' + dockAfterSidebarClose);
+  }
 
   // Favorites remain configurable per class and do not seed demo widgets.
   const openedDockSettings = await evaluate(client,

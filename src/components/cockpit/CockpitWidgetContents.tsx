@@ -3602,7 +3602,7 @@ Strikte JSON-Struktur:
               }
             }}
             disabled={isLoading || !customRiddleTopic.trim()}
-            className="p-1 px-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-500/30 text-white flex items-center justify-center cursor-pointer transition-all active:scale-95 text-[9px] font-black uppercase tracking-wider gap-0.5 shrink-0"
+            className="min-h-11 px-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-500/30 text-white flex items-center justify-center cursor-pointer transition-all active:scale-95 text-[9px] font-black uppercase tracking-wider gap-0.5 shrink-0"
           >
             <Sparkles size={9} /> Erstellen
           </button>

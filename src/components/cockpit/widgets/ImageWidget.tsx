@@ -478,7 +478,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
           </div>
           <button
             onClick={() => setErrorMessage(null)}
-            className="p-1 rounded-md hover:bg-rose-100 dark:hover:bg-rose-900 text-rose-500 cursor-pointer shrink-0"
+            className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg hover:bg-rose-100 dark:hover:bg-rose-900 text-rose-500 cursor-pointer"
             title="Schließen"
           >
             <X size={14} />
@@ -589,7 +589,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                       type="button"
                       onClick={handleZoomOut}
                       disabled={scale <= 0.5}
-                      className="p-1.5 rounded-lg hover:bg-white/60 dark:hover:bg-zinc-700/60 text-slate-700 dark:text-zinc-200 disabled:opacity-30 transition-all cursor-pointer"
+                      className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-white/60 dark:hover:bg-zinc-700/60 text-slate-700 dark:text-zinc-200 disabled:opacity-30 transition-all cursor-pointer"
                       title="Verkleinern"
                     >
                       <ZoomOut size={14} />
@@ -608,7 +608,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                       type="button"
                       onClick={handleZoomIn}
                       disabled={scale >= 3.5}
-                      className="p-1.5 rounded-lg hover:bg-white/60 dark:hover:bg-zinc-700/60 text-slate-700 dark:text-zinc-200 disabled:opacity-30 transition-all cursor-pointer"
+                      className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-white/60 dark:hover:bg-zinc-700/60 text-slate-700 dark:text-zinc-200 disabled:opacity-30 transition-all cursor-pointer"
                       title="Vergrößern"
                     >
                       <ZoomIn size={14} />
@@ -735,7 +735,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
               </h4>
               <button
                 onClick={() => setIsAltEditing(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
               >
                 <X size={16} />
               </button>
@@ -777,7 +777,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
               </h4>
               <button
                 onClick={() => setIsUrlModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
               >
                 <X size={16} />
               </button>
@@ -820,7 +820,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
               </h4>
               <button
                 onClick={() => setIsMaterialModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
               >
                 <X size={16} />
               </button>

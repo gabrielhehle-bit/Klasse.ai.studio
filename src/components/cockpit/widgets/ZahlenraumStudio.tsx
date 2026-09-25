@@ -296,7 +296,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
         <div className="w-full flex items-center justify-between gap-2">
           <span className="text-sm font-bold">Zahlenraum einstellen</span>
           <button type="button" onClick={onCloseSettings} aria-label="Zahlenraum-Einstellungen schließen"
-            className="min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 px-3 text-xs font-semibold">Fertig</button>
+            className="min-h-11 rounded-lg border border-slate-300 dark:border-slate-700 px-3 text-xs font-semibold">Fertig</button>
         </div>
         {/* Modus-Umschalter */}
         <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg">
@@ -304,7 +304,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
             id="zahlenraum-mode-quantity-btn"
             type="button"
             onClick={() => handleSelectMode('quantity')}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all min-h-[36px] ${
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all min-h-11 ${
               mode === 'quantity'
                 ? 'bg-indigo-600 text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -317,7 +317,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
             id="zahlenraum-mode-numberline-btn"
             type="button"
             onClick={() => handleSelectMode('numberline')}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all min-h-[36px] ${
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all min-h-11 ${
               mode === 'numberline'
                 ? 'bg-indigo-600 text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -338,7 +338,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                 id={`zahlenraum-range-${r}-btn`}
                 type="button"
                 onClick={() => handleSelectRange(r as ZahlenraumRange)}
-                className={`px-2 py-1 text-xs font-medium rounded-md transition-all min-h-[36px] min-w-[44px] ${
+                className={`px-2 py-1 text-xs font-medium rounded-md transition-all min-h-11 min-w-[44px] ${
                   range === r
                     ? 'bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 font-bold'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -356,7 +356,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                   id={`zahlenraum-range-${r}-btn`}
                   type="button"
                   onClick={() => handleSelectRange(r as ZahlenraumRange)}
-                  className={`px-2 py-1 text-xs font-medium rounded-md transition-all min-h-[36px] ${
+                  className={`px-2 py-1 text-xs font-medium rounded-md transition-all min-h-11 ${
                     range === r
                       ? 'bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 font-bold'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -369,7 +369,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                 id="zahlenraum-range-custom-btn"
                 type="button"
                 onClick={() => handleSelectRange('custom')}
-                className={`px-2 py-1 text-xs font-medium rounded-md transition-all min-h-[36px] flex items-center gap-1 ${
+                className={`px-2 py-1 text-xs font-medium rounded-md transition-all min-h-11 flex items-center gap-1 ${
                   range === 'custom'
                     ? 'bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 font-bold'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -558,7 +558,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                   key={v}
                   type="button"
                   onClick={() => updateQuantityValue(v)}
-                  className="px-2.5 py-1 text-xs font-semibold rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all min-h-[36px]"
+                  className="px-2.5 py-1 text-xs font-semibold rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all min-h-11"
                 >
                   {v}
                 </button>
@@ -807,7 +807,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                       <button
                         type="button"
                         onClick={() => handleToggleMarkerVisibility(m.id)}
-                        className="p-1 hover:text-indigo-600 text-slate-400"
+                        className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-indigo-50 hover:text-indigo-600 text-slate-400 dark:hover:bg-indigo-950/30"
                         title={m.labelHidden ? 'Zahl aufdecken' : 'Zahl verdecken'}
                       >
                         {m.labelHidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
@@ -816,7 +816,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                         <button
                           type="button"
                           onClick={() => handleRemoveMarker(m.id)}
-                          className="p-1 hover:text-rose-600 text-slate-400"
+                          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-rose-50 hover:text-rose-600 text-slate-400 dark:hover:bg-rose-950/30"
                           title="Marker entfernen"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -833,7 +833,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                         const mid = Math.round((currentMin + currentMax) / 2);
                         handleAddOrUpdateMarker(mid);
                       }}
-                      className="flex items-center gap-1 px-2 py-1 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 text-slate-500 hover:text-indigo-600 hover:border-indigo-400 transition-all min-h-[36px]"
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 text-slate-500 hover:text-indigo-600 hover:border-indigo-400 transition-all min-h-11"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       <span>Marker</span>
@@ -869,7 +869,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                       type="button"
                       onClick={() => handleAddJump(step)}
                       disabled={jumps.length >= 10}
-                      className="px-2 py-1 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800 font-mono font-semibold hover:bg-amber-100 min-h-[36px]"
+                      className="px-2 py-1 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800 font-mono font-semibold hover:bg-amber-100 min-h-11"
                     >
                       +{step}
                     </button>
@@ -880,7 +880,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                       type="button"
                       onClick={() => handleAddJump(-step)}
                       disabled={jumps.length >= 10}
-                      className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-mono font-semibold hover:bg-slate-200 min-h-[36px]"
+                      className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-mono font-semibold hover:bg-slate-200 min-h-11"
                     >
                       -{step}
                     </button>
@@ -892,7 +892,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                     id="zahlenraum-clear-jumps-btn"
                     type="button"
                     onClick={handleClearJumps}
-                    className="flex items-center gap-1 px-2 py-1 text-slate-500 hover:text-rose-600 transition-all min-h-[36px]"
+                    className="flex items-center gap-1 px-2 py-1 text-slate-500 hover:text-rose-600 transition-all min-h-11"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     <span>Sprünge löschen ({jumps.length})</span>

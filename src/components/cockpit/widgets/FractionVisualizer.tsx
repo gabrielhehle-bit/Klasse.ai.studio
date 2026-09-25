@@ -431,7 +431,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
           <button
             type="button"
             onClick={() => setMode('circle')}
-            className={`min-h-[38px] px-3 py-1.5 flex items-center gap-1.5 text-xs font-semibold rounded-lg transition-all ${
+            className={`min-h-11 px-3 py-1.5 flex items-center gap-1.5 text-xs font-semibold rounded-lg transition-all ${
               settings.mode === 'circle'
                 ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
@@ -443,7 +443,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
           <button
             type="button"
             onClick={() => setMode('strip')}
-            className={`min-h-[38px] px-3 py-1.5 flex items-center gap-1.5 text-xs font-semibold rounded-lg transition-all ${
+            className={`min-h-11 px-3 py-1.5 flex items-center gap-1.5 text-xs font-semibold rounded-lg transition-all ${
               settings.mode === 'strip'
                 ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
@@ -455,7 +455,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
           <button
             type="button"
             onClick={() => setMode('compare')}
-            className={`min-h-[38px] px-3 py-1.5 flex items-center gap-1.5 text-xs font-semibold rounded-lg transition-all ${
+            className={`min-h-11 px-3 py-1.5 flex items-center gap-1.5 text-xs font-semibold rounded-lg transition-all ${
               settings.mode === 'compare'
                 ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
@@ -467,7 +467,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
         </div>}
         {showSettings && <button type="button" onClick={onCloseSettings}
           aria-label="Bruch-Einstellungen schließen"
-          className="min-h-9 rounded-lg border border-slate-300 dark:border-slate-700 px-3 text-xs font-semibold">Fertig</button>}
+          className="min-h-11 rounded-lg border border-slate-300 dark:border-slate-700 px-3 text-xs font-semibold">Fertig</button>}
 
       </div>
 

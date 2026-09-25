@@ -457,7 +457,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
           </div>
           <button
             onClick={() => updateState((prev) => ({ ...prev, presentationMode: false }))}
-            className="flex items-center space-x-1 px-2 py-1 rounded bg-amber-600 hover:bg-amber-700 text-white font-medium min-h-[36px]"
+            className="flex items-center space-x-1 px-2 py-1 rounded bg-amber-600 hover:bg-amber-700 text-white font-medium min-h-11"
           >
             <Minimize2 className="w-3.5 h-3.5" />
             <span>Beenden</span>
@@ -737,7 +737,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
                                   )
                                 )
                               }
-                              className="ml-1 text-slate-400 hover:text-rose-600 min-h-[32px] min-w-[32px] flex items-center justify-center"
+                              className="ml-1 text-slate-400 hover:text-rose-600 min-h-11 min-w-11 flex items-center justify-center"
                               title="Diese Markierung entfernen"
                             >
                               <X className="w-3.5 h-3.5" />
@@ -922,7 +922,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
               <div className="flex border-b border-slate-200 dark:border-slate-800 pb-2">
                 <button
                   onClick={() => setIsBatchMode(false)}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg min-h-[40px] ${
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg min-h-11 ${
                     !isBatchMode ? 'bg-amber-500 text-white' : 'text-slate-500'
                   }`}
                 >
@@ -930,7 +930,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
                 </button>
                 <button
                   onClick={() => setIsBatchMode(true)}
-                  className={`ml-2 px-3 py-1.5 text-xs font-semibold rounded-lg min-h-[40px] ${
+                  className={`ml-2 px-3 py-1.5 text-xs font-semibold rounded-lg min-h-11 ${
                     isBatchMode ? 'bg-amber-500 text-white' : 'text-slate-500'
                   }`}
                 >
@@ -1012,18 +1012,18 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
                             type="text"
                             value={editingText}
                             onChange={(e) => setEditingText(e.target.value)}
-                            className="flex-1 px-2 py-1 text-xs border rounded min-h-[36px]"
+                            className="flex-1 px-2 py-1 text-xs border rounded min-h-11"
                             autoFocus
                           />
                           <button
                             onClick={() => handleSaveEdit(w.id)}
-                            className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded min-h-[36px] min-w-[36px] flex items-center justify-center"
+                            className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded min-h-11 min-w-11 flex items-center justify-center"
                           >
                             <Check className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => setEditingWordId(null)}
-                            className="p-1.5 text-slate-400 hover:bg-slate-200 rounded min-h-[36px] min-w-[36px] flex items-center justify-center"
+                            className="p-1.5 text-slate-400 hover:bg-slate-200 rounded min-h-11 min-w-11 flex items-center justify-center"
                           >
                             <X className="w-4 h-4" />
                           </button>
@@ -1046,14 +1046,14 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
                             setEditingWordId(w.id);
                             setEditingText(w.text);
                           }}
-                          className="p-1.5 text-slate-400 hover:text-slate-600 min-h-[36px] min-w-[36px] flex items-center justify-center"
+                          className="p-1.5 text-slate-400 hover:text-slate-600 min-h-11 min-w-11 flex items-center justify-center"
                           title="Bearbeiten"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => updateState((prev) => deleteWord(prev, w.id))}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 min-h-[36px] min-w-[36px] flex items-center justify-center"
+                          className="p-1.5 text-slate-400 hover:text-rose-600 min-h-11 min-w-11 flex items-center justify-center"
                           title="Löschen"
                         >
                           <Trash2 className="w-3.5 h-3.5" />

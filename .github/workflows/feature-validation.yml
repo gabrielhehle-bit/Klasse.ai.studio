@@ -33,6 +33,12 @@ jobs:
       - name: Production storage preflight script syntax
         run: bash -n ops/klassio-storage-preflight.sh
 
+      - name: Browser E2E script syntax
+        run: |
+          for script in scripts/*browser-e2e.mjs; do
+            node --check "$script"
+          done
+
       - name: TypeScript
         run: bun run lint
 

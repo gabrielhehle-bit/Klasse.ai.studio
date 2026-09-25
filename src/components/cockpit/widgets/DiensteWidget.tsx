@@ -477,14 +477,14 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                         />
                         <button
                           onClick={() => handleSaveEdit(dienst.id)}
-                          className="p-1 rounded bg-emerald-500 text-white hover:bg-emerald-600"
+                          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-emerald-500 text-white hover:bg-emerald-600"
                           title="Speichern"
                         >
                           <Check size={13} />
                         </button>
                         <button
                           onClick={() => setEditingDienstId(null)}
-                          className="p-1 rounded bg-slate-200 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300"
+                          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-slate-200 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300"
                           title="Abbrechen"
                         >
                           <X size={13} />
@@ -605,7 +605,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                                       e
                                     )
                                   }
-                                  className="p-0.5 rounded hover:bg-rose-500/20 hover:text-rose-500 cursor-pointer"
+                                  className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-rose-500/20 hover:text-rose-500 cursor-pointer"
                                   title="Vertretung aufheben"
                                 >
                                   <X size={10} />
@@ -735,11 +735,11 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
           className="sticky bottom-0 flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/95 p-1 text-xs font-bold text-slate-800 shadow-sm dark:border-white/10 dark:bg-zinc-900/95 dark:text-white">
           <button type="button" aria-label="Vorherige Klassendienste" disabled={dutyWindow.page === 0}
             onClick={() => { setDienstPage(page => Math.max(0, page - 1)); setActiveAssignDienstId(null); }}
-            className="min-h-10 rounded-lg border border-slate-300 px-3 disabled:opacity-30"><ChevronLeft size={16} /></button>
+            className="min-h-11 rounded-lg border border-slate-300 px-3 disabled:opacity-30"><ChevronLeft size={16} /></button>
           <span aria-live="polite">{dutyWindow.page + 1}/{dutyWindow.pageCount} · {dienste.length} Dienste</span>
           <button type="button" aria-label="Weitere Klassendienste" disabled={dutyWindow.page + 1 >= dutyWindow.pageCount}
             onClick={() => { setDienstPage(page => Math.min(dutyWindow.pageCount - 1, page + 1)); setActiveAssignDienstId(null); }}
-            className="min-h-10 rounded-lg border border-slate-300 px-3 disabled:opacity-30"><ChevronRight size={16} /></button>
+            className="min-h-11 rounded-lg border border-slate-300 px-3 disabled:opacity-30"><ChevronRight size={16} /></button>
         </div>}
       </div>
 

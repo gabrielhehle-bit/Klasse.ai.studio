@@ -70,7 +70,7 @@ export const MusicSoundsStudio: React.FC<MusicSoundsStudioProps> = ({
           className={`shrink-0 rounded-xl border p-3 space-y-3 ${currentIsLight ? 'border-indigo-200 bg-indigo-50 text-slate-900' : 'border-indigo-400/40 bg-zinc-800 text-white'}`}>
           <div className="flex items-center justify-between gap-2">
             <strong className="text-sm">Musik & Klänge einstellen</strong>
-            <button type="button" onClick={onCloseSettings} className="min-h-10 rounded-lg border border-current/20 px-3 text-xs font-bold">Fertig</button>
+            <button type="button" onClick={onCloseSettings} className="min-h-11 rounded-lg border border-current/20 px-3 text-xs font-bold">Fertig</button>
           </div>
           <label className="block text-xs font-semibold" htmlFor={`music-studio-start-${widget.id}`}>Bereich beim Öffnen</label>
           <select id={`music-studio-start-${widget.id}`} value={mode}
