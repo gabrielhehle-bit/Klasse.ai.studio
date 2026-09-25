@@ -23,7 +23,9 @@ test('new classrooms get an ordered customizable dock; old disabled favorites re
   assert.match(source, /<CockpitWidgetDock/);
   assert.match(source, /onOpenWidget=\{\(id\) =>/);
   assert.match(source, /handleOpenWidgetInCockpitLayout\(id as CockpitWidgetConfig\["type"\]\)/);
-  assert.match(source, /toggleWidget\("termine"\)/);
+  assert.doesNotMatch(source, /toggleWidget\("termine"\)/);
+  assert.equal(COCKPIT_QUICKBAR_ITEMS.some(item => item.id === ('termine' as any)), false);
+  assert.deepEqual(normalizeCockpitQuickbarSettings({ enabled: true, itemIds: ['termine', 'timer'] }).itemIds, ['timer']);
   assert.match(dock, /aria-label="Meine Widget-Favoriten"/);
   assert.match(dock, /aria-label="Weitere Widgets hinzufügen"/);
   assert.match(dock, /aria-label="Meine Widget-Leiste anpassen"/);
