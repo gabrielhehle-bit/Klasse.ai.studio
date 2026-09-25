@@ -33,16 +33,16 @@ test('Wheel measures real drawing area and keeps controls finger-sized', () => {
   assert.match(wheel, /observer\.observe\(wheelArea\)/);
   assert.match(wheel, /ref=\{wheelAreaRef\}/);
   assert.match(wheel, /wheelAreaSize\.width \|\| containerSize\.width - 16/);
-  assert.match(wheel, /wheelAreaSize\.height \|\| containerSize\.height - 144/);
-  assert.match(wheel, /min-h-11 min-w-11 p-1 rounded-lg border/);
-  assert.match(wheel, /min-h-11 min-w-11 px-1\.5 rounded-lg border/);
-  assert.match(wheel, /w-full min-h-11 rounded-lg font-black/);
+  assert.match(wheel, /wheelAreaSize\.height \|\| containerSize\.height - 108/);
+  assert.match(wheel, /\\${isSmall \\? 'min-h-9 min-w-9' : 'min-h-11 min-w-11'} p-1 rounded-lg border/);
+  assert.match(wheel, /\\${isSmall \\? 'min-h-9 min-w-9' : 'min-h-11 min-w-11'} px-1\.5 rounded-lg border/);
+  assert.match(wheel, /w-full \\${isSmall \\? 'min-h-10' : 'min-h-11'} rounded-lg font-black/);
   assert.match(wheel, /availableIndices\.map\(index => baseItems\[index\]\)/);
   assert.doesNotMatch(wheel, /containerSize\.height - 93/);
 });
 
 test('Homework shows one wide task column in compact widgets, and retains private notes exclusion', () => {
-  assert.match(homework, /const compact = size\.width < 710 \|\| size\.height < 360/);
+  assert.match(homework, /const compact = size\.width < 760 \|\| size\.height < 400/);
   assert.match(homework, /<HomeworkList items=\{items\} compact=\{compact\} \/>/);
   assert.match(homework, /overflow-y-auto overscroll-contain/);
   assert.match(homework, /classroom-homework-widget/);
@@ -51,7 +51,7 @@ test('Homework shows one wide task column in compact widgets, and retains privat
 });
 
 test('Star presentation keeps full pupil names without changing opt-in privacy or values', () => {
-  assert.match(stars, /const compact = size\.width < 540 \|\| size\.height < 380/);
+  assert.match(stars, /const compact = size\.width < 620 \|\| size\.height < 420/);
   assert.match(stars, /min-w-0 break-words \[overflow-wrap:anywhere\] font-extrabold/);
   assert.doesNotMatch(stars, /min-w-0 truncate text-base font-extrabold/);
   assert.match(stars, /const \[presenting, setPresenting\] = useState\(false\)/);
