@@ -274,8 +274,9 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
             type="button"
             id="reward-open-settings-btn"
             onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+            className="w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
             title="Ziel & Symbol anpassen"
+            aria-label="Klassenziel einstellen"
           >
             <Settings2 size={16} />
           </button>
@@ -467,7 +468,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
               <button
                 type="button"
                 onClick={() => setIsSettingsOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-800 dark:hover:text-white"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-white/10 dark:hover:text-white"
               >
                 <X size={16} />
               </button>
@@ -484,7 +485,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
                 onChange={(e) => setEditTitle(e.target.value)}
                 maxLength={100}
                 placeholder="z.B. Gemeinsame Spielzeit"
-                className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-white/10 bg-transparent focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="min-h-11 w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-white/10 bg-transparent focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />
             </div>
 
@@ -499,7 +500,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
                     key={quick}
                     type="button"
                     onClick={() => setEditGoal(quick)}
-                    className={`px-2 py-1 rounded text-xs font-bold border ${
+                    className={`min-h-11 min-w-11 px-2 py-1 rounded-lg text-xs font-bold border ${
                       editGoal === quick
                         ? 'bg-emerald-500 text-white border-emerald-500'
                         : 'border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300'
@@ -515,7 +516,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
                   value={editGoal}
                   onChange={(e) => { setEditGoal(Number(e.target.value)); setSettingsError(''); }}
                   aria-label="Zielanzahl"
-                  className="w-16 px-2 py-1 text-xs rounded border border-slate-200 dark:border-white/10 bg-transparent text-center font-bold"
+                  className="min-h-11 w-20 px-2 py-1 text-xs rounded-lg border border-slate-200 dark:border-white/10 bg-transparent text-center font-bold"
                 />
               </div>
               {settingsError && <p role="alert" className="mt-2 rounded-lg bg-rose-50 p-2 text-xs font-bold text-rose-700">{settingsError}</p>}
@@ -532,7 +533,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
                     key={s.char}
                     type="button"
                     onClick={() => setEditSymbol(s.char)}
-                    className={`w-8 h-8 rounded-lg text-base flex items-center justify-center border transition-all ${
+                    className={`w-11 h-11 rounded-xl text-base flex items-center justify-center border transition-all ${
                       editSymbol === s.char
                         ? 'bg-emerald-500/20 border-emerald-500 scale-110'
                         : 'border-slate-200 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5'
@@ -556,7 +557,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
                     key={st.id}
                     type="button"
                     onClick={() => setEditStyle(st.id)}
-                    className={`py-1.5 px-2 rounded-lg text-[10px] font-bold border flex flex-col items-center gap-0.5 ${
+                    className={`min-h-11 py-1.5 px-2 rounded-lg text-[10px] font-bold border flex flex-col items-center justify-center gap-0.5 ${
                       editStyle === st.id
                         ? 'bg-emerald-500 text-white border-emerald-500'
                         : 'border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300'
@@ -574,14 +575,14 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
             <button
               type="button"
               onClick={() => setIsSettingsOpen(false)}
-              className="flex-1 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-white/10"
+              className="flex-1 min-h-11 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-white/10"
             >
               Abbrechen
             </button>
             <button
               type="button"
               onClick={handleSaveSettings}
-              className="flex-1 py-2 rounded-xl text-xs font-black bg-emerald-500 text-white shadow-sm"
+              className="flex-1 min-h-11 py-2 rounded-xl text-xs font-black bg-emerald-500 text-white shadow-sm"
             >
               Speichern
             </button>
@@ -603,14 +604,14 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
             <button
               type="button"
               onClick={() => setIsConfirmingReset(false)}
-              className="flex-1 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300"
+              className="flex-1 min-h-11 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300"
             >
               Nein
             </button>
             <button
               type="button"
               onClick={handleConfirmReset}
-              className="flex-1 py-2 rounded-xl text-xs font-black bg-rose-500 hover:bg-rose-600 text-white shadow-sm"
+              className="flex-1 min-h-11 py-2 rounded-xl text-xs font-black bg-rose-500 hover:bg-rose-600 text-white shadow-sm"
             >
               Ja, leeren
             </button>
