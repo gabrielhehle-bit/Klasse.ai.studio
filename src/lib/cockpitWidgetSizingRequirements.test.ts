@@ -78,3 +78,15 @@ test("Kernwidgets verkleinern Touch-Ziele auch im Kompaktmodus nicht unter 44px"
   assert.doesNotMatch(kidAttendance, /h-10 min-h-\[40px\]/);
   assert.match(kidAttendance, /className="min-h-11 px-3 rounded-lg border font-bold text-xs/);
 });
+
+
+test("Gemeinsamer Widget-Rahmen behält 44px-Touchziele auch bei engem Inhalt", () => {
+  assert.doesNotMatch(cockpitWidget, /viewportDensity === "tight" \? "h-9 " : "h-11 "/);
+  assert.doesNotMatch(cockpitWidget, /viewportDensity === "tight" \? "w-8 h-8" : "w-9 h-9"/);
+  assert.match(cockpitWidget, /"w-full relative h-11 " \+/);
+  assert.match(cockpitWidget, /inline-flex h-11 w-11 shrink-0 items-center justify-center/);
+  assert.match(cockpitWidget, /w-11 h-11 flex items-center justify-center rounded-lg border/);
+  assert.match(cockpitWidget, /w-full min-h-11 px-2\.5 py-2 rounded-lg text-xs font-semibold/);
+  assert.match(cockpitWidget, /w-full min-h-11 p-1\.5 rounded-lg text-sm font-bold border/);
+  assert.match(cockpitWidget, /w-full min-h-11 py-1\.5 bg-indigo-500/);
+});
