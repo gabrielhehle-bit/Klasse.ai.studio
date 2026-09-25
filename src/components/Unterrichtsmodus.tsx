@@ -9812,7 +9812,9 @@ ${content}
                                               : "Unterrichts-Widget");
                                             const expanded = expandedCoreWidget === group.id;
                                             const isFav = (favoritesBySubject[getResolvedFavFolder()] || []).includes(primaryType);
-                                            const isActive = cockpitWidgets.some(widget => widget.type === primaryType && widget.visible);
+                                            const primaryWidget = cockpitWidgets.find(widget => widget.type === primaryType);
+                                            const isActive = Boolean(primaryWidget?.visible);
+                                            const isMinimized = Boolean(primaryWidget && minimizedWidgetIds.includes(primaryWidget.id));
                                             return (
                                               <div key={group.id} data-testid={`cockpit-core-group-${group.id}`}
                                                 className={`relative flex min-h-[96px] flex-wrap items-center gap-3 rounded-2xl border p-3 transition-all ${
@@ -9826,7 +9828,9 @@ ${content}
                                                 <div className="min-w-0 flex-1">
                                                   <div className="flex items-center gap-2">
                                                     <h3 className="truncate text-sm font-black text-slate-900">{group.label}</h3>
-                                                    {isActive && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">offen</span>}
+                                                    {isMinimized
+                                                      ? <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700">minimiert</span>
+                                                      : isActive && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">offen</span>}
                                                   </div>
                                                   <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">{description}</p>
                                                 </div>
@@ -9849,14 +9853,18 @@ ${content}
                                                       <span aria-hidden="true">{expanded ? "▴" : "▾"}</span>
                                                     </button>
                                                   )}
-                                                  <button type="button" disabled={isActive}
+                                                  <button type="button"
                                                     onClick={() => {
                                                       handleOpenWidgetInCockpitLayout(primaryType as CockpitWidgetConfig["type"]);
                                                       setIsAddWidgetMenuOpen(false);
                                                     }}
-                                                    aria-label={`${group.label} hinzufügen`}
-                                                    title={isActive ? "Bereits auf der Tafel" : "Zur Tafel hinzufügen"}
-                                                    className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-indigo-600 text-xl font-black text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500">＋</button>
+                                                    aria-label={isMinimized ? `${group.label} wiederherstellen` : isActive ? `${group.label} auf der Tafel anzeigen` : `${group.label} hinzufügen`}
+                                                    title={isMinimized ? "Wiederherstellen" : isActive ? "Auf der Tafel anzeigen" : "Zur Tafel hinzufügen"}
+                                                    className={`flex min-h-11 min-w-11 items-center justify-center rounded-xl text-xl font-black text-white transition-colors ${
+                                                      isMinimized ? "bg-indigo-500 hover:bg-indigo-600" : isActive ? "bg-emerald-600 hover:bg-emerald-700" : "bg-indigo-600 hover:bg-indigo-700"
+                                                    }`}>
+                                                    {isMinimized ? "↥" : isActive ? "↗" : "＋"}
+                                                  </button>
                                                 </div>
                                                 {variants.length > 1 && expanded && (
                                                   <div className="w-full border-t border-slate-100 pt-2">
@@ -9978,7 +9986,7 @@ ${content}
                                               🔍
                                             </div>
                                             <p className="text-[10px] font-bold">
-                                              Keine passende Widgets gefunden
+                                              Keine passenden Widgets gefunden
                                             </p>
                                             <p className="text-[7.5px] mt-1 max-w-[240px] leading-relaxed">
                                               Passe deine Suche oder deine
@@ -9990,6 +9998,7 @@ ${content}
                                         {filteredList.map((item) => {
                                           const widgetObj = cockpitWidgets.find((w) => w.type === item.type);
                                           const isActive = Boolean(widgetObj?.visible);
+                                          const isMinimized = Boolean(widgetObj && minimizedWidgetIds.includes(widgetObj.id));
                                           const isFav = (favoritesBySubject[getResolvedFavFolder()] || []).includes(item.type);
                                           const parts = String(item.label || "").trim().split(/\s+/);
                                           const icon = parts.length > 1 ? parts[0] : "🧩";
@@ -10007,7 +10016,9 @@ ${content}
                                               <div className="min-w-0 flex-1">
                                                 <div className="flex items-center gap-2">
                                                   <h3 className="truncate text-sm font-black text-slate-900">{name}</h3>
-                                                  {isActive && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">offen</span>}
+                                                  {isMinimized
+                                                    ? <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700">minimiert</span>
+                                                    : isActive && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">offen</span>}
                                                 </div>
                                                 <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">{item.desc}</p>
                                               </div>
@@ -10023,15 +10034,17 @@ ${content}
                                                   }`}>
                                                   <Star size={17} fill={isFav ? "currentColor" : "none"} aria-hidden="true" />
                                                 </button>
-                                                <button type="button" disabled={isActive}
+                                                <button type="button"
                                                   onClick={() => {
                                                     handleOpenWidgetInCockpitLayout(item.type as CockpitWidgetConfig["type"]);
                                                     setIsAddWidgetMenuOpen(false);
                                                   }}
-                                                  aria-label={isActive ? `${name} ist bereits geöffnet` : `${name} hinzufügen`}
-                                                  title={isActive ? "Bereits auf der Tafel" : "Zur Tafel hinzufügen"}
-                                                  className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-indigo-600 text-xl font-black text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500">
-                                                  {isActive ? <Check size={18} aria-hidden="true" /> : "＋"}
+                                                  aria-label={isMinimized ? `${name} wiederherstellen` : isActive ? `${name} auf der Tafel anzeigen` : `${name} hinzufügen`}
+                                                  title={isMinimized ? "Wiederherstellen" : isActive ? "Auf der Tafel anzeigen" : "Zur Tafel hinzufügen"}
+                                                  className={`flex min-h-11 min-w-11 items-center justify-center rounded-xl text-xl font-black text-white transition-colors ${
+                                                    isMinimized ? "bg-indigo-500 hover:bg-indigo-600" : isActive ? "bg-emerald-600 hover:bg-emerald-700" : "bg-indigo-600 hover:bg-indigo-700"
+                                                  }`}>
+                                                  {isMinimized ? "↥" : isActive ? "↗" : "＋"}
                                                 </button>
                                               </div>
                                             </article>
