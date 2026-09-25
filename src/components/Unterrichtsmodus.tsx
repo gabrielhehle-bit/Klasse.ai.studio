@@ -2968,6 +2968,16 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [showBoardTools, setShowBoardTools] = useState(false);
   const [isAddWidgetMenuOpen, setIsAddWidgetMenuOpen] = useState(false);
   const [isWidgetConfigurationOpen, setIsWidgetConfigurationOpen] = useState(false);
+  useEffect(() => {
+    if (!isAddWidgetMenuOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setIsWidgetConfigurationOpen(false);
+      setIsAddWidgetMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isAddWidgetMenuOpen]);
   const [selectedWidgetConfiguration, setSelectedWidgetConfiguration] = useState<"kidattendance" | "groups" | "randomname" | "classweeklyplan">("kidattendance");
   const [isVorlagenModalOpen, setIsVorlagenModalOpen] = useState(false);
   const [vorlagenStartTab, setVorlagenStartTab] = useState<"browse" | "create">("browse");
@@ -8405,7 +8415,7 @@ ${content}
                                 role="dialog"
                                 aria-modal="true"
                                 aria-label="Widget-Bibliothek"
-                                className={`klassio-widget-library fixed left-1/2 -translate-x-1/2 bottom-[5.5rem] top-auto w-[min(1040px,calc(100vw-1rem))] h-[min(760px,calc(100dvh-7rem))] overflow-hidden rounded-3xl border p-3 shadow-2xl z-[1000] ${
+                                className={`klassio-widget-library fixed left-1/2 -translate-x-1/2 top-[4.75rem] bottom-[4.75rem] w-[min(1040px,calc(100vw-1rem))] overflow-hidden rounded-3xl border p-3 shadow-2xl z-[1000] ${
                                   currentIsLight
                                     ? "bg-white border-slate-100 animate-in fade-in slide-in-from-top-3 duration-200"
                                     : "bg-zinc-900 border-white/10 animate-in fade-in slide-in-from-top-3 duration-200"
@@ -8414,7 +8424,7 @@ ${content}
                                 <header className="klassio-widget-library-header flex min-w-0 items-center gap-2 border-b border-slate-200 pb-3">
                                   <div className="min-w-0 shrink-0">
                                     <h2 className="text-base font-black text-slate-900 dark:text-white">Widget-Bibliothek</h2>
-                                    <p className="hidden text-xs text-slate-500 md:block">Finden, hinzufügen und favorisieren.</p>
+                                    <p className="hidden text-xs text-slate-500 md:block">Favoriten, zuletzt verwendet oder gezielt suchen.</p>
                                   </div>
                                   <div className="relative min-w-0 flex-1">
                                     <input
@@ -9746,6 +9756,22 @@ ${content}
 
                                     const currentResolvedFolder =
                                       getResolvedFavFolder();
+                                    const favoriteFolderPicker = (
+                                      <div className="col-span-full mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                                        <div className="min-w-0">
+                                          <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Favoriten</p>
+                                          <p className="truncate text-xs font-semibold text-slate-700">Ordner: {currentResolvedFolder}</p>
+                                        </div>
+                                        <label className="flex min-h-10 items-center gap-2 text-xs font-semibold text-slate-600">
+                                          <span className="hidden sm:inline">Ordner</span>
+                                          <select aria-label="Favoriten-Ordner auswählen" value={selectedFavFolder}
+                                            onChange={event => setSelectedFavFolder(event.target.value)}
+                                            className="min-h-10 max-w-52 rounded-lg border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-800">
+                                            {availableFolders.map(folder => <option key={folder.id} value={folder.id}>{folder.label}</option>)}
+                                          </select>
+                                        </label>
+                                      </div>
+                                    );
                                     const query = widgetSearch
                                       .toLowerCase()
                                       .trim();
@@ -9901,53 +9927,7 @@ ${content}
                                     ) {
                                       return (
                                         <>
-                                          <div className="col-span-full flex flex-wrap gap-1.5 p-2 mb-3 bg-black/10 dark:bg-white/5 rounded-2xl border border-white/5">
-                                            <div className="w-full text-[8.5px] font-black uppercase tracking-wider text-slate-400 mb-1 px-1 flex justify-between items-center">
-                                              <span>📁 FAVORITEN-ORDNER:</span>
-                                              <span className="font-mono text-indigo-400">
-                                                Aktives Fach:{" "}
-                                                {resolvedActiveFach}
-                                              </span>
-                                            </div>
-                                            {availableFolders.map((folder) => {
-                                              const folderName =
-                                                folder.id === "active_subject"
-                                                  ? resolvedActiveFach
-                                                  : folder.id;
-                                              const count = (
-                                                favoritesBySubject[
-                                                  folderName
-                                                ] || []
-                                              ).length;
-                                              const isSelected =
-                                                selectedFavFolder === folder.id;
-                                              return (
-                                                <button
-                                                  key={folder.id}
-                                                  type="button"
-                                                  onClick={() =>
-                                                    setSelectedFavFolder(
-                                                      folder.id,
-                                                    )
-                                                  }
-                                                  className={`px-2.5 py-1 rounded-xl text-[8.5px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                                                    isSelected
-                                                      ? "bg-indigo-500 text-white shadow-md scale-102"
-                                                      : currentIsLight
-                                                        ? "bg-slate-100 hover:bg-slate-200 text-slate-600"
-                                                        : "bg-zinc-800 hover:bg-zinc-700 text-slate-300"
-                                                  }`}
-                                                >
-                                                  <span>{folder.label}</span>
-                                                  <span
-                                                    className={`text-[7px] px-1 rounded-full ${isSelected ? "bg-white/20 text-white" : "bg-black/10 dark:bg-white/10 text-slate-400"}`}
-                                                  >
-                                                    {count}
-                                                  </span>
-                                                </button>
-                                              );
-                                            })}
-                                          </div>
+                                          {favoriteFolderPicker}
                                           <div className="col-span-full py-10 flex flex-col items-center justify-center text-center opacity-70">
                                             <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-500 mb-2">
                                               <Star
@@ -9972,53 +9952,7 @@ ${content}
                                     }
 
                                     const renderedFoldersHeader =
-                                      activeWidgetCategory === "favorites" ? (
-                                        <div className="col-span-full flex flex-wrap gap-1.5 p-2 mb-3 bg-black/10 dark:bg-white/5 rounded-2xl border border-white/5">
-                                          <div className="w-full text-[8.5px] font-black uppercase tracking-wider text-slate-400 mb-1 px-1 flex justify-between items-center">
-                                            <span>📁 FAVORITEN-ORDNER:</span>
-                                            <span className="font-mono text-indigo-400">
-                                              Aktives Fach: {resolvedActiveFach}
-                                            </span>
-                                          </div>
-                                          {availableFolders.map((folder) => {
-                                            const folderName =
-                                              folder.id === "active_subject"
-                                                ? resolvedActiveFach
-                                                : folder.id;
-                                            const count = (
-                                              favoritesBySubject[folderName] ||
-                                              []
-                                            ).length;
-                                            const isSelected =
-                                              selectedFavFolder === folder.id;
-                                            return (
-                                              <button
-                                                key={folder.id}
-                                                type="button"
-                                                onClick={() =>
-                                                  setSelectedFavFolder(
-                                                    folder.id,
-                                                  )
-                                                }
-                                                className={`px-2.5 py-1 rounded-xl text-[8.5px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                                                  isSelected
-                                                    ? "bg-indigo-500 text-white shadow-md scale-102"
-                                                    : currentIsLight
-                                                      ? "bg-slate-100 hover:bg-slate-200 text-slate-600"
-                                                      : "bg-zinc-800 hover:bg-zinc-700 text-slate-300"
-                                                }`}
-                                              >
-                                                <span>{folder.label}</span>
-                                                <span
-                                                  className={`text-[7px] px-1 rounded-full ${isSelected ? "bg-white/20 text-white" : "bg-black/10 dark:bg-white/10 text-slate-400"}`}
-                                                >
-                                                  {count}
-                                                </span>
-                                              </button>
-                                            );
-                                          })}
-                                        </div>
-                                      ) : null;
+                                      activeWidgetCategory === "favorites" ? favoriteFolderPicker : null;
 
                                     return (
                                       <>

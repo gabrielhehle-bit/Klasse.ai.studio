@@ -14,7 +14,7 @@ test('new teaching cockpit keeps the main whiteboard free and moves widget favor
   assert.doesNotMatch(board, /h-full w-full min-h-\[460px\]/);
   assert.match(board, /<CockpitWidgetDock[\s\S]*?onAddWidget=/);
   assert.doesNotMatch(board, /aria-label="Zusätzliche Widget-Leiste"/);
-  assert.match(board, /fixed left-1\/2 -translate-x-1\/2 bottom-\[5\.5rem\] top-auto/);
+  assert.match(board, /fixed left-1\/2 -translate-x-1\/2 top-\[4\.75rem\] bottom-\[4\.75rem\]/);
   assert.match(css, /\.klassio-cockpit-shell \.klassio-whiteboard/);
   assert.match(css, /background-color: #ffffff !important;/);
 });

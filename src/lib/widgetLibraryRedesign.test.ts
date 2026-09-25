@@ -50,10 +50,11 @@ test('library uses a left rail on desktop and horizontal category strip on phone
   assert.match(css, /@media \(max-width: 760px\)[\s\S]*?\.klassio-widget-library-sidebar[\s\S]*?overflow-x: auto/);
 });
 
-test('teaching dock visibly recedes while widget library is open', () => {
+test('teaching dock fully steps back while widget library is open', () => {
   assert.match(surface, /data-widget-library-open=\{isAddWidgetMenuOpen \? "true" : "false"\}/);
   assert.match(css, /data-widget-library-open="true"\] \.klassio-dock-row/);
-  assert.match(css, /opacity: 0\.16/);
+  assert.match(css, /opacity: 0;/);
+  assert.match(css, /visibility: hidden/);
   assert.match(css, /pointer-events: none/);
 });
 
@@ -64,4 +65,18 @@ test('opening the library prioritizes favorites, then recent, then core without 
   const helper = surface.slice(surface.indexOf('const openWidgetLibrary'), surface.indexOf('const [isWidgetPickerOpen'));
   assert.doesNotMatch(helper, /cockpitLayout\s*:/);
   assert.doesNotMatch(helper, /setCockpitWidgets/);
+});
+
+
+test('library stays inside app chrome, closes with Escape and keeps favorites compact', () => {
+  assert.match(surface, /top-\[4\.75rem\] bottom-\[4\.75rem\]/);
+  assert.match(surface, /if \(event\.key !== "Escape"\) return/);
+  assert.match(surface, /setIsWidgetConfigurationOpen\(false\)/);
+  assert.match(surface, /setIsAddWidgetMenuOpen\(false\)/);
+  assert.match(surface, /aria-label="Favoriten-Ordner auswählen"/);
+  assert.match(surface, /const favoriteFolderPicker = \(/);
+  assert.doesNotMatch(surface, /FAVORITEN-ORDNER:/);
+  assert.match(css, /top: 4\.25rem !important;/);
+  assert.match(css, /bottom: 4\.25rem !important;/);
+  assert.match(css, /height: auto !important;/);
 });
