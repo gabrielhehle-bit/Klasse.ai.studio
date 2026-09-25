@@ -56,12 +56,12 @@ test("Lehrercockpit: Smartboard-Beschriftung belegt keinen Platz mehr in der Wer
 
 test("Kernwidgets verkleinern Touch-Ziele auch im Kompaktmodus nicht unter 44px", () => {
   assert.doesNotMatch(timerWidget, /veryCompactTimer \? 'min-h-\[40px\]'/);
-  assert.match(timerWidget, /className=`w-full min-h-11 px-4/);
+  assert.match(timerWidget, /w-full min-h-11 px-4 rounded-xl/);
   assert.match(timerWidget, /aria-label=\{isMuted \? 'Signalton einschalten' : 'Signalton stummschalten'\}/);
 
   assert.doesNotMatch(wheelWidget, /isSmall \? 'min-h-9 min-w-9'/);
-  assert.match(wheelWidget, /className=`min-h-11 min-w-11/);
-  assert.match(wheelWidget, /className=`w-full min-h-11 rounded-lg/);
+  assert.match(wheelWidget, /min-h-11 min-w-11 p-1 rounded-lg border/);
+  assert.match(wheelWidget, /w-full min-h-11 rounded-lg font-black/);
 
   assert.doesNotMatch(randomNameWidget, /compact \? 'min-h-9 min-w-9'/);
   assert.match(randomNameWidget, /min-h-11 min-w-11/);
