@@ -7,13 +7,15 @@ const PAGE_ID = /^page-(\d+)$/;
 
 export function normalizeCockpitBoardPageIds(raw: unknown): string[] {
   const source = Array.isArray(raw) ? raw : [];
-  const unique: string[] = [];
+  // Page 1 is the compatibility anchor for every historic classroom board.
+  // Even malformed/future metadata must never make that existing surface vanish.
+  const unique: string[] = [DEFAULT_COCKPIT_BOARD_PAGE_ID];
   for (const value of source) {
     if (typeof value !== "string" || !PAGE_ID.test(value) || unique.includes(value)) continue;
     unique.push(value);
     if (unique.length >= MAX_COCKPIT_BOARD_PAGES) break;
   }
-  return unique.length > 0 ? unique : [DEFAULT_COCKPIT_BOARD_PAGE_ID];
+  return unique;
 }
 
 export function normalizeCockpitActiveBoardPage(raw: unknown, pageIds: readonly string[]): string {
