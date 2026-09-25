@@ -730,7 +730,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {status === 'ready' && (
               <button
                 onClick={handleStart}
-                className="flex-1 min-h-[44px] px-5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98`}
+                className="flex-1 min-h-[44px] px-5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98"
               >
                 <Play size={18} fill="currentColor" />
                 <span>Start</span>
@@ -740,7 +740,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {status === 'running' && (
               <button
                 onClick={handlePause}
-                className="flex-1 min-h-[44px] px-5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98`}
+                className="flex-1 min-h-[44px] px-5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98"
               >
                 <Pause size={18} fill="currentColor" />
                 <span>Pause</span>
@@ -750,7 +750,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {status === 'paused' && (
               <button
                 onClick={handleResume}
-                className="flex-1 min-h-[44px] px-5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98`}
+                className="flex-1 min-h-[44px] px-5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98"
               >
                 <Play size={18} fill="currentColor" />
                 <span>Weiter</span>
@@ -760,7 +760,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {status === 'expired' && (
               <button
                 onClick={handleRestartSameTime}
-                className="flex-1 min-h-[44px] px-4 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98`}
+                className="flex-1 min-h-[44px] px-4 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98"
               >
                 <RefreshCw size={16} />
                 <span>Nochmals</span>
@@ -1010,7 +1010,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {status === 'ready' && (
               <button
                 onClick={handleStart}
-                className="flex-1 min-h-[50px] px-8 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-base uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-md cursor-pointer transition-all active:scale-98`}
+                className="flex-1 min-h-[50px] px-8 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-base uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-md cursor-pointer transition-all active:scale-98"
               >
                 <Play size={22} fill="currentColor" />
                 <span>Start</span>
@@ -1020,7 +1020,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {status === 'running' && (
               <button
                 onClick={handlePause}
-                className="flex-1 min-h-[50px] px-8 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-base uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-md cursor-pointer transition-all active:scale-98`}
+                className="flex-1 min-h-[50px] px-8 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-base uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-md cursor-pointer transition-all active:scale-98"
               >
                 <Pause size={22} fill="currentColor" />
                 <span>Pause</span>
@@ -1030,7 +1030,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {status === 'paused' && (
               <button
                 onClick={handleResume}
-                className="flex-1 min-h-[50px] px-8 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-base uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-md cursor-pointer transition-all active:scale-98`}
+                className="flex-1 min-h-[50px] px-8 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-base uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-md cursor-pointer transition-all active:scale-98"
               >
                 <Play size={22} fill="currentColor" />
                 <span>Weiter</span>
@@ -1040,7 +1040,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {status === 'expired' && (
               <button
                 onClick={handleRestartSameTime}
-                className="flex-1 min-h-[50px] px-8 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-black text-base uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-md cursor-pointer transition-all active:scale-98`}
+                className="flex-1 min-h-[50px] px-8 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-black text-base uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-md cursor-pointer transition-all active:scale-98"
               >
                 <RefreshCw size={20} />
                 <span>Nochmals</span>
