@@ -8442,13 +8442,13 @@ ${content}
                                 }`}
                               >
                                 <header className="klassio-widget-library-header flex min-w-0 items-center gap-2 border-b border-slate-200 pb-3">
-                                  <div className="min-w-0 shrink-0">
+                                  <div className="klassio-widget-library-heading min-w-0 shrink-0">
                                     <h2 className="text-base font-black text-slate-900 dark:text-white">Widget-Bibliothek</h2>
                                     <p className="hidden text-xs text-slate-500 md:block">Favoriten, zuletzt verwendet oder gezielt suchen.</p>
                                   </div>
-                                  <div className="relative min-w-0 flex-1">
+                                  <div className="klassio-widget-library-search relative min-w-0 flex-1">
                                     <input
-                                      type="text"
+                                      type="search"
                                       aria-label="Widget suchen"
                                       placeholder="Widget suchen … z. B. Timer, Gruppen, Brüche"
                                       value={widgetSearch}
@@ -8473,6 +8473,7 @@ ${content}
                                     )}
                                   </div>
                                   <button type="button"
+                                    data-widget-library-action="settings"
                                     onClick={() => setIsWidgetConfigurationOpen(true)}
                                     aria-label="Widget-Voreinstellungen öffnen"
                                     title="Widget-Voreinstellungen"
@@ -8480,6 +8481,7 @@ ${content}
                                     <Settings size={18} aria-hidden="true" />
                                   </button>
                                   <button type="button"
+                                    data-widget-library-action="close"
                                     onClick={() => { setIsAddWidgetMenuOpen(false); setIsWidgetConfigurationOpen(false); }}
                                     aria-label="Widget-Bibliothek schließen"
                                     title="Schließen"
