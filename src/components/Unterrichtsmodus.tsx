@@ -10504,57 +10504,84 @@ ${content}
                         </div>
                       </div>
 
-                      {/* Floating writing toolbox: the board keeps its full height. */}
+                      {/* Compact start menu for writing tools and paper. Active tools use their own contextual bars. */}
                       <div id="klassio-board-tools"
-                        role="toolbar"
-                        aria-label="Unterrichtsfläche: Text und Papier"
-                        className={`${showBoardTools ? "flex" : "hidden"} klassio-board-toolbox absolute left-2 top-14 z-[26000] max-h-[calc(100%-4rem)] w-[min(15rem,calc(100%-1rem))] flex-col items-stretch gap-1.5 overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 p-2 text-slate-800 shadow-xl backdrop-blur`}
+                        role="dialog"
+                        aria-label="Schreiben und Papier"
+                        className={`${showBoardTools ? "flex" : "hidden"} klassio-board-toolbox absolute left-2 top-14 z-[26000] w-[min(18rem,calc(100%-1rem))] flex-col gap-3 rounded-2xl border border-slate-200 bg-white/97 p-3 text-slate-800 shadow-2xl backdrop-blur`}
                       >
-                        <button type="button" aria-pressed={boardTool === "pen"}
-                          onClick={() => {
-                            const nextTool = boardTool === "pen" ? "select" : "pen";
-                            setBoardTool(nextTool);
-                            setIsBoardTextEditing(false);
-                            if (nextTool === "pen") setShowBoardTools(false);
-                          }}
-                          className={`min-h-11 rounded-lg border px-3 text-sm font-semibold ${boardTool === "pen" ? "border-indigo-600 bg-indigo-700 text-white" : "border-slate-200 bg-white text-slate-800"}`}>✍️ Stift</button>
-                        <button type="button" aria-pressed={boardTool === "erase"}
-                          onClick={() => {
-                            const nextTool = boardTool === "erase" ? "select" : "erase";
-                            setBoardTool(nextTool);
-                            setIsBoardTextEditing(false);
-                            if (nextTool === "erase") setShowBoardTools(false);
-                          }}
-                          className={`min-h-11 rounded-lg border px-3 text-sm font-semibold ${boardTool === "erase" ? "border-indigo-600 bg-indigo-700 text-white" : "border-slate-200 bg-white text-slate-800"}`}>🧽 Radierer</button>
-                        <button type="button" onClick={() => { setBoardTool("select"); setIsBoardTextEditing(false); setShowBoardTools(false); }}
-                          className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800">Fertig</button>
-                        <button type="button" aria-pressed={boardTool === 'text'}
-                          onClick={() => {
-                            const editing = boardTool !== 'text';
-                            setBoardTool(editing ? 'text' : 'select');
-                            setIsBoardTextEditing(editing);
-                            if (editing) setShowBoardTools(false);
-                          }}
-                          className={`min-h-11 rounded-lg border px-4 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 ${boardTool === 'text' ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}
-                        >TEXT</button>
-                        <label className="flex min-h-11 items-center gap-2 text-xs font-semibold">
-                          Papier
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <h4 className="text-sm font-black text-slate-900">Schreiben & Papier</h4>
+                            <p className="text-[11px] font-medium text-slate-500">Werkzeug wählen – danach bleibt die Tafel frei.</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowBoardTools(false)}
+                            aria-label="Schreiben und Papier schließen"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100"
+                          >✕</button>
+                        </div>
+
+                        <section aria-label="Werkzeuge">
+                          <div className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Werkzeug</div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <button type="button" aria-pressed={boardTool === "pen"}
+                              onClick={() => {
+                                setBoardTool("pen");
+                                setIsBoardTextEditing(false);
+                                setShowBoardTools(false);
+                              }}
+                              className="flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-2 text-sm font-bold text-slate-800 shadow-sm hover:border-indigo-300 hover:bg-indigo-50">
+                              <span className="text-xl" aria-hidden="true">✍️</span>
+                              <span>Stift</span>
+                            </button>
+                            <button type="button" aria-pressed={boardTool === 'text'}
+                              onClick={() => {
+                                setBoardTool('text');
+                                setIsBoardTextEditing(true);
+                                setShowBoardTools(false);
+                              }}
+                              className="flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-2 text-sm font-bold text-slate-800 shadow-sm hover:border-indigo-300 hover:bg-indigo-50">
+                              <span className="text-xl font-black" aria-hidden="true">T</span>
+                              <span>Text</span>
+                            </button>
+                            <button type="button" aria-pressed={boardTool === "erase"}
+                              onClick={() => {
+                                setBoardTool("erase");
+                                setIsBoardTextEditing(false);
+                                setShowBoardTools(false);
+                              }}
+                              className="flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-2 text-sm font-bold text-slate-800 shadow-sm hover:border-indigo-300 hover:bg-indigo-50">
+                              <span className="text-xl" aria-hidden="true">🧽</span>
+                              <span>Radierer</span>
+                            </button>
+                          </div>
+                        </section>
+
+                        <section aria-label="Papier">
+                          <div className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Papier</div>
                           <select aria-label="Papierart der Unterrichtsfläche" value={cockpitPaper}
                             onChange={event => setCockpitPaper(event.target.value as CockpitPaper)}
-                            className="min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-sm">
+                            className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800">
                             {COCKPIT_PAPERS.map(paper => <option key={paper.id} value={paper.id}>{paper.label}</option>)}
                           </select>
-                        </label>
-                        {cockpitPaper !== 'blank' && (
-                          <label className="flex min-h-11 items-center gap-2 text-xs font-semibold">
-                            {cockpitPaper === 'grid' ? 'Kästchengröße' : cockpitPaper === 'handwriting' ? 'Schreibzonen' : 'Zeilenabstand'}
-                            <input type="range" min={16} max={80} step={4} value={cockpitPaperSpacing}
-                              aria-label="Papierabstand einstellen" onChange={event => setCockpitPaperSpacing(Number(event.target.value))}
-                              className="w-24 accent-indigo-600" />
-                            <span className="tabular-nums">{cockpitPaperSpacing}px</span>
-                          </label>
-                        )}
-                        {boardTool === 'text' && (
+                          {cockpitPaper !== 'blank' && (
+                            <label className="mt-2 flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
+                              <span className="min-w-0 flex-1">
+                                {cockpitPaper === 'grid' ? 'Kästchengröße' : cockpitPaper === 'handwriting' ? 'Schreibzonen' : 'Zeilenabstand'}
+                              </span>
+                              <input type="range" min={16} max={80} step={4} value={cockpitPaperSpacing}
+                                aria-label="Papierabstand einstellen"
+                                onChange={event => setCockpitPaperSpacing(Number(event.target.value))}
+                                className="w-24 accent-indigo-600" />
+                              <span className="w-10 text-right tabular-nums">{cockpitPaperSpacing}px</span>
+                            </label>
+                          )}
+                        </section>
+                      </div>
+
+                      {boardTool === 'text' && (
                           <>
                             <select aria-label="Textgröße" defaultValue="p"
                               onChange={event => boardTextCommandRef.current?.('formatBlock', event.target.value)}
