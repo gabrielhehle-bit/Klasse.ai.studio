@@ -121,7 +121,7 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
       return 'text-5xl sm:text-6xl md:text-7xl font-black';
     }
     if (isCompact || isLowHeight) {
-      return 'text-4xl sm:text-5xl font-black';
+      return 'text-5xl sm:text-6xl font-black';
     }
     return 'text-5xl sm:text-6xl font-black';
   };
@@ -131,16 +131,16 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
       ref={containerRef}
       role="region"
       aria-label={`Uhrzeit ${digital.timeString}, ${dateStr}`}
-      className={`w-full h-full flex flex-col justify-between overflow-hidden select-none p-3.5 sm:p-5 relative transition-colors ${textColor} ${
+      className={`w-full h-full flex flex-col justify-between overflow-hidden select-none ${isCompact || isLowHeight ? 'p-1.5' : 'p-3.5 sm:p-5'} relative transition-colors ${textColor} ${
         currentIsLight ? 'bg-slate-50/70' : 'bg-zinc-950/70'
       }`}
     >
       {/* Top action header: Settings Button (min 44px touch target) */}
-      <div className="absolute top-2 right-2 z-20">
+      <div className={`absolute z-20 ${isCompact ? 'top-1 right-1' : 'top-2 right-2'}`}>
         <button
           type="button"
           onClick={() => setShowSettings(!showSettings)}
-          className={`w-11 h-11 flex items-center justify-center rounded-xl border transition-all cursor-pointer focus:outline-hidden ${
+          className={`${isCompact ? 'w-9 h-9' : 'w-11 h-11'} flex items-center justify-center rounded-xl border transition-all cursor-pointer focus:outline-hidden ${
             showSettings
               ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
               : currentIsLight
