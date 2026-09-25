@@ -35,7 +35,7 @@ test('20 primary widget entries expose legacy widget variants without deleting o
   // Historical ink remains visible and restorable but cannot steal focus or be edited in the new TEXT-only cockpit.
   assert.match(source, /<BoardInk/);
   assert.match(source, /cockpitInkByClass/);
-  assert.match(source, /aria-label="Unterrichtsfläche: Text und Papier"/);
+  assert.match(source, /aria-label="Schreiben und Papier"/);
   assert.match(source, /cockpitPaperSpacingByClass/);
   assert.match(source, /setCockpitPaperSpacing\(Number\(event\.target\.value\)\)/);
   assert.doesNotMatch(source, /setBoardTool\('pen'\)|setBoardTool\('erase'\)/);
