@@ -892,7 +892,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                       key={th.id}
                       type="button"
                       onClick={() => setDraftThemeId(th.id)}
-                      className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      className={`min-h-11 px-2.5 py-1 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                         draftThemeId === th.id
                           ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
                           : currentIsLight
@@ -918,7 +918,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                       key={s.id}
                       type="button"
                       onClick={() => setDraftFontSizeScale(s.id)}
-                      className={`w-8 h-8 rounded-xl text-xs font-bold border flex items-center justify-center transition-all cursor-pointer ${
+                      className={`w-11 h-11 rounded-xl text-xs font-bold border flex items-center justify-center transition-all cursor-pointer ${
                         draftFontSizeScale === s.id
                           ? 'bg-indigo-600 text-white border-indigo-600'
                           : currentIsLight
@@ -936,7 +936,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                   <button
                     type="button"
                     onClick={() => setDraftAlign('left')}
-                    className={`p-2 rounded-xl border cursor-pointer ${
+                    className={`min-h-11 min-w-11 p-2 rounded-xl border cursor-pointer ${
                       draftAlign === 'left'
                         ? 'bg-indigo-600 text-white border-indigo-600'
                         : currentIsLight ? 'bg-white border-slate-200 text-slate-600' : 'bg-zinc-900 border-white/10 text-slate-400'
@@ -948,7 +948,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                   <button
                     type="button"
                     onClick={() => setDraftAlign('center')}
-                    className={`p-2 rounded-xl border cursor-pointer ${
+                    className={`min-h-11 min-w-11 p-2 rounded-xl border cursor-pointer ${
                       draftAlign === 'center'
                         ? 'bg-indigo-600 text-white border-indigo-600'
                         : currentIsLight ? 'bg-white border-slate-200 text-slate-600' : 'bg-zinc-900 border-white/10 text-slate-400'
