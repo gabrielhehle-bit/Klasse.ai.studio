@@ -50,7 +50,7 @@ test('Wheel fills the actual widget viewport while compact controls preserve por
   assert.match(wheel, /observer\.observe\(wheelArea\)/);
   assert.match(wheel, /wheelAreaSize\.width \|\| containerSize\.width - 16/);
   assert.match(wheel, /wheelAreaSize\.height \|\| containerSize\.height - 108/);
-  assert.ok(wheel.includes("className={`w-full min-h-11 rounded-lg font-black"));
+  assert.ok(wheel.includes("className={`w-full ${isXL ? 'min-h-14 text-lg' : isLarge ? 'min-h-12 text-base' : 'min-h-11 text-xs sm:text-sm'} rounded-lg font-black"));
   assert.ok(wheel.includes("min-h-11 min-w-11 p-1 rounded-lg border"));
   assert.ok(wheel.includes("${isSmall ? 'h-6' : 'h-7 sm:h-8'} flex items-center"));
   assert.match(wheel, /my-0\.5 min-h-0/);
