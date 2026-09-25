@@ -6,6 +6,11 @@ const cockpitWidget = readFileSync("src/components/cockpit/CockpitWidget.tsx", "
 const widgetLayout = readFileSync("src/components/cockpit/widgetLayout.ts", "utf8");
 const kidAttendance = readFileSync("src/components/cockpit/widgets/KidAttendanceWidget.tsx", "utf8");
 const teachingSurface = readFileSync("src/components/Unterrichtsmodus.tsx", "utf8");
+const wheelWidget = readFileSync("src/components/cockpit/widgets/WheelWidget.tsx", "utf8");
+const timerWidget = readFileSync("src/components/cockpit/widgets/TimerWidget.tsx", "utf8");
+const randomNameWidget = readFileSync("src/components/cockpit/widgets/RandomNameWidget.tsx", "utf8");
+const groupsWidget = readFileSync("src/components/cockpit/widgets/GroupsWidget.tsx", "utf8");
+const weeklyPlanWidget = readFileSync("src/components/cockpit/widgets/ClassroomWeeklyPlanWidget.tsx", "utf8");
 
 test("Cockpit-Widgets: jeder Typ erhält eine sichere Mindestgröße", () => {
   assert.match(widgetLayout, /DEFAULT_WIDGET_MIN_SIZE/);
@@ -46,4 +51,30 @@ test("Lehrercockpit: Smartboard-Beschriftung belegt keinen Platz mehr in der Wer
   assert.doesNotMatch(teachingSurface, /Weiße Smartboard-Fläche/);
   assert.match(teachingSurface, />Text<\/span>/);
   assert.match(teachingSurface, />Vorlage erstellen</);
+});
+
+
+test("Kernwidgets verkleinern Touch-Ziele auch im Kompaktmodus nicht unter 44px", () => {
+  assert.doesNotMatch(timerWidget, /veryCompactTimer \? 'min-h-\[40px\]'/);
+  assert.match(timerWidget, /className=`w-full min-h-11 px-4/);
+  assert.match(timerWidget, /aria-label=\{isMuted \? 'Signalton einschalten' : 'Signalton stummschalten'\}/);
+
+  assert.doesNotMatch(wheelWidget, /isSmall \? 'min-h-9 min-w-9'/);
+  assert.match(wheelWidget, /className=`min-h-11 min-w-11/);
+  assert.match(wheelWidget, /className=`w-full min-h-11 rounded-lg/);
+
+  assert.doesNotMatch(randomNameWidget, /compact \? 'min-h-9 min-w-9'/);
+  assert.match(randomNameWidget, /min-h-11 min-w-11/);
+  assert.match(randomNameWidget, /compact \? 'min-h-11 text-xs'/);
+
+  assert.doesNotMatch(groupsWidget, /compactGroupWidget \? 'min-h-9/);
+  assert.doesNotMatch(groupsWidget, /min-h-\[38px\]/);
+  assert.match(groupsWidget, /min-h-11 px-2/);
+
+  assert.doesNotMatch(weeklyPlanWidget, /compactBoard \? "min-h-9 min-w-9"/);
+  assert.match(weeklyPlanWidget, /min-h-11 min-w-11/);
+
+  assert.doesNotMatch(kidAttendance, /className="h-9 px-3 rounded-lg border font-bold text-xs/);
+  assert.doesNotMatch(kidAttendance, /h-10 min-h-\[40px\]/);
+  assert.match(kidAttendance, /className="min-h-11 px-3 rounded-lg border font-bold text-xs/);
 });
