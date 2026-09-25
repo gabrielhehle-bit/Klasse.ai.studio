@@ -16,7 +16,7 @@ test('Retired floating studentlist cannot be opened via core, catalogue, quickba
   assert.doesNotMatch(source, /\{ type: "studentlist", category: "interactivity" \}/);
   assert.match(source, /if \(type === "studentlist"\) return;/);
   assert.match(source, /visible: w\.type === "studentlist" \? false : !!w\.visible/);
-  assert.match(source, /\.filter\(\(w\) => w\.visible && w\.type !== "studentlist"\)/);
+  assert.match(source, /\.filter\(\(w\) => w\.visible && w\.type !== "studentlist" && !minimizedWidgetIds\.includes\(w\.id\)\)/);
   assert.doesNotMatch(source, /case "studentlist":/);
 });
 

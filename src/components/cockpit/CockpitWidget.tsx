@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { normalizeClassMascot } from "../../lib/classMascot";
-import { X, Settings, PenTool, SlidersHorizontal, Check, Maximize2, Minimize2, LockKeyhole, MoreHorizontal, Rocket } from "lucide-react";
+import { X, Settings, PenTool, SlidersHorizontal, Check, Maximize2, Minimize2, LockKeyhole, MoreHorizontal, Rocket, Minus } from "lucide-react";
 import { CockpitWidgetConfig } from "../../types";
 import { useApp } from "../../context/AppContext";
 import { WIDGET_MIN_SIZES, getWidgetMinSizeConfig } from "./widgetLayout";
@@ -11,6 +11,7 @@ interface CockpitWidgetProps {
   widget: CockpitWidgetConfig;
   onUpdate: (updates: Partial<CockpitWidgetConfig>) => void;
   onClose: () => void;
+  onMinimize?: () => void;
   onFocus: () => void;
   zIndex: number;
   stageRef: React.RefObject<HTMLDivElement | null>;
@@ -145,6 +146,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   widget,
   onUpdate,
   onClose,
+  onMinimize,
   onFocus,
   zIndex,
   stageRef,
@@ -839,6 +841,21 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
                 >
                   <Rocket size={14} />
                   <span>{isDirect ? "Fenstermodus" : "Direktmodus"}</span>
+                </button>
+              )}
+
+              {!isDirect && onMinimize && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowWidgetMenu(false);
+                    onMinimize();
+                  }}
+                  className="w-full px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-white/10 text-left"
+                >
+                  <Minus size={14} />
+                  <span>Minimieren</span>
                 </button>
               )}
 
