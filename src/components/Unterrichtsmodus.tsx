@@ -10505,7 +10505,7 @@ ${content}
                       <div id="klassio-board-tools"
                         role="toolbar"
                         aria-label="Unterrichtsfläche: Text und Papier"
-                        className={`${showBoardTools || boardTool !== "select" ? "flex" : "hidden"} klassio-board-toolbox absolute left-2 top-14 z-[26000] max-h-[calc(100%-4rem)] w-[min(15rem,calc(100%-1rem))] flex-col items-stretch gap-1.5 overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 p-2 text-slate-800 shadow-xl backdrop-blur`}
+                        className={`${showBoardTools ? "flex" : "hidden"} klassio-board-toolbox absolute left-2 top-14 z-[26000] max-h-[calc(100%-4rem)] w-[min(15rem,calc(100%-1rem))] flex-col items-stretch gap-1.5 overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 p-2 text-slate-800 shadow-xl backdrop-blur`}
                       >
                         <button type="button" aria-pressed={boardTool === "pen"}
                           onClick={() => { setBoardTool(boardTool === "pen" ? "select" : "pen"); setIsBoardTextEditing(false); }}
@@ -10516,7 +10516,12 @@ ${content}
                         <button type="button" onClick={() => { setBoardTool("select"); setIsBoardTextEditing(false); setShowBoardTools(false); }}
                           className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800">Fertig</button>
                         <button type="button" aria-pressed={boardTool === 'text'}
-                          onClick={() => { const editing = boardTool !== 'text'; setBoardTool(editing ? 'text' : 'select'); setIsBoardTextEditing(editing); }}
+                          onClick={() => {
+                            const editing = boardTool !== 'text';
+                            setBoardTool(editing ? 'text' : 'select');
+                            setIsBoardTextEditing(editing);
+                            if (editing) setShowBoardTools(false);
+                          }}
                           className={`min-h-11 rounded-lg border px-4 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 ${boardTool === 'text' ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}
                         >TEXT</button>
                         <label className="flex min-h-11 items-center gap-2 text-xs font-semibold">
@@ -10575,6 +10580,55 @@ ${content}
                           </>
                         )}
                       </div>
+
+                      {boardTool === 'text' && (
+                        <div
+                          role="toolbar"
+                          aria-label="Text formatieren"
+                          className="no-print shrink-0 flex min-h-11 flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white/95 px-2 py-1 text-slate-800 shadow-sm"
+                        >
+                          <span className="px-1 text-[10px] font-black uppercase tracking-wider text-indigo-700">Text</span>
+                          <select aria-label="Textgröße" defaultValue="p"
+                            onChange={event => boardTextCommandRef.current?.('formatBlock', event.target.value)}
+                            className="min-h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm">
+                            <option value="p">Normal</option>
+                            <option value="h2">Groß</option>
+                            <option value="h1">Sehr groß</option>
+                          </select>
+                          <button type="button" onMouseDown={event => event.preventDefault()}
+                            onClick={() => boardTextCommandRef.current?.('bold')}
+                            className="min-h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm font-black">Fett</button>
+                          <label className="flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 text-xs font-semibold">
+                            Farbe
+                            <input type="color" aria-label="Textfarbe auswählen" defaultValue="#172554"
+                              onChange={event => boardTextCommandRef.current?.('foreColor', event.target.value)}
+                              className="h-7 w-8 rounded border border-slate-300" />
+                          </label>
+                          <button type="button" onMouseDown={event => event.preventDefault()}
+                            onClick={() => boardTextCommandRef.current?.('justifyLeft')}
+                            className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-sm">Links</button>
+                          <button type="button" onMouseDown={event => event.preventDefault()}
+                            onClick={() => boardTextCommandRef.current?.('justifyCenter')}
+                            className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-sm">Mitte</button>
+                          <button type="button" onMouseDown={event => event.preventDefault()}
+                            onClick={() => boardTextCommandRef.current?.('justifyRight')}
+                            className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-sm">Rechts</button>
+                          <button type="button" onMouseDown={event => event.preventDefault()}
+                            onClick={() => boardTextCommandRef.current?.('undo')}
+                            className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-sm font-semibold">↶</button>
+                          <button type="button" onMouseDown={event => event.preventDefault()}
+                            onClick={() => boardTextCommandRef.current?.('redo')}
+                            className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-sm font-semibold">↷</button>
+                          <button type="button"
+                            onClick={() => {
+                              setIsBoardTextEditing(false);
+                              setBoardTool('select');
+                            }}
+                            className="ml-auto min-h-9 rounded-lg bg-indigo-700 px-3 text-sm font-bold text-white hover:bg-indigo-600">
+                            Fertig
+                          </button>
+                        </div>
+                      )}
 
                       {/* Quick-access widgets now live in the bottom favorites dock. */}
 
