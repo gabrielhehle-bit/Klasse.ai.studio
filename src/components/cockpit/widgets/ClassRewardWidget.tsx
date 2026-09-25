@@ -231,11 +231,12 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
   // Bestimme sichtbare Anzahl an Steinen/Symbolen im Glas (begrenzt für Performance)
   const maxVisibleGems = 60;
   const gemDisplayCount = Math.min(count, maxVisibleGems);
+  const roomyReward = isFullscreen || (size.width >= 720 && size.height >= 500);
   const remainingUntilGoal = Math.max(0, goal - count);
   // Fill the measured inner classroom window instead of capping every
   // visualization at 160px, even when the teacher enlarges the widget.
   // Reserve the header, +1 action bar and counter; never grow past the frame.
-  const visualSize = Math.max(84, Math.min(size.width * 0.68, size.height - 142, 480));
+  const visualSize = Math.max(84, Math.min(size.width * (roomyReward ? 0.74 : 0.68), size.height - 142, roomyReward ? 560 : 480));
 
   return (
     <div
@@ -251,11 +252,11 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
       {/* HEADER / TITELZEILE */}
       <div className="shrink-0 flex items-center justify-between px-3 pt-2.5 pb-1 gap-2 border-b border-black/5 dark:border-white/5">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xl shrink-0" role="img" aria-label="Symbol">
+          <span className={`${roomyReward ? 'text-3xl' : 'text-xl'} shrink-0`} role="img" aria-label="Symbol">
             {symbol}
           </span>
           <div className="min-w-0">
-            <h3 className="text-xs font-black tracking-wide uppercase truncate leading-tight">
+            <h3 className={`${roomyReward ? 'text-base' : 'text-xs'} font-black tracking-wide uppercase truncate leading-tight`}>
               {style === 'thermometer'
                 ? 'Ziel-Thermometer'
                 : style === 'barometer'
@@ -339,7 +340,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
 
             {/* Zähler & Prozentanzeige unter dem Glas */}
             <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-xl font-black tracking-tight">{count}</span>
+              <span className={`${roomyReward ? 'text-3xl' : 'text-xl'} font-black tracking-tight`}>{count}</span>
               <span className="text-xs text-slate-400 font-bold">/ {goal}</span>
               <span className="text-[10px] font-black text-indigo-500 bg-indigo-500/10 px-1.5 py-0.5 rounded">
                 {progressPercent}%
@@ -366,7 +367,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
                   Ziel: {goal}
                 </span>
-                <span className="text-2xl font-black leading-none">{count}</span>
+                <span className={`${roomyReward ? 'text-4xl' : 'text-2xl'} font-black leading-none`}>{count}</span>
               </div>
               <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
                 {goalAchieved ? 'Vollständig!' : `Noch ${remainingUntilGoal} zum Ziel`}
@@ -407,10 +408,10 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-2xl" role="img" aria-label="Symbol">
+                <span className={roomyReward ? 'text-4xl' : 'text-2xl'} role="img" aria-label="Symbol">
                   {symbol}
                 </span>
-                <span className="text-sm font-black mt-0.5">{count} / {goal}</span>
+                <span className={`${roomyReward ? 'text-2xl' : 'text-sm'} font-black mt-0.5`}>{count} / {goal}</span>
               </div>
             </div>
             <span className="text-[10px] font-bold text-slate-500 mt-1">
@@ -439,7 +440,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
           type="button"
           id="reward-add-btn"
           onClick={handleAdd}
-          className="flex-1 h-11 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 active:scale-98 text-white font-black text-sm flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+          className={`flex-1 ${roomyReward ? 'h-14 text-lg' : 'h-11 text-sm'} px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 active:scale-98 text-white font-black flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer`}
           title={`+1 ${symbol} hinzufügen`}
         >
           <Sparkles size={16} className="shrink-0" />
