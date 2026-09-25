@@ -2491,3 +2491,79 @@ html body [data-style] .klassio-cockpit-shell .klassio-student-sidebar .text-sla
     max-width: min(620px, calc(100% - 320px));
   }
 }
+
+
+/* Widget library: one clear modal layer with fixed search/header, category rail
+   and a scrollable card area. The teaching dock recedes while the library is active. */
+.klassio-widget-library {
+  display: grid;
+  grid-template-columns: 13.5rem minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  box-shadow:
+    0 0 0 100vmax rgba(15, 23, 42, 0.16),
+    0 24px 70px rgba(15, 23, 42, 0.28);
+}
+.klassio-widget-library-header {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  min-width: 0;
+}
+.klassio-widget-library-sidebar {
+  grid-column: 1;
+  grid-row: 2;
+  scrollbar-width: thin;
+}
+.klassio-widget-library-content {
+  grid-column: 2;
+  grid-row: 2;
+  scrollbar-width: thin;
+}
+.klassio-cockpit-shell[data-widget-library-open="true"] .klassio-dock-row {
+  opacity: 0.16;
+  transform: translateY(12px);
+  filter: blur(0.5px);
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease, filter 160ms ease;
+}
+.klassio-cockpit-shell[data-widget-library-open="true"] .klassio-student-edge-tab {
+  opacity: 0.2;
+  pointer-events: none;
+}
+@media (max-width: 760px) {
+  .klassio-widget-library {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    width: calc(100vw - 0.5rem) !important;
+    height: calc(100dvh - 6.25rem) !important;
+    bottom: 4.75rem !important;
+    padding: 0.6rem !important;
+    gap: 0.5rem;
+  }
+  .klassio-widget-library-header {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .klassio-widget-library-sidebar {
+    grid-column: 1;
+    grid-row: 2;
+    display: flex;
+    gap: 0.25rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-radius: 0.85rem;
+    padding: 0.35rem;
+  }
+  .klassio-widget-library-sidebar > div:first-child {
+    display: none;
+  }
+  .klassio-widget-library-sidebar > button {
+    width: max-content !important;
+    flex: 0 0 auto;
+    margin-bottom: 0 !important;
+  }
+  .klassio-widget-library-content {
+    grid-column: 1;
+    grid-row: 3;
+  }
+}

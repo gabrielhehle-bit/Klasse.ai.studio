@@ -24,7 +24,8 @@ test('20 primary widget entries expose legacy widget variants without deleting o
   const source = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
   assert.match(source, /useState<string>\("core"\)/);
   assert.match(source, /PLANNED_COCKPIT_WIDGETS\.map\(\(group\)/);
-  assert.match(source, /label: "Weitere Widgets"/);
+  assert.match(source, /label: "▦ Alle Widgets"/);
+  assert.match(source, /label: "🕘 Zuletzt verwendet"/);
   assert.match(source, /group\.sources/);
   assert.match(source, /handleOpenWidgetInCockpitLayout\(variant\.type/);
   assert.match(source, /aria-label="Papierart der Unterrichtsfläche"/);

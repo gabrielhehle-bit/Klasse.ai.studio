@@ -20,15 +20,15 @@ test("Cockpit: freie Unterrichtsfläche bleibt weiß und ohne Startkarte", () =>
   assert.doesNotMatch(teachingSurface, /cockpit-empty-state-hint/);
 });
 
-test("Cockpit: Widgetauswahl startet mit 20 Kernwidgets, alte Layouts bleiben lesbar", () => {
+test("Cockpit: Widgetbibliothek hält Kernwidgets und Alt-Layouts erreichbar", () => {
   assert.match(teachingSurface, /useState<string>\("core"\)/);
-  assert.match(teachingSurface, /\{ id: "core", label: "20 Kernwidgets" \}/);
-  assert.match(teachingSurface, /\{ id: "categories", label: "Weitere Widgets" \}/);
+  assert.match(teachingSurface, /\{ id: "core", label: "🧩 Kernwidgets" \}/);
+  assert.match(teachingSurface, /\{ id: "categories", label: "▦ Alle Widgets" \}/);
+  assert.match(teachingSurface, /\{ id: "recent", label: "🕘 Zuletzt verwendet" \}/);
   assert.match(teachingSurface, /PLANNED_COCKPIT_WIDGETS\.map\(\(group\)/);
-  assert.doesNotMatch(teachingSurface, /Alle Hilfen/);
-  assert.match(teachingSurface, /Wähle oben eine Kategorie/);
-  assert.match(teachingSurface, /durchsucht Klassio automatisch den gesamten Widget-Katalog/);
-  assert.doesNotMatch(teachingSurface, /Für den Unterricht/);
+  assert.match(teachingSurface, /aria-label="Widget-Bibliothek"/);
+  assert.match(teachingSurface, /placeholder="Widget suchen … z\. B\. Timer, Gruppen, Brüche"/);
+  assert.doesNotMatch(teachingSurface, /Wähle oben eine Kategorie/);
   assert.doesNotMatch(teachingSurface, /activeWidgetCategory === "everyday"/);
   assert.doesNotMatch(teachingSurface, /DEFAULT_QUICK_WIDGETS/);
   assert.doesNotMatch(teachingSurface, /QUICK_WIDGET_META/);
@@ -46,7 +46,7 @@ test("Cockpit: verständliche Kategorien und eigene Favoriten bleiben erhalten",
   ]) {
     assert.ok(teachingSurface.includes(label), `Kategorie fehlt: ${label}`);
   }
-  assert.match(teachingSurface, /★ Favoriten/);
+  assert.match(teachingSurface, /⭐ Favoriten/);
   assert.match(teachingSurface, /Zu Favoriten hinzufügen/);
   assert.match(teachingSurface, /Von Favoriten entfernen/);
 });

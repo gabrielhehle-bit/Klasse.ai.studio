@@ -284,8 +284,10 @@ async function verifyRandomPickerInRealBrowser(client) {
     String.raw`Boolean(document.querySelector('input[aria-label="Widget suchen"]'))`);
   await setInputByLabel(client, 'Widget suchen', 'Zufallsauswahl');
   await waitFor(client, 'random widget catalogue entry',
-    String.raw`Array.from(document.querySelectorAll('button')).some(b=>b.textContent.includes('Zufallsauswahl')&&!b.disabled)`);
-  await clickButton(client, 'Zufallsauswahl');
+    String.raw`Boolean(document.querySelector('button[aria-label="Zufallsauswahl hinzufügen"]:not(:disabled)'))`);
+  const addedRandomWidget = await evaluate(client,
+    String.raw`(() => {const b=document.querySelector('button[aria-label="Zufallsauswahl hinzufügen"]:not(:disabled)');if(!b)return false;b.click();return true;})()`);
+  if (!addedRandomWidget) throw new Error('Could not add random-name widget from redesigned library card.');
   await waitFor(client, 'empty class: random picker disabled and without demo pupils',
     String.raw`(() => {const button=document.querySelector('button[aria-label="Zufälliges Kind ziehen"]');return !!button && button.disabled && button.textContent.includes('noch keine Kinder angelegt') && !button.textContent.includes('Max M.');})()`);
   const noLocalSoundSetting = await evaluate(client,
@@ -311,7 +313,9 @@ async function verifyRandomPickerInRealBrowser(client) {
   const openedSettingsPicker = await evaluate(client,
     String.raw`(() => {const b=document.querySelector('nav[aria-label="Meine Widget-Favoriten"] button[aria-label="Weitere Widgets hinzufügen"]');if(!b)return false;b.click();return true;})()`);
   if (!openedSettingsPicker) throw new Error('Bottom widget picker unavailable after random-name selection.');
-  await clickButton(client, 'Widget-Einstellungen');
+  const openedPresetSettings = await evaluate(client,
+    String.raw`(() => {const b=document.querySelector('button[aria-label="Widget-Voreinstellungen öffnen"]');if(!b)return false;b.click();return true;})()`);
+  if (!openedPresetSettings) throw new Error('Central widget preset gear unavailable in new library header.');
   const chosen = await evaluate(client,
     String.raw`(() => {const select=document.querySelector('select[aria-label="Widget für Einstellungen"]');if(!select)return false;select.value='randomname';select.dispatchEvent(new Event('change',{bubbles:true}));return true;})()`);
   if (!chosen) throw new Error('Random-name missing from central settings selector.');
@@ -320,7 +324,12 @@ async function verifyRandomPickerInRealBrowser(client) {
   const saved = await evaluate(client,
     String.raw`(() => {const label=[...document.querySelectorAll('label')].find(l=>l.textContent.includes('Dezenten Ton bei der Ziehung abspielen'));const input=label?.querySelector('input[type="checkbox"]');if(!input||!input.checked)return false;input.click();return !input.checked;})()`);
   if (!saved) throw new Error('Could not disable sound in central settings.');
-  await clickButton(client, 'Auswahl schließen');
+  const closedPresetSettings = await evaluate(client,
+    String.raw`(() => {const b=document.querySelector('button[aria-label="Widget-Voreinstellungen schließen"]');if(!b)return false;b.click();return true;})()`);
+  if (!closedPresetSettings) throw new Error('Could not close widget preset settings.');
+  const closedLibrary = await evaluate(client,
+    String.raw`(() => {const b=document.querySelector('button[aria-label="Widget-Bibliothek schließen"]');if(!b)return false;b.click();return true;})()`);
+  if (!closedLibrary) throw new Error('Could not close new widget library.');
   await saveScreenshot(client, SCREENSHOT_RANDOM);
   console.log('✓ Real Chrome: empty roster, classroom modal, viewport and central sound settings');
 }

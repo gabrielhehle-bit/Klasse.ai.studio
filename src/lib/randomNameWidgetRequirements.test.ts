@@ -24,7 +24,7 @@ test('only central Widget hinzufügen config controls sound; lesson action still
   assert.match(cockpit, /saveRandomPreset\("soundEnabled", event\.target\.checked\)/);
   assert.match(cockpit, /cockpitRandomNameDefaultsByClass/);
   assert.match(cockpit, /Auf vorhandenes Widget anwenden/);
-  assert.match(cockpit, /aria-label="Zufallsauswahl einstellen"/);
+  assert.match(cockpit, /aria-label="Widget-Voreinstellungen öffnen"/);
   assert.doesNotMatch(widget, /setSoundEnabled|onClick=\{\(\) => setSoundEnabled/);
   assert.match(widget, /Kinder wählen/);
   assert.match(widget, /onClick=\{pickPupil\}/);
