@@ -40,7 +40,8 @@ export default function ClassroomWeeklyPlanWidget({ widget }: { widget?: Cockpit
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef, { isFullscreen: isExpanded });
   // Use the actual widget's inner rectangle, not the browser viewport.
-  const compactBoard = !isExpanded && (size.width < 680 || size.height < 520);
+  const compactBoard = !isExpanded && (size.width < 760 || size.height < 560);
+  const tinyBoard = !isExpanded && (size.width < 520 || size.height < 390);
   const preferences = getClassroomWeeklyWidgetPreferences(widget?.settings);
   const [todayWeek, setTodayWeek] = useState(() => getKW(new Date()));
   const [week, setWeek] = useState(() => app.currentKW || getKW(new Date()));
@@ -121,20 +122,20 @@ export default function ClassroomWeeklyPlanWidget({ widget }: { widget?: Cockpit
   const board = <div ref={containerRef} className="classroom-weekly-plan flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border-2 border-indigo-500 bg-white text-slate-950"
     aria-label="Wochenplan der Klasse">
     <header className={`weekly-plan-light-surface flex shrink-0 flex-wrap items-center justify-between gap-2 border-b-2 border-indigo-400 bg-indigo-50 ${compactBoard ? "px-2 py-1.5" : "px-3 py-2 sm:px-5"}`}>
-      <div className="min-w-0"><h2 className={`${compactBoard ? "text-lg" : "text-xl sm:text-2xl"} font-extrabold leading-tight`}>📋 Unser Wochenplan</h2>
-        <p className={`${compactBoard ? "text-xs" : "text-sm"} font-semibold text-slate-600`}>KW {week} · {tasks.length} {tasks.length === 1 ? 'Aufgabe' : 'Aufgaben'}</p></div>
+      <div className="min-w-0"><h2 className={`${tinyBoard ? "text-sm" : compactBoard ? "text-base" : "text-xl sm:text-2xl"} font-extrabold leading-tight`}>📋 Unser Wochenplan</h2>
+        <p className={`${tinyBoard ? "text-[10px]" : compactBoard ? "text-xs" : "text-sm"} font-semibold text-slate-600`}>KW {week} · {tasks.length} {tasks.length === 1 ? 'Aufgabe' : 'Aufgaben'}</p></div>
       <div className={`flex flex-wrap items-center ${compactBoard ? "gap-1" : "gap-2"}`}>
         {!isExpanded && <button type="button" onClick={() => setIsExpanded(true)}
           className={`weekly-plan-dark-action min-h-11 rounded-xl bg-indigo-700 text-sm font-bold text-white ${compactBoard ? "min-w-11 px-2" : "px-3"}`}
           aria-label="Wochenplan groß anzeigen" title="Wochenplan groß anzeigen">{compactBoard ? "⛶" : "⛶ Groß anzeigen"}</button>}
         <button type="button" aria-label="Vorherige Woche" disabled={week <= 1}
           onClick={() => setWeek(w => Math.max(1, w - 1))}
-          className="min-h-11 min-w-11 rounded-xl border border-indigo-200 bg-white px-2 text-xl disabled:opacity-40">‹</button>
+          className={`${compactBoard ? "min-h-9 min-w-9" : "min-h-11 min-w-11"} rounded-xl border border-indigo-200 bg-white px-2 text-xl disabled:opacity-40">‹</button>
         <button type="button" onClick={() => setWeek(todayWeek)} aria-label="Aktuelle Woche anzeigen"
           className={`min-h-11 rounded-xl border border-indigo-200 bg-white text-sm font-bold ${compactBoard ? "px-2" : "px-3"}`}>{compactBoard ? "Heute" : "Diese Woche"}</button>
         <button type="button" aria-label="Nächste Woche" disabled={week >= 53}
           onClick={() => setWeek(w => Math.min(53, w + 1))}
-          className="min-h-11 min-w-11 rounded-xl border border-indigo-200 bg-white px-2 text-xl disabled:opacity-40">›</button>
+          className={`${compactBoard ? "min-h-9 min-w-9" : "min-h-11 min-w-11"} rounded-xl border border-indigo-200 bg-white px-2 text-xl disabled:opacity-40">›</button>
       </div>
     </header>
 
@@ -160,7 +161,7 @@ export default function ClassroomWeeklyPlanWidget({ widget }: { widget?: Cockpit
 
     <footer className={`weekly-plan-light-surface shrink-0 border-t-2 border-indigo-400 bg-indigo-50 ${compactBoard ? "p-1.5" : "p-3 sm:px-5"}`} aria-label="Aufgabe abschließen">
       <button type="button" onClick={startFinish} disabled={!tasks.length || !pupils.length}
-        className={`weekly-plan-dark-action min-h-14 w-full rounded-xl bg-indigo-700 font-extrabold text-white disabled:cursor-not-allowed ${compactBoard ? "px-2 py-2 text-base" : "px-5 py-2 text-lg"}`}>
+        className={`weekly-plan-dark-action w-full rounded-xl bg-indigo-700 font-extrabold text-white disabled:cursor-not-allowed ${compactBoard ? "min-h-11 px-2 py-1.5 text-sm" : "min-h-14 px-5 py-2 text-lg"}`}>
         <span className="weekly-plan-action-label">✅ Ich bin fertig mit einer Aufgabe</span>
       </button>
       {!pupils.length && <p className="mt-1 text-center text-xs font-semibold text-slate-600">Für die Rückmeldung müssen Kinder in dieser Klasse angelegt sein.</p>}
