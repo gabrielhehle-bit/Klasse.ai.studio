@@ -271,6 +271,7 @@ test("Sekundäre Widget-Einstellungen bleiben ebenfalls fingergerecht", () => {
 
   assert.match(instructionWidget, /w-11 h-11 rounded-xl text-xs font-bold border/);
   assert.match(instructionWidget, /min-h-11 min-w-11 p-2 rounded-xl border cursor-pointer/);
+  assert.match(instructionWidget, /min-h-11 px-2\.5 py-1 rounded-lg text-\[11px\] font-bold/);
   assert.doesNotMatch(instructionWidget, /w-8 h-8 rounded-xl text-xs font-bold border/);
 
   assert.doesNotMatch(mentalMathWidget, /w-(?:6|7) h-(?:6|7) rounded text-xs font-mono font-bold/);
