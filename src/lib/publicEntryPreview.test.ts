@@ -5,8 +5,8 @@ import { readFileSync } from 'node:fs';
 test('Öffentlicher Einstieg trennt Landingpage, Demo und geschützten Login', () => {
   const appSource = readFileSync('src/App.tsx', 'utf8');
 
-  assert.match(appSource, /path === '\\/login'/);
-  assert.match(appSource, /path === '\\/demo'/);
+  assert.ok(appSource.includes("path === '/login'"));
+  assert.ok(appSource.includes("path === '/demo'"));
   assert.match(appSource, /<PublicWelcome/);
   assert.match(appSource, /publicMode === 'login'/);
   assert.match(appSource, /<AccessGate onSuccess=\{handleLoginSuccess\}/);
