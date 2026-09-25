@@ -10508,10 +10508,20 @@ ${content}
                         className={`${showBoardTools ? "flex" : "hidden"} klassio-board-toolbox absolute left-2 top-14 z-[26000] max-h-[calc(100%-4rem)] w-[min(15rem,calc(100%-1rem))] flex-col items-stretch gap-1.5 overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 p-2 text-slate-800 shadow-xl backdrop-blur`}
                       >
                         <button type="button" aria-pressed={boardTool === "pen"}
-                          onClick={() => { setBoardTool(boardTool === "pen" ? "select" : "pen"); setIsBoardTextEditing(false); }}
+                          onClick={() => {
+                            const nextTool = boardTool === "pen" ? "select" : "pen";
+                            setBoardTool(nextTool);
+                            setIsBoardTextEditing(false);
+                            if (nextTool === "pen") setShowBoardTools(false);
+                          }}
                           className={`min-h-11 rounded-lg border px-3 text-sm font-semibold ${boardTool === "pen" ? "border-indigo-600 bg-indigo-700 text-white" : "border-slate-200 bg-white text-slate-800"}`}>✍️ Stift</button>
                         <button type="button" aria-pressed={boardTool === "erase"}
-                          onClick={() => { setBoardTool(boardTool === "erase" ? "select" : "erase"); setIsBoardTextEditing(false); }}
+                          onClick={() => {
+                            const nextTool = boardTool === "erase" ? "select" : "erase";
+                            setBoardTool(nextTool);
+                            setIsBoardTextEditing(false);
+                            if (nextTool === "erase") setShowBoardTools(false);
+                          }}
                           className={`min-h-11 rounded-lg border px-3 text-sm font-semibold ${boardTool === "erase" ? "border-indigo-600 bg-indigo-700 text-white" : "border-slate-200 bg-white text-slate-800"}`}>🧽 Radierer</button>
                         <button type="button" onClick={() => { setBoardTool("select"); setIsBoardTextEditing(false); setShowBoardTools(false); }}
                           className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800">Fertig</button>
