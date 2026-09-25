@@ -36,7 +36,8 @@ test('widget cards use icon, name, description, favorite and one clear add actio
   assert.match(surface, /line-clamp-2 text-xs leading-relaxed text-slate-500/);
   assert.match(surface, /Von Favoriten entfernen/);
   assert.match(surface, /Zu Favoriten hinzufügen/);
-  assert.match(surface, /ist bereits geöffnet/);
+  assert.match(surface, /auf der Tafel anzeigen/);
+  assert.match(surface, /wiederherstellen/);
   assert.doesNotMatch(surface, /aria-label="Ich bin da! einstellen"/);
   assert.doesNotMatch(surface, /aria-label="Gruppen bilden einstellen"/);
   assert.doesNotMatch(surface, /aria-label="Wochenplan der Kinder einstellen"/);
