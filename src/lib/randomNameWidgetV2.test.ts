@@ -68,9 +68,10 @@ test('Widget 4: undo restores last fair round participant and previous public se
   assert.deepEqual(before, ['synthetic-1', 'synthetic-2', 'synthetic-3'], 'undo does not mutate original history');
 });
 
-test('Widget 4: settings gear appears beside picker, while session history stays transient', () => {
-  assert.match(picker, /aria-label="Zufallsauswahl einstellen"/);
-  assert.match(picker, /aria-label="Zufallsauswahl hinzufügen"/);
+test('Widget 4: central library settings gear stays separate from transient session history', () => {
+  assert.match(picker, /aria-label="Widget-Voreinstellungen öffnen"/);
+  assert.match(picker, /<option value="randomname">🎯 Zufälliges Kind<\/option>/);
+  assert.match(picker, /group\.label} hinzufügen/);
   assert.match(picker, /cockpitRandomNameDefaultsByClass/);
   assert.match(picker, /Auf vorhandenes Widget anwenden/);
   assert.match(picker, /saveRandomPreset\("selectionMode", mode\)/);
