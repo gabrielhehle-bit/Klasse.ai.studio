@@ -10080,7 +10080,7 @@ ${content}
 
 
                           <button type="button" onClick={toggleFullscreen}
-                            className="min-h-10 rounded-xl border border-slate-200 bg-white px-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                            className="min-h-11 min-w-11 rounded-xl border border-slate-200 bg-white px-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                             aria-label={isFullscreen ? "Vollbild beenden" : "Vollbild öffnen"}
                             title={isFullscreen ? "Vollbild beenden" : "Vollbild"}>
                             {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
@@ -10093,7 +10093,7 @@ ${content}
                               setVorlagenStartTab("create");
                               setIsVorlagenModalOpen(true);
                             }}
-                            className={`min-h-10 px-2.5 rounded-xl border text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                            className={`min-h-11 px-2.5 rounded-xl border text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                               currentIsLight
                                 ? "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
                                 : "bg-zinc-900 border-white/10 text-white/80 hover:bg-zinc-800"
@@ -10110,7 +10110,7 @@ ${content}
                             <button
                               type="button"
                               onClick={() => setIsMoreOptionsMenuOpen((prev) => !prev)}
-                              className={`min-h-10 px-2.5 rounded-xl border text-[10px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                              className={`min-h-11 min-w-11 px-2.5 rounded-xl border text-[10px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                                 isMoreOptionsMenuOpen
                                   ? "bg-indigo-600 border-indigo-600 text-white"
                                   : currentIsLight
@@ -10125,7 +10125,7 @@ ${content}
 
                             {isMoreOptionsMenuOpen && (
                               <div
-                                className={`absolute right-0 top-10 w-[min(20rem,calc(100vw-1rem))] max-h-[min(72vh,calc(100dvh-6rem))] overflow-y-auto overscroll-contain rounded-2xl border p-2.5 shadow-2xl flex flex-col gap-1.5 z-[1000] ${
+                                className={`absolute right-0 top-12 w-[min(20rem,calc(100vw-1rem))] max-h-[min(72vh,calc(100dvh-6rem))] overflow-y-auto overscroll-contain rounded-2xl border p-2.5 shadow-2xl flex flex-col gap-1.5 z-[1000] ${
                                   currentIsLight
                                     ? "bg-white border-slate-200 text-slate-800 animate-in fade-in slide-in-from-top-2 duration-150"
                                     : "bg-zinc-900 border-white/10 text-white animate-in fade-in slide-in-from-top-2 duration-150"
@@ -10135,19 +10135,19 @@ ${content}
                                   Gestaltung & Unterricht
                                 </div>
                                 <button type="button" onClick={() => { setIsThemePickerOpen(true); setIsMoreOptionsMenuOpen(false); }}
-                                  className="w-full min-h-10 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100">🎨 Design & Farben</button>
+                                  className="w-full min-h-11 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100">🎨 Design & Farben</button>
                                 <button type="button" onClick={() => { setIsMascotSettingsOpen(true); setIsMoreOptionsMenuOpen(false); }}
-                                  className="w-full min-h-10 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100 dark:hover:bg-white/10">🐾 Klassenmaskottchen</button>
+                                  className="w-full min-h-11 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100 dark:hover:bg-white/10">🐾 Klassenmaskottchen</button>
                                 <button type="button" onClick={() => { setIsBirthdayCelebrationOpen(true); setIsMoreOptionsMenuOpen(false); }}
-                                  className="w-full min-h-10 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100">🎂 Geburtstag</button>
+                                  className="w-full min-h-11 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100">🎂 Geburtstag</button>
                                 <button type="button" aria-expanded={isQuickBarSettingsOpen}
                                   onClick={() => setIsQuickBarSettingsOpen(open => !open)}
-                                  className="w-full min-h-10 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100"
+                                  className="w-full min-h-11 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100"
                                 >▤ Widget-Leiste {isQuickBarSettingsOpen ? '▴' : '▾'}</button>
                                 {isQuickBarSettingsOpen && (
                                   <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800"
                                     aria-label="Zusätzliche Widget-Leiste konfigurieren">
-                                    <label className="flex min-h-10 items-center gap-2 font-semibold">
+                                    <label className="flex min-h-11 items-center gap-2 font-semibold">
                                       <input type="checkbox" checked={quickBarSettings.enabled}
                                         disabled={!app.activeClassId}
                                         onChange={event => updateQuickBarSettings(settings => ({ ...settings, enabled: event.target.checked }))} />
@@ -10155,7 +10155,7 @@ ${content}
                                     </label>
                                     <p className="text-slate-600">Wähle deine Schnellzugriffe. Alle anderen Widgets bleiben über „Widget hinzufügen“ verfügbar.</p>
                                     {COCKPIT_QUICKBAR_ITEMS.map(item => (
-                                      <label key={item.id} className="flex min-h-9 items-center gap-2">
+                                      <label key={item.id} className="flex min-h-11 items-center gap-2">
                                         <input type="checkbox" checked={quickBarSettings.itemIds.includes(item.id)}
                                           disabled={!app.activeClassId}
                                           onChange={() => updateQuickBarSettings(settings => toggleCockpitQuickbarItem(settings, item.id))} />
@@ -10163,7 +10163,7 @@ ${content}
                                       </label>
                                     ))}
                                     <button type="button" onClick={resetQuickBarSettings}
-                                      className="min-h-10 w-full rounded-lg border border-slate-300 bg-white px-2 text-xs font-bold hover:bg-slate-100">
+                                      className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-2 text-xs font-bold hover:bg-slate-100">
                                       Widget-Leiste zurücksetzen
                                     </button>
                                   </div>
@@ -10178,7 +10178,7 @@ ${content}
                                     handleAutoArrangeWidgets();
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-11 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -10193,7 +10193,7 @@ ${content}
                                     setIsVorlagenModalOpen(true);
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-11 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -10212,7 +10212,7 @@ ${content}
                                     setIsSlotMenuOpen(true);
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-11 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -10221,7 +10221,7 @@ ${content}
                                 </button>
 
                                 <div
-                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left ${
+                                  className={`w-full min-h-11 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left ${
                                     currentIsLight ? "text-slate-600" : "text-white/70"
                                   }`}
                                 >
@@ -10244,7 +10244,7 @@ ${content}
                                     }
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-11 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -10298,7 +10298,7 @@ ${content}
                                     else handleOpenWidgetInCockpitLayout("pet");
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-11 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -10312,7 +10312,7 @@ ${content}
                                     setIsFocusModeLightOff((prev) => !prev);
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-11 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -10326,7 +10326,7 @@ ${content}
                                     toggleFullscreen();
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-11 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -10342,7 +10342,7 @@ ${content}
                                     handleClearAllWidgets();
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className="w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold text-rose-500 hover:bg-rose-500/10 flex items-center gap-2 text-left transition-colors cursor-pointer"
+                                  className="w-full min-h-11 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold text-rose-500 hover:bg-rose-500/10 flex items-center gap-2 text-left transition-colors cursor-pointer"
                                 >
                                   <Trash2 size={12} className="shrink-0" />
                                   <span>Alle Widgets schließen</span>
@@ -10358,7 +10358,7 @@ ${content}
                                     setIsTafelOpen(true);
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-11 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -10371,7 +10371,7 @@ ${content}
                             {/* Layout Slot Menu Modal if opened */}
                             {isSlotMenuOpen && (
                               <div
-                                className={`absolute top-11 right-0 w-64 rounded-2xl border p-2 shadow-2xl flex flex-col gap-2 z-[1000] ${
+                                className={`absolute top-12 right-0 w-64 rounded-2xl border p-2 shadow-2xl flex flex-col gap-2 z-[1000] ${
                                   currentIsLight
                                     ? "bg-white border-slate-100 animate-in fade-in slide-in-from-top-3 duration-200"
                                     : "bg-zinc-900 border-white/10 animate-in fade-in slide-in-from-top-3 duration-200"
@@ -10384,7 +10384,7 @@ ${content}
                                   <button
                                     type="button"
                                     onClick={() => setIsSlotMenuOpen(false)}
-                                    className="text-slate-400 hover:text-slate-600 text-xs font-bold"
+                                    className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 text-xs font-bold dark:hover:bg-white/10"
                                   >
                                     ✕
                                   </button>
@@ -10399,7 +10399,7 @@ ${content}
                                         setNewProfileName(e.target.value)
                                       }
                                       placeholder="Neues Profil (z.B. Morgenkreis)"
-                                      className="flex-1 text-[10px] px-2 py-1.5 rounded-l-md border border-slate-200 dark:border-white/10 bg-transparent text-slate-800 dark:text-white placeholder:opacity-50 focus:outline-none"
+                                      className="min-h-11 flex-1 text-[10px] px-2 py-1.5 rounded-l-md border border-slate-200 dark:border-white/10 bg-transparent text-slate-800 dark:text-white placeholder:opacity-50 focus:outline-none"
                                       onKeyDown={(e) => {
                                         if (e.key === "Enter") {
                                           handleSaveProfile(newProfileName);
@@ -10411,7 +10411,7 @@ ${content}
                                         handleSaveProfile(newProfileName);
                                       }}
                                       disabled={!newProfileName.trim()}
-                                      className="px-2 py-1.5 rounded-r-md bg-indigo-500 text-white font-black text-[9px] uppercase tracking-wider disabled:opacity-50 transition-all hover:bg-indigo-600 cursor-pointer"
+                                      className="min-h-11 px-2 py-1.5 rounded-r-md bg-indigo-500 text-white font-black text-[9px] uppercase tracking-wider disabled:opacity-50 transition-all hover:bg-indigo-600 cursor-pointer"
                                     >
                                       Speichern
                                     </button>
@@ -10436,7 +10436,7 @@ ${content}
                                           onClick={() =>
                                             handleDeleteProfile(profile.id)
                                           }
-                                          className="text-rose-500 hover:text-rose-600 px-1 opacity-60 hover:opacity-100 transition-opacity"
+                                          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-600 opacity-60 hover:opacity-100 transition-all dark:hover:bg-rose-950/30"
                                           title="Profil löschen"
                                         >
                                           <span className="text-[10px]">
@@ -10444,13 +10444,13 @@ ${content}
                                           </span>
                                         </button>
                                       </div>
-                                      <div className="flex gap-1.5 h-6">
+                                      <div className="flex gap-1.5">
                                         <button
                                           onClick={() => {
                                             handleUpdateProfile(profile.id);
                                             setIsSlotMenuOpen(false);
                                           }}
-                                          className="flex-1 rounded bg-indigo-50/50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-[9px] hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors"
+                                          className="min-h-11 flex-1 rounded-lg bg-indigo-50/50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-[9px] hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors"
                                         >
                                           Überschreiben
                                         </button>
@@ -10459,7 +10459,7 @@ ${content}
                                             handleLoadProfile(profile.id);
                                             setIsSlotMenuOpen(false);
                                           }}
-                                          className="flex-1 rounded bg-emerald-500 text-white font-bold text-[9px] hover:bg-emerald-600 transition-colors shadow-sm"
+                                          className="min-h-11 flex-1 rounded-lg bg-emerald-500 text-white font-bold text-[9px] hover:bg-emerald-600 transition-colors shadow-sm"
                                         >
                                           Laden
                                         </button>
@@ -10491,7 +10491,7 @@ ${content}
                                             type="text"
                                             value={slotNames[slot] || ""}
                                             onChange={(e) => saveSlotName(slot, e.target.value)}
-                                            className="flex-1 bg-transparent border-none text-[9px] font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 rounded px-1"
+                                            className="min-h-11 flex-1 bg-transparent border-none text-[9px] font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 rounded px-2"
                                           />
                                         </div>
                                         <div className="flex gap-1.5">
@@ -10499,7 +10499,7 @@ ${content}
                                             onClick={() => {
                                               handleSaveLayoutSlot(slot as any);
                                             }}
-                                            className="flex-1 py-0.5 rounded bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-[8px] hover:bg-indigo-100 dark:hover:bg-indigo-500/20"
+                                            className="min-h-11 flex-1 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-[8px] hover:bg-indigo-100 dark:hover:bg-indigo-500/20"
                                           >
                                             Speichern
                                           </button>
@@ -10509,7 +10509,7 @@ ${content}
                                               handleLoadLayoutSlot(slot as any);
                                               setIsSlotMenuOpen(false);
                                             }}
-                                            className={`flex-1 py-0.5 rounded font-bold text-[8px] ${
+                                            className={`min-h-11 flex-1 rounded-lg font-bold text-[8px] ${
                                               isSaved
                                                 ? "bg-emerald-500 text-white hover:bg-emerald-600"
                                                 : "bg-transparent text-slate-300 dark:text-slate-600 border border-slate-200 dark:border-white/5 cursor-not-allowed"
@@ -10536,7 +10536,7 @@ ${content}
                                     );
                                     setIsSlotMenuOpen(false);
                                   }}
-                                  className="w-full px-2 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider text-rose-500 text-center hover:bg-rose-500/10 transition-all cursor-pointer"
+                                  className="min-h-11 w-full px-2 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider text-rose-500 text-center hover:bg-rose-500/10 transition-all cursor-pointer"
                                 >
                                   Leere Ausgangsfläche laden
                                 </button>
@@ -10561,7 +10561,7 @@ ${content}
                             type="button"
                             onClick={() => setShowBoardTools(false)}
                             aria-label="Schreiben und Papier schließen"
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100"
+                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100"
                           >✕</button>
                         </div>
 
