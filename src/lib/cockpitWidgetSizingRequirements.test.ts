@@ -80,7 +80,7 @@ test("Kernwidgets verkleinern Touch-Ziele auch im Kompaktmodus nicht unter 44px"
 
   assert.doesNotMatch(wheelWidget, /isSmall \? 'min-h-9 min-w-9'/);
   assert.match(wheelWidget, /min-h-11 min-w-11 p-1 rounded-lg border/);
-  assert.match(wheelWidget, /w-full min-h-11 rounded-lg font-black/);
+  assert.match(wheelWidget, /w-full \\${isXL \\? 'min-h-14 text-lg'/);
   assert.doesNotMatch(wheelWidget, /min-h-\[40px\]/);
 
   assert.doesNotMatch(randomNameWidget, /compact \? 'min-h-9 min-w-9'/);
@@ -189,4 +189,30 @@ test("Klassendienste, QR, Bild, Lernwörter und Rätsel sind im Kernkatalog touc
   assert.match(vocabularyWidget, /min-h-11/);
 
   assert.match(legacyWidgetContents, /min-h-11 px-2\.5 rounded-lg bg-emerald-500/);
+});
+
+
+test("Kernwidgets nutzen große Flächen für Hierarchie statt nur für Leerraum", () => {
+  assert.match(timerWidget, /const compactClockTextPixels = Math\.max\(42, Math\.min\(96,/);
+  assert.match(timerWidget, /const largeRingPixels = Math\.max\(176, Math\.min\(/);
+  assert.match(timerWidget, /style=\{\{ width: largeRingPixels, height: largeRingPixels/);
+  assert.match(timerWidget, /style=\{\{ fontSize: largeClockTextPixels \}\}/);
+  assert.doesNotMatch(timerWidget, /min-h-\[(?:32|36|42)px\]/);
+  assert.doesNotMatch(timerWidget, /min-w-\[(?:32|38)px\]/);
+
+  assert.match(wheelWidget, /const isXL = containerSize\.width > 820 && containerSize\.height > 620/);
+  assert.match(wheelWidget, /const maxLabelChars = isXL \? 24 : isLarge \? 19 : isSmall \? 10 : 15/);
+  assert.match(wheelWidget, /<title>\{item\}<\/title>/);
+  assert.match(wheelWidget, /break-words text-center font-black tracking-tight/);
+
+  assert.match(kidAttendance, /const roomyCard = cardWidth >= 200 && cardHeight >= 68/);
+  assert.match(kidAttendance, /const heroCard = cardWidth >= 240 && cardHeight >= 84/);
+  assert.match(kidAttendance, /heroCard \? 'text-xl' : roomyCard \? 'text-lg'/);
+
+  assert.match(groupsWidget, /const roomyGroupCards = isExpanded \|\| \(size\.width >= 900 && groupLayout\.cardHeight >= 92\)/);
+  assert.match(groupsWidget, /roomyGroupCards \? 'text-base sm:text-lg font-black'/);
+
+  assert.match(weeklyPlanWidget, /const roomyBoard = isExpanded \|\| \(size\.width >= 1050 && size\.height >= 620\)/);
+  assert.match(weeklyPlanWidget, /const taskColumns = size\.width >= 1320 \? 3 : size\.width >= 820 \? 2 : 1/);
+  assert.match(weeklyPlanWidget, /scale=\{tinyBoard \? 'compact' : roomyBoard \? 'large' : 'normal'\}/);
 });
