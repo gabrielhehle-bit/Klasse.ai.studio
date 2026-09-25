@@ -140,7 +140,7 @@ export function BoardTextEditor({
   }, [commandRef, runCommand]);
 
   const buttonClass =
-    "min-h-10 px-3 rounded-lg border border-slate-200 bg-white text-slate-800 text-sm font-semibold hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600";
+    "min-h-11 px-3 rounded-lg border border-slate-200 bg-white text-slate-800 text-sm font-semibold hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600";
 
   return (
     <>
@@ -210,7 +210,7 @@ export function BoardTextEditor({
           <button type="button" className={buttonClass} onClick={() => runCommand("redo")}>Wiederholen</button>
           <button
             type="button"
-            className={clearArmed ? "min-h-10 px-3 rounded-lg bg-rose-600 text-white text-sm font-semibold" : buttonClass}
+            className={clearArmed ? "min-h-11 px-3 rounded-lg bg-rose-600 text-white text-sm font-semibold" : buttonClass}
             onClick={() => {
               if (!clearArmed) {
                 setClearArmed(true);
@@ -230,7 +230,7 @@ export function BoardTextEditor({
           )}
           <button
             type="button"
-            className="min-h-10 px-4 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-500"
+            className="min-h-11 px-4 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-500"
             onClick={() => {
               flush();
               onDone();
