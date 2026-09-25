@@ -728,7 +728,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
           only when intentionally focused/hovered, leaving its artwork centered in the slot. */}
       <div
         onPointerDown={isDirect || isMaximized || layoutLocked ? undefined : handlePointerDownDrag}
-        className={`${isFreeMascot ? "mascot-widget-toolbar absolute inset-x-0 top-0 w-full h-11 border-0 bg-transparent text-inherit opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100" : isDirect ? "absolute top-0 left-0 right-0 h-11 opacity-40 hover:opacity-100 pointer-events-auto border-b-0 bg-black/10 dark:bg-white/10 text-slate-400 backdrop-blur-md rounded-t-xl" : "w-full relative " + (viewportDensity === "tight" ? "h-9 " : "h-11 ") + "opacity-100 pointer-events-auto " + (currentIsLight ? "bg-white/95 border-slate-200/60 text-slate-700 shadow-sm backdrop-blur-xl rounded-t-[23px]" : "bg-zinc-900/95 border-white/10 text-neutral-200 shadow-sm backdrop-blur-xl rounded-t-[23px]")} z-40 ${viewportDensity === "tight" && !isFreeMascot ? "px-1.5 py-0.5" : "px-3 py-1"} flex items-center justify-between select-none shrink-0 border-b transition-all duration-300 ${isDirect || isMaximized || layoutLocked ? "cursor-default" : "cursor-grab active:cursor-grabbing"}`}
+        className={`${isFreeMascot ? "mascot-widget-toolbar absolute inset-x-0 top-0 w-full h-11 border-0 bg-transparent text-inherit opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100" : isDirect ? "absolute top-0 left-0 right-0 h-11 opacity-40 hover:opacity-100 pointer-events-auto border-b-0 bg-black/10 dark:bg-white/10 text-slate-400 backdrop-blur-md rounded-t-xl" : "w-full relative h-11 " + "opacity-100 pointer-events-auto " + (currentIsLight ? "bg-white/95 border-slate-200/60 text-slate-700 shadow-sm backdrop-blur-xl rounded-t-[23px]" : "bg-zinc-900/95 border-white/10 text-neutral-200 shadow-sm backdrop-blur-xl rounded-t-[23px]")} z-40 ${viewportDensity === "tight" && !isFreeMascot ? "px-1.5 py-0.5" : "px-3 py-1"} flex items-center justify-between select-none shrink-0 border-b transition-all duration-300 ${isDirect || isMaximized || layoutLocked ? "cursor-default" : "cursor-grab active:cursor-grabbing"}`}
         style={{ touchAction: isDirect || layoutLocked ? "auto" : "none" }}
       >
         {/* Left Side: status dot, Title, and Pen icon button placed directly right next to the title label */}
@@ -788,7 +788,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
               aria-label={`${labelMapping[widget.type] || widget.type} Einstellungen ${settingsOpen ? "schließen" : "öffnen"}`}
               aria-expanded={settingsOpen}
               title="Widget-Einstellungen"
-              className={`ml-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${settingsOpen
+              className={`ml-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${settingsOpen
                 ? "bg-indigo-600 border-indigo-600 text-white"
                 : currentIsLight
                   ? "bg-white border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
@@ -806,7 +806,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
                 e.stopPropagation();
                 onSettingsToggle();
               }}
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider transition-all outline-none cursor-pointer shrink-0 ml-1.5 shadow-xs border ${
+              className={`inline-flex min-h-11 items-center gap-1 px-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all outline-none cursor-pointer shrink-0 ml-1.5 shadow-xs border ${
                 currentIsLight
                   ? "bg-rose-50 border-rose-200 text-rose-500 hover:bg-rose-100 hover:text-rose-700 hover:border-rose-300"
                   : "bg-rose-500/10 border-rose-500/20 text-rose-400 hover:bg-rose-500/20 hover:text-rose-300 hover:border-rose-500/40"
@@ -832,7 +832,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
               setShowWidgetMenu((value) => !value);
               setShowSizeConfig(false);
             }}
-            className={`${viewportDensity === "tight" ? "w-8 h-8" : "w-9 h-9"} flex items-center justify-center rounded-lg border shadow-sm transition-all outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 cursor-pointer ${
+            className={`w-11 h-11 flex items-center justify-center rounded-lg border shadow-sm transition-all outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 cursor-pointer ${
               showWidgetMenu
                 ? "bg-indigo-600 border-indigo-600 text-white"
                 : currentIsLight
@@ -870,7 +870,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
                     });
                     setShowWidgetMenu(false);
                   }}
-                  className="w-full px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-white/10 text-left"
+                  className="w-full min-h-11 px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-white/10 text-left"
                 >
                   <Rocket size={14} />
                   <span>{isDirect ? "Fenstermodus" : "Direktmodus"}</span>
@@ -885,7 +885,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
                     setShowWidgetMenu(false);
                     onMinimize();
                   }}
-                  className="w-full px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-white/10 text-left"
+                  className="w-full min-h-11 px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-white/10 text-left"
                 >
                   <Minus size={14} />
                   <span>Minimieren</span>
@@ -900,7 +900,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
                     setIsMaximized(!isMaximized);
                     setShowWidgetMenu(false);
                   }}
-                  className="w-full px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-white/10 text-left"
+                  className="w-full min-h-11 px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-white/10 text-left"
                 >
                   {isMaximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
                   <span>{isMaximized ? "Vollbild beenden" : "Maximieren"}</span>
@@ -914,7 +914,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
                     e.stopPropagation();
                     handleSetPersistentLargeSize();
                   }}
-                  className="w-full px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-white/10 text-left"
+                  className="w-full min-h-11 px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-white/10 text-left"
                   title="Widget dauerhaft groß auf der Smartboard-Fläche ablegen"
                 >
                   <LockKeyhole size={14} />
@@ -930,7 +930,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
                     setShowWidgetMenu(false);
                     setShowSizeConfig(true);
                   }}
-                  className="w-full px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-white/10 text-left"
+                  className="w-full min-h-11 px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-white/10 text-left"
                 >
                   <SlidersHorizontal size={14} />
                   <span>Größe</span>
@@ -947,7 +947,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
                       setShowWidgetMenu(false);
                       onClose();
                     }}
-                    className="w-full px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-left"
+                    className="w-full min-h-11 px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-left"
                   >
                     <X size={14} />
                     <span>Widget schließen</span>
@@ -975,7 +975,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowSizeConfig(false)}
-                  className="opacity-50 hover:opacity-100"
+                  className="flex min-h-11 min-w-11 items-center justify-center rounded-lg opacity-50 hover:opacity-100"
                   aria-label="Größeneinstellung schließen"
                 >
                   <X size={12} />
@@ -992,7 +992,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
                     max="100"
                     value={sizeInputWidth}
                     onChange={(e) => setSizeInputWidth(e.target.value)}
-                    className={`w-full p-1.5 rounded-lg text-sm font-bold border outline-none text-center ${
+                    className={`w-full min-h-11 p-1.5 rounded-lg text-sm font-bold border outline-none text-center ${
                       currentIsLight
                         ? "bg-slate-50 border-slate-200 focus:border-indigo-400"
                         : "bg-zinc-800 border-white/10 focus:border-indigo-500"
@@ -1009,7 +1009,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
                     max="100"
                     value={sizeInputHeight}
                     onChange={(e) => setSizeInputHeight(e.target.value)}
-                    className={`w-full p-1.5 rounded-lg text-sm font-bold border outline-none text-center ${
+                    className={`w-full min-h-11 p-1.5 rounded-lg text-sm font-bold border outline-none text-center ${
                       currentIsLight
                         ? "bg-slate-50 border-slate-200 focus:border-indigo-400"
                         : "bg-zinc-800 border-white/10 focus:border-indigo-500"
@@ -1019,7 +1019,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
               </div>
               <button
                 type="submit"
-                className="w-full py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 mt-1 transition-colors"
+                className="w-full min-h-11 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 mt-1 transition-colors"
               >
                 <Check size={12} />
                 Anwenden
