@@ -36,7 +36,7 @@ test('Wheel measures real drawing area and keeps controls finger-sized', () => {
   assert.match(wheel, /wheelAreaSize\.height \|\| containerSize\.height - 108/);
   assert.ok(wheel.includes("min-h-11 min-w-11 p-1 rounded-lg border"));
   assert.ok(wheel.includes("min-h-11 min-w-11 px-1.5 rounded-lg border"));
-  assert.ok(wheel.includes("className={`w-full min-h-11 rounded-lg font-black"));
+  assert.ok(wheel.includes("className={`w-full ${isXL ? 'min-h-14 text-lg' : isLarge ? 'min-h-12 text-base' : 'min-h-11 text-xs sm:text-sm'} rounded-lg font-black"));
   assert.match(wheel, /availableIndices\.map\(index => baseItems\[index\]\)/);
   assert.doesNotMatch(wheel, /containerSize\.height - 93/);
 });
