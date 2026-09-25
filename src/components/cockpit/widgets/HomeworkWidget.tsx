@@ -45,12 +45,12 @@ export default function HomeworkWidget() {
       <div className="flex items-center gap-1">
         <button type="button" aria-label="Vorherige HÜ-Woche" disabled={week <= 1}
           onClick={() => setSelectedWeek(Math.max(1, week - 1))}
-          className={`${compact ? 'min-h-9 min-w-9' : 'min-h-11 min-w-11'} rounded-xl border border-amber-300 bg-white text-xl font-bold disabled:opacity-40`}>‹</button>
+          className={`min-h-11 min-w-11 rounded-xl border border-amber-300 bg-white text-xl font-bold disabled:opacity-40`}>‹</button>
         <button type="button" onClick={() => setSelectedWeek(todayWeek)}
-          className={`${compact ? 'min-h-9' : 'min-h-11'} rounded-xl border border-amber-300 bg-white px-2 text-sm font-bold`}>Heute</button>
+          className={`min-h-11 rounded-xl border border-amber-300 bg-white px-2 text-sm font-bold`}>Heute</button>
         <button type="button" aria-label="Nächste HÜ-Woche" disabled={week >= 53}
           onClick={() => setSelectedWeek(Math.min(53, week + 1))}
-          className={`${compact ? 'min-h-9 min-w-9' : 'min-h-11 min-w-11'} rounded-xl border border-amber-300 bg-white text-xl font-bold disabled:opacity-40`}>›</button>
+          className={`min-h-11 min-w-11 rounded-xl border border-amber-300 bg-white text-xl font-bold disabled:opacity-40`}>›</button>
       </div>
     </header>
     <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${compact ? 'p-1.5' : 'p-3'}`}><HomeworkList items={items} compact={compact} /></div>
