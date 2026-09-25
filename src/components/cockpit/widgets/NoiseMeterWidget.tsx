@@ -206,11 +206,11 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
           {(['low', 'normal', 'high'] as SensitivityLevel[]).map(level => (
             <button key={level} type="button" onClick={() => setSensitivity(level)}
               aria-pressed={sensitivity === level}
-              className={`min-h-9 px-2 rounded-lg border ${sensitivity === level ? 'bg-indigo-600 text-white border-indigo-600' : 'border-slate-300 dark:border-slate-600'}`}>
+              className={`min-h-11 px-2 rounded-lg border ${sensitivity === level ? 'bg-indigo-600 text-white border-indigo-600' : 'border-slate-300 dark:border-slate-600'}`}>
               {level === 'low' ? 'Niedrig' : level === 'normal' ? 'Normal' : 'Hoch'}
             </button>
           ))}
-          <button type="button" onClick={onCloseSettings} className="min-h-9 px-2 rounded-lg border border-slate-300 dark:border-slate-600 ml-auto">Fertig</button>
+          <button type="button" onClick={onCloseSettings} className="min-h-11 px-2 rounded-lg border border-slate-300 dark:border-slate-600 ml-auto">Fertig</button>
         </div>
       )}
       {/* 1. Header / Status Bar */}
@@ -387,7 +387,7 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
             <button
               type="button"
               onClick={stopMeasurement}
-              className="px-3 py-1 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 transition-all active:scale-95 cursor-pointer min-h-[36px] flex items-center gap-1.5"
+              className="px-3 py-1 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 transition-all active:scale-95 cursor-pointer min-h-11 flex items-center gap-1.5"
             >
               <MicOff size={14} />
               <span>Stoppen</span>
