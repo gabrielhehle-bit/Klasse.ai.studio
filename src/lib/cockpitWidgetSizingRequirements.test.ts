@@ -261,3 +261,25 @@ test("Große Arbeitswidgets skalieren Inhalt und Aktionen", () => {
   assert.doesNotMatch(qrWidget, /min-h-\[38px\]/);
   assert.match(qrWidget, /qrcode-copy-btn[\s\S]*min-h-11/);
 });
+
+
+test("Sekundäre Widget-Einstellungen bleiben ebenfalls fingergerecht", () => {
+  assert.match(wheelWidget, /min-h-14 p-2 rounded-xl border text-xs font-bold/);
+  assert.match(wheelWidget, /min-h-11 px-2\.5 py-1 rounded-xl bg-indigo-50/);
+  assert.match(wheelWidget, /min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400/);
+  assert.doesNotMatch(wheelWidget, /className="text-slate-400 hover:text-rose-500 p-0\.5/);
+
+  assert.match(instructionWidget, /w-11 h-11 rounded-xl text-xs font-bold border/);
+  assert.match(instructionWidget, /min-h-11 min-w-11 p-2 rounded-xl border cursor-pointer/);
+  assert.doesNotMatch(instructionWidget, /w-8 h-8 rounded-xl text-xs font-bold border/);
+
+  assert.doesNotMatch(mentalMathWidget, /w-(?:6|7) h-(?:6|7) rounded text-xs font-mono font-bold/);
+  assert.match(mentalMathWidget, /min-h-11 min-w-11 rounded text-xs font-mono font-bold/);
+  assert.match(mentalMathWidget, /min-h-11 px-2 py-1 rounded text-xs font-mono font-medium/);
+
+  assert.match(dutiesWidget, /dienste-rotate-btn-header[\s\S]*min-h-11 px-2\.5 py-1/);
+  assert.match(dutiesWidget, /dienste-menu-toggle-btn[\s\S]*min-h-11 min-w-11/);
+  assert.match(dutiesWidget, /min-h-11 px-2 py-0\.5 rounded-lg text-\[10px\] font-bold border/);
+  assert.match(dutiesWidget, /min-h-11 px-2 py-1\.5 rounded-lg border text-left text-xs font-bold/);
+  assert.doesNotMatch(dutiesWidget, /p-1 rounded-md text-slate-400/);
+});
