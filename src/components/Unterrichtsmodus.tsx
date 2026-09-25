@@ -8452,9 +8452,13 @@ ${content}
                                       aria-label="Widget suchen"
                                       placeholder="Widget suchen … z. B. Timer, Gruppen, Brüche"
                                       value={widgetSearch}
-                                      onChange={(e) => setWidgetSearch(e.target.value)}
+                                      onChange={(e) => {
+                                        const nextSearch = e.target.value;
+                                        setWidgetSearch(nextSearch);
+                                        if (nextSearch.trim()) setActiveWidgetCategory("categories");
+                                      }}
                                       autoFocus
-                                      className={`min-h-11 w-full rounded-xl border px-4 pr-10 text-sm font-semibold outline-none transition-all placeholder:text-slate-400 ${
+                                      className={`min-h-11 w-full rounded-xl border px-4 pr-14 text-sm font-semibold outline-none transition-all placeholder:text-slate-400 ${
                                         currentIsLight
                                           ? "bg-slate-50 border-slate-200 text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                                           : "bg-white/5 border-white/15 text-white focus:border-indigo-400"
@@ -8463,7 +8467,7 @@ ${content}
                                     {widgetSearch ? (
                                       <button type="button" onClick={() => setWidgetSearch("")}
                                         aria-label="Widgetsuche leeren"
-                                        className="absolute right-1 top-1/2 flex min-h-9 min-w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-800">✕</button>
+                                        className="absolute right-0 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-800">✕</button>
                                     ) : (
                                       <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true">🔍</span>
                                     )}
@@ -9166,7 +9170,7 @@ ${content}
                                 </aside>
 
                                 <main className="klassio-widget-library-content min-h-0 overflow-y-auto overscroll-contain pr-1">
-                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-2.5 pb-1">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 pb-1">
                                   {(() => {
                                     const allAvailableWidgets = [
                                       {
@@ -9782,11 +9786,11 @@ ${content}
                                           <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Favoriten</p>
                                           <p className="truncate text-xs font-semibold text-slate-700">Ordner: {currentResolvedFolder}</p>
                                         </div>
-                                        <label className="flex min-h-10 items-center gap-2 text-xs font-semibold text-slate-600">
+                                        <label className="flex min-h-11 items-center gap-2 text-xs font-semibold text-slate-600">
                                           <span className="hidden sm:inline">Ordner</span>
                                           <select aria-label="Favoriten-Ordner auswählen" value={selectedFavFolder}
                                             onChange={event => setSelectedFavFolder(event.target.value)}
-                                            className="min-h-10 max-w-52 rounded-lg border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-800">
+                                            className="min-h-11 max-w-52 rounded-lg border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-800">
                                             {availableFolders.map(folder => <option key={folder.id} value={folder.id}>{folder.label}</option>)}
                                           </select>
                                         </label>
@@ -9881,7 +9885,7 @@ ${content}
                                                             handleOpenWidgetInCockpitLayout(variant.type as CockpitWidgetConfig["type"]);
                                                             setIsAddWidgetMenuOpen(false);
                                                           }}
-                                                          className="min-h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-left text-xs font-semibold text-slate-700 hover:border-indigo-200 hover:bg-indigo-50">
+                                                          className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-left text-xs font-semibold text-slate-700 hover:border-indigo-200 hover:bg-indigo-50">
                                                           {variant.label}
                                                         </button>
                                                       ))}
@@ -9963,11 +9967,10 @@ ${content}
                                                 className="stroke-[2.5]"
                                               />
                                             </div>
-                                            <p className="text-[10px] font-bold">
-                                              Ordner "{currentResolvedFolder}"
-                                              ist leer
+                                            <p className="text-sm font-bold">
+                                              Ordner "{currentResolvedFolder}" ist leer
                                             </p>
-                                            <p className="text-[7.5px] mt-1 max-w-[240px] leading-relaxed">
+                                            <p className="mt-1 max-w-sm text-xs leading-relaxed">
                                               Klicke auf das Stern-Symbol bei
                                               einem beliebigen Widget in den
                                               anderen Kategorien, um es zu **"
@@ -9985,15 +9988,21 @@ ${content}
                                     return (
                                       <>
                                         {renderedFoldersHeader}
+                                        {query && (
+                                          <div className="col-span-full flex min-h-11 items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-indigo-50/70 px-3 py-2 text-xs text-slate-700" role="status">
+                                            <span className="min-w-0 truncate font-semibold">Suche in allen Widgets: „{widgetSearch.trim()}“</span>
+                                            <span className="shrink-0 rounded-full bg-white px-2 py-1 font-black text-indigo-700">{filteredList.length} Treffer</span>
+                                          </div>
+                                        )}
                                         {filteredList.length === 0 && (
                                           <div className="col-span-full py-10 flex flex-col items-center justify-center text-center opacity-70">
                                             <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-500 mb-2">
                                               🔍
                                             </div>
-                                            <p className="text-[10px] font-bold">
+                                            <p className="text-sm font-bold">
                                               Keine passenden Widgets gefunden
                                             </p>
-                                            <p className="text-[7.5px] mt-1 max-w-[240px] leading-relaxed">
+                                            <p className="mt-1 max-w-sm text-xs leading-relaxed">
                                               Passe deine Suche oder deine
                                               Kategorie-Filter an, um andere
                                               Cockpit-Hilfen anzuzeigen!
