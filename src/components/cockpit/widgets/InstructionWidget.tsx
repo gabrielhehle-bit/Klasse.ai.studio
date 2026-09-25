@@ -657,7 +657,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                     key={subj}
                     type="button"
                     onClick={() => setDraftSubject(subj)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
+                    className={`min-h-11 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
                       draftSubject === subj
                         ? 'bg-indigo-600 text-white border-indigo-600'
                         : currentIsLight
@@ -790,7 +790,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                     key={t}
                     type="button"
                     onClick={() => setDraftTimeEstimate(t)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
+                    className={`min-h-11 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
                       draftTimeEstimate === t
                         ? 'bg-amber-500 text-white border-amber-500'
                         : currentIsLight
