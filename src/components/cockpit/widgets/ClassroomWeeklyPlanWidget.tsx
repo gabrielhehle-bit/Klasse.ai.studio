@@ -130,12 +130,12 @@ export default function ClassroomWeeklyPlanWidget({ widget }: { widget?: Cockpit
           aria-label="Wochenplan groß anzeigen" title="Wochenplan groß anzeigen">{compactBoard ? "⛶" : "⛶ Groß anzeigen"}</button>}
         <button type="button" aria-label="Vorherige Woche" disabled={week <= 1}
           onClick={() => setWeek(w => Math.max(1, w - 1))}
-          className={`${compactBoard ? "min-h-9 min-w-9" : "min-h-11 min-w-11"} rounded-xl border border-indigo-200 bg-white px-2 text-xl disabled:opacity-40">‹</button>
+          className={`${compactBoard ? "min-h-9 min-w-9" : "min-h-11 min-w-11"} rounded-xl border border-indigo-200 bg-white px-2 text-xl disabled:opacity-40`}>‹</button>
         <button type="button" onClick={() => setWeek(todayWeek)} aria-label="Aktuelle Woche anzeigen"
           className={`min-h-11 rounded-xl border border-indigo-200 bg-white text-sm font-bold ${compactBoard ? "px-2" : "px-3"}`}>{compactBoard ? "Heute" : "Diese Woche"}</button>
         <button type="button" aria-label="Nächste Woche" disabled={week >= 53}
           onClick={() => setWeek(w => Math.min(53, w + 1))}
-          className={`${compactBoard ? "min-h-9 min-w-9" : "min-h-11 min-w-11"} rounded-xl border border-indigo-200 bg-white px-2 text-xl disabled:opacity-40">›</button>
+          className={`${compactBoard ? "min-h-9 min-w-9" : "min-h-11 min-w-11"} rounded-xl border border-indigo-200 bg-white px-2 text-xl disabled:opacity-40`}>›</button>
       </div>
     </header>
 
