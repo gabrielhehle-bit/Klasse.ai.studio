@@ -14,6 +14,12 @@ const weeklyPlanWidget = readFileSync("src/components/cockpit/widgets/ClassroomW
 const homeworkWidget = readFileSync("src/components/cockpit/widgets/HomeworkWidget.tsx", "utf8");
 const starsReviewWidget = readFileSync("src/components/cockpit/widgets/StarsReviewWidget.tsx", "utf8");
 const classRewardWidget = readFileSync("src/components/cockpit/widgets/ClassRewardWidget.tsx", "utf8");
+const clockWidget = readFileSync("src/components/cockpit/widgets/ClockWidget.tsx", "utf8");
+const trafficLightWidget = readFileSync("src/components/cockpit/widgets/TrafficLightWidget.tsx", "utf8");
+const noiseMeterWidget = readFileSync("src/components/cockpit/widgets/NoiseMeterWidget.tsx", "utf8");
+const noiseScaleWidget = readFileSync("src/components/cockpit/widgets/NoiseScaleWidget.tsx", "utf8");
+const timelineWidget = readFileSync("src/components/cockpit/widgets/TimelineWidget.tsx", "utf8");
+const todoWidget = readFileSync("src/components/cockpit/widgets/TodoWidget.tsx", "utf8");
 
 test("Cockpit-Widgets: jeder Typ erhält eine sichere Mindestgröße", () => {
   assert.match(widgetLayout, /DEFAULT_WIDGET_MIN_SIZE/);
@@ -114,4 +120,29 @@ test("Hausübungen, Sterne und Klassenziel behalten touch-sichere Bedienflächen
   assert.match(classRewardWidget, /w-11 h-11 rounded-xl text-base/);
   assert.match(classRewardWidget, /min-h-11 py-1\.5 px-2 rounded-lg text-\[10px\]/);
   assert.match(classRewardWidget, /flex-1 min-h-11 py-2 rounded-xl/);
+});
+
+
+test("Uhr, Ampel, Lautstärke, Tagesablauf und To-Do bleiben touch-sicher", () => {
+  assert.doesNotMatch(clockWidget, /isCompact \? 'w-9 h-9'/);
+  assert.match(clockWidget, /w-11 h-11 flex items-center justify-center rounded-xl/);
+
+  assert.doesNotMatch(trafficLightWidget, /isCompact \? 'min-h-9' : 'min-h-10'/);
+  assert.match(trafficLightWidget, /className=\{\`min-h-11 min-w-0 rounded-xl/);
+
+  assert.doesNotMatch(noiseMeterWidget, /min-h-9 px-2 rounded-lg border/);
+  assert.doesNotMatch(noiseMeterWidget, /min-h-\[36px\]/);
+  assert.match(noiseMeterWidget, /min-h-11 px-2 rounded-lg border/);
+
+  assert.match(noiseScaleWidget, /w-full min-h-11 p-2 rounded-xl/);
+
+  assert.doesNotMatch(timelineWidget, /min-h-8 min-w-8/);
+  assert.match(timelineWidget, /min-h-11 min-w-11 rounded-xl/);
+  assert.match(timelineWidget, /leading-tight break-words \[overflow-wrap:anywhere\]/);
+
+  assert.doesNotMatch(todoWidget, /min-h-9 rounded-lg border px-3/);
+  assert.match(todoWidget, /min-h-11 min-w-11 p-1\.5 rounded/);
+  assert.match(todoWidget, /min-h-11 rounded-lg border px-3/);
+  assert.match(todoWidget, /shrink-0 min-h-11 min-w-11 p-2/);
+  assert.doesNotMatch(todoWidget, /className="p-1\.5 rounded text-slate-400/);
 });
