@@ -3126,6 +3126,17 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     });
   };
 
+  const openWidgetLibrary = () => {
+    const favoriteCount = (favoritesBySubject[getResolvedFavFolder()] || []).length;
+    setWidgetSearch("");
+    setIsWidgetConfigurationOpen(false);
+    setIsMoreOptionsMenuOpen(false);
+    setActiveWidgetCategory(
+      favoriteCount > 0 ? "favorites" : recentWidgetTypes.length > 0 ? "recent" : "core",
+    );
+    setIsAddWidgetMenuOpen(true);
+  };
+
   const [isWidgetPickerOpen, setIsWidgetPickerOpen] = useState(false);
   const [isSlotMenuOpen, setIsSlotMenuOpen] = useState(false);
   const [newProfileName, setNewProfileName] = useState("");
@@ -7642,6 +7653,7 @@ ${content}
       }}
       data-theme={currentActiveTheme}
       data-style={currentActiveTheme}
+      data-widget-library-open={isAddWidgetMenuOpen ? "true" : "false"}
     >
       {/* Background Decor */}
       <div
@@ -8269,9 +8281,7 @@ ${content}
                           <div className="relative">
                             <button
                               type="button"
-                              onClick={() =>
-                                setIsAddWidgetMenuOpen(!isAddWidgetMenuOpen)
-                              }
+                              onClick={() => isAddWidgetMenuOpen ? setIsAddWidgetMenuOpen(false) : openWidgetLibrary()}
                               className="sr-only"
                               title="Widget auf die gemeinsame Fläche legen"
                             >
@@ -12498,7 +12508,7 @@ ${content}
                   handleOpenWidgetInCockpitLayout(id as CockpitWidgetConfig["type"]);
                 }
               }}
-              onAddWidget={() => { setIsAddWidgetMenuOpen(open => !open); setIsMoreOptionsMenuOpen(false); }}
+              onAddWidget={() => { if (isAddWidgetMenuOpen) { setIsAddWidgetMenuOpen(false); } else { openWidgetLibrary(); } }}
               onToggleSidebar={() => changeSidebarMode(sidebarMode === "hidden" ? (prevSidebarMode || "expanded") : "hidden")}
               sidebarOpen={sidebarMode !== "hidden"}
               activeTypes={cockpitWidgets.filter(widget => widget.visible).map(widget => widget.type)}
