@@ -339,17 +339,24 @@ async function verifyDirectCockpitNavigation(client) {
   await clickSidebar(client, 'Lehrercockpit');
   await waitFor(
     client,
-    'direct white cockpit stage and external text toolbar',
+    'direct white cockpit stage and compact writing launcher',
     '(() => {' +
     'const stage=document.getElementById("widget-board-stage");' +
-    'const toolbar=document.querySelector("[role=toolbar][aria-label=\\\"Unterrichtsfläche: Text und Papier\\\"]");' +
-    'if(!stage||!toolbar)return false;' +
+    'const launcher=document.querySelector("button[aria-controls=\\\"klassio-board-tools\\\"]");' +
+    'if(!stage||!launcher)return false;' +
     'const r=stage.getBoundingClientRect();' +
     'const bg=getComputedStyle(stage).backgroundColor;' +
-    'return r.width>500&&r.height>300&&bg==="rgb(255, 255, 255)"&&toolbar.textContent.includes("TEXT")&&toolbar.textContent.includes("Papier");' +
+    'return r.width>500&&r.height>300&&bg==="rgb(255, 255, 255)"&&launcher.textContent.includes("Schreiben");' +
     '})()',
     30000,
   );
+  const openedWritingTools = await evaluate(client,
+    String.raw`(() => {const b=document.querySelector('button[aria-controls="klassio-board-tools"]');if(!b)return false;b.click();return true;})()`);
+  if (!openedWritingTools) throw new Error('Could not open compact writing tools.');
+  await waitFor(client, 'writing tools expose text, pen, eraser and paper',
+    String.raw`(() => {const p=document.getElementById('klassio-board-tools');return !!p&&getComputedStyle(p).display!=='none'&&p.textContent.includes('Stift')&&p.textContent.includes('Text')&&p.textContent.includes('Radierer')&&!!p.querySelector('select[aria-label="Papierart der Unterrichtsfläche"]');})()`);
+  await evaluate(client,
+    String.raw`(() => {const b=document.querySelector('#klassio-board-tools button[aria-label="Schreiben und Papier schließen"]');if(!b)return false;b.click();return true;})()`);
   // New classrooms start with a full-width whiteboard and the right pupil
   // panel is opened only when the teacher needs it.
   await waitFor(client, 'visible favorites dock and full board',
