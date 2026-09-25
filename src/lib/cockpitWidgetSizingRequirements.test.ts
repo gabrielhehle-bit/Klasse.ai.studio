@@ -244,3 +244,20 @@ test("Präsentationswidgets nutzen große Tafelflächen sichtbar aus", () => {
   assert.match(homeworkWidget, /const columns = size\.width >= 1280 \? 3 : size\.width >= 760 \? 2 : 1/);
   assert.match(homeworkWidget, /gridTemplateColumns: `repeat\(\$\{columns\}, minmax\(0, 1fr\)\)`/);
 });
+
+
+test("Große Arbeitswidgets skalieren Inhalt und Aktionen", () => {
+  assert.match(todoWidget, /const roomyTodo = isFullscreen \|\| \(size\.width >= 780 && size\.height >= 480\)/);
+  assert.match(todoWidget, /roomyTodo\s+\? 'text-xl font-bold'/);
+  assert.match(todoWidget, /roomyTodo \? 'p-3\.5 gap-3\.5'/);
+
+  assert.match(classRewardWidget, /const roomyReward = isFullscreen \|\| \(size\.width >= 720 && size\.height >= 500\)/);
+  assert.match(classRewardWidget, /roomyReward \? 560 : 480/);
+  assert.match(classRewardWidget, /roomyReward \? 'h-14 text-lg' : 'h-11 text-sm'/);
+
+  assert.match(noiseScaleWidget, /const roomyScale = isFullscreen \|\| size\.category === 'fullscreen' \|\| \(size\.isLarge && size\.width >= 700 && size\.height >= 480\)/);
+  assert.match(noiseScaleWidget, /\) : roomyScale \? \(/);
+
+  assert.doesNotMatch(qrWidget, /min-h-\[38px\]/);
+  assert.match(qrWidget, /qrcode-copy-btn[\s\S]*min-h-11/);
+});
