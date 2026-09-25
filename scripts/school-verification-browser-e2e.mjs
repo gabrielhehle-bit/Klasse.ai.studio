@@ -421,6 +421,68 @@ async function verifyDirectCockpitNavigation(client) {
     String.raw`(() => {const p=document.getElementById('klassio-board-tools');return !!p&&getComputedStyle(p).display!=='none'&&p.textContent.includes('Stift')&&p.textContent.includes('Text')&&p.textContent.includes('Radierer')&&!!p.querySelector('select[aria-label="Papierart der Unterrichtsfläche"]');})()`);
   await evaluate(client,
     String.raw`(() => {const b=document.querySelector('#klassio-board-tools button[aria-label="Schreiben und Papier schließen"]');if(!b)return false;b.click();return true;})()`);
+
+  const toolbarTouch = await evaluate(client,
+    String.raw`(() => {
+      const selectors=[
+        'button[aria-label="Vollbild öffnen"],button[aria-label="Vollbild beenden"]',
+        'button[aria-label="Vorlage erstellen"]',
+        'button[aria-label="Weitere Optionen und Layout-Werkzeuge"]'
+      ];
+      const controls=selectors.map(selector=>{
+        const button=document.querySelector(selector);
+        if(!button)return {selector,missing:true};
+        const r=button.getBoundingClientRect();
+        return {selector,w:r.width,h:r.height};
+      });
+      return {controls};
+    })()`);
+  if (toolbarTouch.controls.some(control => control.missing || control.w < 43 || control.h < 43)) {
+    throw new Error('Cockpit toolbar keeps 44px touch targets: ' + JSON.stringify(toolbarTouch));
+  }
+
+  const openedCockpitOptions = await evaluate(client,
+    String.raw`(() => {const b=document.querySelector('button[aria-label="Weitere Optionen und Layout-Werkzeuge"]');if(!b)return false;b.click();return true;})()`);
+  if (!openedCockpitOptions) throw new Error('Could not open cockpit options menu.');
+  await waitFor(client, 'cockpit options menu open',
+    String.raw`Boolean(document.querySelector('[role="menu"][aria-label="Weitere Cockpit-Optionen"]'))`);
+  const optionsTouch = await evaluate(client,
+    String.raw`(() => {
+      const menu=document.querySelector('[role="menu"][aria-label="Weitere Cockpit-Optionen"]');
+      if(!menu)return {error:'missing options menu'};
+      const controls=[...menu.querySelectorAll('button')].filter(button=>!button.disabled).map(button=>{
+        const r=button.getBoundingClientRect();
+        return {text:(button.textContent||'').trim(),w:r.width,h:r.height};
+      });
+      return {controls};
+    })()`);
+  if (optionsTouch.error || optionsTouch.controls.some(control => control.w < 43 || control.h < 43)) {
+    throw new Error('Cockpit options keep 44px touch targets: ' + JSON.stringify(optionsTouch));
+  }
+
+  const openedSlots = await evaluate(client,
+    String.raw`(() => {const menu=document.querySelector('[role="menu"][aria-label="Weitere Cockpit-Optionen"]');const b=[...(menu?.querySelectorAll('button')||[])].find(button=>(button.textContent||'').includes('Layouts & Schnell-Slots'));if(!b)return false;b.click();return true;})()`);
+  if (!openedSlots) throw new Error('Could not open layouts and quick slots.');
+  await waitFor(client, 'layout slots dialog open',
+    String.raw`Boolean(document.querySelector('[role="dialog"][aria-label="Layouts und Schnell-Slots"]'))`);
+  const slotTouch = await evaluate(client,
+    String.raw`(() => {
+      const dialog=document.querySelector('[role="dialog"][aria-label="Layouts und Schnell-Slots"]');
+      if(!dialog)return {error:'missing slot dialog'};
+      const controls=[...dialog.querySelectorAll('button,input')].filter(control=>!control.disabled).map(control=>{
+        const r=control.getBoundingClientRect();
+        return {tag:control.tagName,text:(control.textContent||'').trim(),w:r.width,h:r.height};
+      });
+      return {controls};
+    })()`);
+  if (slotTouch.error || slotTouch.controls.some(control => control.w < 43 || control.h < 43)) {
+    throw new Error('Layout slots keep 44px touch targets: ' + JSON.stringify(slotTouch));
+  }
+  const closedSlots = await evaluate(client,
+    String.raw`(() => {const b=document.querySelector('button[aria-label="Layouts und Schnell-Slots schließen"]');if(!b)return false;b.click();return true;})()`);
+  if (!closedSlots) throw new Error('Could not close layouts and quick slots.');
+  console.log('✓ Cockpit toolbar, options and layout slots keep 44px touch targets');
+
   // New classrooms start with a full-width whiteboard and the right pupil
   // panel is opened only when the teacher needs it.
   await waitFor(client, 'visible favorites dock and full board',
