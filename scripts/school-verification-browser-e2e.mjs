@@ -282,7 +282,51 @@ async function verifyRandomPickerInRealBrowser(client) {
   if (!pickerOpened) throw new Error('Bottom dock could not open the complete widget catalogue.');
   await waitFor(client, 'widget catalogue open',
     String.raw`Boolean(document.querySelector('input[aria-label="Widget suchen"]'))`);
+
+  // The picker must remain comfortable on a narrow teaching device: header
+  // actions stay touch-safe, categories become a horizontal rail and the
+  // search gets its own full-width row instead of being squeezed.
+  await client.send('Emulation.setDeviceMetricsOverride', { width: 640, height: 720, deviceScaleFactor: 1, mobile: false });
+  await sleep(200);
+  const compactLibrary = await evaluate(client,
+    String.raw`(() => {
+      const library=document.querySelector('[role="dialog"][aria-label="Widget-Bibliothek"]');
+      const search=document.querySelector('.klassio-widget-library-search');
+      const categoryRail=document.querySelector('.klassio-widget-library-sidebar');
+      const settings=document.querySelector('button[data-widget-library-action="settings"]');
+      const close=document.querySelector('button[data-widget-library-action="close"]');
+      if(!library||!search||!categoryRail||!settings||!close)return {error:'missing widget library parts'};
+      const lib=library.getBoundingClientRect();
+      const s=search.getBoundingClientRect();
+      const sr=getComputedStyle(categoryRail);
+      const controls=[settings,close].map(button=>{const r=button.getBoundingClientRect();return {w:r.width,h:r.height};});
+      return {
+        left:lib.left,right:lib.right,top:lib.top,bottom:lib.bottom,
+        searchWidth:s.width,searchTop:s.top,settingsTop:settings.getBoundingClientRect().top,
+        railDisplay:sr.display,railOverflowX:sr.overflowX,railOverflowY:sr.overflowY,
+        controls
+      };
+    })()`);
+  if (
+    compactLibrary.error ||
+    compactLibrary.left < -1 || compactLibrary.right > 641 ||
+    compactLibrary.top < -1 || compactLibrary.bottom > 721 ||
+    compactLibrary.searchWidth < 520 ||
+    compactLibrary.searchTop <= compactLibrary.settingsTop ||
+    compactLibrary.railDisplay !== 'flex' ||
+    !['auto','scroll'].includes(compactLibrary.railOverflowX) ||
+    compactLibrary.railOverflowY !== 'hidden' ||
+    compactLibrary.controls.some(control => control.w < 43 || control.h < 43)
+  ) {
+    throw new Error('Widget library mobile layout is cramped or unsafe: ' + JSON.stringify(compactLibrary));
+  }
+  console.log('✓ Widget library fits 640x720 with full-width search and horizontal categories');
+  await client.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1100, deviceScaleFactor: 1, mobile: false });
+  await sleep(150);
+
   await setInputByLabel(client, 'Widget suchen', 'Zufallsauswahl');
+  await waitFor(client, 'global widget search status',
+    String.raw`(() => {const status=[...document.querySelectorAll('[role="status"]')].find(el=>el.textContent.includes('Suche in allen Widgets'));const all=[...document.querySelectorAll('.klassio-widget-library-sidebar button')].find(b=>b.textContent.includes('Alle Widgets'));return !!status&&status.textContent.includes('Zufallsauswahl')&&!!all&&String(all.className).includes('bg-indigo-500');})()`);
   await waitFor(client, 'random widget catalogue entry',
     String.raw`Boolean(document.querySelector('button[aria-label="Zufallsauswahl hinzufügen"]:not(:disabled)'))`);
   const addedRandomWidget = await evaluate(client,
