@@ -25,6 +25,11 @@ const zahlenraumWidget = readFileSync("src/components/cockpit/widgets/Zahlenraum
 const mentalMathWidget = readFileSync("src/components/cockpit/widgets/KopfrechenStudio.tsx", "utf8");
 const fractionWidget = readFileSync("src/components/cockpit/widgets/FractionVisualizer.tsx", "utf8");
 const musicSoundsWidget = readFileSync("src/components/cockpit/widgets/MusicSoundsStudio.tsx", "utf8");
+const dutiesWidget = readFileSync("src/components/cockpit/widgets/DiensteWidget.tsx", "utf8");
+const qrWidget = readFileSync("src/components/cockpit/widgets/QRCodeWidget.tsx", "utf8");
+const imageWidget = readFileSync("src/components/cockpit/widgets/ImageWidget.tsx", "utf8");
+const vocabularyWidget = readFileSync("src/components/cockpit/widgets/LernwoerterStudioWidget.tsx", "utf8");
+const legacyWidgetContents = readFileSync("src/components/cockpit/CockpitWidgetContents.tsx", "utf8");
 
 test("Cockpit-Widgets: jeder Typ erhält eine sichere Mindestgröße", () => {
   assert.match(widgetLayout, /DEFAULT_WIDGET_MIN_SIZE/);
@@ -165,4 +170,23 @@ test("Arbeitsauftrag und Mathe-/Musik-Kernwidgets unterschreiten keine 44px-Touc
   assert.match(mentalMathWidget, /min-w-11/);
   assert.match(fractionWidget, /min-h-11 px-3 py-1\.5/);
   assert.match(musicSoundsWidget, /min-h-11 rounded-lg border border-current\/20 px-3/);
+});
+
+
+test("Klassendienste, QR, Bild, Lernwörter und Rätsel sind im Kernkatalog touch-sicher", () => {
+  assert.doesNotMatch(dutiesWidget, /min-h-10 rounded-lg border border-slate-300 px-3/);
+  assert.match(dutiesWidget, /min-h-11 min-w-11/);
+
+  assert.doesNotMatch(qrWidget, /min-h-\[(?:34|40)px\]/);
+  assert.doesNotMatch(qrWidget, /min-w-\[(?:34|40)px\]/);
+  assert.match(qrWidget, /min-h-11/);
+
+  assert.doesNotMatch(imageWidget, /className="p-1 rounded-md hover:bg-rose-100/);
+  assert.match(imageWidget, /min-h-11 min-w-11/);
+
+  assert.doesNotMatch(vocabularyWidget, /min-h-\[(?:32|36|40)px\]/);
+  assert.doesNotMatch(vocabularyWidget, /min-w-\[(?:32|36)px\]/);
+  assert.match(vocabularyWidget, /min-h-11/);
+
+  assert.match(legacyWidgetContents, /min-h-11 px-2\.5 rounded-lg bg-emerald-500/);
 });
