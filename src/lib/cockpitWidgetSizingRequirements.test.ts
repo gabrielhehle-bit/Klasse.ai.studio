@@ -20,6 +20,11 @@ const noiseMeterWidget = readFileSync("src/components/cockpit/widgets/NoiseMeter
 const noiseScaleWidget = readFileSync("src/components/cockpit/widgets/NoiseScaleWidget.tsx", "utf8");
 const timelineWidget = readFileSync("src/components/cockpit/widgets/TimelineWidget.tsx", "utf8");
 const todoWidget = readFileSync("src/components/cockpit/widgets/TodoWidget.tsx", "utf8");
+const instructionWidget = readFileSync("src/components/cockpit/widgets/InstructionWidget.tsx", "utf8");
+const zahlenraumWidget = readFileSync("src/components/cockpit/widgets/ZahlenraumStudio.tsx", "utf8");
+const mentalMathWidget = readFileSync("src/components/cockpit/widgets/KopfrechenStudio.tsx", "utf8");
+const fractionWidget = readFileSync("src/components/cockpit/widgets/FractionVisualizer.tsx", "utf8");
+const musicSoundsWidget = readFileSync("src/components/cockpit/widgets/MusicSoundsStudio.tsx", "utf8");
 
 test("Cockpit-Widgets: jeder Typ erhält eine sichere Mindestgröße", () => {
   assert.match(widgetLayout, /DEFAULT_WIDGET_MIN_SIZE/);
@@ -145,4 +150,19 @@ test("Uhr, Ampel, Lautstärke, Tagesablauf und To-Do bleiben touch-sicher", () =
   assert.match(todoWidget, /min-h-11 rounded-lg border px-3/);
   assert.match(todoWidget, /shrink-0 min-h-11 min-w-11 p-2/);
   assert.doesNotMatch(todoWidget, /className="p-1\.5 rounded text-slate-400/);
+});
+
+
+test("Arbeitsauftrag und Mathe-/Musik-Kernwidgets unterschreiten keine 44px-Touchziele", () => {
+  for (const source of [instructionWidget, zahlenraumWidget, mentalMathWidget, fractionWidget, musicSoundsWidget]) {
+    assert.doesNotMatch(source, /min-h-\[(?:32|36|38|40|42)px\]/);
+    assert.doesNotMatch(source, /className="min-h-(?:8|9|10) /);
+  }
+
+  assert.match(instructionWidget, /min-h-11 rounded-lg border border-current\/20 px-3/);
+  assert.match(zahlenraumWidget, /min-h-11 min-w-11/);
+  assert.match(mentalMathWidget, /min-h-11/);
+  assert.match(mentalMathWidget, /min-w-11/);
+  assert.match(fractionWidget, /min-h-11 px-3 py-1\.5/);
+  assert.match(musicSoundsWidget, /min-h-11 rounded-lg border border-current\/20 px-3/);
 });
