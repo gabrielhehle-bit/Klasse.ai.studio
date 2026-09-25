@@ -44,5 +44,5 @@ test('Timer uses its measured content rectangle for the ring and digits without 
   assert.match(timer, /style=\{\{ width: ringPixels, height: ringPixels/);
   assert.match(timer, /style=\{\{ fontSize: clockTextPixels \}\}/);
   assert.doesNotMatch(timer, /w-36 h-36 max-h-\[38vh\]/);
-  assert.match(timer, /veryCompactTimer \? 'min-h-\[40px\]' : 'min-h-\[44px\]'/);
+  assert.match(timer, /w-full min-h-11 px-4 rounded-xl/);
 });
