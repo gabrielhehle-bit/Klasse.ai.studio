@@ -154,11 +154,11 @@ export const TrafficLightWidget: React.FC<TrafficLightWidgetProps> = ({
       ref={containerRef}
       role="region"
       aria-label={`Arbeitsmodus: ${activeMode.label}`}
-      className={`w-full h-full flex flex-col justify-between overflow-hidden select-none p-3 sm:p-4 transition-colors relative ${textColor} ${
+      className={`w-full h-full flex flex-col justify-between overflow-hidden select-none ${isCompact ? 'p-1.5' : 'p-3 sm:p-4'} transition-colors relative ${textColor} ${
         currentIsLight ? 'bg-slate-50/70' : 'bg-zinc-950/70'
       }`}
     >
-      <nav aria-label="Lautstärke und Arbeitsampel" className="mb-2 grid shrink-0 grid-cols-3 gap-1">
+      <nav aria-label="Lautstärke und Arbeitsampel" className={`${isCompact ? 'mb-1' : 'mb-2'} grid shrink-0 grid-cols-3 gap-1`}>
         {([
           ['ampel', 'Arbeitsampel'],
           ['vorgabe', 'Lautstärke'],
@@ -166,7 +166,7 @@ export const TrafficLightWidget: React.FC<TrafficLightWidgetProps> = ({
         ] as const).map(([key, label]) => <button type="button" key={key}
           aria-pressed={view === key} title={label}
           onClick={() => setView(key)}
-          className={`min-h-10 min-w-0 rounded-xl border px-1 py-1 text-[10px] font-bold sm:text-xs ${view === key
+          className={`${isCompact ? 'min-h-9' : 'min-h-10'} min-w-0 rounded-xl border px-1 py-1 text-[10px] font-bold sm:text-xs ${view === key
             ? 'border-indigo-400 bg-indigo-100 text-indigo-900'
             : currentIsLight ? 'border-slate-200 bg-white text-slate-700' : 'border-zinc-700 bg-zinc-900 text-zinc-200'}`}>
           {label}
@@ -186,9 +186,9 @@ export const TrafficLightWidget: React.FC<TrafficLightWidgetProps> = ({
         <div className="flex flex-col justify-between h-full w-full">
           {/* Active Mode Card */}
           <div
-            className={`my-auto p-3 rounded-2xl border transition-all text-center flex flex-col items-center justify-center ${cardBg} ${borderColor} shadow-xs`}
+            className={`my-auto ${size.height < 300 ? 'p-2' : 'p-3'} rounded-2xl border transition-all text-center flex flex-col items-center justify-center ${cardBg} ${borderColor} shadow-xs`}
           >
-            <div className="text-3xl mb-1">{activeMode.icon}</div>
+            <div className={`${size.height < 300 ? 'text-4xl' : 'text-3xl'} mb-1`}>{activeMode.icon}</div>
             <h2 className="text-lg font-black tracking-tight leading-snug line-clamp-1">
               {activeMode.label}
             </h2>
