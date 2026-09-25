@@ -114,6 +114,17 @@ test("Cockpit: Widgets bleiben ohne separaten Layout-Modus immer verschiebbar", 
   assert.match(cockpitWidget, /layoutLocked \? "auto" : "none"/);
 });
 
+test("Cockpit: Widgets folgen beim Verschieben frei dem Zeiger ohne Magnetraster", () => {
+  const dragStart = cockpitWidget.indexOf("const handlePointerDownDrag");
+  const dragEnd = cockpitWidget.indexOf("const handlePointerDownResize", dragStart);
+  assert.ok(dragStart >= 0 && dragEnd > dragStart);
+  const drag = cockpitWidget.slice(dragStart, dragEnd);
+  assert.match(drag, /dragStartPos\.current\.left \+ deltaX/);
+  assert.match(drag, /dragStartPos\.current\.top \+ deltaY/);
+  assert.doesNotMatch(drag, /GRID_SIZE|Math\.round\(newLeftPixels|Math\.round\(newTopPixels/);
+  assert.match(drag, /pointercancel/);
+});
+
 test("Cockpit: Widgets schließen verändert die weiße Smartboard-Fläche nicht", () => {
   assert.match(teachingSurface, /Alle Widgets schließen/);
   assert.doesNotMatch(teachingSurface, /Unterrichtshilf/);
