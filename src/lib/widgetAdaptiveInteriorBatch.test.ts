@@ -40,9 +40,9 @@ test('Class goal visualizations grow with inner width and height rather than fix
 });
 
 test('Timer uses its measured content rectangle for the ring and digits without resizing controls', () => {
-  assert.match(timer, /ringPixels = Math\.max\(92, Math\.min\(size\.width \* 0\.62, size\.height - 242, 440\)\)/);
+  assert.match(timer, /ringPixels = Math\.max\(92, Math\.min\(size\.width \* 0\.68, size\.height - 214, 440\)\)/);
   assert.match(timer, /style=\{\{ width: ringPixels, height: ringPixels/);
   assert.match(timer, /style=\{\{ fontSize: clockTextPixels \}\}/);
   assert.doesNotMatch(timer, /w-36 h-36 max-h-\[38vh\]/);
-  assert.match(timer, /min-h-\[44px\]/);
+  assert.match(timer, /veryCompactTimer \? 'min-h-\[40px\]' : 'min-h-\[44px\]'/);
 });
