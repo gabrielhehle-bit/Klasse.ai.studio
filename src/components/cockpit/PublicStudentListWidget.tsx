@@ -83,7 +83,8 @@ export function PublicStudentListWidget({
   }
 
   return (
-    <section ref={containerRef} aria-label="Öffentliche Schülerliste und Pluspunkte" className="flex h-full min-h-0 flex-col gap-2 p-2 text-slate-900">
+    <section ref={containerRef} aria-label="Öffentliche Schülerliste und Pluspunkte"
+      className={`flex h-full min-h-0 flex-col text-slate-900 ${dense ? 'gap-1 p-1' : 'gap-2 p-2'}`}>
       <div className="flex shrink-0 items-center justify-between gap-1">
         <h3 className={`${dense ? 'text-xs' : 'text-sm'} font-extrabold`}>✨ Unsere Pluspunkte · {students.length}</h3>
         {dense && lastAwardedId && (
@@ -111,7 +112,7 @@ export function PublicStudentListWidget({
           <p className="text-xs text-slate-600">Falls das Gerät sehr klein ist, aktiviere den Vollbildmodus.</p>
         </div>
       ) : (
-      <div className={gridMode ? 'grid min-h-0 flex-1 content-start gap-1.5 overflow-hidden' : dense ? 'grid min-h-0 flex-1 grid-cols-2 content-start gap-1 overflow-y-auto' : 'min-h-0 flex-1 space-y-2 overflow-y-auto'}
+      <div className={gridMode ? 'grid min-h-0 flex-1 content-start gap-1.5 overflow-hidden' : dense ? 'min-h-0 flex-1 space-y-1 overflow-y-auto' : 'min-h-0 flex-1 space-y-2 overflow-y-auto'}
         style={gridMode ? { gridTemplateColumns: `repeat(${grid.columns}, minmax(0, 1fr))` } : undefined} role="list">
         {students.map((student: Student, index: number) => {
           const points = Math.max(0, getTodayPoints(student.id));
@@ -137,7 +138,7 @@ export function PublicStudentListWidget({
           return (
             <div key={student.id} role="listitem"
               style={gridMode ? { minHeight: 58, height: Math.min(100, grid.cardHeight) } : undefined}
-              className={`min-w-0 rounded-2xl border-2 shadow-sm ${cardTone} ${gridMode ? 'px-1.5 py-1' : dense ? 'px-1 py-0.5' : 'px-3 py-2'}`}>
+              className={`min-w-0 shadow-sm ${cardTone} ${gridMode ? 'rounded-2xl border-2 px-1.5 py-1' : dense ? 'rounded-xl border px-1.5 py-0.5' : 'rounded-2xl border-2 px-3 py-2'}`}>
               <div className="flex min-w-0 items-center justify-between gap-1">
                 <div className="flex min-w-0 flex-1 items-center gap-1">
                   {showStudentEmoji && student.emoji && (
@@ -152,25 +153,25 @@ export function PublicStudentListWidget({
                         onClick={() => nextBehaviorStage && onBehaviorStageChange(student.id, nextBehaviorStage.id)}
                         aria-label={`Verhalten von ${labels.get(student.id)}: ${behaviorStage.label}; ${nextBehaviorStage ? `mit einem Klick auf ${nextBehaviorStage.label} weiterstellen` : 'keine weitere Stufe vorhanden'}`}
                         title={nextBehaviorStage ? `${behaviorStage.label} → ${nextBehaviorStage.label}` : `${behaviorStage.label}: Verhaltensstufen in der Notenmappe einstellen.`}
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:opacity-70 ${behaviorColor}`}>
+                        className={`flex shrink-0 items-center justify-center shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:opacity-70 ${dense ? 'h-8 w-8 rounded-lg text-base' : 'h-10 w-10 rounded-xl text-xl'} ${behaviorColor}`}>
                         {behaviorStage.icon || '●'}
                       </button>
                     ) : (
                       <span aria-hidden="true" title={`Verhalten: ${behaviorStage.label}`}
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl shadow-sm ${behaviorColor}`}>
+                        className={`flex shrink-0 items-center justify-center shadow-sm ${dense ? 'h-8 w-8 rounded-lg text-base' : 'h-10 w-10 rounded-xl text-xl'} ${behaviorColor}`}>
                         {behaviorStage.icon || '●'}
                       </span>
                     )
                   )}
                   <div className="min-w-0 flex-1">
-                    <span className={`block break-words font-extrabold leading-tight text-slate-900 ${gridMode ? 'text-xs sm:text-sm' : dense ? 'text-[11px]' : 'text-base'}`}>{labels.get(student.id)}</span>
+                    <span className={`block break-words font-extrabold leading-tight text-slate-900 ${gridMode ? 'text-xs sm:text-sm' : dense ? 'text-xs' : 'text-base'}`}>{labels.get(student.id)}</span>
                     <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
-                      <span className={`block font-bold text-amber-800 ${dense ? 'text-[11px]' : 'text-sm'}`} aria-label={`${points} Pluspunkte`}>
-                        {gridMode || dense ? `⭐ ${points}` : `${'⭐'.repeat(Math.min(points, 8))}${points > 8 ? '…' : ''} ${points}`}
+                      <span className={`block font-bold text-amber-800 ${dense ? 'text-[10px]' : 'text-sm'}`} aria-label={`${points} Pluspunkte`}>
+                        {dense ? `${points} P.` : gridMode ? `⭐ ${points}` : `${'⭐'.repeat(Math.min(points, 8))}${points > 8 ? '…' : ''} ${points}`}
                       </span>
                       {showBehavior && behaviorStage && (
                         <span aria-label={`Verhaltensstatus: ${behaviorStage.label}`} className="truncate text-[10px] font-bold text-slate-700">
-                          {!sidebarCompact && behaviorStage.label}
+                          {behaviorStage.label}
                         </span>
                       )}
                     </div>
@@ -193,7 +194,7 @@ export function PublicStudentListWidget({
                       setLastAwardedId(student.id);
                       setRecentlyAwardedId(student.id);
                     }}
-                    className={`${dense ? 'min-h-10 min-w-10 px-1 text-xs' : 'min-h-11 min-w-11 px-3 text-lg'} rounded-xl bg-emerald-600 font-extrabold text-white shadow-sm transition-transform hover:bg-emerald-700 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600`}
+                    className={`${dense ? 'min-h-9 min-w-9 px-1 text-xs rounded-lg' : 'min-h-11 min-w-11 px-3 text-lg rounded-xl'} bg-emerald-600 font-extrabold text-white shadow-sm transition-transform hover:bg-emerald-700 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600`}
                     aria-label={`Pluspunkt für ${labels.get(student.id)} vergeben`}
                   >{recentlyAwardedId === student.id && !dense ? '✓ +1' : '+1'}</button>
                 </div>
