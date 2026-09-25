@@ -80,8 +80,8 @@ export const TrafficLightWidget: React.FC<TrafficLightWidgetProps> = ({
 
   const isCompact = size.category === 'compact';
   const isLarge = size.category === 'large';
-  const roomyDisplay = isFullscreen || (size.width >= 720 && size.height >= 500);
   const isFullscreen = size.category === 'fullscreen';
+  const roomyDisplay = isFullscreen || (size.width >= 720 && size.height >= 500);
 
   const textColor = currentIsLight ? 'text-slate-900' : 'text-slate-100';
   const subTextColor = currentIsLight ? 'text-slate-500' : 'text-zinc-400';
