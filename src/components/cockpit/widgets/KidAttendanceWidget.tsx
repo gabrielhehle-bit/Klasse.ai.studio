@@ -358,7 +358,8 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   const renderStudentCard = (student: Student, cardWidth = (size.width - 32) / studentGrid.columns, cardHeight = studentGrid.cardHeight) => {
     const displayName = displayNames.get(student.id) || student.vorname;
     const compactCard = cardWidth < 190 || cardHeight < 68;
-    const tinyCard = cardWidth < 155 || cardHeight < 53;
+    const tinyCard = cardWidth < 145 || cardHeight < 53;
+    const microCard = cardWidth < 122 || cardHeight < 47;
     const { status, isPreExistingAbsent, delayMinutes } = getStudentAttendanceStatus(student.id, app, todayStr);
     const isJustCheckedIn = recentlyTappedId === student.id;
     const canTapMood = moodEnabled && checkInMode === 'teacher' && status === 'present';
@@ -432,9 +433,10 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
 
           <div className="min-w-0 flex-1">
             <span
-              className={`block whitespace-normal break-words font-black leading-tight tracking-tight ${
-                tinyCard ? 'text-xs' : compactCard ? 'text-sm' : size.width >= 850 ? 'text-lg' : 'text-base'
+              className={`block whitespace-normal break-words font-black leading-[1.05] tracking-tight ${
+                microCard ? 'text-[10px]' : tinyCard ? 'text-[11px]' : compactCard ? 'text-sm' : size.width >= 850 ? 'text-lg' : 'text-base'
               }`}
+              style={{ overflowWrap: 'anywhere' }}
             >
               {displayName}
             </span>
@@ -540,19 +542,21 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
       className="w-full h-full flex flex-col min-h-0 select-none font-sans overflow-hidden relative"
     >
       {/* Nur eine flache Kopfzeile im kleinen Widget: fast alle Pixel gehören den Kinderkarten. */}
-      <div className={`flex shrink-0 items-center justify-between gap-1 border-b ${compactControls ? 'min-h-12 px-2 py-1' : 'px-3 py-2 sm:px-4 sm:py-2.5'} ${
+      <div className={`flex shrink-0 items-center justify-between gap-1 border-b ${compactControls ? 'min-h-10 px-1.5 py-0.5' : 'px-3 py-2 sm:px-4 sm:py-2.5'} ${
         currentIsLight ? 'bg-slate-50/95 border-slate-200 text-slate-800' : 'bg-zinc-900/95 border-zinc-800 text-zinc-100'
       }`}>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 min-w-0">
-            {!compactControls && <span className="text-xl leading-none" aria-hidden="true">🖐️</span>}
-            <strong className={`min-w-0 truncate font-black ${compactControls ? 'text-xs' : 'text-sm'}`}>Ich bin da!</strong>
-            {!compactControls && <span className="text-[11px] font-bold tabular-nums opacity-70">{formattedToday}</span>}
-          </div>
-          <p className={`truncate font-semibold leading-tight ${compactControls ? 'text-[11px]' : 'mt-0.5 text-xs'}`}
+          {!compactControls && (
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-xl leading-none" aria-hidden="true">🖐️</span>
+              <strong className="min-w-0 truncate text-sm font-black">Ich bin da!</strong>
+              <span className="text-[11px] font-bold tabular-nums opacity-70">{formattedToday}</span>
+            </div>
+          )}
+          <p className={`truncate font-semibold leading-tight ${compactControls ? 'text-[10px]' : 'mt-0.5 text-xs'}`}
             aria-live="polite">
             {compactControls
-              ? `${summary.present}/${summary.total} da · ${summary.open} offen`
+              ? summary.isComplete ? `${summary.total}/${summary.total} da · vollständig` : `${summary.present}/${summary.total} da · ${summary.open} offen`
               : summary.isComplete
                 ? `Alle ${summary.total} Kinder erfasst`
                 : `${summary.present} von ${summary.total} da · ${summary.open} noch offen`}
