@@ -396,7 +396,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
             <div className="flex items-center gap-2">
               <button
                 onClick={handleClearTask}
-                className={`min-h-[40px] px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+                className={`min-h-11 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ${
                   clearConfirmState === 'confirm'
                     ? 'bg-rose-500 text-white border-rose-500 animate-pulse'
                     : isDarkCanvas
@@ -414,7 +414,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
 
               <button
                 onClick={() => setIsEditing(true)}
-                className={`min-h-[40px] px-3.5 rounded-xl border text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95 ${
+                className={`min-h-11 px-3.5 rounded-xl border text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95 ${
                   isDarkCanvas
                     ? 'bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-500'
                     : 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600'
@@ -446,13 +446,13 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                   className="mt-2 flex items-center justify-center gap-2">
                   <button type="button" disabled={safeTextPage === 0}
                     onClick={() => setTextPage(page => Math.max(0, page - 1))}
-                    className="min-h-9 rounded-lg border border-current/20 px-3 text-xs font-bold disabled:opacity-30">
+                    className="min-h-11 rounded-lg border border-current/20 px-3 text-xs font-bold disabled:opacity-30">
                     ← Zurück
                   </button>
                   <span aria-live="polite" className="text-xs font-bold">Text {safeTextPage + 1}/{assignmentPages.length}</span>
                   <button type="button" disabled={safeTextPage + 1 >= assignmentPages.length}
                     onClick={() => setTextPage(page => Math.min(assignmentPages.length - 1, page + 1))}
-                    className="min-h-9 rounded-lg border border-current/20 px-3 text-xs font-bold disabled:opacity-30">
+                    className="min-h-11 rounded-lg border border-current/20 px-3 text-xs font-bold disabled:opacity-30">
                     Weiter →
                   </button>
                 </div>}
@@ -500,7 +500,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                       className="flex items-center justify-center gap-2">
                       <button type="button" disabled={checklistWindow.page === 0}
                         onClick={() => setChecklistPage(page => Math.max(0, page - 1))}
-                        className="min-h-9 rounded-lg border border-current/20 px-3 text-xs font-bold disabled:opacity-30">
+                        className="min-h-11 rounded-lg border border-current/20 px-3 text-xs font-bold disabled:opacity-30">
                         ← Schritte
                       </button>
                       <span aria-live="polite" className="text-xs font-bold">
@@ -508,7 +508,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                       </span>
                       <button type="button" disabled={checklistWindow.page + 1 >= checklistWindow.pageCount}
                         onClick={() => setChecklistPage(page => Math.min(checklistWindow.pageCount - 1, page + 1))}
-                        className="min-h-9 rounded-lg border border-current/20 px-3 text-xs font-bold disabled:opacity-30">
+                        className="min-h-11 rounded-lg border border-current/20 px-3 text-xs font-bold disabled:opacity-30">
                         Weitere Schritte →
                       </button>
                     </div>}
@@ -616,7 +616,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                   <button
                     type="button"
                     onClick={handleCancelEdit}
-                    className="min-h-[40px] px-3 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white rounded-xl hover:bg-slate-200 dark:hover:bg-zinc-800 cursor-pointer"
+                    className="min-h-11 px-3 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white rounded-xl hover:bg-slate-200 dark:hover:bg-zinc-800 cursor-pointer"
                   >
                     Abbrechen
                   </button>
@@ -624,7 +624,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                 <button
                   type="button"
                   onClick={handleSaveAndShow}
-                  className="min-h-[42px] px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95"
+                  className="min-h-11 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95"
                 >
                   <Eye size={16} />
                   <span>Anzeigen</span>
@@ -839,7 +839,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                     <button
                       type="button"
                       onClick={() => handleRemoveChecklistItem(item.id)}
-                      className="p-1 rounded-lg text-rose-500 hover:bg-rose-500/10 cursor-pointer"
+                      className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-rose-500 hover:bg-rose-500/10 cursor-pointer"
                       title="Schritt entfernen"
                     >
                       <X size={14} />
@@ -869,7 +869,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                   type="button"
                   onClick={handleAddChecklistItem}
                   disabled={!newChecklistText.trim()}
-                  className="min-h-[38px] px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
+                  className="min-h-11 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
                 >
                   <Plus size={14} />
                   <span>Hinzufügen</span>
