@@ -9777,7 +9777,9 @@ ${content}
 
                                         let matchesCategory = false;
                                         if (activeWidgetCategory === "categories") {
-                                          matchesCategory = false;
+                                          matchesCategory = true;
+                                        } else if (activeWidgetCategory === "recent") {
+                                          matchesCategory = recentWidgetTypes.includes(item.type);
                                         } else if (
                                           activeWidgetCategory === "favorites"
                                         ) {
@@ -9798,19 +9800,16 @@ ${content}
                                       });
 
                                     if (
-                                      activeWidgetCategory === "categories" &&
+                                      activeWidgetCategory === "recent" &&
+                                      filteredList.length === 0 &&
                                       !query
                                     ) {
                                       return (
-                                        <div className="col-span-1 sm:col-span-2 lg:col-span-3 rounded-2xl border border-dashed border-slate-300 dark:border-white/15 bg-slate-50/80 dark:bg-white/[0.03] px-6 py-10 text-center">
-                                          <div className="mx-auto mb-3 w-11 h-11 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
-                                            <Grid3X3 size={20} />
-                                          </div>
-                                          <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
-                                            Wähle oben eine Kategorie
-                                          </p>
-                                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                            Oder tippe einen Begriff in die Suche. Dann durchsucht Klassio automatisch den gesamten Widget-Katalog.
+                                        <div className="col-span-full flex min-h-52 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 text-center">
+                                          <div className="mb-3 text-3xl" aria-hidden="true">🕘</div>
+                                          <p className="text-sm font-bold text-slate-800">Noch keine zuletzt verwendeten Widgets</p>
+                                          <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500">
+                                            Sobald du ein Widget öffnest, erscheint es hier für den schnellen Zugriff.
                                           </p>
                                         </div>
                                       );
