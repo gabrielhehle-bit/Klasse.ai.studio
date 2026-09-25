@@ -11,6 +11,9 @@ const timerWidget = readFileSync("src/components/cockpit/widgets/TimerWidget.tsx
 const randomNameWidget = readFileSync("src/components/cockpit/widgets/RandomNameWidget.tsx", "utf8");
 const groupsWidget = readFileSync("src/components/cockpit/widgets/GroupsWidget.tsx", "utf8");
 const weeklyPlanWidget = readFileSync("src/components/cockpit/widgets/ClassroomWeeklyPlanWidget.tsx", "utf8");
+const homeworkWidget = readFileSync("src/components/cockpit/widgets/HomeworkWidget.tsx", "utf8");
+const starsReviewWidget = readFileSync("src/components/cockpit/widgets/StarsReviewWidget.tsx", "utf8");
+const classRewardWidget = readFileSync("src/components/cockpit/widgets/ClassRewardWidget.tsx", "utf8");
 
 test("Cockpit-Widgets: jeder Typ erhält eine sichere Mindestgröße", () => {
   assert.match(widgetLayout, /DEFAULT_WIDGET_MIN_SIZE/);
@@ -90,4 +93,25 @@ test("Gemeinsamer Widget-Rahmen behält 44px-Touchziele auch bei engem Inhalt", 
   assert.match(cockpitWidget, /w-full min-h-11 px-2\.5 py-2 rounded-lg text-xs font-semibold/);
   assert.match(cockpitWidget, /w-full min-h-11 p-1\.5 rounded-lg text-sm font-bold border/);
   assert.match(cockpitWidget, /w-full min-h-11 py-1\.5 bg-indigo-500/);
+});
+
+
+test("Hausübungen, Sterne und Klassenziel behalten touch-sichere Bedienflächen", () => {
+  assert.doesNotMatch(homeworkWidget, /compact \? 'min-h-9/);
+  assert.match(homeworkWidget, /min-h-11 min-w-11/);
+  assert.match(homeworkWidget, /className={\`min-h-11 rounded-xl/);
+
+  assert.doesNotMatch(starsReviewWidget, /const button = compact \? 'min-h-9/);
+  assert.match(starsReviewWidget, /const button = compact \? 'min-h-11/);
+  // Ergebniszeilen dürfen kompakter sein: sie sind keine interaktiven Touch-Ziele.
+  assert.match(starsReviewWidget, /compact \? "min-h-10 gap-1/);
+
+  assert.doesNotMatch(classRewardWidget, /className="w-8 h-8 rounded-lg flex items-center justify-center/);
+  assert.match(classRewardWidget, /className="w-11 h-11 rounded-xl flex items-center justify-center/);
+  assert.match(classRewardWidget, /aria-label="Klassenziel einstellen"/);
+  assert.match(classRewardWidget, /className="min-h-11 w-full px-2\.5 py-1\.5/);
+  assert.match(classRewardWidget, /min-h-11 min-w-11 px-2 py-1 rounded-lg/);
+  assert.match(classRewardWidget, /w-11 h-11 rounded-xl text-base/);
+  assert.match(classRewardWidget, /min-h-11 py-1\.5 px-2 rounded-lg text-\[10px\]/);
+  assert.match(classRewardWidget, /flex-1 min-h-11 py-2 rounded-xl/);
 });
