@@ -409,12 +409,13 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
   // Measure the real remaining content area. Feedback, action buttons and
   // header wrapping must not randomly replace existing group cards with a
   // "needs more space" placeholder.
+  const compactGroupWidget = !isExpanded && (size.width < 520 || size.height < 390);
   const groupLayout = getGroupPageLayout(
     groupBodySize.width,
     groupBodySize.height,
     groups,
     groupPage,
-    { reservedHeight: 76 }, // content padding, page navigation and card gaps
+    { reservedHeight: compactGroupWidget ? 52 : 76 }, // keep more room for actual group cards
   );
   // In the all-groups view every segment stays mounted, not just the first page.
   // Compact widgets may page, but explicitly reveal every group in the expanded view.
@@ -477,19 +478,19 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
       {/* The teaching surface contains actions and results only.
           All group size, count, roster and pair preferences live under
           Widget hinzufügen → Widget-Einstellungen. */}
-      <div className={`shrink-0 flex flex-wrap items-center justify-between gap-2 border-b p-2 sm:p-3 ${
+      <div className={`shrink-0 flex flex-wrap items-center justify-between border-b ${compactGroupWidget ? 'gap-1 px-2 py-1' : 'gap-2 p-2 sm:p-3'} ${
         currentIsLight ? 'bg-white border-stone-200' : 'bg-stone-900/90 border-stone-800'
       }`}>
         <div className="min-w-0">
-          <p className="text-xs font-black">{groups.length > 0 ? "Nächste Einteilung: " : ""}{mode === 'count' ? `${targetValue} Gruppen` : `${targetValue}er-Gruppen`}</p>
-          <p className="text-xs opacity-70">{activeStudentIds.length} Kinder {studentScope === 'all' ? 'aus der Klasse' : 'heute anwesend'}</p>
+          <p className={`${compactGroupWidget ? 'text-[10px]' : 'text-xs'} font-black`}>{groups.length > 0 && !compactGroupWidget ? "Nächste Einteilung: " : ""}{mode === 'count' ? `${targetValue} Gruppen` : `${targetValue}er-Gruppen`}</p>
+          <p className={`${compactGroupWidget ? 'text-[10px]' : 'text-xs'} opacity-70`}>{activeStudentIds.length} Kinder {compactGroupWidget ? '' : (studentScope === 'all' ? 'aus der Klasse' : 'heute anwesend')}</p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
           {!isExpanded && groups.length > 0 && (
             <button type="button" onClick={() => setIsExpanded(true)}
               aria-label="Alle Gruppen anzeigen"
-              className="min-h-11 rounded-xl border border-indigo-200 px-3 text-xs font-bold text-indigo-700 dark:text-indigo-300">
-              Alle {groups.length} Gruppen anzeigen
+              className={`${compactGroupWidget ? 'min-h-9 px-2' : 'min-h-11 px-3'} rounded-xl border border-indigo-200 text-xs font-bold text-indigo-700 dark:text-indigo-300`}>
+              {compactGroupWidget ? '⛶ Alle' : `Alle ${groups.length} Gruppen anzeigen`}
             </button>
           )}
           {previousGroups && groups.length > 0 && (size.width >= 550 || isExpanded) && (
@@ -498,7 +499,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
               title="Vorherige Gruppeneinteilung wiederherstellen">↶ Rückgängig</button>
           )}
           <button type="button" onClick={() => handleGenerate()}
-            className="min-h-11 shrink-0 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-black text-white hover:bg-indigo-700">
+            className={`${compactGroupWidget ? 'min-h-9 px-3 py-1 text-xs' : 'min-h-11 px-4 py-2 text-sm'} shrink-0 rounded-xl bg-indigo-600 font-black text-white hover:bg-indigo-700`}>
             {groups.length === 0 ? 'Gruppen bilden' : 'Neu mischen'}
           </button>
         </div>
@@ -827,7 +828,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                   className={`min-h-0 rounded-2xl border-2 flex flex-col overflow-hidden shadow-xs transition-all ${palette.border} ${palette.bg}`}
                 >
                   {/* Gruppen Header */}
-                  <div className={`px-2.5 py-1.5 sm:px-3 sm:py-2 flex items-center justify-between shrink-0 ${palette.headerBg}`}>
+                  <div className={`${compactGroupWidget ? 'px-2 py-1' : 'px-2.5 py-1.5 sm:px-3 sm:py-2'} flex items-center justify-between shrink-0 ${palette.headerBg}`}>
                     <div className="flex items-center gap-1.5 truncate">
                       {group.symbol && <span className="text-sm">{group.symbol}</span>}
                       <h4 className="text-xs sm:text-sm font-black tracking-wide truncate">
@@ -852,7 +853,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                   </div>
 
                   {/* Schüler in dieser Gruppe */}
-                  <div className="min-h-0 flex-1 space-y-1 overflow-hidden p-1.5 sm:p-2">
+                  <div className={`min-h-0 flex-1 overflow-hidden ${compactGroupWidget ? 'space-y-0.5 p-1' : 'space-y-1 p-1.5 sm:p-2'}`}>
                     {segment.memberIds.map((studentId) => {
                       const student = allStudents.find((s) => s.id === studentId);
                       const displayName = student
@@ -864,7 +865,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                         <button
                           key={studentId}
                           onClick={() => handleStudentClick(studentId)}
-                          className={`w-full min-h-[44px] px-2.5 py-1.5 rounded-xl text-left font-bold flex items-center justify-between gap-1.5 transition-all cursor-pointer border ${
+                          className={`w-full ${compactGroupWidget ? 'min-h-[38px] px-2 py-1 rounded-lg gap-1' : 'min-h-[44px] px-2.5 py-1.5 rounded-xl gap-1.5'} text-left font-bold flex items-center justify-between transition-all cursor-pointer border ${
                             isSelected
                               ? 'bg-amber-400 text-stone-900 border-amber-500 shadow-md ring-2 ring-amber-500 scale-[1.02]'
                               : selectedStudentForAction
@@ -873,7 +874,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                           }`}
                         >
                           <span className={`min-w-0 break-words text-left leading-snug ${
-                            size.isXL ? 'text-base font-black' : 'text-xs sm:text-sm font-extrabold'
+                            size.isXL ? 'text-base font-black' : compactGroupWidget ? 'text-[11px] font-extrabold' : 'text-xs sm:text-sm font-extrabold'
                           }`}>
                             {displayName}
                           </span>
@@ -896,14 +897,14 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
             })}
           </div>
           {!isExpanded && groupLayout.pageCount > 1 && (
-            <nav aria-label="Gruppenseiten" className="flex shrink-0 items-center justify-between gap-2 text-xs font-bold">
+            <nav aria-label="Gruppenseiten" className={`flex shrink-0 items-center justify-between font-bold ${compactGroupWidget ? 'gap-1 text-[10px]' : 'gap-2 text-xs'}`}>
               <button type="button" aria-label="Vorherige Gruppenseite"
-                className="min-h-11 rounded-lg border px-3 disabled:opacity-40"
+                className={`${compactGroupWidget ? 'min-h-9 px-2' : 'min-h-11 px-3'} rounded-lg border disabled:opacity-40`}
                 disabled={groupLayout.page === 0}
                 onClick={() => setGroupPage(groupLayout.page - 1)}>← Zurück</button>
               <span aria-live="polite" className="tabular-nums">{groupLayout.page + 1} / {groupLayout.pageCount} · {groups.length} Gruppen</span>
               <button type="button" aria-label="Nächste Gruppenseite"
-                className="min-h-11 rounded-lg border px-3 disabled:opacity-40"
+                className={`${compactGroupWidget ? 'min-h-9 px-2' : 'min-h-11 px-3'} rounded-lg border disabled:opacity-40`}
                 disabled={groupLayout.page >= groupLayout.pageCount - 1}
                 onClick={() => setGroupPage(groupLayout.page + 1)}>Weiter →</button>
             </nav>
@@ -919,7 +920,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
       )}
 
       {/* Footer Schnellübersicht */}
-      {groups.length > 0 && (
+      {groups.length > 0 && !compactGroupWidget && (
         <div className={`shrink-0 px-3 py-1.5 border-t flex items-center justify-between text-[11px] ${
           currentIsLight ? 'bg-stone-100 border-stone-200 text-stone-600' : 'bg-stone-900 border-stone-800 text-stone-400'
         }`}>
