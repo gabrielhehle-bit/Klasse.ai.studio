@@ -386,7 +386,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
   const numSlices = baseItems.length;
 
   // Responsive Layoutgrößen
-  const isSmall = containerSize.width < 280 || containerSize.height < 280;
+  const isSmall = containerSize.width < 360 || containerSize.height < 360;
   const isLarge = containerSize.width > 560 || containerSize.height > 520;
   // Keep the wheel as large as its actual viewport allows. Do not force a
   // minimum diameter larger than the widget (that clipped small screens).
@@ -394,13 +394,13 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
   // Fixed height reserves clipped the wheel on short widgets and wasted large ones.
   const wheelPxSize = Math.max(0, Math.min(
     wheelAreaSize.width || containerSize.width - 16,
-    wheelAreaSize.height || containerSize.height - 144,
-  ) - 8);
+    wheelAreaSize.height || containerSize.height - 108,
+  ) - 4);
 
   return (
     <div
       ref={containerRef}
-      className={`relative flex flex-col justify-between w-full h-full p-1.5 sm:p-2 rounded-2xl overflow-hidden select-none border transition-colors duration-200 ${
+      className={`relative flex flex-col justify-between w-full h-full ${isSmall ? 'p-1' : 'p-1.5 sm:p-2'} rounded-2xl overflow-hidden select-none border transition-colors duration-200 ${
         currentIsLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-950 border-white/10'
       }`}
     >
@@ -447,7 +447,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
           <button
             type="button"
             onClick={() => updateSettings({ soundEnabled: !soundEnabled })}
-            className={`min-h-11 min-w-11 p-1 rounded-lg border text-xs transition-all cursor-pointer flex items-center justify-center ${
+            className={`${isSmall ? 'min-h-9 min-w-9' : 'min-h-11 min-w-11'} p-1 rounded-lg border text-xs transition-all cursor-pointer flex items-center justify-center ${
               soundEnabled
                 ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400'
                 : 'bg-black/5 dark:bg-white/5 border-transparent text-slate-400'
@@ -463,7 +463,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
             type="button"
             onClick={() => setShowConfigModal(true)}
             disabled={isSpinning}
-            className={`min-h-11 min-w-11 px-1.5 rounded-lg border text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-95 ${
+            className={`${isSmall ? 'min-h-9 min-w-9' : 'min-h-11 min-w-11'} px-1.5 rounded-lg border text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-95 ${
               currentIsLight
                 ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
                 : 'bg-zinc-900 hover:bg-zinc-800 border-white/10 text-slate-200'
@@ -623,7 +623,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
       {/* ========================================================================= */}
       {/* RESULT ANNOUNCEMENT: Groß und lesbar nach der Drehung                     */}
       {/* ========================================================================= */}
-      <div className="h-7 sm:h-8 flex items-center justify-center shrink-0 px-1">
+      <div className={`${isSmall ? 'h-6' : 'h-7 sm:h-8'} flex items-center justify-center shrink-0 px-1`}>
         {winner && !isSpinning ? (
           <div
             onClick={handleSpin}
@@ -652,7 +652,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
           type="button"
           onClick={handleSpin}
           disabled={isSpinning || !hasEnoughItems}
-          className={`w-full min-h-11 rounded-lg font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-98 cursor-pointer ${
+          className={`w-full ${isSmall ? 'min-h-10' : 'min-h-11'} rounded-lg font-black ${isSmall ? 'text-xs' : 'text-xs sm:text-sm'} uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-98 cursor-pointer ${
             isSpinning || !hasEnoughItems
               ? 'bg-slate-200 dark:bg-zinc-800 text-slate-400 cursor-not-allowed'
               : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20'
