@@ -217,3 +217,30 @@ test("Kernwidgets nutzen große Flächen für Hierarchie statt nur für Leerraum
   assert.match(weeklyPlanWidget, /const taskColumns = size\.width >= 1320 \? 3 : size\.width >= 820 \? 2 : 1/);
   assert.match(weeklyPlanWidget, /scale=\{tinyBoard \? 'compact' : roomyBoard \? 'large' : 'normal'\}/);
 });
+
+
+test("Präsentationswidgets nutzen große Tafelflächen sichtbar aus", () => {
+  assert.match(clockWidget, /const digitalFontPixels = Math\.max\(44, Math\.min\(/);
+  assert.match(clockWidget, /const analogFacePixels = Math\.max\(110, Math\.min\(/);
+  assert.match(clockWidget, /style=\{\{ fontSize: digitalFontPixels \}\}/);
+  assert.match(clockWidget, /style=\{\{ width: analogFacePixels, height: analogFacePixels/);
+
+  assert.match(trafficLightWidget, /const roomyDisplay = isFullscreen \|\| \(size\.width >= 720 && size\.height >= 500\)/);
+  assert.match(trafficLightWidget, /roomyDisplay \? 'text-7xl sm:text-8xl'/);
+
+  assert.match(noiseMeterWidget, /const roomyMeter = size\.category === 'fullscreen' \|\| size\.width >= 760 && size\.height >= 500/);
+  assert.match(noiseMeterWidget, /roomyMeter \? 'h-9 p-1\.5'/);
+
+  assert.match(timelineWidget, /const roomyTimeline = isFullscreen \|\| \(size\.width >= 820 && size\.height >= 500\)/);
+  assert.match(timelineWidget, /roomyTimeline\s+\? 'text-4xl sm:text-5xl'/);
+
+  assert.match(randomNameWidget, /const roomyPicker = widgetSize\.width >= 700 && widgetSize\.height >= 480/);
+  assert.match(randomNameWidget, /roomyPicker\s+\? 'text-5xl sm:text-6xl'/);
+
+  assert.match(starsReviewWidget, /const roomy = size\.width >= 900 && size\.height >= 520/);
+  assert.match(starsReviewWidget, /roomy \? "min-h-16 gap-4 px-5 py-3"/);
+
+  assert.match(homeworkWidget, /const roomy = size\.width >= 980 && size\.height >= 520/);
+  assert.match(homeworkWidget, /const columns = size\.width >= 1280 \? 3 : size\.width >= 760 \? 2 : 1/);
+  assert.match(homeworkWidget, /gridTemplateColumns: `repeat\(\$\{columns\}, minmax\(0, 1fr\)\)`/);
+});
