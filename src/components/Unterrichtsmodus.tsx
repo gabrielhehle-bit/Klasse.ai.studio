@@ -183,6 +183,14 @@ import { getPresentStudents, getDisplayStudentName } from "./cockpit/studentSele
 import { CockpitWidget } from "./cockpit/CockpitWidget";
 import { CockpitWidgetDock } from "./cockpit/CockpitWidgetDock";
 import { clampCockpitSidebarWidth, resizeCockpitSidebarWidth } from "../lib/cockpitSidebarLayout";
+import {
+  MAX_COCKPIT_BOARD_PAGES,
+  createEmptyCockpitBoardLayout,
+  createNextCockpitBoardPageId,
+  getCockpitBoardPageStorageKey,
+  normalizeCockpitActiveBoardPage,
+  normalizeCockpitBoardPageIds,
+} from "../lib/cockpitBoardPages";
 import { CockpitVorlagenModal } from "./cockpit/CockpitVorlagenModal";
 import { BoardTextEditor } from "./cockpit/BoardTextEditor";
 import { BoardInk, type InkItem } from "./cockpit/BoardInk";
@@ -2973,27 +2981,33 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [isBirthdayCelebrationOpen, setIsBirthdayCelebrationOpen] = useState(false);
   useEffect(() => { setIsBirthdayCelebrationOpen(false); }, [app.activeClassId]);
   const boardTextClassKey = app.activeClassId || "unassigned";
+  const boardPageIds = normalizeCockpitBoardPageIds((app.boardSettings as any)?.cockpitBoardPagesByClass?.[boardTextClassKey]);
+  const activeBoardPageId = normalizeCockpitActiveBoardPage(
+    (app.boardSettings as any)?.cockpitActiveBoardPageByClass?.[boardTextClassKey],
+    boardPageIds,
+  );
+  const boardPageStorageKey = getCockpitBoardPageStorageKey(boardTextClassKey, activeBoardPageId);
   const randomNameDefaults = getRandomNameWidgetPreferences(app.boardSettings?.cockpitRandomNameDefaultsByClass?.[boardTextClassKey]);
   const checkInDefaults = getCheckInPreferences(app.boardSettings?.cockpitCheckInDefaultsByClass?.[boardTextClassKey]);
   const groupDefaults = getGroupWidgetPreferences(app.boardSettings?.cockpitGroupDefaultsByClass?.[boardTextClassKey]);
   const weeklyWidgetDefaults = getClassroomWeeklyWidgetPreferences(app.boardSettings?.cockpitChildrenWeekDefaultsByClass?.[boardTextClassKey]);
-  const cockpitPaper = ((app.boardSettings as any)?.cockpitPaperByClass?.[boardTextClassKey] || "blank") as CockpitPaper;
+  const cockpitPaper = ((app.boardSettings as any)?.cockpitPaperByClass?.[boardPageStorageKey] || "blank") as CockpitPaper;
   const setCockpitPaper = (paper: CockpitPaper) => setApp((prev: any) => ({
     ...prev,
     boardSettings: {
       ...(prev.boardSettings || {}),
       cockpitPaperByClass: {
         ...(prev.boardSettings?.cockpitPaperByClass || {}),
-        [boardTextClassKey]: paper,
+        [boardPageStorageKey]: paper,
       },
     },
   }));
-  const cockpitPaperSpacing = normalizeCockpitPaperSpacing((app.boardSettings as any)?.cockpitPaperSpacingByClass?.[boardTextClassKey]);
+  const cockpitPaperSpacing = normalizeCockpitPaperSpacing((app.boardSettings as any)?.cockpitPaperSpacingByClass?.[boardPageStorageKey]);
   const setCockpitPaperSpacing = (spacing: number) => setApp((prev: any) => ({
     ...prev, boardSettings: {
       ...(prev.boardSettings || {}), cockpitPaperSpacingByClass: {
         ...(prev.boardSettings?.cockpitPaperSpacingByClass || {}),
-        [boardTextClassKey]: normalizeCockpitPaperSpacing(spacing),
+        [boardPageStorageKey]: normalizeCockpitPaperSpacing(spacing),
       },
     },
   }));
@@ -3020,8 +3034,8 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     });
     setIsQuickBarSettingsOpen(false);
   };
-  const boardInkItems: InkItem[] = Array.isArray((app.boardSettings as any)?.cockpitInkByClass?.[boardTextClassKey])
-    ? ((app.boardSettings as any).cockpitInkByClass[boardTextClassKey] as InkItem[])
+  const boardInkItems: InkItem[] = Array.isArray((app.boardSettings as any)?.cockpitInkByClass?.[boardPageStorageKey])
+    ? ((app.boardSettings as any).cockpitInkByClass[boardPageStorageKey] as InkItem[])
     : [];
   const saveBoardInkItems = useCallback((items: InkItem[]) => {
     if (!app.activeClassId) return;
@@ -3031,13 +3045,13 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
         ...(prev.boardSettings || {}),
         cockpitInkByClass: {
           ...(prev.boardSettings?.cockpitInkByClass || {}),
-          [boardTextClassKey]: items,
+          [boardPageStorageKey]: items,
         },
       },
     }));
-  }, [app.activeClassId, boardTextClassKey, setApp]);
+  }, [app.activeClassId, boardPageStorageKey, setApp]);
   const boardTextHtml =
-    ((app.boardSettings as any)?.cockpitTextByClass?.[boardTextClassKey] as string | undefined) || "";
+    ((app.boardSettings as any)?.cockpitTextByClass?.[boardPageStorageKey] as string | undefined) || "";
 
   const saveBoardTextHtml = useCallback(
     (html: string) => {
@@ -3047,13 +3061,90 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
           ...(prev.boardSettings || {}),
           cockpitTextByClass: {
             ...(prev.boardSettings?.cockpitTextByClass || {}),
-            [boardTextClassKey]: html,
+            [boardPageStorageKey]: html,
           },
         },
       }));
     },
-    [boardTextClassKey, setApp],
+    [boardPageStorageKey, setApp],
   );
+
+  const getSavedBoardPageLayout = useCallback((pageId: string) => {
+    const saved = (app.boardSettings as any)?.cockpitLayoutByBoardPage?.[boardTextClassKey]?.[pageId];
+    return Array.isArray(saved)
+      ? loadAndSanitizeLayout(saved)
+      : createEmptyCockpitBoardLayout(DEFAULT_COCKPIT_LAYOUT);
+  }, [app.boardSettings, boardTextClassKey]);
+
+  const switchCockpitBoardPage = useCallback((pageId: string) => {
+    if (!app.activeClassId || !boardPageIds.includes(pageId) || pageId === activeBoardPageId) return;
+    const currentLayout = JSON.parse(JSON.stringify(cockpitWidgets)) as CockpitWidgetConfig[];
+    const nextLayout = getSavedBoardPageLayout(pageId);
+    setMinimizedWidgetIds([]);
+    setBoardTool("select");
+    setIsBoardTextEditing(false);
+    setShowBoardTools(false);
+    setCockpitWidgets(nextLayout);
+    setApp((prev: any) => ({
+      ...prev,
+      cockpitLayout: nextLayout,
+      boardSettings: {
+        ...(prev.boardSettings || {}),
+        cockpitActiveBoardPageByClass: {
+          ...(prev.boardSettings?.cockpitActiveBoardPageByClass || {}),
+          [boardTextClassKey]: pageId,
+        },
+        cockpitLayoutByBoardPage: {
+          ...(prev.boardSettings?.cockpitLayoutByBoardPage || {}),
+          [boardTextClassKey]: {
+            ...(prev.boardSettings?.cockpitLayoutByBoardPage?.[boardTextClassKey] || {}),
+            [activeBoardPageId]: currentLayout,
+            [pageId]: nextLayout,
+          },
+        },
+      },
+    }));
+  }, [activeBoardPageId, app.activeClassId, boardPageIds, boardTextClassKey, cockpitWidgets, getSavedBoardPageLayout, setApp]);
+
+  const addCockpitBoardPage = useCallback(() => {
+    if (!app.activeClassId) return;
+    if (boardPageIds.length >= MAX_COCKPIT_BOARD_PAGES) {
+      showToast(`Maximal ${MAX_COCKPIT_BOARD_PAGES} Tafelseiten sind möglich.`, "info");
+      return;
+    }
+    const pageId = createNextCockpitBoardPageId(boardPageIds);
+    const currentLayout = JSON.parse(JSON.stringify(cockpitWidgets)) as CockpitWidgetConfig[];
+    const nextLayout = createEmptyCockpitBoardLayout(DEFAULT_COCKPIT_LAYOUT);
+    const nextPages = [...boardPageIds, pageId];
+    setMinimizedWidgetIds([]);
+    setBoardTool("select");
+    setIsBoardTextEditing(false);
+    setShowBoardTools(false);
+    setCockpitWidgets(nextLayout);
+    setApp((prev: any) => ({
+      ...prev,
+      cockpitLayout: nextLayout,
+      boardSettings: {
+        ...(prev.boardSettings || {}),
+        cockpitBoardPagesByClass: {
+          ...(prev.boardSettings?.cockpitBoardPagesByClass || {}),
+          [boardTextClassKey]: nextPages,
+        },
+        cockpitActiveBoardPageByClass: {
+          ...(prev.boardSettings?.cockpitActiveBoardPageByClass || {}),
+          [boardTextClassKey]: pageId,
+        },
+        cockpitLayoutByBoardPage: {
+          ...(prev.boardSettings?.cockpitLayoutByBoardPage || {}),
+          [boardTextClassKey]: {
+            ...(prev.boardSettings?.cockpitLayoutByBoardPage?.[boardTextClassKey] || {}),
+            [activeBoardPageId]: currentLayout,
+            [pageId]: nextLayout,
+          },
+        },
+      },
+    }));
+  }, [activeBoardPageId, app.activeClassId, boardPageIds, boardTextClassKey, cockpitWidgets, setApp, showToast]);
 
   useEffect(() => {
     setIsBoardTextEditing(false);
@@ -8265,6 +8356,26 @@ ${content}
                           <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-neutral-300">
                             Tafel
                           </h3>
+                          <div role="tablist" aria-label="Tafelseiten"
+                            className="flex max-w-[min(42vw,22rem)] items-center gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1">
+                            {boardPageIds.map((pageId, index) => (
+                              <button key={pageId} type="button" role="tab"
+                                aria-selected={activeBoardPageId === pageId}
+                                aria-label={`Tafelseite ${index + 1}`}
+                                onClick={() => switchCockpitBoardPage(pageId)}
+                                className={`flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-lg px-2 text-xs font-black transition-colors ${
+                                  activeBoardPageId === pageId
+                                    ? "bg-indigo-700 text-white shadow-sm"
+                                    : "bg-white text-slate-700 hover:bg-indigo-50 hover:text-indigo-800"
+                                }`}>
+                                {index + 1}
+                              </button>
+                            ))}
+                            <button type="button" onClick={addCockpitBoardPage}
+                              disabled={!app.activeClassId || boardPageIds.length >= MAX_COCKPIT_BOARD_PAGES}
+                              aria-label="Neue Tafelseite hinzufügen" title="Neue Tafelseite"
+                              className="flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-lg border border-dashed border-indigo-300 bg-white text-lg font-black text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-40">+</button>
+                          </div>
                           <button type="button" onClick={() => setShowBoardTools(open => !open)}
                             aria-expanded={showBoardTools} aria-controls="klassio-board-tools"
                             className="min-h-10 rounded-xl border border-slate-200 bg-white px-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50">✍️ Schreiben & Papier</button>
@@ -10556,7 +10667,7 @@ ${content}
                           }}
                         />
                         <BoardInk
-                          key={boardTextClassKey}
+                          key={boardPageStorageKey}
                           items={boardInkItems}
                           active={boardTool === "pen" || boardTool === "erase"}
                           externalTool={boardTool === "erase" ? "erase" : "pen"}
