@@ -801,7 +801,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                         onChange={(e) => setNewItemText(e.target.value)}
                         placeholder="z. B. Bewegungsübung, Thema..."
                         maxLength={30}
-                        className={`flex-grow min-h-[40px] px-3 rounded-xl border text-xs font-bold outline-none ${
+                        className={`flex-grow min-h-11 px-3 rounded-xl border text-xs font-bold outline-none ${
                           currentIsLight
                             ? 'bg-white border-slate-200 text-slate-900 focus:border-indigo-500'
                             : 'bg-zinc-800 border-white/10 text-white focus:border-indigo-400'
@@ -810,7 +810,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                       <button
                         type="submit"
                         disabled={!newItemText.trim() || customItems.length >= 24}
-                        className={`min-h-[40px] px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer ${
+                        className={`min-h-11 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer ${
                           !newItemText.trim() || customItems.length >= 24
                             ? 'bg-slate-200 dark:bg-zinc-800 text-slate-400 cursor-not-allowed'
                             : 'bg-indigo-600 hover:bg-indigo-700 text-white'
@@ -968,7 +968,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
               <button
                 type="button"
                 onClick={() => setShowConfigModal(false)}
-                className="min-h-[40px] px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-wider cursor-pointer"
+                className="min-h-11 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-wider cursor-pointer"
               >
                 Fertig
               </button>
