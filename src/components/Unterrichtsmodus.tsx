@@ -9147,9 +9147,10 @@ ${content}
                                     return (
                                       <button
                                         key={cat.id}
-                                        onClick={() =>
-                                          setActiveWidgetCategory(cat.id)
-                                        }
+                                        onClick={() => {
+                                          setActiveWidgetCategory(cat.id);
+                                          if (widgetSearch) setWidgetSearch("");
+                                        }}
                                         className={`mb-1 flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold transition-all cursor-pointer ${
                                           activeWidgetCategory === cat.id
                                             ? "bg-indigo-500 text-white shadow"
