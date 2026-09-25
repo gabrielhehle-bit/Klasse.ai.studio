@@ -311,13 +311,10 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       const deltaX = moveEvent.clientX - dragStartPos.current.x;
       const deltaY = moveEvent.clientY - dragStartPos.current.y;
 
+      // Follow the pointer 1:1. Deliberately no grid/magnet snapping here:
+      // precise free placement is the default classroom interaction.
       let newLeftPixels = dragStartPos.current.left + deltaX;
       let newTopPixels = dragStartPos.current.top + deltaY;
-
-      // Snap to grid (e.g. 20px grid)
-      const GRID_SIZE = 10;
-      newLeftPixels = Math.round(newLeftPixels / GRID_SIZE) * GRID_SIZE;
-      newTopPixels = Math.round(newTopPixels / GRID_SIZE) * GRID_SIZE;
 
       const widgetRect = widgetRef.current?.getBoundingClientRect();
       const widgetWidth =
@@ -340,14 +337,18 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       });
     };
 
-    const handlePointerUp = (upEvent: PointerEvent) => {
-      target.releasePointerCapture(upEvent.pointerId);
+    const finishDrag = (endEvent: PointerEvent) => {
+      if (target.hasPointerCapture(endEvent.pointerId)) {
+        target.releasePointerCapture(endEvent.pointerId);
+      }
       target.removeEventListener("pointermove", handlePointerMove);
-      target.removeEventListener("pointerup", handlePointerUp);
+      target.removeEventListener("pointerup", finishDrag);
+      target.removeEventListener("pointercancel", finishDrag);
     };
 
     target.addEventListener("pointermove", handlePointerMove);
-    target.addEventListener("pointerup", handlePointerUp);
+    target.addEventListener("pointerup", finishDrag);
+    target.addEventListener("pointercancel", finishDrag);
   };
 
   const handlePointerDownResize = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -727,7 +728,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
           only when intentionally focused/hovered, leaving its artwork centered in the slot. */}
       <div
         onPointerDown={isDirect || isMaximized || layoutLocked ? undefined : handlePointerDownDrag}
-        className={`${isFreeMascot ? "mascot-widget-toolbar absolute inset-x-0 top-0 w-full h-11 border-0 bg-transparent text-inherit opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100" : isDirect ? "absolute top-0 left-0 right-0 h-11 opacity-40 hover:opacity-100 pointer-events-auto border-b-0 bg-black/10 dark:bg-white/10 text-slate-400 backdrop-blur-md rounded-t-xl" : "w-full relative " + (viewportDensity === "tight" ? "h-9 " : "h-11 ") + "opacity-100 pointer-events-auto " + (currentIsLight ? "bg-white/95 border-slate-200/60 text-slate-700 shadow-sm backdrop-blur-xl rounded-t-[23px]" : "bg-zinc-900/95 border-white/10 text-neutral-200 shadow-sm backdrop-blur-xl rounded-t-[23px]")} z-40 ${viewportDensity === "tight" && !isFreeMascot ? "px-1.5 py-0.5" : "px-3 py-1"} flex items-center justify-between select-none shrink-0 border-b transition-all duration-300 cursor-default`}
+        className={`${isFreeMascot ? "mascot-widget-toolbar absolute inset-x-0 top-0 w-full h-11 border-0 bg-transparent text-inherit opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100" : isDirect ? "absolute top-0 left-0 right-0 h-11 opacity-40 hover:opacity-100 pointer-events-auto border-b-0 bg-black/10 dark:bg-white/10 text-slate-400 backdrop-blur-md rounded-t-xl" : "w-full relative " + (viewportDensity === "tight" ? "h-9 " : "h-11 ") + "opacity-100 pointer-events-auto " + (currentIsLight ? "bg-white/95 border-slate-200/60 text-slate-700 shadow-sm backdrop-blur-xl rounded-t-[23px]" : "bg-zinc-900/95 border-white/10 text-neutral-200 shadow-sm backdrop-blur-xl rounded-t-[23px]")} z-40 ${viewportDensity === "tight" && !isFreeMascot ? "px-1.5 py-0.5" : "px-3 py-1"} flex items-center justify-between select-none shrink-0 border-b transition-all duration-300 ${isDirect || isMaximized || layoutLocked ? "cursor-default" : "cursor-grab active:cursor-grabbing"}`}
         style={{ touchAction: isDirect || layoutLocked ? "auto" : "none" }}
       >
         {/* Left Side: status dot, Title, and Pen icon button placed directly right next to the title label */}
