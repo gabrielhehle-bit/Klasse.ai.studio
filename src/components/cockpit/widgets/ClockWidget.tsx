@@ -113,7 +113,21 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
   const clockBg = currentIsLight ? 'bg-white' : 'bg-zinc-900';
   const borderColor = currentIsLight ? 'border-slate-200' : 'border-zinc-800';
 
-  // Digital font sizing calculation tailored to responsive dimensions
+  const effectiveDigitalWidth = effectiveMode === 'both' ? size.width * 0.46 : size.width;
+  const digitalFontPixels = Math.max(44, Math.min(
+    isFullscreen ? 176 : 132,
+    effectiveDigitalWidth * 0.22,
+    size.height * (effectiveMode === 'both' ? 0.26 : 0.34),
+  ));
+  const analogFacePixels = Math.max(110, Math.min(
+    size.width * (effectiveMode === 'both' ? 0.42 : 0.72),
+    size.height * (effectiveMode === 'both' ? 0.70 : 0.82),
+    isFullscreen ? 560 : 420,
+  ));
+  const roomyClock = isFullscreen || (size.width >= 760 && size.height >= 500);
+
+  // Digital font sizing keeps fallback classes for older browsers; the measured
+  // inline size below makes the time actually fill the widget rectangle.
   const getDigitalFontSizeClass = () => {
     if (isFullscreen) return 'text-7xl sm:text-8xl md:text-9xl font-black';
     if (isLarge) {
@@ -161,6 +175,7 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
           <div className="flex flex-col items-center justify-center text-center w-full px-2">
             <div
               className={`tracking-tight font-mono tabular-nums leading-none ${getDigitalFontSizeClass()}`}
+              style={{ fontSize: digitalFontPixels }}
             >
               <span>{digital.hours}</span>
               <span className="opacity-60 px-0.5">:</span>
@@ -176,7 +191,7 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
             {settings.showDate && !isLowHeight && (
               <div
                 className={`mt-2 font-medium tracking-wide ${
-                  isFullscreen ? 'text-xl sm:text-2xl mt-4' : 'text-xs sm:text-sm'
+                  roomyClock ? 'text-xl sm:text-2xl mt-4' : 'text-xs sm:text-sm'
                 } ${subTextColor}`}
               >
                 {dateStr}
@@ -202,7 +217,8 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
         {/* MODUS 2: ANALOG */}
         {effectiveMode === 'analog' && (
           <div className="flex flex-col items-center justify-center w-full h-full max-h-full py-1">
-            <div className="relative aspect-square max-h-[85%] max-w-[85%] min-h-[110px] min-w-[110px] flex items-center justify-center">
+            <div className="relative flex shrink-0 items-center justify-center"
+              style={{ width: analogFacePixels, height: analogFacePixels, maxWidth: '100%', maxHeight: '85%', aspectRatio: '1' }}>
               <AnalogClockFace
                 angles={angles}
                 showSeconds={settings.showSeconds}
@@ -236,7 +252,8 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
             }`}
           >
             {/* Analog Clock half */}
-            <div className="relative aspect-square max-h-[75%] max-w-[45%] min-h-[100px] min-w-[100px] flex items-center justify-center">
+            <div className="relative flex shrink-0 items-center justify-center"
+              style={{ width: analogFacePixels, height: analogFacePixels, maxWidth: '45%', maxHeight: '75%', aspectRatio: '1' }}>
               <AnalogClockFace
                 angles={angles}
                 showSeconds={settings.showSeconds}
@@ -248,6 +265,7 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
             <div className="flex flex-col items-center text-center">
               <div
                 className={`tracking-tight font-mono tabular-nums leading-none ${getDigitalFontSizeClass()}`}
+                style={{ fontSize: digitalFontPixels }}
               >
                 <span>{digital.hours}</span>
                 <span className="opacity-60 px-0.5">:</span>
@@ -262,7 +280,7 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
               {settings.showDate && (
                 <div
                   className={`mt-1.5 font-medium tracking-wide ${
-                    isFullscreen ? 'text-xl mt-3' : 'text-xs sm:text-sm'
+                    roomyClock ? 'text-xl mt-3' : 'text-xs sm:text-sm'
                   } ${subTextColor}`}
                 >
                   {dateStr}
