@@ -12716,6 +12716,7 @@ ${content}
               onAddWidget={() => { if (isAddWidgetMenuOpen) { setIsAddWidgetMenuOpen(false); } else { openWidgetLibrary(); } }}
               onToggleSidebar={() => changeSidebarMode(sidebarMode === "hidden" ? (prevSidebarMode || "expanded") : "hidden")}
               sidebarOpen={sidebarMode !== "hidden"}
+              reservedRightPx={sidebarMode === "hidden" ? 0 : (sidebarMode === "mini" ? 246 : (sidebarResizePreview ?? sidebarPreferredWidth) + 6)}
               activeTypes={cockpitWidgets.filter(widget => widget.visible).map(widget => widget.type)}
               minimizedTypes={cockpitWidgets.filter(widget => minimizedWidgetIds.includes(widget.id)).map(widget => String(widget.type))}
               onRestoreMinimized={(type) => {
