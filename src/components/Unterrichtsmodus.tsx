@@ -3077,7 +3077,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   }, [app.boardSettings, boardTextClassKey]);
 
   const switchCockpitBoardPage = useCallback((pageId: string) => {
-    if (!boardPageIds.includes(pageId) || pageId === activeBoardPageId) return;
+    if (!app.activeClassId || !boardPageIds.includes(pageId) || pageId === activeBoardPageId) return;
     const currentLayout = JSON.parse(JSON.stringify(cockpitWidgets)) as CockpitWidgetConfig[];
     const nextLayout = getSavedBoardPageLayout(pageId);
     setMinimizedWidgetIds([]);
@@ -3104,9 +3104,10 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
         },
       },
     }));
-  }, [activeBoardPageId, boardPageIds, boardTextClassKey, cockpitWidgets, getSavedBoardPageLayout, setApp]);
+  }, [activeBoardPageId, app.activeClassId, boardPageIds, boardTextClassKey, cockpitWidgets, getSavedBoardPageLayout, setApp]);
 
   const addCockpitBoardPage = useCallback(() => {
+    if (!app.activeClassId) return;
     if (boardPageIds.length >= MAX_COCKPIT_BOARD_PAGES) {
       showToast(`Maximal ${MAX_COCKPIT_BOARD_PAGES} Tafelseiten sind möglich.`, "info");
       return;
@@ -3143,7 +3144,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
         },
       },
     }));
-  }, [activeBoardPageId, boardPageIds, boardTextClassKey, cockpitWidgets, setApp, showToast]);
+  }, [activeBoardPageId, app.activeClassId, boardPageIds, boardTextClassKey, cockpitWidgets, setApp, showToast]);
 
   useEffect(() => {
     setIsBoardTextEditing(false);
@@ -8371,7 +8372,7 @@ ${content}
                               </button>
                             ))}
                             <button type="button" onClick={addCockpitBoardPage}
-                              disabled={boardPageIds.length >= MAX_COCKPIT_BOARD_PAGES}
+                              disabled={!app.activeClassId || boardPageIds.length >= MAX_COCKPIT_BOARD_PAGES}
                               aria-label="Neue Tafelseite hinzufügen" title="Neue Tafelseite"
                               className="flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-lg border border-dashed border-indigo-300 bg-white text-lg font-black text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-40">+</button>
                           </div>
