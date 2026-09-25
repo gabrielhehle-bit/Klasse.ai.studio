@@ -96,6 +96,7 @@ import PrivacyLock from './components/PrivacyLock';
 const Cockpit = lazyRetry(() => import('./components/Cockpit'));
 import PrintHeader from './components/PrintHeader';
 import AccessGate from './components/AccessGate';
+import PublicWelcome, { type PublicEntryMode } from './components/PublicWelcome';
 import { AnimatePresence, motion } from 'motion/react';
 import { X, Mic, Sparkles, HelpCircle, Loader2 } from 'lucide-react';
 import { getKW, getTodayName, getAccentTextColor } from './lib/utils';
@@ -105,7 +106,26 @@ const DiagnostikAnleitung = lazyRetry(() => import('./components/DiagnostikAnlei
 const DataConsistencyModal = lazyRetry(() => import('./components/DataConsistencyModal'));
 
 function AccessGuard({ children }: { children: React.ReactNode }) {
+  type PublicMode = PublicEntryMode | 'login';
+
+  const modeFromPath = React.useCallback((): PublicMode => {
+    const path = window.location.pathname.replace(/\/+$/, '') || '/';
+    if (path === '/login') return 'login';
+    if (path === '/demo') return 'demo';
+    return 'landing';
+  }, []);
+
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [publicMode, setPublicMode] = useState<PublicMode>(() => modeFromPath());
+
+  const navigatePublic = React.useCallback((mode: PublicMode) => {
+    const path = mode === 'login' ? '/login' : mode === 'demo' ? '/demo' : '/';
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
+    }
+    setPublicMode(mode);
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, []);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -125,6 +145,7 @@ function AccessGuard({ children }: { children: React.ReactNode }) {
     const handleLogout = () => {
       fetch('/api/access/logout', { method: 'POST' }).finally(() => {
         setIsAuthenticated(false);
+        navigatePublic('login');
       });
     };
 
@@ -133,7 +154,29 @@ function AccessGuard({ children }: { children: React.ReactNode }) {
       isMounted = false;
       window.removeEventListener('lehrerapp-logout', handleLogout);
     };
-  }, []);
+  }, [navigatePublic]);
+
+  React.useEffect(() => {
+    const handlePopState = () => setPublicMode(modeFromPath());
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [modeFromPath]);
+
+  React.useEffect(() => {
+    if (!isAuthenticated) return;
+    if (window.location.pathname === '/login' || window.location.pathname === '/demo') {
+      window.history.replaceState({}, '', '/');
+    }
+  }, [isAuthenticated]);
+
+  const handleLoginSuccess = () => {
+    try {
+      sessionStorage.setItem('klassio_after_login', 'dashboard');
+    } catch {
+      // Session storage can be unavailable in hardened/private browser modes.
+    }
+    setIsAuthenticated(true);
+  };
 
   if (isAuthenticated === null) {
     return (
@@ -149,16 +192,27 @@ function AccessGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (!isAuthenticated) {
+    if (publicMode === 'login') {
+      return (
+        <div className="relative min-h-screen">
+          <button
+            type="button"
+            onClick={() => navigatePublic('landing')}
+            className="fixed left-4 top-4 z-[200] rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-xs font-black text-white/75 shadow-lg backdrop-blur-md transition-colors hover:bg-slate-900 hover:text-white"
+          >
+            ← Startseite
+          </button>
+          <AccessGate onSuccess={handleLoginSuccess} />
+        </div>
+      );
+    }
+
     return (
-      <AccessGate
-        onSuccess={() => {
-          try {
-            sessionStorage.setItem('klassio_after_login', 'dashboard');
-          } catch {
-            // Session storage can be unavailable in hardened/private browser modes.
-          }
-          setIsAuthenticated(true);
-        }}
+      <PublicWelcome
+        mode={publicMode}
+        onHome={() => navigatePublic('landing')}
+        onDemo={() => navigatePublic('demo')}
+        onLogin={() => navigatePublic('login')}
       />
     );
   }
