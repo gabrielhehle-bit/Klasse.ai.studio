@@ -80,7 +80,8 @@ test("Kernwidgets verkleinern Touch-Ziele auch im Kompaktmodus nicht unter 44px"
 
   assert.doesNotMatch(wheelWidget, /isSmall \? 'min-h-9 min-w-9'/);
   assert.match(wheelWidget, /min-h-11 min-w-11 p-1 rounded-lg border/);
-  assert.match(wheelWidget, /w-full \\${isXL \\? 'min-h-14 text-lg'/);
+  assert.match(wheelWidget, /min-h-14 text-lg/);
+  assert.match(wheelWidget, /min-h-12 text-base/);
   assert.doesNotMatch(wheelWidget, /min-h-\[40px\]/);
 
   assert.doesNotMatch(randomNameWidget, /compact \? 'min-h-9 min-w-9'/);
