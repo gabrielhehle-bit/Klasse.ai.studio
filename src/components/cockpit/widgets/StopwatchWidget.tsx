@@ -319,14 +319,14 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
       tabIndex={0}
       role="region"
       aria-label="Stoppuhr"
-      className={`relative flex flex-col w-full h-full min-h-0 select-none outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 transition-colors p-3 ${
+      className={`relative flex flex-col w-full h-full min-h-0 select-none outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 transition-colors ${isCompact ? 'p-1.5' : 'p-3'} ${
         currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-slate-100'
       }`}
     >
       {/* -------------------------------------------------------- */}
       {/* OBERER BEREICH: Zeitanzeige (Groß, zentriert, ruhig) */}
       {/* -------------------------------------------------------- */}
-      <div className="shrink-0 flex flex-col items-center justify-center pt-1 pb-2">
+      <div className={`shrink-0 flex flex-col items-center justify-center ${isCompact ? 'pt-0 pb-1' : 'pt-1 pb-2'}`}>
         {/* Hauptzeitanzeige (MM:SS oder HH:MM:SS) */}
         <div
           className={`font-mono font-black tabular-nums tracking-tight transition-all text-center leading-none ${
@@ -335,7 +335,7 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
               : isLarge
                 ? 'text-6xl py-2'
                 : isCompact
-                  ? 'text-4xl py-1'
+                  ? 'text-5xl py-0.5'
                   : 'text-5xl py-1.5'
           } ${
             state.status === 'running'
@@ -407,7 +407,7 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
       {/* -------------------------------------------------------- */}
       {/* HAUPT-STEUERUNG: Buttons (Dominant, min. 44px Touch) */}
       {/* -------------------------------------------------------- */}
-      <div className="shrink-0 flex items-center justify-center gap-2 py-2 w-full">
+      <div className={`shrink-0 flex items-center justify-center w-full ${isCompact ? 'gap-1 py-1' : 'gap-2 py-2'}`}>
         {/* FALL 1: Bestätigungsmodus für Reset */}
         {confirmingReset ? (
           <div className="flex items-center gap-2 w-full max-w-sm animate-in fade-in zoom-in-95 duration-150">
