@@ -23,8 +23,8 @@ test('fullscreen is a direct top-level classroom control, not hidden only in opt
 
 test('writing tools float vertically instead of consuming teaching-board height', () => {
   assert.match(surface, /klassio-board-toolbox absolute left-2 top-14/);
-  assert.match(surface, /flex-col items-stretch/);
-  assert.match(surface, /aria-label="Unterrichtsfläche: Text und Papier"/);
+  assert.match(surface, /klassio-board-toolbox absolute left-2 top-14/);
+  assert.match(surface, /aria-label="Schreiben und Papier"/);
   assert.match(css, /\.klassio-cockpit-shell \.klassio-board-toolbox/);
 });
 
