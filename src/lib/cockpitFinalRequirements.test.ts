@@ -150,7 +150,7 @@ test("Cockpit: weiße Unterrichtsfläche hat direkte Schreibebene und eine gemei
 });
 
 test("Cockpit: TEXT macht die weiße Fläche zu einem klassenlokalen Rich-Text-Dokument", () => {
-  assert.match(teachingSurface, //>Text<\\\/span>/g/);
+  assert.match(teachingSurface, />Text<\/span>/);
   assert.match(teachingSurface, /<BoardTextEditor/);
   assert.match(teachingSurface, /cockpitTextByClass/);
   assert.match(teachingSurface, /boardTextClassKey = app\.activeClassId \|\| "unassigned"/);
