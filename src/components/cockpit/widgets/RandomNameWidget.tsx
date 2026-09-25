@@ -173,7 +173,8 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
   const roundComplete = selectionMode === 'round' && eligibleStudents.length > 0 && remainingStudents.length === 0;
   const validDrawnIds = drawnIds.filter(id => eligibleStudents.some(student => student.id === id));
   const remainingCount = remainingStudents.length;
-  const compact = widgetSize.width < 320 || widgetSize.height < 280;
+  const compact = widgetSize.width < 380 || widgetSize.height < 330;
+  const veryCompact = widgetSize.width < 285 || widgetSize.height < 245;
   const poolFingerprint = eligibleStudents.map(student => student.id).join('|');
   const livePoolRef = useRef({ scopeKey, poolFingerprint, selectionMode, studentScope });
   livePoolRef.current = { scopeKey, poolFingerprint, selectionMode, studentScope };
@@ -338,23 +339,23 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
 
   return (
     <div ref={containerRef}
-      className={`relative flex h-full w-full min-h-0 flex-col gap-2 rounded-2xl border p-2 sm:p-3 ${currentIsLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-white/10 bg-zinc-950 text-white'}`}>
-      <div className="flex shrink-0 items-center justify-between gap-1">
+      className={`relative flex h-full w-full min-h-0 flex-col ${compact ? 'gap-1 p-1.5' : 'gap-2 p-2 sm:p-3'} rounded-2xl border ${currentIsLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-white/10 bg-zinc-950 text-white'}`}>
+      <div className={`flex shrink-0 items-center justify-between gap-1 ${veryCompact ? 'min-h-9' : ''}`}>
         <div className="min-w-0">
-          <span className="block text-sm font-black">🎯 Zufallsauswahl</span>
+          {!veryCompact && <span className={`block font-black ${compact ? 'text-xs' : 'text-sm'}`}>🎯 Zufallsauswahl</span>}
           {!compact && <span className="block text-xs font-medium opacity-75">
             {selectionMode === 'round' ? 'Jedes Kind einmal' : 'Zufällig · Wiederholungen möglich'} · {studentScope === 'all' ? 'Ganze Klasse' : 'Heute anwesend'}
           </span>}
         </div>
         <button type="button" onClick={() => { setSelectorPage(0); setShowPupilSelector(true); }}
-          className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border border-slate-300 px-2 text-xs font-bold"
+          className={`flex shrink-0 items-center justify-center rounded-xl border border-slate-300 px-2 text-xs font-bold ${compact ? 'min-h-9 min-w-9' : 'min-h-11 min-w-11'}`}
           aria-label="Kinder für diese Unterrichtsphase auswählen" title="Kinder auswählen">
           <ListFilter size={20}/>{!compact && <span className="ml-1">Kinder wählen</span>}
         </button>
       </div>
       <button type="button" onClick={pickPupil}
         disabled={isAnimating || remainingStudents.length === 0}
-        className={`flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-2 rounded-2xl border-2 p-2 text-center focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:cursor-not-allowed ${currentIsLight ? 'border-indigo-200 bg-white' : 'border-indigo-500/40 bg-zinc-900'}`}
+        className={`flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center ${compact ? 'gap-1 p-1.5' : 'gap-2 p-2'} rounded-2xl border-2 text-center focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:cursor-not-allowed ${currentIsLight ? 'border-indigo-200 bg-white' : 'border-indigo-500/40 bg-zinc-900'}`}
         aria-label={selectedName ? 'Weiteres Kind ziehen' : 'Zufälliges Kind ziehen'}>
         {isAnimating ? (
           <span className="w-full break-words text-lg font-black [overflow-wrap:anywhere]">{animatingName || 'Zufall …'}</span>
@@ -371,18 +372,26 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
             {!compact && <span className="text-xs font-bold uppercase text-indigo-600">
               {roundComplete ? 'Runde abgeschlossen · letztes Kind' : 'Ausgewählt'}
             </span>}
-            <span aria-live="polite" className={`max-w-full break-words font-black leading-tight [overflow-wrap:anywhere] ${selectedName.length > 36 ? 'text-base sm:text-xl' : compact ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-4xl'}`}>{selectedName}</span>
+            <span aria-live="polite" className={`max-w-full break-words font-black leading-[0.98] [overflow-wrap:anywhere] ${
+              selectedName.length > 36
+                ? (veryCompact ? 'text-sm' : 'text-base sm:text-xl')
+                : veryCompact
+                  ? 'text-xl'
+                  : compact
+                    ? 'text-2xl sm:text-3xl'
+                    : 'text-2xl sm:text-4xl'
+            }`}>{selectedName}</span>
           </>
         ) : <span className="break-words text-base font-bold">Kind auswählen</span>}
       </button>
-      <div className="flex shrink-0 flex-col gap-1">
-        <span className="text-center text-xs font-semibold" aria-live="polite">
+      <div className={`flex shrink-0 flex-col ${compact ? 'gap-0.5' : 'gap-1'}`}>
+        {!veryCompact && <span className={`text-center font-semibold ${compact ? 'text-[10px]' : 'text-xs'}`} aria-live="polite">
           {selectionMode === 'round'
             ? `${remainingCount} noch offen · ${validDrawnIds.length} gezogen · ${eligibleStudents.length} aktiv`
             : `${eligibleStudents.length} Kinder zur Auswahl`}
-        </span>
+        </span>}
         <button type="button" onClick={pickPupil} disabled={isAnimating || remainingStudents.length === 0}
-          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600">
+          className={`flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 font-black text-white ${compact ? 'min-h-10 text-xs' : 'min-h-12 text-sm'} disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600">
           <Sparkles size={18}/>{isAnimating ? 'Wählt aus …' : roundComplete ? 'Runde abgeschlossen' : selectedName ? 'Nächstes Kind' : 'Kind auswählen'}
         </button>
         {(drawnIds.length > 0 || roundComplete) && (
