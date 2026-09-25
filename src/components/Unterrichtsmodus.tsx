@@ -12741,7 +12741,6 @@ ${content}
               { id: "helfer", icon: Users, label: "HELFER" },
               { id: "stundenplan", icon: Calendar, label: "STUNDENPLAN" },
               { id: "klassenglas", icon: GlassWater, label: "KLASSENGLAS" },
-              { id: "termine", icon: Bell, label: "TERMINE" },
               { id: "tagesbester", icon: Star, label: "TAGESBESTER" },
               { id: "wochenbester", icon: Trophy, label: "WOCHENBESTER" },
               { id: "klassenspiegel", icon: Activity, label: "SPIEGEL" },
@@ -12806,6 +12805,7 @@ ${content}
                         "lernwoerter",
                         "groups",
                         "qrcode",
+                        "termine",
                       ].includes(w.type),
                   )
                   .map((widget) => (
