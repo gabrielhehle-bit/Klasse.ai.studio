@@ -2952,6 +2952,20 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       return loadAndSanitizeLayout(app.cockpitLayout);
     },
   );
+  const cockpitLayoutClassRef = useRef(app.activeClassId || "unassigned");
+  useEffect(() => {
+    const nextClassKey = app.activeClassId || "unassigned";
+    if (cockpitLayoutClassRef.current === nextClassKey) return;
+    cockpitLayoutClassRef.current = nextClassKey;
+    const nextLayout = JSON.parse(
+      JSON.stringify(loadAndSanitizeLayout(app.cockpitLayout)),
+    ) as CockpitWidgetConfig[];
+    setMinimizedWidgetIds([]);
+    setBoardTool("select");
+    setIsBoardTextEditing(false);
+    setShowBoardTools(false);
+    setCockpitWidgets(nextLayout);
+  }, [app.activeClassId]);
   // Minimize is intentionally session-local: it never rewrites the saved
   // widget rectangle or stops timers. Closing remains the persistent action.
   const [minimizedWidgetIds, setMinimizedWidgetIds] = useState<string[]>([]);
