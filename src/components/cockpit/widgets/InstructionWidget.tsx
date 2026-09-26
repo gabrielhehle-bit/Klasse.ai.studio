@@ -16,6 +16,8 @@ export interface InstructionWidgetProps {
   setApp?: (updater: (prev: any) => any) => void;
   currentIsLight: boolean;
   isSplit?: boolean;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
 }
 
 // Social Form Options
@@ -49,6 +51,8 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
   app,
   setApp,
   currentIsLight,
+  showSettings: externalShowSettings,
+  onCloseSettings,
 }) => {
   const settings = widget.settings || {};
 
@@ -74,6 +78,12 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
   // Mode: 'view' (Student Smartboard) or 'edit' (Teacher Compact Form)
   // If there is literally zero task text, start in edit mode so the teacher can type immediately
   const [isEditing, setIsEditing] = useState<boolean>(!initialTaskText.trim());
+
+  // In the cockpit the shared header gear is the single settings entry point.
+  // Isolated previews can still use the local Bearbeiten button.
+  useEffect(() => {
+    if (externalShowSettings) setIsEditing(true);
+  }, [externalShowSettings]);
 
   // Local draft state for performance isolation (does not trigger global App re-renders on keystrokes)
   const [draftSubject, setDraftSubject] = useState(initialSubject);
@@ -169,6 +179,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
     }
 
     setIsEditing(false);
+    onCloseSettings?.();
   }, [
     settings,
     draftSubject,
@@ -184,6 +195,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
     draftThemeId,
     onUpdate,
     setApp,
+    onCloseSettings,
   ]);
 
   // Cancel edit without saving
@@ -201,7 +213,8 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
     setDraftAlign(settings.align ?? 'left');
     setDraftThemeId(settings.themeId ?? (currentIsLight ? 'clean' : 'slateboard'));
     setIsEditing(false);
-  }, [settings, app?.vertretungHinweise, currentIsLight]);
+    onCloseSettings?.();
+  }, [settings, app?.vertretungHinweise, currentIsLight, onCloseSettings]);
 
   // Keyboard shortcut in edit mode: Ctrl/Cmd + Enter -> Show, Escape -> Cancel
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -381,15 +394,13 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
               <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs sm:text-sm font-black uppercase tracking-wider ${
                 isDarkCanvas 
                   ? 'bg-white/15 text-emerald-300 border border-white/10' 
-                  : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                  : 'bg-accent-soft text-accent border border-accent/20'
               }`}>
                 <BookOpen size={14} />
                 <span>{draftSubject}</span>
               </span>
             ) : (
-              <span className="text-[11px] font-bold uppercase tracking-widest opacity-40">
-                Arbeitsauftrag
-              </span>
+              <span aria-hidden="true" />
             )}
 
             {/* Teacher Action Controls (Accessible, large touch targets, unobtrusive) */}
@@ -417,7 +428,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                 className={`min-h-11 px-3.5 rounded-xl border text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95 ${
                   isDarkCanvas
                     ? 'bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-500'
-                    : 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600'
+                    : 'bg-accent hover:bg-accent-hover text-accent-text border-accent'
                 }`}
                 title="Arbeitsauftrag bearbeiten"
                 aria-label="Bearbeiten"
@@ -460,7 +471,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                 {/* Subtitle / Details (e.g., "Arbeitsheft S. 24, Nr. 1–4") */}
                 {draftDetails && (
                   <div className={`text-base sm:text-xl font-bold tracking-tight opacity-90 ${
-                    isDarkCanvas ? 'text-emerald-200' : 'text-indigo-600'
+                    isDarkCanvas ? 'text-emerald-200' : 'text-accent'
                   }`}>
                     {draftDetails}
                   </div>
@@ -520,7 +531,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                 <p className="text-base sm:text-lg font-bold">Noch kein Arbeitsauftrag hinterlegt.</p>
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="mt-3 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black uppercase tracking-wider cursor-pointer"
+                  className="mt-3 px-4 py-2 rounded-xl bg-accent text-white text-xs font-black uppercase tracking-wider cursor-pointer"
                 >
                   Jetzt eingeben
                 </button>
@@ -605,7 +616,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
             {/* Header: Title & Actions */}
             <div className="flex items-center justify-between gap-2 border-b pb-2.5 border-slate-200 dark:border-white/10">
               <div className="flex items-center gap-2">
-                <Edit3 size={18} className="text-indigo-600 dark:text-indigo-400" />
+                <Edit3 size={18} className="text-accent dark:text-accent" />
                 <span className="text-sm font-black uppercase tracking-wider">
                   Arbeitsauftrag bearbeiten
                 </span>
@@ -624,7 +635,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                 <button
                   type="button"
                   onClick={handleSaveAndShow}
-                  className="min-h-11 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95"
+                  className="min-h-11 px-4 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95"
                 >
                   <Eye size={16} />
                   <span>Anzeigen</span>
@@ -645,7 +656,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                   value={draftSubject}
                   onChange={(e) => setDraftSubject(e.target.value)}
                   placeholder="z.B. Deutsch, Mathematik..."
-                  className={`flex-1 px-3 py-2 rounded-xl text-sm font-bold border outline-none focus:border-indigo-500 ${
+                  className={`flex-1 px-3 py-2 rounded-xl text-sm font-bold border outline-none focus:border-accent ${
                     currentIsLight ? 'bg-white border-slate-300' : 'bg-zinc-900 border-white/10 text-white'
                   }`}
                 />
@@ -659,7 +670,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                     onClick={() => setDraftSubject(subj)}
                     className={`min-h-11 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
                       draftSubject === subj
-                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        ? 'bg-accent text-accent-text border-accent'
                         : currentIsLight
                           ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
                           : 'bg-zinc-900 border-white/10 text-slate-300 hover:bg-zinc-800'
@@ -674,7 +685,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
             {/* Core Task (Main Area) */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                <label className="text-xs font-black uppercase tracking-wider text-accent dark:text-accent">
                   Arbeitsauftrag (Haupttext) *
                 </label>
                 <span className="text-[10px] font-bold text-slate-400">
@@ -686,7 +697,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                 value={draftTaskText}
                 onChange={(e) => setDraftTaskText(e.target.value)}
                 placeholder="Was sollen die Kinder tun?&#10;z. B.: 1. Lies S. 42&#10;2. Bearbeite Nr. 1–3 im Heft"
-                className={`w-full p-3 rounded-xl text-base font-bold border outline-none resize-y focus:border-indigo-500 ${
+                className={`w-full p-3 rounded-xl text-base font-bold border outline-none resize-y focus:border-accent ${
                   currentIsLight ? 'bg-white border-slate-300' : 'bg-zinc-900 border-white/10 text-white'
                 }`}
                 autoFocus
@@ -703,7 +714,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                 value={draftDetails}
                 onChange={(e) => setDraftDetails(e.target.value)}
                 placeholder="z.B. Buch S. 24 Nr. 1–4"
-                className={`w-full px-3 py-2 rounded-xl text-sm font-bold border outline-none focus:border-indigo-500 ${
+                className={`w-full px-3 py-2 rounded-xl text-sm font-bold border outline-none focus:border-accent ${
                   currentIsLight ? 'bg-white border-slate-300' : 'bg-zinc-900 border-white/10 text-white'
                 }`}
               />
@@ -724,7 +735,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                       onClick={() => setDraftSocialForm(isSelected ? '' : form.id)}
                       className={`min-h-[44px] p-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         isSelected
-                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                          ? 'bg-accent text-accent-text border-accent shadow-sm'
                           : currentIsLight
                             ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
                             : 'bg-zinc-900 border-white/10 text-slate-300 hover:bg-zinc-800'
@@ -753,7 +764,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                       onClick={() => handleToggleMaterial(mat.id)}
                       className={`min-h-11 px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                         isSelected
-                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                          ? 'bg-accent text-accent-text border-accent shadow-sm'
                           : currentIsLight
                             ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
                             : 'bg-zinc-900 border-white/10 text-slate-300 hover:bg-zinc-800'
@@ -778,7 +789,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                   value={draftTimeEstimate}
                   onChange={(e) => setDraftTimeEstimate(e.target.value)}
                   placeholder="z.B. 10 Minuten"
-                  className={`flex-1 px-3 py-2 rounded-xl text-sm font-bold border outline-none focus:border-indigo-500 ${
+                  className={`flex-1 px-3 py-2 rounded-xl text-sm font-bold border outline-none focus:border-accent ${
                     currentIsLight ? 'bg-white border-slate-300' : 'bg-zinc-900 border-white/10 text-white'
                   }`}
                 />
@@ -861,7 +872,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                     }
                   }}
                   placeholder="Schritt hinzufügen (z.B. Partnerkontrolle)..."
-                  className={`flex-1 px-3 py-2 rounded-xl text-xs font-bold border outline-none focus:border-indigo-500 ${
+                  className={`flex-1 px-3 py-2 rounded-xl text-xs font-bold border outline-none focus:border-accent ${
                     currentIsLight ? 'bg-white border-slate-300' : 'bg-zinc-900 border-white/10 text-white'
                   }`}
                 />
@@ -869,7 +880,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                   type="button"
                   onClick={handleAddChecklistItem}
                   disabled={!newChecklistText.trim()}
-                  className="min-h-11 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
+                  className="min-h-11 px-3 rounded-xl bg-accent hover:bg-accent-hover disabled:opacity-40 text-accent-text text-xs font-bold flex items-center gap-1 cursor-pointer"
                 >
                   <Plus size={14} />
                   <span>Hinzufügen</span>
@@ -894,7 +905,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                       onClick={() => setDraftThemeId(th.id)}
                       className={`min-h-11 px-2.5 py-1 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                         draftThemeId === th.id
-                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                          ? 'bg-accent text-accent-text border-accent shadow-sm'
                           : currentIsLight
                             ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
                             : 'bg-zinc-900 border-white/10 text-slate-300 hover:bg-zinc-800'
@@ -920,7 +931,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                       onClick={() => setDraftFontSizeScale(s.id)}
                       className={`w-11 h-11 rounded-xl text-xs font-bold border flex items-center justify-center transition-all cursor-pointer ${
                         draftFontSizeScale === s.id
-                          ? 'bg-indigo-600 text-white border-indigo-600'
+                          ? 'bg-accent text-accent-text border-accent'
                           : currentIsLight
                             ? 'bg-white border-slate-200 text-slate-700'
                             : 'bg-zinc-900 border-white/10 text-slate-300'
@@ -938,7 +949,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                     onClick={() => setDraftAlign('left')}
                     className={`min-h-11 min-w-11 p-2 rounded-xl border cursor-pointer ${
                       draftAlign === 'left'
-                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        ? 'bg-accent text-accent-text border-accent'
                         : currentIsLight ? 'bg-white border-slate-200 text-slate-600' : 'bg-zinc-900 border-white/10 text-slate-400'
                     }`}
                     title="Linksbündig"
@@ -950,7 +961,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                     onClick={() => setDraftAlign('center')}
                     className={`min-h-11 min-w-11 p-2 rounded-xl border cursor-pointer ${
                       draftAlign === 'center'
-                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        ? 'bg-accent text-accent-text border-accent'
                         : currentIsLight ? 'bg-white border-slate-200 text-slate-600' : 'bg-zinc-900 border-white/10 text-slate-400'
                     }`}
                     title="Zentriert"
@@ -981,7 +992,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
             <button
               type="button"
               onClick={handleSaveAndShow}
-              className="flex-1 min-h-[46px] rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all active:scale-98"
+              className="flex-1 min-h-[46px] rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-black text-sm flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all active:scale-98"
             >
               <Eye size={18} />
               <span>Fertig & Am Smartboard anzeigen</span>
