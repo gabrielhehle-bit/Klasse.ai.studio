@@ -84,7 +84,9 @@ test('Widget 2: all groups are accessible together in expanded view, never silen
   assert.match(widget, /const displayedGroups = isExpanded/);
   assert.match(widget, /\? groupLayout\.cards/);
   assert.match(widget, /compactGroupWidget \? '⛶ Alle' : `Alle \${groups.length} Gruppen anzeigen`/);
-  assert.match(widget, /if \(!preview\.fits \|\| preview\.pageCount > 1\) setIsExpanded\(true\)/);
+  assert.match(widget, /Full size is an explicit user action via/);
+  const generation = widget.slice(widget.indexOf('// Gruppen erstellen oder neu mischen'), widget.indexOf('const undoMix'));
+  assert.doesNotMatch(generation, /setIsExpanded\(true\)/);
   assert.match(widget, /isExpanded \? 'flex-none overflow-visible pb-2' : 'flex-1 overflow-hidden'/);
   assert.match(widget, /!isExpanded && groupLayout\.pageCount > 1/);
 });
@@ -105,8 +107,8 @@ test('Widget 2: rapid picker updates do not get overwritten by group edits', () 
 
 test('Widget 2: Neu mischen bleibt in der aktuellen Widgetgröße', () => {
   const generation = widget.slice(widget.indexOf('// Gruppen erstellen oder neu mischen'), widget.indexOf('const undoMix'));
-  assert.match(generation, /const isRemix = groups\\.length > 0/);
-  assert.match(generation, /if \\(isRemix && !isExpanded\\)/);
-  assert.doesNotMatch(generation, /setIsExpanded\\(true\\)/);
-  assert.match(widget, /onClick=\\{\\(\\) => setIsExpanded\\(true\\)\\}/);
+  assert.match(generation, /const isRemix = groups\.length > 0/);
+  assert.match(generation, /if \(isRemix && !isExpanded\)/);
+  assert.doesNotMatch(generation, /setIsExpanded\(true\)/);
+  assert.match(widget, /onClick=\{\(\) => setIsExpanded\(true\)\}/);
 });
