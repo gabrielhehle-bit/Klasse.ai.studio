@@ -36,6 +36,7 @@ export function CockpitWidgetDock({
   const [search, setSearch] = useState('');
   const [confirmRemoveId, setConfirmRemoveId] = useState<CockpitQuickbarId | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<'favorites' | 'add'>('favorites');
   const dockAreaRef = useRef<HTMLDivElement>(null);
   const draggedFavoriteRef = useRef<CockpitQuickbarId | null>(null);
 
@@ -71,6 +72,16 @@ export function CockpitWidgetDock({
     setSearch('');
     setConfirmRemoveId(null);
     setConfirmReset(false);
+    setSettingsTab('favorites');
+  }, [editing]);
+
+  useEffect(() => {
+    if (!editing) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setEditing(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
   }, [editing]);
 
   // 6–8 favorites may keep their labels when the board is wide enough.
@@ -124,15 +135,15 @@ export function CockpitWidgetDock({
     >
       <div ref={dockAreaRef} className="relative flex w-full min-w-0 justify-center">
       {minimizedTypes.length > 0 && (
-        <div className="klassio-minimized-strip absolute bottom-full left-1/2 mb-1.5 flex max-w-[min(92vw,760px)] -translate-x-1/2 items-center gap-1 overflow-x-auto rounded-2xl border border-indigo-200 bg-white/95 p-1.5 shadow-lg backdrop-blur" aria-label="Minimierte Widgets">
-          <span className="sticky left-0 z-10 flex min-h-10 shrink-0 items-center gap-1 rounded-xl bg-indigo-50 px-2 text-[10px] font-black uppercase tracking-wide text-indigo-700" aria-hidden="true">
+        <div className="klassio-minimized-strip absolute bottom-full left-1/2 mb-1.5 flex w-max max-w-full -translate-x-1/2 items-center gap-1 overflow-x-auto rounded-2xl border border-accent bg-white/95 p-1.5 shadow-lg backdrop-blur" aria-label="Minimierte Widgets">
+          <span className="sticky left-0 z-10 flex min-h-10 shrink-0 items-center gap-1 rounded-xl bg-accent-soft px-2 text-[10px] font-black uppercase tracking-wide text-accent" aria-hidden="true">
             <span>▾</span><span>Minimiert</span>
           </span>
           {minimizedTypes.map(type => {
             const meta = metaFor(type);
             return <button type="button" key={type}
               onClick={() => onRestoreMinimized?.(type)}
-              className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border border-indigo-200 bg-white px-2.5 text-xs font-bold text-slate-800 shadow-sm hover:border-indigo-300 hover:bg-indigo-50"
+              className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border border-accent bg-white px-2.5 text-xs font-bold text-slate-800 shadow-sm hover:bg-accent-soft"
               aria-label={(meta?.label || type) + ' wiederherstellen'}
               title={(meta?.label || type) + ' wiederherstellen'}>
               <span aria-hidden="true">{meta?.icon || '▣'}</span>
@@ -167,34 +178,34 @@ export function CockpitWidgetDock({
               aria-label={editing ? item.label + ' in der Favoritenleiste verschieben' : item.label + ' auf der Tafel öffnen'}
               aria-pressed={isActive && !isMinimized}
               data-minimized={isMinimized ? "true" : "false"}
-              className={`klassio-dock-favorite relative flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1 rounded-xl border py-1 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:opacity-40 ${showFavoriteLabels ? 'px-2.5' : 'px-2'} ${editing ? 'touch-none select-none cursor-grab active:cursor-grabbing' : ''} ${draggedFavoriteId === item.id ? 'scale-95 opacity-60 ring-2 ring-indigo-300' : ''} ${
+              className={`klassio-dock-favorite relative flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1 rounded-xl border py-1 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:opacity-40 ${showFavoriteLabels ? 'px-2.5' : 'px-2'} ${editing ? 'touch-none select-none cursor-grab active:cursor-grabbing' : ''} ${draggedFavoriteId === item.id ? 'scale-95 opacity-60 ring-2 ring-accent' : ''} ${
                 isMinimized
-                  ? 'border-indigo-200 bg-indigo-50/70 text-indigo-700 opacity-80'
+                  ? 'border-accent bg-accent-soft text-accent opacity-80'
                   : isActive
-                    ? 'border-indigo-300 bg-indigo-100 text-indigo-950 shadow-sm'
-                    : 'border-transparent text-slate-800 hover:border-indigo-200 hover:bg-indigo-50'
+                    ? 'border-accent bg-accent-soft text-accent shadow-sm'
+                    : 'border-transparent text-slate-800 hover:border-accent hover:bg-accent-soft'
               }`}>
               <span aria-hidden="true" className="text-xl leading-none">{item.icon}</span>
               {showFavoriteLabels && <span className="max-w-24 truncate text-[11px] font-semibold leading-tight">{item.label}</span>}
-              {isActive && !isMinimized && <span className="absolute -bottom-0.5 left-1/2 h-1.5 w-5 -translate-x-1/2 rounded-full bg-indigo-600" aria-hidden="true" />}
-              {isMinimized && <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-indigo-600 px-1 text-[9px] font-black text-white" aria-hidden="true">▾</span>}
+              {isActive && !isMinimized && <span className="absolute -bottom-0.5 left-1/2 h-1.5 w-5 -translate-x-1/2 rounded-full bg-accent" aria-hidden="true" />}
+              {isMinimized && <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-black text-accent-text" aria-hidden="true">▾</span>}
             </button>
           )})}
         </div>
         <div className="klassio-dock-system flex shrink-0 items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
         <button type="button" disabled={!hasClass} onClick={onAddWidget}
           aria-label="Weitere Widgets hinzufügen" title="Alle Widgets"
-          className="klassio-dock-add flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-indigo-700 px-3 text-white shadow-md ring-1 ring-indigo-800/10 transition-all hover:-translate-y-0.5 hover:bg-indigo-800 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:translate-y-0 disabled:opacity-40">
+          className="klassio-dock-add klassio-dock-primary flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-accent px-3 text-accent-text shadow-md ring-1 ring-black/10 transition-all hover:-translate-y-0.5 hover:bg-accent-hover hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:translate-y-0 disabled:opacity-40">
           <span className="text-2xl font-semibold leading-none" aria-hidden="true">+</span>
           <span className="hidden text-xs font-black sm:inline">Widgets</span>
         </button>
         <button type="button" disabled={!hasClass} onClick={() => setEditing(open => !open)}
           aria-label="Meine Widget-Leiste anpassen" aria-expanded={editing} title="Widget-Leiste anpassen"
-          className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border text-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:opacity-40 ${editing ? 'border-indigo-300 bg-indigo-100 text-indigo-800' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}>⚙️</button>
+          className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border text-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:opacity-40 ${editing ? 'border-accent bg-accent-soft text-accent' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}>⚙️</button>
         <button type="button" onClick={onToggleSidebar}
           aria-label={sidebarOpen ? 'Schülerliste ausblenden' : 'Schülerliste einblenden'}
           aria-expanded={sidebarOpen} title={sidebarOpen ? 'Schülerliste ausblenden' : 'Schülerliste öffnen'}
-          className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border text-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 ${sidebarOpen ? 'border-indigo-300 bg-indigo-100 text-indigo-800' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}>👥</button>
+          className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border text-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring ${sidebarOpen ? 'border-accent bg-accent-soft text-accent' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}>👥</button>
         </div>
 
         {editing && (
@@ -219,29 +230,46 @@ export function CockpitWidgetDock({
               <label className="relative inline-flex min-h-11 min-w-14 cursor-pointer items-center">
                 <input type="checkbox" className="peer sr-only" checked={settings.enabled}
                   onChange={event => onChange(current => ({ ...current, enabled: event.target.checked }))} />
-                <span className="h-7 w-12 rounded-full bg-slate-300 transition-colors peer-checked:bg-indigo-600" />
+                <span className="h-7 w-12 rounded-full bg-slate-300 transition-colors peer-checked:bg-accent" />
                 <span className="absolute left-1 h-5 w-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
                 <span className="sr-only">Widget-Leiste anzeigen</span>
               </label>
             </div>
 
-            <div className="relative mt-3 shrink-0">
-              <input type="search" value={search} onChange={event => {
-                  setSearch(event.target.value);
-                  setConfirmRemoveId(null);
-                }}
-                placeholder="Widget suchen …"
-                aria-label="Widgets für die Leiste suchen"
-                className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 pr-12 text-sm font-semibold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" />
-              {search && <button type="button" onClick={() => setSearch('')} aria-label="Suche leeren"
-                className="absolute right-0 top-0 flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100">✕</button>}
+            <div className="mt-3 grid shrink-0 grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Widget-Leiste verwalten">
+              <button type="button" role="tab" aria-selected={settingsTab === 'favorites'}
+                onClick={() => { setSettingsTab('favorites'); setSearch(''); setConfirmRemoveId(null); }}
+                className={`min-h-11 rounded-lg px-3 text-xs font-black transition-colors ${settingsTab === 'favorites' ? 'klassio-dock-accent bg-white text-accent shadow-sm' : 'text-slate-600 hover:bg-white/70'}`}>
+                Meine Leiste · {favorites.length}
+              </button>
+              <button type="button" role="tab" aria-selected={settingsTab === 'add'}
+                onClick={() => { setSettingsTab('add'); setConfirmRemoveId(null); }}
+                className={`min-h-11 rounded-lg px-3 text-xs font-black transition-colors ${settingsTab === 'add' ? 'klassio-dock-accent bg-white text-accent shadow-sm' : 'text-slate-600 hover:bg-white/70'}`}>
+                Widget hinzufügen
+              </button>
             </div>
 
-            <div className="mt-3 min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1">
+            {settingsTab === 'add' && (
+              <div className="relative mt-3 shrink-0">
+                <input type="search" value={search} onChange={event => {
+                    setSearch(event.target.value);
+                    setConfirmRemoveId(null);
+                  }}
+                  placeholder="Widget suchen …"
+                  aria-label="Widgets für die Leiste suchen"
+                  autoFocus
+                  className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 pr-12 text-sm font-semibold outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft" />
+                {search && <button type="button" onClick={() => setSearch('')} aria-label="Suche leeren"
+                  className="absolute right-0 top-0 flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100">✕</button>}
+              </div>
+            )}
+
+            <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+              {settingsTab === 'favorites' ? (
               <section aria-labelledby="dock-selected-heading">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <h3 id="dock-selected-heading" className="text-xs font-black uppercase tracking-wide text-slate-500">In meiner Leiste</h3>
-                  <span className="rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-black text-indigo-700">{selectedMatches.length}</span>
+                  <span className="rounded-full bg-accent-soft px-2 py-1 text-[10px] font-black text-accent">{selectedMatches.length}</span>
                 </div>
                 {selectedMatches.length === 0 ? (
                   <p className="rounded-xl border border-dashed border-slate-200 p-3 text-xs text-slate-500">
@@ -265,8 +293,8 @@ export function CockpitWidgetDock({
                           <button type="button"
                             onClick={() => requestRemove(item.id)}
                             aria-label={confirming ? item.label + ' wirklich aus der Leiste entfernen' : item.label + ' aus der Leiste entfernen'}
-                            className={`min-h-11 rounded-lg border px-2.5 text-xs font-black transition-colors ${confirming ? 'border-rose-300 bg-rose-600 text-white' : 'border-slate-200 bg-white text-rose-600 hover:bg-rose-50'}`}>
-                            {confirming ? 'Nochmal' : 'Entfernen'}
+                            className={`min-h-11 rounded-lg border px-2.5 text-xs font-black transition-colors ${confirming ? 'klassio-dock-danger border-danger bg-danger text-white' : 'border-slate-200 bg-white text-danger hover:bg-danger-soft'}`}>
+                            {confirming ? 'Ja, entfernen' : 'Entfernen'}
                           </button>
                         </div>
                       </div>;
@@ -274,7 +302,7 @@ export function CockpitWidgetDock({
                   </div>
                 )}
               </section>
-
+              ) : (
               <section aria-labelledby="dock-available-heading">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <div>
@@ -296,13 +324,14 @@ export function CockpitWidgetDock({
                       <button type="button"
                         onClick={() => { setConfirmRemoveId(null); onChange(current => addCockpitQuickbarItem(current, item.id)); }}
                         aria-label={item.label + ' zur Widget-Leiste hinzufügen'}
-                        className="min-h-11 shrink-0 rounded-lg bg-indigo-700 px-3 text-xs font-black text-white hover:bg-indigo-800">
+                        className="klassio-dock-primary min-h-11 shrink-0 rounded-lg bg-accent px-3 text-xs font-black text-accent-text hover:bg-accent-hover">
                         + Hinzufügen
                       </button>
                     </div>)}
                   </div>
                 )}
               </section>
+              )}
             </div>
 
             <div className="mt-3 flex shrink-0 items-center justify-between gap-2 border-t border-slate-100 pt-3">
@@ -319,7 +348,7 @@ export function CockpitWidgetDock({
                   setEditing(false);
                 }}
                 className={`min-h-11 shrink-0 rounded-xl border px-3 text-xs font-bold ${confirmReset ? 'border-amber-300 bg-amber-100 text-amber-900' : 'border-slate-300 bg-slate-50 text-slate-700'}`}>
-                {confirmReset ? 'Standard wirklich laden?' : 'Standard wiederherstellen'}
+                {confirmReset ? 'Ja, Standard laden' : 'Standard wiederherstellen'}
               </button>
             </div>
           </section>
