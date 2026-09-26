@@ -17,14 +17,14 @@ export function HomeworkList({ items, compact = false, roomy = false, columns = 
   roomy?: boolean;
   columns?: number;
 }) {
-  if (!items.length) return <p className="rounded-xl border border-dashed border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
+  if (!items.length) return <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-sm font-semibold text-slate-600 dark:border-white/15 dark:bg-white/5 dark:text-slate-300">
     Für diese Woche sind noch keine Hausübungen eingetragen.
   </p>;
   return <div className={compact ? 'space-y-1.5' : 'grid gap-3'} style={compact ? undefined : { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
-    {items.map(item => <article key={item.id} className={`min-w-0 rounded-xl border-2 border-amber-200 bg-white ${compact ? 'p-2' : roomy ? 'p-5' : 'p-3'} text-slate-900`}>
-      <p className={`${roomy ? 'text-base' : 'text-sm'} font-extrabold text-amber-800`}>📚 {item.fach} · aufgegeben {localDate(item.aufgegebenAm)}</p>
+    {items.map(item => <article key={item.id} className={`min-w-0 rounded-xl border border-slate-200 bg-white ${compact ? 'p-2' : roomy ? 'p-5' : 'p-3'} text-slate-900 shadow-xs dark:border-white/10 dark:bg-zinc-900 dark:text-slate-100`}>
+      <p className={`${roomy ? 'text-base' : 'text-sm'} font-extrabold text-accent`}>📚 {item.fach} · aufgegeben {localDate(item.aufgegebenAm)}</p>
       <p className={`${roomy ? 'mt-2 text-xl' : 'mt-1 text-base'} whitespace-pre-wrap break-words font-semibold leading-snug`}>{item.aufgabe}</p>
-      <p className={`${roomy ? 'mt-4 px-3 py-2 text-base' : 'mt-2 px-2 py-1 text-sm'} rounded-lg bg-amber-50 font-black text-amber-900`}>
+      <p className={`${roomy ? 'mt-4 px-3 py-2 text-base' : 'mt-2 px-2 py-1 text-sm'} rounded-lg bg-accent-soft font-black text-accent`}>
         📅 Bis {localDate(item.faelligAm)}
       </p>
     </article>)}
@@ -44,22 +44,49 @@ export default function HomeworkWidget() {
   const week = selectedWeek ?? app.currentKW ?? todayWeek;
   const items = useMemo(() => homeworkForWeek(app, week),
     [app.hausuebungen, app.schuljahr, app.bundesland, week]);
-  return <section ref={containerRef} aria-label="Hausübungen der Klasse"
-    className="classroom-homework-widget flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border-2 border-amber-400 bg-amber-50 text-slate-950">
-    <header className={`flex shrink-0 flex-wrap items-center justify-between border-b border-amber-300 bg-amber-100 ${tiny ? 'gap-1 p-1' : compact ? 'gap-1 p-1.5' : 'gap-2 p-3'}`}>
-      <div className="min-w-0"><h2 className={`font-black leading-tight ${tiny ? 'text-sm' : compact ? 'text-base' : roomy ? 'text-2xl' : 'text-xl'}`}>📚 Unsere Hausübungen</h2>
-        <p className="text-xs font-bold text-amber-900">KW {week} · {items.length} {items.length === 1 ? 'Hausübung' : 'Hausübungen'}</p></div>
+  return <section
+    ref={containerRef}
+    aria-label="Hausübungen der Klasse"
+    className="classroom-homework-widget flex h-full min-h-0 flex-col overflow-hidden text-slate-950 dark:text-slate-100"
+  >
+    <div className={`flex min-h-11 shrink-0 flex-wrap items-center justify-between border-b border-slate-200 dark:border-white/10 ${tiny ? 'gap-1 px-1.5 py-1' : compact ? 'gap-1 px-2 py-1.5' : 'gap-2 px-3 py-2'}`}>
+      <p className="min-w-0 truncate text-xs font-bold text-slate-500 dark:text-slate-400">
+        KW {week} · {items.length} {items.length === 1 ? 'Hausübung' : 'Hausübungen'}
+      </p>
       <div className="flex items-center gap-1">
-        <button type="button" aria-label="Vorherige HÜ-Woche" disabled={week <= 1}
+        <button
+          type="button"
+          aria-label="Vorherige HÜ-Woche"
+          disabled={week <= 1}
           onClick={() => setSelectedWeek(Math.max(1, week - 1))}
-          className={`min-h-11 min-w-11 rounded-xl border border-amber-300 bg-white text-xl font-bold disabled:opacity-40`}>‹</button>
-        <button type="button" onClick={() => setSelectedWeek(todayWeek)}
-          className={`min-h-11 rounded-xl border border-amber-300 bg-white px-2 text-sm font-bold`}>Heute</button>
-        <button type="button" aria-label="Nächste HÜ-Woche" disabled={week >= 53}
+          className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-300 bg-white text-xl font-bold text-slate-700 transition-colors hover:bg-slate-100 disabled:opacity-40 dark:border-white/15 dark:bg-zinc-800 dark:text-slate-200 dark:hover:bg-zinc-700"
+        >
+          ‹
+        </button>
+        <button
+          type="button"
+          onClick={() => setSelectedWeek(todayWeek)}
+          className={`min-h-11 rounded-xl border px-3 text-sm font-bold transition-colors ${
+            week === todayWeek
+              ? 'border-accent bg-accent text-accent-text'
+              : 'border-slate-300 bg-white text-slate-700 hover:bg-accent-soft hover:text-accent dark:border-white/15 dark:bg-zinc-800 dark:text-slate-200'
+          }`}
+        >
+          Heute
+        </button>
+        <button
+          type="button"
+          aria-label="Nächste HÜ-Woche"
+          disabled={week >= 53}
           onClick={() => setSelectedWeek(Math.min(53, week + 1))}
-          className={`min-h-11 min-w-11 rounded-xl border border-amber-300 bg-white text-xl font-bold disabled:opacity-40`}>›</button>
+          className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-300 bg-white text-xl font-bold text-slate-700 transition-colors hover:bg-slate-100 disabled:opacity-40 dark:border-white/15 dark:bg-zinc-800 dark:text-slate-200 dark:hover:bg-zinc-700"
+        >
+          ›
+        </button>
       </div>
-    </header>
-    <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${compact ? 'p-1.5' : 'p-3'}`}><HomeworkList items={items} compact={compact} roomy={roomy} columns={columns} /></div>
+    </div>
+    <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${compact ? 'p-1.5' : 'p-3'}`}>
+      <HomeworkList items={items} compact={compact} roomy={roomy} columns={columns} />
+    </div>
   </section>;
 }
