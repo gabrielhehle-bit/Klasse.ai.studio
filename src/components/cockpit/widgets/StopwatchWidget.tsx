@@ -54,6 +54,18 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
   const stateRef = useRef<StopwatchSettings>(initialSettings);
   stateRef.current = state;
 
+  // Schützt direkte Bedienaktionen davor, von einem noch alten Parent-Snapshot
+  // unmittelbar wieder überschrieben zu werden. Erst wenn der Parent den
+  // gerade persistierten Zustand zurückliefert, ist die Aktion bestätigt.
+  const pendingPersistSignatureRef = useRef<string | null>(null);
+  const stateSignature = useCallback((value: StopwatchSettings) => JSON.stringify({
+    status: value.status,
+    startTimestamp: value.startTimestamp,
+    accumulatedElapsed: value.accumulatedElapsed,
+    laps: value.laps,
+    showDecimals: value.showDecimals,
+  }), []);
+
   // Lokaler Zeitwert für Rendering (Millisekunden)
   const [elapsedMs, setElapsedMs] = useState<number>(() =>
     calculateElapsedTime(initialSettings, Date.now())
@@ -68,6 +80,7 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
   const persistState = useCallback(
     (newState: StopwatchSettings) => {
       if (!onUpdate) return;
+      pendingPersistSignatureRef.current = stateSignature(newState);
       onUpdate({
         settings: {
           ...widget?.settings,
@@ -79,7 +92,7 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
         },
       });
     },
-    [onUpdate, widget?.settings]
+    [onUpdate, stateSignature, widget?.settings]
   );
 
   // Drift-freier Zeit-Loop mit reduzierter Update-Frequenz (ca. 8–10 FPS, absolut berechnet)
@@ -111,38 +124,40 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
     };
   }, [state.status, state.showDecimals]);
 
-  // Synchronisation bei externen Updates (z. B. Vollbild-Öffnen/Schließen nutzt dieselben Settings)
+  // Synchronisation bei externen Updates (z. B. Vollbild-Öffnen/Schließen nutzt dieselben Settings).
+  // Wichtig: onUpdate kann den Parent asynchron aktualisieren. In diesem kurzen Fenster
+  // darf ein alter Snapshot weder Pause noch Runde noch Zehntel wieder zurückdrehen.
   useEffect(() => {
     setState((prev) => {
       const s = widget?.settings || {};
-      const newStatus = (s.status as StopwatchStatus) || DEFAULT_STOPWATCH_SETTINGS.status;
-      const newStartTimestamp = typeof s.startTimestamp === 'number' ? s.startTimestamp : null;
-      const newAccumulated = typeof s.accumulatedElapsed === 'number' ? s.accumulatedElapsed : 0;
-      const newLaps = Array.isArray(s.laps) ? s.laps : [];
-      const newDecimals = typeof s.showDecimals === 'boolean' ? s.showDecimals : false;
+      const nextState: StopwatchSettings = {
+        status: (s.status as StopwatchStatus) || DEFAULT_STOPWATCH_SETTINGS.status,
+        startTimestamp: typeof s.startTimestamp === 'number' ? s.startTimestamp : null,
+        accumulatedElapsed: typeof s.accumulatedElapsed === 'number' ? s.accumulatedElapsed : 0,
+        laps: Array.isArray(s.laps) ? s.laps : [],
+        showDecimals: typeof s.showDecimals === 'boolean' ? s.showDecimals : false,
+      };
 
-      // Wenn keine Änderung, State beibehalten
-      if (
-        prev.status === newStatus &&
-        prev.startTimestamp === newStartTimestamp &&
-        prev.accumulatedElapsed === newAccumulated &&
-        prev.laps.length === newLaps.length &&
-        prev.showDecimals === newDecimals
-      ) {
+      const incomingSignature = stateSignature(nextState);
+      const pendingSignature = pendingPersistSignatureRef.current;
+
+      if (pendingSignature) {
+        if (incomingSignature !== pendingSignature) {
+          // Noch der alte Parent-Snapshot: lokale Benutzeraktion beibehalten.
+          return prev;
+        }
+        // Parent hat unsere Aktion bestätigt; externe Updates dürfen wieder greifen.
+        pendingPersistSignatureRef.current = null;
+      }
+
+      if (stateSignature(prev) === incomingSignature) {
         return prev;
       }
 
-      const nextState: StopwatchSettings = {
-        status: newStatus,
-        startTimestamp: newStartTimestamp,
-        accumulatedElapsed: newAccumulated,
-        laps: newLaps,
-        showDecimals: newDecimals,
-      };
       setElapsedMs(calculateElapsedTime(nextState, Date.now()));
       return nextState;
     });
-  }, [widget?.settings]);
+  }, [stateSignature, widget?.settings]);
 
   // Auto-Persist beim Unmounten (falls im laufenden Betrieb geschlossen wird)
   useEffect(() => {
@@ -419,6 +434,22 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
                 : 'Bereit'}
           </span>
 
+          <button
+            type="button"
+            onClick={toggleDecimals}
+            aria-pressed={state.showDecimals}
+            aria-label="Zehntelsekunden umschalten"
+            title="Zehntelsekunden umschalten"
+            className={`min-h-8 rounded-full border px-2.5 text-[10px] font-black tabular-nums transition-colors ${
+              state.showDecimals
+                ? 'border-accent bg-accent-soft text-accent'
+                : currentIsLight
+                  ? 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                  : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'
+            }`}
+          >
+            0,1 s
+          </button>
         </div>
       </div>
 
