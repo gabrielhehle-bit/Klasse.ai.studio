@@ -39,7 +39,7 @@ test('widget cards expose favorite, safe quick-bar pinning and a clear board act
   assert.match(surface, /auf der Tafel anzeigen/);
   assert.match(surface, /wiederherstellen/);
   assert.match(surface, /An die untere Widget-Leiste heften/);
-  assert.match(surface, /addCockpitQuickbarItem\\(settings, item\\.type as CockpitQuickbarId\\)/);
+  assert.match(surface, /addCockpitQuickbarItem\(settings, item\.type as CockpitQuickbarId\)/);
   assert.doesNotMatch(surface, /aria-label="Ich bin da! einstellen"/);
   assert.doesNotMatch(surface, /aria-label="Gruppen bilden einstellen"/);
   assert.doesNotMatch(surface, /aria-label="Wochenplan der Kinder einstellen"/);
