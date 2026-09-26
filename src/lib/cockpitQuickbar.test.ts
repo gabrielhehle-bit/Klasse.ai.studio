@@ -37,7 +37,7 @@ test('new classrooms get an ordered customizable dock; old disabled favorites re
   assert.match(dock, /aria-label="Meine Widget-Leiste anpassen"/);
   assert.match(dock, /Weitere Widgets/);
   assert.match(dock, /\+ Hinzufügen/);
-  assert.match(dock, /Nochmal/);
+  assert.match(dock, /Ja, entfernen/);
   assert.doesNotMatch(dock, /onContextMenu=/);
 });
 
