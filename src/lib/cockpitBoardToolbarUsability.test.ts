@@ -37,9 +37,9 @@ test('Cockpit-Optionen haben eine benannte Menüfläche und keine 40px-Aktionsze
     '{/* Layout Slot Menu Modal if opened */}',
   );
   assert.match(options, /min-h-11/);
-  assert.match(options, /className="flex min-h-11 items-center gap-2 font-semibold"/);
-  assert.match(options, /className="flex min-h-11 items-center gap-2"/);
-  assert.match(options, /min-h-11 w-full rounded-lg border border-slate-300/);
+  assert.match(options, /Widget-Leiste anzeigen/);
+  assert.match(options, /relative inline-flex min-h-11 min-w-14/);
+  assert.match(options, /alle Widgets suchen, hinzufügen, sortieren und sicher entfernen/);
   assert.doesNotMatch(options, /min-h-(?:9|10)/);
 });
 
