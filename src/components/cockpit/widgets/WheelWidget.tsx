@@ -821,7 +821,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                         className={`flex-grow min-h-11 px-3 rounded-xl border text-xs font-bold outline-none ${
                           currentIsLight
                             ? 'bg-white border-slate-200 text-slate-900 focus:border-accent'
-                            : 'bg-zinc-800 border-white/10 text-white focus:border-indigo-400'
+                            : 'bg-zinc-800 border-white/10 text-white focus:border-accent'
                         }`}
                       />
                       <button
