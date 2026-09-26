@@ -4268,13 +4268,8 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
         : DEFAULT_WORKSPACE_PROFILES;
     const profile = listToSearch.find((p: any) => p.id === profileId);
     if (profile && profile.layout) {
-      const loaded = loadAndSanitizeLayout(profile.layout);
-      setCockpitWidgets(loaded);
-      setApp((prev: any) => ({
-        ...prev,
-        cockpitLayout: loaded,
-      }));
-      showToast(`Profil "${profile.name}" geladen!`, "success");
+      restoreCockpitLayout(profile.layout);
+      showToast(`Vorlage "${profile.name}" geladen.`, "success");
     }
   };
 
@@ -4309,15 +4304,12 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     const field = slot === "A" ? "cockpitLayoutA" : slot === "B" ? "cockpitLayoutB" : "cockpitLayoutC";
     const saved = app[field];
     if (saved && Array.isArray(saved) && saved.length > 0) {
-      const loaded = loadAndSanitizeLayout(saved);
-      setCockpitWidgets(loaded);
-      setApp((prev) => ({
-        ...prev,
-        cockpitLayout: loaded,
-      }));
-      showToast(`Layout "${slotNames[slot] || slot}" erfolgreich geladen!`, "success");
+      restoreCockpitLayout(saved);
+      showToast(`Layout "${slotNames[slot] || slot}" geladen.`, "success");
+      return true;
     } else {
       showToast(`Kein gespeichertes Layout in "${slotNames[slot] || slot}" vorhanden.`, "info");
+      return false;
     }
   };
   const [showBoardSettings, setShowBoardSettings] = useState(false);
