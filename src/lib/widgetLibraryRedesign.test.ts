@@ -47,6 +47,7 @@ test('widget cards expose favorite, safe quick-bar pinning and a clear board act
 });
 
 test('library uses a left rail on desktop and horizontal category strip on phones', () => {
+  assert.match(css, /\.klassio-widget-library \{[\s\S]*?box-sizing: border-box;/);
   assert.match(css, /\.klassio-widget-library \{[\s\S]*?grid-template-columns: 13\.5rem minmax\(0, 1fr\)/);
   assert.match(css, /\.klassio-widget-library-sidebar \{[\s\S]*?grid-column: 1/);
   assert.match(css, /\.klassio-widget-library-content \{[\s\S]*?grid-column: 2/);
