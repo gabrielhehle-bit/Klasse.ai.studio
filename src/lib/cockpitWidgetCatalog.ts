@@ -591,6 +591,8 @@ const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
   "thermometer",
   "classtarget",
   "dienste",
+  "todo",
+  "phases",
   "randomname",
   "groups",
   "kidattendance",
