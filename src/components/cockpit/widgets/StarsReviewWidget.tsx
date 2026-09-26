@@ -65,6 +65,13 @@ export default function StarsReviewWidget({
     setPresenting(false);
     setLocalShowSettings(false);
   }, [app.activeClassId, widget.id]);
+  useEffect(() => {
+    if (externalShowSettings) {
+      // Opening settings always revokes the previous public reveal.
+      // Closing settings must never make pupil rankings reappear automatically.
+      setPresenting(false);
+    }
+  }, [externalShowSettings]);
   const settings = useMemo(() => safeSettings(widget.settings?.starsReview), [widget.settings?.starsReview]);
   const children = app.schueler || [];
   const logs = app.mitarbeitLogs || [];
