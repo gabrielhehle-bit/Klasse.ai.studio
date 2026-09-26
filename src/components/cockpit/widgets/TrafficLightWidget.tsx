@@ -168,7 +168,7 @@ export const TrafficLightWidget: React.FC<TrafficLightWidgetProps> = ({
           aria-pressed={view === key} title={label}
           onClick={() => setView(key)}
           className={`min-h-11 min-w-0 rounded-xl border px-1 py-1 text-[10px] font-bold sm:text-xs ${view === key
-            ? 'border-indigo-400 bg-indigo-100 text-indigo-900'
+            ? 'border-accent bg-accent-soft text-accent'
             : currentIsLight ? 'border-slate-200 bg-white text-slate-700' : 'border-zinc-700 bg-zinc-900 text-zinc-200'}`}>
           {label}
         </button>)}
