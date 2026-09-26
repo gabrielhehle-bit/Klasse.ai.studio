@@ -292,7 +292,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   };
 
   const handlePointerDownDrag = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!e.isPrimary || isMaximized || layoutLocked) return;
+    if (!e.isPrimary || e.button !== 0 || isMaximized || layoutLocked) return;
     onFocus();
 
     const stage = stageRef.current;
@@ -311,6 +311,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
 
     const target = e.currentTarget;
     target.setPointerCapture(e.pointerId);
+    setIsDragging(true);
 
     const handlePointerMove = (moveEvent: PointerEvent) => {
       const deltaX = moveEvent.clientX - dragStartPos.current.x;
@@ -349,6 +350,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       target.removeEventListener("pointermove", handlePointerMove);
       target.removeEventListener("pointerup", finishDrag);
       target.removeEventListener("pointercancel", finishDrag);
+      setIsDragging(false);
     };
 
     target.addEventListener("pointermove", handlePointerMove);
@@ -356,8 +358,8 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     target.addEventListener("pointercancel", finishDrag);
   };
 
-  const handlePointerDownResize = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!e.isPrimary || isMaximized || layoutLocked) return;
+  const handlePointerDownResize = (e: React.PointerEvent<HTMLElement>) => {
+    if (!e.isPrimary || e.button !== 0 || isMaximized || layoutLocked) return;
     e.stopPropagation();
     onFocus();
 
@@ -374,6 +376,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
 
     const target = e.currentTarget;
     target.setPointerCapture(e.pointerId);
+    setIsResizing(true);
 
     const handlePointerMove = (moveEvent: PointerEvent) => {
       const deltaX = moveEvent.clientX - resizeStartPos.current.startX;
@@ -407,22 +410,68 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       });
     };
 
-    const handlePointerUp = (upEvent: PointerEvent) => {
-      target.releasePointerCapture(upEvent.pointerId);
+    const finishResize = (endEvent: PointerEvent) => {
+      if (target.hasPointerCapture(endEvent.pointerId)) {
+        target.releasePointerCapture(endEvent.pointerId);
+      }
       target.removeEventListener("pointermove", handlePointerMove);
-      target.removeEventListener("pointerup", handlePointerUp);
+      target.removeEventListener("pointerup", finishResize);
+      target.removeEventListener("pointercancel", finishResize);
+      setIsResizing(false);
     };
 
     target.addEventListener("pointermove", handlePointerMove);
-    target.addEventListener("pointerup", handlePointerUp);
+    target.addEventListener("pointerup", finishResize);
+    target.addEventListener("pointercancel", finishResize);
   };
 
-  const handleSetPersistentLargeSize = () => {
-    // Im Gegensatz zu "Maximieren" wird diese Größe über onUpdate im Layout gespeichert.
+  const applyPersistentSize = (targetW: number, targetH: number, moveToBoardInset = false) => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const stageRect = stage.getBoundingClientRect();
+    if (stageRect.width <= 0 || stageRect.height <= 0) return;
+    const minConfig = getWidgetMinSizeConfig(widget.type);
+    const minW = Math.min(100, (minConfig.minW / stageRect.width) * 100);
+    const minH = Math.min(100, (minConfig.minH / stageRect.height) * 100);
+    const w = Math.max(minW, Math.min(96, targetW));
+    const h = Math.max(minH, Math.min(96, targetH));
+    const x = moveToBoardInset ? Math.max(0, Math.min(4, 100 - w)) : Math.max(0, Math.min(widget.x, 100 - w));
+    const y = moveToBoardInset ? Math.max(0, Math.min(4, 100 - h)) : Math.max(0, Math.min(widget.y, 100 - h));
     setIsMaximized(false);
-    onUpdate({ x: 4, y: 4, w: 92, h: 90 });
-    setShowWidgetMenu(false);
-    setShowSizeConfig(false);
+    onFocus();
+    onUpdate({ x, y, w, h });
+    setSizeInputWidth(Math.round(w).toString());
+    setSizeInputHeight(Math.round(h).toString());
+  };
+
+  const applySizePreset = (preset: "fit" | "large" | "board") => {
+    const optimal = OPTIMAL_WIDGET_SIZES[widget.type] || { w: 35, h: 45 };
+    if (preset === "fit") {
+      applyPersistentSize(optimal.w, optimal.h);
+      return;
+    }
+    if (preset === "large") {
+      applyPersistentSize(
+        Math.min(82, Math.max(55, optimal.w * 1.35)),
+        Math.min(86, Math.max(60, optimal.h * 1.25)),
+      );
+      return;
+    }
+    applyPersistentSize(92, 90, true);
+  };
+
+  const handleResizeKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    const delta = event.shiftKey ? 5 : 2;
+    let dw = 0;
+    let dh = 0;
+    if (event.key === "ArrowLeft") dw = -delta;
+    else if (event.key === "ArrowRight") dw = delta;
+    else if (event.key === "ArrowUp") dh = -delta;
+    else if (event.key === "ArrowDown") dh = delta;
+    else return;
+    event.preventDefault();
+    event.stopPropagation();
+    applyPersistentSize(widget.w + dw, widget.h + dh);
   };
 
   const labelMapping: Record<string, string> = {
