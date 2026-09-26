@@ -308,7 +308,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
                       ? previous.filter(id => id !== student.id)
                       : [...previous, student.id]);
                 }}
-                className={`flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm font-semibold focus-visible:outline-2 focus-visible:outline-indigo-600 ${excluded ? 'border-slate-300 bg-slate-100 text-slate-600' : 'border-indigo-300 bg-indigo-50 text-indigo-900'}`}>
+                className={`flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm font-semibold focus-visible:outline-2 focus-visible:outline-accent ${excluded ? 'border-slate-300 bg-slate-100 text-slate-600' : 'border-accent bg-accent-soft text-accent'}`}>
                 <span className="min-w-0 break-words [overflow-wrap:anywhere]">{getUnambiguousPickerName(student, allStudents)}</span>
                 <span className="shrink-0">{excluded ? '○' : '✓'}</span>
               </button>
@@ -331,7 +331,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
           <button type="button" onClick={() => { setSessionScope(scopeKey); setSessionExcludedIds([]); }}
             className="min-h-11 rounded-xl border border-slate-300 px-3 text-sm font-bold">Alle aktivieren</button>
           <button type="button" onClick={() => setShowPupilSelector(false)}
-            className="min-h-11 rounded-xl bg-indigo-600 px-5 text-sm font-bold text-white">Fertig</button>
+            className="min-h-11 rounded-xl bg-accent px-5 text-sm font-bold text-accent-text hover:bg-accent-hover">Fertig</button>
         </div>
       </section>
     </div>,
@@ -343,8 +343,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
       className={`relative flex h-full w-full min-h-0 flex-col ${compact ? 'gap-1 p-1.5' : 'gap-2 p-2 sm:p-3'} rounded-2xl border ${currentIsLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-white/10 bg-zinc-950 text-white'}`}>
       <div className={`flex shrink-0 items-center justify-between gap-1 ${veryCompact ? 'min-h-9' : ''}`}>
         <div className="min-w-0">
-          {!veryCompact && <span className={`block font-black ${compact ? 'text-xs' : 'text-sm'}`}>🎯 Zufallsauswahl</span>}
-          {!compact && <span className="block text-xs font-medium opacity-75">
+          {!veryCompact && <span className={`block font-semibold opacity-75 ${compact ? 'text-[10px]' : 'text-xs'}`}>
             {selectionMode === 'round' ? 'Jedes Kind einmal' : 'Zufällig · Wiederholungen möglich'} · {studentScope === 'all' ? 'Ganze Klasse' : 'Heute anwesend'}
           </span>}
         </div>
@@ -356,7 +355,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
       </div>
       <button type="button" onClick={pickPupil}
         disabled={isAnimating || remainingStudents.length === 0}
-        className={`flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center ${compact ? 'gap-1 p-1.5' : 'gap-2 p-2'} rounded-2xl border-2 text-center focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:cursor-not-allowed ${currentIsLight ? 'border-indigo-200 bg-white' : 'border-indigo-500/40 bg-zinc-900'}`}
+        className={`flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center ${compact ? 'gap-1 p-1.5' : 'gap-2 p-2'} rounded-2xl border-2 text-center focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed ${currentIsLight ? 'border-accent bg-white' : 'border-accent bg-zinc-900'}`}
         aria-label={selectedName ? 'Weiteres Kind ziehen' : 'Zufälliges Kind ziehen'}>
         {isAnimating ? (
           <span className="w-full break-words text-lg font-black [overflow-wrap:anywhere]">{animatingName || 'Zufall …'}</span>
@@ -370,7 +369,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
           <span role="status" className="break-words text-lg font-black">Runde abgeschlossen! Starte eine neue Runde.</span>
         ) : selectedName ? (
           <>
-            {!compact && <span className="text-xs font-bold uppercase text-indigo-600">
+            {!compact && <span className="text-xs font-bold uppercase text-accent">
               {roundComplete ? 'Runde abgeschlossen · letztes Kind' : 'Ausgewählt'}
             </span>}
             <span aria-live="polite" className={`max-w-full break-words font-black leading-[0.98] [overflow-wrap:anywhere] ${
@@ -394,7 +393,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
             : `${eligibleStudents.length} Kinder zur Auswahl`}
         </span>}
         <button type="button" onClick={pickPupil} disabled={isAnimating || remainingStudents.length === 0}
-          className={`flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 font-black text-white ${compact ? 'min-h-11 text-xs' : roomyPicker ? 'min-h-14 text-lg' : 'min-h-12 text-sm'} disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600`}>
+          className={`flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-3 font-black text-accent-text hover:bg-accent-hover ${compact ? 'min-h-11 text-xs' : roomyPicker ? 'min-h-14 text-lg' : 'min-h-12 text-sm'} disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600`}>
           <Sparkles size={18}/>{isAnimating ? 'Wählt aus …' : roundComplete ? 'Runde abgeschlossen' : selectedName ? 'Nächstes Kind' : 'Kind auswählen'}
         </button>
         {(drawnIds.length > 0 || roundComplete) && (
@@ -403,7 +402,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
               className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 px-2 text-xs font-bold disabled:opacity-50"
               aria-label="Letzte Ziehung zurücknehmen"><Undo2 size={16}/> Rückgängig</button>
             <button type="button" onClick={resetRound} disabled={isAnimating}
-              className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-indigo-300 px-2 text-xs font-bold disabled:opacity-50"
+              className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-accent px-2 text-xs font-bold disabled:opacity-50"
               aria-label={selectionMode === 'round' ? 'Neue Ziehungsrunde starten' : 'Ziehungsverlauf zurücksetzen'}>
               <RotateCcw size={16}/>{selectionMode === 'round' ? 'Neue Runde' : 'Zurücksetzen'}
             </button>
