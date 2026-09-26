@@ -308,7 +308,9 @@ test("Cockpit: neue Widgets suchen echten freien Platz statt versetzt zu stapeln
   assert.match(widgetPlacement, /Prefer zero overlap/);
   assert.match(widgetPlacement, /Only if no free candidate exists/);
   assert.match(widgetPlacement, /overlapArea \* 1000/);
-  assert.match(widgetPlacement, /usedOverlapFallback: overlapArea > 0\.5/);
+  assert.match(widgetPlacement, /shrink in small steps but never below the widget's readable minimum/);
+  assert.match(widgetPlacement, /usedOverlapFallback: fallback\.overlap > 0\.5/);
+  assert.match(widgetPlacement, /shrankToFit:/);
 });
 
 test("Cockpit: Neu-Öffnen und Auto-Anordnen teilen dieselbe gemessene Tafelfläche", () => {
