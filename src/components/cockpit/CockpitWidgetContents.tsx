@@ -2836,14 +2836,19 @@ const validDice = (values: unknown): number[] =>
   values.every(value => Number.isInteger(value) && value >= 0 && value < 6)
     ? values : [0, 0];
 export const DiceWidgetContent: React.FC<{
-  widget: any; onUpdate?: (updates: any) => void; currentIsLight: boolean;
-}> = ({ widget, onUpdate, currentIsLight }) => {
+  widget: any;
+  onUpdate?: (updates: any) => void;
+  currentIsLight: boolean;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
+}> = ({ widget, onUpdate, currentIsLight, showSettings = false, onCloseSettings }) => {
   const [dice, setDice] = useState<number[]>(() => validDice(widget?.settings?.diceValues));
   const [rolling, setRolling] = useState(false);
   const [mathMode, setMathMode] = useState<ClassroomDiceMode>(() =>
     widget?.settings?.diceMathMode === 'diff' || widget?.settings?.diceMathMode === 'prod'
       ? widget.settings.diceMathMode : 'sum');
   const [revealed, setRevealed] = useState(false);
+  const hasExternalSettingsControl = typeof onCloseSettings === 'function';
   const rollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const persistDice = (values: number[], mode: ClassroomDiceMode) => {
     if (onUpdate && widget?.id) onUpdate({ settings: {
@@ -2918,8 +2923,8 @@ export const DiceWidgetContent: React.FC<{
               <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-lg bg-rose-500 text-white shadow-xs text-[10px]">🔴 {val}</span>
             </React.Fragment>
           ))}
-          <span className="mx-1 text-indigo-500 font-extrabold">=</span>
-          <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{resultValue}</span>
+          <span className="mx-1 text-accent font-extrabold">=</span>
+          <span className="text-xs font-black text-accent">{resultValue}</span>
         </div>
       );
     } else if (mathMode === 'prod') {
@@ -2931,8 +2936,8 @@ export const DiceWidgetContent: React.FC<{
               <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-lg bg-amber-500 text-white shadow-xs text-[10px]">🟡 {val}</span>
             </React.Fragment>
           ))}
-          <span className="mx-1 text-indigo-500 font-extrabold">=</span>
-          <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{resultValue}</span>
+          <span className="mx-1 text-accent font-extrabold">=</span>
+          <span className="text-xs font-black text-accent">{resultValue}</span>
         </div>
       );
     } else {
@@ -2944,42 +2949,126 @@ export const DiceWidgetContent: React.FC<{
               <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-lg bg-emerald-500 text-white shadow-xs text-[10px]">🟢 {val}</span>
             </React.Fragment>
           ))}
-          <span className="mx-1 text-indigo-500 font-extrabold">=</span>
-          <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{resultValue}</span>
+          <span className="mx-1 text-accent font-extrabold">=</span>
+          <span className="text-xs font-black text-accent">{resultValue}</span>
         </div>
       );
     }
   }, [values, mathMode, resultValue]);
 
   return (
-    <div className="flex-grow flex flex-col items-center justify-between p-2 gap-2 h-full pointer-events-auto min-h-0 overflow-y-auto">
-      {/* Selector Toolbar - Number of Dice */}
-      <div className="flex items-center gap-1 shrink-0 z-10 select-none">
-        <span className={`text-[8.5px] font-black uppercase tracking-wider ${currentIsLight ? 'text-slate-400' : 'text-slate-500'}`}>Würfel:</span>
-        {[1, 2, 3, 4, 5, 6].map((num) => (
+    <div className="relative flex-grow flex flex-col items-center justify-between p-2 gap-2 h-full pointer-events-auto min-h-0 overflow-y-auto">
+      {showSettings && (
+        <div className="absolute inset-1 z-40 flex flex-col rounded-2xl border border-slate-200 bg-white p-3 text-slate-900 shadow-xl dark:border-white/10 dark:bg-zinc-900 dark:text-slate-100">
+          <div className="flex min-h-11 items-center justify-between gap-2 border-b border-slate-200 pb-2 dark:border-white/10">
+            <div>
+              <h3 className="text-sm font-black">Tafel-Würfel einstellen</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Anzahl und Rechenart</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onCloseSettings?.()}
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-white"
+              aria-label="Würfel-Einstellungen schließen"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="flex-1 space-y-4 overflow-y-auto py-3">
+            <fieldset>
+              <legend className="mb-2 text-xs font-black uppercase tracking-wider text-slate-500">Anzahl Würfel</legend>
+              <div className="grid grid-cols-3 gap-2">
+                {[1, 2, 3, 4, 5, 6].map((num) => (
+                  <button
+                    key={num}
+                    type="button"
+                    disabled={rolling}
+                    aria-pressed={dice.length === num}
+                    onClick={() => {
+                      setRevealed(false);
+                      const next = Array.from({ length: num }, () => Math.floor(Math.random() * 6));
+                      setDice(next);
+                      persistDice(next, mathMode);
+                    }}
+                    className={dice.length === num
+                      ? "min-h-11 rounded-xl border border-accent bg-accent text-sm font-black text-accent-text"
+                      : "min-h-11 rounded-xl border border-slate-300 bg-white text-sm font-bold text-slate-700 hover:bg-accent-soft hover:text-accent dark:border-white/15 dark:bg-zinc-800 dark:text-slate-200"}
+                  >
+                    {num}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend className="mb-2 text-xs font-black uppercase tracking-wider text-slate-500">Rechenart</legend>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                {[
+                  { mode: 'sum', icon: '+', label: 'Summe' },
+                  { mode: 'diff', icon: '−', label: 'Differenz' },
+                  { mode: 'prod', icon: '×', label: 'Produkt' }
+                ].map((item) => (
+                  <button
+                    key={item.mode}
+                    type="button"
+                    disabled={dice.length < 2 || rolling}
+                    aria-pressed={mathMode === item.mode}
+                    onClick={() => {
+                      const mode = item.mode as ClassroomDiceMode;
+                      setMathMode(mode);
+                      setRevealed(false);
+                      persistDice(dice, mode);
+                    }}
+                    className={mathMode === item.mode
+                      ? "min-h-11 rounded-xl border border-accent bg-accent text-sm font-black text-accent-text disabled:opacity-40"
+                      : "min-h-11 rounded-xl border border-slate-300 bg-white text-sm font-bold text-slate-700 hover:bg-accent-soft hover:text-accent disabled:opacity-40 dark:border-white/15 dark:bg-zinc-800 dark:text-slate-200"}
+                  >
+                    {item.icon} {item.label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          </div>
+
           <button
-            key={num}
-            disabled={rolling}
-            onClick={() => {
-              setRevealed(false);
-              const next = Array.from({ length: num }, () => Math.floor(Math.random() * 6));
-              setDice(next);
-              persistDice(next, mathMode);
-            }}
-            aria-label={`${num} Würfel auswählen`}
-            aria-pressed={dice.length === num}
-            className={`w-6 h-6 rounded-lg text-xs font-black transition-all cursor-pointer hover:scale-105 active:scale-95 border ${
-              dice.length === num
-                ? 'bg-indigo-500 border-transparent text-white shadow-sm'
-                : currentIsLight
-                ? 'bg-white border-slate-200 text-slate-650 hover:bg-slate-100'
-                : 'bg-zinc-900 border-white/10 text-slate-300 hover:bg-zinc-800'
-            }`}
+            type="button"
+            onClick={() => onCloseSettings?.()}
+            className="min-h-11 rounded-xl bg-accent px-4 text-sm font-black text-accent-text hover:bg-accent-hover"
           >
-            {num}
+            Fertig
           </button>
-        ))}
-      </div>
+        </div>
+      )}
+      {/* Anzahl/Rechenart liegen im gemeinsamen Zahnrad; Fallback für Standalone-Nutzung bleibt. */}
+      {hasExternalSettingsControl ? (
+        <div className="flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft px-3 text-xs font-black text-accent">
+          {dice.length} {dice.length === 1 ? 'Würfel' : 'Würfel'} · {resultLabel}
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center justify-center gap-1 shrink-0 z-10 select-none">
+          <span className="mr-1 text-[10px] font-black uppercase tracking-wider text-slate-400">Würfel:</span>
+          {[1, 2, 3, 4, 5, 6].map((num) => (
+            <button
+              key={num}
+              disabled={rolling}
+              onClick={() => {
+                setRevealed(false);
+                const next = Array.from({ length: num }, () => Math.floor(Math.random() * 6));
+                setDice(next);
+                persistDice(next, mathMode);
+              }}
+              aria-label={`${num} Würfel auswählen`}
+              aria-pressed={dice.length === num}
+              className={dice.length === num
+                ? "min-h-11 min-w-11 rounded-lg border border-accent bg-accent text-xs font-black text-accent-text"
+                : "min-h-11 min-w-11 rounded-lg border border-slate-200 bg-white text-xs font-black text-slate-700 hover:bg-slate-100 dark:border-white/10 dark:bg-zinc-900 dark:text-slate-300"}
+            >
+              {num}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="flex-grow flex flex-col items-center justify-center gap-2 py-1 select-none">
         {/* Dice displays */}
@@ -3028,7 +3117,7 @@ export const DiceWidgetContent: React.FC<{
             {!revealed ? (
               <button
                 onClick={() => setRevealed(true)}
-                className="px-3.5 py-1 rounded-xl bg-amber-500 hover:bg-amber-600 text-amber-950 font-black text-[9px] uppercase tracking-wider shadow-md hover:scale-102 cursor-pointer active:scale-95 transition-all flex items-center gap-1"
+                className="min-h-11 px-3.5 py-1 rounded-xl bg-amber-500 hover:bg-amber-600 text-amber-950 font-black text-xs uppercase tracking-wider shadow-md hover:scale-102 cursor-pointer active:scale-95 transition-all flex items-center gap-1"
               >
                 <span>🧠</span> Ergebnis raten (Aufdecken!)
               </button>
@@ -3038,7 +3127,7 @@ export const DiceWidgetContent: React.FC<{
                 animate={{ opacity: 1, scale: 1 }}
                 onClick={() => setRevealed(false)}
                 className={`p-2 rounded-xl border shadow-sm cursor-pointer select-none hover:opacity-95 active:scale-95 transition-all flex flex-col items-center gap-1 ${
-                  currentIsLight ? 'bg-indigo-50 border-indigo-150 text-indigo-700' : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300'
+                  currentIsLight ? 'bg-accent-soft border-accent text-accent' : 'bg-accent-soft border-accent text-accent'
                 }`}
                 title="Wieder verdecken"
               >
@@ -3048,8 +3137,8 @@ export const DiceWidgetContent: React.FC<{
             )}
 
             {/* Arithmetic Toggles */}
-            {dice.length > 1 && (
-              <div className="flex gap-1 items-center justify-center border border-dashed rounded-lg p-0.5 border-slate-200 dark:border-white/10 select-none">
+            {!hasExternalSettingsControl && dice.length > 1 && (
+              <div className="flex gap-1 items-center justify-center border border-dashed rounded-lg p-1 border-slate-200 dark:border-white/10 select-none">
                 {[
                   { mode: 'sum', icon: '+', label: 'Summe' },
                   { mode: 'diff', icon: '-', label: 'Differenz' },
@@ -3064,9 +3153,9 @@ export const DiceWidgetContent: React.FC<{
                       persistDice(dice, mode);
                     }}
                     aria-pressed={mathMode === item.mode}
-                    className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase transition-all whitespace-nowrap cursor-pointer ${
+                    className={`min-h-11 px-3 rounded-lg text-xs font-bold uppercase transition-all whitespace-nowrap cursor-pointer ${
                       mathMode === item.mode
-                        ? 'bg-indigo-500 text-white shadow-xs'
+                        ? 'bg-accent text-accent-text shadow-xs'
                         : currentIsLight
                         ? 'text-slate-500 hover:bg-slate-100'
                         : 'text-slate-400 hover:bg-white/5'
@@ -3082,10 +3171,39 @@ export const DiceWidgetContent: React.FC<{
         )}
       </div>
 
-      <div className="flex gap-1.5 w-full justify-center shrink-0">
-        <button type="button" aria-label="Einen Würfel entfernen" disabled={rolling || dice.length <= 1} onClick={() => changeDiceCount('remove')} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer active:scale-95 border ${currentIsLight ? 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200' : 'bg-white/5 hover:bg-white/10 text-white border-white/10'}`}>-1</button>
-        <button type="button" aria-label="Würfel werfen" disabled={rolling} onClick={roll} className="flex-1 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-[10px] uppercase font-black tracking-widest shadow-md hover:scale-102 cursor-pointer active:scale-95 transition-all">Würfeln!</button>
-        <button type="button" aria-label="Einen Würfel hinzufügen" disabled={rolling || dice.length >= 6} onClick={() => changeDiceCount('add')} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer active:scale-95 border ${currentIsLight ? 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200' : 'bg-white/5 hover:bg-white/10 text-white border-white/10'}`}>+1</button>
+      <div className="flex gap-2 w-full justify-center shrink-0">
+        {!hasExternalSettingsControl && (
+          <button
+            type="button"
+            aria-label="Einen Würfel entfernen"
+            disabled={rolling || dice.length <= 1}
+            onClick={() => changeDiceCount('remove')}
+            className="min-h-11 min-w-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-black text-slate-700 hover:bg-slate-100 disabled:opacity-40 dark:border-white/10 dark:bg-white/5 dark:text-white"
+          >
+            −1
+          </button>
+        )}
+        <button
+          type="button"
+          aria-label="Würfel werfen"
+          disabled={rolling}
+          onClick={roll}
+          className="min-h-11 flex-1 rounded-xl bg-accent px-4 text-sm font-black uppercase tracking-wider text-accent-text shadow-md hover:bg-accent-hover disabled:opacity-50"
+        >
+          Würfeln!
+        </button>
+        {!hasExternalSettingsControl && (
+          <button
+            type="button"
+            aria-label="Einen Würfel hinzufügen"
+            disabled={rolling || dice.length >= 6}
+            onClick={() => changeDiceCount('add')}
+            className="min-h-11 min-w-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-black text-slate-700 hover:bg-slate-100 disabled:opacity-40 dark:border-white/10 dark:bg-white/5 dark:text-white"
+          >
+            +1
+          </button>
+        )}
+      </div>
       </div>
     </div>
   );
