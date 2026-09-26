@@ -373,7 +373,7 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                       },
                                       {
                                         type: "noisemeter",
-                                        label: "🔊 Lärmampel / Messer",
+                                        label: "🔊 Lautstärkemesser",
                                         desc: "Lautstärkekontrolle visualisiert",
                                         category: "tools",
                                       },
@@ -403,13 +403,13 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                       },
                                       {
                                         type: "klassenglas",
-                                        label: "💎 Klassenziel & Belohnungsglas",
+                                        label: "💎 Klassenziel",
                                         desc: "Gemeinsames Klassenziel (Glas, Thermometer, Barometer)",
                                         category: "tools",
                                       },
                                       {
                                         type: "noisescales",
-                                        label: "🤫 Lautstärke-Modelle",
+                                        label: "🤫 Lautstärke-Skala",
                                         desc: "Lautstärke-Pegel als Orientierung",
                                         category: "tools",
                                       },
@@ -586,6 +586,10 @@ export type CockpitWidgetLibraryId = CockpitWidgetLibraryItem["type"];
  */
 const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
   "clock",
+  "klassenglas",
+  "piggybank",
+  "thermometer",
+  "classtarget",
   "dienste",
   "randomname",
   "groups",

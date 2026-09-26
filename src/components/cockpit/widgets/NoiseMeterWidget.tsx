@@ -10,7 +10,7 @@ import {
   DEFAULT_NOISE_SETTINGS,
 } from '../../../lib/noisemeterAlgorithm';
 import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
-import { Mic, MicOff, RefreshCw, Volume2, Sliders, ShieldCheck } from 'lucide-react';
+import { Mic, MicOff, RefreshCw, ShieldCheck } from 'lucide-react';
 
 interface NoiseMeterWidgetProps {
   widget: any;
@@ -207,33 +207,21 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
           {(['low', 'normal', 'high'] as SensitivityLevel[]).map(level => (
             <button key={level} type="button" onClick={() => setSensitivity(level)}
               aria-pressed={sensitivity === level}
-              className={`min-h-11 px-2 rounded-lg border ${sensitivity === level ? 'bg-indigo-600 text-white border-indigo-600' : 'border-slate-300 dark:border-slate-600'}`}>
+              className={`min-h-11 px-2 rounded-lg border ${sensitivity === level ? 'bg-accent text-accent-text border-accent' : 'border-slate-300 dark:border-slate-600'}`}>
               {level === 'low' ? 'Niedrig' : level === 'normal' ? 'Normal' : 'Hoch'}
             </button>
           ))}
           <button type="button" onClick={onCloseSettings} className="min-h-11 px-2 rounded-lg border border-slate-300 dark:border-slate-600 ml-auto">Fertig</button>
         </div>
       )}
-      {/* 1. Header / Status Bar */}
-      <div className={`flex items-center justify-between shrink-0 ${size.isCompact ? 'gap-1' : 'gap-2'}`}>
-        <div className="flex items-center gap-1.5 min-w-0">
-          <Volume2
-            size={size.isCompact ? 14 : 16}
-            className={permissionState === 'active' ? 'text-indigo-500 animate-pulse' : 'text-slate-400'}
-          />
-          <span className="text-[11px] font-black uppercase tracking-wider truncate">
-            Lärmpegel-Messer
-          </span>
-        </div>
-
-        <div className="flex items-center gap-1.5 shrink-0">
-          <div
-            className="flex items-center gap-1 text-[9px] font-medium text-slate-400 dark:text-zinc-400"
-            title="Keine Speicherung oder Übertragung von Audiodaten"
-          >
-            <ShieldCheck size={12} className="text-emerald-500" />
-            {!size.isCompact && <span>Offline & Anonym</span>}
-          </div>
+      {/* The shared widget frame carries the title; keep only privacy context here. */}
+      <div className="flex shrink-0 items-center justify-end">
+        <div
+          className="flex items-center gap-1 text-[9px] font-medium text-slate-400 dark:text-zinc-400"
+          title="Keine Speicherung oder Übertragung von Audiodaten"
+        >
+          <ShieldCheck size={12} className="text-emerald-500" />
+          {!size.isCompact && <span>Offline & Anonym</span>}
         </div>
       </div>
 
@@ -244,7 +232,7 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
           <div className={`flex flex-col items-center justify-center text-center max-w-sm ${size.isCompact ? 'p-1.5' : 'p-3'}`}>
             <div
               className={`${size.isCompact ? 'w-11 h-11 mb-1.5' : roomyMeter ? 'w-20 h-20 mb-4' : 'w-14 h-14 mb-3'} rounded-2xl flex items-center justify-center shadow-inner ${
-                currentIsLight ? 'bg-indigo-50 text-indigo-600' : 'bg-indigo-500/10 text-indigo-400'
+                currentIsLight ? 'bg-accent-soft text-accent' : 'bg-accent-soft text-accent'
               }`}
             >
               <Mic size={roomyMeter ? 38 : 28} />
@@ -256,7 +244,7 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
             <button
               type="button"
               onClick={startMeasurement}
-              className="px-5 py-2.5 rounded-xl font-black text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-md active:scale-95 transition-all cursor-pointer min-h-[44px] flex items-center gap-2"
+              className="px-5 py-2.5 rounded-xl font-black text-xs bg-accent hover:bg-accent-hover text-accent-text shadow-md active:scale-95 transition-all cursor-pointer min-h-[44px] flex items-center gap-2"
             >
               <Mic size={16} />
               <span>Messung starten</span>
@@ -267,7 +255,7 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
         {/* State B: Requesting */}
         {permissionState === 'requesting' && (
           <div className="flex flex-col items-center justify-center text-center p-4">
-            <RefreshCw size={28} className="text-indigo-500 animate-spin mb-3" />
+            <RefreshCw size={28} className="text-accent animate-spin mb-3" />
             <p className="text-xs font-bold text-slate-600 dark:text-zinc-300">
               Mikrofon wird angefragt...
             </p>
