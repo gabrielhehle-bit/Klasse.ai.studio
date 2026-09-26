@@ -47,6 +47,8 @@ export interface DiensteWidgetProps {
   setApp?: any;
   currentIsLight: boolean;
   isFullscreen?: boolean;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
 }
 
 export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
@@ -56,6 +58,8 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
   setApp,
   currentIsLight,
   isFullscreen = false,
+  showSettings: externalShowSettings,
+  onCloseSettings,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef, { isFullscreen, defaultCategory: 'standard' });
@@ -115,6 +119,12 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
     absentStudentId: string;
   } | null>(null);
   const [showManageMenu, setShowManageMenu] = useState(false);
+  const hasExternalSettingsControl = typeof externalShowSettings === 'boolean';
+  const manageMenuOpen = hasExternalSettingsControl ? externalShowSettings : showManageMenu;
+  const closeManageMenu = () => {
+    if (hasExternalSettingsControl) onCloseSettings?.();
+    else closeManageMenu();
+  };
   const [showAddModal, setShowAddModal] = useState(false);
   const [newDienstTitel, setNewDienstTitel] = useState('');
   const [newDienstEmoji, setNewDienstEmoji] = useState('🧽');
@@ -201,21 +211,21 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
   const handleRotate = () => {
     const updated = rotateDienste(dienste);
     commitDienste(updated);
-    setShowManageMenu(false);
+    closeManageMenu();
   };
 
   const handleShuffle = () => {
     const pool = presentStudents.map((s) => s.id);
     const updated = shuffleDienste(dienste, pool, 1);
     commitDienste(updated);
-    setShowManageMenu(false);
+    closeManageMenu();
   };
 
   const handleClearAll = () => {
     const updated = clearAllAssignments(dienste);
     commitDienste(updated);
     setConfirmClear(false);
-    setShowManageMenu(false);
+    closeManageMenu();
   };
 
   const handleLoadDefaultDienste = () => {
@@ -236,7 +246,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
   const bgCard = isLight ? 'bg-white border-slate-200/90' : 'bg-zinc-900/90 border-white/10';
   const textMuted = isLight ? 'text-slate-500' : 'text-zinc-400';
   const textPrimary = isLight ? 'text-slate-900' : 'text-white';
-  const headerBg = isLight ? 'bg-amber-50/70 border-b border-amber-100' : 'bg-amber-950/20 border-b border-white/5';
+  const headerBg = 'bg-accent-soft border-b border-accent/15';
 
   return (
     <div
@@ -251,25 +261,15 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
         id="dienste-header"
         className={`shrink-0 flex items-center justify-between ${compactDienste ? 'px-2 py-1 gap-1' : 'px-3 py-2 gap-2'} ${headerBg}`}
       >
-        <div className="flex items-center gap-2 min-w-0">
-          <div className={`${compactDienste ? 'w-7 h-7 text-sm' : 'w-8 h-8 text-base'} rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 font-black shadow-xs`}>
-            🧽
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <span className={`text-xs font-black uppercase tracking-wider truncate ${textPrimary}`}>
-                Klassendienste
-              </span>
-              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 shrink-0">
-                Diese Woche (KW {currentKW})
-              </span>
-            </div>
-            <div className={`text-[10px] ${textMuted} truncate`}>
-              {dienste.length === 0
-                ? 'Keine Dienste'
-                : `${dienste.length} Dienste eingerichtet`}
-            </div>
-          </div>
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="shrink-0 rounded-full bg-white/80 px-2 py-1 text-[10px] font-black text-accent shadow-xs dark:bg-black/20">
+            KW {currentKW}
+          </span>
+          <span className={`min-w-0 truncate text-[10px] font-semibold ${textMuted}`}>
+            {dienste.length === 0
+              ? 'Keine Dienste eingerichtet'
+              : `${dienste.length} Dienste eingerichtet`}
+          </span>
         </div>
 
         {/* Kopfzeilen-Aktionen */}
@@ -279,7 +279,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
             <button
               id="dienste-rotate-btn-header"
               onClick={handleRotate}
-              className="min-h-11 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/15 hover:bg-amber-500 hover:text-white text-amber-700 dark:text-amber-300 flex items-center gap-1 transition-all cursor-pointer active:scale-95"
+              className="min-h-11 px-2.5 py-1 rounded-lg text-xs font-bold bg-accent-soft hover:bg-accent hover:text-accent-text text-accent flex items-center gap-1 transition-all cursor-pointer active:scale-95"
               title="Klassendienste um 1 Position weiterdrehen"
             >
               <RotateCcw size={12} />
@@ -289,23 +289,26 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
 
           {/* Menü für weitere Optionen */}
           <div className="relative">
-            <button
-              id="dienste-menu-toggle-btn"
-              onClick={() => setShowManageMenu(!showManageMenu)}
-              className={`flex min-h-11 min-w-11 items-center justify-center rounded-lg border text-xs font-bold transition-all cursor-pointer ${
-                showManageMenu
-                  ? 'bg-amber-500 text-white border-amber-600'
-                  : isLight
-                  ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
-                  : 'bg-zinc-800 hover:bg-zinc-700 border-white/10 text-zinc-200'
-              }`}
-              title="Dienste organisieren"
-            >
-              <MoreHorizontal size={14} />
-            </button>
+            {!hasExternalSettingsControl && (
+              <button
+                id="dienste-menu-toggle-btn"
+                onClick={() => setShowManageMenu(!showManageMenu)}
+                className={`flex min-h-11 min-w-11 items-center justify-center rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                  manageMenuOpen
+                    ? 'bg-accent text-accent-text border-accent'
+                    : isLight
+                    ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
+                    : 'bg-zinc-800 hover:bg-zinc-700 border-white/10 text-zinc-200'
+                }`}
+                title="Dienste organisieren"
+                aria-label="Klassendienste-Einstellungen öffnen"
+              >
+                <MoreHorizontal size={14} />
+              </button>
+            )}
 
             {/* Dropdown-Menü */}
-            {showManageMenu && (
+            {manageMenuOpen && (
               <div
                 id="dienste-manage-dropdown"
                 className={`absolute right-0 top-full mt-1 w-52 rounded-xl shadow-xl border p-1.5 z-50 flex flex-col gap-1 ${
@@ -315,13 +318,13 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                 <button
                   onClick={() => {
                     setShowAddModal(true);
-                    setShowManageMenu(false);
+                    closeManageMenu();
                   }}
                   className={`w-full min-h-11 text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
                     isLight ? 'hover:bg-slate-100 text-slate-800' : 'hover:bg-zinc-800 text-zinc-200'
                   }`}
                 >
-                  <Plus size={13} className="text-amber-500" />
+                  <Plus size={13} className="text-accent" />
                   <span>Dienst hinzufügen</span>
                 </button>
 
@@ -332,7 +335,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                       isLight ? 'hover:bg-slate-100 text-slate-800' : 'hover:bg-zinc-800 text-zinc-200'
                     }`}
                   >
-                    <RotateCcw size={13} className="text-indigo-500" />
+                    <RotateCcw size={13} className="text-accent" />
                     <span>Weiterdrehen (Zyklus)</span>
                   </button>
                 )}
@@ -417,7 +420,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
             </p>
             <button
               onClick={handleLoadDefaultDienste}
-              className="min-h-11 px-4 py-2 rounded-xl text-xs font-black bg-amber-500 hover:bg-amber-600 text-white shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+              className="min-h-11 px-4 py-2 rounded-xl text-xs font-black bg-accent hover:bg-accent-hover text-accent-text shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
             >
               <Sparkles size={14} />
               <span>Dienste einrichten</span>
@@ -442,7 +445,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                   key={dienst.id}
                   id={`dienst-item-${dienst.id}`}
                   className={`rounded-xl border ${compactDienste ? 'p-1.5 gap-1' : 'p-2.5 gap-2'} transition-all flex flex-col relative ${bgCard} ${
-                    isAssigningThis ? 'ring-2 ring-amber-500' : ''
+                    isAssigningThis ? 'ring-2 ring-accent' : ''
                   }`}
                 >
                   {/* Dienst-Titelzeile mit Emoji */}
@@ -515,7 +518,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                             }
                             className={`min-h-11 px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
                               isAssigningThis
-                                ? 'bg-amber-500 text-white border-amber-600'
+                                ? 'bg-accent text-accent-text border-accent'
                                 : isLight
                                 ? 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
                                 : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border-white/10'
@@ -704,7 +707,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                                 onClick={() => handleToggleStudent(dienst.id, s.id)}
                                 className={`min-h-11 px-2 py-1.5 rounded-lg border text-left text-xs font-bold flex items-center justify-between gap-1 transition-all cursor-pointer ${
                                   isAssigned
-                                    ? 'bg-amber-500 border-amber-600 text-white shadow-xs'
+                                    ? 'bg-accent border-accent text-accent-text shadow-xs'
                                     : studentAbsent
                                     ? isLight
                                       ? 'bg-rose-50/50 border-rose-200 text-rose-700 hover:bg-rose-50'
