@@ -3091,9 +3091,17 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     const currentLayout = JSON.parse(JSON.stringify(cockpitWidgets)) as CockpitWidgetConfig[];
     const nextLayout = getSavedBoardPageLayout(pageId);
     setMinimizedWidgetIds([]);
+    setFocusOrder([]);
     setBoardTool("select");
     setIsBoardTextEditing(false);
     setShowBoardTools(false);
+    setWidgetSettingsOpenId(null);
+    setIsAddWidgetMenuOpen(false);
+    setIsWidgetConfigurationOpen(false);
+    setIsQuickBarSettingsOpen(false);
+    setIsMoreOptionsMenuOpen(false);
+    setIsSlotMenuOpen(false);
+    setTimerToCloseId(null);
     setCockpitWidgets(nextLayout);
     setApp((prev: any) => ({
       ...prev,
@@ -3127,9 +3135,17 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     const nextLayout = createEmptyCockpitBoardLayout(DEFAULT_COCKPIT_LAYOUT);
     const nextPages = [...boardPageIds, pageId];
     setMinimizedWidgetIds([]);
+    setFocusOrder([]);
     setBoardTool("select");
     setIsBoardTextEditing(false);
     setShowBoardTools(false);
+    setWidgetSettingsOpenId(null);
+    setIsAddWidgetMenuOpen(false);
+    setIsWidgetConfigurationOpen(false);
+    setIsQuickBarSettingsOpen(false);
+    setIsMoreOptionsMenuOpen(false);
+    setIsSlotMenuOpen(false);
+    setTimerToCloseId(null);
     setCockpitWidgets(nextLayout);
     setApp((prev: any) => ({
       ...prev,
@@ -18497,12 +18513,8 @@ ${content}
         onUpdateProfile={(pId) => handleUpdateProfile(pId)}
         onDeleteProfile={(pId) => handleDeleteProfile(pId)}
         onResetToDefault={() => {
-          setCockpitWidgets(DEFAULT_COCKPIT_LAYOUT);
-          setApp((p) => ({
-            ...p,
-            cockpitLayout: DEFAULT_COCKPIT_LAYOUT,
-          }));
-          showToast("Unterrichtsfläche geleert.", "info");
+          restoreCockpitLayout(createEmptyCockpitBoardLayout(DEFAULT_COCKPIT_LAYOUT));
+          showToast("Widget-Anordnung auf Standard zurückgesetzt. Tafeltext und Zeichnungen bleiben erhalten.", "info");
         }}
         currentIsLight={currentIsLight}
         slotNames={slotNames}
