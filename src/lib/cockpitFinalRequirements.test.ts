@@ -288,13 +288,19 @@ test("Cockpit: jede Interaktion bringt das betroffene Fenster nach vorne", () =>
   assert.match(cockpitWidget, /role="menuitem"/);
 });
 
-test("Cockpit: automatische Anordnung lässt minimierte und freie Ebenen unverändert", () => {
+test("Cockpit: automatische Anordnung nutzt die reale freie Tafelfläche", () => {
   assert.match(teachingSurface, /!minimizedWidgetIds\.includes\(w\.id\)/);
   assert.match(teachingSurface, /w\.type !== "pet"/);
   assert.match(teachingSurface, /!w\.settings\?\.isDirectMode/);
-  assert.match(teachingSurface, /if \(idx < 0\) return w/);
-  assert.match(teachingSurface, /const targetW = Math\.min\(w\.w, Math\.max\(18, cellW - 3\)\)/);
-  assert.match(teachingSurface, /const targetH = Math\.min\(w\.h, Math\.max\(18, cellH - 3\)\)/);
+  assert.match(teachingSurface, /const boardRect = board\.getBoundingClientRect\(\)/);
+  assert.match(teachingSurface, /const sidebarOverlapPx = sidebarRect/);
+  assert.match(teachingSurface, /Math\.min\(boardRect\.right, sidebarRect\.right\)/);
+  assert.match(teachingSurface, /COCKPIT_AUTO_ARRANGE_DOCK_CLEARANCE_PX/);
+  assert.match(teachingSurface, /getCockpitAutoArrangeLayout\(/);
+  assert.match(teachingSurface, /getWidgetMinSizeConfig\(String\(widget\.type\)\)/);
+  assert.match(teachingSurface, /rect\.x \/ boardRect\.width/);
+  assert.match(teachingSurface, /rect\.y \/ boardRect\.height/);
+  assert.match(teachingSurface, /Minimiere ein Widget oder blende die Schülerliste kurz aus/);
 });
 
 test("Cockpit: Ich-bin-da zeigt Kindernamen vollständig und gibt ihnen ausreichend Kartenbreite", () => {
