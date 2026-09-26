@@ -6,6 +6,7 @@ import { CockpitWidgetConfig } from "../../types";
 import { useApp } from "../../context/AppContext";
 import { WIDGET_MIN_SIZES, getWidgetMinSizeConfig } from "./widgetLayout";
 import { getWidgetViewportDensity, getLegacyWidgetPadding, WIDGET_VIEWPORT_OVERFLOW } from "../../lib/widgetViewport";
+import { getCockpitWidgetDisplayLabel } from "../../lib/cockpitWidgetCatalog";
 
 interface CockpitWidgetProps {
   widget: CockpitWidgetConfig;
@@ -476,118 +477,8 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     applyPersistentSize(widget.w + dw, widget.h + dh);
   };
 
-  const labelMapping: Record<string, string> = {
-    clock: "⏱️ Uhrzeit & Datum",
-    timer: "⏳ Timer",
-    trafficlight: "🚦 Ampel",
-    randomname: "🎯 Zufallsschüler",
-    classweeklyplan: "📋 Wochenplan der Kinder",
-    homework: "📚 Hausübungen",
-    instruction: "📝 Arbeitsanweisung",
-    noisemeter: "🔊 Lärm-Messer",
-    vocabulary: "🔤 Lernwörter-Studio",
-    lernwoerter: "🔤 Lernwörter-Studio",
-    studentlist: "⭐ Schülerliste",
-    kidattendance: "🖐️ Ich bin da! (Kinder)",
-    groups: "👥 Gruppen",
-    qrcode: "🔗 QR-Code",
-    image: "🖼️ Tafelbild-Projektor",
-    phases: "📈 Stundenverlauf",
-    sounds: "🎵 Musik & Klänge",
-    todo: "✅ To-Do-Liste",
-    dienste: "🧹 Klassendienste",
-    klassenglas: "🫙 Klassenglas",
-    links: "🔗 Material & Links",
-    stopwatch: "⏱️ Stoppuhr",
-    calculator: "🧮 Taschenrechner",
-    dice: "🎲 Tafel-Würfel",
-    weather: "☁️ Wetterbericht",
-    aiquiz: "🤖 KI Lern-Quiz",
-    riddle: "🧩 Scherz- & Logikrätsel",
-    scoreboard: "🏆 Gruppen-Punkte",
-    starsreview: "⭐ Sterne der Woche",
-    wheel: "🎡 Glücksrad",
-    breathing: "🍃 Atempause",
-    kidweather: "🕶️ Wetterfrosch",
-    mathcards: "🧠 Kopfrechentrainer",
-    wortsatzwerkstatt: "✍️ Wort- & Satzwerkstatt",
-    scrambler: "✍️ Wort- & Satzwerkstatt",
-    watertracker: "💧 Wassertracker",
-    wordchain: "🔗 Wortketten-Spiel",
-    moodmeter: "🙂 Stimmungsmesser",
-    colormixer: "🎨 Kunst Farbmischung",
-    wordgrid: "🔍 Suchgitter",
-    rhythm: "🥁 Rhythmus-Klopfer",
-    geometry: "📐 Geometrie-Muster",
-    fractions: "◐ Bruch-Visualisierer",
-    fractionvisualizer: "◐ Bruch-Visualisierer",
-    wordclock: "⏰ Wort-Uhr",
-    sorting: "🔢 Zahlensortierer",
-    dailyquotes: "💡 Morgen-Mottos",
-    dictionary: "📚 Emoji-Wörterbuch",
-    piano: "🎹 Klassen-Klavier",
-    bodyparts: "🦴 Körper-Entdecker",
-    drawing: "🖍️ Zeichenfeld",
-    pet: "🦦 Klassenmaskottchen",
-    toothbrush: "🪥 Zahnputz-Station",
-    challenge: "🎯 Klassen-Challenge",
-    compass: "🧭 Geographie-Kompass",
-    weekdays: "📅 Wochentage-Trainer",
-    piggybank: "🐷 Klassen-Sparschwein",
-    noisescales: "🤫 Stimmlautstärken",
-    wordscramble: "🍲 Wort-Salat (Anagramm)",
-    shadowshapes: "🦋 Symmetrie-Spiel",
-    emotions: "🎭 Gefühls-Barometer",
-    clocksync: "⏰ Uhrzeit-Macher",
-    soundmemory: "🎵 Klang-Memory",
-    spellingdetective: "🔤 Lernwörter-Studio",
-    mathchain: "🧠 Kopfrechentrainer",
-    thermometer: "🌡️ Ziel-Thermometer",
-    compoundsplit: "✍️ Wort- & Satzwerkstatt",
-    soundquiz: "👂 Geräusche-Quiz",
-    mathduel: "⚔️ Mathe-Duell",
-    shapepuzzle: "📐 Formen-Entdecker",
-    guitartuner: "🎸 Gitarren-Stimmer",
-    secretagent: "🕵️ Geheimagent",
-    fractioncake: "◐ Bruch-Visualisierer",
-    sentencebuilding: "✍️ Wort- & Satzwerkstatt",
-    patternmaker: "🎨 Muster-Macher",
-    wordexplorer: "🔍 Wort-Forscher",
-    weightscale: "⚖️ Gewichts-Waage",
-    geographyquiz: "🌍 Geo-Quiz",
-    calmrain: "🌧️ Entspannungs-Regen",
-    estimationjar: "🫙 Schätz-Glas",
-    reflexgame: "⚡ Reflex-Spiel",
-    mathpyramid: "🔺 Rechen-Pyramide",
-    wastebin: "🗑️ Müll-Trenner",
-    tonetrainer: "🎼 Ton-Trainer",
-    angledetective: "📐 Winkel-Detektiv",
-    rhymemachine: "🎤 Reim-Maschine",
-    alphabetsoup: "🥣 Buchstaben-Suppe",
-    divrobot: "🤖 Teilbarkeits-Roboter",
-    classtarget: "🎯 Klassen-Ziel",
-    morsecode: "📡 Morse-Code",
-    punctuationzoo: "🦓 Satzzeichen-Zoo",
-    secretcode: "🔐 Geheim-Code",
-    clockpuzzle: "⏱️ Uhren-Puzzle",
-    fractiongrid: "◐ Bruch-Visualisierer",
-    trafficquiz: "🚲 Verkehrs-Quiz",
-    wordbuilder: "✍️ Wort- & Satzwerkstatt",
-    watercycle: "🌊 Wasserkreislauf",
-    soundmachine: "🎵 Klang-Maschine",
-    mathbalancer: "⚖️ Zahlen-Waage",
-    animalvoice: "🤖 Roboter-Sounds",
-    constellation: "✨ Sternbilder",
-    multitrainer: "🧠 Kopfrechentrainer",
-    kopfrechnen: "🧠 Kopfrechentrainer",
-    moneycalc: "💶 Taschengeld",
-    anschauung: "🔢 Zahlenraum-Studio",
-    numberline: "🔢 Zahlenraum-Studio",
-    zahlenraum: "🔢 Zahlenraum-Studio",
-    storyemojis: "🎭 Story-Emojis",
-    abcorder: "🔤 Lernwörter-Studio",
-    planetarium: "🌍 Planetarium",
-  };
+  const displayLabel = getCockpitWidgetDisplayLabel(widget.type);
+
 
   const opt = OPTIMAL_WIDGET_SIZES[widget.type] || { w: 35, h: 45 };
   const safeMinSize = getWidgetMinSizeConfig(widget.type);
@@ -749,9 +640,10 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     <div
       ref={widgetRef}
       role="group"
-      aria-label={`${labelMapping[widget.type] || widget.type} Widget`}
+      aria-label={`${displayLabel} Widget`}
       data-mascot-focused={isFreeMascot && isFocused ? "true" : undefined}
       data-widget-type={widget.type}
+      data-widget-title={displayLabel}
       data-widget-density={viewportDensity}
       data-widget-ux="v3"
       data-widget-focused={isFocused ? "true" : "false"}
@@ -828,8 +720,8 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
             />
           )}
 
-          <span className={`cockpit-widget-title font-semibold truncate opacity-90 text-inherit select-none min-w-0 ${viewportDensity === "tight" ? "text-[10px]" : "text-xs"}`} title={labelMapping[widget.type] || widget.type}>
-            {labelMapping[widget.type] || widget.type.toUpperCase()}
+          <span className={`cockpit-widget-title font-semibold truncate opacity-90 text-inherit select-none min-w-0 ${viewportDensity === "tight" ? "text-[10px]" : "text-xs"}`} title={displayLabel}>
+            {displayLabel}
           </span>
 
           {/* Widget-specific configuration lives behind the gear beside its name,
@@ -844,7 +736,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
                 onSettingsToggle();
                 setShowWidgetMenu(false);
               }}
-              aria-label={`${labelMapping[widget.type] || widget.type} Einstellungen ${settingsOpen ? "schließen" : "öffnen"}`}
+              aria-label={`${displayLabel} Einstellungen ${settingsOpen ? "schließen" : "öffnen"}`}
               aria-expanded={settingsOpen}
               title="Widget-Einstellungen"
               className={`cockpit-widget-settings-trigger ml-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${settingsOpen
