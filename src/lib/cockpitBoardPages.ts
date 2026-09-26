@@ -7,15 +7,15 @@ const PAGE_ID = /^page-(\d+)$/;
 
 export function normalizeCockpitBoardPageIds(raw: unknown): string[] {
   const source = Array.isArray(raw) ? raw : [];
-  // Page 1 is the compatibility anchor for every historic classroom board.
-  // Even malformed/future metadata must never make that existing surface vanish.
-  const unique: string[] = [DEFAULT_COCKPIT_BOARD_PAGE_ID];
+  const unique: string[] = [];
   for (const value of source) {
     if (typeof value !== "string" || !PAGE_ID.test(value) || unique.includes(value)) continue;
     unique.push(value);
     if (unique.length >= MAX_COCKPIT_BOARD_PAGES) break;
   }
-  return unique;
+  // Historic classrooms had no page metadata at all. They still open on page 1.
+  // Once explicit metadata exists, page 1 may be deleted like every other page.
+  return unique.length > 0 ? unique : [DEFAULT_COCKPIT_BOARD_PAGE_ID];
 }
 
 export function normalizeCockpitActiveBoardPage(raw: unknown, pageIds: readonly string[]): string {
@@ -33,7 +33,7 @@ export function getCockpitBoardPageStorageKey(classKey: string, pageId: string):
 
 export function createNextCockpitBoardPageId(pageIds: readonly string[]): string {
   const used = new Set(normalizeCockpitBoardPageIds(pageIds));
-  for (let number = 2; number <= MAX_COCKPIT_BOARD_PAGES; number += 1) {
+  for (let number = 1; number <= MAX_COCKPIT_BOARD_PAGES; number += 1) {
     const candidate = `page-${number}`;
     if (!used.has(candidate)) return candidate;
   }
