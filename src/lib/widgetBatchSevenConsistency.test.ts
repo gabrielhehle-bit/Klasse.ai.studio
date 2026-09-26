@@ -77,6 +77,17 @@ test('Batch 7: Sterne-Rangliste bleibt explizit geschützt', () => {
   assert.match(stars, /🔒 Verbergen/);
 });
 
+
+test('Batch 7: Gruppenstruktur ist im Kinderbetrieb gegen versehentliche Änderungen geschützt', () => {
+  assert.match(scoreboard, /onClick=\{\(\) => showSettingsMenu && handleStartEdit\(team\)\}/);
+  assert.match(scoreboard, /\{showSettingsMenu && teams\.length > MIN_TEAMS && \(/);
+  assert.match(scoreboard, /hover:bg-rose-500\/10 hover:text-rose-500/);
+
+  // Point scoring remains directly available on the board.
+  assert.match(scoreboard, /onClick=\{\(\) => handleAddPoint\(team\.id\)\}/);
+  assert.match(scoreboard, /onClick=\{\(\) => handleCorrectPoint\(team\.id\)\}/);
+});
+
 test('Batch 7: semantische Spiel- und Ergebnisfarben bleiben erhalten', () => {
   // Wheel segments intentionally keep a diverse fixed palette.
   assert.match(wheel, /WHEEL_PALETTE/);
