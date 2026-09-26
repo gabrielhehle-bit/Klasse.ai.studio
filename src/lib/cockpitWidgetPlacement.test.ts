@@ -61,6 +61,24 @@ test("free placement respects dragged arbitrary widget edges", () => {
   for (const rect of occupied) assert.equal(overlaps(result, rect), false);
 });
 
+test("sequential widget openings fill free board areas before any overlap", () => {
+  const occupied: CockpitPlacementRect[] = [];
+  for (let index = 0; index < 4; index += 1) {
+    const result = findCockpitWidgetOpeningPlacement({
+      usableWidth: 1200,
+      usableHeight: 680,
+      desiredW: 330,
+      desiredH: 260,
+      minW: 280,
+      minH: 220,
+      occupied,
+    });
+    assert.equal(result.usedOverlapFallback, false, `opening ${index + 1} should still find free space`);
+    for (const rect of occupied) assert.equal(overlaps(result, rect), false);
+    occupied.push({ id: String(index), x: result.x, y: result.y, w: result.w, h: result.h });
+  }
+});
+
 test("only falls back to overlap when no free rectangle exists", () => {
   const occupied = [
     { id: "cover", x: 0, y: 0, w: 700, h: 500 },
