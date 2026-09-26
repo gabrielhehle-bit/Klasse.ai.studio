@@ -762,10 +762,10 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
           : "rounded-[24px] backdrop-blur-3xl ring-offset-transparent transition-all " +
             (currentIsLight
               ? isFocused
-                ? "bg-white border border-indigo-400/80 ring-4 ring-indigo-500/20 shadow-[0_24px_55px_rgba(79,70,229,0.12),0_1px_3px_rgba(79,70,229,0.04)] text-slate-800"
+                ? "bg-white border border-accent ring-4 ring-accent/20 shadow-[0_24px_55px_rgba(15,23,42,0.16),0_1px_3px_rgba(15,23,42,0.06)] text-slate-800"
                 : "bg-white/95 border border-slate-200/70 shadow-[0_12px_40px_rgba(15,23,42,0.06),0_1px_2px_rgba(15,23,42,0.02)] text-slate-800"
               : isFocused
-                ? "bg-zinc-900 border border-indigo-500/40 ring-4 ring-indigo-500/20 shadow-[0_24px_55px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.12)] text-neutral-100"
+                ? "bg-zinc-900 border border-accent ring-4 ring-accent/20 shadow-[0_24px_55px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.12)] text-neutral-100"
                 : "bg-zinc-950/85 border border-white/5 shadow-[0_16px_45px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.06)] text-neutral-100")
       }`}
       style={{
