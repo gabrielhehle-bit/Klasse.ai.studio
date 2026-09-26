@@ -395,9 +395,9 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
                     <button
                       key={step}
                       onClick={() => handleSetStepSize(step)}
-                      className={`px-2.5 py-1 rounded-lg font-black text-xs transition-all ${
+                      className={`min-h-11 min-w-11 px-2.5 py-1 rounded-lg font-black text-xs transition-all ${
                         settings.stepSize === step
-                          ? 'bg-indigo-500 text-white'
+                          ? 'bg-accent text-accent-text'
                           : 'bg-black/5 dark:bg-white/5 hover:bg-black/10 text-slate-600 dark:text-slate-300'
                       }`}
                     >
@@ -493,11 +493,11 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
                             onBlur={() => handleSaveEdit(team.id)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(team.id)}
                             autoFocus
-                            className="w-full text-xs font-bold px-1.5 py-0.5 rounded border border-indigo-400 outline-none bg-white dark:bg-zinc-800 text-slate-800 dark:text-slate-100"
+                            className="w-full text-xs font-bold px-1.5 py-0.5 rounded border border-accent outline-none bg-white dark:bg-zinc-800 text-slate-800 dark:text-slate-100"
                           />
                           <button
                             onClick={() => handleSaveEdit(team.id)}
-                            className="p-1 text-emerald-500"
+                            className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-accent hover:bg-accent-soft"
                           >
                             <Check size={13} />
                           </button>
@@ -601,11 +601,11 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
                           onBlur={() => handleSaveEdit(team.id)}
                           onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(team.id)}
                           autoFocus
-                          className="w-full text-xs font-bold px-1.5 py-0.5 rounded border border-indigo-400 outline-none bg-white dark:bg-zinc-800 text-slate-800 dark:text-slate-100"
+                          className="w-full text-xs font-bold px-1.5 py-0.5 rounded border border-accent outline-none bg-white dark:bg-zinc-800 text-slate-800 dark:text-slate-100"
                         />
                         <button
                           onClick={() => handleSaveEdit(team.id)}
-                          className="p-1 text-emerald-500"
+                          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-accent hover:bg-accent-soft"
                         >
                           <Check size={14} />
                         </button>
@@ -722,7 +722,7 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
           <button
             onClick={handleAddTeam}
             aria-label="Team hinzufügen"
-            className="flex items-center gap-1 text-[11px] font-bold text-accent hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors cursor-pointer"
+            className="flex items-center gap-1 text-[11px] font-bold text-accent hover:text-accent transition-colors cursor-pointer"
           >
             <UserPlus size={13} />
             <span>Team hinzufügen</span>
