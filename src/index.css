@@ -2496,6 +2496,7 @@ html body [data-style] .klassio-cockpit-shell .klassio-student-sidebar .text-sla
 /* Widget library: one clear modal layer with fixed search/header, category rail
    and a scrollable card area. The teaching dock recedes while the library is active. */
 .klassio-widget-library {
+  box-sizing: border-box;
   display: grid;
   grid-template-columns: 13.5rem minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
