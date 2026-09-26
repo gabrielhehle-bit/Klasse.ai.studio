@@ -91,3 +91,16 @@ test('Batch 8: wichtige Touch-Ziele bleiben mindestens 44 px hoch', () => {
   assert.match(wordclock, /min-h-11/);
   assert.match(weekly, /min-h-11/);
 });
+
+
+test('Batch 8: Stoppuhr schützt Pause und Runde vor veralteten Parent-Snapshots', () => {
+  assert.match(stopwatch, /pendingPersistSignatureRef/);
+  assert.match(stopwatch, /incomingSignature !== pendingSignature/);
+  assert.match(stopwatch, /lokale Benutzeraktion beibehalten/);
+});
+
+test('Batch 8: Zehntelsekunden sind wieder direkt an der Stoppuhr erreichbar', () => {
+  assert.match(stopwatch, /aria-label="Zehntelsekunden umschalten"/);
+  assert.match(stopwatch, />\s*0,1 s\s*</);
+  assert.match(stopwatch, /onClick=\{toggleDecimals\}/);
+});
