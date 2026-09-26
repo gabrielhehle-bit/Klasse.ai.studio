@@ -28,6 +28,8 @@ export interface PhasesWidgetProps {
   lessonPhases?: any[];
   setLessonPhases?: (phases: any[]) => void;
   currentIsLight?: boolean;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
 }
 
 export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
@@ -36,6 +38,8 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
   lessonPhases,
   setLessonPhases,
   currentIsLight = true,
+  showSettings: externalShowSettings,
+  onCloseSettings,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef);
@@ -78,6 +82,8 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
   const [editLabel, setEditLabel] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [newPhaseName, setNewPhaseName] = useState('');
+  const hasExternalSettingsControl = typeof externalShowSettings === 'boolean';
+  const isManaging = hasExternalSettingsControl ? externalShowSettings : true;
 
   // Synchronize state changes to persistence and parent
   const syncPhases = useCallback(
@@ -184,18 +190,20 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
         <div className="flex flex-col justify-between h-full w-full">
           {/* Top meta & counter */}
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-rose-500 flex items-center gap-1">
+            <span className="text-[10px] font-black uppercase tracking-wider text-accent flex items-center gap-1">
               <Compass size={13} className="stroke-[2.5]" />
               Phase {activeIndex + 1} / {total}
             </span>
-            <button
-              type="button"
-              onClick={() => setShowAddModal(true)}
-              className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer min-h-[36px] flex items-center"
-              title="Phase hinzufügen"
-            >
-              + Neu
-            </button>
+            {isManaging && (
+              <button
+                type="button"
+                onClick={() => setShowAddModal(true)}
+                className="flex min-h-11 items-center rounded-xl px-2 text-[10px] font-bold text-accent hover:bg-accent-soft"
+                title="Phase hinzufügen"
+              >
+                + Neu
+              </button>
+            )}
           </div>
 
           {/* Large active phase card */}
@@ -220,7 +228,7 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
                   aria-label={`Zu Phase ${idx + 1}: ${p.label} springen`}
                   className={`h-2 rounded-full transition-all cursor-pointer ${
                     idx === activeIndex
-                      ? 'w-6 bg-rose-500'
+                      ? 'w-6 bg-accent'
                       : idx < activeIndex
                       ? 'w-2 bg-emerald-500'
                       : 'w-2 bg-slate-300 dark:bg-zinc-700'
@@ -237,7 +245,7 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
               type="button"
               onClick={handlePrev}
               disabled={activeIndex <= 0}
-              className={`min-h-[44px] px-3 rounded-xl border font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer ${
+              className={`min-h-11 px-3 rounded-xl border font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer ${
                 activeIndex <= 0
                   ? 'opacity-30 cursor-not-allowed border-transparent'
                   : currentIsLight
@@ -252,10 +260,10 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
               type="button"
               onClick={handleNext}
               disabled={activeIndex >= total - 1}
-              className={`flex-1 min-h-[44px] px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer ${
+              className={`flex-1 min-h-11 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer ${
                 activeIndex >= total - 1
                   ? 'bg-slate-300 dark:bg-zinc-800 text-slate-500 cursor-not-allowed'
-                  : 'bg-rose-500 hover:bg-rose-600 text-white active:scale-98'
+                  : 'bg-accent hover:bg-accent-hover text-accent-text active:scale-98'
               }`}
             >
               <span>Nächste Phase</span>
@@ -265,28 +273,39 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
         </div>
       )}
 
+      {hasExternalSettingsControl && isManaging && (
+        <div className="mb-2 flex min-h-11 shrink-0 items-center justify-between rounded-xl border border-accent bg-accent-soft px-2.5">
+          <span className="text-[10px] font-black uppercase tracking-wider text-accent">Phasen verwalten</span>
+          <button
+            type="button"
+            onClick={() => onCloseSettings?.()}
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-white/60 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-white"
+            aria-label="Phasen-Einstellungen schließen"
+            title="Einstellungen schließen"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {/* STANDARD / LARGE / FULLSCREEN VIEW */}
       {!isCompact && (
         <div className="flex flex-col justify-between h-full w-full gap-3">
           {/* Header Row */}
-          <div className="flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-black uppercase tracking-wider text-rose-500 flex items-center gap-1.5">
-                <Compass size={15} className="stroke-[2.5]" />
-                Unterrichtsphase
-              </span>
-              <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400">
-                {activeIndex + 1} von {total}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowAddModal(true)}
-              className="min-h-[40px] px-2.5 py-1 text-xs font-bold rounded-lg border flex items-center gap-1 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors cursor-pointer"
-            >
-              <Plus size={14} />
-              <span>Phase</span>
-            </button>
+          <div className="flex min-h-11 items-center justify-between shrink-0">
+            <span className="rounded-lg bg-accent-soft px-2 py-1 text-xs font-bold text-accent">
+              Phase {activeIndex + 1} von {total}
+            </span>
+            {isManaging && (
+              <button
+                type="button"
+                onClick={() => setShowAddModal(true)}
+                className="flex min-h-11 items-center gap-1 rounded-xl border border-accent px-3 text-xs font-bold text-accent transition-colors hover:bg-accent-soft"
+              >
+                <Plus size={14} />
+                <span>Phase</span>
+              </button>
+            )}
           </div>
 
           {/* Active Phase Spotlight */}
@@ -299,7 +318,7 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
             <h2
               className={`font-black tracking-tight leading-tight ${
                 isFullscreen
-                  ? 'text-4xl sm:text-5xl md:text-6xl text-rose-600 dark:text-rose-400'
+                  ? 'text-4xl sm:text-5xl md:text-6xl text-accent'
                   : 'text-xl sm:text-2xl text-slate-900 dark:text-white'
               }`}
             >
@@ -328,7 +347,7 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
                   key={p.id}
                   className={`flex-1 min-w-[90px] max-w-[170px] h-full min-h-[50px] p-2 rounded-xl border flex flex-col justify-between transition-all relative cursor-pointer ${
                     isActive
-                      ? 'bg-rose-500 text-white border-rose-500 shadow-sm'
+                      ? 'bg-accent text-accent-text border-accent shadow-sm'
                       : isPast
                       ? currentIsLight
                         ? 'bg-emerald-50/70 border-emerald-200 text-emerald-800'
@@ -343,7 +362,7 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
                     <span
                       className={`w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center shrink-0 ${
                         isActive
-                          ? 'bg-white text-rose-600'
+                          ? 'bg-white text-accent'
                           : isPast
                           ? 'bg-emerald-500 text-white'
                           : 'bg-slate-200 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300'
@@ -352,27 +371,29 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
                       {idx + 1}
                     </span>
 
-                    {/* Action icons on hover */}
-                    <div className="flex items-center gap-1 opacity-0 hover:opacity-100 transition-opacity">
-                      <button
-                        type="button"
-                        onClick={(e) => handleStartEdit(p, e)}
-                        className="p-1 hover:text-indigo-400 cursor-pointer"
-                        title="Bearbeiten"
-                      >
-                        <Edit2 size={11} />
-                      </button>
-                      {phases.length > 1 && (
+                    {/* Editing is deliberately available only through the shared settings gear. */}
+                    {isManaging && (
+                      <div className="flex items-center gap-1">
                         <button
                           type="button"
-                          onClick={(e) => handleDelete(p.id, e)}
-                          className="p-1 hover:text-rose-400 cursor-pointer"
-                          title="Löschen"
+                          onClick={(e) => handleStartEdit(p, e)}
+                          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-accent-soft hover:text-accent"
+                          title="Bearbeiten"
                         >
-                          <Trash2 size={11} />
+                          <Edit2 size={13} />
                         </button>
-                      )}
-                    </div>
+                        {phases.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleDelete(p.id, e)}
+                            className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-rose-500/10 hover:text-rose-500"
+                            title="Löschen"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {isEditing ? (
@@ -386,12 +407,12 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
                           if (e.key === 'Escape') setEditingId(null);
                         }}
                         autoFocus
-                        className="w-full text-xs font-bold px-1 py-0.5 rounded bg-white text-slate-900 border border-indigo-500 outline-hidden"
+                        className="w-full text-xs font-bold px-1 py-0.5 rounded bg-white text-slate-900 border border-accent outline-hidden"
                       />
                       <button
                         type="button"
                         onClick={() => handleSaveEdit(p.id)}
-                        className="p-1 text-emerald-500"
+                        className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-accent"
                       >
                         <Check size={12} />
                       </button>
@@ -412,7 +433,7 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
               type="button"
               onClick={handlePrev}
               disabled={activeIndex <= 0}
-              className={`min-h-[44px] px-4 rounded-xl border font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              className={`min-h-11 px-4 rounded-xl border font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 activeIndex <= 0
                   ? 'opacity-30 cursor-not-allowed border-transparent'
                   : currentIsLight
@@ -428,10 +449,10 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
               type="button"
               onClick={handleNext}
               disabled={activeIndex >= total - 1}
-              className={`min-h-[44px] px-5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer ${
+              className={`min-h-11 px-5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer ${
                 activeIndex >= total - 1
                   ? 'bg-slate-300 dark:bg-zinc-800 text-slate-500 cursor-not-allowed'
-                  : 'bg-rose-500 hover:bg-rose-600 text-white active:scale-98'
+                  : 'bg-accent hover:bg-accent-hover text-accent-text active:scale-98'
               }`}
             >
               <span>Nächste Phase</span>
@@ -464,20 +485,20 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
               onChange={(e) => setNewPhaseName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
               autoFocus
-              className="w-full text-xs font-semibold px-3 py-2 rounded-xl border border-slate-300 dark:border-zinc-700 mb-3 outline-indigo-500"
+              className="w-full text-xs font-semibold px-3 py-2 rounded-xl border border-slate-300 dark:border-zinc-700 mb-3 outline-accent"
             />
             <div className="flex gap-2 justify-end">
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
-                className="min-h-[40px] px-3 text-xs font-bold rounded-xl border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 cursor-pointer"
+                className="min-h-11 px-3 text-xs font-bold rounded-xl border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 cursor-pointer"
               >
                 Abbrechen
               </button>
               <button
                 type="button"
                 onClick={handleAdd}
-                className="min-h-[40px] px-4 text-xs font-bold rounded-xl bg-rose-500 hover:bg-rose-600 text-white cursor-pointer"
+                className="min-h-11 px-4 text-xs font-bold rounded-xl bg-accent hover:bg-accent-hover text-accent-text cursor-pointer"
               >
                 Hinzufügen
               </button>
