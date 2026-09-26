@@ -12189,6 +12189,8 @@ ${content}
                                           isFullscreen={
                                             fullscreenWidgetId === widget.id
                                           }
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
@@ -12209,6 +12211,8 @@ ${content}
                                           widget={widget}
                                           onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
