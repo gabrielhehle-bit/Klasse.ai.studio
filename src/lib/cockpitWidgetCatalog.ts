@@ -586,6 +586,9 @@ export type CockpitWidgetLibraryId = CockpitWidgetLibraryItem["type"];
  */
 const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
   "clock",
+  "stopwatch",
+  "wordclock",
+  "classweeklyplan",
   "klassenglas",
   "piggybank",
   "thermometer",
