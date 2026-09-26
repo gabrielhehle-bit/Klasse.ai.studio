@@ -243,13 +243,20 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     const result = generateStudentGroups(activeStudentIds, config);
     if (groups.length > 0 && groups.every(group => group.studentIds.every(id => allStudents.some(s => s.id === id)))) setPreviousGroups(groups);
     else setPreviousGroups(null);
+    const isRemix = groups.length > 0;
     setGroups(result.groups);
     setSelectedStudentForAction(null);
     setGroupPage(0);
-    // A group division must never silently hide half the class behind pages.
-    // When the current widget cannot show every card, open the all-groups view.
-    const preview = getGroupPageLayout(groupBodySize.width, groupBodySize.height, result.groups, 0, { reservedHeight: 76 });
-    if (!preview.fits || preview.pageCount > 1) setIsExpanded(true);
+
+    // "Neu mischen" must respect the teacher's current widget size.
+    // Never jump into the full-screen/all-groups view just because the new
+    // distribution needs paging. Full size is an explicit user action via
+    // "Alle Gruppen anzeigen". For the very first division we also stay in
+    // the widget and let the compact paging/expand affordance communicate
+    // that more groups exist.
+    if (isRemix && !isExpanded) {
+      setIsExpanded(false);
+    }
 
     persistState(
       result.groups,
