@@ -144,29 +144,25 @@ export const CalculatorWidget: React.FC<CalculatorWidgetProps> = ({
   }
 
   // Tasten-Styling
-  const numBtnClass = `flex-1 min-h-[44px] rounded-xl font-bold flex items-center justify-center transition-all active:scale-95 select-none shadow-sm cursor-pointer ${
+  const numBtnClass = `flex-1 min-h-11 rounded-xl font-bold flex items-center justify-center transition-all active:scale-95 select-none shadow-sm cursor-pointer ${
     currentIsLight
       ? 'bg-white hover:bg-slate-100 text-slate-800 border border-slate-200/90 hover:border-slate-300'
       : 'bg-zinc-800 hover:bg-zinc-700 text-white border border-white/10'
   } ${isFullscreen ? 'text-2xl py-3' : isLarge ? 'text-xl py-2' : 'text-lg py-1.5'}`;
 
-  const opBtnClass = `flex-1 min-h-[44px] rounded-xl font-bold flex items-center justify-center transition-all active:scale-95 select-none shadow-sm cursor-pointer ${
+  const opBtnClass = `flex-1 min-h-11 rounded-xl font-bold flex items-center justify-center transition-all active:scale-95 select-none shadow-sm cursor-pointer ${
     currentIsLight
       ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 hover:border-amber-300'
       : 'bg-amber-950/40 hover:bg-amber-900/60 text-amber-200 border border-amber-600/30'
   } ${isFullscreen ? 'text-2xl py-3' : isLarge ? 'text-xl py-2' : 'text-lg py-1.5'}`;
 
-  const specialBtnClass = `flex-1 min-h-[44px] rounded-xl font-bold flex items-center justify-center transition-all active:scale-95 select-none shadow-sm cursor-pointer ${
+  const specialBtnClass = `flex-1 min-h-11 rounded-xl font-bold flex items-center justify-center transition-all active:scale-95 select-none shadow-sm cursor-pointer ${
     currentIsLight
       ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
       : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 border border-white/10'
   } ${isFullscreen ? 'text-xl py-3' : isLarge ? 'text-base py-2' : 'text-sm py-1.5'}`;
 
-  const equalsBtnClass = `flex-1 min-h-[44px] rounded-xl font-black flex items-center justify-center transition-all active:scale-95 select-none shadow-md cursor-pointer ${
-    currentIsLight
-      ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-700/30'
-      : 'bg-emerald-500 hover:bg-emerald-400 text-zinc-950 border border-emerald-300/30'
-  } ${isFullscreen ? 'text-3xl py-3' : isLarge ? 'text-2xl py-2' : 'text-xl py-1.5'}`;
+  const equalsBtnClass = `flex-1 min-h-11 rounded-xl bg-accent font-black text-accent-text flex items-center justify-center transition-all hover:bg-accent-hover active:scale-95 select-none shadow-md cursor-pointer ${isFullscreen ? 'text-3xl py-3' : isLarge ? 'text-2xl py-2' : 'text-xl py-1.5'}`;
 
   return (
     <div
@@ -179,7 +175,7 @@ export const CalculatorWidget: React.FC<CalculatorWidgetProps> = ({
       {/* Kopfbereich: Status / Modus & optionaler Verlauf-Button */}
       <div className="flex items-center justify-between gap-2 shrink-0 px-1">
         <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
-          <Hash size={14} className="text-indigo-500" />
+          <Hash size={14} className="text-accent" />
           <span className="uppercase tracking-wider text-[10px]">
             {isFullscreen
               ? 'Tafelrechner (Smartboard-Modus)'
@@ -194,9 +190,9 @@ export const CalculatorWidget: React.FC<CalculatorWidgetProps> = ({
           <button
             type="button"
             onClick={() => setShowHistory((prev) => !prev)}
-            className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-lg border transition-colors cursor-pointer ${
+            className={`flex min-h-11 items-center gap-1 rounded-xl border px-3 text-xs font-semibold transition-colors cursor-pointer ${
               showHistory
-                ? 'bg-indigo-600 text-white border-indigo-600'
+                ? 'bg-accent text-accent-text border-accent'
                 : currentIsLight
                 ? 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
                 : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'
@@ -408,7 +404,7 @@ export const CalculatorWidget: React.FC<CalculatorWidgetProps> = ({
               <button
                 type="button"
                 onClick={onClearHistory}
-                className="text-slate-400 hover:text-rose-500 p-1 rounded transition-colors cursor-pointer"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-rose-500/10 hover:text-rose-500 cursor-pointer"
                 title="Verlauf leeren"
               >
                 <Trash2 size={13} />
@@ -433,13 +429,13 @@ export const CalculatorWidget: React.FC<CalculatorWidgetProps> = ({
                         error: null,
                       }));
                     }}
-                    className="w-full py-1.5 px-1 hover:bg-slate-50 dark:hover:bg-zinc-900 rounded transition-colors text-right cursor-pointer group"
+                    className="min-h-11 w-full rounded-lg px-2 py-1.5 text-right transition-colors hover:bg-slate-50 dark:hover:bg-zinc-900 cursor-pointer group"
                     title="Ergebnis als Eingabe übernehmen"
                   >
                     <div className="text-[10px] text-slate-400 truncate">
                       {item.expression} =
                     </div>
-                    <div className="text-sm font-bold text-indigo-600 dark:text-indigo-400 group-hover:underline">
+                    <div className="text-sm font-bold text-accent group-hover:underline">
                       {item.result}
                     </div>
                   </button>
