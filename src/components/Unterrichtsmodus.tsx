@@ -3877,10 +3877,42 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     }));
   };
 
+  const measureCockpitUsableBoardArea = () => {
+    const board = boardRef.current;
+    if (!board) return null;
+    const boardRect = board.getBoundingClientRect();
+    if (boardRect.width <= 0 || boardRect.height <= 0) return null;
+
+    const sidebarRect = sidebarMode !== "hidden"
+      ? sidebarRef.current?.getBoundingClientRect()
+      : null;
+    const sidebarOverlapPx = sidebarRect
+      ? Math.max(
+          0,
+          Math.min(boardRect.right, sidebarRect.right) -
+            Math.max(boardRect.left, sidebarRect.left),
+        )
+      : 0;
+    const dockClearancePx = Math.min(
+      COCKPIT_AUTO_ARRANGE_DOCK_CLEARANCE_PX,
+      Math.max(0, boardRect.height * 0.16),
+    );
+
+    return {
+      boardRect,
+      usableWidthPx: Math.max(1, boardRect.width - sidebarOverlapPx),
+      usableHeightPx: Math.max(1, boardRect.height - dockClearancePx),
+      sidebarOverlapPx,
+      dockClearancePx,
+    };
+  };
+
   const handleOpenWidgetInCockpitLayout = (
     type: CockpitWidgetConfig["type"],
   ) => {
-    setMinimizedWidgetIds(current => current.filter(id => cockpitWidgets.find(widget => widget.id === id)?.type !== type));
+    setMinimizedWidgetIds(current =>
+      current.filter(id => cockpitWidgets.find(widget => widget.id === id)?.type !== type),
+    );
     // Only the sidebar may provide public plus points now.
     if (type === "studentlist") return;
     setRecentWidgetTypes((previous) => {
@@ -3888,79 +3920,165 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       localStorage.setItem("cockpit_recent_widget_types", JSON.stringify(updatedRecent));
       return updatedRecent;
     });
-    const visibleWidgets = cockpitWidgets.filter((w) => w.visible);
 
-    // Default start coords outside tabu zone (x >= 22, y >= 15)
-    let finalX = 22;
-    let finalY = 15;
+    const targetWidget = cockpitWidgets.find(widget => widget.type === type);
+    if (!targetWidget) return;
 
-    if (visibleWidgets.length > 0) {
-      // Find the last visible widget to cascade/offset relative to it
-      const lastW = visibleWidgets[visibleWidgets.length - 1];
-      finalX = Math.min(75, lastW.x + 3.0);
-      finalY = Math.min(75, lastW.y + 3.0);
-    }
+    const def = DEFAULT_COCKPIT_LAYOUT.find((candidate) => candidate.type === type);
+    const useOld =
+      targetWidget.hasBeenOpened ||
+      targetWidget.visible ||
+      (type === "groups" &&
+        Array.isArray(targetWidget.settings?.groups) &&
+        targetWidget.settings.groups.length > 0) ||
+      (["kidattendance", "classweeklyplan", "randomname"].includes(type) &&
+        Boolean(targetWidget.settings && Object.keys(targetWidget.settings).length));
 
-    // Ensure it's not overlapping exactly or extremely close with any existing visible widget
-    let overlap = true;
-    let limit = 0;
-    while (overlap && limit < 25) {
-      overlap = false;
-      for (const w of visibleWidgets) {
-        if (Math.abs(w.x - finalX) < 1.5 && Math.abs(w.y - finalY) < 1.5) {
-          finalX = Math.min(80, finalX + 3.0);
-          finalY = Math.min(80, finalY + 3.0);
-          overlap = true;
-          break;
-        }
-      }
-      limit++;
-    }
+    const checkInPreset = getCheckInPreferences(
+      app.boardSettings?.cockpitCheckInDefaultsByClass?.[boardTextClassKey],
+    );
+    const checkInSize =
+      checkInPreset.startSize === "compact" ? { w: 48, h: 55 }
+      : checkInPreset.startSize === "standard" ? { w: 70, h: 70 }
+      : { w: 86, h: 82 };
+    const groupPreset = getGroupWidgetPreferences(
+      app.boardSettings?.cockpitGroupDefaultsByClass?.[boardTextClassKey],
+    );
+    const groupStartSize =
+      groupPreset.startSize === "compact" ? { w: 44, h: 48 }
+      : groupPreset.startSize === "standard" ? { w: 65, h: 72 }
+      : { w: 85, h: 86 };
+    const weeklyPreset = getClassroomWeeklyWidgetPreferences(
+      app.boardSettings?.cockpitChildrenWeekDefaultsByClass?.[boardTextClassKey],
+    );
+    const weeklyStartSize =
+      weeklyPreset.startSize === "compact" ? { w: 52, h: 60 }
+      : weeklyPreset.startSize === "standard" ? { w: 78, h: 80 }
+      : { w: 100, h: 100 };
+    const randomPreset = getRandomNameWidgetPreferences(
+      app.boardSettings?.cockpitRandomNameDefaultsByClass?.[boardTextClassKey],
+    );
+    const randomStartSize =
+      randomPreset.startSize === "compact" ? { w: 42, h: 54 }
+      : randomPreset.startSize === "standard" ? { w: 68, h: 75 }
+      : { w: 100, h: 100 };
 
-    const updated = cockpitWidgets.map((w) => {
-      if (w.type === type) {
-        const def = DEFAULT_COCKPIT_LAYOUT.find((d) => d.type === type);
-        const useOld = w.hasBeenOpened || w.visible || (type === "groups" && Array.isArray(w.settings?.groups) && w.settings.groups.length > 0) || (["kidattendance", "classweeklyplan", "randomname"].includes(type) && Boolean(w.settings && Object.keys(w.settings).length));
-        const checkInPreset = getCheckInPreferences(app.boardSettings?.cockpitCheckInDefaultsByClass?.[boardTextClassKey]);
-        const checkInSize = checkInPreset.startSize === "compact" ? { w: 48, h: 55 } : checkInPreset.startSize === "standard" ? { w: 70, h: 70 } : { w: 86, h: 82 };
-        const groupPreset = getGroupWidgetPreferences(app.boardSettings?.cockpitGroupDefaultsByClass?.[boardTextClassKey]);
-        const groupStartSize = groupPreset.startSize === "compact" ? { w: 44, h: 48 } : groupPreset.startSize === "standard" ? { w: 65, h: 72 } : { w: 85, h: 86 };
-        const weeklyPreset = getClassroomWeeklyWidgetPreferences(app.boardSettings?.cockpitChildrenWeekDefaultsByClass?.[boardTextClassKey]);
-        const weeklyStartSize = weeklyPreset.startSize === "compact" ? { w: 52, h: 60 } : weeklyPreset.startSize === "standard" ? { w: 78, h: 80 } : { w: 100, h: 100 };
-        const randomPreset = getRandomNameWidgetPreferences(app.boardSettings?.cockpitRandomNameDefaultsByClass?.[boardTextClassKey]);
-        const randomStartSize = randomPreset.startSize === "compact" ? { w: 42, h: 54 }
-          : randomPreset.startSize === "standard" ? { w: 68, h: 75 } : { w: 100, h: 100 };
-        const isMaxWidget = (type === "randomname" && randomPreset.startSize === "large") || type === "wheel" || (type === "classweeklyplan" && weeklyPreset.startSize === "large");
-        const isWhiteboard = type === "drawing";
-        return {
-          ...w,
-          visible: true,
-          hasBeenOpened: true, // Mark it as opened!
-          x: isWhiteboard || isMaxWidget && !useOld ? 0 : useOld ? w.x : finalX,
-          y: isWhiteboard || isMaxWidget && !useOld ? 0 : useOld ? w.y : finalY,
-          w: isWhiteboard || isMaxWidget && !useOld ? 100 : useOld ? w.w : type === "kidattendance" ? checkInSize.w : type === "groups" ? groupStartSize.w : type === "classweeklyplan" ? weeklyStartSize.w : type === "randomname" ? randomStartSize.w : Math.min(def?.w || w.w, 46),
-          h: isWhiteboard || isMaxWidget && !useOld ? 100 : type === "pet" && !useOld ? 66 : useOld ? w.h : type === "kidattendance" ? checkInSize.h : type === "groups" ? groupStartSize.h : type === "classweeklyplan" ? weeklyStartSize.h : type === "randomname" ? randomStartSize.h : Math.min(def?.h || w.h, 46),
-          settings: isWhiteboard
-            ? {
-                ...(w.settings || {}),
-                boardMode: w.settings?.boardMode || "whiteboard",
-                isDirectMode: true,
-              }
-            : type === "kidattendance" && !useOld ? { ...(w.settings || {}), ...checkInPreset }
-            : type === "groups" && !useOld ? { ...(w.settings || {}), ...groupPreset }
-            : type === "classweeklyplan" && !useOld ? { ...(w.settings || {}), ...weeklyPreset }
-            : type === "randomname" && !useOld ? { ...(w.settings || {}), ...randomPreset } : w.settings,
+    const isMaxWidget =
+      (type === "randomname" && randomPreset.startSize === "large") ||
+      type === "wheel" ||
+      (type === "classweeklyplan" && weeklyPreset.startSize === "large");
+    const isWhiteboard = type === "drawing";
+    const isFreeMascot = type === "pet";
+
+    const startW =
+      type === "kidattendance" ? checkInSize.w
+      : type === "groups" ? groupStartSize.w
+      : type === "classweeklyplan" ? weeklyStartSize.w
+      : type === "randomname" ? randomStartSize.w
+      : Math.min(def?.w || targetWidget.w, 46);
+    const startH =
+      type === "kidattendance" ? checkInSize.h
+      : type === "groups" ? groupStartSize.h
+      : type === "classweeklyplan" ? weeklyStartSize.h
+      : type === "randomname" ? randomStartSize.h
+      : isFreeMascot ? 66
+      : Math.min(def?.h || targetWidget.h, 46);
+
+    let placement = {
+      x: useOld ? targetWidget.x : 22,
+      y: useOld ? targetWidget.y : 15,
+      w: useOld ? targetWidget.w : startW,
+      h: useOld ? targetWidget.h : startH,
+    };
+    let usedOverlapFallback = false;
+
+    if (!useOld && (isWhiteboard || isMaxWidget)) {
+      placement = { x: 0, y: 0, w: 100, h: 100 };
+    } else if (!useOld && !isFreeMascot) {
+      const area = measureCockpitUsableBoardArea();
+      if (area) {
+        const size = getWidgetMinSizeConfig(String(type));
+        const desiredW = Math.max(size.minW, (startW / 100) * area.boardRect.width);
+        const desiredH = Math.max(size.minH, (startH / 100) * area.boardRect.height);
+        const occupied = cockpitWidgets
+          .filter(widget =>
+            widget.id !== targetWidget.id &&
+            widget.visible &&
+            !minimizedWidgetIds.includes(widget.id) &&
+            widget.type !== "studentlist" &&
+            widget.type !== "pet" &&
+            !widget.settings?.isDirectMode,
+          )
+          .map(widget => ({
+            id: widget.id,
+            x: (widget.x / 100) * area.boardRect.width,
+            y: (widget.y / 100) * area.boardRect.height,
+            w: (widget.w / 100) * area.boardRect.width,
+            h: (widget.h / 100) * area.boardRect.height,
+          }));
+
+        const found = findCockpitWidgetOpeningPlacement({
+          usableWidth: area.usableWidthPx,
+          usableHeight: area.usableHeightPx,
+          desiredW,
+          desiredH,
+          minW: size.minW,
+          minH: size.minH,
+          occupied,
+        });
+
+        placement = {
+          x: (found.x / area.boardRect.width) * 100,
+          y: (found.y / area.boardRect.height) * 100,
+          w: (found.w / area.boardRect.width) * 100,
+          h: (found.h / area.boardRect.height) * 100,
         };
+        usedOverlapFallback = found.usedOverlapFallback;
       }
-      return w;
+    }
+
+    const updated = cockpitWidgets.map((widget) => {
+      if (widget.type !== type) return widget;
+      return {
+        ...widget,
+        visible: true,
+        hasBeenOpened: true,
+        x: placement.x,
+        y: placement.y,
+        w: placement.w,
+        h: placement.h,
+        settings: isWhiteboard
+          ? {
+              ...(widget.settings || {}),
+              boardMode: widget.settings?.boardMode || "whiteboard",
+              isDirectMode: true,
+            }
+          : type === "kidattendance" && !useOld
+            ? { ...(widget.settings || {}), ...checkInPreset }
+          : type === "groups" && !useOld
+            ? { ...(widget.settings || {}), ...groupPreset }
+          : type === "classweeklyplan" && !useOld
+            ? { ...(widget.settings || {}), ...weeklyPreset }
+          : type === "randomname" && !useOld
+            ? { ...(widget.settings || {}), ...randomPreset }
+          : widget.settings,
+      };
     });
+
     setCockpitWidgets(updated);
     setApp((prev) => ({
       ...prev,
       cockpitLayout: updated,
     }));
-    const found = updated.find((w) => w.type === type);
-    if (found) bringToFront(found.id);
+    const opened = updated.find((widget) => widget.type === type);
+    if (opened) bringToFront(opened.id);
+
+    if (usedOverlapFallback) {
+      showToast(
+        "Kein vollständig freier Platz: Das Widget wurde dort geöffnet, wo es am wenigsten andere Widgets verdeckt.",
+        "info",
+      );
+    }
   };
 
   const handleAutoArrangeWidgets = () => {
