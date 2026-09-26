@@ -605,6 +605,8 @@ const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
   "image",
   "links",
   "timer",
+  "stopwatch",
+  "dice",
   "drawing",
   "instruction",
   "zahlenraum",
