@@ -269,7 +269,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
             type="button"
             id="reward-open-settings-btn"
             onClick={() => setLocalSettingsOpen(open => !open)}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-black/5 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-white"
+            className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-slate-400 transition-colors hover:bg-black/5 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-white"
             title="Ziel & Symbol anpassen"
             aria-label="Klassenziel einstellen"
           >
