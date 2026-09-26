@@ -8,6 +8,7 @@ const templatesModal = readFileSync("src/components/cockpit/CockpitVorlagenModal
 const kidAttendance = readFileSync("src/components/cockpit/widgets/KidAttendanceWidget.tsx", "utf8");
 const boardTextEditor = readFileSync("src/components/cockpit/BoardTextEditor.tsx", "utf8");
 const widgetCatalog = readFileSync("src/lib/cockpitWidgetCatalog.ts", "utf8");
+const widgetPlacement = readFileSync("src/lib/cockpitWidgetPlacement.ts", "utf8");
 
 const widgetTypes = (source: string) =>
   [...new Set([...source.matchAll(/type:\s*"([^"]+)"/g)].map((match) => match[1]))];
@@ -286,6 +287,38 @@ test("Cockpit: jede Interaktion bringt das betroffene Fenster nach vorne", () =>
   assert.match(teachingSurface, /visibleFocusOrder\[visibleFocusOrder\.length - 1\]/);
   assert.match(teachingSurface, /setFocusOrder\(previous =>/);
   assert.match(cockpitWidget, /role="menuitem"/);
+});
+
+test("Cockpit: neue Widgets suchen echten freien Platz statt versetzt zu stapeln", () => {
+  const openStart = teachingSurface.indexOf("const handleOpenWidgetInCockpitLayout");
+  const openEnd = teachingSurface.indexOf("const handleAutoArrangeWidgets", openStart);
+  assert.ok(openStart >= 0 && openEnd > openStart);
+  const openHandler = teachingSurface.slice(openStart, openEnd);
+
+  assert.match(openHandler, /measureCockpitUsableBoardArea\(\)/);
+  assert.match(openHandler, /findCockpitWidgetOpeningPlacement\(/);
+  assert.match(openHandler, /!minimizedWidgetIds\.includes\(widget\.id\)/);
+  assert.match(openHandler, /widget\.type !== "pet"/);
+  assert.match(openHandler, /!widget\.settings\?\.isDirectMode/);
+  assert.match(openHandler, /usedOverlapFallback = found\.usedOverlapFallback/);
+  assert.match(openHandler, /Kein vollständig freier Platz/);
+  assert.doesNotMatch(openHandler, /lastW\.x \+ 3\.0/);
+  assert.doesNotMatch(openHandler, /lastW\.y \+ 3\.0/);
+
+  assert.match(widgetPlacement, /Prefer zero overlap/);
+  assert.match(widgetPlacement, /Only if no free candidate exists/);
+  assert.match(widgetPlacement, /overlapArea \* 1000/);
+  assert.match(widgetPlacement, /usedOverlapFallback: overlapArea > 0\.5/);
+});
+
+test("Cockpit: Neu-Öffnen und Auto-Anordnen teilen dieselbe gemessene Tafelfläche", () => {
+  assert.match(teachingSurface, /const measureCockpitUsableBoardArea = \(\) =>/);
+  assert.match(teachingSurface, /const sidebarOverlapPx = sidebarRect/);
+  assert.match(teachingSurface, /COCKPIT_AUTO_ARRANGE_DOCK_CLEARANCE_PX/);
+  assert.equal(
+    (teachingSurface.match(/measureCockpitUsableBoardArea\(\)/g) || []).length >= 2,
+    true,
+  );
 });
 
 test("Cockpit: automatische Anordnung nutzt die reale freie Tafelfläche", () => {
