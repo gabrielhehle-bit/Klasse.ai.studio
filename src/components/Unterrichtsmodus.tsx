@@ -11307,6 +11307,9 @@ ${content}
                                             )
                                           }
                                           currentIsLight={currentIsLight}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onOpenSettings={() => setWidgetSettingsOpenId(widget.id)}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
