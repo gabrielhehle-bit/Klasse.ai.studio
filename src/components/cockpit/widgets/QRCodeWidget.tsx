@@ -48,8 +48,6 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef, { isFullscreen, defaultCategory: 'standard' });
   useWidgetOverflowGuard('QRCodeWidget', containerRef);
-  const isFs = isFullscreen || size.category === 'fullscreen';
-
   // 1. Initialer Zustand aus widget.settings (Kanonische Quelle)
   const initialSettings = useMemo(() => {
     return getCanonicalQRSettings(widget?.settings);
@@ -149,12 +147,6 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
     return <FileText className="w-3.5 h-3.5 text-amber-500 shrink-0" />;
   };
 
-  // Design-Klassen
-  const bgCard = currentIsLight
-    ? 'bg-white/80 border-slate-200/80 shadow-xs'
-    : 'bg-zinc-800/80 border-white/10 shadow-xs';
-  const textPrimary = currentIsLight ? 'text-slate-900' : 'text-slate-100';
-  const textSecondary = currentIsLight ? 'text-slate-500' : 'text-slate-400';
   return (
     <div
       ref={containerRef}
@@ -362,7 +354,7 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
               {...SECURE_QR_LINK_ATTRIBUTES}
               title="Link sicher im neuen Tab testen"
               aria-label="Link im neuen Tab öffnen"
-              className="flex items-center justify-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer min-h-11"
+              className="flex min-h-11 items-center justify-center gap-1 rounded-xl bg-accent px-3 py-1.5 text-xs font-black text-accent-text shadow-xs transition-all hover:bg-accent-hover active:scale-95 cursor-pointer"
             >
               <span>Testen</span>
               <ExternalLink className="w-3.5 h-3.5" />
@@ -549,7 +541,7 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
                   <a
                     href={contentInfo.safeHref}
                     {...SECURE_QR_LINK_ATTRIBUTES}
-                    className="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer min-h-[44px]"
+                    className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-accent px-3 py-2 text-xs font-black text-accent-text shadow-xs transition-all hover:bg-accent-hover cursor-pointer"
                   >
                     <span>Im Browser öffnen</span>
                     <ExternalLink className="w-4 h-4" />
