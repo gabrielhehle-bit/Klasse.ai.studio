@@ -31,7 +31,7 @@ function TaskText({ task, showMaterials = true, scale = 'normal' }: {
   const titleClass = scale === 'large' ? 'text-2xl sm:text-3xl' : scale === 'compact' ? 'text-base' : 'text-lg sm:text-xl';
   const bodyClass = scale === 'large' ? 'text-lg' : scale === 'compact' ? 'text-sm' : 'text-base';
   return <div className={`min-w-0 ${scale === 'large' ? 'space-y-2' : 'space-y-1'}`}>
-    <p className={`${subjectClass} font-extrabold uppercase tracking-wide text-indigo-700`}>{task.fach} · {task.day}</p>
+    <p className={`${subjectClass} font-extrabold uppercase tracking-wide text-accent`}>{task.fach} · {task.day}</p>
     <p className={`break-words ${titleClass} font-extrabold leading-snug text-slate-900`}>{task.title}</p>
     {task.instruction && <p className={`break-words ${bodyClass} font-medium text-slate-700`}>{task.instruction}</p>}
     {showMaterials && task.material && <p className={`break-words ${bodyClass} text-slate-700`}><span className="font-extrabold">Du brauchst: </span>{task.material}</p>}
@@ -41,7 +41,19 @@ function TaskText({ task, showMaterials = true, scale = 'normal' }: {
 /** All published tasks are readable directly in the widget. Completion is a
  * separate, three-step child flow, using the existing encrypted pupil progress.
  * Never project an individual child's difficulty or help status on the board. */
-export default function ClassroomWeeklyPlanWidget({ widget }: { widget?: CockpitWidgetConfig }) {
+interface ClassroomWeeklyPlanWidgetProps {
+  widget?: CockpitWidgetConfig;
+  onUpdate?: (updates: Partial<CockpitWidgetConfig>) => void;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
+}
+
+export default function ClassroomWeeklyPlanWidget({
+  widget,
+  onUpdate,
+  showSettings = false,
+  onCloseSettings,
+}: ClassroomWeeklyPlanWidgetProps) {
   const { app, setApp } = useApp();
   const [isExpanded, setIsExpanded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -52,6 +64,9 @@ export default function ClassroomWeeklyPlanWidget({ widget }: { widget?: Cockpit
   const roomyBoard = isExpanded || (size.width >= 1050 && size.height >= 620);
   const taskColumns = size.width >= 1320 ? 3 : size.width >= 820 ? 2 : 1;
   const preferences = getClassroomWeeklyWidgetPreferences(widget?.settings);
+  const updatePreference = (patch: Record<string, unknown>) => {
+    onUpdate?.({ settings: { ...(widget?.settings || {}), ...patch } });
+  };
   const [todayWeek, setTodayWeek] = useState(() => getKW(new Date()));
   const [week, setWeek] = useState(() => app.currentKW || getKW(new Date()));
   const [finishStep, setFinishStep] = useState<FinishStep | null>(null);
@@ -128,23 +143,51 @@ export default function ClassroomWeeklyPlanWidget({ widget }: { widget?: Cockpit
     closeFinish();
   };
 
-  const board = <div ref={containerRef} className="classroom-weekly-plan flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border-2 border-indigo-500 bg-white text-slate-950"
+  const board = <div ref={containerRef} className="classroom-weekly-plan relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl bg-white text-slate-950"
     aria-label="Wochenplan der Klasse">
-    <header className={`weekly-plan-light-surface flex shrink-0 flex-wrap items-center justify-between gap-2 border-b-2 border-indigo-400 bg-indigo-50 ${compactBoard ? "px-2 py-1.5" : "px-3 py-2 sm:px-5"}`}>
-      <div className="min-w-0"><h2 className={`${tinyBoard ? "text-sm" : compactBoard ? "text-base" : "text-xl sm:text-2xl"} font-extrabold leading-tight`}>📋 Unser Wochenplan</h2>
-        <p className={`${tinyBoard ? "text-[10px]" : compactBoard ? "text-xs" : "text-sm"} font-semibold text-slate-600`}>KW {week} · {tasks.length} {tasks.length === 1 ? 'Aufgabe' : 'Aufgaben'}</p></div>
+    {showSettings && <div className="absolute inset-0 z-40 flex flex-col gap-4 bg-white p-4">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-wider text-accent">Wochenplan-Einstellungen</p>
+          <p className="mt-1 text-xs text-slate-500">Bestimme, was Kinder auf der Tafel sehen.</p>
+        </div>
+        <button type="button" onClick={onCloseSettings}
+          className="min-h-11 rounded-xl border border-slate-200 px-3 text-xs font-black hover:bg-slate-100">
+          Fertig
+        </button>
+      </div>
+      <div>
+        <p className="mb-2 text-xs font-black uppercase tracking-wider text-slate-500">Material bei Aufgaben</p>
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => updatePreference({ showMaterials: true })}
+            className={`min-h-11 rounded-xl border px-3 text-sm font-black ${preferences.showMaterials ? 'border-accent bg-accent text-accent-text' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
+            Anzeigen
+          </button>
+          <button type="button" onClick={() => updatePreference({ showMaterials: false })}
+            className={`min-h-11 rounded-xl border px-3 text-sm font-black ${!preferences.showMaterials ? 'border-accent bg-accent text-accent-text' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
+            Ausblenden
+          </button>
+        </div>
+      </div>
+      <p className="text-xs text-slate-500">Woche wechseln und „Ich bin fertig“ bleiben direkte Unterrichtsaktionen.</p>
+    </div>}
+    <header className={`weekly-plan-light-surface flex shrink-0 flex-wrap items-center justify-between gap-2 border-b-2 border-accent-soft bg-accent-soft ${compactBoard ? "px-2 py-1.5" : "px-3 py-2 sm:px-5"}`}>
+      <div className="min-w-0">
+        <p className={`${tinyBoard ? "text-xs" : compactBoard ? "text-sm" : "text-base"} font-black text-accent`}>KW {week}</p>
+        <p className={`${tinyBoard ? "text-[10px]" : compactBoard ? "text-xs" : "text-sm"} font-semibold text-slate-600`}>{tasks.length} {tasks.length === 1 ? 'Aufgabe' : 'Aufgaben'} · {homework.length} HÜ</p>
+      </div>
       <div className={`flex flex-wrap items-center ${compactBoard ? "gap-1" : "gap-2"}`}>
         {!isExpanded && <button type="button" onClick={() => setIsExpanded(true)}
-          className={`weekly-plan-dark-action min-h-11 rounded-xl bg-indigo-700 text-sm font-bold text-white ${compactBoard ? "min-w-11 px-2" : "px-3"}`}
+          className={`weekly-plan-dark-action min-h-11 rounded-xl bg-accent text-sm font-bold text-white ${compactBoard ? "min-w-11 px-2" : "px-3"}`}
           aria-label="Wochenplan groß anzeigen" title="Wochenplan groß anzeigen">{compactBoard ? "⛶" : "⛶ Groß anzeigen"}</button>}
         <button type="button" aria-label="Vorherige Woche" disabled={week <= 1}
           onClick={() => setWeek(w => Math.max(1, w - 1))}
-          className={`min-h-11 min-w-11 rounded-xl border border-indigo-200 bg-white px-2 text-xl disabled:opacity-40`}>‹</button>
+          className={`min-h-11 min-w-11 rounded-xl border border-accent-soft bg-white px-2 text-xl disabled:opacity-40`}>‹</button>
         <button type="button" onClick={() => setWeek(todayWeek)} aria-label="Aktuelle Woche anzeigen"
-          className={`min-h-11 rounded-xl border border-indigo-200 bg-white text-sm font-bold ${compactBoard ? "px-2" : "px-3"}`}>{compactBoard ? "Heute" : "Diese Woche"}</button>
+          className={`min-h-11 rounded-xl border border-accent-soft bg-white text-sm font-bold ${compactBoard ? "px-2" : "px-3"}`}>{compactBoard ? "Heute" : "Diese Woche"}</button>
         <button type="button" aria-label="Nächste Woche" disabled={week >= 53}
           onClick={() => setWeek(w => Math.min(53, w + 1))}
-          className={`min-h-11 min-w-11 rounded-xl border border-indigo-200 bg-white px-2 text-xl disabled:opacity-40`}>›</button>
+          className={`min-h-11 min-w-11 rounded-xl border border-accent-soft bg-white px-2 text-xl disabled:opacity-40`}>›</button>
       </div>
     </header>
 
@@ -162,16 +205,16 @@ export default function ClassroomWeeklyPlanWidget({ widget }: { widget?: Cockpit
         : <div className={`grid ${compactBoard ? "gap-1.5" : roomyBoard ? "gap-4" : "gap-3"}`}
             style={{ gridTemplateColumns: `repeat(${taskColumns}, minmax(0, 1fr))` }}>
             {tasks.map((task, index) => <article key={task.id}
-              className={`weekly-plan-light-card min-w-0 rounded-2xl border-2 border-indigo-300 bg-white shadow-sm ${compactBoard ? "p-2.5" : "p-3 sm:p-4"}`}>
-              <p className="mb-2 text-sm font-extrabold text-indigo-800">Aufgabe {index + 1} · {task.day}</p>
+              className={`weekly-plan-light-card min-w-0 rounded-2xl border-2 border-accent-soft bg-white shadow-sm ${compactBoard ? "p-2.5" : "p-3 sm:p-4"}`}>
+              <p className="mb-2 text-sm font-extrabold text-accent">Aufgabe {index + 1} · {task.day}</p>
               <TaskText task={task} showMaterials={preferences.showMaterials} scale={tinyBoard ? 'compact' : roomyBoard ? 'large' : 'normal'} />
             </article>)}
           </div>}
     </section>
 
-    <footer className={`weekly-plan-light-surface shrink-0 border-t-2 border-indigo-400 bg-indigo-50 ${compactBoard ? "p-1.5" : "p-3 sm:px-5"}`} aria-label="Aufgabe abschließen">
+    <footer className={`weekly-plan-light-surface shrink-0 border-t-2 border-accent-soft bg-accent-soft ${compactBoard ? "p-1.5" : "p-3 sm:px-5"}`} aria-label="Aufgabe abschließen">
       <button type="button" onClick={startFinish} disabled={!tasks.length || !pupils.length}
-        className={`weekly-plan-dark-action w-full rounded-xl bg-indigo-700 font-extrabold text-white disabled:cursor-not-allowed ${compactBoard ? "min-h-11 px-2 py-1.5 text-sm" : "min-h-14 px-5 py-2 text-lg"}`}>
+        className={`weekly-plan-dark-action w-full rounded-xl bg-accent font-extrabold text-white disabled:cursor-not-allowed ${compactBoard ? "min-h-11 px-2 py-1.5 text-sm" : "min-h-14 px-5 py-2 text-lg"}`}>
         <span className="weekly-plan-action-label">✅ Ich bin fertig mit einer Aufgabe</span>
       </button>
       {!pupils.length && <p className="mt-1 text-center text-xs font-semibold text-slate-600">Für die Rückmeldung müssen Kinder in dieser Klasse angelegt sein.</p>}
@@ -181,10 +224,10 @@ export default function ClassroomWeeklyPlanWidget({ widget }: { widget?: Cockpit
       <div role="presentation" className="fixed inset-0 z-[999999] flex items-center justify-center bg-slate-950/85 p-2 sm:p-5"
         onPointerDown={event => event.stopPropagation()}>
         <section role="dialog" aria-modal="true" aria-label="Ich bin fertig mit einer Aufgabe"
-          className="classroom-weekly-plan flex max-h-[96dvh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border-2 border-indigo-500 bg-white text-slate-950 shadow-2xl">
-          <header className="weekly-plan-light-surface flex shrink-0 flex-wrap items-center justify-between gap-2 border-b-2 border-indigo-400 bg-indigo-50 px-4 py-3">
+          className="classroom-weekly-plan flex max-h-[96dvh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border-2 border-accent bg-white text-slate-950 shadow-2xl">
+          <header className="weekly-plan-light-surface flex shrink-0 flex-wrap items-center justify-between gap-2 border-b-2 border-accent-soft bg-accent-soft px-4 py-3">
             <div>
-              <p className="text-sm font-extrabold text-indigo-800">Schritt {finishStep === 'task' ? 1 : finishStep === 'child' ? 2 : 3} von 3</p>
+              <p className="text-sm font-extrabold text-accent">Schritt {finishStep === 'task' ? 1 : finishStep === 'child' ? 2 : 3} von 3</p>
               <h2 className="text-xl font-extrabold sm:text-2xl">
                 {finishStep === 'task' ? '📋 Welche Aufgabe hast du gemacht?'
                   : finishStep === 'child' ? '👋 Wie heißt du?'
@@ -198,15 +241,15 @@ export default function ClassroomWeeklyPlanWidget({ widget }: { widget?: Cockpit
             {finishStep === 'task' && <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" aria-label="Aufgabe auswählen">
               {tasks.map((task, index) => <button key={task.id} type="button"
                 onClick={() => { setSelectedTaskId(task.id); setChildId(null); setFinishStep('child'); }}
-                className="weekly-plan-light-card min-h-24 rounded-2xl border-2 border-indigo-300 bg-white p-4 text-left hover:border-indigo-700 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-700">
-                <span className="mb-1 block text-sm font-black text-indigo-800">Aufgabe {index + 1}</span>
+                className="weekly-plan-light-card min-h-24 rounded-2xl border-2 border-accent-soft bg-white p-4 text-left hover:border-accent hover:bg-accent-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
+                <span className="mb-1 block text-sm font-black text-accent">Aufgabe {index + 1}</span>
                 <TaskText task={task} showMaterials={preferences.showMaterials} />
               </button>)}
             </div>}
             {finishStep === 'child' && selectedTask && <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4" aria-label="Kind auswählen">
               {pupils.map(student => <button type="button" key={student.id}
                 onClick={() => { setChildId(student.id); setFinishStep('feedback'); }}
-                className="weekly-plan-light-card min-h-16 min-w-0 break-words rounded-xl border-2 border-indigo-300 bg-white px-2 py-3 text-center text-lg font-extrabold hover:border-indigo-700 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-700">
+                className="weekly-plan-light-card min-h-16 min-w-0 break-words rounded-xl border-2 border-accent-soft bg-white px-2 py-3 text-center text-lg font-extrabold hover:border-accent hover:bg-accent-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
                 {getDisplayStudentName(student, pupils)}
               </button>)}
             </div>}
@@ -216,7 +259,7 @@ export default function ClassroomWeeklyPlanWidget({ widget }: { widget?: Cockpit
                 {FEEDBACK.map(choice => <button type="button" key={choice.value}
                   aria-label={`Aufgabe fertig: ${choice.text}`}
                   onClick={() => saveFeedback(choice.value)}
-                  className="weekly-plan-light-card flex min-h-28 flex-col items-center justify-center gap-2 rounded-2xl border-2 border-indigo-300 bg-indigo-50 p-3 text-center text-base font-extrabold text-indigo-950 hover:border-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-700">
+                  className="weekly-plan-light-card flex min-h-28 flex-col items-center justify-center gap-2 rounded-2xl border-2 border-accent-soft bg-accent-soft p-3 text-center text-base font-extrabold text-slate-950 hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
                   <span className="text-4xl" aria-hidden="true">{choice.icon}</span>{choice.text}
                 </button>)}
               </div>
@@ -226,11 +269,11 @@ export default function ClassroomWeeklyPlanWidget({ widget }: { widget?: Cockpit
               </button>
             </div>}
           </div>
-          {finishStep !== 'task' && <footer className="weekly-plan-light-surface shrink-0 border-t border-indigo-200 bg-indigo-50 p-3">
+          {finishStep !== 'task' && <footer className="weekly-plan-light-surface shrink-0 border-t border-accent-soft bg-accent-soft p-3">
             <button type="button" onClick={() => {
               if (finishStep === 'feedback') { setChildId(null); setFinishStep('child'); }
               else { setSelectedTaskId(null); setFinishStep('task'); }
-            }} className="min-h-11 rounded-xl border border-indigo-300 bg-white px-4 text-sm font-extrabold text-indigo-900">
+            }} className="min-h-11 rounded-xl border border-accent-soft bg-white px-4 text-sm font-extrabold text-accent">
               ← Zurück
             </button>
           </footer>}
