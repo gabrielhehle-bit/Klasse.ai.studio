@@ -10969,8 +10969,6 @@ ${content}
                                           isFullscreen={
                                             fullscreenWidgetId === widget.id
                                           }
-                                          showSettings={widgetSettingsOpenId === widget.id}
-                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
