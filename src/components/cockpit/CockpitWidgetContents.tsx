@@ -3204,7 +3204,6 @@ export const DiceWidgetContent: React.FC<{
           </button>
         )}
       </div>
-      </div>
     </div>
   );
 };
