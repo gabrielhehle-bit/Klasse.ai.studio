@@ -17,6 +17,8 @@ export interface WheelWidgetProps {
   onUpdate: (updates: Partial<CockpitWidgetConfig>) => void;
   app?: AppState;
   currentIsLight: boolean;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
 }
 
 export type WheelMode = 'custom' | 'students' | 'numbers';
@@ -152,6 +154,8 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
   onUpdate,
   app: propApp,
   currentIsLight,
+  showSettings: externalShowSettings,
+  onCloseSettings,
 }) => {
   const context = useApp();
   const app = propApp || context?.app;
@@ -210,7 +214,14 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
 
   // Neuer Eintrag im Editor
   const [newItemText, setNewItemText] = useState('');
-  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [localShowConfigModal, setLocalShowConfigModal] = useState(false);
+  const hasExternalSettingsControl = typeof externalShowSettings === 'boolean';
+  const showConfigModal = externalShowSettings === true || localShowConfigModal;
+  const openConfigModal = () => setLocalShowConfigModal(true);
+  const closeConfigModal = () => {
+    setLocalShowConfigModal(false);
+    if (externalShowSettings) onCloseSettings?.();
+  };
 
   // Timeout- und Audio-Referenzen für sauberen Unmount
   const timeoutsRef = useRef<number[]>([]);
@@ -451,7 +462,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
             onClick={() => updateSettings({ soundEnabled: !soundEnabled })}
             className={`min-h-11 min-w-11 p-1 rounded-lg border text-xs transition-all cursor-pointer flex items-center justify-center ${
               soundEnabled
-                ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400'
+                ? 'bg-accent-soft border-accent text-accent'
                 : 'bg-black/5 dark:bg-white/5 border-transparent text-slate-400'
             }`}
             title={soundEnabled ? 'Ton stummschalten' : 'Ton einschalten'}
@@ -460,22 +471,25 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
             {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
           </button>
 
-          {/* Konfigurations-Modal öffnen */}
-          <button
-            type="button"
-            onClick={() => setShowConfigModal(true)}
-            disabled={isSpinning}
-            className={`min-h-11 min-w-11 px-1.5 rounded-lg border text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-95 ${
-              currentIsLight
-                ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
-                : 'bg-zinc-900 hover:bg-zinc-800 border-white/10 text-slate-200'
-            }`}
-            title="Optionen, Presets und Modi anpassen"
-            aria-label="Glücksrad anpassen"
-          >
-            <Settings2 size={13} />
-            {!isSmall && <span>Optionen</span>}
-          </button>
+          {/* Konfigurations-Modal öffnen – Fallback außerhalb des gemeinsamen Cockpit-Rahmens */}
+          {!hasExternalSettingsControl && (
+            
+                      <button
+                        type="button"
+                        onClick={openConfigModal}
+                        disabled={isSpinning}
+                        className={`min-h-11 min-w-11 px-1.5 rounded-lg border text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-95 ${
+                          currentIsLight
+                            ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
+                            : 'bg-zinc-900 hover:bg-zinc-800 border-white/10 text-slate-200'
+                        }`}
+                        title="Optionen, Presets und Modi anpassen"
+                        aria-label="Glücksrad anpassen"
+                      >
+                        <Settings2 size={13} />
+                        {!isSmall && <span>Optionen</span>}
+                      </button>
+          )}
         </div>
       </div>
 
@@ -614,8 +628,8 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
             </p>
             <button
               type="button"
-              onClick={() => setShowConfigModal(true)}
-              className="min-h-11 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-wider cursor-pointer"
+              onClick={openConfigModal}
+              className="min-h-11 px-4 py-2 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-xs font-black uppercase tracking-wider cursor-pointer"
             >
               Optionen hinzufügen
             </button>
@@ -630,7 +644,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
         {winner && !isSpinning ? (
           <div
             onClick={handleSpin}
-            className="w-full max-w-md py-0.5 px-2 rounded-lg bg-indigo-100/90 dark:bg-indigo-950/40 border border-indigo-300 dark:border-indigo-500/40 text-indigo-950 dark:text-white shadow-sm flex items-center justify-center gap-2 cursor-pointer transition-transform active:scale-98"
+            className="w-full max-w-md py-0.5 px-2 rounded-lg bg-accent-soft border border-accent text-slate-900 dark:text-white shadow-sm flex items-center justify-center gap-2 cursor-pointer transition-transform active:scale-98"
             title="Klicken für nochmal drehen"
           >
             <span className="text-sm sm:text-base">🎉</span>
@@ -658,7 +672,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
           className={`w-full ${isXL ? 'min-h-14 text-lg' : isLarge ? 'min-h-12 text-base' : 'min-h-11 text-xs sm:text-sm'} rounded-lg font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-98 cursor-pointer ${
             isSpinning || !hasEnoughItems
               ? 'bg-slate-200 dark:bg-zinc-800 text-slate-400 cursor-not-allowed'
-              : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20'
+              : 'bg-accent hover:bg-accent-hover text-accent-text'
           }`}
           aria-label={winner ? 'Noch einmal drehen' : 'Glücksrad drehen'}
         >
@@ -688,14 +702,14 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10 shrink-0">
               <div className="flex items-center gap-2">
-                <Settings2 size={18} className="text-indigo-600" />
+                <Settings2 size={18} className="text-accent" />
                 <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-800 dark:text-white">
                   Glücksrad anpassen
                 </span>
               </div>
               <button
                 type="button"
-                onClick={() => setShowConfigModal(false)}
+                onClick={closeConfigModal}
                 className="flex min-h-11 min-w-11 items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 cursor-pointer"
                 title="Schließen"
               >
@@ -719,7 +733,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                     }}
                     className={`min-h-14 p-2 rounded-xl border text-xs font-bold flex flex-col items-center justify-center gap-1 cursor-pointer transition-all ${
                       mode === 'custom'
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                        ? 'bg-accent text-accent-text border-accent shadow-sm'
                         : currentIsLight
                           ? 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
                           : 'bg-zinc-800 hover:bg-zinc-700 border-white/10 text-slate-300'
@@ -738,7 +752,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                     }}
                     className={`min-h-14 p-2 rounded-xl border text-xs font-bold flex flex-col items-center justify-center gap-1 cursor-pointer transition-all ${
                       mode === 'numbers'
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                        ? 'bg-accent text-accent-text border-accent shadow-sm'
                         : currentIsLight
                           ? 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
                           : 'bg-zinc-800 hover:bg-zinc-700 border-white/10 text-slate-300'
@@ -757,7 +771,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                     }}
                     className={`min-h-14 p-2 rounded-xl border text-xs font-bold flex flex-col items-center justify-center gap-1 cursor-pointer transition-all ${
                       mode === 'students'
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                        ? 'bg-accent text-accent-text border-accent shadow-sm'
                         : currentIsLight
                           ? 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
                           : 'bg-zinc-800 hover:bg-zinc-700 border-white/10 text-slate-300'
@@ -783,7 +797,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                           key={preset.id}
                           type="button"
                           onClick={() => handleApplyPreset(preset)}
-                          className="min-h-11 px-2.5 py-1 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+                          className="min-h-11 px-2.5 py-1 rounded-xl bg-accent-soft hover:bg-accent-soft text-accent border border-accent text-xs font-bold flex items-center gap-1 cursor-pointer transition-all active:scale-95"
                         >
                           <span>{preset.icon}</span>
                           <span>{preset.name}</span>
@@ -806,8 +820,8 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                         maxLength={30}
                         className={`flex-grow min-h-11 px-3 rounded-xl border text-xs font-bold outline-none ${
                           currentIsLight
-                            ? 'bg-white border-slate-200 text-slate-900 focus:border-indigo-500'
-                            : 'bg-zinc-800 border-white/10 text-white focus:border-indigo-400'
+                            ? 'bg-white border-slate-200 text-slate-900 focus:border-accent'
+                            : 'bg-zinc-800 border-white/10 text-white focus:border-accent'
                         }`}
                       />
                       <button
@@ -816,7 +830,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                         className={`min-h-11 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer ${
                           !newItemText.trim() || customItems.length >= 24
                             ? 'bg-slate-200 dark:bg-zinc-800 text-slate-400 cursor-not-allowed'
-                            : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                            : 'bg-accent hover:bg-accent-hover text-accent-text'
                         }`}
                       >
                         <Plus size={14} />
@@ -884,7 +898,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                           setDrawnHistory([]);
                           setWinner(null);
                         }}
-                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        className="w-4 h-4 rounded text-accent focus:ring-accent cursor-pointer"
                       />
                     </label>
                   </div>
@@ -909,7 +923,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                         }}
                         className={`min-h-14 p-3 rounded-2xl border text-xs font-black flex flex-col items-center justify-center gap-1 cursor-pointer transition-all ${
                           numberRange === count
-                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                            ? 'bg-accent text-accent-text border-accent shadow-sm'
                             : currentIsLight
                               ? 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-800'
                               : 'bg-zinc-800 hover:bg-zinc-700 border-white/10 text-slate-200'
@@ -940,7 +954,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                           setDrawnHistory([]);
                           setWinner(null);
                         }}
-                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        className="w-4 h-4 rounded text-accent focus:ring-accent cursor-pointer"
                       />
                     </label>
                   </div>
@@ -970,8 +984,8 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
             <div className="pt-3 border-t border-slate-200 dark:border-white/10 shrink-0 flex items-center justify-end">
               <button
                 type="button"
-                onClick={() => setShowConfigModal(false)}
-                className="min-h-11 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-wider cursor-pointer"
+                onClick={() => closeConfigModal()}
+                className="min-h-11 px-5 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-xs font-black uppercase tracking-wider cursor-pointer"
               >
                 Fertig
               </button>

@@ -42,6 +42,8 @@ export interface ScoreboardWidgetProps {
   onUpdate?: (updates: Partial<CockpitWidgetConfig>) => void;
   currentIsLight: boolean;
   isFullscreen?: boolean;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
 }
 
 // Lokaler synthetischer Audio-Ton (reine Web Audio API, 100% offline, keine Dateien)
@@ -95,6 +97,8 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
   onUpdate,
   currentIsLight,
   isFullscreen = false,
+  showSettings: externalShowSettings,
+  onCloseSettings,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef, { isFullscreen, defaultCategory: 'standard' });
@@ -108,7 +112,13 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
   const [settings, setSettings] = useState<ScoreboardSettings>(initialSettings);
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editName, setEditName] = useState<string>('');
-  const [showSettingsMenu, setShowSettingsMenu] = useState<boolean>(false);
+  const [localShowSettingsMenu, setLocalShowSettingsMenu] = useState<boolean>(false);
+  const hasExternalSettingsControl = typeof externalShowSettings === 'boolean';
+  const showSettingsMenu = externalShowSettings === true || localShowSettingsMenu;
+  const closeSettingsMenu = () => {
+    setLocalShowSettingsMenu(false);
+    if (externalShowSettings) onCloseSettings?.();
+  };
   const [isConfirmingFullReset, setIsConfirmingFullReset] = useState<boolean>(false);
   const [isConfirmingNewRound, setIsConfirmingNewRound] = useState<boolean>(false);
 
@@ -169,7 +179,7 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
     const next = resetAllTeams();
     persistSettings(next);
     setIsConfirmingFullReset(false);
-    setShowSettingsMenu(false);
+    closeSettingsMenu();
   };
 
   const handleAddTeam = () => {
@@ -243,25 +253,17 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
     >
       {/* KOPFZEILE */}
       <header className="flex items-center justify-between shrink-0 mb-2 gap-2 border-b border-black/5 dark:border-white/5 pb-2">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <div className="w-7 h-7 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-            <Trophy size={16} />
-          </div>
-          <div className="min-w-0">
-            <h3
-              className={`font-black uppercase tracking-wider truncate leading-tight ${
-                size.isCompact ? 'text-[11px]' : 'text-xs'
-              } ${currentIsLight ? 'text-slate-800' : 'text-slate-100'}`}
-            >
-              Team-Scoreboard
-            </h3>
-            {settings.roundFinished && (
-              <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                <Award size={11} />
-                {isTie ? 'Gleichstand!' : `Sieger: ${winners[0]?.name || ''}`}
-              </span>
-            )}
-          </div>
+        <div className="min-w-0">
+          {settings.roundFinished ? (
+            <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+              <Award size={11} />
+              {isTie ? 'Gleichstand!' : `Sieger: ${winners[0]?.name || ''}`}
+            </span>
+          ) : (
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+              {teams.length} {teams.length === 1 ? 'Gruppe' : 'Gruppen'} · Schritt +{settings.stepSize || 1}
+            </span>
+          )}
         </div>
 
         {/* Kopfzeilen-Aktionen */}
@@ -316,7 +318,7 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
               aria-label="Neue Runde starten"
               className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer border ${
                 settings.roundFinished
-                  ? 'bg-indigo-600 text-white border-indigo-500 hover:bg-indigo-700 shadow-sm'
+                  ? 'bg-accent text-accent-text border-accent hover:bg-accent-hover shadow-sm'
                   : currentIsLight
                   ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
                   : 'bg-zinc-800 hover:bg-zinc-700 text-slate-200 border-zinc-700'
@@ -328,21 +330,23 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
             </button>
           )}
 
-          {/* Menü / Einstellungen Toggle */}
-          <button
-            onClick={() => setShowSettingsMenu(!showSettingsMenu)}
-            title="Einstellungen"
-            aria-label="Scoreboard Einstellungen"
-            className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all cursor-pointer ${
-              showSettingsMenu
-                ? 'bg-indigo-500 text-white border-indigo-600'
-                : currentIsLight
-                ? 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
-                : 'bg-zinc-800 hover:bg-zinc-700 text-slate-300 border-zinc-700'
-            }`}
-          >
-            <Settings2 size={15} />
-          </button>
+          {/* Einstellungen – Fallback außerhalb des gemeinsamen Cockpit-Rahmens */}
+          {!hasExternalSettingsControl && (
+            <button
+              onClick={() => setLocalShowSettingsMenu(previous => !previous)}
+              title="Einstellungen"
+              aria-label="Scoreboard Einstellungen"
+              className={`flex min-h-11 min-w-11 items-center justify-center rounded-xl border transition-all cursor-pointer ${
+                showSettingsMenu
+                  ? 'bg-accent text-accent-text border-accent'
+                  : currentIsLight
+                  ? 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
+                  : 'bg-zinc-800 hover:bg-zinc-700 text-slate-300 border-zinc-700'
+              }`}
+            >
+              <Settings2 size={15} />
+            </button>
+          )}
         </div>
       </header>
 
@@ -360,8 +364,8 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
             <div className="flex items-center justify-between pb-2 mb-2 border-b border-black/5 dark:border-white/5">
               <span className="text-xs font-black uppercase tracking-wider">Scoreboard Optionen</span>
               <button
-                onClick={() => setShowSettingsMenu(false)}
-                className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-slate-400"
+                onClick={closeSettingsMenu}
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-slate-400"
               >
                 <X size={15} />
               </button>
@@ -376,7 +380,7 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
                 <button
                   onClick={handleAddTeam}
                   disabled={teams.length >= MAX_TEAMS}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                 >
                   <UserPlus size={13} />
                   <span>Team hinzufügen</span>
@@ -391,9 +395,9 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
                     <button
                       key={step}
                       onClick={() => handleSetStepSize(step)}
-                      className={`px-2.5 py-1 rounded-lg font-black text-xs transition-all ${
+                      className={`min-h-11 min-w-11 px-2.5 py-1 rounded-lg font-black text-xs transition-all ${
                         settings.stepSize === step
-                          ? 'bg-indigo-500 text-white'
+                          ? 'bg-accent text-accent-text'
                           : 'bg-black/5 dark:bg-white/5 hover:bg-black/10 text-slate-600 dark:text-slate-300'
                       }`}
                     >
@@ -489,25 +493,25 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
                             onBlur={() => handleSaveEdit(team.id)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(team.id)}
                             autoFocus
-                            className="w-full text-xs font-bold px-1.5 py-0.5 rounded border border-indigo-400 outline-none bg-white dark:bg-zinc-800 text-slate-800 dark:text-slate-100"
+                            className="w-full text-xs font-bold px-1.5 py-0.5 rounded border border-accent outline-none bg-white dark:bg-zinc-800 text-slate-800 dark:text-slate-100"
                           />
                           <button
                             onClick={() => handleSaveEdit(team.id)}
-                            className="p-1 text-emerald-500"
+                            className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-accent hover:bg-accent-soft"
                           >
                             <Check size={13} />
                           </button>
                         </div>
                       ) : (
                         <div
-                          onClick={() => handleStartEdit(team)}
-                          title="Klicken zum Umbenennen"
-                          className="flex items-center gap-1 cursor-pointer group"
+                          onClick={() => showSettingsMenu && handleStartEdit(team)}
+                          title={showSettingsMenu ? 'Klicken zum Umbenennen' : undefined}
+                          className={`flex items-center gap-1 group ${showSettingsMenu ? 'cursor-pointer' : 'cursor-default'}`}
                         >
                           <span className="text-xs font-black truncate">{team.name}</span>
                           <Edit2
                             size={10}
-                            className="opacity-0 group-hover:opacity-100 text-slate-400 transition-opacity shrink-0"
+                            className={`${showSettingsMenu ? 'opacity-0 group-hover:opacity-100' : 'hidden'} text-slate-400 transition-opacity shrink-0`}
                           />
                         </div>
                       )}
@@ -597,20 +601,20 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
                           onBlur={() => handleSaveEdit(team.id)}
                           onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(team.id)}
                           autoFocus
-                          className="w-full text-xs font-bold px-1.5 py-0.5 rounded border border-indigo-400 outline-none bg-white dark:bg-zinc-800 text-slate-800 dark:text-slate-100"
+                          className="w-full text-xs font-bold px-1.5 py-0.5 rounded border border-accent outline-none bg-white dark:bg-zinc-800 text-slate-800 dark:text-slate-100"
                         />
                         <button
                           onClick={() => handleSaveEdit(team.id)}
-                          className="p-1 text-emerald-500"
+                          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-accent hover:bg-accent-soft"
                         >
                           <Check size={14} />
                         </button>
                       </div>
                     ) : (
                       <div
-                        onClick={() => handleStartEdit(team)}
-                        title="Klicken zum Umbenennen"
-                        className="flex items-center gap-1 cursor-pointer group min-w-0"
+                        onClick={() => showSettingsMenu && handleStartEdit(team)}
+                        title={showSettingsMenu ? 'Klicken zum Umbenennen' : undefined}
+                        className={`flex items-center gap-1 group min-w-0 ${showSettingsMenu ? 'cursor-pointer' : 'cursor-default'}`}
                       >
                         <span
                           className={`font-black uppercase tracking-wider truncate ${
@@ -625,19 +629,19 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
                         </span>
                         <Edit2
                           size={11}
-                          className="opacity-0 group-hover:opacity-100 text-slate-400 transition-opacity shrink-0 ml-1"
+                          className={`${showSettingsMenu ? 'opacity-0 group-hover:opacity-100' : 'hidden'} text-slate-400 transition-opacity shrink-0 ml-1`}
                         />
                       </div>
                     )}
                   </div>
 
                   {/* Team löschen (wenn > 2 Teams) */}
-                  {teams.length > MIN_TEAMS && (
+                  {showSettingsMenu && teams.length > MIN_TEAMS && (
                     <button
                       onClick={() => handleRemoveTeam(team.id)}
                       title="Team entfernen"
                       aria-label={`${team.name} entfernen`}
-                      className="opacity-40 hover:opacity-100 text-slate-400 hover:text-rose-500 transition-colors p-1 rounded-lg"
+                      className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-500/10 hover:text-rose-500 transition-colors"
                     >
                       <Trash2 size={13} />
                     </button>
@@ -718,7 +722,7 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
           <button
             onClick={handleAddTeam}
             aria-label="Team hinzufügen"
-            className="flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors cursor-pointer"
+            className="flex items-center gap-1 text-[11px] font-bold text-accent hover:text-accent transition-colors cursor-pointer"
           >
             <UserPlus size={13} />
             <span>Team hinzufügen</span>

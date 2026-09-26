@@ -120,7 +120,7 @@ test("Hausübungen, Sterne und Klassenziel behalten touch-sichere Bedienflächen
   assert.match(homeworkWidget, /className={\`min-h-11 rounded-xl/);
 
   assert.doesNotMatch(starsReviewWidget, /const button = compact \? 'min-h-9/);
-  assert.match(starsReviewWidget, /const button = compact \? 'min-h-11/);
+  assert.match(starsReviewWidget, /const button = compact[\s\S]{0,80}\? 'min-h-11/);
   // Ergebniszeilen dürfen kompakter sein: sie sind keine interaktiven Touch-Ziele.
   assert.match(starsReviewWidget, /compact \? "min-h-10 gap-1/);
 
@@ -266,7 +266,7 @@ test("Große Arbeitswidgets skalieren Inhalt und Aktionen", () => {
 
 test("Sekundäre Widget-Einstellungen bleiben ebenfalls fingergerecht", () => {
   assert.match(wheelWidget, /min-h-14 p-2 rounded-xl border text-xs font-bold/);
-  assert.match(wheelWidget, /min-h-11 px-2\.5 py-1 rounded-xl bg-indigo-50/);
+  assert.match(wheelWidget, /min-h-11 px-2\.5 py-1 rounded-xl bg-accent-soft/);
   assert.match(wheelWidget, /min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400/);
   assert.doesNotMatch(wheelWidget, /className="text-slate-400 hover:text-rose-500 p-0\.5/);
 
