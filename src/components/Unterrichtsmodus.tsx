@@ -10841,6 +10841,8 @@ ${content}
                                             activeFokusThemeVars
                                           }
                                           isFullscreen={false}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
@@ -10945,6 +10947,8 @@ ${content}
                                             activeFokusThemeVars
                                           }
                                           isFullscreen={false}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
@@ -11156,6 +11160,8 @@ ${content}
                                             activeFokusThemeVars
                                           }
                                           isFullscreen={false}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
@@ -12277,6 +12283,8 @@ ${content}
                                             activeFokusThemeVars
                                           }
                                           isFullscreen={false}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
