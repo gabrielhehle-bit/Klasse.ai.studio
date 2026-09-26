@@ -46,6 +46,28 @@ test("new board pages hide widgets without mutating the source definitions", () 
   assert.notEqual(empty[0].settings, source[0].settings);
 });
 
+test("page switches clear transient widget UI but keep page content isolated", () => {
+  const surface = readFileSync("src/components/Unterrichtsmodus.tsx", "utf8");
+  const switchStart = surface.indexOf("const switchCockpitBoardPage");
+  const addStart = surface.indexOf("const addCockpitBoardPage");
+  const effectsStart = surface.indexOf("useEffect(() => {", addStart);
+  assert.ok(switchStart >= 0 && addStart > switchStart && effectsStart > addStart);
+
+  const switchHandler = surface.slice(switchStart, addStart);
+  const addHandler = surface.slice(addStart, effectsStart);
+  for (const handler of [switchHandler, addHandler]) {
+    assert.match(handler, /setMinimizedWidgetIds\(\[\]\)/);
+    assert.match(handler, /setFocusOrder\(\[\]\)/);
+    assert.match(handler, /setWidgetSettingsOpenId\(null\)/);
+    assert.match(handler, /setBoardTool\("select"\)/);
+    assert.match(handler, /setIsBoardTextEditing\(false\)/);
+  }
+
+  assert.match(switchHandler, /\[activeBoardPageId\]: currentLayout/);
+  assert.match(switchHandler, /\[pageId\]: nextLayout/);
+  assert.match(addHandler, /createEmptyCockpitBoardLayout\(DEFAULT_COCKPIT_LAYOUT\)/);
+});
+
 test("teacher cockpit exposes compact numbered page tabs and page-local board content", () => {
   const surface = readFileSync("src/components/Unterrichtsmodus.tsx", "utf8");
   assert.match(surface, /role="tablist" aria-label="Tafelseiten"/);

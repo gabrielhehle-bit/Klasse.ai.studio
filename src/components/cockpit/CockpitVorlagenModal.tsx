@@ -48,7 +48,7 @@ interface CockpitVorlagenModalProps {
   slotNames: Record<string, string>;
   saveSlotName: (slot: string, name: string) => void;
   handleSaveLayoutSlot: (slot: "A" | "B" | "C") => void;
-  handleLoadLayoutSlot: (slot: "A" | "B" | "C") => void;
+  handleLoadLayoutSlot: (slot: "A" | "B" | "C") => boolean;
   showToast: (msg: string, type: "success" | "info" | "error" | "warning") => void;
 }
 
@@ -246,7 +246,7 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
               leftIcon={<Plus size={14} />}
               onClick={() => setActiveTab("create")}
             >
-              <span>Aktuelles Board als Vorlage speichern</span>
+              <span>Aktuelle Widget-Anordnung speichern</span>
               <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-black/10 dark:bg-white/15">
                 {activeWidgets.length} Widgets
               </span>
@@ -260,7 +260,7 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Eigene Layouts suchen..."
+                placeholder="Eigene Vorlagen suchen..."
                 className="w-full pl-8 pr-3 py-1.5 rounded-xl text-xs font-medium border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--focus-ring,var(--accent))]"
               />
             </div>
@@ -276,11 +276,11 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                 <div className="flex items-center gap-2.5 mb-2">
                   <Sparkles size={18} />
                   <h4 className="text-xs font-black uppercase tracking-wider">
-                    Aktuelles Cockpit-Layout erfassen
+                    Widget-Anordnung als Vorlage speichern
                   </h4>
                 </div>
                 <p className="text-xs font-medium leading-relaxed opacity-90">
-                  Speichere dein aktuelles Arrangement aus Positionen, Größen und Einstellungen der <strong>{activeWidgets.length} geöffneten Widgets</strong> dauerhaft als Vorlage.
+                  Speichere Positionen, Größen und Widget-Einstellungen der <strong>{activeWidgets.length} geöffneten Widgets</strong>. Tafeltext, Zeichnungen und Papier bleiben absichtlich seitenlokal und werden nicht in eine Vorlage kopiert.
                 </p>
 
                 {/* Preview Active Widgets Chips */}
@@ -512,7 +512,6 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                           leftIcon={<RefreshCw size={12} />}
                           onClick={() => {
                             onUpdateProfile(p.id);
-                            showToast(`Vorlage "${p.name}" mit aktuellem Board-Layout aktualisiert!`, "success");
                           }}
                         >
                           Überschreiben
@@ -539,7 +538,7 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                   <div className="col-span-2 text-center py-12 border-2 border-dashed border-[var(--border-default,var(--border))] rounded-3xl opacity-60">
                     <Bookmark size={32} className="mx-auto mb-2 text-[var(--text-muted)]" />
                     <p className="text-sm font-bold text-[var(--text-muted)]">
-                      Noch keine passenden eigenen Layouts.
+                      Noch keine passenden eigenen Vorlagen.
                     </p>
                     <Button
                       variant="primary"
@@ -559,11 +558,11 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                   <div className="flex items-center gap-2">
                     <Clock size={15} className="text-[var(--accent)]" />
                     <h4 className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-                      Schnell-Slots (Tastatur / Quick-Presets)
+                      Schnell-Slots
                     </h4>
                   </div>
                   <span className="text-[10px] text-[var(--text-muted)] font-medium">
-                    1-Klick Plätze für den täglichen Wechsel
+                    Widget-Anordnung schnell wechseln · ohne Tafelinhalt
                   </span>
                 </div>
 
@@ -601,8 +600,7 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                             size="sm"
                             className="flex-1"
                             onClick={() => {
-                              handleLoadLayoutSlot(slot);
-                              onClose();
+                              if (handleLoadLayoutSlot(slot)) onClose();
                             }}
                           >
                             Laden

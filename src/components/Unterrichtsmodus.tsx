@@ -2804,27 +2804,12 @@ const loadAndSanitizeLayout = (layout: any): CockpitWidgetConfig[] => {
         } as CockpitWidgetConfig;
       });
 
-    // 3. Resolve exact deckungsgleiche coordinates
-    const seenPositions = new Set<string>();
-    const sanitized = rawSanitized.map((w) => {
-      // Do not move the teacher's free-standing mascot when another widget
-      // happens to have identical x/y. Only card widgets need this collision fix.
-      if (w.type === "pet") return w;
-      let x = w.x;
-      let y = w.y;
-      let key = `${x.toFixed(1)},${y.toFixed(1)}`;
-      let count = 0;
-      while (seenPositions.has(key) && count < 15) {
-        x = Math.min(100 - w.w, x + 3.0);
-        y = Math.min(100 - w.h, y + 2.5);
-        key = `${x.toFixed(1)},${y.toFixed(1)}`;
-        count++;
-      }
-      seenPositions.add(key);
-      return { ...w, x, y };
-    });
+    // Saved layouts are geometry: sanitizing may clamp unsafe bounds, but it
+    // must never invent a different arrangement. Intentional overlap is valid
+    // and has to survive page/profile/slot restore pixel-for-pixel.
+    const sanitized = rawSanitized;
 
-    // Ensure all 17 widget types are covered in layout config
+    // Ensure every current widget type stays available even in historic layouts.
     const typesPresent = sanitized.map((t: any) => t.type);
     const missingTypes = knownTypes.filter((t) => !typesPresent.includes(t));
     missingTypes.forEach((t) => {
@@ -2967,6 +2952,20 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       return loadAndSanitizeLayout(app.cockpitLayout);
     },
   );
+  const cockpitLayoutClassRef = useRef(app.activeClassId || "unassigned");
+  useEffect(() => {
+    const nextClassKey = app.activeClassId || "unassigned";
+    if (cockpitLayoutClassRef.current === nextClassKey) return;
+    cockpitLayoutClassRef.current = nextClassKey;
+    const nextLayout = JSON.parse(
+      JSON.stringify(loadAndSanitizeLayout(app.cockpitLayout)),
+    ) as CockpitWidgetConfig[];
+    setMinimizedWidgetIds([]);
+    setBoardTool("select");
+    setIsBoardTextEditing(false);
+    setShowBoardTools(false);
+    setCockpitWidgets(nextLayout);
+  }, [app.activeClassId]);
   // Minimize is intentionally session-local: it never rewrites the saved
   // widget rectangle or stops timers. Closing remains the persistent action.
   const [minimizedWidgetIds, setMinimizedWidgetIds] = useState<string[]>([]);
@@ -3106,9 +3105,17 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     const currentLayout = JSON.parse(JSON.stringify(cockpitWidgets)) as CockpitWidgetConfig[];
     const nextLayout = getSavedBoardPageLayout(pageId);
     setMinimizedWidgetIds([]);
+    setFocusOrder([]);
     setBoardTool("select");
     setIsBoardTextEditing(false);
     setShowBoardTools(false);
+    setWidgetSettingsOpenId(null);
+    setIsAddWidgetMenuOpen(false);
+    setIsWidgetConfigurationOpen(false);
+    setIsQuickBarSettingsOpen(false);
+    setIsMoreOptionsMenuOpen(false);
+    setIsSlotMenuOpen(false);
+    setTimerToCloseId(null);
     setCockpitWidgets(nextLayout);
     setApp((prev: any) => ({
       ...prev,
@@ -3142,9 +3149,17 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     const nextLayout = createEmptyCockpitBoardLayout(DEFAULT_COCKPIT_LAYOUT);
     const nextPages = [...boardPageIds, pageId];
     setMinimizedWidgetIds([]);
+    setFocusOrder([]);
     setBoardTool("select");
     setIsBoardTextEditing(false);
     setShowBoardTools(false);
+    setWidgetSettingsOpenId(null);
+    setIsAddWidgetMenuOpen(false);
+    setIsWidgetConfigurationOpen(false);
+    setIsQuickBarSettingsOpen(false);
+    setIsMoreOptionsMenuOpen(false);
+    setIsSlotMenuOpen(false);
+    setTimerToCloseId(null);
     setCockpitWidgets(nextLayout);
     setApp((prev: any) => ({
       ...prev,
@@ -4184,6 +4199,50 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     });
   };
 
+  const resetCockpitTransientUi = () => {
+    setMinimizedWidgetIds([]);
+    setFocusOrder([]);
+    setBoardTool("select");
+    setIsBoardTextEditing(false);
+    setShowBoardTools(false);
+    setWidgetSettingsOpenId(null);
+    setIsAddWidgetMenuOpen(false);
+    setIsWidgetConfigurationOpen(false);
+    setIsQuickBarSettingsOpen(false);
+    setIsMoreOptionsMenuOpen(false);
+    setIsSlotMenuOpen(false);
+    setTimerToCloseId(null);
+  };
+
+  const persistLayoutForActiveBoardPage = (
+    layout: CockpitWidgetConfig[],
+    previous: any,
+  ) => ({
+    ...previous,
+    cockpitLayout: layout,
+    boardSettings: {
+      ...(previous.boardSettings || {}),
+      cockpitLayoutByBoardPage: {
+        ...(previous.boardSettings?.cockpitLayoutByBoardPage || {}),
+        [boardTextClassKey]: {
+          ...(previous.boardSettings?.cockpitLayoutByBoardPage?.[boardTextClassKey] || {}),
+          [activeBoardPageId]: layout,
+        },
+      },
+    },
+  });
+
+  const restoreCockpitLayout = (layout: unknown) => {
+    const loaded = loadAndSanitizeLayout(layout);
+    const cloned = JSON.parse(JSON.stringify(loaded)) as CockpitWidgetConfig[];
+    resetCockpitTransientUi();
+    setCockpitWidgets(cloned);
+    setApp((previous: any) =>
+      persistLayoutForActiveBoardPage(cloned, previous),
+    );
+    return cloned;
+  };
+
   const handleSaveProfile = (
     dataOrName:
       | string
@@ -4229,7 +4288,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
         ),
       };
     });
-    showToast("Vorlage mit aktueller Unterrichtsfläche aktualisiert!", "success");
+    showToast("Vorlage mit der aktuellen Widget-Anordnung aktualisiert.", "success");
   };
 
   const handleLoadProfile = (profileId: string) => {
@@ -4239,13 +4298,8 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
         : DEFAULT_WORKSPACE_PROFILES;
     const profile = listToSearch.find((p: any) => p.id === profileId);
     if (profile && profile.layout) {
-      const loaded = loadAndSanitizeLayout(profile.layout);
-      setCockpitWidgets(loaded);
-      setApp((prev: any) => ({
-        ...prev,
-        cockpitLayout: loaded,
-      }));
-      showToast(`Profil "${profile.name}" geladen!`, "success");
+      restoreCockpitLayout(profile.layout);
+      showToast(`Vorlage "${profile.name}" geladen.`, "success");
     }
   };
 
@@ -4273,22 +4327,19 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     }));
     // Remove legacy plaintext slot if it exists.
     if (slot === "C") localStorage.removeItem("cockpitLayoutC");
-    showToast(`Layout "${slotNames[slot] || slot}" erfolgreich gespeichert!`, "success");
+    showToast(`Widget-Anordnung "${slotNames[slot] || slot}" gespeichert.`, "success");
   };
 
   const handleLoadLayoutSlot = (slot: "A" | "B" | "C") => {
     const field = slot === "A" ? "cockpitLayoutA" : slot === "B" ? "cockpitLayoutB" : "cockpitLayoutC";
     const saved = app[field];
     if (saved && Array.isArray(saved) && saved.length > 0) {
-      const loaded = loadAndSanitizeLayout(saved);
-      setCockpitWidgets(loaded);
-      setApp((prev) => ({
-        ...prev,
-        cockpitLayout: loaded,
-      }));
-      showToast(`Layout "${slotNames[slot] || slot}" erfolgreich geladen!`, "success");
+      restoreCockpitLayout(saved);
+      showToast(`Widget-Anordnung "${slotNames[slot] || slot}" geladen.`, "success");
+      return true;
     } else {
-      showToast(`Kein gespeichertes Layout in "${slotNames[slot] || slot}" vorhanden.`, "info");
+      showToast(`Keine gespeicherte Widget-Anordnung in "${slotNames[slot] || slot}" vorhanden.`, "info");
+      return false;
     }
   };
   const [showBoardSettings, setShowBoardSettings] = useState(false);
@@ -18476,12 +18527,8 @@ ${content}
         onUpdateProfile={(pId) => handleUpdateProfile(pId)}
         onDeleteProfile={(pId) => handleDeleteProfile(pId)}
         onResetToDefault={() => {
-          setCockpitWidgets(DEFAULT_COCKPIT_LAYOUT);
-          setApp((p) => ({
-            ...p,
-            cockpitLayout: DEFAULT_COCKPIT_LAYOUT,
-          }));
-          showToast("Unterrichtsfläche geleert.", "info");
+          restoreCockpitLayout(createEmptyCockpitBoardLayout(DEFAULT_COCKPIT_LAYOUT));
+          showToast("Widget-Anordnung auf Standard zurückgesetzt. Tafeltext und Zeichnungen bleiben erhalten.", "info");
         }}
         currentIsLight={currentIsLight}
         slotNames={slotNames}
