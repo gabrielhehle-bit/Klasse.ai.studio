@@ -217,3 +217,70 @@ test("Kernwidgets nutzen große Flächen für Hierarchie statt nur für Leerraum
   assert.match(weeklyPlanWidget, /const taskColumns = size\.width >= 1320 \? 3 : size\.width >= 820 \? 2 : 1/);
   assert.match(weeklyPlanWidget, /scale=\{tinyBoard \? 'compact' : roomyBoard \? 'large' : 'normal'\}/);
 });
+
+
+test("Präsentationswidgets nutzen große Tafelflächen sichtbar aus", () => {
+  assert.match(clockWidget, /const digitalFontPixels = Math\.max\(44, Math\.min\(/);
+  assert.match(clockWidget, /const analogFacePixels = Math\.max\(110, Math\.min\(/);
+  assert.match(clockWidget, /style=\{\{ fontSize: digitalFontPixels \}\}/);
+  assert.match(clockWidget, /style=\{\{ width: analogFacePixels, height: analogFacePixels/);
+
+  assert.match(trafficLightWidget, /const roomyDisplay = isFullscreen \|\| \(size\.width >= 720 && size\.height >= 500\)/);
+  assert.match(trafficLightWidget, /roomyDisplay \? 'text-7xl sm:text-8xl'/);
+
+  assert.match(noiseMeterWidget, /const roomyMeter = size\.category === 'fullscreen' \|\| size\.width >= 760 && size\.height >= 500/);
+  assert.match(noiseMeterWidget, /roomyMeter \? 'h-9 p-1\.5'/);
+
+  assert.match(timelineWidget, /const roomyTimeline = isFullscreen \|\| \(size\.width >= 820 && size\.height >= 500\)/);
+  assert.match(timelineWidget, /roomyTimeline\s+\? 'text-4xl sm:text-5xl'/);
+
+  assert.match(randomNameWidget, /const roomyPicker = widgetSize\.width >= 700 && widgetSize\.height >= 480/);
+  assert.match(randomNameWidget, /roomyPicker\s+\? 'text-5xl sm:text-6xl'/);
+
+  assert.match(starsReviewWidget, /const roomy = size\.width >= 900 && size\.height >= 520/);
+  assert.match(starsReviewWidget, /roomy \? "min-h-16 gap-4 px-5 py-3"/);
+
+  assert.match(homeworkWidget, /const roomy = size\.width >= 980 && size\.height >= 520/);
+  assert.match(homeworkWidget, /const columns = size\.width >= 1280 \? 3 : size\.width >= 760 \? 2 : 1/);
+  assert.match(homeworkWidget, /gridTemplateColumns: `repeat\(\$\{columns\}, minmax\(0, 1fr\)\)`/);
+});
+
+
+test("Große Arbeitswidgets skalieren Inhalt und Aktionen", () => {
+  assert.match(todoWidget, /const roomyTodo = isFullscreen \|\| \(size\.width >= 780 && size\.height >= 480\)/);
+  assert.match(todoWidget, /roomyTodo\s+\? 'text-xl font-bold'/);
+  assert.match(todoWidget, /roomyTodo \? 'p-3\.5 gap-3\.5'/);
+
+  assert.match(classRewardWidget, /const roomyReward = isFullscreen \|\| \(size\.width >= 720 && size\.height >= 500\)/);
+  assert.match(classRewardWidget, /roomyReward \? 560 : 480/);
+  assert.match(classRewardWidget, /roomyReward \? 'h-14 text-lg' : 'h-11 text-sm'/);
+
+  assert.match(noiseScaleWidget, /const roomyScale = isFullscreen \|\| size\.category === 'fullscreen' \|\| \(size\.isLarge && size\.width >= 700 && size\.height >= 480\)/);
+  assert.match(noiseScaleWidget, /\) : roomyScale \? \(/);
+
+  assert.doesNotMatch(qrWidget, /min-h-\[38px\]/);
+  assert.match(qrWidget, /qrcode-copy-btn[\s\S]*min-h-11/);
+});
+
+
+test("Sekundäre Widget-Einstellungen bleiben ebenfalls fingergerecht", () => {
+  assert.match(wheelWidget, /min-h-14 p-2 rounded-xl border text-xs font-bold/);
+  assert.match(wheelWidget, /min-h-11 px-2\.5 py-1 rounded-xl bg-indigo-50/);
+  assert.match(wheelWidget, /min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400/);
+  assert.doesNotMatch(wheelWidget, /className="text-slate-400 hover:text-rose-500 p-0\.5/);
+
+  assert.match(instructionWidget, /w-11 h-11 rounded-xl text-xs font-bold border/);
+  assert.match(instructionWidget, /min-h-11 min-w-11 p-2 rounded-xl border cursor-pointer/);
+  assert.match(instructionWidget, /min-h-11 px-2\.5 py-1 rounded-lg text-\[11px\] font-bold/);
+  assert.doesNotMatch(instructionWidget, /w-8 h-8 rounded-xl text-xs font-bold border/);
+
+  assert.doesNotMatch(mentalMathWidget, /w-(?:6|7) h-(?:6|7) rounded text-xs font-mono font-bold/);
+  assert.match(mentalMathWidget, /min-h-11 min-w-11 rounded text-xs font-mono font-bold/);
+  assert.match(mentalMathWidget, /min-h-11 px-2 py-1 rounded text-xs font-mono font-medium/);
+
+  assert.match(dutiesWidget, /dienste-rotate-btn-header[\s\S]*min-h-11 px-2\.5 py-1/);
+  assert.match(dutiesWidget, /dienste-menu-toggle-btn[\s\S]*min-h-11 min-w-11/);
+  assert.match(dutiesWidget, /min-h-11 px-2 py-0\.5 rounded-lg text-\[10px\] font-bold border/);
+  assert.match(dutiesWidget, /min-h-11 px-2 py-1\.5 rounded-lg border text-left text-xs font-bold/);
+  assert.doesNotMatch(dutiesWidget, /p-1 rounded-md text-slate-400/);
+});

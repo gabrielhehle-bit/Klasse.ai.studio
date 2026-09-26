@@ -402,7 +402,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                     key={r}
                     type="button"
                     onClick={() => updateSettings({ range: r })}
-                    className={`px-2 py-1 rounded text-xs font-mono font-medium transition-all ${
+                    className={`min-h-11 px-2 py-1 rounded text-xs font-mono font-medium transition-all ${
                       settings.range === r
                         ? 'bg-indigo-600 text-white'
                         : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
@@ -429,7 +429,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                         if (next.length === 0) next = [op];
                         updateSettings({ operators: next });
                       }}
-                      className={`w-7 h-7 rounded text-xs font-mono font-bold transition-all ${
+                      className={`min-h-11 min-w-11 rounded text-xs font-mono font-bold transition-all ${
                         active
                           ? 'bg-indigo-600 text-white shadow-sm'
                           : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
@@ -455,7 +455,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                     key={opt.id}
                     type="button"
                     onClick={() => updateSettings({ tenCrossing: opt.id })}
-                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-all ${
+                    className={`min-h-11 px-2 py-0.5 rounded text-[11px] font-medium transition-all ${
                       settings.tenCrossing === opt.id
                         ? 'bg-indigo-600 text-white'
                         : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
@@ -485,7 +485,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                             : [...settings.selectedTables, num].sort((a, b) => a - b);
                           updateSettings({ selectedTables: next.length > 0 ? next : [num] });
                         }}
-                        className={`w-6 h-6 rounded text-xs font-mono font-bold transition-all ${
+                        className={`min-h-11 min-w-11 rounded text-xs font-mono font-bold transition-all ${
                           active
                             ? 'bg-indigo-600 text-white'
                             : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
@@ -501,7 +501,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                   <button
                     type="button"
                     onClick={() => updateSettings({ selectedTables: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] })}
-                    className="px-2 py-0.5 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+                    className="min-h-11 rounded-lg px-2 py-0.5 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 hover:underline dark:hover:bg-indigo-950/30"
                   >
                     Alle
                   </button>
@@ -509,7 +509,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                   <button
                     type="button"
                     onClick={() => updateSettings({ selectedTables: [2, 5, 10] })}
-                    className="px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:text-slate-400 hover:underline"
+                    className="min-h-11 rounded-lg px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 hover:underline dark:hover:bg-slate-700"
                   >
                     Kernaufgaben (2, 5, 10)
                   </button>
@@ -531,7 +531,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                     key={v.id}
                     type="button"
                     onClick={() => updateSettings({ tablesVariant: v.id })}
-                    className={`px-2.5 py-1 rounded text-xs font-mono font-medium transition-all ${
+                    className={`min-h-11 px-2.5 py-1 rounded text-xs font-mono font-medium transition-all ${
                       settings.tablesVariant === v.id
                         ? 'bg-indigo-600 text-white'
                         : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
@@ -554,7 +554,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                     key={len}
                     type="button"
                     onClick={() => updateSettings({ chainLength: len })}
-                    className={`w-7 h-7 rounded text-xs font-mono font-bold transition-all ${
+                    className={`min-h-11 min-w-11 rounded text-xs font-mono font-bold transition-all ${
                       settings.chainLength === len
                         ? 'bg-indigo-600 text-white'
                         : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
@@ -579,7 +579,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                     key={d.id}
                     type="button"
                     onClick={() => updateSettings({ chainDifficulty: d.id })}
-                    className={`px-2 py-0.5 rounded text-xs font-medium transition-all ${
+                    className={`min-h-11 px-2 py-0.5 rounded text-xs font-medium transition-all ${
                       settings.chainDifficulty === d.id
                         ? 'bg-indigo-600 text-white'
                         : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200'

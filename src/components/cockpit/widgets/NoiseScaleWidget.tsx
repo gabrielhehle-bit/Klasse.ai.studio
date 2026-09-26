@@ -31,6 +31,7 @@ export const NoiseScaleWidget: React.FC<NoiseScaleWidgetProps> = ({
   );
 
   const activeStage: NoiseScaleStage = getNoiseScaleStage(activeScaleId);
+  const roomyScale = isFullscreen || size.category === 'fullscreen' || (size.isLarge && size.width >= 700 && size.height >= 480);
 
   const handleSelectStage = (stageId: NoiseScaleId) => {
     if (onUpdate) {
@@ -108,17 +109,17 @@ export const NoiseScaleWidget: React.FC<NoiseScaleWidgetProps> = ({
               })}
             </div>
           </div>
-        ) : size.category === 'fullscreen' || isFullscreen ? (
-          /* FULLSCREEN / SMARTBOARD VIEW (>= 800 px) */
-          <div className="flex flex-col items-center justify-center h-full gap-6 max-w-4xl mx-auto w-full">
+        ) : roomyScale ? (
+          /* LARGE / FULLSCREEN SMARTBOARD VIEW */
+          <div className={`flex flex-col items-center justify-center h-full ${size.category === 'fullscreen' || isFullscreen ? 'gap-6 max-w-4xl' : 'gap-4 max-w-3xl'} mx-auto w-full`}>
             {/* Monumental Active Display */}
             <div
-              className={`w-full p-8 rounded-3xl border-2 flex flex-col items-center justify-center text-center shadow-lg transition-all ${
+              className={`w-full ${size.category === 'fullscreen' || isFullscreen ? 'p-8' : 'p-5'} rounded-3xl border-2 flex flex-col items-center justify-center text-center shadow-lg transition-all ${
                 activeStage.activeBg
               } ${activeStage.accentBorder}`}
             >
-              <span className="text-6xl md:text-7xl mb-3 animate-pulse">{activeStage.icon}</span>
-              <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-2 uppercase">
+              <span className={`${size.category === 'fullscreen' || isFullscreen ? 'text-6xl md:text-7xl' : 'text-5xl'} mb-3 animate-pulse`}>{activeStage.icon}</span>
+              <h2 className={`${size.category === 'fullscreen' || isFullscreen ? 'text-3xl md:text-5xl' : 'text-3xl'} font-black tracking-tight mb-2 uppercase`}>
                 {activeStage.label}
               </h2>
               <p className="text-base md:text-xl font-bold opacity-90 max-w-xl">
@@ -130,7 +131,7 @@ export const NoiseScaleWidget: React.FC<NoiseScaleWidgetProps> = ({
             </div>
 
             {/* Smartboard Stage Selector */}
-            <div className="grid grid-cols-5 gap-3 w-full">
+            <div className={`grid grid-cols-5 ${size.category === 'fullscreen' || isFullscreen ? 'gap-3' : 'gap-2'} w-full`}>
               {NOISE_SCALE_STAGES.map((s) => {
                 const isSelected = s.id === activeScaleId;
                 return (

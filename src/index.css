@@ -2544,6 +2544,17 @@ html body [data-style] .klassio-cockpit-shell .klassio-student-sidebar .text-sla
   .klassio-widget-library-header {
     grid-column: 1;
     grid-row: 1;
+    flex-wrap: wrap;
+  }
+  .klassio-widget-library-heading {
+    flex: 1 1 auto;
+  }
+  .klassio-widget-library-search {
+    order: 3;
+    flex: 1 0 100%;
+  }
+  .klassio-widget-library-header [data-widget-library-action] {
+    order: 2;
   }
   .klassio-widget-library-sidebar {
     grid-column: 1;

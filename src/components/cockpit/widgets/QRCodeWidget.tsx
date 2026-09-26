@@ -364,7 +364,7 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
             onClick={handleCopy}
             title="Inhalt in die Zwischenablage kopieren"
             aria-label="Inhalt kopieren"
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-black transition-all cursor-pointer min-h-[38px] disabled:opacity-30 ${
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-black transition-all cursor-pointer min-h-11 disabled:opacity-30 ${
               copied
                 ? 'bg-emerald-600 text-white border-emerald-600'
                 : currentIsLight
@@ -384,7 +384,7 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
               {...SECURE_QR_LINK_ATTRIBUTES}
               title="Link sicher im neuen Tab testen"
               aria-label="Link im neuen Tab öffnen"
-              className="flex items-center justify-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer min-h-[38px]"
+              className="flex items-center justify-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer min-h-11"
             >
               <span>Testen</span>
               <ExternalLink className="w-3.5 h-3.5" />

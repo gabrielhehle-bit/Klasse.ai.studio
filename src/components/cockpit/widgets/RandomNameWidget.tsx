@@ -175,6 +175,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
   const remainingCount = remainingStudents.length;
   const compact = widgetSize.width < 380 || widgetSize.height < 330;
   const veryCompact = widgetSize.width < 285 || widgetSize.height < 245;
+  const roomyPicker = widgetSize.width >= 700 && widgetSize.height >= 480;
   const poolFingerprint = eligibleStudents.map(student => student.id).join('|');
   const livePoolRef = useRef({ scopeKey, poolFingerprint, selectionMode, studentScope });
   livePoolRef.current = { scopeKey, poolFingerprint, selectionMode, studentScope };
@@ -379,10 +380,12 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
                   ? 'text-xl'
                   : compact
                     ? 'text-2xl sm:text-3xl'
-                    : 'text-2xl sm:text-4xl'
+                    : roomyPicker
+                      ? 'text-5xl sm:text-6xl'
+                      : 'text-2xl sm:text-4xl'
             }`}>{selectedName}</span>
           </>
-        ) : <span className="break-words text-base font-bold">Kind auswählen</span>}
+        ) : <span className={`break-words font-bold ${roomyPicker ? 'text-2xl' : 'text-base'}`}>Kind auswählen</span>}
       </button>
       <div className={`flex shrink-0 flex-col ${compact ? 'gap-0.5' : 'gap-1'}`}>
         {!veryCompact && <span className={`text-center font-semibold ${compact ? 'text-[10px]' : 'text-xs'}`} aria-live="polite">
@@ -391,7 +394,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
             : `${eligibleStudents.length} Kinder zur Auswahl`}
         </span>}
         <button type="button" onClick={pickPupil} disabled={isAnimating || remainingStudents.length === 0}
-          className={`flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 font-black text-white ${compact ? 'min-h-11 text-xs' : 'min-h-12 text-sm'} disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600`}>
+          className={`flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 font-black text-white ${compact ? 'min-h-11 text-xs' : roomyPicker ? 'min-h-14 text-lg' : 'min-h-12 text-sm'} disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600`}>
           <Sparkles size={18}/>{isAnimating ? 'Wählt aus …' : roundComplete ? 'Runde abgeschlossen' : selectedName ? 'Nächstes Kind' : 'Kind auswählen'}
         </button>
         {(drawnIds.length > 0 || roundComplete) && (

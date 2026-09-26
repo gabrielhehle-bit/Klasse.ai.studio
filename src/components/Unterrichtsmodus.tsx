@@ -8442,19 +8442,23 @@ ${content}
                                 }`}
                               >
                                 <header className="klassio-widget-library-header flex min-w-0 items-center gap-2 border-b border-slate-200 pb-3">
-                                  <div className="min-w-0 shrink-0">
+                                  <div className="klassio-widget-library-heading min-w-0 shrink-0">
                                     <h2 className="text-base font-black text-slate-900 dark:text-white">Widget-Bibliothek</h2>
                                     <p className="hidden text-xs text-slate-500 md:block">Favoriten, zuletzt verwendet oder gezielt suchen.</p>
                                   </div>
-                                  <div className="relative min-w-0 flex-1">
+                                  <div className="klassio-widget-library-search relative min-w-0 flex-1">
                                     <input
-                                      type="text"
+                                      type="search"
                                       aria-label="Widget suchen"
                                       placeholder="Widget suchen … z. B. Timer, Gruppen, Brüche"
                                       value={widgetSearch}
-                                      onChange={(e) => setWidgetSearch(e.target.value)}
+                                      onChange={(e) => {
+                                        const nextSearch = e.target.value;
+                                        setWidgetSearch(nextSearch);
+                                        if (nextSearch.trim()) setActiveWidgetCategory("categories");
+                                      }}
                                       autoFocus
-                                      className={`min-h-11 w-full rounded-xl border px-4 pr-10 text-sm font-semibold outline-none transition-all placeholder:text-slate-400 ${
+                                      className={`min-h-11 w-full rounded-xl border px-4 pr-14 text-sm font-semibold outline-none transition-all placeholder:text-slate-400 ${
                                         currentIsLight
                                           ? "bg-slate-50 border-slate-200 text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                                           : "bg-white/5 border-white/15 text-white focus:border-indigo-400"
@@ -8463,12 +8467,13 @@ ${content}
                                     {widgetSearch ? (
                                       <button type="button" onClick={() => setWidgetSearch("")}
                                         aria-label="Widgetsuche leeren"
-                                        className="absolute right-1 top-1/2 flex min-h-9 min-w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-800">✕</button>
+                                        className="absolute right-0 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-800">✕</button>
                                     ) : (
                                       <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true">🔍</span>
                                     )}
                                   </div>
                                   <button type="button"
+                                    data-widget-library-action="settings"
                                     onClick={() => setIsWidgetConfigurationOpen(true)}
                                     aria-label="Widget-Voreinstellungen öffnen"
                                     title="Widget-Voreinstellungen"
@@ -8476,6 +8481,7 @@ ${content}
                                     <Settings size={18} aria-hidden="true" />
                                   </button>
                                   <button type="button"
+                                    data-widget-library-action="close"
                                     onClick={() => { setIsAddWidgetMenuOpen(false); setIsWidgetConfigurationOpen(false); }}
                                     aria-label="Widget-Bibliothek schließen"
                                     title="Schließen"
@@ -9143,9 +9149,10 @@ ${content}
                                     return (
                                       <button
                                         key={cat.id}
-                                        onClick={() =>
-                                          setActiveWidgetCategory(cat.id)
-                                        }
+                                        onClick={() => {
+                                          setActiveWidgetCategory(cat.id);
+                                          if (widgetSearch) setWidgetSearch("");
+                                        }}
                                         className={`mb-1 flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold transition-all cursor-pointer ${
                                           activeWidgetCategory === cat.id
                                             ? "bg-indigo-500 text-white shadow"
@@ -9166,7 +9173,7 @@ ${content}
                                 </aside>
 
                                 <main className="klassio-widget-library-content min-h-0 overflow-y-auto overscroll-contain pr-1">
-                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-2.5 pb-1">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 pb-1">
                                   {(() => {
                                     const allAvailableWidgets = [
                                       {
@@ -9782,11 +9789,11 @@ ${content}
                                           <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Favoriten</p>
                                           <p className="truncate text-xs font-semibold text-slate-700">Ordner: {currentResolvedFolder}</p>
                                         </div>
-                                        <label className="flex min-h-10 items-center gap-2 text-xs font-semibold text-slate-600">
+                                        <label className="flex min-h-11 items-center gap-2 text-xs font-semibold text-slate-600">
                                           <span className="hidden sm:inline">Ordner</span>
                                           <select aria-label="Favoriten-Ordner auswählen" value={selectedFavFolder}
                                             onChange={event => setSelectedFavFolder(event.target.value)}
-                                            className="min-h-10 max-w-52 rounded-lg border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-800">
+                                            className="min-h-11 max-w-52 rounded-lg border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-800">
                                             {availableFolders.map(folder => <option key={folder.id} value={folder.id}>{folder.label}</option>)}
                                           </select>
                                         </label>
@@ -9881,7 +9888,7 @@ ${content}
                                                             handleOpenWidgetInCockpitLayout(variant.type as CockpitWidgetConfig["type"]);
                                                             setIsAddWidgetMenuOpen(false);
                                                           }}
-                                                          className="min-h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-left text-xs font-semibold text-slate-700 hover:border-indigo-200 hover:bg-indigo-50">
+                                                          className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-left text-xs font-semibold text-slate-700 hover:border-indigo-200 hover:bg-indigo-50">
                                                           {variant.label}
                                                         </button>
                                                       ))}
@@ -9963,11 +9970,10 @@ ${content}
                                                 className="stroke-[2.5]"
                                               />
                                             </div>
-                                            <p className="text-[10px] font-bold">
-                                              Ordner "{currentResolvedFolder}"
-                                              ist leer
+                                            <p className="text-sm font-bold">
+                                              Ordner "{currentResolvedFolder}" ist leer
                                             </p>
-                                            <p className="text-[7.5px] mt-1 max-w-[240px] leading-relaxed">
+                                            <p className="mt-1 max-w-sm text-xs leading-relaxed">
                                               Klicke auf das Stern-Symbol bei
                                               einem beliebigen Widget in den
                                               anderen Kategorien, um es zu **"
@@ -9985,15 +9991,21 @@ ${content}
                                     return (
                                       <>
                                         {renderedFoldersHeader}
+                                        {query && (
+                                          <div className="col-span-full flex min-h-11 items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-indigo-50/70 px-3 py-2 text-xs text-slate-700" role="status">
+                                            <span className="min-w-0 truncate font-semibold">Suche in allen Widgets: „{widgetSearch.trim()}“</span>
+                                            <span className="shrink-0 rounded-full bg-white px-2 py-1 font-black text-indigo-700">{filteredList.length} Treffer</span>
+                                          </div>
+                                        )}
                                         {filteredList.length === 0 && (
                                           <div className="col-span-full py-10 flex flex-col items-center justify-center text-center opacity-70">
                                             <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-500 mb-2">
                                               🔍
                                             </div>
-                                            <p className="text-[10px] font-bold">
+                                            <p className="text-sm font-bold">
                                               Keine passenden Widgets gefunden
                                             </p>
-                                            <p className="text-[7.5px] mt-1 max-w-[240px] leading-relaxed">
+                                            <p className="mt-1 max-w-sm text-xs leading-relaxed">
                                               Passe deine Suche oder deine
                                               Kategorie-Filter an, um andere
                                               Cockpit-Hilfen anzuzeigen!
@@ -10068,7 +10080,7 @@ ${content}
 
 
                           <button type="button" onClick={toggleFullscreen}
-                            className="min-h-10 rounded-xl border border-slate-200 bg-white px-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                            className="min-h-11 min-w-11 rounded-xl border border-slate-200 bg-white px-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                             aria-label={isFullscreen ? "Vollbild beenden" : "Vollbild öffnen"}
                             title={isFullscreen ? "Vollbild beenden" : "Vollbild"}>
                             {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
@@ -10081,11 +10093,12 @@ ${content}
                               setVorlagenStartTab("create");
                               setIsVorlagenModalOpen(true);
                             }}
-                            className={`min-h-10 px-2.5 rounded-xl border text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                            className={`min-h-11 px-2.5 rounded-xl border text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                               currentIsLight
                                 ? "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
                                 : "bg-zinc-900 border-white/10 text-white/80 hover:bg-zinc-800"
                             }`}
+                            aria-label="Vorlage erstellen"
                             title="Aktuelles Widget-Layout als neue Vorlage speichern"
                           >
                             <Save size={13} />
@@ -10098,13 +10111,14 @@ ${content}
                             <button
                               type="button"
                               onClick={() => setIsMoreOptionsMenuOpen((prev) => !prev)}
-                              className={`min-h-10 px-2.5 rounded-xl border text-[10px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                              className={`min-h-11 min-w-11 px-2.5 rounded-xl border text-[10px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                                 isMoreOptionsMenuOpen
                                   ? "bg-indigo-600 border-indigo-600 text-white"
                                   : currentIsLight
                                     ? "bg-white border-slate-200 hover:bg-slate-50 text-slate-700"
                                     : "bg-zinc-900 border-white/10 hover:bg-zinc-800 text-white/80"
                               }`}
+                              aria-label="Weitere Optionen und Layout-Werkzeuge"
                               title="Weitere Optionen & Layout-Werkzeuge"
                             >
                               <MoreHorizontal size={14} />
@@ -10113,7 +10127,9 @@ ${content}
 
                             {isMoreOptionsMenuOpen && (
                               <div
-                                className={`absolute right-0 top-10 w-[min(20rem,calc(100vw-1rem))] max-h-[min(72vh,calc(100dvh-6rem))] overflow-y-auto overscroll-contain rounded-2xl border p-2.5 shadow-2xl flex flex-col gap-1.5 z-[1000] ${
+                                role="menu"
+                                aria-label="Weitere Cockpit-Optionen"
+                                className={`absolute right-0 top-12 w-[min(20rem,calc(100vw-1rem))] max-h-[min(72vh,calc(100dvh-6rem))] overflow-y-auto overscroll-contain rounded-2xl border p-2.5 shadow-2xl flex flex-col gap-1.5 z-[1000] ${
                                   currentIsLight
                                     ? "bg-white border-slate-200 text-slate-800 animate-in fade-in slide-in-from-top-2 duration-150"
                                     : "bg-zinc-900 border-white/10 text-white animate-in fade-in slide-in-from-top-2 duration-150"
@@ -10123,19 +10139,19 @@ ${content}
                                   Gestaltung & Unterricht
                                 </div>
                                 <button type="button" onClick={() => { setIsThemePickerOpen(true); setIsMoreOptionsMenuOpen(false); }}
-                                  className="w-full min-h-10 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100">🎨 Design & Farben</button>
+                                  className="w-full min-h-11 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100">🎨 Design & Farben</button>
                                 <button type="button" onClick={() => { setIsMascotSettingsOpen(true); setIsMoreOptionsMenuOpen(false); }}
-                                  className="w-full min-h-10 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100 dark:hover:bg-white/10">🐾 Klassenmaskottchen</button>
+                                  className="w-full min-h-11 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100 dark:hover:bg-white/10">🐾 Klassenmaskottchen</button>
                                 <button type="button" onClick={() => { setIsBirthdayCelebrationOpen(true); setIsMoreOptionsMenuOpen(false); }}
-                                  className="w-full min-h-10 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100">🎂 Geburtstag</button>
+                                  className="w-full min-h-11 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100">🎂 Geburtstag</button>
                                 <button type="button" aria-expanded={isQuickBarSettingsOpen}
                                   onClick={() => setIsQuickBarSettingsOpen(open => !open)}
-                                  className="w-full min-h-10 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100"
+                                  className="w-full min-h-11 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100"
                                 >▤ Widget-Leiste {isQuickBarSettingsOpen ? '▴' : '▾'}</button>
                                 {isQuickBarSettingsOpen && (
                                   <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800"
                                     aria-label="Zusätzliche Widget-Leiste konfigurieren">
-                                    <label className="flex min-h-10 items-center gap-2 font-semibold">
+                                    <label className="flex min-h-11 items-center gap-2 font-semibold">
                                       <input type="checkbox" checked={quickBarSettings.enabled}
                                         disabled={!app.activeClassId}
                                         onChange={event => updateQuickBarSettings(settings => ({ ...settings, enabled: event.target.checked }))} />
@@ -10143,7 +10159,7 @@ ${content}
                                     </label>
                                     <p className="text-slate-600">Wähle deine Schnellzugriffe. Alle anderen Widgets bleiben über „Widget hinzufügen“ verfügbar.</p>
                                     {COCKPIT_QUICKBAR_ITEMS.map(item => (
-                                      <label key={item.id} className="flex min-h-9 items-center gap-2">
+                                      <label key={item.id} className="flex min-h-11 items-center gap-2">
                                         <input type="checkbox" checked={quickBarSettings.itemIds.includes(item.id)}
                                           disabled={!app.activeClassId}
                                           onChange={() => updateQuickBarSettings(settings => toggleCockpitQuickbarItem(settings, item.id))} />
@@ -10151,7 +10167,7 @@ ${content}
                                       </label>
                                     ))}
                                     <button type="button" onClick={resetQuickBarSettings}
-                                      className="min-h-10 w-full rounded-lg border border-slate-300 bg-white px-2 text-xs font-bold hover:bg-slate-100">
+                                      className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-2 text-xs font-bold hover:bg-slate-100">
                                       Widget-Leiste zurücksetzen
                                     </button>
                                   </div>
@@ -10166,7 +10182,7 @@ ${content}
                                     handleAutoArrangeWidgets();
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-11 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -10181,7 +10197,7 @@ ${content}
                                     setIsVorlagenModalOpen(true);
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-11 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -10200,7 +10216,7 @@ ${content}
                                     setIsSlotMenuOpen(true);
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-11 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -10209,7 +10225,7 @@ ${content}
                                 </button>
 
                                 <div
-                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left ${
+                                  className={`w-full min-h-11 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left ${
                                     currentIsLight ? "text-slate-600" : "text-white/70"
                                   }`}
                                 >
@@ -10232,7 +10248,7 @@ ${content}
                                     }
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-11 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -10240,7 +10256,7 @@ ${content}
                                   <span>{sidebarMode !== "hidden" ? "Schülerliste ausblenden" : "Schülerliste einblenden"}</span>
                                 </button>
 
-                                <label className={`flex w-full shrink-0 cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold leading-5 ${currentIsLight ? "border-slate-200 bg-slate-50 text-slate-800" : "border-white/10 bg-white/5 text-white"}`}
+                                <label className={`flex min-h-11 w-full shrink-0 cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold leading-5 ${currentIsLight ? "border-slate-200 bg-slate-50 text-slate-800" : "border-white/10 bg-white/5 text-white"}`}
                                   title="Lehrperson schaltet die öffentliche Anzeige der aktuellen Verhaltensstufe an oder aus. Keine privaten Notizen.">
                                   <input type="checkbox" className="h-5 w-5 shrink-0 accent-indigo-600"
                                     aria-label="Verhalten der Kinder öffentlich in der Schülerliste anzeigen"
@@ -10258,7 +10274,7 @@ ${content}
                                   </span>
                                 </label>
 
-                                <label className={`flex w-full shrink-0 cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold leading-5 ${currentIsLight ? "border-slate-200 bg-slate-50 text-slate-800" : "border-white/10 bg-white/5 text-white"}`}
+                                <label className={`flex min-h-11 w-full shrink-0 cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold leading-5 ${currentIsLight ? "border-slate-200 bg-slate-50 text-slate-800" : "border-white/10 bg-white/5 text-white"}`}
                                   title="Persönliches Profil-Emoji jedes Kindes in der Schülerliste zusätzlich anzeigen.">
                                   <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0 accent-indigo-600"
                                     aria-label="Persönliche Emojis der Kinder in der Schülerliste anzeigen"
@@ -10286,7 +10302,7 @@ ${content}
                                     else handleOpenWidgetInCockpitLayout("pet");
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-11 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -10300,7 +10316,7 @@ ${content}
                                     setIsFocusModeLightOff((prev) => !prev);
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-11 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -10314,7 +10330,7 @@ ${content}
                                     toggleFullscreen();
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-11 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -10330,7 +10346,7 @@ ${content}
                                     handleClearAllWidgets();
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className="w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold text-rose-500 hover:bg-rose-500/10 flex items-center gap-2 text-left transition-colors cursor-pointer"
+                                  className="w-full min-h-11 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold text-rose-500 hover:bg-rose-500/10 flex items-center gap-2 text-left transition-colors cursor-pointer"
                                 >
                                   <Trash2 size={12} className="shrink-0" />
                                   <span>Alle Widgets schließen</span>
@@ -10346,7 +10362,7 @@ ${content}
                                     setIsTafelOpen(true);
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-11 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -10359,7 +10375,9 @@ ${content}
                             {/* Layout Slot Menu Modal if opened */}
                             {isSlotMenuOpen && (
                               <div
-                                className={`absolute top-11 right-0 w-64 rounded-2xl border p-2 shadow-2xl flex flex-col gap-2 z-[1000] ${
+                                role="dialog"
+                                aria-label="Layouts und Schnell-Slots"
+                                className={`absolute top-12 right-0 w-64 rounded-2xl border p-2 shadow-2xl flex flex-col gap-2 z-[1000] ${
                                   currentIsLight
                                     ? "bg-white border-slate-100 animate-in fade-in slide-in-from-top-3 duration-200"
                                     : "bg-zinc-900 border-white/10 animate-in fade-in slide-in-from-top-3 duration-200"
@@ -10372,7 +10390,8 @@ ${content}
                                   <button
                                     type="button"
                                     onClick={() => setIsSlotMenuOpen(false)}
-                                    className="text-slate-400 hover:text-slate-600 text-xs font-bold"
+                                    aria-label="Layouts und Schnell-Slots schließen"
+                                    className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 text-xs font-bold dark:hover:bg-white/10"
                                   >
                                     ✕
                                   </button>
@@ -10387,7 +10406,7 @@ ${content}
                                         setNewProfileName(e.target.value)
                                       }
                                       placeholder="Neues Profil (z.B. Morgenkreis)"
-                                      className="flex-1 text-[10px] px-2 py-1.5 rounded-l-md border border-slate-200 dark:border-white/10 bg-transparent text-slate-800 dark:text-white placeholder:opacity-50 focus:outline-none"
+                                      className="min-h-11 flex-1 text-[10px] px-2 py-1.5 rounded-l-md border border-slate-200 dark:border-white/10 bg-transparent text-slate-800 dark:text-white placeholder:opacity-50 focus:outline-none"
                                       onKeyDown={(e) => {
                                         if (e.key === "Enter") {
                                           handleSaveProfile(newProfileName);
@@ -10399,7 +10418,7 @@ ${content}
                                         handleSaveProfile(newProfileName);
                                       }}
                                       disabled={!newProfileName.trim()}
-                                      className="px-2 py-1.5 rounded-r-md bg-indigo-500 text-white font-black text-[9px] uppercase tracking-wider disabled:opacity-50 transition-all hover:bg-indigo-600 cursor-pointer"
+                                      className="min-h-11 px-2 py-1.5 rounded-r-md bg-indigo-500 text-white font-black text-[9px] uppercase tracking-wider disabled:opacity-50 transition-all hover:bg-indigo-600 cursor-pointer"
                                     >
                                       Speichern
                                     </button>
@@ -10424,7 +10443,7 @@ ${content}
                                           onClick={() =>
                                             handleDeleteProfile(profile.id)
                                           }
-                                          className="text-rose-500 hover:text-rose-600 px-1 opacity-60 hover:opacity-100 transition-opacity"
+                                          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-600 opacity-60 hover:opacity-100 transition-all dark:hover:bg-rose-950/30"
                                           title="Profil löschen"
                                         >
                                           <span className="text-[10px]">
@@ -10432,13 +10451,13 @@ ${content}
                                           </span>
                                         </button>
                                       </div>
-                                      <div className="flex gap-1.5 h-6">
+                                      <div className="flex gap-1.5">
                                         <button
                                           onClick={() => {
                                             handleUpdateProfile(profile.id);
                                             setIsSlotMenuOpen(false);
                                           }}
-                                          className="flex-1 rounded bg-indigo-50/50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-[9px] hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors"
+                                          className="min-h-11 flex-1 rounded-lg bg-indigo-50/50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-[9px] hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors"
                                         >
                                           Überschreiben
                                         </button>
@@ -10447,7 +10466,7 @@ ${content}
                                             handleLoadProfile(profile.id);
                                             setIsSlotMenuOpen(false);
                                           }}
-                                          className="flex-1 rounded bg-emerald-500 text-white font-bold text-[9px] hover:bg-emerald-600 transition-colors shadow-sm"
+                                          className="min-h-11 flex-1 rounded-lg bg-emerald-500 text-white font-bold text-[9px] hover:bg-emerald-600 transition-colors shadow-sm"
                                         >
                                           Laden
                                         </button>
@@ -10479,7 +10498,7 @@ ${content}
                                             type="text"
                                             value={slotNames[slot] || ""}
                                             onChange={(e) => saveSlotName(slot, e.target.value)}
-                                            className="flex-1 bg-transparent border-none text-[9px] font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 rounded px-1"
+                                            className="min-h-11 flex-1 bg-transparent border-none text-[9px] font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 rounded px-2"
                                           />
                                         </div>
                                         <div className="flex gap-1.5">
@@ -10487,7 +10506,7 @@ ${content}
                                             onClick={() => {
                                               handleSaveLayoutSlot(slot as any);
                                             }}
-                                            className="flex-1 py-0.5 rounded bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-[8px] hover:bg-indigo-100 dark:hover:bg-indigo-500/20"
+                                            className="min-h-11 flex-1 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-[8px] hover:bg-indigo-100 dark:hover:bg-indigo-500/20"
                                           >
                                             Speichern
                                           </button>
@@ -10497,7 +10516,7 @@ ${content}
                                               handleLoadLayoutSlot(slot as any);
                                               setIsSlotMenuOpen(false);
                                             }}
-                                            className={`flex-1 py-0.5 rounded font-bold text-[8px] ${
+                                            className={`min-h-11 flex-1 rounded-lg font-bold text-[8px] ${
                                               isSaved
                                                 ? "bg-emerald-500 text-white hover:bg-emerald-600"
                                                 : "bg-transparent text-slate-300 dark:text-slate-600 border border-slate-200 dark:border-white/5 cursor-not-allowed"
@@ -10524,7 +10543,7 @@ ${content}
                                     );
                                     setIsSlotMenuOpen(false);
                                   }}
-                                  className="w-full px-2 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider text-rose-500 text-center hover:bg-rose-500/10 transition-all cursor-pointer"
+                                  className="min-h-11 w-full px-2 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider text-rose-500 text-center hover:bg-rose-500/10 transition-all cursor-pointer"
                                 >
                                   Leere Ausgangsfläche laden
                                 </button>
@@ -10549,7 +10568,7 @@ ${content}
                             type="button"
                             onClick={() => setShowBoardTools(false)}
                             aria-label="Schreiben und Papier schließen"
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100"
+                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100"
                           >✕</button>
                         </div>
 

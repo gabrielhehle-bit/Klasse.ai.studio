@@ -43,7 +43,9 @@ test('Wheel measures real drawing area and keeps controls finger-sized', () => {
 
 test('Homework shows one wide task column in compact widgets, and retains private notes exclusion', () => {
   assert.match(homework, /const compact = size\.width < 760 \|\| size\.height < 400/);
-  assert.match(homework, /<HomeworkList items=\{items\} compact=\{compact\} \/>/);
+  assert.match(homework, /const roomy = size\.width >= 980 && size\.height >= 520/);
+  assert.match(homework, /const columns = size\.width >= 1280 \? 3 : size\.width >= 760 \? 2 : 1/);
+  assert.match(homework, /<HomeworkList items=\{items\} compact=\{compact\} roomy=\{roomy\} columns=\{columns\} \/>/);
   assert.match(homework, /overflow-y-auto overscroll-contain/);
   assert.match(homework, /classroom-homework-widget/);
   assert.match(css, /html body \.classroom-homework-widget > header/);

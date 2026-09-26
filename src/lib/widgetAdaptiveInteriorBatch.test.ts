@@ -30,7 +30,8 @@ test('All six classroom sounds remain visible on compact widgets and use availab
 });
 
 test('Class goal visualizations grow with inner width and height rather than fixed 160px ceilings', () => {
-  assert.match(reward, /visualSize = Math\.max\(84, Math\.min\(size\.width \* 0\.68, size\.height - 142, 480\)\)/);
+  assert.match(reward, /const roomyReward = isFullscreen \|\| \(size\.width >= 720 && size\.height >= 500\)/);
+  assert.match(reward, /visualSize = Math\.max\(84, Math\.min\(size\.width \* \(roomyReward \? 0\.74 : 0\.68\), size\.height - 142, roomyReward \? 560 : 480\)\)/);
   assert.match(reward, /style=\{\{ width: visualSize, maxWidth: '100%', maxHeight: '100%' \}\}/);
   assert.match(reward, /width: Math\.max\(32, Math\.min\(72, size\.width \* 0\.13\)\)/);
   assert.match(reward, /width: visualSize, height: visualSize/);

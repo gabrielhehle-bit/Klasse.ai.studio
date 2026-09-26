@@ -282,7 +282,51 @@ async function verifyRandomPickerInRealBrowser(client) {
   if (!pickerOpened) throw new Error('Bottom dock could not open the complete widget catalogue.');
   await waitFor(client, 'widget catalogue open',
     String.raw`Boolean(document.querySelector('input[aria-label="Widget suchen"]'))`);
+
+  // The picker must remain comfortable on a narrow teaching device: header
+  // actions stay touch-safe, categories become a horizontal rail and the
+  // search gets its own full-width row instead of being squeezed.
+  await client.send('Emulation.setDeviceMetricsOverride', { width: 640, height: 720, deviceScaleFactor: 1, mobile: false });
+  await sleep(200);
+  const compactLibrary = await evaluate(client,
+    String.raw`(() => {
+      const library=document.querySelector('[role="dialog"][aria-label="Widget-Bibliothek"]');
+      const search=document.querySelector('.klassio-widget-library-search');
+      const categoryRail=document.querySelector('.klassio-widget-library-sidebar');
+      const settings=document.querySelector('button[data-widget-library-action="settings"]');
+      const close=document.querySelector('button[data-widget-library-action="close"]');
+      if(!library||!search||!categoryRail||!settings||!close)return {error:'missing widget library parts'};
+      const lib=library.getBoundingClientRect();
+      const s=search.getBoundingClientRect();
+      const sr=getComputedStyle(categoryRail);
+      const controls=[settings,close].map(button=>{const r=button.getBoundingClientRect();return {w:r.width,h:r.height};});
+      return {
+        left:lib.left,right:lib.right,top:lib.top,bottom:lib.bottom,
+        searchWidth:s.width,searchTop:s.top,settingsTop:settings.getBoundingClientRect().top,
+        railDisplay:sr.display,railOverflowX:sr.overflowX,railOverflowY:sr.overflowY,
+        controls
+      };
+    })()`);
+  if (
+    compactLibrary.error ||
+    compactLibrary.left < -1 || compactLibrary.right > 641 ||
+    compactLibrary.top < -1 || compactLibrary.bottom > 721 ||
+    compactLibrary.searchWidth < 520 ||
+    compactLibrary.searchTop <= compactLibrary.settingsTop ||
+    compactLibrary.railDisplay !== 'flex' ||
+    !['auto','scroll'].includes(compactLibrary.railOverflowX) ||
+    compactLibrary.railOverflowY !== 'hidden' ||
+    compactLibrary.controls.some(control => control.w < 43 || control.h < 43)
+  ) {
+    throw new Error('Widget library mobile layout is cramped or unsafe: ' + JSON.stringify(compactLibrary));
+  }
+  console.log('✓ Widget library fits 640x720 with full-width search and horizontal categories');
+  await client.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1100, deviceScaleFactor: 1, mobile: false });
+  await sleep(150);
+
   await setInputByLabel(client, 'Widget suchen', 'Zufallsauswahl');
+  await waitFor(client, 'global widget search status',
+    String.raw`(() => {const status=[...document.querySelectorAll('[role="status"]')].find(el=>el.textContent.includes('Suche in allen Widgets'));const all=[...document.querySelectorAll('.klassio-widget-library-sidebar button')].find(b=>b.textContent.includes('Alle Widgets'));return !!status&&status.textContent.includes('Zufallsauswahl')&&!!all&&String(all.className).includes('bg-indigo-500');})()`);
   await waitFor(client, 'random widget catalogue entry',
     String.raw`Boolean(document.querySelector('button[aria-label="Zufallsauswahl hinzufügen"]:not(:disabled)'))`);
   const addedRandomWidget = await evaluate(client,
@@ -377,6 +421,68 @@ async function verifyDirectCockpitNavigation(client) {
     String.raw`(() => {const p=document.getElementById('klassio-board-tools');return !!p&&getComputedStyle(p).display!=='none'&&p.textContent.includes('Stift')&&p.textContent.includes('Text')&&p.textContent.includes('Radierer')&&!!p.querySelector('select[aria-label="Papierart der Unterrichtsfläche"]');})()`);
   await evaluate(client,
     String.raw`(() => {const b=document.querySelector('#klassio-board-tools button[aria-label="Schreiben und Papier schließen"]');if(!b)return false;b.click();return true;})()`);
+
+  const toolbarTouch = await evaluate(client,
+    String.raw`(() => {
+      const selectors=[
+        'button[aria-label="Vollbild öffnen"],button[aria-label="Vollbild beenden"]',
+        'button[aria-label="Vorlage erstellen"]',
+        'button[aria-label="Weitere Optionen und Layout-Werkzeuge"]'
+      ];
+      const controls=selectors.map(selector=>{
+        const button=document.querySelector(selector);
+        if(!button)return {selector,missing:true};
+        const r=button.getBoundingClientRect();
+        return {selector,w:r.width,h:r.height};
+      });
+      return {controls};
+    })()`);
+  if (toolbarTouch.controls.some(control => control.missing || control.w < 43 || control.h < 43)) {
+    throw new Error('Cockpit toolbar keeps 44px touch targets: ' + JSON.stringify(toolbarTouch));
+  }
+
+  const openedCockpitOptions = await evaluate(client,
+    String.raw`(() => {const b=document.querySelector('button[aria-label="Weitere Optionen und Layout-Werkzeuge"]');if(!b)return false;b.click();return true;})()`);
+  if (!openedCockpitOptions) throw new Error('Could not open cockpit options menu.');
+  await waitFor(client, 'cockpit options menu open',
+    String.raw`Boolean(document.querySelector('[role="menu"][aria-label="Weitere Cockpit-Optionen"]'))`);
+  const optionsTouch = await evaluate(client,
+    String.raw`(() => {
+      const menu=document.querySelector('[role="menu"][aria-label="Weitere Cockpit-Optionen"]');
+      if(!menu)return {error:'missing options menu'};
+      const controls=[...menu.querySelectorAll('button')].filter(button=>!button.disabled).map(button=>{
+        const r=button.getBoundingClientRect();
+        return {text:(button.textContent||'').trim(),w:r.width,h:r.height};
+      });
+      return {controls};
+    })()`);
+  if (optionsTouch.error || optionsTouch.controls.some(control => control.w < 43 || control.h < 43)) {
+    throw new Error('Cockpit options keep 44px touch targets: ' + JSON.stringify(optionsTouch));
+  }
+
+  const openedSlots = await evaluate(client,
+    String.raw`(() => {const menu=document.querySelector('[role="menu"][aria-label="Weitere Cockpit-Optionen"]');const b=[...(menu?.querySelectorAll('button')||[])].find(button=>(button.textContent||'').includes('Layouts & Schnell-Slots'));if(!b)return false;b.click();return true;})()`);
+  if (!openedSlots) throw new Error('Could not open layouts and quick slots.');
+  await waitFor(client, 'layout slots dialog open',
+    String.raw`Boolean(document.querySelector('[role="dialog"][aria-label="Layouts und Schnell-Slots"]'))`);
+  const slotTouch = await evaluate(client,
+    String.raw`(() => {
+      const dialog=document.querySelector('[role="dialog"][aria-label="Layouts und Schnell-Slots"]');
+      if(!dialog)return {error:'missing slot dialog'};
+      const controls=[...dialog.querySelectorAll('button,input')].filter(control=>!control.disabled).map(control=>{
+        const r=control.getBoundingClientRect();
+        return {tag:control.tagName,text:(control.textContent||'').trim(),w:r.width,h:r.height};
+      });
+      return {controls};
+    })()`);
+  if (slotTouch.error || slotTouch.controls.some(control => control.w < 43 || control.h < 43)) {
+    throw new Error('Layout slots keep 44px touch targets: ' + JSON.stringify(slotTouch));
+  }
+  const closedSlots = await evaluate(client,
+    String.raw`(() => {const b=document.querySelector('button[aria-label="Layouts und Schnell-Slots schließen"]');if(!b)return false;b.click();return true;})()`);
+  if (!closedSlots) throw new Error('Could not close layouts and quick slots.');
+  console.log('✓ Cockpit toolbar, options and layout slots keep 44px touch targets');
+
   // New classrooms start with a full-width whiteboard and the right pupil
   // panel is opened only when the teacher needs it.
   await waitFor(client, 'visible favorites dock and full board',

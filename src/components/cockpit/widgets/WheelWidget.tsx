@@ -717,7 +717,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                       setDrawnHistory([]);
                       setWinner(null);
                     }}
-                    className={`p-2 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 cursor-pointer transition-all ${
+                    className={`min-h-14 p-2 rounded-xl border text-xs font-bold flex flex-col items-center justify-center gap-1 cursor-pointer transition-all ${
                       mode === 'custom'
                         ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
                         : currentIsLight
@@ -736,7 +736,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                       setDrawnHistory([]);
                       setWinner(null);
                     }}
-                    className={`p-2 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 cursor-pointer transition-all ${
+                    className={`min-h-14 p-2 rounded-xl border text-xs font-bold flex flex-col items-center justify-center gap-1 cursor-pointer transition-all ${
                       mode === 'numbers'
                         ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
                         : currentIsLight
@@ -755,7 +755,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                       setDrawnHistory([]);
                       setWinner(null);
                     }}
-                    className={`p-2 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 cursor-pointer transition-all ${
+                    className={`min-h-14 p-2 rounded-xl border text-xs font-bold flex flex-col items-center justify-center gap-1 cursor-pointer transition-all ${
                       mode === 'students'
                         ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
                         : currentIsLight
@@ -783,7 +783,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                           key={preset.id}
                           type="button"
                           onClick={() => handleApplyPreset(preset)}
-                          className="px-2.5 py-1 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+                          className="min-h-11 px-2.5 py-1 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all active:scale-95"
                         >
                           <span>{preset.icon}</span>
                           <span>{preset.name}</span>
@@ -835,7 +835,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                         <button
                           type="button"
                           onClick={() => { updateSettings({ customItems: [] }); setDrawnHistory([]); setWinner(null); }}
-                          className="text-[10px] font-black text-rose-500 hover:underline cursor-pointer"
+                          className="min-h-11 rounded-lg px-2 text-[10px] font-black text-rose-500 hover:bg-rose-50 hover:underline cursor-pointer dark:hover:bg-rose-950/30"
                         >
                           Alle leeren
                         </button>
@@ -855,7 +855,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                           <button
                             type="button"
                             onClick={() => handleRemoveCustomItem(idx)}
-                            className="text-slate-400 hover:text-rose-500 p-0.5 cursor-pointer"
+                            className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-500 cursor-pointer dark:hover:bg-rose-950/30"
                             title="Löschen"
                           >
                             <Trash2 size={12} />
@@ -867,7 +867,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
 
                   {/* Ohne Zurücklegen Toggle */}
                   <div className="pt-2 border-t border-slate-200 dark:border-white/10">
-                    <label className="flex items-center justify-between p-2 rounded-xl bg-slate-100 dark:bg-white/5 cursor-pointer">
+                    <label className="flex min-h-11 items-center justify-between p-2 rounded-xl bg-slate-100 dark:bg-white/5 cursor-pointer">
                       <div className="flex flex-col">
                         <span className="text-xs font-black text-slate-800 dark:text-white">
                           Ohne Zurücklegen
@@ -907,7 +907,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                           setDrawnHistory([]);
                           setWinner(null);
                         }}
-                        className={`p-3 rounded-2xl border text-xs font-black flex flex-col items-center gap-1 cursor-pointer transition-all ${
+                        className={`min-h-14 p-3 rounded-2xl border text-xs font-black flex flex-col items-center justify-center gap-1 cursor-pointer transition-all ${
                           numberRange === count
                             ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
                             : currentIsLight
@@ -923,7 +923,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
 
                   {/* Ohne Zurücklegen Toggle */}
                   <div className="pt-2 border-t border-slate-200 dark:border-white/10">
-                    <label className="flex items-center justify-between p-2 rounded-xl bg-slate-100 dark:bg-white/5 cursor-pointer">
+                    <label className="flex min-h-11 items-center justify-between p-2 rounded-xl bg-slate-100 dark:bg-white/5 cursor-pointer">
                       <div className="flex flex-col">
                         <span className="text-xs font-black text-slate-800 dark:text-white">
                           Ohne Zurücklegen

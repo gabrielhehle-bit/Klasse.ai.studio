@@ -38,6 +38,7 @@ export default function StarsReviewWidget({ widget, onUpdate, currentIsLight }: 
   const size = useWidgetSize(containerRef);
   const compact = size.width < 620 || size.height < 420;
   const tiny = size.width < 420 || size.height < 300;
+  const roomy = size.width >= 900 && size.height >= 520;
   const [today, setToday] = useState(() => new Date());
   const [showSettings, setShowSettings] = useState(false);
   const [presenting, setPresenting] = useState(false);
@@ -86,7 +87,7 @@ export default function StarsReviewWidget({ widget, onUpdate, currentIsLight }: 
   return <section ref={containerRef} aria-label="Sterne der Klasse im gewählten Zeitraum" className={`flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border-2 border-amber-400 ${surface}`}>
     <header className={`flex shrink-0 flex-wrap items-center justify-between border-b border-amber-400/60 ${compact ? "gap-1 p-1.5" : "gap-2 p-3"}`}>
       <div className="min-w-0">
-        <h2 className={`${tiny ? "text-sm" : compact ? "text-base" : "text-lg"} font-black leading-tight`}>⭐ Unsere gesammelten Sterne</h2>
+        <h2 className={`${tiny ? "text-sm" : compact ? "text-base" : roomy ? "text-2xl" : "text-lg"} font-black leading-tight`}>⭐ Unsere gesammelten Sterne</h2>
         <p className={`${tiny ? 'text-[10px]' : 'text-xs'} font-semibold opacity-80`}>
           {range ? `${formatDate(range.start)} – ${formatDate(range.end)}` : 'Bitte einen gültigen Zeitraum auswählen'}
           {' · '}{settings.subjects.length ? settings.subjects.join(', ') : 'Alle Fächer'}
@@ -127,19 +128,19 @@ export default function StarsReviewWidget({ widget, onUpdate, currentIsLight }: 
       </fieldset>
       <button type="button" className={`${button} w-full border-amber-600 bg-amber-400`} onClick={() => setShowSettings(false)}>Einstellungen übernehmen</button>
     </div> : !presenting ? <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-4 text-center">
-      <span className="text-5xl" aria-hidden="true">🌟</span>
-      <p className="max-w-md text-base font-semibold">Die Sterneauswertung ist vorbereitet. Die Namen und Punktzahlen sind erst nach deiner Freigabe auf der Tafel sichtbar.</p>
+      <span className={roomy ? 'text-8xl' : 'text-5xl'} aria-hidden="true">🌟</span>
+      <p className={`${roomy ? 'max-w-xl text-xl' : 'max-w-md text-base'} font-semibold`}>Die Sterneauswertung ist vorbereitet. Die Namen und Punktzahlen sind erst nach deiner Freigabe auf der Tafel sichtbar.</p>
       <button type="button" disabled={!range || !children.length} className={`${button} border-amber-600 bg-amber-400 disabled:opacity-40`} onClick={() => setPresenting(true)}>⭐ Ergebnisse jetzt zeigen</button>
       {!children.length && <p className="text-sm font-semibold">In dieser Klasse sind noch keine Kinder eingetragen.</p>}
     </div> : <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${compact ? "p-1.5" : "p-3"}`} aria-live="polite">
       <p className="mb-3 text-xs font-semibold opacity-80">{settings.limit === 'all' ? 'Alle Kinder' : `Top ${settings.limit}`} · {ranked.length} {ranked.length === 1 ? 'Kind' : 'Kinder'} · dokumentierte Sterne im gewählten Zeitraum</p>
-      <ol className="space-y-2">{ranked.map(row => {
+      <ol className={roomy ? "space-y-3" : "space-y-2"}>{ranked.map(row => {
         const child = children.find(item => item.id === row.studentId);
         const duplicate = (duplicateFirstNames.get(row.firstName.toLocaleLowerCase('de-AT')) || 0) > 1;
         const label = duplicate && child?.nachname ? `${row.firstName} ${child.nachname.slice(0, 1)}.` : row.firstName;
-        return <li key={row.studentId} className={`flex items-center justify-between rounded-xl border border-amber-300 bg-white text-slate-900 ${compact ? "min-h-10 gap-1 px-2 py-1.5" : "min-h-12 gap-3 px-3 py-2"}`}>
-          <span className={`min-w-0 break-words [overflow-wrap:anywhere] font-extrabold leading-snug ${compact ? "text-sm" : "text-base"}`}><span className="mr-2 text-amber-700">{row.rank}.</span>{label}</span>
-          <span className="shrink-0 text-base font-black text-amber-800" aria-label={`${row.stars} Sterne`}>⭐ {row.stars}</span>
+        return <li key={row.studentId} className={`flex items-center justify-between rounded-xl border border-amber-300 bg-white text-slate-900 ${compact ? "min-h-10 gap-1 px-2 py-1.5" : roomy ? "min-h-16 gap-4 px-5 py-3" : "min-h-12 gap-3 px-3 py-2"}`}>
+          <span className={`min-w-0 break-words [overflow-wrap:anywhere] font-extrabold leading-snug ${compact ? "text-sm" : roomy ? "text-xl" : "text-base"}`}><span className="mr-2 text-amber-700">{row.rank}.</span>{label}</span>
+          <span className={`${roomy ? 'text-2xl' : 'text-base'} shrink-0 font-black text-amber-800`} aria-label={`${row.stars} Sterne`}>⭐ {row.stars}</span>
         </li>;
       })}</ol>
     </div>}

@@ -197,6 +197,7 @@ export const TimelineWidget: React.FC<TimelineWidgetProps> = ({
   const isFullscreen = size.category === 'fullscreen';
   const isStandard = size.category === 'standard';
   const isShortHeight = size.height < 210;
+  const roomyTimeline = isFullscreen || (size.width >= 820 && size.height >= 500);
   // Explicit pages keep even a long school day fully usable inside a small board
   // widget. Never force horizontal scroll or shrink every hour to illegibility.
   const unitsPerPage = Math.max(3, Math.min(8, Math.floor(Math.max(0, size.width - 70) / 42)));
@@ -250,7 +251,7 @@ export const TimelineWidget: React.FC<TimelineWidgetProps> = ({
       <div
         className={`flex flex-col justify-between rounded-xl border p-3 sm:p-3.5 shadow-sm transition-all ${
           currentUnit ? currentColors.bg : cardBg
-        } ${isShortHeight ? 'mb-1 py-2' : 'mb-3'}`}
+        } ${isShortHeight ? 'mb-1 py-2' : roomyTimeline ? 'mb-4 p-5 sm:p-6' : 'mb-3'}`}
       >
         {/* Header row: Status indicator & Time badge */}
         <div className="flex items-center justify-between gap-2 mb-1.5">
@@ -307,11 +308,11 @@ export const TimelineWidget: React.FC<TimelineWidgetProps> = ({
           <div className="min-w-0">
             <h2
               className={`font-black tracking-tight leading-tight break-words [overflow-wrap:anywhere] ${
-                isFullscreen
-                  ? 'text-3xl sm:text-4xl'
+                roomyTimeline
+                  ? 'text-4xl sm:text-5xl'
                   : isLarge
-                  ? 'text-2xl'
-                  : 'text-xl'
+                    ? 'text-2xl sm:text-3xl'
+                    : 'text-xl'
               }`}
             >
               {timelineState.status === 'before_school' &&
@@ -325,19 +326,19 @@ export const TimelineWidget: React.FC<TimelineWidgetProps> = ({
           {/* Prominent Remaining Time */}
           {(timelineState.status === 'lesson' || timelineState.status === 'pause') && (
             <div className="flex items-baseline gap-1 shrink-0 text-right">
-              <span className="text-xs font-semibold opacity-70">noch</span>
+              <span className={`${roomyTimeline ? 'text-sm' : 'text-xs'} font-semibold opacity-70`}>noch</span>
               <span
                 className={`font-black tracking-tight ${
-                  isFullscreen
-                    ? 'text-3xl sm:text-4xl'
+                  roomyTimeline
+                    ? 'text-4xl sm:text-5xl'
                     : isLarge
-                    ? 'text-2xl'
-                    : 'text-xl'
+                      ? 'text-2xl sm:text-3xl'
+                      : 'text-xl'
                 }`}
               >
                 {timelineState.remainingMinutes}
               </span>
-              <span className="text-xs font-bold opacity-75">Min</span>
+              <span className={`${roomyTimeline ? 'text-sm' : 'text-xs'} font-bold opacity-75`}>Min</span>
             </div>
           )}
 
@@ -367,7 +368,7 @@ export const TimelineWidget: React.FC<TimelineWidgetProps> = ({
 
       {/* Secondary Information: Next Up (Als Nächstes) */}
       <div
-        className={`flex items-center justify-between text-xs px-3 py-2 rounded-lg border mb-3 shrink-0 ${
+        className={`flex items-center justify-between ${roomyTimeline ? 'text-base px-4 py-3' : 'text-xs px-3 py-2'} rounded-lg border mb-3 shrink-0 ${
           currentIsLight
             ? 'bg-white/80 border-slate-200/80 text-slate-600'
             : 'bg-zinc-900/80 border-zinc-800 text-zinc-300'

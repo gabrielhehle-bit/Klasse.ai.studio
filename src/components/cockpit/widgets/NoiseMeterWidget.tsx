@@ -192,6 +192,7 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
   };
 
   const classification = classifyNoiseLevel(volume);
+  const roomyMeter = size.category === 'fullscreen' || size.width >= 760 && size.height >= 500;
 
   return (
     <div
@@ -242,14 +243,14 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
         {permissionState === 'idle' && (
           <div className={`flex flex-col items-center justify-center text-center max-w-sm ${size.isCompact ? 'p-1.5' : 'p-3'}`}>
             <div
-              className={`${size.isCompact ? 'w-11 h-11 mb-1.5' : 'w-14 h-14 mb-3'} rounded-2xl flex items-center justify-center shadow-inner ${
+              className={`${size.isCompact ? 'w-11 h-11 mb-1.5' : roomyMeter ? 'w-20 h-20 mb-4' : 'w-14 h-14 mb-3'} rounded-2xl flex items-center justify-center shadow-inner ${
                 currentIsLight ? 'bg-indigo-50 text-indigo-600' : 'bg-indigo-500/10 text-indigo-400'
               }`}
             >
-              <Mic size={28} />
+              <Mic size={roomyMeter ? 38 : 28} />
             </div>
-            <h3 className="text-sm font-black mb-1">Lautstärkemesser starten</h3>
-            <p className="text-[11px] text-slate-500 dark:text-zinc-400 mb-4 leading-relaxed max-w-[260px]">
+            <h3 className={`${roomyMeter ? 'text-2xl' : 'text-sm'} font-black mb-1`}>Lautstärkemesser starten</h3>
+            <p className={`${roomyMeter ? 'text-base max-w-lg' : 'text-[11px] max-w-[260px]'} text-slate-500 dark:text-zinc-400 mb-4 leading-relaxed`}>
               Misst die Lautstärke im Klassenzimmer ohne Tonaufnahme oder Verhaltensbewertung.
             </p>
             <button
@@ -327,27 +328,27 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
           <div className="w-full flex-1 flex flex-col items-center justify-center gap-3">
             {/* Classification Badge */}
             <div
-              className={`px-4 py-1.5 rounded-full border flex items-center gap-2 transition-all ${
+              className={`${roomyMeter ? 'px-6 py-3 text-lg' : 'px-4 py-1.5'} rounded-full border flex items-center gap-2 transition-all ${
                 classification.badgeBg
-              } ${size.category === 'fullscreen' ? 'scale-125 my-4' : ''}`}
+              }`}
             >
-              <span className="text-lg">{classification.icon}</span>
-              <span className="text-xs sm:text-sm font-black tracking-wide">
+              <span className={roomyMeter ? 'text-3xl' : 'text-lg'}>{classification.icon}</span>
+              <span className={`${roomyMeter ? 'text-xl' : 'text-xs sm:text-sm'} font-black tracking-wide`}>
                 {classification.label}
               </span>
             </div>
 
             {/* Smartboard-freundliche Beschreibung */}
             {!size.isCompact && (
-              <p className="text-[10.5px] text-slate-500 dark:text-zinc-400 text-center max-w-xs font-medium">
+              <p className={`${roomyMeter ? 'text-base max-w-xl' : 'text-[10.5px] max-w-xs'} text-slate-500 dark:text-zinc-400 text-center font-medium`}>
                 {classification.description}
               </p>
             )}
 
             {/* Visual Gauge Bar */}
-            <div className="w-full max-w-md px-2 flex flex-col gap-1.5">
+            <div className={`w-full ${roomyMeter ? 'max-w-2xl gap-3' : 'max-w-md gap-1.5'} px-2 flex flex-col`}>
               <div
-                className={`w-full h-5 sm:h-6 rounded-full p-1 border overflow-hidden shadow-inner relative ${
+                className={`w-full ${roomyMeter ? 'h-9 p-1.5' : 'h-5 sm:h-6 p-1'} rounded-full border overflow-hidden shadow-inner relative ${
                   currentIsLight ? 'bg-slate-100 border-slate-200' : 'bg-zinc-850 border-zinc-700'
                 }`}
               >
