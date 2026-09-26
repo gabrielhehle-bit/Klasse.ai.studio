@@ -25,6 +25,7 @@ const QUICKBAR_OVERRIDES: Partial<Record<CockpitWidgetLibraryId, { icon: string;
   instruction: { icon: '📝', label: 'Arbeitsauftrag' },
   image: { icon: '🖼️', label: 'Bild' },
   qrcode: { icon: '🔗', label: 'QR-Code' },
+  pet: { icon: '🐾', label: 'Maskottchen' },
 };
 
 export const COCKPIT_QUICKBAR_ITEMS = COCKPIT_WIDGET_LIBRARY_ITEMS.map(item => {
