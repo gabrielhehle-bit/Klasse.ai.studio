@@ -40,6 +40,8 @@ export interface ClassRewardWidgetProps {
   currentIsLight?: boolean;
   activeFokusThemeVars?: any;
   isFullscreen?: boolean;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
 }
 
 const AVAILABLE_SYMBOLS = [
@@ -67,6 +69,8 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
   currentIsLight = false,
   activeFokusThemeVars,
   isFullscreen = false,
+  showSettings: externalShowSettings,
+  onCloseSettings,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef, { isFullscreen, defaultCategory: 'standard' });
@@ -81,7 +85,13 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
   const style: RewardVisualizationStyle =
     widget?.settings?.style || app?.settings?.klassenglasStyle || (widget?.type === 'thermometer' ? 'thermometer' : widget?.type === 'classtarget' ? 'barometer' : 'jar');
 
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [localSettingsOpen, setLocalSettingsOpen] = useState(false);
+  const hasExternalSettingsControl = typeof externalShowSettings === 'boolean';
+  const isSettingsOpen = hasExternalSettingsControl ? externalShowSettings : localSettingsOpen;
+  const closeSettings = () => {
+    if (hasExternalSettingsControl) onCloseSettings?.();
+    else setLocalSettingsOpen(false);
+  };
   const [isConfirmingReset, setIsConfirmingReset] = useState(false);
   const [settingsError, setSettingsError] = useState('');
   const [animatingGem, setAnimatingGem] = useState(false);
@@ -216,7 +226,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
       });
     }
 
-    setIsSettingsOpen(false);
+    closeSettings();
   };
 
   // Reset ausführen (nach Bestätigung)
@@ -249,39 +259,23 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
       }`}
       style={activeFokusThemeVars || {}}
     >
-      {/* HEADER / TITELZEILE */}
-      <div className="shrink-0 flex items-center justify-between px-3 pt-2.5 pb-1 gap-2 border-b border-black/5 dark:border-white/5">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className={`${roomyReward ? 'text-3xl' : 'text-xl'} shrink-0`} role="img" aria-label="Symbol">
-            {symbol}
-          </span>
-          <div className="min-w-0">
-            <h3 className={`${roomyReward ? 'text-base' : 'text-xs'} font-black tracking-wide uppercase truncate leading-tight`}>
-              {style === 'thermometer'
-                ? 'Ziel-Thermometer'
-                : style === 'barometer'
-                ? 'Klassen-Barometer'
-                : 'Klassenglas'}
-            </h3>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate leading-none">
-              {rewardTitle}
-            </p>
-          </div>
-        </div>
-
-        {/* RECHTE BUTTONS (Settings, Reset) */}
-        <div className="flex items-center gap-1 shrink-0">
+      {/* Shared widget frame owns the canonical title and settings gear. */}
+      <div className="shrink-0 flex min-h-11 items-center justify-between gap-2 border-b border-black/5 px-3 py-1 dark:border-white/5">
+        <p className="min-w-0 truncate text-[10px] font-bold text-slate-500 dark:text-slate-400">
+          {rewardTitle}
+        </p>
+        {!hasExternalSettingsControl && (
           <button
             type="button"
             id="reward-open-settings-btn"
-            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-            className="w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+            onClick={() => setLocalSettingsOpen(open => !open)}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-black/5 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-white"
             title="Ziel & Symbol anpassen"
             aria-label="Klassenziel einstellen"
           >
             <Settings2 size={16} />
           </button>
-        </div>
+        )}
       </div>
 
       {/* HAUPTINHALT / VISUALISIERUNG */}
@@ -315,7 +309,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
 
               {/* Füllstand-Hintergrund */}
               <div
-                className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-indigo-500/20 to-purple-500/10 transition-all duration-500"
+                className="absolute bottom-0 inset-x-0 bg-accent-soft transition-all duration-500"
                 style={{ height: `${progressPercent}%` }}
               />
 
@@ -342,7 +336,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
             <div className="mt-1 flex items-baseline gap-2">
               <span className={`${roomyReward ? 'text-3xl' : 'text-xl'} font-black tracking-tight`}>{count}</span>
               <span className="text-xs text-slate-400 font-bold">/ {goal}</span>
-              <span className="text-[10px] font-black text-indigo-500 bg-indigo-500/10 px-1.5 py-0.5 rounded">
+              <span className="text-[10px] font-black text-accent bg-accent-soft px-1.5 py-0.5 rounded">
                 {progressPercent}%
               </span>
             </div>
@@ -399,7 +393,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
                   cx="50"
                   cy="50"
                   r="40"
-                  className="stroke-indigo-500 transition-all duration-500"
+                  className="stroke-accent transition-all duration-500"
                   strokeWidth="10"
                   strokeDasharray={`${2 * Math.PI * 40}`}
                   strokeDashoffset={`${2 * Math.PI * 40 * (1 - progressPercent / 100)}`}
@@ -468,7 +462,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
               <h4 className="text-xs font-black uppercase tracking-wider">Klassenziel anpassen</h4>
               <button
                 type="button"
-                onClick={() => setIsSettingsOpen(false)}
+                onClick={closeSettings}
                 className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-white/10 dark:hover:text-white"
               >
                 <X size={16} />
@@ -486,7 +480,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
                 onChange={(e) => setEditTitle(e.target.value)}
                 maxLength={100}
                 placeholder="z.B. Gemeinsame Spielzeit"
-                className="min-h-11 w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-white/10 bg-transparent focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="min-h-11 w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-white/10 bg-transparent focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
 
@@ -503,7 +497,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
                     onClick={() => setEditGoal(quick)}
                     className={`min-h-11 min-w-11 px-2 py-1 rounded-lg text-xs font-bold border ${
                       editGoal === quick
-                        ? 'bg-emerald-500 text-white border-emerald-500'
+                        ? 'bg-accent text-accent-text border-accent'
                         : 'border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300'
                     }`}
                   >
@@ -536,7 +530,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
                     onClick={() => setEditSymbol(s.char)}
                     className={`w-11 h-11 rounded-xl text-base flex items-center justify-center border transition-all ${
                       editSymbol === s.char
-                        ? 'bg-emerald-500/20 border-emerald-500 scale-110'
+                        ? 'bg-accent-soft border-accent scale-110'
                         : 'border-slate-200 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5'
                     }`}
                     title={s.label}
@@ -560,7 +554,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
                     onClick={() => setEditStyle(st.id)}
                     className={`min-h-11 py-1.5 px-2 rounded-lg text-[10px] font-bold border flex flex-col items-center justify-center gap-0.5 ${
                       editStyle === st.id
-                        ? 'bg-emerald-500 text-white border-emerald-500'
+                        ? 'bg-accent text-accent-text border-accent'
                         : 'border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300'
                     }`}
                   >
@@ -575,7 +569,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
           <div className="pt-3 border-t border-black/5 dark:border-white/10 flex gap-2">
             <button
               type="button"
-              onClick={() => setIsSettingsOpen(false)}
+              onClick={closeSettings}
               className="flex-1 min-h-11 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-white/10"
             >
               Abbrechen
@@ -583,7 +577,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
             <button
               type="button"
               onClick={handleSaveSettings}
-              className="flex-1 min-h-11 py-2 rounded-xl text-xs font-black bg-emerald-500 text-white shadow-sm"
+              className="flex-1 min-h-11 py-2 rounded-xl text-xs font-black bg-accent text-accent-text shadow-sm"
             >
               Speichern
             </button>
