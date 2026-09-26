@@ -187,6 +187,7 @@ import {
   COCKPIT_AUTO_ARRANGE_DOCK_CLEARANCE_PX,
   getCockpitAutoArrangeLayout,
 } from "../lib/cockpitAutoArrange";
+import { findCockpitWidgetOpeningPlacement } from "../lib/cockpitWidgetPlacement";
 import {
   COMPACT_COCKPIT_SIDEBAR_WIDTH,
   clampCockpitSidebarWidth,
