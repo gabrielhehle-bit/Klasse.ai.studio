@@ -8750,11 +8750,8 @@ export const ChallengeWidgetContent: React.FC<{ widget: any, currentIsLight: boo
 
   return (
     <div className="flex-grow flex flex-col justify-between p-2 h-full min-h-0 pointer-events-auto select-none gap-2">
-      <div className="flex justify-between items-center px-1 shrink-0">
-        <span className={`text-[8px] font-black uppercase tracking-widest ${currentIsLight ? 'text-slate-400' : 'text-slate-500'}`}>
-          Klassen-Challenge
-        </span>
-        <span className="text-[7px] px-1.5 py-0.5 rounded-full font-black bg-indigo-500/10 text-indigo-500 uppercase">
+      <div className="flex justify-end items-center px-1 shrink-0 min-h-6">
+        <span className="text-[9px] px-2 py-1 rounded-full font-black bg-accent-soft text-accent uppercase">
           Mission {idx + 1}
         </span>
       </div>
@@ -8765,7 +8762,7 @@ export const ChallengeWidgetContent: React.FC<{ widget: any, currentIsLight: boo
           : currentIsLight ? 'bg-slate-50 border-slate-100 text-slate-800' : 'bg-zinc-850/30 border-white/5 text-slate-200'
       }`}>
         <span className="text-xl mb-1 animate-pulse">{complete ? "🏆" : "🎯"}</span>
-        <h4 className="text-[9px] font-black uppercase tracking-wider text-indigo-500">
+        <h4 className="text-[9px] font-black uppercase tracking-wider text-accent">
           {challenges[idx].title}
         </h4>
         <p className="text-[7.5px] font-bold mt-1 text-slate-600 dark:text-slate-350 leading-relaxed px-1">
@@ -8777,17 +8774,17 @@ export const ChallengeWidgetContent: React.FC<{ widget: any, currentIsLight: boo
         <button
           onClick={playSuccessChime}
           disabled={complete}
-          className={`flex-1 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1 ${
+          className={`flex-1 min-h-11 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1 ${
             complete 
               ? 'bg-emerald-500 text-white cursor-not-allowed shadow shadow-emerald-500/20' 
-              : 'bg-indigo-500 hover:bg-indigo-600 text-white shadow shadow-indigo-500/20 active:scale-95'
+              : 'bg-accent hover:bg-accent-hover text-accent-text shadow-sm active:scale-95'
           }`}
         >
           {complete ? "Erledigt! 🎉" : "Klasse geschafft! 💪"}
         </button>
         <button
           onClick={triggerNext}
-          className={`px-2.5 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+          className={`min-h-11 min-w-11 px-3 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
             currentIsLight ? 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50' : 'bg-zinc-850 border-white/5 text-slate-350 hover:bg-zinc-800'
           }`}
         >
@@ -13029,17 +13026,12 @@ export const SecretagentWidgetContent: React.FC<{ widget: any, currentIsLight: b
 
   return (
     <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-y-auto overflow-x-hidden">
-      <div className="shrink-0 flex justify-between items-center mb-1">
-        <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
-            🕵️‍♂️ Klassen-Kryptograph
-          </span>
-          <span className="text-[7.5px] font-mono opacity-80">Codieren & Safe knacken (Cäsar)</span>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
+      <div className="shrink-0 flex flex-wrap justify-between items-center gap-2 mb-1">
+        <span className="text-[10px] font-mono font-bold opacity-70">Codieren & Safe knacken · Cäsar</span>
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setShowInstructions(!showInstructions)}
-            className="px-1.5 py-0.5 rounded bg-amber-500 hover:bg-amber-600 text-white font-bold text-[8px] cursor-pointer"
+            className="min-h-11 px-3 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-200 dark:hover:bg-white/10 font-bold text-[10px] cursor-pointer"
           >
             Anleitung {showInstructions ? "❌" : "❓"}
           </button>
@@ -13049,7 +13041,7 @@ export const SecretagentWidgetContent: React.FC<{ widget: any, currentIsLight: b
               setGameUnlocked(false);
               setSafeMessage("Drehe am Schloss!");
             }}
-            className="px-1.5 py-0.5 rounded bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-[8px] cursor-pointer"
+            className="min-h-11 px-3 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-bold text-[10px] cursor-pointer"
           >
             Reset Game
           </button>
@@ -13075,7 +13067,7 @@ export const SecretagentWidgetContent: React.FC<{ widget: any, currentIsLight: b
         {/* Encoder Mode */}
         <div className={`p-2 rounded-xl border ${currentIsLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-800/60 border-zinc-700/60'}`}>
           <div className="flex justify-between items-center mb-1">
-            <span className="text-[8px] font-extrabold uppercase text-indigo-500">Caesar-Verschlüsselung</span>
+            <span className="text-[8px] font-extrabold uppercase text-accent">Caesar-Verschlüsselung</span>
             <span className="text-[8px] font-bold font-mono">Schlüssel: {shift}</span>
           </div>
           <div className="grid grid-cols-2 gap-2 mb-1.5">
@@ -13085,7 +13077,7 @@ export const SecretagentWidgetContent: React.FC<{ widget: any, currentIsLight: b
               onChange={(e) => setInputText(e.target.value)}
               placeholder="Text..."
               maxLength={15}
-              className={`px-1.5 py-0.5 rounded text-[9.5px] uppercase font-bold text-center border ${currentIsLight ? 'bg-white text-slate-800' : 'bg-zinc-950 text-white border-zinc-700'}`}
+              className={`min-h-11 px-2 rounded-xl text-[11px] uppercase font-bold text-center border ${currentIsLight ? 'bg-white text-slate-800' : 'bg-zinc-950 text-white border-zinc-700'}`}
             />
             <div className={`px-1.5 py-0.5 rounded text-[9.5px] text-emerald-500 font-bold text-center border truncate ${currentIsLight ? 'bg-white border-slate-200' : 'bg-zinc-950 border-zinc-700'}`}>
               {caesarCipher(inputText, shift) || "---"}
@@ -13097,7 +13089,7 @@ export const SecretagentWidgetContent: React.FC<{ widget: any, currentIsLight: b
             max="25"
             value={shift}
             onChange={(e) => setShift(parseInt(e.target.value))}
-            className="w-full accent-indigo-500 h-1 cursor-pointer"
+            className="w-full text-accent accent-current h-2 cursor-pointer"
           />
         </div>
 
@@ -13115,12 +13107,12 @@ export const SecretagentWidgetContent: React.FC<{ widget: any, currentIsLight: b
                 max="10"
                 value={safeGuess}
                 onChange={(e) => setSafeGuess(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
-                className={`w-10 px-1 py-0.5 text-center text-xs font-black rounded ${currentIsLight ? 'bg-white text-slate-800 border' : 'bg-zinc-950 text-white border border-zinc-700'}`}
+                className={`min-h-11 w-14 px-2 text-center text-sm font-black rounded-xl ${currentIsLight ? 'bg-white text-slate-800 border' : 'bg-zinc-950 text-white border border-zinc-700'}`}
               />
               <button
                 onClick={checkSafeCombo}
                 disabled={gameUnlocked}
-                className="px-2 py-1 rounded bg-rose-500 text-white text-[8px] font-black uppercase tracking-wide cursor-pointer active:scale-95 transition-transform"
+                className="min-h-11 px-3 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-[10px] font-black uppercase tracking-wide cursor-pointer active:scale-95 transition-all"
               >
                 Drehen & Testen
               </button>
@@ -13889,22 +13881,15 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
 
   return (
     <div className="flex flex-col h-full w-full p-2 justify-between select-none min-h-0 overflow-y-auto overflow-x-hidden">
-      {/* Header with Mode Toggle */}
-      <div className="shrink-0 flex justify-between items-center mb-1">
-        <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
-            ⚖️ Waagen-Schätzer
-          </span>
-          <span className="text-[7px] font-mono opacity-80">Gewichte schätzen & vergleichen</span>
-        </div>
-        
-        {/* Compact Mode Switcher */}
-        <div className="flex bg-slate-100 dark:bg-zinc-800 p-0.5 rounded-lg border border-slate-200/50 dark:border-zinc-700/50 shrink-0">
+      {/* Mode Toggle: direct learning interaction, not hidden configuration */}
+      <div className="shrink-0 flex flex-wrap justify-between items-center gap-2 mb-1">
+        <span className="text-[10px] font-mono font-bold opacity-70">Gewichte schätzen & vergleichen</span>
+        <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl border border-slate-200/50 dark:border-zinc-700/50 shrink-0">
           <button
             onClick={() => handleModeChange('free')}
-            className={`px-1.5 py-0.5 rounded text-[7.5px] font-black cursor-pointer transition-all ${
+            className={`min-h-11 px-3 rounded-lg text-[10px] font-black cursor-pointer transition-all ${
               mode === 'free'
-                ? 'bg-white dark:bg-zinc-700 text-slate-800 dark:text-white shadow-xs'
+                ? 'bg-accent text-accent-text shadow-sm'
                 : 'text-slate-400 dark:text-zinc-500 hover:text-slate-700'
             }`}
           >
@@ -13912,9 +13897,9 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
           </button>
           <button
             onClick={() => handleModeChange('mystery')}
-            className={`px-1.5 py-0.5 rounded text-[7.5px] font-black cursor-pointer transition-all ${
+            className={`min-h-11 px-3 rounded-lg text-[10px] font-black cursor-pointer transition-all ${
               mode === 'mystery'
-                ? 'bg-white dark:bg-zinc-700 text-slate-800 dark:text-white shadow-xs'
+                ? 'bg-accent text-accent-text shadow-sm'
                 : 'text-slate-400 dark:text-zinc-500 hover:text-slate-700'
             }`}
           >
@@ -13971,7 +13956,7 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
               {mode === 'mystery' ? (
                 <span className="text-xl animate-bounce duration-1000">{activeMystery.emoji}</span>
               ) : (
-                <div className="w-5 h-5 rounded bg-indigo-500 text-white font-black text-[7.5px] flex items-center justify-center shadow-xs">
+                <div className="w-5 h-5 rounded bg-accent text-accent-text font-black text-[7.5px] flex items-center justify-center shadow-xs">
                   {leftWeight}g
                 </div>
               )}
@@ -13985,7 +13970,7 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
                   {rightWeight >= 1000 && <div className="w-6 h-3 bg-amber-600 border border-amber-700 text-[6px] font-bold text-white flex items-center justify-center rounded-sm">1kg</div>}
                   {rightWeight % 1000 >= 500 && <div className="w-5 h-2.5 bg-yellow-600 border border-yellow-700 text-[5px] font-bold text-white flex items-center justify-center rounded-sm">500g</div>}
                   {rightWeight % 500 >= 100 && <div className="w-4 h-2 bg-slate-400 border border-slate-500 text-[5px] font-bold text-white flex items-center justify-center rounded-sm">100g</div>}
-                  {rightWeight % 100 > 0 && <div className="w-3 h-1.5 bg-indigo-400 border border-indigo-500 text-[4px] font-bold text-white flex items-center justify-center rounded-xs">..</div>}
+                  {rightWeight % 100 > 0 && <div className="w-3 h-1.5 bg-accent border border-accent text-[4px] font-bold text-accent-text flex items-center justify-center rounded-xs">..</div>}
                 </div>
               ) : (
                 <span className="text-[6.5px] text-slate-400 dark:text-zinc-600 italic">Leer</span>
@@ -14001,8 +13986,8 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
             <div className={`p-1.5 rounded-xl border ${currentIsLight ? 'bg-slate-50 border-slate-100' : 'bg-zinc-850/40 border-white/5'}`}>
               <div className="text-center font-black text-[7.5px] text-slate-400 dark:text-zinc-500 uppercase">Links: {leftWeight}g</div>
               <div className="flex gap-1 justify-center mt-1">
-                <button onClick={() => setLeftWeight(prev => Math.max(0, prev - 50))} className="px-1.5 py-0.5 rounded bg-indigo-500 hover:bg-indigo-600 text-white text-[8px] font-black cursor-pointer">-50</button>
-                <button onClick={() => setLeftWeight(prev => prev + 50)} className="px-1.5 py-0.5 rounded bg-indigo-500 hover:bg-indigo-600 text-white text-[8px] font-black cursor-pointer">+50</button>
+                <button onClick={() => setLeftWeight(prev => Math.max(0, prev - 50))} className="min-h-11 min-w-11 px-2 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-[10px] font-black cursor-pointer">-50</button>
+                <button onClick={() => setLeftWeight(prev => prev + 50)} className="min-h-11 min-w-11 px-2 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-[10px] font-black cursor-pointer">+50</button>
               </div>
             </div>
 
@@ -14010,8 +13995,8 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
             <div className={`p-1.5 rounded-xl border ${currentIsLight ? 'bg-slate-50 border-slate-100' : 'bg-zinc-850/40 border-white/5'}`}>
               <div className="text-center font-black text-[7.5px] text-slate-400 dark:text-zinc-500 uppercase">Rechts: {rightWeight}g</div>
               <div className="flex gap-1 justify-center mt-1">
-                <button onClick={() => setRightWeight(prev => Math.max(0, prev - 50))} className="px-1.5 py-0.5 rounded bg-indigo-500 hover:bg-indigo-600 text-white text-[8px] font-black cursor-pointer">-50</button>
-                <button onClick={() => setRightWeight(prev => prev + 50)} className="px-1.5 py-0.5 rounded bg-indigo-500 hover:bg-indigo-600 text-white text-[8px] font-black cursor-pointer">+50</button>
+                <button onClick={() => setRightWeight(prev => Math.max(0, prev - 50))} className="min-h-11 min-w-11 px-2 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-[10px] font-black cursor-pointer">-50</button>
+                <button onClick={() => setRightWeight(prev => prev + 50)} className="min-h-11 min-w-11 px-2 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-[10px] font-black cursor-pointer">+50</button>
               </div>
             </div>
           </div>
@@ -14023,9 +14008,9 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
                 <button
                   key={idx}
                   onClick={() => handleMysteryItemChange(idx)}
-                  className={`px-1.5 py-0.5 rounded text-[7.5px] font-bold border transition-all cursor-pointer ${
+                  className={`min-h-11 px-2 rounded-xl text-[10px] font-bold border transition-all cursor-pointer ${
                     activeMysteryIdx === idx
-                      ? 'bg-amber-500 border-amber-500 text-white font-black'
+                      ? 'bg-accent border-accent text-accent-text font-black'
                       : currentIsLight 
                         ? 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50' 
                         : 'bg-zinc-850 border-zinc-700/80 text-zinc-300 hover:bg-zinc-800'
@@ -14040,7 +14025,7 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
             <div className={`p-1.5 rounded-xl border ${currentIsLight ? 'bg-slate-50 border-slate-100' : 'bg-zinc-850/40 border-white/5'}`}>
               <div className="flex justify-between items-center text-[7.5px] font-black uppercase text-slate-400 dark:text-zinc-500 mb-1">
                 <span>Gewichte rechts hinzufügen:</span>
-                <span className="font-mono text-indigo-500 font-black">{rightWeight}g</span>
+                <span className="font-mono text-accent font-black">{rightWeight}g</span>
               </div>
               
               <div className="grid grid-cols-4 gap-1">
@@ -14048,7 +14033,7 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
                   <button
                     key={amt}
                     onClick={() => addRightWeight(amt)}
-                    className="py-1 rounded bg-slate-200 hover:bg-slate-300 dark:bg-zinc-800 dark:hover:bg-zinc-750 text-[7.5px] font-black cursor-pointer transition-colors"
+                    className="min-h-11 rounded-xl bg-slate-200 hover:bg-slate-300 dark:bg-zinc-800 dark:hover:bg-zinc-750 text-[10px] font-black cursor-pointer transition-colors"
                   >
                     +{amt}g
                   </button>
@@ -14064,7 +14049,7 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
         {mode === 'mystery' && (
           <button
             onClick={clearRightWeight}
-            className="px-2 py-1 rounded bg-red-500 hover:bg-red-600 text-white text-[7.5px] font-black uppercase tracking-wider cursor-pointer"
+            className="min-h-11 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black uppercase tracking-wider cursor-pointer"
           >
             Leeren 🗑️
           </button>
