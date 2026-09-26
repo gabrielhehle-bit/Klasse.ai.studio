@@ -3440,7 +3440,22 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       "widget-links",
     ];
   });
-  const [timerToCloseId, setTimerToCloseId] = useState<string | null>(null);
+  useEffect(() => {
+    const visibleIds = cockpitWidgets
+      .filter(widget => widget.visible && !minimizedWidgetIds.includes(widget.id))
+      .map(widget => widget.id);
+    setFocusOrder(previous => {
+      const retained = previous.filter(id => visibleIds.includes(id));
+      const missing = visibleIds.filter(id => !retained.includes(id));
+      const next = [...retained, ...missing];
+      if (next.length === previous.length && next.every((id, index) => id === previous[index])) {
+        return previous;
+      }
+      return next;
+    });
+  }, [cockpitWidgets, minimizedWidgetIds]);
+
+    const [timerToCloseId, setTimerToCloseId] = useState<string | null>(null);
   const [widgetSettingsOpenId, setWidgetSettingsOpenId] = useState<
     string | null
   >(null);
@@ -3936,7 +3951,12 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   };
 
   const handleAutoArrangeWidgets = () => {
-    const visibleOnes = cockpitWidgets.filter((w) => w.visible);
+    const visibleOnes = cockpitWidgets.filter((w) =>
+      w.visible &&
+      !minimizedWidgetIds.includes(w.id) &&
+      w.type !== "pet" &&
+      !w.settings?.isDirectMode,
+    );
     if (visibleOnes.length === 0) {
       showToast("Keine aktiven Widgets zum Anordnen geöffnet.", "info");
       return;
@@ -3957,8 +3977,8 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     const cellH = availH / rows;
 
     const updated = cockpitWidgets.map((w) => {
-      if (!w.visible) return w;
       const idx = visibleOnes.findIndex((vw) => vw.id === w.id);
+      if (idx < 0) return w;
       const r = Math.floor(idx / cols);
       const c = idx % cols;
 
@@ -10060,10 +10080,26 @@ ${content}
                         {cockpitWidgets
                           .filter((w) => w.visible && w.type !== "studentlist" && !minimizedWidgetIds.includes(w.id))
                           .map((widget) => {
-                            const zIn = 10 + focusOrder.indexOf(widget.id);
-                            const isFocused =
-                              focusOrder.indexOf(widget.id) ===
-                              focusOrder.length - 1;
+                            const focusIndex = focusOrder.indexOf(widget.id);
+                            const zIn = 10 + Math.max(0, focusIndex);
+                            const visibleFocusOrder = focusOrder.filter(id =>
+                              cockpitWidgets.some(candidate =>
+                                candidate.id === id &&
+                                candidate.visible &&
+                                !minimizedWidgetIds.includes(candidate.id),
+                              ),
+                            );
+                            const fallbackFocusedId = cockpitWidgets
+                              .filter(candidate =>
+                                candidate.visible &&
+                                !minimizedWidgetIds.includes(candidate.id) &&
+                                candidate.type !== "studentlist",
+                              )
+                              .at(-1)?.id;
+                            const focusedWidgetId =
+                              visibleFocusOrder[visibleFocusOrder.length - 1] ||
+                              fallbackFocusedId;
+                            const isFocused = widget.id === focusedWidgetId;
                             return (
                               <CockpitWidget
                                 key={widget.id}
