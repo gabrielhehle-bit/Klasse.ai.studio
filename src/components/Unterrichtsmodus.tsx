@@ -182,6 +182,11 @@ import { generateStudentGroups } from "../lib/groupsAlgorithm";
 import { getPresentStudents, getDisplayStudentName } from "./cockpit/studentSelectionUtils";
 import { CockpitWidget } from "./cockpit/CockpitWidget";
 import { CockpitWidgetDock } from "./cockpit/CockpitWidgetDock";
+import { getWidgetMinSizeConfig } from "./cockpit/widgetLayout";
+import {
+  COCKPIT_AUTO_ARRANGE_DOCK_CLEARANCE_PX,
+  getCockpitAutoArrangeLayout,
+} from "../lib/cockpitAutoArrange";
 import {
   COMPACT_COCKPIT_SIDEBAR_WIDTH,
   clampCockpitSidebarWidth,
@@ -3969,51 +3974,83 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       return;
     }
 
-    const count = visibleOnes.length;
-    let cols = 1;
-    let rows = 1;
-    if (count > 1) {
-      cols = Math.ceil(Math.sqrt(count));
-      rows = Math.ceil(count / cols);
+    const board = boardRef.current;
+    if (!board) {
+      showToast("Die Tafelfläche konnte nicht gemessen werden.", "info");
+      return;
     }
 
-    const padding = 2; // % margin
-    const availW = 100 - padding * 2;
-    const availH = 100 - padding * 2;
-    const cellW = availW / cols;
-    const cellH = availH / rows;
+    const boardRect = board.getBoundingClientRect();
+    if (boardRect.width <= 0 || boardRect.height <= 0) return;
 
-    const updated = cockpitWidgets.map((w) => {
-      const idx = visibleOnes.findIndex((vw) => vw.id === w.id);
-      if (idx < 0) return w;
-      const r = Math.floor(idx / cols);
-      const c = idx % cols;
+    // On wide screens the sidebar is a flex sibling and the board is already
+    // narrower. On compact screens it overlays the board. Measure the actual
+    // overlap instead of guessing from viewport breakpoints.
+    const sidebarRect = sidebarMode !== "hidden"
+      ? sidebarRef.current?.getBoundingClientRect()
+      : null;
+    const sidebarOverlapPx = sidebarRect
+      ? Math.max(
+          0,
+          Math.min(boardRect.right, sidebarRect.right) -
+            Math.max(boardRect.left, sidebarRect.left),
+        )
+      : 0;
 
-      // "Automatisch anordnen" darf bewusst auch die Fenstergröße harmonisieren:
-      // vier Widgets passen damit als echtes 2×2-Raster auf die Arbeitsfläche.
-      const targetW = Math.min(w.w, Math.max(18, cellW - 3));
-      const targetH = Math.min(w.h, Math.max(18, cellH - 3));
-      let targetX = padding + c * cellW + (cellW - targetW) / 2;
-      let targetY = padding + r * cellH + (cellH - targetH) / 2;
+    const usableWidthPx = Math.max(1, boardRect.width - sidebarOverlapPx);
+    const dockClearancePx = Math.min(
+      COCKPIT_AUTO_ARRANGE_DOCK_CLEARANCE_PX,
+      Math.max(0, boardRect.height * 0.16),
+    );
+    const usableHeightPx = Math.max(1, boardRect.height - dockClearancePx);
 
-      targetX = Math.max(1, Math.min(100 - targetW - 1, targetX));
-      targetY = Math.max(1, Math.min(100 - targetH - 1, targetY));
+    const layout = getCockpitAutoArrangeLayout(
+      visibleOnes.map((widget) => {
+        const size = getWidgetMinSizeConfig(String(widget.type));
+        return {
+          id: widget.id,
+          minW: size.minW,
+          minH: size.minH,
+          prefW: size.prefW ?? Math.max(size.minW, 420),
+          prefH: size.prefH ?? Math.max(size.minH, 340),
+        };
+      }),
+      usableWidthPx,
+      usableHeightPx,
+    );
 
+    if (layout.constrained || layout.rects.length !== visibleOnes.length) {
+      showToast(
+        "Für alle geöffneten Widgets ist gerade nicht genug freie Tafelfläche. Minimiere ein Widget oder blende die Schülerliste kurz aus.",
+        "info",
+      );
+      return;
+    }
+
+    const placements = new Map(layout.rects.map((rect) => [rect.id, rect]));
+    const updated = cockpitWidgets.map((widget) => {
+      const rect = placements.get(widget.id);
+      if (!rect) return widget;
       return {
-        ...w,
-        x: targetX,
-        y: targetY,
-        w: targetW,
-        h: targetH,
+        ...widget,
+        x: (rect.x / boardRect.width) * 100,
+        y: (rect.y / boardRect.height) * 100,
+        w: (rect.w / boardRect.width) * 100,
+        h: (rect.h / boardRect.height) * 100,
       };
     });
 
     setCockpitWidgets(updated);
-    setApp((p: any) => ({
-      ...p,
+    setApp((previous: any) => ({
+      ...previous,
       cockpitLayout: updated,
     }));
-    showToast(`${count} Widgets wurden automatisch angeordnet!`, "success");
+    showToast(
+      visibleOnes.length === 1
+        ? "Widget wurde passend auf der Tafelfläche platziert."
+        : `${visibleOnes.length} Widgets wurden optimal auf der Tafelfläche verteilt.`,
+      "success",
+    );
   };
 
   const handleClearAllWidgets = () => {
