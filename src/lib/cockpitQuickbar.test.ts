@@ -19,6 +19,8 @@ test('new classrooms get an ordered customizable dock; old disabled favorites re
     enabled: true, itemIds: ['timer'],
   });
   assert.ok(COCKPIT_QUICKBAR_ITEMS.length >= 100);
+  assert.equal(COCKPIT_QUICKBAR_ITEMS.some(item => item.id === 'pet'), true);
+  assert.equal(COCKPIT_QUICKBAR_ITEMS.some(item => item.id === 'mathcards'), true);
   assert.deepEqual(normalizeCockpitQuickbarSettings({ enabled: true, itemIds: ['studentlist', 'timer'] }).itemIds, ['timer']);
   assert.deepEqual(
     normalizeCockpitQuickbarSettings({ enabled: true, itemIds: ['timer', 'geometry', 'dailyquotes'] }).itemIds,
@@ -56,4 +58,14 @@ test('favorites can be chosen and reordered without modifying saved widget posit
   assert.match(dock, /removeCockpitQuickbarItem\(current, id\)/);
   assert.match(source, /addCockpitQuickbarItem\(settings, item\.type as CockpitQuickbarId\)/);
   assert.match(source, /addCockpitQuickbarItem\(settings, primaryType as CockpitQuickbarId\)/);
+});
+
+test('clicking a pinned widget toggles open, minimized and restored without closing its saved state', () => {
+  assert.match(source, /const visibleWidget = cockpitWidgets\.find\(widget => widget\.type === id && widget\.visible\)/);
+  assert.match(source, /minimizedWidgetIds\.includes\(visibleWidget\.id\)/);
+  assert.match(source, /current\.includes\(visibleWidget\.id\) \? current : \[\.\.\.current, visibleWidget\.id\]/);
+  assert.match(source, /handleOpenWidgetInCockpitLayout\(id as CockpitWidgetConfig\["type"\]\)/);
+  assert.match(dock, /item\.label \+ ' einklappen'/);
+  assert.match(dock, /item\.label \+ ' wieder einblenden'/);
+  assert.match(dock, /aria-pressed=\{isActive && !isMinimized\}/);
 });

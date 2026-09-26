@@ -151,6 +151,12 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                         category: "mathe",
                                       },
                                       {
+                                        type: "mathcards",
+                                        label: "🃏 Mathe-Karten",
+                                        desc: "Schnelle Rechenkarten für Kopfrechnen und Wiederholung",
+                                        category: "mathe",
+                                      },
+                                      {
                                         type: "fractionvisualizer",
                                         label: "◐ Bruch-Visualisierer",
                                         desc: "Brüche im Kreis & Streifen darstellen und vergleichen",

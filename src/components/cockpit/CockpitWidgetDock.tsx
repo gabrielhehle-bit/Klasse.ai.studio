@@ -159,6 +159,11 @@ export function CockpitWidgetDock({
           {settings.enabled && favorites.map(item => {
             const isActive = activeTypes.includes(item.id);
             const isMinimized = minimizedTypes.includes(item.id);
+            const actionLabel = isMinimized
+              ? item.label + ' wieder einblenden'
+              : isActive
+                ? item.label + ' einklappen'
+                : item.label + ' öffnen';
             return (
             <button type="button" key={item.id} disabled={!hasClass}
               data-dock-favorite-id={item.id}
@@ -174,8 +179,8 @@ export function CockpitWidgetDock({
               onPointerMove={moveDraggedFavorite}
               onPointerUp={finishFavoriteDrag}
               onPointerCancel={finishFavoriteDrag}
-              title={editing ? item.label + ' · ziehen zum Verschieben' : item.label}
-              aria-label={editing ? item.label + ' in der Favoritenleiste verschieben' : item.label + ' auf der Tafel öffnen'}
+              title={editing ? item.label + ' · ziehen zum Verschieben' : actionLabel}
+              aria-label={editing ? item.label + ' in der Favoritenleiste verschieben' : actionLabel}
               aria-pressed={isActive && !isMinimized}
               data-minimized={isMinimized ? "true" : "false"}
               className={`klassio-dock-favorite relative flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1 rounded-xl border py-1 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:opacity-40 ${showFavoriteLabels ? 'px-2.5' : 'px-2'} ${editing ? 'touch-none select-none cursor-grab active:cursor-grabbing' : ''} ${draggedFavoriteId === item.id ? 'scale-95 opacity-60 ring-2 ring-accent' : ''} ${
