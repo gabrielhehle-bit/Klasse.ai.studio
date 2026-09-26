@@ -209,7 +209,8 @@ import { getRandomNameWidgetPreferences } from "../lib/randomNameWidgetModel";
 import { getGroupWidgetPreferences, applyGroupWidgetPreference, type GroupWidgetPreferences } from "../lib/groupWidgetPreferences";
 import { getClassroomWeeklyWidgetPreferences } from "../lib/classroomWeeklyWidgetPreferences";
 import { COCKPIT_PAPERS, getCockpitPaperStyle, normalizeCockpitPaperSpacing, type CockpitPaper } from "../lib/cockpitPaper";
-import { COCKPIT_QUICKBAR_ITEMS, normalizeCockpitQuickbarSettings, toggleCockpitQuickbarItem } from "../lib/cockpitQuickbar";
+import { addCockpitQuickbarItem, normalizeCockpitQuickbarSettings, type CockpitQuickbarId } from "../lib/cockpitQuickbar";
+import { COCKPIT_WIDGET_LIBRARY_ITEMS } from "../lib/cockpitWidgetCatalog";
 import { PublicStudentListWidget as StudentListWidgetContent } from "./cockpit/PublicStudentListWidget";
 import { ClassRewardWidget } from "./cockpit/widgets/ClassRewardWidget";
 import {
@@ -8860,272 +8861,7 @@ ${content}
                                     { id: "tools", label: "🛠️ Werkzeuge" },
                                     { id: "mindfulness", label: "🍃 Spiele & Fokus" },
                                   ].map((cat) => {
-                                    const allAvailableWidgets = [
-                                      { type: "timeline", category: "struct" },
-                                      { type: "clock", category: "struct" },
-                                      { type: "timer", category: "struct" },
-                                      { type: "stopwatch", category: "struct" },
-                                      {
-                                        type: "trafficlight",
-                                        category: "struct",
-                                      },
-                                      { type: "todo", category: "struct" },
-                                      { type: "classweeklyplan", category: "struct" },
-                                      { type: "homework", category: "struct" },
-                                      { type: "dienste", category: "struct" },
-                                      { type: "links", category: "struct" },
-                                      { type: "phases", category: "struct" },
-                                      { type: "wordclock", category: "struct" },
-
-                                      {
-                                        type: "randomname",
-                                        category: "interactivity",
-                                      },
-                                      {
-                                        type: "groups",
-                                        category: "interactivity",
-                                      },
-                                      {
-                                        type: "wheel",
-                                        category: "interactivity",
-                                      },
-                                      {
-                                        type: "kidattendance",
-                                        category: "interactivity",
-                                      },
-                                      {
-                                        type: "scoreboard",
-                                        category: "interactivity",
-                                      },
-                                      { type: "starsreview", category: "interactivity" },
-                                      {
-                                        type: "challenge",
-                                        category: "interactivity",
-                                      },
-
-                                      { type: "zahlenraum", category: "mathe" },
-                                      { type: "kopfrechnen", category: "mathe" },
-                                      { type: "fractionvisualizer", category: "mathe" },
-                                      {
-                                        type: "mathbalancer",
-                                        category: "mathe",
-                                      },
-                                      { type: "moneycalc", category: "mathe" },
-                                      {
-                                        type: "mathpyramid",
-                                        category: "mathe",
-                                      },
-                                      {
-                                        type: "clockpuzzle",
-                                        category: "mathe",
-                                      },
-                                      { type: "geometry", category: "mathe" },
-                                      {
-                                        type: "angledetective",
-                                        category: "mathe",
-                                      },
-                                      {
-                                        type: "estimationjar",
-                                        category: "mathe",
-                                      },
-
-                                      {
-                                        type: "vocabulary",
-                                        category: "deutsch",
-                                      },
-                                      {
-                                        type: "wortsatzwerkstatt",
-                                        category: "deutsch",
-                                      },
-                                      {
-                                        type: "wordchain",
-                                        category: "deutsch",
-                                      },
-                                      { type: "wordgrid", category: "deutsch" },
-                                      {
-                                        type: "dictionary",
-                                        category: "deutsch",
-                                      },
-                                      {
-                                        type: "wordscramble",
-                                        category: "deutsch",
-                                      },
-
-                                      {
-                                        type: "secretcode",
-                                        category: "deutsch",
-                                      },
-                                      {
-                                        type: "storyemojis",
-                                        category: "deutsch",
-                                      },
-
-                                      {
-                                        type: "bodyparts",
-                                        category: "sachunterricht",
-                                      },
-                                      {
-                                        type: "compass",
-                                        category: "sachunterricht",
-                                      },
-                                      {
-                                        type: "weekdays",
-                                        category: "sachunterricht",
-                                      },
-                                      {
-                                        type: "trafficquiz",
-                                        category: "sachunterricht",
-                                      },
-                                      {
-                                        type: "watercycle",
-                                        category: "sachunterricht",
-                                      },
-                                      {
-                                        type: "constellation",
-                                        category: "sachunterricht",
-                                      },
-                                      {
-                                        type: "planetarium",
-                                        category: "sachunterricht",
-                                      },
-
-                                      {
-                                        type: "calculator",
-                                        category: "tools",
-                                      },
-                                      {
-                                        type: "instruction",
-                                        category: "tools",
-                                      },
-                                      { type: "noisemeter", category: "tools" },
-                                      { type: "image", category: "tools" },
-                                      { type: "qrcode", category: "tools" },
-                                      { type: "drawing", category: "tools" },
-                                      { type: "sounds", category: "tools" },
-                                      {
-                                        type: "klassenglas",
-                                        category: "tools",
-                                      },
-                                      {
-                                        type: "noisescales",
-                                        category: "tools",
-                                      },
-                                      {
-                                        type: "guitartuner",
-                                        category: "tools",
-                                      },
-
-                                      {
-                                        type: "aiquiz",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "riddle",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "colormixer",
-                                        category: "mindfulness",
-                                      },
-                                      { type: "dice", category: "mindfulness" },
-                                      {
-                                        type: "shadowshapes",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "clocksync",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "soundmemory",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "breathing",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "kidweather",
-                                        category: "mindfulness",
-                                      },
-                                      { type: "pet", category: "mindfulness" },
-                                      {
-                                        type: "weather",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "moodmeter",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "watertracker",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "rhythm",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "dailyquotes",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "toothbrush",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "emotions",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "calmrain",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "animalvoice",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "piano",
-                                        category: "mindfulness",
-                                      },
-                                      { type: "scrambler", category: "deutsch" },
-                                      { type: "fractions", category: "mathe" },
-                                      { type: "sorting", category: "mathe" },
-                                      { type: "piggybank", category: "mathe" },
-                                      { type: "spellingdetective", category: "deutsch" },
-                                      { type: "numberline", category: "mathe" },
-                                      { type: "mathchain", category: "mathe" },
-                                      { type: "thermometer", category: "struct" },
-                                      { type: "compoundsplit", category: "deutsch" },
-                                      { type: "mathduel", category: "mathe" },
-                                      { type: "shapepuzzle", category: "mathe" },
-                                      { type: "secretagent", category: "mindfulness" },
-                                      { type: "fractioncake", category: "mathe" },
-                                      { type: "sentencebuilding", category: "deutsch" },
-                                      { type: "patternmaker", category: "tools" },
-                                      { type: "wordexplorer", category: "deutsch" },
-                                      { type: "weightscale", category: "mathe" },
-                                      { type: "geographyquiz", category: "sachunterricht" },
-                                      { type: "reflexgame", category: "mindfulness" },
-                                      { type: "wastebin", category: "sachunterricht" },
-                                      { type: "tonetrainer", category: "tools" },
-                                      { type: "rhymemachine", category: "deutsch" },
-                                      { type: "alphabetsoup", category: "deutsch" },
-                                      { type: "divrobot", category: "mathe" },
-                                      { type: "classtarget", category: "interactivity" },
-                                      { type: "morsecode", category: "tools" },
-                                      { type: "punctuationzoo", category: "deutsch" },
-                                      { type: "fractiongrid", category: "mathe" },
-                                      { type: "wordbuilder", category: "deutsch" },
-                                      { type: "soundmachine", category: "tools" },
-                                      { type: "multitrainer", category: "mathe" },
-                                      { type: "abcorder", category: "deutsch" },
-                                      { type: "tischcheck", category: "interactivity" },
-                                      { type: "faircall", category: "interactivity" },
-                                      { type: "hangman", category: "deutsch" },
-                                      { type: "anschauung", category: "mathe" },
-                                    ];
+                                    const allAvailableWidgets = COCKPIT_WIDGET_LIBRARY_ITEMS;
 
                                     let count = 0;
                                     if (cat.id === "core") {
@@ -9175,572 +8911,7 @@ ${content}
                                 <main className="klassio-widget-library-content min-h-0 overflow-y-auto overscroll-contain pr-1">
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 pb-1">
                                   {(() => {
-                                    const allAvailableWidgets = [
-                                      {
-                                        type: "timeline",
-                                        label: "🛤 Tages-Zeitstrahl",
-                                        desc: "Interaktiver visueller Ablaufplan",
-                                        category: "struct",
-                                      },
-                                      {
-                                        type: "clock",
-                                        label: "⏱️ Uhrzeit & Datum",
-                                        desc: "Analoge/Digitale Zeitanzeige",
-                                        category: "struct",
-                                      },
-                                      {
-                                        type: "timer",
-                                        label: "⏳ Timer / Sanduhr",
-                                        desc: "Countdown-Timer & Sanduhr",
-                                        category: "struct",
-                                      },
-                                      {
-                                        type: "stopwatch",
-                                        label: "⏱️ Stoppuhr",
-                                        desc: "Rundenzeitzähler",
-                                        category: "struct",
-                                      },
-                                      {
-                                        type: "trafficlight",
-                                        label: "🚦 Status-Ampel",
-                                        desc: "Verhalten und Lernampel",
-                                        category: "struct",
-                                      },
-                                      {
-                                        type: "todo",
-                                        label: "📝 Aufgaben-Checkliste",
-                                        desc: "Schnelle Tafel-To-Do-Listen",
-                                        category: "struct",
-                                      },
-                                      {
-                                        type: "dienste",
-                                        label: "🧹 Klassendienste",
-                                        desc: "Ämter- & Diensteverteilung",
-                                        category: "struct",
-                                      },
-                                      {
-                                        type: "links",
-                                        label: "🔗 Link- & Dateispeicher",
-                                        desc: "Eigene Verknüpfungen ablegen",
-                                        category: "struct",
-                                      },
-                                      {
-                                        type: "phases",
-                                        label: "🧭 Unterrichtsphasen",
-                                        desc: "Erarbeitung, Reflexion, etc.",
-                                        category: "struct",
-                                      },
-                                      {
-                                        type: "wordclock",
-                                        label: "⏰ Deutsche Wort-Uhr",
-                                        desc: "Kindgerechtes Uhrlernen",
-                                        category: "struct",
-                                      },
-
-                                      {
-                                        type: "classweeklyplan",
-                                        label: "📋 Wochenplan der Kinder",
-                                        desc: "Gemeinsamer Plan, persönliche Häkchen und Schwierigkeitseinschätzung",
-                                        category: "struct",
-                                      },
-                                      {
-                                        type: "homework",
-                                        label: "📚 Hausübungen",
-                                        desc: "Alle HÜ nach Ausgabetag, Fach und Abgabetermin",
-                                        category: "struct",
-                                      },
-                                      {
-                                        type: "randomname",
-                                        label: "🎯 Zufallsauswahl",
-                                        desc: "Namen aus Schülerliste ziehen",
-                                        category: "interactivity",
-                                      },
-                                      {
-                                        type: "groups",
-                                        label: "👥 Gruppen-Einteiler",
-                                        desc: "Zufällige Teams auslosen",
-                                        category: "interactivity",
-                                      },
-                                      {
-                                        type: "wheel",
-                                        label: "🎡 Glücksrad",
-                                        desc: "Zufallsauswahl Rad",
-                                        category: "interactivity",
-                                      },
-                                      {
-                                        type: "kidattendance",
-                                        label: "🖐️ Ich bin da!",
-                                        desc: "Kinder bestätigen ihre Anwesenheit selbst",
-                                        category: "interactivity",
-                                      },
-                                      {
-                                        type: "scoreboard",
-                                        label: "🏆 Gruppen-Punkte",
-                                        desc: "Team-Punktetafel",
-                                        category: "interactivity",
-                                      },
-                                      {
-                                        type: "starsreview",
-                                        label: "⭐ Sterne der Woche",
-                                        desc: "Sterne nach Woche, Monat oder eigener Zeit, Top 3, Top 10 und einzelne Fächer",
-                                        category: "interactivity",
-                                      },
-                                      {
-                                        type: "challenge",
-                                        label: "🎯 Klassen-Challenge",
-                                        desc: "Herausforderungen für die Klasse",
-                                        category: "interactivity",
-                                      },
-                                      {
-                                        type: "secretagent",
-                                        label: "🕵️‍♂️ Klassen-Kryptograph",
-                                        desc: "Caesar-Chiffre & Safe-Knacker Rätsel",
-                                        category: "interactivity",
-                                      },
-                                      {
-                                        type: "weightscale",
-                                        label: "⚖️ Waagen-Schätzer",
-                                        desc: "Gewichte vergleichen & ausbalancieren",
-                                        category: "interactivity",
-                                      },
-                                      {
-                                        type: "reflexgame",
-                                        label: "⚡ Blitz-Reaktions-Trainer",
-                                        desc: "Reaktionsgeschwindigkeit-Duell für Kinder",
-                                        category: "interactivity",
-                                      },
-
-                                      {
-                                        type: "zahlenraum",
-                                        label: "🔢 Zahlenraum-Studio",
-                                        desc: "Mengenbilder, Hunderterfeld & Zahlenstrahl (ZR 10 bis 1000)",
-                                        category: "mathe",
-                                      },
-                                      {
-                                        type: "kopfrechnen",
-                                        label: "🧠 Kopfrechentrainer",
-                                        desc: "Blitzrechnen, Einmaleins/Einsineins & Rechenketten",
-                                        category: "mathe",
-                                      },
-                                      {
-                                        type: "fractionvisualizer",
-                                        label: "◐ Bruch-Visualisierer",
-                                        desc: "Brüche im Kreis & Streifen darstellen und vergleichen",
-                                        category: "mathe",
-                                      },
-                                      {
-                                        type: "mathbalancer",
-                                        label: "⚖️ Gewichte-Waage",
-                                        desc: "Gleiche die Balkenwaage aus",
-                                        category: "mathe",
-                                      },
-                                      {
-                                        type: "moneycalc",
-                                        label: "💶 Taschengeld-Zähler",
-                                        desc: "Geldbeträge zusammenzählen",
-                                        category: "mathe",
-                                      },
-                                      {
-                                        type: "mathpyramid",
-                                        label: "📐 Mathe-Pyramide",
-                                        desc: "Löse die Zahlenpyramide durch Addition",
-                                        category: "mathe",
-                                      },
-                                      {
-                                        type: "clockpuzzle",
-                                        label: "⏰ Uhren-Lern-Trainer",
-                                        desc: "Lerne analoge Uhrzeiten einzustellen",
-                                        category: "mathe",
-                                      },
-                                      {
-                                        type: "geometry",
-                                        label: "📐 Geometrie-Muster",
-                                        desc: "Bunte geometrische Collagen",
-                                        category: "mathe",
-                                      },
-                                      {
-                                        type: "angledetective",
-                                        label: "📐 Winkel-Detektiv",
-                                        desc: "Schätze Winkel im rotierenden Scheinwerferstrahl",
-                                        category: "mathe",
-                                      },
-                                      {
-                                        type: "estimationjar",
-                                        label: "🫙 Schätz-Glas",
-                                        desc: "Mengen und Murmel-Anzahlen schätzen",
-                                        category: "mathe",
-                                      },
-
-                                      {
-                                        type: "vocabulary",
-                                        label: "🔤 Lernwörter-Studio",
-                                        desc: "Lernkartei, Stolperstellen & ABC-Ordnung",
-                                        category: "deutsch",
-                                      },
-                                      {
-                                        type: "wortsatzwerkstatt",
-                                        label: "✍️ Wort- & Satzwerkstatt",
-                                        desc: "Wörter bauen, zerlegen & Sätze ordnen",
-                                        category: "deutsch",
-                                      },
-                                      {
-                                        type: "wordchain",
-                                        label: "🔗 Wortketten-Spiel",
-                                        desc: "Kettenwörter-Generator",
-                                        category: "deutsch",
-                                      },
-                                      {
-                                        type: "wordgrid",
-                                        label: "🔍 Buchstaben-Suchgitter",
-                                        desc: "Wortsuchspiel auf Deutsch",
-                                        category: "deutsch",
-                                      },
-                                      {
-                                        type: "dictionary",
-                                        label: "📚 Emoji-Wörterbuch",
-                                        desc: "Flips-Vokabelkarten DE & EN",
-                                        category: "deutsch",
-                                      },
-                                      {
-                                        type: "wordscramble",
-                                        label: "🍲 Wort-Salat (Anagramm)",
-                                        desc: "Anagramme entschlüsseln",
-                                        category: "deutsch",
-                                      },
-
-                                      {
-                                        type: "secretcode",
-                                        label: "🕵️ Geheimsprachen-Box",
-                                        desc: "Verschlüssle Botschaften",
-                                        category: "deutsch",
-                                      },
-                                      {
-                                        type: "storyemojis",
-                                        label: "🎭 Story-Emojis",
-                                        desc: "Bildimpulse für Geschichten & Erzählungen",
-                                        category: "deutsch",
-                                      },
-
-                                      {
-                                        type: "wordexplorer",
-                                        label: "🔍 Wort-Analysator",
-                                        desc: "Silben, Vokale & Wortart bestimmen",
-                                        category: "deutsch",
-                                      },
-                                      {
-                                        type: "patternmaker",
-                                        label: "🎨 Sequenz-Muster-Macher",
-                                        desc: "Logische Muster fortführen",
-                                        category: "deutsch",
-                                      },
-                                      {
-                                        type: "rhymemachine",
-                                        label: "🎰 Reim-Maschine",
-                                        desc: "Finde das passende Reimwort",
-                                        category: "deutsch",
-                                      },
-                                      {
-                                        type: "alphabetsoup",
-                                        label: "🥣 Buchstaben-Suppe",
-                                        desc: "Wörter buchstabieren",
-                                        category: "deutsch",
-                                      },
-                                      {
-                                        type: "morsecode",
-                                        label: "🔦 Morse-Code-Station",
-                                        desc: "Sende Lichtsignale",
-                                        category: "deutsch",
-                                      },
-                                      {
-                                        type: "punctuationzoo",
-                                        label: "🐒 Satzzeichen-Zoo",
-                                        desc: "Finde die fehlenden Satzzeichen",
-                                        category: "deutsch",
-                                      },
-
-                                      {
-                                        type: "bodyparts",
-                                        label: "🦴 Körper-Entdecker",
-                                        desc: "Kindgerechte Anatomie-Fakten",
-                                        category: "sachunterricht",
-                                      },
-                                      {
-                                        type: "compass",
-                                        label: "🧭 Geographie-Kompass",
-                                        desc: "Orientierung & Himmelsrichtungen lernen",
-                                        category: "sachunterricht",
-                                      },
-                                      {
-                                        type: "weekdays",
-                                        label: "📅 Wochentage-Trainer",
-                                        desc: "Wochentage und Monate lernen",
-                                        category: "sachunterricht",
-                                      },
-                                      {
-                                        type: "trafficquiz",
-                                        label: "🚴 Fahrrad-Führerschein",
-                                        desc: "Lerne wichtige Verkehrszeichen",
-                                        category: "sachunterricht",
-                                      },
-                                      {
-                                        type: "watercycle",
-                                        label: "💧 Wasserkreislauf-Puzzle",
-                                        desc: "Stationen des Wasserkreislaufs",
-                                        category: "sachunterricht",
-                                      },
-                                      {
-                                        type: "constellation",
-                                        label: "✨ Sternbilder-Zeichner",
-                                        desc: "Verbinde Sterne zu echten Himmels-Sternbildern",
-                                        category: "sachunterricht",
-                                      },
-                                      {
-                                        type: "planetarium",
-                                        label: "🌍 Planetensystem",
-                                        desc: "Planeten unseres Sonnensystems entdecken",
-                                        category: "sachunterricht",
-                                      },
-                                      {
-                                        type: "geographyquiz",
-                                        label: "🗺️ Bundesländer-Forscher",
-                                        desc: "Bundesländer & Hauptstädte raten",
-                                        category: "sachunterricht",
-                                      },
-
-                                      {
-                                        type: "instruction",
-                                        label: "📝 Arbeitsanweisung",
-                                        desc: "Großes Textfeld für Aufgaben",
-                                        category: "tools",
-                                      },
-                                      {
-                                        type: "tischcheck",
-                                        label: "🎒 Tisch-Check",
-                                        desc: "Visualisiere benötigte Materialien am Platz",
-                                        category: "tools",
-                                      },
-                                      {
-                                        type: "faircall",
-                                        label: "🙋‍♀️ Fair-Call",
-                                        desc: "Gerechter Zufallsaufrufer mit Aufrufhistorie",
-                                        category: "tools",
-                                      },
-                                      {
-                                        type: "hangman",
-                                        label: "🌸 Blumen-Rätsel",
-                                        desc: "Sätze oder Wörter schrittweise erraten",
-                                        category: "play",
-                                      },
-                                      {
-                                        type: "calculator",
-                                        label: "🧮 Grundschulrechner",
-                                        desc: "Klarer Smartboard-Rechner für Grundrechenarten",
-                                        category: "tools",
-                                      },
-                                      {
-                                        type: "noisemeter",
-                                        label: "🔊 Lärmampel / Messer",
-                                        desc: "Lautstärkekontrolle visualisiert",
-                                        category: "tools",
-                                      },
-                                      {
-                                        type: "image",
-                                        label: "🖼️ Tafelbild-Projektor",
-                                        desc: "Eigene Tafelfiles hochladen",
-                                        category: "tools",
-                                      },
-                                      {
-                                        type: "qrcode",
-                                        label: "🔗 QR-Code-Generator",
-                                        desc: "Links für Schüler bereitstellen",
-                                        category: "tools",
-                                      },
-                                      {
-                                        type: "drawing",
-                                        label: "🖍️ Zeichenfeld",
-                                        desc: "Skizzen & Handschrift auf Tafel",
-                                        category: "tools",
-                                      },
-                                      {
-                                        type: "sounds",
-                                        label: "🎵 Musik & Klänge",
-                                        desc: "Signale, Klavier, Rhythmus, Tontraining & Naturklänge",
-                                        category: "tools",
-                                      },
-                                      {
-                                        type: "klassenglas",
-                                        label: "💎 Klassenziel & Belohnungsglas",
-                                        desc: "Gemeinsames Klassenziel (Glas, Thermometer, Barometer)",
-                                        category: "tools",
-                                      },
-                                      {
-                                        type: "noisescales",
-                                        label: "🤫 Lautstärke-Modelle",
-                                        desc: "Lautstärke-Pegel als Orientierung",
-                                        category: "tools",
-                                      },
-                                      {
-                                        type: "guitartuner",
-                                        label: "🎸 Gitarren-Stimmgerät",
-                                        desc: "Saiten stimmen mit Referenztönen",
-                                        category: "tools",
-                                      },
-
-                                      {
-                                        type: "aiquiz",
-                                        label: "🤖 KI Lern-Quiz",
-                                        desc: "Lernfragen beantworten",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "riddle",
-                                        label: "🧩 Scherz- & Logikrätsel",
-                                        desc: "Tägliche Knobelfragen für Kinder",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "colormixer",
-                                        label: "🎨 Kunst Farbmischung",
-                                        desc: "Farbzusammenstellungen spielerisch",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "dice",
-                                        label: "🎲 Tafel-Würfel",
-                                        desc: "Zweifarbwürfel werfen",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "shadowshapes",
-                                        label: "🦋 Symmetrie-Spiel",
-                                        desc: "Schattenmotive spiegeln",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "clocksync",
-                                        label: "⏰ Uhrzeit-Macher",
-                                        desc: "Stelle analoge Zeiger passend zur digitalen Uhr",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "soundmemory",
-                                        label: "🎵 Klang-Memory",
-                                        desc: "Finde gleiche Töne über Gehör",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "breathing",
-                                        label: "🍃 Atempause",
-                                        desc: "Ruhige angeleitete Atemübung",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "kidweather",
-                                        label: "🕶️ Wetterfrosch Station",
-                                        desc: "Wie zieht man sich passend an?",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "pet",
-                                        label: "🦦 Klassenmaskottchen",
-                                        desc: "Olivia, Bruno, Mimi oder Hauself Elio · ruhig & ohne Floating",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "weather",
-                                        label: "☁️ Aktueller Wetterbericht",
-                                        desc: "Wetterdaten abrufen",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "moodmeter",
-                                        label: "🙂 Stimmungsmesser",
-                                        desc: "Befinden der Schüler erfassen",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "watertracker",
-                                        label: "💧 Wasserbedarf-Tracker",
-                                        desc: "Tagesbedarfskontrolle",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "rhythm",
-                                        label: "🥁 Rhythmus-Klopfer",
-                                        desc: "Beats & Takte interaktiv üben",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "dailyquotes",
-                                        label: "💡 Morgen-Mottos",
-                                        desc: "Positive Affirmationen am Morgen",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "toothbrush",
-                                        label: "🪥 Zahnputz-Station",
-                                        desc: "Schritt-für-Schritt Putzanleitung",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "emotions",
-                                        label: "🎭 Gefühls-Barometer",
-                                        desc: "Auseinandersetzung mit Gefühlen",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "animalvoice",
-                                        label: "🤖 Roboter-Sounds",
-                                        desc: "Welcher Roboter macht dieses Geräusch?",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "piano",
-                                        label: "🎹 Klassen-Klavier",
-                                        desc: "Spielbare Tonleiter & Musik",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "calmrain",
-                                        label: "🌧️ Fokus-Klänge",
-                                        desc: "Beruhigende Natur- und Fokusgeräusche für Stillarbeit",
-                                        category: "mindfulness",
-                                      },
-
-                                      {
-                                        type: "wastebin",
-                                        label: "♻️ Müll-Trenner",
-                                        desc: "Ordne Abfallprodukte richtig ein",
-                                        category: "mindfulness",
-                                      },
-                                      {
-                                        type: "tonetrainer",
-                                        label: "🎵 Tonleiter-Entdecker",
-                                        desc: "Spiele Töne und lerne Melodien nach Gehör",
-                                        category: "mindfulness",
-                                      },
-                                      { type: "scrambler", label: "✍️ Wort- & Satzwerkstatt", desc: "Wörter und Sätze spielerisch ordnen und untersuchen", category: "deutsch" },
-                                      { type: "fractions", label: "◐ Bruch-Visualisierer", desc: "Brüche anschaulich darstellen", category: "mathe" },
-                                      { type: "sorting", label: "🔢 Zahlensortierer", desc: "Zahlen vergleichen und sortieren", category: "mathe" },
-                                      { type: "piggybank", label: "🐷 Klassen-Sparschwein", desc: "Geldbeträge spielerisch darstellen", category: "mathe" },
-                                      { type: "spellingdetective", label: "🔤 Rechtschreib-Detektiv", desc: "Wörter untersuchen und Rechtschreibung trainieren", category: "deutsch" },
-                                      { type: "numberline", label: "🔢 Zahlenstrahl", desc: "Zahlen auf dem Zahlenstrahl verorten", category: "mathe" },
-                                      { type: "mathchain", label: "🧠 Rechenkette", desc: "Rechenketten gemeinsam bearbeiten", category: "mathe" },
-                                      { type: "thermometer", label: "🌡️ Ziel-Thermometer", desc: "Fortschritt und Ziele sichtbar machen", category: "struct" },
-                                      { type: "compoundsplit", label: "✍️ Zusammengesetzte Wörter", desc: "Wortbausteine erkennen und zusammensetzen", category: "deutsch" },
-                                      { type: "mathduel", label: "⚔️ Mathe-Duell", desc: "Kurze Rechenduelle für die Klasse", category: "mathe" },
-                                      { type: "shapepuzzle", label: "📐 Formen-Entdecker", desc: "Geometrische Formen entdecken und zuordnen", category: "mathe" },
-                                      { type: "fractioncake", label: "🍰 Bruch-Kuchen", desc: "Bruchteile mit anschaulichen Flächen darstellen", category: "mathe" },
-                                      { type: "sentencebuilding", label: "✍️ Satzbau", desc: "Sätze aufbauen und Satzteile ordnen", category: "deutsch" },
-                                      { type: "divrobot", label: "🤖 Teilbarkeits-Roboter", desc: "Teilbarkeit spielerisch untersuchen", category: "mathe" },
-                                      { type: "classtarget", label: "🎯 Klassen-Ziel", desc: "Gemeinsame Ziele sichtbar verfolgen", category: "interactivity" },
-                                      { type: "fractiongrid", label: "◐ Bruch-Raster", desc: "Brüche im Raster visualisieren", category: "mathe" },
-                                      { type: "wordbuilder", label: "🔤 Wort-Baukasten", desc: "Wörter aus Bausteinen zusammensetzen", category: "deutsch" },
-                                      { type: "soundmachine", label: "🎵 Klang-Maschine", desc: "Klänge und Signale im Unterricht einsetzen", category: "tools" },
-                                      { type: "multitrainer", label: "🧠 Multi-Trainer", desc: "Verschiedene Rechenarten trainieren", category: "mathe" },
-                                      { type: "abcorder", label: "🔤 ABC-Sortierer", desc: "Wörter alphabetisch ordnen", category: "deutsch" },
-                                      { type: "anschauung", label: "🔢 Zahlenraum-Studio", desc: "Zahlenräume anschaulich darstellen", category: "mathe" },
-                                    ];
+                                    const allAvailableWidgets = COCKPIT_WIDGET_LIBRARY_ITEMS;
 
                                     const resolvedActiveFach =
                                       getActiveSubject();
@@ -9824,6 +8995,7 @@ ${content}
                                               : "Unterrichts-Widget");
                                             const expanded = expandedCoreWidget === group.id;
                                             const isFav = (favoritesBySubject[getResolvedFavFolder()] || []).includes(primaryType);
+                                            const isPinned = quickBarSettings.itemIds.includes(primaryType as CockpitQuickbarId);
                                             const primaryWidget = cockpitWidgets.find(widget => widget.type === primaryType);
                                             const isActive = Boolean(primaryWidget?.visible);
                                             const isMinimized = Boolean(primaryWidget && minimizedWidgetIds.includes(primaryWidget.id));
@@ -9855,6 +9027,19 @@ ${content}
                                                       isFav ? "border-amber-200 bg-amber-50 text-amber-500" : "border-slate-200 bg-white text-slate-400 hover:text-amber-500"
                                                     }`}>
                                                     <Star size={17} fill={isFav ? "currentColor" : "none"} aria-hidden="true" />
+                                                  </button>
+                                                  <button type="button"
+                                                    disabled={isPinned || !app.activeClassId}
+                                                    onClick={() => updateQuickBarSettings(settings =>
+                                                      addCockpitQuickbarItem(settings, primaryType as CockpitQuickbarId))}
+                                                    aria-label={isPinned ? `${group.label} ist bereits in der Widget-Leiste` : `${group.label} zur Widget-Leiste hinzufügen`}
+                                                    title={isPinned ? "Bereits in der Widget-Leiste" : "An die untere Widget-Leiste heften"}
+                                                    className={`flex min-h-11 min-w-11 items-center justify-center rounded-xl border transition-colors disabled:cursor-default ${
+                                                      isPinned
+                                                        ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+                                                        : "border-slate-200 bg-white text-slate-500 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                                                    }`}>
+                                                    {isPinned ? <Check size={17} aria-hidden="true" /> : <Plus size={17} aria-hidden="true" />}
                                                   </button>
                                                   {variants.length > 1 && (
                                                     <button type="button"
@@ -10017,6 +9202,7 @@ ${content}
                                           const isActive = Boolean(widgetObj?.visible);
                                           const isMinimized = Boolean(widgetObj && minimizedWidgetIds.includes(widgetObj.id));
                                           const isFav = (favoritesBySubject[getResolvedFavFolder()] || []).includes(item.type);
+                                          const isPinned = quickBarSettings.itemIds.includes(item.type as CockpitQuickbarId);
                                           const parts = String(item.label || "").trim().split(/\s+/);
                                           const icon = parts.length > 1 ? parts[0] : "🧩";
                                           const name = parts.length > 1 ? parts.slice(1).join(" ") : item.label;
@@ -10050,6 +9236,19 @@ ${content}
                                                       : "border-slate-200 bg-white text-slate-400 hover:border-amber-200 hover:text-amber-500"
                                                   }`}>
                                                   <Star size={17} fill={isFav ? "currentColor" : "none"} aria-hidden="true" />
+                                                </button>
+                                                <button type="button"
+                                                  disabled={isPinned || !app.activeClassId}
+                                                  onClick={() => updateQuickBarSettings(settings =>
+                                                    addCockpitQuickbarItem(settings, item.type as CockpitQuickbarId))}
+                                                  aria-label={isPinned ? `${name} ist bereits in der Widget-Leiste` : `${name} zur Widget-Leiste hinzufügen`}
+                                                  title={isPinned ? "Bereits in der Widget-Leiste" : "An die untere Widget-Leiste heften"}
+                                                  className={`flex min-h-11 min-w-11 items-center justify-center rounded-xl border transition-colors disabled:cursor-default ${
+                                                    isPinned
+                                                      ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+                                                      : "border-slate-200 bg-white text-slate-500 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                                                  }`}>
+                                                  {isPinned ? <Check size={17} aria-hidden="true" /> : <Plus size={17} aria-hidden="true" />}
                                                 </button>
                                                 <button type="button"
                                                   onClick={() => {
@@ -10150,26 +9349,24 @@ ${content}
                                 >▤ Widget-Leiste {isQuickBarSettingsOpen ? '▴' : '▾'}</button>
                                 {isQuickBarSettingsOpen && (
                                   <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800"
-                                    aria-label="Zusätzliche Widget-Leiste konfigurieren">
-                                    <label className="flex min-h-11 items-center gap-2 font-semibold">
-                                      <input type="checkbox" checked={quickBarSettings.enabled}
-                                        disabled={!app.activeClassId}
-                                        onChange={event => updateQuickBarSettings(settings => ({ ...settings, enabled: event.target.checked }))} />
-                                      Zusätzliche Widget-Leiste anzeigen
-                                    </label>
-                                    <p className="text-slate-600">Wähle deine Schnellzugriffe. Alle anderen Widgets bleiben über „Widget hinzufügen“ verfügbar.</p>
-                                    {COCKPIT_QUICKBAR_ITEMS.map(item => (
-                                      <label key={item.id} className="flex min-h-11 items-center gap-2">
-                                        <input type="checkbox" checked={quickBarSettings.itemIds.includes(item.id)}
+                                    aria-label="Widget-Leiste">
+                                    <div className="flex min-h-11 items-center justify-between gap-3">
+                                      <div>
+                                        <p className="font-bold">Widget-Leiste anzeigen</p>
+                                        <p className="mt-0.5 text-[11px] text-slate-500">{quickBarSettings.itemIds.length} Widgets angeheftet</p>
+                                      </div>
+                                      <label className="relative inline-flex min-h-11 min-w-14 cursor-pointer items-center">
+                                        <input type="checkbox" className="peer sr-only" checked={quickBarSettings.enabled}
                                           disabled={!app.activeClassId}
-                                          onChange={() => updateQuickBarSettings(settings => toggleCockpitQuickbarItem(settings, item.id))} />
-                                        {item.label}
+                                          onChange={event => updateQuickBarSettings(settings => ({ ...settings, enabled: event.target.checked }))} />
+                                        <span className="h-7 w-12 rounded-full bg-slate-300 transition-colors peer-checked:bg-indigo-600" />
+                                        <span className="absolute left-1 h-5 w-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
+                                        <span className="sr-only">Widget-Leiste anzeigen</span>
                                       </label>
-                                    ))}
-                                    <button type="button" onClick={resetQuickBarSettings}
-                                      className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-2 text-xs font-bold hover:bg-slate-100">
-                                      Widget-Leiste zurücksetzen
-                                    </button>
+                                    </div>
+                                    <p className="rounded-lg bg-white p-2 leading-relaxed text-slate-600">
+                                      Favoriten verwaltest du direkt über das ⚙️ in der unteren Leiste. Dort kannst du alle Widgets suchen, hinzufügen, sortieren und sicher entfernen.
+                                    </p>
                                   </div>
                                 )}
                                 <div className="px-2 py-1 text-[8.5px] font-black uppercase tracking-wider text-slate-400">
