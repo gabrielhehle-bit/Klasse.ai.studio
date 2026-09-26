@@ -30,7 +30,12 @@ const clamp = (value: number, min: number, max: number) =>
 function balancedRowCounts(count: number, rows: number): number[] {
   const base = Math.floor(count / rows);
   const extra = count % rows;
-  return Array.from({ length: rows }, (_, index) => base + (index < extra ? 1 : 0));
+  // Larger widgets are ordered first. Put surplus cells in the later rows so a
+  // leading high-demand widget lands in the less crowded row (5 => 2 + 3).
+  return Array.from(
+    { length: rows },
+    (_, index) => base + (extra > 0 && index >= rows - extra ? 1 : 0),
+  );
 }
 
 function allocateSizes(total: number, mins: number[], prefs: number[]): number[] | null {
