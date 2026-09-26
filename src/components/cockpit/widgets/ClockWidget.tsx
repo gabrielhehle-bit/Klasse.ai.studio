@@ -16,12 +16,18 @@ export interface ClockWidgetProps {
   widget?: CockpitWidgetConfig;
   onUpdate?: (updates: Partial<CockpitWidgetConfig>) => void;
   currentIsLight?: boolean;
+  showSettings?: boolean;
+  onOpenSettings?: () => void;
+  onCloseSettings?: () => void;
 }
 
 export const ClockWidget: React.FC<ClockWidgetProps> = ({
   widget,
   onUpdate,
   currentIsLight = true,
+  showSettings: externalShowSettings,
+  onOpenSettings,
+  onCloseSettings,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef);
@@ -38,8 +44,15 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
     };
   }, [widget?.settings]);
 
-  // Local settings drawer toggle
-  const [showSettings, setShowSettings] = useState(false);
+  // The shared widget header owns settings in the classroom. A local fallback
+  // keeps the clock reusable in isolated previews/tests.
+  const [localShowSettings, setLocalShowSettings] = useState(false);
+  const showSettings = externalShowSettings ?? localShowSettings;
+  const setShowSettings = (open: boolean) => {
+    if (externalShowSettings === undefined) setLocalShowSettings(open);
+    else if (open) onOpenSettings?.();
+    else onCloseSettings?.();
+  };
 
   // Drift-free time reference
   const [now, setNow] = useState<Date>(() => new Date());
@@ -149,24 +162,26 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
         currentIsLight ? 'bg-slate-50/70' : 'bg-zinc-950/70'
       }`}
     >
-      {/* Top action header: Settings Button (min 44px touch target) */}
-      <div className={`absolute z-20 ${isCompact ? 'top-1 right-1' : 'top-2 right-2'}`}>
-        <button
-          type="button"
-          onClick={() => setShowSettings(!showSettings)}
-          className={`w-11 h-11 flex items-center justify-center rounded-xl border transition-all cursor-pointer focus:outline-hidden ${
-            showSettings
-              ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-              : currentIsLight
-              ? 'bg-white/80 border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-white'
-              : 'bg-zinc-900/80 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
-          }`}
-          title="Uhr-Einstellungen"
-          aria-label="Uhr-Einstellungen öffnen"
-        >
-          <Settings2 size={18} className="stroke-[2.25]" />
-        </button>
-      </div>
+      {/* Standalone fallback only. In the classroom the common frame gear controls this drawer. */}
+      {externalShowSettings === undefined && (
+        <div className={`absolute z-20 ${isCompact ? 'top-1 right-1' : 'top-2 right-2'}`}>
+          <button
+            type="button"
+            onClick={() => setShowSettings(!showSettings)}
+            className={`w-11 h-11 flex items-center justify-center rounded-xl border transition-all cursor-pointer focus:outline-hidden ${
+              showSettings
+                ? 'bg-accent text-accent-text border-accent shadow-sm'
+                : currentIsLight
+                ? 'bg-white/80 border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-white'
+                : 'bg-zinc-900/80 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+            }`}
+            title="Uhr-Einstellungen"
+            aria-label="Uhr-Einstellungen öffnen"
+          >
+            <Settings2 size={18} className="stroke-[2.25]" />
+          </button>
+        </div>
+      )}
 
       {/* Main Display Area */}
       <div className="flex-1 flex items-center justify-center min-h-0 w-full">
@@ -203,8 +218,8 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
               <div
                 className={`mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
                   currentIsLight
-                    ? 'bg-indigo-50 border-indigo-200/70 text-indigo-700'
-                    : 'bg-indigo-950/40 border-indigo-800/60 text-indigo-300'
+                    ? 'bg-accent-soft border-accent text-accent'
+                    : 'bg-accent-soft border-accent text-accent'
                 }`}
               >
                 <Sparkles size={12} className="stroke-[2.25]" />
@@ -291,8 +306,8 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
                 <div
                   className={`mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
                     currentIsLight
-                      ? 'bg-indigo-50 border-indigo-200/70 text-indigo-700'
-                      : 'bg-indigo-950/40 border-indigo-800/60 text-indigo-300'
+                      ? 'bg-accent-soft border-accent text-accent'
+                      : 'bg-accent-soft border-accent text-accent'
                   }`}
                 >
                   <Sparkles size={11} className="stroke-[2.25]" />
@@ -351,7 +366,7 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
                       onClick={() => updateSettings({ mode: m })}
                       className={`h-11 px-2 rounded-xl text-xs font-bold border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         isActive
-                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                          ? 'bg-accent text-accent-text border-accent shadow-xs'
                           : currentIsLight
                           ? 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
                           : 'bg-zinc-800 hover:bg-zinc-750 border-zinc-700 text-zinc-300'
@@ -375,7 +390,7 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
                 }
                 className={`w-full min-h-[44px] px-3 py-2 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
                   settings.showSeconds
-                    ? 'border-indigo-500/40 bg-indigo-50/50 dark:bg-indigo-950/30'
+                    ? 'border-accent bg-accent-soft'
                     : borderColor
                 }`}
               >
@@ -387,7 +402,7 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
                 </div>
                 <div
                   className={`w-9 h-5 rounded-full transition-colors relative flex items-center p-0.5 ${
-                    settings.showSeconds ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-zinc-700'
+                    settings.showSeconds ? 'bg-accent' : 'bg-slate-300 dark:bg-zinc-700'
                   }`}
                 >
                   <div
@@ -404,7 +419,7 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
                 onClick={() => updateSettings({ showDate: !settings.showDate })}
                 className={`w-full min-h-[44px] px-3 py-2 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
                   settings.showDate
-                    ? 'border-indigo-500/40 bg-indigo-50/50 dark:bg-indigo-950/30'
+                    ? 'border-accent bg-accent-soft'
                     : borderColor
                 }`}
               >
@@ -416,7 +431,7 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
                 </div>
                 <div
                   className={`w-9 h-5 rounded-full transition-colors relative flex items-center p-0.5 ${
-                    settings.showDate ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-zinc-700'
+                    settings.showDate ? 'bg-accent' : 'bg-slate-300 dark:bg-zinc-700'
                   }`}
                 >
                   <div
@@ -437,7 +452,7 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
                 }
                 className={`w-full min-h-[44px] px-3 py-2 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
                   settings.showLearningText
-                    ? 'border-indigo-500/40 bg-indigo-50/50 dark:bg-indigo-950/30'
+                    ? 'border-accent bg-accent-soft'
                     : borderColor
                 }`}
               >
@@ -449,7 +464,7 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
                 </div>
                 <div
                   className={`w-9 h-5 rounded-full transition-colors relative flex items-center p-0.5 ${
-                    settings.showLearningText ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-zinc-700'
+                    settings.showLearningText ? 'bg-accent' : 'bg-slate-300 dark:bg-zinc-700'
                   }`}
                 >
                   <div
@@ -465,7 +480,7 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
           <button
             type="button"
             onClick={() => setShowSettings(false)}
-            className="w-full h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer"
+            className="w-full h-11 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer"
           >
             Fertig
           </button>
