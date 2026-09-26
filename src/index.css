@@ -2447,20 +2447,34 @@ html body [data-style] .klassio-cockpit-shell .klassio-student-sidebar {
   border-color: #e2e8f0 !important;
   color-scheme: light;
 }
-html body [data-style] .klassio-cockpit-shell .klassio-widget-dock button:not(.klassio-dock-add),
-html body [data-style] .klassio-cockpit-shell .klassio-dock-config button,
+html body [data-style] .klassio-cockpit-shell .klassio-widget-dock button:not(.klassio-dock-add):not(.klassio-dock-primary):not(.klassio-dock-accent):not(.klassio-dock-danger),
+html body [data-style] .klassio-cockpit-shell .klassio-dock-config button:not(.klassio-dock-primary):not(.klassio-dock-accent):not(.klassio-dock-danger),
 html body [data-style] .klassio-cockpit-shell .klassio-dock-config label {
   color: #1e293b !important;
   -webkit-text-fill-color: #1e293b !important;
 }
-html body [data-style] .klassio-cockpit-shell .klassio-widget-dock .klassio-dock-add {
-  background-color: #3730a3 !important;
+html body [data-style] .klassio-cockpit-shell .klassio-widget-dock .klassio-dock-add,
+html body [data-style] .klassio-cockpit-shell .klassio-dock-primary {
+  background-color: var(--accent) !important;
+  color: var(--accent-text, var(--btn-text, #ffffff)) !important;
+  -webkit-text-fill-color: var(--accent-text, var(--btn-text, #ffffff)) !important;
+}
+html body [data-style] .klassio-cockpit-shell .klassio-dock-accent {
+  color: var(--accent) !important;
+  -webkit-text-fill-color: var(--accent) !important;
+}
+html body [data-style] .klassio-cockpit-shell .klassio-dock-danger {
+  background-color: var(--danger) !important;
+  border-color: var(--danger) !important;
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
-html body [data-style] .klassio-cockpit-shell .klassio-widget-dock .klassio-dock-favorite[aria-pressed="true"] {
-  background-color: #e0e7ff !important;
-  color: #312e81 !important;
+html body [data-style] .klassio-cockpit-shell .klassio-widget-dock .klassio-dock-favorite[aria-pressed="true"],
+html body [data-style] .klassio-cockpit-shell .klassio-widget-dock button[aria-expanded="true"] {
+  background-color: var(--accent-soft) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+  -webkit-text-fill-color: var(--accent) !important;
 }
 html body [data-style] .klassio-cockpit-shell .klassio-student-sidebar > div[class*="border-b"],
 html body .klassio-cockpit-shell .klassio-student-sidebar > div[class*="border-b"] {
