@@ -3454,6 +3454,34 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     });
   };
 
+  const isCentralInteractionWidgetSettings = (
+    type: string,
+  ): type is "kidattendance" | "groups" | "randomname" =>
+    type === "kidattendance" || type === "groups" || type === "randomname";
+
+  const toggleCentralInteractionWidgetSettings = (type: string) => {
+    if (!isCentralInteractionWidgetSettings(type)) return false;
+
+    const alreadyOpen =
+      isAddWidgetMenuOpen &&
+      isWidgetConfigurationOpen &&
+      selectedWidgetConfiguration === type;
+
+    if (alreadyOpen) {
+      setIsWidgetConfigurationOpen(false);
+      setIsAddWidgetMenuOpen(false);
+      return true;
+    }
+
+    setSelectedWidgetConfiguration(type);
+    setWidgetSearch("");
+    setActiveWidgetCategory("core");
+    setIsMoreOptionsMenuOpen(false);
+    setIsAddWidgetMenuOpen(true);
+    setIsWidgetConfigurationOpen(true);
+    return true;
+  };
+
   const openWidgetLibrary = () => {
     const favoriteCount = (favoritesBySubject[getResolvedFavFolder()] || []).length;
     setWidgetSearch("");
@@ -10599,12 +10627,25 @@ ${content}
                                   handleUpdateWidgetPos(widget.id, updates)
                                 }
                                 showSettingsButton={cockpitWidgetSupportsSettings(String(widget.type))}
-                                settingsOpen={widgetSettingsOpenId === widget.id}
-                                onSettingsToggle={() =>
-                                  setWidgetSettingsOpenId((prev) =>
-                                    prev === widget.id ? null : widget.id,
+                                settingsOpen={
+                                  widgetSettingsOpenId === widget.id ||
+                                  (
+                                    isCentralInteractionWidgetSettings(String(widget.type)) &&
+                                    isAddWidgetMenuOpen &&
+                                    isWidgetConfigurationOpen &&
+                                    selectedWidgetConfiguration === widget.type
                                   )
                                 }
+                                onSettingsToggle={() => {
+                                  if (isCentralInteractionWidgetSettings(String(widget.type))) {
+                                    setWidgetSettingsOpenId(null);
+                                    toggleCentralInteractionWidgetSettings(String(widget.type));
+                                    return;
+                                  }
+                                  setWidgetSettingsOpenId((prev) =>
+                                    prev === widget.id ? null : widget.id,
+                                  );
+                                }}
                                 headerExtra={null}
                                 isFocused={isFocused}
                                 layoutLocked={!isLayoutEditing}

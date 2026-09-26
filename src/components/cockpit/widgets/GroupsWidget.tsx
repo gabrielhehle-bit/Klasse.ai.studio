@@ -438,7 +438,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
           feedbackMessage.type === 'error'
             ? 'bg-rose-500 text-white'
             : feedbackMessage.type === 'info'
-            ? 'bg-indigo-600 text-white'
+            ? 'bg-accent text-accent-text'
             : 'bg-emerald-600 text-white'
         }`}>
           <div className="flex items-center gap-1.5 truncate">
@@ -490,17 +490,17 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
           {!isExpanded && groups.length > 0 && (
             <button type="button" onClick={() => setIsExpanded(true)}
               aria-label="Alle Gruppen anzeigen"
-              className={`min-h-11 px-2 rounded-xl border border-indigo-200 text-xs font-bold text-indigo-700 dark:text-indigo-300`}>
+              className={`min-h-11 px-2 rounded-xl border border-accent text-xs font-bold text-accent dark:text-accent`}>
               {compactGroupWidget ? '⛶ Alle' : `Alle ${groups.length} Gruppen anzeigen`}
             </button>
           )}
           {previousGroups && groups.length > 0 && (size.width >= 550 || isExpanded) && (
             <button type="button" onClick={undoMix}
-              className="min-h-11 rounded-xl border border-indigo-200 px-3 text-xs font-bold text-indigo-700 dark:text-indigo-300"
+              className="min-h-11 rounded-xl border border-accent px-3 text-xs font-bold text-accent dark:text-accent"
               title="Vorherige Gruppeneinteilung wiederherstellen">↶ Rückgängig</button>
           )}
           <button type="button" onClick={() => handleGenerate()}
-            className={`${compactGroupWidget ? 'min-h-11 px-3 py-1 text-xs' : 'min-h-11 px-4 py-2 text-sm'} shrink-0 rounded-xl bg-indigo-600 font-black text-white hover:bg-indigo-700`}>
+            className={`${compactGroupWidget ? 'min-h-11 px-3 py-1 text-xs' : 'min-h-11 px-4 py-2 text-sm'} shrink-0 rounded-xl bg-accent font-black text-accent-text hover:bg-accent-hover`}>
             {groups.length === 0 ? 'Gruppen bilden' : 'Neu mischen'}
           </button>
         </div>
@@ -515,7 +515,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
         }`}>
           <div>
             <div className="flex items-center justify-between border-b pb-2 border-stone-200 dark:border-stone-800 mb-3">
-              <span className="text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+              <span className="text-xs font-black uppercase tracking-wider text-accent dark:text-accent">
                 Gruppen-Optionen
               </span>
               <button
@@ -759,7 +759,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                     }}
                     className={`min-h-11 p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
                       namingStyle === s.id
-                        ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-900 dark:text-indigo-200'
+                        ? 'border-accent bg-accent-soft dark:bg-accent-soft text-accent dark:text-accent'
                         : currentIsLight
                         ? 'border-stone-200 bg-white hover:bg-stone-100 text-stone-800'
                         : 'border-stone-800 bg-stone-850 hover:bg-stone-800 text-stone-200'
@@ -775,7 +775,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
 
           <button
             onClick={onClosePickerSettings}
-            className="w-full min-h-11 py-2.5 mt-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer transition-all shadow-sm"
+            className="w-full min-h-11 py-2.5 mt-3 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-xs font-bold cursor-pointer transition-all shadow-sm"
           >
             Fertig
           </button>
@@ -789,21 +789,21 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
       <div ref={groupBodyRef} className={`flex min-h-0 flex-1 flex-col gap-2 p-2 sm:p-3 ${isExpanded ? 'overflow-auto' : 'overflow-hidden'}`}>
         {groups.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-4">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-2 shadow-inner">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-accent-soft dark:bg-accent-soft text-accent dark:text-accent flex items-center justify-center mb-2 shadow-inner">
               <Users size={size.isCompact ? 24 : 32} />
             </div>
             <h4 className="text-sm sm:text-base font-extrabold mb-1">Bereit für die Einteilung</h4>
             <p className="text-xs text-stone-500 max-w-xs mb-3">
               {activeStudentIds.length} Kinder {studentScope === 'all' ? 'aus der Klasse' : 'anwesend'}. Tippe oben auf „Gruppen bilden“. Die gewünschte Gruppengröße stellst du im Zahnrad der Widget-Auswahl ein.
             </p>
-            <p className="text-xs font-semibold text-indigo-700">Mit „Gruppen bilden“ oben starten.</p>
+            <p className="text-xs font-semibold text-accent">Mit „Gruppen bilden“ oben starten.</p>
           </div>
         ) : !groupLayout.fits && !isExpanded ? (
-          <div role="status" className="flex h-full min-h-0 flex-col items-center justify-center gap-3 rounded-xl bg-indigo-50 p-3 text-center text-slate-900">
+          <div role="status" className="flex h-full min-h-0 flex-col items-center justify-center gap-3 rounded-xl bg-accent-soft p-3 text-center text-slate-900">
             <p className="text-sm font-bold">{groups.length} Gruppen mit {groups.reduce((sum, group) => sum + group.studentIds.length, 0)} Kindern sind eingeteilt.</p>
             <p className="text-xs">Damit alle Namen und Schaltflächen lesbar bleiben, braucht die Gruppendarstellung mehr Platz.</p>
             <button type="button" onClick={() => setIsExpanded(true)}
-              className="min-h-11 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white">
+              className="min-h-11 rounded-xl bg-accent px-4 py-2 text-sm font-bold text-accent-text hover:bg-accent-hover">
               Gruppen groß anzeigen
             </button>
             <p className="text-xs">Bei sehr kleinen Bildschirmen bitte Querformat oder einen größeren Bildschirm verwenden.</p>

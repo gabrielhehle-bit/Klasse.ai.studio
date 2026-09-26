@@ -491,7 +491,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
         }`}
       >
         <header className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 pb-2 dark:border-zinc-700">
-          <h3 className="min-w-0 text-sm font-black leading-tight">🖐️ Ich bin da!</h3>
+          <span className="min-w-0 text-xs font-semibold opacity-70">Anwesenheit</span>
           <span className="shrink-0 text-xs font-semibold tabular-nums opacity-70">{formattedToday}</span>
         </header>
 
@@ -516,7 +516,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
         </div>
         <div className="flex w-full shrink-0 flex-col gap-1.5">
           <button type="button" onClick={() => setIsTeacherModalOpen(true)}
-            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-2 py-2 text-xs font-black text-white"
+            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-accent px-2 py-2 text-xs font-black text-accent-text hover:bg-accent-hover"
             aria-label="Anwesenheit bearbeiten: Da, Fehlt oder Entschuldigt">
             <ShieldCheck size={16} aria-hidden="true" /> Da · Fehlt · Entschuldigt
           </button>
@@ -550,8 +550,6 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
         <div className="min-w-0 flex-1">
           {!compactControls && (
             <div className="flex items-center gap-1.5 min-w-0">
-              <span className="text-xl leading-none" aria-hidden="true">🖐️</span>
-              <strong className="min-w-0 truncate text-sm font-black">Ich bin da!</strong>
               <span className="text-[11px] font-bold tabular-nums opacity-70">{formattedToday}</span>
             </div>
           )}
@@ -645,7 +643,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
             <p className="text-sm font-bold">{students.length} Kinder benötigen mehr Platz, damit alle Namen und Schaltflächen sichtbar bleiben.</p>
             {pageLayout.canRender ? (
               <button type="button" onClick={expandStudentGrid}
-                className="min-h-11 rounded-xl bg-indigo-600 px-5 text-sm font-bold text-white">
+                className="min-h-11 rounded-xl bg-accent px-5 text-sm font-bold text-accent-text hover:bg-accent-hover">
                 Alle {students.length} Kinder groß anzeigen
               </button>
             ) : <p className="text-xs">Für die Namen und Schaltflächen reicht der Platz auf diesem Bildschirm noch nicht. Fenster vergrößern oder Gerät ins Querformat drehen.</p>}
