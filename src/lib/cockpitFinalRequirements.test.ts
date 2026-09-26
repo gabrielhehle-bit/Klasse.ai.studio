@@ -323,6 +323,45 @@ test("Cockpit: Neu-Öffnen und Auto-Anordnen teilen dieselbe gemessene Tafelflä
   );
 });
 
+test("Cockpit: Vorlagen und Schnell-Slots werden über einen gemeinsamen sicheren Restore geladen", () => {
+  assert.match(teachingSurface, /const restoreCockpitLayout = \(layout: unknown\) =>/);
+  assert.match(teachingSurface, /resetCockpitTransientUi\(\)/);
+  assert.match(teachingSurface, /persistLayoutForActiveBoardPage\(cloned, previous\)/);
+  assert.match(teachingSurface, /restoreCockpitLayout\(profile\.layout\)/);
+  assert.match(teachingSurface, /restoreCockpitLayout\(saved\)/);
+  assert.match(teachingSurface, /restoreCockpitLayout\(createEmptyCockpitBoardLayout\(DEFAULT_COCKPIT_LAYOUT\)\)/);
+  assert.match(teachingSurface, /setMinimizedWidgetIds\(\[\]\)/);
+  assert.match(teachingSurface, /setFocusOrder\(\[\]\)/);
+  assert.match(teachingSurface, /setWidgetSettingsOpenId\(null\)/);
+  assert.match(teachingSurface, /\[activeBoardPageId\]: layout/);
+});
+
+test("Cockpit: gespeicherte Geometrie wird beim Laden nicht künstlich verschoben", () => {
+  const sanitizeStart = teachingSurface.indexOf("const loadAndSanitizeLayout");
+  const sanitizeEnd = teachingSurface.indexOf("// F11 ClockWidget Delegation", sanitizeStart);
+  assert.ok(sanitizeStart >= 0 && sanitizeEnd > sanitizeStart);
+  const sanitizer = teachingSurface.slice(sanitizeStart, sanitizeEnd);
+  assert.match(sanitizer, /const sanitized = rawSanitized/);
+  assert.doesNotMatch(sanitizer, /seenPositions/);
+  assert.doesNotMatch(sanitizer, /x \+ 3\.0/);
+  assert.doesNotMatch(sanitizer, /y \+ 2\.5/);
+});
+
+test("Cockpit: Klassenwechsel lädt das Layout der neuen Klasse statt lokalen Altzustand mitzunehmen", () => {
+  assert.match(teachingSurface, /const cockpitLayoutClassRef = useRef\(app\.activeClassId \|\| "unassigned"\)/);
+  assert.match(teachingSurface, /if \(cockpitLayoutClassRef\.current === nextClassKey\) return/);
+  assert.match(teachingSurface, /loadAndSanitizeLayout\(app\.cockpitLayout\)/);
+  assert.match(teachingSurface, /setCockpitWidgets\(nextLayout\)/);
+});
+
+test("Cockpit: Vorlagen erklären klar, dass Tafelinhalt seitenlokal bleibt", () => {
+  assert.match(templatesModal, /Tafeltext, Zeichnungen und Papier bleiben absichtlich seitenlokal/);
+  assert.match(templatesModal, /Widget-Anordnung schnell wechseln · ohne Tafelinhalt/);
+  assert.match(templatesModal, /Aktuelle Widget-Anordnung speichern/);
+  assert.match(templatesModal, /if \(handleLoadLayoutSlot\(slot\)\) onClose\(\)/);
+  assert.doesNotMatch(templatesModal, /mit aktuellem Board-Layout aktualisiert/);
+});
+
 test("Cockpit: automatische Anordnung nutzt die reale freie Tafelfläche", () => {
   assert.match(teachingSurface, /!minimizedWidgetIds\.includes\(w\.id\)/);
   assert.match(teachingSurface, /w\.type !== "pet"/);
