@@ -286,7 +286,9 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       const xNum = Math.max(0, Math.min(widget.x, 100 - wNum));
       const yNum = Math.max(0, Math.min(widget.y, 100 - hNum));
 
+      onFocus();
       onUpdate({ x: xNum, y: yNum, w: wNum, h: hNum });
+      setShowExactSizeInputs(false);
       setShowSizeConfig(false);
     }
   };
@@ -909,7 +911,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
               onPointerDown={(e) => e.stopPropagation()}
               role="menu"
               aria-label="Widget-Aktionen"
-              className={`cockpit-widget-action-menu absolute right-0 top-full z-[80] mt-1 w-56 rounded-2xl border p-1.5 shadow-2xl ${
+              className={`cockpit-widget-action-menu absolute right-0 top-full z-[80] mt-1 w-56 max-w-[calc(100cqw-0.5rem)] rounded-2xl border p-1.5 shadow-2xl ${
                 currentIsLight
                   ? "bg-white border-slate-200 text-slate-800"
                   : "bg-zinc-900 border-white/10 text-zinc-100"
@@ -1008,7 +1010,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
               onSubmit={handleApplySizeConfig}
               onPointerDown={(e) => e.stopPropagation()}
               aria-label="Größe des Widgets anpassen"
-              className={`cockpit-widget-size-popover absolute top-full right-0 mt-1 p-3 rounded-2xl shadow-2xl border w-72 z-[80] flex flex-col gap-3 ${
+              className={`cockpit-widget-size-popover absolute top-full right-0 mt-1 p-3 rounded-2xl shadow-2xl border w-72 max-w-[calc(100cqw-0.5rem)] z-[80] flex flex-col gap-3 ${
                 currentIsLight
                   ? "bg-white border-slate-200"
                   : "bg-zinc-900 border-white/10"
@@ -1032,7 +1034,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
                 </button>
               </div>
 
-              <div className="grid grid-cols-3 gap-1.5" aria-label="Größen-Voreinstellungen">
+              <div className="cockpit-widget-size-presets grid grid-cols-3 gap-1.5" aria-label="Größen-Voreinstellungen">
                 <button type="button" onClick={() => applySizePreset("fit")}
                   className="cockpit-widget-size-preset min-h-12 rounded-xl border border-slate-200 bg-white px-2 text-xs font-bold text-slate-700 hover:border-accent hover:bg-accent-soft">
                   Passend
@@ -1056,7 +1058,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
 
               {showExactSizeInputs && (
                 <>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="cockpit-widget-exact-grid grid grid-cols-2 gap-2">
                     <label className="text-[10px] font-bold text-slate-500">
                       Breite · % der Tafel
                       <input
