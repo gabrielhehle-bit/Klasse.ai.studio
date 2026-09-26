@@ -83,5 +83,6 @@ test('Livepegel-Einstellungen reisen verschlüsselt mit der Klasse, der aktuelle
 });
 
 test('Maskottchen ist ausdrücklich als Widget-Leisten-Ziel vorhanden', () => {
-  assert.match(quickbar, /pet: \{ icon: '🐾', label: 'Maskottchen' \}/);
+  assert.match(quickbar, /splitCockpitWidgetLabel\(item\.label\)/);
+  assert.match(readFileSync('src/lib/cockpitWidgetCatalog.ts', 'utf8'), /type: "pet"[\s\S]{0,140}label: "🐾 Klassenmaskottchen"/);
 });
