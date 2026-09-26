@@ -146,8 +146,8 @@ test("Cockpit: alte Tafel liegt ausschließlich im Archiv", () => {
 
 test("Cockpit: Zeichenfeld und gemeinsame Zeichenebene sind sprachlich getrennt", () => {
   assert.match(widgetCatalog, /label: "🖍️ Zeichenfeld"/);
-  assert.match(cockpitWidget, /drawing: "🖍️ Zeichenfeld"/);
-  assert.doesNotMatch(cockpitWidget, /drawing: "🖍️ Zeichentafel"/);
+  assert.match(cockpitWidget, /getCockpitWidgetDisplayLabel\(widget\.type\)/);
+  assert.doesNotMatch(widgetCatalog, /label: "🖍️ Zeichentafel"/);
 });
 
 test("Cockpit: weiße Unterrichtsfläche hat direkte Schreibebene und eine gemeinsame externe Werkzeugleiste", () => {
