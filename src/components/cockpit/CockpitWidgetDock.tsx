@@ -188,14 +188,14 @@ export function CockpitWidgetDock({
               <span aria-hidden="true" className="text-xl leading-none">{item.icon}</span>
               {showFavoriteLabels && <span className="max-w-24 truncate text-[11px] font-semibold leading-tight">{item.label}</span>}
               {isActive && !isMinimized && <span className="absolute -bottom-0.5 left-1/2 h-1.5 w-5 -translate-x-1/2 rounded-full bg-accent" aria-hidden="true" />}
-              {isMinimized && <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-black text-white" aria-hidden="true">▾</span>}
+              {isMinimized && <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-black text-accent-text" aria-hidden="true">▾</span>}
             </button>
           )})}
         </div>
         <div className="klassio-dock-system flex shrink-0 items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
         <button type="button" disabled={!hasClass} onClick={onAddWidget}
           aria-label="Weitere Widgets hinzufügen" title="Alle Widgets"
-          className="klassio-dock-add klassio-dock-accent flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-accent px-3 text-white shadow-md ring-1 ring-black/10 transition-all hover:-translate-y-0.5 hover:bg-accent-hover hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:translate-y-0 disabled:opacity-40">
+          className="klassio-dock-add klassio-dock-primary flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-accent px-3 text-accent-text shadow-md ring-1 ring-black/10 transition-all hover:-translate-y-0.5 hover:bg-accent-hover hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:translate-y-0 disabled:opacity-40">
           <span className="text-2xl font-semibold leading-none" aria-hidden="true">+</span>
           <span className="hidden text-xs font-black sm:inline">Widgets</span>
         </button>
@@ -324,7 +324,7 @@ export function CockpitWidgetDock({
                       <button type="button"
                         onClick={() => { setConfirmRemoveId(null); onChange(current => addCockpitQuickbarItem(current, item.id)); }}
                         aria-label={item.label + ' zur Widget-Leiste hinzufügen'}
-                        className="klassio-dock-accent min-h-11 shrink-0 rounded-lg bg-accent px-3 text-xs font-black text-accent-text hover:bg-accent-hover">
+                        className="klassio-dock-primary min-h-11 shrink-0 rounded-lg bg-accent px-3 text-xs font-black text-accent-text hover:bg-accent-hover">
                         + Hinzufügen
                       </button>
                     </div>)}
