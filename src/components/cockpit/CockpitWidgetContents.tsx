@@ -8762,10 +8762,10 @@ export const ChallengeWidgetContent: React.FC<{ widget: any, currentIsLight: boo
           : currentIsLight ? 'bg-slate-50 border-slate-100 text-slate-800' : 'bg-zinc-850/30 border-white/5 text-slate-200'
       }`}>
         <span className="text-xl mb-1 animate-pulse">{complete ? "🏆" : "🎯"}</span>
-        <h4 className="text-[9px] font-black uppercase tracking-wider text-accent">
+        <h4 className="text-xs sm:text-sm font-black uppercase tracking-wide text-accent">
           {challenges[idx].title}
         </h4>
-        <p className="text-[7.5px] font-bold mt-1 text-slate-600 dark:text-slate-350 leading-relaxed px-1">
+        <p className="text-[11px] sm:text-xs font-bold mt-1.5 text-slate-600 dark:text-slate-300 leading-relaxed px-1">
           {challenges[idx].desc}
         </p>
       </div>
@@ -12970,7 +12970,7 @@ export const SecretagentWidgetContent: React.FC<{ widget: any, currentIsLight: b
   const [inputText, setInputText] = useState<string>("GEHEIM");
   const [gameUnlocked, setGameUnlocked] = useState<boolean>(false);
   const [safeGuess, setSafeGuess] = useState<number>(1);
-  const [safeTarget, setSafeTarget] = useState<number>(() => Math.floor(Math.random() * 9) + 1);
+  const [safeTarget, setSafeTarget] = useState<number>(() => Math.floor(Math.random() * 10) + 1);
   const [safeMessage, setSafeMessage] = useState<string>("Drehe am Schloss!");
   const [showInstructions, setShowInstructions] = useState<boolean>(false);
 
@@ -13037,7 +13037,7 @@ export const SecretagentWidgetContent: React.FC<{ widget: any, currentIsLight: b
           </button>
           <button
             onClick={() => {
-              setSafeTarget(Math.floor(Math.random() * 9) + 1);
+              setSafeTarget(Math.floor(Math.random() * 10) + 1);
               setGameUnlocked(false);
               setSafeMessage("Drehe am Schloss!");
             }}
@@ -13067,7 +13067,7 @@ export const SecretagentWidgetContent: React.FC<{ widget: any, currentIsLight: b
         {/* Encoder Mode */}
         <div className={`p-2 rounded-xl border ${currentIsLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-800/60 border-zinc-700/60'}`}>
           <div className="flex justify-between items-center mb-1">
-            <span className="text-[8px] font-extrabold uppercase text-accent">Caesar-Verschlüsselung</span>
+            <span className="text-[10px] font-extrabold uppercase text-accent">Caesar-Verschlüsselung</span>
             <span className="text-[8px] font-bold font-mono">Schlüssel: {shift}</span>
           </div>
           <div className="grid grid-cols-2 gap-2 mb-1.5">
@@ -13096,7 +13096,7 @@ export const SecretagentWidgetContent: React.FC<{ widget: any, currentIsLight: b
         {/* Lock Game */}
         <div className={`p-2 rounded-xl border ${gameUnlocked ? 'bg-emerald-500/10 border-emerald-500/20' : currentIsLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-800/60 border-zinc-700/60'}`}>
           <div className="flex justify-between items-center mb-1">
-            <span className="text-[8px] font-extrabold uppercase text-red-400">🕵️ Knobelspiel: Tresor knacken</span>
+            <span className="text-[10px] font-extrabold uppercase text-rose-500">🕵️ Knobelspiel: Tresor knacken</span>
             <span className="text-[7.5px] font-mono opacity-80">Geheimer Zahlencode 1-10</span>
           </div>
           <div className="flex gap-2 items-center justify-between">
@@ -13117,7 +13117,7 @@ export const SecretagentWidgetContent: React.FC<{ widget: any, currentIsLight: b
                 Drehen & Testen
               </button>
             </div>
-            <div className={`text-[8px] font-black ${gameUnlocked ? 'text-emerald-500 animate-bounce' : 'text-slate-500 dark:text-neutral-400'}`}>
+            <div className={`text-[10px] font-black leading-snug ${gameUnlocked ? 'text-emerald-500 animate-bounce' : 'text-slate-500 dark:text-neutral-400'}`}>
               {safeMessage}
             </div>
           </div>
@@ -14023,7 +14023,7 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
 
             {/* Physical weight adding blocks buttons */}
             <div className={`p-1.5 rounded-xl border ${currentIsLight ? 'bg-slate-50 border-slate-100' : 'bg-zinc-850/40 border-white/5'}`}>
-              <div className="flex justify-between items-center text-[7.5px] font-black uppercase text-slate-400 dark:text-zinc-500 mb-1">
+              <div className="flex justify-between items-center text-[10px] font-black uppercase text-slate-500 dark:text-zinc-500 mb-1">
                 <span>Gewichte rechts hinzufügen:</span>
                 <span className="font-mono text-accent font-black">{rightWeight}g</span>
               </div>
@@ -14060,11 +14060,11 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
             Math.abs(diff) === 0 ? (
               <span className="text-[8.5px] font-black text-emerald-500 animate-bounce block">🎉 Perfekt ausbalanciert! Das Gewicht ist genau {leftWeight}g!</span>
             ) : rightWeight > 0 ? (
-              <span className={`text-[7.5px] font-bold block ${diff > 0 ? 'text-blue-500' : 'text-red-500'}`}>
+              <span className={`text-[10px] font-bold block ${diff > 0 ? 'text-blue-500' : 'text-red-500'}`}>
                 {diff > 0 ? "⚠️ Zu leicht! Lege mehr Gewichte auf." : "⚠️ Zu schwer! Nimm Gewicht herunter."}
               </span>
             ) : (
-              <span className="text-[7px] text-slate-400 dark:text-zinc-500 block">Finde das Gewicht von {activeMystery.emoji} heraus!</span>
+              <span className="text-[10px] text-slate-500 dark:text-zinc-500 block">Finde das Gewicht von {activeMystery.emoji} heraus!</span>
             )
           ) : Math.abs(diff) < 10 ? (
             <span className="text-[8px] font-black text-emerald-500 animate-pulse block">🎉 Waage im perfekten Gleichgewicht! (⚖️)</span>
