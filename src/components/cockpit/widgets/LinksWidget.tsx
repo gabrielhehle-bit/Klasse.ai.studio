@@ -236,10 +236,6 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
     : 'bg-zinc-800/80 border-white/10 shadow-xs';
   const textPrimary = currentIsLight ? 'text-slate-900' : 'text-slate-100';
   const textSecondary = currentIsLight ? 'text-slate-500' : 'text-slate-400';
-  const headerBg = currentIsLight
-    ? 'bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-transparent'
-    : 'bg-gradient-to-r from-blue-500/20 via-indigo-500/20 to-transparent';
-
   return (
     <div
       ref={containerRef}
@@ -451,7 +447,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
                       type="button"
                       onClick={() => setQrModalLink(link)}
                       title="QR-Code für Tablets der Klasse groß anzeigen"
-                      className={`flex items-center gap-1 px-2 py-1.5 rounded-xl border text-[11px] font-black transition-all cursor-pointer min-h-[38px] ${
+                      className={`flex items-center gap-1 px-2 py-1.5 rounded-xl border text-[11px] font-black transition-all cursor-pointer min-h-11 ${
                         currentIsLight
                           ? 'bg-slate-100 hover:bg-slate-200 border-slate-300/80 text-slate-700'
                           : 'bg-zinc-700 hover:bg-zinc-600 border-white/10 text-slate-200'
@@ -485,7 +481,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
               id="links-compact-toggle-btn"
               type="button"
               onClick={() => setCompactShowAll(!compactShowAll)}
-              className={`w-full py-1.5 text-center text-xs font-bold rounded-xl border transition-all cursor-pointer min-h-[36px] ${
+              className={`w-full py-1.5 text-center text-xs font-bold rounded-xl border transition-all cursor-pointer min-h-11 ${
                 currentIsLight
                   ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
                   : 'bg-zinc-800 hover:bg-zinc-700 border-white/10 text-slate-300'
@@ -685,7 +681,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
               type="button"
               onClick={() => setQrModalLink(null)}
               aria-label="QR-Code schließen"
-              className="absolute top-3 right-3 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center"
+              className="absolute top-3 right-3 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all cursor-pointer min-w-11 min-h-11 flex items-center justify-center"
             >
               <X className="w-5 h-5" />
             </button>
