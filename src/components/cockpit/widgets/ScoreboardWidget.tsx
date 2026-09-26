@@ -504,14 +504,14 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
                         </div>
                       ) : (
                         <div
-                          onClick={() => handleStartEdit(team)}
-                          title="Klicken zum Umbenennen"
-                          className="flex items-center gap-1 cursor-pointer group"
+                          onClick={() => showSettingsMenu && handleStartEdit(team)}
+                          title={showSettingsMenu ? 'Klicken zum Umbenennen' : undefined}
+                          className={`flex items-center gap-1 group ${showSettingsMenu ? 'cursor-pointer' : 'cursor-default'}`}
                         >
                           <span className="text-xs font-black truncate">{team.name}</span>
                           <Edit2
                             size={10}
-                            className="opacity-0 group-hover:opacity-100 text-slate-400 transition-opacity shrink-0"
+                            className={`${showSettingsMenu ? 'opacity-0 group-hover:opacity-100' : 'hidden'} text-slate-400 transition-opacity shrink-0`}
                           />
                         </div>
                       )}
@@ -612,9 +612,9 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
                       </div>
                     ) : (
                       <div
-                        onClick={() => handleStartEdit(team)}
-                        title="Klicken zum Umbenennen"
-                        className="flex items-center gap-1 cursor-pointer group min-w-0"
+                        onClick={() => showSettingsMenu && handleStartEdit(team)}
+                        title={showSettingsMenu ? 'Klicken zum Umbenennen' : undefined}
+                        className={`flex items-center gap-1 group min-w-0 ${showSettingsMenu ? 'cursor-pointer' : 'cursor-default'}`}
                       >
                         <span
                           className={`font-black uppercase tracking-wider truncate ${
@@ -629,19 +629,19 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
                         </span>
                         <Edit2
                           size={11}
-                          className="opacity-0 group-hover:opacity-100 text-slate-400 transition-opacity shrink-0 ml-1"
+                          className={`${showSettingsMenu ? 'opacity-0 group-hover:opacity-100' : 'hidden'} text-slate-400 transition-opacity shrink-0 ml-1`}
                         />
                       </div>
                     )}
                   </div>
 
                   {/* Team löschen (wenn > 2 Teams) */}
-                  {teams.length > MIN_TEAMS && (
+                  {showSettingsMenu && teams.length > MIN_TEAMS && (
                     <button
                       onClick={() => handleRemoveTeam(team.id)}
                       title="Team entfernen"
                       aria-label={`${team.name} entfernen`}
-                      className="opacity-40 hover:opacity-100 text-slate-400 hover:text-rose-500 transition-colors p-1 rounded-lg"
+                      className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-500/10 hover:text-rose-500 transition-colors"
                     >
                       <Trash2 size={13} />
                     </button>
