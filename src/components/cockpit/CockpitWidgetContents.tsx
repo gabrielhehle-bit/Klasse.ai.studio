@@ -18,7 +18,7 @@ import { useApp } from '../../context/AppContext';
 import { getKW } from '../../lib/utils';
 import { ClassPetCanvas, ClassPetCanvasRef } from '../ClassPetCanvas';
 import { PET_BREEDS } from '../ClassPetWidget';
-import { WheelWidget } from './widgets/WheelWidget';
+import { WheelWidget, WheelWidgetProps } from './widgets/WheelWidget';
 import { GroupsWidget } from './widgets/GroupsWidget';
 import { TodoWidget } from './widgets/TodoWidget';
 import { DiensteWidget, DiensteWidgetProps } from './widgets/DiensteWidget';
@@ -3792,20 +3792,8 @@ export const ScoreboardWidgetContent: React.FC<ScoreboardWidgetProps> = (props) 
 // WIDGET: GLÜCKSRAD (Wheel Of Fortune)
 // ==========================================
 
-export const WheelWidgetContent: React.FC<{
-  widget: any;
-  app?: any;
-  currentIsLight: boolean;
-  onUpdate: (updates: any) => void;
-}> = ({ widget, app, currentIsLight, onUpdate }) => {
-  return (
-    <WheelWidget
-      widget={widget}
-      app={app}
-      currentIsLight={currentIsLight}
-      onUpdate={onUpdate}
-    />
-  );
+export const WheelWidgetContent: React.FC<WheelWidgetProps> = (props) => {
+  return <WheelWidget {...props} />;
 };
 
 // (WheelWidgetContent has been extracted to widgets/WheelWidget.tsx)
