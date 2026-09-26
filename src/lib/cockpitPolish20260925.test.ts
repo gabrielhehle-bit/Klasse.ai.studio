@@ -44,7 +44,13 @@ test('dock floats above the board and favorites are removed only through deliber
   assert.match(css, /\.klassio-cockpit-shell \.klassio-dock-row \{[\s\S]*?margin-top: -60px/);
   assert.doesNotMatch(dock, /onContextMenu=\{event =>/);
   assert.match(dock, /removeCockpitQuickbarItem\(current, id\)/);
-  assert.match(dock, /Nochmal/);
+  assert.match(dock, /Ja, entfernen/);
+  assert.match(dock, /role="tab"/);
+  assert.match(dock, /Widget hinzufügen/);
+  assert.match(dock, /if \(event\.key === 'Escape'\) setEditing\(false\)/);
+  assert.match(dock, /w-max max-w-full/);
+  assert.doesNotMatch(dock, /indigo-/);
+  assert.match(css, /background-color: var\(--accent\) !important/);
   assert.match(dock, /aria-label="Weitere Widgets hinzufügen"/);
 });
 
