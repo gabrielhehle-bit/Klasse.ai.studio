@@ -22,6 +22,8 @@ export interface StopwatchWidgetProps {
   onUpdate?: (updates: Partial<CockpitWidgetConfig>) => void;
   currentIsLight: boolean;
   isFullscreen?: boolean;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
 }
 
 export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
@@ -29,6 +31,8 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
   onUpdate,
   currentIsLight,
   isFullscreen = false,
+  showSettings = false,
+  onCloseSettings,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef, { isFullscreen, defaultCategory: 'standard' });
@@ -59,6 +63,7 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
   const [confirmingReset, setConfirmingReset] = useState(false);
   // Kompakt-Toggle für Rundenliste bei schmalen Höhen / COMPACT
   const [showCompactLaps, setShowCompactLaps] = useState(false);
+  const hasExternalSettingsControl = typeof onCloseSettings === 'function';
 
   // Persistenz-Funktion (NUR bei Benutzeraktionen: Start, Pause, Runde, Reset, Unmount)
   const persistState = useCallback(
@@ -319,10 +324,57 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
       tabIndex={0}
       role="region"
       aria-label="Stoppuhr"
-      className={`relative flex flex-col w-full h-full min-h-0 select-none outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 transition-colors ${isCompact ? 'p-1.5' : 'p-3'} ${
+      className={`relative flex flex-col w-full h-full min-h-0 select-none outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors ${isCompact ? 'p-1.5' : 'p-3'} ${
         currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-slate-100'
       }`}
     >
+      {showSettings && (
+        <div className="absolute inset-2 z-30 flex flex-col rounded-2xl border border-slate-200 bg-white p-4 text-slate-900 shadow-xl dark:border-white/10 dark:bg-zinc-900 dark:text-slate-100">
+          <div className="flex min-h-11 items-center justify-between gap-2 border-b border-slate-200 pb-2 dark:border-white/10">
+            <div>
+              <h3 className="text-sm font-black">Stoppuhr einstellen</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Anzeige und Bedienhinweise</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onCloseSettings?.()}
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-white"
+              aria-label="Stoppuhr-Einstellungen schließen"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="flex-1 space-y-4 overflow-y-auto py-4">
+            <button
+              type="button"
+              onClick={toggleDecimals}
+              aria-pressed={state.showDecimals}
+              className={state.showDecimals
+                ? "flex min-h-11 w-full items-center justify-between rounded-xl border border-accent bg-accent-soft px-3 text-sm font-bold text-accent"
+                : "flex min-h-11 w-full items-center justify-between rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-700 hover:bg-slate-100 dark:border-white/15 dark:bg-zinc-800 dark:text-slate-200 dark:hover:bg-zinc-700"}
+            >
+              <span>Zehntelsekunden anzeigen</span>
+              <span className="font-mono">{state.showDecimals ? '0.1 s ✓' : 'Aus'}</span>
+            </button>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-relaxed text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+              <p className="mb-2 font-black text-slate-800 dark:text-slate-100">Tastaturkürzel</p>
+              <p><strong>Leertaste</strong> · Start / Pause / Weiter</p>
+              <p><strong>L</strong> · Runde speichern</p>
+              <p><strong>R</strong> · Zurücksetzen, wenn die Uhr nicht läuft</p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onCloseSettings?.()}
+            className="min-h-11 rounded-xl bg-accent px-4 text-sm font-black text-accent-text hover:bg-accent-hover"
+          >
+            Fertig
+          </button>
+        </div>
+      )}
       {/* -------------------------------------------------------- */}
       {/* OBERER BEREICH: Zeitanzeige (Groß, zentriert, ruhig) */}
       {/* -------------------------------------------------------- */}
@@ -340,8 +392,8 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
           } ${
             state.status === 'running'
               ? currentIsLight
-                ? 'text-indigo-600'
-                : 'text-indigo-400'
+                ? 'text-accent'
+                : 'text-accent'
               : state.status === 'paused'
                 ? currentIsLight
                   ? 'text-amber-600'
@@ -360,7 +412,7 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
           {state.showDecimals && formatted.decimals && (
             <span
               className={`text-0.6em opacity-75 ml-1 ${
-                currentIsLight ? 'text-indigo-500' : 'text-indigo-300'
+                currentIsLight ? 'text-accent' : 'text-accent'
               }`}
             >
               .{formatted.decimals}
@@ -386,21 +438,19 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
                 : 'Bereit'}
           </span>
 
-          {/* Umschalter für Zehntelsekunden (dezent) */}
-          <button
-            type="button"
-            onClick={toggleDecimals}
-            title={state.showDecimals ? 'Zehntel ausblenden' : 'Zehntelsekunden einblenden'}
-            className={`text-[9px] font-bold px-1.5 py-0.5 rounded border transition-colors cursor-pointer ${
-              state.showDecimals
-                ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-600 dark:text-indigo-400'
-                : currentIsLight
-                  ? 'bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200'
-                  : 'bg-zinc-800 border-zinc-700 text-slate-400 hover:bg-zinc-700'
-            }`}
-          >
-            {state.showDecimals ? '0.1s an' : '0.1s aus'}
-          </button>
+          {/* Fallback außerhalb des gemeinsamen Cockpit-Rahmens */}
+          {!hasExternalSettingsControl && (
+            <button
+              type="button"
+              onClick={toggleDecimals}
+              title={state.showDecimals ? 'Zehntel ausblenden' : 'Zehntelsekunden einblenden'}
+              className={state.showDecimals
+                ? "min-h-11 rounded-xl border border-accent bg-accent-soft px-3 text-xs font-bold text-accent"
+                : "min-h-11 rounded-xl border border-slate-200 bg-slate-100 px-3 text-xs font-bold text-slate-500 hover:bg-slate-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-slate-400 dark:hover:bg-zinc-700"}
+            >
+              {state.showDecimals ? '0.1 s an' : '0.1 s aus'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -580,7 +630,7 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
               <button
                 type="button"
                 onClick={() => setShowCompactLaps(!showCompactLaps)}
-                className="text-indigo-500 hover:underline cursor-pointer lowercase"
+                className="min-h-11 rounded-lg px-2 text-accent hover:bg-accent-soft cursor-pointer lowercase"
               >
                 {showCompactLaps ? 'einklappen' : 'anzeigen'}
               </button>
