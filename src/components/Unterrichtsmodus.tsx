@@ -3842,6 +3842,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
 
   const bringToFront = (id: string) => {
     setFocusOrder((prev) => {
+      if (prev[prev.length - 1] === id) return prev;
       const list = prev.filter((item) => item !== id);
       return [...list, id];
     });
