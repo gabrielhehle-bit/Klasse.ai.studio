@@ -34,7 +34,7 @@ test('Widget 1: safe defaults and unknown stored values survive old layouts', ()
 test('Widget 1: central library gear saves class-local defaults separately from installed instances', () => {
   assert.match(picker, /aria-label="Widget-Voreinstellungen öffnen"/);
   assert.match(picker, /<option value="kidattendance">🖐️ Ich bin da!<\/option>/);
-  assert.match(picker, /group\.label} hinzufügen/);
+  assert.match(picker, /group\\.label} zur Widget-Leiste hinzufügen/);
   assert.match(picker, /cockpitCheckInDefaultsByClass/);
   assert.match(picker, /selectedWidgetConfiguration === "kidattendance"/);
   assert.match(picker, /Auf vorhandenes Widget anwenden/);
