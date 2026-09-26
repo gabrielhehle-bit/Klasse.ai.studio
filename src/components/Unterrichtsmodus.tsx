@@ -9028,39 +9028,42 @@ ${content}
                                                     }`}>
                                                     <Star size={17} fill={isFav ? "currentColor" : "none"} aria-hidden="true" />
                                                   </button>
-                                                  <button type="button"
+                                                  <button type="button" data-widget-card-action="dock"
                                                     disabled={isPinned || !app.activeClassId}
                                                     onClick={() => updateQuickBarSettings(settings =>
                                                       addCockpitQuickbarItem(settings, primaryType as CockpitQuickbarId))}
                                                     aria-label={isPinned ? `${group.label} ist bereits in der Widget-Leiste` : `${group.label} zur Widget-Leiste hinzufügen`}
                                                     title={isPinned ? "Bereits in der Widget-Leiste" : "An die untere Widget-Leiste heften"}
-                                                    className={`flex min-h-11 min-w-11 items-center justify-center rounded-xl border transition-colors disabled:cursor-default ${
+                                                    className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-2.5 text-xs font-black transition-colors disabled:cursor-default ${
                                                       isPinned
-                                                        ? "border-indigo-200 bg-indigo-50 text-indigo-700"
-                                                        : "border-slate-200 bg-white text-slate-500 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                                                        ? "border-accent bg-accent-soft text-accent"
+                                                        : "border-slate-200 bg-white text-slate-600 hover:border-accent hover:bg-accent-soft hover:text-accent"
                                                     }`}>
-                                                    {isPinned ? <Check size={17} aria-hidden="true" /> : <Plus size={17} aria-hidden="true" />}
+                                                    {isPinned ? <Check size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
+                                                    <span>Leiste</span>
                                                   </button>
                                                   {variants.length > 1 && (
-                                                    <button type="button"
+                                                    <button type="button" data-widget-card-action="variants"
                                                       onClick={() => setExpandedCoreWidget(expanded ? null : group.id)}
                                                       aria-label={`Varianten von ${group.label} ${expanded ? "schließen" : "anzeigen"}`}
                                                       aria-expanded={expanded}
-                                                      className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">
+                                                      className="flex min-h-11 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50">
                                                       <span aria-hidden="true">{expanded ? "▴" : "▾"}</span>
+                                                      <span>Varianten</span>
                                                     </button>
                                                   )}
-                                                  <button type="button"
+                                                  <button type="button" data-widget-card-action="primary"
                                                     onClick={() => {
                                                       handleOpenWidgetInCockpitLayout(primaryType as CockpitWidgetConfig["type"]);
                                                       setIsAddWidgetMenuOpen(false);
                                                     }}
-                                                    aria-label={isMinimized ? `${group.label} wiederherstellen` : isActive ? `${group.label} auf der Tafel anzeigen` : `${group.label} hinzufügen`}
-                                                    title={isMinimized ? "Wiederherstellen" : isActive ? "Auf der Tafel anzeigen" : "Zur Tafel hinzufügen"}
-                                                    className={`flex min-h-11 min-w-11 items-center justify-center rounded-xl text-xl font-black text-white transition-colors ${
-                                                      isMinimized ? "bg-indigo-500 hover:bg-indigo-600" : isActive ? "bg-emerald-600 hover:bg-emerald-700" : "bg-indigo-600 hover:bg-indigo-700"
+                                                    aria-label={isMinimized ? `${group.label} wiederherstellen` : isActive ? `${group.label} auf der Tafel anzeigen` : `${group.label} öffnen`}
+                                                    title={isMinimized ? "Wiederherstellen" : isActive ? "Auf der Tafel anzeigen" : "Auf der Tafel öffnen"}
+                                                    className={`klassio-widget-primary flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-black transition-colors ${
+                                                      isActive ? "bg-success text-white hover:bg-success-hover" : "bg-accent text-accent-text hover:bg-accent-hover"
                                                     }`}>
-                                                    {isMinimized ? "↥" : isActive ? "↗" : "＋"}
+                                                    <span aria-hidden="true">{isMinimized ? "↥" : isActive ? "↗" : "＋"}</span>
+                                                    <span>{isMinimized ? "Wiederherstellen" : isActive ? "Anzeigen" : "Öffnen"}</span>
                                                   </button>
                                                 </div>
                                                 {variants.length > 1 && expanded && (
@@ -9237,30 +9240,32 @@ ${content}
                                                   }`}>
                                                   <Star size={17} fill={isFav ? "currentColor" : "none"} aria-hidden="true" />
                                                 </button>
-                                                <button type="button"
+                                                <button type="button" data-widget-card-action="dock"
                                                   disabled={isPinned || !app.activeClassId}
                                                   onClick={() => updateQuickBarSettings(settings =>
                                                     addCockpitQuickbarItem(settings, item.type as CockpitQuickbarId))}
                                                   aria-label={isPinned ? `${name} ist bereits in der Widget-Leiste` : `${name} zur Widget-Leiste hinzufügen`}
                                                   title={isPinned ? "Bereits in der Widget-Leiste" : "An die untere Widget-Leiste heften"}
-                                                  className={`flex min-h-11 min-w-11 items-center justify-center rounded-xl border transition-colors disabled:cursor-default ${
+                                                  className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-2.5 text-xs font-black transition-colors disabled:cursor-default ${
                                                     isPinned
-                                                      ? "border-indigo-200 bg-indigo-50 text-indigo-700"
-                                                      : "border-slate-200 bg-white text-slate-500 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                                                      ? "border-accent bg-accent-soft text-accent"
+                                                      : "border-slate-200 bg-white text-slate-600 hover:border-accent hover:bg-accent-soft hover:text-accent"
                                                   }`}>
-                                                  {isPinned ? <Check size={17} aria-hidden="true" /> : <Plus size={17} aria-hidden="true" />}
+                                                  {isPinned ? <Check size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
+                                                  <span>Leiste</span>
                                                 </button>
-                                                <button type="button"
+                                                <button type="button" data-widget-card-action="primary"
                                                   onClick={() => {
                                                     handleOpenWidgetInCockpitLayout(item.type as CockpitWidgetConfig["type"]);
                                                     setIsAddWidgetMenuOpen(false);
                                                   }}
-                                                  aria-label={isMinimized ? `${name} wiederherstellen` : isActive ? `${name} auf der Tafel anzeigen` : `${name} hinzufügen`}
-                                                  title={isMinimized ? "Wiederherstellen" : isActive ? "Auf der Tafel anzeigen" : "Zur Tafel hinzufügen"}
-                                                  className={`flex min-h-11 min-w-11 items-center justify-center rounded-xl text-xl font-black text-white transition-colors ${
-                                                    isMinimized ? "bg-indigo-500 hover:bg-indigo-600" : isActive ? "bg-emerald-600 hover:bg-emerald-700" : "bg-indigo-600 hover:bg-indigo-700"
+                                                  aria-label={isMinimized ? `${name} wiederherstellen` : isActive ? `${name} auf der Tafel anzeigen` : `${name} öffnen`}
+                                                  title={isMinimized ? "Wiederherstellen" : isActive ? "Auf der Tafel anzeigen" : "Auf der Tafel öffnen"}
+                                                  className={`klassio-widget-primary flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-black transition-colors ${
+                                                    isActive ? "bg-success text-white hover:bg-success-hover" : "bg-accent text-accent-text hover:bg-accent-hover"
                                                   }`}>
-                                                  {isMinimized ? "↥" : isActive ? "↗" : "＋"}
+                                                  <span aria-hidden="true">{isMinimized ? "↥" : isActive ? "↗" : "＋"}</span>
+                                                  <span>{isMinimized ? "Wiederherstellen" : isActive ? "Anzeigen" : "Öffnen"}</span>
                                                 </button>
                                               </div>
                                             </article>
