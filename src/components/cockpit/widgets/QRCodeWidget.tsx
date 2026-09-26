@@ -39,6 +39,8 @@ export interface QRCodeWidgetProps {
 export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
   widget,
   onUpdate,
+  showSettings = false,
+  onCloseSettings,
   currentIsLight = true,
   isFullscreen = false,
   app,
@@ -153,10 +155,6 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
     : 'bg-zinc-800/80 border-white/10 shadow-xs';
   const textPrimary = currentIsLight ? 'text-slate-900' : 'text-slate-100';
   const textSecondary = currentIsLight ? 'text-slate-500' : 'text-slate-400';
-  const headerBg = currentIsLight
-    ? 'bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-transparent'
-    : 'bg-gradient-to-r from-emerald-500/20 via-teal-500/20 to-transparent';
-
   return (
     <div
       ref={containerRef}
@@ -166,7 +164,7 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
       <nav role="group" aria-label="QR-Code und Links" className="grid shrink-0 grid-cols-2 gap-1 border-b border-slate-200 p-2 dark:border-zinc-700">
         <button type="button" aria-pressed={activePanel === 'qr'} onClick={() => setActivePanel('qr')}
           className={`min-h-11 rounded-xl px-2 text-xs font-bold ${activePanel === 'qr'
-            ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-800 dark:bg-zinc-800 dark:text-white'}`}>
+            ? 'bg-accent text-accent-text' : 'bg-slate-100 text-slate-800 dark:bg-zinc-800 dark:text-white'}`}>
           QR-Code
         </button>
         <button type="button" aria-pressed={activePanel === 'links'} onClick={() => {
@@ -174,7 +172,7 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
           setIsLightboxOpen(false); setActivePanel('links');
         }}
           className={`min-h-11 rounded-xl px-2 text-xs font-bold ${activePanel === 'links'
-            ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-800 dark:bg-zinc-800 dark:text-white'}`}>
+            ? 'bg-accent text-accent-text' : 'bg-slate-100 text-slate-800 dark:bg-zinc-800 dark:text-white'}`}>
           Meine Links
         </button>
       </nav>
@@ -183,32 +181,13 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
           isFullscreen={isFullscreen} currentIsLight={currentIsLight} />
       </div>}
       {activePanel === 'qr' && <div className="flex min-h-0 flex-1 flex-col">
-      {/* 1. Header */}
-      <div
-        id="qrcode-header"
-        className={`flex items-center justify-between px-3 py-2 border-b shrink-0 ${headerBg} ${
-          currentIsLight ? 'border-slate-200/80' : 'border-white/10'
-        }`}
-      >
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-7 h-7 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center shrink-0">
-            <QrCode className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-          </div>
-          <div className="min-w-0">
-            <span className={`font-black tracking-tight block truncate ${isFs ? 'text-xl' : 'text-xs'} ${textPrimary}`}>
-              QR-Code für die Klasse
-            </span>
-            <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold truncate">
-              {renderTypeIcon()}
-              <span>
-                {contentInfo.type === 'url' ? 'Web-Link' : 'Freitext'}
-              </span>
-            </div>
-          </div>
+      {/* Shared widget frame owns the canonical title. Keep only type/context and actions here. */}
+      <div className="flex min-h-11 shrink-0 items-center justify-between gap-2 border-b border-slate-200/80 px-2.5 py-1.5 dark:border-white/10">
+        <div className="flex min-w-0 items-center gap-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+          {renderTypeIcon()}
+          <span className="truncate">{contentInfo.type === 'url' ? 'Web-Link' : 'Freitext'}</span>
         </div>
-
-        {/* Header Aktionen: Vollbild & Leeren */}
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex shrink-0 items-center gap-1">
           {inputVal && (
             <button
               id="qrcode-clear-btn"
@@ -216,16 +195,15 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
               onClick={handleClear}
               title="Eingabe leeren"
               aria-label="QR-Code leeren"
-              className={`p-1.5 rounded-lg border transition-all cursor-pointer min-h-11 min-w-11 flex items-center justify-center ${
+              className={`flex min-h-11 min-w-11 items-center justify-center rounded-xl border transition-all ${
                 currentIsLight
                   ? 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
                   : 'bg-zinc-800 hover:bg-zinc-700 text-slate-300 border-white/10'
               }`}
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="h-3.5 w-3.5" />
             </button>
           )}
-
           <button
             id="qrcode-zoom-btn"
             type="button"
@@ -233,9 +211,9 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
             disabled={!inputVal || qrTooLong}
             title="Großanzeige auf Tafel / Beamer"
             aria-label="Großanzeige öffnen"
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs rounded-lg transition-all cursor-pointer min-h-11"
+            className="flex min-h-11 items-center gap-1 rounded-xl bg-accent px-3 text-xs font-black text-accent-text transition-all hover:bg-accent-hover active:scale-95 disabled:opacity-40"
           >
-            <Maximize2 className="w-3.5 h-3.5 shrink-0" />
+            <Maximize2 className="h-3.5 w-3.5 shrink-0" />
             {!size.isCompact && <span>Tafel</span>}
           </button>
         </div>
@@ -261,7 +239,7 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
                 setInputVal(val);
                 persistSettings(val, inputLabel);
               }}
-              className={`w-full pl-2.5 pr-8 py-1.5 text-xs font-semibold rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all ${
+              className={`w-full pl-2.5 pr-8 py-1.5 text-xs font-semibold rounded-xl border focus:outline-none focus:ring-2 focus:ring-accent transition-all ${
                 currentIsLight
                   ? 'bg-slate-50 border-slate-300 text-slate-800'
                   : 'bg-zinc-800 border-white/15 text-slate-100'
@@ -301,7 +279,7 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
                   onClick={() => handleSelectPreset(p.value, p.label)}
                   className={`px-2 py-0.5 rounded-lg border text-[10px] font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1 ${
                     inputVal === p.value
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                      ? 'bg-accent text-accent-text border-accent shadow-xs'
                       : currentIsLight
                       ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
                       : 'bg-zinc-800 hover:bg-zinc-700 text-slate-300 border-white/10'
@@ -330,7 +308,7 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
                 level="M"
                 includeMargin={false}
               />
-              <div className="absolute inset-0 bg-emerald-600/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <div className="absolute inset-0 bg-accent-soft opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <span className="px-2 py-1 bg-black/75 text-white text-[10px] font-black rounded-lg shadow-md flex items-center gap-1">
                   <Maximize2 className="w-3 h-3" />
                   <span>Großansicht</span>
@@ -346,7 +324,7 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
                   : 'bg-zinc-900/40 border-white/10 text-slate-400'
               }`}
             >
-              <QrCode className="w-8 h-8 opacity-40 mb-1.5 text-emerald-500" />
+              <QrCode className="w-8 h-8 opacity-40 mb-1.5 text-accent" />
               <span className="text-xs font-black mb-0.5">Kein Inhalt eingegeben</span>
               <span className="text-[10px] opacity-75">Tippe oben eine URL oder eine Textaufgabe ein</span>
             </div>
@@ -401,6 +379,105 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
           <span>Kein Schülertracking</span>
         </div>
       </div>
+
+      {showSettings && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="QR-Code einstellen"
+          className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm"
+          onClick={() => onCloseSettings?.()}
+        >
+          <div
+            className="w-full max-w-xl space-y-4 rounded-2xl border border-slate-200 bg-white p-5 text-slate-900 shadow-2xl dark:border-white/10 dark:bg-zinc-900 dark:text-white"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex min-h-11 items-center justify-between gap-2 border-b border-slate-200 pb-2 dark:border-white/10">
+              <div>
+                <h3 className="text-sm font-black">QR-Code einstellen</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Inhalt, Beschriftung und Vorlage anpassen.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onCloseSettings?.()}
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-white"
+                aria-label="QR-Code-Einstellungen schließen"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <label className="block space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Beschriftung</span>
+              <input
+                type="text"
+                value={inputLabel}
+                maxLength={80}
+                onChange={(event) => {
+                  const label = event.target.value.slice(0, 80);
+                  setInputLabel(label);
+                  persistSettings(inputVal, label);
+                }}
+                placeholder="z. B. Mathe-Übung"
+                className="min-h-11 w-full rounded-xl border border-slate-300 bg-transparent px-3 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent dark:border-white/15"
+              />
+            </label>
+
+            <label className="block space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Link oder Text</span>
+              <input
+                type="text"
+                value={inputVal}
+                maxLength={1000}
+                onChange={(event) => {
+                  const value = event.target.value.slice(0, 1000);
+                  setInputVal(value);
+                  persistSettings(value, inputLabel);
+                }}
+                placeholder="https://… oder kurzer Freitext"
+                className="min-h-11 w-full rounded-xl border border-slate-300 bg-transparent px-3 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent dark:border-white/15"
+              />
+            </label>
+
+            <div className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Vorlagen</span>
+              <div className="flex flex-wrap gap-2">
+                {QR_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => handleSelectPreset(preset.value, preset.label)}
+                    className={`min-h-11 rounded-xl border px-3 text-xs font-bold transition-all ${
+                      inputVal === preset.value
+                        ? 'bg-accent text-accent-text border-accent'
+                        : 'border-slate-300 hover:bg-slate-100 dark:border-white/15 dark:hover:bg-white/10'
+                    }`}
+                  >
+                    {preset.icon} {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {qrTooLong && (
+              <p role="alert" className="rounded-xl bg-rose-100 p-3 text-xs font-bold text-rose-800 dark:bg-rose-950/50 dark:text-rose-200">
+                Zu viel Inhalt für einen zuverlässig lesbaren QR-Code. Bitte Text oder Link kürzen.
+              </p>
+            )}
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => onCloseSettings?.()}
+                className="min-h-11 rounded-xl bg-accent px-4 text-sm font-black text-accent-text hover:bg-accent-hover"
+              >
+                Fertig
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
 
       {/* 3. Lightbox / Tafel-Vollbild Modal */}
       {isLightboxOpen && !!inputVal && !qrTooLong && createPortal(
