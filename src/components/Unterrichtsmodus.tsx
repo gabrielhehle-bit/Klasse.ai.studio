@@ -4169,6 +4169,50 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     });
   };
 
+  const resetCockpitTransientUi = () => {
+    setMinimizedWidgetIds([]);
+    setFocusOrder([]);
+    setBoardTool("select");
+    setIsBoardTextEditing(false);
+    setShowBoardTools(false);
+    setWidgetSettingsOpenId(null);
+    setIsAddWidgetMenuOpen(false);
+    setIsWidgetConfigurationOpen(false);
+    setIsQuickBarSettingsOpen(false);
+    setIsMoreOptionsMenuOpen(false);
+    setIsSlotMenuOpen(false);
+    setTimerToCloseId(null);
+  };
+
+  const persistLayoutForActiveBoardPage = (
+    layout: CockpitWidgetConfig[],
+    previous: any,
+  ) => ({
+    ...previous,
+    cockpitLayout: layout,
+    boardSettings: {
+      ...(previous.boardSettings || {}),
+      cockpitLayoutByBoardPage: {
+        ...(previous.boardSettings?.cockpitLayoutByBoardPage || {}),
+        [boardTextClassKey]: {
+          ...(previous.boardSettings?.cockpitLayoutByBoardPage?.[boardTextClassKey] || {}),
+          [activeBoardPageId]: layout,
+        },
+      },
+    },
+  });
+
+  const restoreCockpitLayout = (layout: unknown) => {
+    const loaded = loadAndSanitizeLayout(layout);
+    const cloned = JSON.parse(JSON.stringify(loaded)) as CockpitWidgetConfig[];
+    resetCockpitTransientUi();
+    setCockpitWidgets(cloned);
+    setApp((previous: any) =>
+      persistLayoutForActiveBoardPage(cloned, previous),
+    );
+    return cloned;
+  };
+
   const handleSaveProfile = (
     dataOrName:
       | string
