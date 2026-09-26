@@ -71,7 +71,7 @@ test('Widget 4: undo restores last fair round participant and previous public se
 test('Widget 4: central library settings gear stays separate from transient session history', () => {
   assert.match(picker, /aria-label="Widget-Voreinstellungen öffnen"/);
   assert.match(picker, /<option value="randomname">🎯 Zufälliges Kind<\/option>/);
-  assert.match(picker, /group\.label} hinzufügen/);
+  assert.match(picker, /group\\.label} zur Widget-Leiste hinzufügen/);
   assert.match(picker, /cockpitRandomNameDefaultsByClass/);
   assert.match(picker, /Auf vorhandenes Widget anwenden/);
   assert.match(picker, /saveRandomPreset\("selectionMode", mode\)/);
