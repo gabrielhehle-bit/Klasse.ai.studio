@@ -2533,6 +2533,27 @@ html body [data-style] .klassio-cockpit-shell .klassio-student-sidebar .text-sla
   grid-row: 2;
   scrollbar-width: thin;
 }
+.klassio-widget-library-card {
+  flex-wrap: wrap;
+}
+.klassio-widget-card-actions {
+  flex: 1 0 100%;
+  max-width: 100%;
+  padding-left: 3.75rem;
+}
+.klassio-widget-card-actions [data-widget-card-action="primary"] {
+  min-width: 7.5rem;
+}
+html body [data-style] .klassio-widget-library .klassio-widget-primary {
+  background-color: var(--accent) !important;
+  color: var(--accent-text, var(--btn-text, #ffffff)) !important;
+  -webkit-text-fill-color: var(--accent-text, var(--btn-text, #ffffff)) !important;
+}
+html body [data-style] .klassio-widget-library .klassio-widget-primary.bg-success {
+  background-color: var(--success) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
 .klassio-cockpit-shell[data-widget-library-open="true"] .klassio-dock-row {
   opacity: 0;
   transform: translateY(18px);
@@ -2591,5 +2612,21 @@ html body [data-style] .klassio-cockpit-shell .klassio-student-sidebar .text-sla
   .klassio-widget-library-content {
     grid-column: 1;
     grid-row: 3;
+  }
+  .klassio-widget-library-card {
+    align-items: flex-start;
+  }
+  .klassio-widget-card-actions {
+    width: 100%;
+    padding-left: 0;
+    justify-content: stretch;
+  }
+  .klassio-widget-card-actions [data-widget-card-action="favorite"] {
+    flex: 0 0 44px;
+  }
+  .klassio-widget-card-actions [data-widget-card-action="dock"],
+  .klassio-widget-card-actions [data-widget-card-action="variants"],
+  .klassio-widget-card-actions [data-widget-card-action="primary"] {
+    flex: 1 1 auto;
   }
 }

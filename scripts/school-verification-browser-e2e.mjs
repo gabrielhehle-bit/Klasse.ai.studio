@@ -326,11 +326,11 @@ async function verifyRandomPickerInRealBrowser(client) {
 
   await setInputByLabel(client, 'Widget suchen', 'Zufallsauswahl');
   await waitFor(client, 'global widget search status',
-    String.raw`(() => {const status=[...document.querySelectorAll('[role="status"]')].find(el=>el.textContent.includes('Suche in allen Widgets'));const all=[...document.querySelectorAll('.klassio-widget-library-sidebar button')].find(b=>b.textContent.includes('Alle Widgets'));return !!status&&status.textContent.includes('Zufallsauswahl')&&!!all&&String(all.className).includes('bg-indigo-500');})()`);
+    String.raw`(() => {const status=[...document.querySelectorAll('[role="status"]')].find(el=>el.textContent.includes('Suche in allen Widgets'));const all=[...document.querySelectorAll('.klassio-widget-library-sidebar button')].find(b=>b.textContent.includes('Alle Widgets'));return !!status&&status.textContent.includes('Zufallsauswahl')&&!!all&&String(all.className).includes('bg-accent');})()`);
   await waitFor(client, 'random widget catalogue entry',
-    String.raw`Boolean(document.querySelector('button[aria-label="Zufallsauswahl hinzufügen"]:not(:disabled)'))`);
+    String.raw`Boolean(document.querySelector('button[aria-label="Zufallsauswahl öffnen"]:not(:disabled)'))`);
   const addedRandomWidget = await evaluate(client,
-    String.raw`(() => {const b=document.querySelector('button[aria-label="Zufallsauswahl hinzufügen"]:not(:disabled)');if(!b)return false;b.click();return true;})()`);
+    String.raw`(() => {const b=document.querySelector('button[aria-label="Zufallsauswahl öffnen"]:not(:disabled)');if(!b)return false;b.click();return true;})()`);
   if (!addedRandomWidget) throw new Error('Could not add random-name widget from redesigned library card.');
   await waitFor(client, 'empty class: random picker disabled and without demo pupils',
     String.raw`(() => {const button=document.querySelector('button[aria-label="Zufälliges Kind ziehen"]');return !!button && button.disabled && button.textContent.includes('noch keine Kinder angelegt') && !button.textContent.includes('Max M.');})()`);

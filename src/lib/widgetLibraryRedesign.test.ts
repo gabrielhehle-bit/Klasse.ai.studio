@@ -40,10 +40,26 @@ test('widget cards expose favorite, safe quick-bar pinning and a clear board act
   assert.match(surface, /wiederherstellen/);
   assert.match(surface, /An die untere Widget-Leiste heften/);
   assert.match(surface, /addCockpitQuickbarItem\(settings, item\.type as CockpitQuickbarId\)/);
+  assert.match(surface, /data-widget-card-action="dock"/);
+  assert.match(surface, /data-widget-card-action="primary"/);
+  assert.match(surface, /<span>Leiste<\/span>/);
+  assert.match(surface, /isMinimized \? "Wiederherstellen" : isActive \? "Anzeigen" : "Öffnen"/);
+  assert.match(surface, /klassio-widget-library-card/);
+  assert.match(surface, /klassio-widget-card-actions/);
   assert.doesNotMatch(surface, /aria-label="Ich bin da! einstellen"/);
   assert.doesNotMatch(surface, /aria-label="Gruppen bilden einstellen"/);
   assert.doesNotMatch(surface, /aria-label="Wochenplan der Kinder einstellen"/);
   assert.doesNotMatch(surface, /aria-label="Zufallsauswahl einstellen"/);
+});
+
+test('widget library actions wrap cleanly and use the selected accent color', () => {
+  assert.match(surface, /bg-accent text-accent-text shadow/);
+  assert.match(surface, /focus:border-accent focus:ring-2 focus:ring-accent-soft/);
+  assert.doesNotMatch(surface.slice(surface.indexOf('aria-label="Widget-Bibliothek"'), surface.indexOf('aria-label={isFullscreen')), /indigo-/);
+  assert.match(css, /\.klassio-widget-card-actions \{[\s\S]*?flex: 1 0 100%/);
+  assert.match(css, /data-widget-card-action="primary"/);
+  assert.match(css, /@media \(max-width: 760px\)[\s\S]*?data-widget-card-action="dock"/);
+  assert.match(css, /background-color: var\(--accent\) !important/);
 });
 
 test('library uses a left rail on desktop and horizontal category strip on phones', () => {
