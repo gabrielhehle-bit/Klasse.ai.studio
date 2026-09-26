@@ -79,10 +79,21 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
   // If there is literally zero task text, start in edit mode so the teacher can type immediately
   const [isEditing, setIsEditing] = useState<boolean>(!initialTaskText.trim());
 
-  // In the cockpit the shared header gear is the single settings entry point.
-  // Isolated previews can still use the local Bearbeiten button.
+  // In the cockpit the shared header gear opens the editor. If that gear is
+  // toggled closed again, only an editor that was opened through the gear closes;
+  // an initially empty assignment may still open directly for fast first use.
+  const externalSettingsWasOpenRef = useRef(false);
   useEffect(() => {
-    if (externalShowSettings) setIsEditing(true);
+    if (externalShowSettings === undefined) return;
+    if (externalShowSettings) {
+      externalSettingsWasOpenRef.current = true;
+      setIsEditing(true);
+      return;
+    }
+    if (externalSettingsWasOpenRef.current) {
+      externalSettingsWasOpenRef.current = false;
+      setIsEditing(false);
+    }
   }, [externalShowSettings]);
 
   // Local draft state for performance isolation (does not trigger global App re-renders on keystrokes)
