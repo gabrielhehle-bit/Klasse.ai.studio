@@ -256,7 +256,7 @@ test("Cockpit: Vorlage erstellen ist direkt sichtbar und öffnet den Erstellen-T
 });
 
 test("Cockpit: Widget-Bearbeitung liegt in einem kompakten, verständlichen Kontextmenü", () => {
-  assert.match(cockpitWidget, /aria-label="Widget-Menü öffnen"/);
+  assert.match(cockpitWidget, /Widget-Menü öffnen/);
   for (const label of ["Einstellungen", "Größe", "Maximieren", "Minimieren", "Widget schließen"]) {
     assert.ok(cockpitWidget.includes(label), `Widget-Menüeintrag fehlt: ${label}`);
   }
@@ -276,6 +276,16 @@ test("Cockpit: Resize ist touch- und tastatursicher und räumt Pointer-Abbrüche
   assert.match(cockpitWidget, /target\.addEventListener\("pointercancel", finishResize\)/);
   assert.match(cockpitWidget, /target\.removeEventListener\("pointercancel", finishResize\)/);
   assert.match(cockpitWidget, /if \(!e\.isPrimary \|\| e\.button !== 0/);
+});
+
+test("Cockpit: jede Interaktion bringt das betroffene Fenster nach vorne", () => {
+  assert.match(cockpitWidget, /onPointerDownCapture=\{!isDirect && !isFreeMascot \? onFocus : undefined\}/);
+  assert.match(cockpitWidget, /data-widget-focused=\{isFocused \? "true" : "false"\}/);
+  assert.match(teachingSurface, /const focusIndex = focusOrder\.indexOf\(widget\.id\)/);
+  assert.match(teachingSurface, /const focusedWidgetId =/);
+  assert.match(teachingSurface, /visibleFocusOrder\[visibleFocusOrder\.length - 1\]/);
+  assert.match(teachingSurface, /setFocusOrder\(previous =>/);
+  assert.match(cockpitWidget, /role="menuitem"/);
 });
 
 test("Cockpit: automatische Anordnung lässt minimierte und freie Ebenen unverändert", () => {
