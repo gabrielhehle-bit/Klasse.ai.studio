@@ -579,6 +579,53 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
 export type CockpitWidgetLibraryItem = (typeof COCKPIT_WIDGET_LIBRARY_ITEMS)[number];
 export type CockpitWidgetLibraryId = CockpitWidgetLibraryItem["type"];
 
+/**
+ * Per-instance settings are intentionally exposed in one predictable place:
+ * the gear directly in the shared widget header. Keep this capability list here
+ * beside the catalog so the classroom surface does not maintain a second UX map.
+ */
+const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
+  "noisemeter",
+  "vocabulary",
+  "qrcode",
+  "image",
+  "timer",
+  "drawing",
+  "instruction",
+  "zahlenraum",
+  "anschauung",
+  "numberline",
+  "kopfrechnen",
+  "mathcards",
+  "multitrainer",
+  "mathchain",
+  "fractionvisualizer",
+  "fractions",
+  "fractioncake",
+  "fractiongrid",
+  "sounds",
+]);
+
+const COCKPIT_WIDGET_LIBRARY_BY_TYPE = new Map<string, CockpitWidgetLibraryItem>(
+  COCKPIT_WIDGET_LIBRARY_ITEMS.map(item => [item.type, item]),
+);
+
+export function getCockpitWidgetLibraryItem(type: string): CockpitWidgetLibraryItem | undefined {
+  return COCKPIT_WIDGET_LIBRARY_BY_TYPE.get(type);
+}
+
+/** Canonical visible title used by library cards and widget headers. */
+export function getCockpitWidgetDisplayLabel(type: string): string {
+  if (type === "studentlist") return "👥 Schülerliste";
+  // Very old layouts may still contain the former vocabulary alias.
+  if (type === "lernwoerter") return COCKPIT_WIDGET_LIBRARY_BY_TYPE.get("vocabulary")?.label || "🔤 Lernwörter-Studio";
+  return COCKPIT_WIDGET_LIBRARY_BY_TYPE.get(type)?.label || "🧩 Widget";
+}
+
+export function cockpitWidgetSupportsSettings(type: string): boolean {
+  return COCKPIT_WIDGET_SETTINGS_IDS.has(type);
+}
+
 export function splitCockpitWidgetLabel(label: string): { icon: string; label: string } {
   const parts = String(label || "").trim().split(/\s+/);
   if (parts.length <= 1) return { icon: "🧩", label: label || "Widget" };
