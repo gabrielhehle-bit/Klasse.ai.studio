@@ -179,7 +179,10 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   const [showWidgetMenu, setShowWidgetMenu] = useState(false);
   const [sizeInputWidth, setSizeInputWidth] = useState("");
   const [sizeInputHeight, setSizeInputHeight] = useState("");
+  const [showExactSizeInputs, setShowExactSizeInputs] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
 
   // Widget menus behave like real popovers: Escape or a click/tap outside closes
   // them. This is especially important on Smartboards where a menu otherwise
@@ -193,12 +196,14 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       if (widgetMenuAreaRef.current?.contains(target)) return;
       setShowWidgetMenu(false);
       setShowSizeConfig(false);
+      setShowExactSizeInputs(false);
     };
 
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       setShowWidgetMenu(false);
       setShowSizeConfig(false);
+      setShowExactSizeInputs(false);
     };
 
     document.addEventListener("pointerdown", closeOnOutsidePointer);
