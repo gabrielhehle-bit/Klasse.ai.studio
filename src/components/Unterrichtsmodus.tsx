@@ -4093,35 +4093,12 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       return;
     }
 
-    const board = boardRef.current;
-    if (!board) {
+    const area = measureCockpitUsableBoardArea();
+    if (!area) {
       showToast("Die Tafelfläche konnte nicht gemessen werden.", "info");
       return;
     }
-
-    const boardRect = board.getBoundingClientRect();
-    if (boardRect.width <= 0 || boardRect.height <= 0) return;
-
-    // On wide screens the sidebar is a flex sibling and the board is already
-    // narrower. On compact screens it overlays the board. Measure the actual
-    // overlap instead of guessing from viewport breakpoints.
-    const sidebarRect = sidebarMode !== "hidden"
-      ? sidebarRef.current?.getBoundingClientRect()
-      : null;
-    const sidebarOverlapPx = sidebarRect
-      ? Math.max(
-          0,
-          Math.min(boardRect.right, sidebarRect.right) -
-            Math.max(boardRect.left, sidebarRect.left),
-        )
-      : 0;
-
-    const usableWidthPx = Math.max(1, boardRect.width - sidebarOverlapPx);
-    const dockClearancePx = Math.min(
-      COCKPIT_AUTO_ARRANGE_DOCK_CLEARANCE_PX,
-      Math.max(0, boardRect.height * 0.16),
-    );
-    const usableHeightPx = Math.max(1, boardRect.height - dockClearancePx);
+    const { boardRect, usableWidthPx, usableHeightPx } = area;
 
     const layout = getCockpitAutoArrangeLayout(
       visibleOnes.map((widget) => {
