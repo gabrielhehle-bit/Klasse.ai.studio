@@ -171,23 +171,23 @@ export default function ClassroomWeeklyPlanWidget({
       </div>
       <p className="text-xs text-slate-500">Woche wechseln und „Ich bin fertig“ bleiben direkte Unterrichtsaktionen.</p>
     </div>}
-    <header className={`weekly-plan-light-surface flex shrink-0 flex-wrap items-center justify-between gap-2 border-b-2 border-accent-soft bg-accent-soft ${compactBoard ? "px-2 py-1.5" : "px-3 py-2 sm:px-5"}`}>
+    <header className={`weekly-plan-light-surface flex shrink-0 flex-wrap items-center justify-between gap-2 border-b-2 border-slate-200 bg-accent-soft ${compactBoard ? "px-2 py-1.5" : "px-3 py-2 sm:px-5"}`}>
       <div className="min-w-0">
         <p className={`${tinyBoard ? "text-xs" : compactBoard ? "text-sm" : "text-base"} font-black text-accent`}>KW {week}</p>
         <p className={`${tinyBoard ? "text-[10px]" : compactBoard ? "text-xs" : "text-sm"} font-semibold text-slate-600`}>{tasks.length} {tasks.length === 1 ? 'Aufgabe' : 'Aufgaben'} · {homework.length} HÜ</p>
       </div>
       <div className={`flex flex-wrap items-center ${compactBoard ? "gap-1" : "gap-2"}`}>
         {!isExpanded && <button type="button" onClick={() => setIsExpanded(true)}
-          className={`weekly-plan-dark-action min-h-11 rounded-xl bg-accent text-sm font-bold text-white ${compactBoard ? "min-w-11 px-2" : "px-3"}`}
+          className={`weekly-plan-dark-action min-h-11 rounded-xl bg-accent text-sm font-bold text-accent-text ${compactBoard ? "min-w-11 px-2" : "px-3"}`}
           aria-label="Wochenplan groß anzeigen" title="Wochenplan groß anzeigen">{compactBoard ? "⛶" : "⛶ Groß anzeigen"}</button>}
         <button type="button" aria-label="Vorherige Woche" disabled={week <= 1}
           onClick={() => setWeek(w => Math.max(1, w - 1))}
-          className={`min-h-11 min-w-11 rounded-xl border border-accent-soft bg-white px-2 text-xl disabled:opacity-40`}>‹</button>
+          className={`min-h-11 min-w-11 rounded-xl border border-slate-200 bg-white px-2 text-xl disabled:opacity-40`}>‹</button>
         <button type="button" onClick={() => setWeek(todayWeek)} aria-label="Aktuelle Woche anzeigen"
-          className={`min-h-11 rounded-xl border border-accent-soft bg-white text-sm font-bold ${compactBoard ? "px-2" : "px-3"}`}>{compactBoard ? "Heute" : "Diese Woche"}</button>
+          className={`min-h-11 rounded-xl border border-slate-200 bg-white text-sm font-bold ${compactBoard ? "px-2" : "px-3"}`}>{compactBoard ? "Heute" : "Diese Woche"}</button>
         <button type="button" aria-label="Nächste Woche" disabled={week >= 53}
           onClick={() => setWeek(w => Math.min(53, w + 1))}
-          className={`min-h-11 min-w-11 rounded-xl border border-accent-soft bg-white px-2 text-xl disabled:opacity-40`}>›</button>
+          className={`min-h-11 min-w-11 rounded-xl border border-slate-200 bg-white px-2 text-xl disabled:opacity-40`}>›</button>
       </div>
     </header>
 
@@ -205,16 +205,16 @@ export default function ClassroomWeeklyPlanWidget({
         : <div className={`grid ${compactBoard ? "gap-1.5" : roomyBoard ? "gap-4" : "gap-3"}`}
             style={{ gridTemplateColumns: `repeat(${taskColumns}, minmax(0, 1fr))` }}>
             {tasks.map((task, index) => <article key={task.id}
-              className={`weekly-plan-light-card min-w-0 rounded-2xl border-2 border-accent-soft bg-white shadow-sm ${compactBoard ? "p-2.5" : "p-3 sm:p-4"}`}>
+              className={`weekly-plan-light-card min-w-0 rounded-2xl border-2 border-slate-200 bg-white shadow-sm ${compactBoard ? "p-2.5" : "p-3 sm:p-4"}`}>
               <p className="mb-2 text-sm font-extrabold text-accent">Aufgabe {index + 1} · {task.day}</p>
               <TaskText task={task} showMaterials={preferences.showMaterials} scale={tinyBoard ? 'compact' : roomyBoard ? 'large' : 'normal'} />
             </article>)}
           </div>}
     </section>
 
-    <footer className={`weekly-plan-light-surface shrink-0 border-t-2 border-accent-soft bg-accent-soft ${compactBoard ? "p-1.5" : "p-3 sm:px-5"}`} aria-label="Aufgabe abschließen">
+    <footer className={`weekly-plan-light-surface shrink-0 border-t-2 border-slate-200 bg-accent-soft ${compactBoard ? "p-1.5" : "p-3 sm:px-5"}`} aria-label="Aufgabe abschließen">
       <button type="button" onClick={startFinish} disabled={!tasks.length || !pupils.length}
-        className={`weekly-plan-dark-action w-full rounded-xl bg-accent font-extrabold text-white disabled:cursor-not-allowed ${compactBoard ? "min-h-11 px-2 py-1.5 text-sm" : "min-h-14 px-5 py-2 text-lg"}`}>
+        className={`weekly-plan-dark-action w-full rounded-xl bg-accent font-extrabold text-accent-text disabled:cursor-not-allowed ${compactBoard ? "min-h-11 px-2 py-1.5 text-sm" : "min-h-14 px-5 py-2 text-lg"}`}>
         <span className="weekly-plan-action-label">✅ Ich bin fertig mit einer Aufgabe</span>
       </button>
       {!pupils.length && <p className="mt-1 text-center text-xs font-semibold text-slate-600">Für die Rückmeldung müssen Kinder in dieser Klasse angelegt sein.</p>}
@@ -225,7 +225,7 @@ export default function ClassroomWeeklyPlanWidget({
         onPointerDown={event => event.stopPropagation()}>
         <section role="dialog" aria-modal="true" aria-label="Ich bin fertig mit einer Aufgabe"
           className="classroom-weekly-plan flex max-h-[96dvh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border-2 border-accent bg-white text-slate-950 shadow-2xl">
-          <header className="weekly-plan-light-surface flex shrink-0 flex-wrap items-center justify-between gap-2 border-b-2 border-accent-soft bg-accent-soft px-4 py-3">
+          <header className="weekly-plan-light-surface flex shrink-0 flex-wrap items-center justify-between gap-2 border-b-2 border-slate-200 bg-accent-soft px-4 py-3">
             <div>
               <p className="text-sm font-extrabold text-accent">Schritt {finishStep === 'task' ? 1 : finishStep === 'child' ? 2 : 3} von 3</p>
               <h2 className="text-xl font-extrabold sm:text-2xl">
@@ -241,7 +241,7 @@ export default function ClassroomWeeklyPlanWidget({
             {finishStep === 'task' && <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" aria-label="Aufgabe auswählen">
               {tasks.map((task, index) => <button key={task.id} type="button"
                 onClick={() => { setSelectedTaskId(task.id); setChildId(null); setFinishStep('child'); }}
-                className="weekly-plan-light-card min-h-24 rounded-2xl border-2 border-accent-soft bg-white p-4 text-left hover:border-accent hover:bg-accent-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
+                className="weekly-plan-light-card min-h-24 rounded-2xl border-2 border-slate-200 bg-white p-4 text-left hover:border-accent hover:bg-accent-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
                 <span className="mb-1 block text-sm font-black text-accent">Aufgabe {index + 1}</span>
                 <TaskText task={task} showMaterials={preferences.showMaterials} />
               </button>)}
@@ -249,7 +249,7 @@ export default function ClassroomWeeklyPlanWidget({
             {finishStep === 'child' && selectedTask && <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4" aria-label="Kind auswählen">
               {pupils.map(student => <button type="button" key={student.id}
                 onClick={() => { setChildId(student.id); setFinishStep('feedback'); }}
-                className="weekly-plan-light-card min-h-16 min-w-0 break-words rounded-xl border-2 border-accent-soft bg-white px-2 py-3 text-center text-lg font-extrabold hover:border-accent hover:bg-accent-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
+                className="weekly-plan-light-card min-h-16 min-w-0 break-words rounded-xl border-2 border-slate-200 bg-white px-2 py-3 text-center text-lg font-extrabold hover:border-accent hover:bg-accent-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
                 {getDisplayStudentName(student, pupils)}
               </button>)}
             </div>}
@@ -259,7 +259,7 @@ export default function ClassroomWeeklyPlanWidget({
                 {FEEDBACK.map(choice => <button type="button" key={choice.value}
                   aria-label={`Aufgabe fertig: ${choice.text}`}
                   onClick={() => saveFeedback(choice.value)}
-                  className="weekly-plan-light-card flex min-h-28 flex-col items-center justify-center gap-2 rounded-2xl border-2 border-accent-soft bg-accent-soft p-3 text-center text-base font-extrabold text-slate-950 hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
+                  className="weekly-plan-light-card flex min-h-28 flex-col items-center justify-center gap-2 rounded-2xl border-2 border-slate-200 bg-accent-soft p-3 text-center text-base font-extrabold text-slate-950 hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
                   <span className="text-4xl" aria-hidden="true">{choice.icon}</span>{choice.text}
                 </button>)}
               </div>
@@ -269,11 +269,11 @@ export default function ClassroomWeeklyPlanWidget({
               </button>
             </div>}
           </div>
-          {finishStep !== 'task' && <footer className="weekly-plan-light-surface shrink-0 border-t border-accent-soft bg-accent-soft p-3">
+          {finishStep !== 'task' && <footer className="weekly-plan-light-surface shrink-0 border-t border-slate-200 bg-accent-soft p-3">
             <button type="button" onClick={() => {
               if (finishStep === 'feedback') { setChildId(null); setFinishStep('child'); }
               else { setSelectedTaskId(null); setFinishStep('task'); }
-            }} className="min-h-11 rounded-xl border border-accent-soft bg-white px-4 text-sm font-extrabold text-accent">
+            }} className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-extrabold text-accent">
               ← Zurück
             </button>
           </footer>}
