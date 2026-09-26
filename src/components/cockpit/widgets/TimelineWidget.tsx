@@ -457,10 +457,10 @@ export const TimelineWidget: React.FC<TimelineWidgetProps> = ({
                   onClick={() => {
                     setInspectedUnitId(inspectedUnitId === unit.id ? null : unit.id);
                   }}
-                  className={`relative flex flex-col items-center justify-center px-1 rounded-lg border text-center transition-all min-w-0 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 ${flexGrow} ${
+                  className={`relative flex flex-col items-center justify-center px-1 rounded-lg border text-center transition-all min-w-0 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${flexGrow} ${
                     style.bg
                   } ${
-                    isInspected ? 'ring-2 ring-indigo-500' : ''
+                    isInspected ? 'ring-2 ring-accent' : ''
                   }`}
                   title={`${unit.label}: ${unit.fach} (${formatTimeRange(
                     unit.startMinutes,
@@ -486,7 +486,7 @@ export const TimelineWidget: React.FC<TimelineWidgetProps> = ({
 
                   {/* Active Indicator dot */}
                   {isCurrent && (
-                    <span className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400 ring-2 ring-white dark:ring-zinc-950" />
+                    <span className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-accent ring-2 ring-white dark:ring-zinc-950" />
                   )}
                 </button>
               );

@@ -6,7 +6,7 @@
 export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                       {
                                         type: "timeline",
-                                        label: "🛤 Tages-Zeitstrahl",
+                                        label: "🛤 Tagesablauf",
                                         desc: "Interaktiver visueller Ablaufplan",
                                         category: "struct",
                                       },
@@ -343,7 +343,7 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
 
                                       {
                                         type: "instruction",
-                                        label: "📝 Arbeitsanweisung",
+                                        label: "📝 Arbeitsauftrag",
                                         desc: "Großes Textfeld für Aufgaben",
                                         category: "tools",
                                       },
@@ -586,6 +586,7 @@ export type CockpitWidgetLibraryId = CockpitWidgetLibraryItem["type"];
  */
 const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
   "clock",
+  "dienste",
   "randomname",
   "groups",
   "kidattendance",
