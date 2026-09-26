@@ -6937,18 +6937,51 @@ export const FractionsWidgetContent: React.FC<{ widget: any, currentIsLight: boo
 // ==========================================
 // NEW WIDGET 15: DEUTSCHE WORT-UHR (German spoken word clock)
 // ==========================================
-export const WordclockWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [lernModus, setLernModus] = useState<boolean>(false);
-  const [lernHour, setLernHour] = useState<number>(10);
-  const [lernMin, setLernMin] = useState<number>(15);
+export const WordclockWidgetContent: React.FC<{
+  widget: any;
+  currentIsLight: boolean;
+  onUpdate?: (updates: any) => void;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
+}> = ({ widget, currentIsLight, onUpdate, showSettings = false, onCloseSettings }) => {
+  const saved = widget?.settings || {};
+  const [lernModus, setLernModus] = useState<boolean>(saved.wordclockPracticeMode === true);
+  const [lernHour, setLernHour] = useState<number>(
+    typeof saved.wordclockPracticeHour === 'number' ? saved.wordclockPracticeHour : 10,
+  );
+  const [lernMin, setLernMin] = useState<number>(
+    typeof saved.wordclockPracticeMinute === 'number' ? saved.wordclockPracticeMinute : 15,
+  );
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
+
+  const persistPractice = (patch: Record<string, unknown>) => {
+    onUpdate?.({ settings: { ...(widget?.settings || {}), ...patch } });
+  };
+
+  const changeMode = (next: boolean) => {
+    setLernModus(next);
+    persistPractice({ wordclockPracticeMode: next });
+  };
+
+  const changeHour = (next: number) => {
+    setLernHour(next);
+    persistPractice({ wordclockPracticeHour: next });
+  };
+
+  const changeMinute = (next: number) => {
+    setLernMin(next);
+    persistPractice({ wordclockPracticeMinute: next });
+  };
 
   useEffect(() => {
     if (lernModus) return;
-    const interval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 10000);
-    return () => clearInterval(interval);
+    const update = () => setCurrentTime(new Date());
+    const interval = setInterval(update, 10000);
+    window.addEventListener('focus', update);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', update);
+    };
   }, [lernModus]);
 
   const activeHour = lernModus ? lernHour : currentTime.getHours();
@@ -6958,7 +6991,6 @@ export const WordclockWidgetContent: React.FC<{ widget: any, currentIsLight: boo
     const formattedHour = h > 12 ? h - 12 : h === 0 ? 12 : h;
     const nextHour = (formattedHour % 12) + 1;
 
-    // German school children dialect mapping
     if (m === 0) return `Punkt ${formattedHour} Uhr`;
     if (m === 5) return `Fünf nach ${formattedHour}`;
     if (m === 10) return `Zehn nach ${formattedHour}`;
@@ -6972,7 +7004,6 @@ export const WordclockWidgetContent: React.FC<{ widget: any, currentIsLight: boo
     if (m === 50) return `Zehn vor ${nextHour}`;
     if (m === 55) return `Fünf vor ${nextHour}`;
 
-    // Clamped estimation rounding
     const roundedMin = Math.round(m / 5) * 5;
     if (roundedMin === 60) return `Punkt ${nextHour} Uhr`;
     return getGermanSpokenTime(h, roundedMin) + " (ungefähr)";
@@ -6981,71 +7012,80 @@ export const WordclockWidgetContent: React.FC<{ widget: any, currentIsLight: boo
   const spokenText = getGermanSpokenTime(activeHour, activeMin);
 
   return (
-    <div className="flex-grow flex flex-col justify-between p-2 h-full min-h-0 pointer-events-auto select-none gap-2">
-      <div className="flex justify-between items-center px-1 shrink-0">
-        <span className={`text-[8px] font-black uppercase tracking-widest ${currentIsLight ? 'text-slate-400' : 'text-slate-500'}`}>
-          Deutsche Wort-Uhr
+    <div className="relative flex-grow flex flex-col justify-between p-2 h-full min-h-0 pointer-events-auto select-none gap-2">
+      {showSettings && (
+        <div className={`absolute inset-0 z-30 flex flex-col gap-3 p-3 ${
+          currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-slate-100'
+        }`}>
+          <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-2 dark:border-white/10">
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider text-accent">Wort-Uhr einstellen</p>
+              <p className="mt-0.5 text-[10px] opacity-65">Echtzeit oder Übungsuhr auswählen.</p>
+            </div>
+            <button type="button" onClick={onCloseSettings}
+              className="min-h-11 rounded-xl border border-slate-200 px-3 text-xs font-black hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5">
+              Fertig
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => changeMode(false)}
+              className={`min-h-11 rounded-xl border px-3 text-sm font-black ${
+                !lernModus ? 'border-accent bg-accent text-accent-text' : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200'
+              }`}>
+              ⏱️ Echtzeit
+            </button>
+            <button type="button" onClick={() => changeMode(true)}
+              className={`min-h-11 rounded-xl border px-3 text-sm font-black ${
+                lernModus ? 'border-accent bg-accent text-accent-text' : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200'
+              }`}>
+              💡 Üben
+            </button>
+          </div>
+
+          {lernModus && (
+            <div className="space-y-3">
+              <label className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 px-3 dark:border-white/10">
+                <span className="w-16 text-xs font-black">Stunde</span>
+                <input type="range" min="0" max="23" value={lernHour}
+                  onChange={(e) => changeHour(Number(e.target.value))}
+                  className="min-w-0 flex-1 accent-[var(--accent)]" />
+                <span className="w-7 text-right font-mono text-sm font-black text-accent">{lernHour}</span>
+              </label>
+              <label className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 px-3 dark:border-white/10">
+                <span className="w-16 text-xs font-black">Minute</span>
+                <input type="range" min="0" max="59" step="5" value={lernMin}
+                  onChange={(e) => changeMinute(Number(e.target.value))}
+                  className="min-w-0 flex-1 accent-[var(--accent)]" />
+                <span className="w-7 text-right font-mono text-sm font-black text-accent">{lernMin}</span>
+              </label>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex justify-end items-center px-1 shrink-0 min-h-6">
+        <span className={`text-[8px] font-black uppercase tracking-widest rounded-full px-2 py-1 ${
+          lernModus ? 'bg-accent-soft text-accent' : currentIsLight ? 'bg-slate-100 text-slate-500' : 'bg-white/5 text-slate-400'
+        }`}>
+          {lernModus ? '💡 Übungsmodus' : '⏱️ Echtzeit'}
         </span>
-        <button
-          onClick={() => setLernModus(prev => !prev)}
-          className={`text-[7.5px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded transition-all border ${
-            lernModus
-              ? 'bg-amber-400/10 border-amber-400/20 text-amber-500'
-              : currentIsLight ? 'bg-slate-50 border-slate-200 text-slate-500' : 'bg-zinc-850 border-white/5 text-slate-400'
-          }`}
-        >
-          {lernModus ? '💡 Üben AN' : '⏱️ Echtzeit'}
-        </button>
       </div>
 
-      <div className="flex flex-col items-center justify-center shrink-0 my-1 py-1">
-        <span className="text-[18px] font-black text-indigo-500 tracking-tight">
+      <div className="flex flex-col items-center justify-center flex-1 min-h-0 my-1 py-1">
+        <span className="text-[clamp(1.6rem,8cqw,4rem)] font-black text-accent tracking-tight tabular-nums">
           {String(activeHour).padStart(2, '0')}:{String(activeMin).padStart(2, '0')}
         </span>
-        <div className="w-full text-center px-1.5 py-1.5 mt-2 rounded-xl bg-slate-50 dark:bg-zinc-850/60 border border-slate-100 dark:border-white/5 h-11 flex items-center justify-center">
-          <p className={`text-[9.5px] font-black uppercase tracking-tight leading-snug ${currentIsLight ? 'text-slate-800' : 'text-slate-200'}`}>
+        <div className="w-full text-center px-2 py-2 mt-2 rounded-xl bg-slate-50 dark:bg-zinc-850/60 border border-slate-100 dark:border-white/5 min-h-11 flex items-center justify-center">
+          <p className={`text-[clamp(.7rem,3cqw,1.15rem)] font-black tracking-tight leading-snug ${currentIsLight ? 'text-slate-800' : 'text-slate-200'}`}>
             💬 „{spokenText}“
           </p>
         </div>
       </div>
 
-      {lernModus ? (
-        <div className="flex flex-col gap-1.5 shrink-0 transition-all select-none">
-          <div className="flex justify-between text-[7px] font-black uppercase text-slate-450 text-slate-400">
-            <span>Stunde:</span>
-            <div className="flex items-center gap-1">
-              <span className="w-3 text-right">{lernHour}</span>
-              <input 
-                type="range" 
-                min="0" 
-                max="23" 
-                value={lernHour} 
-                onChange={(e) => setLernHour(Number(e.target.value))}
-                className="w-16 accent-indigo-500"
-              />
-            </div>
-          </div>
-          <div className="flex justify-between text-[7px] font-black uppercase text-slate-450 text-slate-400">
-            <span>Minute:</span>
-            <div className="flex items-center gap-1">
-              <span className="w-3 text-right">{lernMin}</span>
-              <input 
-                type="range" 
-                min="0" 
-                max="59" 
-                step="5"
-                value={lernMin} 
-                onChange={(e) => setLernMin(Number(e.target.value))}
-                className="w-16 accent-indigo-500"
-              />
-            </div>
-          </div>
-        </div>
-      ) : (
-        <p className="text-[7.5px] text-center opacity-50 shrink-0 select-none pb-1">
-          Lernmodus umschalten, um Uhrzeit selbst einzustellen!
-        </p>
-      )}
+      <p className="text-[9px] text-center opacity-55 shrink-0 select-none pb-1">
+        {lernModus ? 'Übungszeit über das Zahnrad verändern.' : 'Das Zahnrad schaltet in den Übungsmodus.'}
+      </p>
     </div>
   );
 };
