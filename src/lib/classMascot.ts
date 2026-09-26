@@ -1,3 +1,4 @@
+import type { SensitivityLevel } from './noisemeterAlgorithm';
 /** Class-local, purely teacher-controlled mascot. Contains no student data or grades. */
 export type ClassMascotKind = 'otter' | 'dog' | 'cat' | 'elf';
 export type ClassMascotMood = 'happy' | 'calm' | 'sleepy' | 'proud';
@@ -28,6 +29,12 @@ export interface ClassMascotState {
   quietMode?: boolean;
   /** Visible figure size on the board in CSS pixels; the surrounding widget stays transparent. */
   displaySize?: 160 | 220 | 280;
+  /** Optional local microphone meter. Audio is analysed in memory only and never stored or transmitted. */
+  liveNoiseEnabled?: boolean;
+  /** Relative 0..100 trigger point for the ear-covering reaction. This is deliberately not a fake dB value. */
+  liveNoiseThreshold?: number;
+  /** Device-dependent gain used for the local relative level. */
+  liveNoiseSensitivity?: SensitivityLevel;
 }
 
 export const MASCOT_OPTIONS: ReadonlyArray<{
@@ -53,12 +60,16 @@ export const DEFAULT_CLASS_MASCOT: ClassMascotState = {
   season: 'none',
   quietMode: false,
   displaySize: 220,
+  liveNoiseEnabled: false,
+  liveNoiseThreshold: 65,
+  liveNoiseSensitivity: 'normal',
 };
 
 const KINDS = new Set<ClassMascotKind>(['otter', 'dog', 'cat', 'elf']);
 const MOODS = new Set<ClassMascotMood>(['happy', 'calm', 'sleepy', 'proud']);
 const ACCESSORIES = new Set<ClassMascotAccessory>(['none', 'scarf', 'glasses', 'star']);
 const SEASONS = new Set<ClassMascotSeason>(['none', 'spring', 'summer', 'autumn', 'winter']);
+const NOISE_SENSITIVITIES = new Set<SensitivityLevel>(['low', 'normal', 'high']);
 const clampStars = (value: unknown) => typeof value === 'number' && Number.isFinite(value)
   ? Math.max(0, Math.min(5, Math.floor(value))) : 0;
 
@@ -116,6 +127,13 @@ export function normalizeClassMascot(value?: Partial<ClassMascotState> | null): 
     season: value?.season && SEASONS.has(value.season) ? value.season : 'none',
     quietMode: value?.quietMode === true,
     displaySize: value?.displaySize === 160 || value?.displaySize === 280 ? value.displaySize : 220,
+    liveNoiseEnabled: value?.liveNoiseEnabled === true,
+    liveNoiseThreshold: typeof value?.liveNoiseThreshold === 'number' && Number.isFinite(value.liveNoiseThreshold)
+      ? Math.max(35, Math.min(90, Math.round(value.liveNoiseThreshold)))
+      : 65,
+    liveNoiseSensitivity: value?.liveNoiseSensitivity && NOISE_SENSITIVITIES.has(value.liveNoiseSensitivity)
+      ? value.liveNoiseSensitivity
+      : 'normal',
   };
 }
 
