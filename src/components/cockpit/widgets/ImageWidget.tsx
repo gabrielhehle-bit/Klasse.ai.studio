@@ -565,7 +565,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
 
                   <button
                     onClick={() => setIsLightboxOpen(true)}
-                    className="p-2 rounded-xl bg-accent hover:bg-accent-hover text-white font-bold flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs"
+                    className="p-2 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-bold flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs"
                     style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
                     title="Vollbild öffnen"
                   >
@@ -631,7 +631,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsLightboxOpen(true)}
-                    className="px-2.5 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-white text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-xs"
+                    className="px-2.5 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-xs"
                     style={{ minHeight: TOUCH_TARGET_MIN }}
                     title="Vollbild anzeigen (Smartboard)"
                   >
@@ -669,7 +669,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
         /* 2. Zustand: Leerer Zustand (Kein Bild ausgewählt) */
         <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
           <div className="max-w-xs w-full flex flex-col items-center gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 flex items-center justify-center text-accent shadow-xs">
+            <div className="w-14 h-14 rounded-2xl bg-accent-soft border border-accent flex items-center justify-center text-accent shadow-xs">
               <ImageIcon size={28} />
             </div>
 
@@ -688,7 +688,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isProcessing}
-                className="w-full py-2.5 px-4 rounded-xl bg-accent hover:bg-accent-hover active:scale-98 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-xl bg-accent hover:bg-accent-hover active:scale-98 text-accent-text font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
                 style={{ minHeight: TOUCH_TARGET_MIN }}
               >
                 <Upload size={16} />
@@ -881,7 +881,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
               </button>
               <button
                 onClick={handleSaveAlt}
-                className="px-3 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-bold"
+                className="px-3 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-xs font-bold"
               >
                 Speichern
               </button>
@@ -924,7 +924,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
               </button>
               <button
                 onClick={handleApplyUrl}
-                className="px-3 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-bold"
+                className="px-3 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-xs font-bold"
               >
                 Übernehmen
               </button>
