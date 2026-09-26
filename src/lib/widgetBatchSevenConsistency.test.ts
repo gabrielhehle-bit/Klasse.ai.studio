@@ -7,6 +7,7 @@ import {
 } from './cockpitWidgetCatalog';
 
 const surface = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
+const legacyContents = readFileSync('src/components/cockpit/CockpitWidgetContents.tsx', 'utf8');
 const wheel = readFileSync('src/components/cockpit/widgets/WheelWidget.tsx', 'utf8');
 const scoreboard = readFileSync('src/components/cockpit/widgets/ScoreboardWidget.tsx', 'utf8');
 const stars = readFileSync('src/components/cockpit/widgets/StarsReviewWidget.tsx', 'utf8');
@@ -28,6 +29,8 @@ test('Batch 7: gemeinsames Zahnrad steuert Glücksrad, Gruppen-Punkte und Sterne
   assert.match(wheel, /showSettings: externalShowSettings/);
   assert.match(wheel, /const showConfigModal = externalShowSettings === true \|\| localShowConfigModal/);
   assert.match(wheel, /!hasExternalSettingsControl/);
+  assert.match(legacyContents, /WheelWidgetContent: React\.FC<WheelWidgetProps>/);
+  assert.match(legacyContents, /<WheelWidget \{\.\.\.props\} \/>/);
 
   assert.match(scoreboard, /showSettings: externalShowSettings/);
   assert.match(scoreboard, /const showSettingsMenu = externalShowSettings === true \|\| localShowSettingsMenu/);
