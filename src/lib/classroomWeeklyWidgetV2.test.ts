@@ -36,7 +36,7 @@ test('Widget 3: only explicitly published tasks can appear in the classroom week
 test('Widget 3: central library gear and class-local settings do not rewrite an existing instance', () => {
   assert.match(picker, /aria-label="Widget-Voreinstellungen öffnen"/);
   assert.match(picker, /<option value="classweeklyplan">📋 Wochenplan der Kinder<\/option>/);
-  assert.match(picker, /group\\.label} zur Widget-Leiste hinzufügen/);
+  assert.match(picker, /group\.label} zur Widget-Leiste hinzufügen/);
   assert.match(picker, /cockpitChildrenWeekDefaultsByClass/);
   assert.match(picker, /Voreinstellungen auf vorhandenes Widget anwenden/);
   assert.match(picker, /type === "classweeklyplan" && !useOld/);
