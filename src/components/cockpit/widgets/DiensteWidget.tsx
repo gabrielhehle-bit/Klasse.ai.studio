@@ -123,7 +123,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
   const manageMenuOpen = hasExternalSettingsControl ? externalShowSettings : showManageMenu;
   const closeManageMenu = () => {
     if (hasExternalSettingsControl) onCloseSettings?.();
-    else closeManageMenu();
+    else setShowManageMenu(false);
   };
   const [showAddModal, setShowAddModal] = useState(false);
   const [newDienstTitel, setNewDienstTitel] = useState('');
