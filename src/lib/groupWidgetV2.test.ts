@@ -42,7 +42,8 @@ test('Widget 2: old or invalid stored presets use safe class-local defaults', ()
 test('Widget 2: central library gear saves defaults and applies the change to an existing instance without mixing', () => {
   assert.match(surface, /aria-label="Widget-Voreinstellungen öffnen"/);
   assert.match(surface, /<option value="groups">👥 Gruppen bilden<\/option>/);
-  assert.match(surface, /group\.label} hinzufügen/);
+  assert.match(surface, /data-widget-card-action="primary"/);
+  assert.match(surface, /handleOpenWidgetInCockpitLayout\(primaryType as CockpitWidgetConfig\["type"\]\)/);
   assert.match(surface, /cockpitGroupDefaultsByClass/);
   assert.match(surface, /applyGroupWidgetPreference\(w.settings, groupKey, groupValue\)/);
   assert.match(surface, /Einstellungen übernommen/);
