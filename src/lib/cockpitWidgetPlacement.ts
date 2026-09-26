@@ -25,6 +25,7 @@ export interface CockpitPlacementResult {
   h: number;
   overlapArea: number;
   usedOverlapFallback: boolean;
+  shrankToFit: boolean;
 }
 
 const DEFAULT_GAP = 14;
@@ -130,11 +131,10 @@ export function findCockpitWidgetOpeningPlacement(
 
   const availableW = Math.max(1, usableWidth - padding * 2);
   const availableH = Math.max(1, usableHeight - padding * 2);
-
   const hardMinW = Math.min(availableW, Math.max(1, request.minW));
   const hardMinH = Math.min(availableH, Math.max(1, request.minH));
-  const w = clamp(request.desiredW, hardMinW, availableW);
-  const h = clamp(request.desiredH, hardMinH, availableH);
+  const requestedW = clamp(request.desiredW, hardMinW, availableW);
+  const requestedH = clamp(request.desiredH, hardMinH, availableH);
 
   const occupied = request.occupied.filter(rect =>
     rect.w > 0 &&
@@ -145,28 +145,77 @@ export function findCockpitWidgetOpeningPlacement(
     rect.y + rect.h > 0,
   );
 
-  const xs = getCandidateAxes(usableWidth, w, occupied, "x", gap, padding);
-  const ys = getCandidateAxes(usableHeight, h, occupied, "y", gap, padding);
+  const searchSize = (w: number, h: number) => {
+    const xs = getCandidateAxes(usableWidth, w, occupied, "x", gap, padding);
+    const ys = getCandidateAxes(usableHeight, h, occupied, "y", gap, padding);
+    let best: { rect: CockpitPlacementRect; overlap: number; score: number } | null = null;
 
-  let best: { rect: CockpitPlacementRect; overlap: number; score: number } | null = null;
-  for (const y of ys) {
-    for (const x of xs) {
-      const rect: CockpitPlacementRect = { x, y, w, h };
-      const overlap = totalOverlap(rect, occupied, gap);
-      const score = candidateScore(rect, overlap, usableWidth, usableHeight, padding);
-      if (!best || score < best.score) {
-        best = { rect, overlap, score };
-        if (overlap === 0 && x === padding && y === padding) break;
+    for (const y of ys) {
+      for (const x of xs) {
+        const rect: CockpitPlacementRect = { x, y, w, h };
+        const overlap = totalOverlap(rect, occupied, gap);
+        const score = candidateScore(rect, overlap, usableWidth, usableHeight, padding);
+        if (!best || score < best.score) best = { rect, overlap, score };
       }
     }
-    if (best?.overlap === 0 && best.rect.x === padding && best.rect.y === padding) break;
+    return best;
+  };
+
+  // Preserve the requested size when possible. If it has no free home, shrink
+  // in small steps but never below the widget's readable minimum. This avoids
+  // overlap when a compact yet still safe placement exists.
+  const scaleSteps = [1, 0.92, 0.84, 0.76];
+  const sizes: Array<{ w: number; h: number }> = [];
+  for (const scale of scaleSteps) {
+    const w = Math.max(hardMinW, requestedW * scale);
+    const h = Math.max(hardMinH, requestedH * scale);
+    if (!sizes.some(size => Math.abs(size.w - w) < 0.5 && Math.abs(size.h - h) < 0.5)) {
+      sizes.push({ w, h });
+    }
+  }
+  if (!sizes.some(size => Math.abs(size.w - hardMinW) < 0.5 && Math.abs(size.h - hardMinH) < 0.5)) {
+    sizes.push({ w: hardMinW, h: hardMinH });
   }
 
-  const rect = best?.rect ?? { x: padding, y: padding, w, h };
-  const overlapArea = best?.overlap ?? 0;
+  let bestFallback: { rect: CockpitPlacementRect; overlap: number; score: number; shrink: number } | null = null;
+
+  for (const size of sizes) {
+    const found = searchSize(size.w, size.h);
+    if (!found) continue;
+    const shrink =
+      1 -
+      ((size.w / Math.max(1, requestedW)) + (size.h / Math.max(1, requestedH))) / 2;
+
+    if (found.overlap <= 0.5) {
+      return {
+        ...found.rect,
+        overlapArea: 0,
+        usedOverlapFallback: false,
+        shrankToFit: shrink > 0.01,
+      };
+    }
+
+    if (
+      !bestFallback ||
+      found.overlap < bestFallback.overlap - 0.5 ||
+      (Math.abs(found.overlap - bestFallback.overlap) <= 0.5 &&
+        shrink < bestFallback.shrink)
+    ) {
+      bestFallback = { ...found, shrink };
+    }
+  }
+
+  const fallback = bestFallback ?? {
+    rect: { x: padding, y: padding, w: requestedW, h: requestedH },
+    overlap: 0,
+    score: 0,
+    shrink: 0,
+  };
   return {
-    ...rect,
-    overlapArea,
-    usedOverlapFallback: overlapArea > 0.5,
+    ...fallback.rect,
+    overlapArea: fallback.overlap,
+    usedOverlapFallback: fallback.overlap > 0.5,
+    shrankToFit: fallback.shrink > 0.01,
   };
 }
+
