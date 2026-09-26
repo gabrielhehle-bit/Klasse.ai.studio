@@ -466,7 +466,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
                       id={`link-open-btn-${link.id}`}
                       href={link.url}
                       {...SECURE_LINK_ATTRIBUTES}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer min-h-[38px]"
+                      className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-accent px-3 py-1.5 text-xs font-black text-accent-text shadow-xs transition-all hover:bg-accent-hover active:scale-98 cursor-pointer"
                     >
                       <span>Öffnen</span>
                       <ExternalLink className="w-3.5 h-3.5 shrink-0" />
@@ -625,7 +625,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
                           type="button"
                           onClick={() => setFormEmoji(em)}
                           className={`px-1.5 py-1 text-sm rounded hover:scale-110 transition-transform ${
-                            formEmoji === em ? 'bg-blue-500/20' : ''
+                            formEmoji === em ? 'bg-accent-soft' : ''
                           }`}
                         >
                           {em}
