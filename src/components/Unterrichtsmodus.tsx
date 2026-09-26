@@ -8602,7 +8602,7 @@ ${content}
                                                   <button type="button" key={count} aria-pressed={weeklyWidgetDefaults.taskCardsPerPage === count}
                                                     onClick={() => saveWeeklyPreset("taskCardsPerPage", count)}
                                                     className={weeklyWidgetDefaults.taskCardsPerPage === count
-                                                      ? "min-h-11 rounded-xl border border-indigo-600 bg-indigo-600 px-4 text-sm font-bold text-white"
+                                                      ? "min-h-11 rounded-xl border border-accent bg-accent px-4 text-sm font-bold text-accent-text"
                                                       : "min-h-11 rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-900"}>{count} {count === 1 ? "Aufgabe" : "Aufgaben"}</button>
                                                 ))}
                                               </div>
@@ -8620,7 +8620,7 @@ ${content}
                                                   <button type="button" key={size} aria-pressed={weeklyWidgetDefaults.startSize === size}
                                                     onClick={() => saveWeeklyPreset("startSize", size)}
                                                     className={weeklyWidgetDefaults.startSize === size
-                                                      ? "min-h-11 rounded-xl border border-indigo-600 bg-indigo-600 px-3 text-sm font-bold text-white"
+                                                      ? "min-h-11 rounded-xl border border-accent bg-accent px-3 text-sm font-bold text-accent-text"
                                                       : "min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-900"}>{label}</button>
                                                 ))}
                                               </div>
@@ -8629,21 +8629,21 @@ ${content}
                                             {configured.visible && (
                                               <button type="button" onClick={() => handleUpdateWidgetPos(configured.id, {
                                                 settings: { ...(configured.settings || {}), ...weeklyWidgetDefaults },
-                                              })} className="min-h-11 w-full rounded-xl border border-indigo-300 bg-white px-3 text-sm font-bold text-indigo-700">
+                                              })} className="min-h-11 w-full rounded-xl border border-accent bg-white px-3 text-sm font-bold text-accent">
                                                 Voreinstellungen auf vorhandenes Widget anwenden
                                               </button>
                                             )}
                                             <button type="button" onClick={() => {
                                               handleOpenWidgetInCockpitLayout("classweeklyplan");
                                               setIsAddWidgetMenuOpen(false);
-                                            }} className="min-h-11 w-full rounded-xl bg-indigo-600 px-3 text-sm font-bold text-white">
+                                            }} className="min-h-11 w-full rounded-xl bg-accent px-3 text-sm font-bold text-accent-text">
                                               Wochenplan-Widget hinzufügen
                                             </button>
                                           </fieldset>
                                         ) : selectedWidgetConfiguration === "randomname" ? (
                                           <fieldset className="space-y-3">
                                             <legend className="text-sm font-black">Zufallsauswahl · Voreinstellungen</legend>
-                                            <div className="rounded-xl border-2 border-indigo-200 bg-indigo-50/40 p-3" role="group" aria-label="Teilnehmende Kinder festlegen">
+                                            <div className="rounded-xl border-2 border-accent/30 bg-accent-soft p-3" role="group" aria-label="Teilnehmende Kinder festlegen">
                                               <p className="mb-2 text-sm font-black">Wer soll gezogen werden?</p>
                                               {([
                                                 ["present", "Heute anwesende Kinder", "Kinder, die heute als abwesend markiert sind, werden nicht gezogen."],
@@ -8690,7 +8690,7 @@ ${content}
                                                   <button key={size} type="button" aria-pressed={randomNameDefaults.startSize === size}
                                                     onClick={() => saveRandomPreset("startSize", size)}
                                                     className={randomNameDefaults.startSize === size
-                                                      ? "min-h-11 rounded-xl border border-indigo-600 bg-indigo-600 px-3 text-sm font-bold text-white"
+                                                      ? "min-h-11 rounded-xl border border-accent bg-accent px-3 text-sm font-bold text-accent-text"
                                                       : "min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-900"}>{label}</button>
                                                 ))}
                                               </div>
@@ -8699,14 +8699,14 @@ ${content}
                                             {configured.visible && (
                                               <button type="button" onClick={() => handleUpdateWidgetPos(configured.id, {
                                                 settings: { ...(configured.settings || {}), ...randomNameDefaults },
-                                              })} className="min-h-11 w-full rounded-xl border border-indigo-300 bg-white px-3 text-sm font-bold text-indigo-700">
+                                              })} className="min-h-11 w-full rounded-xl border border-accent bg-white px-3 text-sm font-bold text-accent">
                                                 Auf vorhandenes Widget anwenden (setzt die laufende Auswahl beim Moduswechsel zurück)
                                               </button>
                                             )}
                                             <button type="button" onClick={() => {
                                               handleOpenWidgetInCockpitLayout("randomname");
                                               setIsAddWidgetMenuOpen(false);
-                                            }} className="min-h-11 w-full rounded-xl bg-indigo-600 px-3 text-sm font-bold text-white">
+                                            }} className="min-h-11 w-full rounded-xl bg-accent px-3 text-sm font-bold text-accent-text">
                                               Zufallsauswahl hinzufügen
                                             </button>
                                           </fieldset>                                        ) : selectedWidgetConfiguration === "kidattendance" ? (
@@ -8737,7 +8737,7 @@ ${content}
                                                 {([["compact", "Klein"], ["standard", "Mittel"], ["large", "Groß"]] as const).map(([size, label]) => (
                                                   <button key={size} type="button" onClick={() => saveSetting("startSize", size)}
                                                     aria-pressed={checkInDefaults.startSize === size}
-                                                    className={`min-h-11 rounded-lg border px-3 text-sm font-semibold ${checkInDefaults.startSize === size ? "border-indigo-600 bg-indigo-600 text-white" : "border-slate-200 bg-white text-slate-800"}`}>{label}</button>
+                                                    className={`min-h-11 rounded-lg border px-3 text-sm font-semibold ${checkInDefaults.startSize === size ? "border-accent bg-accent text-accent-text" : "border-slate-200 bg-white text-slate-800"}`}>{label}</button>
                                                 ))}
                                               </div>
                                             </div>
@@ -8745,14 +8745,14 @@ ${content}
                                             {(configured.visible || configured.hasBeenOpened) && (
                                               <button type="button" onClick={() => handleUpdateWidgetPos(configured.id, {
                                                 settings: { ...(configured.settings || {}), checkInMode: checkInDefaults.checkInMode, moodEnabled: checkInDefaults.moodEnabled },
-                                              })} className="min-h-11 w-full rounded-xl border border-indigo-300 bg-white px-3 text-sm font-bold text-indigo-700">
+                                              })} className="min-h-11 w-full rounded-xl border border-accent bg-white px-3 text-sm font-bold text-accent">
                                                 Auf vorhandenes Widget anwenden
                                               </button>
                                             )}
                                             <button type="button" onClick={() => {
                                               handleOpenWidgetInCockpitLayout("kidattendance");
                                               setIsAddWidgetMenuOpen(false);
-                                            }} className="min-h-11 w-full rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white">
+                                            }} className="min-h-11 w-full rounded-xl bg-accent px-4 text-sm font-bold text-accent-text">
                                               Ich bin da! hinzufügen
                                             </button>
                                           </fieldset>
@@ -8791,7 +8791,7 @@ ${content}
                                                     aria-pressed={groupDefaults.targetValue === value}
                                                     onClick={() => saveSetting("targetValue", value)}
                                                     className={groupDefaults.targetValue === value
-                                                      ? "min-h-11 min-w-11 rounded-lg border border-indigo-600 bg-indigo-600 px-3 text-sm font-bold text-white"
+                                                      ? "min-h-11 min-w-11 rounded-lg border border-accent bg-accent px-3 text-sm font-bold text-accent-text"
                                                       : "min-h-11 min-w-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-bold text-slate-900"}>
                                                     {value}{groupDefaults.mode === "count" ? " Gr." : "er"}
                                                   </button>
@@ -8805,7 +8805,7 @@ ${content}
                                                   <button type="button" key={style} aria-pressed={groupDefaults.namingStyle === style}
                                                     onClick={() => saveSetting("namingStyle", style)}
                                                     className={groupDefaults.namingStyle === style
-                                                      ? "min-h-11 rounded-lg border border-indigo-600 bg-indigo-600 px-2 text-sm font-semibold text-white"
+                                                      ? "min-h-11 rounded-lg border border-accent bg-accent px-2 text-sm font-semibold text-accent-text"
                                                       : "min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-sm font-semibold text-slate-900"}>{label}</button>
                                                 ))}
                                               </div>
@@ -8817,7 +8817,7 @@ ${content}
                                                   <button type="button" key={size} aria-pressed={groupDefaults.startSize === size}
                                                     onClick={() => saveSetting("startSize", size)}
                                                     className={groupDefaults.startSize === size
-                                                      ? "min-h-11 rounded-lg border border-indigo-600 bg-indigo-600 px-3 text-sm font-semibold text-white"
+                                                      ? "min-h-11 rounded-lg border border-accent bg-accent px-3 text-sm font-semibold text-accent-text"
                                                       : "min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-900"}>{label}</button>
                                                 ))}
                                               </div>
@@ -8836,7 +8836,7 @@ ${content}
                                             <button type="button" onClick={() => {
                                               handleOpenWidgetInCockpitLayout("groups");
                                               setIsAddWidgetMenuOpen(false);
-                                            }} className="min-h-11 w-full rounded-xl bg-indigo-600 px-3 text-sm font-bold text-white">
+                                            }} className="min-h-11 w-full rounded-xl bg-accent px-3 text-sm font-bold text-accent-text">
                                               Gruppen-Widget hinzufügen
                                             </button>
                                           </fieldset>
