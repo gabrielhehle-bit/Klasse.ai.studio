@@ -340,6 +340,7 @@ async function verifyRandomPickerInRealBrowser(client) {
       if(!widget)return {error:'missing random widget'};
       const selectors=[
         'button[aria-label="Widget-Menü öffnen"]',
+        'button[aria-label="Widget-Größe ändern"]',
         'button[aria-label="Kinder für diese Unterrichtsphase auswählen"]',
         'button[aria-label="Zufälliges Kind ziehen"]'
       ];
@@ -354,6 +355,13 @@ async function verifyRandomPickerInRealBrowser(client) {
   if (randomWidgetTouch.error || randomWidgetTouch.controls.some(control => control.missing || control.w < 43 || control.h < 43)) {
     throw new Error('Random widget keeps board-safe touch targets: ' + JSON.stringify(randomWidgetTouch));
   }
+  const openedWidgetMenu = await evaluate(client,
+    String.raw`(() => {const widget=document.querySelector('[data-widget-type="randomname"]');const button=widget?.querySelector('button[aria-label="Widget-Menü öffnen"]');if(!widget||!button)return false;button.click();return true;})()`);
+  if (!openedWidgetMenu) throw new Error('Could not open focused widget action menu.');
+  await waitFor(client, 'widget action menu is focused and understandable',
+    String.raw`(() => {const widget=document.querySelector('[data-widget-type="randomname"]');const menu=widget?.querySelector('[role="menu"][aria-label="Widget-Aktionen"]');return widget?.getAttribute('data-widget-focused')==='true' && !!menu && ['Minimieren','Maximieren','Größe','Widget schließen'].every(label=>menu.textContent.includes(label));})()`);
+  await evaluate(client,
+    String.raw`(() => {document.querySelector('[data-widget-type="randomname"] button[aria-label="Widget-Menü schließen"]')?.click();return true;})()`);
   const noLocalSoundSetting = await evaluate(client,
     String.raw`!Array.from(document.querySelectorAll('button')).some(b=>/Ton (?:ein|aus|um)schalten/.test(b.getAttribute('aria-label')||''))`);
   if (!noLocalSoundSetting) throw new Error('Random picker has redundant in-widget sound settings.');
