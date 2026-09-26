@@ -255,21 +255,46 @@ test("Cockpit: Vorlage erstellen ist direkt sichtbar und öffnet den Erstellen-T
   assert.match(templatesModal, /if \(isOpen\) setActiveTab\(initialTab\)/);
 });
 
-test("Cockpit: Widget-Bearbeitung liegt in einem kompakten Kontextmenü", () => {
-  assert.match(cockpitWidget, /aria-label="Widget-Menü öffnen"/);
-  for (const label of ["Einstellungen", "Größe", "Groß fest einstellen", "Widget schließen"]) {
+test("Cockpit: Widget-Bearbeitung liegt in einem kompakten, verständlichen Kontextmenü", () => {
+  assert.match(cockpitWidget, /Widget-Menü öffnen/);
+  for (const label of ["Einstellungen", "Größe", "Maximieren", "Minimieren", "Widget schließen"]) {
     assert.ok(cockpitWidget.includes(label), `Widget-Menüeintrag fehlt: ${label}`);
   }
-  assert.doesNotMatch(cockpitWidget, /aria-label="Widget maximieren"/);
-  assert.doesNotMatch(cockpitWidget, /aria-label="Widget-Einstellungen öffnen"/);
-  assert.doesNotMatch(cockpitWidget, /aria-label="Widget-Größe einstellen"/);
+  assert.doesNotMatch(cockpitWidget, /Groß fest einstellen/);
+  assert.match(cockpitWidget, />\s*Passend\s*<\/button>/);
+  assert.match(cockpitWidget, />\s*Groß\s*<\/button>/);
+  assert.match(cockpitWidget, />\s*Tafelfläche\s*<\/button>/);
+  assert.match(cockpitWidget, /Genau einstellen/);
+  assert.match(cockpitWidget, /onFocus\(\);[\s\S]*?setShowWidgetMenu/);
+  assert.match(cockpitWidget, /max-w-\[calc\(100cqw-0\.5rem\)\]/);
 });
 
-test("Cockpit: automatische Anordnung kann vier Widgets als 2x2-Raster einpassen", () => {
+test("Cockpit: Resize ist touch- und tastatursicher und räumt Pointer-Abbrüche auf", () => {
+  assert.match(cockpitWidget, /aria-label="Widget-Größe ändern"/);
+  assert.match(cockpitWidget, /w-11 h-11/);
+  assert.match(cockpitWidget, /onKeyDown=\{handleResizeKeyDown\}/);
+  assert.match(cockpitWidget, /target\.addEventListener\("pointercancel", finishResize\)/);
+  assert.match(cockpitWidget, /target\.removeEventListener\("pointercancel", finishResize\)/);
+  assert.match(cockpitWidget, /if \(!e\.isPrimary \|\| e\.button !== 0/);
+});
+
+test("Cockpit: jede Interaktion bringt das betroffene Fenster nach vorne", () => {
+  assert.match(cockpitWidget, /onPointerDownCapture=\{!isDirect && !isFreeMascot \? onFocus : undefined\}/);
+  assert.match(cockpitWidget, /data-widget-focused=\{isFocused \? "true" : "false"\}/);
+  assert.match(teachingSurface, /const focusIndex = focusOrder\.indexOf\(widget\.id\)/);
+  assert.match(teachingSurface, /const focusedWidgetId =/);
+  assert.match(teachingSurface, /visibleFocusOrder\[visibleFocusOrder\.length - 1\]/);
+  assert.match(teachingSurface, /setFocusOrder\(previous =>/);
+  assert.match(cockpitWidget, /role="menuitem"/);
+});
+
+test("Cockpit: automatische Anordnung lässt minimierte und freie Ebenen unverändert", () => {
+  assert.match(teachingSurface, /!minimizedWidgetIds\.includes\(w\.id\)/);
+  assert.match(teachingSurface, /w\.type !== "pet"/);
+  assert.match(teachingSurface, /!w\.settings\?\.isDirectMode/);
+  assert.match(teachingSurface, /if \(idx < 0\) return w/);
   assert.match(teachingSurface, /const targetW = Math\.min\(w\.w, Math\.max\(18, cellW - 3\)\)/);
   assert.match(teachingSurface, /const targetH = Math\.min\(w\.h, Math\.max\(18, cellH - 3\)\)/);
-  assert.match(teachingSurface, /w: targetW/);
-  assert.match(teachingSurface, /h: targetH/);
 });
 
 test("Cockpit: Ich-bin-da zeigt Kindernamen vollständig und gibt ihnen ausreichend Kartenbreite", () => {

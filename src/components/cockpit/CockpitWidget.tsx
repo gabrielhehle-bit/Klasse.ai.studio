@@ -179,7 +179,10 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   const [showWidgetMenu, setShowWidgetMenu] = useState(false);
   const [sizeInputWidth, setSizeInputWidth] = useState("");
   const [sizeInputHeight, setSizeInputHeight] = useState("");
+  const [showExactSizeInputs, setShowExactSizeInputs] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
 
   // Widget menus behave like real popovers: Escape or a click/tap outside closes
   // them. This is especially important on Smartboards where a menu otherwise
@@ -193,12 +196,14 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       if (widgetMenuAreaRef.current?.contains(target)) return;
       setShowWidgetMenu(false);
       setShowSizeConfig(false);
+      setShowExactSizeInputs(false);
     };
 
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       setShowWidgetMenu(false);
       setShowSizeConfig(false);
+      setShowExactSizeInputs(false);
     };
 
     document.addEventListener("pointerdown", closeOnOutsidePointer);
@@ -281,13 +286,15 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       const xNum = Math.max(0, Math.min(widget.x, 100 - wNum));
       const yNum = Math.max(0, Math.min(widget.y, 100 - hNum));
 
+      onFocus();
       onUpdate({ x: xNum, y: yNum, w: wNum, h: hNum });
+      setShowExactSizeInputs(false);
       setShowSizeConfig(false);
     }
   };
 
   const handlePointerDownDrag = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!e.isPrimary || isMaximized || layoutLocked) return;
+    if (!e.isPrimary || e.button !== 0 || isMaximized || layoutLocked) return;
     onFocus();
 
     const stage = stageRef.current;
@@ -306,6 +313,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
 
     const target = e.currentTarget;
     target.setPointerCapture(e.pointerId);
+    setIsDragging(true);
 
     const handlePointerMove = (moveEvent: PointerEvent) => {
       const deltaX = moveEvent.clientX - dragStartPos.current.x;
@@ -344,6 +352,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       target.removeEventListener("pointermove", handlePointerMove);
       target.removeEventListener("pointerup", finishDrag);
       target.removeEventListener("pointercancel", finishDrag);
+      setIsDragging(false);
     };
 
     target.addEventListener("pointermove", handlePointerMove);
@@ -351,8 +360,8 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     target.addEventListener("pointercancel", finishDrag);
   };
 
-  const handlePointerDownResize = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!e.isPrimary || isMaximized || layoutLocked) return;
+  const handlePointerDownResize = (e: React.PointerEvent<HTMLElement>) => {
+    if (!e.isPrimary || e.button !== 0 || isMaximized || layoutLocked) return;
     e.stopPropagation();
     onFocus();
 
@@ -369,6 +378,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
 
     const target = e.currentTarget;
     target.setPointerCapture(e.pointerId);
+    setIsResizing(true);
 
     const handlePointerMove = (moveEvent: PointerEvent) => {
       const deltaX = moveEvent.clientX - resizeStartPos.current.startX;
@@ -402,22 +412,68 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       });
     };
 
-    const handlePointerUp = (upEvent: PointerEvent) => {
-      target.releasePointerCapture(upEvent.pointerId);
+    const finishResize = (endEvent: PointerEvent) => {
+      if (target.hasPointerCapture(endEvent.pointerId)) {
+        target.releasePointerCapture(endEvent.pointerId);
+      }
       target.removeEventListener("pointermove", handlePointerMove);
-      target.removeEventListener("pointerup", handlePointerUp);
+      target.removeEventListener("pointerup", finishResize);
+      target.removeEventListener("pointercancel", finishResize);
+      setIsResizing(false);
     };
 
     target.addEventListener("pointermove", handlePointerMove);
-    target.addEventListener("pointerup", handlePointerUp);
+    target.addEventListener("pointerup", finishResize);
+    target.addEventListener("pointercancel", finishResize);
   };
 
-  const handleSetPersistentLargeSize = () => {
-    // Im Gegensatz zu "Maximieren" wird diese Größe über onUpdate im Layout gespeichert.
+  const applyPersistentSize = (targetW: number, targetH: number, moveToBoardInset = false) => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const stageRect = stage.getBoundingClientRect();
+    if (stageRect.width <= 0 || stageRect.height <= 0) return;
+    const minConfig = getWidgetMinSizeConfig(widget.type);
+    const minW = Math.min(100, (minConfig.minW / stageRect.width) * 100);
+    const minH = Math.min(100, (minConfig.minH / stageRect.height) * 100);
+    const w = Math.max(minW, Math.min(96, targetW));
+    const h = Math.max(minH, Math.min(96, targetH));
+    const x = moveToBoardInset ? Math.max(0, Math.min(4, 100 - w)) : Math.max(0, Math.min(widget.x, 100 - w));
+    const y = moveToBoardInset ? Math.max(0, Math.min(4, 100 - h)) : Math.max(0, Math.min(widget.y, 100 - h));
     setIsMaximized(false);
-    onUpdate({ x: 4, y: 4, w: 92, h: 90 });
-    setShowWidgetMenu(false);
-    setShowSizeConfig(false);
+    onFocus();
+    onUpdate({ x, y, w, h });
+    setSizeInputWidth(Math.round(w).toString());
+    setSizeInputHeight(Math.round(h).toString());
+  };
+
+  const applySizePreset = (preset: "fit" | "large" | "board") => {
+    const optimal = OPTIMAL_WIDGET_SIZES[widget.type] || { w: 35, h: 45 };
+    if (preset === "fit") {
+      applyPersistentSize(optimal.w, optimal.h);
+      return;
+    }
+    if (preset === "large") {
+      applyPersistentSize(
+        Math.min(82, Math.max(55, optimal.w * 1.35)),
+        Math.min(86, Math.max(60, optimal.h * 1.25)),
+      );
+      return;
+    }
+    applyPersistentSize(92, 90, true);
+  };
+
+  const handleResizeKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    const delta = event.shiftKey ? 5 : 2;
+    let dw = 0;
+    let dh = 0;
+    if (event.key === "ArrowLeft") dw = -delta;
+    else if (event.key === "ArrowRight") dw = delta;
+    else if (event.key === "ArrowUp") dh = -delta;
+    else if (event.key === "ArrowDown") dh = delta;
+    else return;
+    event.preventDefault();
+    event.stopPropagation();
+    applyPersistentSize(widget.w + dw, widget.h + dh);
   };
 
   const labelMapping: Record<string, string> = {
@@ -697,17 +753,19 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       data-mascot-focused={isFreeMascot && isFocused ? "true" : undefined}
       data-widget-type={widget.type}
       data-widget-density={viewportDensity}
-      data-widget-ux="v2"
+      data-widget-ux="v3"
+      data-widget-focused={isFocused ? "true" : "false"}
+      data-widget-interacting={isDragging ? "dragging" : isResizing ? "resizing" : undefined}
       className={`cockpit-widget-container absolute flex flex-col transition-[transform,border-color,shadow,background-color,opacity,border-radius,box-shadow,ring-color] duration-300 ease-out select-none group animate-in fade-in zoom-in-95 ${isFreeMascot ? "cockpit-free-mascot rounded-none border-0 bg-transparent shadow-none ring-0 backdrop-blur-none" : ""} ${
         isDirect || isFreeMascot
           ? "rounded-none border-none bg-transparent shadow-none"
           : "rounded-[24px] backdrop-blur-3xl ring-offset-transparent transition-all " +
             (currentIsLight
               ? isFocused
-                ? "bg-white border border-indigo-400/80 ring-4 ring-indigo-500/20 shadow-[0_24px_55px_rgba(79,70,229,0.12),0_1px_3px_rgba(79,70,229,0.04)] text-slate-800"
+                ? "bg-white border border-accent ring-4 ring-accent/20 shadow-[0_24px_55px_rgba(15,23,42,0.16),0_1px_3px_rgba(15,23,42,0.06)] text-slate-800"
                 : "bg-white/95 border border-slate-200/70 shadow-[0_12px_40px_rgba(15,23,42,0.06),0_1px_2px_rgba(15,23,42,0.02)] text-slate-800"
               : isFocused
-                ? "bg-zinc-900 border border-indigo-500/40 ring-4 ring-indigo-500/20 shadow-[0_24px_55px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.12)] text-neutral-100"
+                ? "bg-zinc-900 border border-accent ring-4 ring-accent/20 shadow-[0_24px_55px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.12)] text-neutral-100"
                 : "bg-zinc-950/85 border border-white/5 shadow-[0_16px_45px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.06)] text-neutral-100")
       }`}
       style={{
@@ -721,6 +779,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
         // overfull widget contents even while the board layout is editable.
         touchAction: "auto",
       }}
+      onPointerDownCapture={!isDirect && !isFreeMascot ? onFocus : undefined}
       onClick={onFocus}
       onKeyDown={isFreeMascot ? handleMascotKeyDown : undefined}
     >
@@ -753,7 +812,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
                   widget.type === "drawing"
                     ? "bg-rose-500 animate-pulse"
                     : isFocused
-                      ? "bg-indigo-600 dark:bg-indigo-400"
+                      ? "bg-accent"
                       : "bg-slate-400 dark:bg-zinc-500"
                 }`}
               />
@@ -788,10 +847,10 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
               aria-label={`${labelMapping[widget.type] || widget.type} Einstellungen ${settingsOpen ? "schließen" : "öffnen"}`}
               aria-expanded={settingsOpen}
               title="Widget-Einstellungen"
-              className={`ml-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${settingsOpen
-                ? "bg-indigo-600 border-indigo-600 text-white"
+              className={`cockpit-widget-settings-trigger ml-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${settingsOpen
+                ? "bg-accent border-accent text-accent-text"
                 : currentIsLight
-                  ? "bg-white border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
+                  ? "bg-white border-slate-200 text-slate-600 hover:bg-accent-soft hover:text-accent"
                   : "bg-zinc-800 border-white/10 text-zinc-200 hover:bg-zinc-700"}`}
             >
               <Settings size={16} aria-hidden="true" />
@@ -829,18 +888,20 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
+              onFocus();
               setShowWidgetMenu((value) => !value);
               setShowSizeConfig(false);
+              setShowExactSizeInputs(false);
             }}
-            className={`w-11 h-11 flex items-center justify-center rounded-lg border shadow-sm transition-all outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 cursor-pointer ${
+            className={`cockpit-widget-menu-trigger w-11 h-11 flex items-center justify-center rounded-lg border shadow-sm transition-all outline-none focus-visible:ring-2 focus-visible:ring-accent cursor-pointer ${
               showWidgetMenu
-                ? "bg-indigo-600 border-indigo-600 text-white"
+                ? "bg-accent border-accent text-accent-text"
                 : currentIsLight
-                  ? "bg-white border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                  ? "bg-white border-slate-200 text-slate-500 hover:bg-accent-soft hover:text-accent"
                   : "bg-zinc-800 border-white/10 text-neutral-300 hover:bg-zinc-700 hover:text-white"
             }`}
-            title="Widget-Menü"
-            aria-label="Widget-Menü öffnen"
+            title={showWidgetMenu ? "Widget-Menü schließen" : "Widget-Menü"}
+            aria-label={showWidgetMenu ? "Widget-Menü schließen" : "Widget-Menü öffnen"}
             aria-expanded={showWidgetMenu}
           >
             <MoreHorizontal size={16} strokeWidth={2.5} />
@@ -851,14 +912,14 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
               onPointerDown={(e) => e.stopPropagation()}
               role="menu"
               aria-label="Widget-Aktionen"
-              className={`absolute right-0 top-10 z-[80] w-52 rounded-xl border p-1.5 shadow-2xl ${
+              className={`cockpit-widget-action-menu absolute right-0 top-full z-[80] mt-1 w-56 max-w-[calc(100cqw-0.5rem)] rounded-2xl border p-1.5 shadow-2xl ${
                 currentIsLight
                   ? "bg-white border-slate-200 text-slate-800"
                   : "bg-zinc-900 border-white/10 text-zinc-100"
               }`}
             >
               {!layoutLocked && (widget.type === "drawing" || widget.type === "instruction") && (
-                <button
+                <button role="menuitem"
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -878,7 +939,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
               )}
 
               {!isDirect && onMinimize && (
-                <button
+                <button role="menuitem"
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -893,10 +954,11 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
               )}
 
               {!isDirect && (
-                <button
+                <button role="menuitem"
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
+                    onFocus();
                     setIsMaximized(!isMaximized);
                     setShowWidgetMenu(false);
                   }}
@@ -907,27 +969,14 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
                 </button>
               )}
 
-              {!isDirect && !layoutLocked && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleSetPersistentLargeSize();
-                  }}
-                  className="w-full min-h-11 px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-white/10 text-left"
-                  title="Widget dauerhaft groß auf der Smartboard-Fläche ablegen"
-                >
-                  <LockKeyhole size={14} />
-                  <span>Groß fest einstellen</span>
-                </button>
-              )}
-
               {!layoutLocked && (
-                <button
+                <button role="menuitem"
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
+                    onFocus();
                     setShowWidgetMenu(false);
+                    setShowExactSizeInputs(false);
                     setShowSizeConfig(true);
                   }}
                   className="w-full min-h-11 px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-white/10 text-left"
@@ -940,7 +989,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
               {!layoutLocked && (
                 <>
                   <div className="h-px bg-slate-100 dark:bg-white/10 my-1" />
-                  <button
+                  <button role="menuitem"
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -962,68 +1011,95 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
               onSubmit={handleApplySizeConfig}
               onPointerDown={(e) => e.stopPropagation()}
               aria-label="Größe des Widgets anpassen"
-              className={`absolute top-10 right-0 p-3 rounded-xl shadow-xl border w-48 z-[80] flex flex-col gap-3 ${
+              className={`cockpit-widget-size-popover absolute top-full right-0 mt-1 p-3 rounded-2xl shadow-2xl border w-72 max-w-[calc(100cqw-0.5rem)] z-[80] flex flex-col gap-3 ${
                 currentIsLight
                   ? "bg-white border-slate-200"
                   : "bg-zinc-900 border-white/10"
               }`}
             >
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-[10px] uppercase font-black tracking-widest opacity-60">
-                  Größe (in %)
-                </span>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-black">Widget-Größe</h3>
+                  <p className="mt-0.5 text-[11px] leading-relaxed opacity-60">Schnell eine passende Größe wählen oder exakt einstellen.</p>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setShowSizeConfig(false)}
-                  className="flex min-h-11 min-w-11 items-center justify-center rounded-lg opacity-50 hover:opacity-100"
+                  onClick={() => {
+                    setShowSizeConfig(false);
+                    setShowExactSizeInputs(false);
+                  }}
+                  className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg opacity-60 hover:opacity-100"
                   aria-label="Größeneinstellung schließen"
                 >
-                  <X size={12} />
+                  <X size={14} />
                 </button>
               </div>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <label className="text-[8px] uppercase font-bold opacity-50 block mb-1">
-                    Breite
-                  </label>
-                  <input
-                    type="number"
-                    min="10"
-                    max="100"
-                    value={sizeInputWidth}
-                    onChange={(e) => setSizeInputWidth(e.target.value)}
-                    className={`w-full min-h-11 p-1.5 rounded-lg text-sm font-bold border outline-none text-center ${
-                      currentIsLight
-                        ? "bg-slate-50 border-slate-200 focus:border-indigo-400"
-                        : "bg-zinc-800 border-white/10 focus:border-indigo-500"
-                    }`}
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="text-[8px] uppercase font-bold opacity-50 block mb-1">
-                    Höhe
-                  </label>
-                  <input
-                    type="number"
-                    min="10"
-                    max="100"
-                    value={sizeInputHeight}
-                    onChange={(e) => setSizeInputHeight(e.target.value)}
-                    className={`w-full min-h-11 p-1.5 rounded-lg text-sm font-bold border outline-none text-center ${
-                      currentIsLight
-                        ? "bg-slate-50 border-slate-200 focus:border-indigo-400"
-                        : "bg-zinc-800 border-white/10 focus:border-indigo-500"
-                    }`}
-                  />
-                </div>
+
+              <div className="cockpit-widget-size-presets grid grid-cols-3 gap-1.5" aria-label="Größen-Voreinstellungen">
+                <button type="button" onClick={() => applySizePreset("fit")}
+                  className="cockpit-widget-size-preset min-h-12 rounded-xl border border-slate-200 bg-white px-2 text-xs font-bold text-slate-700 hover:border-accent hover:bg-accent-soft">
+                  Passend
+                </button>
+                <button type="button" onClick={() => applySizePreset("large")}
+                  className="cockpit-widget-size-preset min-h-12 rounded-xl border border-slate-200 bg-white px-2 text-xs font-bold text-slate-700 hover:border-accent hover:bg-accent-soft">
+                  Groß
+                </button>
+                <button type="button" onClick={() => applySizePreset("board")}
+                  className="cockpit-widget-size-preset min-h-12 rounded-xl border border-accent bg-accent-soft px-2 text-xs font-black text-accent">
+                  Tafelfläche
+                </button>
               </div>
-              <button
-                type="submit"
-                className="w-full min-h-11 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 mt-1 transition-colors"
-              >
-                <Check size={12} />
-                Anwenden
+
+              <button type="button"
+                onClick={() => setShowExactSizeInputs(value => !value)}
+                aria-expanded={showExactSizeInputs}
+                className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-left text-xs font-bold text-slate-700 hover:bg-slate-100">
+                {showExactSizeInputs ? "▴ Genaue Werte ausblenden" : "▾ Genau einstellen"}
               </button>
+
+              {showExactSizeInputs && (
+                <>
+                  <div className="cockpit-widget-exact-grid grid grid-cols-2 gap-2">
+                    <label className="text-[10px] font-bold text-slate-500">
+                      Breite · % der Tafel
+                      <input
+                        type="number"
+                        min="10"
+                        max="100"
+                        value={sizeInputWidth}
+                        onChange={(e) => setSizeInputWidth(e.target.value)}
+                        className={`mt-1 w-full min-h-11 p-1.5 rounded-lg text-sm font-bold border outline-none text-center ${
+                          currentIsLight
+                            ? "bg-slate-50 border-slate-200 focus:border-accent"
+                            : "bg-zinc-800 border-white/10 focus:border-accent"
+                        }`}
+                      />
+                    </label>
+                    <label className="text-[10px] font-bold text-slate-500">
+                      Höhe · % der Tafel
+                      <input
+                        type="number"
+                        min="10"
+                        max="100"
+                        value={sizeInputHeight}
+                        onChange={(e) => setSizeInputHeight(e.target.value)}
+                        className={`mt-1 w-full min-h-11 p-1.5 rounded-lg text-sm font-bold border outline-none text-center ${
+                          currentIsLight
+                            ? "bg-slate-50 border-slate-200 focus:border-accent"
+                            : "bg-zinc-800 border-white/10 focus:border-accent"
+                        }`}
+                      />
+                    </label>
+                  </div>
+                  <button
+                    type="submit"
+                    className="cockpit-widget-size-apply w-full min-h-11 py-2 bg-accent hover:bg-accent-hover text-accent-text rounded-xl text-xs font-black flex items-center justify-center gap-1 transition-colors"
+                  >
+                    <Check size={14} />
+                    Größe anwenden
+                  </button>
+                </>
+              )}
             </form>
           )}
         </div>
@@ -1060,29 +1136,33 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
         </div>
       </div>
 
-      {/* Resize handle bottom right */}
-      {!layoutLocked && !isDirect && (
-        <div
+      {/* Touch- and keyboard-safe resize handle bottom right */}
+      {!layoutLocked && !isDirect && !isMaximized && (
+        <button
+          type="button"
           onPointerDown={handlePointerDownResize}
-          aria-label="Widget-Größe ziehen"
-          title="Zum Vergrößern oder Verkleinern ziehen"
-          className={`absolute bottom-0 right-0 w-7 h-7 cursor-se-resize flex items-end justify-end p-1.5 group z-50 touch-none ${isFreeMascot ? "mascot-widget-resize opacity-0 group-hover:opacity-100 focus-within:opacity-100" : ""}`}
+          onKeyDown={handleResizeKeyDown}
+          onClick={(event) => event.stopPropagation()}
+          aria-label="Widget-Größe ändern"
+          title="Ziehen zum Ändern · Pfeiltasten für feine Anpassung"
+          className={`cockpit-widget-resize-handle absolute bottom-0 right-0 w-11 h-11 cursor-se-resize flex items-end justify-end p-2 group z-50 touch-none rounded-tl-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${isFreeMascot ? "mascot-widget-resize opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-within:opacity-100" : ""}`}
           style={{ touchAction: "none" }}
         >
           <svg
-            width="10"
-            height="10"
-            viewBox="0 0 8 8"
-            className={`transition-colors ${currentIsLight ? "text-slate-300 group-hover:text-amber-500" : "text-white/20 group-hover:text-amber-400"}`}
+            width="14"
+            height="14"
+            viewBox="0 0 10 10"
+            className={`transition-colors ${currentIsLight ? "text-slate-300 group-hover:text-accent" : "text-white/30 group-hover:text-accent"}`}
+            aria-hidden="true"
           >
             <path
-              d="M8 0 L0 8 M8 4 L4 8"
+              d="M10 1 L1 10 M10 5 L5 10"
               stroke="currentColor"
-              strokeWidth="1.5"
+              strokeWidth="1.8"
               strokeLinecap="round"
             />
           </svg>
-        </div>
+        </button>
       )}
     </div>
   );

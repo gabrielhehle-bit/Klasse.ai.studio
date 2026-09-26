@@ -66,6 +66,17 @@ test('minimize is session-local and never closes widget state or changes its rec
 });
 
 
+test('open widgets use semantic accent, obvious focus and safe touch resizing', () => {
+  assert.match(widget, /data-widget-focused=\{isFocused \? "true" : "false"\}/);
+  assert.match(widget, /data-widget-interacting=\{isDragging \? "dragging" : isResizing \? "resizing" : undefined\}/);
+  assert.doesNotMatch(widget, /indigo-/);
+  assert.match(widget, /aria-label="Widget-Größe ändern"/);
+  assert.match(widget, /onKeyDown=\{handleResizeKeyDown\}/);
+  assert.match(widget, /Tafelfläche/);
+  assert.match(css, /cockpit-widget-container\[data-widget-focused="true"\]/);
+  assert.match(css, /@container \(max-width: 260px\)/);
+});
+
 test('dock follows the real board width, condenses favorites and keeps system controls separate', () => {
   assert.equal(getCockpitSidebarReservedRightPx('hidden', 420), 0);
   assert.equal(

@@ -2378,6 +2378,44 @@ html body .cockpit-free-mascot .mascot-widget-resize {
   overflow-wrap: anywhere;
 }
 
+/* Open-widget interaction polish: the focused window is obvious, popovers inherit
+   the user's accent, and resize remains touch-safe without changing saved content. */
+.cockpit-widget-container[data-widget-focused="true"]:not(.cockpit-free-mascot) {
+  border-color: var(--accent) !important;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent),
+    0 18px 44px rgba(15, 23, 42, 0.16) !important;
+}
+.cockpit-widget-container[data-widget-interacting] {
+  transition-duration: 80ms !important;
+}
+.cockpit-widget-container[data-widget-interacting="dragging"] {
+  cursor: grabbing;
+}
+html body [data-style] .cockpit-widget-menu-trigger[aria-expanded="true"],
+html body [data-style] .cockpit-widget-settings-trigger[aria-expanded="true"],
+html body [data-style] .cockpit-widget-size-apply {
+  background-color: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent-text, var(--btn-text, #ffffff)) !important;
+  -webkit-text-fill-color: var(--accent-text, var(--btn-text, #ffffff)) !important;
+}
+html body [data-style] .cockpit-widget-size-preset:last-child {
+  border-color: var(--accent) !important;
+  background-color: var(--accent-soft) !important;
+  color: var(--accent) !important;
+  -webkit-text-fill-color: var(--accent) !important;
+}
+.cockpit-widget-resize-handle {
+  background: linear-gradient(135deg, transparent 48%, color-mix(in srgb, var(--accent) 8%, transparent));
+}
+@container (max-width: 260px) {
+  .cockpit-widget-size-presets,
+  .cockpit-widget-exact-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
 /* KLASSIO whiteboard-first teaching cockpit. These rules are presentation only;
    no saved layout, pupil record or synced teaching state is changed. */
 html body .klassio-cockpit-shell .klassio-whiteboard,
