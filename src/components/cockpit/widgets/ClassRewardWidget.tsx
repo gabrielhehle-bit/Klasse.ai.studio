@@ -434,7 +434,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
           type="button"
           id="reward-add-btn"
           onClick={handleAdd}
-          className={`flex-1 ${roomyReward ? 'h-14 text-lg' : 'h-11 text-sm'} px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 active:scale-98 text-white font-black flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer`}
+          className={`flex-1 ${roomyReward ? 'h-14 text-lg' : 'h-11 text-sm'} px-4 rounded-xl bg-accent hover:bg-accent-hover active:scale-98 text-accent-text font-black flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer`}
           title={`+1 ${symbol} hinzufügen`}
         >
           <Sparkles size={16} className="shrink-0" />
