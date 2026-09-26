@@ -7,6 +7,7 @@ const cockpitWidget = readFileSync("src/components/cockpit/CockpitWidget.tsx", "
 const templatesModal = readFileSync("src/components/cockpit/CockpitVorlagenModal.tsx", "utf8");
 const kidAttendance = readFileSync("src/components/cockpit/widgets/KidAttendanceWidget.tsx", "utf8");
 const boardTextEditor = readFileSync("src/components/cockpit/BoardTextEditor.tsx", "utf8");
+const widgetCatalog = readFileSync("src/lib/cockpitWidgetCatalog.ts", "utf8");
 
 const widgetTypes = (source: string) =>
   [...new Set([...source.matchAll(/type:\s*"([^"]+)"/g)].map((match) => match[1]))];
@@ -51,30 +52,23 @@ test("Cockpit: verständliche Kategorien und eigene Favoriten bleiben erhalten",
   assert.match(teachingSurface, /Von Favoriten entfernen/);
 });
 
-test("Cockpit: alle erhaltenen Standard-Widgettypen sind im Picker und in den Kategorie-Zählern", () => {
+test("Cockpit: alle erhaltenen Standard-Widgettypen kommen aus einem gemeinsamen Bibliothekskatalog", () => {
   const defaultStart = teachingSurface.indexOf("const DEFAULT_COCKPIT_LAYOUT");
   const defaultEnd = teachingSurface.indexOf("const DEFAULT_WORKSPACE_PROFILES", defaultStart);
   assert.ok(defaultStart >= 0 && defaultEnd > defaultStart);
   const defaults = widgetTypes(teachingSurface.slice(defaultStart, defaultEnd));
-
-  const starts = [...teachingSurface.matchAll(/const allAvailableWidgets = \[/g)].map((match) => match.index ?? -1);
-  assert.ok(starts.length >= 2, "beide Widget-Kataloge müssen vorhanden sein");
-  const counterCatalog = widgetTypes(teachingSurface.slice(starts[0], starts[1]));
-  const pickerEnd = teachingSurface.indexOf("const resolvedActiveFach", starts[1]);
-  const pickerCatalog = widgetTypes(teachingSurface.slice(starts[1], pickerEnd));
+  const catalog = widgetTypes(widgetCatalog);
 
   assert.equal(defaults.length, 111, "Standardlayout muss alle bisherigen Typen, HÜ und Sterneauswertung enthalten");
-  assert.equal(counterCatalog.length, 110, "Kategorie-Zähler bietet HÜ und Sterneauswertung an, nicht das doppelte Pluspunkte-Widget");
-  assert.equal(pickerCatalog.length, 110, "Widget-Picker bietet HÜ und Sterneauswertung an, nicht das doppelte Pluspunkte-Widget");
+  assert.equal(catalog.length, 110, "Gemeinsamer Widget-Katalog bietet alle Bibliothekswidgets außer der doppelten Schülerliste");
+  assert.match(teachingSurface, /const allAvailableWidgets = COCKPIT_WIDGET_LIBRARY_ITEMS;/);
 
   // Historic studentlist remains in the 111-entry layout/backup schema but
   // must not be offered as a duplicate of the existing student sidebar.
   assert.ok(defaults.includes("studentlist"), "Historische Schülerliste muss beim Backup-Laden erhalten bleiben");
-  assert.equal(counterCatalog.includes("studentlist"), false);
-  assert.equal(pickerCatalog.includes("studentlist"), false);
+  assert.equal(catalog.includes("studentlist"), false);
   for (const type of defaults.filter(type => type !== "studentlist")) {
-    assert.ok(counterCatalog.includes(type), `Kategorie-Zähler kennt ${type} nicht`);
-    assert.ok(pickerCatalog.includes(type), `Widget-Picker kennt ${type} nicht`);
+    assert.ok(catalog.includes(type), `Gemeinsamer Widget-Katalog kennt ${type} nicht`);
   }
 });
 
@@ -142,7 +136,7 @@ test("Cockpit: alte Tafel liegt ausschließlich im Archiv", () => {
 });
 
 test("Cockpit: Zeichenfeld und gemeinsame Zeichenebene sind sprachlich getrennt", () => {
-  assert.match(teachingSurface, /label: "🖍️ Zeichenfeld"/);
+  assert.match(widgetCatalog, /label: "🖍️ Zeichenfeld"/);
   assert.match(cockpitWidget, /drawing: "🖍️ Zeichenfeld"/);
   assert.doesNotMatch(cockpitWidget, /drawing: "🖍️ Zeichentafel"/);
 });

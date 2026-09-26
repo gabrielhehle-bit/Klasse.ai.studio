@@ -16,7 +16,7 @@ test('Maskottchen steht frei und seine unsichtbare Widgetfläche blockiert keine
   assert.match(styles, /\.cockpit-widget-container\.cockpit-free-mascot \{\s*pointer-events: none !important;/);
   assert.match(styles, /\.cockpit-free-mascot \.class-mascot-character \{\s*pointer-events: none;/);
   assert.match(styles, /\.cockpit-free-mascot svg\.class-mascot-painted-artwork \{\s*pointer-events: visiblePainted;/);
-  assert.match(widget, /<ClassMascotArtwork kind=/);
+  assert.match(widget, /<ClassMascotArtwork[\s\S]*?kind=\{state\.kind\}/);
   const art = readFileSync('src/components/cockpit/ClassMascotArtwork.tsx', 'utf8');
   assert.match(art, /class-mascot-painted-artwork/);
   assert.match(art, /\{kind === 'otter' &&/);

@@ -410,6 +410,89 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                             <p className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>
                                 Auf der Tafel bleibt nur die freistehende Figur sichtbar. Die Animation bleibt bei reduzierter Bewegung ausgeschaltet.
                             </p>
+
+                            <div className="mt-3 space-y-3 border-t pt-3" style={{ borderColor: currentTheme.colors.border }}>
+                                <label className="flex min-h-11 items-center justify-between gap-3 text-xs font-bold"
+                                    style={{ color: currentTheme.colors.textPrimary }}>
+                                    <span>
+                                        <span className="block">🎤 Live-Pegel & Ohren-Reaktion</span>
+                                        <span className="mt-0.5 block text-[11px] font-medium"
+                                            style={{ color: currentTheme.colors.textSecondary }}>
+                                            Zeigt den aktuellen relativen Pegel direkt beim Maskottchen.
+                                        </span>
+                                    </span>
+                                    <input
+                                        type="checkbox"
+                                        checked={normalizeClassMascot(app.classMascot).liveNoiseEnabled === true}
+                                        onChange={event => setApp(prev => ({
+                                            ...prev,
+                                            classMascot: { ...normalizeClassMascot(prev.classMascot), liveNoiseEnabled: event.target.checked },
+                                        }))}
+                                        className="h-5 w-5 shrink-0 accent-teal-600"
+                                    />
+                                </label>
+                                {normalizeClassMascot(app.classMascot).liveNoiseEnabled && (
+                                    <div className="space-y-3 rounded-xl border p-3"
+                                        style={{ borderColor: currentTheme.colors.border }}>
+                                        <label className="block text-xs font-bold"
+                                            style={{ color: currentTheme.colors.textPrimary }}>
+                                            Reaktion ab {normalizeClassMascot(app.classMascot).liveNoiseThreshold} %
+                                            <input
+                                                type="range"
+                                                min={35}
+                                                max={90}
+                                                step={5}
+                                                value={normalizeClassMascot(app.classMascot).liveNoiseThreshold}
+                                                onChange={event => setApp(prev => ({
+                                                    ...prev,
+                                                    classMascot: {
+                                                        ...normalizeClassMascot(prev.classMascot),
+                                                        liveNoiseThreshold: Number(event.target.value),
+                                                    },
+                                                }))}
+                                                className="mt-2 block w-full accent-teal-600"
+                                                aria-label="Lautstärkegrenze für die Ohren-Reaktion"
+                                            />
+                                        </label>
+                                        <div>
+                                            <p className="mb-2 text-xs font-bold" style={{ color: currentTheme.colors.textPrimary }}>
+                                                Mikrofon-Empfindlichkeit
+                                            </p>
+                                            <div className="grid grid-cols-3 gap-2" role="group" aria-label="Empfindlichkeit des Maskottchen-Live-Pegels">
+                                                {([
+                                                    { value: 'low' as const, label: 'Niedrig' },
+                                                    { value: 'normal' as const, label: 'Normal' },
+                                                    { value: 'high' as const, label: 'Hoch' },
+                                                ]).map(option => (
+                                                    <button key={option.value} type="button"
+                                                        aria-pressed={normalizeClassMascot(app.classMascot).liveNoiseSensitivity === option.value}
+                                                        onClick={() => setApp(prev => ({
+                                                            ...prev,
+                                                            classMascot: {
+                                                                ...normalizeClassMascot(prev.classMascot),
+                                                                liveNoiseSensitivity: option.value,
+                                                            },
+                                                        }))}
+                                                        className="min-h-11 rounded-xl border-2 px-2 py-2 text-xs font-bold"
+                                                        style={{
+                                                            color: currentTheme.colors.textPrimary,
+                                                            borderColor: normalizeClassMascot(app.classMascot).liveNoiseSensitivity === option.value
+                                                                ? currentTheme.colors.accent : currentTheme.colors.border,
+                                                        }}>
+                                                        {option.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <p className="text-xs leading-relaxed" style={{ color: currentTheme.colors.textSecondary }}>
+                                            Sobald der eingestellte relative Pegel überschritten wird, hält sich das Maskottchen die Ohren zu.
+                                            Der Wert ist bewusst kein dB-Messwert: Das Mikrofon wird nur lokal ausgewertet.
+                                            Es wird kein Ton aufgenommen, gespeichert oder übertragen.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
                             <label className="mt-3 flex min-h-11 items-center justify-between gap-3 border-t pt-3 text-xs font-bold"
                                 style={{ borderColor: currentTheme.colors.border, color: currentTheme.colors.textPrimary }}>
                                 <span>Tafelruhe – alle Bewegungen ausschalten</span>
@@ -425,8 +508,8 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                             </label>
                             <p className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>
                                 Bei Tafelruhe bleibt das Maskottchen sichtbar und verschiebbar,
-                                reagiert aber nicht auf Tippen, Doppeltippen oder Klassenrituale.
-                                Deine ausgewählte Stimmung, das Accessoire und die Jahreszeit bleiben erhalten.
+                                reagiert aber nicht auf Tippen, Doppeltippen, Klassenrituale oder einen hohen Live-Pegel.
+                                Der Live-Pegel kann weiter angezeigt werden; deine ausgewählte Stimmung, das Accessoire und die Jahreszeit bleiben erhalten.
                             </p>
                             {onRecenterMascot && (
                                 <button

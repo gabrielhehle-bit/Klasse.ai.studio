@@ -14,10 +14,12 @@ interface Props {
   surpriseTick?: number;
   ritualAction?: ClassMascotAction | null;
   ritualTick?: number;
+  /** Ephemeral local reaction to the optional live microphone level. */
+  coveringEars?: boolean;
 }
 
 /** Original, self-contained SVG designs. No third-party character assets or network requests. */
-export default function ClassMascotArtwork({ kind, mood, name, animationEnabled = false, reactionActive = false, reactionTick = 0, accessory = 'none', season = 'none', surpriseActive = false, surpriseTick = 0, ritualAction = null, ritualTick = 0 }: Props) {
+export default function ClassMascotArtwork({ kind, mood, name, animationEnabled = false, reactionActive = false, reactionTick = 0, accessory = 'none', season = 'none', surpriseActive = false, surpriseTick = 0, ritualAction = null, ritualTick = 0, coveringEars = false }: Props) {
   const colors = {
     otter: { fur: '#B87346', light: '#F4D3A2', inner: '#D58D8A', blush: '#D88677' },
     dog: { fur: '#C68B52', light: '#F6E1BD', inner: '#C67E76', blush: '#D78B78' },
@@ -33,6 +35,8 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
     ? kind === 'cat' ? 'translate(0 38) rotate(-15 90 110) scale(1 .76)' : 'translate(0 34) rotate(-7 90 110) scale(1 .79)'
     : mood === 'proud' ? 'translate(0 -6)' : mood === 'calm' ? 'translate(0 4)' : undefined;
   const relaxed = mood === 'calm';
+  const earCoverY = kind === 'otter' ? 66 : kind === 'cat' ? 68 : kind === 'dog' ? 82 : 84;
+  const handFill = kind === 'elf' ? colors.fur : colors.fur;
   const eyes = asleep || relaxed
     ? <g stroke="#344044" strokeWidth="3.5" fill="none" strokeLinecap="round">
         <path d="M61 91 Q69 96 77 91"/><path d="M103 91 Q111 96 119 91"/>
@@ -136,6 +140,21 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
       {asleep ? <path d="M82 120q8 5 16 0" fill="none" stroke="#604B49" strokeWidth="2.2" strokeLinecap="round" /> :
         <path d="M81 118q9 11 18 0" fill="none" stroke="#604B49" strokeWidth="2.5" strokeLinecap="round" />}
       {mood === 'sleepy' && <text x="134" y="40" fill="#64748B" fontSize="14" fontWeight="800" aria-hidden="true">Zz</text>}
+      {coveringEars && (
+        <g
+          data-mascot-noise-reaction="covering-ears"
+          className="class-mascot-cover-ears"
+          pointerEvents="none"
+          aria-hidden="true"
+        >
+          <path d={`M67 137Q54 126 44 ${earCoverY + 5}`} fill="none" stroke={handFill} strokeWidth="10" strokeLinecap="round"/>
+          <path d={`M113 137Q126 126 136 ${earCoverY + 5}`} fill="none" stroke={handFill} strokeWidth="10" strokeLinecap="round"/>
+          <circle cx="43" cy={earCoverY} r="8.5" fill={handFill} stroke="#5B4A43" strokeWidth="1.4"/>
+          <circle cx="137" cy={earCoverY} r="8.5" fill={handFill} stroke="#5B4A43" strokeWidth="1.4"/>
+          <path d="M78 119Q90 112 102 119" fill="none" stroke="#604B49" strokeWidth="2.5" strokeLinecap="round"/>
+          <path d="M32 55l-6-6m122 6 6-6M25 72h-9m139 0h9" fill="none" stroke="#E07A5F" strokeWidth="2.5" strokeLinecap="round"/>
+        </g>
+      )}
       {/* All accessories are authored in SVG: no raster assets, foreignObject or external fetch. */}
       {accessory === 'scarf' && (
         <g data-mascot-outfit="scarf">

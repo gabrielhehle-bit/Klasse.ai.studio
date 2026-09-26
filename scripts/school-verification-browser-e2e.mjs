@@ -530,7 +530,8 @@ async function verifyDirectCockpitNavigation(client) {
   if (!disabledFavorites) throw new Error('Could not hide favorite shortcuts.');
   await waitFor(client, 'full widget picker remains available without favorites',
     String.raw`(() => {const dock=document.querySelector('nav[aria-label="Meine Widget-Favoriten"]');return !!dock&&dock.querySelectorAll('.klassio-dock-favorite').length===0&&!!dock.querySelector('button[aria-label="Weitere Widgets hinzufügen"]');})()`);
-  await clickButton(client, 'Favoriten zurücksetzen');
+  await clickButton(client, 'Standard wiederherstellen');
+  await clickButton(client, 'Standard wirklich laden?');
   await waitFor(client, 'dock reset restores favorites',
     String.raw`(() => {const dock=document.querySelector('nav[aria-label="Meine Widget-Favoriten"]');return !!dock&&dock.querySelectorAll('.klassio-dock-favorite').length>=6;})()`);
   await evaluate(client,

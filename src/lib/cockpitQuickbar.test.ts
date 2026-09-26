@@ -18,8 +18,12 @@ test('new classrooms get an ordered customizable dock; old disabled favorites re
   assert.deepEqual(normalizeCockpitQuickbarSettings({ enabled: true, itemIds: ['timer', 'timer', 'unsafe', null] }), {
     enabled: true, itemIds: ['timer'],
   });
-  assert.ok(COCKPIT_QUICKBAR_ITEMS.length >= 14);
+  assert.ok(COCKPIT_QUICKBAR_ITEMS.length >= 100);
   assert.deepEqual(normalizeCockpitQuickbarSettings({ enabled: true, itemIds: ['studentlist', 'timer'] }).itemIds, ['timer']);
+  assert.deepEqual(
+    normalizeCockpitQuickbarSettings({ enabled: true, itemIds: ['timer', 'geometry', 'dailyquotes'] }).itemIds,
+    ['timer', 'geometry', 'dailyquotes'],
+  );
   assert.match(source, /<CockpitWidgetDock/);
   assert.match(source, /onOpenWidget=\{\(id\) =>/);
   assert.match(source, /handleOpenWidgetInCockpitLayout\(id as CockpitWidgetConfig\["type"\]\)/);
@@ -29,6 +33,10 @@ test('new classrooms get an ordered customizable dock; old disabled favorites re
   assert.match(dock, /aria-label="Meine Widget-Favoriten"/);
   assert.match(dock, /aria-label="Weitere Widgets hinzufügen"/);
   assert.match(dock, /aria-label="Meine Widget-Leiste anpassen"/);
+  assert.match(dock, /Weitere Widgets/);
+  assert.match(dock, /\+ Hinzufügen/);
+  assert.match(dock, /Nochmal/);
+  assert.doesNotMatch(dock, /onContextMenu=/);
 });
 
 test('favorites can be chosen and reordered without modifying saved widget positions', () => {
@@ -45,4 +53,7 @@ test('favorites can be chosen and reordered without modifying saved widget posit
   assert.match(source, /delete next\[boardTextClassKey\]/);
   assert.doesNotMatch(source.slice(source.indexOf('const resetQuickBarSettings'), source.indexOf('const boardInkItems: InkItem')), /cockpitLayout\s*:/);
   assert.match(dock, /moveCockpitQuickbarItem\(current, item\.id/);
+  assert.match(dock, /removeCockpitQuickbarItem\(current, id\)/);
+  assert.match(source, /addCockpitQuickbarItem\(settings, item\.type as CockpitQuickbarId\)/);
+  assert.match(source, /addCockpitQuickbarItem\(settings, primaryType as CockpitQuickbarId\)/);
 });

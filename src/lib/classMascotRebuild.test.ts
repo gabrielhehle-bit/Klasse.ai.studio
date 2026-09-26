@@ -78,7 +78,16 @@ test('the transparent mascot rests freely in the cockpit with no visible options
   assert.match(styles, /prefers-reduced-motion/);
   assert.match(styles, /\.cockpit-free-mascot \.mascot-widget-resize \{\s*display: none !important;/);
   assert.match(artwork, /<svg viewBox=/);
-  assert.doesNotMatch(widget, /fixed bottom-|absolute bottom-|floating-classpet-outer/);
+  assert.doesNotMatch(widget, /fixed bottom-|floating-classpet-outer/);
+  assert.match(widget, /state\.liveNoiseEnabled &&/);
+  const defaultMarkup = renderToStaticMarkup(React.createElement(ClassMascotWidget, {
+    app: { ...initialAppState, classMascot: DEFAULT_CLASS_MASCOT },
+  }));
+  assert.doesNotMatch(defaultMarkup, /class-mascot-live-noise/);
+  const liveMarkup = renderToStaticMarkup(React.createElement(ClassMascotWidget, {
+    app: { ...initialAppState, classMascot: { ...DEFAULT_CLASS_MASCOT, liveNoiseEnabled: true } },
+  }));
+  assert.match(liveMarkup, /class-mascot-live-noise/);
 });
 
 test('the real React widget renders all four figures with no always-visible control panel', () => {

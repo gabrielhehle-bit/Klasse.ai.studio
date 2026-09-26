@@ -17,7 +17,7 @@ test('widget library is a focused modal with search, settings and close in one h
 
 test('favorites and recent appear before subject/category navigation', () => {
   const start = surface.indexOf('klassio-widget-library-sidebar');
-  const end = surface.indexOf('const allAvailableWidgets = [', start);
+  const end = surface.indexOf('const allAvailableWidgets = COCKPIT_WIDGET_LIBRARY_ITEMS;', start);
   assert.ok(start >= 0 && end > start);
   const sidebar = surface.slice(start, end);
   const favorites = sidebar.indexOf('⭐ Favoriten');
@@ -30,7 +30,7 @@ test('favorites and recent appear before subject/category navigation', () => {
   assert.match(surface, /Noch keine zuletzt verwendeten Widgets/);
 });
 
-test('widget cards use icon, name, description, favorite and one clear add action', () => {
+test('widget cards expose favorite, safe quick-bar pinning and a clear board action', () => {
   assert.match(surface, /const icon = parts\.length > 1 \? parts\[0\] : "🧩"/);
   assert.match(surface, /const name = parts\.length > 1 \? parts\.slice\(1\)\.join\(" "\) : item\.label/);
   assert.match(surface, /line-clamp-2 text-xs leading-relaxed text-slate-500/);
@@ -38,6 +38,8 @@ test('widget cards use icon, name, description, favorite and one clear add actio
   assert.match(surface, /Zu Favoriten hinzufügen/);
   assert.match(surface, /auf der Tafel anzeigen/);
   assert.match(surface, /wiederherstellen/);
+  assert.match(surface, /An die untere Widget-Leiste heften/);
+  assert.match(surface, /addCockpitQuickbarItem\(settings, item\.type as CockpitQuickbarId\)/);
   assert.doesNotMatch(surface, /aria-label="Ich bin da! einstellen"/);
   assert.doesNotMatch(surface, /aria-label="Gruppen bilden einstellen"/);
   assert.doesNotMatch(surface, /aria-label="Wochenplan der Kinder einstellen"/);

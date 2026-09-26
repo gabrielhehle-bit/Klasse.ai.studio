@@ -1,27 +1,45 @@
+import {
+  COCKPIT_WIDGET_LIBRARY_ITEMS,
+  splitCockpitWidgetLabel,
+  type CockpitWidgetLibraryId,
+} from './cockpitWidgetCatalog';
+
 /**
  * Personal teaching-dock favorites stored per class inside the existing
- * encrypted boardSettings. Never interprets favorites as a widget layout.
- * Obsolete IDs are filtered out during normalization.
+ * encrypted boardSettings. The quick bar uses the full widget-library catalog:
+ * every widget that can be opened from the library can also be pinned here.
  */
-export const COCKPIT_QUICKBAR_ITEMS = [
-  { id: 'kidattendance', icon: '🖐️', label: 'Ich bin da!' },
-  { id: 'classweeklyplan', icon: '📋', label: 'Wochenplan' },
-  { id: 'timer', icon: '⏱️', label: 'Timer' },
-  { id: 'wheel', icon: '🎡', label: 'Glücksrad' },
-  { id: 'randomname', icon: '🎯', label: 'Zufallsauswahl' },
-  { id: 'groups', icon: '👥', label: 'Gruppen' },
-  { id: 'homework', icon: '📚', label: 'Hausübungen' },
-  { id: 'starsreview', icon: '⭐', label: 'Sterne' },
-  { id: 'timeline', icon: '🗓️', label: 'Tagesplan' },
-  { id: 'clock', icon: '🕒', label: 'Uhr' },
-  { id: 'dienste', icon: '🧹', label: 'Klassendienste' },
-  { id: 'trafficlight', icon: '🚦', label: 'Arbeitsampel' },
-  { id: 'instruction', icon: '📝', label: 'Arbeitsauftrag' },
-  { id: 'image', icon: '🖼️', label: 'Bild' },
-  { id: 'qrcode', icon: '🔗', label: 'QR-Code' },
-] as const;
+const QUICKBAR_OVERRIDES: Partial<Record<CockpitWidgetLibraryId, { icon: string; label: string }>> = {
+  kidattendance: { icon: '🖐️', label: 'Ich bin da!' },
+  classweeklyplan: { icon: '📋', label: 'Wochenplan' },
+  timer: { icon: '⏱️', label: 'Timer' },
+  wheel: { icon: '🎡', label: 'Glücksrad' },
+  randomname: { icon: '🎯', label: 'Zufallsauswahl' },
+  groups: { icon: '👥', label: 'Gruppen' },
+  homework: { icon: '📚', label: 'Hausübungen' },
+  starsreview: { icon: '⭐', label: 'Sterne' },
+  timeline: { icon: '🗓️', label: 'Tagesplan' },
+  clock: { icon: '🕒', label: 'Uhr' },
+  dienste: { icon: '🧹', label: 'Klassendienste' },
+  trafficlight: { icon: '🚦', label: 'Arbeitsampel' },
+  instruction: { icon: '📝', label: 'Arbeitsauftrag' },
+  image: { icon: '🖼️', label: 'Bild' },
+  qrcode: { icon: '🔗', label: 'QR-Code' },
+  pet: { icon: '🐾', label: 'Maskottchen' },
+};
 
-export type CockpitQuickbarId = (typeof COCKPIT_QUICKBAR_ITEMS)[number]['id'];
+export const COCKPIT_QUICKBAR_ITEMS = COCKPIT_WIDGET_LIBRARY_ITEMS.map(item => {
+  const parsed = splitCockpitWidgetLabel(item.label);
+  const override = QUICKBAR_OVERRIDES[item.type];
+  return {
+    id: item.type,
+    icon: override?.icon || parsed.icon,
+    label: override?.label || parsed.label,
+    category: item.category,
+  };
+});
+
+export type CockpitQuickbarId = CockpitWidgetLibraryId;
 export type CockpitQuickbarSettings = { enabled: boolean; itemIds: CockpitQuickbarId[] };
 
 const ALLOWED = new Set<string>(COCKPIT_QUICKBAR_ITEMS.map(item => item.id));
@@ -38,12 +56,32 @@ export function normalizeCockpitQuickbarSettings(raw: unknown): CockpitQuickbarS
   return { enabled: input.enabled === undefined ? true : input.enabled === true, itemIds: ids };
 }
 
-/** Preserve the teacher's order when adding a new favorite. */
-export function toggleCockpitQuickbarItem(settings: CockpitQuickbarSettings, id: CockpitQuickbarId): CockpitQuickbarSettings {
-  if (!ALLOWED.has(id)) return settings;
-  return { ...settings, itemIds: settings.itemIds.includes(id)
-    ? settings.itemIds.filter(item => item !== id)
-    : [...settings.itemIds, id] };
+/** Safe add: selecting an already pinned widget never removes it. */
+export function addCockpitQuickbarItem(
+  settings: CockpitQuickbarSettings,
+  id: CockpitQuickbarId,
+): CockpitQuickbarSettings {
+  if (!ALLOWED.has(id) || settings.itemIds.includes(id)) return settings;
+  return { ...settings, itemIds: [...settings.itemIds, id] };
+}
+
+/** Removal is deliberately explicit and is only called from confirmed edit UI. */
+export function removeCockpitQuickbarItem(
+  settings: CockpitQuickbarSettings,
+  id: CockpitQuickbarId,
+): CockpitQuickbarSettings {
+  if (!settings.itemIds.includes(id)) return settings;
+  return { ...settings, itemIds: settings.itemIds.filter(item => item !== id) };
+}
+
+/** Legacy helper kept for existing internal callers/tests; user-facing add controls use add/remove explicitly. */
+export function toggleCockpitQuickbarItem(
+  settings: CockpitQuickbarSettings,
+  id: CockpitQuickbarId,
+): CockpitQuickbarSettings {
+  return settings.itemIds.includes(id)
+    ? removeCockpitQuickbarItem(settings, id)
+    : addCockpitQuickbarItem(settings, id);
 }
 
 export function moveCockpitQuickbarItem(
