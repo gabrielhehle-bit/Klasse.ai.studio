@@ -261,9 +261,9 @@ test("Cockpit: Widget-Bearbeitung liegt in einem kompakten, verständlichen Kont
     assert.ok(cockpitWidget.includes(label), `Widget-Menüeintrag fehlt: ${label}`);
   }
   assert.doesNotMatch(cockpitWidget, /Groß fest einstellen/);
-  assert.match(cockpitWidget, />Passend<\/button>/);
-  assert.match(cockpitWidget, />Groß<\/button>/);
-  assert.match(cockpitWidget, />Tafelfläche<\/button>/);
+  assert.match(cockpitWidget, />\s*Passend\s*<\/button>/);
+  assert.match(cockpitWidget, />\s*Groß\s*<\/button>/);
+  assert.match(cockpitWidget, />\s*Tafelfläche\s*<\/button>/);
   assert.match(cockpitWidget, /Genau einstellen/);
   assert.match(cockpitWidget, /onFocus\(\);[\s\S]*?setShowWidgetMenu/);
   assert.match(cockpitWidget, /max-w-\[calc\(100cqw-0\.5rem\)\]/);
