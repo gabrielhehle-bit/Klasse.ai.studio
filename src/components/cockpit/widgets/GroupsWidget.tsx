@@ -438,7 +438,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
           feedbackMessage.type === 'error'
             ? 'bg-rose-500 text-white'
             : feedbackMessage.type === 'info'
-            ? 'bg-accent text-white'
+            ? 'bg-accent text-accent-text'
             : 'bg-emerald-600 text-white'
         }`}>
           <div className="flex items-center gap-1.5 truncate">
