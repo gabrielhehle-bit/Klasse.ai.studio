@@ -48,7 +48,7 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                       },
                                       {
                                         type: "links",
-                                        label: "🔗 Link- & Dateispeicher",
+                                        label: "🔗 Materialien & Links",
                                         desc: "Eigene Verknüpfungen ablegen",
                                         category: "struct",
                                       },
@@ -379,13 +379,13 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                       },
                                       {
                                         type: "image",
-                                        label: "🖼️ Tafelbild-Projektor",
+                                        label: "🖼️ Tafelbild",
                                         desc: "Eigene Tafelfiles hochladen",
                                         category: "tools",
                                       },
                                       {
                                         type: "qrcode",
-                                        label: "🔗 QR-Code-Generator",
+                                        label: "🔗 QR-Code",
                                         desc: "Links für Schüler bereitstellen",
                                         category: "tools",
                                       },
@@ -598,6 +598,7 @@ const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
   "vocabulary",
   "qrcode",
   "image",
+  "links",
   "timer",
   "drawing",
   "instruction",

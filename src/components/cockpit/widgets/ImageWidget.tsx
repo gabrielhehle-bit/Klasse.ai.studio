@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Image as ImageIcon,
   Upload,
@@ -458,12 +459,12 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
 
       {/* Drag & Drop Visual Overlay */}
       {isDraggingOver && (
-        <div className="absolute inset-0 z-40 bg-indigo-500/20 backdrop-blur-xs border-2 border-dashed border-indigo-500 rounded-2xl flex flex-col items-center justify-center pointer-events-none p-4 text-center">
-          <Upload size={36} className="text-indigo-600 dark:text-indigo-400 mb-2 animate-bounce" />
-          <p className="text-xs font-black uppercase tracking-wider text-indigo-700 dark:text-indigo-300">
+        <div className="absolute inset-0 z-40 bg-accent-soft backdrop-blur-xs border-2 border-dashed border-accent rounded-2xl flex flex-col items-center justify-center pointer-events-none p-4 text-center">
+          <Upload size={36} className="text-accent mb-2 animate-bounce" />
+          <p className="text-xs font-black uppercase tracking-wider text-accent">
             Bild jetzt hier ablegen
           </p>
-          <span className="text-[10px] text-indigo-600/80 dark:text-indigo-400/80 font-semibold">
+          <span className="text-[10px] text-accent font-semibold">
             PNG, JPG, WebP oder GIF
           </span>
         </div>
@@ -540,7 +541,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                     setTempAlt(altText);
                     setIsAltEditing(true);
                   }}
-                  className="text-[9px] text-slate-400 hover:text-indigo-500 font-semibold cursor-pointer shrink-0"
+                  className="text-[9px] text-slate-400 hover:text-accent font-semibold cursor-pointer shrink-0"
                   title="Bildbeschreibung bearbeiten"
                 >
                   Beschriften
@@ -564,7 +565,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
 
                   <button
                     onClick={() => setIsLightboxOpen(true)}
-                    className="p-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs"
+                    className="p-2 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-bold flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs"
                     style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
                     title="Vollbild öffnen"
                   >
@@ -630,7 +631,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsLightboxOpen(true)}
-                    className="px-2.5 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-xs"
+                    className="px-2.5 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-xs"
                     style={{ minHeight: TOUCH_TARGET_MIN }}
                     title="Vollbild anzeigen (Smartboard)"
                   >
@@ -668,7 +669,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
         /* 2. Zustand: Leerer Zustand (Kein Bild ausgewählt) */
         <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
           <div className="max-w-xs w-full flex flex-col items-center gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-xs">
+            <div className="w-14 h-14 rounded-2xl bg-accent-soft border border-accent flex items-center justify-center text-accent shadow-xs">
               <ImageIcon size={28} />
             </div>
 
@@ -687,7 +688,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isProcessing}
-                className="w-full py-2.5 px-4 rounded-xl bg-indigo-500 hover:bg-indigo-600 active:scale-98 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-xl bg-accent hover:bg-accent-hover active:scale-98 text-accent-text font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
                 style={{ minHeight: TOUCH_TARGET_MIN }}
               >
                 <Upload size={16} />
@@ -705,7 +706,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsMaterialModalOpen(true)}
-                  className="text-[10px] font-bold text-indigo-500 hover:text-indigo-600 dark:text-indigo-400 flex items-center gap-1 cursor-pointer py-1 px-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+                  className="text-[10px] font-bold text-accent hover:text-accent flex items-center gap-1 cursor-pointer py-1 px-2 rounded-lg hover:bg-accent-soft"
                 >
                   <FolderOpen size={12} />
                   <span>Materialbibliothek ({materialsList.length})</span>
@@ -723,6 +724,128 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {showSettings && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Tafelbild einstellen"
+          className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm"
+          onClick={() => onCloseSettings?.()}
+        >
+          <div
+            className="w-full max-w-lg space-y-4 rounded-2xl border border-slate-200 bg-white p-5 text-slate-900 shadow-2xl dark:border-white/10 dark:bg-zinc-900 dark:text-white"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex min-h-11 items-center justify-between gap-2 border-b border-slate-200 pb-2 dark:border-white/10">
+              <div>
+                <h3 className="text-sm font-black">Tafelbild einstellen</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Bildquelle, Beschriftung und Ansicht verwalten.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onCloseSettings?.()}
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-white"
+                aria-label="Tafelbild-Einstellungen schließen"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onCloseSettings?.();
+                  fileInputRef.current?.click();
+                }}
+                disabled={isProcessing}
+                className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-accent px-3 text-sm font-black text-accent-text hover:bg-accent-hover disabled:opacity-40"
+              >
+                <Upload size={16} />
+                <span>{imageUrl ? 'Anderes Bild wählen' : 'Bild auswählen'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onCloseSettings?.();
+                  setIsUrlModalOpen(true);
+                }}
+                className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 px-3 text-sm font-bold hover:bg-slate-100 dark:border-white/15 dark:hover:bg-white/10"
+              >
+                <Link size={16} />
+                <span>Web-URL</span>
+              </button>
+
+              {materialsList.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onCloseSettings?.();
+                    setIsMaterialModalOpen(true);
+                  }}
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 px-3 text-sm font-bold hover:bg-slate-100 dark:border-white/15 dark:hover:bg-white/10"
+                >
+                  <FolderOpen size={16} />
+                  <span>Materialbibliothek</span>
+                </button>
+              )}
+
+              {imageUrl && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTempAlt(altText);
+                    onCloseSettings?.();
+                    setIsAltEditing(true);
+                  }}
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 px-3 text-sm font-bold hover:bg-slate-100 dark:border-white/15 dark:hover:bg-white/10"
+                >
+                  <Info size={16} />
+                  <span>Beschriftung</span>
+                </button>
+              )}
+            </div>
+
+            {imageUrl && (
+              <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3 dark:border-white/10">
+                <button
+                  type="button"
+                  onClick={handleRotate}
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 px-3 text-xs font-bold hover:bg-slate-100 dark:border-white/15 dark:hover:bg-white/10"
+                >
+                  <RotateCw size={15} />
+                  90° drehen
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetZoom}
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 px-3 text-xs font-bold hover:bg-slate-100 dark:border-white/15 dark:hover:bg-white/10"
+                >
+                  <RotateCcw size={15} />
+                  Ansicht zurücksetzen
+                </button>
+              </div>
+            )}
+
+            <p className="text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">
+              Lokale Bilder bleiben im verschlüsselten App-Zustand. Bei externen Bild-URLs wird die angegebene Website beim Laden kontaktiert.
+            </p>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => onCloseSettings?.()}
+                className="min-h-11 rounded-xl bg-accent px-4 text-sm font-black text-accent-text hover:bg-accent-hover"
+              >
+                Fertig
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
       )}
 
       {/* Alt-Text / Beschriftungs-Dialog */}
@@ -746,7 +869,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
               onChange={(e) => setTempAlt(e.target.value)}
               placeholder="z. B. Skelett des Menschen S. 42"
               maxLength={120}
-              className="w-full p-2 text-xs rounded-xl border border-slate-300 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 outline-none focus:border-indigo-500"
+              className="w-full p-2 text-xs rounded-xl border border-slate-300 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 outline-none focus:border-accent"
               autoFocus
             />
             <div className="flex justify-end gap-2">
@@ -758,7 +881,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
               </button>
               <button
                 onClick={handleSaveAlt}
-                className="px-3 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold"
+                className="px-3 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-xs font-bold"
               >
                 Speichern
               </button>
@@ -787,7 +910,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
               value={urlInput}
               onChange={(e) => setUrlInput(e.target.value)}
               placeholder="https://schule.at/beispiel.jpg"
-              className="w-full p-2 text-xs rounded-xl border border-slate-300 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 outline-none focus:border-indigo-500"
+              className="w-full p-2 text-xs rounded-xl border border-slate-300 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 outline-none focus:border-accent"
             />
             <p className="text-[10px] text-slate-400">
               Nur sichere direkte Bildadressen (HTTPS) verwenden.
@@ -801,7 +924,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
               </button>
               <button
                 onClick={handleApplyUrl}
-                className="px-3 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold"
+                className="px-3 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-xs font-bold"
               >
                 Übernehmen
               </button>
@@ -830,9 +953,9 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                 <button
                   key={m.id}
                   onClick={() => handleSelectMaterial(m)}
-                  className="w-full text-left p-2 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/40 border border-slate-200 dark:border-white/5 text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors"
+                  className="w-full text-left p-2 rounded-xl hover:bg-accent-soft border border-slate-200 dark:border-white/5 text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors"
                 >
-                  <FolderOpen size={14} className="text-indigo-500 shrink-0" />
+                  <FolderOpen size={14} className="text-accent shrink-0" />
                   <span className="truncate">{m.titel || 'Unbenanntes Material'}</span>
                 </button>
               ))}

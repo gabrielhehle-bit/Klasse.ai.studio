@@ -41,6 +41,8 @@ export interface LinksWidgetProps {
   setApp?: (app: any) => void;
   currentIsLight?: boolean;
   isFullscreen?: boolean;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
 }
 
 export const LinksWidget: React.FC<LinksWidgetProps> = ({
@@ -50,6 +52,8 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
   setApp: _setApp,
   currentIsLight = true,
   isFullscreen = false,
+  showSettings: externalShowSettings,
+  onCloseSettings,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef, { isFullscreen, defaultCategory: 'standard' });
@@ -113,7 +117,13 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
   };
 
   // Lokale Modal- und Aktionszustände
-  const [isManaging, setIsManaging] = useState(false);
+  const [localManaging, setLocalManaging] = useState(false);
+  const hasExternalSettingsControl = typeof externalShowSettings === 'boolean';
+  const isManaging = hasExternalSettingsControl ? externalShowSettings : localManaging;
+  const closeManaging = () => {
+    if (hasExternalSettingsControl) onCloseSettings?.();
+    else setLocalManaging(false);
+  };
   const [isAdding, setIsAdding] = useState(false);
   const [editingLink, setEditingLink] = useState<UnterrichtsLink | null>(null);
   const [qrModalLink, setQrModalLink] = useState<UnterrichtsLink | null>(null);
@@ -226,69 +236,65 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
     : 'bg-zinc-800/80 border-white/10 shadow-xs';
   const textPrimary = currentIsLight ? 'text-slate-900' : 'text-slate-100';
   const textSecondary = currentIsLight ? 'text-slate-500' : 'text-slate-400';
-  const headerBg = currentIsLight
-    ? 'bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-transparent'
-    : 'bg-gradient-to-r from-blue-500/20 via-indigo-500/20 to-transparent';
-
   return (
     <div
       ref={containerRef}
       id="widget-links-container"
       className="flex flex-col h-full w-full min-h-0 select-none overflow-hidden relative"
     >
-      {/* 1. Header */}
-      <div
-        id="links-header"
-        className={`flex items-center justify-between px-3 py-2 border-b shrink-0 ${headerBg} ${
-          currentIsLight ? 'border-slate-200/80' : 'border-white/10'
-        }`}
-      >
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-7 h-7 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center shrink-0">
-            <Globe className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-          </div>
-          <div className="min-w-0">
-            <span className={`font-black tracking-tight block truncate ${isFs ? 'text-xl' : 'text-xs'} ${textPrimary}`}>
-              Materialien & Links
-            </span>
-            <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold block truncate">
-              {links.length === 0 ? 'Keine Links aktiv' : `${links.length} ${links.length === 1 ? 'Link' : 'Links'}`}
-            </span>
-          </div>
-        </div>
-
-        {/* Header Aktionen */}
-        <div className="flex items-center gap-1 shrink-0">
+      {/* Shared widget frame owns the canonical title. Keep only context and actions here. */}
+      <div className="flex min-h-11 shrink-0 items-center justify-between gap-2 border-b border-slate-200/80 px-2.5 py-1.5 dark:border-white/10">
+        <span className="min-w-0 truncate text-[10px] font-bold text-slate-500 dark:text-slate-400">
+          {links.length === 0 ? 'Keine Links aktiv' : `${links.length} ${links.length === 1 ? 'Link' : 'Links'}`}
+        </span>
+        <div className="flex shrink-0 items-center gap-1">
           <button
             id="links-add-btn-header"
             type="button"
             onClick={openAddForm}
             title="Neuen Unterrichts-Link hinzufügen"
             aria-label="Link hinzufügen"
-            className="flex items-center gap-1 px-2 py-1 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black text-xs rounded-lg transition-all cursor-pointer min-h-[36px]"
+            className="flex min-h-11 items-center justify-center gap-1 rounded-xl bg-accent px-3 text-xs font-black text-accent-text transition-all hover:bg-accent-hover active:scale-95"
           >
-            <Plus className="w-3.5 h-3.5 shrink-0" />
+            <Plus className="h-3.5 w-3.5 shrink-0" />
             {!size.isCompact && <span>Neu</span>}
           </button>
 
-          <button
-            id="links-manage-toggle-btn"
-            type="button"
-            onClick={() => setIsManaging(!isManaging)}
-            title={isManaging ? 'Verwaltung schließen' : 'Links verwalten & sortieren'}
-            aria-label="Links verwalten"
-            className={`p-1.5 rounded-lg border transition-all cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center ${
-              isManaging
-                ? 'bg-blue-600 text-white border-blue-600'
-                : currentIsLight
-                ? 'bg-white/80 hover:bg-slate-100 text-slate-700 border-slate-200'
-                : 'bg-zinc-800 hover:bg-zinc-700 text-slate-200 border-white/10'
-            }`}
-          >
-            <MoreVertical className="w-3.5 h-3.5" />
-          </button>
+          {!hasExternalSettingsControl && (
+            <button
+              id="links-manage-toggle-btn"
+              type="button"
+              onClick={() => setLocalManaging(open => !open)}
+              title={isManaging ? 'Verwaltung schließen' : 'Links verwalten & sortieren'}
+              aria-label="Links verwalten"
+              className={`flex min-h-11 min-w-11 items-center justify-center rounded-xl border transition-all ${
+                isManaging
+                  ? 'bg-accent text-accent-text border-accent'
+                  : currentIsLight
+                  ? 'bg-white/80 hover:bg-slate-100 text-slate-700 border-slate-200'
+                  : 'bg-zinc-800 hover:bg-zinc-700 text-slate-200 border-white/10'
+              }`}
+            >
+              <MoreVertical className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       </div>
+
+      {hasExternalSettingsControl && isManaging && (
+        <div className="flex min-h-11 shrink-0 items-center justify-between gap-2 border-b border-slate-200/80 px-2.5 py-1 dark:border-white/10">
+          <span className="text-[10px] font-black uppercase tracking-wider text-accent">Links verwalten</span>
+          <button
+            type="button"
+            onClick={closeManaging}
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-white"
+            aria-label="Link-Einstellungen schließen"
+            title="Einstellungen schließen"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {/* 2. Scrollbarer Inhaltsbereich */}
       <div
@@ -304,8 +310,8 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
                 : 'bg-zinc-900/40 border-white/10 text-slate-300'
             }`}
           >
-            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-3">
-              <Globe className="w-6 h-6 text-blue-500" />
+            <div className="w-12 h-12 rounded-2xl bg-accent-soft flex items-center justify-center mb-3">
+              <Globe className="w-6 h-6 text-accent" />
             </div>
             <h4 className={`text-sm font-black mb-1 ${textPrimary}`}>
               Noch keine Unterrichtslinks hinterlegt
@@ -318,7 +324,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
                 id="links-empty-add-btn"
                 type="button"
                 onClick={openAddForm}
-                className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-xl transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer min-h-[44px]"
+                className="px-3 py-2 bg-accent hover:bg-accent-hover text-accent-text text-xs font-black rounded-xl transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer min-h-[44px]"
               >
                 <Plus className="w-4 h-4" />
                 <span>Link hinzufügen</span>
@@ -355,7 +361,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
                   key={link.id}
                   id={`link-card-${link.id}`}
                   className={`flex flex-col justify-between p-3 rounded-2xl border transition-all relative ${bgCard} ${
-                    isManaging ? 'ring-2 ring-blue-500/20' : ''
+                    isManaging ? 'ring-2 ring-accent-soft' : ''
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2 min-w-0">
@@ -377,8 +383,8 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
                           <span
                             className={`inline-block px-1.5 py-0.5 text-[9px] font-bold rounded uppercase tracking-wider ${
                               currentIsLight
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-blue-900/50 text-blue-200'
+                                ? 'bg-accent-soft text-accent'
+                                : 'bg-accent-soft text-accent'
                             }`}
                           >
                             {categoryObj.label}
@@ -400,7 +406,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
                           disabled={isFirst}
                           onClick={() => handleMove(index, 'up')}
                           title="Nach oben verschieben"
-                          className="p-1 rounded hover:bg-slate-200 dark:hover:bg-zinc-700 disabled:opacity-30 cursor-pointer"
+                          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 disabled:opacity-30 cursor-pointer"
                         >
                           <ChevronUp className="w-3.5 h-3.5" />
                         </button>
@@ -409,7 +415,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
                           disabled={isLast}
                           onClick={() => handleMove(index, 'down')}
                           title="Nach unten verschieben"
-                          className="p-1 rounded hover:bg-slate-200 dark:hover:bg-zinc-700 disabled:opacity-30 cursor-pointer"
+                          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 disabled:opacity-30 cursor-pointer"
                         >
                           <ChevronDown className="w-3.5 h-3.5" />
                         </button>
@@ -417,7 +423,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
                           type="button"
                           onClick={() => openEditForm(link)}
                           title="Bearbeiten"
-                          className="p-1 rounded hover:bg-slate-200 dark:hover:bg-zinc-700 text-blue-500 cursor-pointer"
+                          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 text-accent cursor-pointer"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
@@ -425,7 +431,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
                           type="button"
                           onClick={() => handleDelete(link.id)}
                           title="Löschen"
-                          className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 cursor-pointer"
+                          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -441,13 +447,13 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
                       type="button"
                       onClick={() => setQrModalLink(link)}
                       title="QR-Code für Tablets der Klasse groß anzeigen"
-                      className={`flex items-center gap-1 px-2 py-1.5 rounded-xl border text-[11px] font-black transition-all cursor-pointer min-h-[38px] ${
+                      className={`flex items-center gap-1 px-2 py-1.5 rounded-xl border text-[11px] font-black transition-all cursor-pointer min-h-11 ${
                         currentIsLight
                           ? 'bg-slate-100 hover:bg-slate-200 border-slate-300/80 text-slate-700'
                           : 'bg-zinc-700 hover:bg-zinc-600 border-white/10 text-slate-200'
                       }`}
                     >
-                      <QrCode className="w-3.5 h-3.5 shrink-0 text-blue-500" />
+                      <QrCode className="w-3.5 h-3.5 shrink-0 text-accent" />
                       <span>QR</span>
                     </button>
 
@@ -456,7 +462,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
                       id={`link-open-btn-${link.id}`}
                       href={link.url}
                       {...SECURE_LINK_ATTRIBUTES}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer min-h-[38px]"
+                      className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-accent px-3 py-1.5 text-xs font-black text-accent-text shadow-xs transition-all hover:bg-accent-hover active:scale-98 cursor-pointer"
                     >
                       <span>Öffnen</span>
                       <ExternalLink className="w-3.5 h-3.5 shrink-0" />
@@ -475,7 +481,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
               id="links-compact-toggle-btn"
               type="button"
               onClick={() => setCompactShowAll(!compactShowAll)}
-              className={`w-full py-1.5 text-center text-xs font-bold rounded-xl border transition-all cursor-pointer min-h-[36px] ${
+              className={`w-full py-1.5 text-center text-xs font-bold rounded-xl border transition-all cursor-pointer min-h-11 ${
                 currentIsLight
                   ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
                   : 'bg-zinc-800 hover:bg-zinc-700 border-white/10 text-slate-300'
@@ -493,7 +499,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
         {/* 4. Dezent: Offline / Sicherheitshinweis */}
         <div className="pt-2 pb-1 flex items-center justify-between text-[9px] text-slate-400 dark:text-zinc-500 px-1 select-none">
           <div className="flex items-center gap-1">
-            <Wifi className="w-3 h-3 text-blue-500/80" />
+            <Wifi className="w-3 h-3 text-accent/80" />
             <span>Widget 100 % offline • Externe Links benötigen Internet</span>
           </div>
           <div className="flex items-center gap-1">
@@ -542,7 +548,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
                   placeholder="z. B. Mathe-Übung Brüche"
                   value={formTitle}
                   onChange={(e) => setFormTitle(e.target.value)}
-                  className={`w-full px-3 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full px-3 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-accent ${
                     currentIsLight
                       ? 'bg-slate-50 border-slate-300 text-slate-800'
                       : 'bg-zinc-800 border-white/10 text-slate-100'
@@ -561,7 +567,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
                   placeholder="https://anton.app oder www.schule.at"
                   value={formUrl}
                   onChange={(e) => setFormUrl(e.target.value)}
-                  className={`w-full px-3 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full px-3 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-accent ${
                     currentIsLight
                       ? 'bg-slate-50 border-slate-300 text-slate-800'
                       : 'bg-zinc-800 border-white/10 text-slate-100'
@@ -586,7 +592,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
                       const catObj = LINK_CATEGORIES.find((c) => c.id === newCat);
                       if (catObj) setFormEmoji(catObj.defaultEmoji);
                     }}
-                    className={`w-full px-2 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    className={`w-full px-2 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-accent ${
                       currentIsLight
                         ? 'bg-slate-50 border-slate-300 text-slate-800'
                         : 'bg-zinc-800 border-white/10 text-slate-100'
@@ -615,7 +621,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
                           type="button"
                           onClick={() => setFormEmoji(em)}
                           className={`px-1.5 py-1 text-sm rounded hover:scale-110 transition-transform ${
-                            formEmoji === em ? 'bg-blue-500/20' : ''
+                            formEmoji === em ? 'bg-accent-soft' : ''
                           }`}
                         >
                           {em}
@@ -644,7 +650,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-xl shadow-xs transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer min-h-[40px]"
+                  className="px-4 py-1.5 bg-accent hover:bg-accent-hover text-accent-text text-xs font-black rounded-xl shadow-xs transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer min-h-[40px]"
                 >
                   <Check className="w-4 h-4" />
                   <span>{editingLink ? 'Änderungen speichern' : 'Link speichern'}</span>
@@ -675,7 +681,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
               type="button"
               onClick={() => setQrModalLink(null)}
               aria-label="QR-Code schließen"
-              className="absolute top-3 right-3 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center"
+              className="absolute top-3 right-3 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all cursor-pointer min-w-11 min-h-11 flex items-center justify-center"
             >
               <X className="w-5 h-5" />
             </button>
@@ -710,7 +716,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
                 <a
                   href={qrModalLink.url}
                   {...SECURE_LINK_ATTRIBUTES}
-                  className="flex-1 py-2 px-3 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer min-h-[44px]"
+                  className="flex-1 py-2 px-3 bg-accent hover:bg-accent-hover active:scale-95 text-accent-text font-black text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer min-h-[44px]"
                 >
                   <span>Link im Browser öffnen</span>
                   <ExternalLink className="w-3.5 h-3.5" />

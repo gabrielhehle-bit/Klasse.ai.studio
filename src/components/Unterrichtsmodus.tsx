@@ -12302,6 +12302,8 @@ ${content}
                                           setApp={setApp}
                                           currentIsLight={currentIsLight}
                                           isFullscreen={false}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
