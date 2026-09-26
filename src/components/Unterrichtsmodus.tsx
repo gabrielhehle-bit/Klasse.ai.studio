@@ -3442,7 +3442,13 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   });
   useEffect(() => {
     const visibleIds = cockpitWidgets
-      .filter(widget => widget.visible && !minimizedWidgetIds.includes(widget.id))
+      .filter(widget =>
+        widget.visible &&
+        !minimizedWidgetIds.includes(widget.id) &&
+        widget.type !== "studentlist" &&
+        widget.type !== "pet" &&
+        !widget.settings?.isDirectMode,
+      )
       .map(widget => widget.id);
     setFocusOrder(previous => {
       const retained = previous.filter(id => visibleIds.includes(id));
@@ -10086,14 +10092,19 @@ ${content}
                               cockpitWidgets.some(candidate =>
                                 candidate.id === id &&
                                 candidate.visible &&
-                                !minimizedWidgetIds.includes(candidate.id),
+                                !minimizedWidgetIds.includes(candidate.id) &&
+                                candidate.type !== "studentlist" &&
+                                candidate.type !== "pet" &&
+                                !candidate.settings?.isDirectMode,
                               ),
                             );
                             const fallbackFocusedId = cockpitWidgets
                               .filter(candidate =>
                                 candidate.visible &&
                                 !minimizedWidgetIds.includes(candidate.id) &&
-                                candidate.type !== "studentlist",
+                                candidate.type !== "studentlist" &&
+                                candidate.type !== "pet" &&
+                                !candidate.settings?.isDirectMode,
                               )
                               .at(-1)?.id;
                             const focusedWidgetId =
