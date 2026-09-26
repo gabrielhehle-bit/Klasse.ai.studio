@@ -2804,27 +2804,12 @@ const loadAndSanitizeLayout = (layout: any): CockpitWidgetConfig[] => {
         } as CockpitWidgetConfig;
       });
 
-    // 3. Resolve exact deckungsgleiche coordinates
-    const seenPositions = new Set<string>();
-    const sanitized = rawSanitized.map((w) => {
-      // Do not move the teacher's free-standing mascot when another widget
-      // happens to have identical x/y. Only card widgets need this collision fix.
-      if (w.type === "pet") return w;
-      let x = w.x;
-      let y = w.y;
-      let key = `${x.toFixed(1)},${y.toFixed(1)}`;
-      let count = 0;
-      while (seenPositions.has(key) && count < 15) {
-        x = Math.min(100 - w.w, x + 3.0);
-        y = Math.min(100 - w.h, y + 2.5);
-        key = `${x.toFixed(1)},${y.toFixed(1)}`;
-        count++;
-      }
-      seenPositions.add(key);
-      return { ...w, x, y };
-    });
+    // Saved layouts are geometry: sanitizing may clamp unsafe bounds, but it
+    // must never invent a different arrangement. Intentional overlap is valid
+    // and has to survive page/profile/slot restore pixel-for-pixel.
+    const sanitized = rawSanitized;
 
-    // Ensure all 17 widget types are covered in layout config
+    // Ensure every current widget type stays available even in historic layouts.
     const typesPresent = sanitized.map((t: any) => t.type);
     const missingTypes = knownTypes.filter((t) => !typesPresent.includes(t));
     missingTypes.forEach((t) => {
