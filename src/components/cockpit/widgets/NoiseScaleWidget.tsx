@@ -7,7 +7,7 @@ import {
   NoiseScaleStage,
 } from '../../../lib/noisescalesAlgorithm';
 import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
-import { Volume1, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
 
 interface NoiseScaleWidgetProps {
   widget: any;
@@ -51,14 +51,8 @@ export const NoiseScaleWidget: React.FC<NoiseScaleWidgetProps> = ({
         currentIsLight ? 'text-slate-800' : 'text-slate-100'
       }`}
     >
-      {/* 1. Header */}
-      <div className="flex items-center justify-between gap-2 shrink-0">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <Volume1 size={size.isCompact ? 14 : 16} className="text-sky-500" />
-          <span className="text-[11px] font-black uppercase tracking-wider truncate">
-            Lautstärkevorgabe
-          </span>
-        </div>
+      {/* Shared frame carries the widget title; only the current classroom level remains here. */}
+      <div className="flex shrink-0 items-center justify-end">
         <span
           className={`text-[9px] font-black px-2 py-0.5 rounded-full border ${activeStage.activeBg} ${activeStage.accentBorder}`}
         >
