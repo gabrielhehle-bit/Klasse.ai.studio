@@ -37,8 +37,16 @@ test('new classrooms get an ordered customizable dock; old disabled favorites re
   assert.match(dock, /aria-label="Meine Widget-Leiste anpassen"/);
   assert.match(dock, /Weitere Widgets/);
   assert.match(dock, /\+ Hinzufügen/);
-  assert.match(dock, /Nochmal/);
+  assert.match(dock, /Standard wiederherstellen/);
+  assert.match(dock, /Ja, Standard laden/);
   assert.doesNotMatch(dock, /onContextMenu=/);
+});
+
+test('dock labels are derived from the same catalog instead of a second visible-name map', () => {
+  assert.match(readFileSync('src/lib/cockpitQuickbar.ts', 'utf8'), /splitCockpitWidgetLabel\(item\.label\)/);
+  assert.doesNotMatch(readFileSync('src/lib/cockpitQuickbar.ts', 'utf8'), /QUICKBAR_OVERRIDES/);
+  assert.equal(COCKPIT_QUICKBAR_ITEMS.find(item => item.id === 'pet')?.icon, '🐾');
+  assert.equal(COCKPIT_QUICKBAR_ITEMS.find(item => item.id === 'groups')?.label, 'Gruppen-Einteiler');
 });
 
 test('favorites can be chosen and reordered without modifying saved widget positions', () => {
