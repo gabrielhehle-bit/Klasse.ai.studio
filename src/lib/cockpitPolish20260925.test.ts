@@ -40,10 +40,11 @@ test('student list has an always-discoverable right-edge tab with real class cou
   assert.match(surface, /changeSidebarMode\(prevSidebarMode \|\| "expanded"\)/);
 });
 
-test('dock floats above the board and favorites can be removed quickly', () => {
+test('dock floats above the board and favorites are removed only through deliberate edit UI', () => {
   assert.match(css, /\.klassio-cockpit-shell \.klassio-dock-row \{[\s\S]*?margin-top: -60px/);
-  assert.match(dock, /onContextMenu=\{event =>/);
-  assert.match(dock, /Rechtsklick entfernt den Favoriten/);
+  assert.doesNotMatch(dock, /onContextMenu=\{event =>/);
+  assert.match(dock, /removeCockpitQuickbarItem\(current, id\)/);
+  assert.match(dock, /Nochmal/);
   assert.match(dock, /aria-label="Weitere Widgets hinzufügen"/);
 });
 
