@@ -246,7 +246,7 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
               leftIcon={<Plus size={14} />}
               onClick={() => setActiveTab("create")}
             >
-              <span>Aktuelles Board als Vorlage speichern</span>
+              <span>Aktuelle Widget-Anordnung speichern</span>
               <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-black/10 dark:bg-white/15">
                 {activeWidgets.length} Widgets
               </span>
@@ -260,7 +260,7 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Eigene Layouts suchen..."
+                placeholder="Eigene Vorlagen suchen..."
                 className="w-full pl-8 pr-3 py-1.5 rounded-xl text-xs font-medium border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--focus-ring,var(--accent))]"
               />
             </div>
@@ -276,7 +276,7 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                 <div className="flex items-center gap-2.5 mb-2">
                   <Sparkles size={18} />
                   <h4 className="text-xs font-black uppercase tracking-wider">
-                    Aktuelles Cockpit-Layout erfassen
+                    Widget-Anordnung als Vorlage speichern
                   </h4>
                 </div>
                 <p className="text-xs font-medium leading-relaxed opacity-90">
@@ -512,7 +512,6 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                           leftIcon={<RefreshCw size={12} />}
                           onClick={() => {
                             onUpdateProfile(p.id);
-                            showToast(`Vorlage "${p.name}" mit aktuellem Board-Layout aktualisiert!`, "success");
                           }}
                         >
                           Überschreiben
