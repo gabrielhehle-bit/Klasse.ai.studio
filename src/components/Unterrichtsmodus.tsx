@@ -4288,7 +4288,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
         ),
       };
     });
-    showToast("Vorlage mit aktueller Unterrichtsfläche aktualisiert!", "success");
+    showToast("Vorlage mit der aktuellen Widget-Anordnung aktualisiert.", "success");
   };
 
   const handleLoadProfile = (profileId: string) => {
@@ -4327,7 +4327,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     }));
     // Remove legacy plaintext slot if it exists.
     if (slot === "C") localStorage.removeItem("cockpitLayoutC");
-    showToast(`Layout "${slotNames[slot] || slot}" erfolgreich gespeichert!`, "success");
+    showToast(`Widget-Anordnung "${slotNames[slot] || slot}" gespeichert.`, "success");
   };
 
   const handleLoadLayoutSlot = (slot: "A" | "B" | "C") => {
@@ -4335,10 +4335,10 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     const saved = app[field];
     if (saved && Array.isArray(saved) && saved.length > 0) {
       restoreCockpitLayout(saved);
-      showToast(`Layout "${slotNames[slot] || slot}" geladen.`, "success");
+      showToast(`Widget-Anordnung "${slotNames[slot] || slot}" geladen.`, "success");
       return true;
     } else {
-      showToast(`Kein gespeichertes Layout in "${slotNames[slot] || slot}" vorhanden.`, "info");
+      showToast(`Keine gespeicherte Widget-Anordnung in "${slotNames[slot] || slot}" vorhanden.`, "info");
       return false;
     }
   };
