@@ -8461,8 +8461,8 @@ ${content}
                                       autoFocus
                                       className={`min-h-11 w-full rounded-xl border px-4 pr-14 text-sm font-semibold outline-none transition-all placeholder:text-slate-400 ${
                                         currentIsLight
-                                          ? "bg-slate-50 border-slate-200 text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                                          : "bg-white/5 border-white/15 text-white focus:border-indigo-400"
+                                          ? "bg-slate-50 border-slate-200 text-slate-900 focus:border-accent focus:ring-2 focus:ring-accent-soft"
+                                          : "bg-white/5 border-white/15 text-white focus:border-accent"
                                       }`}
                                     />
                                     {widgetSearch ? (
@@ -8489,7 +8489,7 @@ ${content}
                                     className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-lg font-bold text-slate-700 hover:bg-slate-100">✕</button>
                                 </header>
                                 <section id="cockpit-widget-settings"
-                                  className={`${isWidgetConfigurationOpen ? "flex" : "hidden"} absolute inset-x-3 bottom-3 top-[5.25rem] z-[1200] flex-col overflow-hidden rounded-2xl border border-indigo-200 bg-indigo-50 p-3 text-slate-900 shadow-2xl`}
+                                  className={`${isWidgetConfigurationOpen ? "flex" : "hidden"} absolute inset-x-3 bottom-3 top-[5.25rem] z-[1200] flex-col overflow-hidden rounded-2xl border border-accent bg-accent-soft p-3 text-slate-900 shadow-2xl`}
                                   aria-label="Widget-Einstellungen im Menü Widget hinzufügen">
                                   <div className="flex shrink-0 items-center justify-between gap-2 rounded-xl bg-white px-3">
                                     <div>
@@ -8891,7 +8891,7 @@ ${content}
                                         }}
                                         className={`mb-1 flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold transition-all cursor-pointer ${
                                           activeWidgetCategory === cat.id
-                                            ? "bg-indigo-500 text-white shadow"
+                                            ? "bg-accent text-accent-text shadow"
                                             : currentIsLight
                                               ? "text-slate-500 hover:bg-slate-200 hover:text-slate-800"
                                               : "text-slate-400 hover:bg-zinc-800 hover:text-white"
@@ -8976,7 +8976,7 @@ ${content}
                                     if (activeWidgetCategory === "core" && !query) {
                                       return (
                                         <>
-                                          <div className="col-span-full rounded-2xl border border-indigo-100 bg-indigo-50/70 px-4 py-3">
+                                          <div className="col-span-full rounded-2xl border border-accent/20 bg-accent-soft px-4 py-3">
                                             <p className="text-sm font-black text-slate-900">20 Kernwidgets</p>
                                             <p className="mt-0.5 text-xs text-slate-600">
                                               Die wichtigsten Unterrichtswerkzeuge. Varianten bleiben über den kleinen Pfeil erreichbar.
@@ -9001,10 +9001,10 @@ ${content}
                                             const isMinimized = Boolean(primaryWidget && minimizedWidgetIds.includes(primaryWidget.id));
                                             return (
                                               <div key={group.id} data-testid={`cockpit-core-group-${group.id}`}
-                                                className={`relative flex min-h-[96px] flex-wrap items-center gap-3 rounded-2xl border p-3 transition-all ${
+                                                className={`klassio-widget-library-card relative flex min-h-[96px] flex-wrap items-center gap-3 rounded-2xl border p-3 transition-all ${
                                                   isActive
                                                     ? "border-emerald-200 bg-emerald-50/50"
-                                                    : "border-slate-200 bg-white hover:border-indigo-200 hover:shadow-sm"
+                                                    : "border-slate-200 bg-white hover:border-accent hover:shadow-sm"
                                                 }`}>
                                                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-2xl" aria-hidden="true">
                                                   {icon}
@@ -9013,13 +9013,13 @@ ${content}
                                                   <div className="flex items-center gap-2">
                                                     <h3 className="truncate text-sm font-black text-slate-900">{group.label}</h3>
                                                     {isMinimized
-                                                      ? <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700">minimiert</span>
+                                                      ? <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-accent">minimiert</span>
                                                       : isActive && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">offen</span>}
                                                   </div>
                                                   <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">{description}</p>
                                                 </div>
-                                                <div className="flex shrink-0 items-center gap-1">
-                                                  <button type="button"
+                                                <div className="klassio-widget-card-actions flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                                                  <button type="button" data-widget-card-action="favorite"
                                                     onClick={(event) => toggleFavorite(primaryType, event)}
                                                     aria-label={isFav ? `${group.label} aus Favoriten entfernen` : `${group.label} zu Favoriten hinzufügen`}
                                                     title={isFav ? "Von Favoriten entfernen" : "Zu Favoriten hinzufügen"}
@@ -9073,7 +9073,7 @@ ${content}
                                                             handleOpenWidgetInCockpitLayout(variant.type as CockpitWidgetConfig["type"]);
                                                             setIsAddWidgetMenuOpen(false);
                                                           }}
-                                                          className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-left text-xs font-semibold text-slate-700 hover:border-indigo-200 hover:bg-indigo-50">
+                                                          className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-left text-xs font-semibold text-slate-700 hover:border-accent hover:bg-accent-soft">
                                                           {variant.label}
                                                         </button>
                                                       ))}
@@ -9149,7 +9149,7 @@ ${content}
                                         <>
                                           {favoriteFolderPicker}
                                           <div className="col-span-full py-10 flex flex-col items-center justify-center text-center opacity-70">
-                                            <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-500 mb-2">
+                                            <div className="w-10 h-10 rounded-full bg-accent-soft flex items-center justify-center text-accent mb-2">
                                               <Star
                                                 size={18}
                                                 className="stroke-[2.5]"
@@ -9177,14 +9177,14 @@ ${content}
                                       <>
                                         {renderedFoldersHeader}
                                         {query && (
-                                          <div className="col-span-full flex min-h-11 items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-indigo-50/70 px-3 py-2 text-xs text-slate-700" role="status">
+                                          <div className="col-span-full flex min-h-11 items-center justify-between gap-3 rounded-xl border border-accent/20 bg-accent-soft px-3 py-2 text-xs text-slate-700" role="status">
                                             <span className="min-w-0 truncate font-semibold">Suche in allen Widgets: „{widgetSearch.trim()}“</span>
-                                            <span className="shrink-0 rounded-full bg-white px-2 py-1 font-black text-indigo-700">{filteredList.length} Treffer</span>
+                                            <span className="shrink-0 rounded-full bg-white px-2 py-1 font-black text-accent">{filteredList.length} Treffer</span>
                                           </div>
                                         )}
                                         {filteredList.length === 0 && (
                                           <div className="col-span-full py-10 flex flex-col items-center justify-center text-center opacity-70">
-                                            <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-500 mb-2">
+                                            <div className="w-10 h-10 rounded-full bg-accent-soft flex items-center justify-center text-accent mb-2">
                                               🔍
                                             </div>
                                             <p className="text-sm font-bold">
@@ -9208,10 +9208,10 @@ ${content}
                                           const name = parts.length > 1 ? parts.slice(1).join(" ") : item.label;
                                           return (
                                             <article key={item.type}
-                                              className={`group flex min-h-[92px] items-center gap-3 rounded-2xl border p-3 transition-all ${
+                                              className={`klassio-widget-library-card group flex min-h-[92px] items-center gap-3 rounded-2xl border p-3 transition-all ${
                                                 isActive
                                                   ? "border-emerald-200 bg-emerald-50/60"
-                                                  : "border-slate-200 bg-white hover:border-indigo-200 hover:shadow-sm"
+                                                  : "border-slate-200 bg-white hover:border-accent hover:shadow-sm"
                                               }`}>
                                               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-2xl" aria-hidden="true">
                                                 {icon}
@@ -9220,13 +9220,13 @@ ${content}
                                                 <div className="flex items-center gap-2">
                                                   <h3 className="truncate text-sm font-black text-slate-900">{name}</h3>
                                                   {isMinimized
-                                                    ? <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700">minimiert</span>
+                                                    ? <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-accent">minimiert</span>
                                                     : isActive && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">offen</span>}
                                                 </div>
                                                 <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">{item.desc}</p>
                                               </div>
-                                              <div className="flex shrink-0 items-center gap-1">
-                                                <button type="button"
+                                              <div className="klassio-widget-card-actions flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                                                <button type="button" data-widget-card-action="favorite"
                                                   onClick={(event) => toggleFavorite(item.type, event)}
                                                   aria-label={isFav ? `${name} aus Favoriten entfernen` : `${name} zu Favoriten hinzufügen`}
                                                   title={isFav ? "Von Favoriten entfernen" : "Zu Favoriten hinzufügen"}
