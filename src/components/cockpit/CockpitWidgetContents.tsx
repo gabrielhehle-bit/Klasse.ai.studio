@@ -7049,14 +7049,14 @@ export const WordclockWidgetContent: React.FC<{
                 <span className="w-16 text-xs font-black">Stunde</span>
                 <input type="range" min="0" max="23" value={lernHour}
                   onChange={(e) => changeHour(Number(e.target.value))}
-                  className="min-w-0 flex-1 accent-[var(--accent)]" />
+                  className="min-w-0 flex-1 text-accent accent-current" />
                 <span className="w-7 text-right font-mono text-sm font-black text-accent">{lernHour}</span>
               </label>
               <label className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 px-3 dark:border-white/10">
                 <span className="w-16 text-xs font-black">Minute</span>
                 <input type="range" min="0" max="59" step="5" value={lernMin}
                   onChange={(e) => changeMinute(Number(e.target.value))}
-                  className="min-w-0 flex-1 accent-[var(--accent)]" />
+                  className="min-w-0 flex-1 text-accent accent-current" />
                 <span className="w-7 text-right font-mono text-sm font-black text-accent">{lernMin}</span>
               </label>
             </div>
