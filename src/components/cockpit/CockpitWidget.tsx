@@ -779,6 +779,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
         // overfull widget contents even while the board layout is editable.
         touchAction: "auto",
       }}
+      onPointerDownCapture={!isDirect && !isFreeMascot ? onFocus : undefined}
       onClick={onFocus}
       onKeyDown={isFreeMascot ? handleMascotKeyDown : undefined}
     >
@@ -846,10 +847,10 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
               aria-label={`${labelMapping[widget.type] || widget.type} Einstellungen ${settingsOpen ? "schließen" : "öffnen"}`}
               aria-expanded={settingsOpen}
               title="Widget-Einstellungen"
-              className={`cockpit-widget-settings-trigger ml-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${settingsOpen
-                ? "bg-indigo-600 border-indigo-600 text-white"
+              className={`cockpit-widget-settings-trigger ml-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${settingsOpen
+                ? "bg-accent border-accent text-accent-text"
                 : currentIsLight
-                  ? "bg-white border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
+                  ? "bg-white border-slate-200 text-slate-600 hover:bg-accent-soft hover:text-accent"
                   : "bg-zinc-800 border-white/10 text-zinc-200 hover:bg-zinc-700"}`}
             >
               <Settings size={16} aria-hidden="true" />
@@ -892,15 +893,15 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
               setShowSizeConfig(false);
               setShowExactSizeInputs(false);
             }}
-            className={`cockpit-widget-menu-trigger w-11 h-11 flex items-center justify-center rounded-lg border shadow-sm transition-all outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 cursor-pointer ${
+            className={`cockpit-widget-menu-trigger w-11 h-11 flex items-center justify-center rounded-lg border shadow-sm transition-all outline-none focus-visible:ring-2 focus-visible:ring-accent cursor-pointer ${
               showWidgetMenu
-                ? "bg-indigo-600 border-indigo-600 text-white"
+                ? "bg-accent border-accent text-accent-text"
                 : currentIsLight
-                  ? "bg-white border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                  ? "bg-white border-slate-200 text-slate-500 hover:bg-accent-soft hover:text-accent"
                   : "bg-zinc-800 border-white/10 text-neutral-300 hover:bg-zinc-700 hover:text-white"
             }`}
-            title="Widget-Menü"
-            aria-label="Widget-Menü öffnen"
+            title={showWidgetMenu ? "Widget-Menü schließen" : "Widget-Menü"}
+            aria-label={showWidgetMenu ? "Widget-Menü schließen" : "Widget-Menü öffnen"}
             aria-expanded={showWidgetMenu}
           >
             <MoreHorizontal size={16} strokeWidth={2.5} />
@@ -918,7 +919,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
               }`}
             >
               {!layoutLocked && (widget.type === "drawing" || widget.type === "instruction") && (
-                <button
+                <button role="menuitem"
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -938,7 +939,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
               )}
 
               {!isDirect && onMinimize && (
-                <button
+                <button role="menuitem"
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -953,7 +954,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
               )}
 
               {!isDirect && (
-                <button
+                <button role="menuitem"
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -969,7 +970,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
               )}
 
               {!layoutLocked && (
-                <button
+                <button role="menuitem"
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -988,7 +989,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
               {!layoutLocked && (
                 <>
                   <div className="h-px bg-slate-100 dark:bg-white/10 my-1" />
-                  <button
+                  <button role="menuitem"
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
