@@ -61,7 +61,7 @@ test("Cockpit: alle erhaltenen Standard-Widgettypen kommen aus einem gemeinsamen
   const catalog = widgetTypes(widgetCatalog);
 
   assert.equal(defaults.length, 111, "Standardlayout muss alle bisherigen Typen, HÜ und Sterneauswertung enthalten");
-  assert.equal(catalog.length, 110, "Gemeinsamer Widget-Katalog bietet alle Bibliothekswidgets außer der doppelten Schülerliste");
+  assert.equal(catalog.length, 111, "Gemeinsamer Widget-Katalog bietet alle Standardwidgets außer der doppelten Schülerliste");
   assert.match(teachingSurface, /const allAvailableWidgets = COCKPIT_WIDGET_LIBRARY_ITEMS;/);
 
   // Historic studentlist remains in the 111-entry layout/backup schema but
