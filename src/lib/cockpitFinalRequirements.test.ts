@@ -73,6 +73,14 @@ test("Cockpit: alle erhaltenen Standard-Widgettypen kommen aus einem gemeinsamen
   }
 });
 
+test("Cockpit: Widgettitel und Einstellungs-Zahnrad kommen aus dem gemeinsamen Katalog", () => {
+  assert.match(cockpitWidget, /getCockpitWidgetDisplayLabel\(widget\.type\)/);
+  assert.match(cockpitWidget, /data-widget-title=\{displayLabel\}/);
+  assert.doesNotMatch(cockpitWidget, /const labelMapping: Record<string, string>/);
+  assert.match(teachingSurface, /cockpitWidgetSupportsSettings\(String\(widget\.type\)\)/);
+  assert.doesNotMatch(teachingSurface, /showSettingsButton=\{\[/);
+});
+
 test("Cockpit: gespeicherte Layouts verlieren keinen Standard-Widgettyp", () => {
   const defaultStart = teachingSurface.indexOf("const DEFAULT_COCKPIT_LAYOUT");
   const defaultEnd = teachingSurface.indexOf("const DEFAULT_WORKSPACE_PROFILES", defaultStart);
@@ -138,8 +146,8 @@ test("Cockpit: alte Tafel liegt ausschließlich im Archiv", () => {
 
 test("Cockpit: Zeichenfeld und gemeinsame Zeichenebene sind sprachlich getrennt", () => {
   assert.match(widgetCatalog, /label: "🖍️ Zeichenfeld"/);
-  assert.match(cockpitWidget, /drawing: "🖍️ Zeichenfeld"/);
-  assert.doesNotMatch(cockpitWidget, /drawing: "🖍️ Zeichentafel"/);
+  assert.match(cockpitWidget, /getCockpitWidgetDisplayLabel\(widget\.type\)/);
+  assert.doesNotMatch(widgetCatalog, /label: "🖍️ Zeichentafel"/);
 });
 
 test("Cockpit: weiße Unterrichtsfläche hat direkte Schreibebene und eine gemeinsame externe Werkzeugleiste", () => {
@@ -308,7 +316,9 @@ test("Cockpit: neue Widgets suchen echten freien Platz statt versetzt zu stapeln
   assert.match(widgetPlacement, /Prefer zero overlap/);
   assert.match(widgetPlacement, /Only if no free candidate exists/);
   assert.match(widgetPlacement, /overlapArea \* 1000/);
-  assert.match(widgetPlacement, /shrink in small steps but never below the widget's readable minimum/);
+  assert.match(widgetPlacement, /const scaleSteps = \[1, 0\.92, 0\.84, 0\.76\]/);
+  assert.match(widgetPlacement, /Math\.max\(hardMinW, requestedW \* scale\)/);
+  assert.match(widgetPlacement, /Math\.max\(hardMinH, requestedH \* scale\)/);
   assert.match(widgetPlacement, /usedOverlapFallback: fallback\.overlap > 0\.5/);
   assert.match(widgetPlacement, /shrankToFit:/);
 });

@@ -216,7 +216,7 @@ import { getGroupWidgetPreferences, applyGroupWidgetPreference, type GroupWidget
 import { getClassroomWeeklyWidgetPreferences } from "../lib/classroomWeeklyWidgetPreferences";
 import { COCKPIT_PAPERS, getCockpitPaperStyle, normalizeCockpitPaperSpacing, type CockpitPaper } from "../lib/cockpitPaper";
 import { addCockpitQuickbarItem, normalizeCockpitQuickbarSettings, type CockpitQuickbarId } from "../lib/cockpitQuickbar";
-import { COCKPIT_WIDGET_LIBRARY_ITEMS } from "../lib/cockpitWidgetCatalog";
+import { COCKPIT_WIDGET_LIBRARY_ITEMS, cockpitWidgetSupportsSettings } from "../lib/cockpitWidgetCatalog";
 import { PublicStudentListWidget as StudentListWidgetContent } from "./cockpit/PublicStudentListWidget";
 import { ClassRewardWidget } from "./cockpit/widgets/ClassRewardWidget";
 import {
@@ -10598,27 +10598,7 @@ ${content}
                                 onUpdate={(updates) =>
                                   handleUpdateWidgetPos(widget.id, updates)
                                 }
-                                showSettingsButton={[
-                                  "noisemeter",
-                                  "vocabulary",
-                                  "qrcode",
-                                  "image",
-                                  "timer",
-                                  "drawing",
-                                  "instruction",
-                                  "zahlenraum",
-                                  "anschauung",
-                                  "numberline",
-                                  "kopfrechnen",
-                                  "mathcards",
-                                  "multitrainer",
-                                  "mathchain",
-                                  "fractionvisualizer",
-                                  "fractions",
-                                  "fractioncake",
-                                  "fractiongrid",
-                                  "sounds",
-                                ].includes(widget.type)}
+                                showSettingsButton={cockpitWidgetSupportsSettings(String(widget.type))}
                                 settingsOpen={widgetSettingsOpenId === widget.id}
                                 onSettingsToggle={() =>
                                   setWidgetSettingsOpenId((prev) =>

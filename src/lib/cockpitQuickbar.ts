@@ -9,32 +9,12 @@ import {
  * encrypted boardSettings. The quick bar uses the full widget-library catalog:
  * every widget that can be opened from the library can also be pinned here.
  */
-const QUICKBAR_OVERRIDES: Partial<Record<CockpitWidgetLibraryId, { icon: string; label: string }>> = {
-  kidattendance: { icon: '🖐️', label: 'Ich bin da!' },
-  classweeklyplan: { icon: '📋', label: 'Wochenplan' },
-  timer: { icon: '⏱️', label: 'Timer' },
-  wheel: { icon: '🎡', label: 'Glücksrad' },
-  randomname: { icon: '🎯', label: 'Zufallsauswahl' },
-  groups: { icon: '👥', label: 'Gruppen' },
-  homework: { icon: '📚', label: 'Hausübungen' },
-  starsreview: { icon: '⭐', label: 'Sterne' },
-  timeline: { icon: '🗓️', label: 'Tagesplan' },
-  clock: { icon: '🕒', label: 'Uhr' },
-  dienste: { icon: '🧹', label: 'Klassendienste' },
-  trafficlight: { icon: '🚦', label: 'Arbeitsampel' },
-  instruction: { icon: '📝', label: 'Arbeitsauftrag' },
-  image: { icon: '🖼️', label: 'Bild' },
-  qrcode: { icon: '🔗', label: 'QR-Code' },
-  pet: { icon: '🐾', label: 'Maskottchen' },
-};
-
 export const COCKPIT_QUICKBAR_ITEMS = COCKPIT_WIDGET_LIBRARY_ITEMS.map(item => {
   const parsed = splitCockpitWidgetLabel(item.label);
-  const override = QUICKBAR_OVERRIDES[item.type];
   return {
     id: item.type,
-    icon: override?.icon || parsed.icon,
-    label: override?.label || parsed.label,
+    icon: parsed.icon,
+    label: parsed.label,
     category: item.category,
   };
 });
