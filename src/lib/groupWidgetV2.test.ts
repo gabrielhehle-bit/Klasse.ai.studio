@@ -101,3 +101,12 @@ test('Widget 2: rapid picker updates do not get overwritten by group edits', () 
   assert.match(surface, /w\.type === "groups" && updates\.settings/);
   assert.match(surface, /settings: \{ \.\.\.\(w\.settings \|\| \{\}\), \.\.\.updates\.settings \}/);
 });
+
+
+test('Widget 2: Neu mischen bleibt in der aktuellen Widgetgröße', () => {
+  const generation = widget.slice(widget.indexOf('// Gruppen erstellen oder neu mischen'), widget.indexOf('const undoMix'));
+  assert.match(generation, /const isRemix = groups\\.length > 0/);
+  assert.match(generation, /if \\(isRemix && !isExpanded\\)/);
+  assert.doesNotMatch(generation, /setIsExpanded\\(true\\)/);
+  assert.match(widget, /onClick=\\{\\(\\) => setIsExpanded\\(true\\)\\}/);
+});
