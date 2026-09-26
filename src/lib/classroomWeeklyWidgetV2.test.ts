@@ -40,7 +40,7 @@ test('Widget 3: central library gear and class-local settings do not rewrite an 
   assert.match(picker, /cockpitChildrenWeekDefaultsByClass/);
   assert.match(picker, /Voreinstellungen auf vorhandenes Widget anwenden/);
   assert.match(picker, /type === "classweeklyplan" && !useOld/);
-  assert.match(picker, /ClassroomWeeklyPlanWidget widget=\{widget\}/);
+  assert.match(picker, /<ClassroomWeeklyPlanWidget[\s\S]{0,400}widget=\{widget\}/);
   assert.match(picker, /Bestehende Wochenpläne und Rückmeldungen der Kinder werden nicht verändert/);
 });
 

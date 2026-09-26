@@ -10741,7 +10741,10 @@ ${content}
                                       return (
                                         <WordclockWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
@@ -11394,7 +11397,14 @@ ${content}
                                       );
 
                                     case "classweeklyplan":
-                                      return <ClassroomWeeklyPlanWidget widget={widget} />;
+                                      return (
+                                        <ClassroomWeeklyPlanWidget
+                                          widget={widget}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
+                                        />
+                                      );
 
                                     case "homework":
                                       return <HomeworkWidget />;
@@ -12189,6 +12199,8 @@ ${content}
                                           isFullscreen={
                                             fullscreenWidgetId === widget.id
                                           }
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
