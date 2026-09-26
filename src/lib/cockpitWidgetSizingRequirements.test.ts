@@ -41,11 +41,11 @@ test("Cockpit-Widgets: jeder Typ erhält eine sichere Mindestgröße", () => {
   assert.match(cockpitWidget, /Math\.max\(5, widget\.h, minHPercent\)/);
 });
 
-test("Cockpit-Widgets: feste große Darstellung wird im Layout gespeichert", () => {
-  assert.match(cockpitWidget, /const handleSetPersistentLargeSize = \(\) =>/);
-  assert.match(cockpitWidget, /onUpdate\(\{ x: 4, y: 4, w: 92, h: 90 \}\)/);
-  assert.match(cockpitWidget, /Groß fest einstellen/);
-  assert.match(cockpitWidget, /Widget dauerhaft groß auf der Smartboard-Fläche ablegen/);
+test("Cockpit-Widgets: feste große Darstellung wird über die gemeinsamen Größenpresets im Layout gespeichert", () => {
+  assert.match(cockpitWidget, /const applyPersistentSize = \(targetW: number, targetH: number, moveToBoardInset = false\) =>/);
+  assert.match(cockpitWidget, /onUpdate\(\{ x, y, w, h \}\)/);
+  assert.match(cockpitWidget, /applySizePreset\("board"\)/);
+  assert.match(cockpitWidget, />\s*Tafelfläche\s*<\/button>/);
 });
 
 test("Cockpit-Widgets: kleiner Inhalt bleibt überlauf-sicher, Schüler-Widgets bieten bei vielen Kindern eine große Ansicht", () => {
@@ -109,7 +109,7 @@ test("Gemeinsamer Widget-Rahmen behält 44px-Touchziele auch bei engem Inhalt", 
   assert.match(cockpitWidget, /w-11 h-11 flex items-center justify-center rounded-lg border/);
   assert.match(cockpitWidget, /w-full min-h-11 px-2\.5 py-2 rounded-lg text-xs font-semibold/);
   assert.match(cockpitWidget, /w-full min-h-11 p-1\.5 rounded-lg text-sm font-bold border/);
-  assert.match(cockpitWidget, /w-full min-h-11 py-1\.5 bg-indigo-500/);
+  assert.match(cockpitWidget, /cockpit-widget-size-apply w-full min-h-11 py-2 bg-accent/);
 });
 
 
