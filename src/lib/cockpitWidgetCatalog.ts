@@ -476,7 +476,7 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                       },
                                       {
                                         type: "pet",
-                                        label: "🦦 Klassenmaskottchen",
+                                        label: "🐾 Klassenmaskottchen",
                                         desc: "Olivia, Bruno, Mimi oder Hauself Elio · ruhig & ohne Floating",
                                         category: "mindfulness",
                                       },
