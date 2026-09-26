@@ -79,6 +79,27 @@ test("sequential widget openings fill free board areas before any overlap", () =
   }
 });
 
+test("shrinks to a readable minimum before allowing overlap", () => {
+  const occupied = [
+    { id: "left", x: 0, y: 0, w: 400, h: 500 },
+  ];
+  const result = findCockpitWidgetOpeningPlacement({
+    usableWidth: 760,
+    usableHeight: 500,
+    desiredW: 420,
+    desiredH: 300,
+    minW: 280,
+    minH: 220,
+    occupied,
+  });
+  assert.equal(result.usedOverlapFallback, false);
+  assert.equal(result.shrankToFit, true);
+  assert.equal(result.overlapArea, 0);
+  assert.ok(result.w >= 280);
+  assert.ok(result.h >= 220);
+  assert.equal(overlaps(result, occupied[0]), false);
+});
+
 test("only falls back to overlap when no free rectangle exists", () => {
   const occupied = [
     { id: "cover", x: 0, y: 0, w: 700, h: 500 },
