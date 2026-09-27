@@ -43,3 +43,24 @@ test('Mathe-Pyramide besitzt keinen doppelten Innentitel und kündigt Feedback b
   assert.match(widget, /aria-live="polite"/);
   assert.match(widget, /Regel: Zwei Nachbarsteine addieren/);
 });
+
+
+test('Mathe-Pyramide bietet Denk-Hilfe ohne die Lösung vorzugeben', () => {
+  assert.match(widget, /const \[showHint, setShowHint\]/);
+  assert.match(widget, /const hintForIndex =/);
+  assert.match(widget, /Denk-Tipp:/);
+  assert.match(widget, /Tipp ausblenden/);
+  assert.match(widget, /aria-pressed=\{showHint\}/);
+});
+
+test('Mathe-Pyramide zeigt Legende und echten Lösungsfortschritt', () => {
+  assert.match(widget, /Vorgegeben/);
+  assert.match(widget, /Selbst rechnen/);
+  assert.match(widget, /correctEditableCount/);
+  assert.match(widget, /\{correctEditableCount\}\/\{editableIndices\.length\} gelöst/);
+});
+
+test('Mathe-Pyramide lässt sich per Enter prüfen', () => {
+  assert.match(widget, /event\.key === 'Enter'/);
+  assert.match(widget, /checkAnswer\(\)/);
+});
