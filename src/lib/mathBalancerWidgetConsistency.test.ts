@@ -39,3 +39,12 @@ test('Gewichte-Waage behält semantische Rückmeldungen', () => {
   assert.match(widget, /bg-amber-50/);
   assert.match(widget, /bg-rose-500/);
 });
+
+
+test('Gewichte-Waage zeigt Gleichung, Tipp und klaren Weiter-Flow', () => {
+  assert.match(widget, /\{leftWeight\} = \{knownRight\} \+/);
+  assert.match(widget, /Tipp: Starte bei \{knownRight\} und ergänze bis \{leftWeight\}/);
+  assert.match(widget, /Tipp anzeigen/);
+  assert.match(widget, /Nächste Waage/);
+  assert.match(widget, /aria-pressed=\{showHint\}/);
+});
