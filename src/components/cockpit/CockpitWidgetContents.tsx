@@ -17540,183 +17540,268 @@ export const SecretcodeWidgetContent: React.FC<{ widget: any, currentIsLight: bo
 // 22. WIDGET: UHREN-LERN-TRAINER (ClockpuzzleWidgetContent)
 // ========================================================
 export const ClockpuzzleWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [targetClock, setTargetClock] = useState<{ h: number, m: number } | null>(null);
+  type Mode = 'read' | 'set';
+  type Level = 'hour' | 'half' | 'quarter';
+  const [mode, setMode] = useState<Mode>('read');
+  const [level, setLevel] = useState<Level>('quarter');
+  const [targetClock, setTargetClock] = useState<{ h: number; m: number }>({ h: 8, m: 15 });
+  const [studentClock, setStudentClock] = useState<{ h: number; m: number }>({ h: 8, m: 0 });
   const [choices, setChoices] = useState<string[]>([]);
-  const [feedback, setFeedback] = useState<string>("Stelle die analoge Uhr richtig ein! ⏰");
-  const [score, setScore] = useState<number>(0);
+  const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
+  const [checked, setChecked] = useState(false);
+  const [feedback, setFeedback] = useState<string>('Lies die Uhrzeit am Zifferblatt ab.');
 
-  const rollNewTime = useCallback(() => {
-    // Round to lovely kid-friendly times (every 15 or 30 minutes)
-    const minutes = [0, 15, 30, 45];
+  const minuteOptions = useMemo(() => {
+    if (level === 'hour') return [0];
+    if (level === 'half') return [0, 30];
+    return [0, 15, 30, 45];
+  }, [level]);
+
+  const formatTime = (clock: { h: number; m: number }) =>
+    `${String(clock.h).padStart(2, '0')}:${String(clock.m).padStart(2, '0')}`;
+
+  const rollNewTime = useCallback((nextMode: Mode = mode) => {
+    const minutes = level === 'hour' ? [0] : level === 'half' ? [0, 30] : [0, 15, 30, 45];
     const pickedH = Math.floor(Math.random() * 12) + 1;
     const pickedM = minutes[Math.floor(Math.random() * minutes.length)];
-    setTargetClock({ h: pickedH, m: pickedM });
+    const target = { h: pickedH, m: pickedM };
+    setTargetClock(target);
+    setSelectedChoice(null);
+    setChecked(false);
 
-    const correctStr = `${pickedH.toString().padStart(2, '0')}:${pickedM.toString().padStart(2, '0')}`;
-    
-    // Make 3 wrong options
-    const optionsSet = new Set<string>();
-    optionsSet.add(correctStr);
-
-    while (optionsSet.size < 4) {
-      const wH = Math.floor(Math.random() * 12) + 1;
-      const wM = minutes[Math.floor(Math.random() * minutes.length)];
-      const wrongStr = `${wH.toString().padStart(2, '0')}:${wM.toString().padStart(2, '0')}`;
-      optionsSet.add(wrongStr);
+    if (nextMode === 'read') {
+      const correct = formatTime(target);
+      const options = new Set<string>([correct]);
+      while (options.size < 4) {
+        const wrongH = Math.floor(Math.random() * 12) + 1;
+        const wrongM = minutes[Math.floor(Math.random() * minutes.length)];
+        options.add(formatTime({ h: wrongH, m: wrongM }));
+      }
+      setChoices([...options].sort());
+      setFeedback('Welche Uhrzeit zeigt die Uhr?');
+    } else {
+      setStudentClock({ h: 12, m: 0 });
+      setFeedback(`Stelle ${formatTime(target)} Uhr ein.`);
     }
-    setChoices(Array.from(optionsSet).sort());
-    setFeedback("Welche Uhrzeit wird auf dem Zifferblatt angezeigt? ⏰");
-  }, []);
+  }, [level, mode]);
 
   useEffect(() => {
-    rollNewTime();
-  }, [rollNewTime]);
+    rollNewTime(mode);
+  }, [level, mode, rollNewTime]);
 
   const playDing = (success: boolean) => {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
-      if (success) {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.frequency.setValueAtTime(800, ctx.currentTime);
-        gain.gain.setValueAtTime(0.08, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.4);
-      } else {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.frequency.setValueAtTime(150, ctx.currentTime);
-        gain.gain.setValueAtTime(0.12, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.3);
-      }
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.setValueAtTime(success ? 800 : 150, ctx.currentTime);
+      gain.gain.setValueAtTime(success ? 0.05 : 0.07, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.24);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.26);
     } catch {}
   };
 
-  const handleGuess = (text: string) => {
-    if (!targetClock) return;
-    const coreStr = `${targetClock.h.toString().padStart(2, '0')}:${targetClock.m.toString().padStart(2, '0')}`;
-    if (text === coreStr) {
-      setScore(s => s + 10);
-      setFeedback("🎉 Super gemacht! Die Uhrzeit stimmt genau!");
-      playDing(true);
-      setTimeout(() => rollNewTime(), 1200);
-    } else {
-      setFeedback("⚠️ Oh, schau noch einmal genau hin!");
-      playDing(false);
-    }
+  const checkReadAnswer = (choice: string) => {
+    setSelectedChoice(choice);
+    setChecked(true);
+    const correct = choice === formatTime(targetClock);
+    setFeedback(correct ? 'Richtig – du hast die Uhr korrekt abgelesen.' : 'Noch nicht. Vergleiche zuerst den Minutenzeiger, dann den Stundenzeiger.');
+    playDing(correct);
   };
 
-  // Convert hours & min values into degrees for drawing
-  const hourDeg = targetClock ? (targetClock.h % 12) * 30 + targetClock.m * 0.5 : 0;
-  const minDeg = targetClock ? targetClock.m * 6 : 0;
+  const changeStudentHour = (delta: number) => {
+    setStudentClock((current) => ({ ...current, h: ((current.h - 1 + delta + 12) % 12) + 1 }));
+    setChecked(false);
+  };
+
+  const changeStudentMinute = (delta: number) => {
+    setStudentClock((current) => {
+      const options = minuteOptions;
+      const currentIndex = Math.max(0, options.indexOf(current.m));
+      const nextIndex = (currentIndex + delta + options.length) % options.length;
+      return { ...current, m: options[nextIndex] };
+    });
+    setChecked(false);
+  };
+
+  const checkSetAnswer = () => {
+    setChecked(true);
+    const correct = studentClock.h === targetClock.h && studentClock.m === targetClock.m;
+    setFeedback(correct ? 'Richtig eingestellt.' : 'Noch nicht. Prüfe Minuten- und Stundenzeiger getrennt.');
+    playDing(correct);
+  };
+
+  const displayClock = mode === 'read' ? targetClock : studentClock;
+  const hourDeg = (displayClock.h % 12) * 30 + displayClock.m * 0.5;
+  const minDeg = displayClock.m * 6;
+  const isCorrect = mode === 'read'
+    ? checked && selectedChoice === formatTime(targetClock)
+    : checked && studentClock.h === targetClock.h && studentClock.m === targetClock.m;
 
   return (
-    <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-y-auto overflow-x-hidden">
-      <div className="shrink-0 flex justify-between items-center mb-1">
-        <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
-            ⏰ Uhren-Lern-Trainer
-          </span>
-          <span className="text-[7.5px] font-mono opacity-80 font-black font-sans">Analoge Uhrzeiten ablesen</span>
+    <div className="min-h-full w-full p-3 sm:p-4 flex flex-col gap-3 select-none overflow-visible">
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
+        <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1" role="tablist" aria-label="Uhrentrainer-Modus">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'read'}
+            onClick={() => setMode('read')}
+            className={`min-h-11 px-3 rounded-lg text-xs sm:text-sm font-bold ${
+              mode === 'read' ? 'bg-accent text-accent-text shadow-sm' : 'text-slate-600 dark:text-slate-300'
+            }`}
+          >
+            Uhr ablesen
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'set'}
+            onClick={() => setMode('set')}
+            className={`min-h-11 px-3 rounded-lg text-xs sm:text-sm font-bold ${
+              mode === 'set' ? 'bg-accent text-accent-text shadow-sm' : 'text-slate-600 dark:text-slate-300'
+            }`}
+          >
+            Uhr einstellen
+          </button>
         </div>
-        <span className="text-[7px] font-black uppercase bg-indigo-500 text-white px-1.5 py-0.5 rounded shadow-xs">
-          Punkte: {score}
-        </span>
+
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Uhrzeit-Schwierigkeit">
+          {(['hour', 'half', 'quarter'] as const).map((difficulty) => (
+            <button
+              key={difficulty}
+              type="button"
+              onClick={() => setLevel(difficulty)}
+              className={`min-h-11 px-2.5 rounded-lg border text-xs font-bold ${
+                level === difficulty
+                  ? 'bg-accent text-accent-text border-accent'
+                  : 'border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-accent'
+              }`}
+            >
+              {difficulty === 'hour' ? 'Volle Stunden' : difficulty === 'half' ? 'Halbe Stunden' : 'Viertelstunden'}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="flex-grow flex flex-col sm:flex-row items-center justify-around gap-3 py-2 min-h-0">
-        {/* MUCH Larger Analog Clock SVG with Numbers 1-12 */}
-        <div className="relative w-36 h-36 rounded-full bg-amber-50 border-4 border-amber-500 flex items-center justify-center shadow-lg transition-transform hover:scale-102">
-          <svg className="w-32 h-32" viewBox="0 0 100 100">
+      <div className="shrink-0 rounded-xl bg-accent-soft border border-accent/20 px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
+        {mode === 'read'
+          ? 'Merke: Der lange Zeiger zeigt die Minuten, der kurze Zeiger die Stunden.'
+          : `Ziel: ${formatTime(targetClock)} Uhr`}
+      </div>
+
+      <div className="flex-1 min-h-0 flex flex-col md:flex-row items-center justify-center gap-5 sm:gap-7 py-2">
+        <div className="relative w-52 h-52 sm:w-60 sm:h-60 rounded-full bg-amber-50 border-4 border-amber-500 flex items-center justify-center shadow-lg">
+          <svg className="w-[92%] h-[92%]" viewBox="0 0 100 100" role="img" aria-label={`Analoge Uhr mit ${formatTime(displayClock)} Uhr`}>
             <circle cx="50" cy="50" r="48" fill="white" stroke="#d97706" strokeWidth="1.5" />
-            
-            {/* Hour marks */}
-            {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((deg, i) => (
-              <line
-                key={i}
-                x1="50"
-                y1="4"
-                x2="50"
-                y2="9"
-                stroke="#451a03"
-                strokeWidth="2.5"
-                transform={`rotate(${deg} 50 50)`}
-              />
-            ))}
-
-            {/* Numbers 1 to 12 around the clock */}
-            <text x="50" y="15" textAnchor="middle" fontSize="9" fontWeight="900" fill="#451a03" fontFamily="sans-serif">12</text>
-            <text x="68" y="20" textAnchor="middle" fontSize="9" fontWeight="900" fill="#451a03" fontFamily="sans-serif">1</text>
-            <text x="81" y="33" textAnchor="middle" fontSize="9" fontWeight="900" fill="#451a03" fontFamily="sans-serif">2</text>
-            <text x="86" y="53" textAnchor="middle" fontSize="9" fontWeight="900" fill="#451a03" fontFamily="sans-serif">3</text>
-            <text x="81" y="72" textAnchor="middle" fontSize="9" fontWeight="900" fill="#451a03" fontFamily="sans-serif">4</text>
-            <text x="68" y="85" textAnchor="middle" fontSize="9" fontWeight="900" fill="#451a03" fontFamily="sans-serif">5</text>
-            <text x="50" y="90" textAnchor="middle" fontSize="9" fontWeight="900" fill="#451a03" fontFamily="sans-serif">6</text>
-            <text x="32" y="85" textAnchor="middle" fontSize="9" fontWeight="900" fill="#451a03" fontFamily="sans-serif">7</text>
-            <text x="19" y="72" textAnchor="middle" fontSize="9" fontWeight="900" fill="#451a03" fontFamily="sans-serif">8</text>
-            <text x="14" y="53" textAnchor="middle" fontSize="9" fontWeight="900" fill="#451a03" fontFamily="sans-serif">9</text>
-            <text x="19" y="33" textAnchor="middle" fontSize="9" fontWeight="900" fill="#451a03" fontFamily="sans-serif">10</text>
-            <text x="32" y="20" textAnchor="middle" fontSize="9" fontWeight="900" fill="#451a03" fontFamily="sans-serif">11</text>
-
-            {/* Hour Hand */}
-            <line
-              x1="50"
-              y1="50"
-              x2="50"
-              y2="26"
-              stroke="#1e1b4b"
-              strokeWidth="4.5"
-              strokeLinecap="round"
-              transform={`rotate(${hourDeg} 50 50)`}
-            />
-
-            {/* Minute Hand */}
-            <line
-              x1="50"
-              y1="50"
-              x2="50"
-              y2="16"
-              stroke="#ea580c"
-              strokeWidth="3"
-              strokeLinecap="round"
-              transform={`rotate(${minDeg} 50 50)`}
-            />
-
-            {/* Pin */}
-            <circle cx="50" cy="50" r="4" fill="#ea580c" />
-            <circle cx="50" cy="50" r="1.5" fill="#white" />
+            {Array.from({ length: 60 }, (_, index) => {
+              const major = index % 5 === 0;
+              return (
+                <line
+                  key={index}
+                  x1="50"
+                  y1={major ? '4' : '5.5'}
+                  x2="50"
+                  y2={major ? '10' : '8'}
+                  stroke={major ? '#451a03' : '#cbd5e1'}
+                  strokeWidth={major ? '2' : '0.8'}
+                  transform={`rotate(${index * 6} 50 50)`}
+                />
+              );
+            })}
+            {[12,1,2,3,4,5,6,7,8,9,10,11].map((number, index) => {
+              const angle = (index * 30 - 90) * Math.PI / 180;
+              return (
+                <text
+                  key={number}
+                  x={50 + Math.cos(angle) * 36}
+                  y={52.5 + Math.sin(angle) * 36}
+                  textAnchor="middle"
+                  fontSize="8"
+                  fontWeight="900"
+                  fill="#451a03"
+                >
+                  {number}
+                </text>
+              );
+            })}
+            <line x1="50" y1="50" x2="50" y2="29" stroke="#1e293b" strokeWidth="4.5" strokeLinecap="round" transform={`rotate(${hourDeg} 50 50)`} />
+            <line x1="50" y1="50" x2="50" y2="16" stroke="#ea580c" strokeWidth="2.8" strokeLinecap="round" transform={`rotate(${minDeg} 50 50)`} />
+            <circle cx="50" cy="50" r="3.8" fill="#ea580c" />
           </svg>
         </div>
 
-        {/* Hour Choices buttons */}
-        <div className="flex flex-col gap-1 flex-grow max-w-[120px] w-full">
-          <span className="text-[6.5px] uppercase font-mono font-bold text-center text-slate-400">Optionen:</span>
-          <div className="grid grid-cols-2 gap-1.5">
-            {choices.map((it, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleGuess(it)}
-                className={`py-2 font-mono text-center rounded-xl border-2 font-black text-[9px] cursor-pointer hover:bg-slate-100 active:scale-95 transition-all text-slate-800 ${
-                  currentIsLight ? 'bg-white border-slate-300 shadow-xs' : 'bg-slate-100 border-slate-300'
-                }`}
-              >
-                {it} Uhr
-              </button>
-            ))}
+        {mode === 'read' ? (
+          <div className="w-full max-w-xs">
+            <div className="grid grid-cols-2 gap-2">
+              {choices.map((choice) => {
+                const selected = selectedChoice === choice;
+                const correct = choice === formatTime(targetClock);
+                return (
+                  <button
+                    key={choice}
+                    type="button"
+                    onClick={() => checkReadAnswer(choice)}
+                    className={`min-h-14 rounded-xl border-2 font-mono font-black text-base active:scale-95 transition-all ${
+                      checked && selected
+                        ? correct
+                          ? 'bg-emerald-500 text-white border-emerald-600'
+                          : 'bg-rose-500 text-white border-rose-600'
+                        : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 hover:border-accent'
+                    }`}
+                  >
+                    {choice} Uhr
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="w-full max-w-xs flex flex-col gap-3">
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3 text-center">
+              <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Deine Uhr</div>
+              <div className="mt-1 text-3xl font-black tabular-nums text-accent">{formatTime(studentClock)}</div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => changeStudentHour(-1)} className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-700 font-bold hover:border-accent">− Stunde</button>
+              <button type="button" onClick={() => changeStudentHour(1)} className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-700 font-bold hover:border-accent">+ Stunde</button>
+              <button type="button" onClick={() => changeStudentMinute(-1)} className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-700 font-bold hover:border-accent">− Minuten</button>
+              <button type="button" onClick={() => changeStudentMinute(1)} className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-700 font-bold hover:border-accent">+ Minuten</button>
+            </div>
+            <button type="button" onClick={checkSetAnswer} className="min-h-11 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-black">
+              Uhr prüfen
+            </button>
+          </div>
+        )}
       </div>
 
-      <p className="shrink-0 text-[7px] font-extrabold text-blue-500 text-center truncate mt-0.5">{feedback}</p>
+      <div className="shrink-0 flex justify-center">
+        <button
+          type="button"
+          onClick={() => rollNewTime(mode)}
+          className="min-h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-700 font-bold text-sm hover:border-accent"
+        >
+          Neue Uhrzeit
+        </button>
+      </div>
+
+      <p
+        aria-live="polite"
+        className={`shrink-0 min-h-11 rounded-xl border px-3 py-2 flex items-center justify-center text-center text-xs sm:text-sm font-semibold ${
+          isCorrect
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-200'
+            : checked
+              ? 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200'
+              : 'bg-slate-50 border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'
+        }`}
+      >
+        {feedback}
+      </p>
     </div>
   );
 };
