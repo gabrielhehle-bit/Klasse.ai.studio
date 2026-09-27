@@ -190,11 +190,11 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
             {currentTask.questionText}
             <span className="text-slate-400 mx-2">=</span>
             {isRevealed ? (
-              <span className="text-indigo-600 dark:text-indigo-400 underline decoration-indigo-400 decoration-wavy">
+              <span className="text-accent underline decoration-current decoration-wavy">
                 {currentTask.correctAnswer}
               </span>
             ) : (
-              <span className="text-indigo-400 dark:text-indigo-300 font-normal">?</span>
+              <span className="text-accent font-normal">?</span>
             )}
           </div>
 
@@ -233,11 +233,11 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
           {currentTask.missingPart === 'left' ? (
             <>
               {isRevealed ? (
-                <span className="text-indigo-600 dark:text-indigo-400 underline decoration-indigo-400">
+                <span className="text-accent underline decoration-current">
                   {currentTask.correctAnswer}
                 </span>
               ) : (
-                <span className="text-indigo-400 dark:text-indigo-300">?</span>
+                <span className="text-accent">?</span>
               )}
               <span className="mx-2">{currentTask.operator}</span>
               <span>{currentTask.right}</span>
@@ -249,11 +249,11 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
               <span>{currentTask.left}</span>
               <span className="mx-2">{currentTask.operator}</span>
               {isRevealed ? (
-                <span className="text-indigo-600 dark:text-indigo-400 underline decoration-indigo-400">
+                <span className="text-accent underline decoration-current">
                   {currentTask.correctAnswer}
                 </span>
               ) : (
-                <span className="text-indigo-400 dark:text-indigo-300">?</span>
+                <span className="text-accent">?</span>
               )}
               <span className="text-slate-400 mx-2">=</span>
               <span>{currentTask.right}</span>
@@ -275,15 +275,15 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
         }`}
       >
         <span>{currentTask.left}</span>
-        <span className="mx-2.5 text-indigo-600 dark:text-indigo-400">{currentTask.operator}</span>
+        <span className="mx-2.5 text-accent">{currentTask.operator}</span>
         <span>{currentTask.right}</span>
         <span className="text-slate-400 mx-2.5">=</span>
         {isRevealed ? (
-          <span className="text-indigo-600 dark:text-indigo-400 underline decoration-indigo-400 decoration-wavy">
+          <span className="text-accent underline decoration-current decoration-wavy">
             {currentTask.correctAnswer}
           </span>
         ) : (
-          <span className="text-indigo-400 dark:text-indigo-300">?</span>
+          <span className="text-accent">?</span>
         )}
       </div>
     );
@@ -307,7 +307,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
       ref={containerRef}
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      className={`w-full h-full flex flex-col justify-between select-none outline-none focus:ring-1 focus:ring-indigo-400/40 p-2.5 sm:p-3 overflow-hidden transition-colors ${
+      className={`min-h-full w-full flex flex-col justify-between select-none outline-none focus-visible:ring-2 focus-visible:ring-accent p-2.5 sm:p-3 overflow-visible transition-colors ${
         currentIsLight ? 'bg-slate-50 text-slate-800' : 'bg-slate-900 text-slate-100'
       }`}
     >
@@ -320,7 +320,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
             onClick={() => updateSettings({ mode: 'flash' })}
             className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 min-h-11 ${
               settings.mode === 'flash'
-                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm font-bold'
+                ? 'bg-accent text-accent-text shadow-sm font-bold'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -332,7 +332,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
             onClick={() => updateSettings({ mode: 'tables' })}
             className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 min-h-11 ${
               settings.mode === 'tables'
-                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm font-bold'
+                ? 'bg-accent text-accent-text shadow-sm font-bold'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -344,7 +344,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
             onClick={() => updateSettings({ mode: 'chain' })}
             className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 min-h-11 ${
               settings.mode === 'chain'
-                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm font-bold'
+                ? 'bg-accent text-accent-text shadow-sm font-bold'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -363,7 +363,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
               onClick={() => updateSettings({ presentationMode: 'teacher' })}
               className={`p-1.5 rounded-md min-h-11 min-w-11 flex items-center justify-center transition-all ${
                 settings.presentationMode === 'teacher'
-                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm font-bold'
+                  ? 'bg-accent text-accent-text shadow-sm font-bold'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -375,7 +375,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
               onClick={() => updateSettings({ presentationMode: 'student' })}
               className={`p-1.5 rounded-md min-h-11 min-w-11 flex items-center justify-center transition-all ${
                 settings.presentationMode === 'student'
-                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm font-bold'
+                  ? 'bg-accent text-accent-text shadow-sm font-bold'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -404,7 +404,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                     onClick={() => updateSettings({ range: r })}
                     className={`min-h-11 px-2 py-1 rounded text-xs font-mono font-medium transition-all ${
                       settings.range === r
-                        ? 'bg-indigo-600 text-white'
+                        ? 'bg-accent text-accent-text'
                         : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
                     }`}
                   >
@@ -431,7 +431,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                       }}
                       className={`min-h-11 min-w-11 rounded text-xs font-mono font-bold transition-all ${
                         active
-                          ? 'bg-indigo-600 text-white shadow-sm'
+                          ? 'bg-accent text-accent-text shadow-sm'
                           : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
                       }`}
                     >
@@ -457,7 +457,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                     onClick={() => updateSettings({ tenCrossing: opt.id })}
                     className={`min-h-11 px-2 py-0.5 rounded text-[11px] font-medium transition-all ${
                       settings.tenCrossing === opt.id
-                        ? 'bg-indigo-600 text-white'
+                        ? 'bg-accent text-accent-text'
                         : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
                     }`}
                   >
@@ -487,7 +487,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                         }}
                         className={`min-h-11 min-w-11 rounded text-xs font-mono font-bold transition-all ${
                           active
-                            ? 'bg-indigo-600 text-white'
+                            ? 'bg-accent text-accent-text'
                             : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
                         }`}
                       >
@@ -501,7 +501,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                   <button
                     type="button"
                     onClick={() => updateSettings({ selectedTables: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] })}
-                    className="min-h-11 rounded-lg px-2 py-0.5 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 hover:underline dark:hover:bg-indigo-950/30"
+                    className="min-h-11 rounded-lg px-2 py-0.5 text-[11px] font-semibold text-accent hover:bg-accent-soft hover:underline"
                   >
                     Alle
                   </button>
@@ -533,7 +533,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                     onClick={() => updateSettings({ tablesVariant: v.id })}
                     className={`min-h-11 px-2.5 py-1 rounded text-xs font-mono font-medium transition-all ${
                       settings.tablesVariant === v.id
-                        ? 'bg-indigo-600 text-white'
+                        ? 'bg-accent text-accent-text'
                         : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
                     }`}
                   >
@@ -556,7 +556,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                     onClick={() => updateSettings({ chainLength: len })}
                     className={`min-h-11 min-w-11 rounded text-xs font-mono font-bold transition-all ${
                       settings.chainLength === len
-                        ? 'bg-indigo-600 text-white'
+                        ? 'bg-accent text-accent-text'
                         : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
                     }`}
                   >
@@ -581,7 +581,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                     onClick={() => updateSettings({ chainDifficulty: d.id })}
                     className={`min-h-11 px-2 py-0.5 rounded text-xs font-medium transition-all ${
                       settings.chainDifficulty === d.id
-                        ? 'bg-indigo-600 text-white'
+                        ? 'bg-accent text-accent-text'
                         : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
                     }`}
                   >
@@ -596,7 +596,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                 onClick={() => updateSettings({ showIntermediates: !settings.showIntermediates })}
                 className={`min-h-11 px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
                   settings.showIntermediates
-                    ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300 border border-indigo-300'
+                    ? 'bg-accent-soft text-accent border border-accent'
                     : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                 }`}
               >
@@ -650,7 +650,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                 className={`px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition-all min-h-[44px] cursor-pointer ${
                   isRevealed
                     ? 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'
-                    : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm'
+                    : 'bg-accent hover:bg-accent-hover text-accent-text shadow-sm'
                 }`}
               >
                 {isRevealed ? (
@@ -699,7 +699,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                   value={studentInput}
                   onChange={(e) => setStudentInput(e.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
                   placeholder="Ergebnis..."
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono text-lg font-bold text-center outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 min-h-[44px]"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono text-lg font-bold text-center outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 min-h-[44px]"
                 />
                 {studentInput && (
                   <button
@@ -726,7 +726,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                   type="button"
                   onClick={checkAnswer}
                   disabled={!studentInput}
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-sm flex items-center gap-1.5 shadow-sm min-h-[44px] cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-accent hover:bg-accent-hover disabled:opacity-50 text-accent-text font-bold text-sm flex items-center gap-1.5 shadow-sm min-h-[44px] cursor-pointer"
                 >
                   <Check className="w-4 h-4" />
                   <span>Prüfen</span>
