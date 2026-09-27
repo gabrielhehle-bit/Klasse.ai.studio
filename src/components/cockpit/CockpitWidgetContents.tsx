@@ -14751,6 +14751,7 @@ export const MathpyramidWidgetContent: React.FC<{ widget: any, currentIsLight: b
   const [userInputs, setUserInputs] = useState<string[]>(['', '8', '7', '', '3', '']);
   const [checked, setChecked] = useState<boolean[]>([false, false, false, false, false, false]);
   const [feedback, setFeedback] = useState<string>('Jeder Stein ist die Summe der zwei Steine darunter.');
+  const [showHint, setShowHint] = useState(false);
 
   const generatePyramid = useCallback((difficulty: Difficulty, r: number) => {
     let b1 = 1;
@@ -14788,6 +14789,7 @@ export const MathpyramidWidgetContent: React.FC<{ widget: any, currentIsLight: b
     setGiven(nextGiven);
     setUserInputs(fullPyramid.map((value, index) => nextGiven[index] ? String(value) : ''));
     setChecked(Array(6).fill(false));
+    setShowHint(false);
     setFeedback('Jeder Stein ist die Summe der zwei Steine darunter.');
   }, []);
 
@@ -14821,6 +14823,7 @@ export const MathpyramidWidgetContent: React.FC<{ widget: any, currentIsLight: b
     const value = raw.replace(/[^0-9]/g, '').slice(0, 4);
     setUserInputs((current) => current.map((entry, entryIndex) => entryIndex === index ? value : entry));
     setChecked((current) => current.map((entry, entryIndex) => entryIndex === index ? false : entry));
+    setShowHint(false);
   };
 
   const checkAnswer = () => {
@@ -14845,6 +14848,19 @@ export const MathpyramidWidgetContent: React.FC<{ widget: any, currentIsLight: b
   };
 
   const isComplete = checked.every(Boolean);
+  const editableIndices = given.map((isGiven, index) => isGiven ? -1 : index).filter((index) => index >= 0);
+  const correctEditableCount = editableIndices.filter((index) => checked[index] && Number(userInputs[index]) === blocks[index]).length;
+  const nextBlankIndex = editableIndices.find((index) => userInputs[index].trim() === '') ?? editableIndices.find((index) => !checked[index]) ?? -1;
+
+  const hintForIndex = (index: number) => {
+    if (index === 0) return 'Für den obersten Stein brauchst du die beiden Steine direkt darunter.';
+    if (index === 1) return given[3] || userInputs[3] ? 'Links in der Mitte: untere linke Zahl + untere mittlere Zahl.' : 'Nutze den obersten Stein zusammen mit dem rechten Mittelstein.';
+    if (index === 2) return given[5] || userInputs[5] ? 'Rechts in der Mitte: untere mittlere Zahl + untere rechte Zahl.' : 'Nutze den obersten Stein zusammen mit dem linken Mittelstein.';
+    if (index === 3) return 'Unterer linker Stein: linker Mittelstein minus unterer Mittelstein.';
+    if (index === 4) return 'Unterer Mittelstein verbindet beide Mittelsteine. Suche eine passende Differenz.';
+    if (index === 5) return 'Unterer rechter Stein: rechter Mittelstein minus unterer Mittelstein.';
+    return 'Suche zuerst einen Stein, bei dem zwei benachbarte Werte schon bekannt sind.';
+  };
 
   const renderStone = (index: number) => {
     const isGiven = given[index];
@@ -14860,6 +14876,12 @@ export const MathpyramidWidgetContent: React.FC<{ widget: any, currentIsLight: b
         readOnly={isGiven || (hasBeenChecked && valueCorrect)}
         value={userInputs[index]}
         onChange={(event) => updateInput(index, event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            checkAnswer();
+          }
+        }}
         className={`w-16 sm:w-20 min-h-14 sm:min-h-16 text-center font-black text-lg sm:text-xl rounded-xl border-2 shadow-sm transition-all outline-none ${
           isGiven
             ? currentIsLight
@@ -14919,6 +14941,22 @@ export const MathpyramidWidgetContent: React.FC<{ widget: any, currentIsLight: b
         Regel: Zwei Nachbarsteine addieren → der Stein darüber.
       </div>
 
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div className="flex flex-wrap items-center gap-3 font-semibold text-slate-500 dark:text-slate-400" aria-label="Legende">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded border border-slate-400 bg-slate-200 dark:bg-slate-700" />
+            Vorgegeben
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded border border-accent bg-white dark:bg-slate-900" />
+            Selbst rechnen
+          </span>
+        </div>
+        <span className="font-bold tabular-nums text-slate-600 dark:text-slate-300">
+          {correctEditableCount}/{editableIndices.length} gelöst
+        </span>
+      </div>
+
       <div className="flex-1 min-h-0 flex flex-col justify-center items-center gap-3 sm:gap-4 py-2" aria-label="Zahlenpyramide">
         <div className="flex justify-center">{renderStone(0)}</div>
         <div className="flex justify-center gap-3 sm:gap-4">
@@ -14932,7 +14970,23 @@ export const MathpyramidWidgetContent: React.FC<{ widget: any, currentIsLight: b
         </div>
       </div>
 
+      {showHint && !isComplete && nextBlankIndex >= 0 && (
+        <div className="shrink-0 rounded-xl border border-accent/30 bg-accent-soft px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
+          Denk-Tipp: {hintForIndex(nextBlankIndex)}
+        </div>
+      )}
+
       <div className="shrink-0 flex flex-wrap gap-2">
+        {!isComplete && (
+          <button
+            type="button"
+            onClick={() => setShowHint((visible) => !visible)}
+            className="min-h-11 px-3 rounded-xl border border-accent/30 bg-accent-soft text-accent font-bold text-sm hover:border-accent"
+            aria-pressed={showHint}
+          >
+            {showHint ? 'Tipp ausblenden' : 'Denk-Tipp'}
+          </button>
+        )}
         <button
           type="button"
           onClick={checkAnswer}
