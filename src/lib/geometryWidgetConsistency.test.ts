@@ -47,3 +47,17 @@ test('Geometrie-Muster besitzt keinen doppelten Innentitel und keine eigene Scro
   assert.doesNotMatch(widget, /overflow-y-auto/);
   assert.match(widget, /min-h-full w-full/);
 });
+
+
+test('Geometrie-Muster vermittelt Eigenschaften statt nur Formen zu zeigen', () => {
+  assert.match(widget, /const properties: Record<ShapeType/);
+  assert.match(widget, /4 Ecken/);
+  assert.match(widget, /12 Kanten/);
+  assert.match(widget, /eine gekrümmte Oberfläche/);
+  assert.match(widget, /Beobachte:/);
+});
+
+test('Geometrie-Muster gibt im Kreativmodus einen echten Musterimpuls', () => {
+  assert.match(widget, /Muster-Idee:/);
+  assert.match(widget, /Kreis – Quadrat – Kreis – Quadrat/);
+});
