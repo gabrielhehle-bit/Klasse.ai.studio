@@ -14743,57 +14743,54 @@ export const ReflexgameWidgetContent: React.FC<{ widget: any, currentIsLight: bo
 // 11. WIDGET: MATHE-PYRAMIDE (MathpyramidWidgetContent)
 // ========================================================
 export const MathpyramidWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [level, setLevel] = useState<'easy' | 'medium' | 'hard'>('medium');
+  type Difficulty = 'easy' | 'medium' | 'hard';
+  const [level, setLevel] = useState<Difficulty>('medium');
   const [range, setRange] = useState<10 | 20 | 100 | 1000>(100);
-  const [blocks, setBlocks] = useState<number[]>([15, 8, 7, 5, 3, 4]); // 3-tier pyramid tree: top index 0, mid indexes 1,2, bottom indexes 3,4,5
-  const [userInputs, setUserInputs] = useState<string[]>(['', '', '', '', '', '']); // empty for blanks
-  const [solved, setSolved] = useState<boolean[]>([]);
-  const [feedback, setFeedback] = useState<string>("Ergänze die Pyramide! 🔺");
+  const [blocks, setBlocks] = useState<number[]>([15, 8, 7, 5, 3, 4]);
+  const [given, setGiven] = useState<boolean[]>([false, true, true, false, true, false]);
+  const [userInputs, setUserInputs] = useState<string[]>(['', '8', '7', '', '3', '']);
+  const [checked, setChecked] = useState<boolean[]>([false, false, false, false, false, false]);
+  const [feedback, setFeedback] = useState<string>('Jeder Stein ist die Summe der zwei Steine darunter.');
+  const [showHint, setShowHint] = useState(false);
 
-  // Re-generate a fresh pyramid
-  const generatePyramid = useCallback((difficulty: 'easy' | 'medium' | 'hard', r: number) => {
-    // Generate valid values where b1 + 2*b2 + b3 <= r
-    const maxB2 = Math.max(2, Math.floor(r / 4));
-    let b2 = Math.floor(Math.random() * maxB2) + 1;
-    
-    const maxB1 = Math.max(2, Math.floor((r - 2 * b2) / 2));
-    let b1 = Math.floor(Math.random() * maxB1) + 1;
-    
-    const maxB3 = Math.max(2, r - b1 - 2 * b2);
-    let b3 = Math.floor(Math.random() * maxB3) + 1;
+  const generatePyramid = useCallback((difficulty: Difficulty, r: number) => {
+    let b1 = 1;
+    let b2 = 1;
+    let b3 = 1;
+    let top = r + 1;
+
+    // Generate until the complete pyramid really stays inside the selected number range.
+    while (top > r) {
+      const maxBottom = Math.max(2, Math.floor(r / 4));
+      b1 = Math.floor(Math.random() * maxBottom) + 1;
+      b2 = Math.floor(Math.random() * maxBottom) + 1;
+      b3 = Math.floor(Math.random() * maxBottom) + 1;
+      top = b1 + 2 * b2 + b3;
+    }
 
     const m1 = b1 + b2;
     const m2 = b2 + b3;
-    const top = m1 + m2;
-
     const fullPyramid = [top, m1, m2, b1, b2, b3];
     setBlocks(fullPyramid);
 
-    // Hide blocks based on difficulty
-    const blanks = ['', '', '', '', '', ''];
-    const initialSolved = [false, false, false, false, false, false];
-
-    let showIndices: number[] = [];
+    let showIndices: number[];
     if (difficulty === 'easy') {
-      // Bottom level (indices 3, 4, 5) is visible. User fills top level.
+      // All base stones given: calculate upwards.
       showIndices = [3, 4, 5];
     } else if (difficulty === 'medium') {
-      // Middle level + center bottom (e.g. index 1, 2, and 4)
+      // Three independent clues: requires forward and backward thinking.
       showIndices = [1, 2, 4];
     } else {
-      // Hard: only 2 elements shown!
-      showIndices = Math.random() > 0.5 ? [0, 4] : [1, 5];
+      // Still exactly solvable: top + one middle + its outer base stone determine the rest.
+      showIndices = Math.random() > 0.5 ? [0, 1, 3] : [0, 2, 5];
     }
 
-    for (let i = 0; i < 6; i++) {
-      if (showIndices.includes(i)) {
-        blanks[i] = fullPyramid[i].toString();
-        initialSolved[i] = true;
-      }
-    }
-    setUserInputs(blanks);
-    setSolved(initialSolved);
-    setFeedback(`🔺 Pyramide im ZR ${r} generiert!`);
+    const nextGiven = Array.from({ length: 6 }, (_, index) => showIndices.includes(index));
+    setGiven(nextGiven);
+    setUserInputs(fullPyramid.map((value, index) => nextGiven[index] ? String(value) : ''));
+    setChecked(Array(6).fill(false));
+    setShowHint(false);
+    setFeedback('Jeder Stein ist die Summe der zwei Steine darunter.');
   }, []);
 
   useEffect(() => {
@@ -14805,196 +14802,220 @@ export const MathpyramidWidgetContent: React.FC<{ widget: any, currentIsLight: b
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
-      if (success) {
-        // C5 -> E5 -> G5 success chord
-        [523.25, 659.25, 783.99].forEach((freq, i) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.1);
-          gain.gain.setValueAtTime(0.1, ctx.currentTime + i * 0.1);
-          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.1 + 0.3);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(ctx.currentTime + i * 0.1);
-          osc.stop(ctx.currentTime + i * 0.1 + 0.35);
-        });
-      } else {
-        // low buzz
+      const frequencies = success ? [523.25, 659.25, 783.99] : [150];
+      frequencies.forEach((freq, index) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        osc.frequency.setValueAtTime(150, ctx.currentTime);
-        gain.gain.setValueAtTime(0.15, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+        const start = ctx.currentTime + index * 0.08;
+        osc.frequency.setValueAtTime(freq, start);
+        gain.gain.setValueAtTime(success ? 0.06 : 0.08, start);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.22);
         osc.connect(gain);
         gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.3);
-      }
+        osc.start(start);
+        osc.stop(start + 0.24);
+      });
     } catch {}
   };
 
+  const updateInput = (index: number, raw: string) => {
+    if (given[index]) return;
+    const value = raw.replace(/[^0-9]/g, '').slice(0, 4);
+    setUserInputs((current) => current.map((entry, entryIndex) => entryIndex === index ? value : entry));
+    setChecked((current) => current.map((entry, entryIndex) => entryIndex === index ? false : entry));
+    setShowHint(false);
+  };
+
   const checkAnswer = () => {
-    const updatedSolved = [...solved];
-    let allCorrect = true;
-    for (let i = 0; i < 6; i++) {
-      const parsedVal = parseInt(userInputs[i]) || 0;
-      if (parsedVal === blocks[i]) {
-        updatedSolved[i] = true;
-      } else {
-        updatedSolved[i] = false;
-        allCorrect = false;
-      }
+    const missingIndices = given.map((isGiven, index) => !isGiven && userInputs[index].trim() === '' ? index : -1).filter((index) => index >= 0);
+    if (missingIndices.length > 0) {
+      setFeedback(`Es fehlen noch ${missingIndices.length} ${missingIndices.length === 1 ? 'Stein' : 'Steine'}.`);
+      return;
     }
-    setSolved(updatedSolved);
+
+    const nextChecked = userInputs.map((value, index) => given[index] || Number(value) === blocks[index]);
+    setChecked(nextChecked);
+    const allCorrect = nextChecked.every(Boolean);
+
     if (allCorrect) {
-      setFeedback("🎉 Super gerechnet! Alles richtig!");
+      setFeedback('Alles richtig – die Pyramide stimmt.');
       playPyramidChime(true);
     } else {
-      setFeedback("⚠️ Halt, da stimmt noch ein Stein nicht!");
+      const wrongCount = nextChecked.filter((correct, index) => !given[index] && !correct).length;
+      setFeedback(`${wrongCount} ${wrongCount === 1 ? 'Stein stimmt' : 'Steine stimmen'} noch nicht. Prüfe die Nachbarsteine.`);
       playPyramidChime(false);
     }
   };
 
+  const isComplete = checked.every(Boolean);
+  const editableIndices = given.map((isGiven, index) => isGiven ? -1 : index).filter((index) => index >= 0);
+  const correctEditableCount = editableIndices.filter((index) => checked[index] && Number(userInputs[index]) === blocks[index]).length;
+  const nextBlankIndex = editableIndices.find((index) => userInputs[index].trim() === '') ?? editableIndices.find((index) => !checked[index]) ?? -1;
+
+  const hintForIndex = (index: number) => {
+    if (index === 0) return 'Für den obersten Stein brauchst du die beiden Steine direkt darunter.';
+    if (index === 1) return given[3] || userInputs[3] ? 'Links in der Mitte: untere linke Zahl + untere mittlere Zahl.' : 'Nutze den obersten Stein zusammen mit dem rechten Mittelstein.';
+    if (index === 2) return given[5] || userInputs[5] ? 'Rechts in der Mitte: untere mittlere Zahl + untere rechte Zahl.' : 'Nutze den obersten Stein zusammen mit dem linken Mittelstein.';
+    if (index === 3) return 'Unterer linker Stein: linker Mittelstein minus unterer Mittelstein.';
+    if (index === 4) return 'Unterer Mittelstein verbindet beide Mittelsteine. Suche eine passende Differenz.';
+    if (index === 5) return 'Unterer rechter Stein: rechter Mittelstein minus unterer Mittelstein.';
+    return 'Suche zuerst einen Stein, bei dem zwei benachbarte Werte schon bekannt sind.';
+  };
+
+  const renderStone = (index: number) => {
+    const isGiven = given[index];
+    const hasBeenChecked = checked[index];
+    const valueCorrect = Number(userInputs[index]) === blocks[index];
+    return (
+      <input
+        key={index}
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        aria-label={isGiven ? `Vorgegebener Stein ${blocks[index]}` : `Fehlenden Pyramidenstein ${index + 1} eintragen`}
+        readOnly={isGiven || (hasBeenChecked && valueCorrect)}
+        value={userInputs[index]}
+        onChange={(event) => updateInput(index, event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            checkAnswer();
+          }
+        }}
+        className={`w-16 sm:w-20 min-h-14 sm:min-h-16 text-center font-black text-lg sm:text-xl rounded-xl border-2 shadow-sm transition-all outline-none ${
+          isGiven
+            ? currentIsLight
+              ? 'bg-slate-100 text-slate-800 border-slate-300'
+              : 'bg-slate-800 text-slate-100 border-slate-600'
+            : hasBeenChecked && valueCorrect
+              ? 'bg-emerald-500 text-white border-emerald-600'
+              : hasBeenChecked
+                ? 'bg-rose-50 text-rose-800 border-rose-400 focus:border-rose-500 dark:bg-rose-950/40 dark:text-rose-200'
+                : currentIsLight
+                  ? 'bg-white text-slate-900 border-accent/40 focus:border-accent focus:ring-2 focus:ring-accent/20'
+                  : 'bg-slate-900 text-slate-100 border-accent/50 focus:border-accent focus:ring-2 focus:ring-accent/20'
+        }`}
+      />
+    );
+  };
+
   return (
-    <div className="flex flex-col h-full w-full p-2.5 justify-between min-h-0 select-none">
-      
-      {/* Upper header controls */}
-      <div className="shrink-0 flex flex-col gap-1 mb-1.5 border-b border-slate-150 pb-1.5 dark:border-zinc-800">
-        <div className="flex justify-between items-center">
-          <div className="flex flex-col">
-            <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
-              🔺 Mathe-Pyramide
-            </span>
-            <span className="text-[7.5px] font-mono opacity-80">Rechnen & Pyramide füllen</span>
-          </div>
-          
-          {/* Level settings */}
-          <div className="flex gap-0.5">
-            {(['easy', 'medium', 'hard'] as const).map((lvl) => (
-              <button
-                key={lvl}
-                onClick={() => setLevel(lvl)}
-                className={`px-1 py-0.5 rounded text-[6.5px] font-black uppercase cursor-pointer transition-colors ${
-                  level === lvl ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-200 dark:bg-zinc-800 text-slate-600'
-                }`}
-              >
-                {lvl === 'easy' ? 'Einfach 🟢' : lvl === 'medium' ? 'Mittel 🟡' : 'Schwer 🔴'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Zahlenraum Selection row */}
-        <div className="flex items-center justify-between text-[6.5px] font-black mt-0.5">
-          <span className="text-slate-400 uppercase">Zahlenraum (ZR):</span>
-          <div className="flex gap-0.5">
-            {([10, 20, 100, 1000] as const).map((numRange) => (
-              <button
-                key={numRange}
-                onClick={() => setRange(numRange)}
-                className={`px-1.5 py-0.5 rounded cursor-pointer transition-all ${
-                  range === numRange
-                    ? 'bg-amber-500 text-white scale-102 font-black shadow-xs'
-                    : 'bg-slate-250 dark:bg-zinc-800 text-slate-700 dark:text-neutral-350'
-                }`}
-              >
-                Bis {numRange}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex-grow flex flex-col justify-center items-center gap-1.5 py-1 min-h-0">
-        {/* Tier 1 (Top) */}
-        <div className="flex justify-center w-full">
-          <div className="relative w-11 h-8">
-            <input
-              type="text"
-              readOnly={solved[0] && parseInt(userInputs[0]) === blocks[0]}
-              value={userInputs[0]}
-              onChange={(e) => {
-                const copy = [...userInputs];
-                copy[0] = e.target.value;
-                setUserInputs(copy);
-              }}
-              className={`w-full h-full text-center font-black text-xs rounded-lg border-2 shadow-xs transition-all ${
-                solved[0] && parseInt(userInputs[0]) === blocks[0]
-                  ? 'bg-emerald-500 text-white border-emerald-600'
-                  : currentIsLight
-                    ? 'bg-amber-100 text-amber-900 border-amber-300 focus:bg-white'
-                    : 'bg-yellow-950/40 text-yellow-300 border-yellow-700 focus:bg-zinc-900'
+    <div className="min-h-full w-full p-3 sm:p-4 flex flex-col gap-3 select-none overflow-visible">
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
+        <div className="inline-flex flex-wrap rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1" role="group" aria-label="Schwierigkeitsstufe">
+          {(['easy', 'medium', 'hard'] as const).map((difficulty) => (
+            <button
+              key={difficulty}
+              type="button"
+              onClick={() => setLevel(difficulty)}
+              className={`min-h-11 px-3 rounded-lg text-xs sm:text-sm font-bold transition-colors ${
+                level === difficulty
+                  ? 'bg-accent text-accent-text shadow-sm'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-700'
               }`}
-            />
-          </div>
-        </div>
-
-        {/* Tier 2 */}
-        <div className="flex justify-center gap-1.5 w-full">
-          {[1, 2].map((idx) => (
-            <div key={idx} className="relative w-11 h-8">
-              <input
-                type="text"
-                readOnly={solved[idx] && parseInt(userInputs[idx]) === blocks[idx]}
-                value={userInputs[idx]}
-                onChange={(e) => {
-                  const copy = [...userInputs];
-                  copy[idx] = e.target.value;
-                  setUserInputs(copy);
-                }}
-                className={`w-full h-full text-center font-black text-xs rounded-lg border-2 shadow-xs transition-all ${
-                  solved[idx] && parseInt(userInputs[idx]) === blocks[idx]
-                    ? 'bg-emerald-500 text-white border-emerald-600'
-                    : currentIsLight
-                      ? 'bg-amber-100/90 text-amber-900 border-amber-300 focus:bg-white'
-                      : 'bg-yellow-950/40 text-yellow-300 border-yellow-700 focus:bg-zinc-900'
-                }`}
-              />
-            </div>
+            >
+              {difficulty === 'easy' ? 'Einfach' : difficulty === 'medium' ? 'Mittel' : 'Schwer'}
+            </button>
           ))}
         </div>
 
-        {/* Tier 3 (Bottom) */}
-        <div className="flex justify-center gap-1.5 w-full">
-          {[3, 4, 5].map((idx) => (
-            <div key={idx} className="relative w-11 h-8">
-              <input
-                type="text"
-                readOnly={solved[idx] && parseInt(userInputs[idx]) === blocks[idx]}
-                value={userInputs[idx]}
-                onChange={(e) => {
-                  const copy = [...userInputs];
-                  copy[idx] = e.target.value;
-                  setUserInputs(copy);
-                }}
-                className={`w-full h-full text-center font-black text-xs rounded-lg border-2 shadow-xs transition-all ${
-                  solved[idx] && parseInt(userInputs[idx]) === blocks[idx]
-                    ? 'bg-emerald-500 text-white border-emerald-600'
-                    : currentIsLight
-                      ? 'bg-amber-100/90 text-amber-900 border-amber-300 focus:bg-white'
-                      : 'bg-yellow-950/40 text-yellow-300 border-yellow-700 focus:bg-zinc-900'
-                }`}
-              />
-            </div>
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Zahlenraum">
+          {([10, 20, 100, 1000] as const).map((numberRange) => (
+            <button
+              key={numberRange}
+              type="button"
+              onClick={() => setRange(numberRange)}
+              className={`min-h-11 px-2.5 rounded-lg text-xs font-bold border transition-colors ${
+                range === numberRange
+                  ? 'bg-accent text-accent-text border-accent'
+                  : 'border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-accent'
+              }`}
+            >
+              ZR {numberRange}
+            </button>
           ))}
         </div>
       </div>
 
-      <div className="shrink-0 flex gap-1 items-center mt-1">
+      <div className="shrink-0 rounded-xl bg-accent-soft border border-accent/20 px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
+        Regel: Zwei Nachbarsteine addieren → der Stein darüber.
+      </div>
+
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div className="flex flex-wrap items-center gap-3 font-semibold text-slate-500 dark:text-slate-400" aria-label="Legende">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded border border-slate-400 bg-slate-200 dark:bg-slate-700" />
+            Vorgegeben
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded border border-accent bg-white dark:bg-slate-900" />
+            Selbst rechnen
+          </span>
+        </div>
+        <span className="font-bold tabular-nums text-slate-600 dark:text-slate-300">
+          {correctEditableCount}/{editableIndices.length} gelöst
+        </span>
+      </div>
+
+      <div className="flex-1 min-h-0 flex flex-col justify-center items-center gap-3 sm:gap-4 py-2" aria-label="Zahlenpyramide">
+        <div className="flex justify-center">{renderStone(0)}</div>
+        <div className="flex justify-center gap-3 sm:gap-4">
+          {renderStone(1)}
+          {renderStone(2)}
+        </div>
+        <div className="flex justify-center gap-3 sm:gap-4">
+          {renderStone(3)}
+          {renderStone(4)}
+          {renderStone(5)}
+        </div>
+      </div>
+
+      {showHint && !isComplete && nextBlankIndex >= 0 && (
+        <div className="shrink-0 rounded-xl border border-accent/30 bg-accent-soft px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
+          Denk-Tipp: {hintForIndex(nextBlankIndex)}
+        </div>
+      )}
+
+      <div className="shrink-0 flex flex-wrap gap-2">
+        {!isComplete && (
+          <button
+            type="button"
+            onClick={() => setShowHint((visible) => !visible)}
+            className="min-h-11 px-3 rounded-xl border border-accent/30 bg-accent-soft text-accent font-bold text-sm hover:border-accent"
+            aria-pressed={showHint}
+          >
+            {showHint ? 'Tipp ausblenden' : 'Denk-Tipp'}
+          </button>
+        )}
         <button
+          type="button"
           onClick={checkAnswer}
-          className="flex-1 py-1 rounded bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[8px] uppercase tracking-widest cursor-pointer active:scale-95 transition-all"
+          disabled={isComplete}
+          className="flex-1 min-h-11 px-3 rounded-xl bg-accent hover:bg-accent-hover disabled:opacity-40 text-accent-text font-black text-sm shadow-sm"
         >
-          Prüfen ✔
+          {isComplete ? 'Gelöst' : 'Pyramide prüfen'}
         </button>
         <button
+          type="button"
           onClick={() => generatePyramid(level, range)}
-          className="py-1 px-1.5 rounded bg-slate-400 hover:bg-slate-500 text-white font-bold text-[8px] cursor-pointer"
+          className="min-h-11 px-3 rounded-xl border border-slate-300 dark:border-slate-700 font-bold text-sm hover:border-accent"
         >
-          Neu Rechen
+          Neue Pyramide
         </button>
       </div>
-      <p className="text-[7.5px] font-bold text-center mt-1 text-blue-500 truncate">{feedback}</p>
+
+      <p
+        aria-live="polite"
+        className={`shrink-0 min-h-11 rounded-xl border px-3 py-2 flex items-center justify-center text-center text-xs sm:text-sm font-semibold ${
+          isComplete
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-200'
+            : checked.some(Boolean) && checked.some((correct, index) => !given[index] && !correct)
+              ? 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200'
+              : 'bg-slate-50 border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'
+        }`}
+      >
+        {feedback}
+      </p>
     </div>
   );
 };
