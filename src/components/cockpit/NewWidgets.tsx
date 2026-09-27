@@ -85,348 +85,341 @@ export const MultitrainerWidgetContent: React.FC<{ widget: any, currentIsLight: 
 // 32. WIDGET: GELDBÖRSE (MoneycalcWidgetContent)
 // ========================================================
 export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+  type MoneyItem = { id: number; value: number; label: string; isBill: boolean; color: string };
   const [activeTab, setActiveTab] = useState<'count' | 'quiz'>('count');
   const [total, setTotal] = useState<number>(0);
-  const [addedItems, setAddedItems] = useState<Array<{ id: number, value: number, label: string, isBill: boolean, color: string }>>([]);
-  
-  // Quiz states
+  const [addedItems, setAddedItems] = useState<MoneyItem[]>([]);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [quizTarget, setQuizTarget] = useState<number>(10);
-  const [feedback, setFeedback] = useState<string>("Zähle Geld oder spiele das Quiz! 💶");
-  const [score, setScore] = useState<number>(0);
+  const [feedback, setFeedback] = useState<string>('Lege Münzen und Scheine in die Geldbörse.');
   const [quizSolved, setQuizSolved] = useState<boolean>(false);
-
-  // Counter to give unique ids to added coins/bills
+  const [quizChecked, setQuizChecked] = useState<boolean>(false);
   const idCounter = useRef(0);
 
-  // Generate a new quiz challenge
-  const startNewQuiz = useCallback((diff = difficulty) => {
-    let target = 0;
-    if (diff === 'easy') {
-      // Round whole euros
-      const choices = [3, 5, 8, 10, 12, 15, 20, 25, 40, 50, 75, 100, 150, 200, 300, 500];
-      target = choices[Math.floor(Math.random() * choices.length)];
-      setFeedback(`🛒 Zahle passend: Lege genau ${target} € auf den Ladentisch!`);
-    } else if (diff === 'medium') {
-      // simple decimals like x,50
-      const euros = Math.floor(Math.random() * 45) + 2;
-      const cents = Math.random() > 0.5 ? 0.5 : 0.0;
-      target = euros + cents;
-      const formatted = target.toFixed(2).replace('.', ',');
-      setFeedback(`🛒 Zahle passend: Lege genau ${formatted} € auf den Ladentisch!`);
-    } else {
-      // complex decimals
-      const euros = Math.floor(Math.random() * 145) + 5;
-      const cents = (Math.floor(Math.random() * 99) + 1) / 100;
-      target = euros + cents;
-      const formatted = target.toFixed(2).replace('.', ',');
-      setFeedback(`🛒 Zahle passend: Lege genau ${formatted} € auf den Ladentisch!`);
-    }
+  const formatEuro = (value: number) =>
+    value.toLocaleString('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-    setQuizTarget(parseFloat(target.toFixed(2)));
+  const createQuizTarget = useCallback((diff: 'easy' | 'medium' | 'hard') => {
+    if (diff === 'easy') {
+      const choices = [3, 5, 8, 10, 12, 15, 20, 25, 40, 50, 75, 100];
+      return choices[Math.floor(Math.random() * choices.length)];
+    }
+    if (diff === 'medium') {
+      const euros = Math.floor(Math.random() * 45) + 2;
+      const cents = [0, 0.2, 0.5, 0.8][Math.floor(Math.random() * 4)];
+      return Number((euros + cents).toFixed(2));
+    }
+    const euros = Math.floor(Math.random() * 95) + 5;
+    const cents = Math.floor(Math.random() * 100) / 100;
+    return Number((euros + cents).toFixed(2));
+  }, []);
+
+  const startNewQuiz = useCallback((diff: 'easy' | 'medium' | 'hard') => {
+    const target = createQuizTarget(diff);
+    setQuizTarget(target);
     setTotal(0);
     setAddedItems([]);
     setQuizSolved(false);
-  }, [difficulty]);
+    setQuizChecked(false);
+    setFeedback(`Lege genau ${formatEuro(target)} € auf den Ladentisch.`);
+  }, [createQuizTarget]);
 
-  useEffect(() => {
-    if (activeTab === 'quiz') {
-      startNewQuiz(difficulty);
-    }
-  }, [activeTab, difficulty, startNewQuiz]);
+  const enterCountMode = () => {
+    setActiveTab('count');
+    setTotal(0);
+    setAddedItems([]);
+    setQuizSolved(false);
+    setQuizChecked(false);
+    setFeedback('Lege Münzen und Scheine in die Geldbörse.');
+  };
 
-  const handleAddItem = (val: number, label: string, isBill: boolean, color: string) => {
-    if (quizSolved && activeTab === 'quiz') return;
-    
-    idCounter.current += 1;
-    const newItem = {
-      id: idCounter.current,
-      value: val,
-      label,
-      isBill,
-      color
-    };
-    
-    setAddedItems(prev => [...prev, newItem]);
-    setTotal(t => parseFloat((t + val).toFixed(2)));
+  const enterQuizMode = () => {
+    setActiveTab('quiz');
+    startNewQuiz(difficulty);
+  };
 
-    // play dynamic click audio
+  const changeDifficulty = (diff: 'easy' | 'medium' | 'hard') => {
+    setDifficulty(diff);
+    startNewQuiz(diff);
+  };
+
+  const playMoneySound = (isBill: boolean) => {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) {
-        const ctx = new AudioCtx();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.frequency.setValueAtTime(isBill ? 330 : 660, ctx.currentTime);
-        gain.gain.setValueAtTime(0.04, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.12);
-      }
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.setValueAtTime(isBill ? 330 : 660, ctx.currentTime);
+      gain.gain.setValueAtTime(0.035, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.12);
     } catch {}
   };
 
-  const handleRemoveItem = (id: number, val: number) => {
+  const handleAddItem = (val: number, label: string, isBill: boolean, color: string) => {
     if (quizSolved && activeTab === 'quiz') return;
-    setAddedItems(prev => prev.filter(item => item.id !== id));
-    setTotal(t => parseFloat(Math.max(0, t - val).toFixed(2)));
+    idCounter.current += 1;
+    setAddedItems((prev) => [...prev, { id: idCounter.current, value: val, label, isBill, color }]);
+    setTotal((current) => Number((current + val).toFixed(2)));
+    setQuizChecked(false);
+    playMoneySound(isBill);
   };
 
+  const handleRemoveOne = (value: number) => {
+    if (quizSolved && activeTab === 'quiz') return;
+    setAddedItems((prev) => {
+      const index = prev.findIndex((item) => item.value === value);
+      if (index < 0) return prev;
+      const next = [...prev];
+      next.splice(index, 1);
+      return next;
+    });
+    setTotal((current) => Number(Math.max(0, current - value).toFixed(2)));
+    setQuizChecked(false);
+  };
+
+  const groupedItems = useMemo(() => {
+    const groups = new Map<number, { value: number; label: string; isBill: boolean; color: string; count: number }>();
+    for (const item of addedItems) {
+      const existing = groups.get(item.value);
+      if (existing) existing.count += 1;
+      else groups.set(item.value, { value: item.value, label: item.label, isBill: item.isBill, color: item.color, count: 1 });
+    }
+    return [...groups.values()].sort((a, b) => b.value - a.value);
+  }, [addedItems]);
+
+  const difference = Number((quizTarget - total).toFixed(2));
+
   const checkQuizAnswer = () => {
-    const diff = Math.abs(total - quizTarget);
-    if (diff < 0.001) {
-      setFeedback("🎉 Fantastisch! Du hast den Betrag exakt passend bezahlt! ⭐");
-      setScore(s => s + 10);
+    setQuizChecked(true);
+    if (Math.abs(difference) < 0.001) {
       setQuizSolved(true);
-      
-      // confetti
-      import('canvas-confetti').then(m => m.default({ particleCount: 30, spread: 25 }));
-      
-      try {
-        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-        if (AudioCtx) {
-          const ctx = new AudioCtx();
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.frequency.setValueAtTime(523.25, ctx.currentTime);
-          gain.gain.setValueAtTime(0.05, ctx.currentTime);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.25);
-        }
-      } catch {}
+      setFeedback(`Genau richtig: ${formatEuro(total)} €.`);
+      import('canvas-confetti').then((module) => module.default({ particleCount: 24, spread: 22 }));
+      return;
+    }
+    if (difference > 0) {
+      setFeedback(`Es fehlen noch ${formatEuro(difference)} €.`);
     } else {
-      const formattedTotal = total.toFixed(2).replace('.', ',');
-      const formattedTarget = quizTarget.toFixed(2).replace('.', ',');
-      if (total > quizTarget) {
-        setFeedback(`⚠️ Zuviel gegeben! Du hast ${formattedTotal} € aufgelegt, gesucht waren aber ${formattedTarget} €!`);
-      } else {
-        setFeedback(`⚠️ Zu wenig! Es fehlen noch ${(quizTarget - total).toFixed(2).replace('.', ',')} € (aufgelegt: ${formattedTotal} € / gesucht: ${formattedTarget} €).`);
-      }
-      
-      try {
-        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-        if (AudioCtx) {
-          const ctx = new AudioCtx();
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.frequency.setValueAtTime(130, ctx.currentTime);
-          gain.gain.setValueAtTime(0.1, ctx.currentTime);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.2);
-        }
-      } catch {}
+      setFeedback(`Du hast ${formatEuro(Math.abs(difference))} € zu viel aufgelegt.`);
     }
   };
 
-  const resetAll = () => {
+  const resetMoney = () => {
     setTotal(0);
     setAddedItems([]);
     setQuizSolved(false);
+    setQuizChecked(false);
     if (activeTab === 'quiz') {
       startNewQuiz(difficulty);
     } else {
-      setFeedback("Zähle Geld oder spiele das Quiz! 💶");
+      setFeedback('Lege Münzen und Scheine in die Geldbörse.');
     }
   };
 
-  // Euro units definitions
   const bills = [
-    { value: 500, label: "500 €", color: "bg-purple-600/20 text-purple-700 border-purple-500 hover:bg-purple-600/30 dark:bg-purple-950/40 dark:text-purple-300" },
-    { value: 200, label: "200 €", color: "bg-yellow-600/20 text-yellow-700 border-yellow-500 hover:bg-yellow-600/30 dark:bg-yellow-950/40 dark:text-yellow-300" },
-    { value: 100, label: "100 €", color: "bg-emerald-600/20 text-emerald-700 border-emerald-500 hover:bg-emerald-600/30 dark:bg-emerald-950/40 dark:text-emerald-300" },
-    { value: 50, label: "50 €", color: "bg-orange-600/20 text-orange-700 border-orange-500 hover:bg-orange-600/30 dark:bg-orange-950/40 dark:text-orange-300" },
-    { value: 20, label: "20 €", color: "bg-blue-600/20 text-blue-700 border-blue-500 hover:bg-blue-600/30 dark:bg-blue-950/40 dark:text-blue-300" },
-    { value: 10, label: "10 €", color: "bg-rose-600/20 text-rose-700 border-rose-500 hover:bg-rose-600/30 dark:bg-rose-950/40 dark:text-rose-300" },
-    { value: 5, label: "5 €", color: "bg-slate-600/20 text-slate-700 border-slate-500 hover:bg-slate-600/30 dark:bg-slate-900/40 dark:text-slate-300" }
+    { value: 100, label: '100 €', color: 'bg-emerald-100 text-emerald-800 border-emerald-400 dark:bg-emerald-950/50 dark:text-emerald-200' },
+    { value: 50, label: '50 €', color: 'bg-orange-100 text-orange-800 border-orange-400 dark:bg-orange-950/50 dark:text-orange-200' },
+    { value: 20, label: '20 €', color: 'bg-blue-100 text-blue-800 border-blue-400 dark:bg-blue-950/50 dark:text-blue-200' },
+    { value: 10, label: '10 €', color: 'bg-rose-100 text-rose-800 border-rose-400 dark:bg-rose-950/50 dark:text-rose-200' },
+    { value: 5, label: '5 €', color: 'bg-slate-100 text-slate-800 border-slate-400 dark:bg-slate-800 dark:text-slate-200' },
   ];
 
   const coins = [
-    { value: 2, label: "2 €", color: "border-yellow-600 bg-amber-100 text-yellow-800 font-black", radiusClass: "w-7 h-7 text-[8px]" },
-    { value: 1, label: "1 €", color: "border-yellow-600 bg-slate-100 text-yellow-800 font-black", radiusClass: "w-6.5 h-6.5 text-[8px]" },
-    { value: 0.5, label: "50c", color: "border-yellow-500 bg-yellow-105 bg-amber-50 text-amber-700 font-bold", radiusClass: "w-6 h-6 text-[7.5px]" },
-    { value: 0.2, label: "20c", color: "border-yellow-500 bg-yellow-105 bg-amber-50 text-amber-700 font-bold", radiusClass: "w-5.5 h-5.5 text-[7.5px]" },
-    { value: 0.1, label: "10c", color: "border-yellow-500 bg-yellow-105 bg-amber-50 text-amber-700 font-bold", radiusClass: "w-5 h-5 text-[7px]" },
-    { value: 0.05, label: "5c", color: "border-orange-600 bg-orange-100 text-orange-800 font-bold", radiusClass: "w-4.5 h-4.5 text-[6.5px]" },
-    { value: 0.02, label: "2c", color: "border-orange-600 bg-orange-100 text-orange-800 font-bold", radiusClass: "w-4 h-4 text-[6px]" },
-    { value: 0.01, label: "1c", color: "border-orange-600 bg-orange-100 text-orange-800 font-bold", radiusClass: "w-3.5 h-3.5 text-[5.5px]" }
+    { value: 2, label: '2 €', color: 'border-amber-500 bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-200' },
+    { value: 1, label: '1 €', color: 'border-amber-500 bg-slate-100 text-amber-900 dark:bg-slate-800 dark:text-amber-200' },
+    { value: 0.5, label: '50 c', color: 'border-amber-400 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200' },
+    { value: 0.2, label: '20 c', color: 'border-amber-400 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200' },
+    { value: 0.1, label: '10 c', color: 'border-amber-400 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200' },
+    { value: 0.05, label: '5 c', color: 'border-orange-500 bg-orange-100 text-orange-900 dark:bg-orange-950/50 dark:text-orange-200' },
+    { value: 0.02, label: '2 c', color: 'border-orange-500 bg-orange-100 text-orange-900 dark:bg-orange-950/50 dark:text-orange-200' },
+    { value: 0.01, label: '1 c', color: 'border-orange-500 bg-orange-100 text-orange-900 dark:bg-orange-950/50 dark:text-orange-200' },
   ];
 
   return (
-    <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-y-auto overflow-x-hidden">
-      
-      {/* Top Header Row with game mode selections */}
-      <div className="shrink-0 flex justify-between items-center mb-1.5 border-b border-slate-200 dark:border-zinc-800 pb-1.5">
-        <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
-            💶 Taschengeld-Zähler
-          </span>
-          <span className="text-[7.5px] font-mono opacity-80 font-black">Euro & Cent spielerisch lernen</span>
-        </div>
-        
-        {/* Count/Quiz Tabs */}
-        <div className="flex gap-1">
+    <div className="min-h-full w-full p-3 sm:p-4 flex flex-col gap-3 select-none overflow-visible">
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
+        <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1" role="tablist" aria-label="Taschengeld-Modus">
           <button
-            onClick={() => { setActiveTab('count'); resetAll(); }}
-            className={`px-1.5 py-0.5 rounded text-[7.5px] font-black cursor-pointer transition-colors ${
-              activeTab === 'count' ? 'bg-indigo-500 text-white shadow' : 'bg-slate-200 dark:bg-zinc-800 text-slate-600 dark:text-neutral-400'
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'count'}
+            onClick={enterCountMode}
+            className={`min-h-11 px-3 rounded-lg text-xs sm:text-sm font-bold transition-colors ${
+              activeTab === 'count' ? 'bg-accent text-accent-text shadow-sm' : 'text-slate-600 dark:text-slate-300'
             }`}
           >
-            Spardose 🐷
+            Geld zählen
           </button>
           <button
-            onClick={() => { setActiveTab('quiz'); }}
-            className={`px-1.5 py-0.5 rounded text-[7.5px] font-black cursor-pointer transition-colors ${
-              activeTab === 'quiz' ? 'bg-indigo-500 text-white shadow' : 'bg-slate-200 dark:bg-zinc-800 text-slate-600 dark:text-neutral-400'
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'quiz'}
+            onClick={enterQuizMode}
+            className={`min-h-11 px-3 rounded-lg text-xs sm:text-sm font-bold transition-colors ${
+              activeTab === 'quiz' ? 'bg-accent text-accent-text shadow-sm' : 'text-slate-600 dark:text-slate-300'
             }`}
           >
-            Einkaufs-Quiz 🛒
+            Passend zahlen
           </button>
         </div>
-      </div>
 
-      {/* Quiz Difficulty Level Bar */}
-      {activeTab === 'quiz' && (
-        <div className={`p-1 rounded-xl border shrink-0 flex items-center justify-between text-[7px] font-black mb-1 bg-slate-100/50 dark:bg-black/10 border-slate-200/50 dark:border-white/5`}>
-          <div className="flex gap-0.5 items-center">
-            <span className="text-slate-400 mr-1 uppercase">Quiz-Level:</span>
-            {(['easy', 'medium', 'hard'] as const).map(diff => (
+        {activeTab === 'quiz' && (
+          <div className="flex flex-wrap gap-1" role="group" aria-label="Schwierigkeitsstufe">
+            {(['easy', 'medium', 'hard'] as const).map((diff) => (
               <button
                 key={diff}
-                onClick={() => { setDifficulty(diff); startNewQuiz(diff); }}
-                className={`px-1.5 py-0.5 rounded text-[6.5px] font-extrabold cursor-pointer transition-colors ${
+                type="button"
+                onClick={() => changeDifficulty(diff)}
+                className={`min-h-11 px-2.5 rounded-lg text-xs font-bold border transition-colors ${
                   difficulty === diff
-                    ? 'bg-indigo-500 text-white'
-                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/50'
+                    ? 'bg-accent text-accent-text border-accent'
+                    : 'border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-accent'
                 }`}
               >
-                {diff === 'easy' ? 'Einfach (Ganzzahl)' : diff === 'medium' ? 'Mittel (einfache Cent)' : 'Schwer (Dezimal)'}
+                {diff === 'easy' ? 'Einfach' : diff === 'medium' ? 'Mittel' : 'Schwer'}
               </button>
             ))}
           </div>
-          <span className="text-[7px] uppercase font-mono bg-teal-500 text-white px-1.5 rounded">Score: {score}</span>
+        )}
+      </div>
+
+      <div className={`shrink-0 rounded-2xl border p-3 sm:p-4 ${
+        currentIsLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-800/70 border-slate-700'
+      }`}>
+        <div className="grid grid-cols-2 gap-3 items-center">
+          <div>
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              {activeTab === 'quiz' ? 'Gesucht' : 'Aufgabe'}
+            </div>
+            <div className="mt-1 text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100">
+              {activeTab === 'quiz' ? `${formatEuro(quizTarget)} €` : 'Wie viel Geld ist es?'}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Aktuell</div>
+            <div className="mt-1 text-3xl sm:text-4xl font-black text-accent tabular-nums">{formatEuro(total)} €</div>
+          </div>
+        </div>
+      </div>
+
+      <div className={`shrink-0 min-h-20 rounded-2xl border border-dashed p-2 flex flex-wrap items-center justify-center gap-2 ${
+        groupedItems.length === 0
+          ? 'border-slate-300 dark:border-slate-700'
+          : 'border-accent/40 bg-accent-soft'
+      }`} aria-label="Aufgelegtes Geld">
+        {groupedItems.length === 0 ? (
+          <span className="text-sm font-semibold text-slate-500 dark:text-slate-400 text-center">
+            Tippe unten auf Münzen oder Scheine.
+          </span>
+        ) : (
+          groupedItems.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              onClick={() => handleRemoveOne(item.value)}
+              aria-label={`${item.label} entfernen`}
+              title="Ein Stück entfernen"
+              className={`min-h-11 min-w-16 px-2 rounded-xl border-2 font-black text-xs sm:text-sm flex items-center justify-center gap-1 active:scale-95 transition-transform ${item.color}`}
+            >
+              <span>{item.label}</span>
+              {item.count > 1 && <span className="rounded-full bg-black/10 px-1.5 py-0.5 text-[10px]">×{item.count}</span>}
+            </button>
+          ))
+        )}
+      </div>
+
+      <div className="flex-1 flex flex-col gap-3 min-h-0">
+        <section>
+          <div className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Scheine</div>
+          <div className="grid grid-cols-5 gap-2">
+            {bills.map((bill) => (
+              <button
+                key={bill.value}
+                type="button"
+                onClick={() => handleAddItem(bill.value, bill.label, true, bill.color)}
+                disabled={quizSolved && activeTab === 'quiz'}
+                className={`min-h-14 rounded-lg border-2 font-black text-sm sm:text-base shadow-sm active:scale-95 transition-transform disabled:opacity-40 ${bill.color}`}
+              >
+                {bill.label}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <div className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Münzen</div>
+          <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+            {coins.map((coin) => (
+              <button
+                key={coin.value}
+                type="button"
+                onClick={() => handleAddItem(coin.value, coin.label, false, coin.color)}
+                disabled={quizSolved && activeTab === 'quiz'}
+                className={`min-h-12 min-w-12 rounded-full border-2 font-black text-xs sm:text-sm shadow-sm active:scale-95 transition-transform disabled:opacity-40 ${coin.color}`}
+              >
+                {coin.label}
+              </button>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      {activeTab === 'quiz' && quizChecked && !quizSolved && (
+        <div className={`shrink-0 rounded-xl border px-3 py-2 text-center text-sm font-bold ${
+          difference > 0
+            ? 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200'
+            : 'bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-200'
+        }`}>
+          {difference > 0 ? `Noch ${formatEuro(difference)} € ergänzen.` : `${formatEuro(Math.abs(difference))} € wieder wegnehmen.`}
         </div>
       )}
 
-      {/* Main Panel */}
-      <div className="flex-grow flex flex-col justify-between py-1 gap-1.5 min-h-0">
-        
-        {/* Centered Total Wallet Board */}
-        <div className={`flex flex-col items-center justify-center py-2.5 rounded-2xl border transition-all shrink-0 ${
-          currentIsLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-900/50 border-white/5'
-        }`}>
-          {activeTab === 'quiz' && (
-            <div className="text-[7px] font-mono text-indigo-400 font-extrabold uppercase leading-none mb-0.5">
-              Gesucht: {quizTarget.toFixed(2).replace('.', ',')} €
-            </div>
-          )}
-          <span className="text-2xl font-black text-emerald-500 tracking-tight leading-none">
-            {total.toFixed(2).replace('.', ',')} €
-          </span>
-          <span className="text-[6.5px] uppercase font-bold text-slate-400 tracking-wider mt-1">
-            {activeTab === 'quiz' ? 'Aufgelegtes Geld' : 'Inhalt deiner Geldbörse'}
-          </span>
-        </div>
-
-        {/* Checkout Table Desk: Displays what items have been added, with click-to-remove feature */}
-        <div className={`h-11 rounded-xl border border-dashed flex flex-wrap gap-1 p-1 items-center justify-center overflow-y-auto shrink-0 ${
-          addedItems.length === 0 ? 'border-slate-300 dark:border-zinc-800' : 'border-emerald-500/50 bg-emerald-500/5'
-        }`}>
-          {addedItems.length === 0 ? (
-            <span className="text-[7px] font-mono font-bold text-slate-400 uppercase">
-              {activeTab === 'quiz' ? 'Lege Geld auf den Tresen...' : 'Deine Geldbörse ist leer. Füge Münzen/Scheine hinzu!'}
-            </span>
-          ) : (
-            addedItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => handleRemoveItem(item.id, item.value)}
-                title="Tippe zum Entfernen"
-                className={`flex items-center justify-center p-0.5 font-bold transition-transform hover:scale-105 active:scale-95 cursor-pointer border ${
-                  item.isBill 
-                    ? 'w-10 h-5 text-[6.5px] rounded border-dashed' 
-                    : 'w-6 h-6 rounded-full text-[6px] border-dashed'
-                } ${item.color}`}
-              >
-                {item.label}
-              </button>
-            ))
-          )}
-        </div>
-
-        {/* Euro Note & Coins Selections container */}
-        <div className="flex flex-col gap-1.5 shrink-0">
-          
-          {/* Bills row */}
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[6.5px] uppercase font-bold text-slate-400 dark:text-zinc-500 leading-none mb-0.5">Scheine:</span>
-            <div className="grid grid-cols-7 gap-1">
-              {bills.map((bill) => (
-                <button
-                  key={bill.value}
-                  onClick={() => handleAddItem(bill.value, bill.label, true, bill.color)}
-                  className={`py-1 text-center font-black rounded border text-[8px] transition-all cursor-pointer transform hover:scale-102 active:scale-95 leading-none ${bill.color}`}
-                >
-                  {bill.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Coins row */}
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[6.5px] uppercase font-bold text-slate-400 dark:text-zinc-500 leading-none mb-0.5">Münzen:</span>
-            <div className="flex flex-wrap gap-1 justify-between items-center px-0.5">
-              {coins.map((coin) => (
-                <button
-                  key={coin.value}
-                  onClick={() => handleAddItem(coin.value, coin.label, false, coin.color)}
-                  className={`rounded-full border-2 flex items-center justify-center transition-all cursor-pointer transform hover:scale-105 active:scale-90 leading-none shrink-0 ${coin.color} ${coin.radiusClass}`}
-                >
-                  {coin.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* Bottom control row */}
-      <div className="shrink-0 flex gap-1 items-center mt-1.5 pt-1.5 border-t border-slate-200 dark:border-zinc-800">
+      <div className="shrink-0 flex flex-wrap gap-2">
         {activeTab === 'quiz' ? (
           <>
             <button
+              type="button"
               onClick={checkQuizAnswer}
-              disabled={quizSolved}
-              className={`flex-grow py-1 rounded bg-teal-500 hover:bg-teal-600 disabled:opacity-40 text-white font-black text-[8px] uppercase tracking-widest cursor-pointer transition-all active:scale-95`}
+              disabled={quizSolved || addedItems.length === 0}
+              className="flex-1 min-h-11 px-3 rounded-xl bg-accent hover:bg-accent-hover disabled:opacity-40 text-accent-text font-black text-sm shadow-sm"
             >
-              Betrag Bezahlen ✔
+              Betrag prüfen
             </button>
             <button
+              type="button"
               onClick={() => startNewQuiz(difficulty)}
-              className="py-1 px-2 rounded bg-indigo-500 hover:bg-indigo-600 text-white font-black text-[8px] uppercase cursor-pointer"
+              className="min-h-11 px-3 rounded-xl border border-slate-300 dark:border-slate-700 font-bold text-sm hover:border-accent"
             >
-              Nächstes ➔
+              Neue Aufgabe
             </button>
           </>
         ) : (
           <button
-            onClick={resetAll}
-            className="w-full py-1 rounded bg-red-500 hover:bg-red-600 text-white font-black text-[8px] uppercase tracking-widest cursor-pointer transition-all active:scale-95 text-center"
+            type="button"
+            onClick={resetMoney}
+            disabled={addedItems.length === 0}
+            className="w-full min-h-11 px-3 rounded-xl border border-slate-300 dark:border-slate-700 font-bold text-sm hover:border-rose-400 hover:text-rose-600 disabled:opacity-40"
           >
-            Geldbörse Leeren 🗑️
+            Geldbörse leeren
           </button>
         )}
       </div>
 
-      <p className="shrink-0 text-[7px] font-extrabold text-blue-500 text-center truncate mt-1">{feedback}</p>
+      <p
+        aria-live="polite"
+        className={`shrink-0 min-h-11 rounded-xl border px-3 py-2 flex items-center justify-center text-center text-xs sm:text-sm font-semibold ${
+          quizSolved
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-200'
+            : 'bg-slate-50 border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'
+        }`}
+      >
+        {feedback}
+      </p>
     </div>
   );
 };
