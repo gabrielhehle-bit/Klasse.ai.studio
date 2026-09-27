@@ -6390,6 +6390,29 @@ export const GeometryWidgetContent: React.FC<{ widget: any, currentIsLight: bool
   };
 
   const activeMeta = shapes.find((shape) => shape.type === activeShape)!;
+  const properties: Record<ShapeType, { flat: string[]; solid: string[]; question: string }> = {
+    circle: {
+      flat: ['keine Ecken', 'keine geraden Seiten'],
+      solid: ['keine Ecken', 'keine Kanten', 'eine gekrümmte Oberfläche'],
+      question: 'Was ist bei Kreis und Kugel rund?',
+    },
+    square: {
+      flat: ['4 Ecken', '4 gleich lange Seiten'],
+      solid: ['8 Ecken', '12 Kanten', '6 quadratische Flächen'],
+      question: 'Welche Flächen des Würfels sind Quadrate?',
+    },
+    rectangle: {
+      flat: ['4 Ecken', 'gegenüberliegende Seiten gleich lang'],
+      solid: ['8 Ecken', '12 Kanten', '6 rechteckige Flächen'],
+      question: 'Wo findest du Rechtecke am Quader?',
+    },
+    triangle: {
+      flat: ['3 Ecken', '3 Seiten'],
+      solid: ['6 Ecken', '9 Kanten', '5 Flächen'],
+      question: 'Welche zwei Flächen des Dreiecksprismas sind Dreiecke?',
+    },
+  };
+  const activeProperties = properties[activeShape];
 
   return (
     <div className="min-h-full w-full p-3 sm:p-4 flex flex-col gap-3 select-none overflow-visible">
@@ -6439,6 +6462,10 @@ export const GeometryWidgetContent: React.FC<{ widget: any, currentIsLight: bool
 
       {mode === 'pattern' ? (
         <>
+          <div className="shrink-0 rounded-xl bg-accent-soft border border-accent/20 px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Muster-Idee: Wiederhole Formen oder Farben bewusst, zum Beispiel Kreis – Quadrat – Kreis – Quadrat.
+          </div>
+
           <div
             onClick={handleCanvasClick}
             className={`flex-1 min-h-52 sm:min-h-64 rounded-2xl border-2 relative overflow-hidden cursor-crosshair ${
@@ -6564,6 +6591,9 @@ export const GeometryWidgetContent: React.FC<{ widget: any, currentIsLight: bool
               </div>
               <div className="text-lg font-black text-slate-900 dark:text-slate-100">{activeMeta.label}</div>
               <div className="text-sm text-slate-500 dark:text-slate-400 text-center">flach · Länge und Breite</div>
+              <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-1 text-center">
+                {activeProperties.flat.map((item) => <li key={item}>• {item}</li>)}
+              </ul>
             </div>
 
             <div className={`rounded-2xl border p-4 flex flex-col items-center justify-center gap-3 ${
@@ -6575,7 +6605,14 @@ export const GeometryWidgetContent: React.FC<{ widget: any, currentIsLight: bool
               </div>
               <div className="text-lg font-black text-slate-900 dark:text-slate-100">{activeMeta.solid}</div>
               <div className="text-sm text-slate-500 dark:text-slate-400 text-center">räumlich · Länge, Breite und Höhe</div>
+              <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-1 text-center">
+                {activeProperties.solid.map((item) => <li key={item}>• {item}</li>)}
+              </ul>
             </div>
+          </div>
+
+          <div className="shrink-0 rounded-xl border border-accent/30 bg-accent-soft px-3 py-2 text-center text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200">
+            Beobachte: {activeProperties.question}
           </div>
 
           <label className="shrink-0 text-xs font-bold text-slate-600 dark:text-slate-300">
