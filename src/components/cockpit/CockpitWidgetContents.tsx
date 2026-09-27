@@ -15323,6 +15323,20 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
 
   const selectedMelody = melodies[selectedMelodyIndex];
 
+  const describeDirection = (sequence: number[]) => {
+    if (sequence.length < 2) return 'ein Ton';
+    let up = 0;
+    let down = 0;
+    for (let index = 1; index < sequence.length; index += 1) {
+      if (sequence[index] > sequence[index - 1]) up += 1;
+      if (sequence[index] < sequence[index - 1]) down += 1;
+    }
+    if (up > 0 && down === 0) return 'steigend';
+    if (down > 0 && up === 0) return 'fallend';
+    if (up === 0 && down === 0) return 'gleichbleibend';
+    return 'mit Sprüngen nach oben und unten';
+  };
+
   const clearScheduled = useCallback(() => {
     timeoutRefs.current.forEach((id) => window.clearTimeout(id));
     timeoutRefs.current = [];
@@ -15433,13 +15447,14 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
       const next = [...echoInput, index];
       const target = echoSequence[next.length - 1];
       if (index !== target) {
+        const relation = index > target ? 'zu hoch' : 'zu tief';
         setEchoInput([]);
-        setFeedback(`Noch nicht. Höre die Folge noch einmal und achte auf hoch/tief.`);
+        setFeedback(`Dieser Ton war ${relation}. Höre die Folge noch einmal und achte auf die Richtung.`);
         return;
       }
       setEchoInput(next);
       if (next.length === echoSequence.length) {
-        setFeedback('Richtig nachgespielt. Du hast die ganze Tonfolge gehört und gemerkt.');
+        setFeedback(`Richtig nachgespielt. Die Folge war ${describeDirection(echoSequence)}.`);
       } else {
         setFeedback(`Richtig. Noch ${echoSequence.length - next.length} ${echoSequence.length - next.length === 1 ? 'Ton' : 'Töne'}.`);
       }
@@ -15595,6 +15610,26 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
             ? 'Hörstrategie: Merke dir nicht nur die Tonbuchstaben – achte darauf, ob die Melodie nach oben oder unten geht.'
             : `Liedfortschritt: ${melodyStep + 1} von ${selectedMelody.notes.length} · nächster Ton: ${notes[selectedMelody.notes[melodyStep]].label}`}
       </div>
+
+      {mode === 'echo' && echoSequence.length > 0 && (
+        <div className="shrink-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2">
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 text-center">
+            Tonverlauf
+          </div>
+          <div className="mt-2 flex items-end justify-center gap-2 h-12" aria-label="Visueller Tonverlauf">
+            {echoSequence.map((noteIndex, index) => (
+              <div
+                key={index}
+                className={`w-7 rounded-t-md transition-all ${
+                  index < echoInput.length ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                }`}
+                style={{ height: `${16 + noteIndex * 4}px` }}
+                title={notes[noteIndex].label}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className={`flex-1 min-h-52 rounded-2xl border p-3 sm:p-4 flex items-center justify-center ${
         currentIsLight ? 'bg-amber-50/50 border-amber-200' : 'bg-slate-900 border-slate-700'
