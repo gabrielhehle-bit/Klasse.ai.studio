@@ -54,7 +54,7 @@ function KlassioMark() {
 
 function HeroPreview() {
   return (
-    <div className="relative mx-auto w-full max-w-[720px]">
+    <div className="relative mx-auto w-full max-w-[720px] min-w-0">
       <div className="absolute -inset-8 -z-10 rounded-[3rem] bg-indigo-200/35 blur-3xl" />
       <div className="overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white shadow-[0_30px_80px_-28px_rgba(15,23,42,0.32)]">
         <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 sm:px-5">
@@ -67,8 +67,8 @@ function HeroPreview() {
             Beispielklasse 3b
           </div>
         </div>
-        <div className="grid min-h-[390px] grid-cols-[78px_1fr] bg-slate-50 sm:grid-cols-[164px_1fr]">
-          <aside className="border-r border-slate-100 bg-slate-950 p-3 text-white sm:p-4">
+        <div className="grid min-h-[330px] grid-cols-[64px_1fr] bg-slate-50 sm:min-h-[390px] sm:grid-cols-[164px_1fr]">
+          <aside className="border-r border-slate-100 bg-slate-950 p-2.5 text-white sm:p-4">
             <div className="mb-5 flex h-9 items-center justify-center rounded-xl bg-white/10 text-xs font-black">K</div>
             <div className="space-y-2">
               {[
@@ -87,7 +87,7 @@ function HeroPreview() {
               ))}
             </div>
           </aside>
-          <main className="min-w-0 p-4 sm:p-6">
+          <main className="min-w-0 p-3.5 sm:p-6">
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
                 <div className="text-[0.65rem] font-black uppercase tracking-[0.14em] text-indigo-600">Guten Morgen</div>
@@ -143,7 +143,7 @@ function FeatureCard({
   text: string;
 }) {
   return (
-    <div className="rounded-[1.6rem] border border-slate-200 bg-white p-6 shadow-sm transition-transform duration-200 hover:-translate-y-1">
+    <div className="rounded-[1.4rem] border border-slate-200 bg-white p-5 shadow-sm transition-transform duration-200 hover:-translate-y-1 sm:rounded-[1.6rem] sm:p-6">
       <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white">
         <Icon size={21} />
       </div>
@@ -164,7 +164,7 @@ function ProductPreviewSection({ onDemo }: Pick<PublicWelcomeProps, 'onDemo'>) {
   ] as const;
 
   return (
-    <section id="produkt" className="border-y border-slate-200 bg-white">
+    <section id="produkt" className="scroll-mt-20 border-y border-slate-200 bg-white">
       <div className="mx-auto max-w-[1240px] px-5 py-18 sm:px-7 sm:py-20 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
           <div className="text-[0.68rem] font-black uppercase tracking-[0.18em] text-indigo-600">KLASSIO in Aktion</div>
@@ -176,14 +176,15 @@ function ProductPreviewSection({ onDemo }: Pick<PublicWelcomeProps, 'onDemo'>) {
           </p>
         </div>
 
-        <div className="mt-9 overflow-x-auto rounded-2xl border border-slate-200 bg-slate-50 p-2">
-          <div className="mx-auto flex min-w-max justify-center gap-1">
+        <div className="-mx-1 mt-8 overflow-x-auto rounded-2xl border border-slate-200 bg-slate-50 p-2 [scrollbar-width:none] sm:mx-0 sm:mt-9 [&::-webkit-scrollbar]:hidden">
+          <div className="flex min-w-max snap-x snap-mandatory gap-1 sm:mx-auto sm:justify-center">
             {tabs.map(([id, label, Icon]) => (
               <button
                 type="button"
                 key={id}
                 onClick={() => setTab(id)}
-                className={'inline-flex min-h-10 items-center gap-2 rounded-xl px-3.5 text-xs font-black transition-all ' + (tab === id ? 'bg-slate-950 text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-800')}
+                aria-pressed={tab === id}
+                className={'inline-flex min-h-10 snap-start items-center gap-2 rounded-xl px-3.5 text-xs font-black transition-all ' + (tab === id ? 'bg-slate-950 text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-800')}
               >
                 <Icon size={15} />
                 {label}
@@ -192,7 +193,7 @@ function ProductPreviewSection({ onDemo }: Pick<PublicWelcomeProps, 'onDemo'>) {
           </div>
         </div>
 
-        <div className="mt-4 rounded-[1.8rem] border border-slate-200 bg-slate-50 p-3 shadow-sm sm:p-5">
+        <div className="mt-4 overflow-hidden rounded-[1.5rem] border border-slate-200 bg-slate-50 p-2 shadow-sm sm:rounded-[1.8rem] sm:p-5">
           {tab === 'dashboard' && <DashboardDemo />}
           {tab === 'planung' && <WeeklyPlanDemo />}
           {tab === 'cockpit' && <CockpitDemo />}
@@ -216,9 +217,9 @@ function ProductPreviewSection({ onDemo }: Pick<PublicWelcomeProps, 'onDemo'>) {
 
 function Landing({ onLogin, onDemo }: Pick<PublicWelcomeProps, 'onLogin' | 'onDemo'>) {
   return (
-    <div className="min-h-screen bg-[#f7f8fb] text-slate-950">
+    <div className="min-h-screen overflow-x-hidden bg-[#f7f8fb] text-slate-950">
       <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-[#f7f8fb]/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1240px] items-center justify-between px-5 py-4 sm:px-7 lg:px-8">
+        <div className="mx-auto flex max-w-[1240px] items-center justify-between gap-3 px-4 py-3.5 sm:px-7 sm:py-4 lg:px-8">
           <KlassioMark />
           <div className="flex items-center gap-2">
             <a
@@ -236,7 +237,7 @@ function Landing({ onLogin, onDemo }: Pick<PublicWelcomeProps, 'onLogin' | 'onDe
             <button
               type="button"
               onClick={onLogin}
-              className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-800 shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
+              className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-black text-slate-800 shadow-sm transition-all hover:border-slate-300 hover:shadow-md sm:px-4 sm:text-sm"
             >
               <LogIn size={16} />
               Anmelden
@@ -247,20 +248,20 @@ function Landing({ onLogin, onDemo }: Pick<PublicWelcomeProps, 'onLogin' | 'onDe
 
       <main>
         <section className="overflow-hidden">
-          <div className="mx-auto grid max-w-[1240px] items-center gap-12 px-5 py-16 sm:px-7 sm:py-20 lg:grid-cols-[0.9fr_1.1fr] lg:px-8 lg:py-24">
+          <div className="mx-auto grid max-w-[1240px] items-center gap-10 px-4 py-12 sm:px-7 sm:py-18 lg:grid-cols-[0.9fr_1.1fr] lg:gap-12 lg:px-8 lg:py-24">
             <div>
               <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1.5 text-[0.68rem] font-black uppercase tracking-[0.16em] text-indigo-700">
                 <Sparkles size={13} />
                 Für den echten Schulalltag
               </div>
-              <h1 className="max-w-[720px] text-[2.7rem] font-black leading-[0.96] tracking-[-0.055em] text-slate-950 sm:text-6xl lg:text-[4.45rem]">
+              <h1 className="max-w-[720px] text-[clamp(2.35rem,11vw,3.25rem)] font-black leading-[0.98] tracking-[-0.05em] text-slate-950 sm:text-6xl lg:text-[4.45rem]">
                 Dein kompletter Schulalltag.<br />
                 <span className="text-indigo-600">Eine Oberfläche.</span>
               </h1>
-              <p className="mt-7 max-w-xl text-base font-medium leading-7 text-slate-500 sm:text-lg">
+              <p className="mt-5 max-w-xl text-[0.98rem] font-medium leading-7 text-slate-500 sm:mt-7 sm:text-lg">
                 Planen, unterrichten, beobachten, dokumentieren und organisieren – mit Klasse, Leistungen, Diagnostik und digitaler Tafel an einem Ort.
               </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <div className="mt-7 flex flex-col gap-3 sm:mt-8 sm:flex-row">
                 <button
                   type="button"
                   onClick={onDemo}
@@ -287,7 +288,7 @@ function Landing({ onLogin, onDemo }: Pick<PublicWelcomeProps, 'onLogin' | 'onDe
           </div>
         </section>
 
-        <section id="klassio-entdecken" className="border-y border-slate-200 bg-white">
+        <section id="klassio-entdecken" className="scroll-mt-20 border-y border-slate-200 bg-white">
           <div className="mx-auto max-w-[1240px] px-5 py-18 sm:px-7 sm:py-20 lg:px-8">
             <div className="mx-auto max-w-2xl text-center">
               <div className="text-[0.68rem] font-black uppercase tracking-[0.18em] text-indigo-600">Ein Arbeitsbereich statt Tool-Chaos</div>
@@ -353,7 +354,7 @@ function Landing({ onLogin, onDemo }: Pick<PublicWelcomeProps, 'onLogin' | 'onDe
           </div>
         </section>
 
-        <section id="sicherheit" className="border-y border-slate-200 bg-white">
+        <section id="sicherheit" className="scroll-mt-20 border-y border-slate-200 bg-white">
           <div className="mx-auto grid max-w-[1240px] gap-5 px-5 py-18 sm:px-7 sm:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
             <div className="rounded-[2rem] bg-slate-950 p-7 text-white sm:p-9">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-emerald-300">
@@ -400,7 +401,7 @@ function Landing({ onLogin, onDemo }: Pick<PublicWelcomeProps, 'onLogin' | 'onDe
       </main>
 
       <footer className="bg-slate-950 text-white">
-        <div className="mx-auto max-w-[1240px] px-5 py-8 sm:px-7 lg:px-8">
+        <div className="mx-auto max-w-[1240px] px-4 py-8 sm:px-7 lg:px-8">
           <div className="flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="flex items-center gap-3">
@@ -416,7 +417,7 @@ function Landing({ onLogin, onDemo }: Pick<PublicWelcomeProps, 'onLogin' | 'onDe
                 Digitale Planung, Unterricht, Dokumentation und Organisation für den Schulalltag.
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-3 text-sm font-bold text-white/60">
+            <div className="grid grid-cols-2 gap-x-5 gap-y-3 text-sm font-bold text-white/60 sm:flex sm:flex-wrap sm:items-center">
               <a href="#klassio-entdecken" className="transition-colors hover:text-white">Funktionen</a>
               <a href="#produkt" className="transition-colors hover:text-white">Produkt ansehen</a>
               <a href="#sicherheit" className="transition-colors hover:text-white">Datenschutz & Sicherheit</a>
@@ -768,14 +769,15 @@ function Demo({ onLogin, onHome }: Pick<PublicWelcomeProps, 'onLogin' | 'onHome'
           </div>
         </div>
 
-        <div className="mb-4 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
-          <div className="flex min-w-max gap-1">
+        <div className="mb-4 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex min-w-max snap-x snap-mandatory gap-1">
             {tabs.map(([id, label, Icon]) => (
               <button
                 type="button"
                 key={id}
                 onClick={() => setTab(id)}
-                className={`inline-flex min-h-10 items-center gap-2 rounded-xl px-3.5 text-xs font-black transition-all ${tab === id ? 'bg-slate-950 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}
+                aria-pressed={tab === id}
+                className={`inline-flex min-h-10 snap-start items-center gap-2 rounded-xl px-3.5 text-xs font-black transition-all ${tab === id ? 'bg-slate-950 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}
               >
                 <Icon size={15} />
                 {label}
