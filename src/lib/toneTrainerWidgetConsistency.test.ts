@@ -51,3 +51,18 @@ test('Ton-Trainer kündigt Lernfeedback barrierearm an', () => {
   assert.match(widget, /aria-live="polite"/);
   assert.match(widget, /Von links nach rechts werden die Töne höher/);
 });
+
+
+test('Ton-Trainer macht Tonrichtung als Lernziel sichtbar', () => {
+  assert.match(widget, /const describeDirection =/);
+  assert.match(widget, /steigend/);
+  assert.match(widget, /fallend/);
+  assert.match(widget, /mit Sprüngen nach oben und unten/);
+  assert.match(widget, /Tonverlauf/);
+  assert.match(widget, /Visueller Tonverlauf/);
+});
+
+test('Ton-Trainer erklärt Fehler im Nachspielmodus als zu hoch oder zu tief', () => {
+  assert.match(widget, /const relation = index > target \? 'zu hoch' : 'zu tief'/);
+  assert.match(widget, /Dieser Ton war \$\{relation\}/);
+});
