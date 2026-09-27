@@ -193,6 +193,7 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
   }, [addedItems]);
 
   const difference = Number((quizTarget - total).toFixed(2));
+  const targetProgress = quizTarget > 0 ? Math.min(100, Math.max(0, (total / quizTarget) * 100)) : 0;
 
   const checkQuizAnswer = () => {
     setQuizChecked(true);
@@ -294,10 +295,10 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
         <div className="grid grid-cols-2 gap-3 items-center">
           <div>
             <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-              {activeTab === 'quiz' ? 'Gesucht' : 'Aufgabe'}
+              {activeTab === 'quiz' ? 'Zielbetrag' : 'Geldbörse'}
             </div>
             <div className="mt-1 text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100">
-              {activeTab === 'quiz' ? `${formatEuro(quizTarget)} €` : 'Wie viel Geld ist es?'}
+              {activeTab === 'quiz' ? `${formatEuro(quizTarget)} €` : 'Lege Geld hinein'}
             </div>
           </div>
           <div className="text-right">
@@ -305,6 +306,29 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
             <div className="mt-1 text-3xl sm:text-4xl font-black text-accent tabular-nums">{formatEuro(total)} €</div>
           </div>
         </div>
+
+        {activeTab === 'quiz' && (
+          <div className="mt-3">
+            <div className="flex items-center justify-between gap-2 text-xs font-bold">
+              <span className="text-slate-500 dark:text-slate-400">
+                {Math.abs(difference) < 0.001
+                  ? 'Ziel erreicht'
+                  : difference > 0
+                    ? `Noch ${formatEuro(difference)} €`
+                    : `${formatEuro(Math.abs(difference))} € zu viel`}
+              </span>
+              <span className="tabular-nums text-slate-500 dark:text-slate-400">{Math.round(targetProgress)}%</span>
+            </div>
+            <div className="mt-1.5 h-2.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden" aria-label="Fortschritt zum Zielbetrag">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${
+                  difference < 0 ? 'bg-rose-500' : Math.abs(difference) < 0.001 ? 'bg-emerald-500' : 'bg-accent'
+                }`}
+                style={{ width: `${targetProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className={`shrink-0 min-h-20 rounded-2xl border border-dashed p-2 flex flex-wrap items-center justify-center gap-2 ${
@@ -344,8 +368,10 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
                 onClick={() => handleAddItem(bill.value, bill.label, true, bill.color)}
                 disabled={quizSolved && activeTab === 'quiz'}
                 className={`min-h-14 rounded-lg border-2 font-black text-sm sm:text-base shadow-sm active:scale-95 transition-transform disabled:opacity-40 ${bill.color}`}
+              aria-label={`${bill.label} hinzufügen`}
               >
-                {bill.label}
+                <span className="block">{bill.label}</span>
+                <span className="block mt-0.5 text-[10px] font-semibold opacity-70">Schein</span>
               </button>
             ))}
           </div>
@@ -361,6 +387,7 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
                 onClick={() => handleAddItem(coin.value, coin.label, false, coin.color)}
                 disabled={quizSolved && activeTab === 'quiz'}
                 className={`min-h-12 min-w-12 rounded-full border-2 font-black text-xs sm:text-sm shadow-sm active:scale-95 transition-transform disabled:opacity-40 ${coin.color}`}
+              aria-label={`${coin.label} hinzufügen`}
               >
                 {coin.label}
               </button>
@@ -415,7 +442,11 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
         className={`shrink-0 min-h-11 rounded-xl border px-3 py-2 flex items-center justify-center text-center text-xs sm:text-sm font-semibold ${
           quizSolved
             ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-200'
-            : 'bg-slate-50 border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'
+            : quizChecked && activeTab === 'quiz'
+              ? difference > 0
+                ? 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200'
+                : 'bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-200'
+              : 'bg-slate-50 border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'
         }`}
       >
         {feedback}
