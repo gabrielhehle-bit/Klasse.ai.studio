@@ -15052,11 +15052,11 @@ export const WastebinWidgetContent: React.FC<{ widget: any, currentIsLight: bool
   ], []);
 
   const bins = [
-    { id: 'bio' as const, label: 'Biomüll', hint: 'Küchen- & Pflanzenreste', icon: '🌱', surface: 'bg-emerald-600', text: 'text-white' },
-    { id: 'papier' as const, label: 'Altpapier', hint: 'sauberes Papier & Karton', icon: '📄', surface: 'bg-blue-600', text: 'text-white' },
-    { id: 'gelb' as const, label: 'Verpackung', hint: 'Kunststoff & Metall', icon: '♻️', surface: 'bg-amber-400', text: 'text-slate-900' },
-    { id: 'sonder' as const, label: 'Sammelstelle', hint: 'Batterien & Elektro', icon: '⚠️', surface: 'bg-rose-600', text: 'text-white' },
-    { id: 'rest' as const, label: 'Restmüll', hint: 'nicht verwertbarer Rest', icon: '🗑️', surface: 'bg-slate-700', text: 'text-white' },
+    { id: 'bio' as const, label: 'Biomüll', hint: 'Küchen- & Pflanzenreste', rule: 'organisch und kompostierbar', icon: '🌱', surface: 'bg-emerald-600', text: 'text-white' },
+    { id: 'papier' as const, label: 'Altpapier', hint: 'sauberes Papier & Karton', rule: 'sauber und überwiegend aus Papier', icon: '📄', surface: 'bg-blue-600', text: 'text-white' },
+    { id: 'gelb' as const, label: 'Verpackung', hint: 'Kunststoff & Metall', rule: 'eine leere Verpackung', icon: '♻️', surface: 'bg-amber-400', text: 'text-slate-900' },
+    { id: 'sonder' as const, label: 'Sammelstelle', hint: 'Batterien & Elektro', rule: 'gefährlich, elektrisch oder speziell zu sammeln', icon: '⚠️', surface: 'bg-rose-600', text: 'text-white' },
+    { id: 'rest' as const, label: 'Restmüll', hint: 'nicht verwertbarer Rest', rule: 'kein Bioabfall, kein Papier und keine Verpackung', icon: '🗑️', surface: 'bg-slate-700', text: 'text-white' },
   ];
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -15101,6 +15101,7 @@ export const WastebinWidgetContent: React.FC<{ widget: any, currentIsLight: bool
   };
 
   const accuracy = attemptCount === 0 ? 0 : Math.round((correctCount / attemptCount) * 100);
+  const correctBinMeta = bins.find((bin) => bin.id === currentItem.binType)!;
   const categoryRule: Record<WasteItem['binType'], string> = {
     bio: 'Merke: organische Küchen- und Pflanzenreste → Biomüll.',
     papier: 'Merke: sauberes Papier und Karton → Altpapier.',
