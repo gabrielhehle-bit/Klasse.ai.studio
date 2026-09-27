@@ -15200,6 +15200,12 @@ export const WastebinWidgetContent: React.FC<{ widget: any, currentIsLight: bool
 };
 
 
+interface Melody {
+  name: string;
+  emoji: string;
+  notes: { label: string; index: number }[];
+}
+
 export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
   const notes = useMemo(() => [
     { label: 'C', freq: 261.63, color: 'bg-rose-500 shadow-rose-200 shadow-sm border-rose-400' },
