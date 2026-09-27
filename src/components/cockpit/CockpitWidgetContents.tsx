@@ -19187,6 +19187,7 @@ export const MathbalancerWidgetContent: React.FC<{ widget: any, currentIsLight: 
   const [userGuess, setUserGuess] = useState<number | null>(null);
   const [status, setStatus] = useState<'leftHeavier' | 'rightHeavier' | 'balanced'>('leftHeavier');
   const [feedback, setFeedback] = useState<string>("Bringe die Balkenwaage ins Gleichgewicht.");
+  const [showHint, setShowHint] = useState(false);
 
   const answerChoices = useMemo(() => {
     const pool = Array.from({ length: 18 }, (_, index) => index + 1).filter((value) => value !== unknownX);
@@ -19209,6 +19210,7 @@ export const MathbalancerWidgetContent: React.FC<{ widget: any, currentIsLight: 
     setUnknownX(xSol);
     setUserGuess(null);
     setStatus('leftHeavier');
+    setShowHint(false);
     setFeedback(`Links liegen ${leftSum} kg. Rechts liegen ${rightKnown} kg + X kg. Finde X.`);
   }, []);
 
@@ -19261,7 +19263,14 @@ export const MathbalancerWidgetContent: React.FC<{ widget: any, currentIsLight: 
 
   return (
     <div className="min-h-full w-full p-3 sm:p-4 flex flex-col justify-between gap-3 select-none overflow-visible">
-      <div className="shrink-0 flex justify-end">
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
+        <div className={`rounded-xl border px-3 py-2 font-mono font-black text-lg sm:text-xl ${
+          currentIsLight
+            ? 'bg-slate-50 border-slate-200 text-slate-900'
+            : 'bg-slate-800 border-slate-700 text-slate-100'
+        }`}>
+          {leftWeight} = {knownRight} + <span className="text-accent">{userGuess ?? 'X'}</span>
+        </div>
         <button
           type="button"
           onClick={generateBalanceProblem}
@@ -19293,6 +19302,12 @@ export const MathbalancerWidgetContent: React.FC<{ widget: any, currentIsLight: 
           <div className="absolute bottom-0 w-20 h-2 bg-slate-400 rounded-full" />
         </div>
 
+        {showHint && status !== 'balanced' && (
+          <div className="w-full max-w-sm rounded-xl border border-accent/30 bg-accent-soft px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Tipp: Starte bei {knownRight} und ergänze bis {leftWeight}. Wie viel fehlt?
+          </div>
+        )}
+
         <div className="grid grid-cols-4 gap-2 w-full max-w-sm">
           {answerChoices.map((guess) => (
             <button
@@ -19316,6 +19331,28 @@ export const MathbalancerWidgetContent: React.FC<{ widget: any, currentIsLight: 
         </div>
       </div>
 
+      <div className="shrink-0 flex flex-col gap-2">
+        <div className="flex flex-wrap justify-center gap-2">
+          {status !== 'balanced' ? (
+            <button
+              type="button"
+              onClick={() => setShowHint((value) => !value)}
+              className="min-h-11 px-3 rounded-xl border border-accent/30 bg-accent-soft text-accent font-bold text-xs sm:text-sm hover:border-accent transition-colors"
+              aria-pressed={showHint}
+            >
+              {showHint ? 'Tipp ausblenden' : 'Tipp anzeigen'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={generateBalanceProblem}
+              className="min-h-11 px-4 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-bold text-sm shadow-sm"
+            >
+              Nächste Waage
+            </button>
+          )}
+        </div>
+
       <p
         aria-live="polite"
         className={`shrink-0 min-h-11 flex items-center justify-center rounded-xl px-3 py-2 text-center text-xs sm:text-sm font-bold border ${
@@ -19328,6 +19365,7 @@ export const MathbalancerWidgetContent: React.FC<{ widget: any, currentIsLight: 
       >
         {feedback}
       </p>
+      </div>
     </div>
   );
 };
