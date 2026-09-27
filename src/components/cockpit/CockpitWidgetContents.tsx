@@ -15933,6 +15933,8 @@ export const AngledetectiveWidgetContent: React.FC<{ widget: any, currentIsLight
   };
 
   const angleType = getAngleType(targetAngle);
+  const estimateDiff = Math.abs(guessAngle - targetAngle);
+  const relationToRightAngle = targetAngle === 90 ? 'genau 90°' : targetAngle < 90 ? 'kleiner als 90°' : 'größer als 90°';
 
   return (
     <div className="min-h-full w-full p-3 sm:p-4 flex flex-col gap-3 select-none overflow-visible">
@@ -15962,6 +15964,10 @@ export const AngledetectiveWidgetContent: React.FC<{ widget: any, currentIsLight
         </button>
       </div>
 
+      <div className="shrink-0 rounded-xl bg-accent-soft border border-accent/20 px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
+        Denk zuerst: Ist der Winkel kleiner, genau oder größer als 90°?
+      </div>
+
       <div className="shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-bold">
         {[
           ['< 90°', 'spitz'],
@@ -15982,6 +15988,7 @@ export const AngledetectiveWidgetContent: React.FC<{ widget: any, currentIsLight
             <path d="M 6 50 A 44 44 0 0 1 94 50" fill="none" stroke={currentIsLight ? '#cbd5e1' : '#475569'} strokeWidth="1.5" />
             {renderProtractorTicks()}
             <line x1="50" y1="50" x2="8" y2="50" stroke="#334155" strokeWidth="2.5" strokeLinecap="round" />
+            <line x1="50" y1="50" x2="50" y2="16" stroke="#94a3b8" strokeWidth="1.5" strokeDasharray="2 2" aria-label="90 Grad Referenz" />
             <path d={getSectorPath(targetAngle, 30)} fill="rgba(59,130,246,0.18)" stroke="#3b82f6" strokeWidth="2" />
             <line
               x1="50"
@@ -16060,8 +16067,26 @@ export const AngledetectiveWidgetContent: React.FC<{ widget: any, currentIsLight
       </div>
 
       {isRevealed && (
-        <div className="shrink-0 rounded-xl border border-accent/30 bg-accent-soft px-3 py-2 text-center text-sm font-bold text-slate-700 dark:text-slate-200">
-          {targetAngle}° · {angleType}
+        <div className="shrink-0 grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className="rounded-xl border border-accent/30 bg-accent-soft px-3 py-2 text-center">
+            <div className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Lösung</div>
+            <div className="text-lg font-black text-slate-900 dark:text-slate-100">{targetAngle}°</div>
+          </div>
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-center bg-slate-50 dark:bg-slate-800">
+            <div className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Winkelart</div>
+            <div className="text-sm font-black text-slate-900 dark:text-slate-100">{angleType}</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400">{relationToRightAngle}</div>
+          </div>
+          <div className={`rounded-xl border px-3 py-2 text-center ${
+            estimateDiff <= 5
+              ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800'
+              : estimateDiff <= 15
+                ? 'bg-amber-50 border-amber-200 dark:bg-amber-950/40 dark:border-amber-800'
+                : 'bg-rose-50 border-rose-200 dark:bg-rose-950/40 dark:border-rose-800'
+          }`}>
+            <div className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Abweichung</div>
+            <div className="text-lg font-black tabular-nums">{estimateDiff}°</div>
+          </div>
         </div>
       )}
 
