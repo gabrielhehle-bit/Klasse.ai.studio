@@ -15893,205 +15893,245 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
 // 14. WIDGET: WINKEL-DETEKTIV (AngledetectiveWidgetContent)
 // ========================================================
 export const AngledetectiveWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+  type Level = 'basic' | 'mixed' | 'precise';
+  const [level, setLevel] = useState<Level>('mixed');
   const [targetAngle, setTargetAngle] = useState<number>(90);
-  const [guessAngle, setGuessAngle] = useState<number>(180);
+  const [guessAngle, setGuessAngle] = useState<number>(90);
   const [isRevealed, setIsRevealed] = useState<boolean>(false);
-  const [feedback, setFeedback] = useState<string>("Bewege den Schieberegler auf den gezeigten Winkel! 📐");
+  const [feedback, setFeedback] = useState<string>('Schätze zuerst die Winkelart und dann den Gradwert.');
 
-  const generateAngle = () => {
-    const angles = [30, 45, 60, 90, 120, 135, 150, 180, 225, 270, 315];
+  const getAngleType = (angle: number) => {
+    if (angle === 90) return 'rechter Winkel';
+    if (angle === 180) return 'gestreckter Winkel';
+    if (angle < 90) return 'spitzer Winkel';
+    return 'stumpfer Winkel';
+  };
+
+  const generateAngle = useCallback((difficulty: Level = level) => {
+    const basic = [30, 45, 60, 90, 120, 135, 150, 180];
+    const mixed = [20, 30, 40, 45, 60, 75, 90, 105, 120, 135, 150, 160, 180];
+    const precise = Array.from({ length: 17 }, (_, index) => (index + 1) * 10);
+    const angles = difficulty === 'basic' ? basic : difficulty === 'mixed' ? mixed : precise;
     const picked = angles[Math.floor(Math.random() * angles.length)];
     setTargetAngle(picked);
-    setGuessAngle(180);
+    setGuessAngle(90);
     setIsRevealed(false);
-    setFeedback("📐 Welcher Winkel wird im Scheinwerfer gezeigt?");
-  };
+    setFeedback('Welche Winkelart siehst du? Schätze danach den Gradwert.');
+  }, [level]);
+
+  useEffect(() => {
+    generateAngle(level);
+  }, [level, generateAngle]);
 
   const handleReveal = () => {
     setIsRevealed(true);
     const diff = Math.abs(guessAngle - targetAngle);
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      if (diff <= 5) {
-        setFeedback(`🎉 Perfekt! (${targetAngle}° / Tipp: ${guessAngle}°) Volltreffer!`);
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.frequency.setValueAtTime(880, ctx.currentTime);
-        gain.gain.setValueAtTime(0.1, ctx.currentTime);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.3);
-      } else {
-        setFeedback(`Ziel war ${targetAngle}°. Dein Tipp: ${guessAngle}° (Abweichung: ${diff}°)`);
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.frequency.setValueAtTime(300, ctx.currentTime);
-        gain.gain.setValueAtTime(0.1, ctx.currentTime);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.25);
-      }
-    } catch {}
+    if (diff <= 5) {
+      setFeedback(`Sehr genau: ${targetAngle}° ist ein ${getAngleType(targetAngle)}.`);
+    } else if (diff <= 15) {
+      setFeedback(`Gut geschätzt. Ziel: ${targetAngle}°, Abweichung: ${diff}°.`);
+    } else {
+      setFeedback(`Ziel: ${targetAngle}°. Dein Tipp liegt ${diff}° daneben. Vergleiche mit 90°.`);
+    }
   };
 
-  // Generate ticks for a professional protractor feel
   const renderProtractorTicks = () => {
     const ticks = [];
-    for (let angle = 0; angle < 360; angle += 15) {
-      const rad = (angle - 90) * Math.PI / 180;
-      const isMajor = angle % 90 === 0;
-      const r1 = isMajor ? 32 : 37;
-      const r2 = 42;
-      const x1 = 50 + r1 * Math.cos(rad);
-      const y1 = 50 + r1 * Math.sin(rad);
-      const x2 = 50 + r2 * Math.cos(rad);
-      const y2 = 50 + r2 * Math.sin(rad);
+    for (let angle = 0; angle <= 180; angle += 10) {
+      const rad = (angle - 180) * Math.PI / 180;
+      const major = angle % 30 === 0;
+      const r1 = major ? 34 : 38;
+      const r2 = 44;
       ticks.push(
         <line
           key={angle}
-          x1={x1}
-          y1={y1}
-          x2={x2}
-          y2={y2}
-          stroke={isMajor ? '#6366f1' : currentIsLight ? '#cbd5e1' : '#4b5563'}
-          strokeWidth={isMajor ? '1.5' : '0.8'}
+          x1={50 + r1 * Math.cos(rad)}
+          y1={50 + r1 * Math.sin(rad)}
+          x2={50 + r2 * Math.cos(rad)}
+          y2={50 + r2 * Math.sin(rad)}
+          stroke={major ? '#64748b' : currentIsLight ? '#cbd5e1' : '#475569'}
+          strokeWidth={major ? 1.5 : 0.8}
         />
       );
     }
     return ticks;
   };
 
-  // Calculates target sector path data
   const getSectorPath = (angle: number, radius: number) => {
-    const startRad = -Math.PI / 2; // -90 deg (top point)
-    const endRad = (angle - 90) * Math.PI / 180;
-    
+    const startRad = Math.PI;
+    const endRad = (180 + angle) * Math.PI / 180;
     const x1 = 50 + radius * Math.cos(startRad);
     const y1 = 50 + radius * Math.sin(startRad);
     const x2 = 50 + radius * Math.cos(endRad);
     const y2 = 50 + radius * Math.sin(endRad);
-    
     const largeArc = angle > 180 ? 1 : 0;
-    
-    if (angle >= 360) {
-      return `M 50 50 m 0 -${radius} a ${radius} ${radius} 0 1 1 0 ${2*radius} a ${radius} ${radius} 0 1 1 0 -${2*radius}`;
-    }
     return `M 50 50 L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
   };
 
+  const angleType = getAngleType(targetAngle);
+  const estimateDiff = Math.abs(guessAngle - targetAngle);
+  const relationToRightAngle = targetAngle === 90 ? 'genau 90°' : targetAngle < 90 ? 'kleiner als 90°' : 'größer als 90°';
+
   return (
-    <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-y-auto overflow-x-hidden">
-      <div className="shrink-0 flex justify-between items-center mb-1">
-        <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
-            📐 Winkel-Detektiv
-          </span>
-          <span className="text-[7.5px] font-mono opacity-80">Geometrische Winkelmaße schätzen</span>
+    <div className="min-h-full w-full p-3 sm:p-4 flex flex-col gap-3 select-none overflow-visible">
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Winkel-Schwierigkeit">
+          {(['basic', 'mixed', 'precise'] as const).map((difficulty) => (
+            <button
+              key={difficulty}
+              type="button"
+              onClick={() => setLevel(difficulty)}
+              className={`min-h-11 px-3 rounded-lg border text-xs sm:text-sm font-bold ${
+                level === difficulty
+                  ? 'bg-accent text-accent-text border-accent'
+                  : 'border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-accent'
+              }`}
+            >
+              {difficulty === 'basic' ? 'Grundwinkel' : difficulty === 'mixed' ? 'Gemischt' : '10°-Schritte'}
+            </button>
+          ))}
         </div>
         <button
-          onClick={generateAngle}
-          className="px-2 py-0.5 rounded bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-[8px] cursor-pointer"
+          type="button"
+          onClick={() => generateAngle(level)}
+          className="min-h-11 px-3 rounded-xl border border-slate-300 dark:border-slate-700 font-bold text-sm hover:border-accent"
         >
-          Neu 📐
+          Neuer Winkel
         </button>
       </div>
 
-      <div className="flex-grow flex flex-col sm:flex-row items-center justify-around gap-2.5 py-1.5 min-h-0">
-        
-        {/* MUCH Larger Display Area */}
-        <div className="relative w-32 h-32 rounded-full border border-slate-300/80 dark:border-zinc-700/80 bg-slate-50/10 flex items-center justify-center overflow-hidden shadow-md transition-transform hover:scale-102">
-          {/* Circular Grid helper lines */}
-          <div className="absolute h-full w-0.5 bg-slate-300 dark:bg-zinc-800 opacity-20 left-1/2 top-0" />
-          <div className="absolute w-full h-0.5 bg-slate-300 dark:bg-zinc-800 opacity-20 left-0 top-1/2" />
-          <circle cx="50" cy="50" r="28" fill="none" stroke="#e2e8f0" className="dark:stroke-zinc-800" />
-          
-          <svg className="w-28 h-28" viewBox="0 0 100 100">
-            {/* Protractor Ticks */}
-            {renderProtractorTicks()}
-
-            {/* Target Angle sector path */}
-            <path
-              d={getSectorPath(targetAngle, 30)}
-              fill="rgba(59, 130, 246, 0.22)"
-              stroke="#3b82f6"
-              strokeWidth="2.5"
-            />
-            
-            {/* Target Angle base arm line */}
-            <line x1="50" y1="50" x2="50" y2="20" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" />
-
-            {/* Target Angle terminal arm line */}
-            <line 
-              x1="50" 
-              y1="50" 
-              x2={50 + 30 * Math.cos((targetAngle - 90) * Math.PI / 180)} 
-              y2={50 + 30 * Math.sin((targetAngle - 90) * Math.PI / 180)} 
-              stroke="#3b82f6" 
-              strokeWidth="2.5" 
-              strokeLinecap="round" 
-            />
-
-            {/* Revealed Guess sector path */}
-            {isRevealed && (
-              <>
-                <path
-                  d={getSectorPath(guessAngle, 25)}
-                  fill="rgba(244, 63, 94, 0.15)"
-                  stroke="#f43f5e"
-                  strokeWidth="1.5"
-                  strokeDasharray="2,2"
-                />
-                <line 
-                  x1="50" 
-                  y1="50" 
-                  x2={50 + 25 * Math.cos((guessAngle - 90) * Math.PI / 180)} 
-                  y2={50 + 25 * Math.sin((guessAngle - 90) * Math.PI / 180)} 
-                  stroke="#f43f5e" 
-                  strokeWidth="1.5" 
-                  strokeLinecap="round" 
-                />
-              </>
-            )}
-            
-            <circle cx="50" cy="50" r="4" fill="#6366f1" />
-          </svg>
-
-          {/* Quick Major Labels */}
-          <span className="absolute text-[6.5px] font-black text-slate-400 dark:text-zinc-600 top-2.5">0°/360°</span>
-          <span className="absolute text-[6.5px] font-black text-slate-400 dark:text-zinc-600 right-2">90°</span>
-          <span className="absolute text-[6.5px] font-black text-slate-400 dark:text-zinc-600 bottom-2.5">180°</span>
-          <span className="absolute text-[6.5px] font-black text-slate-400 dark:text-zinc-600 left-2">270°</span>
-        </div>
-
-        {/* Estimation control panel */}
-        <div className="flex flex-col gap-1.5 flex-1 max-w-[110px] w-full text-center">
-          <span className="text-[8px] font-extrabold uppercase tracking-widest text-slate-500">
-            Dein Tipp: <span className="text-indigo-500 font-black text-base leading-none">{guessAngle}°</span>
-          </span>
-          <input
-            type="range"
-            min="0"
-            max="360"
-            step="5"
-            value={guessAngle}
-            onChange={(e) => setGuessAngle(parseInt(e.target.value))}
-            className="w-full h-1 bg-indigo-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer h-1 rounded"
-          />
-          <button
-            onClick={isRevealed ? generateAngle : handleReveal}
-            className="w-full py-1.5 rounded bg-rose-500 hover:bg-rose-600 text-white font-black text-[8px] uppercase tracking-wider cursor-pointer active:scale-95 transition-all"
-          >
-            {isRevealed ? "Neu Starten 🔄" : "Auflösen 🔍"}
-          </button>
-        </div>
-
+      <div className="shrink-0 rounded-xl bg-accent-soft border border-accent/20 px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
+        Denk zuerst: Ist der Winkel kleiner, genau oder größer als 90°?
       </div>
 
-      <p className="shrink-0 text-[7px] font-extrabold text-blue-500 text-center truncate mt-1">{feedback}</p>
+      <div className="shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-bold">
+        {[
+          ['< 90°', 'spitz'],
+          ['90°', 'recht'],
+          ['90–180°', 'stumpf'],
+          ['180°', 'gestreckt'],
+        ].map(([rangeLabel, typeLabel]) => (
+          <div key={typeLabel} className="rounded-xl border border-slate-200 dark:border-slate-700 px-2 py-2 text-center bg-slate-50 dark:bg-slate-800">
+            <div className="text-slate-500 dark:text-slate-400">{rangeLabel}</div>
+            <div className="mt-0.5 text-slate-900 dark:text-slate-100">{typeLabel}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex-1 min-h-0 flex flex-col md:flex-row items-center justify-center gap-5">
+        <div className="relative w-64 h-36 sm:w-72 sm:h-40">
+          <svg className="w-full h-full" viewBox="0 0 100 55" role="img" aria-label="Winkel mit Halbkreis-Winkelmesser">
+            <path d="M 6 50 A 44 44 0 0 1 94 50" fill="none" stroke={currentIsLight ? '#cbd5e1' : '#475569'} strokeWidth="1.5" />
+            {renderProtractorTicks()}
+            <line x1="50" y1="50" x2="8" y2="50" stroke="#334155" strokeWidth="2.5" strokeLinecap="round" />
+            <line x1="50" y1="50" x2="50" y2="16" stroke="#94a3b8" strokeWidth="1.5" strokeDasharray="2 2" aria-label="90 Grad Referenz" />
+            <path d={getSectorPath(targetAngle, 30)} fill="rgba(59,130,246,0.18)" stroke="#3b82f6" strokeWidth="2" />
+            <line
+              x1="50"
+              y1="50"
+              x2={50 + 30 * Math.cos((180 + targetAngle) * Math.PI / 180)}
+              y2={50 + 30 * Math.sin((180 + targetAngle) * Math.PI / 180)}
+              stroke="#3b82f6"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            />
+            {isRevealed && (
+              <line
+                x1="50"
+                y1="50"
+                x2={50 + 27 * Math.cos((180 + guessAngle) * Math.PI / 180)}
+                y2={50 + 27 * Math.sin((180 + guessAngle) * Math.PI / 180)}
+                stroke="#f43f5e"
+                strokeWidth="2"
+                strokeDasharray="2 2"
+              />
+            )}
+            <circle cx="50" cy="50" r="2.8" fill="#334155" />
+            <text x="7" y="54" fontSize="5" fill="#64748b">0°</text>
+            <text x="47" y="7" fontSize="5" fill="#64748b">90°</text>
+            <text x="88" y="54" fontSize="5" fill="#64748b">180°</text>
+          </svg>
+        </div>
+
+        <div className="w-full max-w-sm flex flex-col gap-3">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3 text-center">
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Deine Schätzung</div>
+            <div className="mt-1 text-4xl font-black tabular-nums text-accent">{guessAngle}°</div>
+          </div>
+
+          <label className="text-xs font-bold text-slate-600 dark:text-slate-300">
+            Winkel einstellen
+            <input
+              type="range"
+              min="0"
+              max="180"
+              step={level === 'precise' ? 10 : 5}
+              value={guessAngle}
+              onChange={(event) => {
+                setGuessAngle(Number(event.target.value));
+                setIsRevealed(false);
+              }}
+              className="mt-2 w-full h-11 accent-accent cursor-pointer"
+              aria-label="Geschätzten Winkel einstellen"
+            />
+          </label>
+
+          <div className="grid grid-cols-4 gap-2">
+            {[45, 90, 135, 180].map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => {
+                  setGuessAngle(preset);
+                  setIsRevealed(false);
+                }}
+                className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-700 font-bold text-sm hover:border-accent"
+              >
+                {preset}°
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={isRevealed ? () => generateAngle(level) : handleReveal}
+            className="min-h-11 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-black text-sm"
+          >
+            {isRevealed ? 'Nächster Winkel' : 'Schätzung prüfen'}
+          </button>
+        </div>
+      </div>
+
+      {isRevealed && (
+        <div className="shrink-0 grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className="rounded-xl border border-accent/30 bg-accent-soft px-3 py-2 text-center">
+            <div className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Lösung</div>
+            <div className="text-lg font-black text-slate-900 dark:text-slate-100">{targetAngle}°</div>
+          </div>
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-center bg-slate-50 dark:bg-slate-800">
+            <div className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Winkelart</div>
+            <div className="text-sm font-black text-slate-900 dark:text-slate-100">{angleType}</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400">{relationToRightAngle}</div>
+          </div>
+          <div className={`rounded-xl border px-3 py-2 text-center ${
+            estimateDiff <= 5
+              ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800'
+              : estimateDiff <= 15
+                ? 'bg-amber-50 border-amber-200 dark:bg-amber-950/40 dark:border-amber-800'
+                : 'bg-rose-50 border-rose-200 dark:bg-rose-950/40 dark:border-rose-800'
+          }`}>
+            <div className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Abweichung</div>
+            <div className="text-lg font-black tabular-nums">{estimateDiff}°</div>
+          </div>
+        </div>
+      )}
+
+      <p
+        aria-live="polite"
+        className="shrink-0 min-h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 flex items-center justify-center text-center text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300"
+      >
+        {feedback}
+      </p>
     </div>
   );
 };
