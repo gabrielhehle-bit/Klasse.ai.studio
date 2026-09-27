@@ -14574,6 +14574,211 @@ export const EstimationjarWidgetContent: React.FC<{ widget: any, currentIsLight:
 };
 
 
+export const AngledetectiveWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+  const [targetAngle, setTargetAngle] = useState<number>(90);
+  const [guessAngle, setGuessAngle] = useState<number>(180);
+  const [isRevealed, setIsRevealed] = useState<boolean>(false);
+  const [feedback, setFeedback] = useState<string>("Bewege den Schieberegler auf den gezeigten Winkel! 📐");
+
+  const generateAngle = () => {
+    const angles = [30, 45, 60, 90, 120, 135, 150, 180, 225, 270, 315];
+    const picked = angles[Math.floor(Math.random() * angles.length)];
+    setTargetAngle(picked);
+    setGuessAngle(180);
+    setIsRevealed(false);
+    setFeedback("📐 Welcher Winkel wird im Scheinwerfer gezeigt?");
+  };
+
+  const handleReveal = () => {
+    setIsRevealed(true);
+    const diff = Math.abs(guessAngle - targetAngle);
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      if (diff <= 5) {
+        setFeedback(`🎉 Perfekt! (${targetAngle}° / Tipp: ${guessAngle}°) Volltreffer!`);
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+      } else {
+        setFeedback(`Ziel war ${targetAngle}°. Dein Tipp: ${guessAngle}° (Abweichung: ${diff}°)`);
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.setValueAtTime(300, ctx.currentTime);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.25);
+      }
+    } catch {}
+  };
+
+  // Generate ticks for a professional protractor feel
+  const renderProtractorTicks = () => {
+    const ticks = [];
+    for (let angle = 0; angle < 360; angle += 15) {
+      const rad = (angle - 90) * Math.PI / 180;
+      const isMajor = angle % 90 === 0;
+      const r1 = isMajor ? 32 : 37;
+      const r2 = 42;
+      const x1 = 50 + r1 * Math.cos(rad);
+      const y1 = 50 + r1 * Math.sin(rad);
+      const x2 = 50 + r2 * Math.cos(rad);
+      const y2 = 50 + r2 * Math.sin(rad);
+      ticks.push(
+        <line
+          key={angle}
+          x1={x1}
+          y1={y1}
+          x2={x2}
+          y2={y2}
+          stroke={isMajor ? '#6366f1' : currentIsLight ? '#cbd5e1' : '#4b5563'}
+          strokeWidth={isMajor ? '1.5' : '0.8'}
+        />
+      );
+    }
+    return ticks;
+  };
+
+  // Calculates target sector path data
+  const getSectorPath = (angle: number, radius: number) => {
+    const startRad = -Math.PI / 2; // -90 deg (top point)
+    const endRad = (angle - 90) * Math.PI / 180;
+    
+    const x1 = 50 + radius * Math.cos(startRad);
+    const y1 = 50 + radius * Math.sin(startRad);
+    const x2 = 50 + radius * Math.cos(endRad);
+    const y2 = 50 + radius * Math.sin(endRad);
+    
+    const largeArc = angle > 180 ? 1 : 0;
+    
+    if (angle >= 360) {
+      return `M 50 50 m 0 -${radius} a ${radius} ${radius} 0 1 1 0 ${2*radius} a ${radius} ${radius} 0 1 1 0 -${2*radius}`;
+    }
+    return `M 50 50 L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+  };
+
+  return (
+    <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-y-auto overflow-x-hidden">
+      <div className="shrink-0 flex justify-between items-center mb-1">
+        <div className="flex flex-col">
+          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
+            📐 Winkel-Detektiv
+          </span>
+          <span className="text-[7.5px] font-mono opacity-80">Geometrische Winkelmaße schätzen</span>
+        </div>
+        <button
+          onClick={generateAngle}
+          className="px-2 py-0.5 rounded bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-[8px] cursor-pointer"
+        >
+          Neu 📐
+        </button>
+      </div>
+
+      <div className="flex-grow flex flex-col sm:flex-row items-center justify-around gap-2.5 py-1.5 min-h-0">
+        
+        {/* MUCH Larger Display Area */}
+        <div className="relative w-32 h-32 rounded-full border border-slate-300/80 dark:border-zinc-700/80 bg-slate-50/10 flex items-center justify-center overflow-hidden shadow-md transition-transform hover:scale-102">
+          {/* Circular Grid helper lines */}
+          <div className="absolute h-full w-0.5 bg-slate-300 dark:bg-zinc-800 opacity-20 left-1/2 top-0" />
+          <div className="absolute w-full h-0.5 bg-slate-300 dark:bg-zinc-800 opacity-20 left-0 top-1/2" />
+          <circle cx="50" cy="50" r="28" fill="none" stroke="#e2e8f0" className="dark:stroke-zinc-800" />
+          
+          <svg className="w-28 h-28" viewBox="0 0 100 100">
+            {/* Protractor Ticks */}
+            {renderProtractorTicks()}
+
+            {/* Target Angle sector path */}
+            <path
+              d={getSectorPath(targetAngle, 30)}
+              fill="rgba(59, 130, 246, 0.22)"
+              stroke="#3b82f6"
+              strokeWidth="2.5"
+            />
+            
+            {/* Target Angle base arm line */}
+            <line x1="50" y1="50" x2="50" y2="20" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" />
+
+            {/* Target Angle terminal arm line */}
+            <line 
+              x1="50" 
+              y1="50" 
+              x2={50 + 30 * Math.cos((targetAngle - 90) * Math.PI / 180)} 
+              y2={50 + 30 * Math.sin((targetAngle - 90) * Math.PI / 180)} 
+              stroke="#3b82f6" 
+              strokeWidth="2.5" 
+              strokeLinecap="round" 
+            />
+
+            {/* Revealed Guess sector path */}
+            {isRevealed && (
+              <>
+                <path
+                  d={getSectorPath(guessAngle, 25)}
+                  fill="rgba(244, 63, 94, 0.15)"
+                  stroke="#f43f5e"
+                  strokeWidth="1.5"
+                  strokeDasharray="2,2"
+                />
+                <line 
+                  x1="50" 
+                  y1="50" 
+                  x2={50 + 25 * Math.cos((guessAngle - 90) * Math.PI / 180)} 
+                  y2={50 + 25 * Math.sin((guessAngle - 90) * Math.PI / 180)} 
+                  stroke="#f43f5e" 
+                  strokeWidth="1.5" 
+                  strokeLinecap="round" 
+                />
+              </>
+            )}
+            
+            <circle cx="50" cy="50" r="4" fill="#6366f1" />
+          </svg>
+
+          {/* Quick Major Labels */}
+          <span className="absolute text-[6.5px] font-black text-slate-400 dark:text-zinc-600 top-2.5">0°/360°</span>
+          <span className="absolute text-[6.5px] font-black text-slate-400 dark:text-zinc-600 right-2">90°</span>
+          <span className="absolute text-[6.5px] font-black text-slate-400 dark:text-zinc-600 bottom-2.5">180°</span>
+          <span className="absolute text-[6.5px] font-black text-slate-400 dark:text-zinc-600 left-2">270°</span>
+        </div>
+
+        {/* Estimation control panel */}
+        <div className="flex flex-col gap-1.5 flex-1 max-w-[110px] w-full text-center">
+          <span className="text-[8px] font-extrabold uppercase tracking-widest text-slate-500">
+            Dein Tipp: <span className="text-indigo-500 font-black text-base leading-none">{guessAngle}°</span>
+          </span>
+          <input
+            type="range"
+            min="0"
+            max="360"
+            step="5"
+            value={guessAngle}
+            onChange={(e) => setGuessAngle(parseInt(e.target.value))}
+            className="w-full h-1 bg-indigo-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer h-1 rounded"
+          />
+          <button
+            onClick={isRevealed ? generateAngle : handleReveal}
+            className="w-full py-1.5 rounded bg-rose-500 hover:bg-rose-600 text-white font-black text-[8px] uppercase tracking-wider cursor-pointer active:scale-95 transition-all"
+          >
+            {isRevealed ? "Neu Starten 🔄" : "Auflösen 🔍"}
+          </button>
+        </div>
+
+      </div>
+
+      <p className="shrink-0 text-[7px] font-extrabold text-blue-500 text-center truncate mt-1">{feedback}</p>
+    </div>
+  );
+};
+
+
 // ========================================================
 // 15. WIDGET: REIM-MASCHINE (RhymemachineWidgetContent)
 // ========================================================
