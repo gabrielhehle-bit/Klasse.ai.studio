@@ -14622,108 +14622,117 @@ export const EstimationjarWidgetContent: React.FC<{ widget: any, currentIsLight:
 // ========================================================
 export const ReflexgameWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
   const [gameState, setGameState] = useState<'idle' | 'waiting' | 'trigger' | 'done'>('idle');
-  const [countdown, setCountdown] = useState<number>(3);
   const [triggerTime, setTriggerTime] = useState<number>(0);
   const [leftScore, setLeftScore] = useState<number | null>(null);
   const [rightScore, setRightScore] = useState<number | null>(null);
   const [winnerMessage, setWinnerMessage] = useState<string>("Bist du schneller?");
+  const triggerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearTriggerTimer = useCallback(() => {
+    if (triggerTimerRef.current) {
+      clearTimeout(triggerTimerRef.current);
+      triggerTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => clearTriggerTimer(), [clearTriggerTimer]);
 
   const triggerReaction = () => {
+    clearTriggerTimer();
     setGameState('waiting');
     setLeftScore(null);
     setRightScore(null);
-    setWinnerMessage("Konzentration... Bereit halten!");
+    setWinnerMessage("Konzentration … wartet auf das Signal!");
 
-    // Wait random delay between 2 and 5 seconds
     const delay = Math.floor(Math.random() * 3000) + 2000;
-    setTimeout(() => {
+    triggerTimerRef.current = setTimeout(() => {
+      triggerTimerRef.current = null;
       setGameState('trigger');
-      setTriggerTime(Date.now());
+      setTriggerTime(performance.now());
+      setWinnerMessage("💥 JETZT DRÜCKEN! 💥");
     }, delay);
   };
 
   const handleTap = (side: 'left' | 'right') => {
-    if (gameState !== 'trigger') {
-      // tapped too early!
-      setWinnerMessage(side === 'left' ? "🔴 Links zu früh gedrückt! Fehlstart!" : "🔵 Rechts zu früh gedrückt! Fehlstart!");
+    if (gameState === 'waiting') {
+      clearTriggerTimer();
+      setWinnerMessage(side === 'left' ? "🔴 Links: Fehlstart!" : "🔵 Rechts: Fehlstart!");
       setGameState('idle');
       return;
     }
 
-    const elapsed = Date.now() - triggerTime;
+    if (gameState !== 'trigger') return;
+
+    const elapsed = Math.max(0, Math.round(performance.now() - triggerTime));
     if (side === 'left') {
       setLeftScore(elapsed);
-      if (rightScore === null) {
-        setWinnerMessage(`🏆 Team LINKS gewinnt! (${elapsed} ms)`);
-      } else {
-        setWinnerMessage(`Links: ${elapsed}ms | Rechts: ${rightScore}ms`);
-      }
+      setWinnerMessage(`🏆 Team LINKS gewinnt! (${elapsed} ms)`);
     } else {
       setRightScore(elapsed);
-      if (leftScore === null) {
-        setWinnerMessage(`🏆 Team RECHTS gewinnt! (${elapsed} ms)`);
-      } else {
-        setWinnerMessage(`Links: ${leftScore}ms | Rechts: ${elapsed}ms`);
-      }
+      setWinnerMessage(`🏆 Team RECHTS gewinnt! (${elapsed} ms)`);
     }
     setGameState('done');
   };
 
+  const waiting = gameState === 'waiting';
+  const ready = gameState === 'trigger';
+
   return (
-    <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-y-auto overflow-x-hidden">
-      <div className="shrink-0 flex justify-between items-center mb-1">
-        <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
-            ⚡ Blitz-Reaktion
-          </span>
-          <span className="text-[7.5px] font-mono opacity-80">Reaktionszeit-Duell auf Zeit</span>
-        </div>
+    <div className="flex flex-col h-full w-full p-2.5 select-none min-h-0 overflow-hidden gap-2">
+      <div className="shrink-0 flex flex-wrap justify-between items-center gap-2">
+        <span className="text-[10px] font-mono font-bold opacity-70">
+          Reaktionszeit-Duell · links A · rechts L
+        </span>
         <button
           onClick={triggerReaction}
-          className="px-2 py-0.5 rounded bg-indigo-500 text-white font-bold text-[8px]"
+          disabled={waiting}
+          className="min-h-11 px-3 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-black text-[10px] uppercase tracking-wide transition-all active:scale-95 disabled:opacity-60 disabled:cursor-wait"
         >
-          Start Duell ⏱️
+          {waiting ? "Warten …" : gameState === 'done' ? "Nochmal" : "Start Duell ⏱️"}
         </button>
       </div>
 
-      <div className="flex-grow flex flex-row gap-2 items-stretch min-h-0 py-1">
-        {/* Left Side (Red team) */}
+      <div className="flex-grow grid grid-cols-2 gap-2 min-h-0">
         <button
+          type="button"
           onClick={() => handleTap('left')}
-          className={`flex-1 rounded-2xl border-2 flex flex-col justify-center items-center cursor-pointer transition-all active:scale-95 ${
-            gameState === 'trigger' 
-              ? 'bg-rose-500 border-rose-600 text-white animate-pulse' 
-              : currentIsLight 
-                ? 'bg-slate-50 border-slate-200 text-slate-800' 
-                : 'bg-zinc-800 border-zinc-700 text-neutral-200'
-          }`}
+          aria-label="Team Links drücken"
+          className={`min-h-11 rounded-2xl border-2 flex flex-col justify-center items-center cursor-pointer transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${ready
+            ? 'bg-rose-500 border-rose-600 text-white animate-pulse'
+            : currentIsLight
+              ? 'bg-slate-50 border-slate-200 text-slate-800'
+              : 'bg-zinc-800 border-zinc-700 text-neutral-200'}`}
         >
-          <span className="text-[8px] uppercase tracking-widest block opacity-70">Team Rot</span>
-          <span className="text-xs font-black">LINKS ('A')</span>
-          {leftScore !== null && <span className="text-xs font-mono mt-1 font-black">{leftScore} ms</span>}
+          <span className="text-[10px] uppercase tracking-widest block opacity-70">Team Rot</span>
+          <span className="text-sm font-black">LINKS · A</span>
+          {leftScore !== null && <span className="text-sm font-mono mt-1 font-black">{leftScore} ms</span>}
         </button>
 
-        {/* Right Side (Blue team) */}
         <button
+          type="button"
           onClick={() => handleTap('right')}
-          className={`flex-1 rounded-2xl border-2 flex flex-col justify-center items-center cursor-pointer transition-all active:scale-95 ${
-            gameState === 'trigger' 
-              ? 'bg-cyan-500 border-cyan-600 text-white animate-pulse' 
-              : currentIsLight 
-                ? 'bg-slate-50 border-slate-200 text-slate-800' 
-                : 'bg-zinc-800 border-zinc-700 text-neutral-200'
-          }`}
+          aria-label="Team Rechts drücken"
+          className={`min-h-11 rounded-2xl border-2 flex flex-col justify-center items-center cursor-pointer transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${ready
+            ? 'bg-cyan-500 border-cyan-600 text-white animate-pulse'
+            : currentIsLight
+              ? 'bg-slate-50 border-slate-200 text-slate-800'
+              : 'bg-zinc-800 border-zinc-700 text-neutral-200'}`}
         >
-          <span className="text-[8px] uppercase tracking-widest block opacity-70">Team Blau</span>
-          <span className="text-xs font-black">RECHTS ('L')</span>
-          {rightScore !== null && <span className="text-xs font-mono mt-1 font-black">{rightScore} ms</span>}
+          <span className="text-[10px] uppercase tracking-widest block opacity-70">Team Blau</span>
+          <span className="text-sm font-black">RECHTS · L</span>
+          {rightScore !== null && <span className="text-sm font-mono mt-1 font-black">{rightScore} ms</span>}
         </button>
       </div>
 
-      <div className="shrink-0 text-center mt-1">
-        <p className={`text-[9px] font-extrabold ${gameState === 'trigger' ? 'text-emerald-500 text-base scale-110 animate-bounce' : 'text-blue-500'}`}>
-          {gameState === 'trigger' ? "💥 JETZT DRÜCKEN!!!! 💥" : winnerMessage}
-        </p>
+      <div
+        className={`shrink-0 min-h-11 rounded-xl px-3 flex items-center justify-center text-center font-extrabold ${ready
+          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-base animate-pulse'
+          : waiting
+            ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[11px]'
+            : 'bg-slate-100/70 dark:bg-white/5 text-slate-600 dark:text-slate-300 text-[11px]'}`}
+        aria-live="polite"
+      >
+        {winnerMessage}
       </div>
     </div>
   );
