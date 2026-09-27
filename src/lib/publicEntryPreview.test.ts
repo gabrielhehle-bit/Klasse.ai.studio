@@ -66,3 +66,14 @@ test('Startseiten-Metadaten sind deutsch und für Teilen aktualisiert', () => {
   assert.match(indexSource, /property="og:url" content="https:\/\/klassio\.at\/"/);
   assert.match(indexSource, /rel="canonical" href="https:\/\/klassio\.at\/"/);
 });
+
+
+test('Öffentliche Startseite ist für kleine Displays abgesichert', () => {
+  const previewSource = readFileSync('src/components/PublicWelcome.tsx', 'utf8');
+
+  assert.match(previewSource, /overflow-x-hidden/);
+  assert.match(previewSource, /clamp\(2\.35rem,11vw,3\.25rem\)/);
+  assert.match(previewSource, /scroll-mt-20/);
+  assert.match(previewSource, /scrollbar-width:none/);
+  assert.match(previewSource, /aria-pressed=\{tab === id\}/);
+});
