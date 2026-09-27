@@ -17610,8 +17610,20 @@ export const ClockpuzzleWidgetContent: React.FC<{ widget: any, currentIsLight: b
     setSelectedChoice(choice);
     setChecked(true);
     const correct = choice === formatTime(targetClock);
-    setFeedback(correct ? 'Richtig – du hast die Uhr korrekt abgelesen.' : 'Noch nicht. Vergleiche zuerst den Minutenzeiger, dann den Stundenzeiger.');
-    playDing(correct);
+    if (correct) {
+      setFeedback('Richtig – du hast die Uhr korrekt abgelesen.');
+      playDing(true);
+      return;
+    }
+    const [choiceHour, choiceMinute] = choice.split(':').map(Number);
+    if (choiceMinute !== targetClock.m) {
+      setFeedback('Der Minutenzeiger passt noch nicht. Schau zuerst auf den langen orangefarbenen Zeiger.');
+    } else if (choiceHour !== targetClock.h) {
+      setFeedback('Die Minuten stimmen. Prüfe jetzt den kurzen dunklen Stundenzeiger.');
+    } else {
+      setFeedback('Schau beide Zeiger noch einmal genau an.');
+    }
+    playDing(false);
   };
 
   const changeStudentHour = (delta: number) => {
@@ -17689,10 +17701,22 @@ export const ClockpuzzleWidgetContent: React.FC<{ widget: any, currentIsLight: b
         </div>
       </div>
 
-      <div className="shrink-0 rounded-xl bg-accent-soft border border-accent/20 px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
-        {mode === 'read'
-          ? 'Merke: Der lange Zeiger zeigt die Minuten, der kurze Zeiger die Stunden.'
-          : `Ziel: ${formatTime(targetClock)} Uhr`}
+      <div className="shrink-0 flex flex-col gap-2">
+        <div className="rounded-xl bg-accent-soft border border-accent/20 px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
+          {mode === 'read'
+            ? 'Merke: Der lange Zeiger zeigt die Minuten, der kurze Zeiger die Stunden.'
+            : `Ziel: ${formatTime(targetClock)} Uhr`}
+        </div>
+        <div className="flex flex-wrap justify-center gap-3 text-xs font-bold text-slate-600 dark:text-slate-300" aria-label="Zeiger-Legende">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-1 w-6 rounded bg-orange-600" />
+            Minutenzeiger
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-1.5 w-5 rounded bg-slate-800 dark:bg-slate-200" />
+            Stundenzeiger
+          </span>
+        </div>
       </div>
 
       <div className="flex-1 min-h-0 flex flex-col md:flex-row items-center justify-center gap-5 sm:gap-7 py-2">
@@ -17768,10 +17792,10 @@ export const ClockpuzzleWidgetContent: React.FC<{ widget: any, currentIsLight: b
               <div className="mt-1 text-3xl font-black tabular-nums text-accent">{formatTime(studentClock)}</div>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <button type="button" onClick={() => changeStudentHour(-1)} className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-700 font-bold hover:border-accent">− Stunde</button>
-              <button type="button" onClick={() => changeStudentHour(1)} className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-700 font-bold hover:border-accent">+ Stunde</button>
-              <button type="button" onClick={() => changeStudentMinute(-1)} className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-700 font-bold hover:border-accent">− Minuten</button>
-              <button type="button" onClick={() => changeStudentMinute(1)} className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-700 font-bold hover:border-accent">+ Minuten</button>
+              <button type="button" onClick={() => changeStudentHour(-1)} className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-700 font-bold hover:border-accent" aria-label="Stundenzeiger zurück">− Stunde</button>
+              <button type="button" onClick={() => changeStudentHour(1)} className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-700 font-bold hover:border-accent" aria-label="Stundenzeiger vor">+ Stunde</button>
+              <button type="button" onClick={() => changeStudentMinute(-1)} className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-700 font-bold hover:border-accent" aria-label="Minutenzeiger zurück">− Minuten</button>
+              <button type="button" onClick={() => changeStudentMinute(1)} className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-700 font-bold hover:border-accent" aria-label="Minutenzeiger vor">+ Minuten</button>
             </div>
             <button type="button" onClick={checkSetAnswer} className="min-h-11 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-black">
               Uhr prüfen
