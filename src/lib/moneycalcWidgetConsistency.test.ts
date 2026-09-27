@@ -50,3 +50,22 @@ test('Taschengeld-Zähler besitzt keine eigene vertikale Scrollfläche oder dopp
   assert.match(widget, /min-h-full w-full/);
   assert.match(widget, /overflow-visible/);
 });
+
+
+test('Taschengeld-Zähler zeigt Zielrelation und verständlichen Lernfortschritt', () => {
+  assert.match(widget, /const targetProgress =/);
+  assert.match(widget, /Fortschritt zum Zielbetrag/);
+  assert.match(widget, /Noch \$\{formatEuro\(difference\)\} €/);
+  assert.match(widget, /Ziel erreicht/);
+  assert.match(widget, /bg-rose-500/);
+  assert.match(widget, /bg-emerald-500/);
+});
+
+test('Taschengeld-Zähler benennt Geldstücke eindeutig und vermeidet irreführende Zählaufgabe', () => {
+  assert.match(widget, /Geldbörse/);
+  assert.match(widget, /Lege Geld hinein/);
+  assert.doesNotMatch(widget, /Wie viel Geld ist es\?/);
+  assert.match(widget, /aria-label=\{\`\$\{bill\.label\} hinzufügen\`\}/);
+  assert.match(widget, /aria-label=\{\`\$\{coin\.label\} hinzufügen\`\}/);
+  assert.match(widget, />Schein<\/span>/);
+});
