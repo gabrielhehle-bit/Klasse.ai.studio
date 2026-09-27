@@ -413,8 +413,8 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
       }`}
     >
       {/* Einstellungen kommen ausschließlich über das gemeinsame Zahnrad im Widget-Rahmen. */}
-      {showSettings && <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200 dark:border-slate-800 shrink-0">
-        <div role="group" aria-label="Bruchdarstellung einstellen" className="flex flex-wrap items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+      {showSettings && <div role="group" aria-label="Bruchdarstellung einstellen" className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200 dark:border-slate-800 shrink-0">
+        <div className="flex flex-wrap items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
           <button
             type="button"
             onClick={() => setMode('circle')}
