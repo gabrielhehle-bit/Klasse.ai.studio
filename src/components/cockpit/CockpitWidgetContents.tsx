@@ -14335,327 +14335,281 @@ export const CalmrainWidgetContent: React.FC<CalmSoundsWidgetProps> = (props) =>
 // 9. WIDGET: SCHÄTZ-GLAS (EstimationjarWidgetContent)
 // ========================================================
 export const EstimationjarWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const { app } = useApp();
   const [contentType, setContentType] = useState<'beads' | 'marbles' | 'stars' | 'cookies' | 'gummybears' | 'coins'>('beads');
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
-  
-  const [jarCount, setJarCount] = useState<number>(() => Math.floor(Math.random() * 30) + 15);
-  const [userGuess, setUserGuess] = useState<number>(25);
+  const [jarCount, setJarCount] = useState<number>(36);
+  const [userGuess, setUserGuess] = useState<number>(35);
   const [revealed, setRevealed] = useState<boolean>(false);
-  const [feedback, setFeedback] = useState<string>("Wie viele Perlen sind im Glas?");
+  const [feedback, setFeedback] = useState<string>('Schätze die Menge, ohne jedes Stück einzeln zu zählen.');
 
-  const petState = app?.classPet || { animalType: "dino", name: "Spike" };
-  const petBreed = PET_BREEDS.find(b => b.id === petState.animalType) || PET_BREEDS[0];
-  const petEmoji = petBreed ? petBreed.emoji : "🦕";
-  const petName = petState.name || petBreed?.nameDefault || "Spike";
+  const contentMeta = {
+    beads: { singular: 'Perle', plural: 'Perlen', emoji: '🔴' },
+    marbles: { singular: 'Murmel', plural: 'Murmeln', emoji: '🔮' },
+    stars: { singular: 'Stern', plural: 'Sterne', emoji: '⭐' },
+    cookies: { singular: 'Keks', plural: 'Kekse', emoji: '🍪' },
+    gummybears: { singular: 'Gummibärchen', plural: 'Gummibärchen', emoji: '🧸' },
+    coins: { singular: 'Münze', plural: 'Münzen', emoji: '🪙' },
+  } as const;
 
-  const maxVal = difficulty === 'easy' ? 25 : difficulty === 'medium' ? 55 : 115;
+  const ranges = {
+    easy: { min: 10, max: 25, step: 1 },
+    medium: { min: 25, max: 60, step: 5 },
+    hard: { min: 60, max: 120, step: 5 },
+  } as const;
 
-  const playSimpleSound = (type: 'tada' | 'bell' | 'beep') => {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    
-    if (type === 'tada') {
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(523.25, now);
-      osc.frequency.setValueAtTime(659.25, now + 0.1);
-      osc.frequency.setValueAtTime(783.99, now + 0.2);
-      osc.frequency.setValueAtTime(1046.5, now + 0.3);
-      gain.gain.setValueAtTime(0.15, now);
-      gain.gain.linearRampToValueAtTime(0.15, now + 0.5);
-      gain.gain.linearRampToValueAtTime(0, now + 0.8);
-      osc.start(now);
-      osc.stop(now + 0.8);
-    } else if (type === 'bell') {
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(880, now);
-      osc.frequency.exponentialRampToValueAtTime(440, now + 0.4);
-      gain.gain.setValueAtTime(0.15, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-      osc.start(now);
-      osc.stop(now + 0.4);
-    } else {
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(600, now);
-      gain.gain.setValueAtTime(0.1, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-      osc.start(now);
-      osc.stop(now + 0.15);
-    }
-  };
+  const activeRange = ranges[difficulty];
+  const activeContent = contentMeta[contentType];
 
-  const getContentLabel = (plural: boolean = true) => {
-    switch (contentType) {
-      case 'beads': return plural ? 'Perlen' : 'Perle';
-      case 'marbles': return plural ? 'Murmeln' : 'Murmel';
-      case 'stars': return plural ? 'Sterne' : 'Stern';
-      case 'cookies': return plural ? 'Kekse' : 'Keks';
-      case 'gummybears': return plural ? 'Gummibärchen' : 'Gummibärchen';
-      case 'coins': return plural ? 'Goldmünzen' : 'Goldmünze';
-    }
-  };
-
-  const regenerateJar = () => {
-    const min = difficulty === 'easy' ? 10 : difficulty === 'medium' ? 25 : 55;
-    const max = difficulty === 'easy' ? 25 : difficulty === 'medium' ? 55 : 115;
-    const count = Math.floor(Math.random() * (max - min)) + min;
+  const regenerateJar = useCallback((nextDifficulty: 'easy' | 'medium' | 'hard' = difficulty) => {
+    const range = ranges[nextDifficulty];
+    const count = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
+    const roundedGuess = Math.round(count / range.step) * range.step;
     setJarCount(count);
+    setUserGuess(Math.max(range.min, Math.min(range.max, roundedGuess)));
     setRevealed(false);
-    setFeedback(`Wie viele ${getContentLabel()} sind im Glas?`);
-  };
+    setFeedback(`Schätze: Wie viele ${contentMeta[contentType].plural} sind im Glas?`);
+  }, [difficulty, contentType]);
+
+  useEffect(() => {
+    regenerateJar(difficulty);
+  }, [difficulty, contentType, regenerateJar]);
 
   const handleValidation = () => {
     setRevealed(true);
     const diff = Math.abs(userGuess - jarCount);
+    const tolerance = difficulty === 'easy' ? 2 : difficulty === 'medium' ? 5 : 10;
     if (diff === 0) {
-      if (contentType === 'cookies') {
-        setFeedback(`🏆 Perfekt! ${petName} freut sich riesig über alle ${jarCount} Kekse! 🍪`);
-      } else {
-        setFeedback(`🏆 Absolut perfekt geschätzt! Exakt ${jarCount} ${getContentLabel()}!`);
-      }
-      playSimpleSound('tada');
-    } else if (diff <= 3) {
-      setFeedback(`✨ Tolles Auge! Es sind ${jarCount} ${getContentLabel()} (Nur ${diff} daneben!)`);
-      playSimpleSound('bell');
+      setFeedback(`Exakt getroffen: ${jarCount} ${activeContent.plural}.`);
+    } else if (diff <= tolerance) {
+      setFeedback(`Sehr gut geschätzt: ${jarCount} ${activeContent.plural}, nur ${diff} daneben.`);
     } else {
-      setFeedback(`🔍 Fast! Es sind genau ${jarCount} ${getContentLabel()}. Probier es nochmal!`);
-      playSimpleSound('beep');
+      setFeedback(`Es sind ${jarCount} ${activeContent.plural}. Deine Schätzung lag ${diff} daneben.`);
     }
   };
 
-  // Stacked coordinate generator mapping to create layered 3D looking beads
-  const beadsCoords = useMemo(() => {
-    const list = [];
-    const colors = [
-      'radial-gradient(circle at 35% 35%, #f43f5e, #be123c)', // rose
-      'radial-gradient(circle at 35% 35%, #3b82f6, #1d4ed8)', // blue
-      'radial-gradient(circle at 35% 35%, #10b981, #047857)', // emerald
-      'radial-gradient(circle at 35% 35%, #f59e0b, #b45309)', // amber
-      'radial-gradient(circle at 35% 35%, #8b5cf6, #6d28d9)', // violet
-      'radial-gradient(circle at 35% 35%, #ec4899, #be185d)', // pink
-      'radial-gradient(circle at 35% 35%, #06b6d4, #0891b2)', // cyan
-    ];
-    
-    // Support up to 150 items stacked organically
-    for (let i = 0; i < 150; i++) {
-      const rowCapacity = 6;
-      const layer = Math.floor(i / rowCapacity);
-      const pos = i % rowCapacity;
-      const rowWidth = 66; // total width inside glass
-      const spacing = rowWidth / (rowCapacity - 1);
-      
-      const xNoise = Math.sin(i * 1.7) * 2.5;
-      const yNoise = Math.cos(i * 2.3) * 1.2;
-      
-      // Narrowing towards the top cork of the jar
-      let xOffset = 0;
-      if (layer === 0) xOffset = 2;
-      if (layer > 14) xOffset = (layer - 14) * 1.6;
-      
-      const x = 16 + (pos * spacing) + (layer % 2 === 0 ? 1.5 : -1.5) + xNoise + xOffset;
-      const y = 6 + (layer * 3.7) + yNoise;
-      const color = colors[i % colors.length];
-      list.push({ x, y, color });
+  const itemCoords = useMemo(() => {
+    const list: Array<{ x: number; y: number; scale: number; color: string }> = [];
+    const colors = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
+    for (let i = 0; i < 120; i += 1) {
+      const cols = 8;
+      const row = Math.floor(i / cols);
+      const col = i % cols;
+      const x = 12 + col * 10.6 + (row % 2 ? 4 : 0);
+      const y = 8 + row * 5.8;
+      list.push({
+        x,
+        y,
+        scale: 0.86 + ((i * 7) % 8) / 50,
+        color: colors[i % colors.length],
+      });
     }
     return list;
   }, []);
 
+  const clusterMarks = useMemo(() => {
+    if (difficulty === 'easy') return [5, 10, 15, 20, 25];
+    if (difficulty === 'medium') return [10, 20, 30, 40, 50, 60];
+    return [20, 40, 60, 80, 100, 120];
+  }, [difficulty]);
+
+  const setGuess = (value: number) => {
+    setUserGuess(Math.max(activeRange.min, Math.min(activeRange.max, value)));
+    setRevealed(false);
+  };
+
+  const guessDifference = userGuess - jarCount;
+  const nearestTen = Math.round(jarCount / 10) * 10;
+  const reflectionText = guessDifference === 0
+    ? 'Deine Schätzung war exakt.'
+    : guessDifference > 0
+      ? `Du hast um ${guessDifference} zu hoch geschätzt.`
+      : `Du hast um ${Math.abs(guessDifference)} zu niedrig geschätzt.`;
+
+  const renderItem = (index: number) => {
+    const coord = itemCoords[index];
+    if (contentType === 'beads') {
+      return <div className="w-full h-full rounded-full shadow-sm" style={{ backgroundColor: coord.color }} />;
+    }
+    if (contentType === 'marbles') {
+      return <div className="w-full h-full rounded-full border border-white/50 shadow-sm" style={{ background: `radial-gradient(circle at 30% 30%, white, ${coord.color})` }} />;
+    }
+    return <span className="leading-none">{activeContent.emoji}</span>;
+  };
+
   return (
-    <div className="flex flex-col h-full w-full p-2 justify-between select-none min-h-0 pointer-events-auto">
-      {/* Top bar with content and difficulty controllers */}
-      <div className="shrink-0 flex justify-between items-center mb-1 gap-1 flex-wrap">
-        <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
-            🫙 Schätz-Glas
-          </span>
-          <span className="text-[7px] font-mono opacity-80 leading-none">Visuelle Mengenerfassung</span>
-        </div>
-        
-        <div className="flex gap-1 items-center">
-          {/* Content Selector Dropdown */}
-          <select
-            value={contentType}
-            onChange={(e) => {
-              const val = e.target.value as any;
-              setContentType(val);
-              setFeedback(`Wie viele ${val === 'beads' ? 'Perlen' : val === 'marbles' ? 'Murmeln' : val === 'stars' ? 'Sterne' : val === 'cookies' ? 'Kekse' : val === 'gummybears' ? 'Gummibärchen' : 'Goldmünzen'} sind im Glas?`);
-            }}
-            className={`px-1 py-0.5 rounded text-[8px] font-bold border outline-none ${
-              currentIsLight ? "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700" : "bg-zinc-900 border-white/5 text-slate-300"
-            }`}
-          >
-            <option value="beads">🔴 Perlen</option>
-            <option value="marbles">🔮 Murmeln</option>
-            <option value="stars">⭐ Sterne</option>
-            <option value="cookies">🍪 Kekse ({petName})</option>
-            <option value="gummybears">🧸 Bären</option>
-            <option value="coins">🪙 Münzen</option>
-          </select>
-
-          {/* Difficulty Dropdown */}
-          <select
-            value={difficulty}
-            onChange={(e) => {
-              const diff = e.target.value as any;
-              setDifficulty(diff);
-              const min = diff === 'easy' ? 10 : diff === 'medium' ? 25 : 55;
-              const max = diff === 'easy' ? 25 : diff === 'medium' ? 55 : 115;
-              setJarCount(Math.floor(Math.random() * (max - min)) + min);
-              setRevealed(false);
-              setFeedback(`Fülle neu auf... Schätze das Glas!`);
-            }}
-            className={`px-1 py-0.5 rounded text-[8px] font-bold border outline-none ${
-              currentIsLight ? "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700" : "bg-zinc-900 border-white/5 text-slate-300"
-            }`}
-          >
-            <option value="easy">🟢 Leicht (10-25)</option>
-            <option value="medium">🟡 Mittel (25-55)</option>
-            <option value="hard">🔴 Schwer (55-115)</option>
-          </select>
-
-          <button
-            onClick={regenerateJar}
-            className="px-1.5 py-0.5 rounded bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-[8px] shadow active:scale-95 transition-all cursor-pointer"
-          >
-            Neu füllen
-          </button>
-        </div>
-      </div>
-
-      {/* Main glass jar section & Controls */}
-      <div className="flex-grow flex flex-row items-center justify-around gap-2.5 min-h-0 py-1">
-        {/* Transparent double-rim ivory container candy jar - beautiful responsive aspect ratio */}
-        <div className="relative w-full max-w-[125px] aspect-[1/1.3] h-full border-4 border-slate-400 dark:border-zinc-700 rounded-t-2xl rounded-b-[38px] bg-slate-100/15 dark:bg-black/25 shadow-2xl flex flex-wrap content-end justify-center p-2 overflow-hidden ring-2 ring-black/5 backdrop-blur-[1px] transition-all duration-300">
-          
-          {/* Glass sheen reflection effects */}
-          <div className="absolute inset-y-0 left-1 w-2.5 bg-gradient-to-r from-white/15 to-transparent pointer-events-none rounded-l-2xl z-10" />
-          <div className="absolute inset-y-0 right-1 w-1.5 bg-gradient-to-l from-white/10 to-transparent pointer-events-none rounded-r-2xl z-10" />
-          
-          {/* Cork lid */}
-          <div className="absolute top-0 left-[18%] right-[18%] h-[8%] bg-amber-800/90 dark:bg-amber-900/90 border-b-2 border-amber-950 rounded-b-md shadow-md flex items-center justify-center">
-            <div className="w-[70%] h-0.5 bg-white/15 rounded-full" />
-          </div>
-
-          {/* Beads / Items list */}
-          {beadsCoords.slice(0, jarCount).map((bead, i) => (
-            <div
-              key={i}
-              className="absolute pointer-events-none flex items-center justify-center"
-              style={{
-                left: `${bead.x}%`,
-                bottom: `${bead.y}%`,
-                width: '12.5%',
-                aspectRatio: '1',
-              }}
+    <div className="min-h-full w-full p-3 sm:p-4 flex flex-col gap-3 select-none overflow-visible">
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Inhalt auswählen">
+          {(Object.keys(contentMeta) as Array<keyof typeof contentMeta>).map((type) => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => setContentType(type)}
+              className={`min-h-11 px-2.5 rounded-lg border text-xs font-bold ${
+                contentType === type
+                  ? 'bg-accent text-accent-text border-accent'
+                  : 'border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-accent'
+              }`}
             >
-              {contentType === 'beads' && (
-                <div
-                  className="w-full h-full rounded-full shadow-[inset_-2px_-2px_4px_rgba(0,0,0,0.3),1px_1px_3px_rgba(0,0,0,0.15)] animate-zoom-in"
-                  style={{
-                    background: bead.color,
-                    border: '0.5px solid rgba(255,255,255,0.4)',
-                  }}
-                />
-              )}
-              {contentType === 'marbles' && (
-                <div
-                  className="w-full h-full rounded-full shadow-[inset_-3px_-3px_5px_rgba(0,0,0,0.4),0_0_8px_rgba(255,255,255,0.4)] animate-zoom-in relative overflow-hidden"
-                  style={{
-                    background: `radial-gradient(circle at 30% 30%, #a5b4fc 10%, #4338ca 60%, #1e1b4b 100%)`,
-                    border: '1px solid rgba(255,255,255,0.5)',
-                  }}
-                >
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[30%] bg-pink-400/30 rounded-full rotate-45" />
-                </div>
-              )}
-              {contentType === 'stars' && (
-                <span className="text-sm select-none animate-zoom-in drop-shadow-md">⭐</span>
-              )}
-              {contentType === 'cookies' && (
-                <span className="text-sm select-none animate-zoom-in drop-shadow-md">🍪</span>
-              )}
-              {contentType === 'gummybears' && (
-                <span className="text-sm select-none animate-zoom-in drop-shadow-md">🧸</span>
-              )}
-              {contentType === 'coins' && (
-                <span className="text-sm select-none animate-zoom-in drop-shadow-md">🪙</span>
-              )}
-            </div>
+              {contentMeta[type].emoji} {contentMeta[type].plural}
+            </button>
           ))}
         </div>
 
-        {/* Guess controls sidebar */}
-        <div className="flex flex-col gap-1.5 flex-1 max-w-[120px]">
-          <span className="text-[8px] font-black text-center uppercase tracking-widest text-slate-500 dark:text-slate-400">
-            Dein Tipp:
-          </span>
-          
-          <div className="flex items-center gap-1">
-            <button 
-              onClick={() => {
-                setUserGuess(g => Math.max(1, g - 1));
-                playSimpleSound('beep');
-              }}
-              className="w-5 h-5 rounded bg-slate-200 hover:bg-slate-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 font-bold text-xs flex items-center justify-center cursor-pointer active:scale-90 transition-all text-slate-800 dark:text-slate-200"
-            >-</button>
-            <input
-              type="number"
-              min="1"
-              max={maxVal}
-              value={userGuess}
-              onChange={(e) => setUserGuess(Math.max(1, Math.min(maxVal, parseInt(e.target.value) || 1)))}
-              className={`flex-1 py-1 text-center font-black rounded-lg text-xs border outline-none ${
-                currentIsLight ? 'bg-white text-slate-800 border-slate-300' : 'bg-zinc-950 text-white border-zinc-700'
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Schwierigkeitsstufe">
+          {(['easy', 'medium', 'hard'] as const).map((level) => (
+            <button
+              key={level}
+              type="button"
+              onClick={() => setDifficulty(level)}
+              className={`min-h-11 px-3 rounded-lg border text-xs font-bold ${
+                difficulty === level
+                  ? 'bg-accent text-accent-text border-accent'
+                  : 'border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-accent'
               }`}
-            />
-            <button 
-              onClick={() => {
-                setUserGuess(g => Math.min(maxVal, g + 1));
-                playSimpleSound('beep');
-              }}
-              className="w-5 h-5 rounded bg-slate-200 hover:bg-slate-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 font-bold text-xs flex items-center justify-center cursor-pointer active:scale-90 transition-all text-slate-800 dark:text-slate-200"
-            >+</button>
-          </div>
-
-          <button
-            onClick={revealed ? regenerateJar : handleValidation}
-            className={`w-full py-1.5 rounded-xl font-black text-[8px] uppercase tracking-wider cursor-pointer active:scale-95 transition-all shadow-sm text-white ${
-              revealed ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-rose-500 hover:bg-rose-600'
-            }`}
-          >
-            {revealed ? "Neu füllen" : "Auflösen 🔍"}
-          </button>
-
-          {/* Special pet greeting when cookies are chosen */}
-          {contentType === 'cookies' && (
-            <div className="flex items-center gap-1 justify-center bg-amber-500/10 dark:bg-amber-500/5 p-1 rounded-md border border-amber-500/25">
-              <span className="text-sm select-none animate-bounce">{petEmoji}</span>
-              <span className="text-[6.5px] font-bold text-amber-600 dark:text-amber-400 uppercase leading-none truncate">
-                {petName}'s Hunger!
-              </span>
-            </div>
-          )}
+            >
+              {level === 'easy' ? '10–25' : level === 'medium' ? '25–60' : '60–120'}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Feedback text row */}
-      <div className="shrink-0 text-center mt-0.5">
-        <span className="text-[8px] font-black text-blue-500 animate-pulse">{feedback}</span>
+      <div className="shrink-0 rounded-xl bg-accent-soft border border-accent/20 px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
+        Schätz-Tipp: Teile das Glas gedanklich in Gruppen von 5 oder 10 statt jedes Stück einzeln zu zählen.
       </div>
+
+      <div className="flex-1 min-h-0 flex flex-col md:flex-row items-center justify-center gap-5">
+        <div className="relative w-56 h-72 sm:w-64 sm:h-80 rounded-t-[2rem] rounded-b-[4rem] border-4 border-slate-400/80 dark:border-slate-600 bg-slate-100/30 dark:bg-slate-900/40 shadow-xl overflow-hidden">
+          <div className="absolute top-0 left-[20%] right-[20%] h-8 rounded-b-xl bg-amber-800 border-b-2 border-amber-950" />
+          <div className="absolute inset-y-8 left-3 w-3 rounded-full bg-white/25 pointer-events-none" />
+          {itemCoords.slice(0, jarCount).map((coord, index) => (
+            <div
+              key={index}
+              className="absolute flex items-center justify-center pointer-events-none"
+              style={{
+                left: `${coord.x}%`,
+                bottom: `${coord.y}%`,
+                width: difficulty === 'hard' ? '8%' : difficulty === 'medium' ? '9%' : '11%',
+                aspectRatio: '1',
+                transform: `scale(${coord.scale})`,
+                fontSize: difficulty === 'hard' ? '14px' : difficulty === 'medium' ? '17px' : '20px',
+              }}
+            >
+              {renderItem(index)}
+            </div>
+          ))}
+
+          <div className="absolute inset-x-0 bottom-0 h-1/2 pointer-events-none">
+            {clusterMarks.map((mark) => {
+              const relative = (mark - activeRange.min) / Math.max(1, activeRange.max - activeRange.min);
+              return (
+                <div
+                  key={mark}
+                  className="absolute left-2 right-2 border-t border-dashed border-slate-400/35"
+                  style={{ bottom: `${Math.max(4, Math.min(94, relative * 90))}%` }}
+                />
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="w-full max-w-sm flex flex-col gap-3">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3 text-center">
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Deine Schätzung</div>
+            <div className="mt-1 text-4xl font-black tabular-nums text-accent">{userGuess}</div>
+          </div>
+
+          <div className="grid grid-cols-[44px_1fr_44px] gap-2 items-center">
+            <button
+              type="button"
+              onClick={() => setGuess(userGuess - activeRange.step)}
+              className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-700 font-black text-lg hover:border-accent"
+              aria-label={`Schätzung um ${activeRange.step} verringern`}
+            >
+              −
+            </button>
+            <input
+              type="range"
+              min={activeRange.min}
+              max={activeRange.max}
+              step={activeRange.step}
+              value={userGuess}
+              onChange={(event) => setGuess(Number(event.target.value))}
+              className="w-full h-11 accent-accent cursor-pointer"
+              aria-label="Menge schätzen"
+            />
+            <button
+              type="button"
+              onClick={() => setGuess(userGuess + activeRange.step)}
+              className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-700 font-black text-lg hover:border-accent"
+              aria-label={`Schätzung um ${activeRange.step} erhöhen`}
+            >
+              +
+            </button>
+          </div>
+
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              activeRange.min,
+              Math.round((activeRange.min + activeRange.max) / 3 / activeRange.step) * activeRange.step,
+              Math.round(((activeRange.min + activeRange.max) * 2 / 3) / activeRange.step) * activeRange.step,
+              activeRange.max,
+            ].map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setGuess(value)}
+                className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-700 font-bold text-sm hover:border-accent"
+              >
+                {value}
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={revealed ? () => regenerateJar(difficulty) : handleValidation}
+            className="min-h-11 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-black text-sm"
+          >
+            {revealed ? 'Neues Glas' : 'Schätzung prüfen'}
+          </button>
+        </div>
+      </div>
+
+      {revealed && (
+        <>
+        <div className="shrink-0 grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-2">
+            <div className="text-xs font-bold text-slate-500 dark:text-slate-400">Geschätzt</div>
+            <div className="text-lg font-black">{userGuess}</div>
+          </div>
+          <div className="rounded-xl border border-accent/30 bg-accent-soft px-2 py-2">
+            <div className="text-xs font-bold text-slate-500 dark:text-slate-400">Tatsächlich</div>
+            <div className="text-lg font-black">{jarCount}</div>
+          </div>
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-2">
+            <div className="text-xs font-bold text-slate-500 dark:text-slate-400">Abweichung</div>
+            <div className="text-lg font-black">{Math.abs(userGuess - jarCount)}</div>
+          </div>
+        </div>
+
+        <div className="shrink-0 rounded-xl border border-accent/30 bg-accent-soft px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
+          {reflectionText} Die tatsächliche Menge liegt nahe bei {nearestTen}. Nutze beim nächsten Mal 10er-Gruppen als Orientierung.
+        </div>
+        </>
+      )}
+
+      <p
+        aria-live="polite"
+        className="shrink-0 min-h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 flex items-center justify-center text-center text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300"
+      >
+        {feedback}
+      </p>
     </div>
   );
 };
 
 
-// ========================================================
-// 10. WIDGET: BLITZ-REAKTION (ReflexgameWidgetContent)
-// ========================================================
 export const ReflexgameWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
   const [gameState, setGameState] = useState<'idle' | 'waiting' | 'trigger' | 'done'>('idle');
   const [triggerTime, setTriggerTime] = useState<number>(0);
