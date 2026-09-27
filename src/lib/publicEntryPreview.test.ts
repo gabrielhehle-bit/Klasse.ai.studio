@@ -15,7 +15,7 @@ test('Öffentlicher Einstieg trennt Landingpage, Demo und geschützten Login', (
 test('Öffentliche KLASSIO-Demo bleibt von echten App- und Tresordaten isoliert', () => {
   const previewSource = readFileSync('src/components/PublicWelcome.tsx', 'utf8');
 
-  assert.match(previewSource, /Demo ohne Anmeldung/);
+  assert.match(previewSource, /ohne Anmeldung/i);
   assert.match(previewSource, /nur Beispieldaten/i);
   assert.match(previewSource, /Nichts wird gespeichert/);
 
@@ -33,4 +33,36 @@ test('Die Vorschau zeigt die vier wichtigsten KLASSIO-Bereiche', () => {
   for (const label of ['Dashboard', 'Wochenplanung', 'Lehrer-Cockpit', 'Schülerdossier']) {
     assert.match(previewSource, new RegExp(label));
   }
+});
+
+
+test('Öffentliche Startseite erklärt Produkt, Ablauf und Datenschutz klar', () => {
+  const previewSource = readFileSync('src/components/PublicWelcome.tsx', 'utf8');
+
+  assert.match(previewSource, /Dein kompletter Schulalltag/);
+  assert.match(previewSource, /Eine Oberfläche/);
+  assert.match(previewSource, /KLASSIO in Aktion/);
+  assert.match(previewSource, /So funktioniert KLASSIO/);
+  assert.match(previewSource, /AES-256-Verschlüsselung/);
+
+  for (const label of [
+    'Planung',
+    'Lehrer-Cockpit',
+    'Klasse & Schülerdossier',
+    'Leistungen & Diagnostik',
+    'Organisation',
+    'KI & Werkzeuge',
+  ]) {
+    assert.match(previewSource, new RegExp(label.replace(/[.*+?^$\{\}()|[\]\\]/g, '\\$&')));
+  }
+});
+
+test('Startseiten-Metadaten sind deutsch und für Teilen aktualisiert', () => {
+  const indexSource = readFileSync('index.html', 'utf8');
+
+  assert.match(indexSource, /<html lang="de">/);
+  assert.match(indexSource, /KLASSIO – Dein kompletter Schulalltag in einer Oberfläche/);
+  assert.match(indexSource, /property="og:type" content="website"/);
+  assert.match(indexSource, /property="og:url" content="https:\/\/klassio\.at\/"/);
+  assert.match(indexSource, /rel="canonical" href="https:\/\/klassio\.at\/"/);
 });
