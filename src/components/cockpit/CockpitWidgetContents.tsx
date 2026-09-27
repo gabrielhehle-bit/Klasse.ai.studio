@@ -14381,6 +14381,14 @@ export const EstimationjarWidgetContent: React.FC<{ widget: any, currentIsLight:
     setRevealed(false);
   };
 
+  const guessDifference = userGuess - jarCount;
+  const nearestTen = Math.round(jarCount / 10) * 10;
+  const reflectionText = guessDifference === 0
+    ? 'Deine Schätzung war exakt.'
+    : guessDifference > 0
+      ? `Du hast um ${guessDifference} zu hoch geschätzt.`
+      : `Du hast um ${Math.abs(guessDifference)} zu niedrig geschätzt.`;
+
   const renderItem = (index: number) => {
     const coord = itemCoords[index];
     if (contentType === 'beads') {
@@ -14533,6 +14541,7 @@ export const EstimationjarWidgetContent: React.FC<{ widget: any, currentIsLight:
       </div>
 
       {revealed && (
+        <>
         <div className="shrink-0 grid grid-cols-3 gap-2 text-center">
           <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-2">
             <div className="text-xs font-bold text-slate-500 dark:text-slate-400">Geschätzt</div>
@@ -14547,6 +14556,11 @@ export const EstimationjarWidgetContent: React.FC<{ widget: any, currentIsLight:
             <div className="text-lg font-black">{Math.abs(userGuess - jarCount)}</div>
           </div>
         </div>
+
+        <div className="shrink-0 rounded-xl border border-accent/30 bg-accent-soft px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
+          {reflectionText} Die tatsächliche Menge liegt nahe bei {nearestTen}. Nutze beim nächsten Mal 10er-Gruppen als Orientierung.
+        </div>
+        </>
       )}
 
       <p
