@@ -282,13 +282,14 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
     <div 
       ref={containerRef}
       id="zahlenraum-studio-container"
-      className={`h-full w-full flex flex-col select-none overflow-hidden font-sans ${
+      className={`min-h-full w-full flex flex-col select-none overflow-visible font-sans ${
         currentIsLight ? 'bg-slate-50 text-slate-800' : 'bg-slate-900 text-slate-100'
       }`}
     >
       {/* The widget title's gear controls this configuration toolbar. */}
       {showSettings && <div 
         id="zahlenraum-toolbar"
+        role="group" aria-label="Zahlenraum einstellen"
         className={`shrink-0 flex items-center justify-between border-b px-3 py-2 gap-2 flex-wrap ${
           currentIsLight ? 'border-slate-200 bg-white' : 'border-slate-800 bg-slate-950'
         }`}
@@ -306,7 +307,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
             onClick={() => handleSelectMode('quantity')}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all min-h-11 ${
               mode === 'quantity'
-                ? 'bg-indigo-600 text-white shadow-sm'
+                ? 'bg-accent text-accent-text shadow-sm'
                 : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
             }`}
           >
@@ -319,7 +320,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
             onClick={() => handleSelectMode('numberline')}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all min-h-11 ${
               mode === 'numberline'
-                ? 'bg-indigo-600 text-white shadow-sm'
+                ? 'bg-accent text-accent-text shadow-sm'
                 : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
             }`}
           >
@@ -340,7 +341,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                 onClick={() => handleSelectRange(r as ZahlenraumRange)}
                 className={`px-2 py-1 text-xs font-medium rounded-md transition-all min-h-11 min-w-[44px] ${
                   range === r
-                    ? 'bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 font-bold'
+                    ? 'bg-accent text-accent-text font-bold shadow-sm'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                 }`}
               >
@@ -358,7 +359,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                   onClick={() => handleSelectRange(r as ZahlenraumRange)}
                   className={`px-2 py-1 text-xs font-medium rounded-md transition-all min-h-11 ${
                     range === r
-                      ? 'bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 font-bold'
+                      ? 'bg-accent text-accent-text font-bold shadow-sm'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                   }`}
                 >
@@ -371,7 +372,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                 onClick={() => handleSelectRange('custom')}
                 className={`px-2 py-1 text-xs font-medium rounded-md transition-all min-h-11 flex items-center gap-1 ${
                   range === 'custom'
-                    ? 'bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 font-bold'
+                    ? 'bg-accent text-accent-text font-bold shadow-sm'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                 }`}
               >
@@ -384,7 +385,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
       </div>}
 
       {/* Hauptbereich */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden p-3 gap-3">
+      <div className={`flex-1 flex flex-col min-h-0 overflow-visible ${isCompact ? 'p-2 gap-2' : isFullscreen ? 'p-4 gap-4' : 'p-3 gap-3'}`}>
         {mode === 'quantity' ? (
           /* =========================================================================
              MODUS A: MENGEN & ZAHLENBILDER
@@ -413,7 +414,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
 
                 <span 
                   id="zahlenraum-quantity-value-display"
-                  className="text-2xl font-black min-w-[48px] text-center font-mono text-indigo-600 dark:text-indigo-400"
+                  className="text-2xl font-black min-w-[48px] text-center font-mono text-accent"
                 >
                   {quantityValue}
                 </span>
@@ -476,7 +477,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                 }`}
               >
                 <span className="text-xs font-bold text-amber-900 dark:text-amber-200">
-                  {quantityValue} = <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">{splitValue}</span> + <span className="text-amber-600 dark:text-amber-400 font-extrabold">{quantityValue - splitValue}</span>
+                  {quantityValue} = <span className="text-accent font-extrabold">{splitValue}</span> + <span className="text-amber-600 dark:text-amber-400 font-extrabold">{quantityValue - splitValue}</span>
                 </span>
                 <input
                   id="zahlenraum-split-slider"
@@ -516,7 +517,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                     if (dot.colorType === 'secondary') {
                       dotBg = 'bg-amber-500 text-white shadow-md border border-amber-600';
                     } else {
-                      dotBg = 'bg-indigo-600 text-white shadow-md border border-indigo-700';
+                      dotBg = 'bg-accent text-accent-text shadow-md border border-accent';
                     }
                   }
 
@@ -590,7 +591,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                       setCustomMin(val);
                       persist({ customMin: val });
                     }}
-                    className="w-20 px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-transparent font-mono"
+                    className="min-h-11 w-24 px-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent font-mono text-center"
                   />
                 </label>
                 <label className="flex items-center gap-1">
@@ -604,7 +605,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                       setCustomMax(val);
                       persist({ customMax: val });
                     }}
-                    className="w-20 px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-transparent font-mono"
+                    className="min-h-11 w-24 px-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent font-mono text-center"
                   />
                 </label>
                 <span className="text-slate-400">(z. B. 200–300 oder -50–50)</span>
@@ -746,7 +747,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                         y1="40"
                         x2={x}
                         y2="75"
-                        stroke={isMain ? '#4f46e5' : '#0ea5e9'}
+                        stroke={isMain ? 'var(--accent)' : '#0ea5e9'}
                         strokeWidth="2"
                         strokeDasharray="2 2"
                       />
@@ -755,7 +756,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                         cx={x}
                         cy="40"
                         r={isMain ? 9 : 7}
-                        fill={isMain ? '#4f46e5' : '#0ea5e9'}
+                        fill={isMain ? 'var(--accent)' : '#0ea5e9'}
                         stroke="#ffffff"
                         strokeWidth="2"
                       />
@@ -766,7 +767,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                         width="36"
                         height="18"
                         rx="4"
-                        fill={isMain ? '#4f46e5' : '#0ea5e9'}
+                        fill={isMain ? 'var(--accent)' : '#0ea5e9'}
                       />
                       <text
                         x={x}
@@ -801,13 +802,13 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                       key={m.id}
                       className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700"
                     >
-                      <span className="font-bold font-mono text-indigo-600 dark:text-indigo-400">
+                      <span className="font-bold font-mono text-accent">
                         {idx === 0 ? '★ ' : ''}{m.labelHidden ? '?' : m.value}
                       </span>
                       <button
                         type="button"
                         onClick={() => handleToggleMarkerVisibility(m.id)}
-                        className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-indigo-50 hover:text-indigo-600 text-slate-400 dark:hover:bg-indigo-950/30"
+                        className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-accent-soft hover:text-accent"
                         title={m.labelHidden ? 'Zahl aufdecken' : 'Zahl verdecken'}
                       >
                         {m.labelHidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
@@ -833,7 +834,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                         const mid = Math.round((currentMin + currentMax) / 2);
                         handleAddOrUpdateMarker(mid);
                       }}
-                      className="flex items-center gap-1 px-2 py-1 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 text-slate-500 hover:text-indigo-600 hover:border-indigo-400 transition-all min-h-11"
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 text-slate-500 hover:text-accent hover:border-accent transition-all min-h-11"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       <span>Marker</span>
@@ -854,7 +855,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                         handleUpdateMarkerValue(markers[0].id, val);
                       }
                     }}
-                    className="w-20 px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-transparent font-mono text-center font-bold"
+                    className="min-h-11 w-24 px-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent font-mono text-center font-bold"
                   />
                 </div>
               </div>
