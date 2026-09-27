@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const source = readFileSync('src/components/cockpit/CockpitWidgetContents.tsx', 'utf8');
 const start = source.indexOf('export const EstimationjarWidgetContent');
-const end = source.indexOf('// 15. WIDGET: REIM-MASCHINE', start);
+const end = source.indexOf('export const ReflexgameWidgetContent', start);
 const widget = source.slice(start, end);
 
 test('Schätz-Glas nutzt gestaffelte Mengenbereiche mit passenden Schätzschritten', () => {
