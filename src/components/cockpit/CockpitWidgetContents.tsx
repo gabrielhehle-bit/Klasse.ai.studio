@@ -19186,7 +19186,17 @@ export const MathbalancerWidgetContent: React.FC<{ widget: any, currentIsLight: 
   const [unknownX, setUnknownX] = useState<number>(7);
   const [userGuess, setUserGuess] = useState<number | null>(null);
   const [status, setStatus] = useState<'leftHeavier' | 'rightHeavier' | 'balanced'>('leftHeavier');
-  const [feedback, setFeedback] = useState<string>("Bringe die Balkenwaage ins absolute Gleichgewicht! ⚖️");
+  const [feedback, setFeedback] = useState<string>("Bringe die Balkenwaage ins Gleichgewicht.");
+  const [showHint, setShowHint] = useState(false);
+
+  const answerChoices = useMemo(() => {
+    const pool = Array.from({ length: 18 }, (_, index) => index + 1).filter((value) => value !== unknownX);
+    for (let index = pool.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [pool[index], pool[swapIndex]] = [pool[swapIndex], pool[index]];
+    }
+    return [...pool.slice(0, 7), unknownX].sort((a, b) => a - b);
+  }, [unknownX]);
 
   const generateBalanceProblem = useCallback(() => {
     const term1 = Math.floor(Math.random() * 8) + 2;
@@ -19200,7 +19210,8 @@ export const MathbalancerWidgetContent: React.FC<{ widget: any, currentIsLight: 
     setUnknownX(xSol);
     setUserGuess(null);
     setStatus('leftHeavier');
-    setFeedback(`⚖️ Links liegt ${leftSum} kg. Rechts liegt ${rightKnown} kg + X kg. Finde X!`);
+    setShowHint(false);
+    setFeedback(`Links liegen ${leftSum} kg. Rechts liegen ${rightKnown} kg + X kg. Finde X.`);
   }, []);
 
   useEffect(() => {
@@ -19237,84 +19248,124 @@ export const MathbalancerWidgetContent: React.FC<{ widget: any, currentIsLight: 
     const calculatedRight = knownRight + guess;
     if (calculatedRight === leftWeight) {
       setStatus('balanced');
-      setFeedback(`🎉 Perfekt ausgewogen! ${leftWeight} kg = ${knownRight} kg + ${guess} kg!`);
+      setFeedback(`Perfekt ausgewogen: ${leftWeight} kg = ${knownRight} kg + ${guess} kg.`);
       speakScaleSound(true);
     } else if (calculatedRight > leftWeight) {
       setStatus('rightHeavier');
-      setFeedback(`⚠️ Ups, zu schwer! Rechts wiegt jetzt ${calculatedRight} kg!`);
+      setFeedback(`Zu schwer: Rechts liegen jetzt ${calculatedRight} kg.`);
       speakScaleSound(false);
     } else {
       setStatus('leftHeavier');
-      setFeedback(`⚠️ Das Gewicht reicht noch nicht. Links zieht noch nach unten!`);
+      setFeedback(`Noch zu leicht: Rechts liegen erst ${calculatedRight} kg.`);
       speakScaleSound(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-y-auto overflow-x-hidden">
-      <div className="shrink-0 flex justify-between items-center mb-1">
-        <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
-            ⚖️ Gewichte-Waagen-Trainer
-          </span>
-          <span className="text-[7.5px] font-mono opacity-80">Lineare mathematische Gleichungen üben</span>
+    <div className="min-h-full w-full p-3 sm:p-4 flex flex-col justify-between gap-3 select-none overflow-visible">
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
+        <div className={`rounded-xl border px-3 py-2 font-mono font-black text-lg sm:text-xl ${
+          currentIsLight
+            ? 'bg-slate-50 border-slate-200 text-slate-900'
+            : 'bg-slate-800 border-slate-700 text-slate-100'
+        }`}>
+          {leftWeight} = {knownRight} + <span className="text-accent">{userGuess ?? 'X'}</span>
         </div>
         <button
+          type="button"
           onClick={generateBalanceProblem}
-          className="px-1.5 py-0.5 rounded bg-indigo-500 text-white font-bold text-[7px]"
+          className="min-h-11 px-3 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-bold text-xs sm:text-sm shadow-sm transition-colors"
+          aria-label="Neue Gewichte-Waage erstellen"
         >
-          Neue Waage ⚖️
+          Neue Waage
         </button>
       </div>
 
-      {/* Physics tilt simulation card */}
-      <div className="flex-grow flex flex-col justify-center items-center py-1 min-h-0">
-        <div className="relative w-full h-11 flex justify-center items-end">
-          {/* Main tilting bar */}
+      <div className="flex-1 flex flex-col justify-center items-center gap-4 min-h-0">
+        <div className="relative w-full max-w-sm h-28 flex justify-center items-end" aria-label="Balkenwaage">
           <div
-            className={`absolute w-32 h-1 bg-slate-500 origin-center transition-transform duration-500 flex justify-between px-2 items-start ${
+            className={`absolute top-10 w-56 sm:w-64 h-1.5 bg-slate-500 origin-center transition-transform duration-500 flex justify-between px-4 items-start ${
               status === 'leftHeavier' ? 'rotate-6' : status === 'rightHeavier' ? '-rotate-6' : 'rotate-0'
             }`}
           >
-            {/* Left Cup */}
-            <div className={`w-8 h-8 border-2 border-indigo-400 bg-amber-50 rounded-full flex items-center justify-center text-[9px] font-black text-slate-800 -mt-7 shadow-xs`}>
-              {leftWeight}kg
+            <div className="w-20 h-20 border-2 border-accent bg-amber-50 rounded-full flex items-center justify-center text-base font-black text-slate-800 -mt-[72px] shadow-sm">
+              {leftWeight} kg
             </div>
 
-            {/* Right Cup */}
-            <div className={`w-8 h-8 border-2 border-indigo-400 bg-orange-100 rounded-full flex flex-col items-center justify-center text-[7.5px] font-black text-slate-800 -mt-7 shadow-xs`}>
-              <span>{knownRight}kg</span>
-              <span className="text-[6.5px] text-orange-600">+{userGuess !== null ? `${userGuess}` : 'X'}</span>
+            <div className="w-20 h-20 border-2 border-accent bg-orange-100 rounded-full flex flex-col items-center justify-center text-sm font-black text-slate-800 -mt-[72px] shadow-sm">
+              <span>{knownRight} kg</span>
+              <span className="text-xs text-orange-700">+ {userGuess !== null ? userGuess : 'X'} kg</span>
             </div>
           </div>
-          {/* Scale stand anchor */}
-          <div className="w-2.5 h-6 bg-slate-400 rounded-t-lg z-0" />
-          <div className="w-8 h-1 bg-slate-400 rounded" />
+
+          <div className="w-3 h-14 bg-slate-400 rounded-t-lg" />
+          <div className="absolute bottom-0 w-20 h-2 bg-slate-400 rounded-full" />
         </div>
 
-        {/* User choosing panel */}
-        <div className="grid grid-cols-4 gap-1.5 w-full mt-2.5 max-w-[170px] scale-95">
-          {[2, 3, 5, 7, 8, 9, 10, 12].map((guess) => (
+        {showHint && status !== 'balanced' && (
+          <div className="w-full max-w-sm rounded-xl border border-accent/30 bg-accent-soft px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Tipp: Starte bei {knownRight} und ergänze bis {leftWeight}. Wie viel fehlt?
+          </div>
+        )}
+
+        <div className="grid grid-cols-4 gap-2 w-full max-w-sm">
+          {answerChoices.map((guess) => (
             <button
               key={guess}
+              type="button"
               onClick={() => handleApplyGuess(guess)}
-              className={`py-1 text-center font-black rounded-lg text-[9px] cursor-pointer active:scale-95 transition-all ${
+              aria-pressed={userGuess === guess}
+              className={`min-h-11 text-center font-black rounded-xl text-sm cursor-pointer active:scale-95 transition-all border ${
                 userGuess === guess
                   ? status === 'balanced'
-                    ? 'bg-emerald-500 text-white border border-emerald-600'
-                    : 'bg-red-500 text-white border border-red-600'
+                    ? 'bg-emerald-500 text-white border-emerald-600'
+                    : 'bg-rose-500 text-white border-rose-600'
                   : currentIsLight
-                    ? 'bg-white border text-zinc-800'
-                    : 'bg-zinc-800 border-zinc-700 text-slate-300'
+                    ? 'bg-white border-slate-300 text-slate-800 hover:border-accent hover:bg-accent-soft'
+                    : 'bg-slate-800 border-slate-700 text-slate-200 hover:border-accent hover:bg-slate-700'
               }`}
             >
-              {guess}
+              {guess} kg
             </button>
           ))}
         </div>
       </div>
 
-      <p className="shrink-0 text-[7px] font-extrabold text-blue-500 text-center truncate mt-0.5">{feedback}</p>
+      <div className="shrink-0 flex flex-col gap-2">
+        <div className="flex flex-wrap justify-center gap-2">
+          {status !== 'balanced' ? (
+            <button
+              type="button"
+              onClick={() => setShowHint((value) => !value)}
+              className="min-h-11 px-3 rounded-xl border border-accent/30 bg-accent-soft text-accent font-bold text-xs sm:text-sm hover:border-accent transition-colors"
+              aria-pressed={showHint}
+            >
+              {showHint ? 'Tipp ausblenden' : 'Tipp anzeigen'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={generateBalanceProblem}
+              className="min-h-11 px-4 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-bold text-sm shadow-sm"
+            >
+              Nächste Waage
+            </button>
+          )}
+        </div>
+
+      <p
+        aria-live="polite"
+        className={`shrink-0 min-h-11 flex items-center justify-center rounded-xl px-3 py-2 text-center text-xs sm:text-sm font-bold border ${
+          status === 'balanced'
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+            : userGuess !== null
+              ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+              : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+        }`}
+      >
+        {feedback}
+      </p>
+      </div>
     </div>
   );
 };
