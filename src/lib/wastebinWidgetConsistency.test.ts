@@ -60,6 +60,6 @@ test('Müll-Trenner vermittelt eine Merkregel pro Entsorgungskategorie', () => {
   assert.match(widget, /rule: 'sauber und überwiegend aus Papier'/);
   assert.match(widget, /rule: 'eine leere Verpackung'/);
   assert.match(widget, /rule: 'gefährlich, elektrisch oder speziell zu sammeln'/);
-  assert.match(widget, /Merkregel/);
+  assert.match(widget, /Merkregel:/);
   assert.match(widget, /correctBinMeta\.rule/);
 });
