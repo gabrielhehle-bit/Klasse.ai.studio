@@ -44,3 +44,12 @@ test('Schätz-Glas kündigt Feedback barrierearm an', () => {
   assert.match(widget, /Schätzung prüfen/);
   assert.match(widget, /Neues Glas/);
 });
+
+
+test('Schätz-Glas reflektiert Schätzrichtung und 10er-Referenz', () => {
+  assert.match(widget, /const guessDifference =/);
+  assert.match(widget, /zu hoch geschätzt/);
+  assert.match(widget, /zu niedrig geschätzt/);
+  assert.match(widget, /const nearestTen =/);
+  assert.match(widget, /10er-Gruppen als Orientierung/);
+});
