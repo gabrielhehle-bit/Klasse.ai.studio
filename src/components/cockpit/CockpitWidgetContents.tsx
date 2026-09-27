@@ -15101,6 +15101,13 @@ export const WastebinWidgetContent: React.FC<{ widget: any, currentIsLight: bool
   };
 
   const accuracy = attemptCount === 0 ? 0 : Math.round((correctCount / attemptCount) * 100);
+  const categoryRule: Record<WasteItem['binType'], string> = {
+    bio: 'Merke: organische Küchen- und Pflanzenreste → Biomüll.',
+    papier: 'Merke: sauberes Papier und Karton → Altpapier.',
+    gelb: 'Merke: leere Verpackungen aus Kunststoff oder Metall → Verpackungssammlung.',
+    sonder: 'Merke: Batterien und Elektrogeräte → Sammel- oder Rücknahmestelle.',
+    rest: 'Merke: kein Bioabfall, kein Papier, keine Verpackung und kein Problemstoff → Restmüll.',
+  };
 
   return (
     <div className="min-h-full w-full p-3 sm:p-4 flex flex-col gap-3 select-none overflow-visible">
@@ -15135,8 +15142,13 @@ export const WastebinWidgetContent: React.FC<{ widget: any, currentIsLight: bool
           <div className="max-w-xl rounded-xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 px-3 py-2 text-center">
             <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Warum?</div>
             <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{currentItem.explanation}</div>
+            <div className="mt-2 text-xs font-bold text-accent">{categoryRule[currentItem.binType]}</div>
           </div>
         )}
+      </div>
+
+      <div className="shrink-0 rounded-xl bg-accent-soft border border-accent/20 px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
+        Denkregel: Ist es Bioabfall, Papier, Verpackung, Problemstoff/Elektro oder bleibt nur Restmüll?
       </div>
 
       <div className="shrink-0 grid grid-cols-2 sm:grid-cols-5 gap-2">
