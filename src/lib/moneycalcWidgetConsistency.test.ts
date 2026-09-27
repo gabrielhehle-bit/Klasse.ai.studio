@@ -23,7 +23,7 @@ test('Taschengeld-Zähler erzeugt beim Levelwechsel genau eine neue Aufgabe', ()
 
 test('Taschengeld-Zähler gruppiert gleiche Münzen und Scheine statt Mini-Chips zu stapeln', () => {
   assert.match(widget, /const groupedItems = useMemo/);
-  assert.match(widget, /item\.count \+= 1/);
+  assert.match(widget, /existing\.count \+= 1/);
   assert.match(widget, /Ein Stück entfernen/);
   assert.match(widget, /×\{item\.count\}/);
 });
