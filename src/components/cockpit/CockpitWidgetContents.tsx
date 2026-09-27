@@ -6254,349 +6254,348 @@ export const RhythmWidgetContent: React.FC<{ widget: any, currentIsLight: boolea
 // NEW WIDGET 13: GEOMETRIE-MUSTER (Shape collage generator)
 // ==========================================
 export const GeometryWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const shapes = [
-    { type: 'circle', label: '🟡 Kreis / Kugel' },
-    { type: 'square', label: '🟥 Quadrat / Würfel' },
-    { type: 'triangle', label: '🔺 Dreieck / Pyramide' },
-    { type: 'star', label: '⭐ Stern / Prisma' }
+  type ShapeType = 'circle' | 'square' | 'rectangle' | 'triangle';
+  type Mode = 'pattern' | 'compare';
+  type PlacedShape = { id: number; type: ShapeType; color: string; rotation: number; size: number; x: number; y: number };
+
+  const shapes: Array<{ type: ShapeType; label: string; solid: string }> = [
+    { type: 'circle', label: 'Kreis', solid: 'Kugel' },
+    { type: 'square', label: 'Quadrat', solid: 'Würfel' },
+    { type: 'rectangle', label: 'Rechteck', solid: 'Quader' },
+    { type: 'triangle', label: 'Dreieck', solid: 'Dreiecksprisma' },
   ];
+
   const colors = [
     { val: '#ef4444', label: 'Rot' },
     { val: '#eab308', label: 'Gelb' },
     { val: '#3b82f6', label: 'Blau' },
     { val: '#10b981', label: 'Grün' },
-    { val: '#a855f7', label: 'Lila' }
+    { val: '#a855f7', label: 'Lila' },
   ];
 
-  const [activeShape, setActiveShape] = useState<string>('circle');
-  const [colorVal, setColorVal] = useState<string>('#3b82f6');
-  const [placedShapes, setPlacedShapes] = useState<{ id: number, type: string, color: string, rotation: number, size: number, x: number, y: number }[]>([]);
-  const [rotation, setRotation] = useState<number>(0);
-  const [size, setSize] = useState<number>(30);
-  const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
-  const [autoRotate, setAutoRotate] = useState<boolean>(true);
-  const [rotateY, setRotateY] = useState<number>(45);
+  const [mode, setMode] = useState<Mode>('pattern');
+  const [activeShape, setActiveShape] = useState<ShapeType>('circle');
+  const [colorVal, setColorVal] = useState('#3b82f6');
+  const [placedShapes, setPlacedShapes] = useState<PlacedShape[]>([]);
+  const [rotation, setRotation] = useState(0);
+  const [size, setSize] = useState(42);
+  const [compareRotation, setCompareRotation] = useState(28);
+  const idCounter = useRef(0);
 
-  // Auto rotation loop for 3D view
-  useEffect(() => {
-    if (!autoRotate || viewMode !== '3d') return;
-    const interval = setInterval(() => {
-      setRotateY(prev => (prev + 1.2) % 360);
-    }, 30);
-    return () => clearInterval(interval);
-  }, [autoRotate, viewMode]);
-
-  const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (viewMode === '3d') return; // Click placement only in 2D
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-
-    setPlacedShapes(prev => [
-      ...prev,
-      {
-        id: Date.now() + Math.random(),
-        type: activeShape,
-        color: colorVal,
-        rotation,
-        size,
-        x,
-        y
-      }
+  const addShapeAt = (x: number, y: number) => {
+    idCounter.current += 1;
+    setPlacedShapes((current) => [
+      ...current,
+      { id: idCounter.current, type: activeShape, color: colorVal, rotation, size, x, y },
     ]);
   };
 
-  const placeDefault = () => {
-    setPlacedShapes(prev => [
-      ...prev,
-      {
-        id: Date.now() + Math.random(),
-        type: activeShape,
-        color: colorVal,
-        rotation,
-        size,
-        x: 20 + Math.random() * 60,
-        y: 20 + Math.random() * 60
-      }
-    ]);
+  const handleCanvasClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (mode !== 'pattern') return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = Math.min(95, Math.max(5, ((event.clientX - rect.left) / rect.width) * 100));
+    const y = Math.min(92, Math.max(8, ((event.clientY - rect.top) / rect.height) * 100));
+    addShapeAt(x, y);
   };
 
-  const clearCanvas = () => {
-    setPlacedShapes([]);
+  const placeDefault = () => addShapeAt(50, 50);
+
+  const removeLast = () => setPlacedShapes((current) => current.slice(0, -1));
+  const clearCanvas = () => setPlacedShapes([]);
+
+  const renderFlatShape = (shape: ShapeType, color: string, extraClass = 'w-full h-full') => {
+    if (shape === 'circle') {
+      return <div className={`${extraClass} rounded-full border-[3px]`} style={{ borderColor: color, backgroundColor: `${color}26` }} />;
+    }
+    if (shape === 'square') {
+      return <div className={`${extraClass} rounded-md border-[3px]`} style={{ borderColor: color, backgroundColor: `${color}26` }} />;
+    }
+    if (shape === 'rectangle') {
+      return <div className={`${extraClass} rounded-md border-[3px] scale-x-125`} style={{ borderColor: color, backgroundColor: `${color}26` }} />;
+    }
+    return (
+      <svg viewBox="0 0 100 100" className={extraClass} fill={`${color}26`} stroke={color} strokeWidth="7">
+        <polygon points="50,12 92,86 8,86" />
+      </svg>
+    );
   };
+
+  const renderSolid = (shape: ShapeType, color: string) => {
+    if (shape === 'circle') {
+      return (
+        <div
+          className="w-28 h-28 rounded-full border-2 shadow-xl"
+          style={{
+            borderColor: color,
+            background: `radial-gradient(circle at 32% 28%, #ffffff, ${color}88 45%, ${color} 100%)`,
+          }}
+          aria-label="Kugel"
+        />
+      );
+    }
+
+    if (shape === 'square' || shape === 'rectangle') {
+      const width = shape === 'rectangle' ? 112 : 88;
+      const depth = shape === 'rectangle' ? 34 : 44;
+      return (
+        <div className="relative h-28 flex items-center justify-center" aria-label={shape === 'square' ? 'Würfel' : 'Quader'}>
+          <div
+            className="relative border-2 shadow-lg"
+            style={{
+              width,
+              height: shape === 'rectangle' ? 64 : 88,
+              borderColor: color,
+              backgroundColor: `${color}35`,
+              transform: `rotateX(-12deg) rotateY(${compareRotation}deg)`,
+              transformStyle: 'preserve-3d',
+            }}
+          >
+            <div
+              className="absolute inset-0 border-2"
+              style={{
+                borderColor: color,
+                backgroundColor: `${color}20`,
+                transform: `translate(${depth}px, -${depth * 0.55}px)`,
+              }}
+            />
+            <div
+              className="absolute border-2"
+              style={{
+                width: depth,
+                height: '100%',
+                right: -depth,
+                top: -(depth * 0.55),
+                borderColor: color,
+                backgroundColor: `${color}28`,
+                transform: 'skewY(-35deg)',
+                transformOrigin: 'left bottom',
+              }}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="relative w-32 h-28" aria-label="Dreiecksprisma">
+        <svg viewBox="0 0 160 120" className="w-full h-full">
+          <polygon points="30,95 70,25 110,95" fill={`${color}25`} stroke={color} strokeWidth="4" />
+          <polygon points="70,70 110,10 150,70" fill={`${color}18`} stroke={color} strokeWidth="4" />
+          <line x1="30" y1="95" x2="70" y2="70" stroke={color} strokeWidth="4" />
+          <line x1="70" y1="25" x2="110" y2="10" stroke={color} strokeWidth="4" />
+          <line x1="110" y1="95" x2="150" y2="70" stroke={color} strokeWidth="4" />
+        </svg>
+      </div>
+    );
+  };
+
+  const activeMeta = shapes.find((shape) => shape.type === activeShape)!;
 
   return (
-    <div className="flex-grow flex flex-col justify-between p-2 h-full min-h-0 pointer-events-auto select-none gap-2">
-      {/* Header Controls */}
-      <div className="flex justify-between items-center px-1 shrink-0">
-        <span className={`text-[8px] font-black uppercase tracking-widest ${currentIsLight ? 'text-slate-400' : 'text-slate-500'}`}>
-          Geometrie-Muster & 3D {viewMode === '3d' ? "🪐" : "📐"}
-        </span>
-        <div className="flex items-center gap-1.5">
+    <div className="min-h-full w-full p-3 sm:p-4 flex flex-col gap-3 select-none overflow-visible">
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
+        <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1" role="tablist" aria-label="Geometrie-Modus">
           <button
-            onClick={() => setViewMode(prev => prev === '2d' ? '3d' : '2d')}
-            className={`px-1.5 py-0.5 rounded text-[7.5px] font-black uppercase border cursor-pointer transition-all ${
-              viewMode === '3d'
-                ? 'bg-amber-500 text-white border-transparent shadow'
-                : 'bg-indigo-500 text-white border-transparent'
+            type="button"
+            role="tab"
+            aria-selected={mode === 'pattern'}
+            onClick={() => setMode('pattern')}
+            className={`min-h-11 px-3 rounded-lg text-xs sm:text-sm font-bold ${
+              mode === 'pattern' ? 'bg-accent text-accent-text shadow-sm' : 'text-slate-600 dark:text-slate-300'
             }`}
           >
-            {viewMode === '2d' ? "➔ Umwandeln in 3D!" : "➔ Zurück zu 2D"}
+            Muster bauen
           </button>
-          <button onClick={clearCanvas} className="text-[7.5px] font-black uppercase tracking-wider text-red-500 hover:text-red-600 cursor-pointer">
-            Löschen
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'compare'}
+            onClick={() => setMode('compare')}
+            className={`min-h-11 px-3 rounded-lg text-xs sm:text-sm font-bold ${
+              mode === 'compare' ? 'bg-accent text-accent-text shadow-sm' : 'text-slate-600 dark:text-slate-300'
+            }`}
+          >
+            2D ↔ 3D
           </button>
+        </div>
+
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Form auswählen">
+          {shapes.map((shape) => (
+            <button
+              key={shape.type}
+              type="button"
+              onClick={() => setActiveShape(shape.type)}
+              className={`min-h-11 px-2.5 rounded-lg border text-xs font-bold ${
+                activeShape === shape.type
+                  ? 'bg-accent text-accent-text border-accent'
+                  : 'border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-accent'
+              }`}
+            >
+              {shape.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Main Board Canvas */}
-      <div
-        onClick={handleCanvasClick}
-        className={`h-24 rounded-2xl border relative overflow-hidden flex items-center justify-center shrink-0 cursor-crosshair transition-all duration-500 ${
-          currentIsLight ? 'bg-slate-50 border-slate-200' : 'bg-black/25 border-white/5'
-        }`}
-        style={{ perspective: viewMode === '3d' ? '800px' : 'none' }}
-      >
-        {placedShapes.length === 0 ? (
-          <div className="text-center p-2 pointer-events-none">
-            <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider block">Muster-Tafel leer</span>
-            <span className="text-[6.5px] text-slate-400/80 block mt-0.5">Klicke hier auf die Tafel, um Formen zu platzieren!</span>
-          </div>
-        ) : viewMode === '2d' ? (
-          placedShapes.map(sh => {
-            const sizeStyle = {
-              width: `${sh.size}px`,
-              height: `${sh.size}px`,
-              transform: `translate(-50%, -50%) rotate(${sh.rotation}deg)`,
-              color: sh.color,
-              left: `${sh.x}%`,
-              top: `${sh.y}%`
-            };
-            return (
-              <div 
-                key={sh.id} 
-                style={sizeStyle}
-                className="absolute flex items-center justify-center transition-all animate-in zoom-in-50 duration-200"
-              >
-                {sh.type === 'circle' && <div className="w-full h-full rounded-full border-2" style={{ borderColor: sh.color, backgroundColor: `${sh.color}40` }} />}
-                {sh.type === 'square' && <div className="w-full h-full border-2" style={{ borderColor: sh.color, backgroundColor: `${sh.color}40` }} />}
-                {sh.type === 'triangle' && (
-                  <svg viewBox="0 0 100 100" className="w-full h-full animate-pulse duration-2000" fill={`${sh.color}40`} stroke={sh.color} strokeWidth="6">
-                    <polygon points="50,15 90,85 10,85" />
-                  </svg>
-                )}
-                {sh.type === 'star' && (
-                  <svg viewBox="0 0 24 24" className="w-full h-full" fill={sh.color}>
-                    <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                  </svg>
-                )}
-              </div>
-            );
-          })
-        ) : (
-          /* Gorgeous CSS 3D perspectives of placed shapes */
-          <div 
-            className="w-full h-full flex items-center justify-center relative pointer-events-none"
-            style={{ transformStyle: 'preserve-3d' }}
+      {mode === 'pattern' ? (
+        <>
+          <div
+            onClick={handleCanvasClick}
+            className={`flex-1 min-h-52 sm:min-h-64 rounded-2xl border-2 relative overflow-hidden cursor-crosshair ${
+              currentIsLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700'
+            }`}
+            aria-label="Musterfläche – zum Platzieren einer Form tippen"
           >
-            {/* 3D Container of Shapes */}
-            <div 
-              className="flex items-center justify-center gap-2"
+            <div
+              className="absolute inset-0 pointer-events-none opacity-40"
               style={{
-                transform: `rotateX(-15deg) rotateY(${rotateY}deg)`,
-                transformStyle: 'preserve-3d',
-                transition: 'transform 0.1s ease-out'
+                backgroundImage: 'linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)',
+                backgroundSize: '24px 24px',
+                color: currentIsLight ? '#e2e8f0' : '#334155',
               }}
-            >
-              {placedShapes.slice(-4).map((sh, idx) => {
-                // Render gorgeous 3D CSS solids for the last 4 placed elements to avoid massive rendering performance drop
-                return (
-                  <div 
-                    key={sh.id} 
-                    className="relative w-11 h-11 flex items-center justify-center"
-                    style={{ transformStyle: 'preserve-3d', transform: `translateZ(${idx * 15 - 30}px)` }}
-                  >
-                    {sh.type === 'circle' && (
-                      /* 3D Sphere rendered with intersecting rings and gradients */
-                      <div className="w-8 h-8 rounded-full relative" style={{ transformStyle: 'preserve-3d' }}>
-                        <div className="absolute inset-0 rounded-full border-2" style={{ borderColor: sh.color, transform: 'rotateY(0deg)', backgroundColor: `${sh.color}15` }} />
-                        <div className="absolute inset-0 rounded-full border-2" style={{ borderColor: sh.color, transform: 'rotateY(90deg)' }} />
-                        <div className="absolute inset-0 rounded-full border-2" style={{ borderColor: sh.color, transform: 'rotateX(90deg)' }} />
-                        <div className="absolute inset-0 rounded-full filter blur-xs opacity-50" style={{ background: `radial-gradient(circle at 30% 30%, white, ${sh.color})` }} />
-                      </div>
-                    )}
-
-                    {sh.type === 'square' && (
-                      /* Perfect 3D Cube with 6 real CSS faces */
-                      <div className="w-6 h-6 relative" style={{ transformStyle: 'preserve-3d' }}>
-                        {/* Front */}
-                        <div className="absolute inset-0 border" style={{ transform: 'translateZ(12px)', backgroundColor: `${sh.color}50`, borderColor: sh.color }} />
-                        {/* Back */}
-                        <div className="absolute inset-0 border" style={{ transform: 'rotateY(180deg) translateZ(12px)', backgroundColor: `${sh.color}50`, borderColor: sh.color }} />
-                        {/* Left */}
-                        <div className="absolute inset-0 border" style={{ transform: 'rotateY(-90deg) translateZ(12px)', backgroundColor: `${sh.color}50`, borderColor: sh.color }} />
-                        {/* Right */}
-                        <div className="absolute inset-0 border" style={{ transform: 'rotateY(90deg) translateZ(12px)', backgroundColor: `${sh.color}50`, borderColor: sh.color }} />
-                        {/* Top */}
-                        <div className="absolute inset-0 border" style={{ transform: 'rotateX(90deg) translateZ(12px)', backgroundColor: `${sh.color}50`, borderColor: sh.color }} />
-                        {/* Bottom */}
-                        <div className="absolute inset-0 border" style={{ transform: 'rotateX(-90deg) translateZ(12px)', backgroundColor: `${sh.color}50`, borderColor: sh.color }} />
-                      </div>
-                    )}
-
-                    {sh.type === 'triangle' && (
-                      /* Gorgeous 3D Pyramid */
-                      <div className="w-8 h-8 relative" style={{ transformStyle: 'preserve-3d' }}>
-                        {/* Base */}
-                        <div className="absolute inset-0 border" style={{ transform: 'rotateX(90deg) translateZ(-6px)', backgroundColor: `${sh.color}35`, borderColor: sh.color }} />
-                        {/* Front Face */}
-                        <div className="absolute inset-0" style={{ transform: 'rotateY(0deg) translateZ(6px) rotateX(30deg)', transformOrigin: 'bottom center' }}>
-                          <svg viewBox="0 0 100 100" className="w-full h-full" fill={`${sh.color}60`} stroke={sh.color} strokeWidth="6">
-                            <polygon points="50,15 90,85 10,85" />
-                          </svg>
-                        </div>
-                        {/* Right Face */}
-                        <div className="absolute inset-0" style={{ transform: 'rotateY(90deg) translateZ(6px) rotateX(30deg)', transformOrigin: 'bottom center' }}>
-                          <svg viewBox="0 0 100 100" className="w-full h-full" fill={`${sh.color}60`} stroke={sh.color} strokeWidth="6">
-                            <polygon points="50,15 90,85 10,85" />
-                          </svg>
-                        </div>
-                        {/* Back Face */}
-                        <div className="absolute inset-0" style={{ transform: 'rotateY(180deg) translateZ(6px) rotateX(30deg)', transformOrigin: 'bottom center' }}>
-                          <svg viewBox="0 0 100 100" className="w-full h-full" fill={`${sh.color}60`} stroke={sh.color} strokeWidth="6">
-                            <polygon points="50,15 90,85 10,85" />
-                          </svg>
-                        </div>
-                        {/* Left Face */}
-                        <div className="absolute inset-0" style={{ transform: 'rotateY(270deg) translateZ(6px) rotateX(30deg)', transformOrigin: 'bottom center' }}>
-                          <svg viewBox="0 0 100 100" className="w-full h-full" fill={`${sh.color}60`} stroke={sh.color} strokeWidth="6">
-                            <polygon points="50,15 90,85 10,85" />
-                          </svg>
-                        </div>
-                      </div>
-                    )}
-
-                    {sh.type === 'star' && (
-                      /* Rotating Multi-faceted 3D Star effect using offset layers */
-                      <div className="w-8 h-8 relative" style={{ transformStyle: 'preserve-3d' }}>
-                        <div className="absolute inset-0 flex items-center justify-center" style={{ transform: 'translateZ(4px)' }}>
-                          <svg viewBox="0 0 24 24" className="w-full h-full" fill={sh.color}>
-                            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                          </svg>
-                        </div>
-                        <div className="absolute inset-0 flex items-center justify-center" style={{ transform: 'translateZ(-4px) scale(0.9) rotate(36deg)', opacity: 0.65 }}>
-                          <svg viewBox="0 0 24 24" className="w-full h-full" fill={sh.color}>
-                            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                          </svg>
-                        </div>
-                        <div className="absolute inset-0 bg-white/20 blur-xs rounded-full" style={{ transform: 'translateZ(0px) scale(0.5)' }} />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Control panel & options */}
-      <div className="flex flex-col gap-1 shrink-0 py-0.5">
-        {viewMode === '2d' ? (
-          <>
-            {/* Shape & color picker */}
-            <div className="flex justify-between items-center text-[7.5px] font-black uppercase text-slate-400">
-              <span>Form wählen:</span>
-              <div className="flex gap-1">
-                {shapes.map(s => (
-                  <button
-                    key={s.type}
-                    onClick={() => setActiveShape(s.type)}
-                    className={`px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase border transition-all cursor-pointer ${
-                      activeShape === s.type
-                        ? 'bg-indigo-500 text-white border-transparent shadow-xs'
-                        : currentIsLight ? 'bg-white border-slate-200 text-slate-600' : 'bg-zinc-850 border-white/5 text-slate-400'
-                    }`}
-                  >
-                    {s.label.split(' ')[0]}
-                  </button>
-                ))}
+            />
+            {placedShapes.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="max-w-xs text-center">
+                  <div className="text-base font-black text-slate-600 dark:text-slate-300">Baue ein Muster</div>
+                  <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">Wähle Form und Farbe und tippe auf die Fläche.</div>
+                </div>
               </div>
-            </div>
-
-            <div className="flex justify-between items-center text-[7.5px] font-black uppercase text-slate-400">
-              <span>Farbe wählen:</span>
-              <div className="flex gap-1">
-                {colors.map(c => (
-                  <button
-                    key={c.val}
-                    onClick={() => setColorVal(c.val)}
-                    className={`w-3.5 h-3.5 rounded-full border transition-all cursor-pointer ${
-                      colorVal === c.val ? 'ring-2 ring-indigo-500 scale-110' : 'opacity-80'
-                    }`}
-                    style={{ backgroundColor: c.val, borderColor: currentIsLight ? '#e2e8f0' : 'rgba(255,255,255,0.1)' }}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Sliders for size and rotation */}
-            <div className="grid grid-cols-2 gap-2 text-[7px] font-black uppercase text-slate-400 mt-0.5">
-              <div className="flex items-center gap-1.5">
-                <span>Größe:</span>
-                <input type="range" min="15" max="50" value={size} onChange={(e) => setSize(Number(e.target.value))} className="w-full accent-indigo-500 h-1 cursor-pointer" />
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span>Winkel:</span>
-                <input type="range" min="0" max="360" value={rotation} onChange={(e) => setRotation(Number(e.target.value))} className="w-full accent-indigo-500 h-1 cursor-pointer" />
-              </div>
-            </div>
-          </>
-        ) : (
-          /* Interactive 3D Rotator and play settings */
-          <div className={`p-1.5 rounded-xl border flex flex-col gap-1.5 ${currentIsLight ? 'bg-slate-50 border-slate-100' : 'bg-zinc-850/40 border-white/5'}`}>
-            <div className="flex justify-between items-center text-[7.5px] font-black uppercase text-slate-400">
-              <span>3D-Rotation steuern:</span>
-              <button
-                onClick={() => setAutoRotate(!autoRotate)}
-                className={`px-1.5 py-0.2 rounded font-extrabold text-[6.5px] uppercase transition-all ${
-                  autoRotate ? 'bg-emerald-500 text-white' : 'bg-slate-300 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300'
-                }`}
+            )}
+            {placedShapes.map((shape) => (
+              <div
+                key={shape.id}
+                className="absolute flex items-center justify-center pointer-events-none transition-transform"
+                style={{
+                  width: shape.size,
+                  height: shape.size,
+                  left: `${shape.x}%`,
+                  top: `${shape.y}%`,
+                  transform: `translate(-50%, -50%) rotate(${shape.rotation}deg)`,
+                }}
               >
-                {autoRotate ? "Auto-Drehung AN 🟢" : "PAUSE 🛑"}
+                {renderFlatShape(shape.type, shape.color)}
+              </div>
+            ))}
+          </div>
+
+          <div className="shrink-0 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
+            <div className="grid grid-cols-2 gap-3">
+              <label className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                Größe: {size}px
+                <input
+                  type="range"
+                  min="28"
+                  max="76"
+                  value={size}
+                  onChange={(event) => setSize(Number(event.target.value))}
+                  className="mt-2 w-full h-11 accent-accent cursor-pointer"
+                  aria-label="Formgröße"
+                />
+              </label>
+              <label className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                Drehung: {rotation}°
+                <input
+                  type="range"
+                  min="0"
+                  max="330"
+                  step="30"
+                  value={rotation}
+                  onChange={(event) => setRotation(Number(event.target.value))}
+                  className="mt-2 w-full h-11 accent-accent cursor-pointer"
+                  aria-label="Drehwinkel"
+                />
+              </label>
+            </div>
+
+            <div className="flex flex-wrap items-end gap-2">
+              <button type="button" onClick={placeDefault} className="min-h-11 px-3 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-bold text-sm">
+                Form mittig setzen
+              </button>
+              <button
+                type="button"
+                onClick={removeLast}
+                disabled={placedShapes.length === 0}
+                className="min-h-11 px-3 rounded-xl border border-slate-300 dark:border-slate-700 font-bold text-sm hover:border-accent disabled:opacity-40"
+              >
+                Letzte zurück
+              </button>
+              <button
+                type="button"
+                onClick={clearCanvas}
+                disabled={placedShapes.length === 0}
+                className="min-h-11 px-3 rounded-xl border border-slate-300 dark:border-slate-700 font-bold text-sm hover:border-rose-400 hover:text-rose-600 disabled:opacity-40"
+              >
+                Alles löschen
               </button>
             </div>
-            
-            <div className="flex items-center gap-2 text-[7px] font-black uppercase text-slate-450 text-slate-400">
-              <span>Drehwinkel (Y):</span>
-              <input 
-                type="range" 
-                min="0" 
-                max="360" 
-                value={Math.round(rotateY)} 
-                onChange={(e) => {
-                  setAutoRotate(false);
-                  setRotateY(Number(e.target.value));
-                }} 
-                className="flex-grow accent-amber-500 h-1 cursor-pointer" 
+          </div>
+
+          <div className="shrink-0 flex flex-wrap gap-2 items-center" role="group" aria-label="Farbe auswählen">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Farbe</span>
+            {colors.map((color) => (
+              <button
+                key={color.val}
+                type="button"
+                onClick={() => setColorVal(color.val)}
+                aria-label={color.label}
+                aria-pressed={colorVal === color.val}
+                className={`min-h-11 min-w-11 rounded-full border-2 transition-transform active:scale-95 ${
+                  colorVal === color.val ? 'ring-2 ring-accent ring-offset-2 dark:ring-offset-slate-900' : ''
+                }`}
+                style={{ backgroundColor: color.val, borderColor: currentIsLight ? '#cbd5e1' : '#475569' }}
               />
-              <span className="font-mono text-[7px] text-amber-500">{Math.round(rotateY)}°</span>
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="shrink-0 rounded-xl bg-accent-soft border border-accent/20 px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Vergleiche Fläche und Körper: Was bleibt gleich, was kommt in 3D dazu?
+          </div>
+
+          <div className="flex-1 min-h-52 sm:min-h-64 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className={`rounded-2xl border p-4 flex flex-col items-center justify-center gap-3 ${
+              currentIsLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700'
+            }`}>
+              <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">2D-Fläche</div>
+              <div className="w-28 h-28 flex items-center justify-center">
+                {renderFlatShape(activeShape, colorVal, 'w-24 h-24')}
+              </div>
+              <div className="text-lg font-black text-slate-900 dark:text-slate-100">{activeMeta.label}</div>
+              <div className="text-sm text-slate-500 dark:text-slate-400 text-center">flach · Länge und Breite</div>
+            </div>
+
+            <div className={`rounded-2xl border p-4 flex flex-col items-center justify-center gap-3 ${
+              currentIsLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700'
+            }`}>
+              <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">3D-Körper</div>
+              <div className="w-full h-32 flex items-center justify-center" style={{ perspective: '700px' }}>
+                {renderSolid(activeShape, colorVal)}
+              </div>
+              <div className="text-lg font-black text-slate-900 dark:text-slate-100">{activeMeta.solid}</div>
+              <div className="text-sm text-slate-500 dark:text-slate-400 text-center">räumlich · Länge, Breite und Höhe</div>
             </div>
           </div>
-        )}
-      </div>
 
-      {viewMode === '2d' && (
-        <button
-          onClick={placeDefault}
-          className="w-full py-1 rounded-lg text-[8.5px] font-black uppercase tracking-wider bg-indigo-500 hover:bg-indigo-600 text-white shadow-xs cursor-pointer transition-all shrink-0"
-        >
-          ➕ Form zufällig platzieren
-        </button>
+          <label className="shrink-0 text-xs font-bold text-slate-600 dark:text-slate-300">
+            Körper drehen: {compareRotation}°
+            <input
+              type="range"
+              min="-45"
+              max="45"
+              value={compareRotation}
+              onChange={(event) => setCompareRotation(Number(event.target.value))}
+              className="mt-2 w-full h-11 accent-accent cursor-pointer"
+              aria-label="3D-Körper drehen"
+            />
+          </label>
+        </>
       )}
     </div>
   );
 };
+
 
 // ==========================================
 // NEW WIDGET 14: BRUCHTEIL-VISUALISIERER (Fraction Pie Visualizer)
