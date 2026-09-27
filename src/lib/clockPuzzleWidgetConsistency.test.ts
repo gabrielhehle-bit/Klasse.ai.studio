@@ -48,3 +48,19 @@ test('Uhren-Lern-Trainer hat keinen doppelten Innentitel und kündigt Feedback a
   assert.match(widget, /aria-live="polite"/);
   assert.match(widget, /Der lange Zeiger zeigt die Minuten/);
 });
+
+
+test('Uhren-Lern-Trainer erklärt Zeiger visuell und gibt differenziertes Feedback', () => {
+  assert.match(widget, /Zeiger-Legende/);
+  assert.match(widget, /Minutenzeiger/);
+  assert.match(widget, /Stundenzeiger/);
+  assert.match(widget, /Der Minutenzeiger passt noch nicht/);
+  assert.match(widget, /Die Minuten stimmen\. Prüfe jetzt den kurzen dunklen Stundenzeiger/);
+});
+
+test('Uhren-Lern-Trainer benennt Einstellaktionen für Screenreader eindeutig', () => {
+  assert.match(widget, /aria-label="Stundenzeiger zurück"/);
+  assert.match(widget, /aria-label="Stundenzeiger vor"/);
+  assert.match(widget, /aria-label="Minutenzeiger zurück"/);
+  assert.match(widget, /aria-label="Minutenzeiger vor"/);
+});
