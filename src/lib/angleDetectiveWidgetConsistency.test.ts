@@ -45,3 +45,18 @@ test('Winkel-Detektiv hat keinen doppelten Innentitel und barrierearmes Feedback
   assert.doesNotMatch(widget, />\s*📐 Winkel-Detektiv\s*</);
   assert.match(widget, /aria-live="polite"/);
 });
+
+
+test('Winkel-Detektiv lehrt Schätzen über die 90-Grad-Referenz', () => {
+  assert.match(widget, /kleiner, genau oder größer als 90°/);
+  assert.match(widget, /90 Grad Referenz/);
+  assert.match(widget, /relationToRightAngle/);
+});
+
+test('Winkel-Detektiv macht die Schätzgüte nach der Lösung sichtbar', () => {
+  assert.match(widget, /const estimateDiff =/);
+  assert.match(widget, /Abweichung/);
+  assert.match(widget, /estimateDiff <= 5/);
+  assert.match(widget, /estimateDiff <= 15/);
+  assert.match(widget, /bg-rose-50/);
+});
