@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const source = readFileSync('src/components/cockpit/CockpitWidgetContents.tsx', 'utf8');
 const start = source.indexOf('export const WastebinWidgetContent');
-const end = source.indexOf('// 15. WIDGET: REIM-MASCHINE', start);
+const end = source.indexOf('export const TonetrainerWidgetContent', start);
 const widget = source.slice(start, end);
 
 test('Müll-Trenner erklärt jede Antwort statt nur Punkte zu vergeben', () => {
