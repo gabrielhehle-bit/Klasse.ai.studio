@@ -15289,237 +15289,215 @@ interface Melody {
 export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
   type Mode = 'explore' | 'echo' | 'song';
   type Instrument = 'xylophon' | 'glockenspiel' | 'klavier';
-  type SimpleMelody = { name: string; emoji: string; notes: number[] };
 
   const notes = useMemo(() => [
-    { label: 'C', freq: 261.63 },
-    { label: 'D', freq: 293.66 },
-    { label: 'E', freq: 329.63 },
-    { label: 'F', freq: 349.23 },
-    { label: 'G', freq: 392.00 },
-    { label: 'A', freq: 440.00 },
-    { label: 'H', freq: 493.88 },
-    { label: 'C′', freq: 523.25 },
+    { label: 'C', freq: 261.63, color: 'bg-rose-500 border-rose-600' },
+    { label: 'D', freq: 293.66, color: 'bg-orange-500 border-orange-600' },
+    { label: 'E', freq: 329.63, color: 'bg-amber-500 border-amber-600' },
+    { label: 'F', freq: 349.23, color: 'bg-emerald-500 border-emerald-600' },
+    { label: 'G', freq: 392.0, color: 'bg-sky-500 border-sky-600' },
+    { label: 'A', freq: 440.0, color: 'bg-blue-600 border-blue-700' },
+    { label: 'H', freq: 493.88, color: 'bg-violet-500 border-violet-600' },
+    { label: 'C′', freq: 523.25, color: 'bg-fuchsia-500 border-fuchsia-600' },
   ], []);
 
-  const melodies: SimpleMelody[] = useMemo(() => [
-    { name: 'Alle meine Entchen', emoji: '🦆', notes: [0,1,2,3,4,4,5,5,5,5,4,5,5,5,5,4,3,3,3,3,2,2,1,1,1,1,0] },
-    { name: 'Bruder Jakob', emoji: '🔔', notes: [0,1,2,0,0,1,2,0,2,3,4,2,3,4,4,5,4,3,2,0,4,5,4,3,2,0] },
-    { name: 'Kuckuck, Kuckuck', emoji: '🌲', notes: [4,2,4,2,3,1,1,0] },
+  const melodies: Melody[] = useMemo(() => [
+    { name: 'Alle meine Entchen', emoji: '🦆', notes: [
+      { label: 'C', index: 0 }, { label: 'D', index: 1 }, { label: 'E', index: 2 }, { label: 'F', index: 3 },
+      { label: 'G', index: 4 }, { label: 'G', index: 4 }, { label: 'A', index: 5 }, { label: 'A', index: 5 },
+      { label: 'A', index: 5 }, { label: 'A', index: 5 }, { label: 'G', index: 4 },
+    ]},
+    { name: 'Hänschen klein', emoji: '👦', notes: [
+      { label: 'G', index: 4 }, { label: 'E', index: 2 }, { label: 'E', index: 2 }, { label: 'F', index: 3 },
+      { label: 'D', index: 1 }, { label: 'D', index: 1 }, { label: 'C', index: 0 }, { label: 'D', index: 1 },
+      { label: 'E', index: 2 }, { label: 'F', index: 3 }, { label: 'G', index: 4 },
+    ]},
+    { name: 'Bruder Jakob', emoji: '🔔', notes: [
+      { label: 'C', index: 0 }, { label: 'D', index: 1 }, { label: 'E', index: 2 }, { label: 'C', index: 0 },
+      { label: 'C', index: 0 }, { label: 'D', index: 1 }, { label: 'E', index: 2 }, { label: 'C', index: 0 },
+      { label: 'E', index: 2 }, { label: 'F', index: 3 }, { label: 'G', index: 4 },
+    ]},
   ], []);
 
   const [mode, setMode] = useState<Mode>('explore');
   const [instrument, setInstrument] = useState<Instrument>('xylophon');
   const [activeNote, setActiveNote] = useState<number | null>(null);
-  const [feedback, setFeedback] = useState('Spiele die Töne von tief nach hoch.');
-  const [echoLength, setEchoLength] = useState<3 | 4 | 5>(3);
-  const [echoSequence, setEchoSequence] = useState<number[]>([]);
-  const [echoInput, setEchoInput] = useState<number[]>([]);
-  const [isListening, setIsListening] = useState(false);
-  const [selectedMelodyIndex, setSelectedMelodyIndex] = useState(0);
+  const [feedback, setFeedback] = useState('Von links nach rechts werden die Töne höher.');
+  const [challengeLength, setChallengeLength] = useState<3 | 4 | 5>(3);
+  const [challengeSeq, setChallengeSeq] = useState<number[]>([]);
+  const [echoPosition, setEchoPosition] = useState(0);
+  const [isListeningSequence, setIsListeningSequence] = useState(false);
+  const [selectedMelody, setSelectedMelody] = useState<Melody>(melodies[0]);
   const [melodyStep, setMelodyStep] = useState(0);
+  const [lastPlayed, setLastPlayed] = useState<number[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const timeoutRefs = useRef<number[]>([]);
+  const timersRef = useRef<number[]>([]);
 
-  const selectedMelody = melodies[selectedMelodyIndex];
-
-  const describeDirection = (sequence: number[]) => {
-    if (sequence.length < 2) return 'ein Ton';
-    let up = 0;
-    let down = 0;
-    for (let index = 1; index < sequence.length; index += 1) {
-      if (sequence[index] > sequence[index - 1]) up += 1;
-      if (sequence[index] < sequence[index - 1]) down += 1;
-    }
-    if (up > 0 && down === 0) return 'steigend';
-    if (down > 0 && up === 0) return 'fallend';
-    if (up === 0 && down === 0) return 'gleichbleibend';
-    return 'mit Sprüngen nach oben und unten';
-  };
-
-  const clearScheduled = useCallback(() => {
-    timeoutRefs.current.forEach((id) => window.clearTimeout(id));
-    timeoutRefs.current = [];
+  const clearTimers = useCallback(() => {
+    timersRef.current.forEach((timer) => window.clearTimeout(timer));
+    timersRef.current = [];
+    setIsListeningSequence(false);
+    setActiveNote(null);
   }, []);
 
-  useEffect(() => () => {
-    clearScheduled();
-    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      audioContextRef.current.close().catch(() => {});
-    }
-  }, [clearScheduled]);
+  useEffect(() => {
+    return () => {
+      clearTimers();
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close().catch(() => {});
+      }
+    };
+  }, [clearTimers]);
 
   const getAudioContext = () => {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioCtx) return null;
     if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return null;
       audioContextRef.current = new AudioCtx();
     }
     return audioContextRef.current;
   };
 
-  const playTone = useCallback((index: number, duration = 0.42) => {
+  const playSingleFreq = (freq: number) => {
     const ctx = getAudioContext();
     if (!ctx) return;
-    const freq = notes[index].freq;
     const now = ctx.currentTime;
-    const master = ctx.createGain();
-    master.gain.setValueAtTime(0.0001, now);
-    master.gain.exponentialRampToValueAtTime(0.16, now + 0.01);
-    master.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-    master.connect(ctx.destination);
-
     const osc = ctx.createOscillator();
-    osc.frequency.setValueAtTime(freq, now);
+    const overtone = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const overtoneGain = ctx.createGain();
+
     osc.type = instrument === 'klavier' ? 'triangle' : 'sine';
-    osc.connect(master);
+    overtone.type = 'sine';
+    osc.frequency.setValueAtTime(freq, now);
+    overtone.frequency.setValueAtTime(freq * (instrument === 'glockenspiel' ? 3 : 2), now);
 
-    if (instrument === 'xylophon') {
-      const overtone = ctx.createOscillator();
-      const overtoneGain = ctx.createGain();
-      overtone.frequency.setValueAtTime(freq * 3, now);
-      overtoneGain.gain.setValueAtTime(0.04, now);
-      overtoneGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
-      overtone.connect(overtoneGain).connect(ctx.destination);
-      overtone.start(now);
-      overtone.stop(now + 0.14);
-    }
+    const duration = instrument === 'glockenspiel' ? 0.9 : instrument === 'klavier' ? 0.65 : 0.42;
+    gain.gain.setValueAtTime(0.11, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    overtoneGain.gain.setValueAtTime(instrument === 'glockenspiel' ? 0.035 : 0.018, now);
+    overtoneGain.gain.exponentialRampToValueAtTime(0.001, now + duration * 0.7);
 
-    if (instrument === 'glockenspiel') {
-      const overtone = ctx.createOscillator();
-      const overtoneGain = ctx.createGain();
-      overtone.frequency.setValueAtTime(freq * 4, now);
-      overtoneGain.gain.setValueAtTime(0.025, now);
-      overtoneGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
-      overtone.connect(overtoneGain).connect(ctx.destination);
-      overtone.start(now);
-      overtone.stop(now + 0.55);
-    }
-
+    osc.connect(gain).connect(ctx.destination);
+    overtone.connect(overtoneGain).connect(ctx.destination);
     osc.start(now);
-    osc.stop(now + duration + 0.03);
+    overtone.start(now);
+    osc.stop(now + duration);
+    overtone.stop(now + duration);
+  };
+
+  const describeDirection = (sequence: number[]) => {
+    if (sequence.length < 2) return 'ein einzelner Ton';
+    const deltas = sequence.slice(1).map((value, index) => value - sequence[index]);
+    if (deltas.every((delta) => delta >= 0) && deltas.some((delta) => delta > 0)) return 'steigend';
+    if (deltas.every((delta) => delta <= 0) && deltas.some((delta) => delta < 0)) return 'fallend';
+    return 'mit Sprüngen nach oben und unten';
+  };
+
+  const flashAndPlay = (index: number) => {
     setActiveNote(index);
-    const id = window.setTimeout(() => setActiveNote((current) => current === index ? null : current), Math.min(380, duration * 1000));
-    timeoutRefs.current.push(id);
-  }, [instrument, notes]);
-
-  const playSequence = useCallback((sequence: number[], onDone?: () => void) => {
-    clearScheduled();
-    setIsListening(true);
-    sequence.forEach((noteIndex, step) => {
-      const id = window.setTimeout(() => {
-        playTone(noteIndex, 0.34);
-        if (step === sequence.length - 1) {
-          const doneId = window.setTimeout(() => {
-            setIsListening(false);
-            onDone?.();
-          }, 430);
-          timeoutRefs.current.push(doneId);
-        }
-      }, step * 520);
-      timeoutRefs.current.push(id);
-    });
-  }, [clearScheduled, playTone]);
-
-  const startEcho = () => {
-    const sequence = Array.from({ length: echoLength }, () => Math.floor(Math.random() * notes.length));
-    setEchoSequence(sequence);
-    setEchoInput([]);
-    setFeedback('Höre genau hin. Danach spielst du die Tonfolge nach.');
-    playSequence(sequence, () => setFeedback(`Jetzt du: Spiele ${echoLength} Töne in derselben Reihenfolge.`));
-  };
-
-  const handleNote = (index: number) => {
-    if (isListening) return;
-    playTone(index);
-
-    if (mode === 'explore') {
-      const position = index === 0 ? 'tiefster Ton' : index === notes.length - 1 ? 'höchster Ton' : index < 4 ? 'eher tief' : 'eher hoch';
-      setFeedback(`${notes[index].label}: ${position} in dieser Tonleiter.`);
-      return;
-    }
-
-    if (mode === 'echo') {
-      if (echoSequence.length === 0) {
-        setFeedback('Starte zuerst eine Hörfolge.');
-        return;
-      }
-      const next = [...echoInput, index];
-      const target = echoSequence[next.length - 1];
-      if (index !== target) {
-        const relation = index > target ? 'zu hoch' : 'zu tief';
-        setEchoInput([]);
-        setFeedback(`Dieser Ton war ${relation}. Höre die Folge noch einmal und achte auf die Richtung.`);
-        return;
-      }
-      setEchoInput(next);
-      if (next.length === echoSequence.length) {
-        setFeedback(`Richtig nachgespielt. Die Folge war ${describeDirection(echoSequence)}.`);
-      } else {
-        setFeedback(`Richtig. Noch ${echoSequence.length - next.length} ${echoSequence.length - next.length === 1 ? 'Ton' : 'Töne'}.`);
-      }
-      return;
-    }
-
-    const target = selectedMelody.notes[melodyStep];
-    if (index === target) {
-      const nextStep = melodyStep + 1;
-      if (nextStep >= selectedMelody.notes.length) {
-        setFeedback(`${selectedMelody.name} fertig gespielt.`);
-        setMelodyStep(0);
-      } else {
-        setMelodyStep(nextStep);
-        setFeedback(`Richtig. Als Nächstes: ${notes[selectedMelody.notes[nextStep]].label}.`);
-      }
-    } else {
-      setFeedback(`Noch nicht. Gesucht ist jetzt ${notes[target].label}.`);
-    }
-  };
-
-  const replayEcho = () => {
-    if (echoSequence.length === 0) {
-      startEcho();
-      return;
-    }
-    setEchoInput([]);
-    setFeedback('Höre noch einmal: Ist der nächste Ton höher oder tiefer?');
-    playSequence(echoSequence, () => setFeedback(`Jetzt du: ${echoSequence.length} Töne nachspielen.`));
+    playSingleFreq(notes[index].freq);
+    setLastPlayed((current) => [...current.slice(-5), index]);
+    const timer = window.setTimeout(() => setActiveNote((current) => current === index ? null : current), 260);
+    timersRef.current.push(timer);
   };
 
   const switchMode = (nextMode: Mode) => {
-    clearScheduled();
-    setIsListening(false);
+    clearTimers();
     setMode(nextMode);
-    setEchoSequence([]);
-    setEchoInput([]);
-    setMelodyStep(0);
-    setFeedback(
-      nextMode === 'explore'
-        ? 'Spiele die Töne von tief nach hoch.'
-        : nextMode === 'echo'
-          ? 'Starte eine Hörfolge und spiele sie danach nach.'
-          : `Lerne ${selectedMelody.name} Ton für Ton.`
-    );
+    setEchoPosition(0);
+    setChallengeSeq([]);
+    setLastPlayed([]);
+    if (nextMode === 'explore') setFeedback('Von links nach rechts werden die Töne höher.');
+    if (nextMode === 'echo') setFeedback('Höre eine Tonfolge und spiele sie anschließend nach.');
+    if (nextMode === 'song') {
+      setMelodyStep(0);
+      setFeedback(`Lerne „${selectedMelody.name}“ Ton für Ton.`);
+    }
+  };
+
+  const startEcho = () => {
+    clearTimers();
+    const sequence = Array.from({ length: challengeLength }, () => Math.floor(Math.random() * notes.length));
+    setChallengeSeq(sequence);
+    setEchoPosition(0);
+    setIsListeningSequence(true);
+    setFeedback('Höre genau zu …');
+
+    sequence.forEach((noteIndex, index) => {
+      const timer = window.setTimeout(() => {
+        flashAndPlay(noteIndex);
+        if (index === sequence.length - 1) {
+          const finishTimer = window.setTimeout(() => {
+            setIsListeningSequence(false);
+            setFeedback(`Jetzt du. Der Tonverlauf war ${describeDirection(sequence)}.`);
+          }, 340);
+          timersRef.current.push(finishTimer);
+        }
+      }, 320 + index * 540);
+      timersRef.current.push(timer);
+    });
+  };
+
+  const handleTap = (index: number) => {
+    if (isListeningSequence) return;
+    flashAndPlay(index);
+
+    if (mode === 'echo' && challengeSeq.length > 0) {
+      const target = challengeSeq[echoPosition];
+      if (index !== target) {
+        const relation = index > target ? 'zu hoch' : 'zu tief';
+        setEchoPosition(0);
+        setFeedback(`Dieser Ton war ${relation}. Hör die Folge noch einmal an.`);
+        return;
+      }
+      const next = echoPosition + 1;
+      if (next >= challengeSeq.length) {
+        setEchoPosition(0);
+        setFeedback(`Richtig nachgespielt. Tonverlauf: ${describeDirection(challengeSeq)}.`);
+      } else {
+        setEchoPosition(next);
+        setFeedback(`Richtig. Noch ${challengeSeq.length - next} ${challengeSeq.length - next === 1 ? 'Ton' : 'Töne'}.`);
+      }
+    }
+
+    if (mode === 'song') {
+      const expected = selectedMelody.notes[melodyStep];
+      if (index !== expected.index) {
+        const relation = index > expected.index ? 'zu hoch' : 'zu tief';
+        setFeedback(`Der Ton war ${relation}. Gesucht ist ${expected.label}.`);
+        return;
+      }
+      const next = melodyStep + 1;
+      if (next >= selectedMelody.notes.length) {
+        setFeedback(`Geschafft: „${selectedMelody.name}“.`);
+        setMelodyStep(0);
+      } else {
+        setMelodyStep(next);
+        setFeedback(`Richtig. Als Nächstes: ${selectedMelody.notes[next].label}.`);
+      }
+    }
   };
 
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement || event.target instanceof HTMLTextAreaElement) return;
       const index = Number(event.key) - 1;
-      if (index >= 0 && index < notes.length && !event.repeat) {
+      if (index >= 0 && index < notes.length) {
         event.preventDefault();
-        handleNote(index);
+        handleTap(index);
       }
     };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
   });
 
-  const barHeights = ['h-40','h-36','h-32','h-28','h-24','h-20','h-16','h-14'];
+  const barHeights = ['h-36','h-34','h-32','h-30','h-28','h-26','h-24','h-22'];
 
   return (
     <div className="min-h-full w-full p-3 sm:p-4 flex flex-col gap-3 select-none overflow-visible">
       <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
-        <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1" role="tablist" aria-label="Tontrainer-Modus">
+        <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1" role="tablist" aria-label="Ton-Trainer-Modus">
           {([
             ['explore', 'Töne entdecken'],
             ['echo', 'Nachspielen'],
@@ -15531,154 +15509,111 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
               role="tab"
               aria-selected={mode === value}
               onClick={() => switchMode(value)}
-              className={`min-h-11 px-3 rounded-lg text-xs sm:text-sm font-bold ${
-                mode === value ? 'bg-accent text-accent-text shadow-sm' : 'text-slate-600 dark:text-slate-300'
-              }`}
+              className={`min-h-11 px-3 rounded-lg text-xs sm:text-sm font-bold ${mode === value ? 'bg-accent text-accent-text shadow-sm' : 'text-slate-600 dark:text-slate-300'}`}
             >
               {label}
             </button>
           ))}
         </div>
 
-        <label className="text-xs font-bold text-slate-600 dark:text-slate-300">
-          Klang
-          <select
-            value={instrument}
-            onChange={(event) => setInstrument(event.target.value as Instrument)}
-            className="ml-2 min-h-11 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 text-sm"
-          >
-            <option value="xylophon">Xylophon</option>
-            <option value="glockenspiel">Glockenspiel</option>
-            <option value="klavier">Klavier</option>
-          </select>
-        </label>
+        <select
+          value={instrument}
+          onChange={(event) => setInstrument(event.target.value as Instrument)}
+          className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-sm font-bold"
+          aria-label="Instrument auswählen"
+        >
+          <option value="xylophon">Xylophon</option>
+          <option value="glockenspiel">Glockenspiel</option>
+          <option value="klavier">Klavier</option>
+        </select>
       </div>
 
       {mode === 'echo' && (
-        <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-accent/20 bg-accent-soft px-3 py-2">
+        <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-2">
           <div className="flex gap-1" role="group" aria-label="Länge der Tonfolge">
             {([3,4,5] as const).map((length) => (
               <button
                 key={length}
                 type="button"
-                onClick={() => setEchoLength(length)}
-                disabled={isListening}
-                className={`min-h-11 min-w-11 rounded-lg border text-sm font-bold ${
-                  echoLength === length ? 'bg-accent text-accent-text border-accent' : 'border-slate-300 dark:border-slate-700'
-                }`}
+                onClick={() => setChallengeLength(length)}
+                className={`min-h-11 px-3 rounded-lg border text-sm font-bold ${challengeLength === length ? 'bg-accent text-accent-text border-accent' : 'border-slate-300 dark:border-slate-700'}`}
               >
-                {length}
+                {length} Töne
               </button>
             ))}
           </div>
-          <div className="flex gap-2">
-            <button type="button" onClick={startEcho} disabled={isListening} className="min-h-11 px-3 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-bold disabled:opacity-40">
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={startEcho} disabled={isListeningSequence} className="min-h-11 px-4 rounded-xl bg-accent hover:bg-accent-hover disabled:opacity-40 text-accent-text font-black">
               Neue Hörfolge
             </button>
-            <button type="button" onClick={replayEcho} disabled={isListening} className="min-h-11 px-3 rounded-xl border border-slate-300 dark:border-slate-700 font-bold disabled:opacity-40">
-              Noch einmal hören
-            </button>
+            {challengeSeq.length > 0 && (
+              <button type="button" onClick={startEcho} disabled={isListeningSequence} className="min-h-11 px-3 rounded-xl border border-slate-300 dark:border-slate-700 font-bold">
+                Noch einmal hören
+              </button>
+            )}
           </div>
         </div>
       )}
 
       {mode === 'song' && (
-        <div className="shrink-0 flex flex-wrap items-center gap-2">
-          {melodies.map((melody, index) => (
-            <button
-              key={melody.name}
-              type="button"
-              onClick={() => {
-                setSelectedMelodyIndex(index);
-                setMelodyStep(0);
-                setFeedback(`Lerne ${melody.name}. Starte mit ${notes[melody.notes[0]].label}.`);
-              }}
-              className={`min-h-11 px-3 rounded-xl border text-sm font-bold ${
-                selectedMelodyIndex === index ? 'bg-accent text-accent-text border-accent' : 'border-slate-300 dark:border-slate-700 hover:border-accent'
-              }`}
-            >
-              {melody.emoji} {melody.name}
-            </button>
-          ))}
+        <div className="shrink-0 grid gap-2 sm:grid-cols-[1fr_auto] items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-2">
+          <select
+            value={selectedMelody.name}
+            onChange={(event) => {
+              const next = melodies.find((melody) => melody.name === event.target.value) ?? melodies[0];
+              setSelectedMelody(next);
+              setMelodyStep(0);
+              setFeedback(`Lerne „${next.name}“ Ton für Ton.`);
+            }}
+            className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-sm font-bold"
+            aria-label="Lied auswählen"
+          >
+            {melodies.map((melody) => <option key={melody.name} value={melody.name}>{melody.emoji} {melody.name}</option>)}
+          </select>
+          <div className="text-sm font-bold text-slate-600 dark:text-slate-300">Ton {melodyStep + 1} / {selectedMelody.notes.length}</div>
         </div>
       )}
 
       <div className="shrink-0 rounded-xl bg-accent-soft border border-accent/20 px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
-        {mode === 'explore'
-          ? 'Von links nach rechts werden die Töne höher.'
-          : mode === 'echo'
-            ? 'Hörstrategie: Merke dir nicht nur die Tonbuchstaben – achte darauf, ob die Melodie nach oben oder unten geht.'
-            : `Liedfortschritt: ${melodyStep + 1} von ${selectedMelody.notes.length} · nächster Ton: ${notes[selectedMelody.notes[melodyStep]].label}`}
+        Von links nach rechts werden die Töne höher. Tonleiter: C – D – E – F – G – A – H – C′.
       </div>
 
-      {mode === 'echo' && echoSequence.length > 0 && (
-        <div className="shrink-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 text-center">
-            Tonverlauf
-          </div>
-          <div className="mt-2 flex items-end justify-center gap-2 h-12" aria-label="Visueller Tonverlauf">
-            {echoSequence.map((noteIndex, index) => (
-              <div
-                key={index}
-                className={`w-7 rounded-t-md transition-all ${
-                  index < echoInput.length ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
-                }`}
-                style={{ height: `${16 + noteIndex * 4}px` }}
-                title={notes[noteIndex].label}
-              />
-            ))}
-          </div>
+      <div className={`flex-1 min-h-52 rounded-2xl border p-3 flex items-end justify-center gap-1.5 sm:gap-3 ${currentIsLight ? 'bg-amber-50/60 border-amber-200' : 'bg-slate-900 border-slate-700'}`}>
+        {notes.map((note, index) => {
+          const active = activeNote === index;
+          const target = mode === 'song' && selectedMelody.notes[melodyStep]?.index === index;
+          return (
+            <button
+              key={note.label}
+              type="button"
+              onClick={() => handleTap(index)}
+              disabled={isListeningSequence}
+              aria-label={`Ton ${note.label} spielen, Taste ${index + 1}`}
+              className={`min-w-10 sm:min-w-14 ${barHeights[index]} rounded-2xl border-2 shadow-md flex flex-col items-center justify-between py-3 text-white font-black text-base sm:text-lg transition-all disabled:cursor-default ${note.color} ${active ? 'scale-105 ring-4 ring-white/80 -translate-y-1' : 'hover:-translate-y-1'} ${target ? 'ring-4 ring-accent ring-offset-2 dark:ring-offset-slate-900' : ''}`}
+            >
+              <span className="h-2 w-2 rounded-full bg-black/25" />
+              <span>{note.label}</span>
+              <span className="text-[10px] opacity-80">{index + 1}</span>
+              <span className="h-2 w-2 rounded-full bg-black/25" />
+            </button>
+          );
+        })}
+      </div>
+
+      {lastPlayed.length >= 2 && (
+        <div className="shrink-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-center text-xs sm:text-sm">
+          <span className="font-bold text-slate-500 dark:text-slate-400">Visueller Tonverlauf: </span>
+          <span className="font-black text-slate-800 dark:text-slate-100">{describeDirection(lastPlayed)}</span>
         </div>
       )}
 
-      <div className={`flex-1 min-h-52 rounded-2xl border p-3 sm:p-4 flex items-center justify-center ${
-        currentIsLight ? 'bg-amber-50/50 border-amber-200' : 'bg-slate-900 border-slate-700'
-      }`}>
-        <div className="w-full max-w-3xl flex items-end justify-center gap-2 sm:gap-3">
-          {notes.map((note, index) => {
-            const isTarget = mode === 'song' && selectedMelody.notes[melodyStep] === index;
-            const isEchoProgress = mode === 'echo' && echoInput.length > 0 && echoSequence[echoInput.length] === index;
-            return (
-              <button
-                key={note.label}
-                type="button"
-                onClick={() => handleNote(index)}
-                disabled={isListening}
-                aria-label={`Ton ${note.label} spielen, Taste ${index + 1}`}
-                className={`relative flex-1 max-w-20 min-w-10 ${barHeights[index]} rounded-xl border-2 font-black text-white shadow-md transition-all disabled:opacity-50 active:translate-y-1 ${
-                  activeNote === index
-                    ? 'bg-accent border-white ring-4 ring-accent/30 scale-105'
-                    : 'bg-gradient-to-b from-sky-400 to-sky-600 border-sky-700'
-                } ${isTarget ? 'ring-4 ring-emerald-300' : ''} ${isEchoProgress ? 'ring-2 ring-accent/40' : ''}`}
-              >
-                <span className="text-base sm:text-xl">{note.label}</span>
-                <span className="absolute bottom-1 left-0 right-0 text-[10px] opacity-80">Taste {index + 1}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {mode === 'song' && (
-        <div className="shrink-0">
-          <div className="flex gap-1 overflow-hidden" aria-label="Liedfortschritt">
-            {selectedMelody.notes.map((noteIndex, index) => (
-              <span
-                key={index}
-                className={`h-2 flex-1 rounded-full ${
-                  index < melodyStep ? 'bg-emerald-500' : index === melodyStep ? 'bg-accent' : 'bg-slate-200 dark:bg-slate-700'
-                }`}
-                title={notes[noteIndex].label}
-              />
-            ))}
-          </div>
+      {mode === 'echo' && challengeSeq.length > 0 && !isListeningSequence && (
+        <div className="shrink-0 text-center text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300">
+          Nachgespielt: {echoPosition}/{challengeSeq.length} · Tonverlauf: {describeDirection(challengeSeq)}
         </div>
       )}
 
-      <p
-        aria-live="polite"
-        className="shrink-0 min-h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 flex items-center justify-center text-center text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300"
-      >
+      <p aria-live="polite" className="shrink-0 min-h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 flex items-center justify-center text-center text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300">
         {feedback}
       </p>
     </div>
