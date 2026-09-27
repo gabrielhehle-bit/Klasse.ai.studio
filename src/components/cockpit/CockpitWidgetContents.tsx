@@ -14299,1763 +14299,262 @@ export const CalmrainWidgetContent: React.FC<CalmSoundsWidgetProps> = (props) =>
 // 9. WIDGET: SCHÄTZ-GLAS (EstimationjarWidgetContent)
 // ========================================================
 export const EstimationjarWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const { app } = useApp();
   const [contentType, setContentType] = useState<'beads' | 'marbles' | 'stars' | 'cookies' | 'gummybears' | 'coins'>('beads');
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
-  
-  const [jarCount, setJarCount] = useState<number>(() => Math.floor(Math.random() * 30) + 15);
-  const [userGuess, setUserGuess] = useState<number>(25);
+  const [jarCount, setJarCount] = useState<number>(36);
+  const [userGuess, setUserGuess] = useState<number>(35);
   const [revealed, setRevealed] = useState<boolean>(false);
-  const [feedback, setFeedback] = useState<string>("Wie viele Perlen sind im Glas?");
+  const [feedback, setFeedback] = useState<string>('Schätze die Menge, ohne jedes Stück einzeln zu zählen.');
 
-  const petState = app?.classPet || { animalType: "dino", name: "Spike" };
-  const petBreed = PET_BREEDS.find(b => b.id === petState.animalType) || PET_BREEDS[0];
-  const petEmoji = petBreed ? petBreed.emoji : "🦕";
-  const petName = petState.name || petBreed?.nameDefault || "Spike";
+  const contentMeta = {
+    beads: { singular: 'Perle', plural: 'Perlen', emoji: '🔴' },
+    marbles: { singular: 'Murmel', plural: 'Murmeln', emoji: '🔮' },
+    stars: { singular: 'Stern', plural: 'Sterne', emoji: '⭐' },
+    cookies: { singular: 'Keks', plural: 'Kekse', emoji: '🍪' },
+    gummybears: { singular: 'Gummibärchen', plural: 'Gummibärchen', emoji: '🧸' },
+    coins: { singular: 'Münze', plural: 'Münzen', emoji: '🪙' },
+  } as const;
 
-  const maxVal = difficulty === 'easy' ? 25 : difficulty === 'medium' ? 55 : 115;
+  const ranges = {
+    easy: { min: 10, max: 25, step: 1 },
+    medium: { min: 25, max: 60, step: 5 },
+    hard: { min: 60, max: 120, step: 5 },
+  } as const;
 
-  const playSimpleSound = (type: 'tada' | 'bell' | 'beep') => {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    
-    if (type === 'tada') {
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(523.25, now);
-      osc.frequency.setValueAtTime(659.25, now + 0.1);
-      osc.frequency.setValueAtTime(783.99, now + 0.2);
-      osc.frequency.setValueAtTime(1046.5, now + 0.3);
-      gain.gain.setValueAtTime(0.15, now);
-      gain.gain.linearRampToValueAtTime(0.15, now + 0.5);
-      gain.gain.linearRampToValueAtTime(0, now + 0.8);
-      osc.start(now);
-      osc.stop(now + 0.8);
-    } else if (type === 'bell') {
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(880, now);
-      osc.frequency.exponentialRampToValueAtTime(440, now + 0.4);
-      gain.gain.setValueAtTime(0.15, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-      osc.start(now);
-      osc.stop(now + 0.4);
-    } else {
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(600, now);
-      gain.gain.setValueAtTime(0.1, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-      osc.start(now);
-      osc.stop(now + 0.15);
-    }
-  };
+  const activeRange = ranges[difficulty];
+  const activeContent = contentMeta[contentType];
 
-  const getContentLabel = (plural: boolean = true) => {
-    switch (contentType) {
-      case 'beads': return plural ? 'Perlen' : 'Perle';
-      case 'marbles': return plural ? 'Murmeln' : 'Murmel';
-      case 'stars': return plural ? 'Sterne' : 'Stern';
-      case 'cookies': return plural ? 'Kekse' : 'Keks';
-      case 'gummybears': return plural ? 'Gummibärchen' : 'Gummibärchen';
-      case 'coins': return plural ? 'Goldmünzen' : 'Goldmünze';
-    }
-  };
-
-  const regenerateJar = () => {
-    const min = difficulty === 'easy' ? 10 : difficulty === 'medium' ? 25 : 55;
-    const max = difficulty === 'easy' ? 25 : difficulty === 'medium' ? 55 : 115;
-    const count = Math.floor(Math.random() * (max - min)) + min;
+  const regenerateJar = useCallback((nextDifficulty: 'easy' | 'medium' | 'hard' = difficulty) => {
+    const range = ranges[nextDifficulty];
+    const count = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
+    const roundedGuess = Math.round(count / range.step) * range.step;
     setJarCount(count);
+    setUserGuess(Math.max(range.min, Math.min(range.max, roundedGuess)));
     setRevealed(false);
-    setFeedback(`Wie viele ${getContentLabel()} sind im Glas?`);
-  };
+    setFeedback(`Schätze: Wie viele ${contentMeta[contentType].plural} sind im Glas?`);
+  }, [difficulty, contentType]);
+
+  useEffect(() => {
+    regenerateJar(difficulty);
+  }, [difficulty, contentType, regenerateJar]);
 
   const handleValidation = () => {
     setRevealed(true);
     const diff = Math.abs(userGuess - jarCount);
+    const tolerance = difficulty === 'easy' ? 2 : difficulty === 'medium' ? 5 : 10;
     if (diff === 0) {
-      if (contentType === 'cookies') {
-        setFeedback(`🏆 Perfekt! ${petName} freut sich riesig über alle ${jarCount} Kekse! 🍪`);
-      } else {
-        setFeedback(`🏆 Absolut perfekt geschätzt! Exakt ${jarCount} ${getContentLabel()}!`);
-      }
-      playSimpleSound('tada');
-    } else if (diff <= 3) {
-      setFeedback(`✨ Tolles Auge! Es sind ${jarCount} ${getContentLabel()} (Nur ${diff} daneben!)`);
-      playSimpleSound('bell');
+      setFeedback(`Exakt getroffen: ${jarCount} ${activeContent.plural}.`);
+    } else if (diff <= tolerance) {
+      setFeedback(`Sehr gut geschätzt: ${jarCount} ${activeContent.plural}, nur ${diff} daneben.`);
     } else {
-      setFeedback(`🔍 Fast! Es sind genau ${jarCount} ${getContentLabel()}. Probier es nochmal!`);
-      playSimpleSound('beep');
+      setFeedback(`Es sind ${jarCount} ${activeContent.plural}. Deine Schätzung lag ${diff} daneben.`);
     }
   };
 
-  // Stacked coordinate generator mapping to create layered 3D looking beads
-  const beadsCoords = useMemo(() => {
-    const list = [];
-    const colors = [
-      'radial-gradient(circle at 35% 35%, #f43f5e, #be123c)', // rose
-      'radial-gradient(circle at 35% 35%, #3b82f6, #1d4ed8)', // blue
-      'radial-gradient(circle at 35% 35%, #10b981, #047857)', // emerald
-      'radial-gradient(circle at 35% 35%, #f59e0b, #b45309)', // amber
-      'radial-gradient(circle at 35% 35%, #8b5cf6, #6d28d9)', // violet
-      'radial-gradient(circle at 35% 35%, #ec4899, #be185d)', // pink
-      'radial-gradient(circle at 35% 35%, #06b6d4, #0891b2)', // cyan
-    ];
-    
-    // Support up to 150 items stacked organically
-    for (let i = 0; i < 150; i++) {
-      const rowCapacity = 6;
-      const layer = Math.floor(i / rowCapacity);
-      const pos = i % rowCapacity;
-      const rowWidth = 66; // total width inside glass
-      const spacing = rowWidth / (rowCapacity - 1);
-      
-      const xNoise = Math.sin(i * 1.7) * 2.5;
-      const yNoise = Math.cos(i * 2.3) * 1.2;
-      
-      // Narrowing towards the top cork of the jar
-      let xOffset = 0;
-      if (layer === 0) xOffset = 2;
-      if (layer > 14) xOffset = (layer - 14) * 1.6;
-      
-      const x = 16 + (pos * spacing) + (layer % 2 === 0 ? 1.5 : -1.5) + xNoise + xOffset;
-      const y = 6 + (layer * 3.7) + yNoise;
-      const color = colors[i % colors.length];
-      list.push({ x, y, color });
+  const itemCoords = useMemo(() => {
+    const list: Array<{ x: number; y: number; scale: number; color: string }> = [];
+    const colors = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
+    for (let i = 0; i < 120; i += 1) {
+      const cols = 8;
+      const row = Math.floor(i / cols);
+      const col = i % cols;
+      const x = 12 + col * 10.6 + (row % 2 ? 4 : 0);
+      const y = 8 + row * 5.8;
+      list.push({
+        x,
+        y,
+        scale: 0.86 + ((i * 7) % 8) / 50,
+        color: colors[i % colors.length],
+      });
     }
     return list;
   }, []);
 
-  return (
-    <div className="flex flex-col h-full w-full p-2 justify-between select-none min-h-0 pointer-events-auto">
-      {/* Top bar with content and difficulty controllers */}
-      <div className="shrink-0 flex justify-between items-center mb-1 gap-1 flex-wrap">
-        <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
-            🫙 Schätz-Glas
-          </span>
-          <span className="text-[7px] font-mono opacity-80 leading-none">Visuelle Mengenerfassung</span>
-        </div>
-        
-        <div className="flex gap-1 items-center">
-          {/* Content Selector Dropdown */}
-          <select
-            value={contentType}
-            onChange={(e) => {
-              const val = e.target.value as any;
-              setContentType(val);
-              setFeedback(`Wie viele ${val === 'beads' ? 'Perlen' : val === 'marbles' ? 'Murmeln' : val === 'stars' ? 'Sterne' : val === 'cookies' ? 'Kekse' : val === 'gummybears' ? 'Gummibärchen' : 'Goldmünzen'} sind im Glas?`);
-            }}
-            className={`px-1 py-0.5 rounded text-[8px] font-bold border outline-none ${
-              currentIsLight ? "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700" : "bg-zinc-900 border-white/5 text-slate-300"
-            }`}
-          >
-            <option value="beads">🔴 Perlen</option>
-            <option value="marbles">🔮 Murmeln</option>
-            <option value="stars">⭐ Sterne</option>
-            <option value="cookies">🍪 Kekse ({petName})</option>
-            <option value="gummybears">🧸 Bären</option>
-            <option value="coins">🪙 Münzen</option>
-          </select>
+  const clusterMarks = useMemo(() => {
+    if (difficulty === 'easy') return [5, 10, 15, 20, 25];
+    if (difficulty === 'medium') return [10, 20, 30, 40, 50, 60];
+    return [20, 40, 60, 80, 100, 120];
+  }, [difficulty]);
 
-          {/* Difficulty Dropdown */}
-          <select
-            value={difficulty}
-            onChange={(e) => {
-              const diff = e.target.value as any;
-              setDifficulty(diff);
-              const min = diff === 'easy' ? 10 : diff === 'medium' ? 25 : 55;
-              const max = diff === 'easy' ? 25 : diff === 'medium' ? 55 : 115;
-              setJarCount(Math.floor(Math.random() * (max - min)) + min);
-              setRevealed(false);
-              setFeedback(`Fülle neu auf... Schätze das Glas!`);
-            }}
-            className={`px-1 py-0.5 rounded text-[8px] font-bold border outline-none ${
-              currentIsLight ? "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700" : "bg-zinc-900 border-white/5 text-slate-300"
-            }`}
-          >
-            <option value="easy">🟢 Leicht (10-25)</option>
-            <option value="medium">🟡 Mittel (25-55)</option>
-            <option value="hard">🔴 Schwer (55-115)</option>
-          </select>
-
-          <button
-            onClick={regenerateJar}
-            className="px-1.5 py-0.5 rounded bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-[8px] shadow active:scale-95 transition-all cursor-pointer"
-          >
-            Neu füllen
-          </button>
-        </div>
-      </div>
-
-      {/* Main glass jar section & Controls */}
-      <div className="flex-grow flex flex-row items-center justify-around gap-2.5 min-h-0 py-1">
-        {/* Transparent double-rim ivory container candy jar - beautiful responsive aspect ratio */}
-        <div className="relative w-full max-w-[125px] aspect-[1/1.3] h-full border-4 border-slate-400 dark:border-zinc-700 rounded-t-2xl rounded-b-[38px] bg-slate-100/15 dark:bg-black/25 shadow-2xl flex flex-wrap content-end justify-center p-2 overflow-hidden ring-2 ring-black/5 backdrop-blur-[1px] transition-all duration-300">
-          
-          {/* Glass sheen reflection effects */}
-          <div className="absolute inset-y-0 left-1 w-2.5 bg-gradient-to-r from-white/15 to-transparent pointer-events-none rounded-l-2xl z-10" />
-          <div className="absolute inset-y-0 right-1 w-1.5 bg-gradient-to-l from-white/10 to-transparent pointer-events-none rounded-r-2xl z-10" />
-          
-          {/* Cork lid */}
-          <div className="absolute top-0 left-[18%] right-[18%] h-[8%] bg-amber-800/90 dark:bg-amber-900/90 border-b-2 border-amber-950 rounded-b-md shadow-md flex items-center justify-center">
-            <div className="w-[70%] h-0.5 bg-white/15 rounded-full" />
-          </div>
-
-          {/* Beads / Items list */}
-          {beadsCoords.slice(0, jarCount).map((bead, i) => (
-            <div
-              key={i}
-              className="absolute pointer-events-none flex items-center justify-center"
-              style={{
-                left: `${bead.x}%`,
-                bottom: `${bead.y}%`,
-                width: '12.5%',
-                aspectRatio: '1',
-              }}
-            >
-              {contentType === 'beads' && (
-                <div
-                  className="w-full h-full rounded-full shadow-[inset_-2px_-2px_4px_rgba(0,0,0,0.3),1px_1px_3px_rgba(0,0,0,0.15)] animate-zoom-in"
-                  style={{
-                    background: bead.color,
-                    border: '0.5px solid rgba(255,255,255,0.4)',
-                  }}
-                />
-              )}
-              {contentType === 'marbles' && (
-                <div
-                  className="w-full h-full rounded-full shadow-[inset_-3px_-3px_5px_rgba(0,0,0,0.4),0_0_8px_rgba(255,255,255,0.4)] animate-zoom-in relative overflow-hidden"
-                  style={{
-                    background: `radial-gradient(circle at 30% 30%, #a5b4fc 10%, #4338ca 60%, #1e1b4b 100%)`,
-                    border: '1px solid rgba(255,255,255,0.5)',
-                  }}
-                >
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[30%] bg-pink-400/30 rounded-full rotate-45" />
-                </div>
-              )}
-              {contentType === 'stars' && (
-                <span className="text-sm select-none animate-zoom-in drop-shadow-md">⭐</span>
-              )}
-              {contentType === 'cookies' && (
-                <span className="text-sm select-none animate-zoom-in drop-shadow-md">🍪</span>
-              )}
-              {contentType === 'gummybears' && (
-                <span className="text-sm select-none animate-zoom-in drop-shadow-md">🧸</span>
-              )}
-              {contentType === 'coins' && (
-                <span className="text-sm select-none animate-zoom-in drop-shadow-md">🪙</span>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Guess controls sidebar */}
-        <div className="flex flex-col gap-1.5 flex-1 max-w-[120px]">
-          <span className="text-[8px] font-black text-center uppercase tracking-widest text-slate-500 dark:text-slate-400">
-            Dein Tipp:
-          </span>
-          
-          <div className="flex items-center gap-1">
-            <button 
-              onClick={() => {
-                setUserGuess(g => Math.max(1, g - 1));
-                playSimpleSound('beep');
-              }}
-              className="w-5 h-5 rounded bg-slate-200 hover:bg-slate-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 font-bold text-xs flex items-center justify-center cursor-pointer active:scale-90 transition-all text-slate-800 dark:text-slate-200"
-            >-</button>
-            <input
-              type="number"
-              min="1"
-              max={maxVal}
-              value={userGuess}
-              onChange={(e) => setUserGuess(Math.max(1, Math.min(maxVal, parseInt(e.target.value) || 1)))}
-              className={`flex-1 py-1 text-center font-black rounded-lg text-xs border outline-none ${
-                currentIsLight ? 'bg-white text-slate-800 border-slate-300' : 'bg-zinc-950 text-white border-zinc-700'
-              }`}
-            />
-            <button 
-              onClick={() => {
-                setUserGuess(g => Math.min(maxVal, g + 1));
-                playSimpleSound('beep');
-              }}
-              className="w-5 h-5 rounded bg-slate-200 hover:bg-slate-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 font-bold text-xs flex items-center justify-center cursor-pointer active:scale-90 transition-all text-slate-800 dark:text-slate-200"
-            >+</button>
-          </div>
-
-          <button
-            onClick={revealed ? regenerateJar : handleValidation}
-            className={`w-full py-1.5 rounded-xl font-black text-[8px] uppercase tracking-wider cursor-pointer active:scale-95 transition-all shadow-sm text-white ${
-              revealed ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-rose-500 hover:bg-rose-600'
-            }`}
-          >
-            {revealed ? "Neu füllen" : "Auflösen 🔍"}
-          </button>
-
-          {/* Special pet greeting when cookies are chosen */}
-          {contentType === 'cookies' && (
-            <div className="flex items-center gap-1 justify-center bg-amber-500/10 dark:bg-amber-500/5 p-1 rounded-md border border-amber-500/25">
-              <span className="text-sm select-none animate-bounce">{petEmoji}</span>
-              <span className="text-[6.5px] font-bold text-amber-600 dark:text-amber-400 uppercase leading-none truncate">
-                {petName}'s Hunger!
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Feedback text row */}
-      <div className="shrink-0 text-center mt-0.5">
-        <span className="text-[8px] font-black text-blue-500 animate-pulse">{feedback}</span>
-      </div>
-    </div>
-  );
-};
-
-
-// ========================================================
-// 10. WIDGET: BLITZ-REAKTION (ReflexgameWidgetContent)
-// ========================================================
-export const ReflexgameWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [gameState, setGameState] = useState<'idle' | 'waiting' | 'trigger' | 'done'>('idle');
-  const [triggerTime, setTriggerTime] = useState<number>(0);
-  const [leftScore, setLeftScore] = useState<number | null>(null);
-  const [rightScore, setRightScore] = useState<number | null>(null);
-  const [winnerMessage, setWinnerMessage] = useState<string>("Bist du schneller?");
-  const triggerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const clearTriggerTimer = useCallback(() => {
-    if (triggerTimerRef.current) {
-      clearTimeout(triggerTimerRef.current);
-      triggerTimerRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => () => clearTriggerTimer(), [clearTriggerTimer]);
-
-  const triggerReaction = () => {
-    clearTriggerTimer();
-    setGameState('waiting');
-    setLeftScore(null);
-    setRightScore(null);
-    setWinnerMessage("Konzentration … wartet auf das Signal!");
-
-    const delay = Math.floor(Math.random() * 3000) + 2000;
-    triggerTimerRef.current = setTimeout(() => {
-      triggerTimerRef.current = null;
-      setGameState('trigger');
-      setTriggerTime(performance.now());
-      setWinnerMessage("💥 JETZT DRÜCKEN! 💥");
-    }, delay);
+  const setGuess = (value: number) => {
+    setUserGuess(Math.max(activeRange.min, Math.min(activeRange.max, value)));
+    setRevealed(false);
   };
 
-  const handleTap = (side: 'left' | 'right') => {
-    if (gameState === 'waiting') {
-      clearTriggerTimer();
-      setWinnerMessage(side === 'left' ? "🔴 Links: Fehlstart!" : "🔵 Rechts: Fehlstart!");
-      setGameState('idle');
-      return;
+  const renderItem = (index: number) => {
+    const coord = itemCoords[index];
+    if (contentType === 'beads') {
+      return <div className="w-full h-full rounded-full shadow-sm" style={{ backgroundColor: coord.color }} />;
     }
-
-    if (gameState !== 'trigger') return;
-
-    const elapsed = Math.max(0, Math.round(performance.now() - triggerTime));
-    if (side === 'left') {
-      setLeftScore(elapsed);
-      setWinnerMessage(`🏆 Team LINKS gewinnt! (${elapsed} ms)`);
-    } else {
-      setRightScore(elapsed);
-      setWinnerMessage(`🏆 Team RECHTS gewinnt! (${elapsed} ms)`);
+    if (contentType === 'marbles') {
+      return <div className="w-full h-full rounded-full border border-white/50 shadow-sm" style={{ background: `radial-gradient(circle at 30% 30%, white, ${coord.color})` }} />;
     }
-    setGameState('done');
-  };
-
-  const waiting = gameState === 'waiting';
-  const ready = gameState === 'trigger';
-
-  return (
-    <div className="flex flex-col h-full w-full p-2.5 select-none min-h-0 overflow-hidden gap-2">
-      <div className="shrink-0 flex flex-wrap justify-between items-center gap-2">
-        <span className="text-[10px] font-mono font-bold opacity-70">
-          Reaktionszeit-Duell · links A · rechts L
-        </span>
-        <button
-          onClick={triggerReaction}
-          disabled={waiting}
-          className="min-h-11 px-3 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-black text-[10px] uppercase tracking-wide transition-all active:scale-95 disabled:opacity-60 disabled:cursor-wait"
-        >
-          {waiting ? "Warten …" : gameState === 'done' ? "Nochmal" : "Start Duell ⏱️"}
-        </button>
-      </div>
-
-      <div className="flex-grow grid grid-cols-2 gap-2 min-h-0">
-        <button
-          type="button"
-          onClick={() => handleTap('left')}
-          aria-label="Team Links drücken"
-          className={`min-h-11 rounded-2xl border-2 flex flex-col justify-center items-center cursor-pointer transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${ready
-            ? 'bg-rose-500 border-rose-600 text-white animate-pulse'
-            : currentIsLight
-              ? 'bg-slate-50 border-slate-200 text-slate-800'
-              : 'bg-zinc-800 border-zinc-700 text-neutral-200'}`}
-        >
-          <span className="text-[10px] uppercase tracking-widest block opacity-70">Team Rot</span>
-          <span className="text-sm font-black">LINKS · A</span>
-          {leftScore !== null && <span className="text-sm font-mono mt-1 font-black">{leftScore} ms</span>}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleTap('right')}
-          aria-label="Team Rechts drücken"
-          className={`min-h-11 rounded-2xl border-2 flex flex-col justify-center items-center cursor-pointer transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${ready
-            ? 'bg-cyan-500 border-cyan-600 text-white animate-pulse'
-            : currentIsLight
-              ? 'bg-slate-50 border-slate-200 text-slate-800'
-              : 'bg-zinc-800 border-zinc-700 text-neutral-200'}`}
-        >
-          <span className="text-[10px] uppercase tracking-widest block opacity-70">Team Blau</span>
-          <span className="text-sm font-black">RECHTS · L</span>
-          {rightScore !== null && <span className="text-sm font-mono mt-1 font-black">{rightScore} ms</span>}
-        </button>
-      </div>
-
-      <div
-        className={`shrink-0 min-h-11 rounded-xl px-3 flex items-center justify-center text-center font-extrabold ${ready
-          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-base animate-pulse'
-          : waiting
-            ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[11px]'
-            : 'bg-slate-100/70 dark:bg-white/5 text-slate-600 dark:text-slate-300 text-[11px]'}`}
-        aria-live="polite"
-      >
-        {winnerMessage}
-      </div>
-    </div>
-  );
-};
-
-
-// ========================================================
-// 11. WIDGET: MATHE-PYRAMIDE (MathpyramidWidgetContent)
-// ========================================================
-export const MathpyramidWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  type Difficulty = 'easy' | 'medium' | 'hard';
-  const [level, setLevel] = useState<Difficulty>('medium');
-  const [range, setRange] = useState<10 | 20 | 100 | 1000>(100);
-  const [blocks, setBlocks] = useState<number[]>([15, 8, 7, 5, 3, 4]);
-  const [given, setGiven] = useState<boolean[]>([false, true, true, false, true, false]);
-  const [userInputs, setUserInputs] = useState<string[]>(['', '8', '7', '', '3', '']);
-  const [checked, setChecked] = useState<boolean[]>([false, false, false, false, false, false]);
-  const [feedback, setFeedback] = useState<string>('Jeder Stein ist die Summe der zwei Steine darunter.');
-  const [showHint, setShowHint] = useState(false);
-
-  const generatePyramid = useCallback((difficulty: Difficulty, r: number) => {
-    let b1 = 1;
-    let b2 = 1;
-    let b3 = 1;
-    let top = r + 1;
-
-    // Generate until the complete pyramid really stays inside the selected number range.
-    while (top > r) {
-      const maxBottom = Math.max(2, Math.floor(r / 4));
-      b1 = Math.floor(Math.random() * maxBottom) + 1;
-      b2 = Math.floor(Math.random() * maxBottom) + 1;
-      b3 = Math.floor(Math.random() * maxBottom) + 1;
-      top = b1 + 2 * b2 + b3;
-    }
-
-    const m1 = b1 + b2;
-    const m2 = b2 + b3;
-    const fullPyramid = [top, m1, m2, b1, b2, b3];
-    setBlocks(fullPyramid);
-
-    let showIndices: number[];
-    if (difficulty === 'easy') {
-      // All base stones given: calculate upwards.
-      showIndices = [3, 4, 5];
-    } else if (difficulty === 'medium') {
-      // Three independent clues: requires forward and backward thinking.
-      showIndices = [1, 2, 4];
-    } else {
-      // Still exactly solvable: top + one middle + its outer base stone determine the rest.
-      showIndices = Math.random() > 0.5 ? [0, 1, 3] : [0, 2, 5];
-    }
-
-    const nextGiven = Array.from({ length: 6 }, (_, index) => showIndices.includes(index));
-    setGiven(nextGiven);
-    setUserInputs(fullPyramid.map((value, index) => nextGiven[index] ? String(value) : ''));
-    setChecked(Array(6).fill(false));
-    setShowHint(false);
-    setFeedback('Jeder Stein ist die Summe der zwei Steine darunter.');
-  }, []);
-
-  useEffect(() => {
-    generatePyramid(level, range);
-  }, [level, range, generatePyramid]);
-
-  const playPyramidChime = (success: boolean) => {
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const frequencies = success ? [523.25, 659.25, 783.99] : [150];
-      frequencies.forEach((freq, index) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        const start = ctx.currentTime + index * 0.08;
-        osc.frequency.setValueAtTime(freq, start);
-        gain.gain.setValueAtTime(success ? 0.06 : 0.08, start);
-        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.22);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(start);
-        osc.stop(start + 0.24);
-      });
-    } catch {}
-  };
-
-  const updateInput = (index: number, raw: string) => {
-    if (given[index]) return;
-    const value = raw.replace(/[^0-9]/g, '').slice(0, 4);
-    setUserInputs((current) => current.map((entry, entryIndex) => entryIndex === index ? value : entry));
-    setChecked((current) => current.map((entry, entryIndex) => entryIndex === index ? false : entry));
-    setShowHint(false);
-  };
-
-  const checkAnswer = () => {
-    const missingIndices = given.map((isGiven, index) => !isGiven && userInputs[index].trim() === '' ? index : -1).filter((index) => index >= 0);
-    if (missingIndices.length > 0) {
-      setFeedback(`Es fehlen noch ${missingIndices.length} ${missingIndices.length === 1 ? 'Stein' : 'Steine'}.`);
-      return;
-    }
-
-    const nextChecked = userInputs.map((value, index) => given[index] || Number(value) === blocks[index]);
-    setChecked(nextChecked);
-    const allCorrect = nextChecked.every(Boolean);
-
-    if (allCorrect) {
-      setFeedback('Alles richtig – die Pyramide stimmt.');
-      playPyramidChime(true);
-    } else {
-      const wrongCount = nextChecked.filter((correct, index) => !given[index] && !correct).length;
-      setFeedback(`${wrongCount} ${wrongCount === 1 ? 'Stein stimmt' : 'Steine stimmen'} noch nicht. Prüfe die Nachbarsteine.`);
-      playPyramidChime(false);
-    }
-  };
-
-  const isComplete = checked.every(Boolean);
-  const editableIndices = given.map((isGiven, index) => isGiven ? -1 : index).filter((index) => index >= 0);
-  const correctEditableCount = editableIndices.filter((index) => checked[index] && Number(userInputs[index]) === blocks[index]).length;
-  const nextBlankIndex = editableIndices.find((index) => userInputs[index].trim() === '') ?? editableIndices.find((index) => !checked[index]) ?? -1;
-
-  const hintForIndex = (index: number) => {
-    if (index === 0) return 'Für den obersten Stein brauchst du die beiden Steine direkt darunter.';
-    if (index === 1) return given[3] || userInputs[3] ? 'Links in der Mitte: untere linke Zahl + untere mittlere Zahl.' : 'Nutze den obersten Stein zusammen mit dem rechten Mittelstein.';
-    if (index === 2) return given[5] || userInputs[5] ? 'Rechts in der Mitte: untere mittlere Zahl + untere rechte Zahl.' : 'Nutze den obersten Stein zusammen mit dem linken Mittelstein.';
-    if (index === 3) return 'Unterer linker Stein: linker Mittelstein minus unterer Mittelstein.';
-    if (index === 4) return 'Unterer Mittelstein verbindet beide Mittelsteine. Suche eine passende Differenz.';
-    if (index === 5) return 'Unterer rechter Stein: rechter Mittelstein minus unterer Mittelstein.';
-    return 'Suche zuerst einen Stein, bei dem zwei benachbarte Werte schon bekannt sind.';
-  };
-
-  const renderStone = (index: number) => {
-    const isGiven = given[index];
-    const hasBeenChecked = checked[index];
-    const valueCorrect = Number(userInputs[index]) === blocks[index];
-    return (
-      <input
-        key={index}
-        type="text"
-        inputMode="numeric"
-        pattern="[0-9]*"
-        aria-label={isGiven ? `Vorgegebener Stein ${blocks[index]}` : `Fehlenden Pyramidenstein ${index + 1} eintragen`}
-        readOnly={isGiven || (hasBeenChecked && valueCorrect)}
-        value={userInputs[index]}
-        onChange={(event) => updateInput(index, event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') {
-            event.preventDefault();
-            checkAnswer();
-          }
-        }}
-        className={`w-16 sm:w-20 min-h-14 sm:min-h-16 text-center font-black text-lg sm:text-xl rounded-xl border-2 shadow-sm transition-all outline-none ${
-          isGiven
-            ? currentIsLight
-              ? 'bg-slate-100 text-slate-800 border-slate-300'
-              : 'bg-slate-800 text-slate-100 border-slate-600'
-            : hasBeenChecked && valueCorrect
-              ? 'bg-emerald-500 text-white border-emerald-600'
-              : hasBeenChecked
-                ? 'bg-rose-50 text-rose-800 border-rose-400 focus:border-rose-500 dark:bg-rose-950/40 dark:text-rose-200'
-                : currentIsLight
-                  ? 'bg-white text-slate-900 border-accent/40 focus:border-accent focus:ring-2 focus:ring-accent/20'
-                  : 'bg-slate-900 text-slate-100 border-accent/50 focus:border-accent focus:ring-2 focus:ring-accent/20'
-        }`}
-      />
-    );
+    return <span className="leading-none">{activeContent.emoji}</span>;
   };
 
   return (
     <div className="min-h-full w-full p-3 sm:p-4 flex flex-col gap-3 select-none overflow-visible">
       <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
-        <div className="inline-flex flex-wrap rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1" role="group" aria-label="Schwierigkeitsstufe">
-          {(['easy', 'medium', 'hard'] as const).map((difficulty) => (
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Inhalt auswählen">
+          {(Object.keys(contentMeta) as Array<keyof typeof contentMeta>).map((type) => (
             <button
-              key={difficulty}
+              key={type}
               type="button"
-              onClick={() => setLevel(difficulty)}
-              className={`min-h-11 px-3 rounded-lg text-xs sm:text-sm font-bold transition-colors ${
-                level === difficulty
-                  ? 'bg-accent text-accent-text shadow-sm'
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-700'
-              }`}
-            >
-              {difficulty === 'easy' ? 'Einfach' : difficulty === 'medium' ? 'Mittel' : 'Schwer'}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex flex-wrap gap-1" role="group" aria-label="Zahlenraum">
-          {([10, 20, 100, 1000] as const).map((numberRange) => (
-            <button
-              key={numberRange}
-              type="button"
-              onClick={() => setRange(numberRange)}
-              className={`min-h-11 px-2.5 rounded-lg text-xs font-bold border transition-colors ${
-                range === numberRange
+              onClick={() => setContentType(type)}
+              className={`min-h-11 px-2.5 rounded-lg border text-xs font-bold ${
+                contentType === type
                   ? 'bg-accent text-accent-text border-accent'
                   : 'border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-accent'
               }`}
             >
-              ZR {numberRange}
+              {contentMeta[type].emoji} {contentMeta[type].plural}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Schwierigkeitsstufe">
+          {(['easy', 'medium', 'hard'] as const).map((level) => (
+            <button
+              key={level}
+              type="button"
+              onClick={() => setDifficulty(level)}
+              className={`min-h-11 px-3 rounded-lg border text-xs font-bold ${
+                difficulty === level
+                  ? 'bg-accent text-accent-text border-accent'
+                  : 'border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-accent'
+              }`}
+            >
+              {level === 'easy' ? '10–25' : level === 'medium' ? '25–60' : '60–120'}
             </button>
           ))}
         </div>
       </div>
 
       <div className="shrink-0 rounded-xl bg-accent-soft border border-accent/20 px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
-        Regel: Zwei Nachbarsteine addieren → der Stein darüber.
+        Schätz-Tipp: Teile das Glas gedanklich in Gruppen von 5 oder 10 statt jedes Stück einzeln zu zählen.
       </div>
 
-      <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 text-xs">
-        <div className="flex flex-wrap items-center gap-3 font-semibold text-slate-500 dark:text-slate-400" aria-label="Legende">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded border border-slate-400 bg-slate-200 dark:bg-slate-700" />
-            Vorgegeben
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded border border-accent bg-white dark:bg-slate-900" />
-            Selbst rechnen
-          </span>
-        </div>
-        <span className="font-bold tabular-nums text-slate-600 dark:text-slate-300">
-          {correctEditableCount}/{editableIndices.length} gelöst
-        </span>
-      </div>
-
-      <div className="flex-1 min-h-0 flex flex-col justify-center items-center gap-3 sm:gap-4 py-2" aria-label="Zahlenpyramide">
-        <div className="flex justify-center">{renderStone(0)}</div>
-        <div className="flex justify-center gap-3 sm:gap-4">
-          {renderStone(1)}
-          {renderStone(2)}
-        </div>
-        <div className="flex justify-center gap-3 sm:gap-4">
-          {renderStone(3)}
-          {renderStone(4)}
-          {renderStone(5)}
-        </div>
-      </div>
-
-      {showHint && !isComplete && nextBlankIndex >= 0 && (
-        <div className="shrink-0 rounded-xl border border-accent/30 bg-accent-soft px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
-          Denk-Tipp: {hintForIndex(nextBlankIndex)}
-        </div>
-      )}
-
-      <div className="shrink-0 flex flex-wrap gap-2">
-        {!isComplete && (
-          <button
-            type="button"
-            onClick={() => setShowHint((visible) => !visible)}
-            className="min-h-11 px-3 rounded-xl border border-accent/30 bg-accent-soft text-accent font-bold text-sm hover:border-accent"
-            aria-pressed={showHint}
-          >
-            {showHint ? 'Tipp ausblenden' : 'Denk-Tipp'}
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={checkAnswer}
-          disabled={isComplete}
-          className="flex-1 min-h-11 px-3 rounded-xl bg-accent hover:bg-accent-hover disabled:opacity-40 text-accent-text font-black text-sm shadow-sm"
-        >
-          {isComplete ? 'Gelöst' : 'Pyramide prüfen'}
-        </button>
-        <button
-          type="button"
-          onClick={() => generatePyramid(level, range)}
-          className="min-h-11 px-3 rounded-xl border border-slate-300 dark:border-slate-700 font-bold text-sm hover:border-accent"
-        >
-          Neue Pyramide
-        </button>
-      </div>
-
-      <p
-        aria-live="polite"
-        className={`shrink-0 min-h-11 rounded-xl border px-3 py-2 flex items-center justify-center text-center text-xs sm:text-sm font-semibold ${
-          isComplete
-            ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-200'
-            : checked.some(Boolean) && checked.some((correct, index) => !given[index] && !correct)
-              ? 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200'
-              : 'bg-slate-50 border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'
-        }`}
-      >
-        {feedback}
-      </p>
-    </div>
-  );
-};
-
-
-// ========================================================
-// 12. WIDGET: MÜLL-TRENNER RECYCLING (WastebinWidgetContent)
-// ========================================================
-interface WasteItem {
-  id: number;
-  name: string;
-  emoji: string;
-  binType: 'bio' | 'papier' | 'gelb' | 'sonder' | 'rest';
-  explanation: string;
-}
-
-export const WastebinWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const wasteDatabase: WasteItem[] = useMemo(() => [
-    { id: 1, name: "Apfel-Butzen", emoji: "🍎", binType: 'bio', explanation: "Obst- und Gemüseabfälle verrotten biologisch und werden zu wertvollem Kompost!" },
-    { id: 2, name: "Bananenschale", emoji: "🍌", binType: 'bio', explanation: "Obstschalen dürfen bedenkenlos in den Biomüll – daraus entsteht neue humusreiche Erde." },
-    { id: 3, name: "Eierschale", emoji: "🥚", binType: 'bio', explanation: "Eierschalen enthalten viel Kalk und sind hervorragend für den Kompost geeignet." },
-    { id: 4, name: "Orangenschale", emoji: "🍊", binType: 'bio', explanation: "Auch Schalen von Südfrüchten verrotten problemlos in der Biotonne." },
-    { id: 5, name: "Kaffeesatz", emoji: "☕", binType: 'bio', explanation: "Kaffeesatz ist ein exzellenter Dünger und gehört samt Papierfilter in den Biomüll." },
-    { id: 6, name: "Teeblatt-Reste", emoji: "🍵", binType: 'bio', explanation: "Lose Teeblätter und biologisch abbaubare Teebeutel gehören in den Biomüll." },
-    { id: 7, name: "Welke Blumen", emoji: "🥀", binType: 'bio', explanation: "Pflanzenreste, Blumen und kleine Gartenabfälle sind rein organisch." },
-    { id: 8, name: "Kartonbox", emoji: "📦", binType: 'papier', explanation: "Saubere Wellpappe und ungefärbte Kartons gehören gefaltet ins Altpapier." },
-    { id: 9, name: "Altes Schulheft", emoji: "📓", binType: 'papier', explanation: "Schreibhefte aus Papier dürfen ins Altpapier (vorher Plastikeinbände entfernen)." },
-    { id: 10, name: "Papierschnipsel", emoji: "✂️", binType: 'papier', explanation: "Papier- und Bastelschnipsel sind ideal für das Papierrecycling." },
-    { id: 11, name: "Zeitung", emoji: "📰", binType: 'papier', explanation: "Zeitungen, Magazine und Werbezettel bestehen aus recyclebaren Papierfasern." },
-    { id: 12, name: "Eierkarton", emoji: "🥚", binType: 'papier', explanation: "Graue Eierkartons aus Pappe bestehen aus recyclingfähigen Altpapierfasern." },
-    { id: 13, name: "Papiertüte (sauber)", emoji: "🛍️", binType: 'papier', explanation: "Saubere Papiertüten von Lebensmitteln gehören zum Altpapier." },
-    { id: 14, name: "Plastiktrinkbecher", emoji: "🥤", binType: 'gelb', explanation: "Kunststoffbecher gehören in den Gelben Sack, um die Kunststoffe wiederzuverwenden." },
-    { id: 15, name: "Joghurtbecher", emoji: "🥛", binType: 'gelb', explanation: "Joghurtbecher gehören löffelrein (nicht extra gespült) in den Gelben Sack!" },
-    { id: 16, name: "Getränkekarton/Saft", emoji: "🧃", binType: 'gelb', explanation: "Tetrapaks bestehen aus Kunststoff, Alu und Karton. Sie gehören in den Gelben Sack!" },
-    { id: 17, name: "Leere Quetschi", emoji: "🛍️", binType: 'gelb', explanation: "Quetschbeutel bestehen aus Verbundmaterial und gehören in den Gelben Sack." },
-    { id: 18, name: "Aludose", emoji: "🥫", binType: 'gelb', explanation: "Getränkedosen und Aluschalen gehören wegen des wertvollen Metalls in den Gelben Sack." },
-    { id: 19, name: "Alufolie (sauber)", emoji: "🪙", binType: 'gelb', explanation: "Reines Aluminium lässt sich perfekt schmelzen und gehört zum Gelben Sack." },
-    { id: 20, name: "Milchflasche (Plastik)", emoji: "🥛", binType: 'gelb', explanation: "Plastikflaschen von Milch oder Säften gehören in den Wertstoffkreislauf." },
-    { id: 21, name: "Alte Batterie", emoji: "🔋", binType: 'sonder', explanation: "Batterien enthalten Schwermetalle. Sie müssen zur Sammelstelle im Geschäft!" },
-    { id: 22, name: "Kaputte Glühbirne", emoji: "💡", binType: 'sonder', explanation: "Energiesparlampen und LEDs enthalten Elektronik und Schadstoffe. Sondermüll!" },
-    { id: 23, name: "Alte Medikamente", emoji: "💊", binType: 'sonder', explanation: "Abgelaufene Pillen gehören in die Apotheke oder zur Problemstoffsammlung." },
-    { id: 24, name: "Kaputter Rechner", emoji: "🧮", binType: 'sonder', explanation: "Elektrogeräte enthalten Edelmetalle, aber auch Giftstoffe. Elektroschrott!" },
-    { id: 25, name: "Leere Klebstofftube", emoji: "🧪", binType: 'sonder', explanation: "Tuben mit lösungsmittelhaltigem Kleber gehören zur Problemstoffsammlung!" },
-    { id: 26, name: "Anspitz-Reste", emoji: "✏️", binType: 'rest', explanation: "Bleistiftspäne bestehen aus lackiertem Holz und Graphit – ab in den Restmüll!" },
-    { id: 27, name: "Kaputtes Plastik-Lineal", emoji: "📐", binType: 'rest', explanation: "Gebrauchsgegenstände wie Lineale sind keine Verpackungen und gehören in den Restmüll." },
-    { id: 28, name: "Schmutziges Pflaster", emoji: "🩹", binType: 'rest', explanation: "Hygieneartikel wie benutzte Pflaster gehören aus Hygienegründen in den Restmüll." },
-    { id: 29, name: "Kaugummi-Reste", emoji: "🍬", binType: 'rest', explanation: "Kaugummis zersetzen sich fast nie und gehören ausschließlich in den Restmüll." },
-    { id: 30, name: "Papiertaschentuch", emoji: "🤧", binType: 'rest', explanation: "Taschentücher sind reißfest beschichtet und oft voller Keime. Gehören in den Restmüll!" },
-    { id: 31, name: "Eingetrockneter Stift", emoji: "🖊️", binType: 'rest', explanation: "Schreibstifte bestehen aus Verbundplastik und Tintenresten. Gehören in den Restmüll." },
-    { id: 32, name: "Zahnbürste", emoji: "🪥", binType: 'rest', explanation: "Alte Zahnbürsten sind kein Verpackungsmaterial und gehören in den Restmüll." },
-    { id: 33, name: "Fettiges Pizzapapier", emoji: "🍕", binType: 'rest', explanation: "Verschmutztes oder fettiges Papier kann nicht recycelt werden und stört die Papierfabrik!" }
-  ], []);
-
-  const [currentItem, setCurrentItem] = useState<WasteItem>(wasteDatabase[0]);
-  const [score, setScore] = useState<number>(0);
-  const [streak, setStreak] = useState<number>(0);
-  const [highScore, setHighScore] = useState<number>(() => {
-    try {
-      return parseInt(localStorage.getItem('lehrer_muell_highscore') || '0', 10);
-    } catch {
-      return 0;
-    }
-  });
-  const [feedback, setFeedback] = useState<string>("In welche Tonne gehört der Abfall? 🗑️");
-  const [showExplanation, setShowExplanation] = useState<boolean>(false);
-  
-  // Animation Triggers
-  const [bounceBin, setBounceBin] = useState<string | null>(null);
-  const [shakeBin, setShakeBin] = useState<string | null>(null);
-  const [itemAnimation, setItemAnimation] = useState<'normal' | 'correct' | 'incorrect'>('normal');
-
-  const pickNewItem = useCallback(() => {
-    const list = wasteDatabase.filter(item => item.id !== currentItem.id);
-    const idx = Math.floor(Math.random() * list.length);
-    setCurrentItem(list[idx]);
-    setShowExplanation(false);
-    setItemAnimation('normal');
-  }, [wasteDatabase, currentItem]);
-
-  const playSynthTone = (success: boolean) => {
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const now = ctx.currentTime;
-
-      if (success) {
-        // Happy dropping plop sound + chime chord
-        const oscPlop = ctx.createOscillator();
-        const gainPlop = ctx.createGain();
-        oscPlop.type = 'sine';
-        oscPlop.frequency.setValueAtTime(400, now);
-        oscPlop.frequency.exponentialRampToValueAtTime(80, now + 0.08);
-        gainPlop.gain.setValueAtTime(0.12, now);
-        gainPlop.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-        oscPlop.connect(gainPlop).connect(ctx.destination);
-        oscPlop.start(now);
-        oscPlop.stop(now + 0.12);
-
-        // Chime notes (E5 -> A5 -> C#6)
-        const chimeNotes = [659.25, 880.00, 1109.73];
-        chimeNotes.forEach((f, i) => {
-          const oscC = ctx.createOscillator();
-          const gainC = ctx.createGain();
-          oscC.type = 'sine';
-          oscC.frequency.setValueAtTime(f, now + 0.04 * i);
-          
-          gainC.gain.setValueAtTime(0, now + 0.04 * i);
-          gainC.gain.linearRampToValueAtTime(0.045, now + 0.04 * i + 0.01);
-          gainC.gain.exponentialRampToValueAtTime(0.0001, now + 0.04 * i + 0.35);
-          
-          oscC.connect(gainC).connect(ctx.destination);
-          oscC.start(now + 0.04 * i);
-          oscC.stop(now + 0.04 * i + 0.4);
-        });
-      } else {
-        // Dull clattering thud sound
-        const oscThud = ctx.createOscillator();
-        const gainThud = ctx.createGain();
-        oscThud.type = 'triangle';
-        oscThud.frequency.setValueAtTime(130, now);
-        oscThud.frequency.linearRampToValueAtTime(50, now + 0.2);
-        gainThud.gain.setValueAtTime(0.15, now);
-        gainThud.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
-        oscThud.connect(gainThud).connect(ctx.destination);
-        oscThud.start(now);
-        oscThud.stop(now + 0.25);
-
-        // Clattering friction scratch
-        const noiseBufferSize = ctx.sampleRate * 0.1;
-        const noiseBuffer = ctx.createBuffer(1, noiseBufferSize, ctx.sampleRate);
-        const noiseData = noiseBuffer.getChannelData(0);
-        for (let i = 0; i < noiseBufferSize; i++) {
-          noiseData[i] = Math.random() * 2 - 1;
-        }
-        const noiseSource = ctx.createBufferSource();
-        noiseSource.buffer = noiseBuffer;
-        const filter = ctx.createBiquadFilter();
-        filter.type = 'bandpass';
-        filter.frequency.setValueAtTime(110, now);
-        filter.Q.setValueAtTime(1.8, now);
-        const noiseGain = ctx.createGain();
-        noiseGain.gain.setValueAtTime(0.08, now);
-        noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
-        noiseSource.connect(filter).connect(noiseGain).connect(ctx.destination);
-        noiseSource.start(now);
-      }
-    } catch {}
-  };
-
-  const handleRecycle = (type: 'bio' | 'papier' | 'gelb' | 'sonder' | 'rest') => {
-    if (currentItem.binType === type) {
-      setBounceBin(type);
-      setItemAnimation('correct');
-      setTimeout(() => setBounceBin(null), 500);
-      
-      const nextScore = score + 1;
-      const nextStreak = streak + 1;
-      setScore(nextScore);
-      setStreak(nextStreak);
-      
-      if (nextScore > highScore) {
-        setHighScore(nextScore);
-        try {
-          localStorage.setItem('lehrer_muell_highscore', String(nextScore));
-        } catch {}
-      }
-      
-      setFeedback(`🎉 Richtig! ${currentItem.name} gehört genau dort hin.`);
-      playSynthTone(true);
-      setTimeout(() => {
-        pickNewItem();
-      }, 700);
-    } else {
-      setShakeBin(type);
-      setItemAnimation('incorrect');
-      setTimeout(() => setShakeBin(null), 500);
-      setStreak(0);
-      setFeedback(`❌ Daneben! ${currentItem.name} gehört nicht dorthin.`);
-      playSynthTone(false);
-      setShowExplanation(true);
-    }
-  };
-
-  return (
-    <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 pointer-events-auto">
-      {/* Header Row */}
-      <div className="shrink-0 flex justify-between items-center mb-1">
-        <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1 ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
-            ♻️ Müll-Trenner {streak >= 3 && <span className="text-[7.5px] px-1.5 py-0.5 rounded-full bg-amber-500 text-white font-extrabold animate-bounce">🔥 {streak}er Serie!</span>}
-          </span>
-          <span className="text-[7.5px] font-mono opacity-80">Nachhaltigkeit spielerisch trainieren</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-[7px] font-black uppercase tracking-widest bg-emerald-500 text-white px-2 py-0.5 rounded-lg shadow-xs">
-            Punkte: {score}
-          </span>
-          <span className="text-[7px] font-black uppercase tracking-widest bg-slate-500 text-white px-2 py-0.5 rounded-lg shadow-xs">
-            Rekord: {highScore}
-          </span>
-        </div>
-      </div>
-
-      {/* Item Display Box */}
-      <div className={`flex-grow flex flex-col justify-center items-center py-2 min-h-0 bg-slate-100/40 dark:bg-zinc-900/40 rounded-2xl relative overflow-hidden border border-dashed border-slate-200 dark:border-white/5 my-1.5 shadow-inner transition-all duration-300 ${
-        itemAnimation === 'correct' ? 'bg-emerald-500/10 border-emerald-500' : itemAnimation === 'incorrect' ? 'bg-red-500/10 border-red-500' : ''
-      }`}>
-        <span className={`text-4xl my-1 transition-all duration-300 ${
-          itemAnimation === 'correct' ? 'scale-125 translate-y-4 opacity-0 rotate-12' : itemAnimation === 'incorrect' ? 'animate-shake' : 'animate-bounce duration-1000'
-        }`}>
-          {currentItem.emoji}
-        </span>
-        <span className="text-xs font-black tracking-wide text-indigo-500 dark:text-indigo-400 mt-1">{currentItem.name}</span>
-        
-        {showExplanation && (
-          <div className="absolute inset-x-2 bottom-2 bg-white/95 dark:bg-zinc-900/95 p-1.5 rounded-xl border border-indigo-100 dark:border-zinc-800 text-[7px] leading-tight text-center shadow-md animate-fade-in-up">
-            <div className="font-extrabold text-indigo-600 dark:text-indigo-400 uppercase text-[6.5px] mb-0.5">Erklärung & Tipp:</div>
-            <div className="text-slate-600 dark:text-zinc-300 font-semibold">{currentItem.explanation}</div>
-            <button 
-              onClick={pickNewItem}
-              className="mt-1 px-2 py-0.5 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded text-[6.5px] cursor-pointer"
+      <div className="flex-1 min-h-0 flex flex-col md:flex-row items-center justify-center gap-5">
+        <div className="relative w-56 h-72 sm:w-64 sm:h-80 rounded-t-[2rem] rounded-b-[4rem] border-4 border-slate-400/80 dark:border-slate-600 bg-slate-100/30 dark:bg-slate-900/40 shadow-xl overflow-hidden">
+          <div className="absolute top-0 left-[20%] right-[20%] h-8 rounded-b-xl bg-amber-800 border-b-2 border-amber-950" />
+          <div className="absolute inset-y-8 left-3 w-3 rounded-full bg-white/25 pointer-events-none" />
+          {itemCoords.slice(0, jarCount).map((coord, index) => (
+            <div
+              key={index}
+              className="absolute flex items-center justify-center pointer-events-none"
+              style={{
+                left: `${coord.x}%`,
+                bottom: `${coord.y}%`,
+                width: difficulty === 'hard' ? '8%' : difficulty === 'medium' ? '9%' : '11%',
+                aspectRatio: '1',
+                transform: `scale(${coord.scale})`,
+                fontSize: difficulty === 'hard' ? '14px' : difficulty === 'medium' ? '17px' : '20px',
+              }}
             >
-              Nächstes Wort ➔
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Trash Bins Container */}
-      <div className="shrink-0 grid grid-cols-5 gap-1.5 mt-0.5">
-        {[
-          { id: 'bio', label: 'Biomüll', color: 'bg-gradient-to-b from-emerald-700 to-emerald-900 text-white border-emerald-600', hoverColor: 'hover:from-emerald-600 hover:to-emerald-800', emoji: '🥒', details: 'Kompost' },
-          { id: 'papier', label: 'Altpapier', color: 'bg-gradient-to-b from-blue-700 to-blue-900 text-white border-blue-600', hoverColor: 'hover:from-blue-600 hover:to-blue-800', emoji: '📄', details: 'Karton' },
-          { id: 'gelb', label: 'Gelb', color: 'bg-gradient-to-b from-yellow-400 to-yellow-600 text-slate-900 border-yellow-300', hoverColor: 'hover:from-yellow-350 hover:to-yellow-550', emoji: '🧴', details: 'Verpackung' },
-          { id: 'sonder', label: 'Sonder', color: 'bg-gradient-to-b from-red-700 to-red-900 text-white border-red-600', hoverColor: 'hover:from-red-600 hover:to-red-800', emoji: '🚨', details: 'Giftig' },
-          { id: 'rest', label: 'Restmüll', color: 'bg-gradient-to-b from-zinc-650 to-zinc-850 text-white border-zinc-600', hoverColor: 'hover:from-zinc-550 hover:to-zinc-750', emoji: '🔘', details: 'Hausmüll' }
-        ].map((btn) => {
-          const isBouncing = bounceBin === btn.id;
-          const isShaking = shakeBin === btn.id;
-          return (
-            <button
-              key={btn.id}
-              onClick={() => handleRecycle(btn.id as any)}
-              className={`flex flex-col items-center p-1 rounded-2xl border transition-all duration-150 cursor-pointer shadow-md select-none relative ${btn.color} ${btn.hoverColor} ${
-                isBouncing ? 'scale-110 -translate-y-2 ring-4 ring-emerald-400 shadow-xl' : ''
-              } ${
-                isShaking ? 'animate-shake border-red-500 bg-red-800' : ''
-              }`}
-            >
-              {/* Bin Lid representation */}
-              <div className="w-8/12 h-1.5 bg-black/20 rounded-full mb-0.5" />
-              {/* Trash Bin main body */}
-              <span className="text-base leading-none mb-0.5">{btn.emoji}</span>
-              <span className="text-[6.5px] font-black uppercase tracking-wider leading-none">{btn.label}</span>
-              <span className="text-[5.5px] opacity-75 leading-none mt-0.5 font-semibold">{btn.details}</span>
-              
-              {/* Success Check or Error Cross floating icon */}
-              {isBouncing && <div className="absolute -top-2 bg-emerald-500 text-white text-[7px] px-1 py-0.5 rounded-full font-black animate-bounce">✔</div>}
-              {isShaking && <div className="absolute -top-2 bg-red-500 text-white text-[7px] px-1 py-0.5 rounded-full font-black animate-ping">✘</div>}
-            </button>
-          );
-        })}
-      </div>
-
-      <p className="shrink-0 text-[7px] font-extrabold text-blue-500 text-center truncate mt-1">{feedback}</p>
-    </div>
-  );
-};
-
-
-// ========================================================
-// 13. WIDGET: TONLEITER-ENTDECKER (TonetrenterWidgetContent)
-// ========================================================
-interface Melody {
-  name: string;
-  emoji: string;
-  notes: { label: string; index: number }[];
-}
-
-export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const notes = useMemo(() => [
-    { label: 'C', freq: 261.63, color: 'bg-rose-500 shadow-rose-200 shadow-sm border-rose-400' },
-    { label: 'D', freq: 293.66, color: 'bg-orange-500 shadow-orange-200 shadow-sm border-orange-400' },
-    { label: 'E', freq: 329.63, color: 'bg-amber-500 shadow-amber-200 shadow-sm border-amber-400' },
-    { label: 'F', freq: 349.23, color: 'bg-emerald-500 shadow-emerald-200 shadow-sm border-emerald-400' },
-    { label: 'G', freq: 392.00, color: 'bg-blue-500 shadow-blue-200 shadow-sm border-blue-400' },
-    { label: 'A', freq: 440.00, color: 'bg-indigo-500 shadow-indigo-200 shadow-sm border-indigo-400' },
-    { label: 'H', freq: 493.88, color: 'bg-violet-500 shadow-violet-200 shadow-sm border-violet-400' },
-    { label: 'C5', freq: 523.25, color: 'bg-fuchsia-500 shadow-fuchsia-200 shadow-sm border-fuchsia-400' },
-  ], []);
-
-  const melodies: Melody[] = useMemo(() => [
-    {
-      name: "Alle meine Entchen 🦆",
-      emoji: "🦆",
-      notes: [
-        { label: "C", index: 0 }, { label: "D", index: 1 }, { label: "E", index: 2 }, { label: "F", index: 3 }, { label: "G", index: 4 }, { label: "G", index: 4 },
-        { label: "A", index: 5 }, { label: "A", index: 5 }, { label: "A", index: 5 }, { label: "A", index: 5 }, { label: "G", index: 4 },
-        { label: "A", index: 5 }, { label: "A", index: 5 }, { label: "A", index: 5 }, { label: "A", index: 5 }, { label: "G", index: 4 },
-        { label: "F", index: 3 }, { label: "F", index: 3 }, { label: "F", index: 3 }, { label: "F", index: 3 }, { label: "E", index: 2 }, { label: "E", index: 2 },
-        { label: "D", index: 1 }, { label: "D", index: 1 }, { label: "D", index: 1 }, { label: "D", index: 1 }, { label: "C", index: 0 }
-      ]
-    },
-    {
-      name: "Hänschen klein 👦",
-      emoji: "👦",
-      notes: [
-        { label: "G", index: 4 }, { label: "E", index: 2 }, { label: "E", index: 2 },
-        { label: "F", index: 3 }, { label: "D", index: 1 }, { label: "D", index: 1 },
-        { label: "C", index: 0 }, { label: "D", index: 1 }, { label: "E", index: 2 }, { label: "F", index: 3 }, { label: "G", index: 4 }, { label: "G", index: 4 }, { label: "G", index: 4 },
-        { label: "G", index: 4 }, { label: "E", index: 2 }, { label: "E", index: 2 },
-        { label: "F", index: 3 }, { label: "D", index: 1 }, { label: "D", index: 1 },
-        { label: "C", index: 0 }, { label: "E", index: 2 }, { label: "G", index: 4 }, { label: "G", index: 4 }, { label: "C", index: 0 }
-      ]
-    },
-    {
-      name: "Kuckuck, Kuckuck 🌲",
-      emoji: "🌲",
-      notes: [
-        { label: "G", index: 4 }, { label: "E", index: 2 }, { label: "G", index: 4 }, { label: "E", index: 2 },
-        { label: "F", index: 3 }, { label: "D", index: 1 }, { label: "D", index: 1 }, { label: "C", index: 0 }
-      ]
-    },
-    {
-      name: "Bruder Jakob 🔔",
-      emoji: "🔔",
-      notes: [
-        { label: "C", index: 0 }, { label: "D", index: 1 }, { label: "E", index: 2 }, { label: "C", index: 0 },
-        { label: "C", index: 0 }, { label: "D", index: 1 }, { label: "E", index: 2 }, { label: "C", index: 0 },
-        { label: "E", index: 2 }, { label: "F", index: 3 }, { label: "G", index: 4 },
-        { label: "E", index: 2 }, { label: "F", index: 3 }, { label: "G", index: 4 },
-        { label: "G", index: 4 }, { label: "A", index: 5 }, { label: "G", index: 4 }, { label: "F", index: 3 }, { label: "E", index: 2 }, { label: "C", index: 0 },
-        { label: "G", index: 4 }, { label: "A", index: 5 }, { label: "G", index: 4 }, { label: "F", index: 3 }, { label: "E", index: 2 }, { label: "C", index: 0 },
-        { label: "C", index: 0 }, { label: "G", index: 4 }, { label: "C", index: 0 },
-        { label: "C", index: 0 }, { label: "G", index: 4 }, { label: "C", index: 0 }
-      ]
-    },
-    {
-      name: "Freude schöner Götterfunken 🇪🇺",
-      emoji: "🇪🇺",
-      notes: [
-        { label: "E", index: 2 }, { label: "E", index: 2 }, { label: "F", index: 3 }, { label: "G", index: 4 },
-        { label: "G", index: 4 }, { label: "F", index: 3 }, { label: "E", index: 2 }, { label: "D", index: 1 },
-        { label: "C", index: 0 }, { label: "C", index: 0 }, { label: "D", index: 1 }, { label: "E", index: 2 },
-        { label: "E", index: 2 }, { label: "D", index: 1 }, { label: "D", index: 1 }
-      ]
-    }
-  ], []);
-
-  const [instrument, setInstrument] = useState<'klavier' | 'xylophon' | 'glockenspiel' | 'vogel'>('xylophon');
-  const [gameState, setGameState] = useState<'freeplay' | 'simonPlay' | 'simonListen' | 'learn'>('freeplay');
-  
-  // Simon states
-  const [challengeSeq, setChallengeSeq] = useState<number[]>([]);
-  const [userSeq, setUserSeq] = useState<number[]>([]);
-  const [challengeLength, setChallengeLength] = useState<number>(4);
-  
-  // Learn Song states
-  const [selectedMelody, setSelectedMelody] = useState<Melody | null>(null);
-  const [melodyStep, setMelodyStep] = useState<number>(0);
-  const [completedLearn, setCompletedLearn] = useState<boolean>(false);
-
-  const [activeNote, setActiveNote] = useState<number | null>(null);
-  const [feedback, setFeedback] = useState<string>("Tippe auf die Stäbe, um Musik zu machen 🎵");
-
-  // Web Audio Instruments synthesisers
-  const playXylophone = (ctx: AudioContext, freq: number, now: number) => {
-    // Wooden strike snap noise transient
-    try {
-      const noiseBufferSize = ctx.sampleRate * 0.012; // 12ms burst
-      const noiseBuffer = ctx.createBuffer(1, noiseBufferSize, ctx.sampleRate);
-      const noiseData = noiseBuffer.getChannelData(0);
-      for (let i = 0; i < noiseBufferSize; i++) {
-        noiseData[i] = Math.random() * 2 - 1;
-      }
-      const noiseSource = ctx.createBufferSource();
-      noiseSource.buffer = noiseBuffer;
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(2200, now);
-      filter.Q.setValueAtTime(4.0, now);
-      const noiseGain = ctx.createGain();
-      noiseGain.gain.setValueAtTime(0.09, now);
-      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.008);
-      noiseSource.connect(filter).connect(noiseGain).connect(ctx.destination);
-      noiseSource.start(now);
-    } catch {}
-
-    // Fundamental wooden resonance (Sine)
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(freq, now);
-    gain1.gain.setValueAtTime(0, now);
-    gain1.gain.linearRampToValueAtTime(0.18, now + 0.002);
-    gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
-    osc1.connect(gain1).connect(ctx.destination);
-    osc1.start(now);
-    osc1.stop(now + 0.32);
-
-    // Xylophone secondary overtone (Tuned at exactly 3.0x frequency)
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = 'triangle';
-    osc2.frequency.setValueAtTime(freq * 3.0, now);
-    gain2.gain.setValueAtTime(0, now);
-    gain2.gain.linearRampToValueAtTime(0.06, now + 0.002);
-    gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.07); // Decays extremely fast
-    osc2.connect(gain2).connect(ctx.destination);
-    osc2.start(now);
-    osc2.stop(now + 0.1);
-  };
-
-  const playGlockenspiel = (ctx: AudioContext, freq: number, now: number) => {
-    // High metal click transient
-    const oscClick = ctx.createOscillator();
-    const gainClick = ctx.createGain();
-    oscClick.type = 'triangle';
-    oscClick.frequency.setValueAtTime(freq * 7.5, now);
-    gainClick.gain.setValueAtTime(0.07, now);
-    gainClick.gain.exponentialRampToValueAtTime(0.0001, now + 0.008);
-    oscClick.connect(gainClick).connect(ctx.destination);
-    oscClick.start(now);
-    oscClick.stop(now + 0.015);
-
-    // Fundamental bright chime (Sine)
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(freq, now);
-    gain1.gain.setValueAtTime(0, now);
-    gain1.gain.linearRampToValueAtTime(0.14, now + 0.001);
-    gain1.gain.exponentialRampToValueAtTime(0.0001, now + 1.25); // Very long sustain ring
-    osc1.connect(gain1).connect(ctx.destination);
-    osc1.start(now);
-    osc1.stop(now + 1.35);
-
-    // Metal bell upper overtone at 6.0x
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(freq * 6.0, now);
-    gain2.gain.setValueAtTime(0, now);
-    gain2.gain.linearRampToValueAtTime(0.05, now + 0.001);
-    gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.3); // Shorter decay
-    osc2.connect(gain2).connect(ctx.destination);
-    osc2.start(now);
-    osc2.stop(now + 0.35);
-  };
-
-  const playPianoNoteEx = (ctx: AudioContext, freq: number, now: number) => {
-    const masterGain = ctx.createGain();
-    masterGain.gain.setValueAtTime(0.85, now);
-    masterGain.connect(ctx.destination);
-
-    // Hammer Strike felt noise
-    try {
-      const noiseBufferSize = ctx.sampleRate * 0.035;
-      const noiseBuffer = ctx.createBuffer(1, noiseBufferSize, ctx.sampleRate);
-      const noiseData = noiseBuffer.getChannelData(0);
-      for (let i = 0; i < noiseBufferSize; i++) {
-        noiseData[i] = Math.random() * 2 - 1;
-      }
-      const noiseSource = ctx.createBufferSource();
-      noiseSource.buffer = noiseBuffer;
-      const noiseFilter = ctx.createBiquadFilter();
-      noiseFilter.type = 'bandpass';
-      noiseFilter.frequency.setValueAtTime(Math.min(2200, freq * 3.5), now);
-      noiseFilter.Q.setValueAtTime(3.5, now);
-      const noiseGain = ctx.createGain();
-      noiseGain.gain.setValueAtTime(0.05, now);
-      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.016);
-      noiseSource.connect(noiseFilter).connect(noiseGain).connect(masterGain);
-      noiseSource.start(now);
-    } catch {}
-
-    // Sympathetic wood soundboard hum
-    const resonanceOsc = ctx.createOscillator();
-    const resonanceGain = ctx.createGain();
-    resonanceOsc.type = 'sine';
-    resonanceOsc.frequency.setValueAtTime(freq * 0.5, now);
-    resonanceGain.gain.setValueAtTime(0.025, now);
-    resonanceGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.1);
-    resonanceOsc.connect(resonanceGain).connect(masterGain);
-    resonanceOsc.start(now);
-    resonanceOsc.stop(now + 1.2);
-
-    const harmonics = [
-      { mult: 1.0, gain: 0.14, decay: 1.4, type: 'sine' as const },
-      { mult: 2.001, gain: 0.07, decay: 1.0, type: 'sine' as const },
-      { mult: 3.002, gain: 0.04, decay: 0.7, type: 'triangle' as const },
-      { mult: 4.004, gain: 0.02, decay: 0.45, type: 'sine' as const },
-      { mult: 5.007, gain: 0.01, decay: 0.28, type: 'triangle' as const }
-    ];
-
-    harmonics.forEach(h => {
-      const osc = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-      osc.type = h.type;
-      osc.frequency.setValueAtTime(freq * h.mult, now);
-      gainNode.gain.setValueAtTime(0, now);
-      gainNode.gain.linearRampToValueAtTime(h.gain, now + 0.004);
-      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + h.decay);
-      osc.connect(gainNode).connect(masterGain);
-      osc.start(now);
-      osc.stop(now + h.decay + 0.1);
-    });
-  };
-
-  const playBirdSound = (ctx: AudioContext, freq: number, now: number) => {
-    const osc = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(freq * 4.2, now); // Shift pitch up high for a cute bird chirp
-
-    const vibratoOsc = ctx.createOscillator();
-    const vibratoGain = ctx.createGain();
-    vibratoOsc.frequency.setValueAtTime(9.0, now);
-    vibratoGain.gain.setValueAtTime(140, now);
-    vibratoOsc.connect(vibratoGain).connect(osc.frequency);
-
-    osc.frequency.exponentialRampToValueAtTime(freq * 5.5, now + 0.11);
-    osc.frequency.exponentialRampToValueAtTime(freq * 3.8, now + 0.2);
-
-    gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(0.08, now + 0.015);
-    gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
-
-    vibratoOsc.connect(vibratoGain);
-    osc.connect(gainNode).connect(ctx.destination);
-
-    vibratoOsc.start(now);
-    vibratoOsc.stop(now + 0.22);
-    osc.start(now);
-    osc.stop(now + 0.22);
-  };
-
-  const playSingleFreq = (freq: number, instr: 'klavier' | 'xylophon' | 'glockenspiel' | 'vogel') => {
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const now = ctx.currentTime;
-
-      if (instr === 'xylophon') {
-        playXylophone(ctx, freq, now);
-      } else if (instr === 'glockenspiel') {
-        playGlockenspiel(ctx, freq, now);
-      } else if (instr === 'vogel') {
-        playBirdSound(ctx, freq, now);
-      } else {
-        playPianoNoteEx(ctx, freq, now);
-      }
-    } catch {}
-  };
-
-  const handleTap = (index: number) => {
-    setActiveNote(index);
-    setTimeout(() => setActiveNote(null), 250);
-    playSingleFreq(notes[index].freq, instrument);
-
-    // 1. Simon Memory Mode
-    if (gameState === 'simonPlay') {
-      const nextUser = [...userSeq, index];
-      setUserSeq(nextUser);
-
-      const targetIdx = challengeSeq[nextUser.length - 1];
-      if (index !== targetIdx) {
-        setFeedback("😢 Hoppla! Das war der falsche Ton. Probier es noch einmal!");
-        setGameState('freeplay');
-        return;
-      }
-
-      if (nextUser.length === challengeSeq.length) {
-        setFeedback("🎉 Super Gehör! Du hast die Melodie perfekt nachgespielt! 🐦🎶");
-        setGameState('freeplay');
-        
-        // Play sweet short celebratory melody
-        setTimeout(() => playSingleFreq(notes[2].freq, instrument), 150);
-        setTimeout(() => playSingleFreq(notes[4].freq, instrument), 300);
-        setTimeout(() => playSingleFreq(notes[7].freq, instrument), 450);
-      }
-    }
-
-    // 2. Song Learn Mode
-    if (gameState === 'learn' && selectedMelody) {
-      const targetNote = selectedMelody.notes[melodyStep];
-      if (index === targetNote.index) {
-        const nextStep = melodyStep + 1;
-        if (nextStep >= selectedMelody.notes.length) {
-          // Success song complete!
-          setCompletedLearn(true);
-          setFeedback(`🏆 Gratulation! Du hast '${selectedMelody.name}' komplett gelernt! 🥳🎶`);
-          
-          // Flashy sequence animation
-          notes.forEach((_, nIdx) => {
-            setTimeout(() => {
-              setActiveNote(nIdx);
-              playSingleFreq(notes[nIdx].freq, instrument);
-              setTimeout(() => setActiveNote(null), 100);
-            }, nIdx * 100 + 400);
-          });
-        } else {
-          setMelodyStep(nextStep);
-          setFeedback(`Klasse! Weiter geht's: Spiele als nächstes das '${selectedMelody.notes[nextStep].label}'`);
-        }
-      } else {
-        setFeedback(`Ups! Spiele für dieses Lied als nächstes das '${targetNote.label}' 🎵`);
-      }
-    }
-  };
-
-  const startChallenge = () => {
-    setGameState('simonListen');
-    setFeedback("Höre genau hin... 👂");
-    setUserSeq([]);
-
-    const seq = Array.from({ length: challengeLength }, () => Math.floor(Math.random() * 8));
-    setChallengeSeq(seq);
-
-    seq.forEach((noteIdx, delayIdx) => {
-      setTimeout(() => {
-        setActiveNote(noteIdx);
-        playSingleFreq(notes[noteIdx].freq, instrument);
-        setTimeout(() => setActiveNote(null), 180);
-        if (delayIdx === seq.length - 1) {
-          setTimeout(() => {
-            setGameState('simonPlay');
-            setFeedback(`Spiele alle ${challengeLength} Töne nach! ➔`);
-          }, 350);
-        }
-      }, delayIdx * 450 + 400);
-    });
-  };
-
-  const selectSongToLearn = (melody: Melody) => {
-    setSelectedMelody(melody);
-    setMelodyStep(0);
-    setCompletedLearn(false);
-    setGameState('learn');
-    setFeedback(`Lernmodus gestartet! Spiele als erstes '${melody.notes[0].label}' 🎵`);
-  };
-
-  const stopLearning = () => {
-    setGameState('freeplay');
-    setSelectedMelody(null);
-    setCompletedLearn(false);
-    setFeedback("Freies Spiel! Erforsche die Tonleiter 🎵");
-  };
-
-  // Graded heights representing physical xylophone bars from C to C5
-  const barHeights = ['h-[105px]', 'h-[97px]', 'h-[89px]', 'h-[81px]', 'h-[73px]', 'h-[65px]', 'h-[57px]', 'h-[49px]'];
-
-  return (
-    <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 pointer-events-auto">
-      {/* Configuration Header Row */}
-      <div className="shrink-0 flex justify-between items-center mb-1">
-        <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
-            🎵 Tonleiter-Entdecker
-          </span>
-          <span className="text-[7.5px] font-mono opacity-80">Gehör- und Notentraining</span>
-        </div>
-        
-        {/* Instrument & Game Modifiers */}
-        <div className="flex items-center gap-1">
-          <select
-            value={instrument}
-            onChange={(e) => setInstrument(e.target.value as any)}
-            className={`text-[6.5px] font-black uppercase tracking-wide border px-1.5 py-0.5 rounded-lg cursor-pointer ${
-              currentIsLight ? 'bg-white border-slate-200 text-slate-700' : 'bg-zinc-800 border-zinc-700 text-zinc-300'
-            }`}
-          >
-            <option value="xylophon">🪵 Holz-Xylophon</option>
-            <option value="glockenspiel">🔔 Glockenspiel</option>
-            <option value="klavier">🎹 Klassenklavier</option>
-            <option value="vogel">🐦 Singvögel</option>
-          </select>
-
-          {gameState !== 'learn' ? (
-            <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-zinc-900/40 p-0.5 rounded-lg border border-slate-200 dark:border-white/5">
-              <div className="flex gap-0.5">
-                {[3, 4, 6].map((l) => (
-                  <button
-                    key={l}
-                    disabled={gameState === 'simonListen'}
-                    onClick={() => setChallengeLength(l)}
-                    className={`px-1 py-0.5 rounded transition-all cursor-pointer text-[6.5px] font-black ${
-                      challengeLength === l ? 'bg-indigo-500 text-white' : 'text-slate-500 hover:bg-slate-200 dark:hover:bg-zinc-800'
-                    }`}
-                  >
-                    {l}T
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={startChallenge}
-                disabled={gameState === 'simonListen'}
-                className="px-1.5 py-0.5 rounded bg-indigo-500 hover:bg-indigo-600 text-white font-extrabold text-[6.5px] cursor-pointer shadow-xs disabled:opacity-40"
-              >
-                Hören👂
-              </button>
+              {renderItem(index)}
             </div>
-          ) : (
-            <button
-              onClick={stopLearning}
-              className="px-1.5 py-0.5 rounded bg-red-500 hover:bg-red-650 text-white font-extrabold text-[6.5px] cursor-pointer shadow-xs"
-            >
-              ➔ Freispiel 🎨
-            </button>
-          )}
-        </div>
-      </div>
+          ))}
 
-      {/* Song selector and progress inside Learn mode */}
-      {gameState === 'learn' && selectedMelody && (
-        <div className="shrink-0 bg-slate-50 dark:bg-zinc-900/40 p-1.5 rounded-xl border border-slate-100 dark:border-white/5 flex flex-col gap-1 my-0.5 text-[7px] font-semibold leading-tight animate-fade-in-down">
-          <div className="flex justify-between items-center text-[7.5px] font-black text-indigo-500">
-            <span>Lied: {selectedMelody.name}</span>
-            <span>Ton {melodyStep + 1} von {selectedMelody.notes.length}</span>
-          </div>
-          
-          {/* Melody timeline visual progression */}
-          <div className="flex gap-0.5 flex-wrap py-0.5 justify-center max-h-[22px] overflow-hidden">
-            {selectedMelody.notes.map((n, sIdx) => {
-              const isPast = sIdx < melodyStep;
-              const isCurrent = sIdx === melodyStep;
+          <div className="absolute inset-x-0 bottom-0 h-1/2 pointer-events-none">
+            {clusterMarks.map((mark) => {
+              const relative = (mark - activeRange.min) / Math.max(1, activeRange.max - activeRange.min);
               return (
-                <span
-                  key={sIdx}
-                  className={`px-1 rounded font-black text-[6px] text-white border transition-all ${
-                    isCurrent 
-                      ? 'bg-indigo-500 scale-110 border-indigo-400 animate-pulse'
-                      : isPast
-                        ? 'bg-emerald-500 opacity-55 border-transparent'
-                        : 'bg-slate-300 dark:bg-zinc-700 border-transparent text-slate-500 dark:text-zinc-400'
-                  }`}
-                >
-                  {n.label}
-                </span>
+                <div
+                  key={mark}
+                  className="absolute left-2 right-2 border-t border-dashed border-slate-400/35"
+                  style={{ bottom: `${Math.max(4, Math.min(94, relative * 90))}%` }}
+                />
               );
             })}
           </div>
-          
-          {completedLearn && (
-            <div className="text-center font-black text-emerald-500 text-[8px] animate-bounce pt-0.5">
-              🎉 Meisterstück! Du hast das ganze Lied gespielt! 🥇
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Real visual Wood Xylophone structure */}
-      <div className="flex-grow flex flex-col justify-center relative min-h-[115px] py-1 bg-amber-500/5 dark:bg-amber-500/2 rounded-2xl border border-amber-900/10 px-1.5">
-        
-        {/* Wooden side rails of the Xylophone frame */}
-        <div className="absolute left-1 top-2 bottom-2 w-1.5 rounded bg-gradient-to-r from-amber-700 to-amber-900 shadow-xs transform skew-y-6" />
-        <div className="absolute right-1 top-4 bottom-4 w-1.5 rounded bg-gradient-to-l from-amber-700 to-amber-900 shadow-xs transform -skew-y-6" />
-
-        {/* Resonance tubes background effect */}
-        <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 flex justify-between px-2.5 z-0 opacity-20 pointer-events-none">
-          {notes.map((_, idx) => {
-            const tubeHeights = ['h-24', 'h-22', 'h-20', 'h-18', 'h-16', 'h-14', 'h-12', 'h-10'];
-            return (
-              <div 
-                key={idx} 
-                className={`w-3.5 ${tubeHeights[idx]} rounded-b bg-gradient-to-b from-zinc-500 to-zinc-800 border-x border-zinc-600`} 
-              />
-            );
-          })}
         </div>
 
-        {/* Xylophone / Glockenspiel bars */}
-        <div className="flex justify-between items-center px-1.5 relative z-10 gap-1 mt-1">
-          {notes.map((n, idx) => {
-            const isTarget = gameState === 'learn' && selectedMelody && selectedMelody.notes[melodyStep]?.index === idx && !completedLearn;
-            const isActive = activeNote === idx;
-            return (
-              <button
-                key={idx}
-                onClick={() => handleTap(idx)}
-                className={`w-5.5 ${barHeights[idx]} rounded-full flex flex-col items-center justify-between cursor-pointer border shadow-md transition-all duration-150 relative ${n.color} ${
-                  isActive ? 'scale-110 border-white ring-4 ring-white shadow-lg z-20' : 'hover:-translate-y-1 hover:brightness-110'
-                } ${
-                  isTarget ? 'ring-4 ring-indigo-500 dark:ring-indigo-400 scale-105 animate-pulse border-white z-20' : ''
-                }`}
-              >
-                {/* Upper mounting rubber screw peg */}
-                <div className="w-1.5 h-1.5 rounded-full bg-zinc-700/80 mt-1 shadow-inner border border-zinc-900/20" />
-                
-                {/* Note character display */}
-                <span className="text-[7.5px] font-black text-white leading-none text-center select-none font-sans drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">
-                  {n.label}
-                </span>
+        <div className="w-full max-w-sm flex flex-col gap-3">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3 text-center">
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Deine Schätzung</div>
+            <div className="mt-1 text-4xl font-black tabular-nums text-accent">{userGuess}</div>
+          </div>
 
-                {/* Lower mounting rubber screw peg */}
-                <div className="w-1.5 h-1.5 rounded-full bg-zinc-700/80 mb-1 shadow-inner border border-zinc-900/20" />
-
-                {/* Target Bouncing Mallet Indicator */}
-                {isTarget && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-[9px] font-black animate-bounce text-indigo-500 dark:text-indigo-400">
-                    👇
-                  </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Pre-defined song options for learn mode (if not active) */}
-      {gameState !== 'learn' && (
-        <div className="shrink-0 flex items-center gap-1 overflow-x-auto pb-0.5 mt-1.5 whitespace-nowrap scrollbar-none justify-center">
-          <span className="text-[6.5px] font-black uppercase text-slate-400 dark:text-zinc-500 mr-0.5">Lieder:</span>
-          {melodies.map((m) => (
+          <div className="grid grid-cols-[44px_1fr_44px] gap-2 items-center">
             <button
-              key={m.name}
-              onClick={() => selectSongToLearn(m)}
-              className={`px-1.5 py-0.5 rounded text-[6.5px] font-black border transition-all cursor-pointer ${
-                currentIsLight 
-                  ? 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600' 
-                  : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-white'
-              }`}
+              type="button"
+              onClick={() => setGuess(userGuess - activeRange.step)}
+              className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-700 font-black text-lg hover:border-accent"
+              aria-label={`Schätzung um ${activeRange.step} verringern`}
             >
-              {m.emoji} {m.name.split(' ')[0]}
+              −
             </button>
-          ))}
-        </div>
-      )}
-
-      <p className="shrink-0 text-[7.5px] font-extrabold text-blue-500 text-center truncate mt-1">{feedback}</p>
-    </div>
-  );
-};
-
-
-// ========================================================
-// 14. WIDGET: WINKEL-DETEKTIV (AngledetectiveWidgetContent)
-// ========================================================
-export const AngledetectiveWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [targetAngle, setTargetAngle] = useState<number>(90);
-  const [guessAngle, setGuessAngle] = useState<number>(180);
-  const [isRevealed, setIsRevealed] = useState<boolean>(false);
-  const [feedback, setFeedback] = useState<string>("Bewege den Schieberegler auf den gezeigten Winkel! 📐");
-
-  const generateAngle = () => {
-    const angles = [30, 45, 60, 90, 120, 135, 150, 180, 225, 270, 315];
-    const picked = angles[Math.floor(Math.random() * angles.length)];
-    setTargetAngle(picked);
-    setGuessAngle(180);
-    setIsRevealed(false);
-    setFeedback("📐 Welcher Winkel wird im Scheinwerfer gezeigt?");
-  };
-
-  const handleReveal = () => {
-    setIsRevealed(true);
-    const diff = Math.abs(guessAngle - targetAngle);
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      if (diff <= 5) {
-        setFeedback(`🎉 Perfekt! (${targetAngle}° / Tipp: ${guessAngle}°) Volltreffer!`);
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.frequency.setValueAtTime(880, ctx.currentTime);
-        gain.gain.setValueAtTime(0.1, ctx.currentTime);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.3);
-      } else {
-        setFeedback(`Ziel war ${targetAngle}°. Dein Tipp: ${guessAngle}° (Abweichung: ${diff}°)`);
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.frequency.setValueAtTime(300, ctx.currentTime);
-        gain.gain.setValueAtTime(0.1, ctx.currentTime);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.25);
-      }
-    } catch {}
-  };
-
-  // Generate ticks for a professional protractor feel
-  const renderProtractorTicks = () => {
-    const ticks = [];
-    for (let angle = 0; angle < 360; angle += 15) {
-      const rad = (angle - 90) * Math.PI / 180;
-      const isMajor = angle % 90 === 0;
-      const r1 = isMajor ? 32 : 37;
-      const r2 = 42;
-      const x1 = 50 + r1 * Math.cos(rad);
-      const y1 = 50 + r1 * Math.sin(rad);
-      const x2 = 50 + r2 * Math.cos(rad);
-      const y2 = 50 + r2 * Math.sin(rad);
-      ticks.push(
-        <line
-          key={angle}
-          x1={x1}
-          y1={y1}
-          x2={x2}
-          y2={y2}
-          stroke={isMajor ? '#6366f1' : currentIsLight ? '#cbd5e1' : '#4b5563'}
-          strokeWidth={isMajor ? '1.5' : '0.8'}
-        />
-      );
-    }
-    return ticks;
-  };
-
-  // Calculates target sector path data
-  const getSectorPath = (angle: number, radius: number) => {
-    const startRad = -Math.PI / 2; // -90 deg (top point)
-    const endRad = (angle - 90) * Math.PI / 180;
-    
-    const x1 = 50 + radius * Math.cos(startRad);
-    const y1 = 50 + radius * Math.sin(startRad);
-    const x2 = 50 + radius * Math.cos(endRad);
-    const y2 = 50 + radius * Math.sin(endRad);
-    
-    const largeArc = angle > 180 ? 1 : 0;
-    
-    if (angle >= 360) {
-      return `M 50 50 m 0 -${radius} a ${radius} ${radius} 0 1 1 0 ${2*radius} a ${radius} ${radius} 0 1 1 0 -${2*radius}`;
-    }
-    return `M 50 50 L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
-  };
-
-  return (
-    <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-y-auto overflow-x-hidden">
-      <div className="shrink-0 flex justify-between items-center mb-1">
-        <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
-            📐 Winkel-Detektiv
-          </span>
-          <span className="text-[7.5px] font-mono opacity-80">Geometrische Winkelmaße schätzen</span>
-        </div>
-        <button
-          onClick={generateAngle}
-          className="px-2 py-0.5 rounded bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-[8px] cursor-pointer"
-        >
-          Neu 📐
-        </button>
-      </div>
-
-      <div className="flex-grow flex flex-col sm:flex-row items-center justify-around gap-2.5 py-1.5 min-h-0">
-        
-        {/* MUCH Larger Display Area */}
-        <div className="relative w-32 h-32 rounded-full border border-slate-300/80 dark:border-zinc-700/80 bg-slate-50/10 flex items-center justify-center overflow-hidden shadow-md transition-transform hover:scale-102">
-          {/* Circular Grid helper lines */}
-          <div className="absolute h-full w-0.5 bg-slate-300 dark:bg-zinc-800 opacity-20 left-1/2 top-0" />
-          <div className="absolute w-full h-0.5 bg-slate-300 dark:bg-zinc-800 opacity-20 left-0 top-1/2" />
-          <circle cx="50" cy="50" r="28" fill="none" stroke="#e2e8f0" className="dark:stroke-zinc-800" />
-          
-          <svg className="w-28 h-28" viewBox="0 0 100 100">
-            {/* Protractor Ticks */}
-            {renderProtractorTicks()}
-
-            {/* Target Angle sector path */}
-            <path
-              d={getSectorPath(targetAngle, 30)}
-              fill="rgba(59, 130, 246, 0.22)"
-              stroke="#3b82f6"
-              strokeWidth="2.5"
+            <input
+              type="range"
+              min={activeRange.min}
+              max={activeRange.max}
+              step={activeRange.step}
+              value={userGuess}
+              onChange={(event) => setGuess(Number(event.target.value))}
+              className="w-full h-11 accent-accent cursor-pointer"
+              aria-label="Menge schätzen"
             />
-            
-            {/* Target Angle base arm line */}
-            <line x1="50" y1="50" x2="50" y2="20" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" />
+            <button
+              type="button"
+              onClick={() => setGuess(userGuess + activeRange.step)}
+              className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-700 font-black text-lg hover:border-accent"
+              aria-label={`Schätzung um ${activeRange.step} erhöhen`}
+            >
+              +
+            </button>
+          </div>
 
-            {/* Target Angle terminal arm line */}
-            <line 
-              x1="50" 
-              y1="50" 
-              x2={50 + 30 * Math.cos((targetAngle - 90) * Math.PI / 180)} 
-              y2={50 + 30 * Math.sin((targetAngle - 90) * Math.PI / 180)} 
-              stroke="#3b82f6" 
-              strokeWidth="2.5" 
-              strokeLinecap="round" 
-            />
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              activeRange.min,
+              Math.round((activeRange.min + activeRange.max) / 3 / activeRange.step) * activeRange.step,
+              Math.round(((activeRange.min + activeRange.max) * 2 / 3) / activeRange.step) * activeRange.step,
+              activeRange.max,
+            ].map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setGuess(value)}
+                className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-700 font-bold text-sm hover:border-accent"
+              >
+                {value}
+              </button>
+            ))}
+          </div>
 
-            {/* Revealed Guess sector path */}
-            {isRevealed && (
-              <>
-                <path
-                  d={getSectorPath(guessAngle, 25)}
-                  fill="rgba(244, 63, 94, 0.15)"
-                  stroke="#f43f5e"
-                  strokeWidth="1.5"
-                  strokeDasharray="2,2"
-                />
-                <line 
-                  x1="50" 
-                  y1="50" 
-                  x2={50 + 25 * Math.cos((guessAngle - 90) * Math.PI / 180)} 
-                  y2={50 + 25 * Math.sin((guessAngle - 90) * Math.PI / 180)} 
-                  stroke="#f43f5e" 
-                  strokeWidth="1.5" 
-                  strokeLinecap="round" 
-                />
-              </>
-            )}
-            
-            <circle cx="50" cy="50" r="4" fill="#6366f1" />
-          </svg>
-
-          {/* Quick Major Labels */}
-          <span className="absolute text-[6.5px] font-black text-slate-400 dark:text-zinc-600 top-2.5">0°/360°</span>
-          <span className="absolute text-[6.5px] font-black text-slate-400 dark:text-zinc-600 right-2">90°</span>
-          <span className="absolute text-[6.5px] font-black text-slate-400 dark:text-zinc-600 bottom-2.5">180°</span>
-          <span className="absolute text-[6.5px] font-black text-slate-400 dark:text-zinc-600 left-2">270°</span>
-        </div>
-
-        {/* Estimation control panel */}
-        <div className="flex flex-col gap-1.5 flex-1 max-w-[110px] w-full text-center">
-          <span className="text-[8px] font-extrabold uppercase tracking-widest text-slate-500">
-            Dein Tipp: <span className="text-indigo-500 font-black text-base leading-none">{guessAngle}°</span>
-          </span>
-          <input
-            type="range"
-            min="0"
-            max="360"
-            step="5"
-            value={guessAngle}
-            onChange={(e) => setGuessAngle(parseInt(e.target.value))}
-            className="w-full h-1 bg-indigo-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer h-1 rounded"
-          />
           <button
-            onClick={isRevealed ? generateAngle : handleReveal}
-            className="w-full py-1.5 rounded bg-rose-500 hover:bg-rose-600 text-white font-black text-[8px] uppercase tracking-wider cursor-pointer active:scale-95 transition-all"
+            type="button"
+            onClick={revealed ? () => regenerateJar(difficulty) : handleValidation}
+            className="min-h-11 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-black text-sm"
           >
-            {isRevealed ? "Neu Starten 🔄" : "Auflösen 🔍"}
+            {revealed ? 'Neues Glas' : 'Schätzung prüfen'}
           </button>
         </div>
-
       </div>
 
-      <p className="shrink-0 text-[7px] font-extrabold text-blue-500 text-center truncate mt-1">{feedback}</p>
+      {revealed && (
+        <div className="shrink-0 grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-2">
+            <div className="text-xs font-bold text-slate-500 dark:text-slate-400">Geschätzt</div>
+            <div className="text-lg font-black">{userGuess}</div>
+          </div>
+          <div className="rounded-xl border border-accent/30 bg-accent-soft px-2 py-2">
+            <div className="text-xs font-bold text-slate-500 dark:text-slate-400">Tatsächlich</div>
+            <div className="text-lg font-black">{jarCount}</div>
+          </div>
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-2">
+            <div className="text-xs font-bold text-slate-500 dark:text-slate-400">Abweichung</div>
+            <div className="text-lg font-black">{Math.abs(userGuess - jarCount)}</div>
+          </div>
+        </div>
+      )}
+
+      <p
+        aria-live="polite"
+        className="shrink-0 min-h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 flex items-center justify-center text-center text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300"
+      >
+        {feedback}
+      </p>
     </div>
   );
 };
