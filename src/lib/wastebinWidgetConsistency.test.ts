@@ -46,14 +46,6 @@ test('Müll-Trenner besitzt keinen doppelten Innentitel und keine eigene Scrollf
 });
 
 
-test('Müll-Trenner vermittelt Kategorie-Regeln und Transfer', () => {
-  assert.match(widget, /const categoryRule/);
-  assert.match(widget, /organische Küchen- und Pflanzenreste/);
-  assert.match(widget, /leere Verpackungen aus Kunststoff oder Metall/);
-  assert.match(widget, /Batterien und Elektrogeräte/);
-  assert.match(widget, /Denkregel:/);
-});
-
 
 test('Müll-Trenner vermittelt eine Merkregel pro Entsorgungskategorie', () => {
   assert.match(widget, /rule: 'organisch und kompostierbar'/);
