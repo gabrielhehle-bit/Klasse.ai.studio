@@ -270,7 +270,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
       'design-system': 'settings',
     };
     const helpTopicId = aliasTargets[currentPage] || currentPage;
-    const helpSection = currentPage === 'settings' ? 'settings' : 'pages';
+    const helpSection = currentPage === 'settings' || currentPage === 'design-system' ? 'settings' : 'pages';
     let currentSettingsCategory = 'overview';
     if (currentPage === 'settings') {
       try {
@@ -282,7 +282,9 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
     const settingsHelpTargets: Record<string, string> = { help: 'hilfe' };
     const helpTarget = currentPage === 'settings'
       ? (settingsHelpTargets[currentSettingsCategory] || currentSettingsCategory)
-      : helpTopicId;
+      : currentPage === 'design-system'
+        ? 'display'
+        : helpTopicId;
 
     try {
       window.sessionStorage.setItem('klassio-settings-category', 'help');
