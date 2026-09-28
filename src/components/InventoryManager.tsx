@@ -12,6 +12,7 @@ import {
   ClipboardCheck,
   FileSpreadsheet,
   FileText,
+  HelpCircle,
   Loader2,
   MapPin,
   PackageOpen,
@@ -174,6 +175,26 @@ function formatDate(value: string | null | undefined, withTime = false): string 
   ).format(date);
 }
 
+function normalizePersonLookup(value: string): string {
+  return value
+    .toLocaleLowerCase('de-AT')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ß/g, 'ss')
+    .replace(/^@+/, '')
+    .replace(/[._-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function personMentionHint(displayName: string): string {
+  const parts = displayName.trim().split(/\s+/).filter(Boolean);
+  return parts
+    .slice(0, 2)
+    .map(part => '@' + normalizePersonLookup(part).replace(/\s+/g, ''))
+    .join(' · ');
+}
+
 async function readJson(response: Response) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -258,6 +279,9 @@ export default function InventoryManager() {
   const [loanItem, setLoanItem] = useState<InventoryItem | null>(null);
   const [loanBorrowerId, setLoanBorrowerId] = useState('');
   const [loanBorrowerName, setLoanBorrowerName] = useState('');
+  const [loanBorrowerQuery, setLoanBorrowerQuery] = useState('');
+  const [borrowerPickerOpen, setBorrowerPickerOpen] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
   const [loanQuantity, setLoanQuantity] = useState(1);
   const [loanDueAt, setLoanDueAt] = useState('');
   const [importRows, setImportRows] = useState<InventoryImportRecord[]>([]);
@@ -318,6 +342,7 @@ export default function InventoryManager() {
           setLoanItem(item);
           setLoanBorrowerId(snapshot.user.userId);
           setLoanBorrowerName(snapshot.user.displayName);
+          setLoanBorrowerQuery(snapshot.user.displayName);
         }
       }
     }
@@ -338,6 +363,43 @@ export default function InventoryManager() {
     activeLoans.forEach(loan => map.set(loan.itemId, (map.get(loan.itemId) || 0) + loan.quantity));
     return map;
   }, [activeLoans]);
+
+  const borrowerCandidates = useMemo<Colleague[]>(() => {
+    const entries: Colleague[] = [];
+    if (snapshot?.user?.userId && snapshot?.user?.displayName) {
+      entries.push({ userId: snapshot.user.userId, displayName: snapshot.user.displayName });
+    }
+    entries.push(...colleagues);
+
+    const seen = new Set<string>();
+    return entries.filter(entry => {
+      if (!entry.userId || !entry.displayName || seen.has(entry.userId)) return false;
+      seen.add(entry.userId);
+      return true;
+    });
+  }, [snapshot?.user?.userId, snapshot?.user?.displayName, colleagues]);
+
+  const borrowerSuggestions = useMemo(() => {
+    const term = normalizePersonLookup(loanBorrowerQuery);
+    if (!term) return borrowerCandidates.slice(0, 8);
+    const queryParts = term.split(' ').filter(Boolean);
+
+    return borrowerCandidates
+      .filter(entry => {
+        const normalizedName = normalizePersonLookup(entry.displayName);
+        const nameParts = normalizedName.split(' ').filter(Boolean);
+        return normalizedName.includes(term)
+          || queryParts.every(part => nameParts.some(namePart => namePart.startsWith(part) || namePart.includes(part)));
+      })
+      .slice(0, 8);
+  }, [borrowerCandidates, loanBorrowerQuery]);
+
+  const selectLoanBorrower = (person: Colleague) => {
+    setLoanBorrowerId(person.userId);
+    setLoanBorrowerName(person.displayName);
+    setLoanBorrowerQuery(person.displayName);
+    setBorrowerPickerOpen(false);
+  };
 
   const filteredItems = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase('de-AT');
@@ -435,6 +497,8 @@ export default function InventoryManager() {
     setLoanItem(item);
     setLoanBorrowerId(snapshot?.user.userId || '');
     setLoanBorrowerName(snapshot?.user.displayName || '');
+    setLoanBorrowerQuery(snapshot?.user.displayName || '');
+    setBorrowerPickerOpen(false);
     setLoanQuantity(1);
     setLoanDueAt('');
   };
@@ -685,6 +749,13 @@ export default function InventoryManager() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setShowGuide(true)}
+                className="inline-flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 hover:bg-slate-50"
+              >
+                <HelpCircle size={17} /> Anleitung
+              </button>
               <button
                 type="button"
                 onClick={() => setItemDraft({ ...EMPTY_ITEM })}
@@ -1339,6 +1410,45 @@ export default function InventoryManager() {
         })}
       </div>
 
+      {showGuide && (
+        <Modal title="So funktioniert Lehrmittel & Inventar" onClose={() => setShowGuide(false)} wide>
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-5">
+              <div className="text-sm font-black text-indigo-950">Das Grundprinzip</div>
+              <p className="mt-2 text-sm leading-6 text-indigo-900">
+                Der Bestand gehört zur Schule. Alle verifizierten Kolleg:innen derselben Schule sehen dieselben Lehrmittel,
+                Standorte und offenen Ausleihen. Bestehende Inventarnummern und Kastenbeschriftungen können unverändert bleiben.
+              </p>
+            </div>
+
+            <ol className="grid gap-3 md:grid-cols-2">
+              {[
+                ['1. Bestand übernehmen', 'Unter „Import & QR“ kannst du Excel, CSV, PDF oder kopierten Text übernehmen. Prüfe die Vorschau und importiere erst dann. Gleiche Inventarnummern aktualisieren bestehende Einträge.'],
+                ['2. Kästen & Standorte', 'Lege Kästen, Räume oder Lagerorte als Standorte an. Danach kannst du Lehrmittel einem Standort zuordnen und für ganze Kästen QR-Blätter drucken.'],
+                ['3. Lehrmittel finden', 'Die Suche findet Bezeichnung, Inventarnummer, Fach, Kasten, Raum und auch den Namen einer Person, die etwas ausgeliehen hat.'],
+                ['4. Schnell ausleihen', 'Öffne ein Lehrmittel und tippe bei „Wer nimmt es mit?“ einfach @ plus Vor- oder Nachname, z. B. @gabriel oder @hehle. Wähle den Treffer. @vorname.nachname funktioniert ebenfalls.'],
+                ['5. Andere Personen', 'Ist eine Person nicht als Kolleg:in in KLASSIO vorhanden, kannst du statt @ einfach den vollständigen Namen eintippen. Dafür ist kein Benutzerkonto nötig.'],
+                ['6. Rückgabe', 'Unter „Ausleihen“ siehst du alle offenen Ausleihen. Ein Klick auf „Zurückgeben“ beendet die Ausleihe; frühere Rückgaben bleiben in der Historie nachvollziehbar.'],
+                ['7. QR-Codes', 'KLASSIO erzeugt QR-Codes selbst. Ein Kasten-QR öffnet den zugehörigen Bestand; ein Einzel-QR führt direkt zum Lehrmittel und damit schnell zu Ausleihe oder Rückgabe.'],
+                ['8. Inventar pflegen', 'Beschädigte, fehlende oder zu wartende Lehrmittel über den Zustand markieren. So bleibt die Übersicht „Zu prüfen“ automatisch aktuell.'],
+              ].map(([title, text]) => (
+                <li key={title} className="list-none rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-black text-slate-950">{title}</div>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">{text}</p>
+                </li>
+              ))}
+            </ol>
+
+            <div className="rounded-2xl bg-slate-950 p-5 text-white">
+              <div className="text-sm font-black">Merksatz für den Alltag</div>
+              <p className="mt-2 text-sm leading-6 text-slate-200">
+                Suchen → Lehrmittel öffnen → Person mit @ finden → Ausleihe speichern. Für die Rückgabe reicht danach ein Klick.
+              </p>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {itemDraft && (
         <Modal title={itemDraft.id ? 'Lehrmittel bearbeiten' : 'Lehrmittel anlegen'} onClose={() => setItemDraft(null)}>
           <div className="space-y-4">
@@ -1427,30 +1537,84 @@ export default function InventoryManager() {
           </div>
           <div className="space-y-4">
             <Field label="Wer nimmt es mit?">
-              <select
-                value={loanBorrowerId}
-                onChange={event => {
-                  const id = event.target.value;
-                  setLoanBorrowerId(id);
-                  const colleague = colleagues.find(entry => entry.userId === id);
-                  setLoanBorrowerName(id
-                    ? colleague?.displayName || (id === snapshot.user.userId ? snapshot.user.displayName : '')
-                    : '');
-                }}
-                className="input-field"
-              >
-                <option value={snapshot.user.userId}>{snapshot.user.displayName} (ich)</option>
-                {colleagues.filter(entry => entry.userId !== snapshot.user.userId).map(entry => (
-                  <option key={entry.userId} value={entry.userId}>{entry.displayName}</option>
-                ))}
-                <option value="">Andere Person …</option>
-              </select>
+              <div className="relative">
+                <input
+                  value={loanBorrowerQuery}
+                  onFocus={() => setBorrowerPickerOpen(true)}
+                  onBlur={() => window.setTimeout(() => setBorrowerPickerOpen(false), 120)}
+                  onChange={event => {
+                    const value = event.target.value;
+                    setLoanBorrowerQuery(value);
+                    setLoanBorrowerId('');
+                    setLoanBorrowerName(value.trim().startsWith('@') ? '' : value.trim());
+                    setBorrowerPickerOpen(true);
+                  }}
+                  onKeyDown={event => {
+                    if (event.key === 'Escape') setBorrowerPickerOpen(false);
+                    if (event.key === 'Enter' && borrowerPickerOpen && borrowerSuggestions.length) {
+                      event.preventDefault();
+                      selectLoanBorrower(borrowerSuggestions[0]);
+                    }
+                  }}
+                  className="input-field pr-24"
+                  placeholder="@vorname, @nachname oder Name"
+                  autoComplete="off"
+                  aria-autocomplete="list"
+                  aria-expanded={borrowerPickerOpen}
+                />
+                <button
+                  type="button"
+                  onMouseDown={event => event.preventDefault()}
+                  onClick={() => selectLoanBorrower({ userId: snapshot.user.userId, displayName: snapshot.user.displayName })}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg bg-slate-100 px-2.5 py-1.5 text-[11px] font-black text-slate-600 hover:bg-slate-200"
+                >
+                  Ich
+                </button>
+
+                {borrowerPickerOpen && borrowerSuggestions.length > 0 && (
+                  <div
+                    role="listbox"
+                    className="absolute z-30 mt-2 max-h-64 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl"
+                  >
+                    {borrowerSuggestions.map(person => (
+                      <button
+                        key={person.userId}
+                        type="button"
+                        role="option"
+                        aria-selected={person.userId === loanBorrowerId}
+                        onMouseDown={event => event.preventDefault()}
+                        onClick={() => selectLoanBorrower(person)}
+                        className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-slate-50"
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-black text-slate-900">
+                            {person.displayName}{person.userId === snapshot.user.userId ? ' (ich)' : ''}
+                          </span>
+                          <span className="mt-0.5 block truncate text-[11px] font-semibold text-slate-400">
+                            {personMentionHint(person.displayName)}
+                          </span>
+                        </span>
+                        {person.userId === loanBorrowerId && <CheckCircle2 size={17} className="shrink-0 text-emerald-600" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="mt-2 text-xs leading-5 text-slate-500">
+                Tipp: <strong>@vorname</strong>, <strong>@nachname</strong> oder <strong>@vorname.nachname</strong> tippen.
+                Kolleg:innen werden vorgeschlagen. Für andere Personen einfach den Namen ohne @ eingeben.
+              </div>
+              {loanBorrowerId && loanBorrowerName && (
+                <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-700 ring-1 ring-emerald-200">
+                  <CheckCircle2 size={13} /> {loanBorrowerName}
+                </div>
+              )}
+              {!loanBorrowerId && loanBorrowerQuery.trim().startsWith('@') && (
+                <div className="mt-2 text-xs font-bold text-amber-700">
+                  Wähle einen Treffer aus der Liste. Für einen freien Namen das @ weglassen.
+                </div>
+              )}
             </Field>
-            {!loanBorrowerId && (
-              <Field label="Name">
-                <input value={loanBorrowerName} onChange={event => setLoanBorrowerName(event.target.value)} className="input-field" placeholder="Name" />
-              </Field>
-            )}
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Anzahl">
                 <input
