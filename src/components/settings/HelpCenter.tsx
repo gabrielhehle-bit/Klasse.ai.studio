@@ -55,10 +55,10 @@ export default function HelpCenter() {
   useEffect(() => {
     if (!contextTopic) return;
     const timer = window.setTimeout(() => {
-      document.getElementById(`klassio-help-topic-${section}-${contextTopic.id}`)?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      });
+      const element = document.getElementById(`klassio-help-topic-${section}-${contextTopic.id}`) as HTMLDetailsElement | null;
+      if (!element) return;
+      element.open = true;
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 80);
     return () => window.clearTimeout(timer);
   }, [contextTopic, section]);
