@@ -2097,8 +2097,8 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     type: "weekdays",
     x: 76,
     y: 110,
-    w: 34,
-    h: 44,
+    w: 46,
+    h: 56,
     visible: false,
   },
   {
@@ -4123,7 +4123,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       w.id !== id ? w : {
         ...w,
         ...updates,
-        ...(((w.type === "groups" && updates.settings) || (w.type === "wheel" && updates.settings) || (w.type === "sounds" && updates.settings) || (w.type === "stopwatch" && updates.settings) || (w.type === "dictionary" && updates.settings) || (w.type === "piano" && updates.settings) || (w.type === "bodyparts" && updates.settings) || (w.type === "compass" && updates.settings))
+        ...(((w.type === "groups" && updates.settings) || (w.type === "wheel" && updates.settings) || (w.type === "sounds" && updates.settings) || (w.type === "stopwatch" && updates.settings) || (w.type === "dictionary" && updates.settings) || (w.type === "piano" && updates.settings) || (w.type === "bodyparts" && updates.settings) || (w.type === "compass" && updates.settings) || (w.type === "weekdays" && updates.settings))
           ? { settings: { ...(w.settings || {}), ...updates.settings } }
           : {}),
         hasBeenOpened: true,
@@ -10892,6 +10892,14 @@ ${content}
                                         <WeekdaysWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
