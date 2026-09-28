@@ -106,9 +106,11 @@ export function mapInventoryRows(
 }
 
 function splitLine(line: string): string[] {
-  if (line.includes('\t')) return line.split('\t').map(part => part.trim()).filter(Boolean);
-  if (line.includes(';')) return line.split(';').map(part => part.trim()).filter(Boolean);
-  if (line.includes('|')) return line.split('|').map(part => part.trim()).filter(Boolean);
+  // Explicit table delimiters must preserve empty cells, otherwise a blank
+  // subject/location column shifts every following value into the wrong field.
+  if (line.includes('\t')) return line.split('\t').map(part => part.trim());
+  if (line.includes(';')) return line.split(';').map(part => part.trim());
+  if (line.includes('|')) return line.split('|').map(part => part.trim());
   return line.split(/\s{2,}/).map(part => part.trim()).filter(Boolean);
 }
 
