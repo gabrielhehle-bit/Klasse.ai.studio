@@ -313,7 +313,7 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                       {
                                         type: "trafficquiz",
                                         label: "🚴 Fahrrad-Führerschein",
-                                        desc: "Lerne wichtige Verkehrszeichen",
+                                        desc: "Österreichische Verkehrszeichen & Radfahrregeln",
                                         category: "sachunterricht",
                                       },
                                       {
@@ -637,6 +637,7 @@ const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
   "compass",
   "weekdays",
   "flagquiz",
+  "trafficquiz",
 ]);
 
 const COCKPIT_WIDGET_LIBRARY_BY_TYPE = new Map<string, CockpitWidgetLibraryItem>(
