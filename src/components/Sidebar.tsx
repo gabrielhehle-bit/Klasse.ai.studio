@@ -149,7 +149,8 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
   const availableModules = (sek1 ? SEK1_MODULES : ALL_MODULES).filter(item =>
     (!sek1 || istSek1Navigationsziel(item.id)) &&
     (app.klassenvorstand || !restrictedForSubjectTeachers.has(item.id)) &&
-    (!['lehrerzimmer', 'lehrmittel'].includes(item.id) || hasVerifiedSchoolIdentity) &&
+    (item.id !== 'lehrerzimmer' || hasVerifiedSchoolIdentity) &&
+    (item.id !== 'lehrmittel' || hasVerifiedSchoolIdentity) &&
     (!disabledModules.includes(item.id) || item.id === 'lehrerzimmer' || item.id === 'lehrmittel')
   );
 
