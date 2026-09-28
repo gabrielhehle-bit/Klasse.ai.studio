@@ -266,10 +266,23 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
       'ki-stationenbetrieb': 'stationenbetrieb',
       'uebergabemappe': 'vertretung',
       'notenTabelle': 'noten',
+      'unterricht': 'cockpit',
+      'design-system': 'settings',
     };
     const helpTopicId = aliasTargets[currentPage] || currentPage;
     const helpSection = currentPage === 'settings' ? 'settings' : 'pages';
-    const helpTarget = currentPage === 'settings' ? 'overview' : helpTopicId;
+    let currentSettingsCategory = 'overview';
+    if (currentPage === 'settings') {
+      try {
+        currentSettingsCategory = window.sessionStorage.getItem('klassio-current-settings-category') || 'overview';
+      } catch {
+        currentSettingsCategory = 'overview';
+      }
+    }
+    const settingsHelpTargets: Record<string, string> = { help: 'hilfe' };
+    const helpTarget = currentPage === 'settings'
+      ? (settingsHelpTargets[currentSettingsCategory] || currentSettingsCategory)
+      : helpTopicId;
 
     try {
       window.sessionStorage.setItem('klassio-settings-category', 'help');
@@ -281,6 +294,9 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
     setPage('settings');
     window.setTimeout(() => {
       window.dispatchEvent(new CustomEvent('klassio-open-settings-category', { detail: 'help' }));
+      window.dispatchEvent(new CustomEvent('klassio-open-help-topic', {
+        detail: { section: helpSection, topicId: helpTarget },
+      }));
     }, 0);
   };
 
