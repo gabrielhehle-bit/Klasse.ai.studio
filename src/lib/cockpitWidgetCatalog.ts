@@ -325,7 +325,7 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                       {
                                         type: "constellation",
                                         label: "✨ Sternbilder-Zeichner",
-                                        desc: "Verbinde Sterne zu echten Himmels-Sternbildern",
+                                        desc: "Sternbilder & Asterismen korrekt entdecken",
                                         category: "sachunterricht",
                                       },
                                       {
@@ -639,6 +639,7 @@ const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
   "flagquiz",
   "trafficquiz",
   "watercycle",
+  "constellation",
 ]);
 
 const COCKPIT_WIDGET_LIBRARY_BY_TYPE = new Map<string, CockpitWidgetLibraryItem>(

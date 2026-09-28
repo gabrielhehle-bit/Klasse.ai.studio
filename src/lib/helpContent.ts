@@ -376,7 +376,7 @@ const widgetCatalog: Array<{ id: string; title: string; purpose: string; group: 
   {
     "id": "constellation",
     "title": "✨ Sternbilder-Zeichner",
-    "purpose": "Verbinde Sterne zu echten Himmels-Sternbildern",
+    "purpose": "Sternbilder und Asterismen korrekt entdecken und verbinden",
     "group": "sachunterricht"
   },
   {
@@ -770,6 +770,7 @@ const widgetSpecificSteps: Record<string, string[]> = {
   flagquiz: ['Öffne im Lehrercockpit „Widget hinzufügen“ → „Flaggenquiz“.', 'Öffne das Zahnrad und wähle einen Kontinent oder „Alle Kontinente“. Danach wählst du „Einfach“, „Mittel“, „Schwer“ oder „Alle Stufen“.', 'Im Quiz wird eine Flagge gezeigt. Wähle eines von vier Ländern; KLASSIO zeigt danach die richtige Lösung und mit „Nächste Flagge“ geht es weiter.', 'Die Länderliste umfasst 195 Staaten. Die Kontinentzuordnung folgt der festen UN-M49-Systematik; die Stufen Einfach/Mittel/Schwer sind eine didaktische KLASSIO-Einstufung.'],
   trafficquiz: ['Öffne im Lehrercockpit „Widget hinzufügen“ → „Fahrrad-Führerschein“.', 'Über das Zahnrad wählst du den Themenbereich: Alle Themen, Verkehrszeichen, Vorrang, Radfahrregeln oder Sicherheit. Dort stellst du auch 5 oder 10 Fragen für die Übungsprüfung und die Vorlesefunktion ein.', 'Im Modus „Üben“ beantwortet die Klasse einzelne Fragen. Nach jeder Antwort zeigt KLASSIO die Erklärung und die zugrunde liegende österreichische Rechtsquelle.', 'Die „Übungsprüfung“ ist nur ein Lerncheck in KLASSIO und kein amtlicher Nachweis. Die Fragen sind auf österreichische StVO-Begriffe und Regeln mit Rechtsstand September 2026 abgestimmt.'],
   watercycle: ['Öffne im Lehrercockpit „Widget hinzufügen“ → „Wasserkreislauf-Puzzle“.', 'Über das Zahnrad wählst du „Grundmodell“ für eine einfache Einführung oder „Erweitert“ für Transpiration, Versickerung und Grundwasser. Dort kannst du auch 5 oder 8 feste Quizfragen auswählen.', 'In „Kreislauf“ siehst du die Wasserwege. Wichtig: Nach dem Niederschlag gibt es nicht nur einen Weg – Wasser kann oberirdisch abfließen, versickern oder gespeichert werden.', 'Im „Puzzle“ ordnet die Klasse einen möglichen Oberflächen- oder Grundwasserweg. Das „Quiz“ verwendet ausschließlich fest geprüfte Inhalte auf Basis von USGS und NASA; es erzeugt keine neuen KI-Fragen.'],
+  constellation: ['Öffne im Lehrercockpit „Widget hinzufügen“ → „Sternbilder-Zeichner“.', 'Im Modus „Entdecken“ sind die Verbindungslinien sichtbar. Tippe Sterne an, um ihre Namen zu lernen und zwischen Sternbild und Asterismus zu unterscheiden.', 'Im Modus „Verbinden“ baut die Klasse das Himmelsmuster Linie für Linie auf. Die jeweils gesuchten Sterne werden hervorgehoben.', 'Über das Zahnrad kannst du nur offizielle Sternbilder, nur Asterismen oder alle Muster anzeigen und die Sternnamen ein- oder ausblenden. Die IAU kennt 88 offizielle Sternbilder; Verbindungslinien sind Lernhilfen, keine offiziellen Grenzen. Der Große Wagen ist ein Asterismus im Großen Bären (Ursa Major).'],
 
 };
 
