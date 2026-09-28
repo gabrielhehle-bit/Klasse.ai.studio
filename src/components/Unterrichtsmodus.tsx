@@ -10753,6 +10753,14 @@ ${content}
                                         <SortingWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
