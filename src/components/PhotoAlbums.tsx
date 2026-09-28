@@ -248,6 +248,11 @@ export default function PhotoAlbums() {
 
   const handleUpload = async (fileList: FileList | null) => {
     if (!selectedAlbum || !fileList?.length) return;
+    if (selectedAlbum.shareUrl && !selectedShareExpired) {
+      showToast('Bitte zuerst den aktiven Elternlink beenden. Neue Fotos würden sonst sofort mitgeteilt.', 'error');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
 
     const files = Array.from(fileList).filter(file => {
       if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') {
@@ -875,13 +880,17 @@ export default function PhotoAlbums() {
                     />
                     <button
                       type="button"
-                      disabled={uploading}
+                      disabled={uploading || Boolean(selectedAlbum.shareUrl && !selectedShareExpired)}
                       onClick={() => fileInputRef.current?.click()}
                       className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] px-4 py-8 text-sm font-black text-[var(--text-primary,var(--text))] transition-colors hover:border-[var(--accent)] disabled:opacity-60"
                     >
                       {uploading ? <Loader2 size={20} className="animate-spin" /> : <UploadCloud size={20} />}
-                      {uploading ? `Upload ${uploadProgress.done}/${uploadProgress.total}` : 'Fotos auswählen'}
+                      {uploading ? `Upload ${uploadProgress.done}/${uploadProgress.total}` : selectedAlbum.shareUrl && !selectedShareExpired ? 'Freigabe beenden, um Fotos hinzuzufügen' : 'Fotos auswählen'}
                     </button>
+
+                    {selectedAlbum.shareUrl && !selectedShareExpired && (
+                      <p className="mt-2 text-[11px] font-bold text-amber-700">Neue Fotos sind während einer aktiven Elternfreigabe gesperrt, damit nichts ungeprüft sofort sichtbar wird.</p>
+                    )}
 
                     <div className="mt-4 space-y-2">
                       {(selectedAlbum.files || []).slice().reverse().map(file => (
