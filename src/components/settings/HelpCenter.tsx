@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { BookOpen, HelpCircle, Search, ChevronDown, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { MISSING_PAGE_HELP_IDS, PAGE_HELP, SETTINGS_HELP, WIDGET_HELP, type HelpTopic } from '../../lib/helpContent';
 
@@ -16,9 +16,39 @@ const normalize = (value: string) => value
   .replace(/ß/g, 'ss');
 
 export default function HelpCenter() {
-  const [section, setSection] = useState<HelpSection>('pages');
+  const [contextTarget] = useState<{ section: HelpSection; topicId: string } | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const storedSection = window.sessionStorage.getItem('klassio-help-section') as HelpSection | null;
+      const storedTopic = window.sessionStorage.getItem('klassio-help-topic');
+      window.sessionStorage.removeItem('klassio-help-section');
+      window.sessionStorage.removeItem('klassio-help-topic');
+      if (storedTopic && storedSection && ['pages', 'widgets', 'settings'].includes(storedSection)) {
+        return { section: storedSection, topicId: storedTopic };
+      }
+    } catch {
+      // Help remains fully usable without session storage.
+    }
+    return null;
+  });
+  const [section, setSection] = useState<HelpSection>(contextTarget?.section || 'pages');
   const [query, setQuery] = useState('');
   const selected = sections.find(item => item.id === section)!;
+  const contextTopic = useMemo(() => {
+    if (!contextTarget || contextTarget.section !== section) return null;
+    return selected.items.find(topic => topic.id === contextTarget.topicId) || null;
+  }, [contextTarget, section, selected]);
+
+  useEffect(() => {
+    if (!contextTopic) return;
+    const timer = window.setTimeout(() => {
+      document.getElementById(`klassio-help-topic-${section}-${contextTopic.id}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [contextTopic, section]);
   const entries = useMemo(() => {
     const term = normalize(query.trim());
     if (!term) return selected.items;
@@ -44,6 +74,13 @@ export default function HelpCenter() {
           Hier findest du die App-Bereiche, alle aktuell auswählbaren Cockpit-Widgets und die Einstellungen.
           Für die ersten Schritte öffne zuerst die passende Anleitung.
         </p>
+        {contextTopic && (
+          <div className="mt-4 rounded-2xl border border-indigo-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
+            <span className="font-black text-indigo-800">Hilfe zu deiner aktuellen Seite:</span>{' '}
+            <span className="font-bold text-slate-900">{contextTopic.title}</span>
+            <span className="ml-1 text-slate-500">– die passende Anleitung ist unten bereits geöffnet.</span>
+          </div>
+        )}
         {MISSING_PAGE_HELP_IDS.length === 0 ? (
           <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">
             <CheckCircle2 size={16} aria-hidden="true" />
@@ -90,9 +127,19 @@ export default function HelpCenter() {
         </div>
       ) : (
         <div className="space-y-3">
-          {entries.map(topic => (
-            <details key={`${section}-${topic.id}`}
-              className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm open:border-indigo-300 sm:p-5">
+          {entries.map(topic => {
+            const isContextTopic = contextTopic?.id === topic.id;
+            return (
+            <details
+              id={`klassio-help-topic-${section}-${topic.id}`}
+              key={`${section}-${topic.id}`}
+              defaultOpen={isContextTopic}
+              className={`group rounded-2xl border bg-white p-4 shadow-sm sm:p-5 ${
+                isContextTopic
+                  ? 'border-indigo-400 ring-2 ring-indigo-100 open:border-indigo-500'
+                  : 'border-slate-200 open:border-indigo-300'
+              }`}
+            >
               <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 [&::-webkit-details-marker]:hidden">
                 <span className="min-w-0">
                   <span className="block text-xs font-semibold uppercase tracking-wide text-indigo-700">{topic.area}</span>
@@ -114,7 +161,8 @@ export default function HelpCenter() {
                 </div>
               </div>
             </details>
-          ))}
+            );
+          })}
         </div>
       )}
 
