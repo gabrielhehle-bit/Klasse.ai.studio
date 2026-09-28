@@ -3,7 +3,6 @@ const MAX_PARENT_PHOTO_EDGE = 2560;
 
 export interface PreparedParentPhoto {
   body: Blob;
-  name: string;
   mimeType: string;
   optimized: boolean;
 }
@@ -12,21 +11,12 @@ export function canPrivacyOptimizePhotoType(mimeType: string): boolean {
   return PRIVACY_OPTIMIZABLE_TYPES.has((mimeType || '').toLowerCase());
 }
 
-export function optimizedPhotoName(name: string, mimeType: string): string {
-  const base = name.replace(/\.[^.]+$/, '').trim() || 'Foto';
-  const extension =
-    mimeType === 'image/png' ? 'png' :
-    mimeType === 'image/webp' ? 'webp' :
-    'jpg';
-  return `${base}-optimiert.${extension}`;
-}
-
 export async function prepareParentPhoto(
   file: File,
   optimize: boolean,
 ): Promise<PreparedParentPhoto> {
   if (!optimize) {
-    return { body: file, name: file.name, mimeType: file.type, optimized: false };
+    return { body: file, mimeType: file.type, optimized: false };
   }
 
   if (!canPrivacyOptimizePhotoType(file.type)) {
@@ -67,7 +57,6 @@ export async function prepareParentPhoto(
 
     return {
       body,
-      name: optimizedPhotoName(file.name, mimeType),
       mimeType,
       optimized: true,
     };
