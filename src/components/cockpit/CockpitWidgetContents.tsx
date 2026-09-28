@@ -77,6 +77,17 @@ import {
   type CompassPracticeRound,
   type CompassWidgetSettings,
 } from '../../lib/compassWidgetModel';
+import {
+  createCalendarPracticeRound,
+  getCalendarIndexForDate,
+  getCalendarItems,
+  normalizeWeekdaysWidgetSettings,
+  wrapCalendarIndex,
+  type CalendarPracticeRound,
+  type WeekdaysWidgetMode,
+  type WeekdaysWidgetSettings,
+  type WeekdaysWidgetView,
+} from '../../lib/weekdaysWidgetModel';
 import { ClassPetCanvas, ClassPetCanvasRef } from '../ClassPetCanvas';
 import { PET_BREEDS } from '../ClassPetWidget';
 import { WheelWidget, WheelWidgetProps } from './widgets/WheelWidget';
@@ -9639,73 +9650,356 @@ export const CompassWidgetContent: React.FC<{
 };
 
 // ==========================================
-// NEW WIDGET 24: WOCHENTAGE-TRAINER (Days Circle)
+// NEW WIDGET 24: WOCHENTAGE-TRAINER
 // ==========================================
-export const WeekdaysWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const days = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
-  const [todayIdx, setTodayIdx] = useState(0);
+export const WeekdaysWidgetContent: React.FC<{
+  widget: any;
+  currentIsLight: boolean;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
+}> = ({
+  widget,
+  currentIsLight,
+  onUpdate,
+  showSettings = false,
+  onCloseSettings,
+}) => {
+  const settings = useMemo(
+    () => normalizeWeekdaysWidgetSettings(widget?.settings),
+    [widget?.settings],
+  );
+  const today = useMemo(() => new Date(), []);
+  const items = useMemo(() => getCalendarItems(settings.view), [settings.view]);
+  const actualIndex = getCalendarIndexForDate(settings.view, today);
+  const [selectedIndex, setSelectedIndex] = useState(actualIndex);
+  const [practiceRound, setPracticeRound] = useState<CalendarPracticeRound>(
+    () => createCalendarPracticeRound(settings.view),
+  );
+  const [answerState, setAnswerState] = useState<'idle' | 'wrong' | 'correct'>('idle');
+  const [feedback, setFeedback] = useState('');
+  const onUpdateRef = useRef(onUpdate);
+  onUpdateRef.current = onUpdate;
 
-  const yesterdayIdx = (todayIdx - 1 + 7) % 7;
-  const tomorrowIdx = (todayIdx + 1) % 7;
+  const persistSettings = useCallback((patch: Partial<WeekdaysWidgetSettings>) => {
+    if (!onUpdateRef.current) return;
+    onUpdateRef.current({ settings: patch });
+  }, []);
+
+  useEffect(() => {
+    const nextActualIndex = getCalendarIndexForDate(settings.view, today);
+    setSelectedIndex(nextActualIndex);
+    setPracticeRound(previous =>
+      createCalendarPracticeRound(settings.view, Math.random, previous?.key),
+    );
+    setAnswerState('idle');
+    setFeedback('');
+  }, [settings.view, today]);
+
+  useEffect(() => {
+    setAnswerState('idle');
+    setFeedback('');
+    if (settings.mode === 'practice') {
+      setPracticeRound(previous =>
+        createCalendarPracticeRound(settings.view, Math.random, previous?.key),
+      );
+      setSelectedIndex(getCalendarIndexForDate(settings.view, today));
+    }
+  }, [settings.mode]);
+
+  const changeView = (view: WeekdaysWidgetView) => {
+    persistSettings({ view });
+  };
+
+  const changeMode = (mode: WeekdaysWidgetMode) => {
+    persistSettings({ mode });
+  };
+
+  const selectItem = (index: number) => {
+    if (settings.mode === 'practice' && answerState === 'correct') return;
+    setSelectedIndex(index);
+    if (answerState === 'wrong') {
+      setAnswerState('idle');
+      setFeedback('');
+    }
+  };
+
+  const resetToToday = () => {
+    setSelectedIndex(getCalendarIndexForDate(settings.view, today));
+    setAnswerState('idle');
+    setFeedback('');
+  };
+
+  const checkPractice = () => {
+    if (selectedIndex === practiceRound.answerIndex) {
+      setAnswerState('correct');
+      setFeedback(`Richtig – ${items[practiceRound.answerIndex]}.`);
+      return;
+    }
+    setAnswerState('wrong');
+    setFeedback(`Noch nicht. Du hast ${items[selectedIndex]} gewählt. Versuch es noch einmal.`);
+  };
+
+  const nextPractice = () => {
+    setPracticeRound(previous =>
+      createCalendarPracticeRound(settings.view, Math.random, previous?.key),
+    );
+    setSelectedIndex(getCalendarIndexForDate(settings.view, today));
+    setAnswerState('idle');
+    setFeedback('');
+  };
+
+  const previousIndex = wrapCalendarIndex(selectedIndex - 1, items.length);
+  const nextIndex = wrapCalendarIndex(selectedIndex + 1, items.length);
+  const selectedIsActual = selectedIndex === actualIndex;
+
+  const actualDateLabel = settings.view === 'weekdays'
+    ? new Intl.DateTimeFormat('de-AT', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }).format(today)
+    : new Intl.DateTimeFormat('de-AT', {
+        month: 'long',
+        year: 'numeric',
+      }).format(today);
+
+  const segmentButtonClass = (active: boolean) => `min-h-11 rounded-xl border px-3 text-xs font-black transition-colors ${
+    active
+      ? 'border-accent bg-accent text-accent-text'
+      : currentIsLight
+        ? 'border-slate-200 bg-white text-slate-700 hover:border-accent hover:bg-accent-soft'
+        : 'border-white/10 bg-white/5 text-slate-200 hover:border-accent hover:bg-white/10'
+  }`;
+
+  const itemButtonClass = (selected: boolean, isActual: boolean) => `min-h-11 rounded-xl border px-2 py-2 text-center text-xs font-black transition-colors ${
+    selected
+      ? 'border-accent bg-accent text-accent-text'
+      : isActual
+        ? 'border-accent bg-accent-soft text-accent'
+        : currentIsLight
+          ? 'border-slate-200 bg-white text-slate-700 hover:border-accent hover:bg-accent-soft'
+          : 'border-white/10 bg-white/5 text-slate-100 hover:border-accent hover:bg-white/10'
+  }`;
 
   return (
-    <div className="flex-grow flex flex-col justify-between p-2 h-full min-h-0 pointer-events-auto select-none gap-2">
-      <div className="flex justify-between items-center px-1 shrink-0">
-        <span className={`text-[8px] font-black uppercase tracking-widest ${currentIsLight ? 'text-slate-400' : 'text-slate-500'}`}>
-          Wochentage-Trainer (Morgenkreis)
-        </span>
+    <div
+      role="region"
+      aria-label="Wochentage-Trainer"
+      className={`relative flex h-full min-h-0 w-full flex-col overflow-hidden p-3 select-none ${
+        currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-slate-100'
+      }`}
+    >
+      {showSettings && (
+        <div className={`absolute inset-0 z-30 flex min-h-0 flex-col overflow-y-auto p-4 ${
+          currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-slate-100'
+        }`}>
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 pb-3 dark:border-white/10">
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider text-accent">Wochentage-Trainer-Einstellungen</p>
+              <p className="mt-1 text-xs leading-relaxed opacity-65">
+                Lege fest, ob das echte aktuelle Datum im Morgenkreis sichtbar ist.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onCloseSettings}
+              className="min-h-11 shrink-0 rounded-xl border border-slate-200 px-3 text-xs font-black hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5"
+            >
+              Fertig
+            </button>
+          </div>
+
+          <section className="mt-4 shrink-0">
+            <button
+              type="button"
+              aria-pressed={settings.showActualDate}
+              onClick={() => persistSettings({ showActualDate: !settings.showActualDate })}
+              className={`min-h-11 w-full rounded-xl border px-3 py-2 text-left text-xs font-bold transition-colors ${
+                settings.showActualDate
+                  ? 'border-accent bg-accent-soft text-accent'
+                  : currentIsLight
+                    ? 'border-slate-200 bg-white text-slate-700 hover:border-accent hover:bg-accent-soft'
+                    : 'border-white/10 bg-white/5 text-slate-200 hover:border-accent hover:bg-white/10'
+              }`}
+            >
+              Aktuelles Datum {settings.showActualDate ? 'anzeigen' : 'ausblenden'}
+            </button>
+          </section>
+
+          <div className={`mt-4 rounded-2xl border p-3 text-xs leading-relaxed ${
+            currentIsLight ? 'border-slate-200 bg-slate-50 text-slate-600' : 'border-white/10 bg-white/5 text-slate-300'
+          }`}>
+            Im Erkunden-Modus kannst du jeden Tag oder Monat antippen. „Zurück zu heute“ setzt die Auswahl wieder auf den echten aktuellen Kalendertag beziehungsweise Monat.
+          </div>
+        </div>
+      )}
+
+      <div className="grid shrink-0 grid-cols-2 gap-2" role="group" aria-label="Kalenderbereich">
+        <button
+          type="button"
+          aria-pressed={settings.view === 'weekdays'}
+          onClick={() => changeView('weekdays')}
+          className={segmentButtonClass(settings.view === 'weekdays')}
+        >
+          Wochentage
+        </button>
+        <button
+          type="button"
+          aria-pressed={settings.view === 'months'}
+          onClick={() => changeView('months')}
+          className={segmentButtonClass(settings.view === 'months')}
+        >
+          Monate
+        </button>
       </div>
 
-      {/* Grid displaying the days */}
-      <div className="flex-grow flex flex-col justify-center gap-1.5 my-1">
-        <div className="grid grid-cols-7 gap-1">
-          {days.map((d, idx) => {
-            const isToday = todayIdx === idx;
-            const isYesterday = yesterdayIdx === idx;
-            const isTomorrow = tomorrowIdx === idx;
+      <div className="mt-2 grid shrink-0 grid-cols-2 gap-2" role="group" aria-label="Lernmodus">
+        <button
+          type="button"
+          aria-pressed={settings.mode === 'explore'}
+          onClick={() => changeMode('explore')}
+          className={segmentButtonClass(settings.mode === 'explore')}
+        >
+          Erkunden
+        </button>
+        <button
+          type="button"
+          aria-pressed={settings.mode === 'practice'}
+          onClick={() => changeMode('practice')}
+          className={segmentButtonClass(settings.mode === 'practice')}
+        >
+          Üben
+        </button>
+      </div>
+
+      {settings.showActualDate && (
+        <div className={`mt-2 flex shrink-0 items-center justify-between gap-2 rounded-2xl border px-3 py-2 ${
+          currentIsLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/5'
+        }`}>
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-wider opacity-50">Heute</p>
+            <p className="truncate text-sm font-black capitalize">{actualDateLabel}</p>
+          </div>
+          {!selectedIsActual && settings.mode === 'explore' && (
+            <button
+              type="button"
+              onClick={resetToToday}
+              className="min-h-11 shrink-0 rounded-xl bg-accent-soft px-3 text-xs font-black text-accent hover:bg-accent hover:text-accent-text"
+            >
+              Zurück zu heute
+            </button>
+          )}
+        </div>
+      )}
+
+      {settings.mode === 'practice' && (
+        <div className={`mt-2 shrink-0 rounded-2xl border p-3 ${
+          currentIsLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/5'
+        }`}>
+          <p className="text-[10px] font-black uppercase tracking-wider opacity-50">Aufgabe</p>
+          <p className="mt-1 text-base font-black leading-snug text-accent">{practiceRound.prompt}</p>
+          <p
+            role="status"
+            aria-live="polite"
+            className={`mt-1 min-h-5 text-xs font-bold ${
+              answerState === 'correct'
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : answerState === 'wrong'
+                  ? 'text-rose-600 dark:text-rose-400'
+                  : 'opacity-55'
+            }`}
+          >
+            {feedback || 'Wähle deine Antwort und prüfe sie.'}
+          </p>
+        </div>
+      )}
+
+      <div className="min-h-0 flex-1 py-2">
+        <div className={`grid h-full content-center gap-2 ${
+          settings.view === 'weekdays' ? 'grid-cols-4' : 'grid-cols-4'
+        }`} role="group" aria-label={settings.view === 'weekdays' ? 'Wochentage auswählen' : 'Monate auswählen'}>
+          {items.map((item, index) => {
+            const selected = selectedIndex === index;
+            const isActual = actualIndex === index;
             return (
               <button
-                key={d}
-                onClick={() => setTodayIdx(idx)}
-                className={`flex flex-col items-center justify-center p-1 py-2.5 rounded-xl border text-[7px] font-black transition-all cursor-pointer ${
-                  isToday 
-                    ? 'bg-indigo-500 text-white border-transparent shadow shadow-indigo-500/20' 
-                    : isYesterday 
-                      ? 'bg-amber-500/15 border-amber-500/30 text-amber-500' 
-                      : isTomorrow 
-                        ? 'bg-sky-500/15 border-sky-500/30 text-sky-500' 
-                        : currentIsLight ? 'bg-white border-slate-150 hover:bg-slate-50' : 'bg-zinc-850/55 border-white/5 text-slate-400 hover:bg-zinc-805'
-                }`}
+                key={item}
+                type="button"
+                aria-pressed={selected}
+                disabled={settings.mode === 'practice' && answerState === 'correct'}
+                onClick={() => selectItem(index)}
+                className={`${itemButtonClass(selected, isActual)} disabled:cursor-default disabled:opacity-70`}
               >
-                <span>{d.slice(0, 2)}</span>
-                {isToday && <span className="text-[5.5px] uppercase mt-0.5 text-indigo-100 font-bold">Heute</span>}
-                {isYesterday && <span className="text-[5.5px] uppercase mt-0.5 opacity-80 font-bold">Gestern</span>}
-                {isTomorrow && <span className="text-[5.5px] uppercase mt-0.5 opacity-80 font-bold">Morgen</span>}
+                <span className="block text-sm">{item}</span>
+                {settings.mode === 'explore' && isActual && !selected && (
+                  <span className="mt-0.5 block text-[10px] font-bold opacity-70">
+                    {settings.view === 'weekdays' ? 'heute' : 'aktuell'}
+                  </span>
+                )}
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Summary Board */}
-      <div className={`p-2 rounded-2xl border flex flex-col gap-0.5 text-center ${
-        currentIsLight ? 'bg-slate-50 border-slate-150' : 'bg-zinc-850/50 border-white/5'
-      }`}>
-        <div className="flex justify-around items-center text-[7.5px] font-semibold">
-          <div className="text-amber-500">
-            <span className="font-extrabold uppercase text-[6.5px]">Gestern:</span>
-            <p className="font-bold">{days[yesterdayIdx]}</p>
+      {settings.mode === 'explore' ? (
+        <div className={`grid shrink-0 grid-cols-3 gap-2 rounded-2xl border p-2 ${
+          currentIsLight ? 'border-slate-200 bg-slate-50/80' : 'border-white/10 bg-white/5'
+        }`}>
+          <div className="flex min-h-11 flex-col items-center justify-center rounded-xl px-2 text-center">
+            <span className="text-[10px] font-black uppercase tracking-wider opacity-45">
+              {settings.view === 'weekdays' ? 'Gestern' : 'Davor'}
+            </span>
+            <span className="mt-0.5 text-xs font-bold">{items[previousIndex]}</span>
           </div>
-          <div className="text-indigo-500 font-extrabold text-[8px] px-1 bg-indigo-500/10 rounded-lg">
-            <span className="font-black uppercase text-[6px]">Heute:</span>
-            <p className="font-black">{days[todayIdx]}</p>
+          <div className="flex min-h-11 flex-col items-center justify-center rounded-xl bg-accent-soft px-2 text-center text-accent">
+            <span className="text-[10px] font-black uppercase tracking-wider opacity-70">
+              {settings.view === 'weekdays' ? 'Heute' : 'Ausgewählt'}
+            </span>
+            <span className="mt-0.5 text-sm font-black">{items[selectedIndex]}</span>
           </div>
-          <div className="text-sky-500">
-            <span className="font-extrabold uppercase text-[6.5px]">Morgen:</span>
-            <p className="font-bold">{days[tomorrowIdx]}</p>
+          <div className="flex min-h-11 flex-col items-center justify-center rounded-xl px-2 text-center">
+            <span className="text-[10px] font-black uppercase tracking-wider opacity-45">
+              {settings.view === 'weekdays' ? 'Morgen' : 'Danach'}
+            </span>
+            <span className="mt-0.5 text-xs font-bold">{items[nextIndex]}</span>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="grid shrink-0 grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={resetToToday}
+            disabled={answerState === 'correct'}
+            className={`min-h-11 rounded-xl border px-3 text-xs font-black disabled:cursor-default disabled:opacity-60 ${
+              currentIsLight
+                ? 'border-slate-200 bg-white text-slate-700 hover:border-accent hover:bg-accent-soft'
+                : 'border-white/10 bg-white/5 text-slate-200 hover:border-accent hover:bg-white/10'
+            }`}
+          >
+            Auswahl zurücksetzen
+          </button>
+          {answerState === 'correct' ? (
+            <button
+              type="button"
+              onClick={nextPractice}
+              className="min-h-11 rounded-xl bg-accent px-4 text-xs font-black text-accent-text hover:bg-accent-hover"
+            >
+              Nächste Aufgabe
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={checkPractice}
+              className="min-h-11 rounded-xl bg-accent px-4 text-xs font-black text-accent-text hover:bg-accent-hover"
+            >
+              Prüfen
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };
