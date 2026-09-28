@@ -55,6 +55,8 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
   stateRef.current = state;
   const widgetSettingsRef = useRef<Record<string, any>>(widget?.settings || {});
   widgetSettingsRef.current = widget?.settings || {};
+  const onUpdateRef = useRef(onUpdate);
+  onUpdateRef.current = onUpdate;
 
   // Schützt direkte Bedienaktionen davor, von einem noch alten Parent-Snapshot
   // unmittelbar wieder überschrieben zu werden. Erst wenn der Parent den
@@ -81,9 +83,9 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
   // Persistenz-Funktion (NUR bei Benutzeraktionen: Start, Pause, Runde, Reset, Unmount)
   const persistState = useCallback(
     (newState: StopwatchSettings) => {
-      if (!onUpdate) return;
+      if (!onUpdateRef.current) return;
       pendingPersistSignatureRef.current = stateSignature(newState);
-      onUpdate({
+      onUpdateRef.current({
         settings: {
           ...widgetSettingsRef.current,
           status: newState.status,
@@ -94,7 +96,7 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
         },
       });
     },
-    [onUpdate, stateSignature]
+    [stateSignature]
   );
 
   // Bedienaktionen müssen sofort auch stateRef aktualisieren. React rendert
@@ -175,14 +177,9 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
     });
   }, [stateSignature, widget?.settings]);
 
-  // Auto-Persist beim Unmounten (falls im laufenden Betrieb geschlossen wird)
-  useEffect(() => {
-    return () => {
-      if (stateRef.current.status === 'running') {
-        persistState(stateRef.current);
-      }
-    };
-  }, [persistState]);
+  // Kein zusätzliches Unmount-Persistieren: Der absolute startTimestamp wird
+  // bereits beim Start gespeichert. Zusätzliche Cleanup-Schreibvorgänge bei
+  // React-Re-Renders konnten direkte Runde-/Stopp-Aktionen überholen.
 
   // AKTION: Start
   const handleStart = useCallback(() => {
