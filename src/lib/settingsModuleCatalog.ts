@@ -33,6 +33,7 @@ export const AVAILABLE_MODULES: KlassioModuleCatalogEntry[] = [
   { id: 'teamteaching', label: 'Teamteaching', desc: 'Klasse gezielt mit Kolleg:innen derselben Schule teilen', category: 'Klasse & Kinder' },
   { id: 'verhalten', label: 'Notizen', desc: 'Alle Klassen- und Schülernotizen zentral erfassen und durchsuchen', category: 'Start' },
   { id: 'orga', label: 'Kasse & Orga', desc: 'Klassenkasse, Geldsammlungen und Organisation', category: 'Klasse & Kinder', condition: (app: any) => app.klassenvorstand },
+  { id: 'elternfotos', label: 'Elternfotos', desc: 'Fotoalben datenschutzbewusst über das verbundene OneDrive mit Eltern teilen', category: 'Klasse & Kinder', condition: (app: any) => app.klassenvorstand },
 
   { id: 'noten', label: 'Notenmappe', desc: 'Noten, Prozent, Punkte, Gewichtungen und Notenübersicht', category: 'Leistungen' },
   { id: 'diagnostik', label: 'Diagnostik', desc: 'Lese-, Rechen- und Beobachtungschecks', category: 'Leistungen', condition: (app: any) => app.klassenvorstand },
