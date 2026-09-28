@@ -590,9 +590,13 @@ export default function PhotoAlbums() {
                       </p>
                     </div>
                     <span className={`rounded-full px-2 py-1 text-[9px] font-black uppercase tracking-wider ${
-                      status === 'shared' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                      status === 'shared'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : status === 'expired'
+                          ? 'bg-amber-100 text-amber-700'
+                          : 'bg-slate-100 text-slate-600'
                     }`}>
-                      {status === 'shared' ? 'Geteilt' : 'Entwurf'}
+                      {status === 'shared' ? 'Geteilt' : status === 'expired' ? 'Abgelaufen' : 'Entwurf'}
                     </span>
                   </div>
                   <div className="mt-3 flex items-center justify-between text-[11px] font-bold text-[var(--text-secondary,var(--text2))]">
@@ -724,12 +728,21 @@ export default function PhotoAlbums() {
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <h2 className="text-xl font-black text-[var(--text-primary,var(--text))]">{selectedAlbum.title}</h2>
-                        {selectedAlbum.shareUrl && <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black text-emerald-700">Elternlink aktiv</span>}
+                        {shareSafetyProblem ? (
+                          <span className="rounded-full bg-rose-100 px-2.5 py-1 text-[10px] font-black text-rose-700">Freigabe prüfen</span>
+                        ) : selectedShareExpired ? (
+                          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black text-amber-700">Link abgelaufen</span>
+                        ) : selectedAlbum.shareUrl ? (
+                          <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black text-emerald-700">Elternlink aktiv</span>
+                        ) : null}
                       </div>
                       <p className="mt-1 text-xs font-bold text-[var(--text-muted,var(--text3))]">{formatDate(selectedAlbum.eventDate || selectedAlbum.createdAt)}</p>
                       {selectedAlbum.description && <p className="mt-2 text-sm text-[var(--text-secondary,var(--text2))]">{selectedAlbum.description}</p>}
                     </div>
                     <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={beginEditAlbum} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default,var(--border))] px-3 py-2 text-xs font-black text-[var(--text-secondary,var(--text2))]">
+                        <Pencil size={15} /> Bearbeiten
+                      </button>
                       {selectedAlbum.oneDriveFolderWebUrl && (
                         <a href={selectedAlbum.oneDriveFolderWebUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default,var(--border))] px-3 py-2 text-xs font-black text-[var(--text-secondary,var(--text2))]">
                           <FolderOpen size={15} /> OneDrive öffnen
@@ -741,6 +754,78 @@ export default function PhotoAlbums() {
                     </div>
                   </div>
                 </div>
+
+                {editingAlbum && (
+                  <div className="rounded-3xl border border-[var(--accent)]/30 bg-[var(--surface-card,var(--surface))] p-5 sm:p-6 shadow-sm">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-muted,var(--text3))]">Album bearbeiten</p>
+                        <h3 className="mt-1 text-base font-black text-[var(--text-primary,var(--text))]">Angaben und Kinder korrigieren</h3>
+                      </div>
+                      <button type="button" onClick={() => setEditingAlbum(false)} className="rounded-xl p-2 text-[var(--text-muted,var(--text3))] hover:bg-[var(--surface-subtle,var(--surface2))]">
+                        <X size={17} />
+                      </button>
+                    </div>
+
+                    <div className="mt-5 grid gap-4 md:grid-cols-2">
+                      <label className="space-y-1.5 md:col-span-2">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary,var(--text2))]">Albumname</span>
+                        <input value={editTitle} onChange={event => setEditTitle(event.target.value)} className="w-full rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] px-4 py-3 text-sm font-bold text-[var(--text-primary,var(--text))] outline-none focus:border-[var(--accent)]" />
+                      </label>
+                      <label className="space-y-1.5">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary,var(--text2))]">Datum</span>
+                        <input type="date" value={editDate} onChange={event => setEditDate(event.target.value)} className="w-full rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] px-4 py-3 text-sm font-bold text-[var(--text-primary,var(--text))] outline-none focus:border-[var(--accent)]" />
+                      </label>
+                      <label className="space-y-1.5">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary,var(--text2))]">Kurzbeschreibung</span>
+                        <input value={editDescription} onChange={event => setEditDescription(event.target.value)} className="w-full rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] px-4 py-3 text-sm font-bold text-[var(--text-primary,var(--text))] outline-none focus:border-[var(--accent)]" />
+                      </label>
+                    </div>
+
+                    <label className="mt-4 flex items-start gap-3 rounded-xl bg-[var(--surface-subtle,var(--surface2))] p-3">
+                      <input
+                        type="checkbox"
+                        checked={editNoIdentifiableStudents}
+                        onChange={event => {
+                          setEditNoIdentifiableStudents(event.target.checked);
+                          if (event.target.checked) setEditStudentIds([]);
+                        }}
+                        className="mt-0.5"
+                      />
+                      <span>
+                        <span className="block text-xs font-black text-[var(--text-primary,var(--text))]">Auf den Fotos sind keine Kinder identifizierbar</span>
+                        <span className="block text-[11px] text-[var(--text-secondary,var(--text2))]">Damit entfällt die Auswahl einzelner Kinder.</span>
+                      </span>
+                    </label>
+
+                    {!editNoIdentifiableStudents && (
+                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                        {students.map(student => {
+                          const checked = editStudentIds.includes(student.id);
+                          return (
+                            <label key={student.id} className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl border p-3 ${checked ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-[var(--border-default,var(--border))]'}`}>
+                              <span className="flex min-w-0 items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={event => setEditStudentIds(prev => event.target.checked ? [...prev, student.id] : prev.filter(id => id !== student.id))}
+                                />
+                                <span className="truncate text-xs font-bold text-[var(--text-primary,var(--text))]">{[student.vorname, student.nachname].filter(Boolean).join(' ') || student.name}</span>
+                              </span>
+                              {permissionPill(student)}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <div className="mt-5 flex justify-end">
+                      <button type="button" onClick={saveAlbumEdits} className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-xs font-black text-[var(--accent-text,#fff)]">
+                        <Save size={15} /> Änderungen speichern
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid gap-5 lg:grid-cols-2">
                   <div className="rounded-3xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] p-5 shadow-sm">
@@ -780,11 +865,16 @@ export default function PhotoAlbums() {
                             <p className="truncate text-xs font-bold text-[var(--text-primary,var(--text))]">{file.name}</p>
                             <p className="mt-0.5 text-[10px] text-[var(--text-muted,var(--text3))]">{Math.max(1, Math.round(file.size / 1024))} KB</p>
                           </div>
-                          {file.webUrl && (
-                            <a href={file.webUrl} target="_blank" rel="noreferrer" className="rounded-lg p-2 text-[var(--text-muted,var(--text3))] hover:bg-[var(--surface-subtle,var(--surface2))]">
-                              <ExternalLink size={14} />
-                            </a>
-                          )}
+                          <div className="flex items-center gap-1">
+                            {file.webUrl && (
+                              <a href={file.webUrl} target="_blank" rel="noreferrer" className="rounded-lg p-2 text-[var(--text-muted,var(--text3))] hover:bg-[var(--surface-subtle,var(--surface2))]" title="In OneDrive öffnen">
+                                <ExternalLink size={14} />
+                              </a>
+                            )}
+                            <button type="button" onClick={() => handleDeletePhoto(file)} className="rounded-lg p-2 text-rose-500 hover:bg-rose-50 hover:text-rose-700" title="Foto entfernen">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </div>
                       ))}
                       {(selectedAlbum.files || []).length === 0 && (
@@ -835,43 +925,87 @@ export default function PhotoAlbums() {
                 </div>
 
                 <div className="rounded-3xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] p-5 sm:p-6 shadow-sm">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-muted,var(--text3))]">3 · Elternzugang</p>
-                      <h3 className="mt-1 text-base font-black text-[var(--text-primary,var(--text))]">Zeitlich begrenzten Link erstellen</h3>
-                      <p className="mt-1 text-xs text-[var(--text-secondary,var(--text2))]">Standardmäßig 30 Tage. Externes Teilen muss im Microsoft-365-Konto der Schule erlaubt sein.</p>
-                    </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-muted,var(--text3))]">3 · Elternzugang</p>
+                    <h3 className="mt-1 text-base font-black text-[var(--text-primary,var(--text))]">Zeitlich begrenzten Link erstellen</h3>
+                    <p className="mt-1 text-xs text-[var(--text-secondary,var(--text2))]">Der Link ist nur zum Ansehen. Externes Teilen muss im Microsoft-365-Konto der Schule erlaubt sein.</p>
+                  </div>
 
-                    {!selectedAlbum.shareUrl ? (
+                  {shareSafetyProblem && (
+                    <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4">
+                      <p className="flex items-center gap-2 text-xs font-black text-rose-800"><ShieldAlert size={16} /> Eine gespeicherte Foto-Freigabe hat sich geändert.</p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-rose-700">Der bestehende Elternlink sollte sofort beendet werden. KLASSIO bietet ihn deshalb nicht mehr zum Kopieren oder Öffnen an.</p>
+                    </div>
+                  )}
+
+                  {selectedShareExpired && (
+                    <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                      <p className="flex items-center gap-2 text-xs font-black text-amber-800"><AlertTriangle size={16} /> Der Elternlink ist abgelaufen.</p>
+                      <p className="mt-1 text-[11px] text-amber-700">Entferne die alte Freigabe und erstelle danach bei Bedarf einen neuen Link.</p>
+                    </div>
+                  )}
+
+                  {!selectedAlbum.shareUrl ? (
+                    <div className="mt-4 grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)_auto] lg:items-end">
+                      <label className="space-y-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted,var(--text3))]">Gültigkeit</span>
+                        <select
+                          value={shareDays}
+                          onChange={event => setShareDays(Number(event.target.value))}
+                          className="w-full rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] px-3 py-2.5 text-xs font-bold text-[var(--text-primary,var(--text))]"
+                        >
+                          <option value={7}>7 Tage</option>
+                          <option value={14}>14 Tage</option>
+                          <option value={30}>30 Tage</option>
+                          <option value={60}>60 Tage</option>
+                          <option value={90}>90 Tage</option>
+                        </select>
+                      </label>
+
+                      <label className="flex items-start gap-3 rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] p-3">
+                        <input type="checkbox" checked={shareConsentConfirmed} onChange={event => setShareConsentConfirmed(event.target.checked)} className="mt-0.5" />
+                        <span className="text-[11px] leading-relaxed text-[var(--text-secondary,var(--text2))]">
+                          Ich habe geprüft, dass die konkrete schulische Einwilligung das Teilen dieses Albums mit Eltern abdeckt.
+                        </span>
+                      </label>
+
                       <button
                         type="button"
-                        disabled={sharing || !selectedPolicy.canShare || !(selectedAlbum.files || []).length}
+                        disabled={sharing || !selectedPolicy.canShare || !(selectedAlbum.files || []).length || !shareConsentConfirmed}
                         onClick={handleShare}
                         className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 py-3 text-xs font-black text-[var(--accent-text,#fff)] disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         {sharing ? <Loader2 size={16} className="animate-spin" /> : <Link2 size={16} />}
                         Elternlink erstellen
                       </button>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        <button type="button" onClick={copyParentMessage} className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-3 text-xs font-black text-[var(--accent-text,#fff)]">
-                          <Copy size={15} /> Nachricht kopieren
-                        </button>
-                        <a href={selectedAlbum.shareUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default,var(--border))] px-4 py-3 text-xs font-black text-[var(--text-primary,var(--text))]">
-                          <ExternalLink size={15} /> Link öffnen
-                        </a>
-                        <button type="button" disabled={sharing} onClick={handleUnshare} className="inline-flex items-center gap-2 rounded-xl border border-rose-200 px-4 py-3 text-xs font-black text-rose-700 disabled:opacity-50">
-                          {sharing ? <Loader2 size={15} className="animate-spin" /> : <X size={15} />} Freigabe beenden
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {!shareSafetyProblem && !selectedShareExpired && (
+                        <>
+                          <button type="button" onClick={copyParentMessage} className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-3 text-xs font-black text-[var(--accent-text,#fff)]">
+                            <Copy size={15} /> Nachricht kopieren
+                          </button>
+                          <a href={selectedAlbum.shareUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default,var(--border))] px-4 py-3 text-xs font-black text-[var(--text-primary,var(--text))]">
+                            <ExternalLink size={15} /> Link öffnen
+                          </a>
+                        </>
+                      )}
+                      <button type="button" disabled={sharing} onClick={handleUnshare} className="inline-flex items-center gap-2 rounded-xl border border-rose-200 px-4 py-3 text-xs font-black text-rose-700 disabled:opacity-50">
+                        {sharing ? <Loader2 size={15} className="animate-spin" /> : <X size={15} />} Freigabe beenden
+                      </button>
+                    </div>
+                  )}
 
                   {selectedAlbum.shareUrl && (
-                    <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                      <p className="break-all text-xs font-bold text-emerald-900">{selectedAlbum.shareUrl}</p>
+                    <div className={`mt-4 rounded-2xl border p-4 ${shareSafetyProblem ? 'border-rose-200 bg-rose-50' : selectedShareExpired ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'}`}>
+                      {!shareSafetyProblem && !selectedShareExpired && (
+                        <p className="break-all text-xs font-bold text-emerald-900">{selectedAlbum.shareUrl}</p>
+                      )}
                       {selectedAlbum.shareExpiresAt && (
-                        <p className="mt-2 text-[11px] font-bold text-emerald-700">Gültig bis {formatDate(selectedAlbum.shareExpiresAt)}</p>
+                        <p className={`text-[11px] font-bold ${!shareSafetyProblem && !selectedShareExpired ? 'mt-2 text-emerald-700' : selectedShareExpired ? 'text-amber-700' : 'text-rose-700'}`}>
+                          {selectedShareExpired ? 'Abgelaufen am' : 'Gültig bis'} {formatDate(selectedAlbum.shareExpiresAt)}
+                        </p>
                       )}
                     </div>
                   )}
