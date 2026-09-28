@@ -57,6 +57,15 @@ import {
   type PianoLabelMode,
   type PianoWidgetSettings,
 } from '../../lib/pianoWidgetModel';
+import {
+  BODY_PARTS,
+  createBodypartsQuizRound,
+  getBodyPartById,
+  normalizeBodypartsWidgetSettings,
+  type BodypartsMode,
+  type BodypartsQuizRound,
+  type BodypartsWidgetSettings,
+} from '../../lib/bodypartsWidgetModel';
 import { ClassPetCanvas, ClassPetCanvasRef } from '../ClassPetCanvas';
 import { PET_BREEDS } from '../ClassPetWidget';
 import { WheelWidget, WheelWidgetProps } from './widgets/WheelWidget';
@@ -8508,427 +8517,325 @@ export const PianoWidgetContent: React.FC<{
 // ==========================================
 // NEW WIDGET 20: KÖRPER-ENTDECKER (School Biology Station)
 // ==========================================
-interface Organ {
-  id: string;
-  name: string;
-  emoji: string;
-  x: number; // SVG coordinates on a 100x200 canvas
-  y: number;
-  color: string;
-  glowColor: string;
-  superpower: string;
-  funFact: string;
-  activity: string;
-  quizQuestion: string;
-}
+export const BodypartsWidgetContent: React.FC<{
+  widget: any;
+  currentIsLight: boolean;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
+}> = ({
+  widget,
+  currentIsLight,
+  onUpdate,
+  showSettings = false,
+  onCloseSettings,
+}) => {
+  const settings = useMemo(
+    () => normalizeBodypartsWidgetSettings(widget?.settings),
+    [widget?.settings],
+  );
+  const [selectedPartId, setSelectedPartId] = useState<string>(BODY_PARTS[0].id);
+  const [round, setRound] = useState<BodypartsQuizRound | null>(() => createBodypartsQuizRound());
+  const [selectedChoiceId, setSelectedChoiceId] = useState<string | null>(null);
+  const [answerState, setAnswerState] = useState<'idle' | 'wrong' | 'correct'>('idle');
+  const [feedback, setFeedback] = useState('');
+  const onUpdateRef = useRef(onUpdate);
+  onUpdateRef.current = onUpdate;
 
-export const BodypartsWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const organs: Organ[] = useMemo(() => [
-    {
-      id: 'brain',
-      name: 'Gehirn',
-      emoji: '🧠',
-      x: 50,
-      y: 22,
-      color: 'bg-pink-500',
-      glowColor: 'rgba(236, 72, 153, 0.5)',
-      superpower: 'Die unendliche Super-Rechenzentrale ⚡',
-      funFact: 'Es sendet Signale mit über 400 km/h durch deine Nerven! Das ist schneller als ein Rennauto!',
-      activity: 'Zähle laut von 10 rückwärts, um deine Gehirnzellen aufzuwärmen!',
-      quizQuestion: 'Welches Organ steuert all deine Gedanken, Bewegungen und Träume?'
-    },
-    {
-      id: 'lungs',
-      name: 'Lunge',
-      emoji: '🫁',
-      x: 50,
-      y: 52,
-      color: 'bg-emerald-500',
-      glowColor: 'rgba(16, 185, 129, 0.5)',
-      superpower: 'Die riesige Sauerstoff-Fabrik 🌬️',
-      funFact: 'Du atmest am Tag etwa 20.000 Mal ein und aus! Ausgeklappt wäre deine Lunge so groß wie ein halbes Tennisspielfeld!',
-      activity: 'Atme tief durch die Nase ein, halte 3 Sekunden die Luft an und atme hörbar aus!',
-      quizQuestion: 'Welches Organ nimmt frische Luft auf und filtert den Sauerstoff für dein Blut?'
-    },
-    {
-      id: 'heart',
-      name: 'Herz',
-      emoji: '❤️',
-      x: 44,
-      y: 56,
-      color: 'bg-red-500',
-      glowColor: 'rgba(239, 68, 68, 0.5)',
-      superpower: 'Der fleißigste Muskel-Motor 🏎️',
-      funFact: 'Dein Herz schlägt jeden Tag über 100.000 Mal ganz ohne Pause, um dein Blut im Kreis durch deinen Körper zu pumpen!',
-      activity: 'Lege zwei Finger an deinen Hals oder dein linkes Handgelenk und fühle deinen Puls!',
-      quizQuestion: 'Welcher lebenswichtige Muskel schlägt Tag und Nacht, um dein Blut fließen zu lassen?'
-    },
-    {
-      id: 'liver',
-      name: 'Leber',
-      emoji: '🧼',
-      x: 43,
-      y: 68,
-      color: 'bg-rose-600',
-      glowColor: 'rgba(225, 29, 72, 0.5)',
-      superpower: 'Die schlaue Entgiftungs-Zentrale 🧪',
-      funFact: 'Die Leber ist die größte chemische Fabrik deines Körpers. Sie baut Giftstoffe ab und speichert wichtige Vitamine!',
-      activity: 'Trinke ein großes Glas Wasser, um deine Leber beim Spülen zu unterstützen!',
-      quizQuestion: 'Welches große Organ reinigt dein Blut und baut Stoffe ab wie eine fleißige Umwelt-Fabrik?'
-    },
-    {
-      id: 'stomach',
-      name: 'Magen',
-      emoji: '🍽️',
-      x: 56,
-      y: 70,
-      color: 'bg-amber-500',
-      glowColor: 'rgba(245, 158, 11, 0.5)',
-      superpower: 'Die geheime Zauberküche 🧼',
-      funFact: 'Er zersetzt dein Essen mit einer extrem sauren Flüssigkeit, damit dein Körper starke Energie daraus gewinnen kann!',
-      activity: 'Reibe deinen Bauch sanft im Uhrzeigersinn im Kreis – das hilft deiner Verdauung!',
-      quizQuestion: 'Wo landet deine Banane zuerst, um in wertvolle Kraft für deine Muskeln verwandelt zu werden?'
-    },
-    {
-      id: 'intestines',
-      name: 'Darm',
-      emoji: '🌀',
-      x: 50,
-      y: 84,
-      color: 'bg-orange-400',
-      glowColor: 'rgba(251, 146, 60, 0.5)',
-      superpower: 'Der super-lange Energie-Tunnel 🚇',
-      funFact: 'Dein Dünndarm ist etwa 6 Meter lang! Das ist so lang wie vier Schulbänke aneinandergereiht!',
-      activity: 'Mache 5 Kniebeugen, um deine Darmbewegung in Schwung zu bringen!',
-      quizQuestion: 'In welchem superlangen, verschlungenen Schlauch wird die letzte Energie aus dem Essen gefiltert?'
-    },
-    {
-      id: 'bones',
-      name: 'Skelett/Knochen',
-      emoji: '🦴',
-      x: 50,
-      y: 98,
-      color: 'bg-cyan-500',
-      glowColor: 'rgba(6, 182, 212, 0.5)',
-      superpower: 'Das unkaputtbare Rüstungsschild 🛡️',
-      funFact: 'Ein Baby hat über 300 weiche Knochen, ein Erwachsener nur noch 206 harte Knochen, weil viele zusammenwachsen!',
-      activity: 'Klopfe sanft auf dein Knie. Spürst du, wie stabil deine Knochen dich beschützen?',
-      quizQuestion: 'Was stützt deinen ganzen Körper wie ein stabiles Hausgerüst aus Kalzium?'
-    }
-  ], []);
+  const selectedPart = getBodyPartById(selectedPartId);
 
-  const [gameMode, setGameMode] = useState<'explore' | 'quiz'>('explore');
-  const [selectedOrgan, setSelectedOrgan] = useState<Organ>(organs[0]);
-  
-  // Quiz states
-  const [quizScore, setQuizScore] = useState<number>(0);
-  const [currentQuizOrgan, setCurrentQuizOrgan] = useState<Organ>(organs[1]);
-  const [quizFeedback, setQuizFeedback] = useState<string>("Tippe das richtige Organ auf der Körperkarte an!");
-  const [quizSolved, setQuizSolved] = useState<boolean>(false);
+  const persistSettings = useCallback((patch: Partial<BodypartsWidgetSettings>) => {
+    if (!onUpdateRef.current) return;
+    onUpdateRef.current({ settings: patch });
+  }, []);
 
-  const triggerSound = (success: boolean) => {
-    try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContextClass) return;
-      const ctx = new AudioContextClass();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      if (success) {
-        osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
-        osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1); // E5
-        osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.2); // G5
-        gain.gain.setValueAtTime(0.08, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.4);
-      } else {
-        osc.frequency.setValueAtTime(220, ctx.currentTime);
-        gain.gain.setValueAtTime(0.12, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.25);
-      }
-    } catch {}
-  };
-
-  const handleOrganClick = (organ: Organ) => {
-    if (gameMode === 'explore') {
-      setSelectedOrgan(organ);
-    } else {
-      // Quiz mode checking
-      if (quizSolved) return;
-      if (organ.id === currentQuizOrgan.id) {
-        setQuizSolved(true);
-        setQuizScore(s => s + 10);
-        setQuizFeedback(`🎉 Richtig! Das ist das/die ${organ.name}! Gut gemacht!`);
-        triggerSound(true);
-      } else {
-        setQuizFeedback(`❌ Schade! Das war das/die ${organ.name}. Such weiter nach dem/der ${currentQuizOrgan.name}!`);
-        triggerSound(false);
-      }
+  const changeMode = (mode: BodypartsMode) => {
+    persistSettings({ mode });
+    setSelectedChoiceId(null);
+    setAnswerState('idle');
+    setFeedback('');
+    if (mode === 'quiz') {
+      setRound(createBodypartsQuizRound());
     }
   };
 
-  const rollNewQuiz = () => {
-    let nextIdx = Math.floor(Math.random() * organs.length);
-    while (organs[nextIdx].id === currentQuizOrgan.id) {
-      nextIdx = Math.floor(Math.random() * organs.length);
-    }
-    setCurrentQuizOrgan(organs[nextIdx]);
-    setQuizSolved(false);
-    setQuizFeedback(`Finde das Organ: „${organs[nextIdx].quizQuestion}“`);
+  const selectPart = (id: string) => {
+    setSelectedPartId(id);
   };
 
-  useEffect(() => {
-    if (gameMode === 'quiz') {
-      rollNewQuiz();
+  const nextRound = () => {
+    setRound(createBodypartsQuizRound());
+    setSelectedChoiceId(null);
+    setAnswerState('idle');
+    setFeedback('');
+  };
+
+  const chooseAnswer = (id: string) => {
+    if (!round || answerState === 'correct') return;
+    setSelectedChoiceId(id);
+    if (id === round.target.id) {
+      setAnswerState('correct');
+      setSelectedPartId(round.target.id);
+      setFeedback(`Richtig – das ist ${round.target.name}.`);
+      return;
     }
-  }, [gameMode]);
+    const picked = round.choices.find(choice => choice.id === id);
+    setAnswerState('wrong');
+    setFeedback(`${picked?.name || 'Diese Antwort'} passt noch nicht. Versuch es noch einmal.`);
+  };
+
+  const settingButtonClass = (active: boolean) => `min-h-11 rounded-xl border px-3 py-2 text-left text-xs font-bold transition-colors ${
+    active
+      ? 'border-accent bg-accent-soft text-accent'
+      : currentIsLight
+        ? 'border-slate-200 bg-white text-slate-700 hover:border-accent hover:bg-accent-soft'
+        : 'border-white/10 bg-white/5 text-slate-200 hover:border-accent hover:bg-white/10'
+  }`;
+
+  const BodyMap = ({ activeId, reveal = true }: { activeId?: string; reveal?: boolean }) => {
+    const active = activeId ? getBodyPartById(activeId) : null;
+    return (
+      <div className={`relative mx-auto h-full min-h-40 w-full max-w-48 overflow-hidden rounded-3xl border ${
+        currentIsLight ? 'border-slate-200 bg-slate-50/80' : 'border-white/10 bg-white/5'
+      }`}>
+        <svg
+          viewBox="0 0 100 200"
+          className="absolute inset-0 h-full w-full text-slate-400 dark:text-zinc-600"
+          aria-hidden="true"
+        >
+          <g fill="currentColor" fillOpacity="0.12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+            <ellipse cx="50" cy="22" rx="12" ry="14" />
+            <path d="M45 34 L45 40 L55 40 L55 34 Z" />
+            <path d="M34 40 C34 40 50 38 66 40 C66 55 64 80 60 98 Q50 102 40 98 C36 80 34 55 34 40 Z" />
+            <path d="M34 40 C29 48 20 62 14 76 C12 80 15 84 19 81 C24 74 31 62 34 53 Z" />
+            <path d="M66 40 C71 48 80 62 86 76 C88 80 85 84 81 81 C76 74 69 62 66 53 Z" />
+            <path d="M40 98 C40 115 42 145 40 165 Q38 192 43 192 C47 192 47 165 48 130 L49.5 98 Z" />
+            <path d="M60 98 C60 115 58 145 60 165 Q62 192 57 192 C53 192 53 165 52 130 L50.5 98 Z" />
+          </g>
+        </svg>
+        {reveal && active && (
+          <div
+            className="absolute flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-accent bg-accent-soft text-2xl shadow-md"
+            style={{ left: `${active.x}%`, top: `${active.y / 2}%` }}
+            aria-label={`${active.name} – Lage im Körper`}
+          >
+            <span aria-hidden="true">{active.emoji}</span>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
-    <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-y-auto overflow-x-hidden">
-      {/* Header & Mode Switcher */}
-      <div className="shrink-0 flex flex-col gap-1 pb-1.5 border-b border-slate-100 dark:border-zinc-800">
-        <div className="flex justify-between items-center">
-          <span className={`text-[10px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
-            🦴 Körper-Entdecker (Anatomie)
-          </span>
-          {gameMode === 'quiz' && (
-            <span className="text-[8px] font-black uppercase tracking-wider bg-emerald-500 text-white px-1.5 py-0.5 rounded shadow-xs">
-              Punkte: {quizScore}
-            </span>
-          )}
-        </div>
-
-        <div className="flex justify-between items-center gap-1.5 mt-1">
-          <div className="flex bg-slate-100 dark:bg-zinc-800 p-0.5 rounded-lg border dark:border-zinc-700">
+    <div
+      role="region"
+      aria-label="Körper-Entdecker"
+      className={`relative flex h-full min-h-0 w-full flex-col overflow-hidden p-3 select-none ${
+        currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-slate-100'
+      }`}
+    >
+      {showSettings && (
+        <div className={`absolute inset-0 z-30 flex min-h-0 flex-col overflow-y-auto p-4 ${
+          currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-slate-100'
+        }`}>
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 pb-3 dark:border-white/10">
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider text-accent">Körper-Entdecker-Einstellungen</p>
+              <p className="mt-1 text-xs leading-relaxed opacity-65">
+                Zusätzliche Informationen für die Lernansicht ein- oder ausblenden.
+              </p>
+            </div>
             <button
-              onClick={() => setGameMode('explore')}
-              className={`px-2 py-0.5 rounded-md text-[7px] font-black uppercase tracking-wider cursor-pointer transition-all ${
-                gameMode === 'explore' 
-                  ? 'bg-indigo-600 text-white shadow-xs' 
-                  : 'text-slate-450 dark:text-slate-400 hover:text-slate-750'
-              }`}
+              type="button"
+              onClick={onCloseSettings}
+              className="min-h-11 shrink-0 rounded-xl border border-slate-200 px-3 text-xs font-black hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5"
             >
-              Entdecken 🔍
-            </button>
-            <button
-              onClick={() => setGameMode('quiz')}
-              className={`px-2 py-0.5 rounded-md text-[7px] font-black uppercase tracking-wider cursor-pointer transition-all ${
-                gameMode === 'quiz' 
-                  ? 'bg-indigo-600 text-white shadow-xs' 
-                  : 'text-slate-450 dark:text-slate-400 hover:text-slate-750'
-              }`}
-            >
-              Quiz-Meister 🏆
+              Fertig
             </button>
           </div>
 
-          <span className="text-[6.5px] font-mono opacity-80 uppercase font-black">
-            {gameMode === 'explore' ? "Tippe Organe an!" : "Löse das Anatomie-Rätsel!"}
-          </span>
+          <section className="mt-4 grid gap-2">
+            <button
+              type="button"
+              aria-pressed={settings.showFacts}
+              onClick={() => persistSettings({ showFacts: !settings.showFacts })}
+              className={settingButtonClass(settings.showFacts)}
+            >
+              Sachinfo {settings.showFacts ? 'anzeigen' : 'ausblenden'}
+            </button>
+            <button
+              type="button"
+              aria-pressed={settings.showActivities}
+              onClick={() => persistSettings({ showActivities: !settings.showActivities })}
+              className={settingButtonClass(settings.showActivities)}
+            >
+              Mitmach-Idee {settings.showActivities ? 'anzeigen' : 'ausblenden'}
+            </button>
+          </section>
+
+          <div className={`mt-4 rounded-2xl border p-3 text-xs leading-relaxed ${
+            currentIsLight ? 'border-slate-200 bg-slate-50 text-slate-600' : 'border-white/10 bg-white/5 text-slate-300'
+          }`}>
+            Die Inhalte erklären grundlegende Körperfunktionen kindgerecht. Sie ersetzen keine medizinische Beratung.
+          </div>
         </div>
+      )}
+
+      <div className="grid shrink-0 grid-cols-2 gap-2" role="group" aria-label="Lernmodus">
+        <button
+          type="button"
+          aria-pressed={settings.mode === 'explore'}
+          onClick={() => changeMode('explore')}
+          className={`min-h-11 rounded-xl border px-3 text-xs font-black transition-colors ${
+            settings.mode === 'explore'
+              ? 'border-accent bg-accent text-accent-text'
+              : currentIsLight
+                ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                : 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10'
+          }`}
+        >
+          Entdecken
+        </button>
+        <button
+          type="button"
+          aria-pressed={settings.mode === 'quiz'}
+          onClick={() => changeMode('quiz')}
+          className={`min-h-11 rounded-xl border px-3 text-xs font-black transition-colors ${
+            settings.mode === 'quiz'
+              ? 'border-accent bg-accent text-accent-text'
+              : currentIsLight
+                ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                : 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10'
+          }`}
+        >
+          Zuordnen
+        </button>
       </div>
 
-      {/* Main Interactive Interactive Split Screen */}
-      <div className="flex-grow flex items-center justify-between gap-3 py-2 min-h-0">
-        
-        {/* Left Side: Body Silhouette SVG */}
-        <div className="relative w-[85px] h-[155px] flex-shrink-0 bg-indigo-50/10 dark:bg-zinc-900/30 rounded-2xl border border-slate-100 dark:border-zinc-800/60 p-1 flex items-center justify-center">
-          
-          {/* Glowing Organs SVG Backdrops */}
-          <div className="absolute inset-0 pointer-events-none z-0">
-            {organs.map(org => {
-              const isActive = gameMode === 'explore' 
-                ? selectedOrgan.id === org.id 
-                : (quizSolved && currentQuizOrgan.id === org.id);
-              return isActive ? (
-                <div 
-                  key={`glow-${org.id}`}
-                  className="absolute w-5 h-5 rounded-full blur-md transition-all duration-300"
-                  style={{
-                    left: `${org.x}%`,
-                    top: `${org.y}%`,
-                    transform: 'translate(-50%, -50%)',
-                    background: org.glowColor,
-                  }}
+      {settings.mode === 'explore' ? (
+        <>
+          <div className="grid min-h-0 flex-1 grid-cols-[minmax(105px,0.4fr)_minmax(0,1fr)] gap-3 py-3">
+            <BodyMap activeId={selectedPart.id} />
+            <article className={`flex min-h-0 flex-col justify-center rounded-3xl border p-4 ${
+              currentIsLight ? 'border-slate-200 bg-white' : 'border-white/10 bg-white/5'
+            }`}>
+              <div className="flex items-center gap-2">
+                <span className="text-3xl" aria-hidden="true">{selectedPart.emoji}</span>
+                <h3 className="text-lg font-black leading-tight text-accent">{selectedPart.name}</h3>
+              </div>
+              <p className="mt-3 text-sm font-semibold leading-relaxed">{selectedPart.role}</p>
+              {settings.showFacts && (
+                <div className={`mt-3 rounded-2xl px-3 py-2 text-xs font-semibold leading-relaxed ${
+                  currentIsLight ? 'bg-slate-50 text-slate-600' : 'bg-black/20 text-slate-300'
+                }`}>
+                  <span className="font-black">Schon gewusst?</span> {selectedPart.fact}
+                </div>
+              )}
+              {settings.showActivities && (
+                <div className="mt-2 rounded-2xl border border-accent bg-accent-soft px-3 py-2 text-xs font-semibold leading-relaxed text-accent">
+                  <span className="font-black">Mitmach-Idee:</span> {selectedPart.activity}
+                </div>
+              )}
+            </article>
+          </div>
+
+          <div className="grid shrink-0 grid-cols-4 gap-1.5">
+            {BODY_PARTS.map(part => (
+              <button
+                key={part.id}
+                type="button"
+                aria-pressed={selectedPart.id === part.id}
+                onClick={() => selectPart(part.id)}
+                className={`min-h-11 rounded-xl border px-2 py-1.5 text-[11px] font-black leading-tight transition-colors ${
+                  selectedPart.id === part.id
+                    ? 'border-accent bg-accent text-accent-text'
+                    : currentIsLight
+                      ? 'border-slate-200 bg-white text-slate-700 hover:border-accent hover:bg-accent-soft'
+                      : 'border-white/10 bg-white/5 text-slate-200 hover:border-accent hover:bg-white/10'
+                }`}
+              >
+                <span className="mr-1" aria-hidden="true">{part.emoji}</span>
+                {part.name}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col pt-3">
+          {round ? (
+            <>
+              <div className={`shrink-0 rounded-2xl border px-4 py-3 text-center ${
+                currentIsLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/5'
+              }`}>
+                <p className="text-[10px] font-black uppercase tracking-wider opacity-50">Welcher Körperteil ist gemeint?</p>
+                <p className="mt-1 text-sm font-black leading-relaxed text-accent">{round.target.quizQuestion}</p>
+              </div>
+
+              <div className="grid min-h-0 flex-1 grid-cols-[minmax(100px,0.36fr)_minmax(0,1fr)] gap-3 py-3">
+                <BodyMap
+                  activeId={round.target.id}
+                  reveal={answerState === 'correct'}
                 />
-              ) : null;
-            })}
-          </div>
+                <div className="grid content-center grid-cols-2 gap-2">
+                  {round.choices.map(choice => {
+                    const isSelected = selectedChoiceId === choice.id;
+                    const isCorrect = choice.id === round.target.id;
+                    const correctStyle = answerState === 'correct' && isCorrect;
+                    const wrongStyle = answerState === 'wrong' && isSelected;
 
-          {/* SVG Body Outline */}
-          <svg viewBox="0 0 100 200" className="w-full h-full text-slate-350 dark:text-zinc-750 relative z-10 filter drop-shadow-xs">
-            <g fill="currentColor" fillOpacity="0.15" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className="transition-colors duration-500 hover:text-indigo-500/30">
-              {/* Head / Kopf */}
-              <ellipse cx="50" cy="22" rx="12" ry="14" />
-              {/* Neck / Hals */}
-              <path d="M 45,34 L 45,40 L 55,40 L 55,34 Z" />
-              {/* Torso / Rumpf */}
-              <path d="M 34,40 C 34,40 50,38 66,40 C 66,55 64,80 60,98 Q 50,102 40,98 C 36,80 34,55 34,40 Z" />
-              {/* Left Arm / Linker Arm */}
-              <path d="M 34,40 C 29,48 20,62 14,76 C 12,80 15,84 19,81 C 24,74 31,62 34,53 Z" />
-              {/* Right Arm / Rechter Arm */}
-              <path d="M 66,40 C 71,48 80,62 86,76 C 88,80 85,84 81,81 C 76,74 69,62 66,53 Z" />
-              {/* Left Leg / Linkes Bein */}
-              <path d="M 40,98 C 40,115 42,145 40,165 Q 38,192 43,192 C 47,192 47,165 48,130 L 49.5,98 Z" />
-              {/* Right Leg / Rechtes Bein */}
-              <path d="M 60,98 C 60,115 58,145 60,165 Q 62,192 57,192 C 53,192 53,165 52,130 L 50.5,98 Z" />
-            </g>
+                    return (
+                      <button
+                        key={choice.id}
+                        type="button"
+                        onClick={() => chooseAnswer(choice.id)}
+                        className={`min-h-16 rounded-2xl border-2 px-2 py-2 text-sm font-black transition-colors ${
+                          correctStyle
+                            ? 'border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                            : wrongStyle
+                              ? 'border-rose-500 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+                              : currentIsLight
+                                ? 'border-slate-200 bg-white text-slate-800 hover:border-accent hover:bg-accent-soft'
+                                : 'border-white/10 bg-white/5 text-slate-100 hover:border-accent hover:bg-white/10'
+                        }`}
+                      >
+                        <span className="mb-1 block text-2xl" aria-hidden="true">{choice.emoji}</span>
+                        {choice.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-            {/* Render interactively clickable hotspot nodes */}
-            {organs.map(org => {
-              const isSelected = gameMode === 'explore' 
-                ? selectedOrgan.id === org.id 
-                : (quizSolved && currentQuizOrgan.id === org.id);
-              return (
-                <g 
-                  key={org.id} 
-                  className="cursor-pointer group pointer-events-auto"
-                  onClick={() => handleOrganClick(org)}
+              <div className="shrink-0">
+                <p
+                  role="status"
+                  aria-live="polite"
+                  className={`min-h-8 text-center text-xs font-bold leading-relaxed ${
+                    answerState === 'correct'
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : answerState === 'wrong'
+                        ? 'text-rose-600 dark:text-rose-400'
+                        : 'opacity-55'
+                  }`}
                 >
-                  {/* Pulse visual ring */}
-                  <circle 
-                    cx={org.x} 
-                    cy={org.y} 
-                    r={isSelected ? 6.5 : 4.5} 
-                    className={`${org.color} opacity-40 transition-all duration-300`}
+                  {feedback || 'Wähle eine Antwort. Bei einer falschen Antwort darfst du weiterprobieren.'}
+                </p>
+                {answerState === 'correct' && (
+                  <button
+                    type="button"
+                    onClick={nextRound}
+                    className="mt-1 min-h-11 w-full rounded-xl bg-accent px-4 text-xs font-black text-accent-text hover:bg-accent-hover"
                   >
-                    <animate 
-                      attributeName="r" 
-                      values={`${isSelected ? "6;11;6" : "4;7;4"}`} 
-                      dur="1.5s" 
-                      repeatCount="indefinite" 
-                    />
-                  </circle>
-                  
-                  {/* Central core dot */}
-                  <circle 
-                    cx={org.x} 
-                    cy={org.y} 
-                    r={isSelected ? 4 : 3.2} 
-                    className={`${org.color} stroke-white dark:stroke-zinc-950 stroke-2 transition-all duration-300`}
-                  />
-                </g>
-              );
-            })}
-          </svg>
-        </div>
-
-        {/* Right Side: Informative panel/Quiz hub */}
-        <div className="flex-1 flex flex-col justify-center min-w-0">
-          <AnimatePresence mode="wait">
-            {gameMode === 'explore' ? (
-              <motion.div
-                key={`explore-${selectedOrgan.id}`}
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.2 }}
-                className={`p-2.5 rounded-2xl border flex flex-col h-full justify-between shadow-xs ${
-                  currentIsLight ? 'bg-white border-slate-150 text-slate-800' : 'bg-zinc-850/80 border-zinc-750 text-slate-100'
-                }`}
-              >
-                <div>
-                  <div className="flex items-center gap-1.5 pb-1 border-b border-slate-100 dark:border-zinc-800">
-                    <span className="text-base leading-none select-none">{selectedOrgan.emoji}</span>
-                    <span className="text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400">
-                      {selectedOrgan.name}
-                    </span>
-                  </div>
-
-                  <div className="mt-1.5 space-y-1.5">
-                    <div>
-                      <span className="text-[6px] font-black uppercase text-slate-400 tracking-wider block">Superkraft:</span>
-                      <p className="text-[8px] font-extrabold leading-tight text-slate-750 dark:text-slate-200">
-                        {selectedOrgan.superpower}
-                      </p>
-                    </div>
-
-                    <div>
-                      <span className="text-[6px] font-black uppercase text-slate-400 tracking-wider block">Schon gewusst?</span>
-                      <p className="text-[7.5px] font-bold leading-relaxed text-slate-600 dark:text-zinc-350">
-                        {selectedOrgan.funFact}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Mitmach-Aktivität prompt */}
-                <div className="mt-2 p-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/15 flex gap-1 items-start">
-                  <span className="text-[8px] leading-none mt-0.5">💡</span>
-                  <div className="flex-1">
-                    <span className="text-[6px] font-black uppercase text-indigo-600 dark:text-indigo-300 block">Mitmach-Mission:</span>
-                    <p className="text-[7.5px] font-extrabold leading-snug text-indigo-700 dark:text-indigo-300">
-                      {selectedOrgan.activity}
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            ) : (
-              /* Quiz Hub Card */
-              <motion.div
-                key="quiz-card"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className={`p-2.5 rounded-2xl border flex flex-col h-full justify-between shadow-xs ${
-                  currentIsLight ? 'bg-white border-slate-150 text-slate-800' : 'bg-zinc-850/80 border-zinc-750 text-slate-100'
-                }`}
-              >
-                <div className="flex-1 flex flex-col justify-center gap-1.5 text-center">
-                  <span className="text-xl leading-none">❓</span>
-                  <p className="text-[9.5px] font-extrabold leading-snug px-1 text-slate-800 dark:text-zinc-200">
-                    {quizFeedback}
-                  </p>
-                </div>
-
-                <div className="mt-2">
-                  {quizSolved ? (
-                    <motion.button
-                      whileHover={{ scale: 1.03 }}
-                      whileTap={{ scale: 0.97 }}
-                      onClick={rollNewQuiz}
-                      className="w-full py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[8px] uppercase tracking-widest rounded-xl cursor-pointer shadow-xs"
-                    >
-                      Nächstes Rätsel 🎲
-                    </motion.button>
-                  ) : (
-                    <div className="text-center py-1">
-                      <span className="text-[7px] font-black uppercase text-amber-500 tracking-widest block animate-pulse">
-                        Suche das Organ im Körper!
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-
-      {/* Selector button bar at the bottom */}
-      {gameMode === 'explore' && (
-        <div className="shrink-0 flex gap-1 select-none overflow-x-auto pb-0.5 scrollbar-none">
-          {organs.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setSelectedOrgan(item)}
-              className={`px-1.5 py-1 rounded-lg text-[7px] font-black uppercase tracking-wide border transition-all shrink-0 cursor-pointer ${
-                selectedOrgan.id === item.id
-                  ? 'bg-indigo-500 text-white border-transparent shadow shadow-indigo-500/20 scale-105'
-                  : currentIsLight 
-                    ? 'bg-white border-slate-150 text-slate-600 hover:bg-slate-50' 
-                    : 'bg-zinc-850 border-zinc-750 text-slate-400 hover:bg-zinc-800'
-              }`}
-            >
-              {item.emoji} {item.name}
-            </button>
-          ))}
+                    Nächste Aufgabe
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-1 items-center justify-center text-sm font-semibold opacity-60">
+              Keine Aufgabe verfügbar.
+            </div>
+          )}
         </div>
       )}
     </div>
