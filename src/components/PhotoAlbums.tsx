@@ -268,6 +268,29 @@ export default function PhotoAlbums() {
     }
   };
 
+  const ensureSchoolPhotoDrive = async (token: string): Promise<boolean> => {
+    try {
+      const response = await fetch('/api/onedrive/photos/drive-info', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || 'OneDrive-Kontotyp konnte nicht geprüft werden.');
+      if (!data?.eligibleForSchoolPhotos) {
+        showToast(
+          data?.driveType === 'personal'
+            ? 'Für Elternfotos ist ein schulisches Microsoft-365-/OneDrive-for-Business-Konto erforderlich. Privates OneDrive wird nicht verwendet.'
+            : 'Dieses OneDrive konnte nicht als schulisches/geschäftliches Laufwerk bestätigt werden.',
+          'error',
+        );
+        return false;
+      }
+      return true;
+    } catch (error: any) {
+      showToast(error?.message || 'OneDrive-Kontotyp konnte nicht geprüft werden.', 'error');
+      return false;
+    }
+  };
+
   const handleUpload = async (fileList: FileList | null) => {
     if (!selectedAlbum || !fileList?.length) return;
     if (sharing) {
@@ -300,6 +323,7 @@ export default function PhotoAlbums() {
 
     const token = await tokenOrConnect();
     if (!token) return;
+    if (!await ensureSchoolPhotoDrive(token)) return;
 
     setUploading(true);
     setUploadProgress({ done: 0, total: files.length });
@@ -439,6 +463,7 @@ export default function PhotoAlbums() {
 
     const token = await tokenOrConnect();
     if (!token) return;
+    if (!await ensureSchoolPhotoDrive(token)) return;
 
     setSharing(true);
     try {
@@ -581,7 +606,7 @@ export default function PhotoAlbums() {
                 <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-muted,var(--text3))]">Klasse & Eltern</p>
                 <h1 className="mt-1 text-2xl font-black tracking-tight text-[var(--text-primary,var(--text))]">Elternfotos</h1>
                 <p className="mt-1 max-w-2xl text-sm font-medium leading-relaxed text-[var(--text-secondary,var(--text2))]">
-                  Alben in KLASSIO verwalten, Fotos direkt im verbundenen OneDrive speichern und einen zeitlich begrenzten Elternlink erstellen.
+                  Alben in KLASSIO verwalten, Fotos direkt im schulischen Microsoft-365-OneDrive speichern und einen zeitlich begrenzten Elternlink erstellen.
                 </p>
               </div>
             </div>
