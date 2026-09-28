@@ -57,6 +57,14 @@ export default function Settings() {
     return () => window.removeEventListener('klassio-open-settings-category', handleOpenSettingsCategory);
   }, []);
 
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem('klassio-current-settings-category', activeCategory);
+    } catch {
+      // The settings remain usable when session storage is unavailable.
+    }
+  }, [activeCategory]);
+
   // Einfachmodus State (Defaults to true for quiet, clear experience)
   const einfachModus = (app.settings as any)?.einfachModus !== false;
   const setEinfachModus = (val: boolean) => {
