@@ -136,6 +136,7 @@ import {
   Unlock,
   PenTool,
   Presentation,
+  HelpCircle,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { createSyncUrl, getActiveEncodedSessionKey } from "../lib/syncService";
@@ -2830,6 +2831,23 @@ const InnerClockWidget = (props: any) => {
 
 export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const { app, setApp, setPage } = useApp();
+
+  const openCockpitHelp = () => {
+    try {
+      window.sessionStorage.setItem('klassio-settings-category', 'help');
+      window.sessionStorage.setItem('klassio-help-section', 'pages');
+      window.sessionStorage.setItem('klassio-help-topic', 'cockpit');
+    } catch {
+      // Context help still opens via the events below.
+    }
+    setPage('settings');
+    window.setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('klassio-open-settings-category', { detail: 'help' }));
+      window.dispatchEvent(new CustomEvent('klassio-open-help-topic', {
+        detail: { section: 'pages', topicId: 'cockpit' },
+      }));
+    }, 0);
+  };
   const { showToast } = useToast();
   const [time, setTime] = useState(new Date());
   const cockpitClassLabel = (app.klassenbezeichnung || "").trim();
@@ -8363,6 +8381,19 @@ ${content}
 
         {/* Right: Actions, Clock & Controls */}
         <div className="flex flex-nowrap items-center justify-end gap-1 sm:gap-2 xl:gap-2.5 flex-1 min-w-0 py-1">
+          <button
+            type="button"
+            onClick={openCockpitHelp}
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-all hover:scale-105 active:scale-95 ${
+              currentIsLight
+                ? "border-black/10 bg-black/5 text-slate-700 hover:bg-black/10"
+                : "border-white/10 bg-white/5 text-white/80 hover:bg-white/15 hover:text-white"
+            }`}
+            title="Hilfe zum Lehrercockpit"
+            aria-label="Hilfe zum Lehrercockpit"
+          >
+            <HelpCircle size={17} />
+          </button>
           {/* Action: Stunde abschließen */}
           {!(
             app.boardSettings?.splitSmartboardMode &&
