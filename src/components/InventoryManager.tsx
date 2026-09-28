@@ -490,7 +490,30 @@ export default function InventoryManager() {
     for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
       const page = await document.getPage(pageNumber);
       const text = await page.getTextContent();
-      pages.push(text.items.map((item: any) => ('str' in item ? item.str : '')).join('  '));
+      const positioned = text.items
+        .filter((item: any) => 'str' in item && item.str.trim())
+        .map((item: any) => ({
+          text: item.str.trim(),
+          x: Number(item.transform?.[4] || 0),
+          y: Number(item.transform?.[5] || 0),
+        }))
+        .sort((a, b) => Math.abs(b.y - a.y) > 2 ? b.y - a.y : a.x - b.x);
+
+      const rows: Array<{ y: number; cells: Array<{ x: number; text: string }> }> = [];
+      positioned.forEach(part => {
+        let row = rows.find(candidate => Math.abs(candidate.y - part.y) <= 2);
+        if (!row) {
+          row = { y: part.y, cells: [] };
+          rows.push(row);
+        }
+        row.cells.push({ x: part.x, text: part.text });
+      });
+      pages.push(
+        rows
+          .sort((a, b) => b.y - a.y)
+          .map(row => row.cells.sort((a, b) => a.x - b.x).map(cell => cell.text).join('  '))
+          .join('\n')
+      );
     }
     return uniqueImportRecords(parseInventoryText(pages.join('\n')));
   };
@@ -1315,7 +1338,9 @@ export default function InventoryManager() {
                   const id = event.target.value;
                   setLoanBorrowerId(id);
                   const colleague = colleagues.find(entry => entry.userId === id);
-                  setLoanBorrowerName(colleague?.displayName || (id === snapshot.user.userId ? snapshot.user.displayName : loanBorrowerName));
+                  setLoanBorrowerName(id
+                    ? colleague?.displayName || (id === snapshot.user.userId ? snapshot.user.displayName : '')
+                    : '');
                 }}
                 className="input-field"
               >
