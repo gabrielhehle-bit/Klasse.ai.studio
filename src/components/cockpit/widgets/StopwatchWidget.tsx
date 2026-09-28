@@ -251,7 +251,7 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
     commitState(next);
   }, [commitState]);
 
-  // KEYBOARD CONTROLS (Space: Start/Pause/Resume, L: Lap, R: Reset)
+  // KEYBOARD CONTROLS (Space: Start/Stopp/Weiter, L: Runde, R: Reset)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (showSettings) return;
@@ -374,7 +374,7 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
           >
             Zehntelsekunden {state.showDecimals ? 'anzeigen' : 'ausblenden'}
           </button>
-          <p className="text-xs opacity-65">Start, Pause, Runde und Reset bleiben direkte Unterrichtsaktionen.</p>
+          <p className="text-xs opacity-65">Start, Stopp, Runde und Reset bleiben direkte Unterrichtsaktionen.</p>
         </div>
       )}
       {/* -------------------------------------------------------- */}
@@ -715,7 +715,7 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
       {/* Wenn keine Runden und nicht im Reset-Modus: Dezente Tasten-Tipps in LARGE / FULLSCREEN */}
       {state.laps.length === 0 && (isLarge || isFullscreenMode) && !isShort && (
         <div className="flex-1 flex items-center justify-center text-[11px] text-slate-400 opacity-60">
-          <span>Leertaste = Start/Pause &bull; L = Runde &bull; R = Reset</span>
+          <span>Leertaste = Start/Stopp/Weiter &bull; L = Runde &bull; R = Reset</span>
         </div>
       )}
     </div>
