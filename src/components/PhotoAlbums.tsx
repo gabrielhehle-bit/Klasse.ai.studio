@@ -168,8 +168,8 @@ export default function PhotoAlbums() {
       selectedAlbum.noIdentifiableStudents === true !== editNoIdentifiableStudents ||
       previousIds.join('|') !== nextIds.join('|');
 
-    if (selectedAlbum.shareUrl && !selectedShareExpired && picturedChildrenChanged) {
-      showToast('Bitte zuerst den aktiven Elternlink beenden. Die Liste der abgebildeten Kinder darf während einer Freigabe nicht geändert werden.', 'error');
+    if (selectedAlbum.shareUrl && picturedChildrenChanged) {
+      showToast('Bitte zuerst die OneDrive-Freigabe beenden. Die Liste der abgebildeten Kinder darf während einer gespeicherten Freigabe nicht geändert werden.', 'error');
       return;
     }
     if (!editedPolicy.canShare && selectedAlbum.shareUrl && !selectedShareExpired) {
@@ -258,8 +258,8 @@ export default function PhotoAlbums() {
 
   const handleUpload = async (fileList: FileList | null) => {
     if (!selectedAlbum || !fileList?.length) return;
-    if (selectedAlbum.shareUrl && !selectedShareExpired) {
-      showToast('Bitte zuerst den aktiven Elternlink beenden. Neue Fotos würden sonst sofort mitgeteilt.', 'error');
+    if (selectedAlbum.shareUrl) {
+      showToast('Bitte zuerst die bestehende OneDrive-Freigabe beenden. Danach können neue Fotos sicher hinzugefügt werden.', 'error');
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -296,12 +296,13 @@ export default function PhotoAlbums() {
       for (let index = 0; index < files.length; index += 1) {
         const file = files[index];
         const prepared = await prepareParentPhoto(file, optimizePhotos);
+        if (prepared.body.size > MAX_PHOTO_BYTES) {
+          throw new Error(`${file.name}: Auch nach der Vorbereitung ist die Datei größer als 25 MB.`);
+        }
         const headers: Record<string, string> = {
           Authorization: `Bearer ${token}`,
           'Content-Type': prepared.mimeType || 'application/octet-stream',
           'X-Klassio-Album-Id': encodeURIComponent(selectedAlbum.id),
-          'X-Klassio-Album-Title': encodeURIComponent(selectedAlbum.title),
-          'X-Klassio-Filename': encodeURIComponent(prepared.name),
         };
         if (folderId) headers['X-Klassio-Folder-Id'] = encodeURIComponent(folderId);
 
@@ -319,7 +320,7 @@ export default function PhotoAlbums() {
         folderWebUrl = data.folder?.webUrl || folderWebUrl;
         const uploadedFile: PhotoAlbumFile = {
           id: makeId('photo'),
-          name: data.file?.name || prepared.name,
+          name: `Foto ${persistedFiles.length + 1}`,
           size: Number(data.file?.size ?? prepared.body.size),
           mimeType: prepared.mimeType,
           uploadedAt: new Date().toISOString(),
@@ -402,7 +403,12 @@ export default function PhotoAlbums() {
       return;
     }
     if (!shareConsentConfirmed) {
-      showToast('Bitte zuerst bestätigen, dass die konkrete schulische Einwilligung das Teilen mit Eltern abdeckt.', 'error');
+      showToast(
+        selectedAlbum.noIdentifiableStudents
+          ? 'Bitte zuerst bestätigen, dass auf den hochgeladenen Fotos tatsächlich kein Kind identifizierbar ist.'
+          : 'Bitte zuerst bestätigen, dass die konkrete schulische Einwilligung das Teilen mit Eltern abdeckt.',
+        'error',
+      );
       return;
     }
 
@@ -443,15 +449,8 @@ export default function PhotoAlbums() {
   };
 
   const handleUnshare = async () => {
-    if (!selectedAlbum?.oneDriveFolderId || !selectedAlbum.sharePermissionId) {
-      patchAlbum(selectedAlbum!.id, {
-        shareUrl: undefined,
-        sharePermissionId: undefined,
-        shareCreatedAt: undefined,
-        shareExpiresAt: undefined,
-        shareConsentConfirmedAt: undefined,
-      });
-      setShareConsentConfirmed(false);
+    if (!selectedAlbum?.oneDriveFolderId) {
+      showToast('Der OneDrive-Albumordner ist nicht mehr eindeutig hinterlegt. Bitte die Freigabe direkt in OneDrive widerrufen; KLASSIO löscht den Link nicht nur lokal.', 'error');
       return;
     }
 
@@ -469,6 +468,7 @@ export default function PhotoAlbums() {
         body: JSON.stringify({
           folderId: selectedAlbum.oneDriveFolderId,
           permissionId: selectedAlbum.sharePermissionId,
+          shareUrl: selectedAlbum.shareUrl,
         }),
       });
       const data = await response.json().catch(() => ({}));
@@ -890,16 +890,16 @@ export default function PhotoAlbums() {
                     />
                     <button
                       type="button"
-                      disabled={uploading || Boolean(selectedAlbum.shareUrl && !selectedShareExpired)}
+                      disabled={uploading || Boolean(selectedAlbum.shareUrl)}
                       onClick={() => fileInputRef.current?.click()}
                       className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] px-4 py-8 text-sm font-black text-[var(--text-primary,var(--text))] transition-colors hover:border-[var(--accent)] disabled:opacity-60"
                     >
                       {uploading ? <Loader2 size={20} className="animate-spin" /> : <UploadCloud size={20} />}
-                      {uploading ? `Upload ${uploadProgress.done}/${uploadProgress.total}` : selectedAlbum.shareUrl && !selectedShareExpired ? 'Freigabe beenden, um Fotos hinzuzufügen' : 'Fotos auswählen'}
+                      {uploading ? `Upload ${uploadProgress.done}/${uploadProgress.total}` : selectedAlbum.shareUrl ? 'Freigabe beenden, um Fotos hinzuzufügen' : 'Fotos auswählen'}
                     </button>
 
-                    {selectedAlbum.shareUrl && !selectedShareExpired && (
-                      <p className="mt-2 text-[11px] font-bold text-amber-700">Neue Fotos sind während einer aktiven Elternfreigabe gesperrt, damit nichts ungeprüft sofort sichtbar wird.</p>
+                    {selectedAlbum.shareUrl && (
+                      <p className="mt-2 text-[11px] font-bold text-amber-700">Solange eine OneDrive-Freigabe hinterlegt ist, bleiben neue Uploads gesperrt. Beende die Freigabe zuerst und prüfe das Album danach erneut.</p>
                     )}
 
                     <div className="mt-4 space-y-2">
@@ -972,7 +972,7 @@ export default function PhotoAlbums() {
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-muted,var(--text3))]">3 · Elternzugang</p>
                     <h3 className="mt-1 text-base font-black text-[var(--text-primary,var(--text))]">Zeitlich begrenzten Link erstellen</h3>
-                    <p className="mt-1 text-xs text-[var(--text-secondary,var(--text2))]">Der Link ist nur zum Ansehen. Als anonymer Link funktioniert er ohne Anmeldung – jede Person mit dem Link kann ihn öffnen. Externes Teilen muss im Microsoft-365-Konto der Schule erlaubt sein.</p>
+                    <p className="mt-1 text-xs text-[var(--text-secondary,var(--text2))]">Der Link ist schreibgeschützt. Als anonymer Link funktioniert er ohne Anmeldung – jede Person mit dem Link kann ihn öffnen. Je nach Microsoft-365-Richtlinie kann ein Download trotzdem möglich sein. Externes Teilen muss im Schulkonto erlaubt sein.</p>
                   </div>
 
                   {shareSafetyProblem && (
@@ -1009,7 +1009,9 @@ export default function PhotoAlbums() {
                       <label className="flex items-start gap-3 rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] p-3">
                         <input type="checkbox" checked={shareConsentConfirmed} onChange={event => setShareConsentConfirmed(event.target.checked)} className="mt-0.5" />
                         <span className="text-[11px] leading-relaxed text-[var(--text-secondary,var(--text2))]">
-                          Ich habe geprüft, dass die konkrete schulische Einwilligung das Teilen dieses Albums mit Eltern abdeckt.
+                          {selectedAlbum.noIdentifiableStudents
+                            ? 'Ich habe die hochgeladenen Fotos geprüft: Darauf ist tatsächlich kein Kind identifizierbar.'
+                            : 'Ich habe geprüft, dass die konkrete schulische Einwilligung das Teilen dieses Albums mit Eltern abdeckt.'}
                         </span>
                       </label>
 
