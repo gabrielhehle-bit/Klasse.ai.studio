@@ -9275,24 +9275,27 @@ export const CompassWidgetContent: React.FC<{
     onUpdateRef.current({ settings: patch });
   }, []);
 
-  const resetPractice = useCallback((previousAngle?: number) => {
-    setPracticeRound(createCompassPracticeRound(directions, Math.random, previousAngle));
+  useEffect(() => {
+    const nextDirections = getCompassDirections(settings.directionSet);
+    setAngle(previous =>
+      nextDirections.some(direction => direction.angle === previous)
+        ? previous
+        : (nextDirections[0]?.angle ?? 0),
+    );
+    setPracticeRound(previous =>
+      createCompassPracticeRound(nextDirections, Math.random, previous?.target.angle),
+    );
     setAnswerState('idle');
     setFeedback('');
-  }, [directions]);
-
-  useEffect(() => {
-    if (!directions.some(direction => direction.angle === angle)) {
-      setAngle(directions[0]?.angle ?? 0);
-    }
-    resetPractice();
-  }, [settings.directionSet, directions, angle, resetPractice]);
+  }, [settings.directionSet]);
 
   useEffect(() => {
     setAnswerState('idle');
     setFeedback('');
     if (settings.mode === 'practice') {
-      resetPractice(practiceRound?.target.angle);
+      setPracticeRound(previous =>
+        createCompassPracticeRound(directions, Math.random, previous?.target.angle),
+      );
     }
   }, [settings.mode]);
 
@@ -9329,7 +9332,11 @@ export const CompassWidgetContent: React.FC<{
   };
 
   const nextPractice = () => {
-    resetPractice(practiceRound?.target.angle);
+    setPracticeRound(previous =>
+      createCompassPracticeRound(directions, Math.random, previous?.target.angle),
+    );
+    setAnswerState('idle');
+    setFeedback('');
   };
 
   const settingButtonClass = (active: boolean) => `min-h-11 rounded-xl border px-3 py-2 text-left text-xs font-bold transition-colors ${
@@ -9564,11 +9571,14 @@ export const CompassWidgetContent: React.FC<{
             key={direction.angle}
             type="button"
             aria-pressed={angle === direction.angle}
+            disabled={settings.mode === 'practice' && answerState === 'correct'}
             onClick={() => selectDirection(direction.angle)}
-            className={directionButtonClass(angle === direction.angle)}
+            className={`${directionButtonClass(angle === direction.angle)} disabled:cursor-default disabled:opacity-70`}
           >
             <span className="block text-sm">{direction.label}</span>
-            <span className="mt-0.5 block text-[10px] font-bold opacity-65">{direction.name}</span>
+            {settings.mode === 'explore' && (
+              <span className="mt-0.5 block text-[10px] font-bold opacity-65">{direction.name}</span>
+            )}
           </button>
         ))}
       </div>
