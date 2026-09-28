@@ -295,7 +295,7 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                       {
                                         type: "bodyparts",
                                         label: "🦴 Körper-Entdecker",
-                                        desc: "Kindgerechte Anatomie-Fakten",
+                                        desc: "Körperfunktionen entdecken und zuordnen",
                                         category: "sachunterricht",
                                       },
                                       {
@@ -627,6 +627,7 @@ const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
   "dailyquotes",
   "dictionary",
   "piano",
+  "bodyparts",
 ]);
 
 const COCKPIT_WIDGET_LIBRARY_BY_TYPE = new Map<string, CockpitWidgetLibraryItem>(
