@@ -31,8 +31,31 @@ export default function Settings() {
   const { app, setApp, deleteClass } = useApp();
   const { showToast } = useToast();
 
-  // Active Category tab
-  const [activeCategory, setActiveCategory] = useState<SettingsCategory>('overview');
+  // Active Category tab. The global ? button can request the help section directly.
+  const [activeCategory, setActiveCategory] = useState<SettingsCategory>(() => {
+    if (typeof window === 'undefined') return 'overview';
+    try {
+      const requested = window.sessionStorage.getItem('klassio-settings-category');
+      window.sessionStorage.removeItem('klassio-settings-category');
+      if (requested && ['overview', 'account', 'general', 'display', 'modules', 'sync', 'backup', 'support', 'advanced', 'help'].includes(requested)) {
+        return requested as SettingsCategory;
+      }
+    } catch {
+      // Fall back to the overview when session storage is unavailable.
+    }
+    return 'overview';
+  });
+
+  useEffect(() => {
+    const handleOpenSettingsCategory = (event: Event) => {
+      const requested = (event as CustomEvent<string>).detail;
+      if (['overview', 'account', 'general', 'display', 'modules', 'sync', 'backup', 'support', 'advanced', 'help'].includes(requested)) {
+        setActiveCategory(requested as SettingsCategory);
+      }
+    };
+    window.addEventListener('klassio-open-settings-category', handleOpenSettingsCategory);
+    return () => window.removeEventListener('klassio-open-settings-category', handleOpenSettingsCategory);
+  }, []);
 
   // Einfachmodus State (Defaults to true for quiet, clear experience)
   const einfachModus = (app.settings as any)?.einfachModus !== false;
