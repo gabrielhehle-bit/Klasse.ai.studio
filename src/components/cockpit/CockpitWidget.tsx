@@ -80,7 +80,7 @@ const OPTIMAL_WIDGET_SIZES: Record<string, { w: number; h: number }> = {
   dailyquotes: { w: 34, h: 42 },
   dictionary: { w: 38, h: 50 },
   piano: { w: 55, h: 42 },
-  bodyparts: { w: 38, h: 50 },
+  bodyparts: { w: 44, h: 56 },
   toothbrush: { w: 28, h: 44 },
   challenge: { w: 32, h: 45 },
   compass: { w: 34, h: 45 },
