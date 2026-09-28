@@ -24,17 +24,17 @@ test('offline, unsafe local storage, sync conflicts and errors stay immediately 
   assert.equal(getQuietSyncBadge('disabled', true), null);
 });
 
-test('Topbar uses quiet badge; encrypted local and account sync timers stay unchanged', () => {
+test('Topbar stays visually quiet while encrypted local and account sync timers remain unchanged', () => {
   const topbar = readFileSync('src/components/Topbar.tsx', 'utf8');
   const context = readFileSync('src/context/AppContext.tsx', 'utf8');
-  assert.match(topbar, /getQuietSyncBadge\(accountSyncStatus, isOnline\)/);
-  assert.match(topbar, /cloudSaveBadge\.description/);
+  assert.doesNotMatch(topbar, /getQuietSyncBadge\(accountSyncStatus, isOnline\)/);
+  assert.doesNotMatch(topbar, /cloudSaveBadge/);
+  assert.doesNotMatch(topbar, />Autospeichern</);
+  assert.match(topbar, /aria-label="Hilfe und Anleitungen öffnen"/);
+  assert.match(topbar, /aria-label="Jetzt verschlüsseltes Backup herunterladen"/);
   assert.match(context, /\}, 150\);/);
   assert.match(context, /pushAccountStateIfReady\(snapshot, vaultKey\)/);
   assert.match(context, /\}, 15_000\);/);
-  // A read-only refresh may temporarily show status='syncing' despite the
-  // latest generation already being durable locally and confirmed in the cloud.
-  // Warn on genuinely unconfirmed edits, not merely a transient network status.
   assert.match(context, /cloudConfirmedStateRef\.current !== currentAppRef\.current/);
   assert.doesNotMatch(context, /accountSyncStatusRef\.current !== 'synced'/);
 });
