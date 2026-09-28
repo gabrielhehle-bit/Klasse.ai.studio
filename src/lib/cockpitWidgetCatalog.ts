@@ -231,8 +231,8 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                       },
                                       {
                                         type: "dictionary",
-                                        label: "📚 Emoji-Wörterbuch",
-                                        desc: "Flips-Vokabelkarten DE & EN",
+                                        label: "📚 Bildwörterbuch",
+                                        desc: "Bilder, Begriffe & Aussprache auf Deutsch und Englisch",
                                         category: "deutsch",
                                       },
                                       {
@@ -625,6 +625,7 @@ const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
   "pet",
   "sorting",
   "dailyquotes",
+  "dictionary",
 ]);
 
 const COCKPIT_WIDGET_LIBRARY_BY_TYPE = new Map<string, CockpitWidgetLibraryItem>(

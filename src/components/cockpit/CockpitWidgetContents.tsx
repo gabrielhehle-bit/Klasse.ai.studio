@@ -38,6 +38,17 @@ import {
   type DailyQuoteTheme,
   type DailyQuotesWidgetSettings,
 } from '../../lib/dailyQuotesWidgetModel';
+import {
+  DICTIONARY_CATEGORY_LABELS,
+  createDictionaryRound,
+  filterDictionaryCards,
+  nextDictionaryIndex,
+  normalizeDictionaryWidgetSettings,
+  type DictionaryCategory,
+  type DictionaryMode,
+  type DictionaryRound,
+  type DictionaryWidgetSettings,
+} from '../../lib/dictionaryWidgetModel';
 import { ClassPetCanvas, ClassPetCanvasRef } from '../ClassPetCanvas';
 import { PET_BREEDS } from '../ClassPetWidget';
 import { WheelWidget, WheelWidgetProps } from './widgets/WheelWidget';
@@ -7791,461 +7802,391 @@ Kein Markdown und kein weiterer Text.`;
 // ==========================================
 // NEW WIDGET 18: BILDWÖRTERBUCH (Flipping Language Cards)
 // ==========================================
-export const DictionaryWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const cards = useMemo(() => [
-    // Schule & Spiel (school)
-    { emoji: '🎒', de: "Die Schultasche", en: "The school bag", category: 'school' },
-    { emoji: '✏️', de: "Der Bleistift", en: "The pencil", category: 'school' },
-    { emoji: '📚', de: "Das Buch", en: "The book", category: 'school' },
-    { emoji: '🏫', de: "Die Schule", en: "The school", category: 'school' },
-    { emoji: '⚽', de: "Der Fußball", en: "The football", category: 'school' },
-    { emoji: '🎈', de: "Der Luftballon", en: "The balloon", category: 'school' },
-    { emoji: '🎁', de: "Das Geschenk", en: "The gift", category: 'school' },
-    { emoji: '🧸', de: "Der Teddybär", en: "The teddy bear", category: 'school' },
-    { emoji: '🎨', de: "Die Farben", en: "The paints", category: 'school' },
-    { emoji: '🎸', de: "Die Gitarre", en: "The guitar", category: 'school' },
-    { emoji: '✂️', de: "Die Schere", en: "The scissors", category: 'school' },
+export const DictionaryWidgetContent: React.FC<{
+  widget: any;
+  currentIsLight: boolean;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
+}> = ({
+  widget,
+  currentIsLight,
+  onUpdate,
+  showSettings = false,
+  onCloseSettings,
+}) => {
+  const settings = useMemo(
+    () => normalizeDictionaryWidgetSettings(widget?.settings),
+    [widget?.settings],
+  );
+  const cards = useMemo(
+    () => filterDictionaryCards(settings.category),
+    [settings.category],
+  );
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [round, setRound] = useState<DictionaryRound | null>(() => createDictionaryRound(cards));
+  const [selectedChoiceId, setSelectedChoiceId] = useState<string | null>(null);
+  const [answerState, setAnswerState] = useState<'idle' | 'wrong' | 'correct'>('idle');
+  const [feedback, setFeedback] = useState('');
+  const onUpdateRef = useRef(onUpdate);
+  onUpdateRef.current = onUpdate;
 
-    // Essen & Trinken (food)
-    { emoji: '🍎', de: "Der Apfel", en: "The apple", category: 'food' },
-    { emoji: '🍌', de: "Die Banane", en: "The banana", category: 'food' },
-    { emoji: '🥛', de: "Das Milchglas", en: "The glass of milk", category: 'food' },
-    { emoji: '🍉', de: "Die Wassermelone", en: "The watermelon", category: 'food' },
-    { emoji: '🍦', de: "Das Eis", en: "The ice cream", category: 'food' },
-    { emoji: '🍕', de: "Die Pizza", en: "The pizza", category: 'food' },
-    { emoji: '🍓', de: "Die Erdbeere", en: "The strawberry", category: 'food' },
-    { emoji: '🍪', de: "Der Keks", en: "The cookie", category: 'food' },
-    { emoji: 'donut', emoji_char: '🍩', de: "Der Donut", en: "The donut", category: 'food' },
-    { emoji: '🍿', de: "Das Popcorn", en: "The popcorn", category: 'food' },
-    { emoji: '🥤', de: "Der Saftbecher", en: "The juice cup", category: 'food' },
+  const persistSettings = useCallback((patch: Partial<DictionaryWidgetSettings>) => {
+    if (!onUpdateRef.current) return;
+    // Only send the changed keys. Unterrichtsmodus merges them atomically with
+    // the current widget settings, so rapid setting changes cannot overwrite
+    // one another with an older render snapshot.
+    onUpdateRef.current({ settings: patch });
+  }, []);
 
-    // Tiere (animals)
-    { emoji: '🐕', de: "Der Hund", en: "The dog", category: 'animals' },
-    { emoji: '🐈', de: "Die Katze", en: "The cat", category: 'animals' },
-    { emoji: '🐒', de: "Der Affe", en: "The monkey", category: 'animals' },
-    { emoji: '🦁', de: "Der Löwe", en: "The lion", category: 'animals' },
-    { emoji: '🐟', de: "Der Fisch", en: "The fish", category: 'animals' },
-    { emoji: '🦖', de: "Der Dinosaurier", en: "The dinosaur", category: 'animals' },
-    { emoji: '🦄', de: "Das Einhorn", en: "The unicorn", category: 'animals' },
-    { emoji: '🦊', de: "Der Fuchs", en: "The fox", category: 'animals' },
-    { emoji: '🐼', de: "Der Panda", en: "The panda", category: 'animals' },
-    { emoji: '🐸', de: "Der Frosch", en: "The frog", category: 'animals' },
-    { emoji: '🐝', de: "Die Biene", en: "The bee", category: 'animals' },
-
-    // Natur & Welt (nature)
-    { emoji: '🏠', de: "Das Haus", en: "The house", category: 'nature' },
-    { emoji: '🚗', de: "Das Auto", en: "The car", category: 'nature' },
-    { emoji: '🚲', de: "Das Fahrrad", en: "The bicycle", category: 'nature' },
-    { emoji: '☀️', de: "Die Sonne", en: "The sun", category: 'nature' },
-    { emoji: '🌳', de: "Der Baum", en: "The tree", category: 'nature' },
-    { emoji: '✈️', de: "Das Flugzeug", en: "The airplane", category: 'nature' },
-    { emoji: '⏰', de: "Die Uhr", en: "The clock", category: 'nature' },
-    { emoji: '🚀', de: "Die Rakete", en: "The rocket", category: 'nature' },
-    { emoji: '🌈', de: "Der Regenbogen", en: "The rainbow", category: 'nature' },
-    { emoji: '🪐', de: "Der Planet", en: "The planet", category: 'nature' }
-  ].map(item => ({
-    emoji: (item as any).emoji_char || item.emoji,
-    de: item.de,
-    en: item.en,
-    category: item.category
-  })), []);
-
-  const categories = [
-    { id: 'all', label: "Alle 🌟" },
-    { id: 'school', label: "Schule & Spiel 🎒" },
-    { id: 'food', label: "Essen & Trinken 🍕" },
-    { id: 'animals', label: "Tiere 🐾" },
-    { id: 'nature', label: "Natur & Welt 🌍" }
-  ];
-
-  const [gameMode, setGameMode] = useState<'browse' | 'quiz'>('browse');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  
-  // Browse mode states
-  const [activeIdx, setActiveIdx] = useState<number>(0);
-  const [flipped, setFlipped] = useState<boolean>(false);
-
-  // Quiz mode states
-  const [targetCard, setTargetCard] = useState<any>(null);
-  const [quizChoices, setQuizChoices] = useState<any[]>([]);
-  const [selectedQuizEmoji, setSelectedQuizEmoji] = useState<string | null>(null);
-  const [isAnsweredCorrectly, setIsAnsweredCorrectly] = useState<boolean | null>(null);
-  const [streak, setStreak] = useState<number>(0);
-  const [bestStreak, setBestStreak] = useState<number>(0);
-  const [feedback, setFeedback] = useState<string>("");
-
-  const filteredCards = useMemo(() => {
-    if (selectedCategory === 'all') return cards;
-    return cards.filter(c => c.category === selectedCategory);
-  }, [selectedCategory, cards]);
-
-  // Adjust activeIdx if filtered list shrinks
-  useEffect(() => {
-    setActiveIdx(0);
-    setFlipped(false);
-  }, [selectedCategory]);
-
-  const speak = (text: string, lang: 'de' | 'en') => {
+  const speak = useCallback((text: string, lang: 'de' | 'en') => {
     try {
       if (!window.speechSynthesis) return;
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = lang === 'de' ? 'de-DE' : 'en-US';
-      utterance.rate = 0.85;
+      utterance.rate = 0.88;
       window.speechSynthesis.speak(utterance);
-    } catch (e) {}
-  };
-
-  const triggerSound = (success: boolean) => {
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      if (success) {
-        osc.frequency.setValueAtTime(523.25, ctx.currentTime);
-        osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1);
-        gain.gain.setValueAtTime(0.06, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.35);
-      } else {
-        osc.frequency.setValueAtTime(150, ctx.currentTime);
-        gain.gain.setValueAtTime(0.1, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.18);
-      }
-    } catch {}
-  };
-
-  // Helper to start a quiz round
-  const startQuizRound = useCallback(() => {
-    if (cards.length === 0) return;
-    
-    // 1. Pick a target card
-    const target = cards[Math.floor(Math.random() * cards.length)];
-    setTargetCard(target);
-    setSelectedQuizEmoji(null);
-    setIsAnsweredCorrectly(null);
-    setFeedback("Finde die passende Emoji-Karte!");
-
-    // 2. Generate choices (target + 3 other unique random cards)
-    const distractors: any[] = [];
-    while (distractors.length < 3) {
-      const d = cards[Math.floor(Math.random() * cards.length)];
-      if (d.emoji !== target.emoji && !distractors.some(item => item.emoji === d.emoji)) {
-        distractors.push(d);
-      }
+    } catch {
+      // Speech support is optional; the vocabulary remains fully usable without it.
     }
-    
-    // Shuffle options
-    const options = [target, ...distractors].sort(() => Math.random() - 0.5);
-    setQuizChoices(options);
+  }, []);
 
-    // Speak German name of target word to help the child
-    speak(target.de, 'de');
+  useEffect(() => () => {
+    try {
+      window.speechSynthesis?.cancel();
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    setActiveIdx(0);
+    const nextRound = createDictionaryRound(cards);
+    setRound(nextRound);
+    setSelectedChoiceId(null);
+    setAnswerState('idle');
+    setFeedback('');
   }, [cards]);
 
-  const toggleMode = () => {
-    if (gameMode === 'browse') {
-      setGameMode('quiz');
-      setSelectedQuizEmoji(null);
-      setIsAnsweredCorrectly(null);
-      setStreak(0);
-      setTimeout(() => startQuizRound(), 50);
-    } else {
-      setGameMode('browse');
-      setFeedback("");
+  const activeCard = cards[activeIdx] || cards[0];
+
+  const moveCard = (direction: 1 | -1) => {
+    if (!cards.length) return;
+    const nextIdx = nextDictionaryIndex(activeIdx, cards.length, direction);
+    setActiveIdx(nextIdx);
+    if (settings.speakOnChange) {
+      speak(cards[nextIdx].de, 'de');
     }
   };
 
-  const handleQuizSelection = (card: any) => {
-    if (isAnsweredCorrectly !== null) return; // Prevent clicking again
-
-    setSelectedQuizEmoji(card.emoji);
-    
-    if (card.emoji === targetCard.emoji) {
-      // Correct!
-      setIsAnsweredCorrectly(true);
-      const newStreak = streak + 1;
-      setStreak(newStreak);
-      if (newStreak > bestStreak) setBestStreak(newStreak);
-      setFeedback(`🎉 Super! Das ist "${targetCard.de}"!`);
-      triggerSound(true);
-      speak(targetCard.de, 'de');
-      
-      // Auto-advance after 1.8 seconds
-      setTimeout(() => {
-        startQuizRound();
-      }, 1800);
-    } else {
-      // Incorrect
-      setIsAnsweredCorrectly(false);
-      setStreak(0);
-      setFeedback(`❌ Das ist "${card.de}". Gesucht war "${targetCard.de}"!`);
-      triggerSound(false);
-      speak(card.de, 'de');
+  const changeMode = (mode: DictionaryMode) => {
+    persistSettings({ mode });
+    setSelectedChoiceId(null);
+    setAnswerState('idle');
+    setFeedback('');
+    if (mode === 'match') {
+      setRound(createDictionaryRound(cards));
     }
   };
 
-  const currentCard = filteredCards[activeIdx] || cards[0];
+  const nextRound = () => {
+    const next = createDictionaryRound(cards);
+    setRound(next);
+    setSelectedChoiceId(null);
+    setAnswerState('idle');
+    setFeedback('');
+    if (settings.speakOnChange && next) {
+      speak(next.target.de, 'de');
+    }
+  };
+
+  const chooseCard = (choiceId: string) => {
+    if (!round || answerState === 'correct') return;
+    const choice = round.choices.find(item => item.id === choiceId);
+    if (!choice) return;
+    setSelectedChoiceId(choiceId);
+
+    if (choice.id === round.target.id) {
+      setAnswerState('correct');
+      setFeedback(`Richtig – das ist ${round.target.de}.`);
+      speak(round.target.de, 'de');
+    } else {
+      setAnswerState('wrong');
+      setFeedback(`${choice.de} passt noch nicht. Versuch es noch einmal.`);
+      speak(choice.de, 'de');
+    }
+  };
+
+  const settingButtonClass = (active: boolean) => `min-h-11 rounded-xl border px-3 py-2 text-left text-xs font-bold transition-colors ${
+    active
+      ? 'border-accent bg-accent-soft text-accent'
+      : currentIsLight
+        ? 'border-slate-200 bg-white text-slate-700 hover:border-accent hover:bg-accent-soft'
+        : 'border-white/10 bg-white/5 text-slate-200 hover:border-accent hover:bg-white/10'
+  }`;
 
   return (
-    <div className="flex-grow flex flex-col justify-between p-2.5 h-full min-h-0 pointer-events-auto select-none gap-2">
-      {/* Top Bar with Mode Switching */}
-      <div className="flex justify-between items-center px-1 shrink-0">
-        <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
-          📖 Emoji-Wörterbuch
-        </span>
-        <button 
-          onClick={toggleMode} 
-          className="text-[7.5px] font-black uppercase tracking-wider bg-indigo-500 hover:bg-indigo-600 px-2 py-0.5 rounded-lg text-white cursor-pointer active:scale-95 transition-all shadow-xs"
-        >
-          {gameMode === 'browse' ? "🎮 Spiel starten" : "📖 Lernen"}
-        </button>
-      </div>
-
-      {/* Categories Toolbar - Only visible in Browse Mode */}
-      {gameMode === 'browse' && (
-        <div className="flex gap-1 overflow-x-auto pb-1 shrink-0 scrollbar-none scroll-smooth">
-          {categories.map(cat => (
+    <div
+      className={`relative flex h-full min-h-0 w-full flex-col overflow-hidden p-3 select-none ${
+        currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-slate-100'
+      }`}
+      role="region"
+      aria-label="Bildwörterbuch"
+    >
+      {showSettings && (
+        <div className={`absolute inset-0 z-30 flex min-h-0 flex-col overflow-y-auto p-4 ${
+          currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-slate-100'
+        }`}>
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 pb-3 dark:border-white/10">
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider text-accent">Bildwörterbuch-Einstellungen</p>
+              <p className="mt-1 text-xs leading-relaxed opacity-65">
+                Wortfeld und Sprachhilfen für dieses Widget festlegen.
+              </p>
+            </div>
             <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`px-2 py-0.5 rounded-md text-[7px] font-extrabold uppercase whitespace-nowrap cursor-pointer transition-all ${
-                selectedCategory === cat.id
-                  ? 'bg-indigo-500 text-white shadow-xs'
-                  : currentIsLight
-                    ? 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                    : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-750'
-              }`}
+              type="button"
+              onClick={onCloseSettings}
+              className="min-h-11 shrink-0 rounded-xl border border-slate-200 px-3 text-xs font-black hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5"
             >
-              {cat.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Main Mode Display */}
-      {gameMode === 'browse' ? (
-        // BROWSE MODE
-        <div className="flex-grow flex flex-col justify-between min-h-0 gap-1.5">
-          {/* Card Frame */}
-          <div className="relative h-28 w-full shrink-0 flex items-center justify-center">
-            <button
-              onClick={() => {
-                setFlipped(!flipped);
-                speak(currentCard.de, 'de');
-              }}
-              className={`w-full h-full rounded-2xl border-2 flex flex-col items-center justify-center p-3 shadow-inner transition-all duration-300 cursor-pointer text-center relative ${
-                flipped 
-                  ? 'bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-zinc-900/60 dark:to-indigo-950/20 border-indigo-400/40' 
-                  : currentIsLight 
-                    ? 'bg-white border-slate-200 hover:border-indigo-200 hover:scale-[1.01]' 
-                    : 'bg-zinc-850 border-white/5 hover:border-zinc-700 hover:scale-[1.01]'
-              }`}
-            >
-              {/* Card Badge */}
-              <span className="absolute top-1.5 right-2 px-1.5 py-0.5 text-[5.5px] font-mono uppercase bg-slate-100 dark:bg-zinc-800 rounded text-slate-400">
-                {flipped ? "Info 🔄" : "Tippen 🔄"}
-              </span>
-
-              <span className={`text-4xl shrink-0 filter drop-shadow-md transition-transform duration-300 ${flipped ? 'scale-110' : ''}`}>
-                {currentCard.emoji}
-              </span>
-              
-              <div className="mt-2 min-h-[30px] flex items-center justify-center w-full">
-                {flipped ? (
-                  <div className="animate-fade-in text-center">
-                    <p className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 tracking-wide">
-                      🇩🇪 {currentCard.de}
-                    </p>
-                    <p className={`text-[8.5px] font-extrabold ${currentIsLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                      🇬🇧 {currentCard.en}
-                    </p>
-                  </div>
-                ) : (
-                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                    Karte umdrehen
-                  </span>
-                )}
-              </div>
+              Fertig
             </button>
           </div>
 
-          {/* Pronunciation Helpers */}
-          <div className="flex justify-center gap-2 shrink-0">
-            <button 
-              onClick={() => speak(currentCard.de, 'de')}
-              className="text-[7.5px] font-black uppercase tracking-wider bg-slate-100 hover:bg-slate-200 dark:bg-zinc-850 dark:hover:bg-zinc-750 px-2 py-1 rounded-lg cursor-pointer flex items-center gap-1 active:scale-95 transition-all shadow-xs text-slate-700 dark:text-slate-200"
-            >
-              <Volume2 className="w-2.5 h-2.5 text-indigo-500" />
-              Deutsch 🇩🇪
-            </button>
-            <button 
-              onClick={() => speak(currentCard.en, 'en')}
-              className="text-[7.5px] font-black uppercase tracking-wider bg-slate-100 hover:bg-slate-200 dark:bg-zinc-850 dark:hover:bg-zinc-750 px-2 py-1 rounded-lg cursor-pointer flex items-center gap-1 active:scale-95 transition-all shadow-xs text-slate-700 dark:text-slate-200"
-            >
-              <Volume2 className="w-2.5 h-2.5 text-indigo-500" />
-              English 🇬🇧
-            </button>
-          </div>
-
-          {/* Quick Selection Carousel Grid */}
-          <div className="flex-grow flex flex-col justify-start min-h-0">
-            <p className="text-[6.5px] font-black text-slate-400 uppercase tracking-widest text-center mb-1 shrink-0">
-              Direkt auswähen ({filteredCards.length} Karten):
-            </p>
-            <div className="flex-grow overflow-y-auto max-h-[50px] p-1 flex flex-wrap gap-1 justify-center scrollbar-thin rounded-lg border border-slate-100 dark:border-zinc-800">
-              {filteredCards.map((c, index) => (
+          <section className="mt-4 shrink-0">
+            <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider opacity-55">Wortfeld</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {(Object.entries(DICTIONARY_CATEGORY_LABELS) as Array<[DictionaryCategory, string]>).map(([category, label]) => (
                 <button
-                  key={index}
-                  onClick={() => {
-                    setActiveIdx(index);
-                    setFlipped(false);
-                    speak(c.de, 'de');
-                  }}
-                  className={`w-6.5 h-6.5 rounded-lg text-sm flex items-center justify-center transition-all cursor-pointer border ${
-                    activeIdx === index
-                      ? 'bg-indigo-500 border-indigo-600 scale-105 shadow-md text-white'
-                      : currentIsLight
-                        ? 'bg-slate-50 border-slate-200 hover:bg-slate-100 hover:scale-102 text-slate-700'
-                        : 'bg-zinc-900 border-white/5 hover:bg-zinc-850 text-slate-300'
-                  }`}
-                  title={c.de}
+                  key={category}
+                  type="button"
+                  aria-pressed={settings.category === category}
+                  onClick={() => persistSettings({ category })}
+                  className={settingButtonClass(settings.category === category)}
                 >
-                  {c.emoji}
+                  {label}
                 </button>
               ))}
             </div>
-          </div>
+          </section>
 
-          {/* Standard Navigation */}
-          <div className="flex gap-1.5 shrink-0">
-            <button
-              onClick={() => { setFlipped(false); setActiveIdx(prev => (prev - 1 + filteredCards.length) % filteredCards.length); }}
-              className={`flex-1 py-1 rounded-xl text-[8px] font-black uppercase tracking-wider border cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-800 active:scale-98 transition-all ${
-                currentIsLight ? 'border-slate-200 text-slate-700' : 'border-white/5 text-slate-350'
-              }`}
-            >
-              ◀ Zurück
-            </button>
-            <button
-              onClick={() => { setFlipped(false); setActiveIdx(prev => (prev + 1) % filteredCards.length); }}
-              className="flex-1 py-1 rounded-xl text-[8px] font-black uppercase tracking-wider bg-indigo-500 hover:bg-indigo-600 text-white shadow-md cursor-pointer active:scale-98 transition-all"
-            >
-              Vorwärts ▶
-            </button>
-          </div>
-        </div>
-      ) : (
-        // Reworked Interactive QUIZ MODE
-        <div className="flex-grow flex flex-col justify-between min-h-0 gap-1.5">
-          {/* Target card prompt */}
-          {targetCard && (
-            <div className="shrink-0 text-center bg-indigo-500/5 dark:bg-zinc-900/30 p-2 rounded-2xl border border-indigo-500/10 dark:border-white/5 flex flex-col items-center justify-center">
-              <span className="text-[7px] font-black uppercase tracking-widest text-indigo-500 mb-0.5">Gesuchter Begriff:</span>
-              <div className="flex items-center gap-1">
-                <p className="text-[12.5px] font-extrabold text-indigo-950 dark:text-indigo-200 uppercase tracking-wide">
-                  {targetCard.de}
-                </p>
-                <button 
-                  onClick={() => speak(targetCard.de, 'de')}
-                  className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 active:scale-90 transition-all cursor-pointer"
-                  title="Anhören"
-                >
-                  <Volume2 className="w-3 h-3 text-indigo-500 animate-pulse" />
-                </button>
-              </div>
-              <p className="text-[6.5px] font-mono text-slate-400 dark:text-zinc-500 mt-0.5">
-                Englisch: <span className="italic font-bold">{targetCard.en}</span>
-              </p>
-            </div>
-          )}
-
-          {/* tactile quiz grid: 4 choice emojis */}
-          <div className="flex-grow flex items-center justify-center min-h-0">
-            <div className="grid grid-cols-2 gap-2 w-full max-w-[210px] mx-auto">
-              {quizChoices.map((choice, idx) => {
-                const isSelected = selectedQuizEmoji === choice.emoji;
-                const isTarget = choice.emoji === targetCard?.emoji;
-                
-                let btnStyle = currentIsLight 
-                  ? 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-800 hover:scale-102'
-                  : 'bg-zinc-850 border-white/5 hover:bg-zinc-800 text-slate-200 hover:scale-102';
-                
-                if (isSelected) {
-                  if (isAnsweredCorrectly === true) {
-                    btnStyle = 'bg-emerald-500 border-emerald-600 text-white ring-4 ring-emerald-500/20 scale-105 animate-bounce font-black';
-                  } else if (isAnsweredCorrectly === false) {
-                    btnStyle = 'bg-rose-500 border-rose-600 text-white ring-4 ring-rose-500/20 scale-98 animate-shake';
-                  }
-                } else if (isAnsweredCorrectly !== null && isTarget) {
-                  // Reveal correct answer if got wrong
-                  btnStyle = 'bg-emerald-500/20 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 scale-95';
-                }
-
-                return (
-                  <button
-                    key={idx}
-                    disabled={isAnsweredCorrectly !== null}
-                    onClick={() => handleQuizSelection(choice)}
-                    className={`h-11 rounded-xl text-2xl flex items-center justify-center border-2 shadow-xs transition-all cursor-pointer relative ${btnStyle}`}
-                  >
-                    {choice.emoji}
-                    {isAnsweredCorrectly !== null && isTarget && (
-                      <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center shadow-md">
-                        ✔
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Streak indicator and manual controls */}
-          <div className="shrink-0 flex items-center justify-between px-2 bg-indigo-50/40 dark:bg-zinc-900/40 py-1 rounded-xl border border-indigo-500/5">
-            <div className="flex flex-col text-left">
-              <span className="text-[6.5px] font-black uppercase text-indigo-500 tracking-wider">Aktuelle Serie</span>
-              <span className="text-[9.5px] font-black text-indigo-950 dark:text-indigo-200 flex items-center gap-0.5">
-                🔥 {streak} {streak > 3 && "⭐"}
-              </span>
-            </div>
-            
-            {isAnsweredCorrectly === false && (
+          <section className={`mt-4 shrink-0 rounded-2xl border p-3 ${
+            currentIsLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/5'
+          }`}>
+            <p className="text-xs font-black">Sprachhilfen</p>
+            <div className="mt-2 grid gap-2">
               <button
-                onClick={startQuizRound}
-                className="py-0.5 px-2 bg-indigo-500 hover:bg-indigo-600 text-white font-black text-[7.5px] uppercase tracking-wider rounded-md active:scale-95 transition-all shadow-sm cursor-pointer"
+                type="button"
+                aria-pressed={settings.showEnglish}
+                onClick={() => persistSettings({ showEnglish: !settings.showEnglish })}
+                className={settingButtonClass(settings.showEnglish)}
               >
-                Nochmal versuchen 🔄
+                Englisch {settings.showEnglish ? 'anzeigen' : 'ausblenden'}
               </button>
-            )}
-
-            <div className="flex flex-col text-right">
-              <span className="text-[6.5px] font-black uppercase text-indigo-500 tracking-wider">Beste Serie</span>
-              <span className="text-[9.5px] font-black text-indigo-950 dark:text-indigo-200">
-                🏆 {bestStreak}
-              </span>
+              <button
+                type="button"
+                aria-pressed={settings.speakOnChange}
+                onClick={() => persistSettings({ speakOnChange: !settings.speakOnChange })}
+                className={settingButtonClass(settings.speakOnChange)}
+              >
+                Beim Weiterblättern {settings.speakOnChange ? 'vorlesen' : 'nicht automatisch vorlesen'}
+              </button>
             </div>
-          </div>
+          </section>
         </div>
       )}
 
-      {/* Rhythmic feedback banner */}
-      <p className={`shrink-0 text-[7.5px] font-extrabold text-center truncate min-h-[10px] animate-fade-in ${
-        isAnsweredCorrectly === true 
-          ? 'text-emerald-500' 
-          : isAnsweredCorrectly === false 
-            ? 'text-rose-500' 
-            : 'text-indigo-500'
-      }`}>
-        {feedback}
-      </p>
+      <div className="grid shrink-0 grid-cols-2 gap-1.5" role="group" aria-label="Lernmodus">
+        <button
+          type="button"
+          aria-pressed={settings.mode === 'learn'}
+          onClick={() => changeMode('learn')}
+          className={`min-h-11 rounded-xl border px-3 text-xs font-black transition-colors ${
+            settings.mode === 'learn'
+              ? 'border-accent bg-accent text-accent-text'
+              : currentIsLight
+                ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                : 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10'
+          }`}
+        >
+          Lernen
+        </button>
+        <button
+          type="button"
+          aria-pressed={settings.mode === 'match'}
+          onClick={() => changeMode('match')}
+          className={`min-h-11 rounded-xl border px-3 text-xs font-black transition-colors ${
+            settings.mode === 'match'
+              ? 'border-accent bg-accent text-accent-text'
+              : currentIsLight
+                ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                : 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10'
+          }`}
+        >
+          Zuordnen
+        </button>
+      </div>
+
+      {settings.mode === 'learn' && activeCard ? (
+        <>
+          <div className="flex min-h-0 flex-1 items-center justify-center py-3">
+            <article className={`flex w-full flex-col items-center justify-center rounded-3xl border px-4 py-4 text-center shadow-sm ${
+              currentIsLight ? 'border-slate-200 bg-slate-50/80' : 'border-white/10 bg-white/5'
+            }`}>
+              <span className="text-[clamp(3.25rem,18cqw,6rem)] leading-none" aria-hidden="true">
+                {activeCard.emoji}
+              </span>
+              <p className="mt-3 text-[clamp(1rem,5cqw,1.45rem)] font-black leading-tight text-accent">
+                {activeCard.de}
+              </p>
+              {settings.showEnglish && (
+                <p className="mt-1 text-sm font-semibold opacity-65">
+                  {activeCard.en}
+                </p>
+              )}
+              <div className="mt-3 flex w-full max-w-xs gap-2">
+                <button
+                  type="button"
+                  onClick={() => speak(activeCard.de, 'de')}
+                  className={`min-h-11 flex-1 rounded-xl border px-3 text-xs font-black transition-colors ${
+                    currentIsLight
+                      ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                      : 'border-white/10 bg-zinc-900 text-slate-200 hover:bg-white/10'
+                  }`}
+                >
+                  <span className="inline-flex items-center justify-center gap-1.5">
+                    <Volume2 size={15} aria-hidden="true" />
+                    Deutsch
+                  </span>
+                </button>
+                {settings.showEnglish && (
+                  <button
+                    type="button"
+                    onClick={() => speak(activeCard.en, 'en')}
+                    className={`min-h-11 flex-1 rounded-xl border px-3 text-xs font-black transition-colors ${
+                      currentIsLight
+                        ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                        : 'border-white/10 bg-zinc-900 text-slate-200 hover:bg-white/10'
+                    }`}
+                  >
+                    <span className="inline-flex items-center justify-center gap-1.5">
+                      <Volume2 size={15} aria-hidden="true" />
+                      English
+                    </span>
+                  </button>
+                )}
+              </div>
+            </article>
+          </div>
+
+          <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2">
+            <button
+              type="button"
+              onClick={() => moveCard(-1)}
+              className={`min-h-11 rounded-xl border px-3 text-xs font-black ${
+                currentIsLight
+                  ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                  : 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10'
+              }`}
+            >
+              Zurück
+            </button>
+            <span className="min-w-12 text-center text-[11px] font-bold tabular-nums opacity-55">
+              {activeIdx + 1}/{cards.length}
+            </span>
+            <button
+              type="button"
+              onClick={() => moveCard(1)}
+              className="min-h-11 rounded-xl bg-accent px-3 text-xs font-black text-accent-text hover:bg-accent-hover"
+            >
+              Weiter
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col pt-3">
+          {round ? (
+            <>
+              <div className={`shrink-0 rounded-2xl border px-3 py-3 text-center ${
+                currentIsLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/5'
+              }`}>
+                <p className="text-[10px] font-black uppercase tracking-wider opacity-50">Finde das passende Bild</p>
+                <div className="mt-1 flex items-center justify-center gap-2">
+                  <p className="text-base font-black text-accent">{round.target.de}</p>
+                  <button
+                    type="button"
+                    onClick={() => speak(round.target.de, 'de')}
+                    aria-label={`${round.target.de} vorlesen`}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-accent bg-accent-soft text-accent"
+                  >
+                    <Volume2 size={17} aria-hidden="true" />
+                  </button>
+                </div>
+                {settings.showEnglish && (
+                  <p className="text-xs font-semibold opacity-55">{round.target.en}</p>
+                )}
+              </div>
+
+              <div className="grid min-h-0 flex-1 grid-cols-2 content-center gap-2 py-3">
+                {round.choices.map(choice => {
+                  const isSelected = selectedChoiceId === choice.id;
+                  const isCorrectChoice = choice.id === round.target.id;
+                  const showCorrect = answerState === 'correct' && isCorrectChoice;
+                  const showWrong = answerState === 'wrong' && isSelected;
+
+                  return (
+                    <button
+                      key={choice.id}
+                      type="button"
+                      onClick={() => chooseCard(choice.id)}
+                      aria-label={`Bild auswählen: ${choice.de}`}
+                      className={`min-h-20 rounded-2xl border-2 text-4xl shadow-sm transition-colors ${
+                        showCorrect
+                          ? 'border-emerald-500 bg-emerald-500/15'
+                          : showWrong
+                            ? 'border-rose-500 bg-rose-500/10'
+                            : currentIsLight
+                              ? 'border-slate-200 bg-white hover:border-accent hover:bg-accent-soft'
+                              : 'border-white/10 bg-white/5 hover:border-accent hover:bg-white/10'
+                      }`}
+                    >
+                      <span aria-hidden="true">{choice.emoji}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="shrink-0">
+                <p
+                  role="status"
+                  aria-live="polite"
+                  className={`min-h-8 px-1 text-center text-xs font-bold leading-relaxed ${
+                    answerState === 'correct'
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : answerState === 'wrong'
+                        ? 'text-rose-600 dark:text-rose-400'
+                        : 'opacity-55'
+                  }`}
+                >
+                  {feedback || 'Tippe auf das passende Bild.'}
+                </p>
+                {answerState === 'correct' && (
+                  <button
+                    type="button"
+                    onClick={nextRound}
+                    className="mt-1 min-h-11 w-full rounded-xl bg-accent px-4 text-xs font-black text-accent-text hover:bg-accent-hover"
+                  >
+                    Nächste Aufgabe
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-1 items-center justify-center text-sm font-semibold opacity-60">
+              Für dieses Wortfeld sind keine Karten vorhanden.
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
