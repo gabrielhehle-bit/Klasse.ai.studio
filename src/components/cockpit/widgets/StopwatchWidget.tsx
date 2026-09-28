@@ -53,6 +53,8 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
   const [state, setState] = useState<StopwatchSettings>(initialSettings);
   const stateRef = useRef<StopwatchSettings>(initialSettings);
   stateRef.current = state;
+  const widgetSettingsRef = useRef<Record<string, any>>(widget?.settings || {});
+  widgetSettingsRef.current = widget?.settings || {};
 
   // Schützt direkte Bedienaktionen davor, von einem noch alten Parent-Snapshot
   // unmittelbar wieder überschrieben zu werden. Erst wenn der Parent den
@@ -83,7 +85,7 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
       pendingPersistSignatureRef.current = stateSignature(newState);
       onUpdate({
         settings: {
-          ...widget?.settings,
+          ...widgetSettingsRef.current,
           status: newState.status,
           startTimestamp: newState.startTimestamp,
           accumulatedElapsed: newState.accumulatedElapsed,
@@ -92,7 +94,20 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
         },
       });
     },
-    [onUpdate, stateSignature, widget?.settings]
+    [onUpdate, stateSignature]
+  );
+
+  // Bedienaktionen müssen sofort auch stateRef aktualisieren. React rendert
+  // absichtlich asynchron; ohne diese Zeile konnten schnelle Folgeaktionen
+  // (Start -> Runde / Stopp) noch mit dem vorherigen Snapshot rechnen.
+  const commitState = useCallback(
+    (next: StopwatchSettings, elapsedAt: number = Date.now()) => {
+      stateRef.current = next;
+      setState(next);
+      setElapsedMs(calculateElapsedTime(next, elapsedAt));
+      persistState(next);
+    },
+    [persistState]
   );
 
   // Drift-freier Zeit-Loop mit reduzierter Update-Frequenz (ca. 8–10 FPS, absolut berechnet)
@@ -154,6 +169,7 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
         return prev;
       }
 
+      stateRef.current = nextState;
       setElapsedMs(calculateElapsedTime(nextState, Date.now()));
       return nextState;
     });
@@ -173,39 +189,33 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
     setConfirmingReset(false);
     const now = Date.now();
     const next = startStopwatch(stateRef.current, now);
-    setState(next);
-    setElapsedMs(calculateElapsedTime(next, now));
-    persistState(next);
-  }, [persistState]);
+    commitState(next, now);
+  }, [commitState]);
 
-  // AKTION: Pause
+  // AKTION: Stopp / Pause
   const handlePause = useCallback(() => {
     setConfirmingReset(false);
     const now = Date.now();
     const next = pauseStopwatch(stateRef.current, now);
-    setState(next);
-    setElapsedMs(next.accumulatedElapsed);
-    persistState(next);
-  }, [persistState]);
+    commitState(next, now);
+  }, [commitState]);
 
   // AKTION: Fortsetzen
   const handleResume = useCallback(() => {
     setConfirmingReset(false);
     const now = Date.now();
     const next = resumeStopwatch(stateRef.current, now);
-    setState(next);
-    setElapsedMs(calculateElapsedTime(next, now));
-    persistState(next);
-  }, [persistState]);
+    commitState(next, now);
+  }, [commitState]);
 
   // AKTION: Runde
   const handleLap = useCallback(() => {
     if (stateRef.current.status !== 'running') return;
     const now = Date.now();
     const next = recordLap(stateRef.current, now);
-    setState(next);
-    persistState(next);
-  }, [persistState]);
+    commitState(next, now);
+    setShowCompactLaps(true);
+  }, [commitState]);
 
   // AKTION: Reset
   const handleResetRequest = useCallback(() => {
@@ -215,25 +225,21 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
     // Wenn ohnehin 0 und keine Runden: direkt zurücksetzen ohne Nachfrage
     if (totalElapsed === 0 && current.laps.length === 0) {
       const next = resetStopwatch(true, current.showDecimals);
-      setState(next);
-      setElapsedMs(0);
+      commitState(next);
       setConfirmingReset(false);
-      persistState(next);
       return;
     }
 
     // Wenn Zeit oder Runden vorhanden sind: Sicherheitsabfrage aktivieren
     setConfirmingReset(true);
-  }, [persistState]);
+  }, [commitState]);
 
   const handleConfirmReset = useCallback(() => {
     const next = resetStopwatch(true, stateRef.current.showDecimals);
-    setState(next);
-    setElapsedMs(0);
+    commitState(next);
     setConfirmingReset(false);
     setShowCompactLaps(false);
-    persistState(next);
-  }, [persistState]);
+  }, [commitState]);
 
   const handleCancelReset = useCallback(() => {
     setConfirmingReset(false);
@@ -245,9 +251,8 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
       ...stateRef.current,
       showDecimals: !stateRef.current.showDecimals,
     };
-    setState(next);
-    persistState(next);
-  }, [persistState]);
+    commitState(next);
+  }, [commitState]);
 
   // KEYBOARD CONTROLS (Space: Start/Pause/Resume, L: Lap, R: Reset)
   useEffect(() => {
@@ -430,7 +435,7 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
             {state.status === 'running'
               ? 'Läuft'
               : state.status === 'paused'
-                ? 'Pausiert'
+                ? 'Gestoppt'
                 : 'Bereit'}
           </span>
 
@@ -488,6 +493,7 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
             {state.status === 'ready' && (
               <button
                 type="button"
+                data-stopwatch-action="start"
                 onClick={handleStart}
                 className="flex-1 flex items-center justify-center gap-2 h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white text-sm font-bold shadow-sm shadow-emerald-600/20 transition-all cursor-pointer"
               >
@@ -501,6 +507,7 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
                 {/* RUNDEN-BUTTON: Nur aktiv, wenn Stoppuhr läuft */}
                 <button
                   type="button"
+                  data-stopwatch-action="lap"
                   onClick={handleLap}
                   className={`flex-1 flex items-center justify-center gap-2 h-11 px-3 rounded-xl border text-xs font-bold transition-all active:scale-98 cursor-pointer ${
                     currentIsLight
@@ -515,11 +522,12 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
                 {/* PAUSE-BUTTON (Dominant während des Laufs) */}
                 <button
                   type="button"
+                  data-stopwatch-action="stop"
                   onClick={handlePause}
                   className="flex-1 flex items-center justify-center gap-2 h-11 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-98 text-white text-sm font-bold shadow-sm shadow-amber-500/20 transition-all cursor-pointer"
                 >
                   <Pause size={18} fill="currentColor" />
-                  <span>Pause</span>
+                  <span>Stopp</span>
                 </button>
               </>
             )}
@@ -543,6 +551,7 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
                 {/* FORTSETZEN-BUTTON (Dominant bei Pause) */}
                 <button
                   type="button"
+                  data-stopwatch-action="resume"
                   onClick={handleResume}
                   className="flex-1 flex items-center justify-center gap-2 h-11 px-4 rounded-xl bg-accent hover:bg-accent-hover active:scale-98 text-accent-text text-sm font-bold shadow-sm transition-all cursor-pointer"
                 >
