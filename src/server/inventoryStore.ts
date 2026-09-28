@@ -448,8 +448,10 @@ export class InventoryStore {
         .reduce((sum, loan) => sum + loan.quantity, 0);
       if (alreadyLoaned + quantity > item.quantity) throw new Error('ITEM_UNAVAILABLE');
 
-      const borrowerName = cleanText(input.borrowerName, 120) || identity.displayName;
-      const borrowerUserId = cleanText(input.borrowerUserId, 120) || identity.userId;
+      const requestedBorrowerName = cleanText(input.borrowerName, 120);
+      const requestedBorrowerUserId = cleanText(input.borrowerUserId, 120);
+      const borrowerName = requestedBorrowerName || identity.displayName;
+      const borrowerUserId = requestedBorrowerUserId || (requestedBorrowerName ? '' : identity.userId);
       const dueAtRaw = cleanText(input.dueAt, 80);
       const dueDate = dueAtRaw ? new Date(dueAtRaw) : null;
       const dueAt = dueDate && Number.isFinite(dueDate.getTime()) ? dueDate.toISOString() : null;
