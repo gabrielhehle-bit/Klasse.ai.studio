@@ -264,6 +264,7 @@ export default function InventoryManager() {
   const [importSource, setImportSource] = useState('');
   const [pasteText, setPasteText] = useState('');
   const [printLocationIds, setPrintLocationIds] = useState<string[]>([]);
+  const [printItemIds, setPrintItemIds] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
@@ -531,9 +532,33 @@ export default function InventoryManager() {
         records = uniqueImportRecords(parseInventoryText(await file.text()));
       } else if (file.type.startsWith('image/')) {
         setImportSource(file.name);
-        setImportRows([]);
-        showToast('Foto erkannt. Die automatische Bildlesung folgt im nächsten Sicherheitsdurchlauf; du kannst den Listentext unten bereits einfügen.', 'info');
-        return;
+        const TextDetectorCtor = (window as any).TextDetector;
+        if (!TextDetectorCtor || typeof createImageBitmap !== 'function') {
+          setImportRows([]);
+          showToast('Dein Browser bietet keine lokale Texterkennung. KLASSIO lädt das Foto aus Datenschutzgründen nicht zu einem externen OCR-Dienst hoch. Nutze unten „Text einfügen“ oder Excel/PDF.', 'info');
+          return;
+        }
+        const bitmap = await createImageBitmap(file);
+        try {
+          const detector = new TextDetectorCtor();
+          const blocks = await detector.detect(bitmap);
+          const text = [...blocks]
+            .sort((a: any, b: any) => {
+              const ay = Number(a.boundingBox?.top || 0);
+              const by = Number(b.boundingBox?.top || 0);
+              if (Math.abs(ay - by) > 8) return ay - by;
+              return Number(a.boundingBox?.left || 0) - Number(b.boundingBox?.left || 0);
+            })
+            .map((block: any) => String(block.rawValue || '').trim())
+            .filter(Boolean)
+            .join('\n');
+          records = uniqueImportRecords(parseInventoryText(text));
+          if (!records.length) {
+            showToast('Das Foto wurde lokal gelesen, aber keine sicheren Tabellenzeilen erkannt. Bitte den erkannten Text unten prüfen oder einfügen.', 'info');
+          }
+        } finally {
+          bitmap.close?.();
+        }
       } else {
         throw new Error('Dieses Dateiformat wird noch nicht unterstützt.');
       }
@@ -586,7 +611,14 @@ export default function InventoryManager() {
   };
 
   const printQr = (locationIds: string[]) => {
+    setPrintItemIds([]);
     setPrintLocationIds(locationIds);
+    window.setTimeout(() => window.print(), 100);
+  };
+
+  const printItemQr = (itemId: string) => {
+    setPrintLocationIds([]);
+    setPrintItemIds([itemId]);
     window.setTimeout(() => window.print(), 100);
   };
 
@@ -635,6 +667,7 @@ export default function InventoryManager() {
 
   const schoolLabel = snapshot.school.name || snapshot.school.code || snapshot.school.domain;
   const activePrintLocations = snapshot.locations.filter(location => printLocationIds.includes(location.id));
+  const activePrintItems = snapshot.items.filter(item => printItemIds.includes(item.id));
 
   return (
     <>
@@ -717,12 +750,41 @@ export default function InventoryManager() {
 
           {tab === 'overview' && (
             <div className="space-y-5">
+              {!snapshot.items.length ? (
+                <div className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                  <div className="max-w-3xl">
+                    <div className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Einmalig starten</div>
+                    <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-950">Wie möchtest du euren Bestand übernehmen?</h2>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Du musst nichts neu erfassen, wenn bereits Listen existieren. Bestehende Inventarnummern und Kastenbezeichnungen bleiben erhalten.
+                    </p>
+                  </div>
+                  <div className="mt-6 grid gap-3 md:grid-cols-3">
+                    <button type="button" onClick={() => setTab('import')} className="rounded-2xl bg-slate-950 p-5 text-left text-white hover:bg-slate-800">
+                      <Upload size={20} className="mb-4" />
+                      <span className="block text-sm font-black">Vorhandene Liste importieren</span>
+                      <span className="mt-1 block text-xs leading-5 text-slate-300">Excel, CSV, PDF, Text oder – wenn der Browser es lokal kann – Foto.</span>
+                    </button>
+                    <button type="button" onClick={() => setItemDraft({ ...EMPTY_ITEM })} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-left hover:bg-slate-100">
+                      <Plus size={20} className="mb-4 text-slate-500" />
+                      <span className="block text-sm font-black text-slate-900">Lehrmittel direkt anlegen</span>
+                      <span className="mt-1 block text-xs leading-5 text-slate-500">Für einzelne Geräte, Koffer oder neue Anschaffungen.</span>
+                    </button>
+                    <button type="button" onClick={() => setLocationDraft({ ...EMPTY_LOCATION })} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-left hover:bg-slate-100">
+                      <MapPin size={20} className="mb-4 text-slate-500" />
+                      <span className="block text-sm font-black text-slate-900">Kästen zuerst anlegen</span>
+                      <span className="mt-1 block text-xs leading-5 text-slate-500">Wenn ihr eure Räume und Kästen zuerst strukturieren wollt.</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard label="Bestand" value={totalQuantity} helper={snapshot.items.length + ' verschiedene Einträge'} icon={<Boxes size={20} />} />
                 <StatCard label="Ausgeliehen" value={activeLoans.reduce((sum, loan) => sum + loan.quantity, 0)} helper={activeLoans.length + ' offene Ausleihen'} icon={<ArrowDownToLine size={20} />} />
                 <StatCard label="Standorte" value={snapshot.locations.length} helper="Kästen, Räume und Lagerorte" icon={<MapPin size={20} />} />
                 <StatCard label="Zu prüfen" value={problemCount + overdueCount} helper={problemCount + ' Zustand · ' + overdueCount + ' überfällig'} icon={<AlertTriangle size={20} />} />
               </div>
+              )}
 
               {query.trim() ? (
                 <div className="rounded-[26px] border border-slate-200 bg-white shadow-sm">
@@ -1063,7 +1125,7 @@ export default function InventoryManager() {
               <div className="grid gap-4 lg:grid-cols-4">
                 <ImportCard icon={<FileSpreadsheet size={22} />} title="Excel / CSV" helper="Bestehende Inventarliste direkt übernehmen" onClick={() => fileRef.current?.click()} />
                 <ImportCard icon={<FileText size={22} />} title="PDF" helper="Textbasierte Kastenlisten lokal lesen" onClick={() => fileRef.current?.click()} />
-                <ImportCard icon={<Camera size={22} />} title="Foto" helper="Foto auswählen; Bildlesung wird separat abgesichert" onClick={() => fileRef.current?.click()} />
+                <ImportCard icon={<Camera size={22} />} title="Foto" helper="Lokale Texterkennung, falls der Browser sie unterstützt" onClick={() => fileRef.current?.click()} />
                 <ImportCard icon={<ClipboardCheck size={22} />} title="Text einfügen" helper="Liste kopieren und unten prüfen" onClick={() => document.getElementById('inventory-paste')?.focus()} />
               </div>
               <input
@@ -1249,6 +1311,27 @@ export default function InventoryManager() {
         })}
       </div>
 
+      <div className="hidden print:block print:bg-white">
+        {activePrintItems.map(item => {
+          const location = item.locationId ? locationById.get(item.locationId) : null;
+          const value = window.location.origin + '/?lehrmittel=item:' + item.id;
+          return (
+            <section key={item.id} className="mx-auto flex min-h-[270mm] w-[190mm] items-start justify-center p-10 text-black">
+              <div className="mt-16 flex w-[120mm] items-center gap-6 rounded-xl border-2 border-black p-6">
+                <QRCodeSVG value={value} size={112} level="M" />
+                <div className="min-w-0">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.16em]">KLASSIO · {schoolLabel}</div>
+                  <div className="mt-2 text-xl font-black">{item.name}</div>
+                  <div className="mt-2 text-sm">{item.inventoryNumber ? 'Inventarnr. ' + item.inventoryNumber : 'Ohne Inventarnummer'}</div>
+                  {location && <div className="mt-1 text-xs">{location.name}{location.room ? ' · ' + location.room : ''}</div>}
+                  <div className="mt-3 text-[10px] font-bold">Scannen → direkt ausleihen / zurückgeben</div>
+                </div>
+              </div>
+            </section>
+          );
+        })}
+      </div>
+
       {itemDraft && (
         <Modal title={itemDraft.id ? 'Lehrmittel bearbeiten' : 'Lehrmittel anlegen'} onClose={() => setItemDraft(null)}>
           <div className="space-y-4">
@@ -1284,7 +1367,12 @@ export default function InventoryManager() {
             <Field label="Notiz">
               <textarea value={itemDraft.note} onChange={event => setItemDraft({ ...itemDraft, note: event.target.value })} placeholder="Optional" className="input-field min-h-24 resize-y" />
             </Field>
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex flex-wrap justify-end gap-2 pt-2">
+              {itemDraft.id && (
+                <button type="button" onClick={() => printItemQr(itemDraft.id!)} className="mr-auto inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-black text-slate-600 hover:bg-slate-50">
+                  <QrCode size={15} /> QR-Etikett
+                </button>
+              )}
               <button type="button" onClick={() => setItemDraft(null)} className="rounded-xl px-4 py-2.5 text-sm font-black text-slate-500 hover:bg-slate-100">Abbrechen</button>
               <button type="button" onClick={() => void saveItem()} disabled={saving} className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-black text-white disabled:opacity-50">
                 {saving ? 'Speichert …' : 'Speichern'}
