@@ -9867,8 +9867,6 @@ ${content}
                                 </div>
                                 <button type="button" onClick={() => { setIsThemePickerOpen(true); setIsMoreOptionsMenuOpen(false); }}
                                   className="w-full min-h-11 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100">🎨 Design & Farben</button>
-                                <button type="button" onClick={() => { setIsMascotSettingsOpen(true); setIsMoreOptionsMenuOpen(false); }}
-                                  className="w-full min-h-11 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100 dark:hover:bg-white/10">🐾 Klassenmaskottchen</button>
                                 <button type="button" onClick={() => { setIsBirthdayCelebrationOpen(true); setIsMoreOptionsMenuOpen(false); }}
                                   className="w-full min-h-11 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100">🎂 Geburtstag</button>
                                 <button type="button" aria-expanded={isQuickBarSettingsOpen}
@@ -10628,6 +10626,7 @@ ${content}
                                 }
                                 showSettingsButton={cockpitWidgetSupportsSettings(String(widget.type))}
                                 settingsOpen={
+                                  (widget.type === "pet" && isMascotSettingsOpen) ||
                                   widgetSettingsOpenId === widget.id ||
                                   (
                                     isCentralInteractionWidgetSettings(String(widget.type)) &&
@@ -10637,6 +10636,11 @@ ${content}
                                   )
                                 }
                                 onSettingsToggle={() => {
+                                  if (widget.type === "pet") {
+                                    setWidgetSettingsOpenId(null);
+                                    setIsMascotSettingsOpen(open => !open);
+                                    return;
+                                  }
                                   if (isCentralInteractionWidgetSettings(String(widget.type))) {
                                     setWidgetSettingsOpenId(null);
                                     toggleCentralInteractionWidgetSettings(String(widget.type));
@@ -12531,6 +12535,16 @@ ${content}
               onAddWidget={() => { if (isAddWidgetMenuOpen) { setIsAddWidgetMenuOpen(false); } else { openWidgetLibrary(); } }}
               onToggleSidebar={() => changeSidebarMode(sidebarMode === "hidden" ? (prevSidebarMode || "expanded") : "hidden")}
               sidebarOpen={sidebarMode !== "hidden"}
+              onToggleMascot={() => {
+                const mascot = cockpitWidgets.find(widget => widget.type === "pet");
+                if (mascot?.visible) {
+                  executeWidgetClose(mascot.id);
+                  setIsMascotSettingsOpen(false);
+                  return;
+                }
+                handleOpenWidgetInCockpitLayout("pet");
+              }}
+              mascotVisible={cockpitWidgets.some(widget => widget.type === "pet" && widget.visible)}
               reservedRightPx={getCockpitSidebarReservedRightPx(sidebarMode, sidebarResizePreview ?? sidebarPreferredWidth)}
               activeTypes={cockpitWidgets.filter(widget => widget.visible).map(widget => widget.type)}
               minimizedTypes={cockpitWidgets.filter(widget => minimizedWidgetIds.includes(widget.id)).map(widget => String(widget.type))}
