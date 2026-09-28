@@ -15466,7 +15466,7 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
     if (mode === 'memory' && memorySequence.length > 0) {
       if (index !== memorySequence[memoryStep]) {
         setMemoryStep(0);
-        setFeedback('Das war ein anderer Ton. Hör die Folge noch einmal an.');
+        setFeedback('Das war ein anderer Ton. Hör die Folge noch einmal an und achte auf die Richtung der Tonhöhen.');
         return;
       }
       const nextStep = memoryStep + 1;
@@ -15573,8 +15573,18 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
             disabled={isPlayingSequence}
             className="min-h-11 px-4 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-black disabled:opacity-40"
           >
-            Folge anhören
+            Neue Folge
           </button>
+          {memorySequence.length > 0 && (
+            <button
+              type="button"
+              onClick={() => playSequence(memorySequence)}
+              disabled={isPlayingSequence}
+              className="min-h-11 px-4 rounded-xl border border-accent/40 bg-accent-soft text-accent font-bold disabled:opacity-40"
+            >
+              Nochmal anhören
+            </button>
+          )}
         </div>
       )}
 
@@ -15603,6 +15613,12 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
         {mode === 'learn' && `${selectedMelody.name}: Ton ${melodyStep + 1} von ${selectedMelody.notes.length} · Ziel: ${selectedMelody.notes[melodyStep]?.label}`}
       </div>
 
+      <div className="shrink-0 flex items-center justify-between gap-3 text-xs font-bold text-slate-500 dark:text-slate-400 px-1">
+        <span>tiefer</span>
+        <div className="h-1 flex-1 rounded-full bg-gradient-to-r from-slate-300 via-accent/50 to-accent" aria-label="Tonhöhe steigt von links nach rechts" />
+        <span>höher</span>
+      </div>
+
       <div className={`flex-1 min-h-60 rounded-2xl border px-3 py-5 flex items-end justify-center gap-2 sm:gap-3 ${
         currentIsLight ? 'bg-amber-50/60 border-amber-200' : 'bg-slate-900 border-slate-700'
       }`}>
@@ -15622,6 +15638,11 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
               style={{ height: barHeights[index] }}
             >
               <span className="block text-lg">{note.label}</span>
+              {isLearnTarget && (
+                <span className="absolute -top-8 left-1/2 -translate-x-1/2 rounded-full bg-accent px-2 py-1 text-[10px] text-accent-text shadow-sm">
+                  Nächster Ton
+                </span>
+              )}
               <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded bg-black/20 px-1.5 py-0.5 text-[10px]">
                 {note.key}
               </span>
