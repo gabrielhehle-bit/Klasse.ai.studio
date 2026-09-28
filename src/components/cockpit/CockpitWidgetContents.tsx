@@ -15443,6 +15443,24 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
     });
   };
 
+  const playScale = () => {
+    clearTimers();
+    setMode('freeplay');
+    setFeedback('Höre die Tonleiter: Jeder Ton wird Schritt für Schritt höher.');
+    notes.forEach((_, index) => {
+      const timer = window.setTimeout(() => {
+        flashAndPlay(index);
+        if (index === notes.length - 1) {
+          const finishTimer = window.setTimeout(() => {
+            setFeedback('C bis C₂ bilden zusammen eine Oktave.');
+          }, 400);
+          timersRef.current.push(finishTimer);
+        }
+      }, index * 420);
+      timersRef.current.push(timer);
+    });
+  };
+
   const startMemory = () => {
     const sequence = Array.from({ length: memoryLength }, () => Math.floor(Math.random() * notes.length));
     setMode('memory');
@@ -15498,6 +15516,8 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('input, select, textarea, [contenteditable="true"]')) return;
       const noteIndex = notes.findIndex((note) => note.key === event.key);
       if (noteIndex >= 0 && !event.repeat) {
         event.preventDefault();
@@ -15608,10 +15628,22 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
       )}
 
       <div className="shrink-0 rounded-xl bg-accent-soft border border-accent/20 px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
-        {mode === 'freeplay' && 'Entdecke: Von links nach rechts werden die Töne höher.'}
+        {mode === 'freeplay' && 'Entdecke: Von links nach rechts werden die Töne höher. C bis C₂ ist eine Oktave.'}
         {mode === 'memory' && `Hören → merken → nachspielen. Fortschritt: ${memoryStep}/${memorySequence.length || memoryLength}`}
         {mode === 'learn' && `${selectedMelody.name}: Ton ${melodyStep + 1} von ${selectedMelody.notes.length} · Ziel: ${selectedMelody.notes[melodyStep]?.label}`}
       </div>
+
+      {mode === 'freeplay' && (
+        <div className="shrink-0 flex justify-center">
+          <button
+            type="button"
+            onClick={playScale}
+            className="min-h-11 px-4 rounded-xl border border-accent/40 bg-accent-soft text-accent font-bold text-sm hover:border-accent"
+          >
+            Tonleiter anhören
+          </button>
+        </div>
+      )}
 
       <div className="shrink-0 flex items-center justify-between gap-3 text-xs font-bold text-slate-500 dark:text-slate-400 px-1">
         <span>tiefer</span>
