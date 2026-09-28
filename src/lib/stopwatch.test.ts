@@ -305,8 +305,33 @@ test('F20 Stopwatch: 23. Keine Klartext-Persistenz / saubere Widget-Settings', (
   assert.equal(parsed.laps.length, 1);
 });
 
-// 24. Andere Widgets unverändert
-test('F20 Stopwatch: 24. Andere Widgets unverändert im Register', () => {
+// 24. Direkte Folgeaktionen verwenden immer den neuesten Zustand
+test('F20 Stopwatch: 24. Start -> Runde -> Stopp -> Weiter bleibt konsistent', () => {
+  const start = 1_000_000;
+  let state = startStopwatch(DEFAULT_STOPWATCH_SETTINGS, start);
+
+  state = recordLap(state, start + 4_250);
+  assert.equal(state.status, 'running');
+  assert.equal(state.laps.length, 1);
+  assert.equal(state.laps[0].lapTimeMs, 4250);
+
+  state = pauseStopwatch(state, start + 7_000);
+  assert.equal(state.status, 'paused');
+  assert.equal(state.accumulatedElapsed, 7000);
+  assert.equal(state.laps.length, 1);
+
+  state = resumeStopwatch(state, start + 10_000);
+  assert.equal(state.status, 'running');
+  assert.equal(calculateElapsedTime(state, start + 12_000), 9000);
+
+  state = recordLap(state, start + 12_000);
+  assert.equal(state.laps.length, 2);
+  assert.equal(state.laps[1].lapTimeMs, 4750);
+  assert.equal(state.laps[1].overallTimeMs, 9000);
+});
+
+// 25. Andere Widgets unverändert
+test('F20 Stopwatch: 25. Andere Widgets unverändert im Register', () => {
   assert.ok(WIDGET_MIN_SIZES['timer']);
   assert.ok(WIDGET_MIN_SIZES['clock']);
   assert.ok(WIDGET_MIN_SIZES['drawing']);
