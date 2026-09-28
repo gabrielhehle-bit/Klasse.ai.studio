@@ -5,7 +5,6 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   BookOpen,
-  Box,
   Boxes,
   CheckCircle2,
   ClipboardCheck,
@@ -173,6 +172,7 @@ export default function Lehrmittelverwaltung() {
   const [showLocationForm, setShowLocationForm] = React.useState(false);
   const [locationDraft, setLocationDraft] = React.useState({ name: '', subject: '', room: '', detail: '' });
   const [showItemForm, setShowItemForm] = React.useState(false);
+  const [editingItemId, setEditingItemId] = React.useState<string | null>(null);
   const [itemDraft, setItemDraft] = React.useState({
     inventoryNumber: '',
     name: '',
@@ -342,30 +342,52 @@ export default function Lehrmittelverwaltung() {
     }
   };
 
-  const createItem = async () => {
+  const resetItemForm = () => {
+    setEditingItemId(null);
+    setItemDraft({
+      inventoryNumber: '',
+      name: '',
+      subject: '',
+      locationId: '',
+      unitType: 'single',
+      quantity: 1,
+      notes: '',
+    });
+  };
+
+  const beginEditItem = (item: InventoryItem) => {
+    setEditingItemId(item.id);
+    setItemDraft({
+      inventoryNumber: item.inventoryNumber,
+      name: item.name,
+      subject: item.subject || '',
+      locationId: item.locationId || '',
+      unitType: item.unitType,
+      quantity: item.quantity,
+      notes: item.notes || '',
+    });
+    setShowItemForm(true);
+  };
+
+  const saveItem = async () => {
     if (!itemDraft.inventoryNumber.trim() || !itemDraft.name.trim()) {
       showToast('Inventarnummer und Bezeichnung sind erforderlich.', 'error');
       return;
     }
     try {
-      await inventoryApi('/api/inventory/items', {
-        method: 'POST',
+      await inventoryApi(editingItemId
+        ? `/api/inventory/items/${encodeURIComponent(editingItemId)}`
+        : '/api/inventory/items', {
+        method: editingItemId ? 'PATCH' : 'POST',
         body: JSON.stringify(itemDraft),
       });
-      setItemDraft({
-        inventoryNumber: '',
-        name: '',
-        subject: '',
-        locationId: '',
-        unitType: 'single',
-        quantity: 1,
-        notes: '',
-      });
+      const wasEditing = Boolean(editingItemId);
+      resetItemForm();
       setShowItemForm(false);
       await refresh();
-      showToast('Lehrmittel angelegt.', 'success');
+      showToast(wasEditing ? 'Lehrmittel aktualisiert.' : 'Lehrmittel angelegt.', 'success');
     } catch (err: any) {
-      showToast(err?.message || 'Lehrmittel konnte nicht angelegt werden.', 'error');
+      showToast(err?.message || 'Lehrmittel konnte nicht gespeichert werden.', 'error');
     }
   };
 
@@ -561,7 +583,7 @@ export default function Lehrmittelverwaltung() {
               <button type="button" onClick={() => setInventoryMode(value => !value)} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default,var(--border))] px-3.5 py-2.5 text-xs font-black text-[var(--text-primary,var(--text))]">
                 <ClipboardCheck size={15} /> Inventur
               </button>
-              <button type="button" onClick={() => setShowItemForm(true)} className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-3.5 py-2.5 text-xs font-black text-[var(--accent-text,#fff)]">
+              <button type="button" onClick={() => { resetItemForm(); setShowItemForm(true); }} className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-3.5 py-2.5 text-xs font-black text-[var(--accent-text,#fff)]">
                 <Plus size={15} /> Lehrmittel
               </button>
             </div>
@@ -772,6 +794,9 @@ export default function Lehrmittelverwaltung() {
                           <CheckCircle2 size={14} /> Wieder OK
                         </button>
                       )}
+                      <button type="button" onClick={() => beginEditItem(item)} className="rounded-xl border border-[var(--border-default,var(--border))] px-3 py-2.5 text-xs font-black text-[var(--text-secondary,var(--text2))]">
+                        Bearbeiten
+                      </button>
                       {item.status !== 'borrowed' && item.status !== 'retired' && (
                         <details className="relative">
                           <summary className="cursor-pointer list-none rounded-xl border border-[var(--border-default,var(--border))] px-3 py-2.5 text-xs font-black text-[var(--text-secondary,var(--text2))]">Stimmt nicht</summary>
@@ -854,8 +879,8 @@ export default function Lehrmittelverwaltung() {
           <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
             <div role="dialog" aria-modal="true" className="max-h-[90vh] w-full max-w-xl overflow-auto rounded-3xl bg-white p-6 shadow-2xl">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-black text-slate-950">Lehrmittel anlegen</h2>
-                <button type="button" onClick={() => setShowItemForm(false)} className="rounded-lg p-2 text-slate-500"><X size={18} /></button>
+                <h2 className="text-lg font-black text-slate-950">{editingItemId ? 'Lehrmittel bearbeiten' : 'Lehrmittel anlegen'}</h2>
+                <button type="button" onClick={() => { setShowItemForm(false); resetItemForm(); }} className="rounded-lg p-2 text-slate-500"><X size={18} /></button>
               </div>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <label><span className="text-[10px] font-black uppercase text-slate-500">Inventarnummer *</span><input value={itemDraft.inventoryNumber} onChange={e => setItemDraft(v => ({ ...v, inventoryNumber: e.target.value }))} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold" /></label>
@@ -867,8 +892,8 @@ export default function Lehrmittelverwaltung() {
                 <label className="sm:col-span-2"><span className="text-[10px] font-black uppercase text-slate-500">Bemerkung</span><input value={itemDraft.notes} onChange={e => setItemDraft(v => ({ ...v, notes: e.target.value }))} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
               </div>
               <div className="mt-5 flex justify-end gap-2">
-                <button type="button" onClick={() => setShowItemForm(false)} className="rounded-xl px-4 py-2.5 text-xs font-black text-slate-600">Abbrechen</button>
-                <button type="button" onClick={createItem} className="rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-black text-white">Lehrmittel speichern</button>
+                <button type="button" onClick={() => { setShowItemForm(false); resetItemForm(); }} className="rounded-xl px-4 py-2.5 text-xs font-black text-slate-600">Abbrechen</button>
+                <button type="button" onClick={saveItem} className="rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-black text-white">{editingItemId ? 'Änderungen speichern' : 'Lehrmittel speichern'}</button>
               </div>
             </div>
           </div>
