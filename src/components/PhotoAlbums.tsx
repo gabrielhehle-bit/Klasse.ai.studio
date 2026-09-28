@@ -63,6 +63,14 @@ function uniqueFiles(files: PhotoAlbumFile[]): PhotoAlbumFile[] {
   });
 }
 
+function nextPhotoDisplayName(files: PhotoAlbumFile[]): string {
+  const maxNumber = files.reduce((max, file) => {
+    const match = /^Foto\s+(\d+)$/.exec(file.name || '');
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0);
+  return `Foto ${maxNumber + 1}`;
+}
+
 export default function PhotoAlbums() {
   const { app, setApp } = useApp();
   const { showToast } = useToast();
@@ -140,6 +148,10 @@ export default function PhotoAlbums() {
 
   const beginEditAlbum = () => {
     if (!selectedAlbum) return;
+    if (uploading || sharing) {
+      showToast('Bitte den laufenden Foto- oder Freigabevorgang zuerst abschließen.', 'error');
+      return;
+    }
     setEditTitle(selectedAlbum.title);
     setEditDescription(selectedAlbum.description || '');
     setEditDate(selectedAlbum.eventDate || '');
@@ -258,6 +270,11 @@ export default function PhotoAlbums() {
 
   const handleUpload = async (fileList: FileList | null) => {
     if (!selectedAlbum || !fileList?.length) return;
+    if (sharing) {
+      showToast('Während eine Freigabe erstellt oder beendet wird, können keine Fotos hochgeladen werden.', 'error');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
     if (selectedAlbum.shareUrl) {
       showToast('Bitte zuerst die bestehende OneDrive-Freigabe beenden. Danach können neue Fotos sicher hinzugefügt werden.', 'error');
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -320,7 +337,7 @@ export default function PhotoAlbums() {
         folderWebUrl = data.folder?.webUrl || folderWebUrl;
         const uploadedFile: PhotoAlbumFile = {
           id: makeId('photo'),
-          name: `Foto ${persistedFiles.length + 1}`,
+          name: nextPhotoDisplayName(persistedFiles),
           size: Number(data.file?.size ?? prepared.body.size),
           mimeType: prepared.mimeType,
           uploadedAt: new Date().toISOString(),
@@ -354,6 +371,10 @@ export default function PhotoAlbums() {
 
   const handleDeletePhoto = async (file: PhotoAlbumFile) => {
     if (!selectedAlbum) return;
+    if (uploading || sharing) {
+      showToast('Bitte den laufenden Foto- oder Freigabevorgang zuerst abschließen.', 'error');
+      return;
+    }
     if (!file.driveItemId) {
       patchAlbum(selectedAlbum.id, {
         files: (selectedAlbum.files || []).filter(item => item.id !== file.id),
@@ -394,6 +415,10 @@ export default function PhotoAlbums() {
   };
 
   const handleShare = async () => {
+    if (uploading) {
+      showToast('Bitte warte, bis alle ausgewählten Fotos vollständig hochgeladen sind.', 'error');
+      return;
+    }
     if (!selectedAlbum?.oneDriveFolderId) {
       showToast('Bitte zuerst mindestens ein Foto hochladen.', 'error');
       return;
@@ -513,6 +538,10 @@ export default function PhotoAlbums() {
   };
 
   const removeAlbum = (album: PhotoAlbum) => {
+    if (uploading || sharing) {
+      showToast('Bitte den laufenden Foto- oder Freigabevorgang zuerst abschließen.', 'error');
+      return;
+    }
     if (album.shareUrl || album.sharePermissionId) {
       showToast('Bitte zuerst die OneDrive-Freigabe beenden. So bleibt kein Elternlink ohne KLASSIO-Kontrolle zurück.', 'error');
       return;
@@ -762,7 +791,7 @@ export default function PhotoAlbums() {
                       {selectedAlbum.description && <p className="mt-2 text-sm text-[var(--text-secondary,var(--text2))]">{selectedAlbum.description}</p>}
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <button type="button" onClick={beginEditAlbum} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default,var(--border))] px-3 py-2 text-xs font-black text-[var(--text-secondary,var(--text2))]">
+                      <button type="button" disabled={uploading || sharing} onClick={beginEditAlbum} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default,var(--border))] px-3 py-2 text-xs font-black text-[var(--text-secondary,var(--text2))]">
                         <Pencil size={15} /> Bearbeiten
                       </button>
                       {selectedAlbum.oneDriveFolderWebUrl && (
@@ -770,7 +799,7 @@ export default function PhotoAlbums() {
                           <FolderOpen size={15} /> OneDrive öffnen
                         </a>
                       )}
-                      <button type="button" onClick={() => removeAlbum(selectedAlbum)} className="inline-flex items-center gap-2 rounded-xl border border-rose-200 px-3 py-2 text-xs font-black text-rose-700">
+                      <button type="button" disabled={uploading || sharing} onClick={() => removeAlbum(selectedAlbum)} className="inline-flex items-center gap-2 rounded-xl border border-rose-200 px-3 py-2 text-xs font-black text-rose-700">
                         <Trash2 size={15} /> Aus KLASSIO entfernen
                       </button>
                     </div>
@@ -915,7 +944,7 @@ export default function PhotoAlbums() {
                                 <ExternalLink size={14} />
                               </a>
                             )}
-                            <button type="button" onClick={() => handleDeletePhoto(file)} className="rounded-lg p-2 text-rose-500 hover:bg-rose-50 hover:text-rose-700" title="Foto entfernen">
+                            <button type="button" disabled={uploading || sharing} onClick={() => handleDeletePhoto(file)} className="rounded-lg p-2 text-rose-500 hover:bg-rose-50 hover:text-rose-700" title="Foto entfernen">
                               <Trash2 size={14} />
                             </button>
                           </div>
@@ -1017,7 +1046,7 @@ export default function PhotoAlbums() {
 
                       <button
                         type="button"
-                        disabled={sharing || !selectedPolicy.canShare || !(selectedAlbum.files || []).length || !shareConsentConfirmed}
+                        disabled={uploading || sharing || !selectedPolicy.canShare || !(selectedAlbum.files || []).length || !shareConsentConfirmed}
                         onClick={handleShare}
                         className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 py-3 text-xs font-black text-[var(--accent-text,#fff)] disabled:cursor-not-allowed disabled:opacity-40"
                       >
