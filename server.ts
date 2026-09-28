@@ -4274,7 +4274,7 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
         expirationDateTime,
         Date.now(),
       );
-      if (!validation.ok) {
+      if (validation.ok === false) {
         const permissionId = typeof permission?.id === 'string' ? permission.id.trim() : '';
         if (permissionId) {
           try {
