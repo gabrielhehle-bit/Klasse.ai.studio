@@ -379,13 +379,17 @@ export default function PhotoAlbums() {
       showToast('Die Foto-Freigaben erlauben dieses Elternalbum noch nicht.', 'error');
       return;
     }
+    if (!shareConsentConfirmed) {
+      showToast('Bitte zuerst bestätigen, dass die konkrete schulische Einwilligung das Teilen mit Eltern abdeckt.', 'error');
+      return;
+    }
 
     const token = await tokenOrConnect();
     if (!token) return;
 
     setSharing(true);
     try {
-      const expiresAt = new Date(Date.now() + DEFAULT_SHARE_DAYS * 24 * 60 * 60 * 1000);
+      const expiresAt = new Date(Date.now() + shareDays * 24 * 60 * 60 * 1000);
       const response = await fetch('/api/onedrive/photos/share', {
         method: 'POST',
         headers: {
@@ -405,7 +409,9 @@ export default function PhotoAlbums() {
         sharePermissionId: data.permissionId,
         shareCreatedAt: new Date().toISOString(),
         shareExpiresAt: data.expirationDateTime || expiresAt.toISOString(),
+        shareConsentConfirmedAt: new Date().toISOString(),
       });
+      setShareConsentConfirmed(false);
       showToast('Elternlink wurde erstellt.', 'success');
     } catch (error: any) {
       showToast(error?.message || 'Freigabelink konnte nicht erstellt werden.', 'error');
@@ -421,7 +427,9 @@ export default function PhotoAlbums() {
         sharePermissionId: undefined,
         shareCreatedAt: undefined,
         shareExpiresAt: undefined,
+        shareConsentConfirmedAt: undefined,
       });
+      setShareConsentConfirmed(false);
       return;
     }
 
@@ -449,7 +457,9 @@ export default function PhotoAlbums() {
         sharePermissionId: undefined,
         shareCreatedAt: undefined,
         shareExpiresAt: undefined,
+        shareConsentConfirmedAt: undefined,
       });
+      setShareConsentConfirmed(false);
       showToast('Elternlink wurde deaktiviert.', 'success');
     } catch (error: any) {
       showToast(error?.message || 'Freigabe konnte nicht beendet werden.', 'error');
@@ -460,6 +470,14 @@ export default function PhotoAlbums() {
 
   const copyParentMessage = async () => {
     if (!selectedAlbum?.shareUrl) return;
+    if (selectedShareExpired) {
+      showToast('Dieser Elternlink ist bereits abgelaufen.', 'error');
+      return;
+    }
+    if (shareSafetyProblem) {
+      showToast('Die Foto-Freigaben haben sich geändert. Bitte den Elternlink beenden.', 'error');
+      return;
+    }
     const expiry = selectedAlbum.shareExpiresAt
       ? ` Der Link ist bis ${formatDate(selectedAlbum.shareExpiresAt)} gültig.`
       : '';
@@ -473,6 +491,10 @@ export default function PhotoAlbums() {
   };
 
   const removeAlbum = (album: PhotoAlbum) => {
+    if (album.shareUrl || album.sharePermissionId) {
+      showToast('Bitte zuerst die OneDrive-Freigabe beenden. So bleibt kein Elternlink ohne KLASSIO-Kontrolle zurück.', 'error');
+      return;
+    }
     const confirmed = window.confirm(
       `„${album.title}“ aus KLASSIO entfernen? Die Fotos im OneDrive werden dabei nicht gelöscht.`
     );
