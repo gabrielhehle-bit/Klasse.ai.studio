@@ -4538,6 +4538,63 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
       data-font-weight={app?.settings?.fontWeight || 'normal'}
       data-font-style={app?.settings?.fontStyle || 'normal'}
     >
+      {/* PRIORITY: Geburtstage dieser Woche immer ganz oben im Dashboard */}
+      <AnimatePresence>
+        {birthdaysThisWeek.length > 0 && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className=""
+          >
+            <div className="bg-gradient-to-r from-amber-500/10 to-rose-500/10 p-[1px] rounded-3xl border border-amber-500/20 shadow-[0_10px_25px_rgba(245,158,11,0.03)]">
+              <div className="bg-white/95 backdrop-blur-md px-6 py-4 rounded-[calc(1.5rem-1px)] flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-9 h-9 bg-amber-50 border border-amber-100 rounded-xl flex items-center justify-center text-amber-600 animate-bounce">
+                    <PartyPopper size={16} />
+                  </div>
+                  <div>
+                    <h4 className="text-[0.75rem] leading-tight font-black text-amber-800 uppercase tracking-widest leading-none mb-1">
+                      Geburtstage diese Woche
+                    </h4>
+                    <div className="text-[0.75rem] leading-tight text-slate-600 font-bold italic flex flex-wrap gap-x-1.5 gap-y-0.5">
+                      <span>Herzlichen Glückwunsch an:</span>
+                      {birthdaysThisWeek.map((s, idx) => {
+                        let bdayDate: Date | null = null;
+                        const parts = s.geburtstag.split(".");
+                        if (parts.length === 3) {
+                          bdayDate = new Date(
+                            heute.getFullYear(),
+                            parseInt(parts[1]) - 1,
+                            parseInt(parts[0])
+                          );
+                        } else {
+                          const parsed = new Date(s.geburtstag);
+                          if (!isNaN(parsed.getTime())) {
+                            bdayDate = new Date(heute.getFullYear(), parsed.getMonth(), parsed.getDate());
+                          }
+                        }
+                        const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+                        const weekdayStr = bdayDate ? WEEKDAYS[bdayDate.getDay()] : "";
+                        const dateStr = bdayDate ? `${String(bdayDate.getDate()).padStart(2, '0')}.${String(bdayDate.getMonth() + 1).padStart(2, '0')}.` : "";
+                        const bdayLabel = bdayDate ? ` (${weekdayStr}, ${dateStr})` : "";
+                        return (
+                          <span key={s.id || idx}>
+                            <span className="text-amber-600 font-extrabold">{s.vorname}</span>
+                            <span className="text-slate-400 font-normal">{bdayLabel}</span>
+                            {idx < birthdaysThisWeek.length - 1 ? ", " : ""}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {lehrerzimmerUnread.count > 0 && (
         <button
           type="button"
@@ -5043,63 +5100,6 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
         </div>
       </section>
       )}
-
-      {/* Birthdays this week alert slider banner */}
-      <AnimatePresence>
-        {birthdaysThisWeek.length > 0 && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className=""
-          >
-            <div className="bg-gradient-to-r from-amber-500/10 to-rose-500/10 p-[1px] rounded-3xl border border-amber-500/20 shadow-[0_10px_25px_rgba(245,158,11,0.03)]">
-              <div className="bg-white/95 backdrop-blur-md px-6 py-4 rounded-[calc(1.5rem-1px)] flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-9 h-9 bg-amber-50 border border-amber-100 rounded-xl flex items-center justify-center text-amber-600 animate-bounce">
-                    <PartyPopper size={16} />
-                  </div>
-                  <div>
-                    <h4 className="text-[0.75rem] leading-tight font-black text-amber-800 uppercase tracking-widest leading-none mb-1">
-                      Geburtstage diese Woche
-                    </h4>
-                    <div className="text-[0.75rem] leading-tight text-slate-600 font-bold italic flex flex-wrap gap-x-1.5 gap-y-0.5">
-                      <span>Herzlichen Glückwunsch an:</span>
-                      {birthdaysThisWeek.map((s, idx) => {
-                        let bdayDate: Date | null = null;
-                        const parts = s.geburtstag.split(".");
-                        if (parts.length === 3) {
-                          bdayDate = new Date(
-                            heute.getFullYear(),
-                            parseInt(parts[1]) - 1,
-                            parseInt(parts[0])
-                          );
-                        } else {
-                          const parsed = new Date(s.geburtstag);
-                          if (!isNaN(parsed.getTime())) {
-                            bdayDate = new Date(heute.getFullYear(), parsed.getMonth(), parsed.getDate());
-                          }
-                        }
-                        const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
-                        const weekdayStr = bdayDate ? WEEKDAYS[bdayDate.getDay()] : "";
-                        const dateStr = bdayDate ? `${String(bdayDate.getDate()).padStart(2, '0')}.${String(bdayDate.getMonth() + 1).padStart(2, '0')}.` : "";
-                        const bdayLabel = bdayDate ? ` (${weekdayStr}, ${dateStr})` : "";
-                        return (
-                          <span key={s.id || idx}>
-                            <span className="text-amber-600 font-extrabold">{s.vorname}</span>
-                            <span className="text-slate-400 font-normal">{bdayLabel}</span>
-                            {idx < birthdaysThisWeek.length - 1 ? ", " : ""}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Erste Schritte Widget */}
       {(!app.schueler ||
