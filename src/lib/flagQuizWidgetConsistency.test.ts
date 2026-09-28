@@ -31,12 +31,15 @@ test('Flaggenquiz ist Smartboard-tauglich und ohne KI-Abhängigkeit', () => {
 
 test('Flaggenquiz bietet Kontinent, Einfach, Mittel, Schwer und Alle', () => {
   const source = readFileSync('src/components/cockpit/FlagQuizWidgetContent.tsx', 'utf8');
+  const model = readFileSync('src/lib/flagQuizModel.ts', 'utf8');
 
-  assert.match(source, /Alle Kontinente/);
-  assert.match(source, /FLAG_QUIZ_DIFFICULTY_LABELS/);
-  assert.match(source, /Einfach/);
-  assert.match(source, /Mittel/);
-  assert.match(source, /Schwer/);
+  assert.match(source, /CONTINENT_OPTIONS/);
+  assert.match(source, /DIFFICULTY_OPTIONS/);
+  assert.match(model, /Alle Kontinente/);
+  assert.match(model, /Einfach/);
+  assert.match(model, /Mittel/);
+  assert.match(model, /Schwer/);
+  assert.match(model, /Alle Stufen/);
 });
 
 test('Flaggenquiz-Hilfe erklärt Datenbasis und Filter', () => {
