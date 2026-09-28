@@ -5,10 +5,11 @@ import { readFileSync } from 'node:fs';
 const sidebar = readFileSync('src/components/Sidebar.tsx', 'utf8');
 const hook = readFileSync('src/hooks/useVerifiedSchoolIdentity.ts', 'utf8');
 
-test('Lehrerzimmer steht direkt unter Tools und nur mit verifizierter Schulidentität zur Verfügung', () => {
+test('Schulweite Tools stehen unter Tools und nur mit verifizierter Schulidentität zur Verfügung', () => {
   assert.match(sidebar, /\{ id: 'tools', label: 'Tools'/);
   assert.match(sidebar, /\{ id: 'lehrerzimmer', label: 'Lehrerzimmer'.*section: 'Tools'/);
-  assert.match(sidebar, /item\.id !== 'lehrerzimmer' \|\| hasVerifiedSchoolIdentity/);
+  assert.match(sidebar, /\{ id: 'lehrmittel', label: 'Lehrmittel & Inventar'.*section: 'Tools'/);
+  assert.match(sidebar, /!\['lehrerzimmer', 'lehrmittel'\]\.includes\(item\.id\) \|\| hasVerifiedSchoolIdentity/);
   assert.match(sidebar, /const toolsIndex = withoutRoom\.findIndex\(item => item\.id === 'tools'\)/);
   assert.match(sidebar, /withoutRoom\.slice\(0, toolsIndex \+ 1\),\s*room/s);
 });

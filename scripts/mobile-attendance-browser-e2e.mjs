@@ -237,9 +237,26 @@ async function main() {
     });
     await client.send('Emulation.setTouchEmulationEnabled', { enabled: true });
     await client.send('Page.navigate', { url: BASE_URL });
+    await waitFor(client, 'public landing or access gate',
+      'document.body?.innerText.toLowerCase().includes("geschützter zugang")||Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").includes("Ich habe schon einen Zugang"))',
+      30000);
+    const publicLandingVisible = await evaluate(client,
+      'Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").includes("Ich habe schon einen Zugang"))');
+    if (publicLandingVisible) {
+      await clickButton(client, 'Ich habe schon einen Zugang');
+    }
     await waitFor(client, 'access gate', 'document.body?.innerText.toLowerCase().includes("geschützter zugang")', 30000);
-    await waitFor(client, 'access input',
-      'Array.from(document.querySelectorAll("input")).some(i=>String(i.placeholder||"").includes("Zugangscode eingeben"))', 30000);
+    await waitFor(client, 'access-code login option',
+      'Array.from(document.querySelectorAll("input")).some(el=>String(el.placeholder||"").includes("Zugangscode eingeben"))||Array.from(document.querySelectorAll("button")).some(el=>String(el.textContent||"").includes("Nur Zugangscode verwenden"))',
+      30000);
+    const accessCodeVisible = await evaluate(client,
+      'Array.from(document.querySelectorAll("input")).some(el=>String(el.placeholder||"").includes("Zugangscode eingeben"))');
+    if (!accessCodeVisible) {
+      await clickButton(client, 'Nur Zugangscode verwenden');
+      await waitFor(client, 'access code input',
+        'Array.from(document.querySelectorAll("input")).some(el=>String(el.placeholder||"").includes("Zugangscode eingeben"))',
+        30000);
+    }
     await setInputByLabel(client, 'Zugangscode', ACCESS_CODE);
     await clickButton(client, 'Klassio öffnen');
     await waitFor(client, 'new encrypted vault',

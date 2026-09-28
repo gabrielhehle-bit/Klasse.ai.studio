@@ -12,6 +12,7 @@ import { validateAiServerImageRequest } from "./src/lib/aiPrivacy.ts";
 import { getServerSyncTimestamps, isSyncSessionExpired } from "./src/lib/syncServerPolicy.ts";
 import { createTeacherIdentityForSchool, displayNameFromEmail, handleFromEmail, type TeacherIdentity } from "./src/server/teacherIdentity.ts";
 import { createLehrerzimmerStore, type LehrerzimmerCategory } from "./src/server/lehrerzimmerStore.ts";
+import { createSchoolInventoryStore } from "./src/server/schoolInventoryStore.ts";
 import { createClassCollaborationStore, type SharedClassRecord } from "./src/server/classCollaborationStore.ts";
 import { createSchoolRegistryStore, type AustrianFederalState, type SchoolVerificationRequest, type SchoolRecord } from "./src/server/schoolRegistry.ts";
 import { createSupporterStore } from "./src/server/supporterStore.ts";
@@ -255,6 +256,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
 
   const KLASSIO_DATA_DIR = (process.env.KLASSIO_DATA_DIR || path.join(process.cwd(), 'data')).trim();
   const lehrerzimmerStore = createLehrerzimmerStore(KLASSIO_DATA_DIR);
+  const schoolInventoryStore = createSchoolInventoryStore(KLASSIO_DATA_DIR);
   const classCollaborationStore = createClassCollaborationStore(KLASSIO_DATA_DIR);
   const schoolRegistryStore = createSchoolRegistryStore(KLASSIO_DATA_DIR);
   const supporterStore = createSupporterStore(KLASSIO_DATA_DIR);
@@ -1236,7 +1238,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
 
       if (!identity) {
         res.status(403).json({
-          error: 'Das Lehrerzimmer ist nur mit einer verifizierten Schulidentität verfügbar.',
+          error: 'Schulweite KLASSIO-Funktionen sind nur mit einer verifizierten Schulidentität verfügbar.',
           requiresSchoolEmail: true,
         });
         return;
@@ -1249,6 +1251,130 @@ export async function createApp(options: { isTest?: boolean } = {}) {
 
   const getTeacherIdentity = (req: express.Request): TeacherIdentity =>
     (req as TeacherRequest).klassioTeacher as TeacherIdentity;
+
+  const handleSchoolInventoryError = (res: express.Response, error: unknown) => {
+    const code = error instanceof Error ? error.message : '';
+    if (code === 'INVALID_LOCATION') return res.status(400).json({ error: 'Bitte einen gültigen Standortnamen eingeben.' });
+    if (code === 'LOCATION_NOT_FOUND') return res.status(404).json({ error: 'Dieser Standort wurde nicht gefunden.' });
+    if (code === 'INVALID_ITEM') return res.status(400).json({ error: 'Inventarnummer und Bezeichnung sind erforderlich.' });
+    if (code === 'ITEM_NOT_FOUND') return res.status(404).json({ error: 'Dieses Lehrmittel wurde nicht gefunden.' });
+    if (code === 'INVENTORY_NUMBER_EXISTS') return res.status(409).json({ error: 'Diese Inventarnummer ist bereits vergeben.' });
+    if (code === 'ITEM_NOT_AVAILABLE') return res.status(409).json({ error: 'Dieses Lehrmittel ist aktuell nicht verfügbar.' });
+    if (code === 'INVALID_STATUS' || code === 'USE_BORROW_ACTION') return res.status(400).json({ error: 'Ungültiger Inventarstatus.' });
+    if (code === 'INVALID_IMPORT') return res.status(400).json({ error: 'Die Importliste ist leer, zu groß oder ungültig.' });
+    console.error('[Inventar] Serverfehler:', error);
+    return res.status(500).json({ error: 'Die schulweite Lehrmittelverwaltung konnte nicht geladen werden.' });
+  };
+
+  app.get('/api/inventory', requireTeacherIdentity, async (req, res) => {
+    try {
+      res.json(await schoolInventoryStore.snapshot(getTeacherIdentity(req)));
+    } catch (error) {
+      handleSchoolInventoryError(res, error);
+    }
+  });
+
+  app.post('/api/inventory/locations', requireTeacherIdentity, async (req, res) => {
+    try {
+      const location = await schoolInventoryStore.createLocation(getTeacherIdentity(req), {
+        name: req.body?.name,
+        subject: req.body?.subject,
+        room: req.body?.room,
+        detail: req.body?.detail,
+      });
+      res.status(201).json({ location });
+    } catch (error) {
+      handleSchoolInventoryError(res, error);
+    }
+  });
+
+  app.patch('/api/inventory/locations/:locationId', requireTeacherIdentity, async (req, res) => {
+    try {
+      const location = await schoolInventoryStore.updateLocation(
+        getTeacherIdentity(req),
+        req.params.locationId,
+        req.body || {},
+      );
+      res.json({ location });
+    } catch (error) {
+      handleSchoolInventoryError(res, error);
+    }
+  });
+
+  app.post('/api/inventory/items', requireTeacherIdentity, async (req, res) => {
+    try {
+      const item = await schoolInventoryStore.createItem(getTeacherIdentity(req), req.body || {});
+      res.status(201).json({ item });
+    } catch (error) {
+      handleSchoolInventoryError(res, error);
+    }
+  });
+
+  app.patch('/api/inventory/items/:itemId', requireTeacherIdentity, async (req, res) => {
+    try {
+      const item = await schoolInventoryStore.updateItem(
+        getTeacherIdentity(req),
+        req.params.itemId,
+        req.body || {},
+      );
+      res.json({ item });
+    } catch (error) {
+      handleSchoolInventoryError(res, error);
+    }
+  });
+
+  app.post('/api/inventory/items/:itemId/borrow', requireTeacherIdentity, async (req, res) => {
+    try {
+      const item = await schoolInventoryStore.borrow(getTeacherIdentity(req), req.params.itemId);
+      res.json({ item });
+    } catch (error) {
+      handleSchoolInventoryError(res, error);
+    }
+  });
+
+  app.post('/api/inventory/items/:itemId/return', requireTeacherIdentity, async (req, res) => {
+    try {
+      const item = await schoolInventoryStore.returnItem(getTeacherIdentity(req), req.params.itemId);
+      res.json({ item });
+    } catch (error) {
+      handleSchoolInventoryError(res, error);
+    }
+  });
+
+  app.post('/api/inventory/items/:itemId/status', requireTeacherIdentity, async (req, res) => {
+    try {
+      const item = await schoolInventoryStore.setStatus(
+        getTeacherIdentity(req),
+        req.params.itemId,
+        req.body?.status,
+      );
+      res.json({ item });
+    } catch (error) {
+      handleSchoolInventoryError(res, error);
+    }
+  });
+
+  app.post('/api/inventory/items/:itemId/check', requireTeacherIdentity, async (req, res) => {
+    try {
+      const item = await schoolInventoryStore.checkItem(getTeacherIdentity(req), req.params.itemId);
+      res.json({ item });
+    } catch (error) {
+      handleSchoolInventoryError(res, error);
+    }
+  });
+
+  app.post('/api/inventory/import', requireTeacherIdentity, async (req, res) => {
+    try {
+      const result = await schoolInventoryStore.importItems(
+        getTeacherIdentity(req),
+        req.body?.rows,
+        req.body?.duplicateMode,
+      );
+      res.json(result);
+    } catch (error) {
+      handleSchoolInventoryError(res, error);
+    }
+  });
 
   const handleLehrerzimmerError = (res: express.Response, error: unknown) => {
     const code = error instanceof Error ? error.message : '';

@@ -20,6 +20,7 @@ export const AVAILABLE_MODULES: KlassioModuleCatalogEntry[] = [
   { id: 'cockpit', label: 'Lehrercockpit', desc: 'Direkt zur weißen Unterrichtsfläche mit Stift, Text und Widgets', category: 'Start' },
   { id: 'ki-helfer', label: 'KI-Helfer', desc: 'KI-Werkzeuge für Planung, Differenzierung und Texte', category: 'Start' },
   { id: 'lehrerzimmer', label: 'Lehrerzimmer', desc: 'Schulweiter Austausch mit Beiträgen, Fragen, @Erwähnungen und Antworten', category: 'Tools' },
+  { id: 'lehrmittel', label: 'Lehrmittel & Inventar', desc: 'Schulweiten Bestand suchen, ausleihen, importieren, inventarisieren und per Kasten-QR öffnen', category: 'Tools' },
   { id: 'arbeitsblatt', label: 'Arbeitsblatt-Generator', desc: 'Arbeitsblätter direkt in Klassio erstellen', category: 'KI-Helfer' },
   { id: 'stationenbetrieb', label: 'Stationenbetrieb', desc: 'Stationen planen und verwalten', category: 'Tools' },
   { id: 'differenzierung', label: 'Differenzierung', desc: 'Unterricht differenziert vorbereiten', category: 'KI-Helfer' },

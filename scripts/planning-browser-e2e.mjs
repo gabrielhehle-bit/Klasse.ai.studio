@@ -240,6 +240,14 @@ async function main() {
     });
 
     await client.send('Page.navigate', { url: BASE_URL });
+    await waitFor(client, 'public landing or access gate',
+      'document.body?.innerText.toLowerCase().includes("geschützter zugang")||Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").includes("Ich habe schon einen Zugang"))',
+      30000);
+    const publicLandingVisible = await evaluate(client,
+      'Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").includes("Ich habe schon einen Zugang"))');
+    if (publicLandingVisible) {
+      await clickButton(client, 'Ich habe schon einen Zugang');
+    }
     await waitFor(client, 'Klassio access gate', 'document.body?.innerText.toLowerCase().includes("geschützter zugang")');
     // The access-gate heading appears before the async login choices settle.
     // Wait for either valid choice rather than racing the first render.
@@ -372,10 +380,22 @@ async function main() {
     await clickSidebar(client, 'Lehrercockpit');
     await waitFor(client, 'white classroom board', 'Boolean(document.getElementById("widget-board-stage"))', 30000);
     await clickButton(client, 'Widget hinzufügen');
+    const weeklyPlanPickerButtonExpression =
+      '(() => {' +
+      'const norm=v=>String(v||"").replace(/\\s+/g," ").trim();' +
+      'const buttons=Array.from(document.querySelectorAll("button"));' +
+      'const direct=buttons.find(b=>["Wochenplan der Kinder hinzufügen","Wochenplan der Kinder öffnen"].includes(b.getAttribute("aria-label")||""));' +
+      'if(direct)return direct;' +
+      'const title=Array.from(document.querySelectorAll("h2,h3,h4,p,span,div")).find(el=>norm(el.textContent)==="Wochenplan der Kinder");' +
+      'let node=title;' +
+      'while(node&&node!==document.body){const candidate=Array.from(node.querySelectorAll("button")).find(b=>norm(b.textContent)==="Öffnen");if(candidate)return candidate;node=node.parentElement;}' +
+      'return null;' +
+      '})()';
     await waitFor(client, 'classroom weekly-plan picker entry',
-      'Array.from(document.querySelectorAll("button")).some(b=>b.getAttribute("aria-label")==="Wochenplan der Kinder hinzufügen")');
-    const addedWidget = await evaluate(client, '(() => {const b=Array.from(document.querySelectorAll("button")).find(b=>b.getAttribute("aria-label")==="Wochenplan der Kinder hinzufügen");if(!b)return false;b.click();return true;})()');
-    if (!addedWidget) throw new Error('Could not add weekly-plan widget.');
+      'Boolean(' + weeklyPlanPickerButtonExpression + ')');
+    const openedWidget = await evaluate(client,
+      '(() => {const b=' + weeklyPlanPickerButtonExpression + ';if(!b)return false;b.click();return true;})()');
+    if (!openedWidget) throw new Error('Could not open weekly-plan widget from the widget library.');
     // Current classroom widget: task → child → feedback, not the retired
     // personal-plan dialog with public pupil-name buttons.
     await waitFor(client, 'published task visible on public board',

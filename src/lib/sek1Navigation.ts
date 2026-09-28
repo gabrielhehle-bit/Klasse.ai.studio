@@ -15,6 +15,7 @@ export const SEK1_NAVIGATION_IDS = [
   'anwesenheit',
   'stundenplan',
   'klassenstundenplan',
+  'lehrmittel',
   'profil',
   'verhalten',
   'dossier',
