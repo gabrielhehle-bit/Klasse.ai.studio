@@ -16,6 +16,7 @@ import { createClassCollaborationStore, type SharedClassRecord } from "./src/ser
 import { createSchoolRegistryStore, type AustrianFederalState, type SchoolVerificationRequest, type SchoolRecord } from "./src/server/schoolRegistry.ts";
 import { createSupporterStore } from "./src/server/supporterStore.ts";
 import { createCanvaTokenStore, type CanvaStoredTokens } from "./src/server/canvaTokenStore.ts";
+import { validatePhotoSharePermission } from "./src/server/photoSharePolicy.ts";
 import { createEncryptedAttachmentStore, AttachmentStorageError } from "./src/server/encryptedAttachmentStore.ts";
 import { createAccountSyncStore } from "./src/server/accountSyncStore.ts";
 import { createAiUsageStore, type AiUsageSnapshot } from "./src/server/aiUsageStore.ts";
@@ -4046,7 +4047,37 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     return data;
   };
 
+  const getSchoolPhotoDriveInfo = async (token: string): Promise<{
+    driveType: string;
+    eligibleForSchoolPhotos: boolean;
+    webUrl?: string;
+  }> => {
+    const drive = await graphJson(
+      'https://graph.microsoft.com/v1.0/me/drive?$select=id,driveType,webUrl',
+      token,
+    );
+    const driveType = typeof drive?.driveType === 'string' ? drive.driveType : 'unknown';
+    return {
+      driveType,
+      eligibleForSchoolPhotos: driveType === 'business' || driveType === 'documentLibrary',
+      webUrl: typeof drive?.webUrl === 'string' ? drive.webUrl : undefined,
+    };
+  };
+
+  const assertSchoolPhotoDrive = async (token: string): Promise<void> => {
+    const info = await getSchoolPhotoDriveInfo(token);
+    if (info.eligibleForSchoolPhotos) return;
+    const error: any = new Error(
+      info.driveType === 'personal'
+        ? 'Für Elternfotos ist ein schulisches Microsoft-365-/OneDrive-for-Business-Konto erforderlich.'
+        : 'Dieses OneDrive konnte nicht als schulisches/geschäftliches Laufwerk bestätigt werden.',
+    );
+    error.status = 403;
+    throw error;
+  };
+
   const ensureKlassioPhotoRoot = async (token: string): Promise<any> => {
+    await assertSchoolPhotoDrive(token);
     const rootPath = encodeURIComponent(KLASSIO_PHOTO_ROOT_FOLDER);
     const existing = await graphOptional(
       `https://graph.microsoft.com/v1.0/me/drive/root:/${rootPath}`,
@@ -4069,6 +4100,20 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     );
   };
 
+  const assertKlassioAlbumFolder = async (token: string, folderId: string): Promise<any> => {
+    const root = await ensureKlassioPhotoRoot(token);
+    const folder = await graphJson(
+      `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(folderId)}?$select=id,name,folder,parentReference`,
+      token,
+    );
+    if (!folder?.id || !folder?.folder || folder?.parentReference?.id !== root.id) {
+      const error: any = new Error('Der angegebene OneDrive-Ordner gehört nicht zum KLASSIO-Elternfotosbereich.');
+      error.status = 403;
+      throw error;
+    }
+    return folder;
+  };
+
   const ensureKlassioAlbumFolder = async (
     token: string,
     albumId: string,
@@ -4076,11 +4121,7 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
   ): Promise<any> => {
     if (existingFolderId) {
       try {
-        const existing = await graphJson(
-          `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(existingFolderId)}`,
-          token,
-        );
-        if (existing?.id && existing?.folder) return existing;
+        return await assertKlassioAlbumFolder(token, existingFolderId);
       } catch (error: any) {
         if (error?.status !== 404) throw error;
       }
@@ -4127,16 +4168,7 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     if (!token) return res.status(401).json({ error: 'OneDrive-Autorisierung fehlt.' });
 
     try {
-      const drive = await graphJson(
-        'https://graph.microsoft.com/v1.0/me/drive?$select=id,driveType,webUrl',
-        token,
-      );
-      const driveType = typeof drive?.driveType === 'string' ? drive.driveType : 'unknown';
-      res.json({
-        driveType,
-        eligibleForSchoolPhotos: driveType === 'business' || driveType === 'documentLibrary',
-        webUrl: typeof drive?.webUrl === 'string' ? drive.webUrl : undefined,
-      });
+      res.json(await getSchoolPhotoDriveInfo(token));
     } catch (error: any) {
       console.error('[Elternfotos] OneDrive drive-type check failed:', error?.status || 'unknown');
       res.status(error?.status >= 400 && error?.status < 600 ? error.status : 502).json({
@@ -4223,6 +4255,7 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     const expirationDateTime = new Date(Math.min(requestedExpiry.getTime(), maxExpiry)).toISOString();
 
     try {
+      await assertKlassioAlbumFolder(token, folderId);
       const permission = await graphJson(
         `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(folderId)}/createLink`,
         token,
@@ -4236,14 +4269,34 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
           }),
         },
       );
-      const shareUrl = permission?.link?.webUrl;
-      if (!shareUrl) throw new Error('Microsoft hat keinen Freigabelink zurückgegeben.');
+      const validation = validatePhotoSharePermission(
+        permission,
+        expirationDateTime,
+        Date.now(),
+      );
+      if (!validation.ok) {
+        const permissionId = typeof permission?.id === 'string' ? permission.id.trim() : '';
+        if (permissionId) {
+          try {
+            await graphJson(
+              `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(folderId)}/permissions/${encodeURIComponent(permissionId)}`,
+              token,
+              { method: 'DELETE' },
+            );
+          } catch (cleanupError: any) {
+            console.warn('[Elternfotos] Unsafe OneDrive share cleanup failed:', cleanupError?.status || 'unknown');
+          }
+        }
+        const error: any = new Error(validation.reason);
+        error.status = 409;
+        throw error;
+      }
 
       res.json({
         success: true,
-        shareUrl,
-        permissionId: permission.id,
-        expirationDateTime: permission.expirationDateTime || expirationDateTime,
+        shareUrl: validation.shareUrl,
+        permissionId: validation.permissionId,
+        expirationDateTime: validation.expirationDateTime,
       });
     } catch (error: any) {
       console.error('[Elternfotos] OneDrive share link failed:', error?.status || 'unknown');
@@ -4261,9 +4314,22 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     if (!token) return res.status(401).json({ error: 'OneDrive-Autorisierung fehlt.' });
 
     const itemId = typeof req.body?.itemId === 'string' ? req.body.itemId.trim() : '';
+    const folderId = typeof req.body?.folderId === 'string' ? req.body.folderId.trim() : '';
     if (!itemId) return res.status(400).json({ error: 'OneDrive-Datei fehlt.' });
+    if (!folderId) return res.status(400).json({ error: 'OneDrive-Albumordner fehlt.' });
 
     try {
+      await assertKlassioAlbumFolder(token, folderId);
+      const item = await graphJson(
+        `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(itemId)}?$select=id,file,parentReference`,
+        token,
+      );
+      if (!item?.file || item?.parentReference?.id !== folderId) {
+        const error: any = new Error('Die angegebene Datei gehört nicht zum ausgewählten KLASSIO-Elternalbum.');
+        error.status = 403;
+        throw error;
+      }
+
       const response = await fetch(
         `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(itemId)}`,
         {
@@ -4300,6 +4366,7 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     }
 
     try {
+      await assertKlassioAlbumFolder(token, folderId);
       if (!permissionId && shareUrl) {
         const permissions = await graphJson(
           `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(folderId)}/permissions`,
