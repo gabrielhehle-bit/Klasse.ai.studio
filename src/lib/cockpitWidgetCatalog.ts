@@ -629,6 +629,7 @@ const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
   "piano",
   "bodyparts",
   "compass",
+  "weekdays",
 ]);
 
 const COCKPIT_WIDGET_LIBRARY_BY_TYPE = new Map<string, CockpitWidgetLibraryItem>(

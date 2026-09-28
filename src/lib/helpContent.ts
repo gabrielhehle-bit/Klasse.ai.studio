@@ -760,6 +760,7 @@ const widgetSpecificSteps: Record<string, string[]> = {
   timeline: ['Öffne „Tages-Zeitstrahl“.', 'Prüfe den Ablauf der Unterrichtsphasen und verfügbare Zeitangaben.', 'Zeige den Zeitstrahl während des Tages für die Klasse an.'],
   sounds: ['Öffne „Musik & Klänge“.', 'Wähle einen angebotenen Klang und passe die Lautstärke an.', 'Stoppe die Wiedergabe nach dem Einsatz.'],
   compass: ['Öffne im Lehrercockpit „Widget hinzufügen“ → „Geographie-Kompass“.', 'Wähle „Erkunden“, um eine Richtung anzutippen und die Erklärung dazu zu lesen, oder „Üben“, um eine vorgegebene Himmelsrichtung einzustellen und anschließend zu prüfen.', 'Über das Zahnrad stellst du ein, ob nur die vier Haupthimmelsrichtungen oder alle acht Richtungen verwendet werden und ob Gradangaben sichtbar sind.', 'Die Sonnenhinweise sind bewusst nur eine ungefähre Orientierung für Österreich, weil Auf- und Untergang je nach Jahreszeit nicht exakt im Osten beziehungsweise Westen liegen.'],
+  weekdays: ['Öffne im Lehrercockpit „Widget hinzufügen“ → „Wochentage-Trainer“.', 'Wähle „Wochentage“ für den Morgenkreis mit Gestern, Heute und Morgen oder „Monate“, um die Reihenfolge im Jahreskreis zu üben.', 'Im Modus „Erkunden“ kannst du jeden Tag oder Monat antippen; mit „Zurück zu heute“ springst du wieder zum echten aktuellen Kalendertag beziehungsweise Monat.', 'Im Modus „Üben“ beantwortet die Klasse Vorher-/Nachher-Fragen und prüft die Auswahl. Über das Zahnrad kannst du das angezeigte aktuelle Datum ein- oder ausblenden.'],
 
 };
 
