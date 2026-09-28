@@ -12,7 +12,9 @@ import {
   Images,
   Link2,
   Loader2,
+  Pencil,
   Plus,
+  Save,
   ShieldAlert,
   ShieldCheck,
   Trash2,
@@ -23,7 +25,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import type { PhotoAlbum, PhotoAlbumFile, Student } from '../types';
-import { evaluatePhotoAlbumSharing, photoPermissionLabel } from '../lib/photoAlbumPolicy';
+import { evaluatePhotoAlbumSharing, isPhotoAlbumShareExpired, photoPermissionLabel } from '../lib/photoAlbumPolicy';
 import {
   connectOneDrive,
   getValidOneDriveToken,
@@ -45,8 +47,9 @@ function formatDate(value?: string): string {
   return date.toLocaleDateString('de-AT');
 }
 
-function albumStatus(album: PhotoAlbum): 'shared' | 'draft' {
-  return album.shareUrl ? 'shared' : 'draft';
+function albumStatus(album: PhotoAlbum): 'shared' | 'expired' | 'draft' {
+  if (!album.shareUrl) return 'draft';
+  return isPhotoAlbumShareExpired(album.shareExpiresAt) ? 'expired' : 'shared';
 }
 
 function uniqueFiles(files: PhotoAlbumFile[]): PhotoAlbumFile[] {
