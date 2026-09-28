@@ -340,6 +340,12 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                         desc: "Bundesländer & Hauptstädte raten",
                                         category: "sachunterricht",
                                       },
+                                      {
+                                        type: "flagquiz",
+                                        label: "🌍 Flaggenquiz",
+                                        desc: "Länderflaggen nach Kontinent & Schwierigkeit",
+                                        category: "sachunterricht",
+                                      },
 
                                       {
                                         type: "instruction",
@@ -630,6 +636,7 @@ const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
   "bodyparts",
   "compass",
   "weekdays",
+  "flagquiz",
 ]);
 
 const COCKPIT_WIDGET_LIBRARY_BY_TYPE = new Map<string, CockpitWidgetLibraryItem>(
