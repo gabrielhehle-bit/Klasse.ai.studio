@@ -66,6 +66,17 @@ import {
   type BodypartsQuizRound,
   type BodypartsWidgetSettings,
 } from '../../lib/bodypartsWidgetModel';
+import {
+  createCompassPracticeRound,
+  getCompassDirection,
+  getCompassDirections,
+  normalizeCompassWidgetSettings,
+  stepCompassAngle,
+  type CompassDirectionSet,
+  type CompassMode,
+  type CompassPracticeRound,
+  type CompassWidgetSettings,
+} from '../../lib/compassWidgetModel';
 import { ClassPetCanvas, ClassPetCanvasRef } from '../ClassPetCanvas';
 import { PET_BREEDS } from '../ClassPetWidget';
 import { WheelWidget, WheelWidgetProps } from './widgets/WheelWidget';
@@ -9225,438 +9236,393 @@ export const ChallengeWidgetContent: React.FC<{ widget: any, currentIsLight: boo
 };
 
 // ==========================================
-// NEW WIDGET 23: GEOGRAPHIE-KOMPASS (Visual Compass)
+// NEW WIDGET 23: GEOGRAPHIE-KOMPASS
 // ==========================================
-interface CompassQuestion {
-  question: string;
-  targetAngle: number;
-  explanation: string;
-}
+export const CompassWidgetContent: React.FC<{
+  widget: any;
+  currentIsLight: boolean;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
+}> = ({
+  widget,
+  currentIsLight,
+  onUpdate,
+  showSettings = false,
+  onCloseSettings,
+}) => {
+  const settings = useMemo(
+    () => normalizeCompassWidgetSettings(widget?.settings),
+    [widget?.settings],
+  );
+  const directions = useMemo(
+    () => getCompassDirections(settings.directionSet),
+    [settings.directionSet],
+  );
+  const [angle, setAngle] = useState<number>(0);
+  const [practiceRound, setPracticeRound] = useState<CompassPracticeRound | null>(
+    () => createCompassPracticeRound(getCompassDirections(settings.directionSet)),
+  );
+  const [answerState, setAnswerState] = useState<'idle' | 'wrong' | 'correct'>('idle');
+  const [feedback, setFeedback] = useState('');
+  const onUpdateRef = useRef(onUpdate);
+  onUpdateRef.current = onUpdate;
 
-export const CompassWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [angle, setAngle] = useState(0);
-  const [gameMode, setGameMode] = useState<'free' | 'quiz'>('free');
-  const [quizScore, setQuizScore] = useState<number>(0);
-  const [quizStreak, setQuizStreak] = useState<number>(0);
-  const [activeQuizIdx, setActiveQuizIdx] = useState<number>(0);
-  const [feedback, setFeedback] = useState<string>("Richte die Windrose aus!");
-  const [quizSolved, setQuizSolved] = useState<boolean>(false);
-  const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
+  const currentDirection = getCompassDirection(angle);
 
-  const directions: Record<number, { name: string, desc: string, label: string, emoji: string }> = {
-    0: { name: "Norden (N) ❄️", desc: "Hier liegt der eisige Nordpol, wo Eisbären wohnen. Deine Kompassnadel zeigt standardmäßig immer nach Norden!", label: "N", emoji: "❄️" },
-    45: { name: "Nord-Osten (NO) 🏔️", desc: "Die Himmelsrichtung genau zwischen Norden und Osten. Perfekt für Bergsteiger!", label: "NO", emoji: "🏔️" },
-    90: { name: "Osten (O) ☀️", desc: "Im Osten geht morgens die goldene Sonne auf! Merkspruch: 'Im Osten geht die Sonne auf...'", label: "O", emoji: "☀️" },
-    135: { name: "Süd-Osten (SO) 🌲", desc: "Die Richtung zwischen dem sonnigen Osten und dem warmen Süden. Hier liegen dichte Wälder.", label: "SO", emoji: "🌲" },
-    180: { name: "Süden (S) 🔥", desc: "Hier am Äquator ist es herrlich heiß! Zugvögel fliegen im Winter hierhin, um Urlaub zu machen.", label: "S", emoji: "🔥" },
-    225: { name: "Süd-Westen (SW) 🌊", desc: "Die Himmelsrichtung zwischen dem warmen Süden und dem feuchten Westen, oft sehr windig!", label: "SW", emoji: "🌊" },
-    270: { name: "Westen (W) 🌅", desc: "Hier geht abends die Sonne schlafen und sinkt ins Meer. Merkspruch: '...im Westen geht sie unter.'", label: "W", emoji: "🌅" },
-    315: { name: "Nord-Westen (NW) 🌬️", desc: "Die windige Richtung zwischen dem kühlen Westen und den Polarkreisen im Norden.", label: "NW", emoji: "🌬️" }
-  };
+  const persistSettings = useCallback((patch: Partial<CompassWidgetSettings>) => {
+    if (!onUpdateRef.current) return;
+    onUpdateRef.current({ settings: patch });
+  }, []);
 
-  const quizDatabase: CompassQuestion[] = useMemo(() => [
-    {
-      question: "In welcher Himmelsrichtung geht morgens die goldene Sonne auf?",
-      targetAngle: 90,
-      explanation: "Morgens geht die Sonne im Osten (O) auf. Merkspruch: 'Im Osten geht die Sonne auf...'"
-    },
-    {
-      question: "Wo geht die Sonne am Abend unter, wenn es dunkel wird?",
-      targetAngle: 270,
-      explanation: "Im Westen (W) schläft die Sonne ein. Merkspruch: '...im Westen geht sie unter.'"
-    },
-    {
-      question: "In welcher Himmelsrichtung liegt der eisige Nordpol, wo Eisbären leben?",
-      targetAngle: 0,
-      explanation: "Der Nordpol liegt genau im Norden (N) ganz oben auf der Weltkugel."
-    },
-    {
-      question: "Wo ist es am Äquator am wärmsten? Wohin fliegen Zugvögel im kalten Winter?",
-      targetAngle: 180,
-      explanation: "Im Süden (S) ist es schön warm. Zugvögel verbringen dort ihren Winterurlaub."
-    },
-    {
-      question: "Welche Richtung liegt genau in der Mitte zwischen Norden und Osten?",
-      targetAngle: 45,
-      explanation: "Nord-Osten (NO) ist die Nebenhimmelsrichtung zwischen Norden und Osten."
-    },
-    {
-      question: "Welche Richtung liegt genau in der Mitte zwischen Süden und Westen?",
-      targetAngle: 225,
-      explanation: "Süd-Westen (SW) liegt genau zwischen dem heißen Süden und dem feuchten Westen."
-    },
-    {
-      question: "Aus welcher Richtung weht ein starker 'Westwind' über das Land?",
-      targetAngle: 270,
-      explanation: "Winde werden nach der Richtung benannt, aus der sie wehen. Ein Westwind kommt aus dem Westen (W)."
-    }
-  ], []);
-
-  const triggerCompassSound = (targetAngle: number, isVerification: boolean = false, isSuccess: boolean = false) => {
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      if (isVerification) {
-        if (isSuccess) {
-          // Ascending happy arpeggio
-          osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
-          osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.08); // E5
-          osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.16); // G5
-          osc.frequency.setValueAtTime(1046.50, ctx.currentTime + 0.24); // C6
-          gain.gain.setValueAtTime(0.06, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.5);
-        } else {
-          // Low supportive buzz
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(220, ctx.currentTime);
-          gain.gain.setValueAtTime(0.1, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.35);
-        }
-      } else {
-        // Rotational click sound: pitch varies by direction!
-        // Norden is high pitch, Süden is low pitch
-        const baseFreq = 300 + (360 - targetAngle) * 1.5; // ranges from 300Hz to 840Hz
-        osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
-        osc.frequency.setValueAtTime(baseFreq * 1.5, ctx.currentTime + 0.03);
-        gain.gain.setValueAtTime(0.05, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.15);
-      }
-    } catch {}
-  };
-
-  const handleSetAngle = (newAngle: number) => {
-    const formatted = (newAngle + 360) % 360;
-    setAngle(formatted);
-    triggerCompassSound(formatted);
-    if (gameMode === 'quiz' && quizSolved) {
-      setQuizSolved(false);
-      setFeedback("Prüfe deine neue Einstellung!");
-    }
-  };
-
-  const handleRotate = (offset: number) => {
-    handleSetAngle(angle + offset);
-  };
-
-  const currentDir = directions[angle] || { name: "Himmelsrichtung", desc: "Nutze die Knöpfe unten oder tippe die Himmelsbuchstaben an!", label: "?", emoji: "🧭" };
-
-  const handleCheckQuiz = () => {
-    const currentQuestion = quizDatabase[activeQuizIdx];
-    if (angle === currentQuestion.targetAngle) {
-      setQuizSolved(true);
-      setQuizScore(s => s + 15);
-      setQuizStreak(st => st + 1);
-      setFeedback(`🏆 Richtig! ${currentQuestion.explanation}`);
-      triggerCompassSound(angle, true, true);
-    } else {
-      setQuizSolved(false);
-      setQuizStreak(0);
-      setFeedback(`❌ Schade! Der Kompass zeigt auf ${currentDir.name}. Dreh die rote Nadel weiter!`);
-      triggerCompassSound(angle, true, false);
-    }
-  };
-
-  const loadNextQuizQuestion = () => {
-    setActiveQuizIdx(prev => {
-      let next = Math.floor(Math.random() * quizDatabase.length);
-      while (next === prev && quizDatabase.length > 1) {
-        next = Math.floor(Math.random() * quizDatabase.length);
-      }
-      return next;
-    });
-    setQuizSolved(false);
-    setFeedback("Drehe die Kompassnadel und klicke auf Prüfen!");
-  };
-
-  const handleReadAloud = () => {
-    if (!window.speechSynthesis) return;
-    if (isSpeaking) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-      return;
-    }
-    const textToSpeak = gameMode === 'free'
-      ? `${currentDir.name}. ${currentDir.desc}`
-      : quizSolved 
-        ? feedback 
-        : quizDatabase[activeQuizIdx].question;
-
-    const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    utterance.lang = 'de-DE';
-    utterance.rate = 1.0;
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-
-    setIsSpeaking(true);
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
-  };
+  const resetPractice = useCallback((previousAngle?: number) => {
+    setPracticeRound(createCompassPracticeRound(directions, Math.random, previousAngle));
+    setAnswerState('idle');
+    setFeedback('');
+  }, [directions]);
 
   useEffect(() => {
-    if (gameMode === 'quiz') {
-      loadNextQuizQuestion();
-    } else {
-      setFeedback("Drehe die Windrose nach Belieben aus!");
+    if (!directions.some(direction => direction.angle === angle)) {
+      setAngle(directions[0]?.angle ?? 0);
     }
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
+    resetPractice();
+  }, [settings.directionSet, directions, angle, resetPractice]);
+
+  useEffect(() => {
+    setAnswerState('idle');
+    setFeedback('');
+    if (settings.mode === 'practice') {
+      resetPractice(practiceRound?.target.angle);
     }
-    setIsSpeaking(false);
-    return () => {
-      if (window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
-    };
-  }, [gameMode]);
+  }, [settings.mode]);
+
+  const changeMode = (mode: CompassMode) => {
+    persistSettings({ mode });
+  };
+
+  const changeDirectionSet = (directionSet: CompassDirectionSet) => {
+    persistSettings({ directionSet });
+  };
+
+  const selectDirection = (nextAngle: number) => {
+    if (settings.mode === 'practice' && answerState === 'correct') return;
+    setAngle(nextAngle);
+    if (answerState === 'wrong') {
+      setAnswerState('idle');
+      setFeedback('');
+    }
+  };
+
+  const rotate = (step: -1 | 1) => {
+    selectDirection(stepCompassAngle(angle, step, settings.directionSet));
+  };
+
+  const checkPractice = () => {
+    if (!practiceRound) return;
+    if (angle === practiceRound.target.angle) {
+      setAnswerState('correct');
+      setFeedback(`Richtig – ${practiceRound.target.name} ist ${practiceRound.target.label}.`);
+      return;
+    }
+    setAnswerState('wrong');
+    setFeedback(`Noch nicht. Du hast ${currentDirection.name} gewählt. Versuch es noch einmal.`);
+  };
+
+  const nextPractice = () => {
+    resetPractice(practiceRound?.target.angle);
+  };
+
+  const settingButtonClass = (active: boolean) => `min-h-11 rounded-xl border px-3 py-2 text-left text-xs font-bold transition-colors ${
+    active
+      ? 'border-accent bg-accent-soft text-accent'
+      : currentIsLight
+        ? 'border-slate-200 bg-white text-slate-700 hover:border-accent hover:bg-accent-soft'
+        : 'border-white/10 bg-white/5 text-slate-200 hover:border-accent hover:bg-white/10'
+  }`;
+
+  const directionButtonClass = (selected: boolean) => `min-h-11 rounded-xl border px-2 py-2 text-center text-xs font-black transition-colors ${
+    selected
+      ? 'border-accent bg-accent text-accent-text'
+      : currentIsLight
+        ? 'border-slate-200 bg-white text-slate-700 hover:border-accent hover:bg-accent-soft'
+        : 'border-white/10 bg-white/5 text-slate-100 hover:border-accent hover:bg-white/10'
+  }`;
 
   return (
-    <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-y-auto overflow-x-hidden">
-      {/* Header */}
-      <div className="shrink-0 flex flex-col gap-1 pb-1 border-b border-slate-100 dark:border-zinc-800">
-        <div className="flex justify-between items-center">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'} flex items-center gap-1`}>
-            🧭 Geographie-Kompass
-          </span>
-          <div className="flex items-center gap-1.5">
-            {gameMode === 'quiz' ? (
-              <>
-                {quizStreak > 1 && (
-                  <span className="text-[7px] font-black uppercase tracking-wider bg-amber-500 text-white px-1.5 py-0.5 rounded shadow-xs animate-bounce">
-                    {quizStreak}er Serie! 🔥
-                  </span>
-                )}
-                <span className="text-[8.5px] font-black uppercase tracking-wider bg-indigo-600 text-white px-2 py-0.5 rounded shadow-xs">
-                  Punkte: {quizScore} ⭐
-                </span>
-              </>
-            ) : (
-              <span className="text-[7.5px] font-black bg-indigo-100 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded">
-                Freies Erkunden
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Mode Selector */}
-        <div className="flex justify-between items-center mt-1">
-          <div className="flex bg-slate-100 dark:bg-zinc-850 p-0.5 rounded-lg border dark:border-zinc-700">
-            <button
-              onClick={() => setGameMode('free')}
-              className={`px-2 py-0.5 rounded text-[6.5px] font-black uppercase cursor-pointer transition-all ${
-                gameMode === 'free' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Frei drehen 🧭
-            </button>
-            <button
-              onClick={() => setGameMode('quiz')}
-              className={`px-2 py-0.5 rounded text-[6.5px] font-black uppercase cursor-pointer transition-all ${
-                gameMode === 'quiz' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Windrose-Spiel 🎮
-            </button>
-          </div>
-          <span className="text-[9px] font-mono font-black text-indigo-500">{angle}°</span>
-        </div>
-      </div>
-
-      {/* Main interactive Compass Instrument */}
-      <div className="flex-grow flex flex-col justify-center items-center py-2.5 min-h-0">
-        
-        {/* Interactive clickable Compass Ring */}
-        <div className="relative w-30 h-30 rounded-full border-4 border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-lg flex items-center justify-center select-none">
-          
-          {/* Compass layout background letters (Direct click changes angle!) */}
-          <button 
-            onClick={() => handleSetAngle(0)} 
-            className={`absolute top-1 text-[12px] font-black cursor-pointer hover:scale-125 transition-all z-20 ${angle === 0 ? 'text-red-500 scale-125' : 'text-slate-700 dark:text-slate-300'}`}
-          >
-            N
-          </button>
-          <button 
-            onClick={() => handleSetAngle(90)} 
-            className={`absolute right-2 text-[11px] font-black cursor-pointer hover:scale-125 transition-all z-20 ${angle === 90 ? 'text-amber-500 scale-125' : 'text-slate-700 dark:text-slate-300'}`}
-          >
-            O
-          </button>
-          <button 
-            onClick={() => handleSetAngle(180)} 
-            className={`absolute bottom-1 text-[11px] font-black cursor-pointer hover:scale-125 transition-all z-20 ${angle === 180 ? 'text-indigo-600 scale-125' : 'text-slate-700 dark:text-slate-300'}`}
-          >
-            S
-          </button>
-          <button 
-            onClick={() => handleSetAngle(270)} 
-            className={`absolute left-2 text-[11px] font-black cursor-pointer hover:scale-125 transition-all z-20 ${angle === 270 ? 'text-emerald-500 scale-125' : 'text-slate-700 dark:text-slate-300'}`}
-          >
-            W
-          </button>
-
-          {/* Subcardinal direction click points */}
-          <button 
-            onClick={() => handleSetAngle(45)} 
-            className={`absolute top-6 right-6 text-[7.5px] font-black cursor-pointer hover:scale-115 transition-all z-20 ${angle === 45 ? 'text-indigo-500 scale-115' : 'text-slate-400'}`}
-          >
-            NO
-          </button>
-          <button 
-            onClick={() => handleSetAngle(135)} 
-            className={`absolute bottom-6 right-6 text-[7.5px] font-black cursor-pointer hover:scale-115 transition-all z-20 ${angle === 135 ? 'text-indigo-500 scale-115' : 'text-slate-400'}`}
-          >
-            SO
-          </button>
-          <button 
-            onClick={() => handleSetAngle(225)} 
-            className={`absolute bottom-6 left-6 text-[7.5px] font-black cursor-pointer hover:scale-115 transition-all z-20 ${angle === 225 ? 'text-indigo-500 scale-115' : 'text-slate-400'}`}
-          >
-            SW
-          </button>
-          <button 
-            onClick={() => handleSetAngle(315)} 
-            className={`absolute top-6 left-6 text-[7.5px] font-black cursor-pointer hover:scale-115 transition-all z-20 ${angle === 315 ? 'text-indigo-500 scale-115' : 'text-slate-400'}`}
-          >
-            NW
-          </button>
-
-          {/* Outer dial ticks */}
-          <div className="absolute inset-2.5 rounded-full border border-dashed border-slate-300 dark:border-zinc-700/60 pointer-events-none" />
-
-          {/* Micro-landmark decorations inside the dial */}
-          <div className="absolute top-10 pointer-events-none opacity-40 text-[9px] select-none">❄️</div>
-          <div className="absolute right-10 pointer-events-none opacity-40 text-[9px] select-none">🌅</div>
-          <div className="absolute bottom-10 pointer-events-none opacity-40 text-[9px] select-none">🔥</div>
-          <div className="absolute left-10 pointer-events-none opacity-40 text-[9px] select-none">🌌</div>
-
-          {/* Rotating Needle SVG */}
-          <svg 
-            style={{ transform: `rotate(${angle}deg)` }}
-            className="w-24 h-24 transition-transform duration-500 ease-out z-10 filter drop-shadow-md cursor-pointer pointer-events-none" 
-            viewBox="0 0 100 100"
-          >
-            {/* North needle (red pointer) */}
-            <polygon points="50,8 42,50 50,45" fill="#ef4444" />
-            <polygon points="50,8 58,50 50,45" fill="#f87171" />
-            
-            {/* South needle (blue pointer) */}
-            <polygon points="50,92 42,50 50,55" fill="#2563eb" />
-            <polygon points="50,92 58,50 50,55" fill="#60a5fa" />
-            
-            {/* Compass core pivot pin */}
-            <circle cx="50" cy="50" r="6.5" fill="#1e293b" className="stroke-white stroke-2" />
-            <circle cx="50" cy="50" r="2.5" fill="#ef4444" />
-          </svg>
-        </div>
-      </div>
-
-      {/* Info Display & Controls */}
-      <div className="shrink-0 space-y-2.5">
-        
-        {/* Quiz or Free Explanations Board */}
-        <div className={`p-3 rounded-2xl border relative ${
-          quizSolved 
-            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-800 dark:text-emerald-300' 
-            : currentIsLight ? 'bg-slate-50 border-slate-100 text-slate-800' : 'bg-zinc-850/50 border-zinc-750 text-slate-100'
+    <div
+      role="region"
+      aria-label="Geographie-Kompass"
+      className={`relative flex h-full min-h-0 w-full flex-col overflow-hidden p-3 select-none ${
+        currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-slate-100'
+      }`}
+    >
+      {showSettings && (
+        <div className={`absolute inset-0 z-30 flex min-h-0 flex-col overflow-y-auto p-4 ${
+          currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-slate-100'
         }`}>
-          <div className="text-left">
-            {gameMode === 'free' ? (
-              <div>
-                <h4 className="text-[9.5px] font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-wider flex items-center gap-1">
-                  <span>{currentDir.emoji}</span>
-                  <span>{currentDir.name} ({angle}°)</span>
-                </h4>
-                <p className="text-[8px] font-bold leading-relaxed mt-1 text-slate-600 dark:text-zinc-300">
-                  {currentDir.desc}
-                </p>
-              </div>
-            ) : (
-              <div>
-                <span className="text-[7.5px] font-black uppercase text-indigo-600 dark:text-indigo-400 block tracking-wider mb-0.5">
-                  Rätsel-Mission {activeQuizIdx + 1}:
-                </span>
-                <p className="text-[9.5px] font-extrabold leading-snug text-slate-800 dark:text-zinc-100">
-                  {quizSolved ? feedback : quizDatabase[activeQuizIdx].question}
-                </p>
-              </div>
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 pb-3 dark:border-white/10">
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider text-accent">Geographie-Kompass-Einstellungen</p>
+              <p className="mt-1 text-xs leading-relaxed opacity-65">
+                Lege fest, welche Himmelsrichtungen und Hilfen auf der Tafel sichtbar sind.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onCloseSettings}
+              className="min-h-11 shrink-0 rounded-xl border border-slate-200 px-3 text-xs font-black hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5"
+            >
+              Fertig
+            </button>
+          </div>
+
+          <section className="mt-4 shrink-0">
+            <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider opacity-55">Himmelsrichtungen</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                aria-pressed={settings.directionSet === 'cardinal'}
+                onClick={() => changeDirectionSet('cardinal')}
+                className={settingButtonClass(settings.directionSet === 'cardinal')}
+              >
+                4 Haupthimmelsrichtungen
+              </button>
+              <button
+                type="button"
+                aria-pressed={settings.directionSet === 'all'}
+                onClick={() => changeDirectionSet('all')}
+                className={settingButtonClass(settings.directionSet === 'all')}
+              >
+                8 Richtungen
+              </button>
+            </div>
+          </section>
+
+          <section className="mt-4 shrink-0">
+            <button
+              type="button"
+              aria-pressed={settings.showDegrees}
+              onClick={() => persistSettings({ showDegrees: !settings.showDegrees })}
+              className={settingButtonClass(settings.showDegrees)}
+            >
+              Gradangaben {settings.showDegrees ? 'anzeigen' : 'ausblenden'}
+            </button>
+          </section>
+
+          <div className={`mt-4 rounded-2xl border p-3 text-xs leading-relaxed ${
+            currentIsLight ? 'border-slate-200 bg-slate-50 text-slate-600' : 'border-white/10 bg-white/5 text-slate-300'
+          }`}>
+            Hinweis: Sonnenaufgang und Sonnenuntergang liegen je nach Jahreszeit nicht exakt im Osten beziehungsweise Westen. Die Hinweise im Widget sind bewusst als ungefähre Orientierung formuliert.
+          </div>
+        </div>
+      )}
+
+      <div className="grid shrink-0 grid-cols-2 gap-2" role="group" aria-label="Lernmodus">
+        <button
+          type="button"
+          aria-pressed={settings.mode === 'explore'}
+          onClick={() => changeMode('explore')}
+          className={`min-h-11 rounded-xl border px-3 text-xs font-black transition-colors ${
+            settings.mode === 'explore'
+              ? 'border-accent bg-accent text-accent-text'
+              : currentIsLight
+                ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                : 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10'
+          }`}
+        >
+          Erkunden
+        </button>
+        <button
+          type="button"
+          aria-pressed={settings.mode === 'practice'}
+          onClick={() => changeMode('practice')}
+          className={`min-h-11 rounded-xl border px-3 text-xs font-black transition-colors ${
+            settings.mode === 'practice'
+              ? 'border-accent bg-accent text-accent-text'
+              : currentIsLight
+                ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                : 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10'
+          }`}
+        >
+          Üben
+        </button>
+      </div>
+
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(145px,0.85fr)_minmax(0,1fr)] items-center gap-3 py-3">
+        <div className="flex min-h-0 items-center justify-center">
+          <div className={`relative aspect-square w-full max-w-52 rounded-full border-4 shadow-sm ${
+            currentIsLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-zinc-800'
+          }`}>
+            <div className="absolute inset-[10%] rounded-full border border-dashed border-slate-300/80 dark:border-white/15" />
+
+            <span className={`absolute left-1/2 top-2 -translate-x-1/2 text-sm font-black ${
+              angle === 0 ? 'text-red-500' : 'opacity-70'
+            }`}>N</span>
+            <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-sm font-black ${
+              angle === 90 ? 'text-accent' : 'opacity-70'
+            }`}>O</span>
+            <span className={`absolute bottom-2 left-1/2 -translate-x-1/2 text-sm font-black ${
+              angle === 180 ? 'text-accent' : 'opacity-70'
+            }`}>S</span>
+            <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm font-black ${
+              angle === 270 ? 'text-accent' : 'opacity-70'
+            }`}>W</span>
+
+            {settings.directionSet === 'all' && (
+              <>
+                <span className={`absolute right-[16%] top-[15%] text-[10px] font-black ${
+                  angle === 45 ? 'text-accent' : 'opacity-50'
+                }`}>NO</span>
+                <span className={`absolute bottom-[15%] right-[16%] text-[10px] font-black ${
+                  angle === 135 ? 'text-accent' : 'opacity-50'
+                }`}>SO</span>
+                <span className={`absolute bottom-[15%] left-[16%] text-[10px] font-black ${
+                  angle === 225 ? 'text-accent' : 'opacity-50'
+                }`}>SW</span>
+                <span className={`absolute left-[16%] top-[15%] text-[10px] font-black ${
+                  angle === 315 ? 'text-accent' : 'opacity-50'
+                }`}>NW</span>
+              </>
             )}
+
+            <svg
+              viewBox="0 0 100 100"
+              className="absolute inset-[15%] h-[70%] w-[70%] drop-shadow-sm transition-transform duration-300 ease-out"
+              style={{ transform: `rotate(${angle}deg)` }}
+              aria-hidden="true"
+            >
+              <polygon points="50,5 41,51 50,45" fill="#ef4444" />
+              <polygon points="50,5 59,51 50,45" fill="#f87171" />
+              <polygon points="50,95 41,49 50,55" fill="currentColor" opacity="0.45" />
+              <polygon points="50,95 59,49 50,55" fill="currentColor" opacity="0.28" />
+              <circle cx="50" cy="50" r="7" fill="currentColor" opacity="0.9" />
+              <circle cx="50" cy="50" r="2.6" fill="#ef4444" />
+            </svg>
+
+            <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 translate-y-8 flex-col items-center">
+              <span className="rounded-full bg-accent-soft px-2 py-1 text-xs font-black text-accent">
+                {currentDirection.label}
+                {settings.showDegrees ? ` · ${currentDirection.angle}°` : ''}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Dial buttons */}
-        <div className="flex gap-1.5 select-none">
-          <motion.button
-            whileTap={{ scale: 0.93 }}
-            onClick={() => handleRotate(-45)}
-            className={`flex-1 py-1.5 rounded-xl text-[8.5px] font-black uppercase border cursor-pointer transition-colors ${
-              currentIsLight 
-                ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100' 
-                : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-750'
-            }`}
-          >
-            ↶ -45°
-          </motion.button>
-
-          {gameMode === 'free' ? (
-            <motion.button
-              whileTap={{ scale: 0.93 }}
-              onClick={() => handleSetAngle(0)}
-              className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-[8.5px] font-black uppercase tracking-wider shadow-sm cursor-pointer"
-            >
-              Norden (N)
-            </motion.button>
-          ) : quizSolved ? (
-            <motion.button
-              whileTap={{ scale: 0.93 }}
-              onClick={loadNextQuizQuestion}
-              className="flex-1 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[8.5px] font-black uppercase tracking-wider shadow-sm cursor-pointer"
-            >
-              Weiter ➔
-            </motion.button>
+        <div className={`flex min-h-0 flex-col justify-center rounded-3xl border p-4 ${
+          currentIsLight ? 'border-slate-200 bg-slate-50/80' : 'border-white/10 bg-white/5'
+        }`}>
+          {settings.mode === 'explore' ? (
+            <>
+              <p className="text-[10px] font-black uppercase tracking-wider opacity-50">Ausgewählte Richtung</p>
+              <h3 className="mt-1 text-lg font-black leading-tight text-accent">
+                {currentDirection.name} ({currentDirection.label})
+              </h3>
+              {settings.showDegrees && (
+                <p className="mt-1 text-xs font-bold tabular-nums opacity-55">{currentDirection.angle}°</p>
+              )}
+              <p className="mt-3 text-sm font-semibold leading-relaxed">
+                {currentDirection.explanation}
+              </p>
+            </>
+          ) : practiceRound ? (
+            <>
+              <p className="text-[10px] font-black uppercase tracking-wider opacity-50">Aufgabe</p>
+              <h3 className="mt-1 text-base font-black leading-snug text-accent">
+                Stelle {practiceRound.target.name} ein.
+              </h3>
+              <p className="mt-2 text-xs font-semibold leading-relaxed opacity-65">
+                Wähle eine Richtung und prüfe anschließend deine Einstellung.
+              </p>
+              <p
+                role="status"
+                aria-live="polite"
+                className={`mt-3 min-h-10 text-sm font-bold leading-relaxed ${
+                  answerState === 'correct'
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : answerState === 'wrong'
+                      ? 'text-rose-600 dark:text-rose-400'
+                      : 'opacity-55'
+                }`}
+              >
+                {feedback || 'Noch nicht geprüft.'}
+              </p>
+              {answerState === 'correct' && (
+                <p className="mt-1 text-xs font-semibold leading-relaxed opacity-65">
+                  {practiceRound.target.explanation}
+                </p>
+              )}
+            </>
           ) : (
-            <motion.button
-              whileTap={{ scale: 0.93 }}
-              onClick={handleCheckQuiz}
-              className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[8.5px] font-black uppercase tracking-wider shadow-md cursor-pointer animate-pulse"
-            >
-              Prüfen! ✅
-            </motion.button>
+            <p className="text-sm font-semibold opacity-60">Keine Übungsaufgabe verfügbar.</p>
           )}
-
-          <motion.button
-            whileTap={{ scale: 0.93 }}
-            onClick={() => handleRotate(45)}
-            className={`flex-1 py-1.5 rounded-xl text-[8.5px] font-black uppercase border cursor-pointer transition-colors ${
-              currentIsLight 
-                ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100' 
-                : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-750'
-            }`}
-          >
-            ↷ +45°
-          </motion.button>
         </div>
+      </div>
 
-        {/* Free text feedback footer */}
-        {gameMode === 'free' && (
-          <p className="text-[7.5px] font-bold text-blue-500 dark:text-blue-400 text-center select-none pt-0.5 leading-relaxed px-1">
-            💡 Merkspruch: „Im Osten geht die Sonne auf, im Süden nimmt sie ihren Lauf, im Westen wird sie untergehn, im Norden ist sie nie zu sehn!“
-          </p>
+      <div className="grid shrink-0 grid-cols-4 gap-1.5" role="group" aria-label="Himmelsrichtung wählen">
+        {directions.map(direction => (
+          <button
+            key={direction.angle}
+            type="button"
+            aria-pressed={angle === direction.angle}
+            onClick={() => selectDirection(direction.angle)}
+            className={directionButtonClass(angle === direction.angle)}
+          >
+            <span className="block text-sm">{direction.label}</span>
+            <span className="mt-0.5 block text-[10px] font-bold opacity-65">{direction.name}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-2 grid shrink-0 grid-cols-[1fr_minmax(120px,1.4fr)_1fr] gap-2">
+        <button
+          type="button"
+          onClick={() => rotate(-1)}
+          className={`min-h-11 rounded-xl border px-3 text-xs font-black ${
+            currentIsLight
+              ? 'border-slate-200 bg-white text-slate-700 hover:border-accent hover:bg-accent-soft'
+              : 'border-white/10 bg-white/5 text-slate-200 hover:border-accent hover:bg-white/10'
+          }`}
+          aria-label="Eine Richtung gegen den Uhrzeigersinn"
+        >
+          ↶ Zurück
+        </button>
+
+        {settings.mode === 'practice' ? (
+          answerState === 'correct' ? (
+            <button
+              type="button"
+              onClick={nextPractice}
+              className="min-h-11 rounded-xl bg-accent px-4 text-xs font-black text-accent-text hover:bg-accent-hover"
+            >
+              Nächste Aufgabe
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={checkPractice}
+              className="min-h-11 rounded-xl bg-accent px-4 text-xs font-black text-accent-text hover:bg-accent-hover"
+            >
+              Prüfen
+            </button>
+          )
+        ) : (
+          <div className="flex min-h-11 items-center justify-center rounded-xl bg-accent-soft px-3 text-center text-xs font-bold text-accent">
+            Gegenrichtungen: N–S · O–W
+          </div>
         )}
+
+        <button
+          type="button"
+          onClick={() => rotate(1)}
+          className={`min-h-11 rounded-xl border px-3 text-xs font-black ${
+            currentIsLight
+              ? 'border-slate-200 bg-white text-slate-700 hover:border-accent hover:bg-accent-soft'
+              : 'border-white/10 bg-white/5 text-slate-200 hover:border-accent hover:bg-white/10'
+          }`}
+          aria-label="Eine Richtung im Uhrzeigersinn"
+        >
+          Weiter ↷
+        </button>
       </div>
     </div>
   );
