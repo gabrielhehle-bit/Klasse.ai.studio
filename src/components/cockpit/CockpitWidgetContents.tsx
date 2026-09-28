@@ -15287,557 +15287,355 @@ interface Melody {
 }
 
 export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+  type Instrument = 'xylophon' | 'glockenspiel' | 'klavier';
+  type Mode = 'freeplay' | 'memory' | 'learn';
+
   const notes = useMemo(() => [
-    { label: 'C', freq: 261.63, color: 'bg-rose-500 shadow-rose-200 shadow-sm border-rose-400' },
-    { label: 'D', freq: 293.66, color: 'bg-orange-500 shadow-orange-200 shadow-sm border-orange-400' },
-    { label: 'E', freq: 329.63, color: 'bg-amber-500 shadow-amber-200 shadow-sm border-amber-400' },
-    { label: 'F', freq: 349.23, color: 'bg-emerald-500 shadow-emerald-200 shadow-sm border-emerald-400' },
-    { label: 'G', freq: 392.00, color: 'bg-blue-500 shadow-blue-200 shadow-sm border-blue-400' },
-    { label: 'A', freq: 440.00, color: 'bg-indigo-500 shadow-indigo-200 shadow-sm border-indigo-400' },
-    { label: 'H', freq: 493.88, color: 'bg-violet-500 shadow-violet-200 shadow-sm border-violet-400' },
-    { label: 'C5', freq: 523.25, color: 'bg-fuchsia-500 shadow-fuchsia-200 shadow-sm border-fuchsia-400' },
+    { label: 'C', freq: 261.63, color: 'bg-rose-500 border-rose-400', key: '1' },
+    { label: 'D', freq: 293.66, color: 'bg-orange-500 border-orange-400', key: '2' },
+    { label: 'E', freq: 329.63, color: 'bg-amber-500 border-amber-400', key: '3' },
+    { label: 'F', freq: 349.23, color: 'bg-emerald-500 border-emerald-400', key: '4' },
+    { label: 'G', freq: 392.0, color: 'bg-blue-500 border-blue-400', key: '5' },
+    { label: 'A', freq: 440.0, color: 'bg-cyan-600 border-cyan-500', key: '6' },
+    { label: 'H', freq: 493.88, color: 'bg-violet-500 border-violet-400', key: '7' },
+    { label: 'C₂', freq: 523.25, color: 'bg-fuchsia-500 border-fuchsia-400', key: '8' },
   ], []);
 
   const melodies: Melody[] = useMemo(() => [
     {
-      name: "Alle meine Entchen 🦆",
-      emoji: "🦆",
+      name: 'Alle meine Entchen',
+      emoji: '🦆',
       notes: [
-        { label: "C", index: 0 }, { label: "D", index: 1 }, { label: "E", index: 2 }, { label: "F", index: 3 }, { label: "G", index: 4 }, { label: "G", index: 4 },
-        { label: "A", index: 5 }, { label: "A", index: 5 }, { label: "A", index: 5 }, { label: "A", index: 5 }, { label: "G", index: 4 },
-        { label: "A", index: 5 }, { label: "A", index: 5 }, { label: "A", index: 5 }, { label: "A", index: 5 }, { label: "G", index: 4 },
-        { label: "F", index: 3 }, { label: "F", index: 3 }, { label: "F", index: 3 }, { label: "F", index: 3 }, { label: "E", index: 2 }, { label: "E", index: 2 },
-        { label: "D", index: 1 }, { label: "D", index: 1 }, { label: "D", index: 1 }, { label: "D", index: 1 }, { label: "C", index: 0 }
-      ]
+        { label: 'C', index: 0 }, { label: 'D', index: 1 }, { label: 'E', index: 2 }, { label: 'F', index: 3 },
+        { label: 'G', index: 4 }, { label: 'G', index: 4 }, { label: 'A', index: 5 }, { label: 'A', index: 5 },
+        { label: 'A', index: 5 }, { label: 'A', index: 5 }, { label: 'G', index: 4 },
+      ],
     },
     {
-      name: "Hänschen klein 👦",
-      emoji: "👦",
+      name: 'Bruder Jakob',
+      emoji: '🔔',
       notes: [
-        { label: "G", index: 4 }, { label: "E", index: 2 }, { label: "E", index: 2 },
-        { label: "F", index: 3 }, { label: "D", index: 1 }, { label: "D", index: 1 },
-        { label: "C", index: 0 }, { label: "D", index: 1 }, { label: "E", index: 2 }, { label: "F", index: 3 }, { label: "G", index: 4 }, { label: "G", index: 4 }, { label: "G", index: 4 },
-        { label: "G", index: 4 }, { label: "E", index: 2 }, { label: "E", index: 2 },
-        { label: "F", index: 3 }, { label: "D", index: 1 }, { label: "D", index: 1 },
-        { label: "C", index: 0 }, { label: "E", index: 2 }, { label: "G", index: 4 }, { label: "G", index: 4 }, { label: "C", index: 0 }
-      ]
+        { label: 'C', index: 0 }, { label: 'D', index: 1 }, { label: 'E', index: 2 }, { label: 'C', index: 0 },
+        { label: 'C', index: 0 }, { label: 'D', index: 1 }, { label: 'E', index: 2 }, { label: 'C', index: 0 },
+        { label: 'E', index: 2 }, { label: 'F', index: 3 }, { label: 'G', index: 4 },
+      ],
     },
     {
-      name: "Kuckuck, Kuckuck 🌲",
-      emoji: "🌲",
+      name: 'Kuckuck',
+      emoji: '🌲',
       notes: [
-        { label: "G", index: 4 }, { label: "E", index: 2 }, { label: "G", index: 4 }, { label: "E", index: 2 },
-        { label: "F", index: 3 }, { label: "D", index: 1 }, { label: "D", index: 1 }, { label: "C", index: 0 }
-      ]
+        { label: 'G', index: 4 }, { label: 'E', index: 2 }, { label: 'G', index: 4 }, { label: 'E', index: 2 },
+        { label: 'F', index: 3 }, { label: 'D', index: 1 }, { label: 'D', index: 1 }, { label: 'C', index: 0 },
+      ],
     },
-    {
-      name: "Bruder Jakob 🔔",
-      emoji: "🔔",
-      notes: [
-        { label: "C", index: 0 }, { label: "D", index: 1 }, { label: "E", index: 2 }, { label: "C", index: 0 },
-        { label: "C", index: 0 }, { label: "D", index: 1 }, { label: "E", index: 2 }, { label: "C", index: 0 },
-        { label: "E", index: 2 }, { label: "F", index: 3 }, { label: "G", index: 4 },
-        { label: "E", index: 2 }, { label: "F", index: 3 }, { label: "G", index: 4 },
-        { label: "G", index: 4 }, { label: "A", index: 5 }, { label: "G", index: 4 }, { label: "F", index: 3 }, { label: "E", index: 2 }, { label: "C", index: 0 },
-        { label: "G", index: 4 }, { label: "A", index: 5 }, { label: "G", index: 4 }, { label: "F", index: 3 }, { label: "E", index: 2 }, { label: "C", index: 0 },
-        { label: "C", index: 0 }, { label: "G", index: 4 }, { label: "C", index: 0 },
-        { label: "C", index: 0 }, { label: "G", index: 4 }, { label: "C", index: 0 }
-      ]
-    },
-    {
-      name: "Freude schöner Götterfunken 🇪🇺",
-      emoji: "🇪🇺",
-      notes: [
-        { label: "E", index: 2 }, { label: "E", index: 2 }, { label: "F", index: 3 }, { label: "G", index: 4 },
-        { label: "G", index: 4 }, { label: "F", index: 3 }, { label: "E", index: 2 }, { label: "D", index: 1 },
-        { label: "C", index: 0 }, { label: "C", index: 0 }, { label: "D", index: 1 }, { label: "E", index: 2 },
-        { label: "E", index: 2 }, { label: "D", index: 1 }, { label: "D", index: 1 }
-      ]
-    }
   ], []);
 
-  const [instrument, setInstrument] = useState<'klavier' | 'xylophon' | 'glockenspiel' | 'vogel'>('xylophon');
-  const [gameState, setGameState] = useState<'freeplay' | 'simonPlay' | 'simonListen' | 'learn'>('freeplay');
-  
-  // Simon states
-  const [challengeSeq, setChallengeSeq] = useState<number[]>([]);
-  const [userSeq, setUserSeq] = useState<number[]>([]);
-  const [challengeLength, setChallengeLength] = useState<number>(4);
-  
-  // Learn Song states
-  const [selectedMelody, setSelectedMelody] = useState<Melody | null>(null);
-  const [melodyStep, setMelodyStep] = useState<number>(0);
-  const [completedLearn, setCompletedLearn] = useState<boolean>(false);
-
+  const [instrument, setInstrument] = useState<Instrument>('xylophon');
+  const [mode, setMode] = useState<Mode>('freeplay');
   const [activeNote, setActiveNote] = useState<number | null>(null);
-  const [feedback, setFeedback] = useState<string>("Tippe auf die Stäbe, um Musik zu machen 🎵");
+  const [feedback, setFeedback] = useState('Spiele frei oder wähle eine Hörübung.');
+  const [memoryLength, setMemoryLength] = useState(4);
+  const [memorySequence, setMemorySequence] = useState<number[]>([]);
+  const [memoryStep, setMemoryStep] = useState(0);
+  const [isPlayingSequence, setIsPlayingSequence] = useState(false);
+  const [selectedMelody, setSelectedMelody] = useState<Melody>(melodies[0]);
+  const [melodyStep, setMelodyStep] = useState(0);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const timersRef = useRef<number[]>([]);
 
-  // Web Audio Instruments synthesisers
-  const playXylophone = (ctx: AudioContext, freq: number, now: number) => {
-    // Wooden strike snap noise transient
-    try {
-      const noiseBufferSize = ctx.sampleRate * 0.012; // 12ms burst
-      const noiseBuffer = ctx.createBuffer(1, noiseBufferSize, ctx.sampleRate);
-      const noiseData = noiseBuffer.getChannelData(0);
-      for (let i = 0; i < noiseBufferSize; i++) {
-        noiseData[i] = Math.random() * 2 - 1;
-      }
-      const noiseSource = ctx.createBufferSource();
-      noiseSource.buffer = noiseBuffer;
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(2200, now);
-      filter.Q.setValueAtTime(4.0, now);
-      const noiseGain = ctx.createGain();
-      noiseGain.gain.setValueAtTime(0.09, now);
-      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.008);
-      noiseSource.connect(filter).connect(noiseGain).connect(ctx.destination);
-      noiseSource.start(now);
-    } catch {}
+  const clearTimers = useCallback(() => {
+    timersRef.current.forEach((timer) => window.clearTimeout(timer));
+    timersRef.current = [];
+    setIsPlayingSequence(false);
+    setActiveNote(null);
+  }, []);
 
-    // Fundamental wooden resonance (Sine)
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(freq, now);
-    gain1.gain.setValueAtTime(0, now);
-    gain1.gain.linearRampToValueAtTime(0.18, now + 0.002);
-    gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
-    osc1.connect(gain1).connect(ctx.destination);
-    osc1.start(now);
-    osc1.stop(now + 0.32);
+  useEffect(() => () => {
+    clearTimers();
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      audioContextRef.current.close().catch(() => {});
+    }
+  }, [clearTimers]);
 
-    // Xylophone secondary overtone (Tuned at exactly 3.0x frequency)
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = 'triangle';
-    osc2.frequency.setValueAtTime(freq * 3.0, now);
-    gain2.gain.setValueAtTime(0, now);
-    gain2.gain.linearRampToValueAtTime(0.06, now + 0.002);
-    gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.07); // Decays extremely fast
-    osc2.connect(gain2).connect(ctx.destination);
-    osc2.start(now);
-    osc2.stop(now + 0.1);
+  const getAudioContext = () => {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return null;
+    if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+      audioContextRef.current = new AudioCtx();
+    }
+    if (audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume().catch(() => {});
+    }
+    return audioContextRef.current;
   };
 
-  const playGlockenspiel = (ctx: AudioContext, freq: number, now: number) => {
-    // High metal click transient
-    const oscClick = ctx.createOscillator();
-    const gainClick = ctx.createGain();
-    oscClick.type = 'triangle';
-    oscClick.frequency.setValueAtTime(freq * 7.5, now);
-    gainClick.gain.setValueAtTime(0.07, now);
-    gainClick.gain.exponentialRampToValueAtTime(0.0001, now + 0.008);
-    oscClick.connect(gainClick).connect(ctx.destination);
-    oscClick.start(now);
-    oscClick.stop(now + 0.015);
+  const playSingleFreq = (freq: number) => {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
 
-    // Fundamental bright chime (Sine)
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(freq, now);
-    gain1.gain.setValueAtTime(0, now);
-    gain1.gain.linearRampToValueAtTime(0.14, now + 0.001);
-    gain1.gain.exponentialRampToValueAtTime(0.0001, now + 1.25); // Very long sustain ring
-    osc1.connect(gain1).connect(ctx.destination);
-    osc1.start(now);
-    osc1.stop(now + 1.35);
-
-    // Metal bell upper overtone at 6.0x
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(freq * 6.0, now);
-    gain2.gain.setValueAtTime(0, now);
-    gain2.gain.linearRampToValueAtTime(0.05, now + 0.001);
-    gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.3); // Shorter decay
-    osc2.connect(gain2).connect(ctx.destination);
-    osc2.start(now);
-    osc2.stop(now + 0.35);
-  };
-
-  const playPianoNoteEx = (ctx: AudioContext, freq: number, now: number) => {
-    const masterGain = ctx.createGain();
-    masterGain.gain.setValueAtTime(0.85, now);
-    masterGain.connect(ctx.destination);
-
-    // Hammer Strike felt noise
-    try {
-      const noiseBufferSize = ctx.sampleRate * 0.035;
-      const noiseBuffer = ctx.createBuffer(1, noiseBufferSize, ctx.sampleRate);
-      const noiseData = noiseBuffer.getChannelData(0);
-      for (let i = 0; i < noiseBufferSize; i++) {
-        noiseData[i] = Math.random() * 2 - 1;
-      }
-      const noiseSource = ctx.createBufferSource();
-      noiseSource.buffer = noiseBuffer;
-      const noiseFilter = ctx.createBiquadFilter();
-      noiseFilter.type = 'bandpass';
-      noiseFilter.frequency.setValueAtTime(Math.min(2200, freq * 3.5), now);
-      noiseFilter.Q.setValueAtTime(3.5, now);
-      const noiseGain = ctx.createGain();
-      noiseGain.gain.setValueAtTime(0.05, now);
-      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.016);
-      noiseSource.connect(noiseFilter).connect(noiseGain).connect(masterGain);
-      noiseSource.start(now);
-    } catch {}
-
-    // Sympathetic wood soundboard hum
-    const resonanceOsc = ctx.createOscillator();
-    const resonanceGain = ctx.createGain();
-    resonanceOsc.type = 'sine';
-    resonanceOsc.frequency.setValueAtTime(freq * 0.5, now);
-    resonanceGain.gain.setValueAtTime(0.025, now);
-    resonanceGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.1);
-    resonanceOsc.connect(resonanceGain).connect(masterGain);
-    resonanceOsc.start(now);
-    resonanceOsc.stop(now + 1.2);
-
-    const harmonics = [
-      { mult: 1.0, gain: 0.14, decay: 1.4, type: 'sine' as const },
-      { mult: 2.001, gain: 0.07, decay: 1.0, type: 'sine' as const },
-      { mult: 3.002, gain: 0.04, decay: 0.7, type: 'triangle' as const },
-      { mult: 4.004, gain: 0.02, decay: 0.45, type: 'sine' as const },
-      { mult: 5.007, gain: 0.01, decay: 0.28, type: 'triangle' as const }
-    ];
-
-    harmonics.forEach(h => {
+    if (instrument === 'xylophon') {
       const osc = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-      osc.type = h.type;
-      osc.frequency.setValueAtTime(freq * h.mult, now);
-      gainNode.gain.setValueAtTime(0, now);
-      gainNode.gain.linearRampToValueAtTime(h.gain, now + 0.004);
-      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + h.decay);
-      osc.connect(gainNode).connect(masterGain);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+      gain.gain.exponentialRampToValueAtTime(0.16, now + 0.005);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.42);
+      osc.connect(gain).connect(ctx.destination);
       osc.start(now);
-      osc.stop(now + h.decay + 0.1);
+      osc.stop(now + 0.46);
+      return;
+    }
+
+    if (instrument === 'glockenspiel') {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq * 2, now);
+      gain.gain.exponentialRampToValueAtTime(0.12, now + 0.003);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.05);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 1.1);
+      return;
+    }
+
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.13, now);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 1.1);
+    master.connect(ctx.destination);
+    [1, 2, 3].forEach((multiple, index) => {
+      const osc = ctx.createOscillator();
+      osc.type = index === 0 ? 'triangle' : 'sine';
+      osc.frequency.setValueAtTime(freq * multiple, now);
+      const partial = ctx.createGain();
+      partial.gain.setValueAtTime(1 / (index + 1), now);
+      osc.connect(partial).connect(master);
+      osc.start(now);
+      osc.stop(now + 1.12);
     });
   };
 
-  const playBirdSound = (ctx: AudioContext, freq: number, now: number) => {
-    const osc = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(freq * 4.2, now); // Shift pitch up high for a cute bird chirp
-
-    const vibratoOsc = ctx.createOscillator();
-    const vibratoGain = ctx.createGain();
-    vibratoOsc.frequency.setValueAtTime(9.0, now);
-    vibratoGain.gain.setValueAtTime(140, now);
-    vibratoOsc.connect(vibratoGain).connect(osc.frequency);
-
-    osc.frequency.exponentialRampToValueAtTime(freq * 5.5, now + 0.11);
-    osc.frequency.exponentialRampToValueAtTime(freq * 3.8, now + 0.2);
-
-    gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(0.08, now + 0.015);
-    gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
-
-    vibratoOsc.connect(vibratoGain);
-    osc.connect(gainNode).connect(ctx.destination);
-
-    vibratoOsc.start(now);
-    vibratoOsc.stop(now + 0.22);
-    osc.start(now);
-    osc.stop(now + 0.22);
+  const flashAndPlay = (index: number) => {
+    setActiveNote(index);
+    playSingleFreq(notes[index].freq);
+    const timer = window.setTimeout(() => setActiveNote((current) => current === index ? null : current), 260);
+    timersRef.current.push(timer);
   };
 
-  const playSingleFreq = (freq: number, instr: 'klavier' | 'xylophon' | 'glockenspiel' | 'vogel') => {
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const now = ctx.currentTime;
+  const playSequence = (sequence: number[]) => {
+    clearTimers();
+    setIsPlayingSequence(true);
+    setFeedback('Höre genau hin.');
+    sequence.forEach((noteIndex, sequenceIndex) => {
+      const timer = window.setTimeout(() => {
+        flashAndPlay(noteIndex);
+        if (sequenceIndex === sequence.length - 1) {
+          const finishTimer = window.setTimeout(() => {
+            setIsPlayingSequence(false);
+            setMemoryStep(0);
+            setFeedback('Jetzt du: Spiele die Töne in derselben Reihenfolge.');
+          }, 420);
+          timersRef.current.push(finishTimer);
+        }
+      }, sequenceIndex * 620);
+      timersRef.current.push(timer);
+    });
+  };
 
-      if (instr === 'xylophon') {
-        playXylophone(ctx, freq, now);
-      } else if (instr === 'glockenspiel') {
-        playGlockenspiel(ctx, freq, now);
-      } else if (instr === 'vogel') {
-        playBirdSound(ctx, freq, now);
-      } else {
-        playPianoNoteEx(ctx, freq, now);
-      }
-    } catch {}
+  const startMemory = () => {
+    const sequence = Array.from({ length: memoryLength }, () => Math.floor(Math.random() * notes.length));
+    setMode('memory');
+    setMemorySequence(sequence);
+    setMemoryStep(0);
+    playSequence(sequence);
+  };
+
+  const startLearning = (melody: Melody) => {
+    clearTimers();
+    setMode('learn');
+    setSelectedMelody(melody);
+    setMelodyStep(0);
+    setFeedback(`Starte mit ${melody.notes[0].label}.`);
   };
 
   const handleTap = (index: number) => {
-    setActiveNote(index);
-    setTimeout(() => setActiveNote(null), 250);
-    playSingleFreq(notes[index].freq, instrument);
+    if (isPlayingSequence) return;
+    flashAndPlay(index);
 
-    // 1. Simon Memory Mode
-    if (gameState === 'simonPlay') {
-      const nextUser = [...userSeq, index];
-      setUserSeq(nextUser);
-
-      const targetIdx = challengeSeq[nextUser.length - 1];
-      if (index !== targetIdx) {
-        setFeedback("😢 Hoppla! Das war der falsche Ton. Probier es noch einmal!");
-        setGameState('freeplay');
+    if (mode === 'memory' && memorySequence.length > 0) {
+      if (index !== memorySequence[memoryStep]) {
+        setMemoryStep(0);
+        setFeedback('Das war ein anderer Ton. Hör die Folge noch einmal an.');
         return;
       }
-
-      if (nextUser.length === challengeSeq.length) {
-        setFeedback("🎉 Super Gehör! Du hast die Melodie perfekt nachgespielt! 🐦🎶");
-        setGameState('freeplay');
-        
-        // Play sweet short celebratory melody
-        setTimeout(() => playSingleFreq(notes[2].freq, instrument), 150);
-        setTimeout(() => playSingleFreq(notes[4].freq, instrument), 300);
-        setTimeout(() => playSingleFreq(notes[7].freq, instrument), 450);
-      }
-    }
-
-    // 2. Song Learn Mode
-    if (gameState === 'learn' && selectedMelody) {
-      const targetNote = selectedMelody.notes[melodyStep];
-      if (index === targetNote.index) {
-        const nextStep = melodyStep + 1;
-        if (nextStep >= selectedMelody.notes.length) {
-          // Success song complete!
-          setCompletedLearn(true);
-          setFeedback(`🏆 Gratulation! Du hast '${selectedMelody.name}' komplett gelernt! 🥳🎶`);
-          
-          // Flashy sequence animation
-          notes.forEach((_, nIdx) => {
-            setTimeout(() => {
-              setActiveNote(nIdx);
-              playSingleFreq(notes[nIdx].freq, instrument);
-              setTimeout(() => setActiveNote(null), 100);
-            }, nIdx * 100 + 400);
-          });
-        } else {
-          setMelodyStep(nextStep);
-          setFeedback(`Klasse! Weiter geht's: Spiele als nächstes das '${selectedMelody.notes[nextStep].label}'`);
-        }
+      const nextStep = memoryStep + 1;
+      if (nextStep >= memorySequence.length) {
+        setMemoryStep(0);
+        setFeedback('Richtig nachgespielt.');
       } else {
-        setFeedback(`Ups! Spiele für dieses Lied als nächstes das '${targetNote.label}' 🎵`);
+        setMemoryStep(nextStep);
+        setFeedback(`Richtig. Noch ${memorySequence.length - nextStep} ${memorySequence.length - nextStep === 1 ? 'Ton' : 'Töne'}.`);
+      }
+    }
+
+    if (mode === 'learn') {
+      const expected = selectedMelody.notes[melodyStep];
+      if (index !== expected.index) {
+        setFeedback(`Höre auf den Zielton: Als Nächstes kommt ${expected.label}.`);
+        return;
+      }
+      const nextStep = melodyStep + 1;
+      if (nextStep >= selectedMelody.notes.length) {
+        setFeedback(`${selectedMelody.name} geschafft. Spiele es noch einmal oder wähle ein anderes Lied.`);
+        setMelodyStep(0);
+      } else {
+        setMelodyStep(nextStep);
+        setFeedback(`Gut. Nächster Ton: ${selectedMelody.notes[nextStep].label}.`);
       }
     }
   };
 
-  const startChallenge = () => {
-    setGameState('simonListen');
-    setFeedback("Höre genau hin... 👂");
-    setUserSeq([]);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const noteIndex = notes.findIndex((note) => note.key === event.key);
+      if (noteIndex >= 0 && !event.repeat) {
+        event.preventDefault();
+        handleTap(noteIndex);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  });
 
-    const seq = Array.from({ length: challengeLength }, () => Math.floor(Math.random() * 8));
-    setChallengeSeq(seq);
-
-    seq.forEach((noteIdx, delayIdx) => {
-      setTimeout(() => {
-        setActiveNote(noteIdx);
-        playSingleFreq(notes[noteIdx].freq, instrument);
-        setTimeout(() => setActiveNote(null), 180);
-        if (delayIdx === seq.length - 1) {
-          setTimeout(() => {
-            setGameState('simonPlay');
-            setFeedback(`Spiele alle ${challengeLength} Töne nach! ➔`);
-          }, 350);
-        }
-      }, delayIdx * 450 + 400);
-    });
-  };
-
-  const selectSongToLearn = (melody: Melody) => {
-    setSelectedMelody(melody);
-    setMelodyStep(0);
-    setCompletedLearn(false);
-    setGameState('learn');
-    setFeedback(`Lernmodus gestartet! Spiele als erstes '${melody.notes[0].label}' 🎵`);
-  };
-
-  const stopLearning = () => {
-    setGameState('freeplay');
-    setSelectedMelody(null);
-    setCompletedLearn(false);
-    setFeedback("Freies Spiel! Erforsche die Tonleiter 🎵");
-  };
-
-  // Graded heights representing physical xylophone bars from C to C5
-  const barHeights = ['h-[105px]', 'h-[97px]', 'h-[89px]', 'h-[81px]', 'h-[73px]', 'h-[65px]', 'h-[57px]', 'h-[49px]'];
+  const barHeights = [176, 164, 152, 140, 128, 116, 104, 92];
 
   return (
-    <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 pointer-events-auto">
-      {/* Configuration Header Row */}
-      <div className="shrink-0 flex justify-between items-center mb-1">
-        <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
-            🎵 Tonleiter-Entdecker
-          </span>
-          <span className="text-[7.5px] font-mono opacity-80">Gehör- und Notentraining</span>
+    <div className="min-h-full w-full p-3 sm:p-4 flex flex-col gap-3 select-none overflow-visible">
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
+        <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1" role="tablist" aria-label="Tontrainer-Modus">
+          {([
+            ['freeplay', 'Freispiel'],
+            ['memory', 'Nachspielen'],
+            ['learn', 'Lied lernen'],
+          ] as Array<[Mode, string]>).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={mode === value}
+              onClick={() => {
+                clearTimers();
+                setMode(value);
+                if (value === 'freeplay') setFeedback('Spiele frei auf den Klangstäben.');
+                if (value === 'learn') startLearning(selectedMelody);
+              }}
+              className={`min-h-11 px-3 rounded-lg text-xs sm:text-sm font-bold ${
+                mode === value ? 'bg-accent text-accent-text shadow-sm' : 'text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-        
-        {/* Instrument & Game Modifiers */}
-        <div className="flex items-center gap-1">
+
+        <label className="text-xs font-bold text-slate-600 dark:text-slate-300">
+          Klang
           <select
             value={instrument}
-            onChange={(e) => setInstrument(e.target.value as any)}
-            className={`text-[6.5px] font-black uppercase tracking-wide border px-1.5 py-0.5 rounded-lg cursor-pointer ${
-              currentIsLight ? 'bg-white border-slate-200 text-slate-700' : 'bg-zinc-800 border-zinc-700 text-zinc-300'
-            }`}
+            onChange={(event) => setInstrument(event.target.value as Instrument)}
+            className="ml-2 min-h-11 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 font-bold"
           >
-            <option value="xylophon">🪵 Holz-Xylophon</option>
-            <option value="glockenspiel">🔔 Glockenspiel</option>
-            <option value="klavier">🎹 Klassenklavier</option>
-            <option value="vogel">🐦 Singvögel</option>
+            <option value="xylophon">Xylophon</option>
+            <option value="glockenspiel">Glockenspiel</option>
+            <option value="klavier">Klavier</option>
           </select>
-
-          {gameState !== 'learn' ? (
-            <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-zinc-900/40 p-0.5 rounded-lg border border-slate-200 dark:border-white/5">
-              <div className="flex gap-0.5">
-                {[3, 4, 6].map((l) => (
-                  <button
-                    key={l}
-                    disabled={gameState === 'simonListen'}
-                    onClick={() => setChallengeLength(l)}
-                    className={`px-1 py-0.5 rounded transition-all cursor-pointer text-[6.5px] font-black ${
-                      challengeLength === l ? 'bg-indigo-500 text-white' : 'text-slate-500 hover:bg-slate-200 dark:hover:bg-zinc-800'
-                    }`}
-                  >
-                    {l}T
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={startChallenge}
-                disabled={gameState === 'simonListen'}
-                className="px-1.5 py-0.5 rounded bg-indigo-500 hover:bg-indigo-600 text-white font-extrabold text-[6.5px] cursor-pointer shadow-xs disabled:opacity-40"
-              >
-                Hören👂
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={stopLearning}
-              className="px-1.5 py-0.5 rounded bg-red-500 hover:bg-red-650 text-white font-extrabold text-[6.5px] cursor-pointer shadow-xs"
-            >
-              ➔ Freispiel 🎨
-            </button>
-          )}
-        </div>
+        </label>
       </div>
 
-      {/* Song selector and progress inside Learn mode */}
-      {gameState === 'learn' && selectedMelody && (
-        <div className="shrink-0 bg-slate-50 dark:bg-zinc-900/40 p-1.5 rounded-xl border border-slate-100 dark:border-white/5 flex flex-col gap-1 my-0.5 text-[7px] font-semibold leading-tight animate-fade-in-down">
-          <div className="flex justify-between items-center text-[7.5px] font-black text-indigo-500">
-            <span>Lied: {selectedMelody.name}</span>
-            <span>Ton {melodyStep + 1} von {selectedMelody.notes.length}</span>
-          </div>
-          
-          {/* Melody timeline visual progression */}
-          <div className="flex gap-0.5 flex-wrap py-0.5 justify-center max-h-[22px] overflow-hidden">
-            {selectedMelody.notes.map((n, sIdx) => {
-              const isPast = sIdx < melodyStep;
-              const isCurrent = sIdx === melodyStep;
-              return (
-                <span
-                  key={sIdx}
-                  className={`px-1 rounded font-black text-[6px] text-white border transition-all ${
-                    isCurrent 
-                      ? 'bg-indigo-500 scale-110 border-indigo-400 animate-pulse'
-                      : isPast
-                        ? 'bg-emerald-500 opacity-55 border-transparent'
-                        : 'bg-slate-300 dark:bg-zinc-700 border-transparent text-slate-500 dark:text-zinc-400'
-                  }`}
-                >
-                  {n.label}
-                </span>
-              );
-            })}
-          </div>
-          
-          {completedLearn && (
-            <div className="text-center font-black text-emerald-500 text-[8px] animate-bounce pt-0.5">
-              🎉 Meisterstück! Du hast das ganze Lied gespielt! 🥇
-            </div>
-          )}
+      {mode === 'memory' && (
+        <div className="shrink-0 flex flex-wrap items-center justify-center gap-2">
+          {[3, 4, 6].map((length) => (
+            <button
+              key={length}
+              type="button"
+              onClick={() => setMemoryLength(length)}
+              className={`min-h-11 px-3 rounded-xl border font-bold text-sm ${
+                memoryLength === length ? 'bg-accent text-accent-text border-accent' : 'border-slate-300 dark:border-slate-700 hover:border-accent'
+              }`}
+            >
+              {length} Töne
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={startMemory}
+            disabled={isPlayingSequence}
+            className="min-h-11 px-4 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-black disabled:opacity-40"
+          >
+            Folge anhören
+          </button>
         </div>
       )}
 
-      {/* Real visual Wood Xylophone structure */}
-      <div className="flex-grow flex flex-col justify-center relative min-h-[115px] py-1 bg-amber-500/5 dark:bg-amber-500/2 rounded-2xl border border-amber-900/10 px-1.5">
-        
-        {/* Wooden side rails of the Xylophone frame */}
-        <div className="absolute left-1 top-2 bottom-2 w-1.5 rounded bg-gradient-to-r from-amber-700 to-amber-900 shadow-xs transform skew-y-6" />
-        <div className="absolute right-1 top-4 bottom-4 w-1.5 rounded bg-gradient-to-l from-amber-700 to-amber-900 shadow-xs transform -skew-y-6" />
-
-        {/* Resonance tubes background effect */}
-        <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 flex justify-between px-2.5 z-0 opacity-20 pointer-events-none">
-          {notes.map((_, idx) => {
-            const tubeHeights = ['h-24', 'h-22', 'h-20', 'h-18', 'h-16', 'h-14', 'h-12', 'h-10'];
-            return (
-              <div 
-                key={idx} 
-                className={`w-3.5 ${tubeHeights[idx]} rounded-b bg-gradient-to-b from-zinc-500 to-zinc-800 border-x border-zinc-600`} 
-              />
-            );
-          })}
-        </div>
-
-        {/* Xylophone / Glockenspiel bars */}
-        <div className="flex justify-between items-center px-1.5 relative z-10 gap-1 mt-1">
-          {notes.map((n, idx) => {
-            const isTarget = gameState === 'learn' && selectedMelody && selectedMelody.notes[melodyStep]?.index === idx && !completedLearn;
-            const isActive = activeNote === idx;
-            return (
-              <button
-                key={idx}
-                onClick={() => handleTap(idx)}
-                className={`w-5.5 ${barHeights[idx]} rounded-full flex flex-col items-center justify-between cursor-pointer border shadow-md transition-all duration-150 relative ${n.color} ${
-                  isActive ? 'scale-110 border-white ring-4 ring-white shadow-lg z-20' : 'hover:-translate-y-1 hover:brightness-110'
-                } ${
-                  isTarget ? 'ring-4 ring-indigo-500 dark:ring-indigo-400 scale-105 animate-pulse border-white z-20' : ''
-                }`}
-              >
-                {/* Upper mounting rubber screw peg */}
-                <div className="w-1.5 h-1.5 rounded-full bg-zinc-700/80 mt-1 shadow-inner border border-zinc-900/20" />
-                
-                {/* Note character display */}
-                <span className="text-[7.5px] font-black text-white leading-none text-center select-none font-sans drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">
-                  {n.label}
-                </span>
-
-                {/* Lower mounting rubber screw peg */}
-                <div className="w-1.5 h-1.5 rounded-full bg-zinc-700/80 mb-1 shadow-inner border border-zinc-900/20" />
-
-                {/* Target Bouncing Mallet Indicator */}
-                {isTarget && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-[9px] font-black animate-bounce text-indigo-500 dark:text-indigo-400">
-                    👇
-                  </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Pre-defined song options for learn mode (if not active) */}
-      {gameState !== 'learn' && (
-        <div className="shrink-0 flex items-center gap-1 overflow-x-auto pb-0.5 mt-1.5 whitespace-nowrap scrollbar-none justify-center">
-          <span className="text-[6.5px] font-black uppercase text-slate-400 dark:text-zinc-500 mr-0.5">Lieder:</span>
-          {melodies.map((m) => (
+      {mode === 'learn' && (
+        <div className="shrink-0 flex flex-wrap items-center justify-center gap-2">
+          {melodies.map((melody) => (
             <button
-              key={m.name}
-              onClick={() => selectSongToLearn(m)}
-              className={`px-1.5 py-0.5 rounded text-[6.5px] font-black border transition-all cursor-pointer ${
-                currentIsLight 
-                  ? 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600' 
-                  : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-white'
+              key={melody.name}
+              type="button"
+              onClick={() => startLearning(melody)}
+              className={`min-h-11 px-3 rounded-xl border font-bold text-sm ${
+                selectedMelody.name === melody.name
+                  ? 'bg-accent text-accent-text border-accent'
+                  : 'border-slate-300 dark:border-slate-700 hover:border-accent'
               }`}
             >
-              {m.emoji} {m.name.split(' ')[0]}
+              {melody.emoji} {melody.name}
             </button>
           ))}
         </div>
       )}
 
-      <p className="shrink-0 text-[7.5px] font-extrabold text-blue-500 text-center truncate mt-1">{feedback}</p>
+      <div className="shrink-0 rounded-xl bg-accent-soft border border-accent/20 px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
+        {mode === 'freeplay' && 'Entdecke: Von links nach rechts werden die Töne höher.'}
+        {mode === 'memory' && `Hören → merken → nachspielen. Fortschritt: ${memoryStep}/${memorySequence.length || memoryLength}`}
+        {mode === 'learn' && `${selectedMelody.name}: Ton ${melodyStep + 1} von ${selectedMelody.notes.length} · Ziel: ${selectedMelody.notes[melodyStep]?.label}`}
+      </div>
+
+      <div className={`flex-1 min-h-60 rounded-2xl border px-3 py-5 flex items-end justify-center gap-2 sm:gap-3 ${
+        currentIsLight ? 'bg-amber-50/60 border-amber-200' : 'bg-slate-900 border-slate-700'
+      }`}>
+        {notes.map((note, index) => {
+          const isActive = activeNote === index;
+          const isLearnTarget = mode === 'learn' && selectedMelody.notes[melodyStep]?.index === index;
+          return (
+            <button
+              key={note.label}
+              type="button"
+              onClick={() => handleTap(index)}
+              disabled={isPlayingSequence}
+              aria-label={`Ton ${note.label} spielen, Taste ${note.key}`}
+              className={`relative min-w-10 sm:min-w-12 rounded-xl border-2 text-white font-black shadow-md transition-all active:translate-y-1 disabled:cursor-default ${note.color} ${
+                isActive ? 'ring-4 ring-white scale-105' : ''
+              } ${isLearnTarget ? 'ring-4 ring-accent ring-offset-2 dark:ring-offset-slate-900' : ''}`}
+              style={{ height: barHeights[index] }}
+            >
+              <span className="block text-lg">{note.label}</span>
+              <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded bg-black/20 px-1.5 py-0.5 text-[10px]">
+                {note.key}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <p
+        aria-live="polite"
+        className="shrink-0 min-h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 flex items-center justify-center text-center text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300"
+      >
+        {feedback}
+      </p>
     </div>
   );
 };
