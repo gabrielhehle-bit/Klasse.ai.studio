@@ -250,10 +250,33 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
   };
 
   const openHelpCenter = () => {
+    const aliasTargets: Record<string, string> = {
+      'ki-paedagogik': 'ki-helfer',
+      'ki-wissen': 'ki-helfer',
+      'ki-recht': 'ki-helfer',
+      'ki-reflexion': 'ki-helfer',
+      'ki-elternbrief': 'ki-helfer',
+      'ki-differenzierung': 'ki-helfer',
+      'ki-beurteilung': 'ki-helfer',
+      'ki-korrektur': 'ki-helfer',
+      'ki-lernziele': 'ki-helfer',
+      'ki-arbeitsblatt': 'arbeitsblatt',
+      'ki-wochenplan': 'wochenplanung',
+      'ki-stundenplan-check': 'wochenplanung',
+      'ki-stationenbetrieb': 'stationenbetrieb',
+      'uebergabemappe': 'vertretung',
+      'notenTabelle': 'noten',
+    };
+    const helpTopicId = aliasTargets[currentPage] || currentPage;
+    const helpSection = currentPage === 'settings' ? 'settings' : 'pages';
+    const helpTarget = currentPage === 'settings' ? 'overview' : helpTopicId;
+
     try {
       window.sessionStorage.setItem('klassio-settings-category', 'help');
+      window.sessionStorage.setItem('klassio-help-section', helpSection);
+      window.sessionStorage.setItem('klassio-help-topic', helpTarget);
     } catch {
-      // Help still opens via the event/page change when session storage is unavailable.
+      // Help still opens through the page/category event when session storage is unavailable.
     }
     setPage('settings');
     window.setTimeout(() => {
