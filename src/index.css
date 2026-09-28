@@ -2609,6 +2609,7 @@ html body [data-style] .klassio-widget-library .klassio-widget-primary.bg-succes
     grid-template-rows: auto auto minmax(0, 1fr);
     left: 0.25rem !important;
     right: 0.25rem !important;
+    translate: none !important;
     transform: none !important;
     width: auto !important;
     top: 4.25rem !important;
