@@ -4,7 +4,7 @@ import {
   Menu, Sun, Cloud, CloudSun, CloudRain, CloudSnow, CloudLightning, Wind,
   ChevronDown, ChevronRight, FlagTriangleLeft, Wifi, Smartphone, X, Copy, Search,
   Maximize, Minimize, Lock, ShieldAlert, ShieldCheck, ExternalLink, RefreshCw,
-  MoreHorizontal, Settings, LogOut, Heart, Bug, ArrowLeft, Save
+  MoreHorizontal, Settings, LogOut, Heart, Bug, ArrowLeft, Save, HelpCircle
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -17,7 +17,6 @@ import { clearTrustedDeviceUnlock } from '../lib/trustedDeviceVault';
 import { Button, IconButton, Badge } from './ui';
 import SupportModal from './SupportModal';
 import { getNavigationParent } from '../lib/navigationHierarchy';
-import { getQuietSyncBadge } from '../lib/quietSyncBadge';
 import { triggerBackupDownload } from '../utils/backupUtils';
 
 interface TopbarProps {
@@ -57,9 +56,6 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
   const [currentTime, setCurrentTime] = useState(new Date());
   const [weather, setWeather] = useState<any>(null);
   const [forecast, setForecast] = useState<any[]>([]);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  // Keep the prominent label steady; the exact state stays accessible via tooltip and account settings.
-  const cloudSaveBadge = getQuietSyncBadge(accountSyncStatus, isOnline);
   const [showLargeQR, setShowLargeQR] = useState(false);
   const [qrModalTab, setQrModalTab] = useState<'remote' | 'wifi'>('remote');
   const [wifiSsid, setWifiSsid] = useState(app.boardSettings?.wifiSettings?.ssid || '');
@@ -119,17 +115,6 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
   }, []);
 
   useEffect(() => {
@@ -264,6 +249,18 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
   };
 
+  const openHelpCenter = () => {
+    try {
+      window.sessionStorage.setItem('klassio-settings-category', 'help');
+    } catch {
+      // Help still opens via the event/page change when session storage is unavailable.
+    }
+    setPage('settings');
+    window.setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('klassio-open-settings-category', { detail: 'help' }));
+    }, 0);
+  };
+
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(err => {
@@ -347,20 +344,25 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
 
           {/* Rechter Bereich: Wetter & Schuljahr-Zeitdiagramm & PayPal & Fehler melden & Mehr */}
           <div className="flex min-w-0 items-center justify-end gap-1.5 sm:gap-2.5">
-            <button type="button" onClick={() => void createManualBackup()} disabled={manualBackupBusy || !isVaultUnlocked}
-              aria-label="Jetzt verschlüsseltes Backup herunterladen" title="Verschlüsseltes Backup dieser KLASSIO-Daten als Datei herunterladen"
-              className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-indigo-300 bg-indigo-50 px-2 text-indigo-800 shadow-xs hover:bg-indigo-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:opacity-50 sm:px-3">
-              <Save size={19} aria-hidden="true" />
-              <span className="hidden lg:inline text-xs font-extrabold">Backup</span>
+            <button
+              type="button"
+              onClick={() => void createManualBackup()}
+              disabled={manualBackupBusy || !isVaultUnlocked}
+              aria-label="Jetzt verschlüsseltes Backup herunterladen"
+              title="Verschlüsseltes Backup dieser KLASSIO-Daten als Datei herunterladen"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[var(--accent)] transition-colors hover:bg-[var(--accent-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))] disabled:opacity-40"
+            >
+              <Save size={20} aria-hidden="true" className={manualBackupBusy ? 'animate-pulse' : ''} />
             </button>
-            {cloudSaveBadge && (
-              <button type="button" onClick={() => setPage('settings')}
-                aria-label={`Speicherstatus: ${cloudSaveBadge.text}. ${cloudSaveBadge.description}. Konto öffnen.`}
-                title={cloudSaveBadge.description}
-                className={`inline-flex min-h-10 max-w-[104px] min-w-0 items-center justify-center sm:max-w-[180px] rounded-xl border px-2 text-[0.6875rem] font-black leading-tight shadow-xs sm:px-3 ${cloudSaveBadge.color}`}>
-                <span className="truncate">{cloudSaveBadge.text}</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={openHelpCenter}
+              aria-label="Hilfe und Anleitungen öffnen"
+              title="Hilfe und Anleitungen"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)]/35 hover:bg-[var(--accent-soft)] hover:text-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))]"
+            >
+              <HelpCircle size={20} aria-hidden="true" />
+            </button>
             {/* Wetter Anzeige mit Klick-Details */}
             <div className="relative hidden sm:block">
               <button 
