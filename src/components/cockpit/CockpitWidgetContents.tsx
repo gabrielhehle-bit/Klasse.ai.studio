@@ -7833,14 +7833,11 @@ export const DictionaryWidgetContent: React.FC<{
 
   const persistSettings = useCallback((patch: Partial<DictionaryWidgetSettings>) => {
     if (!onUpdateRef.current) return;
-    onUpdateRef.current({
-      settings: {
-        ...(widget?.settings || {}),
-        ...settings,
-        ...patch,
-      },
-    });
-  }, [settings, widget?.settings]);
+    // Only send the changed keys. Unterrichtsmodus merges them atomically with
+    // the current widget settings, so rapid setting changes cannot overwrite
+    // one another with an older render snapshot.
+    onUpdateRef.current({ settings: patch });
+  }, []);
 
   const speak = useCallback((text: string, lang: 'de' | 'en') => {
     try {
