@@ -16,6 +16,8 @@ type Props = {
   onAddWidget: () => void;
   onToggleSidebar: () => void;
   sidebarOpen: boolean;
+  onToggleMascot: () => void;
+  mascotVisible: boolean;
   activeTypes: readonly string[];
   minimizedTypes?: readonly string[];
   onRestoreMinimized?: (type: string) => void;
@@ -27,7 +29,7 @@ type Props = {
 /** The dock only sends commands; it never copies, resets or writes widget layouts. */
 export function CockpitWidgetDock({
   settings, onChange, onReset, onOpenWidget, onAddWidget, onToggleSidebar,
-  sidebarOpen, activeTypes, minimizedTypes = [], onRestoreMinimized, hasClass,
+  sidebarOpen, onToggleMascot, mascotVisible, activeTypes, minimizedTypes = [], onRestoreMinimized, hasClass,
   reservedRightPx = 0,
 }: Props) {
   const [editing, setEditing] = useState(false);
@@ -207,6 +209,10 @@ export function CockpitWidgetDock({
         <button type="button" disabled={!hasClass} onClick={() => setEditing(open => !open)}
           aria-label="Meine Widget-Leiste anpassen" aria-expanded={editing} title="Widget-Leiste anpassen"
           className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border text-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:opacity-40 ${editing ? 'border-accent bg-accent-soft text-accent' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}>⚙️</button>
+        <button type="button" disabled={!hasClass} onClick={onToggleMascot}
+          aria-label={mascotVisible ? 'Klassenmaskottchen ausblenden' : 'Klassenmaskottchen einblenden'}
+          aria-pressed={mascotVisible} title={mascotVisible ? 'Klassenmaskottchen ausblenden' : 'Klassenmaskottchen einblenden'}
+          className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border text-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:opacity-40 ${mascotVisible ? 'border-accent bg-accent-soft text-accent' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}>🐾</button>
         <button type="button" onClick={onToggleSidebar}
           aria-label={sidebarOpen ? 'Schülerliste ausblenden' : 'Schülerliste einblenden'}
           aria-expanded={sidebarOpen} title={sidebarOpen ? 'Schülerliste ausblenden' : 'Schülerliste öffnen'}

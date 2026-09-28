@@ -622,6 +622,7 @@ const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
   "fractioncake",
   "fractiongrid",
   "sounds",
+  "pet",
 ]);
 
 const COCKPIT_WIDGET_LIBRARY_BY_TYPE = new Map<string, CockpitWidgetLibraryItem>(
