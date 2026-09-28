@@ -662,10 +662,10 @@ export default function PhotoAlbums() {
                     <button
                       type="button"
                       disabled={draftNoIdentifiableStudents}
-                      onClick={() => setDraftStudentIds(students.filter(student => student.fotoFreigabe === 'erlaubt').map(student => student.id))}
+                      onClick={() => setDraftStudentIds(students.map(student => student.id))}
                       className="rounded-lg border border-[var(--border-default,var(--border))] px-3 py-2 text-[10px] font-black text-[var(--text-secondary,var(--text2))] disabled:opacity-40"
                     >
-                      Alle mit Freigabe
+                      Alle Kinder auswählen
                     </button>
                   </div>
 
