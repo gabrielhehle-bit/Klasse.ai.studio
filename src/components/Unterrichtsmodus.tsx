@@ -8959,7 +8959,7 @@ ${content}
                                 role="dialog"
                                 aria-modal="true"
                                 aria-label="Widget-Bibliothek"
-                                className={`klassio-widget-library fixed left-1/2 -translate-x-1/2 top-[4.75rem] bottom-[4.75rem] w-[min(1040px,calc(100vw-1rem))] overflow-hidden rounded-3xl border p-3 shadow-2xl z-[1000] ${
+                                className={`klassio-widget-library fixed top-[4.75rem] bottom-[4.75rem] w-[min(1040px,calc(100vw-1rem))] overflow-hidden rounded-3xl border p-3 shadow-2xl z-[1000] ${
                                   currentIsLight
                                     ? "bg-white border-slate-100 animate-in fade-in slide-in-from-top-3 duration-200"
                                     : "bg-zinc-900 border-white/10 animate-in fade-in slide-in-from-top-3 duration-200"
