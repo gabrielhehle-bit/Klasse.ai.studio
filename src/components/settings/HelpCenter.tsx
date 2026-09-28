@@ -16,7 +16,7 @@ const normalize = (value: string) => value
   .replace(/ß/g, 'ss');
 
 export default function HelpCenter() {
-  const [contextTarget] = useState<{ section: HelpSection; topicId: string } | null>(() => {
+  const [contextTarget, setContextTarget] = useState<{ section: HelpSection; topicId: string } | null>(() => {
     if (typeof window === 'undefined') return null;
     try {
       const storedSection = window.sessionStorage.getItem('klassio-help-section') as HelpSection | null;
@@ -33,6 +33,19 @@ export default function HelpCenter() {
   });
   const [section, setSection] = useState<HelpSection>(contextTarget?.section || 'pages');
   const [query, setQuery] = useState('');
+
+  useEffect(() => {
+    const handleContextHelp = (event: Event) => {
+      const detail = (event as CustomEvent<{ section?: HelpSection; topicId?: string }>).detail;
+      if (!detail?.section || !detail?.topicId || !['pages', 'widgets', 'settings'].includes(detail.section)) return;
+      setQuery('');
+      setSection(detail.section);
+      setContextTarget({ section: detail.section, topicId: detail.topicId });
+    };
+    window.addEventListener('klassio-open-help-topic', handleContextHelp);
+    return () => window.removeEventListener('klassio-open-help-topic', handleContextHelp);
+  }, []);
+
   const selected = sections.find(item => item.id === section)!;
   const contextTopic = useMemo(() => {
     if (!contextTarget || contextTarget.section !== section) return null;
@@ -51,11 +64,20 @@ export default function HelpCenter() {
   }, [contextTopic, section]);
   const entries = useMemo(() => {
     const term = normalize(query.trim());
-    if (!term) return selected.items;
-    return selected.items.filter(topic =>
-      normalize([topic.title, topic.area, topic.purpose, topic.canDo, ...topic.steps].join(' ')).includes(term),
-    );
-  }, [query, selected]);
+    const filtered = term
+      ? selected.items.filter(topic =>
+          normalize([topic.title, topic.area, topic.purpose, topic.canDo, ...topic.steps].join(' ')).includes(term),
+        )
+      : [...selected.items];
+
+    if (!term && contextTopic) {
+      return [
+        contextTopic,
+        ...filtered.filter(topic => topic.id !== contextTopic.id),
+      ];
+    }
+    return filtered;
+  }, [query, selected, contextTopic]);
 
   return (
     <section className="space-y-5" aria-labelledby="klassio-help-title">
@@ -70,15 +92,14 @@ export default function HelpCenter() {
           </div>
         </div>
         <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-700">
-          Was macht eine Seite, was kannst du damit erledigen und wie beginnst du?
-          Hier findest du die App-Bereiche, alle aktuell auswählbaren Cockpit-Widgets und die Einstellungen.
-          Für die ersten Schritte öffne zuerst die passende Anleitung.
+          Klicke oben rechts auf das Fragezeichen – KLASSIO öffnet automatisch die Anleitung zu der Seite, auf der du gerade bist.
+          Hier kannst du außerdem alle App-Seiten, Unterrichts-Widgets und Einstellungen durchsuchen.
         </p>
         {contextTopic && (
           <div className="mt-4 rounded-2xl border border-indigo-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
             <span className="font-black text-indigo-800">Hilfe zu deiner aktuellen Seite:</span>{' '}
             <span className="font-bold text-slate-900">{contextTopic.title}</span>
-            <span className="ml-1 text-slate-500">– die passende Anleitung ist unten bereits geöffnet.</span>
+            <span className="ml-1 text-slate-500">– sie steht jetzt ganz oben und ist bereits geöffnet.</span>
           </div>
         )}
         {MISSING_PAGE_HELP_IDS.length === 0 ? (
@@ -150,13 +171,20 @@ export default function HelpCenter() {
               </summary>
               <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
                 <div>
-                  <h3 className="text-sm font-black text-slate-900">Was kann ich damit machen?</h3>
+                  <h3 className="text-sm font-black text-slate-900">Dafür ist diese Seite da</h3>
                   <p className="mt-1 text-sm leading-6 text-slate-700">{topic.canDo}</p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-slate-900">So geht’s</h3>
-                  <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm leading-6 text-slate-700">
-                    {topic.steps.map((step, index) => <li key={index}>{step}</li>)}
+                  <h3 className="text-sm font-black text-slate-900">Schritt für Schritt</h3>
+                  <ol className="mt-3 space-y-2.5">
+                    {topic.steps.map((step, index) => (
+                      <li key={index} className="flex items-start gap-3 rounded-xl bg-slate-50 px-3 py-2.5 text-sm leading-6 text-slate-700">
+                        <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-black text-indigo-800">
+                          {index + 1}
+                        </span>
+                        <span>{step}</span>
+                      </li>
+                    ))}
                   </ol>
                 </div>
               </div>
@@ -167,10 +195,10 @@ export default function HelpCenter() {
       )}
 
       <footer className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-        <div className="flex items-center gap-2 font-bold"><HelpCircle size={17} aria-hidden="true" />Noch eine Frage?</div>
+        <div className="flex items-center gap-2 font-bold"><HelpCircle size={17} aria-hidden="true" />Tipp</div>
         <p className="mt-2 leading-6">
-          Falls deine Schulmail nicht erkannt wird oder kein Anmeldecode ankommt, erreichst du uns unter
-          {' '}<a href="mailto:noreply@klassio.at?subject=KLASSIO%20Hilfe" className="font-bold text-indigo-700 underline">noreply@klassio.at</a>.
+          Wenn etwas auf einer Seite unklar ist, gehe dorthin zurück und klicke oben rechts auf das Fragezeichen.
+          Dann öffnet KLASSIO genau die Anleitung für diesen Bereich.
         </p>
       </footer>
     </section>
