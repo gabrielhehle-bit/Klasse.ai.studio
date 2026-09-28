@@ -268,6 +268,7 @@ export default function PhotoAlbums() {
 
     let folderId = selectedAlbum.oneDriveFolderId;
     let folderWebUrl = selectedAlbum.oneDriveFolderWebUrl;
+    let persistedFiles = selectedAlbum.files || [];
     const uploaded: PhotoAlbumFile[] = [];
 
     try {
@@ -294,7 +295,7 @@ export default function PhotoAlbums() {
 
         folderId = data.folder?.id || folderId;
         folderWebUrl = data.folder?.webUrl || folderWebUrl;
-        uploaded.push({
+        const uploadedFile: PhotoAlbumFile = {
           id: makeId('photo'),
           name: data.file?.name || file.name,
           size: Number(data.file?.size ?? file.size),
@@ -302,22 +303,70 @@ export default function PhotoAlbums() {
           uploadedAt: new Date().toISOString(),
           driveItemId: data.file?.id,
           webUrl: data.file?.webUrl,
+        };
+        uploaded.push(uploadedFile);
+        persistedFiles = uniqueFiles([...persistedFiles, uploadedFile]);
+
+        // Persist each successful upload immediately. If a later file fails,
+        // already-uploaded photos and the created OneDrive folder stay tracked.
+        patchAlbum(selectedAlbum.id, {
+          oneDriveFolderId: folderId,
+          oneDriveFolderWebUrl: folderWebUrl,
+          files: persistedFiles,
         });
         setUploadProgress({ done: index + 1, total: files.length });
       }
 
-      const currentFiles = selectedAlbum.files || [];
-      patchAlbum(selectedAlbum.id, {
-        oneDriveFolderId: folderId,
-        oneDriveFolderWebUrl: folderWebUrl,
-        files: uniqueFiles([...currentFiles, ...uploaded]),
-      });
       showToast(`${uploaded.length} Foto${uploaded.length === 1 ? '' : 's'} hochgeladen.`, 'success');
     } catch (error: any) {
-      showToast(error?.message || 'Foto-Upload fehlgeschlagen.', 'error');
+      const suffix = uploaded.length > 0
+        ? ` ${uploaded.length} Foto${uploaded.length === 1 ? '' : 's'} wurden davor bereits erfolgreich gespeichert.`
+        : '';
+      showToast(`${error?.message || 'Foto-Upload fehlgeschlagen.'}${suffix}`, 'error');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDeletePhoto = async (file: PhotoAlbumFile) => {
+    if (!selectedAlbum) return;
+    if (!file.driveItemId) {
+      patchAlbum(selectedAlbum.id, {
+        files: (selectedAlbum.files || []).filter(item => item.id !== file.id),
+      });
+      showToast('Fotoeintrag aus KLASSIO entfernt.', 'success');
+      return;
+    }
+
+    const sharedNote = selectedAlbum.shareUrl && !selectedShareExpired
+      ? ' Das Foto verschwindet dadurch auch sofort aus dem aktuell geteilten Elternalbum.'
+      : '';
+    if (!window.confirm(`${file.name} aus OneDrive entfernen?${sharedNote} Die Datei landet im OneDrive-Papierkorb.`)) {
+      return;
+    }
+
+    const token = await tokenOrConnect();
+    if (!token) return;
+
+    try {
+      const response = await fetch('/api/onedrive/photos/delete', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ itemId: file.driveItemId }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || 'Foto konnte nicht entfernt werden.');
+
+      patchAlbum(selectedAlbum.id, {
+        files: (selectedAlbum.files || []).filter(item => item.id !== file.id),
+      });
+      showToast('Foto in den OneDrive-Papierkorb verschoben.', 'success');
+    } catch (error: any) {
+      showToast(error?.message || 'Foto konnte nicht entfernt werden.', 'error');
     }
   };
 
