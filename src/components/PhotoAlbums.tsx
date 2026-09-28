@@ -488,7 +488,7 @@ export default function PhotoAlbums() {
     const expiry = selectedAlbum.shareExpiresAt
       ? ` Der Link ist bis ${formatDate(selectedAlbum.shareExpiresAt)} gültig.`
       : '';
-    const message = `Fotos: ${selectedAlbum.title}\n\nHier können Sie die Fotos ansehen:\n${selectedAlbum.shareUrl}\n\n${expiry.trim()}`.trim();
+    const message = `Fotos: ${selectedAlbum.title}\n\nHier können Sie die Fotos ansehen:\n${selectedAlbum.shareUrl}\n\nBitte diesen Link nicht weiterleiten.${expiry}`.trim();
     try {
       await navigator.clipboard.writeText(message);
       showToast('Elternnachricht kopiert.', 'success');
@@ -953,7 +953,7 @@ export default function PhotoAlbums() {
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-muted,var(--text3))]">3 · Elternzugang</p>
                     <h3 className="mt-1 text-base font-black text-[var(--text-primary,var(--text))]">Zeitlich begrenzten Link erstellen</h3>
-                    <p className="mt-1 text-xs text-[var(--text-secondary,var(--text2))]">Der Link ist nur zum Ansehen. Externes Teilen muss im Microsoft-365-Konto der Schule erlaubt sein.</p>
+                    <p className="mt-1 text-xs text-[var(--text-secondary,var(--text2))]">Der Link ist nur zum Ansehen. Als anonymer Link funktioniert er ohne Anmeldung – jede Person mit dem Link kann ihn öffnen. Externes Teilen muss im Microsoft-365-Konto der Schule erlaubt sein.</p>
                   </div>
 
                   {shareSafetyProblem && (
