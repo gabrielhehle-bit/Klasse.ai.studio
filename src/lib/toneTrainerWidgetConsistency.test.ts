@@ -57,3 +57,19 @@ test('Ton-Trainer bietet im Nachspielmodus erneutes Anhören', () => {
   assert.match(widget, /playSequence\(memorySequence\)/);
   assert.match(widget, /Richtung der Tonhöhen/);
 });
+
+
+test('Ton-Trainer bietet einen geführten Oktav-Lernmoment', () => {
+  assert.match(widget, /const playScale =/);
+  assert.match(widget, /Tonleiter anhören/);
+  assert.match(widget, /C bis C₂.*Oktave/);
+  assert.match(widget, /Schritt für Schritt höher/);
+});
+
+test('Ton-Trainer blockiert globale Zahlentasten in Eingabefeldern', () => {
+  assert.match(widget, /closest\('input, select, textarea, \[contenteditable="true"\]'\)/);
+});
+
+test('Ton-Trainer kündigt Feedback barrierearm an', () => {
+  assert.match(widget, /aria-live="polite"/);
+});
