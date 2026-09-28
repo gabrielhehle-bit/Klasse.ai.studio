@@ -299,7 +299,6 @@ import {
   ClockpuzzleWidgetContent,
   WordbuilderWidgetContent,
   WortSatzWerkstattWidgetContent,
-  WatercycleWidgetContent,
   SoundmachineWidgetContent,
   MathbalancerWidgetContent,
   AnimalvoiceWidgetContent,
@@ -331,6 +330,7 @@ import { FractionVisualizerContent } from "./cockpit/FractionVisualizerContent";
 import { TimerWidgetContent } from "./cockpit/TimerWidgetContent";
 import { FlagQuizWidgetContent } from "./cockpit/FlagQuizWidgetContent";
 import { TrafficQuizWidgetContent } from "./cockpit/TrafficQuizWidgetContent";
+import { WaterCycleWidgetContent } from "./cockpit/WaterCycleWidgetContent";
 import { InstructionWidget } from "./cockpit/widgets/InstructionWidget";
 import { CockpitWidgetConfig } from "../types";
 
@@ -2485,8 +2485,8 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     type: "watercycle",
     x: 76,
     y: 220,
-    w: 44,
-    h: 55,
+    w: 48,
+    h: 58,
     visible: false,
   },
   {
@@ -4134,7 +4134,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       w.id !== id ? w : {
         ...w,
         ...updates,
-        ...(((w.type === "groups" && updates.settings) || (w.type === "wheel" && updates.settings) || (w.type === "sounds" && updates.settings) || (w.type === "stopwatch" && updates.settings) || (w.type === "dictionary" && updates.settings) || (w.type === "piano" && updates.settings) || (w.type === "bodyparts" && updates.settings) || (w.type === "compass" && updates.settings) || (w.type === "weekdays" && updates.settings) || (w.type === "flagquiz" && updates.settings) || (w.type === "trafficquiz" && updates.settings))
+        ...(((w.type === "groups" && updates.settings) || (w.type === "wheel" && updates.settings) || (w.type === "sounds" && updates.settings) || (w.type === "stopwatch" && updates.settings) || (w.type === "dictionary" && updates.settings) || (w.type === "piano" && updates.settings) || (w.type === "bodyparts" && updates.settings) || (w.type === "compass" && updates.settings) || (w.type === "weekdays" && updates.settings) || (w.type === "flagquiz" && updates.settings) || (w.type === "trafficquiz" && updates.settings) || (w.type === "watercycle" && updates.settings))
           ? { settings: { ...(w.settings || {}), ...updates.settings } }
           : {}),
         hasBeenOpened: true,
@@ -11362,9 +11362,17 @@ ${content}
 
                                     case "watercycle":
                                       return (
-                                        <WatercycleWidgetContent
+                                        <WaterCycleWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 

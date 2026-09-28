@@ -319,7 +319,7 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                       {
                                         type: "watercycle",
                                         label: "💧 Wasserkreislauf-Puzzle",
-                                        desc: "Stationen des Wasserkreislaufs",
+                                        desc: "Wasserwege, Verzweigungen & Kreislauf verstehen",
                                         category: "sachunterricht",
                                       },
                                       {
@@ -638,6 +638,7 @@ const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
   "weekdays",
   "flagquiz",
   "trafficquiz",
+  "watercycle",
 ]);
 
 const COCKPIT_WIDGET_LIBRARY_BY_TYPE = new Map<string, CockpitWidgetLibraryItem>(
