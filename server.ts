@@ -4122,6 +4122,29 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     return `Foto-${opaqueId}.${privatePhotoExtension(mimeType)}`;
   };
 
+  app.get("/api/onedrive/photos/drive-info", async (req, res) => {
+    const token = getOneDriveBearer(req);
+    if (!token) return res.status(401).json({ error: 'OneDrive-Autorisierung fehlt.' });
+
+    try {
+      const drive = await graphJson(
+        'https://graph.microsoft.com/v1.0/me/drive?$select=id,driveType,webUrl',
+        token,
+      );
+      const driveType = typeof drive?.driveType === 'string' ? drive.driveType : 'unknown';
+      res.json({
+        driveType,
+        eligibleForSchoolPhotos: driveType === 'business' || driveType === 'documentLibrary',
+        webUrl: typeof drive?.webUrl === 'string' ? drive.webUrl : undefined,
+      });
+    } catch (error: any) {
+      console.error('[Elternfotos] OneDrive drive-type check failed:', error?.status || 'unknown');
+      res.status(error?.status >= 400 && error?.status < 600 ? error.status : 502).json({
+        error: error?.message || 'OneDrive-Kontotyp konnte nicht geprüft werden.',
+      });
+    }
+  });
+
   app.put("/api/onedrive/photos/upload", async (req, res) => {
     const token = getOneDriveBearer(req);
     if (!token) return res.status(401).json({ error: 'OneDrive-Autorisierung fehlt.' });
