@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { Student } from '../types';
-import { evaluatePhotoAlbumSharing } from './photoAlbumPolicy';
+import { evaluatePhotoAlbumSharing, isPhotoAlbumShareExpired } from './photoAlbumPolicy';
 
 function student(id: string, fotoFreigabe?: Student['fotoFreigabe']): Student {
   return {
@@ -47,4 +47,12 @@ test('no pupil selection requires an explicit confirmation that no child is iden
   assert.equal(evaluatePhotoAlbumSharing([]).canShare, false);
   assert.equal(evaluatePhotoAlbumSharing([]).needsSelection, true);
   assert.equal(evaluatePhotoAlbumSharing([], true).canShare, true);
+});
+
+
+test('photo album share expiry is evaluated against the supplied clock', () => {
+  const now = Date.parse('2026-09-28T12:00:00.000Z');
+  assert.equal(isPhotoAlbumShareExpired('2026-09-28T11:59:59.000Z', now), true);
+  assert.equal(isPhotoAlbumShareExpired('2026-09-28T12:00:01.000Z', now), false);
+  assert.equal(isPhotoAlbumShareExpired(undefined, now), false);
 });
