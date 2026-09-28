@@ -364,7 +364,7 @@ const widgetCatalog: Array<{ id: string; title: string; purpose: string; group: 
   {
     "id": "trafficquiz",
     "title": "🚴 Fahrrad-Führerschein",
-    "purpose": "Lerne wichtige Verkehrszeichen",
+    "purpose": "Österreichische Verkehrszeichen und Radfahrregeln üben",
     "group": "sachunterricht"
   },
   {
@@ -768,6 +768,7 @@ const widgetSpecificSteps: Record<string, string[]> = {
   compass: ['Öffne im Lehrercockpit „Widget hinzufügen“ → „Geographie-Kompass“.', 'Wähle „Erkunden“, um eine Richtung anzutippen und die Erklärung dazu zu lesen, oder „Üben“, um eine vorgegebene Himmelsrichtung einzustellen und anschließend zu prüfen.', 'Über das Zahnrad stellst du ein, ob nur die vier Haupthimmelsrichtungen oder alle acht Richtungen verwendet werden und ob Gradangaben sichtbar sind.', 'Die Sonnenhinweise sind bewusst nur eine ungefähre Orientierung für Österreich, weil Auf- und Untergang je nach Jahreszeit nicht exakt im Osten beziehungsweise Westen liegen.'],
   weekdays: ['Öffne im Lehrercockpit „Widget hinzufügen“ → „Wochentage-Trainer“.', 'Wähle „Wochentage“ für den Morgenkreis mit Gestern, Heute und Morgen oder „Monate“, um die Reihenfolge im Jahreskreis zu üben.', 'Im Modus „Erkunden“ kannst du jeden Tag oder Monat antippen; mit „Zurück zu heute“ springst du wieder zum echten aktuellen Kalendertag beziehungsweise Monat.', 'Im Modus „Üben“ beantwortet die Klasse Vorher-/Nachher-Fragen und prüft die Auswahl. Über das Zahnrad kannst du das angezeigte aktuelle Datum ein- oder ausblenden.'],
   flagquiz: ['Öffne im Lehrercockpit „Widget hinzufügen“ → „Flaggenquiz“.', 'Öffne das Zahnrad und wähle einen Kontinent oder „Alle Kontinente“. Danach wählst du „Einfach“, „Mittel“, „Schwer“ oder „Alle Stufen“.', 'Im Quiz wird eine Flagge gezeigt. Wähle eines von vier Ländern; KLASSIO zeigt danach die richtige Lösung und mit „Nächste Flagge“ geht es weiter.', 'Die Länderliste umfasst 195 Staaten. Die Kontinentzuordnung folgt der festen UN-M49-Systematik; die Stufen Einfach/Mittel/Schwer sind eine didaktische KLASSIO-Einstufung.'],
+  trafficquiz: ['Öffne im Lehrercockpit „Widget hinzufügen“ → „Fahrrad-Führerschein“.', 'Über das Zahnrad wählst du den Themenbereich: Alle Themen, Verkehrszeichen, Vorrang, Radfahrregeln oder Sicherheit. Dort stellst du auch 5 oder 10 Fragen für die Übungsprüfung und die Vorlesefunktion ein.', 'Im Modus „Üben“ beantwortet die Klasse einzelne Fragen. Nach jeder Antwort zeigt KLASSIO die Erklärung und die zugrunde liegende österreichische Rechtsquelle.', 'Die „Übungsprüfung“ ist nur ein Lerncheck in KLASSIO und kein amtlicher Nachweis. Die Fragen sind auf österreichische StVO-Begriffe und Regeln mit Rechtsstand September 2026 abgestimmt.'],
 
 };
 
