@@ -414,6 +414,11 @@ export default function PhotoAlbums() {
       return;
     }
 
+    if (!selectedAlbum.oneDriveFolderId) {
+      showToast('Der OneDrive-Albumordner ist nicht mehr eindeutig hinterlegt. Bitte das Foto direkt in OneDrive prüfen.', 'error');
+      return;
+    }
+
     const token = await tokenOrConnect();
     if (!token) return;
 
@@ -424,7 +429,10 @@ export default function PhotoAlbums() {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ itemId: file.driveItemId }),
+        body: JSON.stringify({
+          itemId: file.driveItemId,
+          folderId: selectedAlbum.oneDriveFolderId,
+        }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data?.error || 'Foto konnte nicht entfernt werden.');
