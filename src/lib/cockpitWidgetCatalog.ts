@@ -531,7 +531,7 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                       {
                                         type: "piano",
                                         label: "🎹 Klassen-Klavier",
-                                        desc: "Spielbare Tonleiter & Musik",
+                                        desc: "Eine Oktave spielen, hören und benennen",
                                         category: "mindfulness",
                                       },
                                       {
@@ -626,6 +626,7 @@ const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
   "sorting",
   "dailyquotes",
   "dictionary",
+  "piano",
 ]);
 
 const COCKPIT_WIDGET_LIBRARY_BY_TYPE = new Map<string, CockpitWidgetLibraryItem>(

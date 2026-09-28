@@ -49,6 +49,14 @@ import {
   type DictionaryRound,
   type DictionaryWidgetSettings,
 } from '../../lib/dictionaryWidgetModel';
+import {
+  PIANO_KEYS,
+  getPianoKeyPrimaryLabel,
+  getPianoKeySecondaryLabel,
+  normalizePianoWidgetSettings,
+  type PianoLabelMode,
+  type PianoWidgetSettings,
+} from '../../lib/pianoWidgetModel';
 import { ClassPetCanvas, ClassPetCanvasRef } from '../ClassPetCanvas';
 import { PET_BREEDS } from '../ClassPetWidget';
 import { WheelWidget, WheelWidgetProps } from './widgets/WheelWidget';
@@ -8194,136 +8202,304 @@ export const DictionaryWidgetContent: React.FC<{
 // ==========================================
 // NEW WIDGET 19: KLASSENKLAVIER (Melodic Playable Keyboard)
 // ==========================================
-export const PianoWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const keys = [
-    { note: "C4", name: "Do", color: "bg-red-500", freq: 261.63 },
-    { note: "D4", name: "Re", color: "bg-orange-500", freq: 293.66 },
-    { note: "E4", name: "Mi", color: "bg-yellow-500", freq: 329.63 },
-    { note: "F4", name: "Fa", color: "bg-green-500", freq: 349.23 },
-    { note: "G4", name: "Sol", color: "bg-blue-500", freq: 392.00 },
-    { note: "A4", name: "La", color: "bg-indigo-500", freq: 440.00 },
-    { note: "B4", name: "Si", color: "bg-purple-500", freq: 493.88 },
-    { note: "C5", name: "Do", color: "bg-rose-500", freq: 523.25 }
-  ];
+export const PianoWidgetContent: React.FC<{
+  widget: any;
+  currentIsLight: boolean;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
+}> = ({
+  widget,
+  currentIsLight,
+  onUpdate,
+  showSettings = false,
+  onCloseSettings,
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const masterGainRef = useRef<GainNode | null>(null);
+  const activeNoteTimerRef = useRef<number | null>(null);
+  const onUpdateRef = useRef(onUpdate);
+  onUpdateRef.current = onUpdate;
 
-  const playNote = (freq: number) => {
+  const settings = useMemo(
+    () => normalizePianoWidgetSettings(widget?.settings),
+    [widget?.settings],
+  );
+  const [activeNote, setActiveNote] = useState<string | null>(null);
+
+  const persistSettings = useCallback((patch: Partial<PianoWidgetSettings>) => {
+    if (!onUpdateRef.current) return;
+    onUpdateRef.current({ settings: patch });
+  }, []);
+
+  const ensureAudio = useCallback(() => {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return null;
+
+    let ctx = audioContextRef.current;
+    if (!ctx || ctx.state === 'closed') {
+      ctx = new AudioCtx();
+      audioContextRef.current = ctx;
+      const master = ctx.createGain();
+      master.connect(ctx.destination);
+      masterGainRef.current = master;
+    }
+
+    if (ctx.state === 'suspended') {
+      void ctx.resume();
+    }
+
+    if (masterGainRef.current) {
+      masterGainRef.current.gain.setTargetAtTime(settings.volume, ctx.currentTime, 0.01);
+    }
+    return ctx;
+  }, [settings.volume]);
+
+  const playNote = useCallback((note: string, frequency: number) => {
     try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
+      const ctx = ensureAudio();
+      const master = masterGainRef.current;
+      if (!ctx || !master) return;
+
       const now = ctx.currentTime;
-
-      // Master Gain for pleasant mix level without clipping
-      const masterGain = ctx.createGain();
-      masterGain.gain.setValueAtTime(0.9, now);
-      masterGain.connect(ctx.destination);
-
-      // 1. Felt Hammer Strike (Rapid band-passed white noise burst for physical key strike)
-      try {
-        const noiseBufferSize = ctx.sampleRate * 0.035; // ~35ms noise burst
-        const noiseBuffer = ctx.createBuffer(1, noiseBufferSize, ctx.sampleRate);
-        const noiseData = noiseBuffer.getChannelData(0);
-        for (let i = 0; i < noiseBufferSize; i++) {
-          noiseData[i] = Math.random() * 2 - 1;
-        }
-        const noiseSource = ctx.createBufferSource();
-        noiseSource.buffer = noiseBuffer;
-
-        const noiseFilter = ctx.createBiquadFilter();
-        noiseFilter.type = 'bandpass';
-        noiseFilter.frequency.setValueAtTime(Math.min(2200, freq * 3.5), now);
-        noiseFilter.Q.setValueAtTime(3.5, now);
-
-        const noiseGain = ctx.createGain();
-        noiseGain.gain.setValueAtTime(0.07, now);
-        noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.02);
-
-        noiseSource.connect(noiseFilter);
-        noiseFilter.connect(noiseGain);
-        noiseGain.connect(masterGain);
-        noiseSource.start(now);
-      } catch (err) {}
-
-      // 2. Soundboard Sympathetic Resonance (Very low-passed warmth body hum)
-      const resonanceOsc = ctx.createOscillator();
-      const resonanceGain = ctx.createGain();
-      resonanceOsc.type = 'sine';
-      resonanceOsc.frequency.setValueAtTime(freq * 0.5, now);
-      resonanceGain.gain.setValueAtTime(0.035, now);
-      resonanceGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.6);
-      
-      resonanceOsc.connect(resonanceGain);
-      resonanceGain.connect(masterGain);
-      resonanceOsc.start(now);
-      resonanceOsc.stop(now + 1.7);
-
-      // 3. Harmonic Overtone Spectrum with inharmonicity & individual decay times
-      // Pianos have stiff metal strings causing higher harmonics to be slightly sharp (inharmonicity).
-      // Higher overtones decay much faster than lower ones.
-      const harmonics = [
-        { mult: 1.0, gain: 0.16, decay: 1.7, type: 'sine' as const },      // Fundamental
-        { mult: 2.0012, gain: 0.09, decay: 1.2, type: 'sine' as const },   // Octave
-        { mult: 3.0028, gain: 0.05, decay: 0.85, type: 'triangle' as const }, // Over Fifth (Wooden resonance)
-        { mult: 4.0048, gain: 0.035, decay: 0.55, type: 'sine' as const },  // Double Octave
-        { mult: 5.0076, gain: 0.018, decay: 0.38, type: 'triangle' as const }, // High Third
-        { mult: 6.0112, gain: 0.01, decay: 0.22, type: 'sine' as const }   // Upper Sparkle
+      const partials = [
+        { multiple: 1, level: 0.34, decay: 1.25, type: 'sine' as OscillatorType },
+        { multiple: 2.002, level: 0.12, decay: 0.85, type: 'sine' as OscillatorType },
+        { multiple: 3.006, level: 0.055, decay: 0.52, type: 'triangle' as OscillatorType },
       ];
 
-      harmonics.forEach(h => {
-        const osc = ctx.createOscillator();
-        const gainNode = ctx.createGain();
-        
-        osc.type = h.type;
-        osc.frequency.setValueAtTime(freq * h.mult, now);
-        
-        // Instant strike attack
-        gainNode.gain.setValueAtTime(0, now);
-        gainNode.gain.linearRampToValueAtTime(h.gain, now + 0.004);
-        
-        // Exponential decay envelope
-        gainNode.gain.setValueAtTime(h.gain, now + 0.004);
-        gainNode.gain.exponentialRampToValueAtTime(0.0001, now + h.decay);
-
-        osc.connect(gainNode);
-        gainNode.connect(masterGain);
-        
-        osc.start(now);
-        osc.stop(now + h.decay + 0.1);
+      partials.forEach(partial => {
+        const oscillator = ctx.createOscillator();
+        const envelope = ctx.createGain();
+        oscillator.type = partial.type;
+        oscillator.frequency.setValueAtTime(frequency * partial.multiple, now);
+        envelope.gain.setValueAtTime(0.0001, now);
+        envelope.gain.exponentialRampToValueAtTime(partial.level, now + 0.006);
+        envelope.gain.exponentialRampToValueAtTime(0.0001, now + partial.decay);
+        oscillator.connect(envelope);
+        envelope.connect(master);
+        oscillator.start(now);
+        oscillator.stop(now + partial.decay + 0.05);
       });
 
-    } catch (e) {
-      console.warn("Failed to play piano note:", e);
+      // A very short filtered burst gives the synthetic tone a gentle key attack.
+      const buffer = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * 0.018)), ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < data.length; i += 1) {
+        data[i] = Math.random() * 2 - 1;
+      }
+      const source = ctx.createBufferSource();
+      const filter = ctx.createBiquadFilter();
+      const attackGain = ctx.createGain();
+      source.buffer = buffer;
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(Math.min(2200, frequency * 3.2), now);
+      filter.Q.setValueAtTime(2.8, now);
+      attackGain.gain.setValueAtTime(0.035, now);
+      attackGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.018);
+      source.connect(filter);
+      filter.connect(attackGain);
+      attackGain.connect(master);
+      source.start(now);
+
+      setActiveNote(note);
+      if (activeNoteTimerRef.current !== null) {
+        window.clearTimeout(activeNoteTimerRef.current);
+      }
+      activeNoteTimerRef.current = window.setTimeout(() => {
+        setActiveNote(null);
+        activeNoteTimerRef.current = null;
+      }, 260);
+    } catch {
+      // The visual keyboard remains usable even when browser audio is unavailable.
     }
-  };
+  }, [ensureAudio]);
+
+  useEffect(() => {
+    return () => {
+      if (activeNoteTimerRef.current !== null) {
+        window.clearTimeout(activeNoteTimerRef.current);
+      }
+      const ctx = audioContextRef.current;
+      audioContextRef.current = null;
+      masterGainRef.current = null;
+      if (ctx && ctx.state !== 'closed') {
+        void ctx.close();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (showSettings || event.repeat || !containerRef.current) return;
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+
+      const isActive =
+        containerRef.current.contains(document.activeElement) ||
+        containerRef.current.matches(':hover');
+      if (!isActive) return;
+
+      const key = PIANO_KEYS.find(item => item.shortcut === event.key);
+      if (!key) return;
+      event.preventDefault();
+      playNote(key.note, key.frequency);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [playNote, showSettings]);
+
+  const settingButtonClass = (active: boolean) => `min-h-11 rounded-xl border px-3 py-2 text-left text-xs font-bold transition-colors ${
+    active
+      ? 'border-accent bg-accent-soft text-accent'
+      : currentIsLight
+        ? 'border-slate-200 bg-white text-slate-700 hover:border-accent hover:bg-accent-soft'
+        : 'border-white/10 bg-white/5 text-slate-200 hover:border-accent hover:bg-white/10'
+  }`;
+
+  const volumePresets = [
+    { label: 'Leise', value: 0.35 },
+    { label: 'Normal', value: 0.55 },
+    { label: 'Kräftig', value: 0.75 },
+  ];
 
   return (
-    <div className="flex-grow flex flex-col justify-between p-2 h-full min-h-0 pointer-events-auto select-none gap-2">
-      <div className="flex justify-between items-center px-1 shrink-0">
-        <span className={`text-[8px] font-black uppercase tracking-widest ${currentIsLight ? 'text-slate-400' : 'text-slate-500'}`}>
-          Klassen-Klavier Musik-Ecke 🎹
+    <div
+      ref={containerRef}
+      tabIndex={0}
+      role="region"
+      aria-label="Klassen-Klavier"
+      className={`relative flex h-full min-h-0 w-full flex-col overflow-hidden p-3 outline-none select-none focus-visible:ring-2 focus-visible:ring-accent ${
+        currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-slate-100'
+      }`}
+    >
+      {showSettings && (
+        <div className={`absolute inset-0 z-30 flex min-h-0 flex-col overflow-y-auto p-4 ${
+          currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-slate-100'
+        }`}>
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 pb-3 dark:border-white/10">
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider text-accent">Klassen-Klavier-Einstellungen</p>
+              <p className="mt-1 text-xs leading-relaxed opacity-65">
+                Beschriftung, Farben und Lautstärke für dieses Klavier festlegen.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onCloseSettings}
+              className="min-h-11 shrink-0 rounded-xl border border-slate-200 px-3 text-xs font-black hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5"
+            >
+              Fertig
+            </button>
+          </div>
+
+          <section className="mt-4 shrink-0">
+            <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider opacity-55">Beschriftung</p>
+            <div className="grid grid-cols-3 gap-1.5">
+              {([
+                ['solfege', 'Do Re Mi'],
+                ['letters', 'C D E'],
+                ['both', 'Beides'],
+              ] as Array<[PianoLabelMode, string]>).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  aria-pressed={settings.labelMode === mode}
+                  onClick={() => persistSettings({ labelMode: mode })}
+                  className={settingButtonClass(settings.labelMode === mode)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="mt-4 shrink-0">
+            <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider opacity-55">Lautstärke</p>
+            <div className="grid grid-cols-3 gap-1.5">
+              {volumePresets.map(preset => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  aria-pressed={Math.abs(settings.volume - preset.value) < 0.01}
+                  onClick={() => persistSettings({ volume: preset.value })}
+                  className={settingButtonClass(Math.abs(settings.volume - preset.value) < 0.01)}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <button
+            type="button"
+            aria-pressed={settings.showColors}
+            onClick={() => persistSettings({ showColors: !settings.showColors })}
+            className={`mt-4 ${settingButtonClass(settings.showColors)}`}
+          >
+            Farbpunkte {settings.showColors ? 'anzeigen' : 'ausblenden'}
+          </button>
+
+          <p className="mt-3 text-xs leading-relaxed opacity-60">
+            Die Zahlentasten 1–8 spielen dieselben Töne, solange das Widget aktiv ist.
+          </p>
+        </div>
+      )}
+
+      <div className="flex shrink-0 items-center justify-between gap-2">
+        <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[10px] font-black text-accent">
+          Eine Oktave · C4–C5
+        </span>
+        <span className="text-[11px] font-bold tabular-nums opacity-55">
+          Tasten 1–8
         </span>
       </div>
 
-      <div className="flex gap-1 justify-center my-2 shrink-0 h-18 py-0.5">
-        {keys.map(k => (
-          <button
-            key={k.note}
-            onClick={() => playNote(k.freq)}
-            className={`flex-1 h-full rounded-b-xl border flex flex-col justify-end items-center pb-1.5 transition-all text-[8px] font-black uppercase text-slate-800 tracking-wide cursor-pointer hover:shadow-inner hover:translate-y-0.5 ${
-              currentIsLight 
-                ? 'bg-white border-slate-200 hover:bg-slate-100' 
-                : 'bg-zinc-850 border-white/5 hover:bg-zinc-800 text-slate-200'
-            }`}
-          >
-            <span className={`w-2.5 h-2.5 rounded-full mb-1 ${k.color}`} />
-            <span className="text-[7.5px] font-bold">{k.name}</span>
-            <span className="text-[6px] font-mono opacity-50 font-bold">{k.note}</span>
-          </button>
-        ))}
+      <div className="flex min-h-0 flex-1 items-center py-3">
+        <div className="grid h-full min-h-24 w-full grid-cols-8 gap-1.5">
+          {PIANO_KEYS.map(key => {
+            const isActive = activeNote === key.note;
+            const secondary = getPianoKeySecondaryLabel(key, settings.labelMode);
+            return (
+              <button
+                key={key.note}
+                type="button"
+                onClick={() => playNote(key.note, key.frequency)}
+                aria-label={`${key.solfege}, ${key.note}, Taste ${key.shortcut}`}
+                className={`relative flex min-w-0 flex-col items-center justify-end rounded-b-2xl rounded-t-lg border px-1 pb-3 pt-2 shadow-sm transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
+                  isActive
+                    ? 'translate-y-1 border-accent bg-accent-soft shadow-inner'
+                    : currentIsLight
+                      ? 'border-slate-200 bg-white hover:border-accent hover:bg-slate-50'
+                      : 'border-white/10 bg-zinc-800 hover:border-accent hover:bg-zinc-700'
+                }`}
+              >
+                <span className="absolute right-1.5 top-1.5 text-[10px] font-black opacity-35">
+                  {key.shortcut}
+                </span>
+                {settings.showColors && (
+                  <span className={`mb-2 h-3 w-3 rounded-full ${key.toneClass}`} aria-hidden="true" />
+                )}
+                <span className="text-[clamp(0.7rem,3.2cqw,1rem)] font-black leading-none">
+                  {getPianoKeyPrimaryLabel(key, settings.labelMode)}
+                </span>
+                {secondary && (
+                  <span className="mt-1 text-[10px] font-bold opacity-50">
+                    {secondary}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <p className="text-[7px] text-center opacity-50 shrink-0 select-none pb-0.5">
-        Klicke auf die Klaviertasten, um echte Klaviertöne zu spielen!
+      <p role="status" aria-live="polite" className="min-h-5 shrink-0 text-center text-xs font-bold opacity-65">
+        {activeNote
+          ? `${PIANO_KEYS.find(key => key.note === activeNote)?.solfege || ''} · ${activeNote}`
+          : 'Tippe eine Taste an oder nutze die Zahlentasten 1–8.'}
       </p>
     </div>
   );
