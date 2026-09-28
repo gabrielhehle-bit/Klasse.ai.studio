@@ -162,7 +162,17 @@ export default function PhotoAlbums() {
 
     const editedStudents = students.filter(student => editStudentIds.includes(student.id));
     const editedPolicy = evaluatePhotoAlbumSharing(editedStudents, editNoIdentifiableStudents);
-    if (selectedAlbum.shareUrl && !selectedShareExpired && !editedPolicy.canShare) {
+    const previousIds = [...(selectedAlbum.studentIds || [])].sort();
+    const nextIds = [...(editNoIdentifiableStudents ? [] : editStudentIds)].sort();
+    const picturedChildrenChanged =
+      selectedAlbum.noIdentifiableStudents === true !== editNoIdentifiableStudents ||
+      previousIds.join('|') !== nextIds.join('|');
+
+    if (selectedAlbum.shareUrl && !selectedShareExpired && picturedChildrenChanged) {
+      showToast('Bitte zuerst den aktiven Elternlink beenden. Die Liste der abgebildeten Kinder darf während einer Freigabe nicht geändert werden.', 'error');
+      return;
+    }
+    if (!editedPolicy.canShare && selectedAlbum.shareUrl && !selectedShareExpired) {
       showToast('Bitte zuerst den aktiven Elternlink beenden. Die neue Auswahl wäre nicht freigegeben.', 'error');
       return;
     }
