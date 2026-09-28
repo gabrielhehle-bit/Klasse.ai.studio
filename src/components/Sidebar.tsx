@@ -10,7 +10,7 @@ import {
   Calendar, CalendarDays, ClipboardList, Mail, Wallet, 
   FileEdit, Notebook, CheckSquare, Play, LineChart, Folder, 
   Target, Replace, Archive, Bot, ChevronLeft, ChevronRight, Database, LayoutGrid,
-  MessagesSquare, Activity, Settings as SettingsIcon, Briefcase, ChevronDown, Check, Mic, FileText, Heart, Printer, X, GripVertical, ArrowUp, ArrowDown, Flag, GraduationCap, Wrench, FileSearch, UserPlus, Images
+  MessagesSquare, Activity, Settings as SettingsIcon, Briefcase, ChevronDown, Check, Mic, FileText, Heart, Printer, X, GripVertical, ArrowUp, ArrowDown, Flag, GraduationCap, Wrench, FileSearch, UserPlus, Images, Boxes
 } from 'lucide-react';
 import { Button, IconButton, Badge, Chip } from './ui';
 import { useLehrerzimmerUnread } from '../hooks/useLehrerzimmerUnread';
@@ -108,6 +108,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
     { id: 'textanalyse', label: 'Textanalyse', icon: <FileSearch size={18} />, section: 'Tools' },
     { id: 'ki-helfer', label: 'KI-Helfer', icon: <Bot size={18} />, section: 'Start' },
     { id: 'lehrerzimmer', label: 'Lehrerzimmer', icon: <MessagesSquare size={18} />, section: 'Tools' },
+    { id: 'lehrmittel', label: 'Lehrmittel & Inventar', icon: <Boxes size={18} />, section: 'Tools' },
     { id: 'arbeitsblatt', label: 'Arbeitsblatt-Generator', icon: <FileEdit size={18} />, section: 'KI-Helfer' },
     { id: 'stationenbetrieb', label: 'Stationenbetrieb', icon: <LayoutGrid size={18} />, section: 'Tools' },
     { id: 'differenzierung', label: 'Differenzierung', icon: <Target size={18} />, section: 'KI-Helfer' },
@@ -147,7 +148,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
   const availableModules = (sek1 ? SEK1_MODULES : ALL_MODULES).filter(item =>
     (!sek1 || istSek1Navigationsziel(item.id)) &&
     (app.klassenvorstand || !restrictedForSubjectTeachers.has(item.id)) &&
-    (item.id !== 'lehrerzimmer' || hasVerifiedSchoolIdentity) &&
+    (!['lehrerzimmer', 'lehrmittel'].includes(item.id) || hasVerifiedSchoolIdentity) &&
     (!disabledModules.includes(item.id) || item.id === 'lehrerzimmer')
   );
 
