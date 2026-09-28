@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { BookOpen, HelpCircle, Search, ChevronDown } from 'lucide-react';
-import { PAGE_HELP, SETTINGS_HELP, WIDGET_HELP, type HelpTopic } from '../../lib/helpContent';
+import { BookOpen, HelpCircle, Search, ChevronDown, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { MISSING_PAGE_HELP_IDS, PAGE_HELP, SETTINGS_HELP, WIDGET_HELP, type HelpTopic } from '../../lib/helpContent';
 
 type HelpSection = 'pages' | 'widgets' | 'settings';
 
@@ -44,6 +44,17 @@ export default function HelpCenter() {
           Hier findest du die App-Bereiche, alle aktuell auswählbaren Cockpit-Widgets und die Einstellungen.
           Für die ersten Schritte öffne zuerst die passende Anleitung.
         </p>
+        {MISSING_PAGE_HELP_IDS.length === 0 ? (
+          <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">
+            <CheckCircle2 size={16} aria-hidden="true" />
+            Jede aktuell verfügbare KLASSIO-Seite hat eine eigene Schritt-für-Schritt-Anleitung.
+          </div>
+        ) : (
+          <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
+            <AlertTriangle size={16} aria-hidden="true" />
+            Für {MISSING_PAGE_HELP_IDS.length} neue Bereiche fehlt noch eine eigene Detailanleitung.
+          </div>
+        )}
       </header>
 
       <nav aria-label="Hilfe-Kategorien" className="flex flex-wrap gap-2">
