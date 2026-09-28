@@ -131,7 +131,7 @@ const OPTIMAL_WIDGET_SIZES: Record<string, { w: number; h: number }> = {
   soundmachine: { w: 42, h: 50 },
   mathbalancer: { w: 44, h: 52 },
   animalvoice: { w: 38, h: 48 },
-  constellation: { w: 45, h: 55 },
+  constellation: { w: 48, h: 58 },
   multitrainer: { w: 38, h: 48 },
   moneycalc: { w: 40, h: 50 },
   anschauung: { w: 42, h: 52 },
