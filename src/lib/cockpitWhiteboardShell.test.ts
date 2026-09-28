@@ -14,7 +14,10 @@ test('new teaching cockpit keeps the main whiteboard free and moves widget favor
   assert.doesNotMatch(board, /h-full w-full min-h-\[460px\]/);
   assert.match(board, /<CockpitWidgetDock[\s\S]*?onAddWidget=/);
   assert.doesNotMatch(board, /aria-label="Zusätzliche Widget-Leiste"/);
-  assert.match(board, /fixed left-1\/2 -translate-x-1\/2 top-\[4\.75rem\] bottom-\[4\.75rem\]/);
+  assert.match(board, /klassio-widget-library fixed top-\[4\.75rem\] bottom-\[4\.75rem\]/);
+  assert.doesNotMatch(board, /klassio-widget-library fixed left-1\/2 -translate-x-1\/2/);
+  assert.match(css, /\.klassio-widget-library \{[\s\S]*?left: 50%;[\s\S]*?transform: translateX\(-50%\);/);
+  assert.match(css, /@media \(max-width: 760px\)[\s\S]*?\.klassio-widget-library \{[\s\S]*?left: 0\.25rem !important;[\s\S]*?right: 0\.25rem !important;[\s\S]*?transform: none !important;/);
   assert.match(css, /\.klassio-cockpit-shell \.klassio-whiteboard/);
   assert.match(css, /background-color: #ffffff !important;/);
 });
