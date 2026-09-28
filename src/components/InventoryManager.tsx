@@ -1540,7 +1540,10 @@ export default function InventoryManager() {
               <div className="relative">
                 <input
                   value={loanBorrowerQuery}
-                  onFocus={() => setBorrowerPickerOpen(true)}
+                  onFocus={event => {
+                    setBorrowerPickerOpen(true);
+                    event.currentTarget.select();
+                  }}
                   onBlur={() => window.setTimeout(() => setBorrowerPickerOpen(false), 120)}
                   onChange={event => {
                     const value = event.target.value;
