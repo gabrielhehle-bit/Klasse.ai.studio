@@ -17,7 +17,6 @@ import { clearTrustedDeviceUnlock } from '../lib/trustedDeviceVault';
 import { Button, IconButton, Badge } from './ui';
 import SupportModal from './SupportModal';
 import { getNavigationParent } from '../lib/navigationHierarchy';
-import { getQuietSyncBadge } from '../lib/quietSyncBadge';
 import { triggerBackupDownload } from '../utils/backupUtils';
 
 interface TopbarProps {
@@ -57,9 +56,6 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
   const [currentTime, setCurrentTime] = useState(new Date());
   const [weather, setWeather] = useState<any>(null);
   const [forecast, setForecast] = useState<any[]>([]);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  // Keep the prominent label steady; the exact state stays accessible via tooltip and account settings.
-  const cloudSaveBadge = getQuietSyncBadge(accountSyncStatus, isOnline);
   const [showLargeQR, setShowLargeQR] = useState(false);
   const [qrModalTab, setQrModalTab] = useState<'remote' | 'wifi'>('remote');
   const [wifiSsid, setWifiSsid] = useState(app.boardSettings?.wifiSettings?.ssid || '');
@@ -119,17 +115,6 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
   }, []);
 
   useEffect(() => {
@@ -330,9 +315,8 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
   };
 
   const handleLogout = async () => {
-    // A calm "Autospeichern" badge covers several distinct states. Logout
-    // must not silently discard a pending local write or leave the teacher
-    // believing that data is already accessible from another computer.
+    // The header is intentionally quiet. Logout still blocks while the latest
+    // local changes are not confirmed, so hiding the sync badge does not weaken data safety.
     if (accountSyncStatus !== 'synced' && accountSyncStatus !== 'disabled' && accountSyncStatus !== 'idle') {
       showToast('Bitte noch nicht abmelden: Die neuesten Daten sind nicht auf allen Geräten bestätigt. Prüfe den Speicherstatus und erstelle gegebenenfalls auf diesem Gerät ein verschlüsseltes Backup.', 'error');
       setShowMehrMenu(false);
@@ -410,27 +394,6 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
             >
               <Save size={20} aria-hidden="true" className={manualBackupBusy ? 'animate-pulse' : ''} />
             </button>
-            {cloudSaveBadge && (
-              <button
-                type="button"
-                onClick={() => {
-                  try {
-                    window.sessionStorage.setItem('klassio-settings-category', 'account');
-                  } catch {
-                    // Account settings still open through the page change below.
-                  }
-                  setPage('settings');
-                  window.setTimeout(() => {
-                    window.dispatchEvent(new CustomEvent('klassio-open-settings-category', { detail: 'account' }));
-                  }, 0);
-                }}
-                aria-label={`Speicherstatus: ${cloudSaveBadge.text}. ${cloudSaveBadge.description}. Konto öffnen.`}
-                title={cloudSaveBadge.description}
-                className={`inline-flex min-h-10 max-w-[104px] min-w-0 items-center justify-center rounded-xl border px-2 text-[0.6875rem] font-black leading-tight shadow-xs sm:max-w-[180px] sm:px-3 ${cloudSaveBadge.color}`}
-              >
-                <span className="truncate">{cloudSaveBadge.text}</span>
-              </button>
-            )}
             <button
               type="button"
               onClick={openHelpCenter}
