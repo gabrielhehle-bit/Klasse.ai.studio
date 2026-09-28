@@ -42,11 +42,22 @@ test('Grundmodell bleibt übersichtlich, erweitert ergänzt Pflanzen und Grundwa
 
 test('Quiz korrigiert typische Fehlvorstellungen', () => {
   const text = JSON.stringify(WATER_CYCLE_QUIZ);
+  const cloudQuestion = WATER_CYCLE_QUIZ.find(question => question.id === 'clouds');
+  const cycleQuestion = WATER_CYCLE_QUIZ.find(question => question.id === 'cycle');
+
   assert.match(text, /Wasserdampf selbst ist unsichtbar/);
   assert.match(text, /Wassertröpfchen und\/oder Eiskristallen/);
   assert.match(text, /verschiedene Wege/);
-  assert.doesNotMatch(text, /Wolken bestehen nur aus Wasserdampf/);
-  assert.doesNotMatch(text, /immer im Meer.*endet immer im Meer/);
+
+  assert.ok(cloudQuestion);
+  assert.equal(cloudQuestion!.answerIndex, 0);
+  assert.match(cloudQuestion!.options[0], /Wassertröpfchen/);
+  assert.doesNotMatch(cloudQuestion!.explanation, /Wolken bestehen nur aus Wasserdampf/);
+
+  assert.ok(cycleQuestion);
+  assert.equal(cycleQuestion!.answerIndex, 0);
+  assert.match(cycleQuestion!.options[0], /verschiedenen Wegen/);
+  assert.doesNotMatch(cycleQuestion!.explanation, /beginnt immer im Meer|endet immer im Meer/);
 });
 
 test('alle Quizfragen sind quellenmarkiert und eindeutig', () => {
