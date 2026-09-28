@@ -507,7 +507,7 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                       {
                                         type: "dailyquotes",
                                         label: "💡 Morgen-Mottos",
-                                        desc: "Positive Affirmationen am Morgen",
+                                        desc: "Kurze Impulse für den Start in den Tag",
                                         category: "mindfulness",
                                       },
                                       {
@@ -624,6 +624,7 @@ const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
   "sounds",
   "pet",
   "sorting",
+  "dailyquotes",
 ]);
 
 const COCKPIT_WIDGET_LIBRARY_BY_TYPE = new Map<string, CockpitWidgetLibraryItem>(
