@@ -77,6 +77,19 @@ import {
   type CompassPracticeRound,
   type CompassWidgetSettings,
 } from '../../lib/compassWidgetModel';
+import {
+  createWeekdaysPracticeRound,
+  getCurrentSequenceIndex,
+  getSequenceItems,
+  nextSequenceIndex,
+  normalizeWeekdaysWidgetSettings,
+  practiceQuestion,
+  previousSequenceIndex,
+  type WeekdaysContent,
+  type WeekdaysMode,
+  type WeekdaysPracticeRound,
+  type WeekdaysWidgetSettings,
+} from '../../lib/weekdaysWidgetModel';
 import { ClassPetCanvas, ClassPetCanvasRef } from '../ClassPetCanvas';
 import { PET_BREEDS } from '../ClassPetWidget';
 import { WheelWidget, WheelWidgetProps } from './widgets/WheelWidget';
@@ -9641,71 +9654,349 @@ export const CompassWidgetContent: React.FC<{
 // ==========================================
 // NEW WIDGET 24: WOCHENTAGE-TRAINER (Days Circle)
 // ==========================================
-export const WeekdaysWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const days = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
-  const [todayIdx, setTodayIdx] = useState(0);
+export const WeekdaysWidgetContent: React.FC<{
+  widget: any;
+  currentIsLight: boolean;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
+}> = ({
+  widget,
+  currentIsLight,
+  onUpdate,
+  showSettings = false,
+  onCloseSettings,
+}) => {
+  const settings = useMemo(
+    () => normalizeWeekdaysWidgetSettings(widget?.settings),
+    [widget?.settings],
+  );
+  const items = useMemo(() => getSequenceItems(settings.content), [settings.content]);
+  const [referenceDate] = useState(() => new Date());
+  const actualIndex = getCurrentSequenceIndex(settings.content, referenceDate);
+  const [selectedIdx, setSelectedIdx] = useState(() =>
+    getCurrentSequenceIndex(settings.content, referenceDate),
+  );
+  const [practiceRound, setPracticeRound] = useState<WeekdaysPracticeRound | null>(
+    () => createWeekdaysPracticeRound(getSequenceItems(settings.content)),
+  );
+  const [answerState, setAnswerState] = useState<'idle' | 'wrong' | 'correct'>('idle');
+  const [feedback, setFeedback] = useState('');
+  const onUpdateRef = useRef(onUpdate);
+  onUpdateRef.current = onUpdate;
 
-  const yesterdayIdx = (todayIdx - 1 + 7) % 7;
-  const tomorrowIdx = (todayIdx + 1) % 7;
+  const persistSettings = useCallback((patch: Partial<WeekdaysWidgetSettings>) => {
+    if (!onUpdateRef.current) return;
+    onUpdateRef.current({ settings: patch });
+  }, []);
+
+  useEffect(() => {
+    const nextItems = getSequenceItems(settings.content);
+    const nextActual = getCurrentSequenceIndex(settings.content, referenceDate);
+    setSelectedIdx(nextActual);
+    setPracticeRound(createWeekdaysPracticeRound(nextItems));
+    setAnswerState('idle');
+    setFeedback('');
+  }, [settings.content, referenceDate]);
+
+  useEffect(() => {
+    setAnswerState('idle');
+    setFeedback('');
+    if (settings.mode === 'practice') {
+      setPracticeRound(previous =>
+        createWeekdaysPracticeRound(items, Math.random, previous),
+      );
+    }
+  }, [settings.mode]);
+
+  const changeMode = (mode: WeekdaysMode) => {
+    persistSettings({ mode });
+  };
+
+  const changeContent = (content: WeekdaysContent) => {
+    persistSettings({ content });
+  };
+
+  const chooseItem = (index: number) => {
+    if (settings.mode === 'practice' && answerState === 'correct') return;
+    setSelectedIdx(index);
+
+    if (settings.mode !== 'practice' || !practiceRound) return;
+
+    if (index === practiceRound.answerIndex) {
+      setAnswerState('correct');
+      setFeedback(`Richtig – ${items[index]} passt.`);
+    } else {
+      setAnswerState('wrong');
+      setFeedback(`${items[index]} passt noch nicht. Versuch es noch einmal.`);
+    }
+  };
+
+  const nextPractice = () => {
+    setPracticeRound(previous =>
+      createWeekdaysPracticeRound(items, Math.random, previous),
+    );
+    setSelectedIdx(actualIndex);
+    setAnswerState('idle');
+    setFeedback('');
+  };
+
+  const previousIdx = previousSequenceIndex(selectedIdx, items.length);
+  const nextIdx = nextSequenceIndex(selectedIdx, items.length);
+  const selectedIsActual = selectedIdx === actualIndex;
+
+  const relativeLabels = settings.content === 'weekdays'
+    ? selectedIsActual
+      ? ['Gestern', 'Heute', 'Morgen']
+      : ['Davor', 'Ausgewählt', 'Danach']
+    : selectedIsActual
+      ? ['Voriger Monat', 'Aktueller Monat', 'Nächster Monat']
+      : ['Davor', 'Ausgewählt', 'Danach'];
+
+  const settingButtonClass = (active: boolean) => `min-h-11 rounded-xl border px-3 py-2 text-left text-xs font-bold transition-colors ${
+    active
+      ? 'border-accent bg-accent-soft text-accent'
+      : currentIsLight
+        ? 'border-slate-200 bg-white text-slate-700 hover:border-accent hover:bg-accent-soft'
+        : 'border-white/10 bg-white/5 text-slate-200 hover:border-accent hover:bg-white/10'
+  }`;
 
   return (
-    <div className="flex-grow flex flex-col justify-between p-2 h-full min-h-0 pointer-events-auto select-none gap-2">
-      <div className="flex justify-between items-center px-1 shrink-0">
-        <span className={`text-[8px] font-black uppercase tracking-widest ${currentIsLight ? 'text-slate-400' : 'text-slate-500'}`}>
-          Wochentage-Trainer (Morgenkreis)
-        </span>
+    <div
+      role="region"
+      aria-label="Wochentage-Trainer"
+      className={`relative flex h-full min-h-0 w-full flex-col overflow-hidden p-3 select-none ${
+        currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-slate-100'
+      }`}
+    >
+      {showSettings && (
+        <div className={`absolute inset-0 z-30 flex min-h-0 flex-col overflow-y-auto p-4 ${
+          currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-slate-100'
+        }`}>
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 pb-3 dark:border-white/10">
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider text-accent">Wochentage-Trainer-Einstellungen</p>
+              <p className="mt-1 text-xs leading-relaxed opacity-65">
+                Wähle Lerninhalt und zusätzliche Orientierungshilfen.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onCloseSettings}
+              className="min-h-11 shrink-0 rounded-xl border border-slate-200 px-3 text-xs font-black hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5"
+            >
+              Fertig
+            </button>
+          </div>
+
+          <section className="mt-4 shrink-0">
+            <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider opacity-55">Lerninhalt</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                aria-pressed={settings.content === 'weekdays'}
+                onClick={() => changeContent('weekdays')}
+                className={settingButtonClass(settings.content === 'weekdays')}
+              >
+                Wochentage
+              </button>
+              <button
+                type="button"
+                aria-pressed={settings.content === 'months'}
+                onClick={() => changeContent('months')}
+                className={settingButtonClass(settings.content === 'months')}
+              >
+                Monate
+              </button>
+            </div>
+          </section>
+
+          <section className="mt-4 shrink-0">
+            <button
+              type="button"
+              aria-pressed={settings.showRelativeLabels}
+              onClick={() => persistSettings({ showRelativeLabels: !settings.showRelativeLabels })}
+              className={settingButtonClass(settings.showRelativeLabels)}
+            >
+              Nachbarn {settings.showRelativeLabels ? 'anzeigen' : 'ausblenden'}
+            </button>
+          </section>
+
+          <div className={`mt-4 rounded-2xl border p-3 text-xs leading-relaxed ${
+            currentIsLight ? 'border-slate-200 bg-slate-50 text-slate-600' : 'border-white/10 bg-white/5 text-slate-300'
+          }`}>
+            Beim Öffnen startet das Widget mit dem echten aktuellen Wochentag beziehungsweise Monat des Geräts.
+          </div>
+        </div>
+      )}
+
+      <div className="grid shrink-0 grid-cols-2 gap-2" role="group" aria-label="Lernmodus">
+        <button
+          type="button"
+          aria-pressed={settings.mode === 'explore'}
+          onClick={() => changeMode('explore')}
+          className={`min-h-11 rounded-xl border px-3 text-xs font-black transition-colors ${
+            settings.mode === 'explore'
+              ? 'border-accent bg-accent text-accent-text'
+              : currentIsLight
+                ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                : 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10'
+          }`}
+        >
+          Entdecken
+        </button>
+        <button
+          type="button"
+          aria-pressed={settings.mode === 'practice'}
+          onClick={() => changeMode('practice')}
+          className={`min-h-11 rounded-xl border px-3 text-xs font-black transition-colors ${
+            settings.mode === 'practice'
+              ? 'border-accent bg-accent text-accent-text'
+              : currentIsLight
+                ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                : 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10'
+          }`}
+        >
+          Reihenfolge üben
+        </button>
       </div>
 
-      {/* Grid displaying the days */}
-      <div className="flex-grow flex flex-col justify-center gap-1.5 my-1">
-        <div className="grid grid-cols-7 gap-1">
-          {days.map((d, idx) => {
-            const isToday = todayIdx === idx;
-            const isYesterday = yesterdayIdx === idx;
-            const isTomorrow = tomorrowIdx === idx;
-            return (
-              <button
-                key={d}
-                onClick={() => setTodayIdx(idx)}
-                className={`flex flex-col items-center justify-center p-1 py-2.5 rounded-xl border text-[7px] font-black transition-all cursor-pointer ${
-                  isToday 
-                    ? 'bg-indigo-500 text-white border-transparent shadow shadow-indigo-500/20' 
-                    : isYesterday 
-                      ? 'bg-amber-500/15 border-amber-500/30 text-amber-500' 
-                      : isTomorrow 
-                        ? 'bg-sky-500/15 border-sky-500/30 text-sky-500' 
-                        : currentIsLight ? 'bg-white border-slate-150 hover:bg-slate-50' : 'bg-zinc-850/55 border-white/5 text-slate-400 hover:bg-zinc-805'
+      {settings.mode === 'explore' ? (
+        <>
+          <div className="flex min-h-0 flex-1 flex-col justify-center py-3">
+            <div className="grid grid-cols-4 gap-2">
+              {items.map((item, index) => {
+                const isSelected = selectedIdx === index;
+                const isActual = actualIndex === index;
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    aria-pressed={isSelected}
+                    onClick={() => chooseItem(index)}
+                    className={`relative min-h-14 rounded-2xl border px-2 py-2 text-xs font-black leading-tight transition-colors ${
+                      isSelected
+                        ? 'border-accent bg-accent text-accent-text'
+                        : currentIsLight
+                          ? 'border-slate-200 bg-white text-slate-700 hover:border-accent hover:bg-accent-soft'
+                          : 'border-white/10 bg-white/5 text-slate-100 hover:border-accent hover:bg-white/10'
+                    }`}
+                  >
+                    <span className="block">{item}</span>
+                    {isActual && (
+                      <span className={`mt-1 block text-[10px] font-bold ${
+                        isSelected ? 'opacity-80' : 'text-accent'
+                      }`}>
+                        {settings.content === 'weekdays' ? 'Heute' : 'Aktuell'}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className={`shrink-0 rounded-2xl border p-3 ${
+            currentIsLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/5'
+          }`}>
+            <p className="text-center text-[10px] font-black uppercase tracking-wider opacity-50">
+              {selectedIsActual
+                ? settings.content === 'weekdays' ? 'Heute im Kalender' : 'Aktueller Monat'
+                : 'Ausgewählte Position'}
+            </p>
+            <p className="mt-1 text-center text-xl font-black text-accent">{items[selectedIdx]}</p>
+
+            {settings.showRelativeLabels && (
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                {[previousIdx, selectedIdx, nextIdx].map((index, position) => (
+                  <div
+                    key={`${index}-${position}`}
+                    className={`rounded-xl px-2 py-2 ${
+                      position === 1 ? 'bg-accent-soft text-accent' : 'bg-black/5 dark:bg-white/5'
+                    }`}
+                  >
+                    <span className="block text-[10px] font-black uppercase tracking-wide opacity-55">
+                      {relativeLabels[position]}
+                    </span>
+                    <span className="mt-0.5 block text-xs font-black">{items[index]}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col pt-3">
+          {practiceRound ? (
+            <>
+              <div className={`shrink-0 rounded-2xl border px-4 py-3 text-center ${
+                currentIsLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/5'
+              }`}>
+                <p className="text-[10px] font-black uppercase tracking-wider opacity-50">Reihenfolge</p>
+                <p className="mt-1 text-base font-black leading-snug text-accent">
+                  {practiceQuestion(practiceRound, items)}
+                </p>
+              </div>
+
+              <div className="grid min-h-0 flex-1 grid-cols-4 content-center gap-2 py-3">
+                {items.map((item, index) => {
+                  const isSelected = selectedIdx === index;
+                  const isCorrect = practiceRound.answerIndex === index;
+                  const showCorrect = answerState === 'correct' && isCorrect;
+                  const showWrong = answerState === 'wrong' && isSelected;
+                  return (
+                    <button
+                      key={item}
+                      type="button"
+                      disabled={answerState === 'correct'}
+                      onClick={() => chooseItem(index)}
+                      className={`min-h-14 rounded-2xl border-2 px-2 py-2 text-xs font-black leading-tight transition-colors disabled:cursor-default ${
+                        showCorrect
+                          ? 'border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                          : showWrong
+                            ? 'border-rose-500 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+                            : currentIsLight
+                              ? 'border-slate-200 bg-white text-slate-800 hover:border-accent hover:bg-accent-soft'
+                              : 'border-white/10 bg-white/5 text-slate-100 hover:border-accent hover:bg-white/10'
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <p
+                role="status"
+                aria-live="polite"
+                className={`min-h-8 shrink-0 text-center text-xs font-bold leading-relaxed ${
+                  answerState === 'correct'
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : answerState === 'wrong'
+                      ? 'text-rose-600 dark:text-rose-400'
+                      : 'opacity-55'
                 }`}
               >
-                <span>{d.slice(0, 2)}</span>
-                {isToday && <span className="text-[5.5px] uppercase mt-0.5 text-indigo-100 font-bold">Heute</span>}
-                {isYesterday && <span className="text-[5.5px] uppercase mt-0.5 opacity-80 font-bold">Gestern</span>}
-                {isTomorrow && <span className="text-[5.5px] uppercase mt-0.5 opacity-80 font-bold">Morgen</span>}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+                {feedback || 'Wähle die passende Antwort.'}
+              </p>
 
-      {/* Summary Board */}
-      <div className={`p-2 rounded-2xl border flex flex-col gap-0.5 text-center ${
-        currentIsLight ? 'bg-slate-50 border-slate-150' : 'bg-zinc-850/50 border-white/5'
-      }`}>
-        <div className="flex justify-around items-center text-[7.5px] font-semibold">
-          <div className="text-amber-500">
-            <span className="font-extrabold uppercase text-[6.5px]">Gestern:</span>
-            <p className="font-bold">{days[yesterdayIdx]}</p>
-          </div>
-          <div className="text-indigo-500 font-extrabold text-[8px] px-1 bg-indigo-500/10 rounded-lg">
-            <span className="font-black uppercase text-[6px]">Heute:</span>
-            <p className="font-black">{days[todayIdx]}</p>
-          </div>
-          <div className="text-sky-500">
-            <span className="font-extrabold uppercase text-[6.5px]">Morgen:</span>
-            <p className="font-bold">{days[tomorrowIdx]}</p>
-          </div>
+              {answerState === 'correct' && (
+                <button
+                  type="button"
+                  onClick={nextPractice}
+                  className="mt-1 min-h-11 shrink-0 rounded-xl bg-accent px-4 text-xs font-black text-accent-text hover:bg-accent-hover"
+                >
+                  Nächste Aufgabe
+                </button>
+              )}
+            </>
+          ) : (
+            <div className="flex flex-1 items-center justify-center text-sm font-semibold opacity-60">
+              Keine Übungsaufgabe verfügbar.
+            </div>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 };
