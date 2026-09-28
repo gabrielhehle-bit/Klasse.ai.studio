@@ -31,6 +31,7 @@ import {
   getValidOneDriveToken,
   readOneDriveToken,
 } from '../lib/oneDriveSession';
+import { canPrivacyOptimizePhotoType, prepareParentPhoto } from '../lib/photoUploadPreparation';
 
 const MAX_PHOTO_BYTES = 25 * 1024 * 1024;
 const DEFAULT_SHARE_DAYS = 30;
@@ -82,6 +83,7 @@ export default function PhotoAlbums() {
   const [uploading, setUploading] = React.useState(false);
   const [sharing, setSharing] = React.useState(false);
   const [uploadProgress, setUploadProgress] = React.useState({ done: 0, total: 0 });
+  const [optimizePhotos, setOptimizePhotos] = React.useState(true);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const [draftTitle, setDraftTitle] = React.useState('');
@@ -256,6 +258,10 @@ export default function PhotoAlbums() {
         showToast(`${file.name}: Maximal 25 MB pro Foto.`, 'error');
         return false;
       }
+      if (optimizePhotos && !canPrivacyOptimizePhotoType(file.type)) {
+        showToast(`${file.name}: Datenschutz-Optimierung unterstützt JPEG, PNG und WebP. Für HEIC/GIF bitte bewusst auf Originaldateien umstellen.`, 'error');
+        return false;
+      }
       return true;
     });
     if (!files.length) return;
@@ -274,19 +280,20 @@ export default function PhotoAlbums() {
     try {
       for (let index = 0; index < files.length; index += 1) {
         const file = files[index];
+        const prepared = await prepareParentPhoto(file, optimizePhotos);
         const headers: Record<string, string> = {
           Authorization: `Bearer ${token}`,
-          'Content-Type': file.type || 'application/octet-stream',
+          'Content-Type': prepared.mimeType || 'application/octet-stream',
           'X-Klassio-Album-Id': encodeURIComponent(selectedAlbum.id),
           'X-Klassio-Album-Title': encodeURIComponent(selectedAlbum.title),
-          'X-Klassio-Filename': encodeURIComponent(file.name),
+          'X-Klassio-Filename': encodeURIComponent(prepared.name),
         };
         if (folderId) headers['X-Klassio-Folder-Id'] = encodeURIComponent(folderId);
 
         const response = await fetch('/api/onedrive/photos/upload', {
           method: 'PUT',
           headers,
-          body: file,
+          body: prepared.body,
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
@@ -297,9 +304,9 @@ export default function PhotoAlbums() {
         folderWebUrl = data.folder?.webUrl || folderWebUrl;
         const uploadedFile: PhotoAlbumFile = {
           id: makeId('photo'),
-          name: data.file?.name || file.name,
-          size: Number(data.file?.size ?? file.size),
-          mimeType: file.type,
+          name: data.file?.name || prepared.name,
+          size: Number(data.file?.size ?? prepared.body.size),
+          mimeType: prepared.mimeType,
           uploadedAt: new Date().toISOString(),
           driveItemId: data.file?.id,
           webUrl: data.file?.webUrl,
@@ -839,6 +846,24 @@ export default function PhotoAlbums() {
                     <p className="mt-2 text-xs leading-relaxed text-[var(--text-secondary,var(--text2))]">
                       Die Bilder werden nicht dauerhaft auf dem KLASSIO-Webserver gespeichert.
                     </p>
+
+                    <label className={`mt-4 flex items-start gap-3 rounded-xl border p-3 ${optimizePhotos ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+                      <input
+                        type="checkbox"
+                        checked={optimizePhotos}
+                        disabled={uploading}
+                        onChange={event => setOptimizePhotos(event.target.checked)}
+                        className="mt-0.5"
+                      />
+                      <span>
+                        <span className={`block text-xs font-black ${optimizePhotos ? 'text-emerald-900' : 'text-amber-900'}`}>Datenschutz-Optimierung {optimizePhotos ? 'aktiv' : 'aus'}</span>
+                        <span className={`mt-0.5 block text-[11px] leading-relaxed ${optimizePhotos ? 'text-emerald-700' : 'text-amber-700'}`}>
+                          {optimizePhotos
+                            ? 'JPEG, PNG und WebP werden vor dem Upload neu kodiert, auf maximal 2560 px verkleinert und ohne die ursprünglichen eingebetteten Kamerametadaten hochgeladen.'
+                            : 'Originaldateien werden unverändert hochgeladen. Dadurch können eingebettete Kamerametadaten erhalten bleiben.'}
+                        </span>
+                      </span>
+                    </label>
 
                     <input
                       ref={fileInputRef}
