@@ -17,6 +17,7 @@ import { clearTrustedDeviceUnlock } from '../lib/trustedDeviceVault';
 import { Button, IconButton, Badge } from './ui';
 import SupportModal from './SupportModal';
 import { getNavigationParent } from '../lib/navigationHierarchy';
+import { getQuietSyncBadge } from '../lib/quietSyncBadge';
 import { triggerBackupDownload } from '../utils/backupUtils';
 
 interface TopbarProps {
@@ -56,6 +57,9 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
   const [currentTime, setCurrentTime] = useState(new Date());
   const [weather, setWeather] = useState<any>(null);
   const [forecast, setForecast] = useState<any[]>([]);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  // Keep the prominent label steady; the exact state stays accessible via tooltip and account settings.
+  const cloudSaveBadge = getQuietSyncBadge(accountSyncStatus, isOnline);
   const [showLargeQR, setShowLargeQR] = useState(false);
   const [qrModalTab, setQrModalTab] = useState<'remote' | 'wifi'>('remote');
   const [wifiSsid, setWifiSsid] = useState(app.boardSettings?.wifiSettings?.ssid || '');
@@ -115,6 +119,17 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   useEffect(() => {
@@ -395,6 +410,27 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
             >
               <Save size={20} aria-hidden="true" className={manualBackupBusy ? 'animate-pulse' : ''} />
             </button>
+            {cloudSaveBadge && (
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    window.sessionStorage.setItem('klassio-settings-category', 'account');
+                  } catch {
+                    // Account settings still open through the page change below.
+                  }
+                  setPage('settings');
+                  window.setTimeout(() => {
+                    window.dispatchEvent(new CustomEvent('klassio-open-settings-category', { detail: 'account' }));
+                  }, 0);
+                }}
+                aria-label={`Speicherstatus: ${cloudSaveBadge.text}. ${cloudSaveBadge.description}. Konto öffnen.`}
+                title={cloudSaveBadge.description}
+                className={`inline-flex min-h-10 max-w-[104px] min-w-0 items-center justify-center rounded-xl border px-2 text-[0.6875rem] font-black leading-tight shadow-xs sm:max-w-[180px] sm:px-3 ${cloudSaveBadge.color}`}
+              >
+                <span className="truncate">{cloudSaveBadge.text}</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={openHelpCenter}
