@@ -352,7 +352,7 @@ const widgetCatalog: Array<{ id: string; title: string; purpose: string; group: 
   {
     "id": "compass",
     "title": "🧭 Geographie-Kompass",
-    "purpose": "Orientierung & Himmelsrichtungen lernen",
+    "purpose": "Himmelsrichtungen erkunden und sicher zuordnen",
     "group": "sachunterricht"
   },
   {
@@ -759,6 +759,8 @@ const widgetSpecificSteps: Record<string, string[]> = {
   scoreboard: ['Öffne „Gruppen-Punkte“.', 'Lege die benötigten Teams und deren Ausgangswerte fest.', 'Passe den Punktestand während des Spiels an.'],
   timeline: ['Öffne „Tages-Zeitstrahl“.', 'Prüfe den Ablauf der Unterrichtsphasen und verfügbare Zeitangaben.', 'Zeige den Zeitstrahl während des Tages für die Klasse an.'],
   sounds: ['Öffne „Musik & Klänge“.', 'Wähle einen angebotenen Klang und passe die Lautstärke an.', 'Stoppe die Wiedergabe nach dem Einsatz.'],
+  compass: ['Öffne im Lehrercockpit „Widget hinzufügen“ → „Geographie-Kompass“.', 'Wähle „Erkunden“, um eine Richtung anzutippen und die Erklärung dazu zu lesen, oder „Üben“, um eine vorgegebene Himmelsrichtung einzustellen und anschließend zu prüfen.', 'Über das Zahnrad stellst du ein, ob nur die vier Haupthimmelsrichtungen oder alle acht Richtungen verwendet werden und ob Gradangaben sichtbar sind.', 'Die Sonnenhinweise sind bewusst nur eine ungefähre Orientierung für Österreich, weil Auf- und Untergang je nach Jahreszeit nicht exakt im Osten beziehungsweise Westen liegen.'],
+
 };
 
 export const MISSING_PAGE_HELP_IDS = AVAILABLE_MODULES
