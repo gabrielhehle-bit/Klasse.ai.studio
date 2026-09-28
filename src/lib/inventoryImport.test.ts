@@ -78,3 +78,19 @@ test('entfernt doppelte Inventarnummern in einer Importvorschau', () => {
   assert.equal(records[0].name, 'Koffer A');
   assert.equal(records[1].name, 'Waage');
 });
+
+
+test('leere Tabellenspalten verschieben nachfolgende Werte nicht', () => {
+  const records = parseInventoryText(
+    'Nr.;Bezeichnung;Fach;Kasten;Raum;Anzahl\n' +
+    '501;Magnettafel;;SU Kasten 2;;3'
+  );
+
+  assert.equal(records.length, 1);
+  assert.equal(records[0].inventoryNumber, '501');
+  assert.equal(records[0].name, 'Magnettafel');
+  assert.equal(records[0].subject, '');
+  assert.equal(records[0].location, 'SU Kasten 2');
+  assert.equal(records[0].room, '');
+  assert.equal(records[0].quantity, 3);
+});
