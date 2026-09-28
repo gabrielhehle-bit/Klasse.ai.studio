@@ -43,3 +43,17 @@ test('Ton-Trainer besitzt keinen doppelten Innentitel und keine eigene Scrollfl�
   assert.doesNotMatch(widget, /overflow-y-auto/);
   assert.match(widget, /min-h-full w-full/);
 });
+
+
+test('Ton-Trainer visualisiert Tonhöhenrichtung und Zielton', () => {
+  assert.match(widget, /Tonhöhe steigt von links nach rechts/);
+  assert.match(widget, />tiefer</);
+  assert.match(widget, />höher</);
+  assert.match(widget, /Nächster Ton/);
+});
+
+test('Ton-Trainer bietet im Nachspielmodus erneutes Anhören', () => {
+  assert.match(widget, /Nochmal anhören/);
+  assert.match(widget, /playSequence\(memorySequence\)/);
+  assert.match(widget, /Richtung der Tonhöhen/);
+});
