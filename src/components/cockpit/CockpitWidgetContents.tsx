@@ -16,6 +16,18 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { askAI, generatePetSpeech, generateWidgetTasks } from '../../services/aiService';
 import { useApp } from '../../context/AppContext';
 import { getKW } from '../../lib/utils';
+import {
+  SORTING_RANGE_OPTIONS,
+  describeSortingMistake,
+  formatSortingNumber,
+  generateSortingNumbers,
+  getSortingTarget,
+  normalizeSortingWidgetSettings,
+  type SortingCount,
+  type SortingDirection,
+  type SortingRangeKey,
+  type SortingWidgetSettings,
+} from '../../lib/sortingWidgetModel';
 import { ClassPetCanvas, ClassPetCanvasRef } from '../ClassPetCanvas';
 import { PET_BREEDS } from '../ClassPetWidget';
 import { WheelWidget, WheelWidgetProps } from './widgets/WheelWidget';
@@ -7129,193 +7141,350 @@ export const WordclockWidgetContent: React.FC<{
 // ==========================================
 // NEW WIDGET 16: ZAHLENSORTIERER (Number Sorter Game)
 // ==========================================
-export const SortingWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const levels = [
-    { label: "1 - 20", key: "easy", min: 1, max: 20, isFloat: false },
-    { label: "1 - 100", key: "medium", min: 1, max: 100, isFloat: false },
-    { label: "1 - 1000", key: "hard", min: 1, max: 1000, isFloat: false },
-    { label: "Dezimal (0-10)", key: "decimals", min: 0, max: 10, isFloat: true },
-    { label: "Negativ (-50 bis 50)", key: "negative", min: -50, max: 50, isFloat: false }
-  ];
-
-  const [levelIdx, setLevelIdx] = useState<number>(1); // default to 1-100
-  const [direction, setDirection] = useState<'asc' | 'desc'>('asc'); // asc: klein->groß, desc: groß->klein
-
+export const SortingWidgetContent: React.FC<{
+  widget: any;
+  currentIsLight: boolean;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
+}> = ({
+  widget,
+  currentIsLight,
+  onUpdate,
+  showSettings = false,
+  onCloseSettings,
+}) => {
+  const settings = useMemo(
+    () => normalizeSortingWidgetSettings(widget?.settings),
+    [widget?.settings],
+  );
   const [numbers, setNumbers] = useState<number[]>([]);
   const [targetOrder, setTargetOrder] = useState<number[]>([]);
   const [sorted, setSorted] = useState<number[]>([]);
-  const [streak, setStreak] = useState<number>(0);
-  const [status, setStatus] = useState<string>('Zahlen der Reihe nach anklicken!');
+  const [feedback, setFeedback] = useState<{
+    kind: 'instruction' | 'success' | 'warning' | 'complete';
+    text: string;
+  }>({
+    kind: 'instruction',
+    text: settings.direction === 'asc'
+      ? 'Beginne mit der kleinsten Zahl.'
+      : 'Beginne mit der größten Zahl.',
+  });
+  const [wrongValue, setWrongValue] = useState<number | null>(null);
+  const wrongTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
-  const activeLevel = levels[levelIdx];
+  const persistSettings = useCallback((patch: Partial<SortingWidgetSettings>) => {
+    if (!onUpdate) return;
+    onUpdate({
+      settings: {
+        ...(widget?.settings || {}),
+        ...settings,
+        ...patch,
+      },
+    });
+  }, [onUpdate, settings, widget?.settings]);
 
-  const initializeGame = () => {
-    const generated: number[] = [];
-    while (generated.length < 5) {
-      let num = 0;
-      if (activeLevel.isFloat) {
-        // One decimal place
-        num = Math.round((Math.random() * (activeLevel.max - activeLevel.min) + activeLevel.min) * 10) / 10;
-      } else {
-        num = Math.floor(Math.random() * (activeLevel.max - activeLevel.min + 1)) + activeLevel.min;
-      }
-      if (!generated.includes(num)) {
-        generated.push(num);
-      }
-    }
+  const initializeGame = useCallback(() => {
+    const generated = generateSortingNumbers(settings);
     setNumbers(generated);
-    
-    // Sort logic based on direction
-    const sortedTarget = direction === 'asc' 
-      ? [...generated].sort((a, b) => a - b)
-      : [...generated].sort((a, b) => b - a);
-
-    setTargetOrder(sortedTarget);
+    setTargetOrder(getSortingTarget(generated, settings.direction));
     setSorted([]);
-    setStatus(direction === 'asc' ? 'Klicke die kleinste Zahl!' : 'Klicke die größte Zahl!');
-  };
+    setWrongValue(null);
+    setFeedback({
+      kind: 'instruction',
+      text: settings.direction === 'asc'
+        ? 'Beginne mit der kleinsten Zahl.'
+        : 'Beginne mit der größten Zahl.',
+    });
+  }, [settings.rangeKey, settings.direction, settings.count]);
 
   useEffect(() => {
     initializeGame();
-  }, [levelIdx, direction]);
+  }, [initializeGame]);
 
-  const handleNumClick = (val: number) => {
-    const nextExpected = targetOrder[sorted.length];
-    if (val === nextExpected) {
-      const updated = [...sorted, val];
-      setSorted(updated);
-      
-      const clickSynth = () => {
-        try {
-          const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-          if (!AudioCtx) return;
-          const ctx = new AudioCtx();
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(300 + updated.length * 100, ctx.currentTime);
-          gain.gain.setValueAtTime(0.12, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.12);
-        } catch (e) {}
-      };
-      clickSynth();
-
-      if (updated.length === 5) {
-        setStreak(prev => prev + 1);
-        setStatus('RICHTIG! Alle Zahlen perfekt sortiert! 🏆🎉');
-      } else {
-        setStatus('Klasse! Und die nächste...');
-      }
-    } else {
-      setSorted([]);
-      setStreak(0);
-      setStatus(direction === 'asc' ? 'Falsch! Suche die kleinste Zahl. 💥' : 'Falsch! Suche die größte Zahl. 💥');
+  useEffect(() => () => {
+    if (wrongTimerRef.current !== null) clearTimeout(wrongTimerRef.current);
+    if (audioContextRef.current) {
+      try {
+        audioContextRef.current.close().catch(() => {});
+      } catch {}
+      audioContextRef.current = null;
     }
+  }, []);
+
+  const playStepTone = useCallback((step: number) => {
+    if (!settings.soundEnabled) return;
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = audioContextRef.current || new AudioCtx();
+      audioContextRef.current = ctx;
+      if (ctx.state === 'suspended') void ctx.resume();
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const now = ctx.currentTime;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(360 + step * 85, now);
+      gain.gain.setValueAtTime(0.085, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.11);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.12);
+      osc.onended = () => {
+        try {
+          osc.disconnect();
+          gain.disconnect();
+        } catch {}
+      };
+    } catch {}
+  }, [settings.soundEnabled]);
+
+  const handleNumClick = (value: number) => {
+    const nextExpected = targetOrder[sorted.length];
+    if (nextExpected === undefined) return;
+
+    if (value !== nextExpected) {
+      setWrongValue(value);
+      setFeedback({
+        kind: 'warning',
+        text: describeSortingMistake(value, nextExpected, settings.direction),
+      });
+      if (wrongTimerRef.current !== null) clearTimeout(wrongTimerRef.current);
+      wrongTimerRef.current = setTimeout(() => {
+        setWrongValue(null);
+        wrongTimerRef.current = null;
+      }, 700);
+      return;
+    }
+
+    const updated = [...sorted, value];
+    setSorted(updated);
+    setWrongValue(null);
+    playStepTone(updated.length);
+
+    if (updated.length === targetOrder.length) {
+      setFeedback({
+        kind: 'complete',
+        text: 'Geschafft! Die Zahlen sind richtig geordnet.',
+      });
+      return;
+    }
+
+    setFeedback({
+      kind: 'success',
+      text: settings.direction === 'asc'
+        ? 'Richtig. Welche Zahl ist jetzt die kleinste?'
+        : 'Richtig. Welche Zahl ist jetzt die größte?',
+    });
   };
 
+  const activeRange = SORTING_RANGE_OPTIONS.find(option => option.key === settings.rangeKey)
+    || SORTING_RANGE_OPTIONS[1];
+  const isComplete = targetOrder.length > 0 && sorted.length === targetOrder.length;
+
+  const settingButtonClass = (active: boolean) => `min-h-11 rounded-xl border px-3 py-2 text-left text-xs font-bold transition-colors ${
+    active
+      ? 'border-accent bg-accent-soft text-accent'
+      : currentIsLight
+        ? 'border-slate-200 bg-white text-slate-700 hover:border-accent hover:bg-accent-soft'
+        : 'border-white/10 bg-white/5 text-slate-200 hover:border-accent hover:bg-white/10'
+  }`;
+
   return (
-    <div className="flex-grow flex flex-col justify-between p-2 h-full min-h-0 pointer-events-auto select-none gap-2">
-      {/* Header Info */}
-      <div className="flex justify-between items-center px-1 shrink-0">
-        <span className={`text-[8px] font-black uppercase tracking-widest ${currentIsLight ? 'text-slate-400' : 'text-slate-500'}`}>
-          Zahlen-Sortierer (Mathe)
-        </span>
-        <span className="text-[7.5px] px-1.5 py-0.2 rounded font-black uppercase bg-indigo-500/15 text-indigo-500">
-          Reihe (Streak): {streak}
-        </span>
-      </div>
-
-      {/* Difficulty & direction settings panel */}
-      <div className={`p-1.5 rounded-xl border shrink-0 flex flex-col gap-1.5 ${currentIsLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-850/40 border-white/5'}`}>
-        {/* Level selection */}
-        <div className="flex justify-between items-center">
-          <span className="text-[7px] font-black uppercase text-slate-400">Bereich:</span>
-          <div className="flex gap-0.5">
-            {levels.map((lvl, idx) => (
-              <button
-                key={lvl.key}
-                onClick={() => setLevelIdx(idx)}
-                className={`py-0.5 px-1 text-[6px] font-black rounded border cursor-pointer transition-colors ${
-                  levelIdx === idx
-                    ? 'bg-indigo-500 border-indigo-500 text-white'
-                    : currentIsLight
-                      ? 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                      : 'bg-zinc-900 border-zinc-700/60 text-zinc-300 hover:bg-zinc-800'
-                }`}
-              >
-                {lvl.label.replace(" bis ", "-")}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Direction selection */}
-        <div className="flex justify-between items-center">
-          <span className="text-[7px] font-black uppercase text-slate-400">Reihenfolge:</span>
-          <div className="flex gap-1 shrink-0 bg-slate-200/50 dark:bg-zinc-900/50 p-0.5 rounded-lg border border-slate-300/20">
+    <div
+      role="region"
+      aria-label="Zahlensortierer"
+      className={`relative flex h-full min-h-0 w-full flex-col overflow-hidden p-3 select-none ${
+        currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-slate-100'
+      }`}
+    >
+      {showSettings && (
+        <div className={`absolute inset-0 z-30 flex min-h-0 flex-col gap-3 overflow-y-auto p-4 ${
+          currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-slate-100'
+        }`}>
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 pb-3 dark:border-white/10">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-wider text-accent">Zahlensortierer-Einstellungen</p>
+              <p className="mt-1 text-xs opacity-65">Aufgabe vorbereiten. Während des Sortierens bleibt die Tafel ruhig.</p>
+            </div>
             <button
-              onClick={() => setDirection('asc')}
-              className={`px-1.5 py-0.5 rounded text-[6.5px] font-black cursor-pointer transition-colors ${
-                direction === 'asc'
-                  ? 'bg-white dark:bg-zinc-750 text-indigo-500 shadow-xs'
-                  : 'text-slate-400 hover:text-slate-600'
-              }`}
+              type="button"
+              onClick={onCloseSettings}
+              className="min-h-11 shrink-0 rounded-xl border border-slate-200 px-3 text-xs font-black hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5"
             >
-              Klein ➔ Groß ↗️
-            </button>
-            <button
-              onClick={() => setDirection('desc')}
-              className={`px-1.5 py-0.5 rounded text-[6.5px] font-black cursor-pointer transition-colors ${
-                direction === 'desc'
-                  ? 'bg-white dark:bg-zinc-750 text-indigo-500 shadow-xs'
-                  : 'text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              Groß ➔ Klein ↘️
+              Fertig
             </button>
           </div>
+
+          <section className="shrink-0">
+            <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider opacity-55">Zahlenraum</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {SORTING_RANGE_OPTIONS.map(option => (
+                <button
+                  key={option.key}
+                  type="button"
+                  aria-pressed={settings.rangeKey === option.key}
+                  onClick={() => persistSettings({ rangeKey: option.key as SortingRangeKey })}
+                  className={settingButtonClass(settings.rangeKey === option.key)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <div className="grid shrink-0 grid-cols-2 gap-3">
+            <section>
+              <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider opacity-55">Reihenfolge</p>
+              <div className="grid gap-1.5">
+                {([
+                  ['asc', 'Klein → groß'],
+                  ['desc', 'Groß → klein'],
+                ] as Array<[SortingDirection, string]>).map(([direction, label]) => (
+                  <button
+                    key={direction}
+                    type="button"
+                    aria-pressed={settings.direction === direction}
+                    onClick={() => persistSettings({ direction })}
+                    className={settingButtonClass(settings.direction === direction)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section>
+              <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider opacity-55">Anzahl</p>
+              <div className="grid gap-1.5">
+                {([3, 5, 7] as SortingCount[]).map(count => (
+                  <button
+                    key={count}
+                    type="button"
+                    aria-pressed={settings.count === count}
+                    onClick={() => persistSettings({ count })}
+                    className={settingButtonClass(settings.count === count)}
+                  >
+                    {count} Zahlen
+                  </button>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          <button
+            type="button"
+            aria-pressed={settings.soundEnabled}
+            onClick={() => persistSettings({ soundEnabled: !settings.soundEnabled })}
+            className={`flex min-h-11 shrink-0 items-center gap-2 rounded-xl border px-3 text-left text-xs font-bold ${
+              settings.soundEnabled
+                ? 'border-accent bg-accent-soft text-accent'
+                : currentIsLight
+                  ? 'border-slate-200 bg-slate-50 text-slate-700'
+                  : 'border-white/10 bg-white/5 text-slate-200'
+            }`}
+          >
+            {settings.soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+            <span>Bestätigungston {settings.soundEnabled ? 'an' : 'aus'}</span>
+          </button>
+        </div>
+      )}
+
+      <div className="flex shrink-0 items-center justify-between gap-2">
+        <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[10px] font-black text-accent">
+          {settings.direction === 'asc' ? '↑ Klein → groß' : '↓ Groß → klein'}
+        </span>
+        <div className="flex items-center gap-1.5 text-[10px] font-bold opacity-65">
+          <span>{activeRange.shortLabel}</span>
+          <span aria-hidden="true">·</span>
+          <span>{sorted.length}/{settings.count}</span>
         </div>
       </div>
 
-      {/* Main interactive number bubbles */}
-      <div className="flex flex-wrap gap-2 justify-center my-1.5 shrink-0">
-        {numbers.map((num) => {
-          const isSorted = sorted.includes(num);
+      <div
+        aria-label="Bereits richtig sortierte Zahlen"
+        className={`mt-3 flex min-h-14 shrink-0 items-center justify-center gap-1.5 rounded-2xl border px-2 ${
+          currentIsLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/5'
+        }`}
+      >
+        {Array.from({ length: settings.count }).map((_, index) => {
+          const value = sorted[index];
           return (
-            <button
-              key={num}
-              disabled={isSorted}
-              onClick={() => handleNumClick(num)}
-              className={`w-9 h-9 rounded-full font-black text-[10px] flex items-center justify-center border transition-all cursor-pointer ${
-                isSorted
-                  ? 'bg-slate-100 border-slate-200 text-slate-300 dark:bg-zinc-800/40 dark:border-transparent dark:text-zinc-650 opacity-45 cursor-not-allowed scale-90'
+            <span
+              key={index}
+              className={`flex h-10 min-w-10 items-center justify-center rounded-xl px-2 text-sm font-black tabular-nums ${
+                value !== undefined
+                  ? 'bg-accent text-accent-text shadow-sm'
                   : currentIsLight
-                    ? 'bg-white border-slate-200 text-slate-800 hover:border-indigo-300 hover:scale-105 shadow-sm active:scale-95'
-                    : 'bg-zinc-850 border-white/5 text-slate-200 hover:border-indigo-500/30 hover:scale-105 active:scale-95'
+                    ? 'border border-dashed border-slate-300 bg-white text-slate-300'
+                    : 'border border-dashed border-white/15 bg-black/10 text-white/20'
               }`}
             >
-              {num}
-            </button>
+              {value !== undefined ? formatSortingNumber(value) : '·'}
+            </span>
           );
         })}
       </div>
 
-      {/* Game status */}
-      <div className="text-center py-0.5 shrink-0">
-        <p className={`text-[8.5px] font-black uppercase tracking-tight ${currentIsLight ? 'text-slate-700' : 'text-indigo-400'}`}>
-          {status}
-        </p>
+      <div className="flex min-h-0 flex-1 items-center justify-center py-3">
+        <div className="grid w-full grid-cols-3 gap-2">
+          {numbers.map((number) => {
+            const alreadySorted = sorted.includes(number);
+            const isWrong = wrongValue === number;
+            return (
+              <button
+                key={number}
+                type="button"
+                disabled={alreadySorted || isComplete}
+                onClick={() => handleNumClick(number)}
+                aria-label={`${formatSortingNumber(number)} wählen`}
+                className={`min-h-14 rounded-2xl border px-2 text-lg font-black tabular-nums shadow-sm transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-default ${
+                  alreadySorted
+                    ? currentIsLight
+                      ? 'border-slate-100 bg-slate-100 text-slate-300 opacity-55'
+                      : 'border-white/5 bg-white/5 text-white/20 opacity-55'
+                    : isWrong
+                      ? 'border-amber-400 bg-amber-50 text-amber-800 ring-2 ring-amber-200 dark:bg-amber-950/30 dark:text-amber-200'
+                      : currentIsLight
+                        ? 'border-slate-200 bg-white text-slate-900 hover:border-accent hover:bg-accent-soft active:scale-[0.98]'
+                        : 'border-white/10 bg-white/5 text-white hover:border-accent hover:bg-white/10 active:scale-[0.98]'
+                }`}
+              >
+                {formatSortingNumber(number)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div
+        role="status"
+        aria-live="polite"
+        className={`flex min-h-12 shrink-0 items-center justify-center rounded-xl border px-3 text-center text-xs font-bold leading-snug ${
+          feedback.kind === 'complete'
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200'
+            : feedback.kind === 'warning'
+              ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200'
+              : feedback.kind === 'success'
+                ? 'border-accent bg-accent-soft text-accent'
+                : currentIsLight
+                  ? 'border-slate-200 bg-slate-50 text-slate-600'
+                  : 'border-white/10 bg-white/5 text-slate-300'
+        }`}
+      >
+        {feedback.kind === 'complete' && <CheckCircle size={16} className="mr-1.5 shrink-0" />}
+        {feedback.text}
       </div>
 
       <button
+        type="button"
         onClick={initializeGame}
-        className="w-full py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider bg-indigo-500 hover:bg-indigo-600 text-white shadow-md cursor-pointer transition-all shrink-0"
+        className="mt-2 min-h-11 shrink-0 rounded-xl bg-accent px-4 text-xs font-black text-accent-text shadow-sm transition-colors hover:bg-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring"
       >
-        🎲 Mischen & Neustarten
+        Neue Aufgabe
       </button>
     </div>
   );
