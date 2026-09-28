@@ -61,6 +61,7 @@ const SeatingPlan = lazyRetry(() => import('./components/SeatingPlan'));
 const Uebergabemappe = lazyRetry(() => import('./components/Uebergabemappe'));
 const Materialbibliothek = lazyRetry(() => import('./components/Materialbibliothek'));
 const PhotoAlbums = lazyRetry(() => import('./components/PhotoAlbums'));
+const InventoryManager = lazyRetry(() => import('./components/InventoryManager'));
 const CanvaIntegration = lazyRetry(() => import('./components/CanvaIntegration'));
 const Drafts = lazyRetry(() => import('./components/Drafts'));
 const MeetingLogs = lazyRetry(() => import('./components/MeetingLogs'));
@@ -248,7 +249,7 @@ function AccessGuard({ children }: { children: React.ReactNode }) {
 
 const MobileRemoteController = lazyRetry(() => import('./components/MobileRemoteController').then(m => ({ default: m.MobileRemoteController })));
 
-const FULL_HEIGHT_PAGES = ['klasse', 'planung', 'leistungen', 'unterricht', 'lehrerzimmer', 'canva', 'ki-helfer', 'sitzplan', 'elternbrief', 'differenzierung', 'verbal', 'materialien', 'jahresplanung', 'diagnostik', 'stunden', 'eltern', 'orga', 'elternfotos', 'notenTabelle', 'arbeitsblatt', 'stationenbetrieb', 'planungszentrale'];
+const FULL_HEIGHT_PAGES = ['klasse', 'planung', 'leistungen', 'unterricht', 'lehrerzimmer', 'canva', 'ki-helfer', 'sitzplan', 'elternbrief', 'differenzierung', 'verbal', 'materialien', 'jahresplanung', 'diagnostik', 'stunden', 'eltern', 'orga', 'elternfotos', 'lehrmittel', 'notenTabelle', 'arbeitsblatt', 'stationenbetrieb', 'planungszentrale'];
 
 function AppContent() {
   const { app, setApp, setPage } = useApp();
@@ -279,6 +280,11 @@ function AppContent() {
       pageScrollRef.current?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     }
   }, [currentPage]);
+
+  React.useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('lehrmittel')) setPage('lehrmittel');
+  }, [setPage]);
 
   React.useEffect(() => {
     const handleOpenConsistency = () => setShowConsistencyModal(true);
@@ -766,6 +772,7 @@ function AppContent() {
       case 'elternbrief': return <EmailAssistant />;
       case 'orga': return <OrgaLists />;
       case 'elternfotos': return <PhotoAlbums />;
+      case 'lehrmittel': return <InventoryManager />;
       case 'statistik': return <Statistics initialTab="tools" />;
       case 'antolin': return <AntolinBereich />;
       // Old links remain valid; the same gradebook opens directly in its overview tab.
@@ -846,6 +853,7 @@ function AppContent() {
       case 'verbal': return 'Verbale Beurteilung';
       case 'orga': return 'Kasse & Orga';
       case 'elternfotos': return 'Elternfotos';
+      case 'lehrmittel': return 'Lehrmittel & Inventar';
       case 'statistik': return 'Weitere Auswertungen';
       case 'antolin': return 'Lesen & Antolin';
       case 'notenTabelle': return 'Notenmappe';
