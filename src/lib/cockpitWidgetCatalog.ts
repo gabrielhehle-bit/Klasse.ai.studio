@@ -622,6 +622,7 @@ const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
   "fractioncake",
   "fractiongrid",
   "sounds",
+  "pet",
   "sorting",
 ]);
 
