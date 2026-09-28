@@ -380,6 +380,36 @@ export interface PortfolioEntry {
 
 export type FotoFreigabeStatus = 'erlaubt' | 'nur_homepage' | 'nicht_erlaubt';
 
+export interface PhotoAlbumFile {
+  id: string;
+  name: string;
+  size: number;
+  mimeType?: string;
+  uploadedAt: string;
+  driveItemId?: string;
+  webUrl?: string;
+}
+
+export interface PhotoAlbum {
+  id: string;
+  classId: string;
+  title: string;
+  description?: string;
+  eventDate?: string;
+  studentIds: string[];
+  /** Explicit teacher confirmation for albums without identifiable pupils. */
+  noIdentifiableStudents?: boolean;
+  createdAt: string;
+  updatedAt: string;
+  files: PhotoAlbumFile[];
+  oneDriveFolderId?: string;
+  oneDriveFolderWebUrl?: string;
+  shareUrl?: string;
+  sharePermissionId?: string;
+  shareCreatedAt?: string;
+  shareExpiresAt?: string;
+}
+
 export interface WeeklyChildTaskProgress {
   done: boolean;
   difficulty?: 'leicht' | 'gut' | 'schwierig' | 'sehr-schwierig';
@@ -1429,6 +1459,8 @@ export interface AppState {
   selectedRoom?: string;
   demoModusAktiv?: boolean;
   classes?: ClassRoom[];
+  /** Global album registry; each album is scoped to classId while files remain in teacher OneDrive. */
+  photoAlbums?: PhotoAlbum[];
   morningWidgets?: MorningWidget[];
   customRiddles?: any[];
   // Global / User settings

@@ -207,6 +207,9 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   app.use('/api/account-sync', express.json({ limit: '20mb' }));
   app.use('/api/teamteaching', express.json({ limit: '16mb' }));
   app.use('/api/onedrive/upload', express.json({ limit: '20mb' }));
+  // Parent photos pass through memory only and are forwarded directly to OneDrive.
+  // No photo bytes are written into KLASSIO_DATA_DIR or the web root.
+  app.use('/api/onedrive/photos/upload', express.raw({ type: () => true, limit: '25mb' }));
   app.use(express.urlencoded({ limit: '1mb', extended: true }));
   app.use(express.json({ limit: '1mb' }));
 
@@ -3958,6 +3961,298 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       res.json({ success: true, file: data });
     } catch (err: any) {
       res.status(500).json({ error: err.message || "Upload failed" });
+    }
+  });
+
+
+  // --- Elternfotos: OneDrive-backed photo albums ---
+  const KLASSIO_PHOTO_ROOT_FOLDER = 'KLASSIO Elternfotos';
+
+  const getOneDriveBearer = (req: express.Request): string | null => {
+    const header = req.headers.authorization;
+    if (!header || !/^Bearer\s+\S+/i.test(header)) return null;
+    return header.replace(/^Bearer\s+/i, '').trim();
+  };
+
+  const decodeKlassioHeader = (value: string | string[] | undefined): string => {
+    const raw = Array.isArray(value) ? value[0] : value;
+    if (!raw) return '';
+    try {
+      return decodeURIComponent(raw);
+    } catch {
+      return raw;
+    }
+  };
+
+  const sanitizeOneDriveName = (value: string, fallback: string, maxLength = 90): string => {
+    const cleaned = value
+      .replace(/[\\/:*?"<>|#%]/g, '-')
+      .replace(/[\u0000-\u001f]/g, '')
+      .replace(/\s+/g, ' ')
+      .replace(/[. ]+$/g, '')
+      .trim()
+      .slice(0, maxLength)
+      .trim();
+    return cleaned || fallback;
+  };
+
+  const graphJson = async (
+    url: string,
+    token: string,
+    init: RequestInit = {},
+  ): Promise<any> => {
+    const response = await fetch(url, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(init.headers || {}),
+      },
+    });
+    const textBody = await response.text();
+    let data: any = null;
+    if (textBody) {
+      try { data = JSON.parse(textBody); } catch { data = { message: textBody }; }
+    }
+    if (!response.ok) {
+      const message =
+        data?.error?.message ||
+        data?.message ||
+        `Microsoft Graph Fehler (${response.status})`;
+      const error: any = new Error(message);
+      error.status = response.status;
+      error.graph = data;
+      throw error;
+    }
+    return data;
+  };
+
+  const graphOptional = async (url: string, token: string): Promise<any | null> => {
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (response.status === 404) return null;
+    const textBody = await response.text();
+    let data: any = null;
+    if (textBody) {
+      try { data = JSON.parse(textBody); } catch { data = { message: textBody }; }
+    }
+    if (!response.ok) {
+      const error: any = new Error(
+        data?.error?.message || data?.message || `Microsoft Graph Fehler (${response.status})`
+      );
+      error.status = response.status;
+      throw error;
+    }
+    return data;
+  };
+
+  const ensureKlassioPhotoRoot = async (token: string): Promise<any> => {
+    const rootPath = encodeURIComponent(KLASSIO_PHOTO_ROOT_FOLDER);
+    const existing = await graphOptional(
+      `https://graph.microsoft.com/v1.0/me/drive/root:/${rootPath}`,
+      token,
+    );
+    if (existing?.id) return existing;
+
+    return await graphJson(
+      'https://graph.microsoft.com/v1.0/me/drive/root/children',
+      token,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: KLASSIO_PHOTO_ROOT_FOLDER,
+          folder: {},
+          '@microsoft.graph.conflictBehavior': 'rename',
+        }),
+      },
+    );
+  };
+
+  const ensureKlassioAlbumFolder = async (
+    token: string,
+    albumId: string,
+    albumTitle: string,
+    existingFolderId?: string,
+  ): Promise<any> => {
+    if (existingFolderId) {
+      try {
+        const existing = await graphJson(
+          `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(existingFolderId)}`,
+          token,
+        );
+        if (existing?.id && existing?.folder) return existing;
+      } catch (error: any) {
+        if (error?.status !== 404) throw error;
+      }
+    }
+
+    const parent = await ensureKlassioPhotoRoot(token);
+    const shortId = sanitizeOneDriveName(albumId, 'album').slice(-8);
+    const folderName = sanitizeOneDriveName(
+      `${albumTitle || 'Fotoalbum'} – ${shortId}`,
+      `Fotoalbum – ${shortId}`,
+    );
+
+    return await graphJson(
+      `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(parent.id)}/children`,
+      token,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: folderName,
+          folder: {},
+          '@microsoft.graph.conflictBehavior': 'rename',
+        }),
+      },
+    );
+  };
+
+  app.put("/api/onedrive/photos/upload", async (req, res) => {
+    const token = getOneDriveBearer(req);
+    if (!token) return res.status(401).json({ error: 'OneDrive-Autorisierung fehlt.' });
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+      return res.status(400).json({ error: 'Keine Bilddatei empfangen.' });
+    }
+
+    const mimeType = String(req.headers['content-type'] || '').toLowerCase();
+    const allowedMimeTypes = new Set([
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/heic',
+      'image/heif',
+      'image/gif',
+    ]);
+    if (!allowedMimeTypes.has(mimeType)) {
+      return res.status(415).json({ error: 'Dieses Bildformat wird nicht unterstützt.' });
+    }
+
+    const albumId = decodeKlassioHeader(req.headers['x-klassio-album-id']);
+    const albumTitle = decodeKlassioHeader(req.headers['x-klassio-album-title']);
+    const requestedName = decodeKlassioHeader(req.headers['x-klassio-filename']);
+    const existingFolderId = decodeKlassioHeader(req.headers['x-klassio-folder-id']);
+    if (!albumId || !albumTitle || !requestedName) {
+      return res.status(400).json({ error: 'Album- oder Dateiinformation fehlt.' });
+    }
+
+    try {
+      const folder = await ensureKlassioAlbumFolder(token, albumId, albumTitle, existingFolderId);
+      const fileName = sanitizeOneDriveName(requestedName, `Foto-${Date.now()}.jpg`, 120);
+      const item = await graphJson(
+        `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(folder.id)}:/${encodeURIComponent(fileName)}:/content`,
+        token,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': mimeType },
+          body: req.body,
+        },
+      );
+
+      res.json({
+        success: true,
+        folder: {
+          id: folder.id,
+          name: folder.name,
+          webUrl: folder.webUrl,
+        },
+        file: {
+          id: item.id,
+          name: item.name,
+          size: item.size,
+          webUrl: item.webUrl,
+        },
+      });
+    } catch (error: any) {
+      console.error('[Elternfotos] OneDrive upload failed:', error?.status || 'unknown');
+      res.status(error?.status >= 400 && error?.status < 600 ? error.status : 502).json({
+        error: error?.message || 'Foto konnte nicht in OneDrive gespeichert werden.',
+      });
+    }
+  });
+
+  app.post("/api/onedrive/photos/share", async (req, res) => {
+    const token = getOneDriveBearer(req);
+    if (!token) return res.status(401).json({ error: 'OneDrive-Autorisierung fehlt.' });
+
+    const folderId = typeof req.body?.folderId === 'string' ? req.body.folderId.trim() : '';
+    if (!folderId) return res.status(400).json({ error: 'OneDrive-Albumordner fehlt.' });
+
+    const requestedExpiry = typeof req.body?.expirationDateTime === 'string'
+      ? new Date(req.body.expirationDateTime)
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    if (Number.isNaN(requestedExpiry.getTime()) || requestedExpiry.getTime() <= Date.now()) {
+      return res.status(400).json({ error: 'Ungültiges Ablaufdatum.' });
+    }
+    const maxExpiry = Date.now() + 365 * 24 * 60 * 60 * 1000;
+    const expirationDateTime = new Date(Math.min(requestedExpiry.getTime(), maxExpiry)).toISOString();
+
+    try {
+      const permission = await graphJson(
+        `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(folderId)}/createLink`,
+        token,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'view',
+            scope: 'anonymous',
+            expirationDateTime,
+          }),
+        },
+      );
+      const shareUrl = permission?.link?.webUrl;
+      if (!shareUrl) throw new Error('Microsoft hat keinen Freigabelink zurückgegeben.');
+
+      res.json({
+        success: true,
+        shareUrl,
+        permissionId: permission.id,
+        expirationDateTime: permission.expirationDateTime || expirationDateTime,
+      });
+    } catch (error: any) {
+      console.error('[Elternfotos] OneDrive share link failed:', error?.status || 'unknown');
+      const tenantHint = error?.status === 400 || error?.status === 403
+        ? ' Externes Teilen kann im Microsoft-365-Tenant der Schule deaktiviert sein.'
+        : '';
+      res.status(error?.status >= 400 && error?.status < 600 ? error.status : 502).json({
+        error: `${error?.message || 'Elternlink konnte nicht erstellt werden.'}${tenantHint}`,
+      });
+    }
+  });
+
+  app.post("/api/onedrive/photos/unshare", async (req, res) => {
+    const token = getOneDriveBearer(req);
+    if (!token) return res.status(401).json({ error: 'OneDrive-Autorisierung fehlt.' });
+
+    const folderId = typeof req.body?.folderId === 'string' ? req.body.folderId.trim() : '';
+    const permissionId = typeof req.body?.permissionId === 'string' ? req.body.permissionId.trim() : '';
+    if (!folderId || !permissionId) {
+      return res.status(400).json({ error: 'Freigabeinformationen fehlen.' });
+    }
+
+    try {
+      const response = await fetch(
+        `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(folderId)}/permissions/${encodeURIComponent(permissionId)}`,
+        {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (!response.ok && response.status !== 404) {
+        const data = await response.json().catch(() => ({}));
+        throw Object.assign(
+          new Error(data?.error?.message || `Microsoft Graph Fehler (${response.status})`),
+          { status: response.status },
+        );
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('[Elternfotos] OneDrive unshare failed:', error?.status || 'unknown');
+      res.status(error?.status >= 400 && error?.status < 600 ? error.status : 502).json({
+        error: error?.message || 'Freigabe konnte nicht beendet werden.',
+      });
     }
   });
 

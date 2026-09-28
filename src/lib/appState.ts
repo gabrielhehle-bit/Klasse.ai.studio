@@ -14,6 +14,7 @@ export const initialAppState: AppState = {
   schuljahr: getCurrentSchuljahr(),
   activeClassId: '',
   classes: [],
+  photoAlbums: [],
   schulart: 'volksschule',
   stufe: 4,
   lehrplanText: '',

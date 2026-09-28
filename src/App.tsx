@@ -60,6 +60,7 @@ const Sek1WeeklyPlan = lazyRetry(() => import('./components/Sek1WeeklyPlan'));
 const SeatingPlan = lazyRetry(() => import('./components/SeatingPlan'));
 const Uebergabemappe = lazyRetry(() => import('./components/Uebergabemappe'));
 const Materialbibliothek = lazyRetry(() => import('./components/Materialbibliothek'));
+const PhotoAlbums = lazyRetry(() => import('./components/PhotoAlbums'));
 const CanvaIntegration = lazyRetry(() => import('./components/CanvaIntegration'));
 const Drafts = lazyRetry(() => import('./components/Drafts'));
 const MeetingLogs = lazyRetry(() => import('./components/MeetingLogs'));
@@ -247,7 +248,7 @@ function AccessGuard({ children }: { children: React.ReactNode }) {
 
 const MobileRemoteController = lazyRetry(() => import('./components/MobileRemoteController').then(m => ({ default: m.MobileRemoteController })));
 
-const FULL_HEIGHT_PAGES = ['klasse', 'planung', 'leistungen', 'unterricht', 'lehrerzimmer', 'canva', 'ki-helfer', 'sitzplan', 'elternbrief', 'differenzierung', 'verbal', 'materialien', 'jahresplanung', 'diagnostik', 'stunden', 'eltern', 'orga', 'notenTabelle', 'arbeitsblatt', 'stationenbetrieb', 'planungszentrale'];
+const FULL_HEIGHT_PAGES = ['klasse', 'planung', 'leistungen', 'unterricht', 'lehrerzimmer', 'canva', 'ki-helfer', 'sitzplan', 'elternbrief', 'differenzierung', 'verbal', 'materialien', 'jahresplanung', 'diagnostik', 'stunden', 'eltern', 'orga', 'elternfotos', 'notenTabelle', 'arbeitsblatt', 'stationenbetrieb', 'planungszentrale'];
 
 function AppContent() {
   const { app, setApp, setPage } = useApp();
@@ -764,6 +765,7 @@ function AppContent() {
       case 'kel': return <KELGespraeche />;
       case 'elternbrief': return <EmailAssistant />;
       case 'orga': return <OrgaLists />;
+      case 'elternfotos': return <PhotoAlbums />;
       case 'statistik': return <Statistics initialTab="tools" />;
       case 'antolin': return <AntolinBereich />;
       // Old links remain valid; the same gradebook opens directly in its overview tab.
@@ -843,6 +845,7 @@ function AppContent() {
       case 'elternbrief': return 'Elternbrief KI';
       case 'verbal': return 'Verbale Beurteilung';
       case 'orga': return 'Kasse & Orga';
+      case 'elternfotos': return 'Elternfotos';
       case 'statistik': return 'Weitere Auswertungen';
       case 'antolin': return 'Lesen & Antolin';
       case 'notenTabelle': return 'Notenmappe';
