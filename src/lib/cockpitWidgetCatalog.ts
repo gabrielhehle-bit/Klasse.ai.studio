@@ -301,7 +301,7 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                       {
                                         type: "compass",
                                         label: "🧭 Geographie-Kompass",
-                                        desc: "Orientierung & Himmelsrichtungen lernen",
+                                        desc: "Himmelsrichtungen erkunden und sicher zuordnen",
                                         category: "sachunterricht",
                                       },
                                       {
@@ -628,6 +628,7 @@ const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
   "dictionary",
   "piano",
   "bodyparts",
+  "compass",
 ]);
 
 const COCKPIT_WIDGET_LIBRARY_BY_TYPE = new Map<string, CockpitWidgetLibraryItem>(
