@@ -125,7 +125,7 @@ const OPTIMAL_WIDGET_SIZES: Record<string, { w: number; h: number }> = {
   secretcode: { w: 40, h: 50 },
   clockpuzzle: { w: 38, h: 50 },
   fractiongrid: { w: 42, h: 52 },
-  trafficquiz: { w: 42, h: 50 },
+  trafficquiz: { w: 48, h: 58 },
   wordbuilder: { w: 46, h: 48 },
   watercycle: { w: 44, h: 55 },
   soundmachine: { w: 42, h: 50 },
