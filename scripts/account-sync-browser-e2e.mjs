@@ -339,7 +339,7 @@ const HUE_HOME = 'E2E Zuhause Hausübung Arbeitsheft Seite 14';
 
 async function waitForCloud(client) {
   await waitFor(client, 'newest local edit confirmed by encrypted account server',
-    '(() => {const b=document.querySelector("button[aria-label^=\\\"Speicherstatus:\\\"]");return !!b && String(b.getAttribute("aria-label")).includes("Neuester verschlüsselter Stand vom Server bestätigt");})()', 45000);
+    'document.querySelector("header[data-account-sync-status=\\\"synced\\\"]") !== null', 45000);
 }
 
 async function addClassNote(client, text) {
