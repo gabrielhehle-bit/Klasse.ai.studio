@@ -84,7 +84,7 @@ const OPTIMAL_WIDGET_SIZES: Record<string, { w: number; h: number }> = {
   toothbrush: { w: 28, h: 44 },
   challenge: { w: 32, h: 45 },
   compass: { w: 44, h: 52 },
-  weekdays: { w: 34, h: 44 },
+  weekdays: { w: 46, h: 56 },
   piggybank: { w: 30, h: 44 },
   noisescales: { w: 34, h: 44 },
   wordscramble: { w: 36, h: 48 },
