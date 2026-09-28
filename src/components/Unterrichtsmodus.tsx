@@ -2031,10 +2031,10 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
   {
     id: "widget-dailyquotes",
     type: "dailyquotes",
-    x: 76,
+    x: 64,
     y: 90,
-    w: 28,
-    h: 40,
+    w: 34,
+    h: 42,
     visible: false,
   },
   {
@@ -10773,6 +10773,14 @@ ${content}
                                         <DailyquotesWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
