@@ -28,6 +28,16 @@ import {
   type SortingRangeKey,
   type SortingWidgetSettings,
 } from '../../lib/sortingWidgetModel';
+import {
+  DAILY_QUOTE_THEME_LABELS,
+  getActiveDailyQuote,
+  getDailyQuotesForTheme,
+  getNextDailyQuoteId,
+  normalizeDailyQuotesWidgetSettings,
+  parseAiDailyQuote,
+  type DailyQuoteTheme,
+  type DailyQuotesWidgetSettings,
+} from '../../lib/dailyQuotesWidgetModel';
 import { ClassPetCanvas, ClassPetCanvasRef } from '../ClassPetCanvas';
 import { PET_BREEDS } from '../ClassPetWidget';
 import { WheelWidget, WheelWidgetProps } from './widgets/WheelWidget';
@@ -7494,97 +7504,286 @@ export const SortingWidgetContent: React.FC<{
 // ==========================================
 // NEW WIDGET 17: MORGEN-MOTTO BOARD (Encouragement Affirms)
 // ==========================================
-export const DailyquotesWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const quotes = [
-    { title: "💡 Fehler sind Helfer!", text: "Jeder Fehler hilft uns beim Lernen. Probiere es einfach aus!" },
-    { title: "🤝 Teamwork!", text: "Gemeinsam können wir viel mehr erreichen als alleine. Helft euch heute!" },
-    { title: "🌟 Du bist wertvoll!", text: "Deine Ideen und Gedanken sind wichtig. Trau dich, sie zu teilen!" },
-    { title: "🍃 Tief durchatmen!", text: "Wenn etwas schwer ist: Atme dreimal tief ein und aus. Du schaffst das!" },
-    { title: "😊 Freundlichkeit!", text: "Ein Lächeln kostet nichts. Schenke heute mindestens 3 Kindern ein Lächeln!" }
-  ];
+export const DailyquotesWidgetContent: React.FC<{
+  widget: any;
+  currentIsLight: boolean;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
+}> = ({
+  widget,
+  currentIsLight,
+  onUpdate,
+  showSettings = false,
+  onCloseSettings,
+}) => {
+  const settings = useMemo(
+    () => normalizeDailyQuotesWidgetSettings(widget?.settings),
+    [widget?.settings],
+  );
+  const activeQuote = useMemo(() => getActiveDailyQuote(settings), [settings]);
+  const [editTitle, setEditTitle] = useState(settings.customTitle);
+  const [editText, setEditText] = useState(settings.customText);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiStatus, setAiStatus] = useState<string>('');
 
-  const [index, setIndex] = useState<number>(0);
-  const [customQuote, setCustomQuote] = useState<{ title: string, text: string } | null>(null);
-  const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
+  useEffect(() => {
+    setEditTitle(settings.customTitle);
+    setEditText(settings.customText);
+  }, [settings.customTitle, settings.customText]);
+
+  const persistSettings = useCallback((patch: Partial<DailyQuotesWidgetSettings>) => {
+    if (!onUpdate) return;
+    onUpdate({
+      settings: {
+        ...(widget?.settings || {}),
+        ...settings,
+        ...patch,
+      },
+    });
+  }, [onUpdate, settings, widget?.settings]);
+
+  const selectTheme = (theme: DailyQuoteTheme) => {
+    const first = getDailyQuotesForTheme(theme)[0];
+    persistSettings({
+      theme,
+      currentQuoteId: first?.id || settings.currentQuoteId,
+      useCustom: false,
+    });
+    setAiStatus('');
+  };
 
   const rotateQuote = () => {
-    setCustomQuote(null);
-    setIndex(prev => (prev + 1) % quotes.length);
+    persistSettings({
+      currentQuoteId: getNextDailyQuoteId(settings.currentQuoteId, settings.theme),
+      useCustom: false,
+    });
+    setAiStatus('');
+  };
+
+  const applyCustomMotto = () => {
+    const text = editText.trim();
+    if (!text) {
+      setAiStatus('Bitte zuerst einen Motto-Satz eingeben.');
+      return;
+    }
+    const title = editTitle.trim() || '💬 Unser Motto';
+    persistSettings({
+      customTitle: title,
+      customText: text,
+      useCustom: true,
+    });
+    setAiStatus('Eigenes Motto wird auf der Tafel angezeigt.');
+  };
+
+  const useCollection = () => {
+    persistSettings({ useCustom: false });
+    setAiStatus('Motto-Sammlung ist aktiv.');
   };
 
   const fetchAiQuote = async () => {
+    if (isAiLoading) return;
     setIsAiLoading(true);
-    setCustomQuote({ title: "Lade... 🪄", text: "Die Zauberkugel der KI wird befragt..." });
+    setAiStatus('KI-Vorschlag wird erstellt …');
+    const themeLabel = DAILY_QUOTE_THEME_LABELS[settings.theme];
     try {
-      const prompt = `Erstelle ein kurzes, extrem motivierendes, herzerwärmendes deutsches "Morgen-Motto" für Grundschulkinder im Alter von 6-10 Jahren.
-Das Motto soll Mut machen, Fehler als Helfer feiern, Teamgeist anregen oder Achtsamkeit fördern.
-Antworte exakt in diesem Format, getrennt durch ein einziges Semikolon (ohne Markdown, ohne Titel):
-<Ein passendes Emoji + Kurzer Titel (max. 3 Wörter)>;<Der motivierende Satz (max. 15 Wörter)>
-Beispiel: 🦖 Mut-Saurier!;Trau dich heute ganz fest, laut deine eigenen tollen Ideen zu rufen!`;
+      const prompt = `Erstelle ein kurzes, ruhiges und kindgerechtes Morgen-Motto auf Deutsch für Volksschulkinder.
+Thema: ${themeLabel}.
+Es darf motivieren, aber nicht übertreiben oder Druck machen. Formuliere konkret, freundlich und alltagstauglich.
+Keine Namen, keine persönlichen Daten, keine Leistungsversprechen.
+Antworte exakt als: <Emoji + kurzer Titel mit höchstens 4 Wörtern>;<Motto-Satz mit höchstens 18 Wörtern>
+Kein Markdown und kein weiterer Text.`;
       const response = await askAI('ki-wissen', prompt);
-      if (response && response.includes(';')) {
-        const parts = response.split(';');
-        if (parts.length >= 2) {
-          setCustomQuote({
-            title: parts[0].trim(),
-            text: parts[1].trim()
-          });
-          return;
-        }
+      const parsed = parseAiDailyQuote(response);
+      if (!parsed) {
+        setAiStatus('Der KI-Vorschlag konnte nicht gelesen werden. Die Motto-Sammlung bleibt verfügbar.');
+        return;
       }
-      setCustomQuote({
-        title: "🌟 Du bist ein Stern!",
-        text: response || "Gemeinsam strahlen wir heute am allermeisten!"
+      setEditTitle(parsed.title);
+      setEditText(parsed.text);
+      persistSettings({
+        customTitle: parsed.title,
+        customText: parsed.text,
+        useCustom: true,
       });
-    } catch (e) {
-      setCustomQuote({
-        title: "❤️ Warmes Herz!",
-        text: "Ein tiefer Atemzug und der Tag gehört dir!"
-      });
+      setAiStatus('KI-Vorschlag wird auf der Tafel angezeigt.');
+    } catch {
+      setAiStatus('KI ist gerade nicht verfügbar. Die Motto-Sammlung funktioniert weiterhin offline.');
     } finally {
       setIsAiLoading(false);
     }
   };
 
-  const activeQuote = customQuote || quotes[index];
+  const settingButtonClass = (active: boolean) => `min-h-11 rounded-xl border px-3 py-2 text-left text-xs font-bold transition-colors ${
+    active
+      ? 'border-accent bg-accent-soft text-accent'
+      : currentIsLight
+        ? 'border-slate-200 bg-white text-slate-700 hover:border-accent hover:bg-accent-soft'
+        : 'border-white/10 bg-white/5 text-slate-200 hover:border-accent hover:bg-white/10'
+  }`;
 
   return (
-    <div className="flex-grow flex flex-col justify-between p-2 h-full min-h-0 pointer-events-auto select-none gap-2">
-      <div className="flex justify-between items-center px-1 shrink-0">
-        <span className={`text-[8px] font-black uppercase tracking-widest ${currentIsLight ? 'text-slate-400' : 'text-slate-500'}`}>
-          Tägliches Morgen-Motto {customQuote && !isAiLoading ? "✨ KI-Motto" : ""}
+    <div
+      role="region"
+      aria-label="Morgen-Motto"
+      className={`relative flex h-full min-h-0 w-full flex-col overflow-hidden p-3 select-none ${
+        currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-slate-100'
+      }`}
+    >
+      {showSettings && (
+        <div className={`absolute inset-0 z-30 flex min-h-0 flex-col overflow-y-auto p-4 ${
+          currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-slate-100'
+        }`}>
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 pb-3 dark:border-white/10">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-wider text-accent">Morgen-Motto-Einstellungen</p>
+              <p className="mt-1 text-xs leading-relaxed opacity-65">
+                Thema wählen oder ein eigenes Motto für die Klasse vorbereiten.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onCloseSettings}
+              className="min-h-11 shrink-0 rounded-xl border border-slate-200 px-3 text-xs font-black hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5"
+            >
+              Fertig
+            </button>
+          </div>
+
+          <section className="mt-4 shrink-0">
+            <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider opacity-55">Thema</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {(Object.entries(DAILY_QUOTE_THEME_LABELS) as Array<[DailyQuoteTheme, string]>).map(([theme, label]) => (
+                <button
+                  key={theme}
+                  type="button"
+                  aria-pressed={settings.theme === theme && !settings.useCustom}
+                  onClick={() => selectTheme(theme)}
+                  className={settingButtonClass(settings.theme === theme && !settings.useCustom)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className={`mt-4 shrink-0 rounded-2xl border p-3 ${
+            currentIsLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/5'
+          }`}>
+            <div className="mb-2">
+              <p className="text-xs font-black">Eigenes Motto</p>
+              <p className="mt-0.5 text-[11px] leading-relaxed opacity-60">
+                Wird nur für dieses Widget gespeichert und kann jederzeit wieder durch die Sammlung ersetzt werden.
+              </p>
+            </div>
+            <label className="block text-[10px] font-black uppercase tracking-wider opacity-55">
+              Kurzer Titel
+              <input
+                type="text"
+                value={editTitle}
+                maxLength={60}
+                onChange={event => setEditTitle(event.target.value)}
+                placeholder="z. B. 🌱 Schritt für Schritt"
+                className={`mt-1 min-h-11 w-full rounded-xl border px-3 text-sm font-semibold outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft ${
+                  currentIsLight ? 'border-slate-300 bg-white text-slate-900' : 'border-white/10 bg-zinc-900 text-white'
+                }`}
+              />
+            </label>
+            <label className="mt-3 block text-[10px] font-black uppercase tracking-wider opacity-55">
+              Motto-Satz
+              <textarea
+                value={editText}
+                maxLength={220}
+                onChange={event => setEditText(event.target.value)}
+                placeholder="Was soll heute gut sichtbar auf der Tafel stehen?"
+                rows={3}
+                className={`mt-1 min-h-20 w-full resize-none rounded-xl border px-3 py-2 text-sm font-medium leading-relaxed outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft ${
+                  currentIsLight ? 'border-slate-300 bg-white text-slate-900' : 'border-white/10 bg-zinc-900 text-white'
+                }`}
+              />
+            </label>
+            <div className="mt-2 grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={applyCustomMotto}
+                className="min-h-11 rounded-xl bg-accent px-3 text-xs font-black text-accent-text hover:bg-accent-hover"
+              >
+                Eigenes Motto anzeigen
+              </button>
+              <button
+                type="button"
+                onClick={useCollection}
+                className={`min-h-11 rounded-xl border px-3 text-xs font-black ${
+                  currentIsLight
+                    ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                    : 'border-white/10 bg-zinc-900 text-slate-200 hover:bg-white/10'
+                }`}
+              >
+                Sammlung verwenden
+              </button>
+            </div>
+          </section>
+
+          <section className={`mt-4 shrink-0 rounded-2xl border p-3 ${
+            currentIsLight ? 'border-slate-200 bg-white' : 'border-white/10 bg-zinc-900'
+          }`}>
+            <div className="flex items-start gap-2">
+              <Sparkles size={17} className="mt-0.5 shrink-0 text-accent" aria-hidden="true" />
+              <div>
+                <p className="text-xs font-black">KI-Vorschlag</p>
+                <p className="mt-0.5 text-[11px] leading-relaxed opacity-60">
+                  Es wird nur das gewählte Thema gesendet – keine Schüler- oder Klassendaten.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              disabled={isAiLoading}
+              onClick={fetchAiQuote}
+              className="mt-2 min-h-11 w-full rounded-xl border border-accent bg-accent-soft px-3 text-xs font-black text-accent transition-colors hover:bg-accent hover:text-accent-text disabled:opacity-50"
+            >
+              {isAiLoading ? 'Vorschlag wird erstellt …' : 'KI-Vorschlag erstellen'}
+            </button>
+            {aiStatus && (
+              <p role="status" aria-live="polite" className="mt-2 text-[11px] font-semibold leading-relaxed opacity-70">
+                {aiStatus}
+              </p>
+            )}
+          </section>
+        </div>
+      )}
+
+      <div className="flex shrink-0 items-center justify-between gap-2">
+        <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[10px] font-black text-accent">
+          {activeQuote.custom ? 'Eigenes Motto' : DAILY_QUOTE_THEME_LABELS[settings.theme]}
         </span>
+        {activeQuote.custom && (
+          <span className="text-[10px] font-bold opacity-55">gespeichert</span>
+        )}
       </div>
 
-      {/* polaroid sticky card layout */}
-      <div className={`p-4 rounded-2xl border flex flex-col justify-center text-center shadow-lg transition-all h-24 ${
-        currentIsLight 
-          ? 'bg-amber-50/50 border-amber-100 text-slate-800' 
-          : 'bg-zinc-850/50 border-amber-500/10 text-slate-200'
-      }`}>
-        <h4 className="text-[10px] font-black uppercase text-amber-500 tracking-wider">
-          {activeQuote.title}
-        </h4>
-        <p className="text-[8.5px] font-medium leading-relaxed italic mt-1 px-1">
-          „{activeQuote.text}“
-        </p>
+      <div className="flex min-h-0 flex-1 items-center justify-center py-3">
+        <article className={`flex w-full flex-col items-center justify-center rounded-3xl border px-4 py-5 text-center shadow-sm ${
+          currentIsLight
+            ? 'border-slate-200 bg-slate-50/80'
+            : 'border-white/10 bg-white/5'
+        }`}>
+          <h3 className="text-lg font-black leading-tight text-accent sm:text-xl">
+            {activeQuote.title}
+          </h3>
+          <p className="mt-3 text-[clamp(0.95rem,3.6cqw,1.35rem)] font-semibold leading-relaxed tracking-tight">
+            „{activeQuote.text}“
+          </p>
+        </article>
       </div>
 
-      <div className="flex gap-1.5 shrink-0">
-        <button
-          onClick={fetchAiQuote}
-          disabled={isAiLoading}
-          className="flex-1 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white shadow-md cursor-pointer transition-all text-center"
-        >
-          🔮 KI-Motto
-        </button>
-        <button
-          onClick={rotateQuote}
-          className="flex-1 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider bg-indigo-500 hover:bg-indigo-600 text-white shadow-md cursor-pointer transition-all text-center"
-        >
-          ➔ Weiter
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={rotateQuote}
+        className="min-h-11 shrink-0 rounded-xl bg-accent px-4 text-xs font-black text-accent-text shadow-sm transition-colors hover:bg-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring"
+      >
+        Nächstes Motto
+      </button>
     </div>
   );
 };
