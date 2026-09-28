@@ -13,6 +13,7 @@ import { getServerSyncTimestamps, isSyncSessionExpired } from "./src/lib/syncSer
 import { createTeacherIdentityForSchool, displayNameFromEmail, handleFromEmail, type TeacherIdentity } from "./src/server/teacherIdentity.ts";
 import { createLehrerzimmerStore, type LehrerzimmerCategory } from "./src/server/lehrerzimmerStore.ts";
 import { createClassCollaborationStore, type SharedClassRecord } from "./src/server/classCollaborationStore.ts";
+import { createInventoryStore } from "./src/server/inventoryStore.ts";
 import { createSchoolRegistryStore, type AustrianFederalState, type SchoolVerificationRequest, type SchoolRecord } from "./src/server/schoolRegistry.ts";
 import { createSupporterStore } from "./src/server/supporterStore.ts";
 import { createCanvaTokenStore, type CanvaStoredTokens } from "./src/server/canvaTokenStore.ts";
@@ -256,6 +257,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   const KLASSIO_DATA_DIR = (process.env.KLASSIO_DATA_DIR || path.join(process.cwd(), 'data')).trim();
   const lehrerzimmerStore = createLehrerzimmerStore(KLASSIO_DATA_DIR);
   const classCollaborationStore = createClassCollaborationStore(KLASSIO_DATA_DIR);
+  const inventoryStore = createInventoryStore(KLASSIO_DATA_DIR);
   const schoolRegistryStore = createSchoolRegistryStore(KLASSIO_DATA_DIR);
   const supporterStore = createSupporterStore(KLASSIO_DATA_DIR);
   const accountSyncStore = createAccountSyncStore(KLASSIO_DATA_DIR);
@@ -1262,6 +1264,135 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     console.error('[Lehrerzimmer] Serverfehler:', error);
     return res.status(500).json({ error: 'Das Lehrerzimmer konnte nicht geladen werden.' });
   };
+
+  const handleInventoryError = (res: express.Response, error: unknown) => {
+    const code = error instanceof Error ? error.message : '';
+    if (code === 'INVALID_ITEM') return res.status(400).json({ error: 'Bitte gib zumindest eine Bezeichnung für das Lehrmittel an.' });
+    if (code === 'INVALID_LOCATION') return res.status(400).json({ error: 'Bitte gib einen Namen für den Standort an.' });
+    if (code === 'INVALID_IMPORT') return res.status(400).json({ error: 'Die Importdaten sind ungültig.' });
+    if (code === 'INVALID_LOAN') return res.status(400).json({ error: 'Die Ausleihe ist unvollständig.' });
+    if (code === 'INVENTORY_NUMBER_EXISTS') return res.status(409).json({ error: 'Diese Inventarnummer ist bereits vergeben.' });
+    if (code === 'ITEM_NOT_FOUND') return res.status(404).json({ error: 'Dieses Lehrmittel wurde nicht gefunden.' });
+    if (code === 'LOCATION_NOT_FOUND') return res.status(404).json({ error: 'Dieser Standort wurde nicht gefunden.' });
+    if (code === 'LOAN_NOT_FOUND') return res.status(404).json({ error: 'Diese Ausleihe wurde nicht gefunden.' });
+    if (code === 'ITEM_ON_LOAN') return res.status(409).json({ error: 'Dieses Lehrmittel ist noch ausgeliehen und kann nicht gelöscht werden.' });
+    if (code === 'ITEM_UNAVAILABLE') return res.status(409).json({ error: 'Von diesem Lehrmittel ist aktuell nicht genug verfügbar.' });
+    console.error('[Lehrmittel] Serverfehler:', error);
+    return res.status(500).json({ error: 'Die Lehrmittelverwaltung konnte nicht verarbeitet werden.' });
+  };
+
+  app.get('/api/lehrmittel', requireTeacherIdentity, async (req, res) => {
+    try {
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(await inventoryStore.snapshot(getTeacherIdentity(req)));
+    } catch (error) {
+      handleInventoryError(res, error);
+    }
+  });
+
+  app.post('/api/lehrmittel/locations', requireTeacherIdentity, async (req, res) => {
+    try {
+      const location = await inventoryStore.createLocation(getTeacherIdentity(req), {
+        name: req.body?.name,
+        subject: req.body?.subject,
+        room: req.body?.room,
+        note: req.body?.note,
+      });
+      res.status(201).json({ location });
+    } catch (error) {
+      handleInventoryError(res, error);
+    }
+  });
+
+  app.put('/api/lehrmittel/locations/:locationId', requireTeacherIdentity, async (req, res) => {
+    try {
+      const location = await inventoryStore.updateLocation(getTeacherIdentity(req), req.params.locationId, {
+        name: req.body?.name,
+        subject: req.body?.subject,
+        room: req.body?.room,
+        note: req.body?.note,
+      });
+      res.json({ location });
+    } catch (error) {
+      handleInventoryError(res, error);
+    }
+  });
+
+  app.post('/api/lehrmittel/items', requireTeacherIdentity, async (req, res) => {
+    try {
+      const item = await inventoryStore.createItem(getTeacherIdentity(req), {
+        inventoryNumber: req.body?.inventoryNumber,
+        name: req.body?.name,
+        subject: req.body?.subject,
+        locationId: req.body?.locationId,
+        quantity: req.body?.quantity,
+        condition: req.body?.condition,
+        note: req.body?.note,
+      });
+      res.status(201).json({ item });
+    } catch (error) {
+      handleInventoryError(res, error);
+    }
+  });
+
+  app.put('/api/lehrmittel/items/:itemId', requireTeacherIdentity, async (req, res) => {
+    try {
+      const item = await inventoryStore.updateItem(getTeacherIdentity(req), req.params.itemId, {
+        inventoryNumber: req.body?.inventoryNumber,
+        name: req.body?.name,
+        subject: req.body?.subject,
+        locationId: req.body?.locationId,
+        quantity: req.body?.quantity,
+        condition: req.body?.condition,
+        note: req.body?.note,
+      });
+      res.json({ item });
+    } catch (error) {
+      handleInventoryError(res, error);
+    }
+  });
+
+  app.delete('/api/lehrmittel/items/:itemId', requireTeacherIdentity, async (req, res) => {
+    try {
+      await inventoryStore.deleteItem(getTeacherIdentity(req), req.params.itemId);
+      res.status(204).end();
+    } catch (error) {
+      handleInventoryError(res, error);
+    }
+  });
+
+  app.post('/api/lehrmittel/import', requireTeacherIdentity, async (req, res) => {
+    try {
+      const result = await inventoryStore.importRecords(getTeacherIdentity(req), req.body?.records);
+      res.status(201).json(result);
+    } catch (error) {
+      handleInventoryError(res, error);
+    }
+  });
+
+  app.post('/api/lehrmittel/loans', requireTeacherIdentity, async (req, res) => {
+    try {
+      const loan = await inventoryStore.createLoan(getTeacherIdentity(req), {
+        itemId: req.body?.itemId,
+        borrowerUserId: req.body?.borrowerUserId,
+        borrowerName: req.body?.borrowerName,
+        quantity: req.body?.quantity,
+        dueAt: req.body?.dueAt,
+      });
+      res.status(201).json({ loan });
+    } catch (error) {
+      handleInventoryError(res, error);
+    }
+  });
+
+  app.post('/api/lehrmittel/loans/:loanId/return', requireTeacherIdentity, async (req, res) => {
+    try {
+      const loan = await inventoryStore.returnLoan(getTeacherIdentity(req), req.params.loanId);
+      res.json({ loan });
+    } catch (error) {
+      handleInventoryError(res, error);
+    }
+  });
 
   app.get('/api/lehrerzimmer/me', requireTeacherIdentity, async (req, res) => {
     try {
