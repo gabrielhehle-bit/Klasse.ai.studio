@@ -77,7 +77,7 @@ const OPTIMAL_WIDGET_SIZES: Record<string, { w: number; h: number }> = {
   fractionvisualizer: { w: 38, h: 48 },
   wordclock: { w: 34, h: 42 },
   sorting: { w: 40, h: 52 },
-  dailyquotes: { w: 28, h: 40 },
+  dailyquotes: { w: 34, h: 42 },
   dictionary: { w: 36, h: 48 },
   piano: { w: 55, h: 35 },
   bodyparts: { w: 38, h: 50 },
