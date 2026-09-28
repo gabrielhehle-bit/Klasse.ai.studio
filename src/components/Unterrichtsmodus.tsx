@@ -2058,10 +2058,10 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
   {
     id: "widget-bodyparts",
     type: "bodyparts",
-    x: 56,
+    x: 54,
     y: 100,
-    w: 38,
-    h: 50,
+    w: 44,
+    h: 56,
     visible: false,
   },
   {
