@@ -313,9 +313,12 @@ export default function InventoryManager() {
       if (item) {
         setTab('stock');
         setQuery(item.inventoryNumber || item.name);
-        setLoanItem(item);
-        setLoanBorrowerId(snapshot.user.userId);
-        setLoanBorrowerName(snapshot.user.displayName);
+        const hasOpenLoan = snapshot.loans.some(loan => loan.itemId === item.id && !loan.returnedAt);
+        if (!hasOpenLoan && item.condition !== 'fehlt') {
+          setLoanItem(item);
+          setLoanBorrowerId(snapshot.user.userId);
+          setLoanBorrowerName(snapshot.user.displayName);
+        }
       }
     }
   }, [snapshot?.school.id]);
@@ -797,6 +800,8 @@ export default function InventoryManager() {
                     loans={activeLoans}
                     loanedQuantityByItem={loanedQuantityByItem}
                     onLoan={openLoan}
+                    onReturnLoan={loan => void returnLoan(loan)}
+                    onShowLoans={() => setTab('loans')}
                     onEdit={item => setItemDraft({
                       id: item.id,
                       inventoryNumber: item.inventoryNumber,
@@ -941,6 +946,8 @@ export default function InventoryManager() {
                   loans={activeLoans}
                   loanedQuantityByItem={loanedQuantityByItem}
                   onLoan={openLoan}
+                  onReturnLoan={loan => void returnLoan(loan)}
+                  onShowLoans={() => setTab('loans')}
                   onEdit={item => setItemDraft({
                     id: item.id,
                     inventoryNumber: item.inventoryNumber,
@@ -1513,6 +1520,8 @@ function ItemList({
   loans,
   loanedQuantityByItem,
   onLoan,
+  onReturnLoan,
+  onShowLoans,
   onEdit,
   onDelete,
 }: {
@@ -1521,6 +1530,8 @@ function ItemList({
   loans: InventoryLoan[];
   loanedQuantityByItem: Map<string, number>;
   onLoan: (item: InventoryItem) => void;
+  onReturnLoan: (loan: InventoryLoan) => void;
+  onShowLoans: () => void;
   onEdit: (item: InventoryItem) => void;
   onDelete?: (item: InventoryItem) => void;
 }) {
@@ -1570,6 +1581,24 @@ function ItemList({
               )}
             </div>
             <div className="flex items-center gap-1.5 lg:justify-end">
+              {itemLoans.length === 1 && (
+                <button
+                  type="button"
+                  onClick={() => onReturnLoan(itemLoans[0])}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-emerald-50 px-3 text-xs font-black text-emerald-700 hover:bg-emerald-100"
+                >
+                  <RotateCcw size={14} /> Zurück
+                </button>
+              )}
+              {itemLoans.length > 1 && (
+                <button
+                  type="button"
+                  onClick={onShowLoans}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-emerald-50 px-3 text-xs font-black text-emerald-700 hover:bg-emerald-100"
+                >
+                  <RotateCcw size={14} /> {itemLoans.length} Rückgaben
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => onLoan(item)}
