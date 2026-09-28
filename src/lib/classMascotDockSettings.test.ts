@@ -21,7 +21,7 @@ test('mascot settings live on the widget gear instead of the global options menu
   const cockpit = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
   const catalog = readFileSync('src/lib/cockpitWidgetCatalog.ts', 'utf8');
 
-  assert.match(catalog, /"pet",\s*\n\]\);/);
+  assert.match(catalog, /COCKPIT_WIDGET_SETTINGS_IDS[\s\S]*"pet",/);
   assert.match(cockpit, /widget\.type === "pet" && isMascotSettingsOpen/);
   assert.match(cockpit, /if \(widget\.type === "pet"\)/);
   assert.match(cockpit, /setIsMascotSettingsOpen\(open => !open\)/);
