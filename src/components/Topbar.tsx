@@ -340,7 +340,10 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
   };
 
   return (
-    <header className={`flex flex-col sticky top-0 z-[100] topbar no-print print:hidden ${className || ''}`}>
+    <header
+      className={`flex flex-col sticky top-0 z-[100] topbar no-print print:hidden ${className || ''}`}
+      data-account-sync-status={accountSyncStatus}
+    >
       {/* Haupt-Header Zeile */}
       <div className="bg-[var(--surface-card,var(--surface))]/95 backdrop-blur-xl border-b border-[var(--border-default,var(--border))] py-2.5 px-3 sm:px-6 shadow-xs">
         <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-2 sm:gap-4 w-full">
