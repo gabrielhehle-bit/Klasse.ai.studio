@@ -108,6 +108,7 @@ const OPTIMAL_WIDGET_SIZES: Record<string, { w: number; h: number }> = {
   wordexplorer: { w: 38, h: 50 },
   weightscale: { w: 40, h: 50 },
   geographyquiz: { w: 42, h: 52 },
+  flagquiz: { w: 48, h: 56 },
   calmrain: { w: 36, h: 48 },
   estimationjar: { w: 34, h: 46 },
   reflexgame: { w: 40, h: 48 },
