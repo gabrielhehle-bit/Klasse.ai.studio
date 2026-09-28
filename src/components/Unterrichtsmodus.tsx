@@ -2058,10 +2058,10 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
   {
     id: "widget-bodyparts",
     type: "bodyparts",
-    x: 56,
+    x: 54,
     y: 100,
-    w: 38,
-    h: 50,
+    w: 44,
+    h: 56,
     visible: false,
   },
   {
@@ -4105,7 +4105,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       w.id !== id ? w : {
         ...w,
         ...updates,
-        ...(((w.type === "groups" && updates.settings) || (w.type === "wheel" && updates.settings) || (w.type === "sounds" && updates.settings) || (w.type === "stopwatch" && updates.settings) || (w.type === "dictionary" && updates.settings) || (w.type === "piano" && updates.settings))
+        ...(((w.type === "groups" && updates.settings) || (w.type === "wheel" && updates.settings) || (w.type === "sounds" && updates.settings) || (w.type === "stopwatch" && updates.settings) || (w.type === "dictionary" && updates.settings) || (w.type === "piano" && updates.settings) || (w.type === "bodyparts" && updates.settings))
           ? { settings: { ...(w.settings || {}), ...updates.settings } }
           : {}),
         hasBeenOpened: true,
