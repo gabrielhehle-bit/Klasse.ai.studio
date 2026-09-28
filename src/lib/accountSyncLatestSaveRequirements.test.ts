@@ -46,7 +46,7 @@ test('Beim Wechsel zum Schullaptop darf ein alter Remote-Request neuere Eingaben
   assert.match(context, /accountSyncBusyRef\.current/);
 });
 
-test('Konto-Status bleibt auf jeder Seite erreichbar; Topbar zeigt normale Zwischenstände ruhig an', () => {
+test('Konto-Status bleibt in den Kontoeinstellungen vollständig, während der Topbar nur Backup und Hilfe zeigt', () => {
   const account = readFileSync('src/components/settings/AccountSettings.tsx', 'utf8');
   const topbar = readFileSync('src/components/Topbar.tsx', 'utf8');
   const badge = readFileSync('src/lib/quietSyncBadge.ts', 'utf8');
@@ -56,8 +56,11 @@ test('Konto-Status bleibt auf jeder Seite erreichbar; Topbar zeigt normale Zwisc
   }
   assert.match(account, /Auf allen Geräten verfügbar/);
   assert.match(badge, /Neuester verschlüsselter Stand vom Server bestätigt/);
-  assert.match(topbar, /getQuietSyncBadge\(accountSyncStatus, isOnline\)/);
-  assert.match(topbar, /cloudSaveBadge\.description/);
+  assert.doesNotMatch(topbar, /getQuietSyncBadge\(accountSyncStatus, isOnline\)/);
+  assert.doesNotMatch(topbar, /cloudSaveBadge/);
+  assert.doesNotMatch(topbar, />Autospeichern</);
+  assert.match(topbar, /aria-label="Hilfe und Anleitungen öffnen"/);
+  assert.match(topbar, /aria-label="Jetzt verschlüsseltes Backup herunterladen"/);
   assert.doesNotMatch(account, /title: 'Daten aktuell'/);
 });
 
