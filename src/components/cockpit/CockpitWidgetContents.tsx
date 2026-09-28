@@ -7406,16 +7406,17 @@ export const SortingWidgetContent: React.FC<{
 
       <div
         aria-label="Bereits richtig sortierte Zahlen"
-        className={`mt-3 flex min-h-14 shrink-0 items-center justify-center gap-1.5 rounded-2xl border px-2 ${
+        className={`mt-3 grid min-h-14 shrink-0 items-center gap-1 rounded-2xl border px-2 py-1.5 ${
           currentIsLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/5'
         }`}
+        style={{ gridTemplateColumns: `repeat(${settings.count}, minmax(0, 1fr))` }}
       >
         {Array.from({ length: settings.count }).map((_, index) => {
           const value = sorted[index];
           return (
             <span
               key={index}
-              className={`flex h-10 min-w-10 items-center justify-center rounded-xl px-2 text-sm font-black tabular-nums ${
+              className={`flex h-10 min-w-0 items-center justify-center rounded-xl px-1 text-xs sm:text-sm font-black tabular-nums ${
                 value !== undefined
                   ? 'bg-accent text-accent-text shadow-sm'
                   : currentIsLight
