@@ -12,7 +12,9 @@ import {
   Images,
   Link2,
   Loader2,
+  Pencil,
   Plus,
+  Save,
   ShieldAlert,
   ShieldCheck,
   Trash2,
@@ -23,12 +25,13 @@ import {
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import type { PhotoAlbum, PhotoAlbumFile, Student } from '../types';
-import { evaluatePhotoAlbumSharing, photoPermissionLabel } from '../lib/photoAlbumPolicy';
+import { evaluatePhotoAlbumSharing, isPhotoAlbumShareExpired, photoPermissionLabel } from '../lib/photoAlbumPolicy';
 import {
   connectOneDrive,
   getValidOneDriveToken,
   readOneDriveToken,
 } from '../lib/oneDriveSession';
+import { canPrivacyOptimizePhotoType, prepareParentPhoto } from '../lib/photoUploadPreparation';
 
 const MAX_PHOTO_BYTES = 25 * 1024 * 1024;
 const DEFAULT_SHARE_DAYS = 30;
@@ -45,8 +48,9 @@ function formatDate(value?: string): string {
   return date.toLocaleDateString('de-AT');
 }
 
-function albumStatus(album: PhotoAlbum): 'shared' | 'draft' {
-  return album.shareUrl ? 'shared' : 'draft';
+function albumStatus(album: PhotoAlbum): 'shared' | 'expired' | 'draft' {
+  if (!album.shareUrl) return 'draft';
+  return isPhotoAlbumShareExpired(album.shareExpiresAt) ? 'expired' : 'shared';
 }
 
 function uniqueFiles(files: PhotoAlbumFile[]): PhotoAlbumFile[] {
@@ -79,6 +83,7 @@ export default function PhotoAlbums() {
   const [uploading, setUploading] = React.useState(false);
   const [sharing, setSharing] = React.useState(false);
   const [uploadProgress, setUploadProgress] = React.useState({ done: 0, total: 0 });
+  const [optimizePhotos, setOptimizePhotos] = React.useState(true);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const [draftTitle, setDraftTitle] = React.useState('');
@@ -86,6 +91,14 @@ export default function PhotoAlbums() {
   const [draftDate, setDraftDate] = React.useState(new Date().toISOString().slice(0, 10));
   const [draftStudentIds, setDraftStudentIds] = React.useState<string[]>([]);
   const [draftNoIdentifiableStudents, setDraftNoIdentifiableStudents] = React.useState(false);
+  const [shareDays, setShareDays] = React.useState(DEFAULT_SHARE_DAYS);
+  const [shareConsentConfirmed, setShareConsentConfirmed] = React.useState(false);
+  const [editingAlbum, setEditingAlbum] = React.useState(false);
+  const [editTitle, setEditTitle] = React.useState('');
+  const [editDescription, setEditDescription] = React.useState('');
+  const [editDate, setEditDate] = React.useState('');
+  const [editStudentIds, setEditStudentIds] = React.useState<string[]>([]);
+  const [editNoIdentifiableStudents, setEditNoIdentifiableStudents] = React.useState(false);
 
   React.useEffect(() => {
     if (selectedAlbumId && albums.some(album => album.id === selectedAlbumId)) return;
@@ -101,6 +114,18 @@ export default function PhotoAlbums() {
     selectedStudents,
     selectedAlbum?.noIdentifiableStudents === true,
   );
+  const selectedShareExpired = Boolean(
+    selectedAlbum?.shareUrl && isPhotoAlbumShareExpired(selectedAlbum.shareExpiresAt),
+  );
+  const shareSafetyProblem = Boolean(
+    selectedAlbum?.shareUrl && !selectedShareExpired && !selectedPolicy.canShare,
+  );
+
+  React.useEffect(() => {
+    setShareConsentConfirmed(false);
+    setShareDays(DEFAULT_SHARE_DAYS);
+    setEditingAlbum(false);
+  }, [selectedAlbumId]);
 
   const patchAlbum = React.useCallback((albumId: string, patch: Partial<PhotoAlbum>) => {
     setApp(prev => ({
@@ -112,6 +137,56 @@ export default function PhotoAlbums() {
       ),
     }));
   }, [setApp]);
+
+  const beginEditAlbum = () => {
+    if (!selectedAlbum) return;
+    setEditTitle(selectedAlbum.title);
+    setEditDescription(selectedAlbum.description || '');
+    setEditDate(selectedAlbum.eventDate || '');
+    setEditStudentIds(selectedAlbum.studentIds || []);
+    setEditNoIdentifiableStudents(selectedAlbum.noIdentifiableStudents === true);
+    setEditingAlbum(true);
+  };
+
+  const saveAlbumEdits = () => {
+    if (!selectedAlbum) return;
+    const title = editTitle.trim();
+    if (!title) {
+      showToast('Bitte einen Albumnamen eingeben.', 'error');
+      return;
+    }
+    if (!editNoIdentifiableStudents && editStudentIds.length === 0) {
+      showToast('Bitte abgebildete Kinder auswählen oder „Keine Kinder erkennbar“ bestätigen.', 'error');
+      return;
+    }
+
+    const editedStudents = students.filter(student => editStudentIds.includes(student.id));
+    const editedPolicy = evaluatePhotoAlbumSharing(editedStudents, editNoIdentifiableStudents);
+    const previousIds = [...(selectedAlbum.studentIds || [])].sort();
+    const nextIds = [...(editNoIdentifiableStudents ? [] : editStudentIds)].sort();
+    const picturedChildrenChanged =
+      selectedAlbum.noIdentifiableStudents === true !== editNoIdentifiableStudents ||
+      previousIds.join('|') !== nextIds.join('|');
+
+    if (selectedAlbum.shareUrl && !selectedShareExpired && picturedChildrenChanged) {
+      showToast('Bitte zuerst den aktiven Elternlink beenden. Die Liste der abgebildeten Kinder darf während einer Freigabe nicht geändert werden.', 'error');
+      return;
+    }
+    if (!editedPolicy.canShare && selectedAlbum.shareUrl && !selectedShareExpired) {
+      showToast('Bitte zuerst den aktiven Elternlink beenden. Die neue Auswahl wäre nicht freigegeben.', 'error');
+      return;
+    }
+
+    patchAlbum(selectedAlbum.id, {
+      title,
+      description: editDescription.trim() || undefined,
+      eventDate: editDate || undefined,
+      studentIds: editNoIdentifiableStudents ? [] : editStudentIds,
+      noIdentifiableStudents: editNoIdentifiableStudents,
+    });
+    setEditingAlbum(false);
+    showToast('Albumdaten aktualisiert.', 'success');
+  };
 
   const handleCreateAlbum = () => {
     const title = draftTitle.trim();
@@ -183,6 +258,11 @@ export default function PhotoAlbums() {
 
   const handleUpload = async (fileList: FileList | null) => {
     if (!selectedAlbum || !fileList?.length) return;
+    if (selectedAlbum.shareUrl && !selectedShareExpired) {
+      showToast('Bitte zuerst den aktiven Elternlink beenden. Neue Fotos würden sonst sofort mitgeteilt.', 'error');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
 
     const files = Array.from(fileList).filter(file => {
       if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') {
@@ -191,6 +271,10 @@ export default function PhotoAlbums() {
       }
       if (file.size > MAX_PHOTO_BYTES) {
         showToast(`${file.name}: Maximal 25 MB pro Foto.`, 'error');
+        return false;
+      }
+      if (optimizePhotos && !canPrivacyOptimizePhotoType(file.type)) {
+        showToast(`${file.name}: Datenschutz-Optimierung unterstützt JPEG, PNG und WebP. Für HEIC/GIF bitte bewusst auf Originaldateien umstellen.`, 'error');
         return false;
       }
       return true;
@@ -205,24 +289,26 @@ export default function PhotoAlbums() {
 
     let folderId = selectedAlbum.oneDriveFolderId;
     let folderWebUrl = selectedAlbum.oneDriveFolderWebUrl;
+    let persistedFiles = selectedAlbum.files || [];
     const uploaded: PhotoAlbumFile[] = [];
 
     try {
       for (let index = 0; index < files.length; index += 1) {
         const file = files[index];
+        const prepared = await prepareParentPhoto(file, optimizePhotos);
         const headers: Record<string, string> = {
           Authorization: `Bearer ${token}`,
-          'Content-Type': file.type || 'application/octet-stream',
+          'Content-Type': prepared.mimeType || 'application/octet-stream',
           'X-Klassio-Album-Id': encodeURIComponent(selectedAlbum.id),
           'X-Klassio-Album-Title': encodeURIComponent(selectedAlbum.title),
-          'X-Klassio-Filename': encodeURIComponent(file.name),
+          'X-Klassio-Filename': encodeURIComponent(prepared.name),
         };
         if (folderId) headers['X-Klassio-Folder-Id'] = encodeURIComponent(folderId);
 
         const response = await fetch('/api/onedrive/photos/upload', {
           method: 'PUT',
           headers,
-          body: file,
+          body: prepared.body,
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
@@ -231,30 +317,78 @@ export default function PhotoAlbums() {
 
         folderId = data.folder?.id || folderId;
         folderWebUrl = data.folder?.webUrl || folderWebUrl;
-        uploaded.push({
+        const uploadedFile: PhotoAlbumFile = {
           id: makeId('photo'),
-          name: data.file?.name || file.name,
-          size: Number(data.file?.size ?? file.size),
-          mimeType: file.type,
+          name: data.file?.name || prepared.name,
+          size: Number(data.file?.size ?? prepared.body.size),
+          mimeType: prepared.mimeType,
           uploadedAt: new Date().toISOString(),
           driveItemId: data.file?.id,
           webUrl: data.file?.webUrl,
+        };
+        uploaded.push(uploadedFile);
+        persistedFiles = uniqueFiles([...persistedFiles, uploadedFile]);
+
+        // Persist each successful upload immediately. If a later file fails,
+        // already-uploaded photos and the created OneDrive folder stay tracked.
+        patchAlbum(selectedAlbum.id, {
+          oneDriveFolderId: folderId,
+          oneDriveFolderWebUrl: folderWebUrl,
+          files: persistedFiles,
         });
         setUploadProgress({ done: index + 1, total: files.length });
       }
 
-      const currentFiles = selectedAlbum.files || [];
-      patchAlbum(selectedAlbum.id, {
-        oneDriveFolderId: folderId,
-        oneDriveFolderWebUrl: folderWebUrl,
-        files: uniqueFiles([...currentFiles, ...uploaded]),
-      });
       showToast(`${uploaded.length} Foto${uploaded.length === 1 ? '' : 's'} hochgeladen.`, 'success');
     } catch (error: any) {
-      showToast(error?.message || 'Foto-Upload fehlgeschlagen.', 'error');
+      const suffix = uploaded.length > 0
+        ? ` ${uploaded.length} Foto${uploaded.length === 1 ? '' : 's'} wurden davor bereits erfolgreich gespeichert.`
+        : '';
+      showToast(`${error?.message || 'Foto-Upload fehlgeschlagen.'}${suffix}`, 'error');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDeletePhoto = async (file: PhotoAlbumFile) => {
+    if (!selectedAlbum) return;
+    if (!file.driveItemId) {
+      patchAlbum(selectedAlbum.id, {
+        files: (selectedAlbum.files || []).filter(item => item.id !== file.id),
+      });
+      showToast('Fotoeintrag aus KLASSIO entfernt.', 'success');
+      return;
+    }
+
+    const sharedNote = selectedAlbum.shareUrl && !selectedShareExpired
+      ? ' Das Foto verschwindet dadurch auch sofort aus dem aktuell geteilten Elternalbum.'
+      : '';
+    if (!window.confirm(`${file.name} aus OneDrive entfernen?${sharedNote} Die Datei landet im OneDrive-Papierkorb.`)) {
+      return;
+    }
+
+    const token = await tokenOrConnect();
+    if (!token) return;
+
+    try {
+      const response = await fetch('/api/onedrive/photos/delete', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ itemId: file.driveItemId }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || 'Foto konnte nicht entfernt werden.');
+
+      patchAlbum(selectedAlbum.id, {
+        files: (selectedAlbum.files || []).filter(item => item.id !== file.id),
+      });
+      showToast('Foto in den OneDrive-Papierkorb verschoben.', 'success');
+    } catch (error: any) {
+      showToast(error?.message || 'Foto konnte nicht entfernt werden.', 'error');
     }
   };
 
@@ -267,13 +401,17 @@ export default function PhotoAlbums() {
       showToast('Die Foto-Freigaben erlauben dieses Elternalbum noch nicht.', 'error');
       return;
     }
+    if (!shareConsentConfirmed) {
+      showToast('Bitte zuerst bestätigen, dass die konkrete schulische Einwilligung das Teilen mit Eltern abdeckt.', 'error');
+      return;
+    }
 
     const token = await tokenOrConnect();
     if (!token) return;
 
     setSharing(true);
     try {
-      const expiresAt = new Date(Date.now() + DEFAULT_SHARE_DAYS * 24 * 60 * 60 * 1000);
+      const expiresAt = new Date(Date.now() + shareDays * 24 * 60 * 60 * 1000);
       const response = await fetch('/api/onedrive/photos/share', {
         method: 'POST',
         headers: {
@@ -293,7 +431,9 @@ export default function PhotoAlbums() {
         sharePermissionId: data.permissionId,
         shareCreatedAt: new Date().toISOString(),
         shareExpiresAt: data.expirationDateTime || expiresAt.toISOString(),
+        shareConsentConfirmedAt: new Date().toISOString(),
       });
+      setShareConsentConfirmed(false);
       showToast('Elternlink wurde erstellt.', 'success');
     } catch (error: any) {
       showToast(error?.message || 'Freigabelink konnte nicht erstellt werden.', 'error');
@@ -309,7 +449,9 @@ export default function PhotoAlbums() {
         sharePermissionId: undefined,
         shareCreatedAt: undefined,
         shareExpiresAt: undefined,
+        shareConsentConfirmedAt: undefined,
       });
+      setShareConsentConfirmed(false);
       return;
     }
 
@@ -337,7 +479,9 @@ export default function PhotoAlbums() {
         sharePermissionId: undefined,
         shareCreatedAt: undefined,
         shareExpiresAt: undefined,
+        shareConsentConfirmedAt: undefined,
       });
+      setShareConsentConfirmed(false);
       showToast('Elternlink wurde deaktiviert.', 'success');
     } catch (error: any) {
       showToast(error?.message || 'Freigabe konnte nicht beendet werden.', 'error');
@@ -348,10 +492,18 @@ export default function PhotoAlbums() {
 
   const copyParentMessage = async () => {
     if (!selectedAlbum?.shareUrl) return;
+    if (selectedShareExpired) {
+      showToast('Dieser Elternlink ist bereits abgelaufen.', 'error');
+      return;
+    }
+    if (shareSafetyProblem) {
+      showToast('Die Foto-Freigaben haben sich geändert. Bitte den Elternlink beenden.', 'error');
+      return;
+    }
     const expiry = selectedAlbum.shareExpiresAt
       ? ` Der Link ist bis ${formatDate(selectedAlbum.shareExpiresAt)} gültig.`
       : '';
-    const message = `Fotos: ${selectedAlbum.title}\n\nHier können Sie die Fotos ansehen:\n${selectedAlbum.shareUrl}\n\n${expiry.trim()}`.trim();
+    const message = `Fotos: ${selectedAlbum.title}\n\nHier können Sie die Fotos ansehen:\n${selectedAlbum.shareUrl}\n\nBitte diesen Link nicht weiterleiten.${expiry}`.trim();
     try {
       await navigator.clipboard.writeText(message);
       showToast('Elternnachricht kopiert.', 'success');
@@ -361,6 +513,10 @@ export default function PhotoAlbums() {
   };
 
   const removeAlbum = (album: PhotoAlbum) => {
+    if (album.shareUrl || album.sharePermissionId) {
+      showToast('Bitte zuerst die OneDrive-Freigabe beenden. So bleibt kein Elternlink ohne KLASSIO-Kontrolle zurück.', 'error');
+      return;
+    }
     const confirmed = window.confirm(
       `„${album.title}“ aus KLASSIO entfernen? Die Fotos im OneDrive werden dabei nicht gelöscht.`
     );
@@ -456,9 +612,13 @@ export default function PhotoAlbums() {
                       </p>
                     </div>
                     <span className={`rounded-full px-2 py-1 text-[9px] font-black uppercase tracking-wider ${
-                      status === 'shared' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                      status === 'shared'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : status === 'expired'
+                          ? 'bg-amber-100 text-amber-700'
+                          : 'bg-slate-100 text-slate-600'
                     }`}>
-                      {status === 'shared' ? 'Geteilt' : 'Entwurf'}
+                      {status === 'shared' ? 'Geteilt' : status === 'expired' ? 'Abgelaufen' : 'Entwurf'}
                     </span>
                   </div>
                   <div className="mt-3 flex items-center justify-between text-[11px] font-bold text-[var(--text-secondary,var(--text2))]">
@@ -524,10 +684,10 @@ export default function PhotoAlbums() {
                     <button
                       type="button"
                       disabled={draftNoIdentifiableStudents}
-                      onClick={() => setDraftStudentIds(students.filter(student => student.fotoFreigabe === 'erlaubt').map(student => student.id))}
+                      onClick={() => setDraftStudentIds(students.map(student => student.id))}
                       className="rounded-lg border border-[var(--border-default,var(--border))] px-3 py-2 text-[10px] font-black text-[var(--text-secondary,var(--text2))] disabled:opacity-40"
                     >
-                      Alle mit Freigabe
+                      Alle Kinder auswählen
                     </button>
                   </div>
 
@@ -590,12 +750,21 @@ export default function PhotoAlbums() {
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <h2 className="text-xl font-black text-[var(--text-primary,var(--text))]">{selectedAlbum.title}</h2>
-                        {selectedAlbum.shareUrl && <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black text-emerald-700">Elternlink aktiv</span>}
+                        {shareSafetyProblem ? (
+                          <span className="rounded-full bg-rose-100 px-2.5 py-1 text-[10px] font-black text-rose-700">Freigabe prüfen</span>
+                        ) : selectedShareExpired ? (
+                          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black text-amber-700">Link abgelaufen</span>
+                        ) : selectedAlbum.shareUrl ? (
+                          <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black text-emerald-700">Elternlink aktiv</span>
+                        ) : null}
                       </div>
                       <p className="mt-1 text-xs font-bold text-[var(--text-muted,var(--text3))]">{formatDate(selectedAlbum.eventDate || selectedAlbum.createdAt)}</p>
                       {selectedAlbum.description && <p className="mt-2 text-sm text-[var(--text-secondary,var(--text2))]">{selectedAlbum.description}</p>}
                     </div>
                     <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={beginEditAlbum} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default,var(--border))] px-3 py-2 text-xs font-black text-[var(--text-secondary,var(--text2))]">
+                        <Pencil size={15} /> Bearbeiten
+                      </button>
                       {selectedAlbum.oneDriveFolderWebUrl && (
                         <a href={selectedAlbum.oneDriveFolderWebUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default,var(--border))] px-3 py-2 text-xs font-black text-[var(--text-secondary,var(--text2))]">
                           <FolderOpen size={15} /> OneDrive öffnen
@@ -607,6 +776,78 @@ export default function PhotoAlbums() {
                     </div>
                   </div>
                 </div>
+
+                {editingAlbum && (
+                  <div className="rounded-3xl border border-[var(--accent)]/30 bg-[var(--surface-card,var(--surface))] p-5 sm:p-6 shadow-sm">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-muted,var(--text3))]">Album bearbeiten</p>
+                        <h3 className="mt-1 text-base font-black text-[var(--text-primary,var(--text))]">Angaben und Kinder korrigieren</h3>
+                      </div>
+                      <button type="button" onClick={() => setEditingAlbum(false)} className="rounded-xl p-2 text-[var(--text-muted,var(--text3))] hover:bg-[var(--surface-subtle,var(--surface2))]">
+                        <X size={17} />
+                      </button>
+                    </div>
+
+                    <div className="mt-5 grid gap-4 md:grid-cols-2">
+                      <label className="space-y-1.5 md:col-span-2">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary,var(--text2))]">Albumname</span>
+                        <input value={editTitle} onChange={event => setEditTitle(event.target.value)} className="w-full rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] px-4 py-3 text-sm font-bold text-[var(--text-primary,var(--text))] outline-none focus:border-[var(--accent)]" />
+                      </label>
+                      <label className="space-y-1.5">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary,var(--text2))]">Datum</span>
+                        <input type="date" value={editDate} onChange={event => setEditDate(event.target.value)} className="w-full rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] px-4 py-3 text-sm font-bold text-[var(--text-primary,var(--text))] outline-none focus:border-[var(--accent)]" />
+                      </label>
+                      <label className="space-y-1.5">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary,var(--text2))]">Kurzbeschreibung</span>
+                        <input value={editDescription} onChange={event => setEditDescription(event.target.value)} className="w-full rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] px-4 py-3 text-sm font-bold text-[var(--text-primary,var(--text))] outline-none focus:border-[var(--accent)]" />
+                      </label>
+                    </div>
+
+                    <label className="mt-4 flex items-start gap-3 rounded-xl bg-[var(--surface-subtle,var(--surface2))] p-3">
+                      <input
+                        type="checkbox"
+                        checked={editNoIdentifiableStudents}
+                        onChange={event => {
+                          setEditNoIdentifiableStudents(event.target.checked);
+                          if (event.target.checked) setEditStudentIds([]);
+                        }}
+                        className="mt-0.5"
+                      />
+                      <span>
+                        <span className="block text-xs font-black text-[var(--text-primary,var(--text))]">Auf den Fotos sind keine Kinder identifizierbar</span>
+                        <span className="block text-[11px] text-[var(--text-secondary,var(--text2))]">Damit entfällt die Auswahl einzelner Kinder.</span>
+                      </span>
+                    </label>
+
+                    {!editNoIdentifiableStudents && (
+                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                        {students.map(student => {
+                          const checked = editStudentIds.includes(student.id);
+                          return (
+                            <label key={student.id} className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl border p-3 ${checked ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-[var(--border-default,var(--border))]'}`}>
+                              <span className="flex min-w-0 items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={event => setEditStudentIds(prev => event.target.checked ? [...prev, student.id] : prev.filter(id => id !== student.id))}
+                                />
+                                <span className="truncate text-xs font-bold text-[var(--text-primary,var(--text))]">{[student.vorname, student.nachname].filter(Boolean).join(' ') || student.name}</span>
+                              </span>
+                              {permissionPill(student)}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <div className="mt-5 flex justify-end">
+                      <button type="button" onClick={saveAlbumEdits} className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-xs font-black text-[var(--accent-text,#fff)]">
+                        <Save size={15} /> Änderungen speichern
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid gap-5 lg:grid-cols-2">
                   <div className="rounded-3xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] p-5 shadow-sm">
@@ -621,6 +862,24 @@ export default function PhotoAlbums() {
                       Die Bilder werden nicht dauerhaft auf dem KLASSIO-Webserver gespeichert.
                     </p>
 
+                    <label className={`mt-4 flex items-start gap-3 rounded-xl border p-3 ${optimizePhotos ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+                      <input
+                        type="checkbox"
+                        checked={optimizePhotos}
+                        disabled={uploading}
+                        onChange={event => setOptimizePhotos(event.target.checked)}
+                        className="mt-0.5"
+                      />
+                      <span>
+                        <span className={`block text-xs font-black ${optimizePhotos ? 'text-emerald-900' : 'text-amber-900'}`}>Datenschutz-Optimierung {optimizePhotos ? 'aktiv' : 'aus'}</span>
+                        <span className={`mt-0.5 block text-[11px] leading-relaxed ${optimizePhotos ? 'text-emerald-700' : 'text-amber-700'}`}>
+                          {optimizePhotos
+                            ? 'JPEG, PNG und WebP werden vor dem Upload neu kodiert, auf maximal 2560 px verkleinert und ohne die ursprünglichen eingebetteten Kamerametadaten hochgeladen.'
+                            : 'Originaldateien werden unverändert hochgeladen. Dadurch können eingebettete Kamerametadaten erhalten bleiben.'}
+                        </span>
+                      </span>
+                    </label>
+
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -631,13 +890,17 @@ export default function PhotoAlbums() {
                     />
                     <button
                       type="button"
-                      disabled={uploading}
+                      disabled={uploading || Boolean(selectedAlbum.shareUrl && !selectedShareExpired)}
                       onClick={() => fileInputRef.current?.click()}
                       className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] px-4 py-8 text-sm font-black text-[var(--text-primary,var(--text))] transition-colors hover:border-[var(--accent)] disabled:opacity-60"
                     >
                       {uploading ? <Loader2 size={20} className="animate-spin" /> : <UploadCloud size={20} />}
-                      {uploading ? `Upload ${uploadProgress.done}/${uploadProgress.total}` : 'Fotos auswählen'}
+                      {uploading ? `Upload ${uploadProgress.done}/${uploadProgress.total}` : selectedAlbum.shareUrl && !selectedShareExpired ? 'Freigabe beenden, um Fotos hinzuzufügen' : 'Fotos auswählen'}
                     </button>
+
+                    {selectedAlbum.shareUrl && !selectedShareExpired && (
+                      <p className="mt-2 text-[11px] font-bold text-amber-700">Neue Fotos sind während einer aktiven Elternfreigabe gesperrt, damit nichts ungeprüft sofort sichtbar wird.</p>
+                    )}
 
                     <div className="mt-4 space-y-2">
                       {(selectedAlbum.files || []).slice().reverse().map(file => (
@@ -646,11 +909,16 @@ export default function PhotoAlbums() {
                             <p className="truncate text-xs font-bold text-[var(--text-primary,var(--text))]">{file.name}</p>
                             <p className="mt-0.5 text-[10px] text-[var(--text-muted,var(--text3))]">{Math.max(1, Math.round(file.size / 1024))} KB</p>
                           </div>
-                          {file.webUrl && (
-                            <a href={file.webUrl} target="_blank" rel="noreferrer" className="rounded-lg p-2 text-[var(--text-muted,var(--text3))] hover:bg-[var(--surface-subtle,var(--surface2))]">
-                              <ExternalLink size={14} />
-                            </a>
-                          )}
+                          <div className="flex items-center gap-1">
+                            {file.webUrl && (
+                              <a href={file.webUrl} target="_blank" rel="noreferrer" className="rounded-lg p-2 text-[var(--text-muted,var(--text3))] hover:bg-[var(--surface-subtle,var(--surface2))]" title="In OneDrive öffnen">
+                                <ExternalLink size={14} />
+                              </a>
+                            )}
+                            <button type="button" onClick={() => handleDeletePhoto(file)} className="rounded-lg p-2 text-rose-500 hover:bg-rose-50 hover:text-rose-700" title="Foto entfernen">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </div>
                       ))}
                       {(selectedAlbum.files || []).length === 0 && (
@@ -701,43 +969,87 @@ export default function PhotoAlbums() {
                 </div>
 
                 <div className="rounded-3xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] p-5 sm:p-6 shadow-sm">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-muted,var(--text3))]">3 · Elternzugang</p>
-                      <h3 className="mt-1 text-base font-black text-[var(--text-primary,var(--text))]">Zeitlich begrenzten Link erstellen</h3>
-                      <p className="mt-1 text-xs text-[var(--text-secondary,var(--text2))]">Standardmäßig 30 Tage. Externes Teilen muss im Microsoft-365-Konto der Schule erlaubt sein.</p>
-                    </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-muted,var(--text3))]">3 · Elternzugang</p>
+                    <h3 className="mt-1 text-base font-black text-[var(--text-primary,var(--text))]">Zeitlich begrenzten Link erstellen</h3>
+                    <p className="mt-1 text-xs text-[var(--text-secondary,var(--text2))]">Der Link ist nur zum Ansehen. Als anonymer Link funktioniert er ohne Anmeldung – jede Person mit dem Link kann ihn öffnen. Externes Teilen muss im Microsoft-365-Konto der Schule erlaubt sein.</p>
+                  </div>
 
-                    {!selectedAlbum.shareUrl ? (
+                  {shareSafetyProblem && (
+                    <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4">
+                      <p className="flex items-center gap-2 text-xs font-black text-rose-800"><ShieldAlert size={16} /> Eine gespeicherte Foto-Freigabe hat sich geändert.</p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-rose-700">Der bestehende Elternlink sollte sofort beendet werden. KLASSIO bietet ihn deshalb nicht mehr zum Kopieren oder Öffnen an.</p>
+                    </div>
+                  )}
+
+                  {selectedShareExpired && (
+                    <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                      <p className="flex items-center gap-2 text-xs font-black text-amber-800"><AlertTriangle size={16} /> Der Elternlink ist abgelaufen.</p>
+                      <p className="mt-1 text-[11px] text-amber-700">Entferne die alte Freigabe und erstelle danach bei Bedarf einen neuen Link.</p>
+                    </div>
+                  )}
+
+                  {!selectedAlbum.shareUrl ? (
+                    <div className="mt-4 grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)_auto] lg:items-end">
+                      <label className="space-y-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted,var(--text3))]">Gültigkeit</span>
+                        <select
+                          value={shareDays}
+                          onChange={event => setShareDays(Number(event.target.value))}
+                          className="w-full rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] px-3 py-2.5 text-xs font-bold text-[var(--text-primary,var(--text))]"
+                        >
+                          <option value={7}>7 Tage</option>
+                          <option value={14}>14 Tage</option>
+                          <option value={30}>30 Tage</option>
+                          <option value={60}>60 Tage</option>
+                          <option value={90}>90 Tage</option>
+                        </select>
+                      </label>
+
+                      <label className="flex items-start gap-3 rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] p-3">
+                        <input type="checkbox" checked={shareConsentConfirmed} onChange={event => setShareConsentConfirmed(event.target.checked)} className="mt-0.5" />
+                        <span className="text-[11px] leading-relaxed text-[var(--text-secondary,var(--text2))]">
+                          Ich habe geprüft, dass die konkrete schulische Einwilligung das Teilen dieses Albums mit Eltern abdeckt.
+                        </span>
+                      </label>
+
                       <button
                         type="button"
-                        disabled={sharing || !selectedPolicy.canShare || !(selectedAlbum.files || []).length}
+                        disabled={sharing || !selectedPolicy.canShare || !(selectedAlbum.files || []).length || !shareConsentConfirmed}
                         onClick={handleShare}
                         className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 py-3 text-xs font-black text-[var(--accent-text,#fff)] disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         {sharing ? <Loader2 size={16} className="animate-spin" /> : <Link2 size={16} />}
                         Elternlink erstellen
                       </button>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        <button type="button" onClick={copyParentMessage} className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-3 text-xs font-black text-[var(--accent-text,#fff)]">
-                          <Copy size={15} /> Nachricht kopieren
-                        </button>
-                        <a href={selectedAlbum.shareUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default,var(--border))] px-4 py-3 text-xs font-black text-[var(--text-primary,var(--text))]">
-                          <ExternalLink size={15} /> Link öffnen
-                        </a>
-                        <button type="button" disabled={sharing} onClick={handleUnshare} className="inline-flex items-center gap-2 rounded-xl border border-rose-200 px-4 py-3 text-xs font-black text-rose-700 disabled:opacity-50">
-                          {sharing ? <Loader2 size={15} className="animate-spin" /> : <X size={15} />} Freigabe beenden
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {!shareSafetyProblem && !selectedShareExpired && (
+                        <>
+                          <button type="button" onClick={copyParentMessage} className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-3 text-xs font-black text-[var(--accent-text,#fff)]">
+                            <Copy size={15} /> Nachricht kopieren
+                          </button>
+                          <a href={selectedAlbum.shareUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default,var(--border))] px-4 py-3 text-xs font-black text-[var(--text-primary,var(--text))]">
+                            <ExternalLink size={15} /> Link öffnen
+                          </a>
+                        </>
+                      )}
+                      <button type="button" disabled={sharing} onClick={handleUnshare} className="inline-flex items-center gap-2 rounded-xl border border-rose-200 px-4 py-3 text-xs font-black text-rose-700 disabled:opacity-50">
+                        {sharing ? <Loader2 size={15} className="animate-spin" /> : <X size={15} />} Freigabe beenden
+                      </button>
+                    </div>
+                  )}
 
                   {selectedAlbum.shareUrl && (
-                    <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                      <p className="break-all text-xs font-bold text-emerald-900">{selectedAlbum.shareUrl}</p>
+                    <div className={`mt-4 rounded-2xl border p-4 ${shareSafetyProblem ? 'border-rose-200 bg-rose-50' : selectedShareExpired ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'}`}>
+                      {!shareSafetyProblem && !selectedShareExpired && (
+                        <p className="break-all text-xs font-bold text-emerald-900">{selectedAlbum.shareUrl}</p>
+                      )}
                       {selectedAlbum.shareExpiresAt && (
-                        <p className="mt-2 text-[11px] font-bold text-emerald-700">Gültig bis {formatDate(selectedAlbum.shareExpiresAt)}</p>
+                        <p className={`text-[11px] font-bold ${!shareSafetyProblem && !selectedShareExpired ? 'mt-2 text-emerald-700' : selectedShareExpired ? 'text-amber-700' : 'text-rose-700'}`}>
+                          {selectedShareExpired ? 'Abgelaufen am' : 'Gültig bis'} {formatDate(selectedAlbum.shareExpiresAt)}
+                        </p>
                       )}
                     </div>
                   )}

@@ -4222,6 +4222,38 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     }
   });
 
+  app.post("/api/onedrive/photos/delete", async (req, res) => {
+    const token = getOneDriveBearer(req);
+    if (!token) return res.status(401).json({ error: 'OneDrive-Autorisierung fehlt.' });
+
+    const itemId = typeof req.body?.itemId === 'string' ? req.body.itemId.trim() : '';
+    if (!itemId) return res.status(400).json({ error: 'OneDrive-Datei fehlt.' });
+
+    try {
+      const response = await fetch(
+        `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(itemId)}`,
+        {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (!response.ok && response.status !== 404) {
+        const data = await response.json().catch(() => ({}));
+        throw Object.assign(
+          new Error(data?.error?.message || `Microsoft Graph Fehler (${response.status})`),
+          { status: response.status },
+        );
+      }
+      // Microsoft Graph's regular DriveItem DELETE moves the file to the recycle bin.
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('[Elternfotos] OneDrive photo delete failed:', error?.status || 'unknown');
+      res.status(error?.status >= 400 && error?.status < 600 ? error.status : 502).json({
+        error: error?.message || 'Foto konnte nicht aus OneDrive entfernt werden.',
+      });
+    }
+  });
+
   app.post("/api/onedrive/photos/unshare", async (req, res) => {
     const token = getOneDriveBearer(req);
     if (!token) return res.status(401).json({ error: 'OneDrive-Autorisierung fehlt.' });

@@ -80,3 +80,10 @@ export function photoPermissionLabel(status?: FotoFreigabeStatus): string {
   if (status === 'nicht_erlaubt') return 'Nicht erlaubt';
   return 'Keine Angabe';
 }
+
+
+export function isPhotoAlbumShareExpired(expiresAt?: string, now = Date.now()): boolean {
+  if (!expiresAt) return false;
+  const timestamp = Date.parse(expiresAt);
+  return Number.isFinite(timestamp) && timestamp <= now;
+}

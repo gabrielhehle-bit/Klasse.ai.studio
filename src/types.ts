@@ -408,6 +408,8 @@ export interface PhotoAlbum {
   sharePermissionId?: string;
   shareCreatedAt?: string;
   shareExpiresAt?: string;
+  /** Teacher confirmation that the concrete school consent covers this parent-share action. */
+  shareConsentConfirmedAt?: string;
 }
 
 export interface WeeklyChildTaskProgress {
