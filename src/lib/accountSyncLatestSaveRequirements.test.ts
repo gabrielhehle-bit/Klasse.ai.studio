@@ -59,6 +59,7 @@ test('Konto-Status bleibt in den Kontoeinstellungen vollständig, während der T
   assert.doesNotMatch(topbar, /getQuietSyncBadge\(accountSyncStatus, isOnline\)/);
   assert.doesNotMatch(topbar, /cloudSaveBadge/);
   assert.doesNotMatch(topbar, />Autospeichern</);
+  assert.match(topbar, /data-account-sync-status=\{accountSyncStatus\}/);
   assert.match(topbar, /aria-label="Hilfe und Anleitungen öffnen"/);
   assert.match(topbar, /aria-label="Jetzt verschlüsseltes Backup herunterladen"/);
   assert.doesNotMatch(account, /title: 'Daten aktuell'/);
