@@ -1238,7 +1238,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
 
       if (!identity) {
         res.status(403).json({
-          error: 'Das Lehrerzimmer ist nur mit einer verifizierten Schulidentität verfügbar.',
+          error: 'Schulweite KLASSIO-Funktionen sind nur mit einer verifizierten Schulidentität verfügbar.',
           requiresSchoolEmail: true,
         });
         return;
