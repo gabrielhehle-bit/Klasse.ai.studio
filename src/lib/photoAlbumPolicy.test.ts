@@ -55,4 +55,5 @@ test('photo album share expiry is evaluated against the supplied clock', () => {
   assert.equal(isPhotoAlbumShareExpired('2026-09-28T11:59:59.000Z', now), true);
   assert.equal(isPhotoAlbumShareExpired('2026-09-28T12:00:01.000Z', now), false);
   assert.equal(isPhotoAlbumShareExpired(undefined, now), false);
+  assert.equal(isPhotoAlbumShareExpired('not-a-date', now), true);
 });

@@ -85,5 +85,7 @@ export function photoPermissionLabel(status?: FotoFreigabeStatus): string {
 export function isPhotoAlbumShareExpired(expiresAt?: string, now = Date.now()): boolean {
   if (!expiresAt) return false;
   const timestamp = Date.parse(expiresAt);
-  return Number.isFinite(timestamp) && timestamp <= now;
+  // A malformed stored expiry must never be treated as a healthy active link.
+  if (!Number.isFinite(timestamp)) return true;
+  return timestamp <= now;
 }

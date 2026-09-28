@@ -4072,7 +4072,6 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
   const ensureKlassioAlbumFolder = async (
     token: string,
     albumId: string,
-    albumTitle: string,
     existingFolderId?: string,
   ): Promise<any> => {
     if (existingFolderId) {
@@ -4090,8 +4089,8 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     const parent = await ensureKlassioPhotoRoot(token);
     const shortId = sanitizeOneDriveName(albumId, 'album').slice(-8);
     const folderName = sanitizeOneDriveName(
-      `${albumTitle || 'Fotoalbum'} – ${shortId}`,
-      `Fotoalbum – ${shortId}`,
+      `KLASSIO-Fotoalbum-${shortId}`,
+      `KLASSIO-Fotoalbum-${shortId}`,
     );
 
     return await graphJson(
@@ -4108,6 +4107,43 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       },
     );
   };
+
+  const privatePhotoExtension = (mimeType: string): string => {
+    if (mimeType === 'image/png') return 'png';
+    if (mimeType === 'image/webp') return 'webp';
+    if (mimeType === 'image/heic') return 'heic';
+    if (mimeType === 'image/heif') return 'heif';
+    if (mimeType === 'image/gif') return 'gif';
+    return 'jpg';
+  };
+
+  const createPrivatePhotoFileName = (mimeType: string): string => {
+    const opaqueId = crypto.randomUUID().replace(/-/g, '').slice(0, 20);
+    return `Foto-${opaqueId}.${privatePhotoExtension(mimeType)}`;
+  };
+
+  app.get("/api/onedrive/photos/drive-info", async (req, res) => {
+    const token = getOneDriveBearer(req);
+    if (!token) return res.status(401).json({ error: 'OneDrive-Autorisierung fehlt.' });
+
+    try {
+      const drive = await graphJson(
+        'https://graph.microsoft.com/v1.0/me/drive?$select=id,driveType,webUrl',
+        token,
+      );
+      const driveType = typeof drive?.driveType === 'string' ? drive.driveType : 'unknown';
+      res.json({
+        driveType,
+        eligibleForSchoolPhotos: driveType === 'business' || driveType === 'documentLibrary',
+        webUrl: typeof drive?.webUrl === 'string' ? drive.webUrl : undefined,
+      });
+    } catch (error: any) {
+      console.error('[Elternfotos] OneDrive drive-type check failed:', error?.status || 'unknown');
+      res.status(error?.status >= 400 && error?.status < 600 ? error.status : 502).json({
+        error: error?.message || 'OneDrive-Kontotyp konnte nicht geprüft werden.',
+      });
+    }
+  });
 
   app.put("/api/onedrive/photos/upload", async (req, res) => {
     const token = getOneDriveBearer(req);
@@ -4130,16 +4166,14 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     }
 
     const albumId = decodeKlassioHeader(req.headers['x-klassio-album-id']);
-    const albumTitle = decodeKlassioHeader(req.headers['x-klassio-album-title']);
-    const requestedName = decodeKlassioHeader(req.headers['x-klassio-filename']);
     const existingFolderId = decodeKlassioHeader(req.headers['x-klassio-folder-id']);
-    if (!albumId || !albumTitle || !requestedName) {
-      return res.status(400).json({ error: 'Album- oder Dateiinformation fehlt.' });
+    if (!albumId) {
+      return res.status(400).json({ error: 'Albuminformation fehlt.' });
     }
 
     try {
-      const folder = await ensureKlassioAlbumFolder(token, albumId, albumTitle, existingFolderId);
-      const fileName = sanitizeOneDriveName(requestedName, `Foto-${Date.now()}.jpg`, 120);
+      const folder = await ensureKlassioAlbumFolder(token, albumId, existingFolderId);
+      const fileName = createPrivatePhotoFileName(mimeType);
       const item = await graphJson(
         `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(folder.id)}:/${encodeURIComponent(fileName)}:/content`,
         token,
@@ -4259,12 +4293,30 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     if (!token) return res.status(401).json({ error: 'OneDrive-Autorisierung fehlt.' });
 
     const folderId = typeof req.body?.folderId === 'string' ? req.body.folderId.trim() : '';
-    const permissionId = typeof req.body?.permissionId === 'string' ? req.body.permissionId.trim() : '';
-    if (!folderId || !permissionId) {
-      return res.status(400).json({ error: 'Freigabeinformationen fehlen.' });
+    let permissionId = typeof req.body?.permissionId === 'string' ? req.body.permissionId.trim() : '';
+    const shareUrl = typeof req.body?.shareUrl === 'string' ? req.body.shareUrl.trim() : '';
+    if (!folderId) {
+      return res.status(400).json({ error: 'OneDrive-Albumordner fehlt.' });
     }
 
     try {
+      if (!permissionId && shareUrl) {
+        const permissions = await graphJson(
+          `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(folderId)}/permissions`,
+          token,
+        );
+        const match = Array.isArray(permissions?.value)
+          ? permissions.value.find((entry: any) => entry?.link?.webUrl === shareUrl)
+          : null;
+        permissionId = typeof match?.id === 'string' ? match.id : '';
+      }
+
+      if (!permissionId) {
+        return res.status(409).json({
+          error: 'Die OneDrive-Freigabe konnte nicht eindeutig gefunden werden. Bitte in OneDrive prüfen und dort widerrufen.',
+        });
+      }
+
       const response = await fetch(
         `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(folderId)}/permissions/${encodeURIComponent(permissionId)}`,
         {

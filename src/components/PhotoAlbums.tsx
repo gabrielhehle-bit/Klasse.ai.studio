@@ -63,6 +63,14 @@ function uniqueFiles(files: PhotoAlbumFile[]): PhotoAlbumFile[] {
   });
 }
 
+function nextPhotoDisplayName(files: PhotoAlbumFile[]): string {
+  const maxNumber = files.reduce((max, file) => {
+    const match = /^Foto\s+(\d+)$/.exec(file.name || '');
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0);
+  return `Foto ${maxNumber + 1}`;
+}
+
 export default function PhotoAlbums() {
   const { app, setApp } = useApp();
   const { showToast } = useToast();
@@ -140,6 +148,10 @@ export default function PhotoAlbums() {
 
   const beginEditAlbum = () => {
     if (!selectedAlbum) return;
+    if (uploading || sharing) {
+      showToast('Bitte den laufenden Foto- oder Freigabevorgang zuerst abschließen.', 'error');
+      return;
+    }
     setEditTitle(selectedAlbum.title);
     setEditDescription(selectedAlbum.description || '');
     setEditDate(selectedAlbum.eventDate || '');
@@ -168,8 +180,8 @@ export default function PhotoAlbums() {
       selectedAlbum.noIdentifiableStudents === true !== editNoIdentifiableStudents ||
       previousIds.join('|') !== nextIds.join('|');
 
-    if (selectedAlbum.shareUrl && !selectedShareExpired && picturedChildrenChanged) {
-      showToast('Bitte zuerst den aktiven Elternlink beenden. Die Liste der abgebildeten Kinder darf während einer Freigabe nicht geändert werden.', 'error');
+    if (selectedAlbum.shareUrl && picturedChildrenChanged) {
+      showToast('Bitte zuerst die OneDrive-Freigabe beenden. Die Liste der abgebildeten Kinder darf während einer gespeicherten Freigabe nicht geändert werden.', 'error');
       return;
     }
     if (!editedPolicy.canShare && selectedAlbum.shareUrl && !selectedShareExpired) {
@@ -256,10 +268,38 @@ export default function PhotoAlbums() {
     }
   };
 
+  const ensureSchoolPhotoDrive = async (token: string): Promise<boolean> => {
+    try {
+      const response = await fetch('/api/onedrive/photos/drive-info', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || 'OneDrive-Kontotyp konnte nicht geprüft werden.');
+      if (!data?.eligibleForSchoolPhotos) {
+        showToast(
+          data?.driveType === 'personal'
+            ? 'Für Elternfotos ist ein schulisches Microsoft-365-/OneDrive-for-Business-Konto erforderlich. Privates OneDrive wird nicht verwendet.'
+            : 'Dieses OneDrive konnte nicht als schulisches/geschäftliches Laufwerk bestätigt werden.',
+          'error',
+        );
+        return false;
+      }
+      return true;
+    } catch (error: any) {
+      showToast(error?.message || 'OneDrive-Kontotyp konnte nicht geprüft werden.', 'error');
+      return false;
+    }
+  };
+
   const handleUpload = async (fileList: FileList | null) => {
     if (!selectedAlbum || !fileList?.length) return;
-    if (selectedAlbum.shareUrl && !selectedShareExpired) {
-      showToast('Bitte zuerst den aktiven Elternlink beenden. Neue Fotos würden sonst sofort mitgeteilt.', 'error');
+    if (sharing) {
+      showToast('Während eine Freigabe erstellt oder beendet wird, können keine Fotos hochgeladen werden.', 'error');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+    if (selectedAlbum.shareUrl) {
+      showToast('Bitte zuerst die bestehende OneDrive-Freigabe beenden. Danach können neue Fotos sicher hinzugefügt werden.', 'error');
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -283,6 +323,7 @@ export default function PhotoAlbums() {
 
     const token = await tokenOrConnect();
     if (!token) return;
+    if (!await ensureSchoolPhotoDrive(token)) return;
 
     setUploading(true);
     setUploadProgress({ done: 0, total: files.length });
@@ -296,12 +337,13 @@ export default function PhotoAlbums() {
       for (let index = 0; index < files.length; index += 1) {
         const file = files[index];
         const prepared = await prepareParentPhoto(file, optimizePhotos);
+        if (prepared.body.size > MAX_PHOTO_BYTES) {
+          throw new Error(`${file.name}: Auch nach der Vorbereitung ist die Datei größer als 25 MB.`);
+        }
         const headers: Record<string, string> = {
           Authorization: `Bearer ${token}`,
           'Content-Type': prepared.mimeType || 'application/octet-stream',
           'X-Klassio-Album-Id': encodeURIComponent(selectedAlbum.id),
-          'X-Klassio-Album-Title': encodeURIComponent(selectedAlbum.title),
-          'X-Klassio-Filename': encodeURIComponent(prepared.name),
         };
         if (folderId) headers['X-Klassio-Folder-Id'] = encodeURIComponent(folderId);
 
@@ -319,7 +361,7 @@ export default function PhotoAlbums() {
         folderWebUrl = data.folder?.webUrl || folderWebUrl;
         const uploadedFile: PhotoAlbumFile = {
           id: makeId('photo'),
-          name: data.file?.name || prepared.name,
+          name: nextPhotoDisplayName(persistedFiles),
           size: Number(data.file?.size ?? prepared.body.size),
           mimeType: prepared.mimeType,
           uploadedAt: new Date().toISOString(),
@@ -353,6 +395,10 @@ export default function PhotoAlbums() {
 
   const handleDeletePhoto = async (file: PhotoAlbumFile) => {
     if (!selectedAlbum) return;
+    if (uploading || sharing) {
+      showToast('Bitte den laufenden Foto- oder Freigabevorgang zuerst abschließen.', 'error');
+      return;
+    }
     if (!file.driveItemId) {
       patchAlbum(selectedAlbum.id, {
         files: (selectedAlbum.files || []).filter(item => item.id !== file.id),
@@ -393,6 +439,10 @@ export default function PhotoAlbums() {
   };
 
   const handleShare = async () => {
+    if (uploading) {
+      showToast('Bitte warte, bis alle ausgewählten Fotos vollständig hochgeladen sind.', 'error');
+      return;
+    }
     if (!selectedAlbum?.oneDriveFolderId) {
       showToast('Bitte zuerst mindestens ein Foto hochladen.', 'error');
       return;
@@ -402,12 +452,18 @@ export default function PhotoAlbums() {
       return;
     }
     if (!shareConsentConfirmed) {
-      showToast('Bitte zuerst bestätigen, dass die konkrete schulische Einwilligung das Teilen mit Eltern abdeckt.', 'error');
+      showToast(
+        selectedAlbum.noIdentifiableStudents
+          ? 'Bitte zuerst bestätigen, dass auf den hochgeladenen Fotos tatsächlich kein Kind identifizierbar ist.'
+          : 'Bitte zuerst bestätigen, dass die konkrete schulische Einwilligung das Teilen mit Eltern abdeckt.',
+        'error',
+      );
       return;
     }
 
     const token = await tokenOrConnect();
     if (!token) return;
+    if (!await ensureSchoolPhotoDrive(token)) return;
 
     setSharing(true);
     try {
@@ -443,15 +499,8 @@ export default function PhotoAlbums() {
   };
 
   const handleUnshare = async () => {
-    if (!selectedAlbum?.oneDriveFolderId || !selectedAlbum.sharePermissionId) {
-      patchAlbum(selectedAlbum!.id, {
-        shareUrl: undefined,
-        sharePermissionId: undefined,
-        shareCreatedAt: undefined,
-        shareExpiresAt: undefined,
-        shareConsentConfirmedAt: undefined,
-      });
-      setShareConsentConfirmed(false);
+    if (!selectedAlbum?.oneDriveFolderId) {
+      showToast('Der OneDrive-Albumordner ist nicht mehr eindeutig hinterlegt. Bitte die Freigabe direkt in OneDrive widerrufen; KLASSIO löscht den Link nicht nur lokal.', 'error');
       return;
     }
 
@@ -469,6 +518,7 @@ export default function PhotoAlbums() {
         body: JSON.stringify({
           folderId: selectedAlbum.oneDriveFolderId,
           permissionId: selectedAlbum.sharePermissionId,
+          shareUrl: selectedAlbum.shareUrl,
         }),
       });
       const data = await response.json().catch(() => ({}));
@@ -513,6 +563,10 @@ export default function PhotoAlbums() {
   };
 
   const removeAlbum = (album: PhotoAlbum) => {
+    if (uploading || sharing) {
+      showToast('Bitte den laufenden Foto- oder Freigabevorgang zuerst abschließen.', 'error');
+      return;
+    }
     if (album.shareUrl || album.sharePermissionId) {
       showToast('Bitte zuerst die OneDrive-Freigabe beenden. So bleibt kein Elternlink ohne KLASSIO-Kontrolle zurück.', 'error');
       return;
@@ -552,7 +606,7 @@ export default function PhotoAlbums() {
                 <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-muted,var(--text3))]">Klasse & Eltern</p>
                 <h1 className="mt-1 text-2xl font-black tracking-tight text-[var(--text-primary,var(--text))]">Elternfotos</h1>
                 <p className="mt-1 max-w-2xl text-sm font-medium leading-relaxed text-[var(--text-secondary,var(--text2))]">
-                  Alben in KLASSIO verwalten, Fotos direkt im verbundenen OneDrive speichern und einen zeitlich begrenzten Elternlink erstellen.
+                  Alben in KLASSIO verwalten, Fotos direkt im schulischen Microsoft-365-OneDrive speichern und einen zeitlich begrenzten Elternlink erstellen.
                 </p>
               </div>
             </div>
@@ -762,7 +816,7 @@ export default function PhotoAlbums() {
                       {selectedAlbum.description && <p className="mt-2 text-sm text-[var(--text-secondary,var(--text2))]">{selectedAlbum.description}</p>}
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <button type="button" onClick={beginEditAlbum} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default,var(--border))] px-3 py-2 text-xs font-black text-[var(--text-secondary,var(--text2))]">
+                      <button type="button" disabled={uploading || sharing} onClick={beginEditAlbum} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default,var(--border))] px-3 py-2 text-xs font-black text-[var(--text-secondary,var(--text2))]">
                         <Pencil size={15} /> Bearbeiten
                       </button>
                       {selectedAlbum.oneDriveFolderWebUrl && (
@@ -770,7 +824,7 @@ export default function PhotoAlbums() {
                           <FolderOpen size={15} /> OneDrive öffnen
                         </a>
                       )}
-                      <button type="button" onClick={() => removeAlbum(selectedAlbum)} className="inline-flex items-center gap-2 rounded-xl border border-rose-200 px-3 py-2 text-xs font-black text-rose-700">
+                      <button type="button" disabled={uploading || sharing} onClick={() => removeAlbum(selectedAlbum)} className="inline-flex items-center gap-2 rounded-xl border border-rose-200 px-3 py-2 text-xs font-black text-rose-700">
                         <Trash2 size={15} /> Aus KLASSIO entfernen
                       </button>
                     </div>
@@ -890,16 +944,16 @@ export default function PhotoAlbums() {
                     />
                     <button
                       type="button"
-                      disabled={uploading || Boolean(selectedAlbum.shareUrl && !selectedShareExpired)}
+                      disabled={uploading || Boolean(selectedAlbum.shareUrl)}
                       onClick={() => fileInputRef.current?.click()}
                       className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] px-4 py-8 text-sm font-black text-[var(--text-primary,var(--text))] transition-colors hover:border-[var(--accent)] disabled:opacity-60"
                     >
                       {uploading ? <Loader2 size={20} className="animate-spin" /> : <UploadCloud size={20} />}
-                      {uploading ? `Upload ${uploadProgress.done}/${uploadProgress.total}` : selectedAlbum.shareUrl && !selectedShareExpired ? 'Freigabe beenden, um Fotos hinzuzufügen' : 'Fotos auswählen'}
+                      {uploading ? `Upload ${uploadProgress.done}/${uploadProgress.total}` : selectedAlbum.shareUrl ? 'Freigabe beenden, um Fotos hinzuzufügen' : 'Fotos auswählen'}
                     </button>
 
-                    {selectedAlbum.shareUrl && !selectedShareExpired && (
-                      <p className="mt-2 text-[11px] font-bold text-amber-700">Neue Fotos sind während einer aktiven Elternfreigabe gesperrt, damit nichts ungeprüft sofort sichtbar wird.</p>
+                    {selectedAlbum.shareUrl && (
+                      <p className="mt-2 text-[11px] font-bold text-amber-700">Solange eine OneDrive-Freigabe hinterlegt ist, bleiben neue Uploads gesperrt. Beende die Freigabe zuerst und prüfe das Album danach erneut.</p>
                     )}
 
                     <div className="mt-4 space-y-2">
@@ -915,7 +969,7 @@ export default function PhotoAlbums() {
                                 <ExternalLink size={14} />
                               </a>
                             )}
-                            <button type="button" onClick={() => handleDeletePhoto(file)} className="rounded-lg p-2 text-rose-500 hover:bg-rose-50 hover:text-rose-700" title="Foto entfernen">
+                            <button type="button" disabled={uploading || sharing} onClick={() => handleDeletePhoto(file)} className="rounded-lg p-2 text-rose-500 hover:bg-rose-50 hover:text-rose-700" title="Foto entfernen">
                               <Trash2 size={14} />
                             </button>
                           </div>
@@ -972,7 +1026,7 @@ export default function PhotoAlbums() {
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-muted,var(--text3))]">3 · Elternzugang</p>
                     <h3 className="mt-1 text-base font-black text-[var(--text-primary,var(--text))]">Zeitlich begrenzten Link erstellen</h3>
-                    <p className="mt-1 text-xs text-[var(--text-secondary,var(--text2))]">Der Link ist nur zum Ansehen. Als anonymer Link funktioniert er ohne Anmeldung – jede Person mit dem Link kann ihn öffnen. Externes Teilen muss im Microsoft-365-Konto der Schule erlaubt sein.</p>
+                    <p className="mt-1 text-xs text-[var(--text-secondary,var(--text2))]">Der Link ist schreibgeschützt. Als anonymer Link funktioniert er ohne Anmeldung – jede Person mit dem Link kann ihn öffnen. Je nach Microsoft-365-Richtlinie kann ein Download trotzdem möglich sein. Externes Teilen muss im Schulkonto erlaubt sein.</p>
                   </div>
 
                   {shareSafetyProblem && (
@@ -1009,13 +1063,15 @@ export default function PhotoAlbums() {
                       <label className="flex items-start gap-3 rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] p-3">
                         <input type="checkbox" checked={shareConsentConfirmed} onChange={event => setShareConsentConfirmed(event.target.checked)} className="mt-0.5" />
                         <span className="text-[11px] leading-relaxed text-[var(--text-secondary,var(--text2))]">
-                          Ich habe geprüft, dass die konkrete schulische Einwilligung das Teilen dieses Albums mit Eltern abdeckt.
+                          {selectedAlbum.noIdentifiableStudents
+                            ? 'Ich habe die hochgeladenen Fotos geprüft: Darauf ist tatsächlich kein Kind identifizierbar.'
+                            : 'Ich habe geprüft, dass die konkrete schulische Einwilligung das Teilen dieses Albums mit Eltern abdeckt.'}
                         </span>
                       </label>
 
                       <button
                         type="button"
-                        disabled={sharing || !selectedPolicy.canShare || !(selectedAlbum.files || []).length || !shareConsentConfirmed}
+                        disabled={uploading || sharing || !selectedPolicy.canShare || !(selectedAlbum.files || []).length || !shareConsentConfirmed}
                         onClick={handleShare}
                         className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 py-3 text-xs font-black text-[var(--accent-text,#fff)] disabled:cursor-not-allowed disabled:opacity-40"
                       >
