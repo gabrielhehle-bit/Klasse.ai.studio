@@ -154,7 +154,6 @@ export default function HelpCenter() {
             <details
               id={`klassio-help-topic-${section}-${topic.id}`}
               key={`${section}-${topic.id}`}
-              defaultOpen={isContextTopic}
               className={`group rounded-2xl border bg-white p-4 shadow-sm sm:p-5 ${
                 isContextTopic
                   ? 'border-indigo-400 ring-2 ring-indigo-100 open:border-indigo-500'
