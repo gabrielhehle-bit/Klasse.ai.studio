@@ -89,6 +89,14 @@ export default function PhotoAlbums() {
   const [draftDate, setDraftDate] = React.useState(new Date().toISOString().slice(0, 10));
   const [draftStudentIds, setDraftStudentIds] = React.useState<string[]>([]);
   const [draftNoIdentifiableStudents, setDraftNoIdentifiableStudents] = React.useState(false);
+  const [shareDays, setShareDays] = React.useState(DEFAULT_SHARE_DAYS);
+  const [shareConsentConfirmed, setShareConsentConfirmed] = React.useState(false);
+  const [editingAlbum, setEditingAlbum] = React.useState(false);
+  const [editTitle, setEditTitle] = React.useState('');
+  const [editDescription, setEditDescription] = React.useState('');
+  const [editDate, setEditDate] = React.useState('');
+  const [editStudentIds, setEditStudentIds] = React.useState<string[]>([]);
+  const [editNoIdentifiableStudents, setEditNoIdentifiableStudents] = React.useState(false);
 
   React.useEffect(() => {
     if (selectedAlbumId && albums.some(album => album.id === selectedAlbumId)) return;
@@ -104,6 +112,18 @@ export default function PhotoAlbums() {
     selectedStudents,
     selectedAlbum?.noIdentifiableStudents === true,
   );
+  const selectedShareExpired = Boolean(
+    selectedAlbum?.shareUrl && isPhotoAlbumShareExpired(selectedAlbum.shareExpiresAt),
+  );
+  const shareSafetyProblem = Boolean(
+    selectedAlbum?.shareUrl && !selectedShareExpired && !selectedPolicy.canShare,
+  );
+
+  React.useEffect(() => {
+    setShareConsentConfirmed(false);
+    setShareDays(DEFAULT_SHARE_DAYS);
+    setEditingAlbum(false);
+  }, [selectedAlbumId]);
 
   const patchAlbum = React.useCallback((albumId: string, patch: Partial<PhotoAlbum>) => {
     setApp(prev => ({
@@ -115,6 +135,46 @@ export default function PhotoAlbums() {
       ),
     }));
   }, [setApp]);
+
+  const beginEditAlbum = () => {
+    if (!selectedAlbum) return;
+    setEditTitle(selectedAlbum.title);
+    setEditDescription(selectedAlbum.description || '');
+    setEditDate(selectedAlbum.eventDate || '');
+    setEditStudentIds(selectedAlbum.studentIds || []);
+    setEditNoIdentifiableStudents(selectedAlbum.noIdentifiableStudents === true);
+    setEditingAlbum(true);
+  };
+
+  const saveAlbumEdits = () => {
+    if (!selectedAlbum) return;
+    const title = editTitle.trim();
+    if (!title) {
+      showToast('Bitte einen Albumnamen eingeben.', 'error');
+      return;
+    }
+    if (!editNoIdentifiableStudents && editStudentIds.length === 0) {
+      showToast('Bitte abgebildete Kinder auswählen oder „Keine Kinder erkennbar“ bestätigen.', 'error');
+      return;
+    }
+
+    const editedStudents = students.filter(student => editStudentIds.includes(student.id));
+    const editedPolicy = evaluatePhotoAlbumSharing(editedStudents, editNoIdentifiableStudents);
+    if (selectedAlbum.shareUrl && !selectedShareExpired && !editedPolicy.canShare) {
+      showToast('Bitte zuerst den aktiven Elternlink beenden. Die neue Auswahl wäre nicht freigegeben.', 'error');
+      return;
+    }
+
+    patchAlbum(selectedAlbum.id, {
+      title,
+      description: editDescription.trim() || undefined,
+      eventDate: editDate || undefined,
+      studentIds: editNoIdentifiableStudents ? [] : editStudentIds,
+      noIdentifiableStudents: editNoIdentifiableStudents,
+    });
+    setEditingAlbum(false);
+    showToast('Albumdaten aktualisiert.', 'success');
+  };
 
   const handleCreateAlbum = () => {
     const title = draftTitle.trim();
