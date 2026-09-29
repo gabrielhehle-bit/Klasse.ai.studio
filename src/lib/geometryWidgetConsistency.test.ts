@@ -61,3 +61,14 @@ test('Geometrie-Muster gibt im Kreativmodus einen echten Musterimpuls', () => {
   assert.match(widget, /Muster-Idee:/);
   assert.match(widget, /Kreis – Quadrat – Kreis – Quadrat/);
 });
+
+
+test('Geometrie-Muster erhält eine gemeinsame Fachwidget-Mindestgröße', () => {
+  const cockpit = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
+  const layout = readFileSync('src/components/cockpit/widgetLayout.ts', 'utf8');
+  const frame = readFileSync('src/components/cockpit/CockpitWidget.tsx', 'utf8');
+
+  assert.match(cockpit, /id: "widget-geometry",[\s\S]{0,180}w: 46,[\s\S]{0,80}h: 58/);
+  assert.match(layout, /geometry: \{ minW: 360, minH: 460, prefW: 560, prefH: 560 \}/);
+  assert.match(frame, /geometry: \{ w: 46, h: 58 \}/);
+});
