@@ -26,6 +26,8 @@ interface CockpitWidgetProps {
   headerExtra?: React.ReactNode;
   children: React.ReactNode;
   isFocused?: boolean;
+  /** Keep child widget state mounted while the frame is minimized. */
+  isMinimized?: boolean;
   layoutLocked?: boolean;
 }
 
@@ -162,6 +164,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   headerExtra,
   children,
   isFocused = false,
+  isMinimized = false,
   layoutLocked = false,
 }) => {
   const { app, calculateWidgetFontSize } = useApp();
@@ -649,6 +652,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       data-widget-density={viewportDensity}
       data-widget-ux="v3"
       data-widget-focused={isFocused ? "true" : "false"}
+      data-widget-minimized={isMinimized ? "true" : "false"}
       data-widget-interacting={isDragging ? "dragging" : isResizing ? "resizing" : undefined}
       className={`cockpit-widget-container absolute flex flex-col transition-[transform,border-color,shadow,background-color,opacity,border-radius,box-shadow,ring-color] duration-300 ease-out select-none group animate-in fade-in zoom-in-95 ${isFreeMascot ? "cockpit-free-mascot rounded-none border-0 bg-transparent shadow-none ring-0 backdrop-blur-none" : ""} ${
         isDirect || isFreeMascot
@@ -669,6 +673,9 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
         width: isFreeMascot ? `${mascotPixels}px` : `${renderedW}%`,
         height: isFreeMascot ? `${mascotPixels}px` : `${renderedH}%`,
         zIndex: isFreeMascot ? 120 : isDirect ? 0 : isMaximized ? 9999 : zIndex,
+        // Minimize hides the frame without unmounting its child widget. This preserves
+        // local timer, stopwatch, quiz and media state across restore.
+        display: isMinimized ? "none" : undefined,
         // Drag is restricted to the toolbar / resize handle. Let pupils scroll
         // overfull widget contents even while the board layout is editable.
         touchAction: "auto",
