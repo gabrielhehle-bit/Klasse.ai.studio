@@ -3927,7 +3927,7 @@ export const WeatherWidgetContent: React.FC<{ widget: any, currentIsLight: boole
         aria-live="polite"
         className="z-10 flex w-full items-center justify-between gap-2 rounded-xl border border-white/30 bg-black/15 px-2 py-1 text-[8px] font-semibold text-white shadow-sm"
       >
-        <span>{getNetworkMediaStatusMessage(weatherStatus, "Wetterdaten")}</span>
+        <span title={weatherError || undefined}>{getNetworkMediaStatusMessage(weatherStatus, "Wetterdaten")}</span>
         {isNetworkMediaRetryable(weatherStatus) && (
           <button
             type="button"
