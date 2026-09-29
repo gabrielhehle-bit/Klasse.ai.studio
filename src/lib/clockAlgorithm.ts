@@ -21,6 +21,14 @@ export const DEFAULT_CLOCK_SETTINGS: ClockSettings = {
 };
 
 /**
+ * Respect the teacher's chosen mode in compact windows. Only the combined
+ * analog+digital layout falls back to digital when there is not enough width.
+ */
+export function resolveClockMode(mode: ClockMode, isCompact: boolean): ClockMode {
+  return isCompact && mode === 'both' ? 'digital' : mode;
+}
+
+/**
  * Liefert formatierte digitale Komponenten (zweistellig, führende Nullen)
  */
 export function formatDigitalTime(

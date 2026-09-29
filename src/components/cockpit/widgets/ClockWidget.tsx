@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Settings2, Clock, Calendar, Check, X, Sparkles } from 'lucide-react';
+import { Settings2, Clock, Check, X, Sparkles } from 'lucide-react';
 import { CockpitWidgetConfig } from '../../../types';
 import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
 import {
@@ -10,6 +10,7 @@ import {
   DEFAULT_CLOCK_SETTINGS,
   ClockSettings,
   ClockMode,
+  resolveClockMode,
 } from '../../../lib/clockAlgorithm';
 
 export interface ClockWidgetProps {
@@ -96,8 +97,9 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
   const isFullscreen = size.category === 'fullscreen';
   const isLowHeight = size.height < 210;
 
-  // In COMPACT mode, force digital mode to avoid unreadable squished analog clock
-  const effectiveMode: ClockMode = isCompact ? 'digital' : settings.mode;
+  // Compact windows can still show a useful analog clock. Only the combined
+  // two-column/two-panel mode needs a digital fallback when space is tight.
+  const effectiveMode: ClockMode = resolveClockMode(settings.mode, isCompact);
 
   // Formatted digital time
   const digital = useMemo(
@@ -123,7 +125,6 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
   // Theme colors
   const textColor = currentIsLight ? 'text-slate-900' : 'text-slate-100';
   const subTextColor = currentIsLight ? 'text-slate-600' : 'text-zinc-400';
-  const clockBg = currentIsLight ? 'bg-white' : 'bg-zinc-900';
   const borderColor = currentIsLight ? 'border-slate-200' : 'border-zinc-800';
 
   const effectiveDigitalWidth = effectiveMode === 'both' ? size.width * 0.46 : size.width;
@@ -322,6 +323,8 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
       {/* Settings Overlay / Flyout Drawer */}
       {showSettings && (
         <div
+          role="dialog"
+          aria-label="Uhr-Einstellungen"
           className={`absolute inset-x-2 bottom-2 top-14 rounded-2xl border p-4 shadow-xl z-30 flex flex-col justify-between backdrop-blur-md animate-in fade-in zoom-in-95 duration-150 ${
             currentIsLight
               ? 'bg-white/95 border-slate-200 text-slate-800'

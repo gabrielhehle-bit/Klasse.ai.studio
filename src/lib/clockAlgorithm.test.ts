@@ -7,6 +7,7 @@ import {
   getSpokenTime,
   DEFAULT_CLOCK_SETTINGS,
   ClockSettings,
+  resolveClockMode,
 } from './clockAlgorithm';
 import {
   WIDGET_MIN_SIZES,
@@ -158,4 +159,12 @@ test('Clock: 15. Keine KI erforderlich & Unabhängigkeit', () => {
   // Reine mathematische und sprachliche Regeln ohne LLM-Calls
   const testDate = new Date(2026, 8, 7, 8, 20);
   assert.equal(getSpokenTime(testDate), 'Zwanzig nach acht');
+});
+
+
+test('Clock: 16. Kompaktmodus respektiert Analog und reduziert nur die Kombiansicht', () => {
+  assert.equal(resolveClockMode('digital', true), 'digital');
+  assert.equal(resolveClockMode('analog', true), 'analog');
+  assert.equal(resolveClockMode('both', true), 'digital');
+  assert.equal(resolveClockMode('both', false), 'both');
 });
