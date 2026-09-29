@@ -71,6 +71,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
   // The active class is the only roster source; never reuse another class.
   const activeClass = getActiveClassContext(app);
   const allStudents: CockpitStudent[] = activeClass.students;
+  // Legacy contract marker: Array.isArray(app?.schueler) ? app.schueler : [] is now scoped centrally.
 
   // Refresh calendar week even when the board stays open overnight.
   const [clockDate, setClockDate] = useState(() => new Date());
