@@ -3076,6 +3076,8 @@ export const DiceWidgetContent: React.FC<{
               <div key={i} className="flex flex-col items-center gap-1 select-none">
                 <motion.button
                   type="button"
+                  role="button"
+                  tabIndex={0}
                   {...rollAction.buttonProps}
                   aria-label={`Würfel ${i + 1} werfen`}
                   animate={rolling ? { 
