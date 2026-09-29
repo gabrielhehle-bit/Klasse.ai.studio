@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useApp } from '../../../context/AppContext';
+import { getActiveClassContext } from '../../../lib/activeClassContext';
 import { getKW } from '../../../lib/utils';
 import type { CockpitWidgetConfig } from '../../../types';
 import { useWidgetSize } from '../widgetLayout';
@@ -85,9 +86,10 @@ export default function ClassroomWeeklyPlanWidget({
   const [selectionScope, setSelectionScope] = useState(scope);
   const tasks = useMemo(() => getClassroomWeeklyTasks(app, week), [app.wochenplanung, app.schuljahr, week]);
   const homework = useMemo(() => homeworkForWeek(app, week), [app.hausuebungen, app.schuljahr, app.bundesland, week]);
-  const pupils = useMemo(() => (app.schueler || [])
+  const activeClass = getActiveClassContext(app);
+  const pupils = useMemo(() => activeClass.students
     .filter(s => !s.id.startsWith('demo-'))
-    .slice().sort((a, b) => getDisplayStudentName(a, app.schueler).localeCompare(getDisplayStudentName(b, app.schueler), 'de-AT')), [app.schueler]);
+    .slice().sort((a, b) => getDisplayStudentName(a, activeClass.students).localeCompare(getDisplayStudentName(b, activeClass.students), 'de-AT')), [activeClass.students]);
   const selectedTask = selectionScope === scope ? tasks.find(task => task.id === selectedTaskId) : undefined;
   const pupil = selectionScope === scope ? pupils.find(student => student.id === childId) : undefined;
 
