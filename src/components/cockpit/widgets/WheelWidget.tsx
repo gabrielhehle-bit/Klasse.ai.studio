@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { CockpitWidgetConfig, AppState } from '../../../types';
 import { useApp } from '../../../context/AppContext';
+import { getActiveClassContext } from '../../../lib/activeClassContext';
 import {
   getDisplayStudentName,
   getPresentStudents,
@@ -183,7 +184,8 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
   );
 
   // Schülerliste (falls Schüler-Modus aktiv)
-  const allStudents = app?.schueler ?? [];
+  const activeClass = getActiveClassContext(app);
+  const allStudents = activeClass.students;
   const presentStudents = getPresentStudents(allStudents, app);
 
   // Historie für "Ohne Zurücklegen" (flüchtig im Speicher)

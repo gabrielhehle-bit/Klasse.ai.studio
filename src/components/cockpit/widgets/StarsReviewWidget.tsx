@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useWidgetSize } from '../widgetLayout';
 import { useApp } from '../../../context/AppContext';
+import { getActiveClassContext } from '../../../lib/activeClassContext';
 import type { CockpitWidgetConfig } from '../../../types';
 import {
   aggregateStarsReview, DEFAULT_STARS_REVIEW_SETTINGS,
@@ -73,7 +74,8 @@ export default function StarsReviewWidget({
     }
   }, [externalShowSettings]);
   const settings = useMemo(() => safeSettings(widget.settings?.starsReview), [widget.settings?.starsReview]);
-  const children = app.schueler || [];
+  const activeClass = getActiveClassContext(app);
+  const children = activeClass.students;
   const logs = app.mitarbeitLogs || [];
   const availableSubjects = useMemo(
     () => starsReviewSubjects(logs, children, app.faecher || []),
