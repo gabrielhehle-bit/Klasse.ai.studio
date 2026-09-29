@@ -17510,15 +17510,6 @@ export const MorsecodeWidgetContent: React.FC<{ widget: any, currentIsLight: boo
   const [showGuide, setShowGuide] = useState<boolean>(false);
 
 
-        {aiStatus !== "idle" && aiStatus !== "success" && (
-          <div role="status" aria-live="polite" className="flex items-center justify-between gap-1 text-[7px] text-amber-700 dark:text-amber-300">
-            <span>{aiError || getWidgetAiStatusMessage(aiStatus)}</span>
-            {aiStatus !== "loading" && (
-              <button type="button" onClick={fetchAiWord} className="underline font-bold cursor-pointer">Erneut versuchen</button>
-            )}
-          </div>
-        )}
-
   const morseAlphabet: Record<string, string> = {
     'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.',
     'G': '--.', 'H': '....', 'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..',
@@ -17561,6 +17552,15 @@ export const MorsecodeWidgetContent: React.FC<{ widget: any, currentIsLight: boo
             Standard 🔮
           </button>
         </div>
+      {aiStatus !== "idle" && aiStatus !== "success" && (
+        <div role="status" aria-live="polite" className="flex items-center justify-between gap-1 text-[7px] text-amber-700 dark:text-amber-300">
+          <span>{aiError || getWidgetAiStatusMessage(aiStatus)}</span>
+          {aiStatus !== "loading" && (
+            <button type="button" onClick={fetchAiWord} className="underline font-bold cursor-pointer">Erneut versuchen</button>
+          )}
+        </div>
+      )}
+
       </div>
 
       {showGuide ? (
