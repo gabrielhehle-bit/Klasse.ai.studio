@@ -16,6 +16,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
+import { getActiveClassContext } from '../../../lib/activeClassContext';
 import {
   getDisplayStudentName,
   isStudentAbsentToday,
@@ -67,9 +68,9 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
   const isFs = isFullscreen || size.category === 'fullscreen';
   const compactDienste = size.isCompact || size.height < 360;
 
-  // Actual classroom pupils only: never show demo children on the board.
-  const allStudents: CockpitStudent[] = useMemo(() =>
-    Array.isArray(app?.schueler) ? app.schueler : [], [app?.schueler]);
+  // The active class is the only roster source; never reuse another class.
+  const activeClass = getActiveClassContext(app);
+  const allStudents: CockpitStudent[] = activeClass.students;
 
   // Refresh calendar week even when the board stays open overnight.
   const [clockDate, setClockDate] = useState(() => new Date());
@@ -148,7 +149,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
 
   // Anwesende Schüler für Vertretungsauswahl
   const presentStudents = useMemo(() => {
-    return getPresentStudents(app?.schueler, app);
+    return getPresentStudents(activeClass.students, app);
   }, [app]);
 
   // ==========================================
