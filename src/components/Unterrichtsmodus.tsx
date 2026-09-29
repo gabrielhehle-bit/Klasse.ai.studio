@@ -2089,8 +2089,8 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     type: "compass",
     x: 54,
     y: 110,
-    w: 44,
-    h: 52,
+    w: 34,
+    h: 40,
     visible: false,
   },
   {
@@ -2602,8 +2602,8 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     type: "timeline",
     x: 35,
     y: 5,
-    w: 38,
-    h: 18,
+    w: 40,
+    h: 30,
     visible: false,
   },
   {
