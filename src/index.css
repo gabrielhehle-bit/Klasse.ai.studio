@@ -21,6 +21,8 @@
   --color-text-secondary: var(--text2);
   --color-text-muted: var(--text3);
   --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink, color-mix(in srgb, var(--accent) 45%, var(--text) 55%));
+  --color-accent-visual: var(--accent-visual, color-mix(in srgb, var(--accent) 55%, var(--text) 45%));
   
   --color-app-bg: var(--app-bg, var(--bg));
   --color-card-bg: var(--card-bg, var(--surface));
@@ -128,6 +130,9 @@
     --accent-active: color-mix(in srgb, var(--accent) 72%, black);
     --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
     --accent-text: var(--btn-text, #ffffff);
+    /* Cockpit accent ink/visual stay legible even with very light or very dark personal accents. */
+    --accent-ink: color-mix(in srgb, var(--accent) 45%, var(--text) 55%);
+    --accent-visual: color-mix(in srgb, var(--accent) 55%, var(--text) 45%);
 
     /* F-DS2 Focus-Ring Token */
     --focus-ring: var(--accent);
@@ -2391,6 +2396,40 @@ html body .cockpit-free-mascot .mascot-widget-resize {
 }
 .cockpit-widget-container[data-widget-interacting="dragging"] {
   cursor: grabbing;
+}
+
+/* Widget reset 2026-09: profile accents may be arbitrarily light/dark.
+ * Text, SVG fills and borders inside teaching widgets therefore use a
+ * contrast-safe derivative instead of the raw accent when they sit on a
+ * neutral surface. Solid accent buttons keep --accent + --accent-text.
+ */
+html body .klassio-cockpit-shell,
+html body [data-style] .klassio-cockpit-shell {
+  --accent-ink: color-mix(in srgb, var(--accent) 45%, var(--text) 55%);
+  --accent-visual: color-mix(in srgb, var(--accent) 55%, var(--text) 45%);
+}
+html body .klassio-cockpit-shell .cockpit-widget-content .text-accent,
+html body [data-style] .klassio-cockpit-shell .cockpit-widget-content .text-accent {
+  color: var(--accent-ink) !important;
+  -webkit-text-fill-color: var(--accent-ink) !important;
+}
+html body .klassio-cockpit-shell .cockpit-widget-content .fill-accent,
+html body [data-style] .klassio-cockpit-shell .cockpit-widget-content .fill-accent {
+  fill: var(--accent-visual) !important;
+}
+html body .klassio-cockpit-shell .cockpit-widget-content .stroke-accent,
+html body [data-style] .klassio-cockpit-shell .cockpit-widget-content .stroke-accent,
+html body .klassio-cockpit-shell .cockpit-widget-content .focus\:stroke-accent:focus,
+html body [data-style] .klassio-cockpit-shell .cockpit-widget-content .focus\:stroke-accent:focus {
+  stroke: var(--accent-visual) !important;
+}
+html body .klassio-cockpit-shell .cockpit-widget-content .border-accent,
+html body [data-style] .klassio-cockpit-shell .cockpit-widget-content .border-accent {
+  border-color: var(--accent-visual) !important;
+}
+html body .klassio-cockpit-shell .cockpit-widget-content button.bg-accent,
+html body [data-style] .klassio-cockpit-shell .cockpit-widget-content button.bg-accent {
+  border-color: var(--accent-visual) !important;
 }
 html body [data-style] .cockpit-widget-menu-trigger[aria-expanded="true"],
 html body [data-style] .cockpit-widget-settings-trigger[aria-expanded="true"],
