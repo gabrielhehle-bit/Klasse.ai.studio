@@ -331,7 +331,7 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                       {
                                         type: "planetarium",
                                         label: "🌍 Planetensystem",
-                                        desc: "Planeten unseres Sonnensystems entdecken",
+                                        desc: "Sonne, acht Planeten & Umläufe entdecken",
                                         category: "sachunterricht",
                                       },
                                       {
@@ -640,6 +640,7 @@ const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
   "trafficquiz",
   "watercycle",
   "constellation",
+  "planetarium",
 ]);
 
 const COCKPIT_WIDGET_LIBRARY_BY_TYPE = new Map<string, CockpitWidgetLibraryItem>(
