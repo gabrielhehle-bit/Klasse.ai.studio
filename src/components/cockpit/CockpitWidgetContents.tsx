@@ -14359,6 +14359,8 @@ export const PatternmakerWidgetContent: React.FC<{
   const isLoadingAI = aiStatus === "loading";
   const [streak, setStreak] = useState<number>(() => lifecycle.streak);
   const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback);
+  const didRestoreRef = useRef(hasWidgetLifecycleState(widget, "patternmaker"));
+  const previousDifficultyRef = useRef(difficulty);
 
   usePersistedWidgetLifecycleState(widget, onUpdate, "patternmaker", {
     difficulty,
@@ -14376,8 +14378,14 @@ export const PatternmakerWidgetContent: React.FC<{
     return PATTERNS_BY_LEVEL[difficulty];
   }, [difficulty, aiPatterns]);
 
-  // Reset when difficulty changes
+  // Difficulty is an explicit new task action; a remount restores the
+  // persisted pattern, streak and feedback instead.
   useEffect(() => {
+    const difficultyChanged = previousDifficultyRef.current !== difficulty;
+    previousDifficultyRef.current = difficulty;
+    if (didRestoreRef.current && !difficultyChanged) return;
+
+    didRestoreRef.current = true;
     setAiPatterns(null);
     setPatternIdx(0);
     setStreak(0);
