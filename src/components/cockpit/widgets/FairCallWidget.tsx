@@ -135,18 +135,17 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
     ) {
       return;
     }
-      const initialShuffled = shuffleArray(presentStudentIds);
-      onUpdate({
-        settings: {
-          ...settings,
-          hasInitialized: true,
-          remainingIds: initialShuffled,
-          calledIds: [],
-          currentId: null,
-          pausedIds: [],
-        },
-      });
-    }
+    const initialShuffled = shuffleArray(presentStudentIds);
+    onUpdate({
+      settings: {
+        ...settings,
+        hasInitialized: true,
+        remainingIds: initialShuffled,
+        calledIds: [],
+        currentId: null,
+        pausedIds: [],
+      },
+    });
   }, [
     activeClass.studentCount,
     activeClass.permissions.canRead,
