@@ -308,7 +308,6 @@ import {
   MoneycalcWidgetContent,
   StoryemojisWidgetContent,
   AbcorderWidgetContent,
-  PlanetariumWidgetContent,
   TischCheckWidgetContent,
   FairCallWidgetContent,
 } from "./cockpit/NewWidgets";
@@ -331,6 +330,7 @@ import { FlagQuizWidgetContent } from "./cockpit/FlagQuizWidgetContent";
 import { TrafficQuizWidgetContent } from "./cockpit/TrafficQuizWidgetContent";
 import { WaterCycleWidgetContent } from "./cockpit/WaterCycleWidgetContent";
 import { ConstellationWidgetContent } from "./cockpit/ConstellationWidgetContent";
+import { PlanetariumWidgetContent } from "./cockpit/PlanetariumWidgetContent";
 import { InstructionWidget } from "./cockpit/widgets/InstructionWidget";
 import { CockpitWidgetConfig } from "../types";
 
@@ -2566,8 +2566,8 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     type: "planetarium",
     x: 10,
     y: 250,
-    w: 42,
-    h: 55,
+    w: 50,
+    h: 60,
     visible: false,
   },
   {
@@ -4134,7 +4134,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       w.id !== id ? w : {
         ...w,
         ...updates,
-        ...(((w.type === "groups" && updates.settings) || (w.type === "wheel" && updates.settings) || (w.type === "sounds" && updates.settings) || (w.type === "stopwatch" && updates.settings) || (w.type === "dictionary" && updates.settings) || (w.type === "piano" && updates.settings) || (w.type === "bodyparts" && updates.settings) || (w.type === "compass" && updates.settings) || (w.type === "weekdays" && updates.settings) || (w.type === "flagquiz" && updates.settings) || (w.type === "trafficquiz" && updates.settings) || (w.type === "watercycle" && updates.settings) || (w.type === "constellation" && updates.settings))
+        ...(((w.type === "groups" && updates.settings) || (w.type === "wheel" && updates.settings) || (w.type === "sounds" && updates.settings) || (w.type === "stopwatch" && updates.settings) || (w.type === "dictionary" && updates.settings) || (w.type === "piano" && updates.settings) || (w.type === "bodyparts" && updates.settings) || (w.type === "compass" && updates.settings) || (w.type === "weekdays" && updates.settings) || (w.type === "flagquiz" && updates.settings) || (w.type === "trafficquiz" && updates.settings) || (w.type === "watercycle" && updates.settings) || (w.type === "constellation" && updates.settings) || (w.type === "planetarium" && updates.settings))
           ? { settings: { ...(w.settings || {}), ...updates.settings } }
           : {}),
         hasBeenOpened: true,
@@ -11477,6 +11477,14 @@ ${content}
                                         <PlanetariumWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
