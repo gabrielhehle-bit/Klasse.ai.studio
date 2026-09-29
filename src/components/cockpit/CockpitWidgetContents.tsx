@@ -7908,12 +7908,29 @@ export const DictionaryWidgetContent: React.FC<{
     () => filterDictionaryCards(settings.category),
     [settings.category],
   );
-  const [activeIdx, setActiveIdx] = useState(0);
-  const [round, setRound] = useState<DictionaryRound | null>(() => createDictionaryRound(cards));
-  const [selectedChoiceId, setSelectedChoiceId] = useState<string | null>(null);
-  const [answerState, setAnswerState] = useState<'idle' | 'wrong' | 'correct'>('idle');
-  const [feedback, setFeedback] = useState('');
+  const lifecycle = readWidgetLifecycleState(widget, "dictionary", {
+    activeIdx: 0,
+    round: null as DictionaryRound | null,
+    selectedChoiceId: null as string | null,
+    answerState: "idle" as "idle" | "wrong" | "correct",
+    feedback: "",
+  });
+  const [activeIdx, setActiveIdx] = useState<number>(() => lifecycle.activeIdx);
+  const [round, setRound] = useState<DictionaryRound | null>(() => lifecycle.round || createDictionaryRound(cards));
+  const [selectedChoiceId, setSelectedChoiceId] = useState<string | null>(() => lifecycle.selectedChoiceId);
+  const [answerState, setAnswerState] = useState<'idle' | 'wrong' | 'correct'>(() => lifecycle.answerState);
+  const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback);
+  const didRestoreRef = useRef(hasWidgetLifecycleState(widget, "dictionary"));
+  const previousCardsRef = useRef(cards.map(card => card.id).join("|"));
   const onUpdateRef = useRef(onUpdate);
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "dictionary", {
+    activeIdx,
+    round,
+    selectedChoiceId,
+    answerState,
+    feedback,
+  });
   onUpdateRef.current = onUpdate;
 
   const persistSettings = useCallback((patch: Partial<DictionaryWidgetSettings>) => {
@@ -7944,6 +7961,11 @@ export const DictionaryWidgetContent: React.FC<{
   }, []);
 
   useEffect(() => {
+    const cardsChanged = previousCardsRef.current !== cards.map(card => card.id).join("|");
+    previousCardsRef.current = cards.map(card => card.id).join("|");
+    if (didRestoreRef.current && !cardsChanged) return;
+
+    didRestoreRef.current = true;
     setActiveIdx(0);
     const nextRound = createDictionaryRound(cards);
     setRound(nextRound);
