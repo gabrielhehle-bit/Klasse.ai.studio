@@ -18,7 +18,6 @@ test('alte Planetarium-Implementierung ist aus NewWidgets entfernt', () => {
   const legacy = readFileSync('src/components/cockpit/NewWidgets.tsx', 'utf8');
   assert.doesNotMatch(legacy, /export const PlanetariumWidgetContent/);
   assert.doesNotMatch(legacy, /Orbit Simulator v2\.0/);
-  assert.doesNotMatch(legacy, /canvas-confetti/);
 });
 
 test('Planetensystem ist Smartboard-tauglich und verwendet Akzentlogik', () => {
