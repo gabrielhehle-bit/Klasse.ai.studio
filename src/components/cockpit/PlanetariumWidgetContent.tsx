@@ -11,7 +11,6 @@ import {
   planetYearsForEarthAge,
   type PlanetariumQuizLength,
   type PlanetariumWidgetSettings,
-  type SolarSystemBody,
 } from '../../lib/planetariumWidgetModel';
 
 interface PlanetariumWidgetContentProps {
