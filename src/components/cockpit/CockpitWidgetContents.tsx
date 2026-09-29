@@ -17,6 +17,7 @@ import { askAI, generatePetSpeech, generateWidgetTasks } from '../../services/ai
 import { useApp } from '../../context/AppContext';
 import { classifyWidgetAiError, getWidgetAiStatusMessage, type WidgetAiStatus } from '../../lib/widgetAiState';
 import { hasWidgetLifecycleState, readWidgetLifecycleState, usePersistedWidgetLifecycleState } from '../../lib/widgetLifecycleState';
+import { useAccessibleAction } from '../../lib/accessibleAction';
 import { getKW } from '../../lib/utils';
 import {
   SORTING_RANGE_OPTIONS,
@@ -2048,8 +2049,9 @@ export const PhasenWidgetContent: React.FC<PhasenWidgetProps> = ({
                   className="group relative flex items-center w-full"
                 >
                   <button
+                    type="button"
                     onClick={() => !isEditing && selectPhaseByIndex(index)}
-                    className={`flex-grow flex items-center gap-1.5 p-1 rounded-xl text-left border cursor-pointer select-none transition-all duration-200 outline-none pr-6 ${
+                    className={`flex-grow min-h-11 flex items-center gap-1.5 p-1 rounded-xl text-left border cursor-pointer select-none transition-all duration-200 outline-none pr-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
                       isActive 
                         ? 'bg-rose-500 border-rose-500 text-white shadow-md font-black' 
                         : isPast
@@ -2096,22 +2098,27 @@ export const PhasenWidgetContent: React.FC<PhasenWidgetProps> = ({
                       </span>
                     )}
 
-                    {!isEditing && (
-                      <span 
-                        onClick={(e) => { e.stopPropagation(); setEditingId(phase.id); }}
-                        className="opacity-0 group-hover:opacity-75 text-[8.5px] cursor-pointer"
-                        title="Bearbeiten"
-                      >
-                        ✏️
-                      </span>
-                    )}
                   </button>
+
+                  {!isEditing && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setEditingId(phase.id); }}
+                      className="absolute right-8 z-10 min-h-11 min-w-11 rounded-lg text-[8.5px] opacity-0 group-hover:opacity-75 hover:bg-white/60 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                      aria-label={`Phase ${phase.label} bearbeiten`}
+                      title="Bearbeiten"
+                    >
+                      ✏️
+                    </button>
+                  )}
 
                   {/* Delete Option for customized phases or any phase */}
                   {lessonPhases.length > 1 && (
                     <button
+                      type="button"
                       onClick={(e) => handleDeletePhase(phase.id, e)}
-                      className="absolute right-1 text-slate-400 hover:text-rose-500 text-[10px] font-bold p-1 cursor-pointer transition-all opacity-0 group-hover:opacity-100"
+                      className="absolute right-1 z-10 min-h-11 min-w-11 rounded-lg text-slate-400 hover:text-rose-500 text-[10px] font-bold p-1 cursor-pointer transition-all opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                      aria-label={`Phase ${phase.label} löschen`}
                       title="Phase löschen"
                     >
                       ✕
@@ -2953,6 +2960,9 @@ export const DiceWidgetContent: React.FC<{
     }, 50);
   };
 
+  const rollAction = useAccessibleAction(roll);
+  const coverResultAction = useAccessibleAction(() => setRevealed(false));
+
   const values = useMemo(() => dice.map(d => d + 1), [dice]);
 
   const resultValue = useMemo(() => {
@@ -3032,6 +3042,7 @@ export const DiceWidgetContent: React.FC<{
         <span className={`text-[8.5px] font-black uppercase tracking-wider ${currentIsLight ? 'text-slate-400' : 'text-slate-500'}`}>Würfel:</span>
         {[1, 2, 3, 4, 5, 6].map((num) => (
           <button
+            type="button"
             key={num}
             disabled={rolling}
             onClick={() => {
@@ -3042,7 +3053,7 @@ export const DiceWidgetContent: React.FC<{
             }}
             aria-label={`${num} Würfel auswählen`}
             aria-pressed={dice.length === num}
-            className={`w-6 h-6 rounded-lg text-xs font-black transition-all cursor-pointer hover:scale-105 active:scale-95 border ${
+            className={`min-w-11 min-h-11 rounded-lg text-xs font-black transition-all cursor-pointer hover:scale-105 active:scale-95 border focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
               dice.length === num
                 ? 'bg-indigo-500 border-transparent text-white shadow-sm'
                 : currentIsLight
@@ -3063,10 +3074,11 @@ export const DiceWidgetContent: React.FC<{
             const style = getDieStyles(i, mathMode);
             return (
               <div key={i} className="flex flex-col items-center gap-1 select-none">
-                <motion.div 
-                  onClick={roll}
-                  role="button" tabIndex={0} aria-label={`Würfel ${i + 1} werfen`}
-                  onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); roll(); } }}
+                <motion.button
+                  type="button"
+                  role="button" tabIndex={0}
+                  {...rollAction.buttonProps}
+                  aria-label={`Würfel ${i + 1} werfen`}
                   animate={rolling ? { 
                     rotate: [0, 180, 360], 
                     scale: [1, 1.15, 1],
@@ -3077,7 +3089,7 @@ export const DiceWidgetContent: React.FC<{
                     repeat: rolling ? Infinity : 0, 
                     ease: "easeInOut" 
                   }}
-                  className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl relative cursor-pointer flex items-center justify-center ${style.bg} select-none hover:scale-105 active:scale-95 transition-all`}
+                  className={`min-w-11 min-h-11 w-12 h-12 md:w-14 md:h-14 rounded-2xl relative cursor-pointer flex items-center justify-center ${style.bg} select-none hover:scale-105 active:scale-95 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent`}
                 >
                   {/* Glare and 3D effects */}
                   <div className="absolute inset-0 rounded-2xl border border-white/20 pointer-events-none" />
@@ -3085,7 +3097,7 @@ export const DiceWidgetContent: React.FC<{
 
                   {/* 1 to 6 custom dots */}
                   {renderDieDots(val, style.dot)}
-                </motion.div>
+                </motion.button>
 
                 {/* Subtitle Label for each die showing start/subtract value */}
                 <span className="text-[6.5px] font-black uppercase tracking-wider text-slate-400">
@@ -3101,24 +3113,27 @@ export const DiceWidgetContent: React.FC<{
           <div className="flex flex-col items-center gap-2 mt-1">
             {!revealed ? (
               <button
+                type="button"
                 onClick={() => setRevealed(true)}
-                className="px-3.5 py-1 rounded-xl bg-amber-500 hover:bg-amber-600 text-amber-950 font-black text-[9px] uppercase tracking-wider shadow-md hover:scale-102 cursor-pointer active:scale-95 transition-all flex items-center gap-1"
+                className="min-h-11 px-3.5 py-1 rounded-xl bg-amber-500 hover:bg-amber-600 text-amber-950 font-black text-[9px] uppercase tracking-wider shadow-md hover:scale-102 cursor-pointer active:scale-95 transition-all flex items-center gap-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
               >
                 <span>🧠</span> Ergebnis raten (Aufdecken!)
               </button>
             ) : (
-              <motion.div 
+              <motion.button
+                type="button"
+                {...coverResultAction.buttonProps}
+                aria-label="Ergebnis wieder verdecken"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                onClick={() => setRevealed(false)}
-                className={`p-2 rounded-xl border shadow-sm cursor-pointer select-none hover:opacity-95 active:scale-95 transition-all flex flex-col items-center gap-1 ${
+                className={`min-h-11 p-2 rounded-xl border shadow-sm cursor-pointer select-none hover:opacity-95 active:scale-95 transition-all flex flex-col items-center gap-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
                   currentIsLight ? 'bg-indigo-50 border-indigo-150 text-indigo-700' : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300'
                 }`}
                 title="Wieder verdecken"
               >
                 <div className="text-[7.5px] font-black uppercase tracking-widest opacity-60">Rechnung ({resultLabel}):</div>
                 {equationDisplay}
-              </motion.div>
+              </motion.button>
             )}
 
             {/* Arithmetic Toggles */}
@@ -3138,7 +3153,7 @@ export const DiceWidgetContent: React.FC<{
                       persistDice(dice, mode);
                     }}
                     aria-pressed={mathMode === item.mode}
-                    className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase transition-all whitespace-nowrap cursor-pointer ${
+                    className={`min-h-11 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase transition-all whitespace-nowrap cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
                       mathMode === item.mode
                         ? 'bg-indigo-500 text-white shadow-xs'
                         : currentIsLight
@@ -3157,9 +3172,9 @@ export const DiceWidgetContent: React.FC<{
       </div>
 
       <div className="flex gap-1.5 w-full justify-center shrink-0">
-        <button type="button" aria-label="Einen Würfel entfernen" disabled={rolling || dice.length <= 1} onClick={() => changeDiceCount('remove')} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer active:scale-95 border ${currentIsLight ? 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200' : 'bg-white/5 hover:bg-white/10 text-white border-white/10'}`}>-1</button>
-        <button type="button" aria-label="Würfel werfen" disabled={rolling} onClick={roll} className="flex-1 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-[10px] uppercase font-black tracking-widest shadow-md hover:scale-102 cursor-pointer active:scale-95 transition-all">Würfeln!</button>
-        <button type="button" aria-label="Einen Würfel hinzufügen" disabled={rolling || dice.length >= 6} onClick={() => changeDiceCount('add')} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer active:scale-95 border ${currentIsLight ? 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200' : 'bg-white/5 hover:bg-white/10 text-white border-white/10'}`}>+1</button>
+        <button type="button" aria-label="Einen Würfel entfernen" disabled={rolling || dice.length <= 1} onClick={() => changeDiceCount('remove')} className={`min-h-11 min-w-11 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer active:scale-95 border focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${currentIsLight ? 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200' : 'bg-white/5 hover:bg-white/10 text-white border-white/10'}`}>-1</button>
+        <button type="button" {...rollAction.buttonProps} aria-label="Würfel werfen" disabled={rolling} className="flex-1 min-h-11 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-[10px] uppercase font-black tracking-widest shadow-md hover:scale-102 cursor-pointer active:scale-95 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">Würfeln!</button>
+        <button type="button" aria-label="Einen Würfel hinzufügen" disabled={rolling || dice.length >= 6} onClick={() => changeDiceCount('add')} className={`min-h-11 min-w-11 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer active:scale-95 border focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${currentIsLight ? 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200' : 'bg-white/5 hover:bg-white/10 text-white border-white/10'}`}>+1</button>
       </div>
     </div>
   );
@@ -3811,9 +3826,15 @@ export const WeatherWidgetContent: React.FC<{ widget: any, currentIsLight: boole
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      searchAndFetchWeather(city);
+      e.preventDefault();
+      searchAction.activate('keyboard');
     }
   };
+
+  const searchAction = useAccessibleAction(() => searchAndFetchWeather(city));
+  const cycleWeatherAction = useAccessibleAction(() => {
+    setConditionIndex((currentIndex) => (currentIndex + 1) % weatherTypes.length);
+  });
 
   const current = weatherTypes[conditionIndex] || weatherTypes[1];
 
@@ -3832,21 +3853,29 @@ export const WeatherWidgetContent: React.FC<{ widget: any, currentIsLight: boole
             className="w-full font-black text-xs tracking-wide bg-transparent outline-none border-b border-white/30 focus:border-white/85 pb-0.5 text-white/95 drop-shadow-md placeholder-white/50 pr-4"
             placeholder="Ort..."
           />
-          <Search 
-            size={10} 
-            className="absolute right-0 cursor-pointer text-white/65 hover:text-white drop-shadow active:scale-95"
-            onClick={() => searchAndFetchWeather(city)}
-          />
+          <button
+            type="button"
+            {...searchAction.buttonProps}
+            aria-label="Wetter suchen"
+            className="absolute right-0 inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-white/65 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+          >
+            <Search size={10} aria-hidden="true" />
+          </button>
         </div>
         <div className="text-white drop-shadow-md font-bold text-[8.5px] uppercase tracking-wider">{current.name}</div>
       </div>
 
-      <div className={`z-10 text-6xl my-auto filter drop-shadow-lg cursor-pointer hover:scale-110 active:scale-95 transition-transform`} onClick={() => setConditionIndex((conditionIndex + 1) % weatherTypes.length)}>
+      <button
+        type="button"
+        {...cycleWeatherAction.buttonProps}
+        aria-label="Wetterdarstellung wechseln"
+        className="z-10 my-auto inline-flex min-h-24 min-w-24 items-center justify-center rounded-2xl text-6xl filter drop-shadow-lg hover:scale-110 active:scale-95 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+      >
         <span className="relative">
            {current.icon}
            <span className="absolute -bottom-2 -right-2 text-xl drop-shadow-sm">{current.emoji}</span>
         </span>
-      </div>
+      </button>
 
       <div className="z-10 flex items-center justify-center min-w-[70px] bg-black/15 dark:bg-black/25 px-4 py-1.5 rounded-2xl border border-white/20 shadow-xl backdrop-blur-md">
         <span className="text-2xl font-black tabular-nums tracking-tighter text-white drop-shadow-md">{isLoading ? "⏳" : `${temp}°`}</span>
@@ -19483,6 +19512,8 @@ export const AnimalvoiceWidgetContent: React.FC<{ widget: any, currentIsLight: b
     } catch {}
   };
 
+  const robotSoundAction = useAccessibleAction(triggerRobotSynthSound);
+
   return (
     <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 pointer-events-auto">
       <div className="shrink-0 flex justify-between items-center mb-1">
@@ -19497,9 +19528,11 @@ export const AnimalvoiceWidgetContent: React.FC<{ widget: any, currentIsLight: b
       {/* Cybernetic responsive vector graphics & controls rows */}
       <div className="flex-grow flex flex-row items-center justify-around gap-2.5 min-h-0 py-1">
         {/* Animated glowing vector robotic face mask */}
-        <div 
-          onClick={triggerRobotSynthSound}
-          className={`relative w-[65px] h-[78px] rounded-2xl border-3 flex flex-col items-center justify-around p-1.5 shadow-sm cursor-pointer transition-all duration-300 ${
+        <button
+          type="button"
+          {...robotSoundAction.buttonProps}
+          aria-label="Roboter-Sound abspielen"
+          className={`relative min-h-11 min-w-11 w-[65px] h-[78px] rounded-2xl border-3 flex flex-col items-center justify-around p-1.5 shadow-sm cursor-pointer transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
             isGlowing
               ? 'bg-indigo-500/20 border-teal-400 scale-105 shadow-xl ring-2 ring-teal-400'
               : 'bg-slate-100/60 border-slate-400 dark:bg-black/30 dark:border-zinc-700'
@@ -19530,7 +19563,7 @@ export const AnimalvoiceWidgetContent: React.FC<{ widget: any, currentIsLight: b
             })}
           </div>
           <span className="text-[6.5px] font-mono tracking-widest uppercase mt-auto text-slate-500">PLAY</span>
-        </div>
+        </button>
 
         {/* Modular programs selection */}
         <div className="flex-1 flex flex-col gap-1.5 justify-center min-h-0 select-none">
