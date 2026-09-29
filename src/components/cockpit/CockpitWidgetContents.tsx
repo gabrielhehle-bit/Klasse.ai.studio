@@ -16650,7 +16650,11 @@ interface RhymeWord {
   wrongs: string[];
 }
 
-export const RhymemachineWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+export const RhymemachineWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
   const wordsDatabase: RhymeWord[] = useMemo(() => [
     { base: "Maus", rhyme: "Haus", wrongs: ["Hose", "Baum", "Katz"] },
     { base: "Baum", rhyme: "Traum", wrongs: ["Hand", "Buch", "Lied"] },
@@ -16674,14 +16678,33 @@ export const RhymemachineWidgetContent: React.FC<{ widget: any, currentIsLight: 
     { base: "Schuh", rhyme: "Kuh", wrongs: ["Socke", "Leder", "Schritt"] }
   ], []);
 
-  const [activeWordIdx, setActiveWordIdx] = useState<number>(0);
-  const [choices, setChoices] = useState<string[]>([]);
-  const [spinning, setSpinning] = useState<boolean>(false);
-  const [feedback, setFeedback] = useState<string>("Zieh den Hebel um ein deutsches Wort zu drehen! 🎰");
-  const [poem, setPoem] = useState<string>("");
-  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>("idle");
-  const [aiError, setAiError] = useState<string | null>(null);
+  const lifecycle = readWidgetLifecycleState(widget, "rhymemachine", {
+    activeWordIdx: 0,
+    choices: [] as string[],
+    spinning: false,
+    feedback: "Zieh den Hebel um ein deutsches Wort zu drehen! 🎰",
+    poem: "",
+    aiStatus: "idle" as WidgetAiStatus,
+    aiError: null as string | null,
+  });
+  const [activeWordIdx, setActiveWordIdx] = useState<number>(() => lifecycle.activeWordIdx);
+  const [choices, setChoices] = useState<string[]>(() => lifecycle.choices);
+  const [spinning, setSpinning] = useState<boolean>(() => lifecycle.spinning);
+  const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback);
+  const [poem, setPoem] = useState<string>(() => lifecycle.poem);
+  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>(() => lifecycle.aiStatus);
+  const [aiError, setAiError] = useState<string | null>(() => lifecycle.aiError);
   const isPoemLoading = aiStatus === "loading";
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "rhymemachine", {
+    activeWordIdx,
+    choices,
+    spinning,
+    feedback,
+    poem,
+    aiStatus,
+    aiError,
+  });
 
   const spinMachine = useCallback(() => {
     setSpinning(true);
