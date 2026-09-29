@@ -1666,8 +1666,8 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     type: "timer",
     x: 74,
     y: 28,
-    w: 22,
-    h: 36,
+    w: 23,
+    h: 38,
     visible: false,
   },
   {
