@@ -1990,8 +1990,8 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     type: "geometry",
     x: 58,
     y: 80,
-    w: 40,
-    h: 45,
+    w: 46,
+    h: 58,
     visible: false,
   },
   {
@@ -2089,8 +2089,8 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     type: "compass",
     x: 54,
     y: 110,
-    w: 34,
-    h: 40,
+    w: 44,
+    h: 56,
     visible: false,
   },
   {
@@ -2368,8 +2368,8 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     type: "angledetective",
     x: 76,
     y: 190,
-    w: 38,
-    h: 48,
+    w: 44,
+    h: 54,
     visible: false,
   },
   {
