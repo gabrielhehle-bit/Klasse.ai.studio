@@ -16,6 +16,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { askAI, generatePetSpeech, generateWidgetTasks } from '../../services/aiService';
 import { useApp } from '../../context/AppContext';
 import { classifyWidgetAiError, getWidgetAiStatusMessage, type WidgetAiStatus } from '../../lib/widgetAiState';
+import { hasWidgetLifecycleState, readWidgetLifecycleState, usePersistedWidgetLifecycleState } from '../../lib/widgetLifecycleState';
 import { getKW } from '../../lib/utils';
 import {
   SORTING_RANGE_OPTIONS,
