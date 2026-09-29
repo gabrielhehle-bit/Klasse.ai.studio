@@ -16,6 +16,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { askAI, generatePetSpeech, generateWidgetTasks } from '../../services/aiService';
 import { useApp } from '../../context/AppContext';
 import { classifyWidgetAiError, getWidgetAiStatusMessage, type WidgetAiStatus } from '../../lib/widgetAiState';
+import { hasWidgetLifecycleState, readWidgetLifecycleState, usePersistedWidgetLifecycleState } from '../../lib/widgetLifecycleState';
 import { getKW } from '../../lib/utils';
 import {
   SORTING_RANGE_OPTIONS,
@@ -4684,12 +4685,31 @@ export const WatertrackerWidgetContent: React.FC<{ widget: any, currentIsLight: 
 // ==========================================
 // NEW WIDGET 8: WORTKETTE (Word Chain Vocabulary Game)
 // ==========================================
-export const WordchainWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [chain, setChain] = useState<string[]>(["Esel", "Löwe", "Elefant", "Tiger"]);
-  const [wordInput, setWordInput] = useState("");
-  const [feedback, setFeedback] = useState<string | null>(null);
-  const [hints, setHints] = useState<string[]>([]);
-  const [owlState, setOwlState] = useState<'happy' | 'thinking' | 'confused' | 'cheering'>('happy');
+export const WordchainWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
+  const lifecycle = readWidgetLifecycleState(widget, "wordchain", {
+    chain: ["Esel", "Löwe", "Elefant", "Tiger"],
+    wordInput: "",
+    feedback: null as string | null,
+    hints: [] as string[],
+    owlState: "happy" as "happy" | "thinking" | "confused" | "cheering",
+  });
+  const [chain, setChain] = useState<string[]>(() => lifecycle.chain);
+  const [wordInput, setWordInput] = useState<string>(() => lifecycle.wordInput);
+  const [feedback, setFeedback] = useState<string | null>(() => lifecycle.feedback);
+  const [hints, setHints] = useState<string[]>(() => lifecycle.hints);
+  const [owlState, setOwlState] = useState<'happy' | 'thinking' | 'confused' | 'cheering'>(() => lifecycle.owlState);
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "wordchain", {
+    chain,
+    wordInput,
+    feedback,
+    hints,
+    owlState,
+  });
 
   const schoolWordsDict: Record<string, string[]> = {
     A: ["Apfel 🍎", "Affe 🐒", "Ameise 🐜", "Auto 🚗", "Auge 👁️"],
@@ -5569,15 +5589,42 @@ export const ColormixerWidgetContent: React.FC<{ widget: any, currentIsLight: bo
 // ==========================================
 // NEW WIDGET 11: BUCHSTABENGITTER (Word Grid Finder)
 // ==========================================
-export const WordgridWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
-  const [grid, setGrid] = useState<string[][]>([]);
-  const [targetWords, setTargetWords] = useState<string[]>([]);
-  const [selectedLetters, setSelectedLetters] = useState<string[]>([]); // "row-col" in select order
-  const [foundWords, setFoundWords] = useState<string[]>([]);
-  const [foundCells, setFoundCells] = useState<string[]>([]); // "row-col" of letters belonging to found words
-  const [message, setMessage] = useState<string>('Suchgitter geladen! Finde alle Wörter. 🔍');
-  const [stars, setStars] = useState<number>(0);
+export const WordgridWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
+  const lifecycle = readWidgetLifecycleState(widget, "wordgrid", {
+    difficulty: "easy" as "easy" | "medium" | "hard",
+    grid: [] as string[][],
+    targetWords: [] as string[],
+    selectedLetters: [] as string[],
+    foundWords: [] as string[],
+    foundCells: [] as string[],
+    message: "Suchgitter geladen! Finde alle Wörter. 🔍",
+    stars: 0,
+  });
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>(() => lifecycle.difficulty);
+  const [grid, setGrid] = useState<string[][]>(() => lifecycle.grid);
+  const [targetWords, setTargetWords] = useState<string[]>(() => lifecycle.targetWords);
+  const [selectedLetters, setSelectedLetters] = useState<string[]>(() => lifecycle.selectedLetters);
+  const [foundWords, setFoundWords] = useState<string[]>(() => lifecycle.foundWords);
+  const [foundCells, setFoundCells] = useState<string[]>(() => lifecycle.foundCells);
+  const [message, setMessage] = useState<string>(() => lifecycle.message);
+  const [stars, setStars] = useState<number>(() => lifecycle.stars);
+  const didRestoreRef = useRef(hasWidgetLifecycleState(widget, "wordgrid"));
+  const previousDifficultyRef = useRef(difficulty);
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "wordgrid", {
+    difficulty,
+    grid,
+    targetWords,
+    selectedLetters,
+    foundWords,
+    foundCells,
+    message,
+    stars,
+  });
 
   // Word pools for each difficulty
   const wordPools = {
@@ -5662,7 +5709,12 @@ export const WordgridWidgetContent: React.FC<{ widget: any, currentIsLight: bool
   }, []);
 
   useEffect(() => {
-    initGridGame(difficulty);
+    const difficultyChanged = previousDifficultyRef.current !== difficulty;
+    previousDifficultyRef.current = difficulty;
+    if (!didRestoreRef.current || difficultyChanged) {
+      didRestoreRef.current = true;
+      initGridGame(difficulty);
+    }
   }, [difficulty, initGridGame]);
 
   const toggleLetter = (row: number, col: number) => {
@@ -6326,7 +6378,11 @@ export const RhythmWidgetContent: React.FC<{ widget: any, currentIsLight: boolea
 // ==========================================
 // NEW WIDGET 13: GEOMETRIE-MUSTER (Shape collage generator)
 // ==========================================
-export const GeometryWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+export const GeometryWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
   type ShapeType = 'circle' | 'square' | 'rectangle' | 'triangle';
   type Mode = 'pattern' | 'compare';
   type PlacedShape = { id: number; type: ShapeType; color: string; rotation: number; size: number; x: number; y: number };
@@ -6346,14 +6402,35 @@ export const GeometryWidgetContent: React.FC<{ widget: any, currentIsLight: bool
     { val: '#a855f7', label: 'Lila' },
   ];
 
-  const [mode, setMode] = useState<Mode>('pattern');
-  const [activeShape, setActiveShape] = useState<ShapeType>('circle');
-  const [colorVal, setColorVal] = useState('#3b82f6');
-  const [placedShapes, setPlacedShapes] = useState<PlacedShape[]>([]);
-  const [rotation, setRotation] = useState(0);
-  const [size, setSize] = useState(42);
-  const [compareRotation, setCompareRotation] = useState(28);
-  const idCounter = useRef(0);
+  const lifecycle = readWidgetLifecycleState(widget, "geometry", {
+    mode: "pattern" as Mode,
+    activeShape: "circle" as ShapeType,
+    colorVal: "#3b82f6",
+    placedShapes: [] as PlacedShape[],
+    rotation: 0,
+    size: 42,
+    compareRotation: 28,
+    nextId: 0,
+  });
+  const [mode, setMode] = useState<Mode>(() => lifecycle.mode);
+  const [activeShape, setActiveShape] = useState<ShapeType>(() => lifecycle.activeShape);
+  const [colorVal, setColorVal] = useState<string>(() => lifecycle.colorVal);
+  const [placedShapes, setPlacedShapes] = useState<PlacedShape[]>(() => lifecycle.placedShapes);
+  const [rotation, setRotation] = useState<number>(() => lifecycle.rotation);
+  const [size, setSize] = useState<number>(() => lifecycle.size);
+  const [compareRotation, setCompareRotation] = useState<number>(() => lifecycle.compareRotation);
+  const idCounter = useRef(Math.max(lifecycle.nextId, ...lifecycle.placedShapes.map(shape => shape.id), 0));
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "geometry", {
+    mode,
+    activeShape,
+    colorVal,
+    placedShapes,
+    rotation,
+    size,
+    compareRotation,
+    nextId: idCounter.current,
+  });
 
   const addShapeAt = (x: number, y: number) => {
     idCounter.current += 1;
@@ -7863,12 +7940,29 @@ export const DictionaryWidgetContent: React.FC<{
     () => filterDictionaryCards(settings.category),
     [settings.category],
   );
-  const [activeIdx, setActiveIdx] = useState(0);
-  const [round, setRound] = useState<DictionaryRound | null>(() => createDictionaryRound(cards));
-  const [selectedChoiceId, setSelectedChoiceId] = useState<string | null>(null);
-  const [answerState, setAnswerState] = useState<'idle' | 'wrong' | 'correct'>('idle');
-  const [feedback, setFeedback] = useState('');
+  const lifecycle = readWidgetLifecycleState(widget, "dictionary", {
+    activeIdx: 0,
+    round: null as DictionaryRound | null,
+    selectedChoiceId: null as string | null,
+    answerState: "idle" as "idle" | "wrong" | "correct",
+    feedback: "",
+  });
+  const [activeIdx, setActiveIdx] = useState<number>(() => lifecycle.activeIdx);
+  const [round, setRound] = useState<DictionaryRound | null>(() => lifecycle.round || createDictionaryRound(cards));
+  const [selectedChoiceId, setSelectedChoiceId] = useState<string | null>(() => lifecycle.selectedChoiceId);
+  const [answerState, setAnswerState] = useState<'idle' | 'wrong' | 'correct'>(() => lifecycle.answerState);
+  const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback);
+  const didRestoreRef = useRef(hasWidgetLifecycleState(widget, "dictionary"));
+  const previousCardsRef = useRef(cards.map(card => card.id).join("|"));
   const onUpdateRef = useRef(onUpdate);
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "dictionary", {
+    activeIdx,
+    round,
+    selectedChoiceId,
+    answerState,
+    feedback,
+  });
   onUpdateRef.current = onUpdate;
 
   const persistSettings = useCallback((patch: Partial<DictionaryWidgetSettings>) => {
@@ -7899,6 +7993,11 @@ export const DictionaryWidgetContent: React.FC<{
   }, []);
 
   useEffect(() => {
+    const cardsChanged = previousCardsRef.current !== cards.map(card => card.id).join("|");
+    previousCardsRef.current = cards.map(card => card.id).join("|");
+    if (didRestoreRef.current && !cardsChanged) return;
+
+    didRestoreRef.current = true;
     setActiveIdx(0);
     const nextRound = createDictionaryRound(cards);
     setRound(nextRound);
@@ -10096,7 +10195,11 @@ export const NoisescalesWidgetContent: React.FC<{ widget: any, currentIsLight: b
 // ==========================================
 // NEW WIDGET 27: WORT-SALAT (German Anagram Game)
 // ==========================================
-export const WordscrambleWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+export const WordscrambleWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
   const dictionaryEasy = useMemo(() => [
     { original: "BALL", clue: "Rund und fliegt durch die Luft ⚽" },
     { original: "HUHN", clue: "Legt leckere Eier im Stall 🐔" },
@@ -10142,11 +10245,44 @@ export const WordscrambleWidgetContent: React.FC<{ widget: any, currentIsLight: 
     { original: "SCHULRANZEN", clue: "Den trägst du auf dem Rücken zur Schule 🎒" }
   ], []);
 
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'expert'>('medium');
   const { app } = useApp();
-  const [activeDictionary, setActiveDictionary] = useState<{ original: string, clue: string }[]>(dictionaryMedium);
+  const lifecycle = readWidgetLifecycleState(widget, "wordscramble", {
+    difficulty: "medium" as "easy" | "medium" | "hard" | "expert",
+    activeDictionary: dictionaryMedium as { original: string; clue: string }[],
+    aiError: null as string | null,
+    wordIdx: 0,
+    selectedIds: [] as number[],
+    scrambledLetters: [] as { id: number; char: string }[],
+    feedback: "Entwirre den Wortsalat!",
+    score: 0,
+    showHint: false,
+  });
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'expert'>(() => lifecycle.difficulty);
+  const [activeDictionary, setActiveDictionary] = useState<{ original: string, clue: string }[]>(() => lifecycle.activeDictionary);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(() => lifecycle.aiError);
+  const [wordIdx, setWordIdx] = useState<number>(() => lifecycle.wordIdx);
+  const [selectedIds, setSelectedIds] = useState<number[]>(() => lifecycle.selectedIds);
+  const [scrambledLetters, setScrambledLetters] = useState<{ id: number; char: string }[]>(() => lifecycle.scrambledLetters);
+  const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback);
+  const [score, setScore] = useState<number>(() => lifecycle.score);
+  const [showHint, setShowHint] = useState<boolean>(() => lifecycle.showHint);
+  const didRestoreRef = useRef(hasWidgetLifecycleState(widget, "wordscramble"));
+  const initialDifficultySyncRef = useRef(true);
+  const initialScrambleRef = useRef(true);
+  const solvedEffectInitialRef = useRef(true);
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "wordscramble", {
+    difficulty,
+    activeDictionary,
+    aiError,
+    wordIdx,
+    selectedIds,
+    scrambledLetters,
+    feedback,
+    score,
+    showHint,
+  });
 
   const averageNiveau = useMemo(() => {
     if (!app.schueler || app.schueler.length === 0) return 3;
@@ -10154,8 +10290,14 @@ export const WordscrambleWidgetContent: React.FC<{ widget: any, currentIsLight: 
     return Math.round(sum / app.schueler.length);
   }, [app.schueler]);
 
-  // Sync dictionary pool based on selected difficulty
+  // Sync dictionary pool based on selected difficulty. A remount with a
+  // lifecycle snapshot keeps its task pool; an explicit difficulty change
+  // still starts the corresponding pool.
   useEffect(() => {
+    if (initialDifficultySyncRef.current) {
+      initialDifficultySyncRef.current = false;
+      if (didRestoreRef.current) return;
+    }
     if (difficulty === 'easy') {
       setActiveDictionary(dictionaryEasy);
     } else if (difficulty === 'medium') {
@@ -10189,15 +10331,13 @@ export const WordscrambleWidgetContent: React.FC<{ widget: any, currentIsLight: 
     }
   };
 
-  const [wordIdx, setWordIdx] = useState(0);
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [scrambledLetters, setScrambledLetters] = useState<{ id: number; char: string }[]>([]);
-  const [feedback, setFeedback] = useState<string>("Entwirre den Wortsalat!");
-  const [score, setScore] = useState(0);
-  const [showHint, setShowHint] = useState(false);
-
   // When active word or dictionary changes, scramble letters once and store
   useEffect(() => {
+    if (initialScrambleRef.current) {
+      initialScrambleRef.current = false;
+      if (didRestoreRef.current && lifecycle.scrambledLetters.length > 0) return;
+    }
+
     const currentWordObj = activeDictionary[wordIdx] || activeDictionary[0] || dictionaryMedium[0];
     if (!currentWordObj) return;
 
@@ -10295,8 +10435,12 @@ export const WordscrambleWidgetContent: React.FC<{ widget: any, currentIsLight: 
   const currentSelectionString = selectedIds.map(id => scrambledLetters.find(l => l.id === id)?.char || '').join('');
   const solved = currentWord && currentSelectionString === currentWord.original.toUpperCase();
 
-  // Star points progress
+  // Star points progress. A restored solved word has already been scored.
   useEffect(() => {
+    if (solvedEffectInitialRef.current) {
+      solvedEffectInitialRef.current = false;
+      if (didRestoreRef.current && solved) return;
+    }
     if (solved) {
       playSuccessSound();
       setFeedback("✨ Sensationell! Du hast das Wort richtig entwirrt!");
@@ -14197,16 +14341,41 @@ const PATTERNS_BY_LEVEL: Record<'easy' | 'medium' | 'hard' | 'extreme', LogikPat
   ]
 };
 
-export const PatternmakerWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+export const PatternmakerWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
   const { app } = useApp();
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'extreme'>('medium');
-  const [aiPatterns, setAiPatterns] = useState<LogikPattern[] | null>(null);
-  const [patternIdx, setPatternIdx] = useState<number>(0);
-  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>("idle");
-  const [aiError, setAiError] = useState<string | null>(null);
+  const lifecycle = readWidgetLifecycleState(widget, "patternmaker", {
+    difficulty: "medium" as "easy" | "medium" | "hard" | "extreme",
+    aiPatterns: null as LogikPattern[] | null,
+    patternIdx: 0,
+    aiStatus: "idle" as WidgetAiStatus,
+    aiError: null as string | null,
+    streak: 0,
+    feedback: "Finde das fehlende Symbol!",
+  });
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'extreme'>(() => lifecycle.difficulty);
+  const [aiPatterns, setAiPatterns] = useState<LogikPattern[] | null>(() => lifecycle.aiPatterns);
+  const [patternIdx, setPatternIdx] = useState<number>(() => lifecycle.patternIdx);
+  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>(() => lifecycle.aiStatus);
+  const [aiError, setAiError] = useState<string | null>(() => lifecycle.aiError);
   const isLoadingAI = aiStatus === "loading";
-  const [streak, setStreak] = useState<number>(0);
-  const [feedback, setFeedback] = useState<string>("Finde das fehlende Symbol!");
+  const [streak, setStreak] = useState<number>(() => lifecycle.streak);
+  const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback);
+  const didRestoreRef = useRef(hasWidgetLifecycleState(widget, "patternmaker"));
+  const previousDifficultyRef = useRef(difficulty);
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "patternmaker", {
+    difficulty,
+    aiPatterns,
+    patternIdx,
+    aiStatus,
+    aiError,
+    streak,
+    feedback,
+  });
 
   // Filter current active patterns
   const activePatterns = useMemo(() => {
@@ -14214,8 +14383,14 @@ export const PatternmakerWidgetContent: React.FC<{ widget: any, currentIsLight: 
     return PATTERNS_BY_LEVEL[difficulty];
   }, [difficulty, aiPatterns]);
 
-  // Reset when difficulty changes
+  // Difficulty is an explicit new task action; a remount restores the
+  // persisted pattern, streak and feedback instead.
   useEffect(() => {
+    const difficultyChanged = previousDifficultyRef.current !== difficulty;
+    previousDifficultyRef.current = difficulty;
+    if (didRestoreRef.current && !difficultyChanged) return;
+
+    didRestoreRef.current = true;
     setAiPatterns(null);
     setPatternIdx(0);
     setStreak(0);
@@ -14406,15 +14581,38 @@ export const PatternmakerWidgetContent: React.FC<{ widget: any, currentIsLight: 
 // ========================================================
 // 5. WIDGET: WORT-ANALYSATOR (WordexplorerWidgetContent)
 // ========================================================
-export const WordexplorerWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [word, setWord] = useState<string>("SCHULE");
-  const [syllablesCount, setSyllablesCount] = useState<number>(2);
-  const [vowelsList, setVowelsList] = useState<string[]>(['U', 'E']);
-  const [isNoun, setIsNoun] = useState<boolean>(true);
-  const [aiExplanation, setAiExplanation] = useState<string>("");
-  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>("idle");
-  const [aiError, setAiError] = useState<string | null>(null);
+export const WordexplorerWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
+  const lifecycle = readWidgetLifecycleState(widget, "wordexplorer", {
+    word: "SCHULE",
+    syllablesCount: 2,
+    vowelsList: ["U", "E"],
+    isNoun: true,
+    aiExplanation: "",
+    aiStatus: "idle" as WidgetAiStatus,
+    aiError: null as string | null,
+  });
+  const [word, setWord] = useState<string>(() => lifecycle.word);
+  const [syllablesCount, setSyllablesCount] = useState<number>(() => lifecycle.syllablesCount);
+  const [vowelsList, setVowelsList] = useState<string[]>(() => lifecycle.vowelsList);
+  const [isNoun, setIsNoun] = useState<boolean>(() => lifecycle.isNoun);
+  const [aiExplanation, setAiExplanation] = useState<string>(() => lifecycle.aiExplanation);
+  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>(() => lifecycle.aiStatus);
+  const [aiError, setAiError] = useState<string | null>(() => lifecycle.aiError);
   const isAiLoading = aiStatus === "loading";
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "wordexplorer", {
+    word,
+    syllablesCount,
+    vowelsList,
+    isNoun,
+    aiExplanation,
+    aiStatus,
+    aiError,
+  });
 
   const testWord = (wInput: string) => {
     const caps = wInput.toUpperCase().trim();
@@ -15032,13 +15230,37 @@ export const CalmrainWidgetContent: React.FC<CalmSoundsWidgetProps> = (props) =>
 // ========================================================
 // 9. WIDGET: SCHÄTZ-GLAS (EstimationjarWidgetContent)
 // ========================================================
-export const EstimationjarWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [contentType, setContentType] = useState<'beads' | 'marbles' | 'stars' | 'cookies' | 'gummybears' | 'coins'>('beads');
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
-  const [jarCount, setJarCount] = useState<number>(36);
-  const [userGuess, setUserGuess] = useState<number>(35);
-  const [revealed, setRevealed] = useState<boolean>(false);
-  const [feedback, setFeedback] = useState<string>('Schätze die Menge, ohne jedes Stück einzeln zu zählen.');
+export const EstimationjarWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
+  const lifecycle = readWidgetLifecycleState(widget, "estimationjar", {
+    contentType: "beads" as "beads" | "marbles" | "stars" | "cookies" | "gummybears" | "coins",
+    difficulty: "medium" as "easy" | "medium" | "hard",
+    jarCount: 36,
+    userGuess: 35,
+    revealed: false,
+    feedback: "Schätze die Menge, ohne jedes Stück einzeln zu zählen.",
+  });
+  const [contentType, setContentType] = useState<'beads' | 'marbles' | 'stars' | 'cookies' | 'gummybears' | 'coins'>(() => lifecycle.contentType);
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>(() => lifecycle.difficulty);
+  const [jarCount, setJarCount] = useState<number>(() => lifecycle.jarCount);
+  const [userGuess, setUserGuess] = useState<number>(() => lifecycle.userGuess);
+  const [revealed, setRevealed] = useState<boolean>(() => lifecycle.revealed);
+  const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback);
+  const didRestoreRef = useRef(hasWidgetLifecycleState(widget, "estimationjar"));
+  const previousContentTypeRef = useRef(contentType);
+  const previousDifficultyRef = useRef(difficulty);
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "estimationjar", {
+    contentType,
+    difficulty,
+    jarCount,
+    userGuess,
+    revealed,
+    feedback,
+  });
 
   const contentMeta = {
     beads: { singular: 'Perle', plural: 'Perlen', emoji: '🔴' },
@@ -15069,7 +15291,15 @@ export const EstimationjarWidgetContent: React.FC<{ widget: any, currentIsLight:
   }, [difficulty, contentType]);
 
   useEffect(() => {
-    regenerateJar(difficulty);
+    const contentChanged = previousContentTypeRef.current !== contentType;
+    const difficultyChanged = previousDifficultyRef.current !== difficulty;
+    previousContentTypeRef.current = contentType;
+    previousDifficultyRef.current = difficulty;
+
+    if (!didRestoreRef.current || contentChanged || difficultyChanged) {
+      didRestoreRef.current = true;
+      regenerateJar(difficulty);
+    }
   }, [difficulty, contentType, regenerateJar]);
 
   const handleValidation = () => {
@@ -16305,13 +16535,34 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
 // ========================================================
 // 14. WIDGET: WINKEL-DETEKTIV (AngledetectiveWidgetContent)
 // ========================================================
-export const AngledetectiveWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+export const AngledetectiveWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
   type Level = 'basic' | 'mixed' | 'precise';
-  const [level, setLevel] = useState<Level>('mixed');
-  const [targetAngle, setTargetAngle] = useState<number>(90);
-  const [guessAngle, setGuessAngle] = useState<number>(90);
-  const [isRevealed, setIsRevealed] = useState<boolean>(false);
-  const [feedback, setFeedback] = useState<string>('Schätze zuerst die Winkelart und dann den Gradwert.');
+  const lifecycle = readWidgetLifecycleState(widget, "angledetective", {
+    level: "mixed" as Level,
+    targetAngle: 90,
+    guessAngle: 90,
+    isRevealed: false,
+    feedback: "Schätze zuerst die Winkelart und dann den Gradwert.",
+  });
+  const [level, setLevel] = useState<Level>(() => lifecycle.level);
+  const [targetAngle, setTargetAngle] = useState<number>(() => lifecycle.targetAngle);
+  const [guessAngle, setGuessAngle] = useState<number>(() => lifecycle.guessAngle);
+  const [isRevealed, setIsRevealed] = useState<boolean>(() => lifecycle.isRevealed);
+  const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback);
+  const didRestoreRef = useRef(hasWidgetLifecycleState(widget, "angledetective"));
+  const previousLevelRef = useRef(level);
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "angledetective", {
+    level,
+    targetAngle,
+    guessAngle,
+    isRevealed,
+    feedback,
+  });
 
   const getAngleType = (angle: number) => {
     if (angle === 90) return 'rechter Winkel';
@@ -16333,7 +16584,12 @@ export const AngledetectiveWidgetContent: React.FC<{ widget: any, currentIsLight
   }, [level]);
 
   useEffect(() => {
-    generateAngle(level);
+    const levelChanged = previousLevelRef.current !== level;
+    previousLevelRef.current = level;
+    if (!didRestoreRef.current || levelChanged) {
+      didRestoreRef.current = true;
+      generateAngle(level);
+    }
   }, [level, generateAngle]);
 
   const handleReveal = () => {
@@ -16559,7 +16815,11 @@ interface RhymeWord {
   wrongs: string[];
 }
 
-export const RhymemachineWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+export const RhymemachineWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
   const wordsDatabase: RhymeWord[] = useMemo(() => [
     { base: "Maus", rhyme: "Haus", wrongs: ["Hose", "Baum", "Katz"] },
     { base: "Baum", rhyme: "Traum", wrongs: ["Hand", "Buch", "Lied"] },
@@ -16583,14 +16843,33 @@ export const RhymemachineWidgetContent: React.FC<{ widget: any, currentIsLight: 
     { base: "Schuh", rhyme: "Kuh", wrongs: ["Socke", "Leder", "Schritt"] }
   ], []);
 
-  const [activeWordIdx, setActiveWordIdx] = useState<number>(0);
-  const [choices, setChoices] = useState<string[]>([]);
-  const [spinning, setSpinning] = useState<boolean>(false);
-  const [feedback, setFeedback] = useState<string>("Zieh den Hebel um ein deutsches Wort zu drehen! 🎰");
-  const [poem, setPoem] = useState<string>("");
-  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>("idle");
-  const [aiError, setAiError] = useState<string | null>(null);
+  const lifecycle = readWidgetLifecycleState(widget, "rhymemachine", {
+    activeWordIdx: 0,
+    choices: [] as string[],
+    spinning: false,
+    feedback: "Zieh den Hebel um ein deutsches Wort zu drehen! 🎰",
+    poem: "",
+    aiStatus: "idle" as WidgetAiStatus,
+    aiError: null as string | null,
+  });
+  const [activeWordIdx, setActiveWordIdx] = useState<number>(() => lifecycle.activeWordIdx);
+  const [choices, setChoices] = useState<string[]>(() => lifecycle.choices);
+  const [spinning, setSpinning] = useState<boolean>(() => lifecycle.spinning);
+  const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback);
+  const [poem, setPoem] = useState<string>(() => lifecycle.poem);
+  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>(() => lifecycle.aiStatus);
+  const [aiError, setAiError] = useState<string | null>(() => lifecycle.aiError);
   const isPoemLoading = aiStatus === "loading";
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "rhymemachine", {
+    activeWordIdx,
+    choices,
+    spinning,
+    feedback,
+    poem,
+    aiStatus,
+    aiError,
+  });
 
   const spinMachine = useCallback(() => {
     setSpinning(true);
@@ -16790,12 +17069,27 @@ const SOUP_DICTS: Record<'easy' | 'medium' | 'hard' | 'extreme', string[]> = {
   extreme: ["LEHRERZIMMER", "DEUTSCHUNTERRICHT", "HAUSAUFGABENHEFT", "ZUSAMMENGESETZT", "BUCHSTABENSUPPE", "QUERSUMMENROBOTER", "DAMPFSCHIFFFAHRT"]
 };
 
-export const AlphabetsoupWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+export const AlphabetsoupWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
   const { app } = useApp();
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'extreme'>('medium');
-  const [aiDictionary, setAiDictionary] = useState<string[] | null>(null);
-  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>("idle");
-  const [aiError, setAiError] = useState<string | null>(null);
+  const lifecycle = readWidgetLifecycleState(widget, "alphabetsoup", {
+    difficulty: "medium" as "easy" | "medium" | "hard" | "extreme",
+    aiDictionary: null as string[] | null,
+    aiStatus: "idle" as WidgetAiStatus,
+    aiError: null as string | null,
+    targetWord: "SCHULE",
+    letters: [] as { id: number; char: string; x: number; y: number; color: string }[],
+    userInput: "",
+    consumedIds: [] as number[],
+    feedback: "Tippe schwimmende Zutaten-Buchstaben! 🍲",
+  });
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'extreme'>(() => lifecycle.difficulty);
+  const [aiDictionary, setAiDictionary] = useState<string[] | null>(() => lifecycle.aiDictionary);
+  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>(() => lifecycle.aiStatus);
+  const [aiError, setAiError] = useState<string | null>(() => lifecycle.aiError);
   const isLoadingAI = aiStatus === "loading";
 
   const activeDictionary = useMemo(() => {
@@ -16831,11 +17125,26 @@ export const AlphabetsoupWidgetContent: React.FC<{ widget: any, currentIsLight: 
     }
   };
   
-  const [targetWord, setTargetWord] = useState<string>("SCHULE");
-  const [letters, setLetters] = useState<{ id: number, char: string, x: number, y: number, color: string }[]>([]);
-  const [userInput, setUserInput] = useState<string>("");
-  const [consumedIds, setConsumedIds] = useState<number[]>([]);
-  const [feedback, setFeedback] = useState<string>("Tippe schwimmende Zutaten-Buchstaben! 🍲");
+  const [targetWord, setTargetWord] = useState<string>(() => lifecycle.targetWord);
+  const [letters, setLetters] = useState<{ id: number, char: string, x: number, y: number, color: string }[]>(() => lifecycle.letters);
+  const [userInput, setUserInput] = useState<string>(() => lifecycle.userInput);
+  const [consumedIds, setConsumedIds] = useState<number[]>(() => lifecycle.consumedIds);
+  const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback);
+  const didRestoreRef = useRef(hasWidgetLifecycleState(widget, "alphabetsoup"));
+  const previousDifficultyRef = useRef(difficulty);
+  const previousDictionaryRef = useRef(activeDictionary);
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "alphabetsoup", {
+    difficulty,
+    aiDictionary,
+    aiStatus,
+    aiError,
+    targetWord,
+    letters,
+    userInput,
+    consumedIds,
+    feedback,
+  });
 
   const startNewSoup = useCallback(() => {
     if (activeDictionary.length === 0) return;
@@ -16893,8 +17202,16 @@ export const AlphabetsoupWidgetContent: React.FC<{ widget: any, currentIsLight: 
   }, [activeDictionary, difficulty]);
 
   useEffect(() => {
-    startNewSoup();
-  }, [startNewSoup]);
+    const difficultyChanged = previousDifficultyRef.current !== difficulty;
+    const dictionaryChanged = previousDictionaryRef.current !== activeDictionary;
+    previousDifficultyRef.current = difficulty;
+    previousDictionaryRef.current = activeDictionary;
+
+    if (!didRestoreRef.current || difficultyChanged || dictionaryChanged) {
+      didRestoreRef.current = true;
+      startNewSoup();
+    }
+  }, [startNewSoup, difficulty, activeDictionary]);
 
   // Reset when difficulty changes
   useEffect(() => {
@@ -17393,15 +17710,41 @@ export const ClasstargetWidgetContent: React.FC<{ widget: any, currentIsLight: b
 // ========================================================
 // 19. WIDGET: MORSE-STATION (MorsecodeWidgetContent)
 // ========================================================
-export const MorsecodeWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [isGlowing, setIsGlowing] = useState<boolean>(false);
-  const [challengeWord, setChallengeWord] = useState<string>("SOS");
-  const [userInput, setUserInput] = useState<string>(" ");
-  const [feedback, setFeedback] = useState<string>("Blinke Signale oder lerne morse! 🔦");
-  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>("idle");
-  const [aiError, setAiError] = useState<string | null>(null);
+export const MorsecodeWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
+  const lifecycle = readWidgetLifecycleState(widget, "morsecode", {
+    isGlowing: false,
+    challengeWord: "SOS",
+    userInput: "",
+    feedback: "Blinke Signale oder lerne morse! 🔦",
+    aiStatus: "idle" as WidgetAiStatus,
+    aiError: null as string | null,
+    isAiActive: false,
+    showGuide: false,
+  });
+  const [isGlowing, setIsGlowing] = useState<boolean>(() => lifecycle.isGlowing);
+  const [challengeWord, setChallengeWord] = useState<string>(() => lifecycle.challengeWord);
+  const [userInput, setUserInput] = useState<string>(() => lifecycle.userInput);
+  const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback);
+  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>(() => lifecycle.aiStatus);
+  const [aiError, setAiError] = useState<string | null>(() => lifecycle.aiError);
   const isAiLoading = aiStatus === "loading";
-  const [isAiActive, setIsAiActive] = useState<boolean>(false);
+  const [isAiActive, setIsAiActive] = useState<boolean>(() => lifecycle.isAiActive);
+  const [showGuide, setShowGuide] = useState<boolean>(() => lifecycle.showGuide);
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "morsecode", {
+    isGlowing,
+    challengeWord,
+    userInput,
+    feedback,
+    aiStatus,
+    aiError,
+    isAiActive,
+    showGuide,
+  });
 
   const dictionary = useMemo(() => ["SOS", "JA", "HI", "SCHULE", "ZEIT", "KIND"], []);
 
@@ -17507,7 +17850,7 @@ export const MorsecodeWidgetContent: React.FC<{ widget: any, currentIsLight: boo
     }
   };
 
-  const [showGuide, setShowGuide] = useState<boolean>(false);
+
 
 
   const morseAlphabet: Record<string, string> = {
@@ -17639,7 +17982,11 @@ interface ZooSentence {
   explanation: string;
 }
 
-export const PunctuationzooWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+export const PunctuationzooWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
   const zooDatabase: ZooSentence[] = useMemo(() => [
     { text: "Wohin hüpft der kleine grüne Frosch", missingMark: '?', animal: "🐸 Frosch", explanation: "Das ist eine Frage! Fragewörter wie 'Wohin' brauchen ein Fragezeichen (?)." },
     { text: "Das gestreifte Zebra knabbert an frischem Heu", missingMark: '.', animal: "🦓 Zebra", explanation: "Das ist ein Aussagesatz! Wir erzählen etwas ganz normales, also kommt ein Punkt (.)." },
@@ -17653,16 +18000,40 @@ export const PunctuationzooWidgetContent: React.FC<{ widget: any, currentIsLight
     { text: "Warum fliegt der schlaue Papagei nicht einfach weg", missingMark: '?', animal: "🦜 Papagei", explanation: "Das ist eine Frage! 'Warum' leitet eine Frage ein und endet mit einem Fragezeichen (?)." }
   ], []);
 
-  const [activeIdx, setActiveIdx] = useState<number>(0);
-  const [customSentence, setCustomSentence] = useState<ZooSentence | null>(null);
-  const [isLocked, setIsLocked] = useState<boolean>(true);
-  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>("idle");
-  const [aiError, setAiError] = useState<string | null>(null);
+  const lifecycle = readWidgetLifecycleState(widget, "punctuationzoo", {
+    activeIdx: 0,
+    customSentence: null as ZooSentence | null,
+    isLocked: true,
+    aiStatus: "idle" as WidgetAiStatus,
+    aiError: null as string | null,
+    streak: 0,
+    feedback: "Befreie das Tier durch das richtige Satzzeichen am Ende! 🐒",
+    showExplanation: false,
+    isPlayingAudio: false,
+  });
+  const [activeIdx, setActiveIdx] = useState<number>(() => lifecycle.activeIdx);
+  const [customSentence, setCustomSentence] = useState<ZooSentence | null>(() => lifecycle.customSentence);
+  const [isLocked, setIsLocked] = useState<boolean>(() => lifecycle.isLocked);
+  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>(() => lifecycle.aiStatus);
+  const [aiError, setAiError] = useState<string | null>(() => lifecycle.aiError);
   const isAiLoading = aiStatus === "loading";
-  const [streak, setStreak] = useState<number>(0);
-  const [feedback, setFeedback] = useState<string>("Befreie das Tier durch das richtige Satzzeichen am Ende! 🐒");
-  const [showExplanation, setShowExplanation] = useState<boolean>(false);
-  const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
+  const [streak, setStreak] = useState<number>(() => lifecycle.streak);
+  const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback);
+  const [showExplanation, setShowExplanation] = useState<boolean>(() => lifecycle.showExplanation);
+  const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(() => lifecycle.isPlayingAudio);
+  const didRestoreRef = useRef(hasWidgetLifecycleState(widget, "punctuationzoo"));
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "punctuationzoo", {
+    activeIdx,
+    customSentence,
+    isLocked,
+    aiStatus,
+    aiError,
+    streak,
+    feedback,
+    showExplanation,
+    isPlayingAudio,
+  });
 
   const rollNewZooSentence = useCallback(() => {
     setCustomSentence(null);
@@ -17685,7 +18056,10 @@ export const PunctuationzooWidgetContent: React.FC<{ widget: any, currentIsLight
   }, [zooDatabase]);
 
   useEffect(() => {
-    rollNewZooSentence();
+    if (!didRestoreRef.current) {
+      didRestoreRef.current = true;
+      rollNewZooSentence();
+    }
     return () => {
       if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
@@ -17989,12 +18363,31 @@ Gib absolut nichts anderes aus als diese Zeile!`;
 // ========================================================
 // 21. WIDGET: GEHEIMSPRACHEN-BOX (SecretcodeWidgetContent)
 // ========================================================
-export const SecretcodeWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [method, setMethod] = useState<'caesar' | 'rot13'>('caesar');
-  const [caesarKey, setCaesarKey] = useState<number>(3);
-  const [textToEncode, setTextToEncode] = useState<string>("AGENT");
-  const [encodedText, setEncodedText] = useState<string>("");
-  const [feedback, setFeedback] = useState<string>("Entschlüssle geheime Botschaften! 🕵️‍♂️");
+export const SecretcodeWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
+  const lifecycle = readWidgetLifecycleState(widget, "secretcode", {
+    method: "caesar" as "caesar" | "rot13",
+    caesarKey: 3,
+    textToEncode: "AGENT",
+    encodedText: "",
+    feedback: "Entschlüssle geheime Botschaften! 🕵️‍♂️",
+  });
+  const [method, setMethod] = useState<'caesar' | 'rot13'>(() => lifecycle.method);
+  const [caesarKey, setCaesarKey] = useState<number>(() => lifecycle.caesarKey);
+  const [textToEncode, setTextToEncode] = useState<string>(() => lifecycle.textToEncode);
+  const [encodedText, setEncodedText] = useState<string>(() => lifecycle.encodedText);
+  const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback);
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "secretcode", {
+    method,
+    caesarKey,
+    textToEncode,
+    encodedText,
+    feedback,
+  });
 
   const runEncode = useCallback(() => {
     let result = "";

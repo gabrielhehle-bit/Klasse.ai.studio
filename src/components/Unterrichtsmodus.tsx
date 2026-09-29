@@ -4134,7 +4134,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       w.id !== id ? w : {
         ...w,
         ...updates,
-        ...(((w.type === "groups" && updates.settings) || (w.type === "wheel" && updates.settings) || (w.type === "sounds" && updates.settings) || (w.type === "stopwatch" && updates.settings) || (w.type === "dictionary" && updates.settings) || (w.type === "piano" && updates.settings) || (w.type === "bodyparts" && updates.settings) || (w.type === "compass" && updates.settings) || (w.type === "weekdays" && updates.settings) || (w.type === "flagquiz" && updates.settings) || (w.type === "trafficquiz" && updates.settings) || (w.type === "watercycle" && updates.settings) || (w.type === "constellation" && updates.settings) || (w.type === "planetarium" && updates.settings))
+        ...(((w.type === "groups" && updates.settings) || (w.type === "wheel" && updates.settings) || (w.type === "sounds" && updates.settings) || (w.type === "stopwatch" && updates.settings) || (w.type === "dictionary" && updates.settings) || (w.type === "piano" && updates.settings) || (w.type === "bodyparts" && updates.settings) || (w.type === "compass" && updates.settings) || (w.type === "weekdays" && updates.settings) || (w.type === "flagquiz" && updates.settings) || (w.type === "trafficquiz" && updates.settings) || (w.type === "watercycle" && updates.settings) || (w.type === "constellation" && updates.settings) || (w.type === "planetarium" && updates.settings) || (w.type === "geometry" && updates.settings) || (w.type === "wordchain" && updates.settings) || (w.type === "wordgrid" && updates.settings) || (w.type === "wordscramble" && updates.settings) || (w.type === "secretcode" && updates.settings) || (w.type === "wordexplorer" && updates.settings) || (w.type === "patternmaker" && updates.settings) || (w.type === "rhymemachine" && updates.settings) || (w.type === "alphabetsoup" && updates.settings) || (w.type === "morsecode" && updates.settings) || (w.type === "punctuationzoo" && updates.settings) || (w.type === "estimationjar" && updates.settings) || (w.type === "angledetective" && updates.settings))
           ? { settings: { ...(w.settings || {}), ...updates.settings } }
           : {}),
         hasBeenOpened: true,
@@ -10747,6 +10747,9 @@ ${content}
                                       return (
                                         <WordgridWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(widget.id, updates)
+                                          }
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -10763,6 +10766,9 @@ ${content}
                                       return (
                                         <GeometryWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(widget.id, updates)
+                                          }
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -10964,6 +10970,9 @@ ${content}
                                       return (
                                         <WordscrambleWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(widget.id, updates)
+                                          }
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -11122,6 +11131,9 @@ ${content}
                                       return (
                                         <PatternmakerWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(widget.id, updates)
+                                          }
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -11130,6 +11142,9 @@ ${content}
                                       return (
                                         <WordexplorerWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(widget.id, updates)
+                                          }
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -11184,6 +11199,9 @@ ${content}
                                       return (
                                         <EstimationjarWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(widget.id, updates)
+                                          }
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -11224,6 +11242,9 @@ ${content}
                                       return (
                                         <AngledetectiveWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(widget.id, updates)
+                                          }
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -11232,6 +11253,9 @@ ${content}
                                       return (
                                         <RhymemachineWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(widget.id, updates)
+                                          }
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -11240,6 +11264,9 @@ ${content}
                                       return (
                                         <AlphabetsoupWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(widget.id, updates)
+                                          }
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -11285,6 +11312,9 @@ ${content}
                                       return (
                                         <MorsecodeWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(widget.id, updates)
+                                          }
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -11293,6 +11323,9 @@ ${content}
                                       return (
                                         <PunctuationzooWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(widget.id, updates)
+                                          }
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -11301,6 +11334,9 @@ ${content}
                                       return (
                                         <SecretcodeWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(widget.id, updates)
+                                          }
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -12301,6 +12337,9 @@ ${content}
                                       return (
                                         <WordchainWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(widget.id, updates)
+                                          }
                                           currentIsLight={currentIsLight}
                                         />
                                       );
