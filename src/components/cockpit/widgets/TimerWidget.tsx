@@ -422,7 +422,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
   const veryCompactTimer = size.width < 285 || size.height < 245;
 
   const getDigitColorClass = () => {
-    if (status === 'expired') return 'text-rose-500 animate-pulse';
+    if (status === 'expired') return 'text-rose-500';
     if (isLastTenSeconds || isLastMinute) return 'text-amber-500';
     return currentIsLight ? 'text-slate-800' : 'text-white';
   };
@@ -436,7 +436,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
         size.isCompact ? (veryCompactTimer ? 'p-1.5' : 'p-2') : size.isStandard ? 'p-3.5' : 'p-5'
       } ${
         status === 'expired'
-          ? currentIsLight ? 'bg-amber-50/90 border border-amber-200' : 'bg-amber-950/20 border border-amber-500/20'
+          ? currentIsLight ? 'bg-rose-50/80 border border-rose-200' : 'bg-rose-950/20 border border-rose-500/20'
           : isLastMinute
             ? currentIsLight ? 'bg-amber-50/40' : 'bg-amber-950/10'
             : currentIsLight ? 'bg-white' : 'bg-zinc-900/95'
@@ -450,7 +450,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
         <div className={`flex flex-col justify-between h-full w-full ${veryCompactTimer ? 'gap-1' : 'gap-2'}`}>
           {/* Status Badge */}
           <div className="flex items-center justify-between shrink-0">
-            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
               status === 'expired'
                 ? 'bg-rose-500/15 text-rose-500 border border-rose-500/30'
                 : status === 'running'
@@ -542,7 +542,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {status === 'expired' && (
               <button
                 onClick={handleRestartSameTime}
-                className={`w-full min-h-11 px-4 rounded-xl bg-accent hover:bg-accent-hover text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98`}
+                className={`w-full min-h-11 px-4 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98`}
               >
                 <RefreshCw size={16} />
                 <span>Nochmals</span>
@@ -769,7 +769,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {status === 'expired' && (
               <button
                 onClick={handleRestartSameTime}
-                className="flex-1 min-h-[44px] px-4 rounded-xl bg-accent hover:bg-accent-hover text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98"
+                className="flex-1 min-h-[44px] px-4 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98"
               >
                 <RefreshCw size={16} />
                 <span>Nochmals</span>
@@ -1048,7 +1048,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {status === 'expired' && (
               <button
                 onClick={handleRestartSameTime}
-                className="flex-1 min-h-[50px] px-8 rounded-xl bg-accent hover:bg-accent-hover text-white font-black text-base uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-md cursor-pointer transition-all active:scale-98"
+                className="flex-1 min-h-[50px] px-8 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-black text-base uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-md cursor-pointer transition-all active:scale-98"
               >
                 <RefreshCw size={20} />
                 <span>Nochmals</span>
@@ -1088,6 +1088,8 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
+            role="dialog"
+            aria-label="Timer-Schnellauswahl"
             className={`absolute inset-2 z-40 p-3 rounded-2xl border shadow-2xl flex flex-col justify-between overflow-y-auto ${
               currentIsLight ? 'bg-white/98 border-slate-200 text-slate-800' : 'bg-zinc-900/98 border-white/15 text-white'
             }`}
@@ -1096,6 +1098,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
               <span className="text-xs font-black uppercase tracking-wider text-accent">Schnellauswahl & Optionen</span>
               <button
                 onClick={() => setShowMoreMenu(false)}
+                aria-label="Schnellauswahl schließen"
                 className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 cursor-pointer"
               >
                 <X size={15} />
@@ -1146,7 +1149,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                   setShowMoreMenu(false);
                   setShowSettings(true);
                 }}
-                className="w-full min-h-11 px-3 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full min-h-11 px-3 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Settings2 size={14} />
                 <span>Signalton & Darstellung</span>
@@ -1165,6 +1168,8 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
+            role="dialog"
+            aria-label="Eigene Timer-Zeit einstellen"
             className={`absolute inset-2 z-50 p-4 rounded-2xl border shadow-2xl flex flex-col justify-between overflow-y-auto ${
               currentIsLight ? 'bg-white/98 border-slate-200 text-slate-800' : 'bg-zinc-900/98 border-white/15 text-white'
             }`}
@@ -1176,6 +1181,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                 </span>
                 <button
                   onClick={() => setIsCustomTimeOpen(false)}
+                  aria-label="Eigene Zeit schließen"
                   className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 cursor-pointer"
                 >
                   <X size={15} />
@@ -1223,7 +1229,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
               </button>
               <button
                 onClick={handleApplyCustomTime}
-                className="flex-1 min-h-11 py-2.5 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                className="flex-1 min-h-11 py-2.5 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
               >
                 <Check size={14} />
                 Übernehmen
@@ -1242,6 +1248,8 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
+            role="dialog"
+            aria-label="Timer-Optionen"
             className={`absolute inset-2 z-50 p-4 rounded-2xl border shadow-2xl flex flex-col justify-between overflow-y-auto ${
               currentIsLight ? 'bg-white/98 border-slate-200 text-slate-800' : 'bg-zinc-900/98 border-white/15 text-white'
             }`}
@@ -1318,7 +1326,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
 
             <button
               onClick={() => setShowSettings(false)}
-              className="w-full min-h-11 py-2.5 mt-3 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-bold cursor-pointer transition-all shadow-sm"
+              className="w-full min-h-11 py-2.5 mt-3 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-xs font-bold cursor-pointer transition-all shadow-sm"
             >
               Fertig
             </button>
