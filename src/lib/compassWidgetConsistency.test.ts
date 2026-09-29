@@ -56,7 +56,7 @@ test('Übungsmodus wechselt die Aufgabe nicht bei jeder Richtungswahl', () => {
   assert.match(source, /Nächste Aufgabe/);
 });
 
-test('Geographie-Kompass hat eine größere board-first Standard- und Optimalgröße', () => {
+test('Geographie-Kompass startet kompakter und kann bei Bedarf vergrößert werden', () => {
   const cockpit = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
   const widget = readFileSync('src/components/cockpit/CockpitWidget.tsx', 'utf8');
 
