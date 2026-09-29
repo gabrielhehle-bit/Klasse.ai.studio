@@ -6327,7 +6327,11 @@ export const RhythmWidgetContent: React.FC<{ widget: any, currentIsLight: boolea
 // ==========================================
 // NEW WIDGET 13: GEOMETRIE-MUSTER (Shape collage generator)
 // ==========================================
-export const GeometryWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+export const GeometryWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
   type ShapeType = 'circle' | 'square' | 'rectangle' | 'triangle';
   type Mode = 'pattern' | 'compare';
   type PlacedShape = { id: number; type: ShapeType; color: string; rotation: number; size: number; x: number; y: number };
@@ -6347,14 +6351,35 @@ export const GeometryWidgetContent: React.FC<{ widget: any, currentIsLight: bool
     { val: '#a855f7', label: 'Lila' },
   ];
 
-  const [mode, setMode] = useState<Mode>('pattern');
-  const [activeShape, setActiveShape] = useState<ShapeType>('circle');
-  const [colorVal, setColorVal] = useState('#3b82f6');
-  const [placedShapes, setPlacedShapes] = useState<PlacedShape[]>([]);
-  const [rotation, setRotation] = useState(0);
-  const [size, setSize] = useState(42);
-  const [compareRotation, setCompareRotation] = useState(28);
-  const idCounter = useRef(0);
+  const lifecycle = readWidgetLifecycleState(widget, "geometry", {
+    mode: "pattern" as Mode,
+    activeShape: "circle" as ShapeType,
+    colorVal: "#3b82f6",
+    placedShapes: [] as PlacedShape[],
+    rotation: 0,
+    size: 42,
+    compareRotation: 28,
+    nextId: 0,
+  });
+  const [mode, setMode] = useState<Mode>(() => lifecycle.mode);
+  const [activeShape, setActiveShape] = useState<ShapeType>(() => lifecycle.activeShape);
+  const [colorVal, setColorVal] = useState<string>(() => lifecycle.colorVal);
+  const [placedShapes, setPlacedShapes] = useState<PlacedShape[]>(() => lifecycle.placedShapes);
+  const [rotation, setRotation] = useState<number>(() => lifecycle.rotation);
+  const [size, setSize] = useState<number>(() => lifecycle.size);
+  const [compareRotation, setCompareRotation] = useState<number>(() => lifecycle.compareRotation);
+  const idCounter = useRef(Math.max(lifecycle.nextId, ...lifecycle.placedShapes.map(shape => shape.id), 0));
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "geometry", {
+    mode,
+    activeShape,
+    colorVal,
+    placedShapes,
+    rotation,
+    size,
+    compareRotation,
+    nextId: idCounter.current,
+  });
 
   const addShapeAt = (x: number, y: number) => {
     idCounter.current += 1;
