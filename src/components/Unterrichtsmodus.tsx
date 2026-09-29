@@ -10621,7 +10621,8 @@ ${content}
 
                         {/* Render active cockpit widgets */}
                         {cockpitWidgets
-                          .filter((w) => w.visible && w.type !== "studentlist" && !minimizedWidgetIds.includes(w.id))
+                          // Keep minimized widgets mounted so their local state survives restore.
+                          .filter((w) => w.visible && w.type !== "studentlist")
                           .map((widget) => {
                             const focusIndex = focusOrder.indexOf(widget.id);
                             const zIn = 10 + Math.max(0, focusIndex);
@@ -10648,6 +10649,7 @@ ${content}
                               visibleFocusOrder[visibleFocusOrder.length - 1] ||
                               fallbackFocusedId;
                             const isFocused = widget.id === focusedWidgetId;
+                            const isMinimized = minimizedWidgetIds.includes(widget.id);
                             return (
                               <CockpitWidget
                                 key={widget.id}
@@ -10694,6 +10696,7 @@ ${content}
                                 }}
                                 headerExtra={null}
                                 isFocused={isFocused}
+                                isMinimized={isMinimized}
                                 layoutLocked={!isLayoutEditing}
                               >
                                 {(() => {
