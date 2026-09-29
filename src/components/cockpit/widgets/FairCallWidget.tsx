@@ -6,11 +6,11 @@ import {
 } from 'lucide-react';
 import { CockpitWidgetConfig, Student, AppState } from '../../../types';
 import { useApp } from '../../../context/AppContext';
+import { getActiveClassContext } from '../../../lib/activeClassContext';
 import {
   getDisplayStudentName,
   isStudentAbsentToday,
   shuffleArray,
-  DEFAULT_MOCK_STUDENTS as DEFAULT_MOCK_SCHUELER,
   CockpitStudent as FairCallStudent,
 } from '../studentSelectionUtils';
 
@@ -62,10 +62,10 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
   const context = useApp();
   const app = propApp || context?.app;
 
-  // Schülerliste der aktuellen Klasse (oder Fallback für Demomodus)
-  const allStudents = useMemo(() => {
-    return app?.schueler && app.schueler.length > 0 ? app.schueler : DEFAULT_MOCK_SCHUELER;
-  }, [app?.schueler]);
+  // Der aktive Klassenkontext ist die einzige Quelle. Leere Klassen bleiben leer;
+  // Fair-Call darf keine Demo- oder Altliste stillschweigend einsetzen.
+  const activeClass = getActiveClassContext(app);
+  const allStudents = activeClass.students;
 
   // Nur anwesende Schüler
   const presentStudents = useMemo(() => {
@@ -126,7 +126,15 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
 
   // Automatische Initialisierung beim allerersten Start, falls noch keine Runde existiert
   useEffect(() => {
-    if (!settings.hasInitialized && remainingIds.length === 0 && calledIds.length === 0) {
+    if (
+      activeClass.studentCount === 0
+      || !activeClass.permissions.canRead
+      || settings.hasInitialized
+      || remainingIds.length > 0
+      || calledIds.length > 0
+    ) {
+      return;
+    }
       const initialShuffled = shuffleArray(presentStudentIds);
       onUpdate({
         settings: {
@@ -139,7 +147,15 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
         },
       });
     }
-  }, [settings.hasInitialized, remainingIds.length, calledIds.length, presentStudentIds, onUpdate]);
+  }, [
+    activeClass.studentCount,
+    activeClass.permissions.canRead,
+    settings.hasInitialized,
+    remainingIds.length,
+    calledIds.length,
+    presentStudentIds,
+    onUpdate,
+  ]);
 
   // Effektive noch offene Kinder (anwesend, noch im Pool, nicht pausiert)
   const eligibleRemainingIds = useMemo(() => {
@@ -181,6 +197,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
    * Erfasst alle aktuell anwesenden Kinder neu, mischt sie frisch und hebt temporäre Pausen auf.
    */
   const handleStartNewRound = useCallback(() => {
+    if (presentStudentIds.length === 0) return;
     const freshlyShuffled = shuffleArray(presentStudentIds);
     onUpdate({
       settings: {
@@ -354,6 +371,11 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
             <span className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 block truncate">
               Gerechter Schüleraufruf
             </span>
+            {activeClass.isDemoData && (
+              <span className="text-[10px] font-black uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                Expliziter Demo-Modus
+              </span>
+            )}
           </div>
         </div>
 
@@ -377,7 +399,8 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
           <button
             type="button"
             onClick={() => setShowRosterModal(true)}
-            className={`min-h-[36px] px-2.5 sm:px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+            disabled={activeClass.studentCount === 0}
+            className={`min-h-[36px] px-2.5 sm:px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
               currentIsLight
                 ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700 shadow-xs'
                 : 'bg-zinc-900 hover:bg-zinc-800 border-white/10 text-slate-300 shadow-xs'
@@ -398,7 +421,26 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
       {/* MAIN DISPLAY: Big Student Name & Card Arena                               */}
       {/* ========================================================================= */}
       <div className="flex-grow flex flex-col justify-center items-center my-2 sm:my-3 min-h-0 w-full overflow-hidden">
-        {isRoundComplete ? (
+        {activeClass.studentCount === 0 ? (
+          <div
+            className="flex flex-col items-center justify-center p-5 text-center max-w-md w-full"
+            role="status"
+            aria-live="polite"
+          >
+            <Users size={34} className="mb-3 text-slate-400 opacity-70" />
+            <h3 className="text-base sm:text-xl font-black text-slate-800 dark:text-white">
+              {activeClass.classId ? 'Keine Kinder in der aktiven Klasse' : 'Keine aktive Klasse ausgewählt'}
+            </h3>
+            <p className="mt-2 max-w-sm text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400">
+              {activeClass.classId
+                ? 'In der aktiven Klasse sind noch keine Kinder angelegt.'
+                : 'Bitte zuerst eine Klasse auswählen.'}
+            </p>
+            <p className="mt-2 text-[11px] font-medium text-slate-400">
+              Demo-Daten werden nicht automatisch verwendet.
+            </p>
+          </div>
+        ) : isRoundComplete ? (
           /* Runde vollständig abgeschlossen */
           <div className="flex flex-col items-center justify-center p-4 sm:p-6 text-center max-w-md w-full animate-fade-in">
             <div className="w-14 h-14 sm:w-18 sm:h-18 rounded-full bg-emerald-500/15 border-2 border-emerald-500/30 flex items-center justify-center mb-3 text-emerald-600 dark:text-emerald-400">
@@ -413,6 +455,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
             <button
               type="button"
               onClick={handleStartNewRound}
+            disabled={activeClass.studentCount === 0}
               className="mt-4 min-h-[48px] px-5 sm:px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2 shadow-lg transition-all cursor-pointer active:scale-95"
             >
               <RotateCcw size={16} />
@@ -541,7 +584,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
           <button
             type="button"
             onClick={handlePickNext}
-            disabled={animating || isRoundComplete}
+            disabled={animating || isRoundComplete || activeClass.studentCount === 0}
             className={`flex-1 min-h-[48px] sm:min-h-[52px] rounded-2xl font-black text-sm sm:text-base uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-98 ${
               isRoundComplete
                 ? 'bg-slate-200 dark:bg-zinc-800 text-slate-400 cursor-not-allowed'
@@ -557,7 +600,8 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
           <button
             type="button"
             onClick={handleStartNewRound}
-            className={`min-h-[46px] px-3 sm:px-4 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+            disabled={activeClass.studentCount === 0}
+            className={`min-h-[46px] px-3 sm:px-4 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
               currentIsLight
                 ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
                 : 'bg-zinc-900 hover:bg-zinc-800 border-white/10 text-slate-300'
