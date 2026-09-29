@@ -15,6 +15,7 @@ import {
 import { QRCodeCanvas } from 'qrcode.react';
 import { askAI, generatePetSpeech, generateWidgetTasks } from '../../services/aiService';
 import { useApp } from '../../context/AppContext';
+import { classifyWidgetAiError, getWidgetAiStatusMessage, type WidgetAiStatus } from '../../lib/widgetAiState';
 import { getKW } from '../../lib/utils';
 import {
   SORTING_RANGE_OPTIONS,
@@ -14201,8 +14202,9 @@ export const PatternmakerWidgetContent: React.FC<{ widget: any, currentIsLight: 
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'extreme'>('medium');
   const [aiPatterns, setAiPatterns] = useState<LogikPattern[] | null>(null);
   const [patternIdx, setPatternIdx] = useState<number>(0);
-  const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>("idle");
   const [aiError, setAiError] = useState<string | null>(null);
+  const isLoadingAI = aiStatus === "loading";
   const [streak, setStreak] = useState<number>(0);
   const [feedback, setFeedback] = useState<string>("Finde das fehlende Symbol!");
 
@@ -14218,6 +14220,8 @@ export const PatternmakerWidgetContent: React.FC<{ widget: any, currentIsLight: 
     setPatternIdx(0);
     setStreak(0);
     setFeedback("Finde das fehlende Symbol!");
+    setAiStatus("idle");
+    setAiError(null);
   }, [difficulty]);
 
   const averageNiveau = useMemo(() => {
@@ -14227,7 +14231,7 @@ export const PatternmakerWidgetContent: React.FC<{ widget: any, currentIsLight: 
   }, [app.schueler]);
 
   const loadAIPatterns = async () => {
-    setIsLoadingAI(true);
+    setAiStatus("loading");
     setAiError(null);
     try {
       const apiDiff = difficulty === 'easy' ? 'leicht' : difficulty === 'medium' ? 'mittel' : difficulty === 'hard' ? 'schwer' : 'extrem';
@@ -14237,13 +14241,16 @@ export const PatternmakerWidgetContent: React.FC<{ widget: any, currentIsLight: 
         setPatternIdx(0);
         setStreak(0);
         setFeedback("✨ Frische KI-Muster geladen!");
+        setAiStatus("success");
       } else {
-        setAiError("Fehler beim Laden.");
+        const status: WidgetAiStatus = "error";
+        setAiStatus(status);
+        setAiError(getWidgetAiStatusMessage(status));
       }
     } catch (e) {
-      setAiError("KI unerreicht.");
-    } finally {
-      setIsLoadingAI(false);
+      const status = classifyWidgetAiError(e);
+      setAiStatus(status);
+      setAiError(getWidgetAiStatusMessage(status));
     }
   };
 
@@ -14337,6 +14344,15 @@ export const PatternmakerWidgetContent: React.FC<{ widget: any, currentIsLight: 
             {isLoadingAI ? "Generiere..." : "KI-Muster"}
           </button>
         </div>
+        {aiStatus !== "idle" && aiStatus !== "success" && (
+          <div role="status" aria-live="polite" className="flex items-center justify-between gap-1 text-[7px] text-amber-700 dark:text-amber-300">
+            <span>{aiError || getWidgetAiStatusMessage(aiStatus)}</span>
+            {aiStatus !== "loading" && (
+              <button type="button" onClick={loadAIPatterns} className="underline font-bold cursor-pointer">Erneut versuchen</button>
+            )}
+          </div>
+        )}
+
       </div>
 
       <div className="flex-grow flex flex-col justify-center items-center py-2 min-h-0">
@@ -14396,12 +14412,16 @@ export const WordexplorerWidgetContent: React.FC<{ widget: any, currentIsLight: 
   const [vowelsList, setVowelsList] = useState<string[]>(['U', 'E']);
   const [isNoun, setIsNoun] = useState<boolean>(true);
   const [aiExplanation, setAiExplanation] = useState<string>("");
-  const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
+  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>("idle");
+  const [aiError, setAiError] = useState<string | null>(null);
+  const isAiLoading = aiStatus === "loading";
 
   const testWord = (wInput: string) => {
     const caps = wInput.toUpperCase().trim();
     setWord(caps);
     setAiExplanation(""); // Reset explanation upon word change
+    setAiStatus("idle");
+    setAiError(null);
 
     // simple syllable logic count - count vowel clusters
     const clusterRegex = /[AEIOUYÄÖÜ]+|EI|AU|EU|IE/gi;
@@ -14440,16 +14460,23 @@ export const WordexplorerWidgetContent: React.FC<{ widget: any, currentIsLight: 
 
   const handleFetchAiExplanation = async () => {
     if (!word) return;
-    setIsAiLoading(true);
-    setAiExplanation("Lade Erklärung... 🧠");
+    setAiStatus("loading");
+    setAiError(null);
     try {
       const prompt = `Erkläre das Wort "${word}" in 1 kurzen Satz so einfach, dass ein 7-jähriges Kind es versteht (didaktische Reduktion). Bilde dann einen super lustigen Satz mit dem Wort (1 Satz) mit einem passenden Emoji am Ende. Halte deine Antwort ultrakompakt (max. 35 Wörter insgesamt).`;
       const response = await askAI('ki-wissen', prompt);
-      setAiExplanation(response || "Fehler beim Laden.");
+      if (response) {
+        setAiExplanation(response);
+        setAiStatus("success");
+      } else {
+        const status: WidgetAiStatus = "error";
+        setAiStatus(status);
+        setAiError(getWidgetAiStatusMessage(status));
+      }
     } catch (err) {
-      setAiExplanation("AI momentan ausgelastet.");
-    } finally {
-      setIsAiLoading(false);
+      const status = classifyWidgetAiError(err);
+      setAiStatus(status);
+      setAiError(getWidgetAiStatusMessage(status));
     }
   };
 
@@ -14504,9 +14531,17 @@ export const WordexplorerWidgetContent: React.FC<{ widget: any, currentIsLight: 
 
         {/* AI block of explanations */}
         <div className="mt-1 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-lg p-1.5 border border-indigo-200/30 text-left min-h-[38px] flex flex-col justify-center">
-          {aiExplanation ? (
+          {aiExplanation && (
             <p className="text-[8px] font-medium leading-normal text-slate-700 dark:text-indigo-200">{aiExplanation}</p>
-          ) : (
+          )}
+          {aiStatus !== "idle" && aiStatus !== "success" ? (
+            <div role="status" aria-live="polite" className="flex items-center justify-between gap-1 text-[7px] text-indigo-700 dark:text-indigo-300">
+              <span>{aiError || getWidgetAiStatusMessage(aiStatus)}</span>
+              {aiStatus !== "loading" && (
+                <button type="button" onClick={handleFetchAiExplanation} className="underline font-bold cursor-pointer">Erneut versuchen</button>
+              )}
+            </div>
+          ) : !aiExplanation ? (
             <button
               onClick={handleFetchAiExplanation}
               disabled={isAiLoading}
@@ -14514,7 +14549,7 @@ export const WordexplorerWidgetContent: React.FC<{ widget: any, currentIsLight: 
             >
               <span className="animate-pulse">✨</span> KI-Weisheit & Beispielsatz abrufen!
             </button>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -16553,11 +16588,15 @@ export const RhymemachineWidgetContent: React.FC<{ widget: any, currentIsLight: 
   const [spinning, setSpinning] = useState<boolean>(false);
   const [feedback, setFeedback] = useState<string>("Zieh den Hebel um ein deutsches Wort zu drehen! 🎰");
   const [poem, setPoem] = useState<string>("");
-  const [isPoemLoading, setIsPoemLoading] = useState<boolean>(false);
+  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>("idle");
+  const [aiError, setAiError] = useState<string | null>(null);
+  const isPoemLoading = aiStatus === "loading";
 
   const spinMachine = useCallback(() => {
     setSpinning(true);
     setPoem("");
+    setAiStatus("idle");
+    setAiError(null);
     setFeedback("🎰 Slot rattert... 🎰");
 
     try {
@@ -16594,19 +16633,26 @@ export const RhymemachineWidgetContent: React.FC<{ widget: any, currentIsLight: 
   const fetchPoem = async () => {
     const active = wordsDatabase[activeWordIdx];
     if (!active) return;
-    setIsPoemLoading(true);
-    setPoem("KI dichtet ein Reim-Gedicht... 🧠📜");
+    setAiStatus("loading");
+    setAiError(null);
     try {
       const prompt = `Schreibe ein kurzes, witziges, kindgerechtes deutsches Gedicht (exakt 4 Zeilen) im Paarreim (AABB).
 Das Gedicht MUSS die Reimwörter "${active.base}" und "${active.rhyme}" am Ende von Zeile 1 und Zeile 2 enthalten.
 Beispiel-Thema: Niedlich, humorvoll, über Tiere, Schule oder Kinder-Alltag.
 Antworte NUR mit dem Gedicht (4 Zeilen getrennt durch Zeilenumbruch, max. 30 Wörter). Keine Einleitung, kein Titel!`;
       const result = await askAI('ki-wissen', prompt);
-      setPoem(result || "Konnte kein Gedicht dichten.");
+      if (result) {
+        setPoem(result);
+        setAiStatus("success");
+      } else {
+        const status: WidgetAiStatus = "error";
+        setAiStatus(status);
+        setAiError(getWidgetAiStatusMessage(status));
+      }
     } catch (e) {
-      setPoem("Dichter-AI momentan besetzt.");
-    } finally {
-      setIsPoemLoading(false);
+      const status = classifyWidgetAiError(e);
+      setAiStatus(status);
+      setAiError(getWidgetAiStatusMessage(status));
     }
   };
 
@@ -16703,11 +16749,19 @@ Antworte NUR mit dem Gedicht (4 Zeilen getrennt durch Zeilenumbruch, max. 30 Wö
         {/* AI Poem Box */}
         {!spinning && (
           <div className="w-full mt-2 bg-indigo-50/50 dark:bg-indigo-950/25 border border-indigo-100 dark:border-indigo-900/40 rounded-xl p-1.5 min-h-[35px] flex flex-col justify-center">
-            {poem ? (
+            {poem && (
               <div className="text-center font-mono italic text-[7.5px]/tight text-indigo-900 dark:text-indigo-200 whitespace-pre-line font-medium">
                 {poem}
               </div>
-            ) : (
+            )}
+            {aiStatus !== "idle" && aiStatus !== "success" ? (
+              <div role="status" aria-live="polite" className="flex items-center justify-between gap-1 text-[7px] text-indigo-700 dark:text-indigo-300">
+                <span>{aiError || getWidgetAiStatusMessage(aiStatus)}</span>
+                {aiStatus !== "loading" && (
+                  <button type="button" onClick={fetchPoem} className="underline font-bold cursor-pointer">Erneut versuchen</button>
+                )}
+              </div>
+            ) : !poem ? (
               <button
                 onClick={fetchPoem}
                 disabled={isPoemLoading}
@@ -16715,7 +16769,7 @@ Antworte NUR mit dem Gedicht (4 Zeilen getrennt durch Zeilenumbruch, max. 30 Wö
               >
                 📝 ✨ Eigenes Gedicht mit KI dichten!
               </button>
-            )}
+            ) : null}
           </div>
         )}
       </div>
@@ -16740,8 +16794,9 @@ export const AlphabetsoupWidgetContent: React.FC<{ widget: any, currentIsLight: 
   const { app } = useApp();
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'extreme'>('medium');
   const [aiDictionary, setAiDictionary] = useState<string[] | null>(null);
-  const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>("idle");
   const [aiError, setAiError] = useState<string | null>(null);
+  const isLoadingAI = aiStatus === "loading";
 
   const activeDictionary = useMemo(() => {
     if (aiDictionary) return aiDictionary;
@@ -16755,7 +16810,7 @@ export const AlphabetsoupWidgetContent: React.FC<{ widget: any, currentIsLight: 
   }, [app.schueler]);
 
   const loadAISoup = async () => {
-    setIsLoadingAI(true);
+    setAiStatus("loading");
     setAiError(null);
     try {
       const apiDiff = difficulty === 'easy' ? 'leicht' : difficulty === 'medium' ? 'mittel' : difficulty === 'hard' ? 'schwer' : 'extrem';
@@ -16763,13 +16818,16 @@ export const AlphabetsoupWidgetContent: React.FC<{ widget: any, currentIsLight: 
       if (result && result.tasks && Array.isArray(result.tasks) && result.tasks.length > 0) {
         setAiDictionary(result.tasks);
         setFeedback("✨ Frische KI-Suppenwörter geladen!");
+        setAiStatus("success");
       } else {
-        setAiError("Fehler beim Laden.");
+        const status: WidgetAiStatus = "error";
+        setAiStatus(status);
+        setAiError(getWidgetAiStatusMessage(status));
       }
     } catch (e) {
-      setAiError("KI unerreicht.");
-    } finally {
-      setIsLoadingAI(false);
+      const status = classifyWidgetAiError(e);
+      setAiStatus(status);
+      setAiError(getWidgetAiStatusMessage(status));
     }
   };
   
@@ -16841,6 +16899,8 @@ export const AlphabetsoupWidgetContent: React.FC<{ widget: any, currentIsLight: 
   // Reset when difficulty changes
   useEffect(() => {
     setAiDictionary(null);
+    setAiStatus("idle");
+    setAiError(null);
   }, [difficulty]);
 
   const triggerBubblePop = (success: boolean) => {
@@ -16947,6 +17007,15 @@ export const AlphabetsoupWidgetContent: React.FC<{ widget: any, currentIsLight: 
             {isLoadingAI ? "Generiere..." : "KI-Suppe"}
           </button>
         </div>
+        {aiStatus !== "idle" && aiStatus !== "success" && (
+          <div role="status" aria-live="polite" className="flex items-center justify-between gap-1 text-[7px] text-amber-700 dark:text-amber-300">
+            <span>{aiError || getWidgetAiStatusMessage(aiStatus)}</span>
+            {aiStatus !== "loading" && (
+              <button type="button" onClick={loadAISoup} className="underline font-bold cursor-pointer">Erneut versuchen</button>
+            )}
+          </div>
+        )}
+
       </div>
 
       <div className="flex-grow flex flex-col justify-between relative min-h-0 bg-amber-50/10 dark:bg-zinc-900/40 rounded-2xl border-2 border-amber-500/30 overflow-hidden py-1 mb-1">
@@ -17329,13 +17398,17 @@ export const MorsecodeWidgetContent: React.FC<{ widget: any, currentIsLight: boo
   const [challengeWord, setChallengeWord] = useState<string>("SOS");
   const [userInput, setUserInput] = useState<string>(" ");
   const [feedback, setFeedback] = useState<string>("Blinke Signale oder lerne morse! 🔦");
-  const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
+  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>("idle");
+  const [aiError, setAiError] = useState<string | null>(null);
+  const isAiLoading = aiStatus === "loading";
   const [isAiActive, setIsAiActive] = useState<boolean>(false);
 
   const dictionary = useMemo(() => ["SOS", "JA", "HI", "SCHULE", "ZEIT", "KIND"], []);
 
   const triggerChallenge = () => {
     setIsAiActive(false);
+    setAiStatus("idle");
+    setAiError(null);
     const word = dictionary[Math.floor(Math.random() * dictionary.length)];
     setChallengeWord(word);
     setUserInput("");
@@ -17372,27 +17445,27 @@ export const MorsecodeWidgetContent: React.FC<{ widget: any, currentIsLight: boo
   };
 
   const fetchAiWord = async () => {
-    setIsAiLoading(true);
-    setFeedback("Geheimdienst der KI generiert Spezial-Code... 📡🕵️‍♂️");
+    setAiStatus("loading");
+    setAiError(null);
     try {
       const prompt = `Gib ein einziges deutsches Nomen (Wort) mit genau oder maximal 4-5 Buchstaben für Grundschulkinder aus (z.B. MAUS, HUHN, BALL, BAUM, Keks, Dino, Löwe). Keine Sonderzeichen, Umlaute (ä,ö,ü ersetze durch ae, oe, ue) oder Satzzeichen. Gibbons ausschließlich das rohe Wort ohne Begleittext aus.`;
       const result = await askAI('ki-wissen', prompt);
-      const cleanWord = result.replace(/[^a-zA-Z]/g, '').trim().toUpperCase();
+      const cleanWord = String(result || "").replace(/[^a-zA-Z]/g, '').trim().toUpperCase();
       if (cleanWord && cleanWord.length >= 2 && cleanWord.length <= 6) {
         setChallengeWord(cleanWord);
         setUserInput("");
         setIsAiActive(true);
+        setAiStatus("success");
         setFeedback("Spionage-Code empfangen! Klicke auf Abspielen! 📻✨");
       } else {
-        setChallengeWord("CODE");
-        setUserInput("");
-        setIsAiActive(true);
-        setFeedback("AI Code empfangen (CODE)!");
+        const status: WidgetAiStatus = "error";
+        setAiStatus(status);
+        setAiError(getWidgetAiStatusMessage(status));
       }
-    } catch {
-      setFeedback("Netzwerkverbindung belegt. Code-Rückfall!");
-    } finally {
-      setIsAiLoading(false);
+    } catch (e) {
+      const status = classifyWidgetAiError(e);
+      setAiStatus(status);
+      setAiError(getWidgetAiStatusMessage(status));
     }
   };
 
@@ -17436,6 +17509,7 @@ export const MorsecodeWidgetContent: React.FC<{ widget: any, currentIsLight: boo
 
   const [showGuide, setShowGuide] = useState<boolean>(false);
 
+
   const morseAlphabet: Record<string, string> = {
     'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.',
     'G': '--.', 'H': '....', 'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..',
@@ -17478,6 +17552,15 @@ export const MorsecodeWidgetContent: React.FC<{ widget: any, currentIsLight: boo
             Standard 🔮
           </button>
         </div>
+      {aiStatus !== "idle" && aiStatus !== "success" && (
+        <div role="status" aria-live="polite" className="flex items-center justify-between gap-1 text-[7px] text-amber-700 dark:text-amber-300">
+          <span>{aiError || getWidgetAiStatusMessage(aiStatus)}</span>
+          {aiStatus !== "loading" && (
+            <button type="button" onClick={fetchAiWord} className="underline font-bold cursor-pointer">Erneut versuchen</button>
+          )}
+        </div>
+      )}
+
       </div>
 
       {showGuide ? (
@@ -17573,7 +17656,9 @@ export const PunctuationzooWidgetContent: React.FC<{ widget: any, currentIsLight
   const [activeIdx, setActiveIdx] = useState<number>(0);
   const [customSentence, setCustomSentence] = useState<ZooSentence | null>(null);
   const [isLocked, setIsLocked] = useState<boolean>(true);
-  const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
+  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>("idle");
+  const [aiError, setAiError] = useState<string | null>(null);
+  const isAiLoading = aiStatus === "loading";
   const [streak, setStreak] = useState<number>(0);
   const [feedback, setFeedback] = useState<string>("Befreie das Tier durch das richtige Satzzeichen am Ende! 🐒");
   const [showExplanation, setShowExplanation] = useState<boolean>(false);
@@ -17581,6 +17666,8 @@ export const PunctuationzooWidgetContent: React.FC<{ widget: any, currentIsLight
 
   const rollNewZooSentence = useCallback(() => {
     setCustomSentence(null);
+    setAiStatus("idle");
+    setAiError(null);
     setActiveIdx((prev) => {
       let next = Math.floor(Math.random() * zooDatabase.length);
       while (next === prev && zooDatabase.length > 1) {
@@ -17624,9 +17711,8 @@ export const PunctuationzooWidgetContent: React.FC<{ widget: any, currentIsLight
   };
 
   const fetchAiSentence = async () => {
-    setIsAiLoading(true);
-    setFeedback("Lade neues Tier aus dem KI-Dschungel... 🐒");
-    setShowExplanation(false);
+    setAiStatus("loading");
+    setAiError(null);
     try {
       const prompt = `Erstelle einen einzelnen kurzen, lustigen, kindgerechten Satz auf Deutsch über ein beliebiges Tier. Der Satz muss am Ende genau ein fehlendes Satzzeichen haben (entweder ein Punkt '.', ein Fragezeichen '?' oder ein Ausrufezeichen '!').
 Regeln:
@@ -17652,16 +17738,21 @@ Gib absolut nichts anderes aus als diese Zeile!`;
               explanation: missingMark === '?' ? "Das ist eine Frage! Am Ende einer Frage steht ein Fragezeichen." : missingMark === '!' ? "Das ist ein Ausruf oder Befehl! Das fordert ein Ausrufezeichen." : "Das ist ein normaler Aussagesatz! Er endet mit einem Punkt."
             });
             setIsLocked(true);
+            setShowExplanation(false);
+            setAiStatus("success");
+            setAiError(null);
             setFeedback("Ein KI-Tier wurde herbeigebeamt! Kannst du es befreien? ✨");
             return;
           }
         }
       }
-      setFeedback("Der KI-Dschungel war zu dicht. Versuche es gleich noch einmal!");
+      const status: WidgetAiStatus = "error";
+      setAiStatus(status);
+      setAiError(getWidgetAiStatusMessage(status));
     } catch (e) {
-      setFeedback("KI antwortet im Moment nicht.");
-    } finally {
-      setIsAiLoading(false);
+      const status = classifyWidgetAiError(e);
+      setAiStatus(status);
+      setAiError(getWidgetAiStatusMessage(status));
     }
   };
 
@@ -17742,6 +17833,15 @@ Gib absolut nichts anderes aus als diese Zeile!`;
           </button>
         </div>
       </div>
+
+        {aiStatus !== "idle" && aiStatus !== "success" && (
+          <div role="status" aria-live="polite" className="flex items-center justify-between gap-1 text-[7px] text-amber-700 dark:text-amber-300">
+            <span>{aiError || getWidgetAiStatusMessage(aiStatus)}</span>
+            {aiStatus !== "loading" && (
+              <button type="button" onClick={fetchAiSentence} className="underline font-bold cursor-pointer">Erneut versuchen</button>
+            )}
+          </div>
+        )}
 
       {/* Cage & Animal View */}
       <div className="flex-grow flex flex-col justify-center items-center py-2 bg-slate-50 dark:bg-zinc-900/40 rounded-2xl relative min-h-[140px] border border-slate-100 dark:border-zinc-800 shadow-xs overflow-hidden mt-1.5">
