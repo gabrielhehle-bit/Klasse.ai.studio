@@ -17131,6 +17131,8 @@ export const AlphabetsoupWidgetContent: React.FC<{
   const [consumedIds, setConsumedIds] = useState<number[]>(() => lifecycle.consumedIds);
   const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback);
   const didRestoreRef = useRef(hasWidgetLifecycleState(widget, "alphabetsoup"));
+  const previousDifficultyRef = useRef(difficulty);
+  const previousDictionaryRef = useRef(activeDictionary);
 
   usePersistedWidgetLifecycleState(widget, onUpdate, "alphabetsoup", {
     difficulty,
@@ -17200,16 +17202,16 @@ export const AlphabetsoupWidgetContent: React.FC<{
   }, [activeDictionary, difficulty]);
 
   useEffect(() => {
-    if (!didRestoreRef.current) {
+    const difficultyChanged = previousDifficultyRef.current !== difficulty;
+    const dictionaryChanged = previousDictionaryRef.current !== activeDictionary;
+    previousDifficultyRef.current = difficulty;
+    previousDictionaryRef.current = activeDictionary;
+
+    if (!didRestoreRef.current || difficultyChanged || dictionaryChanged) {
       didRestoreRef.current = true;
       startNewSoup();
-      return;
     }
-    // Difficulty changes and explicit new rounds still create a new soup.
-    // A remount with a stored lifecycle snapshot must not do so.
-    if (hasWidgetLifecycleState(widget, "alphabetsoup")) return;
-    startNewSoup();
-  }, [startNewSoup, widget]);
+  }, [startNewSoup, difficulty, activeDictionary]);
 
   // Reset when difficulty changes
   useEffect(() => {
