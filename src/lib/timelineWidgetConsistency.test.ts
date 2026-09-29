@@ -25,6 +25,14 @@ test('Tagesablauf bleibt ohne doppelten Innentitel und mit touch-sicheren Seiten
   assert.doesNotMatch(timeline, /text-\[(?:6|6\.5|7|7\.5|8|8\.5|9|9\.5)px\]/);
 });
 
+test('Tagesablauf-Hilfe erklärt Datenquelle, Seiten und Korrekturweg', () => {
+  const help = readFileSync('src/lib/helpContent.ts', 'utf8');
+  assert.match(help, /timeline: \['Öffne im Lehrercockpit „Widget hinzufügen“ → „Tagesablauf“/);
+  assert.match(help, /Stundenplan/);
+  assert.match(help, /Pfeiltasten/);
+  assert.match(help, /keinen eigenen zweiten Tagesplan/);
+});
+
 test('Tagesablauf nutzt seine große Ansicht für lesbare Hauptinformation', () => {
   assert.match(timeline, /const roomyTimeline = isFullscreen \|\| \(size\.width >= 820 && size\.height >= 500\)/);
   assert.match(timeline, /roomyTimeline[\s\S]*text-4xl sm:text-5xl/);
