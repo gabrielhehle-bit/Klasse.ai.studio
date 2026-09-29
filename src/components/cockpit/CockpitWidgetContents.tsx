@@ -14242,16 +14242,39 @@ const PATTERNS_BY_LEVEL: Record<'easy' | 'medium' | 'hard' | 'extreme', LogikPat
   ]
 };
 
-export const PatternmakerWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+export const PatternmakerWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
   const { app } = useApp();
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'extreme'>('medium');
-  const [aiPatterns, setAiPatterns] = useState<LogikPattern[] | null>(null);
-  const [patternIdx, setPatternIdx] = useState<number>(0);
-  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>("idle");
-  const [aiError, setAiError] = useState<string | null>(null);
+  const lifecycle = readWidgetLifecycleState(widget, "patternmaker", {
+    difficulty: "medium" as "easy" | "medium" | "hard" | "extreme",
+    aiPatterns: null as LogikPattern[] | null,
+    patternIdx: 0,
+    aiStatus: "idle" as WidgetAiStatus,
+    aiError: null as string | null,
+    streak: 0,
+    feedback: "Finde das fehlende Symbol!",
+  });
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'extreme'>(() => lifecycle.difficulty);
+  const [aiPatterns, setAiPatterns] = useState<LogikPattern[] | null>(() => lifecycle.aiPatterns);
+  const [patternIdx, setPatternIdx] = useState<number>(() => lifecycle.patternIdx);
+  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>(() => lifecycle.aiStatus);
+  const [aiError, setAiError] = useState<string | null>(() => lifecycle.aiError);
   const isLoadingAI = aiStatus === "loading";
-  const [streak, setStreak] = useState<number>(0);
-  const [feedback, setFeedback] = useState<string>("Finde das fehlende Symbol!");
+  const [streak, setStreak] = useState<number>(() => lifecycle.streak);
+  const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback);
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "patternmaker", {
+    difficulty,
+    aiPatterns,
+    patternIdx,
+    aiStatus,
+    aiError,
+    streak,
+    feedback,
+  });
 
   // Filter current active patterns
   const activePatterns = useMemo(() => {
