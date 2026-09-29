@@ -66,8 +66,10 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   moneycalc: { minW: 280, minH: 220, prefW: 400, prefH: 340 },
   mathpyramid: { minW: 280, minH: 220, prefW: 380, prefH: 340 },
   clockpuzzle: { minW: 280, minH: 220, prefW: 380, prefH: 340 },
-  geometry: { minW: 280, minH: 220, prefW: 400, prefH: 340 },
-  angledetective: { minW: 280, minH: 220, prefW: 380, prefH: 340 },
+  // Geometry and angle tasks need the instrument, controls and feedback visible together.
+  geometry: { minW: 360, minH: 460, prefW: 560, prefH: 560 },
+  compass: { minW: 420, minH: 480, prefW: 640, prefH: 560 },
+  angledetective: { minW: 360, minH: 420, prefW: 520, prefH: 480 },
   estimationjar: { minW: 280, minH: 220, prefW: 380, prefH: 340 },
   vocabulary: { minW: 280, minH: 220, prefW: 460, prefH: 380 },
   spellingdetective: { minW: 280, minH: 220, prefW: 460, prefH: 380 },
