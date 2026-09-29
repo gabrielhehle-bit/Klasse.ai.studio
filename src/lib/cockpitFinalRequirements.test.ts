@@ -399,3 +399,21 @@ test("Cockpit: Ich-bin-da zeigt Kindernamen vollständig und gibt ihnen ausreich
   assert.match(kidAttendance, /gridTemplateColumns:/);
   assert.doesNotMatch(kidAttendance, /grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5/);
 });
+
+test("Cockpit: Minimieren blendet Widgets aus, ohne ihre React-Instanz zu zerstören", () => {
+  const renderStart = teachingSurface.indexOf("{cockpitWidgets");
+  const renderEnd = teachingSurface.indexOf("          <CockpitWidget", renderStart);
+  assert.ok(renderStart >= 0 && renderEnd > renderStart);
+  const renderBlock = teachingSurface.slice(renderStart, renderEnd);
+
+  assert.match(renderBlock, /\.filter\(\(w\) => w\.visible && w\.type !== "studentlist"\)/);
+  assert.doesNotMatch(
+    renderBlock,
+    /\.filter\(\(w\) => w\.visible && w\.type !== "studentlist" && !minimizedWidgetIds\.includes\(w\.id\)\)/,
+  );
+  assert.match(renderBlock, /const isMinimized = minimizedWidgetIds\.includes\(widget\.id\)/);
+  assert.match(renderBlock, /isMinimized=\{isMinimized\}/);
+  assert.match(cockpitWidget, /isMinimized\?: boolean/);
+  assert.match(cockpitWidget, /data-widget-minimized=\{isMinimized \? "true" : "false"\}/);
+  assert.match(cockpitWidget, /display: isMinimized \? "none" : undefined/);
+});
