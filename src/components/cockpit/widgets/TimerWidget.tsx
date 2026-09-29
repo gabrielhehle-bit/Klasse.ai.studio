@@ -320,13 +320,14 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
 
   const handleAddMinute = () => {
     if (status === 'running' && endTimestamp) {
-      const newEnd = endTimestamp + 60 * 1000;
+      const currentRemaining = Math.max(0, Math.ceil((endTimestamp - Date.now()) / 1000));
+      const newRemaining = Math.min(MAX_CLASS_TIMER_SECONDS, currentRemaining + 60);
+      const newEnd = Date.now() + newRemaining * 1000;
       setEndTimestamp(newEnd);
-      const newRemaining = Math.ceil((newEnd - Date.now()) / 1000);
       setRemainingSeconds(newRemaining);
       syncToBoardSettings(true, newEnd, initialSeconds);
     } else {
-      const newSecs = remainingSeconds + 60;
+      const newSecs = Math.min(MAX_CLASS_TIMER_SECONDS, remainingSeconds + 60);
       setRemainingSeconds(newSecs);
       if (status === 'ready') setInitialSeconds(newSecs);
     }
@@ -350,7 +351,8 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
         syncToBoardSettings(true, newEnd, initialSeconds);
       }
     } else {
-      const newSecs = Math.max(0, remainingSeconds - 60);
+      if (remainingSeconds <= 60) return;
+      const newSecs = remainingSeconds - 60;
       setRemainingSeconds(newSecs);
       if (status === 'ready') setInitialSeconds(newSecs);
     }
@@ -397,6 +399,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
   const progressRatio = initialSeconds > 0 ? Math.min(1, Math.max(0, remainingSeconds / initialSeconds)) : 0;
   const isLastMinute = status === 'running' && remainingSeconds <= 60 && remainingSeconds > 0;
   const isLastTenSeconds = status === 'running' && remainingSeconds <= 10 && remainingSeconds > 0;
+  const canSubtractMinute = status === 'running' ? remainingSeconds > 0 : remainingSeconds > 60;
 
   const formatTime = (totalSecs: number) => {
     const mins = Math.floor(totalSecs / 60);
@@ -554,7 +557,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
           <div className={`flex items-center justify-between shrink-0 border-t border-slate-200/60 dark:border-white/10 ${veryCompactTimer ? 'gap-1 pt-0.5' : 'gap-1.5 pt-1'}`}>
             <button
               onClick={handleSubtractMinute}
-              disabled={remainingSeconds <= 0}
+              disabled={!canSubtractMinute}
               className={`flex-1 min-h-11 rounded-xl border text-xs font-bold flex items-center justify-center gap-0.5 cursor-pointer active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed ${
                 currentIsLight ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700' : 'bg-zinc-800 hover:bg-zinc-700 border-white/10 text-slate-200'
               }`}
@@ -726,7 +729,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
           <div className="flex items-center gap-2 justify-center shrink-0 w-full">
             <button
               onClick={handleSubtractMinute}
-              disabled={remainingSeconds <= 0}
+              disabled={!canSubtractMinute}
               className={`min-w-[44px] min-h-[44px] px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-0.5 cursor-pointer active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed ${
                 currentIsLight ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700' : 'bg-zinc-800 hover:bg-zinc-700 border-white/10 text-slate-200'
               }`}
@@ -1005,7 +1008,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
           <div className="flex items-center gap-3 justify-center shrink-0 w-full max-w-lg mx-auto pt-2 border-t border-slate-200/60 dark:border-white/10">
             <button
               onClick={handleSubtractMinute}
-              disabled={remainingSeconds <= 0}
+              disabled={!canSubtractMinute}
               className={`min-w-[50px] min-h-[50px] px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1 cursor-pointer active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed ${
                 currentIsLight ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700' : 'bg-zinc-800 hover:bg-zinc-700 border-white/10 text-slate-200'
               }`}
