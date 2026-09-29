@@ -2403,6 +2403,11 @@ html body .cockpit-free-mascot .mascot-widget-resize {
  * contrast-safe derivative instead of the raw accent when they sit on a
  * neutral surface. Solid accent buttons keep --accent + --accent-text.
  */
+html body .klassio-cockpit-shell,
+html body [data-style] .klassio-cockpit-shell {
+  --accent-ink: color-mix(in srgb, var(--accent) 45%, var(--text) 55%);
+  --accent-visual: color-mix(in srgb, var(--accent) 55%, var(--text) 45%);
+}
 html body .klassio-cockpit-shell .cockpit-widget-content .text-accent,
 html body [data-style] .klassio-cockpit-shell .cockpit-widget-content .text-accent {
   color: var(--accent-ink) !important;
