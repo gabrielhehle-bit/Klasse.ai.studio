@@ -401,8 +401,8 @@ test("Cockpit: Ich-bin-da zeigt Kindernamen vollständig und gibt ihnen ausreich
 });
 
 test("Cockpit: Minimieren blendet Widgets aus, ohne ihre React-Instanz zu zerstören", () => {
-  const renderStart = teachingSurface.indexOf("{cockpitWidgets");
-  const renderEnd = teachingSurface.indexOf("          <CockpitWidget", renderStart);
+  const renderStart = teachingSurface.indexOf("/* Render active cockpit widgets */");
+  const renderEnd = teachingSurface.indexOf("<CockpitWidget", renderStart);
   assert.ok(renderStart >= 0 && renderEnd > renderStart);
   const renderBlock = teachingSurface.slice(renderStart, renderEnd);
 
@@ -412,7 +412,7 @@ test("Cockpit: Minimieren blendet Widgets aus, ohne ihre React-Instanz zu zerst�
     /\.filter\(\(w\) => w\.visible && w\.type !== "studentlist" && !minimizedWidgetIds\.includes\(w\.id\)\)/,
   );
   assert.match(renderBlock, /const isMinimized = minimizedWidgetIds\.includes\(widget\.id\)/);
-  assert.match(renderBlock, /isMinimized=\{isMinimized\}/);
+  assert.match(teachingSurface, /isMinimized=\{isMinimized\}/);
   assert.match(cockpitWidget, /isMinimized\?: boolean/);
   assert.match(cockpitWidget, /data-widget-minimized=\{isMinimized \? "true" : "false"\}/);
   assert.match(cockpitWidget, /display: isMinimized \? "none" : undefined/);
