@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { CockpitWidgetConfig, AppState, Student } from '../../../types';
 import { useApp } from '../../../context/AppContext';
+import { getActiveClassContext } from '../../../lib/activeClassContext';
 import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
 import {
   getDisplayStudentName,
@@ -74,7 +75,8 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
 
   // Nur echte Kinder der aktiven Klasse. Während des Ladens bzw. bei leerer
   // Klasse niemals erfundene Namen anbieten oder Anwesenheit für sie buchen.
-  const students: Student[] = app.activeClassId ? (app.schueler ?? []) : [];
+  const activeClass = getActiveClassContext(app);
+  const students: Student[] = activeClass.students;
 
   // Disambiguierte Namen nach Standard (Vorname; bei Doppelung Vorname + N.)
   const displayNames = useMemo(() => {
