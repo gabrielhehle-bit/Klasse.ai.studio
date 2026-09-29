@@ -17815,7 +17815,11 @@ interface ZooSentence {
   explanation: string;
 }
 
-export const PunctuationzooWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+export const PunctuationzooWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
   const zooDatabase: ZooSentence[] = useMemo(() => [
     { text: "Wohin hüpft der kleine grüne Frosch", missingMark: '?', animal: "🐸 Frosch", explanation: "Das ist eine Frage! Fragewörter wie 'Wohin' brauchen ein Fragezeichen (?)." },
     { text: "Das gestreifte Zebra knabbert an frischem Heu", missingMark: '.', animal: "🦓 Zebra", explanation: "Das ist ein Aussagesatz! Wir erzählen etwas ganz normales, also kommt ein Punkt (.)." },
@@ -17829,16 +17833,40 @@ export const PunctuationzooWidgetContent: React.FC<{ widget: any, currentIsLight
     { text: "Warum fliegt der schlaue Papagei nicht einfach weg", missingMark: '?', animal: "🦜 Papagei", explanation: "Das ist eine Frage! 'Warum' leitet eine Frage ein und endet mit einem Fragezeichen (?)." }
   ], []);
 
-  const [activeIdx, setActiveIdx] = useState<number>(0);
-  const [customSentence, setCustomSentence] = useState<ZooSentence | null>(null);
-  const [isLocked, setIsLocked] = useState<boolean>(true);
-  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>("idle");
-  const [aiError, setAiError] = useState<string | null>(null);
+  const lifecycle = readWidgetLifecycleState(widget, "punctuationzoo", {
+    activeIdx: 0,
+    customSentence: null as ZooSentence | null,
+    isLocked: true,
+    aiStatus: "idle" as WidgetAiStatus,
+    aiError: null as string | null,
+    streak: 0,
+    feedback: "Befreie das Tier durch das richtige Satzzeichen am Ende! 🐒",
+    showExplanation: false,
+    isPlayingAudio: false,
+  });
+  const [activeIdx, setActiveIdx] = useState<number>(() => lifecycle.activeIdx);
+  const [customSentence, setCustomSentence] = useState<ZooSentence | null>(() => lifecycle.customSentence);
+  const [isLocked, setIsLocked] = useState<boolean>(() => lifecycle.isLocked);
+  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>(() => lifecycle.aiStatus);
+  const [aiError, setAiError] = useState<string | null>(() => lifecycle.aiError);
   const isAiLoading = aiStatus === "loading";
-  const [streak, setStreak] = useState<number>(0);
-  const [feedback, setFeedback] = useState<string>("Befreie das Tier durch das richtige Satzzeichen am Ende! 🐒");
-  const [showExplanation, setShowExplanation] = useState<boolean>(false);
-  const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
+  const [streak, setStreak] = useState<number>(() => lifecycle.streak);
+  const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback);
+  const [showExplanation, setShowExplanation] = useState<boolean>(() => lifecycle.showExplanation);
+  const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(() => lifecycle.isPlayingAudio);
+  const didRestoreRef = useRef(hasWidgetLifecycleState(widget, "punctuationzoo"));
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "punctuationzoo", {
+    activeIdx,
+    customSentence,
+    isLocked,
+    aiStatus,
+    aiError,
+    streak,
+    feedback,
+    showExplanation,
+    isPlayingAudio,
+  });
 
   const rollNewZooSentence = useCallback(() => {
     setCustomSentence(null);
@@ -17861,7 +17889,10 @@ export const PunctuationzooWidgetContent: React.FC<{ widget: any, currentIsLight
   }, [zooDatabase]);
 
   useEffect(() => {
-    rollNewZooSentence();
+    if (!didRestoreRef.current) {
+      didRestoreRef.current = true;
+      rollNewZooSentence();
+    }
     return () => {
       if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
