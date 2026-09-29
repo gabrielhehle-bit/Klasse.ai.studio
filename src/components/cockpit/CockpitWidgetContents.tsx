@@ -10195,7 +10195,11 @@ export const NoisescalesWidgetContent: React.FC<{ widget: any, currentIsLight: b
 // ==========================================
 // NEW WIDGET 27: WORT-SALAT (German Anagram Game)
 // ==========================================
-export const WordscrambleWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+export const WordscrambleWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
   const dictionaryEasy = useMemo(() => [
     { original: "BALL", clue: "Rund und fliegt durch die Luft ⚽" },
     { original: "HUHN", clue: "Legt leckere Eier im Stall 🐔" },
@@ -10241,11 +10245,43 @@ export const WordscrambleWidgetContent: React.FC<{ widget: any, currentIsLight: 
     { original: "SCHULRANZEN", clue: "Den trägst du auf dem Rücken zur Schule 🎒" }
   ], []);
 
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'expert'>('medium');
   const { app } = useApp();
-  const [activeDictionary, setActiveDictionary] = useState<{ original: string, clue: string }[]>(dictionaryMedium);
+  const lifecycle = readWidgetLifecycleState(widget, "wordscramble", {
+    difficulty: "medium" as "easy" | "medium" | "hard" | "expert",
+    activeDictionary: dictionaryMedium as { original: string; clue: string }[],
+    aiError: null as string | null,
+    wordIdx: 0,
+    selectedIds: [] as number[],
+    scrambledLetters: [] as { id: number; char: string }[],
+    feedback: "Entwirre den Wortsalat!",
+    score: 0,
+    showHint: false,
+  });
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'expert'>(() => lifecycle.difficulty);
+  const [activeDictionary, setActiveDictionary] = useState<{ original: string, clue: string }[]>(() => lifecycle.activeDictionary);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(() => lifecycle.aiError);
+  const [wordIdx, setWordIdx] = useState<number>(() => lifecycle.wordIdx);
+  const [selectedIds, setSelectedIds] = useState<number[]>(() => lifecycle.selectedIds);
+  const [scrambledLetters, setScrambledLetters] = useState<{ id: number; char: string }[]>(() => lifecycle.scrambledLetters);
+  const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback);
+  const [score, setScore] = useState<number>(() => lifecycle.score);
+  const [showHint, setShowHint] = useState<boolean>(() => lifecycle.showHint);
+  const didRestoreRef = useRef(hasWidgetLifecycleState(widget, "wordscramble"));
+  const initialDifficultySyncRef = useRef(true);
+  const initialScrambleRef = useRef(true);
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "wordscramble", {
+    difficulty,
+    activeDictionary,
+    aiError,
+    wordIdx,
+    selectedIds,
+    scrambledLetters,
+    feedback,
+    score,
+    showHint,
+  });
 
   const averageNiveau = useMemo(() => {
     if (!app.schueler || app.schueler.length === 0) return 3;
@@ -10253,8 +10289,14 @@ export const WordscrambleWidgetContent: React.FC<{ widget: any, currentIsLight: 
     return Math.round(sum / app.schueler.length);
   }, [app.schueler]);
 
-  // Sync dictionary pool based on selected difficulty
+  // Sync dictionary pool based on selected difficulty. A remount with a
+  // lifecycle snapshot keeps its task pool; an explicit difficulty change
+  // still starts the corresponding pool.
   useEffect(() => {
+    if (initialDifficultySyncRef.current) {
+      initialDifficultySyncRef.current = false;
+      if (didRestoreRef.current) return;
+    }
     if (difficulty === 'easy') {
       setActiveDictionary(dictionaryEasy);
     } else if (difficulty === 'medium') {
@@ -10288,15 +10330,13 @@ export const WordscrambleWidgetContent: React.FC<{ widget: any, currentIsLight: 
     }
   };
 
-  const [wordIdx, setWordIdx] = useState(0);
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [scrambledLetters, setScrambledLetters] = useState<{ id: number; char: string }[]>([]);
-  const [feedback, setFeedback] = useState<string>("Entwirre den Wortsalat!");
-  const [score, setScore] = useState(0);
-  const [showHint, setShowHint] = useState(false);
-
   // When active word or dictionary changes, scramble letters once and store
   useEffect(() => {
+    if (initialScrambleRef.current) {
+      initialScrambleRef.current = false;
+      if (didRestoreRef.current && lifecycle.scrambledLetters.length > 0) return;
+    }
+
     const currentWordObj = activeDictionary[wordIdx] || activeDictionary[0] || dictionaryMedium[0];
     if (!currentWordObj) return;
 
