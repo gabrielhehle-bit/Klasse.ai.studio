@@ -18034,12 +18034,31 @@ Gib absolut nichts anderes aus als diese Zeile!`;
 // ========================================================
 // 21. WIDGET: GEHEIMSPRACHEN-BOX (SecretcodeWidgetContent)
 // ========================================================
-export const SecretcodeWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [method, setMethod] = useState<'caesar' | 'rot13'>('caesar');
-  const [caesarKey, setCaesarKey] = useState<number>(3);
-  const [textToEncode, setTextToEncode] = useState<string>("AGENT");
-  const [encodedText, setEncodedText] = useState<string>("");
-  const [feedback, setFeedback] = useState<string>("Entschlüssle geheime Botschaften! 🕵️‍♂️");
+export const SecretcodeWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
+  const lifecycle = readWidgetLifecycleState(widget, "secretcode", {
+    method: "caesar" as "caesar" | "rot13",
+    caesarKey: 3,
+    textToEncode: "AGENT",
+    encodedText: "",
+    feedback: "Entschlüssle geheime Botschaften! 🕵️‍♂️",
+  });
+  const [method, setMethod] = useState<'caesar' | 'rot13'>(() => lifecycle.method);
+  const [caesarKey, setCaesarKey] = useState<number>(() => lifecycle.caesarKey);
+  const [textToEncode, setTextToEncode] = useState<string>(() => lifecycle.textToEncode);
+  const [encodedText, setEncodedText] = useState<string>(() => lifecycle.encodedText);
+  const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback);
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "secretcode", {
+    method,
+    caesarKey,
+    textToEncode,
+    encodedText,
+    feedback,
+  });
 
   const runEncode = useCallback(() => {
     let result = "";
