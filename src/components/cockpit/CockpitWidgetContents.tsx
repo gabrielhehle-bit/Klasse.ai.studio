@@ -16450,13 +16450,34 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
 // ========================================================
 // 14. WIDGET: WINKEL-DETEKTIV (AngledetectiveWidgetContent)
 // ========================================================
-export const AngledetectiveWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+export const AngledetectiveWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
   type Level = 'basic' | 'mixed' | 'precise';
-  const [level, setLevel] = useState<Level>('mixed');
-  const [targetAngle, setTargetAngle] = useState<number>(90);
-  const [guessAngle, setGuessAngle] = useState<number>(90);
-  const [isRevealed, setIsRevealed] = useState<boolean>(false);
-  const [feedback, setFeedback] = useState<string>('Schätze zuerst die Winkelart und dann den Gradwert.');
+  const lifecycle = readWidgetLifecycleState(widget, "angledetective", {
+    level: "mixed" as Level,
+    targetAngle: 90,
+    guessAngle: 90,
+    isRevealed: false,
+    feedback: "Schätze zuerst die Winkelart und dann den Gradwert.",
+  });
+  const [level, setLevel] = useState<Level>(() => lifecycle.level);
+  const [targetAngle, setTargetAngle] = useState<number>(() => lifecycle.targetAngle);
+  const [guessAngle, setGuessAngle] = useState<number>(() => lifecycle.guessAngle);
+  const [isRevealed, setIsRevealed] = useState<boolean>(() => lifecycle.isRevealed);
+  const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback);
+  const didRestoreRef = useRef(hasWidgetLifecycleState(widget, "angledetective"));
+  const previousLevelRef = useRef(level);
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "angledetective", {
+    level,
+    targetAngle,
+    guessAngle,
+    isRevealed,
+    feedback,
+  });
 
   const getAngleType = (angle: number) => {
     if (angle === 90) return 'rechter Winkel';
@@ -16478,7 +16499,12 @@ export const AngledetectiveWidgetContent: React.FC<{ widget: any, currentIsLight
   }, [level]);
 
   useEffect(() => {
-    generateAngle(level);
+    const levelChanged = previousLevelRef.current !== level;
+    previousLevelRef.current = level;
+    if (!didRestoreRef.current || levelChanged) {
+      didRestoreRef.current = true;
+      generateAngle(level);
+    }
   }, [level, generateAngle]);
 
   const handleReveal = () => {
