@@ -4685,12 +4685,31 @@ export const WatertrackerWidgetContent: React.FC<{ widget: any, currentIsLight: 
 // ==========================================
 // NEW WIDGET 8: WORTKETTE (Word Chain Vocabulary Game)
 // ==========================================
-export const WordchainWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [chain, setChain] = useState<string[]>(["Esel", "Löwe", "Elefant", "Tiger"]);
-  const [wordInput, setWordInput] = useState("");
-  const [feedback, setFeedback] = useState<string | null>(null);
-  const [hints, setHints] = useState<string[]>([]);
-  const [owlState, setOwlState] = useState<'happy' | 'thinking' | 'confused' | 'cheering'>('happy');
+export const WordchainWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
+  const lifecycle = readWidgetLifecycleState(widget, "wordchain", {
+    chain: ["Esel", "Löwe", "Elefant", "Tiger"],
+    wordInput: "",
+    feedback: null as string | null,
+    hints: [] as string[],
+    owlState: "happy" as "happy" | "thinking" | "confused" | "cheering",
+  });
+  const [chain, setChain] = useState<string[]>(() => lifecycle.chain);
+  const [wordInput, setWordInput] = useState<string>(() => lifecycle.wordInput);
+  const [feedback, setFeedback] = useState<string | null>(() => lifecycle.feedback);
+  const [hints, setHints] = useState<string[]>(() => lifecycle.hints);
+  const [owlState, setOwlState] = useState<'happy' | 'thinking' | 'confused' | 'cheering'>(() => lifecycle.owlState);
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "wordchain", {
+    chain,
+    wordInput,
+    feedback,
+    hints,
+    owlState,
+  });
 
   const schoolWordsDict: Record<string, string[]> = {
     A: ["Apfel 🍎", "Affe 🐒", "Ameise 🐜", "Auto 🚗", "Auge 👁️"],
