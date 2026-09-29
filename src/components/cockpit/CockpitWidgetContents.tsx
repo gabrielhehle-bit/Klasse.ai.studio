@@ -17543,15 +17543,41 @@ export const ClasstargetWidgetContent: React.FC<{ widget: any, currentIsLight: b
 // ========================================================
 // 19. WIDGET: MORSE-STATION (MorsecodeWidgetContent)
 // ========================================================
-export const MorsecodeWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [isGlowing, setIsGlowing] = useState<boolean>(false);
-  const [challengeWord, setChallengeWord] = useState<string>("SOS");
-  const [userInput, setUserInput] = useState<string>(" ");
-  const [feedback, setFeedback] = useState<string>("Blinke Signale oder lerne morse! 🔦");
-  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>("idle");
-  const [aiError, setAiError] = useState<string | null>(null);
+export const MorsecodeWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
+  const lifecycle = readWidgetLifecycleState(widget, "morsecode", {
+    isGlowing: false,
+    challengeWord: "SOS",
+    userInput: "",
+    feedback: "Blinke Signale oder lerne morse! 🔦",
+    aiStatus: "idle" as WidgetAiStatus,
+    aiError: null as string | null,
+    isAiActive: false,
+    showGuide: false,
+  });
+  const [isGlowing, setIsGlowing] = useState<boolean>(() => lifecycle.isGlowing);
+  const [challengeWord, setChallengeWord] = useState<string>(() => lifecycle.challengeWord);
+  const [userInput, setUserInput] = useState<string>(() => lifecycle.userInput);
+  const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback);
+  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>(() => lifecycle.aiStatus);
+  const [aiError, setAiError] = useState<string | null>(() => lifecycle.aiError);
   const isAiLoading = aiStatus === "loading";
-  const [isAiActive, setIsAiActive] = useState<boolean>(false);
+  const [isAiActive, setIsAiActive] = useState<boolean>(() => lifecycle.isAiActive);
+  const [showGuide, setShowGuide] = useState<boolean>(() => lifecycle.showGuide);
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "morsecode", {
+    isGlowing,
+    challengeWord,
+    userInput,
+    feedback,
+    aiStatus,
+    aiError,
+    isAiActive,
+    showGuide,
+  });
 
   const dictionary = useMemo(() => ["SOS", "JA", "HI", "SCHULE", "ZEIT", "KIND"], []);
 
@@ -17657,7 +17683,7 @@ export const MorsecodeWidgetContent: React.FC<{ widget: any, currentIsLight: boo
     }
   };
 
-  const [showGuide, setShowGuide] = useState<boolean>(false);
+
 
 
   const morseAlphabet: Record<string, string> = {
