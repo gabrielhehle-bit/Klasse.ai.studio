@@ -8,8 +8,8 @@ import {
   toSerializableWidgetLifecycleState,
 } from "./widgetLifecycleState";
 
-test("widget lifecycle state", () => {
-  test("reads a stored snapshot without dropping new default fields", () => {
+test("widget lifecycle state", async (t) => {
+  await t.test("reads a stored snapshot without dropping new default fields", () => {
     const widget = {
       id: "w1",
       settings: {
@@ -19,35 +19,44 @@ test("widget lifecycle state", () => {
       },
     };
 
-    assert.deepEqual(readWidgetLifecycleState(widget, "geometry", {
+    assert.deepEqual(
+      readWidgetLifecycleState(widget, "geometry", {
         mode: "pattern",
         rotation: 0,
         score: 0,
-      }),, {
-      mode: "compare",
-      rotation: 30,
-      score: 0,
-    });
-    assert.deepEqual(hasWidgetLifecycleState(widget, "geometry")).toBe(true);
+      }),
+      {
+        mode: "compare",
+        rotation: 30,
+        score: 0,
+      },
+    );
+    assert.equal(hasWidgetLifecycleState(widget, "geometry"), true);
     assert.equal(hasWidgetLifecycleState(widget, "other"), false);
   });
 
-  test("produces deterministic JSON for equivalent snapshots", () => {
-    assert.equal(serializeWidgetLifecycleState({ b: 2, a: 1 }),, serializeWidgetLifecycleState({ a: 1, b: 2 }));
+  await t.test("produces deterministic JSON for equivalent snapshots", () => {
+    assert.equal(
+      serializeWidgetLifecycleState({ b: 2, a: 1 }),
+      serializeWidgetLifecycleState({ a: 1, b: 2 }),
+    );
   });
 
-  test("keeps only JSON-safe state values", () => {
-    assert.equal(toSerializableWidgetLifecycleState({
+  await t.test("keeps only JSON-safe state values", () => {
+    assert.deepEqual(
+      toSerializableWidgetLifecycleState({
         taskId: "task-1",
         nested: { answer: "A", ignored: undefined },
         ignored: () => "not state",
-      }),, {
-      taskId: "task-1",
-      nested: { answer: "A" },
-    });
+      }),
+      {
+        taskId: "task-1",
+        nested: { answer: "A" },
+      },
+    );
   });
 
-  test("uses an empty snapshot for malformed stored values", () => {
+  await t.test("uses an empty snapshot for malformed stored values", () => {
     const widget = {
       id: "w1",
       settings: {
@@ -57,8 +66,10 @@ test("widget lifecycle state", () => {
       },
     };
 
-    assert.deepEqual(hasWidgetLifecycleState(widget, "geometry"), false);
-    expect(
-      readWidgetLifecycleState(widget, "geometry", { score: 0 }),, { score: 0 });
+    assert.equal(hasWidgetLifecycleState(widget, "geometry"), false);
+    assert.deepEqual(
+      readWidgetLifecycleState(widget, "geometry", { score: 0 }),
+      { score: 0 },
+    );
   });
 });
