@@ -16904,12 +16904,27 @@ const SOUP_DICTS: Record<'easy' | 'medium' | 'hard' | 'extreme', string[]> = {
   extreme: ["LEHRERZIMMER", "DEUTSCHUNTERRICHT", "HAUSAUFGABENHEFT", "ZUSAMMENGESETZT", "BUCHSTABENSUPPE", "QUERSUMMENROBOTER", "DAMPFSCHIFFFAHRT"]
 };
 
-export const AlphabetsoupWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+export const AlphabetsoupWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
   const { app } = useApp();
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'extreme'>('medium');
-  const [aiDictionary, setAiDictionary] = useState<string[] | null>(null);
-  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>("idle");
-  const [aiError, setAiError] = useState<string | null>(null);
+  const lifecycle = readWidgetLifecycleState(widget, "alphabetsoup", {
+    difficulty: "medium" as "easy" | "medium" | "hard" | "extreme",
+    aiDictionary: null as string[] | null,
+    aiStatus: "idle" as WidgetAiStatus,
+    aiError: null as string | null,
+    targetWord: "SCHULE",
+    letters: [] as { id: number; char: string; x: number; y: number; color: string }[],
+    userInput: "",
+    consumedIds: [] as number[],
+    feedback: "Tippe schwimmende Zutaten-Buchstaben! 🍲",
+  });
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'extreme'>(() => lifecycle.difficulty);
+  const [aiDictionary, setAiDictionary] = useState<string[] | null>(() => lifecycle.aiDictionary);
+  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>(() => lifecycle.aiStatus);
+  const [aiError, setAiError] = useState<string | null>(() => lifecycle.aiError);
   const isLoadingAI = aiStatus === "loading";
 
   const activeDictionary = useMemo(() => {
@@ -16945,11 +16960,24 @@ export const AlphabetsoupWidgetContent: React.FC<{ widget: any, currentIsLight: 
     }
   };
   
-  const [targetWord, setTargetWord] = useState<string>("SCHULE");
-  const [letters, setLetters] = useState<{ id: number, char: string, x: number, y: number, color: string }[]>([]);
-  const [userInput, setUserInput] = useState<string>("");
-  const [consumedIds, setConsumedIds] = useState<number[]>([]);
-  const [feedback, setFeedback] = useState<string>("Tippe schwimmende Zutaten-Buchstaben! 🍲");
+  const [targetWord, setTargetWord] = useState<string>(() => lifecycle.targetWord);
+  const [letters, setLetters] = useState<{ id: number, char: string, x: number, y: number, color: string }[]>(() => lifecycle.letters);
+  const [userInput, setUserInput] = useState<string>(() => lifecycle.userInput);
+  const [consumedIds, setConsumedIds] = useState<number[]>(() => lifecycle.consumedIds);
+  const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback);
+  const didRestoreRef = useRef(hasWidgetLifecycleState(widget, "alphabetsoup"));
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "alphabetsoup", {
+    difficulty,
+    aiDictionary,
+    aiStatus,
+    aiError,
+    targetWord,
+    letters,
+    userInput,
+    consumedIds,
+    feedback,
+  });
 
   const startNewSoup = useCallback(() => {
     if (activeDictionary.length === 0) return;
@@ -17007,8 +17035,16 @@ export const AlphabetsoupWidgetContent: React.FC<{ widget: any, currentIsLight: 
   }, [activeDictionary, difficulty]);
 
   useEffect(() => {
+    if (!didRestoreRef.current) {
+      didRestoreRef.current = true;
+      startNewSoup();
+      return;
+    }
+    // Difficulty changes and explicit new rounds still create a new soup.
+    // A remount with a stored lifecycle snapshot must not do so.
+    if (hasWidgetLifecycleState(widget, "alphabetsoup")) return;
     startNewSoup();
-  }, [startNewSoup]);
+  }, [startNewSoup, widget]);
 
   // Reset when difficulty changes
   useEffect(() => {
