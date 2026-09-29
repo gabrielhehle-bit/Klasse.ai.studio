@@ -5589,15 +5589,42 @@ export const ColormixerWidgetContent: React.FC<{ widget: any, currentIsLight: bo
 // ==========================================
 // NEW WIDGET 11: BUCHSTABENGITTER (Word Grid Finder)
 // ==========================================
-export const WordgridWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
-  const [grid, setGrid] = useState<string[][]>([]);
-  const [targetWords, setTargetWords] = useState<string[]>([]);
-  const [selectedLetters, setSelectedLetters] = useState<string[]>([]); // "row-col" in select order
-  const [foundWords, setFoundWords] = useState<string[]>([]);
-  const [foundCells, setFoundCells] = useState<string[]>([]); // "row-col" of letters belonging to found words
-  const [message, setMessage] = useState<string>('Suchgitter geladen! Finde alle Wörter. 🔍');
-  const [stars, setStars] = useState<number>(0);
+export const WordgridWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
+  const lifecycle = readWidgetLifecycleState(widget, "wordgrid", {
+    difficulty: "easy" as "easy" | "medium" | "hard",
+    grid: [] as string[][],
+    targetWords: [] as string[],
+    selectedLetters: [] as string[],
+    foundWords: [] as string[],
+    foundCells: [] as string[],
+    message: "Suchgitter geladen! Finde alle Wörter. 🔍",
+    stars: 0,
+  });
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>(() => lifecycle.difficulty);
+  const [grid, setGrid] = useState<string[][]>(() => lifecycle.grid);
+  const [targetWords, setTargetWords] = useState<string[]>(() => lifecycle.targetWords);
+  const [selectedLetters, setSelectedLetters] = useState<string[]>(() => lifecycle.selectedLetters);
+  const [foundWords, setFoundWords] = useState<string[]>(() => lifecycle.foundWords);
+  const [foundCells, setFoundCells] = useState<string[]>(() => lifecycle.foundCells);
+  const [message, setMessage] = useState<string>(() => lifecycle.message);
+  const [stars, setStars] = useState<number>(() => lifecycle.stars);
+  const didRestoreRef = useRef(hasWidgetLifecycleState(widget, "wordgrid"));
+  const previousDifficultyRef = useRef(difficulty);
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "wordgrid", {
+    difficulty,
+    grid,
+    targetWords,
+    selectedLetters,
+    foundWords,
+    foundCells,
+    message,
+    stars,
+  });
 
   // Word pools for each difficulty
   const wordPools = {
@@ -5682,7 +5709,12 @@ export const WordgridWidgetContent: React.FC<{ widget: any, currentIsLight: bool
   }, []);
 
   useEffect(() => {
-    initGridGame(difficulty);
+    const difficultyChanged = previousDifficultyRef.current !== difficulty;
+    previousDifficultyRef.current = difficulty;
+    if (!didRestoreRef.current || difficultyChanged) {
+      didRestoreRef.current = true;
+      initGridGame(difficulty);
+    }
   }, [difficulty, initGridGame]);
 
   const toggleLetter = (row: number, col: number) => {
