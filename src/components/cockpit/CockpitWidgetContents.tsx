@@ -18,6 +18,12 @@ import { useApp } from '../../context/AppContext';
 import { classifyWidgetAiError, getWidgetAiStatusMessage, type WidgetAiStatus } from '../../lib/widgetAiState';
 import { hasWidgetLifecycleState, readWidgetLifecycleState, usePersistedWidgetLifecycleState } from '../../lib/widgetLifecycleState';
 import { useAccessibleAction } from '../../lib/accessibleAction';
+import {
+  classifyNetworkMediaError,
+  getNetworkMediaStatusMessage,
+  isNetworkMediaRetryable,
+  type NetworkMediaStatus,
+} from '../../lib/networkMediaState';
 import { getKW } from '../../lib/utils';
 import {
   SORTING_RANGE_OPTIONS,
@@ -3762,6 +3768,9 @@ export const WeatherWidgetContent: React.FC<{ widget: any, currentIsLight: boole
   const [temp, setTemp] = useState<number | null>(null);
   const [conditionIndex, setConditionIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [weatherStatus, setWeatherStatus] = useState<NetworkMediaStatus>("loading");
+  const [weatherError, setWeatherError] = useState<string | null>(null);
+  const lastCoordinatesRef = useRef<{ lat: number; lon: number } | null>(null);
   
   const weatherTypes = [
     { code: [0], icon: "☀️", color: "from-blue-400 to-sky-300", name: "Sonnig", emoji: "😎", textColor: "text-amber-500" },
@@ -3772,38 +3781,74 @@ export const WeatherWidgetContent: React.FC<{ widget: any, currentIsLight: boole
     { code: [71, 73, 75, 77, 85, 86], icon: "❄️", color: "from-blue-200 to-indigo-100", name: "Schnee", emoji: "⛄", textColor: "text-sky-800" },
   ];
 
+  const getNavigatorOnline = (): boolean | null =>
+    typeof navigator === "undefined" ? null : navigator.onLine;
+
   const fetchWeather = async (lat: number, lon: number) => {
+    lastCoordinatesRef.current = { lat, lon };
     setIsLoading(true);
+    setWeatherStatus("loading");
+    setWeatherError(null);
+    setTemp(null);
+
     try {
       const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code`);
-      const data = await res.json();
-      if (data && data.current) {
-        setTemp(Math.round(data.current.temperature_2m));
-        const wCode = data.current.weather_code;
-        const matchedIdx = weatherTypes.findIndex(wt => wt.code.includes(wCode));
-        setConditionIndex(matchedIdx >= 0 ? matchedIdx : 1);
+      if (!res.ok) {
+        throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status });
       }
+      const data = await res.json();
+      if (!data?.current || typeof data.current.temperature_2m !== "number") {
+        throw new Error("invalid-weather-response");
+      }
+
+      setTemp(Math.round(data.current.temperature_2m));
+      const wCode = data.current.weather_code;
+      const matchedIdx = weatherTypes.findIndex(wt => wt.code.includes(wCode));
+      setConditionIndex(matchedIdx >= 0 ? matchedIdx : 1);
+      setWeatherStatus("loaded");
     } catch (err) {
+      const status = classifyNetworkMediaError(err, getNavigatorOnline());
+      setWeatherStatus(status);
+      setWeatherError(err instanceof Error ? err.message : "unknown-weather-error");
       console.error("Weather fetch failed", err);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const searchAndFetchWeather = async (cityName: string) => {
-    if (!cityName.trim()) return;
+    const normalizedCity = cityName.trim();
+    if (!normalizedCity) {
+      setWeatherStatus("error");
+      setWeatherError("Bitte einen Ort eingeben.");
+      return;
+    }
+
     setIsLoading(true);
+    setWeatherStatus("loading");
+    setWeatherError(null);
+    setTemp(null);
+
     try {
-      const resGeo = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=de`);
-      const dataGeo = await resGeo.json();
-      if (dataGeo && dataGeo.results && dataGeo.results.length > 0) {
-        const item = dataGeo.results[0];
-        setCity(item.name);
-        await fetchWeather(item.latitude, item.longitude);
+      const resGeo = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(normalizedCity)}&count=1&language=de`);
+      if (!resGeo.ok) {
+        throw Object.assign(new Error(`HTTP ${resGeo.status}`), { status: resGeo.status });
       }
+      const dataGeo = await resGeo.json();
+      if (!dataGeo?.results?.length) {
+        throw new Error("place-not-found");
+      }
+
+      const item = dataGeo.results[0];
+      setCity(item.name);
+      await fetchWeather(item.latitude, item.longitude);
     } catch (err) {
+      const status = classifyNetworkMediaError(err, getNavigatorOnline());
+      setWeatherStatus(status);
+      setWeatherError(err instanceof Error ? err.message : "unknown-geocoding-error");
+      setIsLoading(false);
       console.error("Geocoding failed", err);
     }
-    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -3824,6 +3869,17 @@ export const WeatherWidgetContent: React.FC<{ widget: any, currentIsLight: boole
     }
   }, []);
 
+  const retryWeather = () => {
+    const lastCoordinates = lastCoordinatesRef.current;
+    if (lastCoordinates) {
+      void fetchWeather(lastCoordinates.lat, lastCoordinates.lon);
+      return;
+    }
+
+    setCity("Wien");
+    void fetchWeather(48.2082, 16.3738);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -3832,6 +3888,7 @@ export const WeatherWidgetContent: React.FC<{ widget: any, currentIsLight: boole
   };
 
   const searchAction = useAccessibleAction(() => searchAndFetchWeather(city));
+  const retryWeatherAction = useAccessibleAction(retryWeather);
   const cycleWeatherAction = useAccessibleAction(() => {
     setConditionIndex((currentIndex) => (currentIndex + 1) % weatherTypes.length);
   });
@@ -3865,6 +3922,23 @@ export const WeatherWidgetContent: React.FC<{ widget: any, currentIsLight: boole
         <div className="text-white drop-shadow-md font-bold text-[8.5px] uppercase tracking-wider">{current.name}</div>
       </div>
 
+      <div
+        role="status"
+        aria-live="polite"
+        className="z-10 flex w-full items-center justify-between gap-2 rounded-xl border border-white/30 bg-black/15 px-2 py-1 text-[8px] font-semibold text-white shadow-sm"
+      >
+        <span>{getNetworkMediaStatusMessage(weatherStatus, "Wetterdaten")}</span>
+        {isNetworkMediaRetryable(weatherStatus) && (
+          <button
+            type="button"
+            {...retryWeatherAction.buttonProps}
+            className="min-h-9 rounded-lg border border-white/40 bg-white/20 px-2 font-black hover:bg-white/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+          >
+            Erneut laden
+          </button>
+        )}
+      </div>
+
       <button
         type="button"
         {...cycleWeatherAction.buttonProps}
@@ -3878,7 +3952,7 @@ export const WeatherWidgetContent: React.FC<{ widget: any, currentIsLight: boole
       </button>
 
       <div className="z-10 flex items-center justify-center min-w-[70px] bg-black/15 dark:bg-black/25 px-4 py-1.5 rounded-2xl border border-white/20 shadow-xl backdrop-blur-md">
-        <span className="text-2xl font-black tabular-nums tracking-tighter text-white drop-shadow-md">{isLoading ? "⏳" : `${temp}°`}</span>
+        <span className="text-2xl font-black tabular-nums tracking-tighter text-white drop-shadow-md">{isLoading ? "⏳" : temp === null ? "—" : `${temp}°`}</span>
       </div>
     </div>
   );
