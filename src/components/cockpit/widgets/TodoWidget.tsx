@@ -485,7 +485,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
                         type="button"
                         onClick={() => handleToggleItem(item.id)}
                         aria-label={`Aufgabe ${item.text} umschalten`}
-                        className={`flex-1 min-w-0 text-left break-words whitespace-normal leading-snug select-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${itemTextSizeClass} ${
+                        className={`flex-1 min-w-0 text-left cursor-pointer break-words whitespace-normal leading-snug select-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${itemTextSizeClass} ${
                           item.done ? 'line-through opacity-75' : ''
                         }`}
                       >
