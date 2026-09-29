@@ -33,6 +33,11 @@ import {
   setupCanvasDPR,
   exportDrawingSnapshot,
 } from '../../../lib/drawingAlgorithm';
+import {
+  getDrawingSurfaceLabel,
+  normalizeDrawingSurfaceState,
+  type DrawingSurfaceState,
+} from '../../../lib/drawingSurfaceState';
 
 export interface DrawingWidgetProps {
   widget?: any;
@@ -46,6 +51,13 @@ export interface DrawingWidgetProps {
   isSplit?: boolean;
   onOpenInTafel?: () => void;
 }
+
+type DrawingStatePatch = Partial<
+  Pick<
+    DrawingSurfaceState,
+    "surfaceMode" | "strokes" | "redoStack" | "activeTool" | "activeColor" | "activeWidthId"
+  >
+>;
 
 export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
   widget,
@@ -67,19 +79,21 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
   const size = useWidgetSize(containerRef, { isFullscreen, defaultCategory: 'standard' });
   useWidgetOverflowGuard('drawing', containerRef);
 
-  // Lokale Striche aus widget.settings initialisieren
-  const initialStrokes = useMemo<DrawingStroke[]>(() => {
-    if (Array.isArray(widget?.settings?.drawingStrokes)) {
-      return widget.settings.drawingStrokes;
-    }
-    return [];
-  }, [widget?.settings?.drawingStrokes]);
+  // Zeichenzustand wird explizit serialisiert, damit Tafel-/Fenstermodus und
+  // die fachliche Undo-Historie beim Restore nicht auseinanderlaufen.
+  const drawingState = useMemo(
+    () => normalizeDrawingSurfaceState(widget?.settings),
+    [widget?.settings],
+  );
+  const surfaceMode = drawingState.surfaceMode;
 
-  const [strokes, setStrokes] = useState<DrawingStroke[]>(initialStrokes);
-  const [redoStack, setRedoStack] = useState<DrawingStroke[]>([]);
-  const [activeTool, setActiveTool] = useState<DrawingTool>('pen');
-  const [activeColor, setActiveColor] = useState<string>(DRAWING_COLORS[0].hex);
-  const [activeWidthId, setActiveWidthId] = useState<'thin' | 'medium' | 'thick'>('medium');
+  const [strokes, setStrokes] = useState<DrawingStroke[]>(drawingState.strokes);
+  const [redoStack, setRedoStack] = useState<DrawingStroke[]>(drawingState.redoStack);
+  const [activeTool, setActiveTool] = useState<DrawingTool>(drawingState.activeTool);
+  const [activeColor, setActiveColor] = useState<string>(drawingState.activeColor);
+  const [activeWidthId, setActiveWidthId] = useState<'thin' | 'medium' | 'thick'>(
+    drawingState.activeWidthId,
+  );
   const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
   const [showCompactMenu, setShowCompactMenu] = useState<boolean>(false);
   const [handoverSuccess, setHandoverSuccess] = useState<boolean>(false);
@@ -115,8 +129,8 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
 
   // Debounced Persistenz in AppState
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const persistStrokes = useCallback(
-    (newStrokes: DrawingStroke[]) => {
+  const persistDrawingState = useCallback(
+    (patch: DrawingStatePatch = {}) => {
       if (!onUpdate) return;
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
@@ -125,12 +139,26 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
         onUpdate({
           settings: {
             ...widget?.settings,
-            drawingStrokes: newStrokes,
+            drawingStrokes: patch.strokes ?? strokes,
+            drawingRedoStack: patch.redoStack ?? redoStack,
+            drawingTool: patch.activeTool ?? activeTool,
+            drawingColor: patch.activeColor ?? activeColor,
+            drawingWidthId: patch.activeWidthId ?? activeWidthId,
+            surfaceMode: patch.surfaceMode ?? surfaceMode,
           },
         });
       }, 350);
     },
-    [onUpdate, widget?.settings]
+    [
+      onUpdate,
+      widget?.settings,
+      strokes,
+      redoStack,
+      activeTool,
+      activeColor,
+      activeWidthId,
+      surfaceMode,
+    ],
   );
 
   // ResizeObserver für verlustfreie Größenanpassung
@@ -166,12 +194,15 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
     };
   }, [strokes]);
 
-  // Synchronisation bei externen Updates
+  // Synchronisation bei externen Updates (auch bei Restore/Backup-Migration).
   useEffect(() => {
-    if (Array.isArray(widget?.settings?.drawingStrokes)) {
-      setStrokes(widget.settings.drawingStrokes);
-    }
-  }, [widget?.settings?.drawingStrokes]);
+    const next = normalizeDrawingSurfaceState(widget?.settings);
+    setStrokes(next.strokes);
+    setRedoStack(next.redoStack);
+    setActiveTool(next.activeTool);
+    setActiveColor(next.activeColor);
+    setActiveWidthId(next.activeWidthId);
+  }, [widget?.settings]);
 
   // Cleanup bei Unmount
   useEffect(() => {
@@ -276,7 +307,7 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
     if (finishedStroke && finishedStroke.points.length > 0) {
       setStrokes((prev) => {
         const next = [...prev, finishedStroke].slice(-MAX_DRAWING_HISTORY);
-        persistStrokes(next);
+        persistDrawingState({ strokes: next, redoStack: [] });
         return next;
       });
       // Nach neuem Zeichnen wird der Redo-Stack zurückgesetzt
@@ -286,6 +317,24 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
     }
   };
 
+  const selectTool = (tool: DrawingTool) => {
+    setActiveTool(tool);
+    setShowClearConfirm(false);
+    persistDrawingState({ activeTool: tool });
+  };
+
+  const selectColor = (color: string) => {
+    setActiveColor(color);
+    setActiveTool("pen");
+    setShowClearConfirm(false);
+    persistDrawingState({ activeColor: color, activeTool: "pen" });
+  };
+
+  const selectWidth = (widthId: "thin" | "medium" | "thick") => {
+    setActiveWidthId(widthId);
+    persistDrawingState({ activeWidthId: widthId });
+  };
+
   // -------------------------------------------------------------
   // ACTIONS: Undo, Redo, Clear, In Tafel öffnen
   // -------------------------------------------------------------
@@ -293,7 +342,7 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
     const res = undoDrawing(strokes, redoStack);
     setStrokes(res.updatedStrokes);
     setRedoStack(res.updatedRedoStack);
-    persistStrokes(res.updatedStrokes);
+    persistDrawingState({ strokes: res.updatedStrokes, redoStack: res.updatedRedoStack });
     setShowClearConfirm(false);
   };
 
@@ -301,7 +350,7 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
     const res = redoDrawing(strokes, redoStack);
     setStrokes(res.updatedStrokes);
     setRedoStack(res.updatedRedoStack);
-    persistStrokes(res.updatedStrokes);
+    persistDrawingState({ strokes: res.updatedStrokes, redoStack: res.updatedRedoStack });
     setShowClearConfirm(false);
   };
 
@@ -314,7 +363,7 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
     const res = clearDrawing(strokes);
     setStrokes(res.updatedStrokes);
     setRedoStack(res.updatedRedoStack);
-    persistStrokes(res.updatedStrokes);
+    persistDrawingState({ strokes: res.updatedStrokes, redoStack: res.updatedRedoStack });
     setShowClearConfirm(false);
     setShowCompactMenu(false);
   };
@@ -374,10 +423,10 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
           <button
             type="button"
             onClick={() => {
-              setActiveTool('pen');
+              selectTool('pen');
               setShowClearConfirm(false);
             }}
-            className={`flex items-center justify-center rounded-xl transition-all cursor-pointer ${
+            className={`min-h-11 min-w-11 flex items-center justify-center rounded-xl transition-all cursor-pointer ${
               size.isCompact ? 'w-8 h-8' : size.category === 'fullscreen' ? 'w-11 h-11' : 'w-9 h-9'
             } ${
               activeTool === 'pen'
@@ -394,7 +443,7 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
           <button
             type="button"
             onClick={() => {
-              setActiveTool('eraser');
+              selectTool('eraser');
               setShowClearConfirm(false);
             }}
             className={`flex items-center justify-center rounded-xl transition-all cursor-pointer ${
@@ -421,9 +470,9 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
                   type="button"
                   onClick={() => {
                     setActiveColor(c.hex);
-                    setActiveTool('pen');
+                    selectTool('pen');
                   }}
-                  className={`rounded-full transition-all cursor-pointer border ${
+                  className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-full transition-all cursor-pointer border ${
                     size.category === 'fullscreen' ? 'w-7 h-7' : 'w-6 h-6'
                   } ${
                     activeTool === 'pen' && activeColor === c.hex
@@ -441,9 +490,10 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
             <button
               type="button"
               onClick={() => setShowCompactMenu((v) => !v)}
-              className="w-7 h-7 rounded-full border border-black/15 shadow-xs flex items-center justify-center cursor-pointer transition-transform hover:scale-105"
+              className="min-h-11 min-w-11 rounded-full border border-black/15 shadow-xs flex items-center justify-center cursor-pointer transition-transform hover:scale-105"
               style={{ backgroundColor: activeColor }}
               title="Farbe ändern"
+              aria-label="Farbe ändern"
             />
           )}
 
@@ -455,8 +505,9 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
               <button
                 key={w.id}
                 type="button"
-                onClick={() => setActiveWidthId(w.id)}
-                className={`px-2 py-1 rounded-lg text-[10px] font-bold tracking-tight transition-all cursor-pointer ${
+                onClick={() => selectWidth(w.id)}
+                aria-label={`Stärke: ${w.label}`}
+                className={`min-h-11 min-w-11 px-2 py-1 rounded-lg text-[10px] font-bold tracking-tight transition-all cursor-pointer ${
                   activeWidthId === w.id
                     ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-xs'
                     : 'text-slate-500 hover:text-slate-800 dark:text-zinc-400'
@@ -579,8 +630,9 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
             <button
               type="button"
               onClick={() => setShowCompactMenu((v) => !v)}
-              className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200"
+              className="min-h-11 min-w-11 rounded-xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200"
               title="Weitere Optionen"
+              aria-label="Weitere Optionen"
             >
               <MoreHorizontal size={15} strokeWidth={2.5} />
             </button>
@@ -602,14 +654,15 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
                   type="button"
                   onClick={() => {
                     setActiveColor(c.hex);
-                    setActiveTool('pen');
+                    selectTool('pen');
                     setShowCompactMenu(false);
                   }}
-                  className={`w-6 h-6 rounded-full border cursor-pointer ${
+                  className={`min-h-11 min-w-11 rounded-full border cursor-pointer ${
                     activeColor === c.hex ? 'ring-2 ring-rose-500 scale-110' : ''
                   }`}
                   style={{ backgroundColor: c.hex }}
                   title={c.label}
+                  aria-label={`Farbe ${c.label}`}
                 />
               ))}
             </div>
@@ -644,6 +697,15 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
           </div>
         </div>
       )}
+
+      <div
+        role="status"
+        aria-live="polite"
+        className="shrink-0 flex items-center justify-between gap-2 border-b border-slate-200/70 bg-white/80 px-3 py-1 text-[10px] font-semibold text-slate-600 dark:border-white/10 dark:bg-zinc-900/80 dark:text-zinc-300"
+      >
+        <span>Tafelflächenmodus: {getDrawingSurfaceLabel(surfaceMode)}</span>
+        <span>{strokes.length} {strokes.length === 1 ? "Strich" : "Striche"}</span>
+      </div>
 
       {/* -------------------------------------------------------- */}
       {/* ZEICHENFLÄCHE (CANVAS): Hardware-beschleunigt, DPR-scharf */}
