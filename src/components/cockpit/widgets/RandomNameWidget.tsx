@@ -8,6 +8,7 @@ import {
   getRandomNameWidgetPreferences, remainingRandomRoundStudents, undoLastRandomPick,
 } from '../../../lib/randomNameWidgetModel';
 import { useApp } from '../../../context/AppContext';
+import { getActiveClassContext } from '../../../lib/activeClassContext';
 import { getDisplayStudentName, getPresentStudents } from '../studentSelectionUtils';
 
 export interface RandomNameWidgetProps {
@@ -82,7 +83,8 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
   }, []);
 
   // app.schueler is the active class roster. An empty roster NEVER creates demo pupils.
-  const allStudents = app?.activeClassId ? (app.schueler ?? []) : [];
+  const activeClass = getActiveClassContext(app);
+  const allStudents = activeClass.students;
   const presentStudents = useMemo(
     () => getPresentStudents(allStudents, app),
     [allStudents, app, dayKey],
