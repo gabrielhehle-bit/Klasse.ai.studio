@@ -15123,13 +15123,37 @@ export const CalmrainWidgetContent: React.FC<CalmSoundsWidgetProps> = (props) =>
 // ========================================================
 // 9. WIDGET: SCHÄTZ-GLAS (EstimationjarWidgetContent)
 // ========================================================
-export const EstimationjarWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [contentType, setContentType] = useState<'beads' | 'marbles' | 'stars' | 'cookies' | 'gummybears' | 'coins'>('beads');
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
-  const [jarCount, setJarCount] = useState<number>(36);
-  const [userGuess, setUserGuess] = useState<number>(35);
-  const [revealed, setRevealed] = useState<boolean>(false);
-  const [feedback, setFeedback] = useState<string>('Schätze die Menge, ohne jedes Stück einzeln zu zählen.');
+export const EstimationjarWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
+  const lifecycle = readWidgetLifecycleState(widget, "estimationjar", {
+    contentType: "beads" as "beads" | "marbles" | "stars" | "cookies" | "gummybears" | "coins",
+    difficulty: "medium" as "easy" | "medium" | "hard",
+    jarCount: 36,
+    userGuess: 35,
+    revealed: false,
+    feedback: "Schätze die Menge, ohne jedes Stück einzeln zu zählen.",
+  });
+  const [contentType, setContentType] = useState<'beads' | 'marbles' | 'stars' | 'cookies' | 'gummybears' | 'coins'>(() => lifecycle.contentType);
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>(() => lifecycle.difficulty);
+  const [jarCount, setJarCount] = useState<number>(() => lifecycle.jarCount);
+  const [userGuess, setUserGuess] = useState<number>(() => lifecycle.userGuess);
+  const [revealed, setRevealed] = useState<boolean>(() => lifecycle.revealed);
+  const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback);
+  const didRestoreRef = useRef(hasWidgetLifecycleState(widget, "estimationjar"));
+  const previousContentTypeRef = useRef(contentType);
+  const previousDifficultyRef = useRef(difficulty);
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "estimationjar", {
+    contentType,
+    difficulty,
+    jarCount,
+    userGuess,
+    revealed,
+    feedback,
+  });
 
   const contentMeta = {
     beads: { singular: 'Perle', plural: 'Perlen', emoji: '🔴' },
@@ -15160,7 +15184,15 @@ export const EstimationjarWidgetContent: React.FC<{ widget: any, currentIsLight:
   }, [difficulty, contentType]);
 
   useEffect(() => {
-    regenerateJar(difficulty);
+    const contentChanged = previousContentTypeRef.current !== contentType;
+    const difficultyChanged = previousDifficultyRef.current !== difficulty;
+    previousContentTypeRef.current = contentType;
+    previousDifficultyRef.current = difficulty;
+
+    if (!didRestoreRef.current || contentChanged || difficultyChanged) {
+      didRestoreRef.current = true;
+      regenerateJar(difficulty);
+    }
   }, [difficulty, contentType, regenerateJar]);
 
   const handleValidation = () => {
