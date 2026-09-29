@@ -14451,15 +14451,38 @@ export const PatternmakerWidgetContent: React.FC<{ widget: any, currentIsLight: 
 // ========================================================
 // 5. WIDGET: WORT-ANALYSATOR (WordexplorerWidgetContent)
 // ========================================================
-export const WordexplorerWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [word, setWord] = useState<string>("SCHULE");
-  const [syllablesCount, setSyllablesCount] = useState<number>(2);
-  const [vowelsList, setVowelsList] = useState<string[]>(['U', 'E']);
-  const [isNoun, setIsNoun] = useState<boolean>(true);
-  const [aiExplanation, setAiExplanation] = useState<string>("");
-  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>("idle");
-  const [aiError, setAiError] = useState<string | null>(null);
+export const WordexplorerWidgetContent: React.FC<{
+  widget: any;
+  onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
+  currentIsLight: boolean;
+}> = ({ widget, onUpdate, currentIsLight }) => {
+  const lifecycle = readWidgetLifecycleState(widget, "wordexplorer", {
+    word: "SCHULE",
+    syllablesCount: 2,
+    vowelsList: ["U", "E"],
+    isNoun: true,
+    aiExplanation: "",
+    aiStatus: "idle" as WidgetAiStatus,
+    aiError: null as string | null,
+  });
+  const [word, setWord] = useState<string>(() => lifecycle.word);
+  const [syllablesCount, setSyllablesCount] = useState<number>(() => lifecycle.syllablesCount);
+  const [vowelsList, setVowelsList] = useState<string[]>(() => lifecycle.vowelsList);
+  const [isNoun, setIsNoun] = useState<boolean>(() => lifecycle.isNoun);
+  const [aiExplanation, setAiExplanation] = useState<string>(() => lifecycle.aiExplanation);
+  const [aiStatus, setAiStatus] = useState<WidgetAiStatus>(() => lifecycle.aiStatus);
+  const [aiError, setAiError] = useState<string | null>(() => lifecycle.aiError);
   const isAiLoading = aiStatus === "loading";
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, "wordexplorer", {
+    word,
+    syllablesCount,
+    vowelsList,
+    isNoun,
+    aiExplanation,
+    aiStatus,
+    aiError,
+  });
 
   const testWord = (wInput: string) => {
     const caps = wInput.toUpperCase().trim();
