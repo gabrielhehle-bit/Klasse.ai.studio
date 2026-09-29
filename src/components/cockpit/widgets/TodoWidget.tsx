@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
 import { getTodoPageWindow, getTodoRowsPerPage } from '../todoLayout';
+import { useAccessibleAction } from '../../../lib/accessibleAction';
 import {
   ClassroomTodoItem,
   ClassroomTodoState,
@@ -113,6 +114,8 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
     setInputText('');
     setInputIsBonus(false);
   };
+
+  const addAction = useAccessibleAction(handleAdd);
 
   const handleToggleItem = (id: string) => {
     const nextState = toggleTodoItem(state, id);
@@ -424,11 +427,10 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
                 {/* Checkbox (Touch Target min 44px auf Mobile, sonst ansprechend skaliert) */}
                 <button
                   type="button"
-                  role="checkbox"
-                  aria-checked={item.done}
+                  aria-pressed={item.done}
                   aria-label={`Aufgabe ${item.text} als ${item.done ? 'offen' : 'erledigt'} markieren`}
                   onClick={() => handleToggleItem(item.id)}
-                  className={`shrink-0 ${checkboxSizeClass} rounded-lg border-2 flex items-center justify-center transition-all ${
+                  className={`shrink-0 ${checkboxSizeClass} rounded-lg border-2 flex items-center justify-center transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
                     item.done
                       ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm'
                       : currentIsLight
@@ -479,14 +481,16 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
                           ⭐ Zusatz
                         </span>
                       )}
-                      <span
+                      <button
+                        type="button"
                         onClick={() => handleToggleItem(item.id)}
-                        className={`cursor-pointer break-words whitespace-normal leading-snug flex-1 select-text ${itemTextSizeClass} ${
+                        aria-label={`Aufgabe ${item.text} umschalten`}
+                        className={`flex-1 min-w-0 text-left break-words whitespace-normal leading-snug select-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${itemTextSizeClass} ${
                           item.done ? 'line-through opacity-75' : ''
                         }`}
                       >
                         {item.text}
-                      </span>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -575,7 +579,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
         <form
           onSubmit={e => {
             e.preventDefault();
-            handleAdd();
+            addAction.activate('form');
           }}
           className="flex items-center gap-1.5"
         >
@@ -616,9 +620,11 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
 
           {/* Hinzufügen-Button */}
           <button
-            type="submit"
+            type="button"
+            {...addAction.buttonProps}
             disabled={!inputText.trim()}
-            className="shrink-0 min-h-11 min-w-11 p-2 sm:px-3 sm:py-2 rounded-lg bg-accent hover:bg-accent-hover disabled:opacity-40 text-accent-text font-bold text-xs flex items-center justify-center gap-1 transition-all"
+            aria-label="Schritt zur Liste hinzufügen"
+            className="shrink-0 min-h-11 min-w-11 p-2 sm:px-3 sm:py-2 rounded-lg bg-accent hover:bg-accent-hover disabled:opacity-40 text-accent-text font-bold text-xs flex items-center justify-center gap-1 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
             title="Schritt zur Liste hinzufügen"
           >
             <Plus size={15} />
