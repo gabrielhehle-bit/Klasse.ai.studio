@@ -10270,6 +10270,7 @@ export const WordscrambleWidgetContent: React.FC<{
   const didRestoreRef = useRef(hasWidgetLifecycleState(widget, "wordscramble"));
   const initialDifficultySyncRef = useRef(true);
   const initialScrambleRef = useRef(true);
+  const solvedEffectInitialRef = useRef(true);
 
   usePersistedWidgetLifecycleState(widget, onUpdate, "wordscramble", {
     difficulty,
@@ -10434,8 +10435,12 @@ export const WordscrambleWidgetContent: React.FC<{
   const currentSelectionString = selectedIds.map(id => scrambledLetters.find(l => l.id === id)?.char || '').join('');
   const solved = currentWord && currentSelectionString === currentWord.original.toUpperCase();
 
-  // Star points progress
+  // Star points progress. A restored solved word has already been scored.
   useEffect(() => {
+    if (solvedEffectInitialRef.current) {
+      solvedEffectInitialRef.current = false;
+      if (didRestoreRef.current && solved) return;
+    }
     if (solved) {
       playSuccessSound();
       setFeedback("✨ Sensationell! Du hast das Wort richtig entwirrt!");
