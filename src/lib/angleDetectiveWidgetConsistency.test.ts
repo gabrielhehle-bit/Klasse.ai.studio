@@ -60,3 +60,14 @@ test('Winkel-Detektiv macht die Schätzgüte nach der Lösung sichtbar', () => {
   assert.match(widget, /estimateDiff <= 15/);
   assert.match(widget, /bg-rose-50/);
 });
+
+
+test('Winkel-Detektiv erhält eine gemeinsame Fachwidget-Mindestgröße', () => {
+  const cockpit = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
+  const layout = readFileSync('src/components/cockpit/widgetLayout.ts', 'utf8');
+  const frame = readFileSync('src/components/cockpit/CockpitWidget.tsx', 'utf8');
+
+  assert.match(cockpit, /id: "widget-angledetective",[\s\S]{0,180}w: 44,[\s\S]{0,80}h: 54/);
+  assert.match(layout, /angledetective: \{ minW: 360, minH: 420, prefW: 520, prefH: 480 \}/);
+  assert.match(frame, /angledetective: \{ w: 44, h: 54 \}/);
+});
