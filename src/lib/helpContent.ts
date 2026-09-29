@@ -382,7 +382,7 @@ const widgetCatalog: Array<{ id: string; title: string; purpose: string; group: 
   {
     "id": "planetarium",
     "title": "🌍 Planetensystem",
-    "purpose": "Planeten unseres Sonnensystems entdecken",
+    "purpose": "Sonne, acht Planeten und ihre Umläufe fachlich korrekt entdecken",
     "group": "sachunterricht"
   },
   {
@@ -771,6 +771,7 @@ const widgetSpecificSteps: Record<string, string[]> = {
   trafficquiz: ['Öffne im Lehrercockpit „Widget hinzufügen“ → „Fahrrad-Führerschein“.', 'Über das Zahnrad wählst du den Themenbereich: Alle Themen, Verkehrszeichen, Vorrang, Radfahrregeln oder Sicherheit. Dort stellst du auch 5 oder 10 Fragen für die Übungsprüfung und die Vorlesefunktion ein.', 'Im Modus „Üben“ beantwortet die Klasse einzelne Fragen. Nach jeder Antwort zeigt KLASSIO die Erklärung und die zugrunde liegende österreichische Rechtsquelle.', 'Die „Übungsprüfung“ ist nur ein Lerncheck in KLASSIO und kein amtlicher Nachweis. Die Fragen sind auf österreichische StVO-Begriffe und Regeln mit Rechtsstand September 2026 abgestimmt.'],
   watercycle: ['Öffne im Lehrercockpit „Widget hinzufügen“ → „Wasserkreislauf-Puzzle“.', 'Über das Zahnrad wählst du „Grundmodell“ für eine einfache Einführung oder „Erweitert“ für Transpiration, Versickerung und Grundwasser. Dort kannst du auch 5 oder 8 feste Quizfragen auswählen.', 'In „Kreislauf“ siehst du die Wasserwege. Wichtig: Nach dem Niederschlag gibt es nicht nur einen Weg – Wasser kann oberirdisch abfließen, versickern oder gespeichert werden.', 'Im „Puzzle“ ordnet die Klasse einen möglichen Oberflächen- oder Grundwasserweg. Das „Quiz“ verwendet ausschließlich fest geprüfte Inhalte auf Basis von USGS und NASA; es erzeugt keine neuen KI-Fragen.'],
   constellation: ['Öffne im Lehrercockpit „Widget hinzufügen“ → „Sternbilder-Zeichner“.', 'Im Modus „Entdecken“ sind die Verbindungslinien sichtbar. Tippe Sterne an, um ihre Namen zu lernen und zwischen Sternbild und Asterismus zu unterscheiden.', 'Im Modus „Verbinden“ baut die Klasse das Himmelsmuster Linie für Linie auf. Die jeweils gesuchten Sterne werden hervorgehoben.', 'Über das Zahnrad kannst du nur offizielle Sternbilder, nur Asterismen oder alle Muster anzeigen und die Sternnamen ein- oder ausblenden. Die IAU kennt 88 offizielle Sternbilder; Verbindungslinien sind Lernhilfen, keine offiziellen Grenzen. Der Große Wagen ist ein Asterismus im Großen Bären (Ursa Major).'],
+  planetarium: ['Öffne im Lehrercockpit „Widget hinzufügen“ → „Planetensystem“.', 'Unter „Entdecken“ wählst du Sonne oder einen der acht Planeten in der richtigen Reihenfolge. KLASSIO zeigt Planetentyp, Umlaufzeit, Größe und auf Wunsch die aktuelle Zahl bekannter Monde.', 'Unter „Umläufe“ gibst du ein Erdenalter ein. Die Anzeige zeigt, wie viele Umläufe der jeweilige Planet in derselben Zeit um die Sonne schaffen würde – nicht ein anderes biologisches Alter.', 'Im „Quiz“ übt die Klasse feste, geprüfte Grundfragen. Über das Zahnrad wählst du 5 oder 8 Fragen und blendest Mondzahlen ein oder aus. Die Sonne ist ein Stern, unser Sonnensystem hat acht Planeten; Pluto ist ein Zwergplanet. Fachbasis NASA/IAU, Mondzahlen Stand August 2026.'],
 
 };
 

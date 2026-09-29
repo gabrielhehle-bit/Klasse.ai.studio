@@ -139,7 +139,7 @@ const OPTIMAL_WIDGET_SIZES: Record<string, { w: number; h: number }> = {
   kopfrechnen: { w: 38, h: 48 },
   storyemojis: { w: 42, h: 48 },
   abcorder: { w: 38, h: 48 },
-  planetarium: { w: 42, h: 55 },
+  planetarium: { w: 50, h: 60 },
   tischcheck: { w: 32, h: 48 },
   faircall: { w: 35, h: 60 },
 };
