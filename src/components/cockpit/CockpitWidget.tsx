@@ -30,6 +30,7 @@ interface CockpitWidgetProps {
 }
 
 const OPTIMAL_WIDGET_SIZES: Record<string, { w: number; h: number }> = {
+  timeline: { w: 40, h: 30 },
   clock: { w: 25, h: 28 },
   instruction: { w: 45, h: 50 },
   timer: { w: 23, h: 38 },
@@ -83,7 +84,7 @@ const OPTIMAL_WIDGET_SIZES: Record<string, { w: number; h: number }> = {
   bodyparts: { w: 44, h: 56 },
   toothbrush: { w: 28, h: 44 },
   challenge: { w: 32, h: 45 },
-  compass: { w: 44, h: 52 },
+  compass: { w: 34, h: 40 },
   weekdays: { w: 46, h: 56 },
   piggybank: { w: 30, h: 44 },
   noisescales: { w: 34, h: 44 },
