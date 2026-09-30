@@ -1,3 +1,14 @@
+import { SMARTBOARD_TOUCH_TARGET_MIN } from "../../lib/smartboardTokens";
+
+export {
+  SMARTBOARD_FOCUS_RING_CLASS,
+  SMARTBOARD_GAP_MAX,
+  SMARTBOARD_GAP_MIN,
+  SMARTBOARD_PRIMARY_ACTION_CLASS,
+  SMARTBOARD_SECONDARY_ACTION_CLASS,
+  SMARTBOARD_TOUCH_TARGET_MIN,
+} from "../../lib/smartboardTokens";
+
 import { useState, useEffect, useRef, RefObject } from 'react';
 
 export type WidgetSizeCategory = 'compact' | 'standard' | 'large' | 'fullscreen';
@@ -94,7 +105,7 @@ export function getWidgetMinSizeConfig(widgetType: string): WidgetMinSizeConfig 
   return WIDGET_MIN_SIZES[widgetType] || DEFAULT_WIDGET_MIN_SIZE;
 }
 
-export const TOUCH_TARGET_MIN = 44; // min 44px gemäß UI-Standard
+export const TOUCH_TARGET_MIN = SMARTBOARD_TOUCH_TARGET_MIN; // min 44px gemäß UI-Standard
 
 /**
  * Ermittelt die Größenkategorie basierend auf Container-Breite

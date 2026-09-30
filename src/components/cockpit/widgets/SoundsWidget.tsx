@@ -162,7 +162,7 @@ export const SoundsWidget: React.FC<SoundsWidgetProps> = ({
       {/* Both small and large frames expose ALL six sounds. The cards stretch
           across the whole content area; no compact-mode slice can hide tones. */}
       <div className="min-h-0 w-full flex-1">
-        <div className={`grid h-full min-h-0 w-full grid-cols-3 grid-rows-2 ${compactGrid ? 'gap-1' : 'gap-2'}`}
+        <div className={`grid h-full min-h-0 w-full grid-cols-3 grid-rows-2 ${compactGrid ? 'gap-2' : 'gap-2'}`}
           aria-label="Sechs Unterrichtssignale">
           {CLASSROOM_SOUNDS.map((sound) => {
             const isPlaying = activePlayingId === sound.id;

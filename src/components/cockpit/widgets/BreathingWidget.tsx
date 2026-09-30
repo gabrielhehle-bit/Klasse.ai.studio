@@ -10,7 +10,7 @@ import {
   Wind,
 } from 'lucide-react';
 import { CockpitWidgetConfig } from '../../../types';
-import { useWidgetSize, useWidgetOverflowGuard, TOUCH_TARGET_MIN } from '../widgetLayout';
+import { useWidgetSize, useWidgetOverflowGuard, SMARTBOARD_PRIMARY_ACTION_CLASS, TOUCH_TARGET_MIN } from '../widgetLayout';
 import {
   BreathingSettings,
   BreathingPhase,
@@ -464,7 +464,7 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
             className={`flex-1 py-2.5 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm text-sm ${
               isRunning
                 ? 'bg-amber-500 hover:bg-amber-600 text-white'
-                : 'bg-teal-600 hover:bg-teal-700 text-white'
+                : SMARTBOARD_PRIMARY_ACTION_CLASS
             }`}
           >
             {isRunning ? (
@@ -499,9 +499,9 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
         </div>
 
         {/* Dauer-Presets & Rhythmus (in STANDARD/LARGE/FULLSCREEN oder aufklappbar) */}
-        <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] pt-1 border-t border-slate-100 dark:border-white/5">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] pt-1 border-t border-slate-100 dark:border-white/5">
           {/* Dauer */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <span className="opacity-60 text-[10px] font-semibold">Dauer:</span>
             {durationOptions.map((opt) => {
               const isSelected = settings.durationPreset === opt.value;
@@ -514,7 +514,7 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
                   style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
                   className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
                     isSelected
-                      ? 'bg-teal-600 text-white font-bold'
+                      ? 'bg-accent text-accent-text font-bold'
                       : currentIsLight
                       ? 'bg-slate-100 hover:bg-slate-200 text-slate-600'
                       : 'bg-zinc-800 hover:bg-zinc-700 text-slate-300'
@@ -541,7 +541,7 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
                      style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
                     className={`px-1.5 py-0.5 rounded-md text-[10px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
                       isSelected
-                        ? 'bg-indigo-600 text-white font-bold'
+                        ? 'bg-accent text-accent-text font-bold'
                         : currentIsLight
                         ? 'bg-slate-100 hover:bg-slate-200 text-slate-600'
                         : 'bg-zinc-800 hover:bg-zinc-700 text-slate-300'

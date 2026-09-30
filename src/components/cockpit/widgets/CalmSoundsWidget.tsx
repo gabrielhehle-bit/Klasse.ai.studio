@@ -10,7 +10,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { CockpitWidgetConfig } from '../../../types';
-import { useWidgetSize, useWidgetOverflowGuard, TOUCH_TARGET_MIN } from '../widgetLayout';
+import { useWidgetSize, useWidgetOverflowGuard, SMARTBOARD_PRIMARY_ACTION_CLASS, TOUCH_TARGET_MIN } from '../widgetLayout';
 import {
   CalmSoundSettings,
   CalmTrackId,
@@ -272,7 +272,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
 
         {/* Timer Restzeit / Preset Badge */}
         {secondsRemaining !== null && isPlaying && (
-          <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-mono text-xs font-bold shrink-0">
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-accent-soft text-accent font-mono text-xs font-bold shrink-0">
             <Clock size={13} />
             <span>{formatTimerSeconds(secondsRemaining)}</span>
           </div>
@@ -312,7 +312,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
               className={`w-full py-2.5 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm ${
                 isPlaying
                   ? 'bg-rose-500 hover:bg-rose-600 text-white'
-                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  : SMARTBOARD_PRIMARY_ACTION_CLASS
               }`}
             >
               {isPlaying ? (
@@ -365,7 +365,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
               </div>
 
               {!showMixerDetails ? (
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="grid grid-cols-2 gap-2">
                   {CALM_TRACKS.map((track) => {
                     const isActive = !!settings.activeTracks[track.id];
                     return (
@@ -379,8 +379,8 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                         className={`px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold flex items-center justify-between transition-all cursor-pointer border ${
                           isActive
                             ? currentIsLight
-                              ? 'bg-blue-50 border-blue-300 text-blue-900'
-                              : 'bg-blue-950/50 border-blue-700 text-blue-100'
+                              ? 'bg-accent-soft border-accent text-accent-ink'
+                              : 'bg-accent-soft border-accent text-text'
                             : currentIsLight
                             ? 'bg-white border-slate-200 text-slate-500 opacity-60 hover:opacity-100'
                             : 'bg-zinc-800 border-zinc-700 text-slate-400 opacity-60 hover:opacity-100'
@@ -390,7 +390,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                           <span>{track.icon}</span>
                           <span className="truncate">{track.label}</span>
                         </span>
-                        {isActive && <Check size={13} className="text-blue-500 shrink-0" />}
+                        {isActive && <Check size={13} className="text-accent shrink-0" />}
                       </button>
                     );
                   })}
@@ -453,7 +453,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                   className={`flex-1 sm:flex-initial px-5 py-2 rounded-xl font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm text-sm ${
                     isPlaying
                       ? 'bg-rose-500 hover:bg-rose-600 text-white'
-                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      : SMARTBOARD_PRIMARY_ACTION_CLASS
                   }`}
                 >
                   {isPlaying ? (
@@ -554,7 +554,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                          style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
                         className={`w-11 h-11 rounded-lg flex items-center justify-center transition-all cursor-pointer shrink-0 border ${
                           isActive
-                            ? 'bg-blue-600 text-white border-blue-700'
+                            ? 'bg-accent text-accent-text border-accent'
                             : currentIsLight
                             ? 'bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200'
                             : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:bg-zinc-700'
@@ -600,7 +600,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
           <span>Timer:</span>
         </div>
 
-        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
           {timerOptions.map((opt) => {
             const isSelected = settings.timerMinutes === opt.value;
             return (
@@ -612,7 +612,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                  style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
                 className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
                   isSelected
-                    ? 'bg-blue-600 text-white font-bold'
+                    ? 'bg-accent text-accent-text font-bold'
                     : currentIsLight
                     ? 'bg-slate-100 hover:bg-slate-200 text-slate-600'
                     : 'bg-zinc-800 hover:bg-zinc-700 text-slate-300'

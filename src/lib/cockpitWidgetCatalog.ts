@@ -1,3 +1,5 @@
+import { getCockpitWidgetCanonicalEntry } from "./cockpitWidgetCanonical";
+
 /**
  * Single source of truth for every widget shown in the classroom widget library.
  * The same catalog powers the lower quick-access bar, so newly listed widgets can
@@ -651,12 +653,59 @@ export function getCockpitWidgetLibraryItem(type: string): CockpitWidgetLibraryI
   return COCKPIT_WIDGET_LIBRARY_BY_TYPE.get(type);
 }
 
-/** Canonical visible title used by library cards and widget headers. */
+export interface CockpitWidgetCatalogEntry {
+  canonicalId: string;
+  displayName: string;
+  category: string;
+  description: string;
+  aliasOf?: string;
+}
+
+export function getCockpitWidgetCatalogEntry(
+  type: string,
+): CockpitWidgetCatalogEntry | undefined {
+  const canonical = getCockpitWidgetCanonicalEntry(type);
+  if (canonical) return canonical;
+
+  const item = getCockpitWidgetLibraryItem(type);
+  if (!item) return undefined;
+
+  const parts = String(item.label || "").trim().split(/\s+/);
+  return {
+    canonicalId: item.type,
+    displayName: parts.slice(1).join(" ") || item.label,
+    category: item.category,
+    description: item.desc,
+  };
+}
+
+/** Existing visible label contract for legacy library cards and layouts. */
 export function getCockpitWidgetDisplayLabel(type: string): string {
   if (type === "studentlist") return "👥 Schülerliste";
   // Very old layouts may still contain the former vocabulary alias.
   if (type === "lernwoerter") return COCKPIT_WIDGET_LIBRARY_BY_TYPE.get("vocabulary")?.label || "🔤 Lernwörter-Studio";
   return COCKPIT_WIDGET_LIBRARY_BY_TYPE.get(type)?.label || "🧩 Widget";
+}
+
+/** Canonical title for new alias-aware headers and search results. */
+export function getCockpitWidgetCanonicalDisplayLabel(type: string): string {
+  return getCockpitWidgetCatalogEntry(type)?.displayName || getCockpitWidgetDisplayLabel(type);
+}
+
+export function summarizeCockpitWidgetLibraryTypes(types: readonly string[]): {
+  canonicalTypeCount: number;
+  entryCount: number;
+  aliasCount: number;
+} {
+  const entries = types.map((type) => getCockpitWidgetCatalogEntry(type));
+  const canonicalIds = types.map(
+    (type, index) => entries[index]?.canonicalId || type,
+  );
+  return {
+    canonicalTypeCount: new Set(canonicalIds).size,
+    entryCount: types.length,
+    aliasCount: entries.filter((entry) => Boolean(entry?.aliasOf)).length,
+  };
 }
 
 export function cockpitWidgetSupportsSettings(type: string): boolean {
