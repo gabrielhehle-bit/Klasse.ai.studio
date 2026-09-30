@@ -499,9 +499,9 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
         </div>
 
         {/* Dauer-Presets & Rhythmus (in STANDARD/LARGE/FULLSCREEN oder aufklappbar) */}
-        <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] pt-1 border-t border-slate-100 dark:border-white/5">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] pt-1 border-t border-slate-100 dark:border-white/5">
           {/* Dauer */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <span className="opacity-60 text-[10px] font-semibold">Dauer:</span>
             {durationOptions.map((opt) => {
               const isSelected = settings.durationPreset === opt.value;
