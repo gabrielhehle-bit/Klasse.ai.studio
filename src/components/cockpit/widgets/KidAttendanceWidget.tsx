@@ -367,6 +367,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     const heroCard = cardWidth >= 240 && cardHeight >= 84;
     const { status, isPreExistingAbsent, delayMinutes } = getStudentAttendanceStatus(student.id, app, todayStr);
     const isJustCheckedIn = recentlyTappedId === student.id;
+    const isSelected = selectedStudentId === student.id;
     const canTapMood = moodEnabled && checkInMode === 'teacher' && status === 'present';
 
     // Farb- und Styling-Definition gemäß Status
@@ -389,7 +390,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     } else {
       // open (noch nicht eingecheckt)
       statusLabel = 'Offen';
-      statusIcon = <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />;
+      statusIcon = <span aria-hidden="true" className="h-3 w-3 rounded-full bg-amber-400 ring-4 ring-amber-100/90 shrink-0" />;
       cardClasses = currentIsLight
         ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 shadow-2xs'
         : 'bg-zinc-800 hover:bg-zinc-700/80 border-zinc-700 text-zinc-100 shadow-2xs';
@@ -415,13 +416,14 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
             : checkInMode === 'teacher' ? `${displayName}: Anwesenheit zuerst durch Lehrkraft erfassen` : checkInMode === 'individual' ? `${displayName} auswählen` : `${displayName}: Hier tippen für "Ich bin da!"`
         }
         aria-label={`${displayName}: ${canTapMood ? 'Befinden auswählen' : statusLabel}`}
+        aria-pressed={checkInMode === 'individual' ? isSelected : undefined}
         style={{ height: '100%', minHeight: adaptiveLayout.grid.minCardHeight }}
-        className={`w-full min-w-0 min-h-0 ${cardPadding} rounded-xl border flex items-center justify-between ${compactCard ? 'gap-1' : 'gap-2.5'} text-left transition-all duration-150 select-none ${
-          status === 'open' ? 'cursor-pointer active:scale-97' : ''
-        } ${cardClasses}`}
+        className={`relative w-full min-w-0 min-h-0 ${cardPadding} rounded-xl border flex flex-col items-stretch justify-between ${compactCard ? 'gap-1' : 'gap-2.5'} text-left transition-all duration-150 select-none focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/30 ${
+          status === 'open' ? 'cursor-pointer active:scale-[.98] hover:-translate-y-0.5' : ''
+        } ${isSelected ? 'ring-4 ring-accent/35 border-accent' : ''} ${isJustCheckedIn ? 'ring-4 ring-emerald-300/80 shadow-lg' : ''} ${cardClasses}`}
       >
         {/* Linke Seite: Avatar-Initiale + Name */}
-        <div className={`flex items-center ${compactCard ? 'gap-1.5' : 'gap-2.5'} min-w-0 flex-1`}>
+        <div className={`flex w-full min-w-0 items-start pr-16 ${compactCard ? 'gap-1.5' : 'gap-2.5'} flex-1`}>
           {!compactCard && <div
             className={`${heroCard ? 'w-12 h-12 text-base' : roomyCard ? 'w-10 h-10 text-sm' : 'w-8 h-8 text-xs'} rounded-xl flex items-center justify-center font-black shrink-0 ${
               status === 'present'
@@ -439,7 +441,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           <div className="min-w-0 flex-1">
             <span
               className={`block whitespace-normal break-words font-black leading-[1.05] tracking-tight ${
-                microCard ? 'text-[10px]' : tinyCard ? 'text-[11px]' : compactCard ? 'text-sm' : heroCard ? 'text-xl' : roomyCard ? 'text-lg' : 'text-base'
+                microCard ? 'text-[11px]' : tinyCard ? 'text-xs' : compactCard ? 'text-base' : heroCard ? 'text-2xl' : roomyCard ? 'text-xl' : 'text-lg'
               }`}
               style={{ overflowWrap: 'anywhere' }}
             >
@@ -456,7 +458,9 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
 
         {/* Rechte Seite: Ruhiger Status-Badge */}
         <div
-          className={`shrink-0 flex items-center ${compactCard ? 'gap-0 px-1 py-1' : heroCard ? 'gap-2 px-3 py-2' : roomyCard ? 'gap-1.5 px-2.5 py-1.5' : 'gap-1.5 px-2 py-1'} rounded-lg ${heroCard || roomyCard ? 'text-sm' : 'text-xs'} font-black tabular-nums border ${
+          data-attendance-status={status}
+          title={`Status: ${canTapMood ? 'Befinden auswählen' : statusLabel}`}
+          className={`absolute right-1.5 top-1.5 shrink-0 flex items-center ${compactCard ? 'gap-1 px-1.5 py-1' : heroCard ? 'gap-2 px-3 py-2' : roomyCard ? 'gap-1.5 px-2.5 py-1.5' : 'gap-1.5 px-2 py-1'} rounded-lg ${heroCard || roomyCard ? 'text-sm' : 'text-xs'} font-black tabular-nums border ${
             status === 'present'
               ? currentIsLight
                 ? 'bg-emerald-100/90 border-emerald-300/80 text-emerald-900'
@@ -471,9 +475,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           }`}
         >
           {statusIcon}
-          {compactCard ? (
-            <span className="sr-only">{canTapMood ? 'Befinden' : statusLabel}</span>
-          ) : <span className="whitespace-nowrap">{canTapMood ? 'Befinden' : statusLabel}</span>}
+          <span className="whitespace-nowrap">{canTapMood ? 'Befinden' : statusLabel}</span>
         </div>
       </button>
     );

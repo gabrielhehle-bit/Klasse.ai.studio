@@ -114,7 +114,7 @@ export function PublicStudentListWidget({
       ) : (
       <div className={gridMode ? 'grid min-h-0 flex-1 content-start gap-1.5 overflow-hidden' : dense ? 'min-h-0 flex-1 space-y-1 overflow-y-auto' : 'min-h-0 flex-1 space-y-2 overflow-y-auto'}
         style={gridMode ? { gridTemplateColumns: `repeat(${grid.columns}, minmax(0, 1fr))` } : undefined} role="list">
-        {students.map((student: Student, index: number) => {
+        {students.map((student: Student) => {
           const points = Math.max(0, getTodayPoints(student.id));
           const awarded = lastAwardedId === student.id;
           const stageId = showBehavior
@@ -134,11 +134,14 @@ export function PublicStudentListWidget({
           const nextBehaviorStage = behaviorStages.length > 0
             ? behaviorStages[(currentStageIndex + 1) % behaviorStages.length]
             : undefined;
-          const cardTone = ['border-sky-200 bg-sky-50/80', 'border-amber-200 bg-amber-50/80', 'border-violet-200 bg-violet-50/80', 'border-emerald-200 bg-emerald-50/80'][index % 4];
+          const isRecentlyAwarded = recentlyAwardedId === student.id;
+          const cardTone = isRecentlyAwarded
+            ? 'border-emerald-300 bg-emerald-50/90 ring-2 ring-emerald-200/80'
+            : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md';
           return (
             <div key={student.id} role="listitem"
               style={gridMode ? { minHeight: 58, height: Math.min(100, grid.cardHeight) } : undefined}
-              className={`min-w-0 shadow-sm ${cardTone} ${gridMode ? 'rounded-2xl border-2 px-1.5 py-1' : dense ? 'rounded-xl border px-1.5 py-0.5' : 'rounded-2xl border-2 px-3 py-2'}`}>
+              className={`min-w-0 shadow-sm transition-[border-color,background-color,box-shadow] duration-150 ${cardTone} ${gridMode ? 'rounded-2xl border-2 px-1.5 py-1' : dense ? 'rounded-xl border px-1.5 py-0.5' : 'rounded-2xl border-2 px-3 py-2'}`}>
               <div className="flex min-w-0 items-center justify-between gap-1">
                 <div className="flex min-w-0 flex-1 items-center gap-1">
                   {showStudentEmoji && student.emoji && (
