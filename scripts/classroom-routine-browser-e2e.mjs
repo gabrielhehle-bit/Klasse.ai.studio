@@ -31,6 +31,7 @@ class CdpClient {
           const pending = this.pending.get(message.id);
           if (!pending) return;
           this.pending.delete(message.id);
+          clearTimeout(pending.timer);
           if (message.error) pending.reject(new Error(message.error.message || 'CDP error'));
           else pending.resolve(message.result);
           return;
@@ -54,7 +55,11 @@ class CdpClient {
     if (!this.ws) throw new Error('CDP client is not connected.');
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error('CDP command timed out: ' + method));
+      }, 15000);
+      this.pending.set(id, { resolve, reject, timer });
       this.ws.send(JSON.stringify({ id, method, params }));
     });
   }
@@ -81,6 +86,16 @@ async function createClient() {
   const client = new CdpClient(target.webSocketDebuggerUrl);
   await client.connect();
   await client.send('Page.enable');
+  client.navigationCount = 0;
+  client.on('Page.frameNavigated', event => {
+    if (!event.frame?.parentId) client.navigationCount += 1;
+  });
+  client.on('Page.javascriptDialogOpening', event => {
+    if (event.type === 'beforeunload') {
+      // Keep the page open while its encrypted write finishes, then retry reload.
+      void client.send('Page.handleJavaScriptDialog', { accept: false }).catch(() => {});
+    }
+  });
   await client.send('Runtime.enable');
   await client.send('Network.enable');
   await client.send('Emulation.setDeviceMetricsOverride', {
@@ -255,7 +270,12 @@ async function openObservations(client) {
   await waitFor(client, 'observation page', 'document.body.innerText.includes("Beobachtung notieren")');
 }
 async function reloadAndUnlock(client) {
-  await client.send('Page.reload');
+  const before = client.navigationCount;
+  for (let attempt = 0; attempt < 20 && client.navigationCount === before; attempt++) {
+    await client.send('Page.reload');
+    await sleep(500);
+  }
+  if (client.navigationCount === before) throw new Error('Encrypted save did not permit a safe real reload.');
   await waitFor(client, 'reload reached vault or app', 'Boolean(document.querySelector("input[placeholder=\\"Passwort eingeben\\"]")) || Boolean(document.querySelector(".topbar"))', 30000);
   if (await evaluate(client, 'Boolean(document.querySelector("input[placeholder=\\"Passwort eingeben\\"]"))')) {
     await setInputByPlaceholder(client, 'Passwort eingeben', VAULT_PASSWORD);
