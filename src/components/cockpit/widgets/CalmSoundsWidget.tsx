@@ -20,6 +20,12 @@ import {
   formatTimerSeconds,
   CalmAudioEngine,
 } from '../../../lib/calmFocusEngine';
+import {
+  classifyMediaPlaybackError,
+  getMediaPlaybackStatusMessage,
+  isMediaPlaybackRetryable,
+  MediaPlaybackStatus,
+} from '../../../lib/mediaPlaybackState';
 
 export interface CalmSoundsWidgetProps {
   widget: CockpitWidgetConfig;
@@ -44,6 +50,9 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
   }, [widget.settings]);
 
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [audioStatus, setAudioStatus] = useState<MediaPlaybackStatus>(
+    settings.masterVolume === 0 ? 'muted' : 'ready',
+  );
   const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
   const [showMixerDetails, setShowMixerDetails] = useState<boolean>(false);
 
@@ -76,22 +85,45 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
     }
     setIsPlaying(false);
     setSecondsRemaining(null);
+    setAudioStatus('paused');
   }, []);
 
   // Audio starten
   const handleStart = useCallback(() => {
-    if (engineRef.current) {
-      engineRef.current.start(settings);
-    }
-    setIsPlaying(true);
+    setAudioStatus('loading');
+    try {
+      const engine = engineRef.current;
+      if (!engine || !engine.isAudioSupported()) {
+        setIsPlaying(false);
+        setAudioStatus('unavailable');
+        return;
+      }
 
-    if (settings.timerMinutes !== 'endless') {
-      const totalSecs = (settings.timerMinutes as number) * 60;
-      setSecondsRemaining(totalSecs);
-    } else {
-      setSecondsRemaining(null);
+      if (!engine.start(settings)) {
+        setIsPlaying(false);
+        setAudioStatus('unavailable');
+        return;
+      }
+
+      setIsPlaying(true);
+      setAudioStatus(settings.masterVolume === 0 ? 'muted' : 'playing');
+
+      if (settings.timerMinutes !== 'endless') {
+        const totalSecs = (settings.timerMinutes as number) * 60;
+        setSecondsRemaining(totalSecs);
+      } else {
+        setSecondsRemaining(null);
+      }
+    } catch (error) {
+      setIsPlaying(false);
+      const online = typeof navigator === 'undefined' ? null : navigator.onLine;
+      setAudioStatus(classifyMediaPlaybackError(error, online));
     }
   }, [settings]);
+
+  const handleRetryAudio = () => {
+    handleStart();
+  };
 
   // Unmount Cleanup: Garantierte Freigabe aller Audio-Ressourcen
   useEffect(() => {
@@ -158,6 +190,9 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
       ...settings,
       masterVolume: vol,
     });
+    if (isPlaying) {
+      setAudioStatus(vol === 0 ? 'muted' : 'playing');
+    }
   };
 
   // Timer-Preset ändern
@@ -244,6 +279,24 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
         )}
       </div>
 
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex items-center justify-between gap-2 text-[10px] opacity-80 shrink-0"
+      >
+        <span>{getMediaPlaybackStatusMessage(audioStatus, 'Fokus-Klänge')}</span>
+        {isMediaPlaybackRetryable(audioStatus) && (
+          <button
+            type="button"
+            onClick={handleRetryAudio}
+            style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
+            className="rounded-lg px-2 font-bold underline underline-offset-2 cursor-pointer"
+          >
+            Erneut versuchen
+          </button>
+        )}
+      </div>
+
       {/* 2. Hauptbereich: Je nach Kategorie COMPACT vs STANDARD/LARGE/FULLSCREEN */}
       <div className="flex-grow flex flex-col justify-center min-h-0 overflow-y-auto overflow-x-hidden gap-2.5 py-1">
         
@@ -252,6 +305,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
           <div className="flex flex-col gap-2.5 my-auto">
             {/* Großer Start / Stopp Button */}
             <button
+                type="button"
               id={`calmrain-toggle-btn-${widget.id}`}
               onClick={isPlaying ? handleStop : handleStart}
               style={{ minHeight: `${TOUCH_TARGET_MIN}px` }}
@@ -299,6 +353,9 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
               <div className="flex items-center justify-between text-[11px] font-bold opacity-70 uppercase tracking-wider mb-1.5">
                 <span>Klangquellen ({activeTrackCount})</span>
                 <button
+                  type="button"
+                  aria-pressed={showMixerDetails}
+                  style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
                   onClick={() => setShowMixerDetails(!showMixerDetails)}
                   className="text-blue-500 hover:underline cursor-pointer flex items-center gap-0.5"
                 >
@@ -315,8 +372,10 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                       <button
                         key={track.id}
                         id={`calmrain-track-btn-${track.id}`}
+                        type="button"
+                        aria-pressed={isActive}
                         onClick={() => handleToggleTrack(track.id)}
-                        style={{ minHeight: '38px' }}
+                         style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
                         className={`px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold flex items-center justify-between transition-all cursor-pointer border ${
                           isActive
                             ? currentIsLight
@@ -387,6 +446,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
             }`}>
               <div className="flex items-center gap-3 w-full sm:w-auto">
                 <button
+                type="button"
                   id={`calmrain-toggle-btn-${widget.id}`}
                   onClick={isPlaying ? handleStop : handleStart}
                   style={{ minHeight: `${TOUCH_TARGET_MIN}px` }}
@@ -410,6 +470,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                 </button>
 
                 <button
+                  type="button"
                   onClick={toggleMasterMute}
                   title={isAllMuted ? "Ton an" : "Stummschalten"}
                   aria-label="Lautstärke stummschalten"
@@ -469,8 +530,11 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                   >
                     <div className="flex items-center justify-between">
                       <button
+                        type="button"
+                        aria-pressed={isActive}
                         onClick={() => handleToggleTrack(track.id)}
                         className="flex items-center gap-2 font-bold text-xs cursor-pointer text-left truncate"
+                         style={{ minHeight: `${TOUCH_TARGET_MIN}px` }}
                         title={isActive ? "Spur deaktivieren" : "Spur aktivieren"}
                       >
                         <span className="text-lg">{track.icon}</span>
@@ -483,10 +547,12 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                       </button>
 
                       <button
+                        type="button"
+                        aria-pressed={isActive}
                         onClick={() => handleToggleTrack(track.id)}
                         aria-label={`${track.label} ${isActive ? 'deaktivieren' : 'aktivieren'}`}
-                        style={{ minWidth: '32px', minHeight: '32px' }}
-                        className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer shrink-0 border ${
+                         style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
+                        className={`w-11 h-11 rounded-lg flex items-center justify-center transition-all cursor-pointer shrink-0 border ${
                           isActive
                             ? 'bg-blue-600 text-white border-blue-700'
                             : currentIsLight
@@ -540,8 +606,10 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
             return (
               <button
                 key={String(opt.value)}
+                 type="button"
+                 aria-pressed={isSelected}
                 onClick={() => handleSelectTimer(opt.value)}
-                style={{ minHeight: '28px' }}
+                 style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
                 className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
                   isSelected
                     ? 'bg-blue-600 text-white font-bold'

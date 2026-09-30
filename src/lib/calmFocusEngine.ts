@@ -297,14 +297,14 @@ export class CalmAudioEngine {
   /**
    * Startet die kontinuierliche Fokus-Klangkulisse
    */
-  public start(settings: CalmSoundSettings): void {
+  public start(settings: CalmSoundSettings): boolean {
     if (this.isRunning) {
       this.stop();
     }
 
     if (!this.isAudioSupported()) {
-      this.isRunning = true;
-      return;
+      this.isRunning = false;
+      return false;
     }
 
     try {
@@ -563,8 +563,11 @@ export class CalmAudioEngine {
       this.streamSource = streamSource;
       this.streamGain = streamGain;
 
+      return true;
     } catch (e) {
       console.warn('CalmAudioEngine start failure:', e);
+      this.stop();
+      return false;
     }
   }
 
@@ -663,11 +666,11 @@ export class CalmAudioEngine {
 /**
  * Spielt einen optionalen sanften Chime bei Phasenwechsel der Atemübung ab
  */
-export function playBreathingChime(phase: BreathingPhase): void {
+export function playBreathingChime(phase: BreathingPhase): boolean {
   try {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return false;
     const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioCtxClass) return;
+    if (!AudioCtxClass) return false;
     const ctx = new AudioCtxClass();
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
@@ -696,7 +699,7 @@ export function playBreathingChime(phase: BreathingPhase): void {
       gain.gain.linearRampToValueAtTime(0.04, now + 0.05);
       gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.6);
     } else {
-      return;
+      return false;
     }
 
     osc.connect(gain);
@@ -710,5 +713,9 @@ export function playBreathingChime(phase: BreathingPhase): void {
         if (ctx.state !== 'closed') ctx.close().catch(() => {});
       } catch {}
     }, 2200);
-  } catch {}
+  } catch {
+    return false;
+  }
+
+  return true;
 }

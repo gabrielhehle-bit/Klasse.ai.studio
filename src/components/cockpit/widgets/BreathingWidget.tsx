@@ -20,6 +20,12 @@ import {
   playBreathingChime,
   formatTimerSeconds,
 } from '../../../lib/calmFocusEngine';
+import {
+  classifyMediaPlaybackError,
+  getMediaPlaybackStatusMessage,
+  isMediaPlaybackRetryable,
+  MediaPlaybackStatus,
+} from '../../../lib/mediaPlaybackState';
 
 export interface BreathingWidgetProps {
   widget: CockpitWidgetConfig;
@@ -46,6 +52,22 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [elapsedTotalSeconds, setElapsedTotalSeconds] = useState<number>(0);
   const [completedCycles, setCompletedCycles] = useState<number>(0);
+  const [audioStatus, setAudioStatus] = useState<MediaPlaybackStatus>(
+    settings.soundEnabled ? 'ready' : 'muted',
+  );
+  const audioResetTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setAudioStatus(settings.soundEnabled ? 'ready' : 'muted');
+  }, [settings.soundEnabled]);
+
+  useEffect(() => {
+    return () => {
+      if (audioResetTimeoutRef.current) {
+        window.clearTimeout(audioResetTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Settings aktualisieren & persistieren
   const updateSettings = useCallback((newSettings: BreathingSettings) => {
@@ -79,15 +101,54 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
     return calculateBreathingPhase(elapsedTotalSeconds, settings.rhythm);
   }, [elapsedTotalSeconds, settings.rhythm]);
 
+  const playBreathingSound = useCallback((phase: BreathingPhase): boolean => {
+    if (!settings.soundEnabled) {
+      setAudioStatus('muted');
+      return false;
+    }
+
+    setAudioStatus('loading');
+
+    try {
+      const audioSupported =
+        typeof window !== 'undefined' &&
+        Boolean(window.AudioContext || (window as any).webkitAudioContext);
+
+      if (!audioSupported) {
+        setAudioStatus('unavailable');
+        return false;
+      }
+
+      const didPlay = playBreathingChime(phase);
+      if (!didPlay) {
+        setAudioStatus('unavailable');
+        return false;
+      }
+
+      setAudioStatus('playing');
+      if (audioResetTimeoutRef.current) {
+        window.clearTimeout(audioResetTimeoutRef.current);
+      }
+      audioResetTimeoutRef.current = window.setTimeout(() => {
+        setAudioStatus('ready');
+      }, 1800);
+      return true;
+    } catch (error) {
+      const online = typeof navigator === 'undefined' ? null : navigator.onLine;
+      setAudioStatus(classifyMediaPlaybackError(error, online));
+      return false;
+    }
+  }, [settings.soundEnabled]);
+
   const prevPhaseRef = useRef<BreathingPhase>(currentPhaseState.phase);
 
   // Ton bei Phasenwechsel abspielen (falls aktiviert)
   useEffect(() => {
     if (isRunning && settings.soundEnabled && prevPhaseRef.current !== currentPhaseState.phase) {
-      playBreathingChime(currentPhaseState.phase);
+      playBreathingSound(currentPhaseState.phase);
     }
     prevPhaseRef.current = currentPhaseState.phase;
-  }, [currentPhaseState.phase, isRunning, settings.soundEnabled]);
+  }, [currentPhaseState.phase, isRunning, playBreathingSound, settings.soundEnabled]);
 
   // Timer-Schleife (1x pro Sekunde)
   useEffect(() => {
@@ -126,10 +187,13 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
       }
       setIsRunning(true);
       if (settings.soundEnabled) {
-        playBreathingChime('inhale');
+        playBreathingSound('inhale');
+      } else {
+        setAudioStatus('muted');
       }
     } else {
       setIsRunning(false);
+      setAudioStatus(settings.soundEnabled ? 'paused' : 'muted');
     }
   };
 
@@ -137,6 +201,7 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
     setIsRunning(false);
     setElapsedTotalSeconds(0);
     setCompletedCycles(0);
+    setAudioStatus(settings.soundEnabled ? 'ready' : 'muted');
   };
 
   const handleSelectPreset = (preset: 30 | 60 | 120 | 'endless') => {
@@ -154,10 +219,38 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
   };
 
   const handleToggleSound = () => {
+    const nextSoundEnabled = !settings.soundEnabled;
     updateSettings({
       ...settings,
-      soundEnabled: !settings.soundEnabled,
+      soundEnabled: nextSoundEnabled,
     });
+
+    if (audioResetTimeoutRef.current) {
+      window.clearTimeout(audioResetTimeoutRef.current);
+      audioResetTimeoutRef.current = null;
+    }
+
+    if (!nextSoundEnabled) {
+      setAudioStatus('muted');
+      return;
+    }
+
+    const audioSupported =
+      typeof window !== 'undefined' &&
+      Boolean(window.AudioContext || (window as any).webkitAudioContext);
+    setAudioStatus(audioSupported ? 'ready' : 'unavailable');
+  };
+
+  const handleRetryAudio = () => {
+    if (isRunning && settings.soundEnabled) {
+      playBreathingSound(currentPhaseState.phase);
+      return;
+    }
+
+    const audioSupported =
+      typeof window !== 'undefined' &&
+      Boolean(window.AudioContext || (window as any).webkitAudioContext);
+    setAudioStatus(settings.soundEnabled && audioSupported ? 'ready' : 'unavailable');
   };
 
   // Verbleibende Gesamtzeit
@@ -248,11 +341,12 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
 
           {/* Stummschalt-Toggle */}
           <button
+            type="button"
             onClick={handleToggleSound}
             aria-label={settings.soundEnabled ? "Ton ausschalten" : "Ton einschalten"}
             title={settings.soundEnabled ? "Ton aktiv" : "Stumm"}
-            style={{ minWidth: '32px', minHeight: '32px' }}
-            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer border ${
+            style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
+            className={`w-11 h-11 rounded-lg flex items-center justify-center transition-all cursor-pointer border ${
               settings.soundEnabled
                 ? 'bg-teal-500/15 text-teal-600 border-teal-300 dark:border-teal-700'
                 : currentIsLight
@@ -263,6 +357,24 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
             {settings.soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
           </button>
         </div>
+      </div>
+
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex items-center justify-between gap-2 text-[10px] opacity-80"
+      >
+        <span>{getMediaPlaybackStatusMessage(audioStatus, 'Ton')}</span>
+        {isMediaPlaybackRetryable(audioStatus) && (
+          <button
+            type="button"
+            onClick={handleRetryAudio}
+            style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
+            className="rounded-lg px-2 text-[10px] font-bold underline underline-offset-2 cursor-pointer"
+          >
+            Erneut aktivieren
+          </button>
+        )}
       </div>
 
       {/* 2. Hauptbereich: Zentraler Atemkreis mit animierter Ausdehnung */}
@@ -345,6 +457,7 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
         {/* Haupt-Buttons: Start/Pause & Reset */}
         <div className="flex items-center gap-2">
           <button
+            type="button"
             id={`breathing-toggle-btn-${widget.id}`}
             onClick={handleToggleRun}
             style={{ minHeight: `${TOUCH_TARGET_MIN}px` }}
@@ -369,6 +482,7 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
 
           {(isRunning || elapsedTotalSeconds > 0) && (
             <button
+              type="button"
               onClick={handleReset}
               title="Zurücksetzen"
               aria-label="Atempause zurücksetzen"
@@ -394,8 +508,10 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
               return (
                 <button
                   key={String(opt.value)}
+                  type="button"
+                  aria-pressed={isSelected}
                   onClick={() => handleSelectPreset(opt.value)}
-                  style={{ minHeight: '26px' }}
+                  style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
                   className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
                     isSelected
                       ? 'bg-teal-600 text-white font-bold'
@@ -419,8 +535,10 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
                 return (
                   <button
                     key={r.value}
+                     type="button"
+                     aria-pressed={isSelected}
                     onClick={() => handleSelectRhythm(r.value)}
-                    style={{ minHeight: '26px' }}
+                     style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
                     className={`px-1.5 py-0.5 rounded-md text-[10px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
                       isSelected
                         ? 'bg-indigo-600 text-white font-bold'

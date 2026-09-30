@@ -5,8 +5,14 @@ import {
   classroomSoundEngine,
   DEFAULT_SOUNDS_SETTINGS,
 } from '../../../lib/soundsAlgorithm';
-import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
+import { useWidgetSize, useWidgetOverflowGuard, TOUCH_TARGET_MIN } from '../widgetLayout';
 import { Bell, Square, Volume2 } from 'lucide-react';
+import {
+  classifyMediaPlaybackError,
+  getMediaPlaybackStatusMessage,
+  isMediaPlaybackRetryable,
+  MediaPlaybackStatus,
+} from '../../../lib/mediaPlaybackState';
 
 interface SoundsWidgetProps {
   widget: any;
@@ -29,6 +35,7 @@ export const SoundsWidget: React.FC<SoundsWidgetProps> = ({
   useWidgetOverflowGuard('SoundsWidget', containerRef);
 
   const [activePlayingId, setActivePlayingId] = useState<ClassroomSoundId | null>(null);
+  const [playbackStatus, setPlaybackStatus] = useState<MediaPlaybackStatus>('idle');
   const playTimeoutRef = useRef<number | null>(null);
 
   const volume: number = widget.settings?.volume ?? DEFAULT_SOUNDS_SETTINGS.volume;
@@ -51,27 +58,39 @@ export const SoundsWidget: React.FC<SoundsWidgetProps> = ({
       playTimeoutRef.current = null;
     }
 
-    if (!classroomSoundEngine.play(soundId, volume)) {
+    setPlaybackStatus('loading');
+    try {
+      if (!classroomSoundEngine.play(soundId, volume)) {
+        setActivePlayingId(null);
+        setPlaybackStatus('unavailable');
+        return;
+      }
+      setActivePlayingId(soundId);
+      setPlaybackStatus('playing');
+
+      const sound = CLASSROOM_SOUNDS.find((s) => s.id === soundId);
+      const durationMs = (sound?.durationSec ?? 2.0) * 1000;
+
+      playTimeoutRef.current = window.setTimeout(() => {
+        setActivePlayingId(null);
+        setPlaybackStatus('ready');
+      }, durationMs);
+    } catch (error) {
       setActivePlayingId(null);
-      return;
+      const online = typeof navigator === 'undefined' ? null : navigator.onLine;
+      setPlaybackStatus(classifyMediaPlaybackError(error, online));
     }
-    setActivePlayingId(soundId);
-
-    const sound = CLASSROOM_SOUNDS.find((s) => s.id === soundId);
-    const durationMs = (sound?.durationSec ?? 2.0) * 1000;
-
-    playTimeoutRef.current = window.setTimeout(() => {
-      setActivePlayingId(null);
-    }, durationMs);
   };
 
   const handleStopAll = () => {
+    const wasPlaying = Boolean(activePlayingId);
     if (playTimeoutRef.current) {
       clearTimeout(playTimeoutRef.current);
       playTimeoutRef.current = null;
     }
     classroomSoundEngine.stopAll();
     setActivePlayingId(null);
+    setPlaybackStatus(wasPlaying ? 'paused' : 'idle');
   };
 
   const handleVolumeChange = (newVol: number) => {
@@ -113,12 +132,31 @@ export const SoundsWidget: React.FC<SoundsWidgetProps> = ({
                   ? 'bg-slate-100 hover:bg-slate-200 text-slate-600'
                   : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
             }`}
+            aria-label="Alle Unterrichtssignale stoppen"
             title="Alle Sounds sofort stoppen"
           >
             <Square size={10} className={activePlayingId ? 'fill-current' : ''} />
             <span>Stopp</span>
           </button>
         </div>
+      </div>
+
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex items-center justify-between gap-2 text-[10px] opacity-80 shrink-0"
+      >
+        <span>{getMediaPlaybackStatusMessage(playbackStatus, 'Unterrichtston')}</span>
+        {isMediaPlaybackRetryable(playbackStatus) && (
+          <button
+            type="button"
+            onClick={() => setPlaybackStatus('ready')}
+            style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
+            className="rounded-lg px-2 font-bold underline underline-offset-2 cursor-pointer"
+          >
+            Erneut versuchen
+          </button>
+        )}
       </div>
 
       {/* Both small and large frames expose ALL six sounds. The cards stretch
@@ -163,9 +201,11 @@ export const SoundsWidget: React.FC<SoundsWidgetProps> = ({
         <div className="flex items-center gap-1">
           {[0.3, 0.7, 1.0].map((volVal) => (
             <button
+              style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
               key={volVal}
               type="button"
               onClick={() => handleVolumeChange(volVal)}
+              aria-pressed={Math.abs(volume - volVal) < 0.1}
               className={`px-2 py-0.5 text-[8.5px] font-bold rounded-md transition-all cursor-pointer ${
                 Math.abs(volume - volVal) < 0.1
                   ? 'bg-amber-500 text-white shadow-xs'
