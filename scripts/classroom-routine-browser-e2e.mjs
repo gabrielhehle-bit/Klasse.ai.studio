@@ -262,7 +262,7 @@ async function reloadAndUnlock(client) {
   await waitFor(client, 'app restored after reload', 'Boolean(document.querySelector(".topbar"))', 30000);
 }
 async function checkRoutine(client) {
-  const pupilParts = await evaluate(client, '(() => { const note=document.querySelector("button[aria-label=\\"Notiz oder Grund eintragen\\"]"); let row=note; while(row && !Array.from(row.querySelectorAll("button")).some(b=>b.textContent.trim()==="fehlt")) row=row.parentElement; const name=Array.from(row?.querySelectorAll("button")||[]).find(b=>!b.querySelector("svg") && b.textContent.trim()); return name?.textContent.trim().split(/\\s+/); })()');
+  const pupilParts = await evaluate(client, '(() => { const note=document.querySelector("button[aria-label=\\"Notiz oder Grund eintragen\\"]"); let row=note; const nameButton=el=>Array.from(el?.querySelectorAll("button")||[]).find(b=>!b.querySelector("svg") && b.textContent.trim()); while(row && !nameButton(row)) row=row.parentElement; return nameButton(row)?.textContent.trim().split(/\\s+/); })()');
   if (!pupilParts?.length) throw new Error('Cannot identify attendance pupil.');
   await clickButton(client, 'fehlt', true);
   // Clicking "fehlt" records an excused absence; dismiss its reason menu by opening the note.

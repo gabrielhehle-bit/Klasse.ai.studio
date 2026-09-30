@@ -150,8 +150,10 @@ test('historischer Mehrklassenstand überlebt Migration, Verschlüsselung und Re
   const encrypted = await createEncryptedBackup(migrated, vault.vaultKey, vault.vaultRecord);
   const serialized = serializeBackup(encrypted);
 
-  assert.ok(!serialized.includes('Anna'));
-  assert.ok(!serialized.includes('Clara'));
+  // Random Base64 ciphertext can contain a short name by coincidence. JSON
+  // string delimiters cannot occur inside Base64; check actual plaintext values.
+  assert.ok(!serialized.includes('"Anna"'));
+  assert.ok(!serialized.includes('"Clara"'));
   assert.ok(!serialized.includes('Erzählungen'));
   assert.ok(!serialized.includes('Brüche'));
 
