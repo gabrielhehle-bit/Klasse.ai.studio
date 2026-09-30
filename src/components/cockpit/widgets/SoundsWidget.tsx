@@ -48,7 +48,6 @@ export const SoundsWidget: React.FC<SoundsWidgetProps> = ({
       classroomSoundEngine.stopAll();
       if (playTimeoutRef.current) {
         clearTimeout(playTimeoutRef.current);
-        setPlaybackStatus('idle');
       }
     };
   }, []);
