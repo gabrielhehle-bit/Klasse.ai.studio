@@ -679,10 +679,17 @@ export function getCockpitWidgetCatalogEntry(
   };
 }
 
-/** Canonical visible title used by library cards and widget headers. */
+/** Existing visible label contract for legacy library cards and layouts. */
 export function getCockpitWidgetDisplayLabel(type: string): string {
   if (type === "studentlist") return "👥 Schülerliste";
-  return getCockpitWidgetCatalogEntry(type)?.displayName || "🧩 Widget";
+  // Very old layouts may still contain the former vocabulary alias.
+  if (type === "lernwoerter") return COCKPIT_WIDGET_LIBRARY_BY_TYPE.get("vocabulary")?.label || "🔤 Lernwörter-Studio";
+  return COCKPIT_WIDGET_LIBRARY_BY_TYPE.get(type)?.label || "🧩 Widget";
+}
+
+/** Canonical title for new alias-aware headers and search results. */
+export function getCockpitWidgetCanonicalDisplayLabel(type: string): string {
+  return getCockpitWidgetCatalogEntry(type)?.displayName || getCockpitWidgetDisplayLabel(type);
 }
 
 export function summarizeCockpitWidgetLibraryTypes(types: readonly string[]): {
