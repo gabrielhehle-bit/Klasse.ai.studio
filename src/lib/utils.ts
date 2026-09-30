@@ -180,7 +180,7 @@ export function logObservation(
   kategorie: any = 'Journal',
   source: string = 'Direkteingabe',
   dateOverride?: string,
-  subjectDetails?: { fach?: string; teilbereich?: string },
+  subjectDetails?: { fach?: string; teilbereich?: string; art?: 'neutral' | 'positiv' | 'beobachten' },
 ) {
   if (!text || text.trim() === '') return;
   setApp((prev: any) => {
@@ -191,6 +191,7 @@ export function logObservation(
       inhalt: text.trim(),
       kategorie,
       quelle: source,
+      ...(subjectDetails?.art ? { art: subjectDetails.art } : {}),
       ...(studentId && subjectDetails?.fach?.trim()
         ? {
             fach: subjectDetails.fach.trim(),
