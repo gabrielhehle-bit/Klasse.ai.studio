@@ -209,7 +209,7 @@ test("Kernwidgets nutzen große Flächen für Hierarchie statt nur für Leerraum
 
   assert.match(kidAttendance, /const roomyCard = cardWidth >= 200 && cardHeight >= 68/);
   assert.match(kidAttendance, /const heroCard = cardWidth >= 240 && cardHeight >= 84/);
-  assert.match(kidAttendance, /heroCard \? 'text-xl' : roomyCard \? 'text-lg'/);
+  assert.match(kidAttendance, /heroCard \? 'text-2xl' : roomyCard \? 'text-xl'/);
 
   assert.match(groupsWidget, /const roomyGroupCards = isExpanded \|\| \(size\.width >= 900 && groupLayout\.cardHeight >= 92\)/);
   assert.match(groupsWidget, /roomyGroupCards \? 'text-base sm:text-lg font-black'/);
