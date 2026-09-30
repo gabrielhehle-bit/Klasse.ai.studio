@@ -379,8 +379,8 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                         className={`px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold flex items-center justify-between transition-all cursor-pointer border ${
                           isActive
                             ? currentIsLight
-                              ? 'bg-blue-50 border-blue-300 text-blue-900'
-                              : 'bg-blue-950/50 border-blue-700 text-blue-100'
+                              ? 'bg-accent-soft border-accent text-accent-ink'
+                              : 'bg-accent-soft border-accent text-text'
                             : currentIsLight
                             ? 'bg-white border-slate-200 text-slate-500 opacity-60 hover:opacity-100'
                             : 'bg-zinc-800 border-zinc-700 text-slate-400 opacity-60 hover:opacity-100'
@@ -390,7 +390,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                           <span>{track.icon}</span>
                           <span className="truncate">{track.label}</span>
                         </span>
-                        {isActive && <Check size={13} className="text-blue-500 shrink-0" />}
+                        {isActive && <Check size={13} className="text-accent shrink-0" />}
                       </button>
                     );
                   })}
@@ -612,7 +612,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                  style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
                 className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
                   isSelected
-                    ? 'bg-blue-600 text-white font-bold'
+                    ? 'bg-accent text-accent-text font-bold'
                     : currentIsLight
                     ? 'bg-slate-100 hover:bg-slate-200 text-slate-600'
                     : 'bg-zinc-800 hover:bg-zinc-700 text-slate-300'
