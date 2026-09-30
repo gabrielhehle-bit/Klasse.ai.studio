@@ -493,8 +493,8 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   const safeMinSize = getWidgetMinSizeConfig(widget.type);
   const minWPercent = stageSize.width > 0 ? Math.min(100, (safeMinSize.minW / stageSize.width) * 100) : 0;
   const minHPercent = stageSize.height > 0 ? Math.min(100, (safeMinSize.minH / stageSize.height) * 100) : 0;
-  // A freestanding mascot uses the *whole cockpit*, not an oversized widget
-  // rectangle in the white writing area. x/y stay class-local and persistent.
+  // A freestanding mascot uses the board stage, not an oversized widget
+  // rectangle elsewhere in the cockpit. x/y stay board-local and persistent.
   const mascotSize = normalizeClassMascot(app.classMascot).displaySize || 220;
   const mascotPixels = Math.max(1, Math.min(mascotSize, stageSize.width || mascotSize, stageSize.height || mascotSize));
   const mascotWPercent = stageSize.width > 0 ? (mascotPixels / stageSize.width) * 100 : 25;
@@ -1083,6 +1083,6 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       )}
     </div>
   );
-  // Only the class mascot is portaled to the local cockpit root; no global FAB.
+  // Only the class mascot is portaled to the board-local stage; no global FAB.
   return isFreeMascot ? (mascotPortalTarget ? createPortal(widgetNode, mascotPortalTarget) : null) : widgetNode;
 };
