@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { LayoutGrid, PawPrint, Settings2, UsersRound } from 'lucide-react';
 import {
   COCKPIT_QUICKBAR_ITEMS,
   addCockpitQuickbarItem,
@@ -86,11 +87,11 @@ export function CockpitWidgetDock({
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [editing]);
 
-  // 6–8 favorites may keep their labels when the board is wide enough.
-  // Larger sets automatically become icon-only instead of turning into a menu bar.
+  // A short favorite list may show labels; larger lists stay compact and use tooltips.
+  // This prevents truncated names and keeps the dock readable on the board edge.
   const showFavoriteLabels =
-    favorites.length <= 8 &&
-    availableWidth >= Math.max(720, favorites.length * 86 + 220);
+    favorites.length <= 5 &&
+    availableWidth >= Math.max(760, favorites.length * 124 + 240);
 
   const finishFavoriteDrag = (event?: React.PointerEvent<HTMLButtonElement>) => {
     if (event?.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -155,8 +156,8 @@ export function CockpitWidgetDock({
         </div>
       )}
       <nav aria-label="Meine Widget-Favoriten"
-        className="klassio-widget-dock relative flex w-fit max-w-full min-w-0 items-center gap-1.5 rounded-[20px] border border-slate-200 bg-white/95 p-1.5 text-slate-900 shadow-xl backdrop-blur">
-        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto overscroll-x-contain [scrollbar-width:thin]"
+        className="klassio-widget-dock relative flex w-fit max-w-full min-w-0 items-center gap-1 rounded-2xl border border-slate-200/80 bg-white/95 p-1.5 text-slate-900 shadow-lg backdrop-blur">
+        <div className="klassio-dock-favorites flex min-w-0 flex-1 items-center gap-1 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           aria-label="Widget-Schnellzugriffe">
           {settings.enabled && favorites.map(item => {
             const isActive = activeTypes.includes(item.id);
@@ -192,31 +193,40 @@ export function CockpitWidgetDock({
                     ? 'border-accent bg-accent-soft text-accent shadow-sm'
                     : 'border-transparent text-slate-800 hover:border-accent hover:bg-accent-soft'
               }`}>
-              <span aria-hidden="true" className="text-xl leading-none">{item.icon}</span>
+              <span aria-hidden="true" className="text-lg leading-none">{item.icon}</span>
               {showFavoriteLabels && <span className="max-w-24 truncate text-[11px] font-semibold leading-tight">{item.label}</span>}
               {isActive && !isMinimized && <span className="absolute -bottom-0.5 left-1/2 h-1.5 w-5 -translate-x-1/2 rounded-full bg-accent" aria-hidden="true" />}
               {isMinimized && <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-black text-accent-text" aria-hidden="true">▾</span>}
             </button>
           )})}
         </div>
-        <div className="klassio-dock-system flex shrink-0 items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
+        <div className="klassio-dock-system flex shrink-0 items-center gap-1 border-l border-slate-200 pl-2" aria-label="Werkzeuge">
         <button type="button" disabled={!hasClass} onClick={onAddWidget}
-          aria-label="Weitere Widgets hinzufügen" title="Alle Widgets"
-          className="klassio-dock-add klassio-dock-primary flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-accent px-3 text-accent-text shadow-md ring-1 ring-black/10 transition-all hover:-translate-y-0.5 hover:bg-accent-hover hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:translate-y-0 disabled:opacity-40">
-          <span className="text-2xl font-semibold leading-none" aria-hidden="true">+</span>
+          aria-label="Weitere Widgets hinzufügen" title="Widget-Bibliothek öffnen"
+          className="klassio-dock-add klassio-dock-primary flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-accent px-3 text-accent-text shadow-sm transition-colors hover:bg-accent-hover hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:opacity-40">
+          <LayoutGrid className="h-4 w-4" aria-hidden="true" />
           <span className="hidden text-xs font-black sm:inline">Widgets</span>
         </button>
         <button type="button" disabled={!hasClass} onClick={() => setEditing(open => !open)}
           aria-label="Meine Widget-Leiste anpassen" aria-expanded={editing} title="Widget-Leiste anpassen"
-          className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border text-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:opacity-40 ${editing ? 'border-accent bg-accent-soft text-accent' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}>⚙️</button>
+          className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border text-slate-700 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:opacity-40 ${editing ? 'border-accent bg-accent-soft text-accent' : 'border-slate-200 bg-white hover:bg-slate-100'}`}>
+          <Settings2 className="h-4 w-4" aria-hidden="true" />
+          <span className="sr-only">Widget-Leiste anpassen</span>
+        </button>
         <button type="button" disabled={!hasClass} onClick={onToggleMascot}
           aria-label={mascotVisible ? 'Klassenmaskottchen ausblenden' : 'Klassenmaskottchen einblenden'}
           aria-pressed={mascotVisible} title={mascotVisible ? 'Klassenmaskottchen ausblenden' : 'Klassenmaskottchen einblenden'}
-          className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border text-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:opacity-40 ${mascotVisible ? 'border-accent bg-accent-soft text-accent' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}>🐾</button>
+          className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border text-slate-700 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:opacity-40 ${mascotVisible ? 'border-accent bg-accent-soft text-accent' : 'border-slate-200 bg-white hover:bg-slate-100'}`}>
+          <PawPrint className="h-4 w-4" aria-hidden="true" />
+          <span className="sr-only">Klassenmaskottchen</span>
+        </button>
         <button type="button" onClick={onToggleSidebar}
           aria-label={sidebarOpen ? 'Schülerliste ausblenden' : 'Schülerliste einblenden'}
           aria-expanded={sidebarOpen} title={sidebarOpen ? 'Schülerliste ausblenden' : 'Schülerliste öffnen'}
-          className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border text-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring ${sidebarOpen ? 'border-accent bg-accent-soft text-accent' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}>👥</button>
+          className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border text-slate-700 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring ${sidebarOpen ? 'border-accent bg-accent-soft text-accent' : 'border-slate-200 bg-white hover:bg-slate-100'}`}>
+          <UsersRound className="h-4 w-4" aria-hidden="true" />
+          <span className="sr-only">Schülerliste</span>
+        </button>
         </div>
 
         {editing && (
