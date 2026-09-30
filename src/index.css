@@ -1956,6 +1956,34 @@ html body .cockpit-free-mascot .class-mascot-details .text-teal-950 { color: #13
   .app-scale-container {
     padding-bottom: env(safe-area-inset-bottom, 16px) !important;
   }
+
+  /* Keep the global shell usable with one hand. The app has many dense
+     teacher workflows, so only the shell controls are widened here; content
+     tables and classroom boards keep their own sizing rules. */
+  .topbar {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .topbar button,
+  .topbar a,
+  aside button {
+    min-height: 44px;
+  }
+
+  .topbar .topbar-title,
+  aside button span {
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  /* Form controls remain comfortable on touch devices without changing the
+     deliberately compact controls inside classroom widgets. */
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    min-height: 44px;
+  }
 }
 
 /* =========================================================================

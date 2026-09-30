@@ -239,8 +239,8 @@ async function main() {
     await waitFor(client, 'access gate', 'document.body?.innerText.toLowerCase().includes("geschützter zugang")', 30000);
     await setInputByLabel(client, 'Zugangscode', ACCESS_CODE);
     await clickButton(client, 'Klassio öffnen');
-    await waitFor(client, 'new encrypted vault', 'document.body?.innerText.toLowerCase().includes("lokalen datentresor einrichten")', 30000);
-    await setInputByLabel(client, 'Tresor-Passwort vergeben', VAULT_PASSWORD);
+    await waitFor(client, 'new encrypted vault', 'document.body?.innerText.toLowerCase().includes("tresor auf diesem gerät einrichten")', 30000);
+    await setInputByLabel(client, 'Eigenes Tresor-Passwort', VAULT_PASSWORD);
     await setInputByLabel(client, 'Passwort bestätigen', VAULT_PASSWORD);
     await clickButton(client, 'Weiter zum Wiederherstellungscode');
     await waitFor(client, 'vault recovery screen', 'document.body?.innerText.toLowerCase().includes("dein einmaliger wiederherstellungscode")', 30000);

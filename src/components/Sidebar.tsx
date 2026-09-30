@@ -29,15 +29,10 @@ interface SidebarProps {
 const CORE_MODULE_IDS = new Set([
   'dashboard',
   'klasse',
-  'klassenstundenplan',
   'verhalten',
   'planung',
   'leistungen',
   'cockpit',
-  'ki-helfer',
-  'tools',
-  'lehrerzimmer',
-  'lehrmittel',
 ]);
 
 const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: SidebarProps) => {
@@ -177,6 +172,13 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
   const activeSecondaryModule = mainModules.find(
     item => item.id === currentPage && !defaultPrimaryModules.some(primary => primary.id === item.id)
   );
+
+  // A secondary page should never disappear behind a collapsed "More" menu
+  // after navigation. Keep the calm default, but reveal the active destination
+  // automatically when the teacher opens a less frequently used area.
+  React.useEffect(() => {
+    if (activeSecondaryModule) setShowMorePages(true);
+  }, [activeSecondaryModule?.id]);
 
   const moveSidebarModule = React.useCallback((draggedId: string, targetId: string) => {
     if (!draggedId || draggedId === targetId) return;
@@ -409,8 +411,13 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
             )}
           </div>
         
-          <nav className="flex-1 py-3 overflow-y-auto no-scrollbar">
+          <nav className="flex-1 py-3 overflow-y-auto no-scrollbar" aria-label="Hauptnavigation">
             <div className="px-2 space-y-0.5">
+              {!isCollapsed && (
+                <div className="px-3 pb-2 text-[0.625rem] font-black uppercase tracking-[0.18em] text-text-muted">
+                  Arbeitsbereich
+                </div>
+              )}
               {visibleMainModules.map(item => (
                 <button
                   key={item.id}
@@ -474,16 +481,17 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                   onClick={() => setShowMorePages(value => !value)}
                   className="w-full mt-1 flex items-center gap-3 px-3.5 py-2.5 rounded-xl border border-border text-[0.8125rem] font-bold text-text-secondary hover:bg-surface2 hover:text-text-primary transition-colors"
                   aria-expanded={showMorePages}
+                  aria-label={showMorePages ? 'Weniger Bereiche anzeigen' : `Mehr (${hiddenMainCount}) – weitere Bereiche anzeigen`}
                   title={showMorePages ? 'Weniger Bereiche anzeigen' : 'Alle Bereiche anzeigen'}
                 >
                   <LayoutGrid size={18} className="text-accent shrink-0" />
                   {!isCollapsed && (
                     <span>
                       {showMorePages
-                        ? 'Weniger'
-                        : activeSecondaryModule
-                          ? `Mehr · ${activeSecondaryModule.label}`
-                          : `Mehr (${hiddenMainCount})`}
+                          ? 'Weniger Bereiche'
+                          : activeSecondaryModule
+                            ? `Mehr · ${activeSecondaryModule.label}`
+                            : `Mehr · weitere Bereiche (${hiddenMainCount})`}
                     </span>
                   )}
                 </button>
@@ -491,7 +499,12 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
             </div>
           </nav>
 
-          <div className="p-2 border-t border-border space-y-1">
+          <div className="p-2 border-t border-border space-y-1" aria-label="Persönlich und Daten">
+            {!isCollapsed && (
+              <div className="px-3 pb-1 text-[0.5625rem] font-black uppercase tracking-[0.16em] text-text-muted">
+                Persönlich &amp; Daten
+              </div>
+            )}
             {utilityModules.map(item => (
               <button
                 key={item.id}
