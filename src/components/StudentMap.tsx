@@ -225,7 +225,7 @@ export default function StudentMap({ students }: StudentMapProps) {
             <TileLayer
               eventHandlers={{ tileerror: () => setTilesUnavailable(true), tileload: () => setTilesUnavailable(false) }}
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             {positionedStudents.map(student => (
               <Marker
