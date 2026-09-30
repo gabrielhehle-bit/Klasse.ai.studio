@@ -17,7 +17,7 @@ export interface SmartboardControlStyle {
 }
 
 export const getSmartboardControlStyle = (
-  requestedSize = SMARTBOARD_TOUCH_TARGET_MIN,
+  requestedSize: number = SMARTBOARD_TOUCH_TARGET_MIN,
 ): SmartboardControlStyle => {
   const size = Math.max(SMARTBOARD_TOUCH_TARGET_MIN, requestedSize);
   return {
