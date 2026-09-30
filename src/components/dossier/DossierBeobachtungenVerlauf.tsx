@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { formatGermanDate } from '../../lib/diagnosticCoreUtils';
 import { logObservation } from '../../lib/utils';
+import { toLocalDateKey } from '../../lib/localDate';
 import DossierKELReflexion from './DossierKELReflexion';
 
 interface DossierBeobachtungenVerlaufProps {
@@ -60,7 +61,7 @@ export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufPr
   const [newNoteCategory, setNewNoteCategory] = useState<AppNote['kategorie']>(initialQuickNoteCategory || 'Notiz');
   React.useEffect(() => { if (initialQuickNoteCategory) onQuickEntryConsumed?.(); }, []);
   const [newNoteSubject, setNewNoteSubject] = useState('');
-  const [newNoteDate, setNewNoteDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newNoteDate, setNewNoteDate] = useState(() => toLocalDateKey());
   const [newNoteType, setNewNoteType] = useState<'neutral' | 'positiv' | 'beobachten'>('neutral');
 
   const filteredNotes = useMemo(() => {
@@ -85,7 +86,7 @@ export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufPr
       newNoteCategory,
       'Schülerdossier',
       newNoteDate,
-      newNoteSubject.trim() ? { fach: newNoteSubject.trim() } : undefined,
+      { fach: newNoteSubject.trim(), art: newNoteType },
     );
 
     setNewNoteText('');
