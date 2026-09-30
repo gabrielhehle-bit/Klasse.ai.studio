@@ -824,10 +824,14 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
+                    const nextDirectMode = !widget.settings?.isDirectMode;
                     onUpdate({
                       settings: {
                         ...widget.settings,
-                        isDirectMode: !widget.settings?.isDirectMode,
+                        isDirectMode: nextDirectMode,
+                        ...(widget.type === "drawing"
+                          ? { surfaceMode: nextDirectMode ? "board" : "window" }
+                          : {}),
                       },
                     });
                     setShowWidgetMenu(false);
@@ -835,7 +839,15 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
                   className="w-full min-h-11 px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-white/10 text-left"
                 >
                   <Rocket size={14} />
-                  <span>{isDirect ? "Fenstermodus" : "Direktmodus"}</span>
+                  <span>
+                    {widget.type === "drawing"
+                      ? isDirect
+                        ? "In Fenstermodus wechseln"
+                        : "In Tafelfläche wechseln"
+                      : isDirect
+                        ? "Fenstermodus"
+                        : "Direktmodus"}
+                  </span>
                 </button>
               )}
 
