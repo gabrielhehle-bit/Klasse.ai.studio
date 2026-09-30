@@ -234,9 +234,22 @@ export const FlagQuizWidgetContent: React.FC<FlagQuizWidgetContentProps> = ({
                 onError={() => setFlagLoadFailed(true)}
               />
             ) : (
-              <div className="px-5 text-center">
-                <p className="text-sm font-black">Flagge konnte nicht geladen werden.</p>
-                <p className="mt-1 text-xs opacity-60">Bitte Internetverbindung prüfen oder zur nächsten Flagge wechseln.</p>
+              <div
+                role="status"
+                aria-live="polite"
+                className="flex flex-col items-center gap-3 px-5 text-center"
+              >
+                <div>
+                  <p className="text-sm font-black">Flagge konnte nicht geladen werden.</p>
+                  <p className="mt-1 text-xs opacity-60">Die Antwortmöglichkeiten bleiben nutzbar. Du kannst das Bild erneut laden oder direkt weitergehen.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFlagLoadFailed(false)}
+                  className="min-h-11 rounded-xl border border-accent px-3 text-xs font-black text-accent hover:bg-accent-soft"
+                >
+                  Flagge erneut laden
+                </button>
               </div>
             )}
           </div>
@@ -262,7 +275,7 @@ export const FlagQuizWidgetContent: React.FC<FlagQuizWidgetContentProps> = ({
               <button
                 key={choice.code}
                 type="button"
-                disabled={Boolean(answeredCode) || flagLoadFailed}
+                disabled={Boolean(answeredCode)}
                 onClick={() => chooseAnswer(choice.code)}
                 className={`min-h-14 rounded-2xl border px-3 py-3 text-sm font-black transition-colors disabled:cursor-default ${optionClass(choice.code)}`}
               >
