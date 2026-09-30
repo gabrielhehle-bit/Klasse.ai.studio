@@ -47,12 +47,15 @@ test('compact Heute dashboard no longer shows privacy toggle or redundant taglin
   assert.doesNotMatch(source, /Das Wichtigste für deinen Schultag/);
 });
 
-test('important notices are rendered before attendance inside Offen & im Blick', () => {
+test('compact Heute dashboard separates important items from personal tasks', () => {
   const sectionIndex = source.indexOf('aria-label="Wichtig und offen"');
-  const importantIndex = source.indexOf('{tasks.length ? (', sectionIndex);
+  const importantIndex = source.indexOf('Heute wichtig', sectionIndex);
+  const personalIndex = source.indexOf('Meine offenen Aufgaben', sectionIndex);
   const attendanceIndex = source.indexOf('<Users size={15} />', sectionIndex);
   assert.ok(sectionIndex >= 0, 'Wichtig-Sektion fehlt');
-  assert.ok(importantIndex >= 0, 'Hinweis-Liste fehlt');
-  assert.ok(attendanceIndex > importantIndex, 'Anwesenheit darf wichtige Hinweise nicht überdecken');
+  assert.ok(importantIndex >= 0, 'Heute-wichtig-Bereich fehlt');
+  assert.ok(personalIndex >= 0, 'Aufgaben-Bereich fehlt');
+  assert.ok(attendanceIndex > personalIndex, 'Anwesenheit darf die Aufgabenbereiche nicht überdecken');
   assert.match(source, /item\.category/);
+  assert.match(source, /p\.nextLesson/);
 });

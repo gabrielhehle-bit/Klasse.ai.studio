@@ -18,7 +18,11 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
   const { app } = useApp();
   const [showAllTasks, setShowAllTasks] = useState(false);
   const button = 'min-h-11 px-4 py-2 rounded-xl text-sm font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]';
-  const tasks = showAllTasks ? p.actionItems : p.actionItems.slice(0, 3);
+  const todayItems = p.actionItems.filter(item => item.type !== 'task' && item.type !== 'money');
+  const personalItems = p.actionItems.filter(item => item.type === 'task' || item.type === 'money');
+  const visibleTodayItems = showAllTasks ? todayItems : todayItems.slice(0, 2);
+  const visiblePersonalItems = showAllTasks ? personalItems : personalItems.slice(0, 1);
+  const visibleItemCount = visibleTodayItems.length + visiblePersonalItems.length;
 
   const primaryTarget =
     p.totalStudents === 0
@@ -27,7 +31,9 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
         ? 'wochenplanung'
         : p.attendanceRequired && !p.attendanceRecorded
           ? 'anwesenheit'
-          : 'cockpit';
+          : p.currentLesson
+            ? 'cockpit'
+            : 'wochenplanung';
 
   const primaryLabel =
     p.totalStudents === 0
@@ -38,7 +44,20 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
           ? 'Anwesenheit prüfen'
           : p.currentLesson
             ? 'Unterricht öffnen'
-            : 'Unterricht starten';
+            : p.nextLesson
+              ? 'Nächste Stunde ansehen'
+              : 'Tagesplan öffnen';
+
+  const primaryContext =
+    p.totalStudents === 0 || p.freeDayGreeting || (p.attendanceRequired && !p.attendanceRecorded)
+      ? null
+      : p.currentLesson
+        ? 'Jetzt: ' + (p.currentLesson.fach || 'Unterricht') + (p.currentLesson.zeit ? ' · ' + p.currentLesson.zeit : '')
+        : p.nextLesson
+          ? 'Als Nächstes: ' + (p.nextLesson.fach || 'Unterricht') + (p.nextLesson.zeit ? ' · ' + p.nextLesson.zeit : '')
+          : p.todayLessonsList.length
+            ? 'Für heute ist Unterricht eingetragen.'
+            : 'Für heute ist noch kein Unterricht eingetragen.';
 
   const attendanceValue =
     p.privacyMode
@@ -79,15 +98,18 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
 
         <div className="mt-6">
           <p className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-slate-500">Jetzt</p>
-          <button
-            type="button"
-            onClick={() => p.onNavigate(primaryTarget)}
-            className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-[var(--accent)] px-6 py-4 text-base font-semibold text-white transition hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] sm:w-auto"
-          >
-            {primaryTarget === 'cockpit' ? <Play size={20} /> : primaryTarget === 'wochenplanung' ? <CalendarDays size={20} /> : <Users size={20} />}
-            {primaryLabel}
-            <ArrowRight size={18} />
-          </button>
+          <div className="flex flex-col items-start gap-2">
+            <button
+              type="button"
+              onClick={() => p.onNavigate(primaryTarget)}
+              className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-[var(--accent)] px-6 py-4 text-base font-semibold text-white transition hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] sm:w-auto"
+            >
+              {primaryTarget === 'cockpit' ? <Play size={20} /> : primaryTarget === 'wochenplanung' ? <CalendarDays size={20} /> : <Users size={20} />}
+              {primaryLabel}
+              <ArrowRight size={18} />
+            </button>
+            {primaryContext && <p className="text-sm font-medium text-slate-600">{primaryContext}</p>}
+          </div>
         </div>
       </header>
 
@@ -179,34 +201,64 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
             </h2>
           </div>
 
-          <div>
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-slate-800">Hinweise</p>
-              <span className="text-xs font-medium text-slate-500">
-                {p.openTasksCount} Aufgaben · {p.openCollectionsCount} Sammlungen
-              </span>
-            </div>
+          <div className="space-y-4">
+            {visibleTodayItems.length > 0 && (
+              <div>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-slate-800">Heute wichtig</p>
+                  <span className="text-xs font-medium text-slate-500">{todayItems.length} Hinweise</span>
+                </div>
+                <ul className="space-y-2">
+                  {visibleTodayItems.map(item => (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        className="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-left text-sm leading-relaxed transition hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
+                        onClick={() => p.onNavigate(item.linkPage || 'orga')}
+                      >
+                        {item.category && (
+                          <span className={item.type === 'birthday'
+                            ? 'mb-1 block text-xs font-semibold text-amber-800'
+                            : item.urgent
+                              ? 'mb-1 block text-xs font-semibold text-rose-700'
+                              : 'mb-1 block text-xs font-semibold text-slate-500'}>
+                            {item.category}
+                          </span>
+                        )}
+                        {p.privacyMode ? 'Privater Eintrag – zum Öffnen auswählen' : item.text}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-            {tasks.length ? (
-              <ul className="space-y-2">
-                {tasks.map(item => (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      className="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-left text-sm leading-relaxed transition hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
-                      onClick={() => p.onNavigate(item.linkPage || 'orga')}
-                    >
-                      {item.category && (
-                        <span className={`mb-1 block text-xs font-semibold ${item.type === 'birthday' ? 'text-amber-800' : item.urgent ? 'text-rose-700' : 'text-slate-500'}`}>
-                          {item.category}
-                        </span>
-                      )}
-                      {p.privacyMode ? 'Privater Eintrag – zum Öffnen auswählen' : item.text}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
+            {visiblePersonalItems.length > 0 && (
+              <div>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-slate-800">Meine offenen Aufgaben</p>
+                  <span className="text-xs font-medium text-slate-500">
+                    {p.openTasksCount} Aufgaben · {p.openCollectionsCount} Sammlungen
+                  </span>
+                </div>
+                <ul className="space-y-2">
+                  {visiblePersonalItems.map(item => (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        className="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-left text-sm leading-relaxed transition hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
+                        onClick={() => p.onNavigate(item.linkPage || 'verhalten')}
+                      >
+                        {item.category && <span className="mb-1 block text-xs font-semibold text-slate-500">{item.category}</span>}
+                        {p.privacyMode ? 'Privater Eintrag – zum Öffnen auswählen' : item.text}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {!visibleItemCount && (
               <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-sm font-medium text-emerald-800">
                 <CheckCircle2 size={18} className="shrink-0" />
                 Keine zusätzlichen Hinweise für heute.
@@ -214,7 +266,7 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
             )}
           </div>
 
-          {p.actionItems.length > 3 && (
+          {p.actionItems.length > visibleItemCount && (
             <button
               type="button"
               className={button + ' w-full'}

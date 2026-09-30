@@ -2422,19 +2422,6 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
   );
 
   useEffect(() => {
-    if (birthdaysToday.length > 0) {
-      const todayStr = new Date().toISOString().split("T")[0];
-      const hasShownToast = localStorage.getItem(`bday_toast_${todayStr}`);
-      if (!hasShownToast) {
-        setTimeout(() => {
-          birthdaysToday.forEach((s) => {
-            showToast(`🎂 Heute hat ${s.vorname} Geburtstag!`, "success");
-          });
-          localStorage.setItem(`bday_toast_${todayStr}`, "true");
-        }, 1000);
-      }
-    }
-
     if (showBdayModal && birthdaysToday.length > 0) {
       const t = setTimeout(() => {
         handleBirthdayCelebrateOnDashboard(
@@ -4541,32 +4528,32 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
       {/* PRIORITY: Geburtstage dieser Woche immer ganz oben im Dashboard */}
       <AnimatePresence>
         {birthdaysThisWeek.length > 0 && (
-          <motion.div
+          <motion.section
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className=""
+            aria-label="Geburtstage diese Woche"
+            className="overflow-hidden"
           >
             <div className="bg-gradient-to-r from-amber-500/10 to-rose-500/10 p-[1px] rounded-3xl border border-amber-500/20 shadow-[0_10px_25px_rgba(245,158,11,0.03)]">
-              <div className="bg-white/95 backdrop-blur-md px-6 py-4 rounded-[calc(1.5rem-1px)] flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-9 h-9 bg-amber-50 border border-amber-100 rounded-xl flex items-center justify-center text-amber-600 animate-bounce">
-                    <PartyPopper size={16} />
+              <div className="bg-white/95 backdrop-blur-md px-4 sm:px-6 py-4 rounded-[calc(1.5rem-1px)]">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-amber-100 bg-amber-50 text-amber-600">
+                    <Cake size={16} />
                   </div>
-                  <div>
-                    <h4 className="text-[0.75rem] leading-tight font-black text-amber-800 uppercase tracking-widest leading-none mb-1">
-                      Geburtstage diese Woche
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-[0.75rem] leading-tight font-black text-amber-800 uppercase tracking-widest">
+                      {birthdaysToday.length > 0 ? "Heute & diese Woche" : "Geburtstage diese Woche"}
                     </h4>
-                    <div className="text-[0.75rem] leading-tight text-slate-600 font-bold italic flex flex-wrap gap-x-1.5 gap-y-0.5">
-                      <span>Herzlichen Glückwunsch an:</span>
-                      {birthdaysThisWeek.map((s, idx) => {
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {birthdaysThisWeek.map((s) => {
                         let bdayDate: Date | null = null;
-                        const parts = s.geburtstag.split(".");
+                        const parts = String(s.geburtstag).split(".");
                         if (parts.length === 3) {
                           bdayDate = new Date(
                             heute.getFullYear(),
                             parseInt(parts[1]) - 1,
-                            parseInt(parts[0])
+                            parseInt(parts[0]),
                           );
                         } else {
                           const parsed = new Date(s.geburtstag);
@@ -4574,16 +4561,32 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
                             bdayDate = new Date(heute.getFullYear(), parsed.getMonth(), parsed.getDate());
                           }
                         }
-                        const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
-                        const weekdayStr = bdayDate ? WEEKDAYS[bdayDate.getDay()] : "";
-                        const dateStr = bdayDate ? `${String(bdayDate.getDate()).padStart(2, '0')}.${String(bdayDate.getMonth() + 1).padStart(2, '0')}.` : "";
-                        const bdayLabel = bdayDate ? ` (${weekdayStr}, ${dateStr})` : "";
+                        const isToday = birthdaysToday.some((todayStudent) => todayStudent.id === s.id);
+                        const weekday = bdayDate?.toLocaleDateString("de-DE", { weekday: "short" }) || "";
+                        const dateLabel = bdayDate
+                          ? bdayDate.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })
+                          : "";
+                        const description = isToday
+                          ? s.vorname + " hat heute Geburtstag"
+                          : s.vorname + " hat am " + weekday + ", " + dateLabel + " Geburtstag";
                         return (
-                          <span key={s.id || idx}>
-                            <span className="text-amber-600 font-extrabold">{s.vorname}</span>
-                            <span className="text-slate-400 font-normal">{bdayLabel}</span>
-                            {idx < birthdaysThisWeek.length - 1 ? ", " : ""}
-                          </span>
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => {
+                              setApp((prev) => ({ ...prev, selectedStudentId: s.id }));
+                              setPage("schueler");
+                            }}
+                            aria-label={description + ". Schülerprofil öffnen"}
+                            className={isToday
+                              ? "inline-flex min-h-10 items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-left text-amber-900 transition-colors hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                              : "inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-left text-slate-700 transition-colors hover:border-amber-200 hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"}
+                          >
+                            <span className="font-bold">{s.vorname}</span>
+                            <span className={isToday ? "text-xs font-black text-amber-700" : "text-xs text-slate-500"}>
+                              {isToday ? "heute" : weekday + " · " + dateLabel}
+                            </span>
+                          </button>
                         );
                       })}
                     </div>
@@ -4591,7 +4594,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
                 </div>
               </div>
             </div>
-          </motion.div>
+          </motion.section>
         )}
       </AnimatePresence>
 
@@ -4684,55 +4687,6 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
               >
                 <Download size={14} /> Jetzt sichern
               </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* GEBURTSTAG HEUTE: TOP LEVEL BANNER */}
-      <AnimatePresence>
-        {birthdaysToday.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="w-full relative z-[100] mb-6"
-          >
-            <div className="bg-gradient-to-r from-pink-500/10 via-amber-500/10 to-violet-500/10 p-[1px] rounded-2xl sm:rounded-3xl border border-pink-500/20 shadow-[0_15px_30px_rgba(236,72,153,0.05)]">
-              <div className="bg-white/95 backdrop-blur-md px-4 sm:px-6 py-4 rounded-[calc(1rem-1px)] sm:rounded-[calc(1.5rem-1px)] flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-4 text-center sm:text-left">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-pink-50 text-pink-500 rounded-full flex items-center justify-center animate-bounce shadow-xs border border-pink-100">
-                    <PartyPopper size={20} className="sm:w-6 sm:h-6" />
-                  </div>
-                  <div>
-                    <h4 className="text-[1rem] sm:text-[1.125rem] leading-tight font-black text-pink-600 uppercase tracking-widest mb-1.5">
-                      Heute hat {birthdaysToday.map((s) => s.vorname).join(", ")} Geburtstag! 🎉
-                    </h4>
-                    <p className="text-[0.6875rem] sm:text-[0.75rem] leading-tight text-slate-500 font-bold italic">
-                      Das ist ein Grund zu feiern 🎂 Lass uns gratulieren!
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleBirthdayCelebrateOnDashboard(
-                        birthdaysToday.map((s) => s.vorname).join(", "),
-                      );
-                    }}
-                    className="px-5 py-2.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl text-[0.6875rem] font-black uppercase tracking-wider hover:opacity-90 active:scale-95 transition-all shadow-lg cursor-pointer flex items-center gap-2"
-                  >
-                    🎉 Party!
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPage("schueler")}
-                    className="hidden sm:block px-4 py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-750 text-[0.6875rem] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer"
-                  >
-                    Schülerliste
-                  </button>
-                </div>
-              </div>
             </div>
           </motion.div>
         )}

@@ -27,6 +27,7 @@ import {
   Star,
   Sparkles,
   ArrowRight,
+  Play,
   ListTodo,
   BookOpen,
   CalendarDays,
@@ -350,11 +351,11 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
 
           <button
             type="button"
-            onClick={() => onNavigate("wochenplanung")}
+            onClick={() => onNavigate(currentLesson ? "cockpit" : "wochenplanung")}
             className="mt-4 w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer"
           >
-            <BookOpen size={14} />
-            <span>Tagesplan</span>
+            {currentLesson ? <Play size={14} /> : <BookOpen size={14} />}
+            <span>{currentLesson ? "Unterricht öffnen" : "Tagesplan"}</span>
           </button>
         </div>
 
