@@ -7,14 +7,17 @@ import ClassMascotWidget from '../components/cockpit/ClassMascotWidget';
 import { initialAppState } from './appState';
 import { DEFAULT_CLASS_MASCOT } from './classMascot';
 
-test('Mascot alone is portaled to the entire cockpit root, not bound to the white writing area', () => {
+test('Mascot is portaled to the board stage, never over the student sidebar', () => {
   const cockpit = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
   const host = readFileSync('src/components/cockpit/CockpitWidget.tsx', 'utf8');
   assert.match(cockpit, /ref=\{attachCockpitRoot\}/);
   assert.match(cockpit, /outerContainerRef\.current = node/);
   assert.match(cockpit, /setMascotPortalTarget\(node\)/);
+  assert.match(cockpit, /const attachMascotBoard = useCallback/);
+  assert.match(cockpit, /ref=\{attachMascotBoard\}/);
   assert.match(cockpit, /id="widget-board-stage"/);
-  assert.match(cockpit, /mascotStageRef=\{outerContainerRef\}/);
+  assert.match(cockpit, /mascotStageRef=\{boardRef\}/);
+  assert.doesNotMatch(cockpit, /mascotStageRef=\{outerContainerRef\}/);
   assert.match(cockpit, /mascotPortalTarget=\{mascotPortalTarget\}/);
   assert.match(host, /const activeStageRef = isFreeMascot && mascotStageRef \? mascotStageRef : stageRef/);
   assert.match(host, /isFreeMascot \? \(mascotPortalTarget \? createPortal\(widgetNode, mascotPortalTarget\) : null\) : widgetNode/);
