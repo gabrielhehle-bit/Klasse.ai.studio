@@ -10,7 +10,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { CockpitWidgetConfig } from '../../../types';
-import { useWidgetSize, useWidgetOverflowGuard, TOUCH_TARGET_MIN } from '../widgetLayout';
+import { useWidgetSize, useWidgetOverflowGuard, SMARTBOARD_PRIMARY_ACTION_CLASS, TOUCH_TARGET_MIN } from '../widgetLayout';
 import {
   CalmSoundSettings,
   CalmTrackId,
@@ -312,7 +312,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
               className={`w-full py-2.5 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm ${
                 isPlaying
                   ? 'bg-rose-500 hover:bg-rose-600 text-white'
-                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  : SMARTBOARD_PRIMARY_ACTION_CLASS
               }`}
             >
               {isPlaying ? (
@@ -453,7 +453,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                   className={`flex-1 sm:flex-initial px-5 py-2 rounded-xl font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm text-sm ${
                     isPlaying
                       ? 'bg-rose-500 hover:bg-rose-600 text-white'
-                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      : SMARTBOARD_PRIMARY_ACTION_CLASS
                   }`}
                 >
                   {isPlaying ? (
@@ -554,7 +554,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                          style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
                         className={`w-11 h-11 rounded-lg flex items-center justify-center transition-all cursor-pointer shrink-0 border ${
                           isActive
-                            ? 'bg-blue-600 text-white border-blue-700'
+                            ? 'bg-accent text-accent-text border-accent'
                             : currentIsLight
                             ? 'bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200'
                             : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:bg-zinc-700'
