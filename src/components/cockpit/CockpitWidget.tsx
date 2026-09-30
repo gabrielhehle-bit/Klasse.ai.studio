@@ -6,7 +6,7 @@ import { CockpitWidgetConfig } from "../../types";
 import { useApp } from "../../context/AppContext";
 import { WIDGET_MIN_SIZES, getWidgetMinSizeConfig } from "./widgetLayout";
 import { getWidgetViewportDensity, getLegacyWidgetPadding, WIDGET_VIEWPORT_OVERFLOW } from "../../lib/widgetViewport";
-import { getCockpitWidgetDisplayLabel } from "../../lib/cockpitWidgetCatalog";
+import { getCockpitWidgetCanonicalDisplayLabel, getCockpitWidgetCatalogEntry, getCockpitWidgetDisplayLabel } from "../../lib/cockpitWidgetCatalog";
 
 interface CockpitWidgetProps {
   widget: CockpitWidgetConfig;
@@ -482,7 +482,11 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     applyPersistentSize(widget.w + dw, widget.h + dh);
   };
 
-  const displayLabel = getCockpitWidgetDisplayLabel(widget.type);
+  const legacyDisplayLabel = getCockpitWidgetDisplayLabel(widget.type);
+  const canonicalEntry = getCockpitWidgetCatalogEntry(widget.type);
+  const displayLabel = canonicalEntry?.aliasOf
+    ? getCockpitWidgetCanonicalDisplayLabel(widget.type)
+    : legacyDisplayLabel;
 
 
   const opt = OPTIMAL_WIDGET_SIZES[widget.type] || { w: 35, h: 45 };
