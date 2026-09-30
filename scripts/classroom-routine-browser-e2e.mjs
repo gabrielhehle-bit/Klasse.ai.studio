@@ -279,10 +279,13 @@ async function checkRoutine(client) {
   await clickButton(client, 'Beobachtung speichern');
   await waitFor(client, 'positive note visibly saved', 'document.body.innerText.includes("Synthetische Browser-Testnotiz") && document.body.innerText.includes("Stärke / Ressource")');
   // Navigate to another pupil through the actual selector and ensure no note leakage.
+  const selectionBefore = await evaluate(client, 'Array.from(document.querySelectorAll("select")).find(s=>Array.from(s.options).some(o=>' + q(pupilParts) + '.every(p=>o.textContent.includes(p))))?.value');
   const next = await evaluate(client, '(() => { const b=document.querySelector("button[aria-label^=\\"Nächstes Kind:\\"]") || document.querySelector("button[aria-label^=\\"Vorheriges Kind:\\"]"); if (!b) return false; b.click(); return true; })()');
   if (!next) throw new Error('No second sample pupil available.');
+  await waitFor(client, 'selected pupil changed', 'Array.from(document.querySelectorAll("select")).some(s=>Array.from(s.options).some(o=>' + q(pupilParts) + '.every(p=>o.textContent.includes(p))) && s.value!==' + q(selectionBefore) + ')');
   await openObservations(client);
-  if (await evaluate(client, 'document.body.innerText.includes("Synthetische Browser-Testnotiz")')) throw new Error('Note leaked to another pupil.');
+  // The previous child's card may remain briefly during the exit animation.
+  await waitFor(client, 'note absent from the other pupil', '!document.body.innerText.includes("Synthetische Browser-Testnotiz")');
   // Return using the selection screen, then verify a real encrypted IndexedDB reload.
   await clickSelector(client, 'button[title="Zur Schülerauswahl"]');
   await openPupil(client, pupilParts);
