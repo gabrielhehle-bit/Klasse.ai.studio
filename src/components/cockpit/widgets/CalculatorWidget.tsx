@@ -172,7 +172,7 @@ export const CalculatorWidget: React.FC<CalculatorWidgetProps> = ({
     <div
       ref={containerRef}
       id="smartboard-calculator"
-      className={`w-full h-full flex flex-col p-3 gap-2.5 select-none pointer-events-auto overflow-hidden ${
+      className={`w-full h-full flex flex-col p-3 gap-2.5 select-none pointer-events-auto overflow-y-auto overflow-x-hidden ${
         currentIsLight ? 'bg-slate-50/70 text-slate-900' : 'bg-zinc-900/90 text-zinc-100'
       }`}
     >
@@ -210,9 +210,9 @@ export const CalculatorWidget: React.FC<CalculatorWidgetProps> = ({
       </div>
 
       {/* Hauptbereich: Display + Tastenfeld ODER Verlaufsansicht */}
-      <div className="flex-1 flex gap-3 min-h-0">
+      <div className={`flex-1 flex shrink-0 gap-3 ${size.width < 520 ? 'flex-col' : 'flex-row'}`}>
         {/* Rechner-Spalte */}
-        <div className="flex-1 flex flex-col gap-2 min-h-0">
+        <div className="flex-1 flex flex-col gap-2 min-w-0 min-h-[340px] shrink-0">
           {/* Großes Rechner-Display */}
           <div
             className={`w-full rounded-2xl p-3 border shadow-inner flex flex-col justify-between shrink-0 transition-all ${
@@ -250,7 +250,7 @@ export const CalculatorWidget: React.FC<CalculatorWidgetProps> = ({
           </div>
 
           {/* Tastenfeld */}
-          <div className="flex-1 flex flex-col gap-1.5 sm:gap-2 min-h-0">
+          <div className="flex-1 flex flex-col gap-1.5 sm:gap-2 min-h-[252px] shrink-0">
             {/* Reihe 1: Kontrolltasten & Operator */}
             <div className="flex gap-1.5 sm:gap-2 flex-1">
               <button
@@ -394,7 +394,7 @@ export const CalculatorWidget: React.FC<CalculatorWidgetProps> = ({
         {/* Optionale Verlauf-Seitenleiste (bei Large / Fullscreen oder Toggle) */}
         {showHistory && !isCompact && (
           <div
-            className={`w-48 sm:w-56 flex flex-col rounded-2xl p-2.5 border shrink-0 transition-all ${
+            className={`${size.width < 520 ? 'w-full h-48' : 'w-48'} flex flex-col rounded-2xl p-2.5 border shrink-0 transition-all ${
               currentIsLight
                 ? 'bg-white border-slate-200'
                 : 'bg-zinc-950 border-white/10'
