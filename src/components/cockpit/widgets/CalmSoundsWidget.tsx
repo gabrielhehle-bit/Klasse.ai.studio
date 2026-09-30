@@ -272,7 +272,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
 
         {/* Timer Restzeit / Preset Badge */}
         {secondsRemaining !== null && isPlaying && (
-          <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-mono text-xs font-bold shrink-0">
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-accent-soft text-accent font-mono text-xs font-bold shrink-0">
             <Clock size={13} />
             <span>{formatTimerSeconds(secondsRemaining)}</span>
           </div>
@@ -365,7 +365,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
               </div>
 
               {!showMixerDetails ? (
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="grid grid-cols-2 gap-2">
                   {CALM_TRACKS.map((track) => {
                     const isActive = !!settings.activeTracks[track.id];
                     return (
@@ -600,7 +600,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
           <span>Timer:</span>
         </div>
 
-        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
           {timerOptions.map((opt) => {
             const isSelected = settings.timerMinutes === opt.value;
             return (
