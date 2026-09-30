@@ -24,7 +24,7 @@ test('Zurückholen ist über das eigene Maskottchen-Fach möglich; keine neue sc
   const cockpit = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
   const chooser = readFileSync('src/components/ClassMascotSettingsPanel.tsx', 'utf8');
   assert.match(cockpit, /onRecenterMascot=\{recenterClassMascot\}/);
-  assert.match(cockpit, /outerContainerRef\.current/);
+  assert.match(cockpit, /boardRef\.current/);
   assert.match(cockpit, /const centered = cockpitWidgets\.some\(widget => widget\.type === "pet"\)/);
   assert.match(cockpit, /setApp\(prev => \(\{ \.\.\.prev, cockpitLayout: centered \}\)\)/);
   assert.match(chooser, /Maskottchen wiederfinden · mittig platzieren/);
