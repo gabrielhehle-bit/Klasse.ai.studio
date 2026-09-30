@@ -77,6 +77,20 @@ export default function VaultGate({ children }: VaultGateProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [shake, setShake] = useState(false);
+  const [checkingTimedOut, setCheckingTimedOut] = useState(false);
+
+  // A slow network or a blocked local storage request must never look like a
+  // frozen app. Keep the secure fail-closed behavior, but give the teacher a
+  // clear recovery action after a short, bounded wait.
+  useEffect(() => {
+    if (gateState !== 'checking') {
+      setCheckingTimedOut(false);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => setCheckingTimedOut(true), 8000);
+    return () => window.clearTimeout(timeoutId);
+  }, [gateState]);
 
   // Status-Check bei App-Start & Statusänderungen
   useEffect(() => {
@@ -398,26 +412,31 @@ export default function VaultGate({ children }: VaultGateProps) {
   // Ladezustand
   if (gateState === 'checking') {
     return (
-      <div className="min-h-screen w-full bg-[var(--surface-bg,var(--surface))] flex flex-col items-center justify-center gap-4 px-6 text-center text-[var(--text-primary)]">
-        {!errorMessage && <div className="w-10 h-10 border-4 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />}
-        <div className="text-[var(--text-secondary)] font-mono text-xs uppercase tracking-widest font-semibold">
-          {errorMessage ? 'Kontostand nicht erreichbar' : 'Prüfe Datentresor...'}
+      <div className="min-h-screen w-full bg-[var(--surface-bg,var(--surface))] flex flex-col items-center justify-center gap-4 px-6 text-center text-[var(--text-primary)]" role="status" aria-live="polite">
+        {!errorMessage && !checkingTimedOut && <div className="w-10 h-10 border-4 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />}
+        <div className="flex items-center gap-2 text-[var(--text-primary)] font-semibold">
+          <ShieldCheck className="w-5 h-5 text-[var(--accent)]" />
+          <span>{errorMessage ? 'Verbindung zum Datenstand fehlt' : checkingTimedOut ? 'Der Start dauert länger als erwartet' : 'KLASSIO wird sicher gestartet'}</span>
         </div>
-        {errorMessage && (
-          <>
-            <p className="max-w-md text-sm leading-relaxed text-[var(--text-secondary)]">{errorMessage}</p>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-bold text-white"
-            >
-              Erneut versuchen
-            </button>
-          </>
+        <p className="max-w-md text-sm leading-relaxed text-[var(--text-secondary)]">
+          {errorMessage || 'Lokalen Tresor und verschlüsselten Datenstand werden geprüft. Deine Daten werden dabei nicht verändert.'}
+        </p>
+        {(errorMessage || checkingTimedOut) && (
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-[var(--accent)]/20"
+          >
+            Erneut versuchen
+          </button>
         )}
       </div>
     );
   }
+
+  const flowStepLabel = gateState === 'needs_setup'
+    ? setupStep === 'password' ? 'Schritt 1 von 2' : 'Schritt 2 von 2'
+    : 'Sicherer Datenzugang';
 
   return (
     <div className="min-h-screen w-full bg-[var(--surface-bg,var(--surface))] flex items-center justify-center p-4">
@@ -426,6 +445,11 @@ export default function VaultGate({ children }: VaultGateProps) {
         transition={{ duration: 0.4 }}
         className="w-full max-w-md bg-[var(--surface-card,var(--surface))] border border-[var(--border,var(--border-subtle))] backdrop-blur-xl rounded-2xl shadow-2xl p-6 md:p-8 text-[var(--text-primary)]"
       >
+        <div className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-subtle,var(--surface))] px-3.5 py-2.5 text-[11px]">
+          <span className="font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Sicherer Datenzugang</span>
+          <span className="font-semibold text-[var(--accent)]">{flowStepLabel}</span>
+        </div>
+
         {/* Header-Bereich */}
         <div className="flex flex-col items-center text-center mb-6">
           <div className="w-14 h-14 rounded-2xl bg-[var(--accent-soft)] border border-[var(--accent)]/30 flex items-center justify-center text-[var(--accent)] mb-4 shadow-inner">
@@ -437,23 +461,23 @@ export default function VaultGate({ children }: VaultGateProps) {
           </div>
           <h1 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
             {gateState === 'needs_setup'
-              ? 'Lokalen Datentresor einrichten'
+              ? 'Tresor auf diesem Gerät einrichten'
               : loadedVaultFromAccount
                 ? 'Willkommen zurück'
-                : 'Datentresor gesperrt'}
+                : 'Tresor entsperren'}
           </h1>
           <p className="text-xs text-[var(--text-secondary)] mt-1 max-w-xs leading-relaxed">
             {loadedVaultFromAccount
-              ? 'Dein verschlüsselter KLASSIO-Datenstand wurde über dein E-Mail-Konto gefunden.'
+              ? 'Dein verschlüsselter KLASSIO-Datenstand wurde gefunden. Gib einmal dein bestehendes Tresor-Passwort ein – danach werden deine Klassen und Planungen geladen.'
               : gateState === 'needs_setup'
-                ? 'Deine Klassendaten werden Ende-zu-Ende-verschlüsselt gespeichert.'
-                : 'Deine Klassendaten sind verschlüsselt und müssen lokal entsperrt werden.'}
+                ? 'Lege jetzt das Passwort fest, mit dem deine Klassendaten auf diesem Gerät geschützt werden.'
+                : 'Deine Klassendaten sind verschlüsselt. Zum Öffnen wird nur dein Tresor-Passwort auf diesem Gerät benötigt.'}
           </p>
         </div>
 
         {/* Fehlermeldung */}
         {errorMessage && (
-          <div className="mb-5 p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-start gap-3 text-rose-500 dark:text-rose-300 text-xs">
+          <div className="mb-5 p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-start gap-3 text-rose-500 dark:text-rose-300 text-xs" role="alert">
             <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-500" />
             <div className="flex-1 leading-snug">{errorMessage}</div>
           </div>
@@ -475,7 +499,7 @@ export default function VaultGate({ children }: VaultGateProps) {
 
             <div>
               <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
-                Tresor-Passwort vergeben
+                Eigenes Tresor-Passwort
               </label>
               <div className="relative">
                 <input
@@ -759,9 +783,9 @@ export default function VaultGate({ children }: VaultGateProps) {
 
         {/* Footer-Info */}
         <div className="mt-6 pt-4 border-t border-[var(--border)] text-center">
-          <span className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] font-mono">
+          <span className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] font-medium" title="AES-GCM-256 · Das Passwort verlässt dieses Gerät nicht">
             <Shield size={12} className="text-[var(--text-muted)]" />
-            AES-GCM-256 · optionales Gerätevertrauen speichert keinen Klartext-Schlüssel
+            Ende-zu-Ende verschlüsselt · kein Klartext auf dem Server
           </span>
         </div>
       </motion.div>
