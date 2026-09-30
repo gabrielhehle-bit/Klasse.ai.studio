@@ -28,6 +28,10 @@ test('Ich bin da: 25 pupils fit with 64px cards and actionable names on 1280×69
   assert.match(source, /minHeight: adaptiveLayout\.grid\.minCardHeight/);
   assert.match(source, /gridTemplateRows: `repeat\(\$\{studentGrid\.rows\}, minmax\(0, 1fr\)\)`/);
   assert.match(source, /whitespace-normal break-words font-black leading-\[1\.05\]/);
+  assert.match(source, /data-attendance-status=\{status\}/);
+  assert.match(source, /ring-4 ring-amber-100\\/90/);
+  assert.match(source, /active:scale-\[\.98\]/);
+  assert.match(source, /aria-pressed=\{checkInMode === 'individual' \? isSelected : undefined\}/);
 });
 
 test('Ich bin da: compact 25-child view has no internal scrolling and keeps teacher/mood flows', () => {
