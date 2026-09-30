@@ -318,7 +318,7 @@ async function checkRoutine(client) {
   const width = await evaluate(client, 'document.documentElement.scrollWidth');
   if (width > WIDTH + 5) throw new Error('Dossier overflows viewport: ' + width + ' > ' + WIDTH);
   await openPage(client, 'Anwesenheit & Befinden');
-  await waitFor(client, 'attendance restored', 'document.body.innerText.includes("Anwesenheit")');
+  await waitFor(client, 'attendance restored', 'Boolean(document.querySelector("button[aria-label=\\"Notiz oder Grund eintragen\\"]"))');
   await clickSelector(client, 'button[aria-label="Notiz oder Grund eintragen"]');
   await waitFor(client, 'absence reason restored after reload', 'document.querySelector("textarea")?.value === "Synthetischer Browser-Testgrund"');
   await clickButton(client, 'Abbrechen', true);
