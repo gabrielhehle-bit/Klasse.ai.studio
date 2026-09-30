@@ -247,8 +247,8 @@ async function main() {
       'Array.from(document.querySelectorAll("input")).some(i=>String(i.placeholder||"").includes("Zugangscode eingeben"))', 30000);
     await setInputByLabel(client, 'Zugangscode', ACCESS_CODE);
     await clickButton(client, 'Klassio öffnen');
-    await waitFor(client, 'local vault setup', 'document.body?.innerText.toLowerCase().includes("lokalen datentresor einrichten")', 30000);
-    await setInputByLabel(client, 'Tresor-Passwort vergeben', VAULT_PASSWORD);
+    await waitFor(client, 'local vault setup', 'document.body?.innerText.toLowerCase().includes("tresor auf diesem gerät einrichten")', 30000);
+    await setInputByLabel(client, 'Eigenes Tresor-Passwort', VAULT_PASSWORD);
     await setInputByLabel(client, 'Passwort bestätigen', VAULT_PASSWORD);
     await clickButton(client, 'Weiter zum Wiederherstellungscode');
     await waitFor(client, 'recovery code screen', 'document.body?.innerText.toLowerCase().includes("dein einmaliger wiederherstellungscode")', 30000);

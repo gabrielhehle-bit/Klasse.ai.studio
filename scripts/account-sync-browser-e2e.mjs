@@ -237,8 +237,8 @@ async function waitForAdminNotification() {
 }
 
 async function finishVaultSetup(client, password) {
-  await waitFor(client, 'local vault setup', 'document.body?.innerText.toLowerCase().includes("lokalen datentresor einrichten")', 30000);
-  await setInputByLabel(client, 'Tresor-Passwort vergeben', password);
+  await waitFor(client, 'local vault setup', 'document.body?.innerText.toLowerCase().includes("tresor auf diesem gerät einrichten")', 30000);
+  await setInputByLabel(client, 'Eigenes Tresor-Passwort', password);
   await setInputByLabel(client, 'Passwort bestätigen', password);
   await clickButton(client, 'Weiter zum Wiederherstellungscode');
   await waitFor(client, 'recovery code screen', 'document.body?.innerText.toLowerCase().includes("dein einmaliger wiederherstellungscode")', 30000);
