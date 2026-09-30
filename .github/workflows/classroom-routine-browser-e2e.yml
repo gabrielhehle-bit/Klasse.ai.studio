@@ -1,0 +1,105 @@
+name: Classroom Routine Browser E2E
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/components/Attendance.tsx'
+      - 'src/components/StudentDossier.tsx'
+      - 'src/components/StudentDossierHub.tsx'
+      - 'src/components/dossier/DossierBeobachtungenVerlauf.tsx'
+      - 'src/context/AppContext.tsx'
+      - 'src/lib/utils.ts'
+      - 'src/components/Topbar.tsx'
+      - 'src/components/Sidebar.tsx'
+      - 'scripts/classroom-routine-browser-e2e.mjs'
+      - '.github/workflows/classroom-routine-browser-e2e.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  classroom-routine-browser-e2e:
+    strategy:
+      fail-fast: false
+      matrix:
+        width: [360, 820]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Production build
+        run: bun run build
+
+      - name: Verify classroom routine in real Chrome
+        env:
+          NODE_ENV: production
+          PORT: 3100
+          APP_URL: http://localhost:3100
+          SESSION_SECRET: ci-classroom-routine-session-secret-2026-at-least-32-characters
+          LEHRERAPP_ACCESS_TEAM: ci-classroom-routine-access-code-2026
+          LEHRERAPP_ACCESS_EXTERNAL: ci-classroom-routine-external-code-2026
+          KLASSIO_DATA_DIR: /tmp/klassio-classroom-routine-e2e-data
+          KLASSIO_E2E_WIDTH: ${{ matrix.width }}
+          KLASSIO_E2E_BASE_URL: http://localhost:3100/login
+          KLASSIO_E2E_ACCESS_CODE: ci-classroom-routine-access-code-2026
+          KLASSIO_CHROME_DEBUG_URL: http://127.0.0.1:9252
+          KLASSIO_E2E_SCREENSHOT: /tmp/klassio-classroom-routine-e2e.png
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/klassio-classroom-routine-e2e-data /tmp/klassio-classroom-routine-chrome
+          mkdir -p /tmp/klassio-classroom-routine-e2e-data
+
+          node dist/server.cjs > /tmp/klassio-classroom-routine-server.log 2>&1 &
+          SERVER_PID=$!
+
+          CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$CHROME_BIN" ]; then
+            echo "No Chrome/Chromium binary found on runner."
+            exit 1
+          fi
+
+          "$CHROME_BIN" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage \
+            --remote-debugging-port=9252 --remote-allow-origins=* \
+            --user-data-dir=/tmp/klassio-classroom-routine-chrome about:blank \
+            > /tmp/klassio-classroom-routine-chrome.log 2>&1 &
+          CHROME_PID=$!
+
+          cleanup() {
+            kill "$CHROME_PID" 2>/dev/null || true
+            kill "$SERVER_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          for i in {1..60}; do
+            if curl --fail --silent http://localhost:3100/api/health >/tmp/klassio-classroom-routine-health.json; then
+              break
+            fi
+            sleep 0.5
+          done
+          grep -q '"status":"ok"' /tmp/klassio-classroom-routine-health.json
+          bun scripts/classroom-routine-browser-e2e.mjs
+
+      - name: Upload browser screenshot and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: klassio-classroom-routine-browser-${{ matrix.width }}-${{ github.sha }}
+          path: |
+            /tmp/klassio-classroom-routine-e2e.png
+            /tmp/klassio-classroom-routine-server.log
+            /tmp/klassio-classroom-routine-chrome.log
+          if-no-files-found: ignore
+          retention-days: 7
