@@ -488,10 +488,10 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                   {!isCollapsed && (
                     <span>
                       {showMorePages
-                        ? 'Weniger Bereiche'
-                        : activeSecondaryModule
-                          ? `Mehr · ${activeSecondaryModule.label}`
-                          : `Weitere Bereiche (${hiddenMainCount})`}
+                          ? 'Weniger Bereiche'
+                          : activeSecondaryModule
+                            ? `Mehr · ${activeSecondaryModule.label}`
+                            : `Mehr · weitere Bereiche (${hiddenMainCount})`}
                     </span>
                   )}
                 </button>
