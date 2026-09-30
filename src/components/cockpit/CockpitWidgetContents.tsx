@@ -9573,7 +9573,7 @@ export const CompassWidgetContent: React.FC<{
     <div
       role="region"
       aria-label="Geographie-Kompass"
-      className={`relative flex h-full min-h-0 w-full flex-col overflow-hidden p-3 select-none ${
+      className={`relative flex h-full min-h-0 w-full flex-col overflow-y-auto overflow-x-hidden p-3 select-none ${
         currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-slate-100'
       }`}
     >
@@ -9669,8 +9669,8 @@ export const CompassWidgetContent: React.FC<{
         </button>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(145px,0.85fr)_minmax(0,1fr)] items-center gap-3 py-3">
-        <div className="flex min-h-0 items-center justify-center">
+      <div className="flex shrink-0 flex-wrap items-center gap-3 py-3">
+        <div className="flex basis-40 max-w-52 shrink-0 items-center justify-center">
           <div className={`relative aspect-square w-full max-w-52 rounded-full border-4 shadow-sm ${
             currentIsLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-zinc-800'
           }`}>
@@ -9729,7 +9729,7 @@ export const CompassWidgetContent: React.FC<{
           </div>
         </div>
 
-        <div className={`flex min-h-0 flex-col justify-center rounded-3xl border p-4 ${
+        <div className={`flex min-w-0 flex-[1_1_200px] flex-col justify-center rounded-3xl border p-4 ${
           currentIsLight ? 'border-slate-200 bg-slate-50/80' : 'border-white/10 bg-white/5'
         }`}>
           {settings.mode === 'explore' ? (
@@ -9800,6 +9800,7 @@ export const CompassWidgetContent: React.FC<{
       <div className="mt-2 grid shrink-0 grid-cols-[1fr_minmax(120px,1.4fr)_1fr] gap-2">
         <button
           type="button"
+          disabled={settings.mode === 'practice' && answerState === 'correct'}
           onClick={() => rotate(-1)}
           className={`min-h-11 rounded-xl border px-3 text-xs font-black ${
             currentIsLight
@@ -9837,6 +9838,7 @@ export const CompassWidgetContent: React.FC<{
 
         <button
           type="button"
+          disabled={settings.mode === 'practice' && answerState === 'correct'}
           onClick={() => rotate(1)}
           className={`min-h-11 rounded-xl border px-3 text-xs font-black ${
             currentIsLight
