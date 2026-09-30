@@ -249,6 +249,8 @@ async function openPupil(client, nameParts) {
   await waitFor(client, 'dossier opened', 'Boolean(document.querySelector("button[title=\\"Zur Schülerauswahl\\"]"))');
 }
 async function openObservations(client) {
+  await clickButton(client, 'Entwicklung & Diagnostik');
+  await waitFor(client, 'development subnavigation', 'Array.from(document.querySelectorAll("button")).some(b=>b.textContent.includes("Beobachtungen & Verlauf"))');
   await clickButton(client, 'Beobachtungen & Verlauf');
   await waitFor(client, 'observation page', 'document.body.innerText.includes("Beobachtung notieren")');
 }
