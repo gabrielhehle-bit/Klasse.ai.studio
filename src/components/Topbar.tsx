@@ -28,7 +28,7 @@ interface TopbarProps {
 }
 
 const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) => {
-  const { app, setApp, setScreenLocked, setPage, lockAppVault, accountSyncStatus, isVaultUnlocked } = useApp();
+  const { app, setApp, setScreenLocked, setPage, lockAppVault, localSaveStatus, accountSyncStatus, isVaultUnlocked } = useApp();
   const { showToast } = useToast();
   const consistencyIssues = React.useMemo(() => scanDataConsistency(app), [app]);
   const currentPage = app.currentPage || 'dashboard';
@@ -318,7 +318,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
   const handleLogout = async () => {
     // The header is intentionally quiet. Logout still blocks while the latest
     // local changes are not confirmed, so hiding the sync badge does not weaken data safety.
-    if (accountSyncStatus !== 'synced' && accountSyncStatus !== 'disabled' && accountSyncStatus !== 'idle') {
+    if (localSaveStatus !== 'saved' || (accountSyncStatus !== 'synced' && accountSyncStatus !== 'disabled' && accountSyncStatus !== 'idle')) {
       showToast('Bitte noch nicht abmelden: Die neuesten Daten sind nicht auf allen Geräten bestätigt. Prüfe den Speicherstatus und erstelle gegebenenfalls auf diesem Gerät ein verschlüsseltes Backup.', 'error');
       setShowMehrMenu(false);
       return;
