@@ -1,3 +1,4 @@
+import SaveSyncStatus from './SaveSyncStatus';
 import React, { useState, useEffect, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { 
@@ -27,7 +28,7 @@ interface TopbarProps {
 }
 
 const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) => {
-  const { app, setApp, setScreenLocked, setPage, lockAppVault, accountSyncStatus, accountSyncLastAt, accountSyncMessage, isVaultUnlocked } = useApp();
+  const { app, setApp, setScreenLocked, setPage, lockAppVault, accountSyncStatus, isVaultUnlocked } = useApp();
   const { showToast } = useToast();
   const consistencyIssues = React.useMemo(() => scanDataConsistency(app), [app]);
   const currentPage = app.currentPage || 'dashboard';
@@ -51,7 +52,6 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
   const [showWeatherDetails, setShowWeatherDetails] = useState(false);
   const [showSchoolYearDetails, setShowSchoolYearDetails] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
-  const [showSyncDetails, setShowSyncDetails] = useState(false);
   
   // State for Modals & Systems
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -112,7 +112,6 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
         setShowMehrMenu(false);
         setShowWeatherDetails(false);
         setShowSchoolYearDetails(false);
-        setShowSyncDetails(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -341,39 +340,6 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
     window.dispatchEvent(new CustomEvent('lehrerapp-logout'));
   };
 
-  const syncStatusCopy: Record<typeof accountSyncStatus, string> = {
-    disabled: 'Nur dieses Gerät',
-    idle: 'Bereit',
-    'saving-local': 'Wird gespeichert',
-    'saved-local': 'Lokal gespeichert',
-    'local-error': 'Lokal prüfen',
-    syncing: 'Wird synchronisiert',
-    synced: 'Gespeichert',
-    conflict: 'Prüfung nötig',
-    error: 'Speicherfehler',
-  };
-  const syncStatusLabel = syncStatusCopy[accountSyncStatus];
-  const syncStatusTone = accountSyncStatus === 'synced' || accountSyncStatus === 'saved-local'
-    ? 'text-emerald-700 hover:bg-emerald-50'
-    : accountSyncStatus === 'conflict' || accountSyncStatus === 'error' || accountSyncStatus === 'local-error'
-      ? 'text-amber-700 hover:bg-amber-50'
-      : accountSyncStatus === 'syncing' || accountSyncStatus === 'saving-local'
-        ? 'text-blue-700 hover:bg-blue-50'
-        : 'text-[var(--text-secondary)] hover:bg-[var(--accent-soft)]';
-  const syncStatusDescription = accountSyncMessage || {
-    disabled: 'Die Daten bleiben auf diesem Gerät. Eine Kontosynchronisierung ist nicht aktiv.',
-    idle: 'Noch kein aktueller Speicherstatus verfügbar.',
-    'saving-local': 'Die aktuelle Änderung wird lokal verschlüsselt gespeichert.',
-    'saved-local': 'Die aktuelle Änderung ist lokal verschlüsselt gespeichert.',
-    'local-error': 'Die lokale Speicherung konnte nicht bestätigt werden. Bitte prüfe den Speicherplatz.',
-    syncing: 'Die verschlüsselten Daten werden mit deinem Konto abgeglichen.',
-    synced: 'Der aktuelle verschlüsselte Datenstand ist bestätigt.',
-    conflict: 'Es gibt einen abweichenden Stand. Öffne die Datenkonsistenz-Prüfung, bevor du weiterarbeitest.',
-    error: 'Der Datenabgleich konnte nicht bestätigt werden. Deine lokalen Daten bleiben erhalten.',
-  }[accountSyncStatus];
-  const syncStatusTime = accountSyncLastAt
-    ? new Intl.DateTimeFormat('de-AT', { hour: '2-digit', minute: '2-digit' }).format(new Date(accountSyncLastAt))
-    : null;
 
   return (
     <header
@@ -423,40 +389,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
 
           {/* Rechter Bereich: Wetter & Schuljahr-Zeitdiagramm & PayPal & Fehler melden & Mehr */}
           <div className="flex min-w-0 items-center justify-end gap-1.5 sm:gap-2.5">
-            <div className="relative shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowSyncDetails(value => !value);
-                  setShowWeatherDetails(false);
-                  setShowSchoolYearDetails(false);
-                  setShowMehrMenu(false);
-                }}
-                aria-label={`Speicherstatus: ${syncStatusLabel}`}
-                title={syncStatusDescription}
-                className={`inline-flex h-10 items-center gap-1.5 rounded-xl px-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))] ${syncStatusTone}`}
-              >
-                <Cloud size={18} aria-hidden="true" className={accountSyncStatus === 'syncing' || accountSyncStatus === 'saving-local' ? 'animate-pulse' : ''} />
-                <span className="hidden xl:inline text-xs font-semibold">{syncStatusLabel}</span>
-              </button>
-              {showSyncDetails && (
-                <>
-                  <div className="fixed inset-0 z-[100]" onClick={() => setShowSyncDetails(false)} />
-                  <div className="absolute top-full right-0 mt-2 z-[101] w-[min(22rem,calc(100vw-1.5rem))] rounded-2xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))]/98 p-4 text-[var(--text-primary)] shadow-2xl backdrop-blur-2xl" role="status" aria-live="polite">
-                    <div className="flex items-start gap-3">
-                      <Cloud size={18} className="mt-0.5 shrink-0 text-[var(--accent)]" aria-hidden="true" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-black">{syncStatusLabel}</p>
-                        <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">{syncStatusDescription}</p>
-                        {syncStatusTime && (
-                          <p className="mt-2 text-[0.6875rem] font-semibold text-[var(--text-muted)]">Zuletzt bestätigt: {syncStatusTime} Uhr</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+            <SaveSyncStatus />
             <button
               type="button"
               onClick={() => void createManualBackup()}

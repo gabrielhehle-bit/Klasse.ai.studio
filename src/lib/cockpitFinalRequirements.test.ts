@@ -223,8 +223,7 @@ test("Cockpit: sekundäre Ansichtssteuerung liegt gesammelt unter Optionen", () 
 });
 
 test("Cockpit: Status und Zurück-Navigation sind lehrerfreundlich beschriftet", () => {
-  assert.match(teachingSurface, /<Save size=\{11\}/);
-  assert.match(teachingSurface, /data-save-status=\{behaviorSavedToday \? "saved" : "pending"\}/);
+  assert.match(teachingSurface, /<SaveSyncStatus/);
   assert.doesNotMatch(teachingSurface, /Speichert beim Beenden/);
   assert.doesNotMatch(teachingSurface, /Echtzeit-Tracker/);
   assert.match(teachingSurface, /aria-label="Lehrercockpit schließen · Zurück zu Heute"/);

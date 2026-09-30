@@ -3,7 +3,7 @@
  * rectangle. Keep the per-class width modest enough to leave working space.
  */
 export const DEFAULT_COCKPIT_SIDEBAR_WIDTH = 420;
-export const COMPACT_COCKPIT_SIDEBAR_WIDTH = 240;
+export const COMPACT_COCKPIT_SIDEBAR_WIDTH = 340;
 export const COCKPIT_SIDEBAR_DOCK_GAP = 6;
 
 export type CockpitSidebarMode = 'hidden' | 'mini' | 'expanded';

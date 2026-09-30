@@ -1,3 +1,4 @@
+import ParticipationSettingsPanel from '../cockpit/ParticipationSettingsPanel';
 import React, { useState } from 'react';
 import { 
   Sliders, 
@@ -68,6 +69,7 @@ export default function GeneralSettings({
 
   return (
     <div className="space-y-8">
+      {app.activeClassId && <ParticipationSettingsPanel app={app} setApp={setApp} />}
       {/* Stammdaten: Schule & Schuljahr */}
       <div className="bg-white rounded-[2.5rem] border border-stone-200/80 p-6 md:p-8 space-y-6 shadow-sm">
         <div className="flex items-center gap-3 border-b border-stone-150 pb-4">

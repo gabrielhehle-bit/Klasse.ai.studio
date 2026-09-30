@@ -194,6 +194,7 @@ export function syncActiveClass(state: AppState): AppState {
     schuljahr: state.schuljahr,
     schueler: state.schueler ? JSON.parse(JSON.stringify(state.schueler)) : [],
     ...(state.classMascot ? { classMascot: { ...state.classMascot } } : {}),
+    participationSettings: state.participationSettings ? { ...state.participationSettings } : undefined,
     noten: state.noten ? JSON.parse(JSON.stringify(state.noten)) : {},
     notenMeta: state.notenMeta ? JSON.parse(JSON.stringify(state.notenMeta)) : {},
     notenGewichtung: state.notenGewichtung ? JSON.parse(JSON.stringify(state.notenGewichtung)) : {},
@@ -211,6 +212,7 @@ export function syncActiveClass(state: AppState): AppState {
     metaKognitionsProtokolle: state.metaKognitionsProtokolle ? JSON.parse(JSON.stringify(state.metaKognitionsProtokolle)) : [],
     interaktionsLog: state.interaktionsLog ? JSON.parse(JSON.stringify(state.interaktionsLog)) : { eintraege: [], wochenEmpfehlung: null },
     mitarbeit: state.mitarbeit ? JSON.parse(JSON.stringify(state.mitarbeit)) : {},
+    mitarbeitLogs: (state.mitarbeitLogs || []).filter(log => state.schueler?.some(student => student.id === log.sid)).map(log => ({ ...log })),
     mitarbeit_settings: state.mitarbeit_settings ? JSON.parse(JSON.stringify(state.mitarbeit_settings)) : { thresholds: { 1: 13, 2: 10, 3: 7, 4: 4, 5: 0 }, mode: 'absolute' },
     verhalten: state.verhalten ? { ...state.verhalten } : {},
     karten: state.karten ? JSON.parse(JSON.stringify(state.karten)) : {},
@@ -599,6 +601,7 @@ export function normalizeAppState(raw: any): AppState {
     parsed.klassenbezeichnung = activeClass.name;
     // A mascot belongs to the active class, not to the teacher or another room.
     parsed.classMascot = activeClass.classMascot ? { ...activeClass.classMascot } : undefined;
+    parsed.participationSettings = activeClass.participationSettings ? { ...activeClass.participationSettings } : undefined;
     parsed.stufe = activeClass.stufe;
     parsed.schulart = normalizeSchulart(activeClass.schulart);
     parsed.klassenvorstand = activeClass.klassenvorstand;
@@ -859,6 +862,7 @@ export function switchClassState(prev: AppState, id: string): AppState {
     classes,
     klassenbezeichnung: targetClass.name,
     classMascot: targetClass.classMascot ? { ...targetClass.classMascot } : undefined,
+    participationSettings: targetClass.participationSettings ? { ...targetClass.participationSettings } : undefined,
     stufe: targetClass.stufe,
     schulart: normalizeSchulart(targetClass.schulart),
     klassenvorstand: targetClass.klassenvorstand,
@@ -883,6 +887,10 @@ export function switchClassState(prev: AppState, id: string): AppState {
     metaKognitionsProtokolle: targetClass.metaKognitionsProtokolle ? JSON.parse(JSON.stringify(targetClass.metaKognitionsProtokolle)) : [],
     interaktionsLog: targetClass.interaktionsLog ? JSON.parse(JSON.stringify(targetClass.interaktionsLog)) : { eintraege: [], wochenEmpfehlung: null },
     mitarbeit: targetClass.mitarbeit || {},
+    mitarbeitLogs: targetClass.mitarbeitLogs ? [
+      ...(prev.mitarbeitLogs || []).filter(log => !targetClass.schueler.some(student => student.id === log.sid)),
+      ...targetClass.mitarbeitLogs.map(log => ({ ...log })),
+    ] : prev.mitarbeitLogs,
     mitarbeit_settings: targetClass.mitarbeit_settings ? JSON.parse(JSON.stringify(targetClass.mitarbeit_settings)) : { thresholds: { 1: 13, 2: 10, 3: 7, 4: 4, 5: 0 }, mode: 'absolute' },
     verhalten: targetClass.verhalten,
     karten: targetClass.karten,

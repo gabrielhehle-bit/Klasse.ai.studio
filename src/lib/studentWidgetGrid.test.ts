@@ -31,5 +31,5 @@ test('both public student widgets have an explicit enlargement action and a fitt
   assert.match(points, /gridMode && !grid\.fits/);
   assert.match(points, /gridTemplateColumns/);
   assert.match(points, /Alle \{students\.length\} Kinder groß anzeigen/);
-  assert.match(points, /gridMode \? 'grid min-h-0 flex-1 content-start gap-1\.5 overflow-hidden'/);
+  assert.match(points, /gridMode \|\| sidebarCompact \? 'grid min-h-0 flex-1 content-start gap-1\.5 overflow-y-auto'/);
 });

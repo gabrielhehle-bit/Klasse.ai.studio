@@ -88,6 +88,8 @@ interface AppContextType {
   isAppHydrated: boolean;
   lockAppVault: () => void;
   unlockAppVault: (key: CryptoKey, allowFreshSetup?: boolean) => Promise<boolean>;
+  localSaveStatus: 'pending' | 'saved' | 'error';
+  localSaveLastAt: string | null;
   accountSyncStatus: AccountSyncStatus;
   accountSyncLastAt: string | null;
   accountSyncMessage: string | null;
@@ -115,6 +117,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (restoringRef.current) return;
     // Immediately invalidate the cloud-ready badge, before the debounced write starts.
     locallySavedStateRef.current = null;
+    setLocalSaveStatus('pending');
     cloudConfirmedStateRef.current = null;
     setAccountSyncHealthy(false);
     setAccountSyncStatus(previous => previous === 'conflict' || previous === 'error' || previous === 'disabled'
@@ -133,6 +136,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // A RAM key or a successful HTTP login is NOT proof that encrypted
   // classroom data was decrypted and the account reconcile has completed.
   const [isAppHydrated, setIsAppHydrated] = useState(false);
+  const [localSaveStatus, setLocalSaveStatus] = useState<'pending' | 'saved' | 'error'>('pending');
+  const [localSaveLastAt, setLocalSaveLastAt] = useState<string | null>(null);
   const [accountSyncStatus, setAccountSyncStatus] = useState<AccountSyncStatus>('idle');
   const [accountSyncLastAt, setAccountSyncLastAt] = useState<string | null>(null);
   const [accountSyncMessage, setAccountSyncMessage] = useState<string | null>(null);
@@ -473,12 +478,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Periodic account refresh only makes sense for an authenticated email
     // session. Newly created local-only vaults must not be treated as lost
     // cloud accounts before the teacher has even finished the class setup.
-    if (!await hasEmailAccountSession()) return;
-    // The teacher may lock the vault or switch account during the async check.
-    if (getActiveVaultKey() !== vaultKey || restoringRef.current) return;
-
     accountSyncBusyRef.current = true;
     try {
+      const hasAccount = await hasEmailAccountSession();
+      // Lock/account changes can happen while the session request is in flight.
+      if (getActiveVaultKey() !== vaultKey || restoringRef.current) return;
+      if (!hasAccount) {
+        accountSyncReadyRef.current = false;
+        setAccountSyncHealthy(false);
+        setAccountSyncStatus('disabled');
+        setAccountSyncMessage('Geräteübergreifender Sync benötigt eine aktive E-Mail-Anmeldung.');
+        return;
+      }
       const before = currentAppRef.current;
       const reconciled = await reconcileAccountState(before, vaultKey, true,
         () => currentAppRef.current === before);
@@ -489,6 +500,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setApp(reconciled);
       }
     } catch (error) {
+      if (getActiveVaultKey() !== vaultKey || restoringRef.current) return;
+      setAccountSyncHealthy(false);
+      setAccountSyncStatus(previous => previous === 'conflict' || previous === 'local-error' ? previous : 'error');
+      setAccountSyncMessage(accountSyncErrorMessage(error));
       console.error('[AccountSync] Hintergrundabgleich fehlgeschlagen:', error);
     } finally {
       accountSyncBusyRef.current = false;
@@ -720,6 +735,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (restoringRef.current || getActiveVaultKey() !== vaultKey
         || currentAppRef.current !== snapshot) return;
       locallySavedStateRef.current = snapshot;
+      setLocalSaveStatus('saved');
+      setLocalSaveLastAt(new Date().toISOString());
       setAccountSyncStatus(previous => cloudConfirmedStateRef.current === snapshot
         ? previous
         : previous === 'saving-local' || previous === 'synced' || previous === 'syncing' || previous === 'local-error'
@@ -747,6 +764,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         console.warn('[Datenschutz] Fehler beim Erstellen der Notfallkopie:', error);
       }
     } catch (error) {
+      if (restoringRef.current || getActiveVaultKey() !== vaultKey || currentAppRef.current !== snapshot) return;
+      setLocalSaveStatus('error');
       setAccountSyncStatus(previous => previous === 'conflict' ? previous : 'local-error');
       setAccountSyncMessage('Die letzte Änderung konnte nicht verschlüsselt auf diesem Gerät gesichert werden. Bitte KLASSIO geöffnet lassen und erneut versuchen.');
       console.error('[Datenschutz] Verschlüsseltes Speichern fehlgeschlagen:', error);
@@ -866,7 +885,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
     };
 
-    const updateAfterPush = (revision: number, hash: string) => {
+    const updateAfterPush = (revision: number, hash: string, detail?: import('../lib/teamTeachingService').SharedClassSummary) => {
       setApp(prev => {
         const current = syncActiveClass(prev);
         const classes = (current.classes || []).map(room => {
@@ -878,6 +897,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
               ...room.teamTeaching!,
               revision,
               lastSyncedHash: hash,
+              ...(detail ? {
+                lastChangedAt: detail.contentUpdatedAt || detail.updatedAt,
+                lastChangedBy: detail.members.find(member => member.userId === (detail.contentUpdatedBy || detail.updatedBy))?.displayName || 'Teammitglied',
+              } : {}),
               lastSyncedAt: new Date().toISOString(),
               syncStatus: latestLocalHash === hash ? 'synced' as const : 'idle' as const,
               syncMessage: latestLocalHash === hash ? undefined
@@ -939,7 +962,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                   teamTeaching: { ...meta, revision: remote.detail.revision, role: remote.detail.myRole },
                 };
                 const pushed = await pushSharedClass(ready);
-                if (active) updateAfterPush(pushed.revision, localHash);
+                if (active) updateAfterPush(pushed.revision, localHash, pushed);
               } catch (error: any) {
                 setLocalTeamStatus(
                   error?.code === 'REVISION_CONFLICT' || error?.status === 409 ? 'conflict' : 'error',
@@ -971,7 +994,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             );
             return;
           }
-          updateAfterPush(meta.revision, localHash);
+          updateAfterPush(meta.revision, localHash, remote.detail);
           return;
         }
 
@@ -984,7 +1007,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           setLocalTeamStatus('syncing');
           try {
             const pushed = await pushSharedClass(latestRoom);
-            if (active) updateAfterPush(pushed.revision, localHash);
+            if (active) updateAfterPush(pushed.revision, localHash, pushed);
           } catch (error: any) {
             if (error?.code === 'REVISION_CONFLICT' || error?.status === 409) {
               setLocalTeamStatus(
@@ -1387,6 +1410,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       await restoreEncryptedAppState(currentAppRef.current, next, key);
       locallySavedStateRef.current = next;
+      setLocalSaveStatus('saved');
+      setLocalSaveLastAt(new Date().toISOString());
       cloudConfirmedStateRef.current = null;
       setAccountSyncHealthy(false);
       setAccountSyncStatus('saved-local');
@@ -1428,6 +1453,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     accountSyncReadyRef.current = false;
     accountSyncRevisionRef.current = 0;
     locallySavedStateRef.current = null;
+    setLocalSaveStatus('pending');
     cloudConfirmedStateRef.current = null;
     setAccountSyncStatus('idle');
     setAccountSyncHealthy(false);
@@ -1953,13 +1979,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     isAppHydrated,
     lockAppVault,
     unlockAppVault,
+    localSaveStatus,
+    localSaveLastAt,
     accountSyncStatus,
     accountSyncLastAt,
     accountSyncMessage,
     accountSyncConflictResolvable,
     retryAccountSync,
     resolveAccountSyncConflict
-  }), [app, notenUpdateTrigger, calculateWidgetFontSize, screenLocked, updateApp, deleteClass, switchClass, addClass, removeClass, updateStudent, deleteStudent, setPage, saveApp, restoreAppData, isVaultUnlocked, isAppHydrated, lockAppVault, unlockAppVault, accountSyncStatus, accountSyncLastAt, accountSyncMessage, accountSyncConflictResolvable, retryAccountSync, resolveAccountSyncConflict]);
+  }), [app, notenUpdateTrigger, calculateWidgetFontSize, screenLocked, updateApp, deleteClass, switchClass, addClass, removeClass, updateStudent, deleteStudent, setPage, saveApp, restoreAppData, isVaultUnlocked, isAppHydrated, lockAppVault, unlockAppVault, localSaveStatus, localSaveLastAt, accountSyncStatus, accountSyncLastAt, accountSyncMessage, accountSyncConflictResolvable, retryAccountSync, resolveAccountSyncConflict]);
 
   if (!isLoaded) {
     return (
