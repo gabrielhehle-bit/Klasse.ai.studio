@@ -104,7 +104,8 @@ test('kindgerechte Pluspunkte-Karten behalten die vollständige 17-Kinder-Ansich
     removeParticipation: () => {},
   }));
   assert.doesNotMatch(html, /🦊|🧑‍🎓|🌈/, 'Profil-Emojis bleiben ohne Opt-in verborgen');
-  assert.match(html, /border-sky-200 bg-sky-50/);
+  assert.match(html, /border-slate-200 bg-white/);
+  assert.doesNotMatch(html, /border-(?:sky|amber|violet)-200 bg-/);
   assert.match(html, /⭐ 2/);
   assert.equal((html.match(/Pluspunkt für/g) || []).length, 17);
   assert.doesNotMatch(html, /PRIVATE_STOP|PRIVATE_COMMENT/);
