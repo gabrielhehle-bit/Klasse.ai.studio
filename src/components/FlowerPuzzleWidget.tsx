@@ -115,11 +115,14 @@ const FlowerPuzzleWidget: React.FC<FlowerPuzzleWidgetProps> = ({ currentTopic, s
         </div>
         
         {isPlaying && (
-          <button 
+          <button
+            type="button"
             onClick={() => setIsPlaying(false)}
-            className="w-8 h-8 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-slate-100 hover:text-slate-600 transition-colors"
+            className="min-h-11 min-w-11 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-slate-100 hover:text-slate-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-pink-500"
+            aria-label="Blumen-Rätsel zurücksetzen"
+            title="Blumen-Rätsel zurücksetzen"
           >
-            <RefreshCw size={14} />
+            <RefreshCw size={14} aria-hidden="true" />
           </button>
         )}
       </div>
@@ -136,7 +139,8 @@ const FlowerPuzzleWidget: React.FC<FlowerPuzzleWidgetProps> = ({ currentTopic, s
                id="flower-word-input"
                type="password"
                placeholder="Geheimes Wort eingeben..."
-               className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-slate-50 border-2 border-slate-100 rounded-xl sm:rounded-2xl text-center font-bold text-slate-700 outline-none focus:border-pink-200 transition-colors text-[0.875rem] sm:text-base"
+               aria-label="Geheimes Wort für das Blumen-Rätsel"
+               className="w-full min-h-11 px-3 sm:px-4 py-2 sm:py-3 bg-slate-50 border-2 border-slate-100 rounded-xl sm:rounded-2xl text-center font-bold text-slate-700 outline-none focus:border-pink-200 transition-colors text-[0.875rem] sm:text-base"
                autoComplete="off"
              />
              
@@ -145,7 +149,7 @@ const FlowerPuzzleWidget: React.FC<FlowerPuzzleWidgetProps> = ({ currentTopic, s
                  type="button"
                  onClick={handleSuggestAIWord}
                  disabled={isGenerating}
-                 className="flex justify-center items-center gap-1.5 w-full py-2 bg-indigo-50 text-indigo-600 rounded-lg sm:rounded-xl font-bold uppercase tracking-wider text-[0.55rem] sm:text-[0.6875rem] hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                 className="flex min-h-11 justify-center items-center gap-1.5 w-full py-2 bg-indigo-50 text-indigo-600 rounded-lg sm:rounded-xl font-bold uppercase tracking-wider text-[0.55rem] sm:text-[0.6875rem] hover:bg-indigo-100 transition-colors disabled:opacity-50"
                >
                  {isGenerating ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
                  {isGenerating ? "Generiert..." : "KI-Wort vorschlagen"}
@@ -154,7 +158,7 @@ const FlowerPuzzleWidget: React.FC<FlowerPuzzleWidgetProps> = ({ currentTopic, s
 
              <button
                type="submit"
-               className="w-full py-2 sm:py-3 bg-pink-500 text-white rounded-xl sm:rounded-2xl font-bold tracking-wider uppercase text-[0.65rem] sm:text-[0.75rem] hover:bg-pink-600 transition-colors shadow-lg shadow-pink-500/20 active:scale-95"
+               className="w-full min-h-11 py-2 sm:py-3 bg-pink-500 text-white rounded-xl sm:rounded-2xl font-bold tracking-wider uppercase text-[0.65rem] sm:text-[0.75rem] hover:bg-pink-600 transition-colors shadow-lg shadow-pink-500/20 active:scale-95"
              >
                Spiel Starten
              </button>
@@ -179,16 +183,28 @@ const FlowerPuzzleWidget: React.FC<FlowerPuzzleWidgetProps> = ({ currentTopic, s
             </div>
 
             {isWon && (
-              <div className="mb-2 text-center px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg font-bold animate-bounce-short text-[0.75rem] sm:text-[0.875rem]">
+              <div role="status" aria-live="polite" className="mb-2 text-center px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg font-bold animate-bounce-short text-[0.75rem] sm:text-[0.875rem]">
                 Gewonnen! 🌟
               </div>
             )}
 
             {isLost && (
-              <div className="mb-2 text-center px-3 py-1.5 bg-rose-50 text-rose-600 rounded-lg font-bold text-[0.75rem] sm:text-[0.875rem]">
+              <div role="status" aria-live="polite" className="mb-2 text-center px-3 py-1.5 bg-rose-50 text-rose-600 rounded-lg font-bold text-[0.75rem] sm:text-[0.875rem]">
                 Das Wort war: {word} 🥀
               </div>
             )}
+
+            <div
+              role="status"
+              aria-live="polite"
+              className="mb-2 min-h-11 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-center text-xs font-bold text-slate-600"
+            >
+              {isWon
+                ? "Richtig gelöst – die Blume blüht! 🌸"
+                : isLost
+                  ? `Runde beendet – das Wort war ${word}.`
+                  : `${mistakes} von ${MAX_MISTAKES} Fehlern; ${MAX_MISTAKES - mistakes} Versuche übrig.`}
+            </div>
 
             <div className="flex flex-wrap justify-center gap-0.5 sm:gap-1 w-full max-w-sm mt-auto z-10 pb-1">
               {ALPHABET.map((letter) => {
@@ -198,10 +214,18 @@ const FlowerPuzzleWidget: React.FC<FlowerPuzzleWidgetProps> = ({ currentTopic, s
                 
                 return (
                   <button
+                    type="button"
                     key={letter}
                     disabled={isGuessed || isWon || isLost}
+                    aria-pressed={isGuessed}
+                    aria-label={
+                      isGuessed
+                        ? `Buchstabe ${letter} – ${isCorrect ? "richtig" : "falsch"}`
+                        : `Buchstabe ${letter} wählen`
+                    }
+                    title={`Buchstabe ${letter}`}
                     onClick={() => handleGuess(letter)}
-                    className={`flex-shrink-0 flex items-center justify-center w-5 h-6 sm:w-7 sm:h-8 rounded-md text-[0.65rem] sm:text-[0.75rem] font-bold transition-all ${
+                    className={`flex-shrink-0 flex min-h-11 min-w-11 items-center justify-center rounded-md text-[0.65rem] sm:text-[0.75rem] font-bold transition-all ${
                       isCorrect ? "bg-emerald-500 text-white border-emerald-600 shadow-inner" :
                       isWrong ? "bg-slate-200 text-slate-400/50" :
                       "bg-white border sm:border-2 border-slate-100 text-slate-600 hover:border-pink-200 hover:text-pink-600 shadow-sm active:scale-95 cursor-pointer"
