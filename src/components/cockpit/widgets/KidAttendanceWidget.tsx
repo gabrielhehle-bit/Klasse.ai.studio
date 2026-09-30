@@ -423,7 +423,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
         } ${isSelected ? 'ring-4 ring-accent/35 border-accent' : ''} ${isJustCheckedIn ? 'ring-4 ring-emerald-300/80 shadow-lg' : ''} ${cardClasses}`}
       >
         {/* Linke Seite: Avatar-Initiale + Name */}
-        <div className={`flex w-full min-w-0 items-start ${compactCard ? 'gap-1.5' : 'gap-2.5'} flex-1`}>
+        <div className={`flex w-full min-w-0 items-start pr-16 ${compactCard ? 'gap-1.5' : 'gap-2.5'} flex-1`}>
           {!compactCard && <div
             className={`${heroCard ? 'w-12 h-12 text-base' : roomyCard ? 'w-10 h-10 text-sm' : 'w-8 h-8 text-xs'} rounded-xl flex items-center justify-center font-black shrink-0 ${
               status === 'present'
