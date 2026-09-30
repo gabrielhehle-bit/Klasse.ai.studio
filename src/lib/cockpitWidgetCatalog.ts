@@ -670,7 +670,7 @@ export function getCockpitWidgetCatalogEntry(
   const item = getCockpitWidgetLibraryItem(type);
   if (!item) return undefined;
 
-  const parts = String(item.label || "").trim().split(/\\s+/);
+  const parts = String(item.label || "").trim().split(/\s+/);
   return {
     canonicalId: item.type,
     displayName: parts.slice(1).join(" ") || item.label,
