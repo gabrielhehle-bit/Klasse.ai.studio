@@ -6570,18 +6570,20 @@ ${content}
   const boardRef = useRef<HTMLDivElement>(null);
   const outerContainerRef = useRef<HTMLDivElement>(null);
   const [mascotPortalTarget, setMascotPortalTarget] = useState<HTMLDivElement | null>(null);
-  // A callback ref also reconnects the mascot after switching to/from the
-  // remote controller (the cockpit DOM root is replaced without unmounting
-  // this React component). A mount-only effect would point to a detached node.
+  // Keep the shell ref for global cockpit behavior. The mascot uses a
+  // board-local portal so it can never cover the student sidebar.
   const attachCockpitRoot = useCallback((node: HTMLDivElement | null) => {
     outerContainerRef.current = node;
+  }, []);
+  const attachMascotBoard = useCallback((node: HTMLDivElement | null) => {
+    boardRef.current = node;
     setMascotPortalTarget(node);
   }, []);
   const recenterClassMascot = () => {
-    const cockpitRoot = outerContainerRef.current;
-    const bounds = cockpitRoot?.getBoundingClientRect();
+    const board = boardRef.current;
+    const bounds = board?.getBoundingClientRect();
     if (!bounds || bounds.width <= 0 || bounds.height <= 0) {
-      showToast("Die Cockpitfläche ist gerade nicht verfügbar.", "info");
+      showToast("Die Tafelfläche ist gerade nicht verfügbar.", "info");
       return;
     }
     const mascot = cockpitWidgets.find(widget => widget.type === "pet")
@@ -8304,21 +8306,29 @@ ${content}
                 </span>
               )}
             </div>
-            {/* 1. Auto-Save & Manual-Commit status indicator */}
-            <div className="flex items-center gap-1 mt-0.5 select-none">
-              <span className="relative flex h-1.5 w-1.5">
-                {behaviorSavedToday ? (
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]" />
-                ) : (
-                  <>
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-450 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500" />
-                  </>
-                )}
-              </span>
-              <span className={`text-[7.5px] font-black uppercase tracking-wider ${behaviorSavedToday ? "text-emerald-500" : "text-amber-500"}`}>
-                {behaviorSavedToday ? "Heute gesichert" : "Speichert beim Beenden"}
-              </span>
+            {/* Compact save status: details are available on hover/focus. */}
+            <div
+              role="status"
+              className={`relative flex h-6 w-6 items-center justify-center rounded-md border ${
+                behaviorSavedToday
+                  ? currentIsLight
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-600"
+                    : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                  : currentIsLight
+                    ? "border-amber-200 bg-amber-50 text-amber-600"
+                    : "border-amber-500/30 bg-amber-500/10 text-amber-300"
+              }`}
+              title={behaviorSavedToday ? "Heute gesichert" : "Wird beim Beenden gespeichert"}
+              aria-label={behaviorSavedToday ? "Heute gesichert" : "Wird beim Beenden gespeichert"}
+              data-save-status={behaviorSavedToday ? "saved" : "pending"}
+            >
+              <Save size={11} strokeWidth={2.5} aria-hidden="true" />
+              <span
+                aria-hidden="true"
+                className={`absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full ${
+                  behaviorSavedToday ? "bg-emerald-500" : "bg-amber-500"
+                }`}
+              />
             </div>
           </div>
         </div>
@@ -10530,7 +10540,7 @@ ${content}
 
                       {/* Widget Board (classroomscreen.com style) */}
                       <div
-                        ref={boardRef}
+                        ref={attachMascotBoard}
                         className={`klassio-whiteboard flex-1 relative group rounded-2xl border overflow-hidden pointer-events-auto w-full min-h-0 ${isBoardTextEditing ? "select-text" : "select-none"} ${
                           currentIsLight
                             ? "bg-white border-slate-200 shadow-sm"
@@ -10656,7 +10666,7 @@ ${content}
                                 widget={widget}
                                 zIndex={zIn}
                                 stageRef={boardRef}
-                                mascotStageRef={outerContainerRef}
+                                mascotStageRef={boardRef}
                                 mascotPortalTarget={mascotPortalTarget}
                                 currentIsLight={currentIsLight}
                                 activePultThemeVars={activePultThemeVars}
@@ -15359,7 +15369,7 @@ ${content}
           portalTarget,
         )}
 
-      {/* Floating Class Pet in Unterrichtsmodus (free-roaming directly in the foreground, across the entire screen including Schülerliste) */}
+      {/* Legacy pet overlay kept disabled; the live mascot is board-local above. */}
       <AnimatePresence mode="wait">
         {false && actualShowPet &&
           (() => {
