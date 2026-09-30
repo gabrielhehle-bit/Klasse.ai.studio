@@ -449,6 +449,13 @@ export interface Student {
   anschrift?: string;
   plz?: string;
   ort?: string;
+  /** Manuell gesetzte, verschlüsselt gespeicherte Kartenposition des Wohnorts. */
+  kartenPosition?: {
+    lat: number;
+    lon: number;
+    source: 'manual';
+    updatedAt: string;
+  };
   telefon_mutter?: string;
   telefon_vater?: string;
   email_eltern?: string;
@@ -1965,4 +1972,3 @@ export const UNIFIED_DEFAULT_BADGES = [
   { id: 'presentation', name: 'Super-Referat', icon: '🎤' },
   { id: 'silent', name: 'Leisetreter', icon: '🤫' }
 ];
-
