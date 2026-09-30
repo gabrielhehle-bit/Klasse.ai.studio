@@ -50,15 +50,12 @@ import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, sortYearlySu
 import { getFachCfg, berechne, getNotenLabel, getAssessmentMode } from '../lib/GradeUtils';
 import { DEFAULT_YEARLY_SUBJECTS, FAECHER_ALLE } from '../constants';
 import { faecherFuerKlasse } from '../lib/sek1Subjects';
-import { downloadKlassenbuchPdf } from '../lib/klassenbuchPdf';
 import { withClassbookNotes } from '../lib/classbookNotes';
 import { buildKlassenbuchPrintRows, type KlassenbuchPrintLayout, type KlassenbuchPrintDetail } from '../lib/classbookPrintLayout';
-import { downloadKlassenbuchDocx } from '../lib/klassenbuchDocx';
 import { projectWeeklyPlanToClassbook } from '../lib/weeklyClassbookProjection';
 import { buildSchoolYearWeekList } from '../lib/weeklyPlanData';
 import { getAttendanceSemester } from '../lib/attendanceData';
 import { buildMaterialPickupSheet, latestAbsenceRange } from '../lib/materialPickupSheet';
-import { generateWochenplanTemplate, generateJahresplanTemplate } from '../lib/planerExcelService';
 import { downloadYearlyPlanCsv } from '../lib/yearlyPlanExport';
 import { SchuelerWochenplanA4Sheet } from './wochenplan/SchuelerWochenplanA4Sheet';
 import {
@@ -276,6 +273,15 @@ export default function PrintCenter() {
 
   // C. Wochenplan Options
   const [wpKW, setWpKW] = useState<number>(fallbackPlanningKW);
+  const handleDownloadWochenplanTemplate = async () => {
+    const { generateWochenplanTemplate } = await import('../lib/planerExcelService');
+    generateWochenplanTemplate(app, wpKW);
+  };
+
+  const handleDownloadJahresplanTemplate = async () => {
+    const { generateJahresplanTemplate } = await import('../lib/planerExcelService');
+    generateJahresplanTemplate(app);
+  };
   const [wpShowTimes, setWpShowTimes] = useState(true);
   const [wpShowSubjectOnly, setWpShowSubjectOnly] = useState(false);
   const [wpShowReflexion, setWpShowReflexion] = useState(true);
@@ -2191,7 +2197,7 @@ export default function PrintCenter() {
                       })}
                     </select>
                   </div>
-                  <button type="button" onClick={() => generateWochenplanTemplate(app, wpKW)}
+                  <button type="button" onClick={() => void handleDownloadWochenplanTemplate()}
                     className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100">
                     <Download size={14} className="mr-1.5 inline" />Excel-Vorlage für diese Woche herunterladen
                   </button>
@@ -2562,7 +2568,7 @@ export default function PrintCenter() {
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3 space-y-2">
                     <p className="text-xs font-bold text-emerald-950">Jahresplan exportieren</p>
                     <p className="text-[0.6875rem] text-slate-600">Diese Ausgaben lesen nur die gespeicherte Jahresplanung der aktuellen Klasse.</p>
-                    <button type="button" onClick={() => generateJahresplanTemplate(app)}
+                    <button type="button" onClick={() => void handleDownloadJahresplanTemplate()}
                       className="w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-bold text-emerald-900 hover:bg-emerald-100">
                       <Download size={14} className="mr-1.5 inline" /> Excel-Vorlage herunterladen
                     </button>
@@ -4454,6 +4460,7 @@ export default function PrintCenter() {
       || app?.lehrerName || app?.lehrerProfil?.name || '';
     const safeClass = String(app?.klassenbezeichnung || 'Klasse').replace(/[^a-zA-Z0-9_-]+/g, '_');
     const safeRange = rangeLabel.normalize('NFKD').replace(/[^a-zA-Z0-9_-]+/g, '_');
+    const { downloadKlassenbuchDocx } = await import('../lib/klassenbuchDocx');
     await downloadKlassenbuchDocx(`Klassio_Klassenbuch_${safeClass}_${safeRange}.docx`, {
       title: `Klassenbuch · ${rangeLabel}`,
       layout: kbLayout,
@@ -4466,7 +4473,7 @@ export default function PrintCenter() {
     });
   }
 
-  function handleDownloadKlassenbuchPdf() {
+  async function handleDownloadKlassenbuchPdf() {
     const weeks = getKbWeeksToRender();
     const teacherName = [app?.anrede, app?.vorname, app?.nachname]
       .filter(Boolean)
@@ -4505,6 +4512,7 @@ export default function PrintCenter() {
         ? 'Gesamt'
         : `KW_${kbStartKW}_bis_${kbEndKW}`;
 
+    const { downloadKlassenbuchPdf } = await import('../lib/klassenbuchPdf');
     downloadKlassenbuchPdf(
       `Klassio_Klassenbuch_${safeClass}_${rangeLabel}.pdf`,
       {

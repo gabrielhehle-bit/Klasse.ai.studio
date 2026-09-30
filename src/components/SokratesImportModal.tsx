@@ -19,7 +19,8 @@ import {
   Edit3,
   HelpCircle
 } from 'lucide-react';
-import { ParsedSokratesResult, ParsedSokratesStudent, convertToAppStudents, formatDateDE, normalizeDate } from '../lib/sokratesParser';
+import type { ParsedSokratesResult, ParsedSokratesStudent } from '../lib/sokratesParser';
+import { formatDateDE, normalizeDate } from '../lib/sokratesFieldUtils';
 import { Student } from '../types';
 
 interface SokratesImportModalProps {
@@ -104,7 +105,7 @@ export const SokratesImportModal: React.FC<SokratesImportModalProps> = ({
     }
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     // Validate that at least some students exist
     const validStudents = students.filter(s => s.vorname.trim() || s.nachname.trim());
     if (validStudents.length === 0) {
@@ -112,6 +113,7 @@ export const SokratesImportModal: React.FC<SokratesImportModalProps> = ({
       return;
     }
 
+    const { convertToAppStudents } = await import('../lib/sokratesParser');
     const appStudents = convertToAppStudents(validStudents);
     onApply(appStudents, {
       klasse: applyKlasse ? klasse : undefined,

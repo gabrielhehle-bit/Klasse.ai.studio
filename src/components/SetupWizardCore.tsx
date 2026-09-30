@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { parseSokratesCSV } from '../lib/importUtils';
 import { KlassenlistenImport } from './KlassenlistenImport';
-import { parseSokratesFile, ParsedSokratesResult } from '../lib/sokratesParser';
+import type { ParsedSokratesResult } from '../lib/sokratesParser';
 import { SokratesImportModal } from './SokratesImportModal';
 import { Bundesland, BUNDESLAND_NAMEN } from '../lib/ferienOesterreich';
 import { FachColorPicker } from './FachColorPicker';
@@ -317,6 +317,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
 
     setIsAnalyzingSokrates(true);
     try {
+      const { parseSokratesFile } = await import('../lib/sokratesParser');
       const result = await parseSokratesFile(file);
       if (result.students.length === 0) {
         alert('In dieser Datei konnten keine Schülerdaten erkannt werden. Bitte prüfe das Format (Sokrates-PDF oder CSV).');

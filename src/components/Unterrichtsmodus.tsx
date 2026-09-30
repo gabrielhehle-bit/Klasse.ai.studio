@@ -173,7 +173,6 @@ import MorningCircleWidget from "./MorningCircleWidget";
 import MorningRiddleWidget from "./MorningRiddleWidget";
 import QuizWidget from "./QuizWidget";
 import MindmapWidget from "./MindmapWidget";
-import WhiteboardWidget from "./WhiteboardWidget";
 import Tafel from "./Tafel";
 import LernwoerterWidget from "./LernwoerterWidget";
 import FlowerPuzzleWidget from "./FlowerPuzzleWidget";

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, FileUp, AlertTriangle, ArrowLeftRight, Upload, Clipboard, Sparkles, FileText } from 'lucide-react';
 import { parseKlassenliste, ParsedStudent } from '../lib/klassenlistenImport';
-import { parseSokratesFile, ParsedSokratesResult } from '../lib/sokratesParser';
+import type { ParsedSokratesResult } from '../lib/sokratesParser';
 import { SokratesImportModal } from './SokratesImportModal';
 import { normalizeStudentGender } from '../lib/studentListData';
 
@@ -37,6 +37,7 @@ export const KlassenlistenImport: React.FC<KlassenlistenImportProps> = ({ onClos
       setIsAnalyzingPDF(true);
       setErrorMsg(null);
       try {
+        const { parseSokratesFile } = await import('../lib/sokratesParser');
         const result = await parseSokratesFile(file);
         if (result.students.length === 0) {
           setErrorMsg("In dieser PDF konnten keine Schülerdaten erkannt werden. Bitte stelle sicher, dass es sich um eine Klassenliste aus Sokrates handelt.");
@@ -420,4 +421,3 @@ export const KlassenlistenImport: React.FC<KlassenlistenImportProps> = ({ onClos
     </div>
   );
 };
-

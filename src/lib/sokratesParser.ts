@@ -3,6 +3,8 @@ import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { Student } from '../types';
 import { normalizeStudentGender } from './studentListData';
 import { cleanSokratesPhoneNumber, cleanStudentNameString, splitSokratesName, extractContactAndAddress } from './sokratesParsingHelpers';
+import { normalizeDate } from './sokratesFieldUtils';
+export { formatDateDE, normalizeDate } from './sokratesFieldUtils';
 
 export interface ParsedSokratesStudent {
   id?: string;
@@ -37,37 +39,6 @@ export interface ParsedSokratesResult {
   schuelerAnzahl?: number;
   warnings: string[];
   sourceMethod: 'ai' | 'pdf_local' | 'text_local';
-}
-
-// Normalize Austrian Date (DD.MM.YYYY or DD.MM.YY) to YYYY-MM-DD
-export function normalizeDate(str: string): string {
-  if (!str) return '';
-  const clean = str.trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
-
-  const dotMatch = clean.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
-  if (dotMatch) {
-    const day = dotMatch[1].padStart(2, '0');
-    const month = dotMatch[2].padStart(2, '0');
-    let year = dotMatch[3];
-    if (year.length === 2) {
-      const yNum = parseInt(year, 10);
-      year = yNum > 50 ? '19' + year : '20' + year;
-    }
-    return `${year}-${month}-${day}`;
-  }
-  return clean;
-}
-
-// Convert YYYY-MM-DD to Austrian display format DD.MM.YYYY
-export function formatDateDE(dateStr: string): string {
-  if (!dateStr) return '';
-  const clean = dateStr.trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
-    const [y, m, d] = clean.split('-');
-    return `${d}.${m}.${y}`;
-  }
-  return clean;
 }
 
 // Normalize Austrian Religion abbreviation
