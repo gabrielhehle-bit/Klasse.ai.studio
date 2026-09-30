@@ -389,7 +389,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
 
           {/* Rechter Bereich: Wetter & Schuljahr-Zeitdiagramm & PayPal & Fehler melden & Mehr */}
           <div className="flex min-w-0 items-center justify-end gap-1.5 sm:gap-2.5">
-            <SaveSyncStatus />
+            <div className="hidden sm:block"><SaveSyncStatus /></div>
             <button
               type="button"
               onClick={() => void createManualBackup()}
@@ -1109,6 +1109,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
         </div>,
         document.body
       )}
+      <div className="bg-[var(--surface-card,var(--surface))] px-3 pb-2 sm:hidden"><SaveSyncStatus fullWidth /></div>
     </header>
   );
 });
