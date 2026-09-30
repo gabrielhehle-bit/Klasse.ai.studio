@@ -9,7 +9,7 @@ test('class mascot has a permanent quick toggle in the cockpit dock', () => {
   assert.match(dock, /onToggleMascot/);
   assert.match(dock, /Klassenmaskottchen ausblenden/);
   assert.match(dock, /Klassenmaskottchen einblenden/);
-  assert.match(dock, />🐾<\/button>/);
+  assert.match(dock, /PawPrint/);
 
   assert.match(cockpit, /onToggleMascot=\{\(\) => \{/);
   assert.match(cockpit, /executeWidgetClose\(mascot\.id\)/);

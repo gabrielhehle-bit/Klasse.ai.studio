@@ -2712,3 +2712,29 @@ html body [data-style] .klassio-widget-library .klassio-widget-primary.bg-succes
     flex: 1 1 auto;
   }
 }
+
+/* Dock polish: compact favorites, no distracting browser scrollbar, clear system tools. */
+.klassio-cockpit-shell .klassio-dock-favorites {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.klassio-cockpit-shell .klassio-dock-favorites::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.klassio-cockpit-shell .klassio-widget-dock {
+  gap: 0.25rem;
+}
+.klassio-cockpit-shell .klassio-dock-system {
+  background: transparent !important;
+  border-color: #e2e8f0 !important;
+}
+@media (max-width: 760px) {
+  .klassio-cockpit-shell .klassio-widget-dock {
+    width: min(100%, calc(100vw - 16px));
+  }
+  .klassio-cockpit-shell .klassio-dock-system {
+    padding-left: 0.375rem;
+  }
+}

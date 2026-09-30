@@ -87,7 +87,7 @@ test('dock follows the real board width, condenses favorites and keeps system co
   assert.ok(surface.includes('width: sidebarMode === "mini" ? COMPACT_COCKPIT_SIDEBAR_WIDTH'));
   assert.ok(surface.includes('reservedRightPx={getCockpitSidebarReservedRightPx('));
   assert.match(dock, /data-board-right-inset/);
-  assert.match(dock, /favorites\.length <= 8/);
+  assert.match(dock, /favorites\.length <= 5/);
   assert.match(dock, /showFavoriteLabels/);
   assert.match(dock, /klassio-dock-system/);
   assert.match(dock, /data-dock-favorite-id/);
