@@ -373,8 +373,8 @@ async function main() {
     await waitFor(client, 'white classroom board', 'Boolean(document.getElementById("widget-board-stage"))', 30000);
     await clickButton(client, 'Widget hinzufügen');
     await waitFor(client, 'classroom weekly-plan picker entry',
-      'Array.from(document.querySelectorAll("button")).some(b=>b.getAttribute("aria-label")==="Wochenplan der Kinder hinzufügen")');
-    const addedWidget = await evaluate(client, '(() => {const b=Array.from(document.querySelectorAll("button")).find(b=>b.getAttribute("aria-label")==="Wochenplan der Kinder hinzufügen");if(!b)return false;b.click();return true;})()');
+      'Boolean(document.querySelector("[data-testid=\\"cockpit-core-group-classweeklyplan\\"] button[data-widget-card-action=\\"primary\\"]"))');
+    const addedWidget = await evaluate(client, '(() => {const b=document.querySelector("[data-testid=\\"cockpit-core-group-classweeklyplan\\"] button[data-widget-card-action=\\"primary\\"]");if(!b)return false;b.click();return true;})()');
     if (!addedWidget) throw new Error('Could not add weekly-plan widget.');
     // Current classroom widget: task → child → feedback, not the retired
     // personal-plan dialog with public pupil-name buttons.
