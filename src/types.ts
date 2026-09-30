@@ -1077,6 +1077,7 @@ export interface HomeworkAssignment {
 export interface ClassRoom {
   /** Class-local, teacher-controlled mascot. Old classPet remains as archived legacy data. */
   classMascot?: import('./lib/classMascot').ClassMascotState;
+  participationSettings?: import('./lib/participationAward').ParticipationSettings;
   /** Zero-knowledge Teamteaching metadata. This metadata remains local and is stripped before class encryption. */
   /** Encrypted-account-safe pointer identifying this class's Teamteaching workspace on other devices. */
   teamTeachingSharedClassId?: string;
@@ -1086,6 +1087,8 @@ export interface ClassRoom {
     revision: number;
     lastSyncedHash?: string;
     lastSyncedAt?: string;
+    lastChangedAt?: string;
+    lastChangedBy?: string;
     syncStatus?: 'idle' | 'syncing' | 'synced' | 'conflict' | 'error';
     syncMessage?: string;
   };
@@ -1120,6 +1123,7 @@ export interface ClassRoom {
   observations?: AppState['observations'];
   metaKognitionsProtokolle?: AppState['metaKognitionsProtokolle'];
   interaktionsLog?: AppState['interaktionsLog'];
+  mitarbeitLogs?: {id: string; sid: string; points: number; timestamp: string; fach?: string}[];
   mitarbeit: Record<string, Record<string, Record<string, number>>>;
   /** Class-local participation grading thresholds/mode used by the gradebook. */
   mitarbeit_settings?: AppState['mitarbeit_settings'];
@@ -1678,6 +1682,7 @@ export interface AppState {
   classPet?: ClassPetState;
   /** New class-local mascot widget, independent of the retired floating pet. */
   classMascot?: import('./lib/classMascot').ClassMascotState;
+  participationSettings?: import('./lib/participationAward').ParticipationSettings;
   classPetShowBeamer?: boolean;
   ampelLabels?: { red: string; yellow: string; green: string };
   notenLabels?: Record<string, string>;

@@ -1,3 +1,7 @@
+import SaveSyncStatus from './SaveSyncStatus';
+import ParticipationSettingsPanel from './cockpit/ParticipationSettingsPanel';
+import { commitParticipationAward } from '../lib/participationAward';
+import { MASCOT_RITUAL_EVENT } from '../lib/classMascot';
 import { shouldApplyTafelCommand } from '../lib/tafelCommands';
 import { getTodayIsoDate } from '../lib/kidAttendanceAlgorithm';
 import { dailyBehaviorEntries } from '../lib/dailyBehaviorEntries';
@@ -3017,7 +3021,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isAddWidgetMenuOpen]);
-  const [selectedWidgetConfiguration, setSelectedWidgetConfiguration] = useState<"kidattendance" | "groups" | "randomname" | "classweeklyplan">("kidattendance");
+  const [selectedWidgetConfiguration, setSelectedWidgetConfiguration] = useState<"kidattendance" | "groups" | "randomname" | "classweeklyplan" | "pet" | "participation">("kidattendance");
   const [isVorlagenModalOpen, setIsVorlagenModalOpen] = useState(false);
   const [vorlagenStartTab, setVorlagenStartTab] = useState<"browse" | "create">("browse");
   const [activeWidgetCategory, setActiveWidgetCategory] =
@@ -7037,45 +7041,42 @@ ${content}
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [openSettingsId, app.boardWidgets]);
 
-  // Reward Logic Helpers
-  const addParticipation = (sid: string, event?: React.MouseEvent) => {
-    const subject = getActiveSubject();
+  const [pendingParticipation, setPendingParticipation] = useState<{ sid: string; classId: string; event?: React.MouseEvent; onAwarded?: () => void } | null>(null);
+  const lastParticipationAward = useRef<{ sid: string; classId: string; subject: string } | null>(null);
+  useEffect(() => { setPendingParticipation(null); lastParticipationAward.current = null; }, [app.activeClassId]);
+  const awardParticipation = (sid: string, subject: string, classId: string, event?: React.MouseEvent, onAwarded?: () => void) => {
+    if (classId !== app.activeClassId || !app.schueler.some(student => student.id === sid)
+      || !subject || (app.participationSettings?.subjectMode === 'choose' && !app.faecher?.includes(subject))) return;
+    setApp(prev => commitParticipationAward(prev, { sid, subject, classId }));
+    lastParticipationAward.current = { sid, subject, classId };
     (window as any).__lastMitarbeitPlusTime = Date.now();
-
-    if (event) {
-      triggerRewardAnimation(sid, event);
+    const feedback = app.participationSettings?.feedback || 'animation';
+    if (event && (feedback === 'animation' || feedback === 'both')) triggerRewardAnimation(sid, event);
+    if (feedback === 'mascot' || feedback === 'both') window.dispatchEvent(new CustomEvent(MASCOT_RITUAL_EVENT, { detail: 'praise' }));
+    onAwarded?.();
+  };
+  // Reward Logic Helpers
+  const addParticipation = (sid: string, event?: React.MouseEvent, onAwarded?: () => void) => {
+    if (!app.activeClassId) return;
+    if (app.participationSettings?.subjectMode === 'choose') {
+      setPendingParticipation({ sid, classId: app.activeClassId, event, onAwarded });
+      return;
     }
-
-    setApp((prev) => {
-      const newLogs = [
-        ...(prev.mitarbeitLogs || []),
-        {
-          id: Date.now().toString() + Math.random().toString(),
-          sid,
-          points: 1,
-          timestamp: new Date().toISOString(),
-          fach: subject,
-        },
-      ];
-
-      return {
-        ...prev,
-        mitarbeitLogs: newLogs,
-      };
-    });
+    awardParticipation(sid, getActiveSubject(), app.activeClassId, event, onAwarded);
   };
 
   const removeParticipation = (sid: string) => {
-    const subject = getActiveSubject();
+    const last = lastParticipationAward.current;
+    const subject = last?.sid === sid && last.classId === app.activeClassId ? last.subject : getActiveSubject();
     setApp((prev) => {
       // Find today's accumulated points for this student
       let todayPoints = 0;
-      const todayStr = new Date().toISOString().split("T")[0];
+      const todayStr = getTodayIsoDate();
       if (prev.mitarbeitLogs && prev.mitarbeitLogs.length > 0) {
         prev.mitarbeitLogs.forEach((log: any) => {
           const d = new Date(log.timestamp);
           const logDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-          if (log.sid === sid && logDateStr === todayStr) {
+          if (log.sid === sid && log.fach === subject && logDateStr === todayStr) {
             todayPoints += log.points;
           }
         });
@@ -7103,7 +7104,7 @@ ${content}
 
   const clearAllParticipation = () => {
     setApp((prev) => {
-      const todayStr = new Date().toISOString().split("T")[0];
+      const todayStr = getTodayIsoDate();
       const filteredLogs = (prev.mitarbeitLogs || []).filter((log: any) => {
         const d = new Date(log.timestamp);
         const logDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -7308,7 +7309,7 @@ ${content}
     }, 4500);
 
     // After manually or automatically committing, flag today as saved to prevent duplicate auto-saves on close
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = getTodayIsoDate();
     updateHasAutoSavedToday(todayStr);
   }, [
     commitAllowance,
@@ -8305,30 +8306,7 @@ ${content}
                 </span>
               )}
             </div>
-            {/* Compact save status: details are available on hover/focus. */}
-            <div
-              role="status"
-              className={`relative flex h-6 w-6 items-center justify-center rounded-md border ${
-                behaviorSavedToday
-                  ? currentIsLight
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-600"
-                    : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                  : currentIsLight
-                    ? "border-amber-200 bg-amber-50 text-amber-600"
-                    : "border-amber-500/30 bg-amber-500/10 text-amber-300"
-              }`}
-              title={behaviorSavedToday ? "Heute gesichert" : "Wird beim Beenden gespeichert"}
-              aria-label={behaviorSavedToday ? "Heute gesichert" : "Wird beim Beenden gespeichert"}
-              data-save-status={behaviorSavedToday ? "saved" : "pending"}
-            >
-              <Save size={11} strokeWidth={2.5} aria-hidden="true" />
-              <span
-                aria-hidden="true"
-                className={`absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full ${
-                  behaviorSavedToday ? "bg-emerald-500" : "bg-amber-500"
-                }`}
-              />
-            </div>
+            <SaveSyncStatus onOpenTeam={() => { handleCloseCockpit(); setPage("teamteaching"); }} />
           </div>
         </div>
 
@@ -8428,7 +8406,7 @@ ${content}
                   (app.behavior_status || {})[sid] !==
                   (app.behavior_default_stage_id || "3"),
               ).length;
-              const todayStr = new Date().toISOString().split("T")[0];
+              const todayStr = getTodayIsoDate();
               const alreadySavedToday = behaviorSavedToday;
               const isButtonDisabled =
                 !commitAllowance.allowed || alreadySavedToday;
@@ -8666,7 +8644,7 @@ ${content}
                         a.nachname.localeCompare(b.nachname, "de"),
                       )
                       .map((student) => {
-                        const todayStr = new Date().toISOString().split("T")[0];
+                        const todayStr = getTodayIsoDate();
                         const dayAtt =
                           app.anwesenheit[student.id]?.[todayStr] || {};
                         const hasExcused = Object.values(dayAtt).includes("e");
@@ -9079,15 +9057,20 @@ ${content}
                                       <label className="block text-sm font-semibold">
                                         Widget auswählen
                                         <select aria-label="Widget für Einstellungen" value={selectedWidgetConfiguration}
-                                          onChange={event => setSelectedWidgetConfiguration(event.target.value as "kidattendance" | "groups" | "randomname" | "classweeklyplan")}
+                                          onChange={event => setSelectedWidgetConfiguration(event.target.value as "kidattendance" | "groups" | "randomname" | "classweeklyplan" | "pet" | "participation")}
                                           className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
                                           <option value="kidattendance">🖐️ Ich bin da!</option>
                                           <option value="groups">👥 Gruppen bilden</option>
                                           <option value="classweeklyplan">📋 Wochenplan der Kinder</option>
                                           <option value="randomname">🎯 Zufälliges Kind</option>
+                                          <option value="participation">✨ Mitarbeit / Pluspunkte</option>
+                                          <option value="pet">🐾 Klassenmaskottchen</option>
                                         </select>
                                       </label>
+                                      {selectedWidgetConfiguration === "participation" && <ParticipationSettingsPanel app={app} setApp={setApp} />}
+                                      {selectedWidgetConfiguration === "pet" && <div className="space-y-3"><p className="text-sm">Maskottchen, Name und Reaktionen für diese Klasse einstellen.</p><button type="button" className="min-h-11 rounded-xl bg-accent px-4 text-sm font-bold text-accent-text" onClick={() => { setIsAddWidgetMenuOpen(false); setIsMascotSettingsOpen(true); }}>Klassenmaskottchen wechseln und einstellen</button><ParticipationSettingsPanel app={app} setApp={setApp} /></div>}
                                       {(() => {
+                                        if (selectedWidgetConfiguration === "participation" || selectedWidgetConfiguration === "pet") return null;
                                         const configured = cockpitWidgets.find(widget => widget.type === selectedWidgetConfiguration)
                                           || DEFAULT_COCKPIT_LAYOUT.find(widget => widget.type === selectedWidgetConfiguration);
                                         if (!configured) return <p role="status" className="text-sm">Einstellungen nicht verfügbar.</p>;
@@ -17212,6 +17195,15 @@ ${content}
           />
         )}
       </AnimatePresence>
+      {pendingParticipation && <div className="fixed inset-0 z-[12000] flex items-center justify-center bg-black/50 p-4" onClick={() => setPendingParticipation(null)}>
+        <section role="dialog" aria-modal="true" aria-label="Fach für Mitarbeit auswählen" className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 text-slate-900 shadow-xl" onClick={event => event.stopPropagation()} onKeyDown={event => { if (event.key === 'Escape') setPendingParticipation(null); }}>
+          <h2 className="text-lg font-bold">+1 Mitarbeit: Fach auswählen</h2>
+          <p className="mb-3 text-sm">{app.schueler.find(student => student.id === pendingParticipation.sid) ? getDisplayStudentName(app.schueler.find(student => student.id === pendingParticipation.sid)!, app.schueler) : ""}</p>
+          <div className="grid grid-cols-2 gap-2">{Array.from(new Set(app.faecher || [])).map(subject => <button key={subject} type="button" className="min-h-11 rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-sm font-semibold" onClick={() => { const request = pendingParticipation; setPendingParticipation(null); awardParticipation(request.sid, subject, request.classId, request.event, request.onAwarded); }}>{subject}</button>)}</div>
+          {!app.faecher?.length && <p>Bitte zuerst Fächer für die Klasse anlegen.</p>}
+          <button autoFocus type="button" className="mt-3 min-h-11 w-full rounded-xl border border-slate-300 px-3" onClick={() => setPendingParticipation(null)}>Abbrechen – keinen Punkt vergeben</button>
+        </section>
+      </div>}
       <ClassMascotSettingsPanel
         app={app}
         setApp={setApp}

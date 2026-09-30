@@ -80,9 +80,9 @@ test('Kompakte Cockpit-Seitenleiste zeigt alle 17 echten Kinder in niedrigen Ein
     removeParticipation: () => {},
   }));
   assert.match(teaching, /sidebarCompact=\{sidebarMode === "mini"\}/);
-  assert.match(html, /space-y-1 overflow-y-auto/);
+  assert.match(html, /grid min-h-0 flex-1 content-start gap-1\.5 overflow-y-auto/);
   assert.match(html, /1 P\./);
-  assert.match(html, /min-h-9 min-w-9/);
+  assert.match(html, /min-h-11 min-w-11/);
   assert.match(html, /Unsere Pluspunkte · 17/);
   for (let i = 1; i <= 17; i++) assert.match(html, new RegExp(`Kind${i}(?!\\d)`));
   assert.equal((html.match(/Pluspunkt für/g) || []).length, 17);

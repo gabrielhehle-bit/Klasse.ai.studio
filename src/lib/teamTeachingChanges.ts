@@ -12,7 +12,7 @@ const SECTION_NAMES: Record<string, string> = {
   schueler: 'Schülerliste', stammplan: 'Stundenplan', notes: 'Notizen', journal: 'Notizen',
   anwesenheit: 'Anwesenheit', noten: 'Notenmappe', lernzielTracker: 'Lernziele',
   sitzplan_schueler: 'Sitzplan', sitzplan_objekte: 'Sitzplan', tageplan: 'Tagesplanung',
-  name: 'Klassenname', faecher: 'Fächer',
+  name: 'Klassenname', faecher: 'Fächer', mitarbeitLogs: 'Mitarbeitspunkte', participationSettings: 'Mitarbeit-Einstellungen',
 };
 
 function displayPath(parts: string[]): string {

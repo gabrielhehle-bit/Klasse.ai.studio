@@ -218,6 +218,8 @@ export async function createSharedClass(room: ClassRoom): Promise<{
         revision: response.class.revision,
         lastSyncedHash: fingerprint,
         lastSyncedAt: new Date().toISOString(),
+        lastChangedAt: response.class.contentUpdatedAt || response.class.updatedAt,
+        lastChangedBy: response.class.members.find(member => member.userId === (response.class.contentUpdatedBy || response.class.updatedBy))?.displayName || 'Teammitglied',
       },
     },
   };
@@ -242,6 +244,8 @@ export async function pullSharedClass(sharedClassId: string): Promise<{
         revision: detail.revision,
         lastSyncedHash: fingerprint,
         lastSyncedAt: new Date().toISOString(),
+        lastChangedAt: detail.contentUpdatedAt || detail.updatedAt,
+        lastChangedBy: detail.members.find(member => member.userId === (detail.contentUpdatedBy || detail.updatedBy))?.displayName || 'Teammitglied',
       },
     },
   };

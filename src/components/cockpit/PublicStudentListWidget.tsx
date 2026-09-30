@@ -8,7 +8,7 @@ import { getStudentGridLayout } from '../../lib/studentWidgetGrid';
 interface Props {
   app: AppState;
   getTodayPoints: (studentId: string) => number;
-  addParticipation: (studentId: string, event?: React.MouseEvent) => void;
+  addParticipation: (studentId: string, event?: React.MouseEvent, onAwarded?: () => void) => void;
   removeParticipation: (studentId: string) => void;
   /** Teacher action: adjacent stage is written to behavior_status and the dossier history. */
   onBehaviorStageChange?: (studentId: string, stageId: string) => void;
@@ -40,7 +40,7 @@ export function PublicStudentListWidget({
   const students = app.schueler ?? [];
   const containerRef = useRef<HTMLElement>(null);
   const size = useWidgetSize(containerRef);
-  const grid = getStudentGridLayout(size.width, size.height, students.length, { reservedHeight: 92, minCardWidth: 170, minCardHeight: 58, gap: 6 });
+  const grid = getStudentGridLayout(size.width, size.height, students.length, { reservedHeight: sidebarCompact ? 38 : 92, minCardWidth: sidebarCompact ? 144 : 170, minCardHeight: sidebarCompact ? 48 : 58, gap: 6 });
   const gridMode = Boolean(onExpand);
   const [compact, setCompact] = useState(false);
   const dense = !gridMode && (sidebarCompact || compact);
@@ -111,9 +111,9 @@ export function PublicStudentListWidget({
           </button>
           <p className="text-xs text-slate-600">Falls das Gerät sehr klein ist, aktiviere den Vollbildmodus.</p>
         </div>
-      ) : (
-      <div className={gridMode ? 'grid min-h-0 flex-1 content-start gap-1.5 overflow-hidden' : dense ? 'min-h-0 flex-1 space-y-1 overflow-y-auto' : 'min-h-0 flex-1 space-y-2 overflow-y-auto'}
-        style={gridMode ? { gridTemplateColumns: `repeat(${grid.columns}, minmax(0, 1fr))` } : undefined} role="list">
+      ) : null}
+      <div className={gridMode || sidebarCompact ? 'grid min-h-0 flex-1 content-start gap-1.5 overflow-y-auto' : dense ? 'min-h-0 flex-1 space-y-1 overflow-y-auto' : 'min-h-0 flex-1 space-y-2 overflow-y-auto'}
+        style={gridMode || sidebarCompact ? { gridTemplateColumns: `repeat(${grid.columns}, minmax(0, 1fr))` } : undefined} role="list">
         {students.map((student: Student) => {
           const points = Math.max(0, getTodayPoints(student.id));
           const awarded = lastAwardedId === student.id;
@@ -140,7 +140,7 @@ export function PublicStudentListWidget({
             : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md';
           return (
             <div key={student.id} role="listitem"
-              style={gridMode ? { minHeight: 58, height: Math.min(100, grid.cardHeight) } : undefined}
+              style={gridMode || sidebarCompact ? { minHeight: sidebarCompact ? 48 : 58 } : undefined}
               className={`min-w-0 shadow-sm transition-[border-color,background-color,box-shadow] duration-150 ${cardTone} ${gridMode ? 'rounded-2xl border-2 px-1.5 py-1' : dense ? 'rounded-xl border px-1.5 py-0.5' : 'rounded-2xl border-2 px-3 py-2'}`}>
               <div className="flex min-w-0 items-center justify-between gap-1">
                 <div className="flex min-w-0 flex-1 items-center gap-1">
@@ -193,11 +193,12 @@ export function PublicStudentListWidget({
                   )}
                   <button type="button"
                     onClick={event => {
-                      addParticipation(student.id, event);
-                      setLastAwardedId(student.id);
-                      setRecentlyAwardedId(student.id);
+                      addParticipation(student.id, event, () => {
+                        setLastAwardedId(student.id);
+                        setRecentlyAwardedId(student.id);
+                      });
                     }}
-                    className={`${dense ? 'min-h-9 min-w-9 px-1 text-xs rounded-lg' : 'min-h-11 min-w-11 px-3 text-lg rounded-xl'} bg-emerald-600 font-extrabold text-white shadow-sm transition-transform hover:bg-emerald-700 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600`}
+                    className={`${dense ? 'min-h-11 min-w-11 px-1 text-xs rounded-lg' : 'min-h-11 min-w-11 px-3 text-lg rounded-xl'} bg-emerald-600 font-extrabold text-white shadow-sm transition-transform hover:bg-emerald-700 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600`}
                     aria-label={`Pluspunkt für ${labels.get(student.id)} vergeben`}
                   >{recentlyAwardedId === student.id && !dense ? '✓ +1' : '+1'}</button>
                 </div>
@@ -206,7 +207,6 @@ export function PublicStudentListWidget({
           );
         })}
       </div>
-      )}
     </section>
   );
 }
