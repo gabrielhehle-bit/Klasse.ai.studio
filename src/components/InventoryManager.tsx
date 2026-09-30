@@ -1,7 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import * as XLSX from 'xlsx';
-import * as pdfjsLib from 'pdfjs-dist';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   AlertTriangle,
@@ -38,7 +35,24 @@ import {
   type InventoryImportRecord,
 } from '../lib/inventoryImport';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+let xlsxModulePromise: Promise<typeof import('xlsx')> | null = null;
+let pdfJsModulePromise: Promise<typeof import('pdfjs-dist')> | null = null;
+
+const loadXlsx = () => {
+  xlsxModulePromise ??= import('xlsx');
+  return xlsxModulePromise;
+};
+
+const loadPdfJs = () => {
+  pdfJsModulePromise ??= Promise.all([
+    import('pdfjs-dist'),
+    import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
+  ]).then(([pdfjsLib, worker]) => {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = worker.default;
+    return pdfjsLib;
+  });
+  return pdfJsModulePromise;
+};
 
 type Condition = 'ok' | 'beschaedigt' | 'fehlt' | 'wartung';
 type Tab = 'overview' | 'stock' | 'locations' | 'loans' | 'import';
@@ -543,6 +557,7 @@ export default function InventoryManager() {
 
   const parseWorkbook = async (file: File) => {
     const buffer = await file.arrayBuffer();
+    const XLSX = await loadXlsx();
     const workbook = XLSX.read(buffer, { type: 'array' });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
@@ -553,6 +568,7 @@ export default function InventoryManager() {
 
   const parsePdf = async (file: File) => {
     const buffer = await file.arrayBuffer();
+    const pdfjsLib = await loadPdfJs();
     const document = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
     const pages: string[] = [];
     for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {

@@ -8,8 +8,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import LernzielTracker from './LernzielTracker';
 import { LEHRPLAN_VS_2023 } from '../lehrplan';
 import { callServerAI } from '../services/aiService';
-import JahresplanExcelModal from './JahresplanExcelModal';
-import { JahresplanImportRow } from '../lib/planerExcelService';
+import type { JahresplanImportRow } from '../lib/planerExcelService';
+const JahresplanExcelModal = React.lazy(() => import('./JahresplanExcelModal'));
 import { applyYearPlanImportRows, shiftYearPlanSubjectForward, yearPlanCellDisplayText, yearPlanCellEntries } from '../lib/yearlyPlanData';
 import { occupiedYearPlanCell, plannedYearWeeks, conflictingYearWeeks } from '../lib/annualPlanSafety';
 
@@ -2596,13 +2596,17 @@ export default function YearlyPlan() {
         </p>
       </div>
 
-      <JahresplanExcelModal
-        isOpen={showExcelModal}
-        onClose={() => setShowExcelModal(false)}
-        onImport={handleJahresplanImport}
-        app={app}
-        availableSubjects={subjects}
-      />
+      {showExcelModal && (
+        <React.Suspense fallback={null}>
+          <JahresplanExcelModal
+            isOpen={showExcelModal}
+            onClose={() => setShowExcelModal(false)}
+            onImport={handleJahresplanImport}
+            app={app}
+            availableSubjects={subjects}
+          />
+        </React.Suspense>
+      )}
     </div>
   );
 }

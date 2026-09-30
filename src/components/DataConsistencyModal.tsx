@@ -12,7 +12,6 @@ import {
   autoCleanAllOrphanedData, 
   ConsistencyIssue 
 } from '../lib/DataConsistencyService';
-import { generateDataConsistencyReport } from '../lib/pdfEngine';
 import { Button, IconButton, Badge, Select } from './ui';
 
 interface DataConsistencyModalProps {
@@ -375,6 +374,7 @@ export default function DataConsistencyModal({ isOpen, onClose }: DataConsistenc
             leftIcon={<FileText size={15} className="text-rose-500" />}
             onClick={async () => {
               try {
+                const { generateDataConsistencyReport } = await import('../lib/pdfEngine');
                 await generateDataConsistencyReport(app, issues);
                 showToast('Konsistenzbericht-PDF erfolgreich heruntergeladen!', 'success');
               } catch {

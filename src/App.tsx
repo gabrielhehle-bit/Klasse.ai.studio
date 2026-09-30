@@ -1034,7 +1034,9 @@ function AppContent() {
         {!app.dossierFocusMode && <DenkzettelWidget />}
         <VoiceNote />
         <PrivacyLock />
-        <DataConsistencyModal isOpen={showConsistencyModal} onClose={() => setShowConsistencyModal(false)} />
+        {showConsistencyModal && (
+          <DataConsistencyModal isOpen={showConsistencyModal} onClose={() => setShowConsistencyModal(false)} />
+        )}
       </main>
       <AnimatePresence>
         {showDiagnostikAnleitung && (

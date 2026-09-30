@@ -1,5 +1,5 @@
 import { DEFAULT_YEARLY_SUBJECTS } from '../constants';
-import { resolveJahresplanSubjectId } from './planerExcelService';
+import { resolveJahresplanSubjectId } from './yearPlanSubjects';
 import { yearPlanCellEntries, yearPlanEntriesToCell, type YearPlanCell, type YearPlanEntry } from './yearlyPlanData';
 
 export type WeeklyLessonForYearPlan = {

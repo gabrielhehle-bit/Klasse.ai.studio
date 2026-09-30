@@ -9,8 +9,8 @@ import { getLessonSuggestion, generateWeeklyPlanFromYearlyPlan, checkWeeklyPlanA
 import { LEHRPLAN_VS_2023 } from '../lehrplan';
 import { LehrplanZuordnung } from '../types';
 import { getFachHexColor, getFachThemeStyles } from '../lib/fachColorUtils';
-import WochenplanExcelModal from './WochenplanExcelModal';
-import { WochenplanImportRow } from '../lib/planerExcelService';
+import type { WochenplanImportRow } from '../lib/planerExcelService';
+const WochenplanExcelModal = React.lazy(() => import('./WochenplanExcelModal'));
 import { addWeeklyLessonToEmptyYearPlan, addWeeklyLessonsToYearPlan, hasWeeklyPlanningDetails, mergeYearlySuggestionIntoEmptyWeeklySlot } from '../lib/planningSync';
 import { yearPlanCellEntries } from '../lib/yearlyPlanData';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
@@ -5608,14 +5608,16 @@ export default function WeeklyPlan() {
         document.body
       )}
 
-      {createPortal(
-        <WochenplanExcelModal
-          isOpen={showExcelModal}
-          onClose={() => setShowExcelModal(false)}
-          onImport={handleWochenplanImport}
-          activeKW={activeKW}
-          app={app}
-        />,
+      {showExcelModal && createPortal(
+        <React.Suspense fallback={null}>
+          <WochenplanExcelModal
+            isOpen={showExcelModal}
+            onClose={() => setShowExcelModal(false)}
+            onImport={handleWochenplanImport}
+            activeKW={activeKW}
+            app={app}
+          />
+        </React.Suspense>,
         document.body
       )}
 
