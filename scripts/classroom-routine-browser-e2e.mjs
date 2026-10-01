@@ -331,7 +331,7 @@ async function checkRoutine(client) {
   await clickSelector(client, '[aria-label="Tagesdaten auswählen"] button:last-child');
   await waitFor(client, 'attendance day and reason shown', 'document.querySelector("[data-observation-records]")?.innerText.includes("Synthetischer Browser-Testgrund") && document.querySelector("[data-observation-records]")?.innerText.includes("Entschuldigt")');
   if (await evaluate(client, 'document.documentElement.scrollWidth') > WIDTH + 5) throw new Error('Observation charts overflow viewport.');
-  await evaluate(client, 'window.scrollTo(0,0)');
+  await evaluate(client, 'document.querySelectorAll(".custom-scrollbar").forEach(el => el.scrollTop = 0)');
   await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-observations.png'));
   await client.send('Emulation.setDeviceMetricsOverride', { width: 1360, height: 1000, deviceScaleFactor: 1, mobile: false });
   await sleep(500);
