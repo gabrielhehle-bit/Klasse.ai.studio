@@ -61,14 +61,14 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
   const groupBodySize = useWidgetSize(groupBodyRef);
   useWidgetOverflowGuard('GroupsWidget', containerRef);
 
+  // Die aktive Klasse ist die einzige Quelle; leere Klassen bleiben leer.
+  const activeClass = getActiveClassContext(app);
+  const allStudents = activeClass.students;
+
   // Automatisch ermittelte anwesende Schüler
   const presentStudents = useMemo(() => {
     return getPresentStudents(activeClass.students, app);
   }, [app?.schueler, app]);
-
-  // Die aktive Klasse ist die einzige Quelle; leere Klassen bleiben leer.
-  const activeClass = getActiveClassContext(app);
-  const allStudents = activeClass.students;
 
   // Settings aus dem Widget oder Standardwerte
   const savedSettings = widget?.settings || {};
