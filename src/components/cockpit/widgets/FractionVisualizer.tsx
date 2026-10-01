@@ -462,7 +462,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
       {/* MODUS A: KREIS */}
       {settings.mode === 'circle' && (
         <div className="flex-1 flex flex-col gap-4">
-          <div className="flex-1 flex flex-col md:flex-row items-center justify-around gap-4 min-h-[220px]">
+          <div className="grid flex-1 items-center justify-items-center gap-4 min-h-[220px]" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))' }}>
             {/* Große Kreisdarstellung */}
             <div className="flex flex-col items-center gap-2">
               {renderCircleVisual(

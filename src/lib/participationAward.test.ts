@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { commitParticipationAward, commitSocialAward, getSocialStars, undoParticipationAward, SOCIAL_BADGE_ID, resetParticipationStars, getParticipationResetCount } from './participationAward';
+import { correctParticipationStars, commitParticipationAward, commitSocialAward, getSocialStars, undoParticipationAward, SOCIAL_BADGE_ID, resetParticipationStars, getParticipationResetCount } from './participationAward';
 import { initialAppState, syncActiveClass, switchClassState, normalizeAppState } from './appState';
 import { accountSyncState, mergeAccountSyncState } from './accountSyncService';
 import { adoptAcknowledgedTeamRoom } from './teamTeachingProjection';
@@ -155,4 +155,44 @@ test('Zurückgesetzte Sterne einschließlich Korrekturen werden verschlüsselt i
   const shared = await decryptSharedClass(await encryptSharedClass(source.classes[0], key), key);
   assert.deepEqual(shared.mitarbeitLogs, source.mitarbeitLogs);
   assert.deepEqual(shared.mitarbeit, source.mitarbeit);
+});
+
+test('−1/−2/−3 correct only the chosen child and subject; reset and undo cannot deduct twice', () => {
+  const now = '2026-10-01T10:00:00Z';
+  let source = state();
+  source = commitParticipationAward(source, { classId:'a', sid:'pupil', subject:'Deutsch', id:'yesterday' }, '2026-09-30T10:00:00Z');
+  for (let i=0;i<6;i++) source = commitParticipationAward(source, {classId:'a',sid:'pupil',subject:'Deutsch',id:`today-${i}`}, now);
+  source = commitParticipationAward(source, {classId:'a',sid:'pupil',subject:'Mathematik'}, now);
+  source = commitSocialAward(source, {classId:'a',sid:'pupil'}, now);
+  const request = {classId:'a',sid:'pupil',kind:'subject',scope:'today',subject:'Deutsch'} as const;
+  for (const amount of [1,2,3]) source = correctParticipationStars(source, {...request,amount}, now);
+  assert.equal(source.mitarbeit.pupil.Deutsch['1'], 1);
+  assert.equal(source.mitarbeit.pupil.Mathematik['1'], 1);
+  assert.equal(getSocialStars(source,'pupil'),1);
+  assert.equal(getParticipationResetCount(source,request,now),0);
+  assert.equal(resetParticipationStars(source,request,now),source);
+  assert.equal(undoParticipationAward(source,{classId:'a',sid:'pupil',id:'today-0'},now),source);
+  assert.equal(correctParticipationStars(source,{...request,amount:3},now),source);
+});
+test('Partial correction of legacy multi-point entries preserves historical gradebook values', () => {
+  const now = '2026-10-01T10:00:00Z';
+  const source = {...state(),mitarbeit:{pupil:{Deutsch:{'1':8}}},mitarbeitLogs:[{id:'legacy',sid:'pupil',fach:'Deutsch',points:3,timestamp:now}]} as any;
+  const request = {classId:'a',sid:'pupil',kind:'subject',scope:'today',subject:'Deutsch',amount:1} as const;
+  const first = correctParticipationStars(source,request,now);
+  assert.equal(getParticipationResetCount(first,request,now),2);
+  const second = correctParticipationStars(first,{...request,amount:3},now);
+  assert.equal(getParticipationResetCount(second,request,now),0);
+  assert.equal(second.mitarbeit.pupil.Deutsch['1'],8);
+  assert.equal(correctParticipationStars(second,request,now),second);
+});
+test('Stale correction requests and invalid amounts write nothing; social corrections preserve badges and grades', () => {
+  const now = '2026-10-01T10:00:00Z';
+  let source = state();
+  for(let i=0;i<4;i++) source=commitSocialAward(source,{classId:'a',sid:'pupil'},now);
+  const request = {classId:'a',sid:'pupil',kind:'social',scope:'all',amount:2} as const;
+  for(const invalid of [{...request,classId:'b'},{...request,sid:'missing'},{...request,amount:-1},{...request,amount:4},{...request,kind:'subject' as const}]) assert.equal(correctParticipationStars(source,invalid,now),source);
+  const corrected=correctParticipationStars(source,request,now);
+  assert.equal(getSocialStars(corrected,'pupil'),2);
+  assert.deepEqual(corrected.mitarbeit,source.mitarbeit);
+  assert.deepEqual(corrected.schueler,source.schueler);
 });

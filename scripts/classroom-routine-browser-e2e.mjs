@@ -519,6 +519,19 @@ async function main() {
     await waitFor(client, 'subject awards appear in gradebook and social stars do not change it', bookPointsExpression + ' === ' + expectedBookPoints);
     await clickSidebar(client, 'Lehrercockpit');
     await waitFor(client, 'cockpit reopened for multiple-point correction', `Boolean(document.querySelector('.klassio-student-sidebar button[aria-label^="Pluspunkt für"]'))`);
+    await evaluate(client, `document.querySelector('button[aria-label="Mitarbeit-Einstellungen der Schüler-Seitenleiste öffnen"]').click()`);
+    await waitFor(client, 'targeted correction child selection', `Boolean(document.querySelector('select[aria-label="Kind für Sterne zurücksetzen"]'))`);
+    await evaluate(client, `(() => {const child=document.querySelector('select[aria-label="Kind für Sterne zurücksetzen"]'); child.value=Array.from(child.options).find(option=>option.textContent === ${q(studentName)}).value;child.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+    await waitFor(client, 'subject correction selector', `Boolean(document.querySelector('select[aria-label="Fach für Punktekorrektur"]'))`);
+    await evaluate(client, `(() => {const subject=document.querySelector('select[aria-label="Fach für Punktekorrektur"]');subject.value='Deutsch';subject.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+    await waitFor(client, 'German correction enabled', `document.querySelector('button[aria-label="1 Deutsch korrigieren"]')?.disabled === false`);
+    await evaluate(client, `document.querySelector('button[aria-label="1 Deutsch korrigieren"]').click()`);
+    await clickButton(client, 'Fertig', true);
+    await waitFor(client, 'one subject point corrected in sidebar', pointsExpression + ' === ' + (initialPoints + 1));
+    await openGradebook();
+    await waitFor(client, 'targeted correction also reaches gradebook', bookPointsExpression + ' === ' + (expectedBookPoints - 1));
+    await clickSidebar(client, 'Lehrercockpit');
+    await waitFor(client, 'cockpit restored before bulk reset', `Boolean(document.querySelector('button[aria-label="Mitarbeit-Einstellungen der Schüler-Seitenleiste öffnen"]'))`);
     const resetStars = async kind => {
       await evaluate(client, `document.querySelector('button[aria-label="Mitarbeit-Einstellungen der Schüler-Seitenleiste öffnen"]').click()`);
       await waitFor(client, 'reset controls available in participation settings', `Boolean(document.querySelector('select[aria-label="Kind für Sterne zurücksetzen"]'))`);
@@ -547,6 +560,67 @@ async function main() {
     await clickButton(client, 'Fertig', true);
     await openGradebook();
     await waitFor(client, 'reset also corrects subject participation in the gradebook', bookPointsExpression + ' === ' + initialBookPoints);
+    await clickSidebar(client, 'Lehrercockpit');
+    await client.send('Emulation.setDeviceMetricsOverride', { width:1366, height:768, deviceScaleFactor:1, mobile:false });
+    const openAuditWidget = async (type, search, label) => {
+      await clickButton(client, 'Widget hinzufügen');
+      await waitFor(client, 'widget audit search field', `Boolean(document.querySelector('input[aria-label="Widget suchen"]'))`);
+      await setInputByLabel(client, 'Widget suchen', search);
+      await waitFor(client, 'widget audit search result: ' + search, `Array.from(document.querySelectorAll('[role=dialog][aria-label="Widget-Bibliothek"] button[data-widget-card-action="primary"]')).some(b=>b.getAttribute('aria-label').startsWith(${q(label || search)}))`);
+      await evaluate(client, `(() => {const buttons=Array.from(document.querySelectorAll('[role=dialog][aria-label="Widget-Bibliothek"] button[data-widget-card-action="primary"]'));const button=${q(label || "")} ? buttons.find(b=>b.getAttribute("aria-label").startsWith(${q(label || "")})) : buttons[0];if(!button)throw new Error("Widget entry missing");button.click();})()`);
+      await waitFor(client, 'widget audit opens ' + type, `Array.from(document.querySelectorAll('[data-widget-type=${q(type)}]')).some(el=>el.getClientRects().length)`);
+    };
+    const auditMenu = async (type, action) => {
+      await evaluate(client, `Array.from(document.querySelectorAll('[data-widget-type=${q(type)}]')).find(el=>el.getClientRects().length).querySelector('button[aria-label="Widget-Menü öffnen"]').click()`);
+      await clickButton(client, action, true);
+    };
+    await openAuditWidget('calculator', 'Grundschulrechner');
+    const calculatorFits = await evaluate(client, `(() => {const root=document.querySelector('#smartboard-calculator');const r=root.getBoundingClientRect();return Array.from(root.querySelector('[data-calculator-keypad]').querySelectorAll('button')).every(b=>{const t=b.getBoundingClientRect();return t.top>=r.top && t.bottom<=r.bottom+1 && t.height>=43;});})()`);
+    if(!calculatorFits) throw new Error('Calculator clips a key or shrinks a touch target in its default size.');
+    for(const [kind,value] of [['digit','2'],['selector','button[title="Addition (+)"]'],['digit','3'],['selector','button[title="Gleich (= / Enter)"]']]) {
+      await evaluate(client, `(() => {const root=document.querySelector('#smartboard-calculator');const b=${q(kind)} === 'digit' ? Array.from(root.querySelectorAll('button')).find(b=>b.textContent.trim()===${q(value)}) : root.querySelector(${q(value)});b.click();})()`);
+    }
+    await waitFor(client, 'calculator result before minimize', `Boolean(document.querySelector('#smartboard-calculator div[title="5"]'))`);
+    const calculatorState = await evaluate(client, `document.querySelector('#smartboard-calculator').textContent`);
+    await auditMenu('calculator', 'Minimieren');
+    await openAuditWidget('calculator', 'Grundschulrechner');
+    if(await evaluate(client, `document.querySelector('#smartboard-calculator').textContent`) !== calculatorState) throw new Error('Calculator loses its state on restore.');
+    await auditMenu('calculator', 'Widget schließen');
+    await openAuditWidget('compass', 'Geographie-Kompass');
+    for(const zoom of [1,1.25,1.5]) {
+      await evaluate(client, `document.documentElement.style.zoom=${q(String(zoom))}`);
+      const overlap = await evaluate(client, `(() => {const a=document.querySelector('[data-compass-instrument]').getBoundingClientRect(),b=document.querySelector('[data-compass-explanation]').getBoundingClientRect();return Math.min(a.right,b.right)>Math.max(a.left,b.left)+1 && Math.min(a.bottom,b.bottom)>Math.max(a.top,b.top)+1;})()`);
+      if(overlap) throw new Error('Compass covers its explanation at zoom ' + zoom);
+    }
+    await evaluate(client, `document.documentElement.style.zoom='1'`);
+    await clickButton(client, 'Üben', true);
+    await waitFor(client, 'compass practice task', `document.querySelector('[data-compass-explanation]').textContent.includes('Stelle')`);
+    await auditMenu('compass', 'Widget schließen');
+    await openAuditWidget('qrcode', 'QR-Code & Link', 'QR-Code');
+    await setInputByLabel(client, 'URL oder Text für den QR-Code', 'Aufgabe Regenbogen 3');
+    await waitFor(client, 'readable QR preview', `document.querySelector('#qrcode-canvas-wrapper canvas')?.getBoundingClientRect().width >= 159`);
+    await evaluate(client, `document.querySelector('#qrcode-zoom-btn').click()`);
+    await waitFor(client, 'QR dialog has current content and no stale preset title', `Boolean(document.querySelector('#qrcode-lightbox-dialog')) && document.querySelector('#qrcode-lightbox-dialog').textContent.includes('Aufgabe Regenbogen 3') && !document.querySelector('#qrcode-lightbox-dialog h3').textContent.includes('Lernportal Anton')`);
+    await evaluate(client, `document.querySelector('#qrcode-lightbox-close-btn').click()`);
+    await clickButton(client, 'Meine Links', true);
+    await auditMenu('qrcode', 'Minimieren');
+    await openAuditWidget('qrcode', 'QR-Code & Link', 'QR-Code');
+    if(await evaluate(client, `document.querySelector('[aria-label="QR-Code und Links"] button[aria-pressed=true]').textContent.trim()`) !== 'Meine Links') throw new Error('QR mode resets after restoring.');
+    await auditMenu('qrcode', 'Widget schließen');
+    for(const [type,search,label] of [['timer','Timer / Sanduhr','Timer / Sanduhr'],['timeline','Tagesablauf','Tagesablauf'],['fractionvisualizer','Bruch-Visualisierer','Bruch-Visualisierer'],['fractions','Bruch-Visualisierer · Vergleich','Bruch-Visualisierer · Vergleich'],['wheel','Glücksrad','Glücksrad']]) {
+      await openAuditWidget(type,search,label);
+      if(type === 'timer') {
+        await clickButton(client,'Start',true);await clickButton(client,'Pause',true);
+        await waitFor(client,'paused timer before restore',`document.querySelector('[data-widget-type="timer"]').textContent.includes('Weiter')`);
+      }
+      const stateBefore = await evaluate(client, `document.querySelector('[data-widget-type=${q(type)}] [data-widget-content]').textContent`);
+      await auditMenu(type,'Minimieren');
+      await openAuditWidget(type,search,label);
+      if(type !== 'timeline' && await evaluate(client,`document.querySelector('[data-widget-type=${q(type)}] [data-widget-content]').textContent`) !== stateBefore) throw new Error(type + ' loses its state when restored.');
+      await auditMenu(type,'Widget schließen');
+    }
+    console.log('✓ Audit regression: calculator keys/result/restore, compass layout at 100/125/150%, QR alias/readability/title/mode restore');
+
 
   } catch (error) {
     await saveScreenshot(client).catch(() => {});

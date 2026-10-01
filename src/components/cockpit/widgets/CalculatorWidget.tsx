@@ -162,11 +162,7 @@ export const CalculatorWidget: React.FC<CalculatorWidgetProps> = ({
       : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 border border-white/10'
   } ${isFullscreen ? 'text-xl py-3' : isLarge ? 'text-base py-2' : 'text-sm py-1.5'}`;
 
-  const equalsBtnClass = `flex-1 min-h-[44px] rounded-xl font-black flex items-center justify-center transition-all active:scale-95 select-none shadow-md cursor-pointer ${
-    currentIsLight
-      ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-700/30'
-      : 'bg-emerald-500 hover:bg-emerald-400 text-zinc-950 border border-emerald-300/30'
-  } ${isFullscreen ? 'text-3xl py-3' : isLarge ? 'text-2xl py-2' : 'text-xl py-1.5'}`;
+  const equalsBtnClass = `flex-1 min-h-[44px] rounded-xl font-black flex items-center justify-center transition-all active:scale-95 select-none shadow-md cursor-pointer bg-accent hover:bg-accent-hover text-accent-text ${isFullscreen ? 'text-3xl py-3' : isLarge ? 'text-2xl py-2' : 'text-xl py-1.5'}`;
 
   return (
     <div
@@ -210,7 +206,7 @@ export const CalculatorWidget: React.FC<CalculatorWidgetProps> = ({
       </div>
 
       {/* Hauptbereich: Display + Tastenfeld ODER Verlaufsansicht */}
-      <div className={`flex-1 flex shrink-0 gap-3 ${size.width < 520 ? 'flex-col' : 'flex-row'}`}>
+      <div className={`flex-1 flex min-h-0 gap-3 ${size.width < 520 ? 'flex-col' : 'flex-row'}`}>
         {/* Rechner-Spalte */}
         <div className="flex-1 flex flex-col gap-2 min-w-0 min-h-[340px] shrink-0">
           {/* Großes Rechner-Display */}
@@ -250,7 +246,7 @@ export const CalculatorWidget: React.FC<CalculatorWidgetProps> = ({
           </div>
 
           {/* Tastenfeld */}
-          <div className="flex-1 flex flex-col gap-1.5 sm:gap-2 min-h-[252px] shrink-0">
+          <div data-calculator-keypad className="grid flex-1 grid-rows-5 gap-1.5 sm:gap-2 min-h-[252px] shrink-0">
             {/* Reihe 1: Kontrolltasten & Operator */}
             <div className="flex gap-1.5 sm:gap-2 flex-1">
               <button

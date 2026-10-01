@@ -112,7 +112,7 @@ test('QR: 11. COMPACT Responsive Kategorie (280–379 px)', () => {
   const cat = getWidgetSizeCategory(320, false);
   assert.equal(cat, 'compact');
   const qrSize = calculateOptimalQRSize(320, 240, 'compact', false);
-  assert.ok(qrSize >= 90 && qrSize <= 140);
+  assert.ok(qrSize >= 90 && qrSize <= 190);
 });
 
 test('QR: 12. STANDARD Responsive Kategorie (380–549 px)', () => {

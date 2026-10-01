@@ -1,4 +1,5 @@
 import SaveSyncStatus from './SaveSyncStatus';
+import ClassTeamStatus from './ClassTeamStatus';
 import ParticipationSettingsPanel from './cockpit/ParticipationSettingsPanel';
 import ParticipationResetPanel from './cockpit/ParticipationResetPanel';
 import ParticipationSubjectPicker from './cockpit/ParticipationSubjectPicker';
@@ -223,7 +224,7 @@ import { getGroupWidgetPreferences, applyGroupWidgetPreference, type GroupWidget
 import { getClassroomWeeklyWidgetPreferences } from "../lib/classroomWeeklyWidgetPreferences";
 import { COCKPIT_PAPERS, getCockpitPaperStyle, normalizeCockpitPaperSpacing, type CockpitPaper } from "../lib/cockpitPaper";
 import { addCockpitQuickbarItem, normalizeCockpitQuickbarSettings, type CockpitQuickbarId } from "../lib/cockpitQuickbar";
-import { COCKPIT_WIDGET_LIBRARY_ITEMS, cockpitWidgetSupportsSettings } from "../lib/cockpitWidgetCatalog";
+import { COCKPIT_WIDGET_LIBRARY_ITEMS, cockpitWidgetSupportsSettings, matchesCockpitWidgetSearch } from "../lib/cockpitWidgetCatalog";
 import { PublicStudentListWidget as StudentListWidgetContent } from "./cockpit/PublicStudentListWidget";
 import { ClassRewardWidget } from "./cockpit/widgets/ClassRewardWidget";
 import {
@@ -8345,6 +8346,7 @@ ${content}
                   {cockpitClassLabel}
                 </span>
               )}
+              <ClassTeamStatus onOpen={() => { handleCloseCockpit(); setPage("teamteaching"); }} />
             </div>
             <SaveSyncStatus compact onOpenTeam={() => { handleCloseCockpit(); setPage("teamteaching"); }} />
           </div>
@@ -9690,13 +9692,7 @@ ${content}
                                     const filteredList =
                                       allAvailableWidgets.filter((item) => {
                                         if (query) {
-                                          const labelMatch = (item.label || "")
-                                            .toLowerCase()
-                                            .includes(query);
-                                          const descMatch = (item.desc || "")
-                                            .toLowerCase()
-                                            .includes(query);
-                                          return labelMatch || descMatch;
+                                          return matchesCockpitWidgetSearch(item, query);
                                         }
 
                                         let matchesCategory = false;

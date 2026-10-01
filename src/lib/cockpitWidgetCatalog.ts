@@ -562,7 +562,7 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                         category: "mindfulness",
                                       },
                                       { type: "scrambler", label: "✍️ Wort- & Satzwerkstatt", desc: "Wörter und Sätze spielerisch ordnen und untersuchen", category: "deutsch" },
-                                      { type: "fractions", label: "◐ Bruch-Visualisierer", desc: "Brüche anschaulich darstellen", category: "mathe" },
+                                      { type: "fractions", label: "◐ Bruch-Visualisierer · Vergleich", desc: "Brüche anschaulich darstellen", category: "mathe" },
                                       { type: "sorting", label: "🔢 Zahlensortierer", desc: "Zahlen vergleichen und sortieren", category: "mathe" },
                                       { type: "piggybank", label: "🐷 Klassen-Sparschwein", desc: "Geldbeträge spielerisch darstellen", category: "mathe" },
                                       { type: "spellingdetective", label: "🔤 Rechtschreib-Detektiv", desc: "Wörter untersuchen und Rechtschreibung trainieren", category: "deutsch" },
@@ -690,6 +690,17 @@ export function getCockpitWidgetDisplayLabel(type: string): string {
 /** Canonical title for new alias-aware headers and search results. */
 export function getCockpitWidgetCanonicalDisplayLabel(type: string): string {
   return getCockpitWidgetCatalogEntry(type)?.displayName || getCockpitWidgetDisplayLabel(type);
+}
+
+const normalizeWidgetSearch = (value: string) => value.toLowerCase().normalize('NFC')
+  .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+  .replace(/[^a-z0-9]+/g, ' ').trim();
+/** Search the library name, runtime name and canonical aliases together. */
+export function matchesCockpitWidgetSearch(item: { type: string; label?: string; desc?: string }, query: string): boolean {
+  const words = normalizeWidgetSearch(query).split(/\s+/).filter(word => word && word !== 'und');
+  const canonical = getCockpitWidgetCatalogEntry(item.type);
+  const text = normalizeWidgetSearch([item.type, item.label, item.desc, canonical?.displayName, canonical?.description].filter(Boolean).join(' '));
+  return words.every(word => text.includes(word));
 }
 
 export function summarizeCockpitWidgetLibraryTypes(types: readonly string[]): {

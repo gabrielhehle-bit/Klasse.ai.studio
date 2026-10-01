@@ -216,7 +216,7 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
             className="flex min-h-11 items-center gap-1 rounded-xl bg-accent px-3 text-xs font-black text-accent-text transition-all hover:bg-accent-hover active:scale-95 disabled:opacity-40"
           >
             <Maximize2 className="h-3.5 w-3.5 shrink-0" />
-            {!size.isCompact && <span>Tafel</span>}
+            <span>Großanzeige</span>
           </button>
         </div>
       </div>
@@ -296,7 +296,7 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
         </div>
 
         {/* Mittiger Bereich: QR-Code Canvas */}
-        <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative py-1">
+        <div className="flex-1 shrink-0 flex flex-col items-center justify-center relative py-1" style={{ minHeight: qrPixelSize + 32 }}>
           {inputVal && !qrTooLong ? (
             <div
               id="qrcode-canvas-wrapper"

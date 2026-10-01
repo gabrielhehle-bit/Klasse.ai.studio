@@ -26,6 +26,7 @@ import { adoptAcknowledgedTeamRoom } from '../lib/teamTeachingProjection';
 import { describeTeamClassChanges, type TeamClassChange } from '../lib/teamTeachingChanges';
 import { mergeTeamClassRevisions } from '../lib/teamTeachingMerge';
 import type { ClassRoom } from '../types';
+import ClassTeamStatus from './ClassTeamStatus';
 import EmailAccountLogin from './EmailAccountLogin';
 
 function replaceOrAddRoom(prev: any, room: ClassRoom) {
@@ -599,30 +600,12 @@ export default function ClassTeam() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="font-black text-[var(--text)]">Aktuelle Klasse: {activeRoom?.name || 'Keine Klasse'}</h2>
+            <ClassTeamStatus />
             <p className="mt-1 text-sm text-[var(--text2)]">
               {activeRoom?.teamTeaching
                 ? `Teamteaching aktiv · Rolle: ${activeRoom.teamTeaching.role}`
                 : 'Noch nicht für gemeinsame Bearbeitung freigegeben.'}
             </p>
-            {activeRoom?.teamTeaching?.syncStatus && (
-              <div className={`mt-2 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${
-                activeRoom.teamTeaching.syncStatus === 'conflict'
-                  ? 'bg-amber-500/15 text-amber-700'
-                  : activeRoom.teamTeaching.syncStatus === 'error'
-                    ? 'bg-rose-500/15 text-rose-700'
-                    : activeRoom.teamTeaching.syncStatus === 'syncing'
-                      ? 'bg-blue-500/15 text-blue-700'
-                      : 'bg-emerald-500/15 text-emerald-700'
-              }`}>
-                {activeRoom.teamTeaching.syncStatus === 'conflict'
-                  ? 'Konflikt – lokale Arbeit bleibt erhalten'
-                  : activeRoom.teamTeaching.syncStatus === 'error'
-                    ? 'Synchronisierung prüfen'
-                    : activeRoom.teamTeaching.syncStatus === 'syncing'
-                      ? 'Wird verschlüsselt synchronisiert …'
-                      : 'Synchronisiert'}
-              </div>
-            )}
             {activeRoom?.teamTeaching && (
               <div className="mt-3 space-y-1 rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-3 py-3 text-xs text-[var(--text2)]" aria-live="polite">
                 <p className="font-bold text-[var(--text)]">Gemeinsamer Teamstand: Version {activeSummary?.revision ?? 'wird geprüft'}</p>

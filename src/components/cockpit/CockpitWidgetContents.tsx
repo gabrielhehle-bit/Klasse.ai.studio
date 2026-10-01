@@ -9657,8 +9657,8 @@ export const CompassWidgetContent: React.FC<{
         </button>
       </div>
 
-      <div className="flex shrink-0 flex-wrap items-center gap-3 py-3">
-        <div className="flex basis-40 max-w-52 shrink-0 items-center justify-center">
+      <div data-compass-layout className="grid shrink-0 items-center gap-3 py-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))' }}>
+        <div data-compass-instrument className="flex w-full min-w-0 items-center justify-center">
           <div className={`relative aspect-square w-full max-w-52 rounded-full border-4 shadow-sm ${
             currentIsLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-zinc-800'
           }`}>
@@ -9717,7 +9717,7 @@ export const CompassWidgetContent: React.FC<{
           </div>
         </div>
 
-        <div className={`flex min-w-0 flex-[1_1_200px] flex-col justify-center rounded-3xl border p-4 ${
+        <div data-compass-explanation className={`flex min-w-0 flex-col justify-center rounded-3xl border p-4 ${
           currentIsLight ? 'border-slate-200 bg-slate-50/80' : 'border-white/10 bg-white/5'
         }`}>
           {settings.mode === 'explore' ? (
@@ -19687,6 +19687,5 @@ export const AnimalvoiceWidgetContent: React.FC<{ widget: any, currentIsLight: b
     </div>
   );
 };
-
 
 

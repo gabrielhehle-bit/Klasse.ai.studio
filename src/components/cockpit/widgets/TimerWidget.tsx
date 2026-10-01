@@ -512,7 +512,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {status === 'ready' && (
               <button
                 onClick={handleStart}
-                className={`w-full min-h-11 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98`}
+                className={`w-full min-h-11 px-4 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98`}
               >
                 <Play size={17} fill="currentColor" />
                 <span>Start</span>
@@ -532,7 +532,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {status === 'paused' && (
               <button
                 onClick={handleResume}
-                className={`w-full min-h-11 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98`}
+                className={`w-full min-h-11 px-4 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98`}
               >
                 <Play size={17} fill="currentColor" />
                 <span>Weiter</span>
@@ -561,7 +561,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
               title="1 Minute abziehen"
             >
               <Minus size={12} strokeWidth={2.5} />
-              <span>1m</span>
+              <span>−1 Min</span>
             </button>
 
             <button
@@ -572,7 +572,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
               title="1 Minute hinzufügen"
             >
               <Plus size={12} strokeWidth={2.5} />
-              <span>1m</span>
+              <span>+1 Min</span>
             </button>
 
             <button
@@ -733,13 +733,13 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
               title="1 Minute abziehen"
             >
               <Minus size={13} strokeWidth={2.5} />
-              <span>1m</span>
+              <span>−1 Min</span>
             </button>
 
             {status === 'ready' && (
               <button
                 onClick={handleStart}
-                className="flex-1 min-h-[44px] px-5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98"
+                className="flex-1 min-h-[44px] px-5 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98"
               >
                 <Play size={18} fill="currentColor" />
                 <span>Start</span>
@@ -759,7 +759,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {status === 'paused' && (
               <button
                 onClick={handleResume}
-                className="flex-1 min-h-[44px] px-5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98"
+                className="flex-1 min-h-[44px] px-5 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-98"
               >
                 <Play size={18} fill="currentColor" />
                 <span>Weiter</span>
@@ -784,7 +784,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
               title="1 Minute hinzufügen"
             >
               <Plus size={13} strokeWidth={2.5} />
-              <span>1m</span>
+              <span>+1 Min</span>
             </button>
 
             <button
@@ -1012,13 +1012,13 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
               title="1 Minute abziehen"
             >
               <Minus size={15} strokeWidth={2.5} />
-              <span>1m</span>
+              <span>−1 Min</span>
             </button>
 
             {status === 'ready' && (
               <button
                 onClick={handleStart}
-                className="flex-1 min-h-[50px] px-8 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-base uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-md cursor-pointer transition-all active:scale-98"
+                className="flex-1 min-h-[50px] px-8 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-black text-base uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-md cursor-pointer transition-all active:scale-98"
               >
                 <Play size={22} fill="currentColor" />
                 <span>Start</span>
@@ -1038,7 +1038,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             {status === 'paused' && (
               <button
                 onClick={handleResume}
-                className="flex-1 min-h-[50px] px-8 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-base uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-md cursor-pointer transition-all active:scale-98"
+                className="flex-1 min-h-[50px] px-8 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-black text-base uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-md cursor-pointer transition-all active:scale-98"
               >
                 <Play size={22} fill="currentColor" />
                 <span>Weiter</span>
@@ -1063,7 +1063,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
               title="1 Minute hinzufügen"
             >
               <Plus size={15} strokeWidth={2.5} />
-              <span>1m</span>
+              <span>+1 Min</span>
             </button>
 
             <button
