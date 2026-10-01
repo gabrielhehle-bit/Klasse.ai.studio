@@ -435,6 +435,31 @@ async function main() {
       await evaluate(client, 'document.querySelector("button[aria-label=\\\"Schüler-Seitenleiste groß anzeigen\\\"]").click()');
       await waitFor(client, 'expanded sidebar restored', 'Boolean(document.querySelector(".klassio-student-sidebar section button[aria-pressed=false]"))');
     }
+    await evaluate(client, `document.querySelector('button[aria-label="Mitarbeit-Einstellungen der Schüler-Seitenleiste öffnen"]').click()`);
+    await waitFor(client, 'simple sidebar participation settings', `Boolean(document.querySelector('.klassio-student-sidebar [role=dialog][aria-label="Mitarbeit einstellen"]'))`);
+    const settingsAreLocal = await evaluate(client, `!document.body.innerText.includes('Widget-Bibliothek')`);
+    if (!settingsAreLocal) throw new Error('Participation settings must not open the widget library.');
+    await evaluate(client, `document.querySelector('.klassio-student-sidebar input[type=radio][value=choose]').click()`);
+    await clickButton(client, 'Fertig');
+    const pointsExpression = `Number(document.querySelector('.klassio-student-sidebar [role=listitem] [aria-label$="Pluspunkte"]').textContent.match(/\\d+/)?.[0] || 0)`;
+    const initialPoints = await evaluate(client, pointsExpression);
+    const clickPlus = () => evaluate(client, `document.querySelector('.klassio-student-sidebar button[aria-label^="Pluspunkt für"]').click()`);
+    await clickPlus();
+    await waitFor(client, 'inline subject picker', `Boolean(document.querySelector('.klassio-student-sidebar [role=dialog][aria-label="Fach für Mitarbeit auswählen"]'))`);
+    if (await evaluate(client, pointsExpression) !== initialPoints) throw new Error('Opening subject picker must not award a point.');
+    await clickButton(client, 'Abbrechen');
+    if (await evaluate(client, pointsExpression) !== initialPoints) throw new Error('Cancelling subject picker must not award a point.');
+    await clickPlus();
+    await waitFor(client, 'subject picker reopened', `Boolean(document.querySelector('.klassio-student-sidebar [role=dialog][aria-label="Fach für Mitarbeit auswählen"]'))`);
+    await evaluate(client, `document.querySelector('.klassio-student-sidebar [role=dialog] button').click()`);
+    await waitFor(client, 'chosen subject commits one participation point', pointsExpression + ' === ' + (initialPoints + 1));
+    await evaluate(client, `document.querySelector('button[aria-label="Mitarbeit-Einstellungen der Schüler-Seitenleiste öffnen"]').click()`);
+    await waitFor(client, 'settings reopened', `Boolean(document.querySelector('.klassio-student-sidebar input[type=radio][value=current]'))`);
+    await evaluate(client, `document.querySelector('.klassio-student-sidebar input[type=radio][value=current]').click()`);
+    await clickButton(client, 'Fertig');
+    await clickPlus();
+    await waitFor(client, 'automatic subject awards immediately', pointsExpression + ' === ' + (initialPoints + 2));
+    if (await evaluate(client, `Boolean(document.querySelector('[role=dialog][aria-label="Fach für Mitarbeit auswählen"]'))`)) throw new Error('Automatic mode must not ask for a subject.');
   } catch (error) {
     await saveScreenshot(client).catch(() => {});
     throw error;

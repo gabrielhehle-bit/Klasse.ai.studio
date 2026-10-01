@@ -1,5 +1,6 @@
 import SaveSyncStatus from './SaveSyncStatus';
 import ParticipationSettingsPanel from './cockpit/ParticipationSettingsPanel';
+import ParticipationSubjectPicker from './cockpit/ParticipationSubjectPicker';
 import { commitParticipationAward } from '../lib/participationAward';
 import { MASCOT_RITUAL_EVENT } from '../lib/classMascot';
 import { shouldApplyTafelCommand } from '../lib/tafelCommands';
@@ -7041,9 +7042,24 @@ ${content}
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [openSettingsId, app.boardWidgets]);
 
-  const [pendingParticipation, setPendingParticipation] = useState<{ sid: string; classId: string; event?: React.MouseEvent; onAwarded?: () => void } | null>(null);
+  const [pendingParticipation, setPendingParticipation] = useState<{ sid: string; classId: string; event?: React.MouseEvent; onAwarded?: () => void; inSidebar: boolean } | null>(null);
+  const [isParticipationSettingsOpen, setIsParticipationSettingsOpen] = useState(false);
   const lastParticipationAward = useRef<{ sid: string; classId: string; subject: string } | null>(null);
-  useEffect(() => { setPendingParticipation(null); lastParticipationAward.current = null; }, [app.activeClassId]);
+  useEffect(() => { setPendingParticipation(null); setIsParticipationSettingsOpen(false); lastParticipationAward.current = null; }, [app.activeClassId]);
+  useEffect(() => {
+    if (!pendingParticipation && !isParticipationSettingsOpen) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { setPendingParticipation(null); setIsParticipationSettingsOpen(false); }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [pendingParticipation, isParticipationSettingsOpen]);
+  useEffect(() => {
+    if (sidebarMode === 'hidden') {
+      setIsParticipationSettingsOpen(false);
+      if (pendingParticipation?.inSidebar) setPendingParticipation(null);
+    }
+  }, [sidebarMode, pendingParticipation?.inSidebar]);
   const awardParticipation = (sid: string, subject: string, classId: string, event?: React.MouseEvent, onAwarded?: () => void) => {
     if (classId !== app.activeClassId || !app.schueler.some(student => student.id === sid)
       || !subject || (app.participationSettings?.subjectMode === 'choose' && !app.faecher?.includes(subject))) return;
@@ -7059,7 +7075,7 @@ ${content}
   const addParticipation = (sid: string, event?: React.MouseEvent, onAwarded?: () => void) => {
     if (!app.activeClassId) return;
     if (app.participationSettings?.subjectMode === 'choose') {
-      setPendingParticipation({ sid, classId: app.activeClassId, event, onAwarded });
+      setPendingParticipation({ sid, classId: app.activeClassId, event, onAwarded, inSidebar: Boolean(event?.currentTarget.closest(".klassio-student-sidebar")) });
       return;
     }
     awardParticipation(sid, getActiveSubject(), app.activeClassId, event, onAwarded);
@@ -12607,11 +12623,8 @@ ${content}
                           </button>
                           <button type="button" aria-label="Mitarbeit-Einstellungen der Schüler-Seitenleiste öffnen"
                             onClick={() => {
-                              setSelectedWidgetConfiguration("participation");
-                              setWidgetSearch("");
-                              setIsMoreOptionsMenuOpen(false);
-                              setIsAddWidgetMenuOpen(true);
-                              setIsWidgetConfigurationOpen(true);
+                              setPendingParticipation(null);
+                              setIsParticipationSettingsOpen(true);
                             }}
                             className="min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-xs font-bold text-slate-800">
                             +1 einstellen
@@ -12690,6 +12703,26 @@ ${content}
                           onCompactToggle={() => changeSidebarMode("mini")}
                         />
                       </div>
+                      {isParticipationSettingsOpen && <section role="dialog" aria-label="Mitarbeit einstellen"
+                        className="absolute inset-0 z-[110] flex flex-col rounded-2xl bg-white text-slate-900">
+                        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 p-3">
+                          <h2 className="text-base font-bold">Mitarbeit einstellen</h2>
+                          <button autoFocus type="button" aria-label="Mitarbeit-Einstellungen schließen" onClick={() => setIsParticipationSettingsOpen(false)}
+                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-200"><X size={18} /></button>
+                        </div>
+                        <div className="min-h-0 flex-1 overflow-y-auto p-3">
+                          <p className="mb-3 rounded-lg bg-slate-50 p-2 text-xs text-slate-600">Aktuelles Fach laut Stundenplan: <strong className="text-slate-900">{getActiveSubject()}</strong></p>
+                          <ParticipationSettingsPanel app={app} setApp={setApp} />
+                        </div>
+                        <button type="button" onClick={() => setIsParticipationSettingsOpen(false)} className="m-3 min-h-11 shrink-0 rounded-xl bg-emerald-600 text-sm font-bold text-white">Fertig</button>
+                      </section>}
+                      {pendingParticipation?.inSidebar && <div className="absolute inset-0 z-[120] flex items-start rounded-2xl bg-slate-900/15 p-2" onClick={() => setPendingParticipation(null)}>
+                        <ParticipationSubjectPicker
+                          studentName={getDisplayStudentName(app.schueler.find(student => student.id === pendingParticipation.sid) || { id: pendingParticipation.sid, vorname: "Kind" }, app.schueler)}
+                          subjects={app.faecher || []} currentSubject={getActiveSubject()}
+                          onCancel={() => setPendingParticipation(null)}
+                          onSelect={subject => { const request = pendingParticipation; setPendingParticipation(null); awardParticipation(request.sid, subject, request.classId, request.event, request.onAwarded); }} />
+                      </div>}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -17216,14 +17249,14 @@ ${content}
           />
         )}
       </AnimatePresence>
-      {pendingParticipation && <div className="fixed inset-0 z-[12000] flex items-center justify-center bg-black/50 p-4" onClick={() => setPendingParticipation(null)}>
-        <section role="dialog" aria-modal="true" aria-label="Fach für Mitarbeit auswählen" className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 text-slate-900 shadow-xl" onClick={event => event.stopPropagation()} onKeyDown={event => { if (event.key === 'Escape') setPendingParticipation(null); }}>
-          <h2 className="text-lg font-bold">+1 Mitarbeit: Fach auswählen</h2>
-          <p className="mb-3 text-sm">{app.schueler.find(student => student.id === pendingParticipation.sid) ? getDisplayStudentName(app.schueler.find(student => student.id === pendingParticipation.sid)!, app.schueler) : ""}</p>
-          <div className="grid grid-cols-2 gap-2">{Array.from(new Set(app.faecher || [])).map(subject => <button key={subject} type="button" className="min-h-11 rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-sm font-semibold" onClick={() => { const request = pendingParticipation; setPendingParticipation(null); awardParticipation(request.sid, subject, request.classId, request.event, request.onAwarded); }}>{subject}</button>)}</div>
-          {!app.faecher?.length && <p>Bitte zuerst Fächer für die Klasse anlegen.</p>}
-          <button autoFocus type="button" className="mt-3 min-h-11 w-full rounded-xl border border-slate-300 px-3" onClick={() => setPendingParticipation(null)}>Abbrechen – keinen Punkt vergeben</button>
-        </section>
+      {pendingParticipation && !pendingParticipation.inSidebar && <div className="fixed inset-0 z-[12000] flex items-center justify-center bg-black/50 p-4" onClick={() => setPendingParticipation(null)}>
+        <div className="w-full max-w-md">
+          <ParticipationSubjectPicker
+            studentName={getDisplayStudentName(app.schueler.find(student => student.id === pendingParticipation.sid) || { id: pendingParticipation.sid, vorname: "Kind" }, app.schueler)}
+            subjects={app.faecher || []} currentSubject={getActiveSubject()}
+            onCancel={() => setPendingParticipation(null)}
+            onSelect={subject => { const request = pendingParticipation; setPendingParticipation(null); awardParticipation(request.sid, subject, request.classId, request.event, request.onAwarded); }} />
+        </div>
       </div>}
       <ClassMascotSettingsPanel
         app={app}
