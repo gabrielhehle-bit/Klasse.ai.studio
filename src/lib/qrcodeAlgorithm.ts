@@ -63,6 +63,21 @@ export const QR_PRESETS: QRPreset[] = [
   },
 ];
 
+/** Keep explicit titles, but do not reuse a preset title for different content. */
+export function resolveQRCodeLabel(content: string, label?: string): string {
+  const title = (label || '').trim();
+  const preset = QR_PRESETS.find(item => item.label === title)
+    || (title === DEFAULT_QR_LABEL ? QR_PRESETS[0] : undefined);
+  if (preset && normalizeWebUrl(content) !== preset.value) return '';
+  if (title === 'Leer' && content.trim()) return '';
+  return title;
+}
+
+/** QR size for the presentation dialog, including space for title and actions. */
+export function calculatePresentationQRSize(width: number, height: number): number {
+  return Math.max(64, Math.min(width - 128, height - 280, 800));
+}
+
 /**
  * Prüft auf gefährliche oder bösartige Schemes (XSS-Schutz).
  * Erlaubt für Links ausschließlich http://, https:// oder relative Pfade.
@@ -162,6 +177,7 @@ export function normalizeWebUrl(input: string): string {
  */
 export function parseQRCodeInput(input: string, customLabel?: string): QRCodeContentInfo {
   const rawValue = (input ?? '').trim();
+  customLabel = resolveQRCodeLabel(rawValue, customLabel);
 
   if (!rawValue) {
     return {
@@ -252,9 +268,9 @@ export function getCanonicalQRSettings(widgetSettings?: any): {
     : typeof widgetSettings?.link === 'string' ? widgetSettings.link : DEFAULT_QR_VALUE;
   const content = rawContent.trim();
   const label = (typeof widgetSettings?.label === 'string'
-    ? widgetSettings.label : DEFAULT_QR_LABEL).trim();
+    ? widgetSettings.label : content === DEFAULT_QR_VALUE ? DEFAULT_QR_LABEL : '').trim();
 
-  return { content, label };
+  return { content, label: resolveQRCodeLabel(content, label) };
 }
 
 /**

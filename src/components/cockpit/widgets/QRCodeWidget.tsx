@@ -19,6 +19,8 @@ import {
   QRCodeContentInfo,
   parseQRCodeInput,
   calculateOptimalQRSize,
+  calculatePresentationQRSize,
+  resolveQRCodeLabel,
   getCanonicalQRSettings,
   SECURE_QR_LINK_ATTRIBUTES,
   QR_PRESETS,
@@ -63,33 +65,41 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
   // Synchronisieren, wenn sich widget.settings von außen ändert (z. B. Vorlagenwechsel)
   useEffect(() => {
     const canonical = getCanonicalQRSettings(widget?.settings);
-    setInputVal(canonical.content);
+    // Preserve spaces during typing; normalized echoes are not external edits.
+    setInputVal(current => current.trim() === canonical.content ? current : canonical.content);
     setInputLabel(canonical.label);
   }, [widget?.settings?.content, widget?.settings?.link, widget?.settings?.label]);
 
-  // Persistenz via onUpdate (debounced oder bei Preset-Klick)
-  const persistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latestSettingsRef = useRef(widget?.settings);
-  latestSettingsRef.current = widget?.settings;
-  const persistSettings = (newContent: string, newLabel: string, immediate = false) => {
+  // Hand edits to AppContext immediately so its save status covers every keystroke.
+  // AppContext already queues encrypted local writes; a widget debounce hides pending edits.
+  const persistSettings = (newContent: string, newLabel: string, _immediate = false) => {
     if (!onUpdate || !widget?.id) return;
-    if (persistTimeoutRef.current) clearTimeout(persistTimeoutRef.current);
-    const apply = () => {
-      persistTimeoutRef.current = null;
-      onUpdate({ settings: {
-        ...(latestSettingsRef.current || {}),
-        content: newContent,
-        link: newContent, // Abwärtskompatibel
-        label: newLabel,
-        lastUpdated: new Date().toISOString(),
-      } });
-    };
-    if (immediate) apply();
-    else persistTimeoutRef.current = setTimeout(apply, 350);
+    onUpdate({ settings: {
+      ...(widget.settings || {}),
+      content: newContent,
+      link: newContent,
+      label: resolveQRCodeLabel(newContent, newLabel),
+      lastUpdated: new Date().toISOString(),
+    } });
   };
-  useEffect(() => () => {
-    if (persistTimeoutRef.current) clearTimeout(persistTimeoutRef.current);
-  }, []);
+
+  const [presentationSize, setPresentationSize] = useState(() =>
+    calculatePresentationQRSize(window.innerWidth, window.innerHeight));
+  useEffect(() => {
+    if (!isLightboxOpen) return;
+    const resize = () => setPresentationSize(
+      calculatePresentationQRSize(window.innerWidth, window.innerHeight));
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsLightboxOpen(false);
+    };
+    resize();
+    window.addEventListener('resize', resize);
+    window.addEventListener('keydown', keydown);
+    return () => {
+      window.removeEventListener('resize', resize);
+      window.removeEventListener('keydown', keydown);
+    };
+  }, [isLightboxOpen]);
 
   // Reaktiv analysierter QR-Inhalt
   const contentInfo: QRCodeContentInfo = useMemo(() => {
@@ -482,7 +492,7 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
           <div
             id="qrcode-lightbox-dialog"
             onClick={(e) => e.stopPropagation()}
-            className={`w-full max-w-md rounded-3xl p-6 shadow-2xl border flex flex-col items-center text-center relative cursor-default ${
+            className={`w-fit max-w-full max-h-full overflow-y-auto rounded-3xl p-6 shadow-2xl border flex flex-col items-center text-center relative cursor-default ${
               currentIsLight
                 ? 'bg-white border-slate-200 text-slate-800'
                 : 'bg-zinc-900 border-white/15 text-slate-100'
@@ -504,18 +514,18 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
               <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
                 <QrCode className="w-5 h-5" />
               </div>
-              <h3 className="font-black text-lg truncate">{inputLabel || 'QR-Code für die Klasse'}</h3>
+              <h3 className="min-w-0 font-black text-lg break-words">{contentInfo.displayLabel || 'QR-Code für die Klasse'}</h3>
             </div>
 
             <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 max-w-[280px]">
-              Mit dem Tablet oder Smartphone scannen. Auch aus mehreren Metern Entfernung lesbar.
+              Mit dem Tablet oder Smartphone scannen. Zum Scannen die Kamera auf den gesamten Code richten.
             </p>
 
             {/* Riesiger QR Code Canvas */}
             <div className="p-5 bg-white rounded-3xl shadow-lg border border-slate-200 mb-4 flex items-center justify-center">
               <QRCodeCanvas
                 value={contentInfo.encodedValue}
-                size={Math.max(180, Math.min(window.innerWidth - 100, window.innerHeight - 310, 380))}
+                size={presentationSize}
                 level="H"
                 includeMargin={false}
               />
