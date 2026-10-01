@@ -611,7 +611,7 @@ async function main() {
     const dragResize = async (direction, dx, dy) => {
       await waitFor(client, 'resize interaction settled', `!document.querySelector('[data-widget-type="calculator"]').hasAttribute('data-widget-interacting')`);
       await sleep(300);
-      const point = await evaluate(client, `(() => {const handle=document.querySelector('[data-widget-type="calculator"] [data-widget-resize=${q(direction)}]');const r=handle.getBoundingClientRect();const x=r.x+r.width/2,y=r.y+r.height/2;return {x,y,hit:document.elementFromPoint(x,y)?.closest('[data-widget-resize]')?.getAttribute('data-widget-resize')};})()`);
+      const point = await evaluate(client, `(() => {const handle=document.querySelector('[data-widget-type="calculator"] [data-widget-resize=${q(direction)}]');const r=handle.getBoundingClientRect();for(const fraction of [0.5,0.2,0.8,0.05,0.95]){const x=r.x+r.width*(r.width>r.height?fraction:0.5),y=r.y+r.height*(r.height>r.width?fraction:0.5);const hit=document.elementFromPoint(x,y)?.closest('[data-widget-resize]')?.getAttribute('data-widget-resize');if(hit===${q(direction)})return {x,y,hit};}return {hit:null};})()`);
       if(point.hit !== direction) throw new Error('Resize handle is covered: ' + direction + ' hit ' + point.hit);
       await client.send('Input.dispatchMouseEvent', {type:'mouseMoved',x:point.x,y:point.y});
       await client.send('Input.dispatchMouseEvent', {type:'mousePressed',x:point.x,y:point.y,button:'left',clickCount:1});
