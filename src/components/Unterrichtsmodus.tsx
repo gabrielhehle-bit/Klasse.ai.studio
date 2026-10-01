@@ -12597,6 +12597,26 @@ ${content}
 
                       {/* Compact Header with state controls */}
                       <div className="flex shrink-0 flex-col gap-1.5 border-b border-slate-200 bg-slate-50 p-2.5 pr-14 text-slate-900">
+                        <div className="flex flex-wrap items-center gap-1">
+                          <button type="button"
+                            aria-label={sidebarMode === "mini" ? "Schüler-Seitenleiste groß anzeigen" : "Schüler-Seitenleiste kompakt anzeigen"}
+                            aria-pressed={sidebarMode === "mini"}
+                            onClick={() => changeSidebarMode(sidebarMode === "mini" ? "expanded" : "mini")}
+                            className="min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-xs font-bold text-slate-800">
+                            {sidebarMode === "mini" ? "Große Ansicht" : "Kompakt"}
+                          </button>
+                          <button type="button" aria-label="Mitarbeit-Einstellungen der Schüler-Seitenleiste öffnen"
+                            onClick={() => {
+                              setSelectedWidgetConfiguration("participation");
+                              setWidgetSearch("");
+                              setIsMoreOptionsMenuOpen(false);
+                              setIsAddWidgetMenuOpen(true);
+                              setIsWidgetConfigurationOpen(true);
+                            }}
+                            className="min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-xs font-bold text-slate-800">
+                            +1 einstellen
+                          </button>
+                        </div>
                         {sidebarMode === "mini" && (
                           <div className="flex flex-row items-center justify-between gap-1 py-0.5 select-none w-full">
                             <button

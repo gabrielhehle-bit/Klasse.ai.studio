@@ -941,6 +941,53 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     }
   });
 
+  // Live hints carry only a revision, never names, content or vault material.
+  app.get('/api/account-sync/events', requireEmailAccount, async (req, res) => {
+    const account = getEmailAccount(req);
+    const stillAuthorized = () => {
+      const cookies = parseCookies(req);
+      return Boolean(verifyAccessToken(cookies.lehrerapp_access_token)
+        && verifyAccountToken(cookies.klassio_email_account)?.userId === account.userId);
+    };
+    let unsubscribe = () => {};
+    let heartbeat: ReturnType<typeof setInterval> | undefined;
+    let closed = false;
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      unsubscribe();
+      if (heartbeat) clearInterval(heartbeat);
+      res.end();
+    };
+    const send = (revision: number) => {
+      if (closed) return;
+      if (!stillAuthorized()) { close(); return; }
+      if (!res.write(`data: ${JSON.stringify({ revision })}\n\n`)) close();
+    };
+    try {
+      unsubscribe = accountSyncStore.subscribe(account.userId, send);
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('X-Accel-Buffering', 'no');
+      res.flushHeaders();
+      res.on('close', close);
+      // Subscribe before reading: reconnect cannot miss a concurrent committed PUT.
+      const snapshot = await accountSyncStore.get(account.userId);
+      if (closed) return;
+      send(snapshot?.revision || 0);
+      if (closed) return;
+      heartbeat = setInterval(() => {
+        if (!stillAuthorized()) { close(); return; }
+        if (!res.write(': heartbeat\n\n')) close();
+      }, 15_000);
+    } catch (error: any) {
+      unsubscribe();
+      if (res.headersSent) { close(); return; }
+      res.status(error?.message === 'TOO_MANY_LIVE_CONNECTIONS' ? 429 : 500)
+        .json({ code: 'LIVE_SYNC_UNAVAILABLE' });
+    }
+  });
+
   // Read-only recovery: only the authenticated account owner can list or
   // retrieve historical AES-GCM ciphertext. Never change the live revision here.
   app.get('/api/account-sync/history', requireEmailAccount, async (req, res) => {
