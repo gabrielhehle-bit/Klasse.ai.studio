@@ -7,6 +7,7 @@ import {
   normalizeWebUrl,
   parseQRCodeInput,
   calculateOptimalQRSize,
+  calculatePresentationQRSize,
   getCanonicalQRSettings,
   SECURE_QR_LINK_ATTRIBUTES,
   DEFAULT_QR_VALUE,
@@ -273,4 +274,26 @@ test('F17.1 - 10. LinksWidget unverändert', async () => {
   const state = resolveCanonicalWidgetLinks(undefined, undefined);
   assert.ok(Array.isArray(state.links));
   assert.ok(state.links.length > 0);
+});
+
+
+test('QR presentation titles follow content while preserving an explicit classroom title', () => {
+  assert.equal(parseQRCodeInput('https://schule.at', DEFAULT_QR_LABEL).displayLabel, 'schule.at');
+  assert.equal(parseQRCodeInput('Aufgabe S. 42', 'Anton Lernportal').displayLabel, 'Aufgabe S. 42');
+  assert.equal(parseQRCodeInput('Lösungswort: Regenbogen', 'Leer').displayLabel, 'Lösungswort: Regenbogen');
+  assert.equal(parseQRCodeInput('https://schule.at', 'Unsere Wochenaufgabe').displayLabel, 'Unsere Wochenaufgabe');
+  assert.equal(getCanonicalQRSettings({link: 'https://schule.at'}).label, '');
+  assert.equal(getCanonicalQRSettings({content: 'Aufgabe S. 42', label: DEFAULT_QR_LABEL}).label, '');
+  assert.equal(getCanonicalQRSettings().label, DEFAULT_QR_LABEL);
+});
+
+test('QR presentation uses smartboard space and fits phone and rotated viewports', () => {
+  assert.equal(calculatePresentationQRSize(1920, 1080), 800);
+  assert.equal(calculatePresentationQRSize(360, 780), 232);
+  assert.equal(calculatePresentationQRSize(780, 360), 80);
+  for (const [width, height] of [[360, 780], [820, 1180], [1920, 1080]]) {
+    const size = calculatePresentationQRSize(width, height);
+    assert.ok(size + 128 <= width);
+    assert.ok(size + 280 <= height);
+  }
 });
