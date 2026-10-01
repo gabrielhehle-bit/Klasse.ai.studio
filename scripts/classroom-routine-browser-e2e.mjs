@@ -566,7 +566,7 @@ async function main() {
       await clickButton(client, 'Widget hinzufügen');
       await waitFor(client, 'widget audit search field', `Boolean(document.querySelector('input[aria-label="Widget suchen"]'))`);
       await setInputByLabel(client, 'Widget suchen', search);
-      await waitFor(client, 'widget audit search result: ' + search, `Boolean(document.querySelector('[role=dialog][aria-label="Widget-Bibliothek"] button[data-widget-card-action="primary"]'))`);
+      await waitFor(client, 'widget audit search result: ' + search, `Array.from(document.querySelectorAll('[role=dialog][aria-label="Widget-Bibliothek"] button[data-widget-card-action="primary"]')).some(b=>b.getAttribute('aria-label').startsWith(${q(label || search)}))`);
       await evaluate(client, `(() => {const buttons=Array.from(document.querySelectorAll('[role=dialog][aria-label="Widget-Bibliothek"] button[data-widget-card-action="primary"]'));const button=${q(label || "")} ? buttons.find(b=>b.getAttribute("aria-label").startsWith(${q(label || "")})) : buttons[0];if(!button)throw new Error("Widget entry missing");button.click();})()`);
       await waitFor(client, 'widget audit opens ' + type, `Array.from(document.querySelectorAll('[data-widget-type=${q(type)}]')).some(el=>el.getClientRects().length)`);
     };
@@ -596,7 +596,7 @@ async function main() {
     await clickButton(client, 'Üben', true);
     await waitFor(client, 'compass practice task', `document.querySelector('[data-compass-explanation]').textContent.includes('Stelle')`);
     await auditMenu('compass', 'Widget schließen');
-    await openAuditWidget('qrcode', 'QR-Code & Link');
+    await openAuditWidget('qrcode', 'QR-Code & Link', 'QR-Code');
     await setInputByLabel(client, 'URL oder Text für den QR-Code', 'Aufgabe Regenbogen 3');
     await waitFor(client, 'readable QR preview', `document.querySelector('#qrcode-canvas-wrapper canvas')?.getBoundingClientRect().width >= 159`);
     await evaluate(client, `document.querySelector('#qrcode-zoom-btn').click()`);
@@ -604,7 +604,7 @@ async function main() {
     await evaluate(client, `document.querySelector('#qrcode-lightbox-close-btn').click()`);
     await clickButton(client, 'Meine Links', true);
     await auditMenu('qrcode', 'Minimieren');
-    await openAuditWidget('qrcode', 'QR-Code & Link');
+    await openAuditWidget('qrcode', 'QR-Code & Link', 'QR-Code');
     if(await evaluate(client, `document.querySelector('[aria-label="QR-Code und Links"] button[aria-pressed=true]').textContent.trim()`) !== 'Meine Links') throw new Error('QR mode resets after restoring.');
     await auditMenu('qrcode', 'Widget schließen');
     for(const [type,search,label] of [['timer','Timer / Sanduhr','Timer / Sanduhr'],['timeline','Tagesablauf','Tagesablauf'],['fractionvisualizer','Bruch-Visualisierer','Bruch-Visualisierer'],['fractions','Bruch-Visualisierer · Vergleich','Bruch-Visualisierer · Vergleich'],['wheel','Glücksrad','Glücksrad']]) {
