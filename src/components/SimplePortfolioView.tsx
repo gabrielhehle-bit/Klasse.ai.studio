@@ -444,15 +444,16 @@ export default function SimplePortfolioView() {
   };
 
   if (!students.length) return <main className="mx-auto max-w-4xl p-5">
-    <h1 className="text-2xl font-black">Lernziele & Portfolio</h1>
+    <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Lernziele & Portfolio</h1>
     <p className="mt-4 rounded-2xl border bg-white p-5">Bitte zuerst ein Kind in dieser Klasse anlegen.</p>
   </main>;
 
   return (
     <main className="mx-auto w-full max-w-5xl space-y-5 px-3 py-4 text-slate-900 sm:px-6 sm:py-6">
-      <header className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-        <h1 className="text-2xl font-black">Lernziele & Portfolio</h1>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <header data-portfolio-header className="rounded-2xl border border-slate-200 bg-white p-4">
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Lernziele & Portfolio</h1>
+        <p className="mt-1 text-sm text-slate-500">{app.klassenbezeichnung || 'Deine Klasse'} · {app.schuljahr}</p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <label className="block text-sm font-bold">Kind
             <select aria-label="Kind auswählen" value={studentId} onChange={event => setStudentId(event.target.value)}
               className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">

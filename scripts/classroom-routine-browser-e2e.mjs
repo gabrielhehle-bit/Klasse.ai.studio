@@ -240,9 +240,9 @@ async function clickText(client, text) {
   if (!await evaluate(client, expression)) throw new Error('Could not click text "' + text + '".');
 }
 
-async function saveScreenshot(client) {
+async function saveScreenshot(client, path = SCREENSHOT_PATH) {
   const screenshot = await client.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
-  await fs.writeFile(SCREENSHOT_PATH, Buffer.from(screenshot.data, 'base64'));
+  await fs.writeFile(path, Buffer.from(screenshot.data, 'base64'));
 }
 
 
@@ -691,6 +691,38 @@ async function main() {
       await saveScreenshot(client);
     }
     console.log('✓ Daily overview: responsive layout, clear day label and usable header targets at 360/820/1360px.');
+    for (const [page, selector, key] of [
+      ['Leistungen', '[data-performance-hub]', 'performance'],
+      ['Notenmappe', '[data-gradebook]', 'gradebook'],
+    ]) {
+      await client.send('Emulation.setDeviceMetricsOverride', {width:1360,height:1000,deviceScaleFactor:1,mobile:false});
+      await openPage(client, page);
+      await waitFor(client, page+' visible', `Boolean(document.querySelector('${selector} h1'))`);
+      for (const width of [390,820,1360]) {
+        await client.send('Emulation.setDeviceMetricsOverride', {width,height:1000,deviceScaleFactor:1,mobile:false});
+        await sleep(350);
+        if(key === 'gradebook' && width === 390) {
+          await evaluate(client, `Array.from(document.querySelectorAll('[data-gradebook-actions] button')).find(b=>b.textContent.trim()==='Mehr').click()`);
+          await sleep(200);
+          const available = await evaluate(client, `['Notenrechner','Gewichtung','Auswertungen','Leistungsfeedback'].every(label=>Array.from(document.querySelectorAll('[data-gradebook-actions] button')).some(b=>b.textContent.trim()===label&&b.getBoundingClientRect().width>0))`);
+          if(!available) throw new Error('Gradebook mobile tools missing.');
+          await evaluate(client, `Array.from(document.querySelectorAll('[data-gradebook-actions] button')).find(b=>b.textContent.trim()==='Mehr').click()`);
+          await sleep(200);
+        }
+        const layout = await evaluate(client, `(() => {const node=document.querySelector('${selector}');return {overflow:document.documentElement.scrollWidth>innerWidth+3,heading:node.querySelector('h1')?.textContent.trim(),smallTargets:Array.from(node.querySelectorAll('${key === 'gradebook' ? '[data-gradebook-header] button, [data-gradebook-actions] button' : 'section button'}')).filter(b=>b.getBoundingClientRect().width>0&&b.getBoundingClientRect().height<43).map(b=>b.textContent.trim())};})()`);
+        if(layout.overflow || !layout.heading || layout.smallTargets.length) throw new Error(page+' layout at '+width+': '+JSON.stringify(layout));
+        await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-'+key+'-'+width+'.png'));
+      }
+      if(key === 'gradebook') {
+        await client.send('Emulation.setDeviceMetricsOverride', {width:1360,height:1000,deviceScaleFactor:1,mobile:false});
+        await evaluate(client, `Array.from(document.querySelectorAll('[data-gradebook-header] button')).find(b=>b.textContent.trim()==='Notenübersicht').click()`);
+        await waitFor(client, 'embedded grade overview', `Array.from(document.querySelectorAll('button')).some(b=>b.textContent.trim()==='Zur Notenmappe')`);
+        await clickButton(client,'Zur Notenmappe');
+        await waitFor(client, 'back to gradebook subject', `Boolean(document.querySelector('#gradebook-active-subject'))`);
+      }
+      console.log('✓ '+page+': responsive controls and mobile tool access at 390/820/1360px.');
+    }
+
 
   } catch (error) {
     await saveScreenshot(client).catch(() => {});

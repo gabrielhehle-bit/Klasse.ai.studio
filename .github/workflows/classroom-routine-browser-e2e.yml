@@ -6,6 +6,9 @@ on:
       - main
     paths:
       - 'src/components/Attendance.tsx'
+      - 'src/components/LeistungenHub.tsx'
+      - 'src/components/Gradebook.tsx'
+      - 'src/components/GradeOverview.tsx'
       - 'src/components/StudentDossier.tsx'
       - 'src/components/StudentDossierHub.tsx'
       - 'src/components/dossier/DossierBeobachtungenVerlauf.tsx'
@@ -98,7 +101,7 @@ jobs:
         with:
           name: klassio-classroom-routine-browser-${{ matrix.width }}-${{ github.sha }}
           path: |
-            /tmp/klassio-classroom-routine-e2e.png
+            /tmp/klassio-classroom-routine-e2e*.png
             /tmp/klassio-classroom-routine-server.log
             /tmp/klassio-classroom-routine-chrome.log
           if-no-files-found: ignore

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { BarChart3, Target, Activity, MessagesSquare, FileText, MessageSquareText, ChevronRight } from 'lucide-react';
+import { BarChart3, Target, Activity, MessagesSquare, MessageSquareText, ChevronRight } from 'lucide-react';
 
 type PerformanceItem = {
   id: string;
@@ -14,13 +14,13 @@ const assessmentItems: PerformanceItem[] = [
   {
     id: 'noten',
     title: 'Notenmappe',
-    description: 'Bewertungen und Zeugnisnoten samt Notenübersicht, Gewichtung und Auswertungen in einem Bereich.',
+    description: 'Bewertungen, Mitarbeit und Zeugnisnoten erfassen und auswerten.',
     icon: BarChart3,
   },
   {
     id: 'verbal',
     title: 'Verbale Beurteilung',
-    description: 'Umfassenden Beurteilungsentwurf verfassen; kurzes Leistungsfeedback findest du in der Notenmappe und im Schülerdossier.',
+    description: 'Beurteilungen formulieren und die Entwicklung zusammenfassen.',
     icon: MessageSquareText,
   },
 ];
@@ -29,20 +29,20 @@ const developmentItems: PerformanceItem[] = [
   {
     id: 'portfolio',
     title: 'Lernziele & Portfolio',
-    description: 'Dokumentierte Lernziele, Portfolio-Einträge und Leistungsnachweise der Kinder.',
+    description: 'Lernziele einschätzen und die Entwicklung eines Kindes dokumentieren.',
     icon: Target,
   },
   {
     id: 'diagnostik',
     title: 'Diagnostik',
-    description: 'Diagnostische Ergebnisse, Kompetenzchecks und Förderung. Antolin-Berichte findest du im Schülerdossier unter Lesen & Antolin.',
+    description: 'Kompetenzen prüfen und Förderbedarf erkennen.',
     icon: Activity,
     klassenvorstandOnly: true,
   },
   {
     id: 'kel',
     title: 'KEL-Gespräche',
-    description: 'Vorbereiten, Einschätzen, Gespräch führen, Ziele vereinbaren und Präsentation erstellen.',
+    description: 'Gespräche vorbereiten, Entwicklung besprechen und Ziele vereinbaren.',
     icon: MessagesSquare,
   },
 ];
@@ -59,17 +59,17 @@ function PerformanceCard({
     <button
       type="button"
       onClick={() => onOpen(item.id)}
-      className="group flex min-h-32 items-start gap-4 rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--accent)]/35 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+      className="group flex min-h-28 items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-left transition-colors hover:border-[var(--accent)] hover:bg-[var(--surface2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
     >
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
         <Icon size={21} />
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-start justify-between gap-3">
-          <span className="text-base font-black text-[var(--text)]">{item.title}</span>
+          <span className="text-base font-semibold text-[var(--text)]">{item.title}</span>
           <ChevronRight size={18} className="mt-0.5 shrink-0 text-[var(--text3)] transition group-hover:translate-x-0.5 group-hover:text-[var(--accent)]" />
         </span>
-        <span className="mt-1.5 block text-sm font-medium leading-relaxed text-[var(--text2)]">
+        <span className="mt-1 block text-sm leading-relaxed text-[var(--text2)]">
           {item.description}
         </span>
       </span>
@@ -84,22 +84,19 @@ export default function LeistungenHub() {
   );
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-7 px-4 py-6 sm:px-6">
-      <header className="rounded-[2rem] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm sm:p-8">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--accent)]">Leistungen</p>
-        <h1 className="mt-2 text-2xl font-black tracking-tight text-[var(--text)] sm:text-3xl">
-          Bewerten und Lernentwicklung begleiten
-        </h1>
-        <p className="mt-2 max-w-3xl text-sm font-medium leading-relaxed text-[var(--text2)]">
-          Bewertung und Beurteilung stehen getrennt von Lernentwicklung, Diagnostik und Gesprächen. So findest du schneller den passenden Arbeitsweg.
-        </p>
+    <div data-performance-hub className="mx-auto w-full max-w-6xl space-y-6 px-4 py-5 sm:px-6 sm:py-6">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-4">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-[var(--text)] sm:text-2xl">Leistungen</h1>
+          <p className="mt-1 text-sm text-[var(--text2)]">{app.klassenbezeichnung || 'Deine Klasse'} · {app.schuljahr}</p>
+        </div>
+        <p className="text-sm text-[var(--text2)]">Bewertungen und Lernentwicklung</p>
       </header>
 
       <section className="space-y-3" aria-labelledby="leistungen-bewerten">
         <div className="px-1">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent)]">Bewerten & Beurteilen</p>
-          <h2 id="leistungen-bewerten" className="mt-1 text-lg font-black text-[var(--text)]">
-            Leistungen erfassen und zusammenfassen
+          <h2 id="leistungen-bewerten" className="text-base font-semibold text-[var(--text)]">
+            Bewerten & Beurteilen
           </h2>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -111,11 +108,8 @@ export default function LeistungenHub() {
 
       <section className="space-y-3" aria-labelledby="leistungen-entwicklung">
         <div className="px-1">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--text3)]">
+          <h2 id="leistungen-entwicklung" className="text-base font-semibold text-[var(--text)]">
             Lernentwicklung & Gespräche
-          </p>
-          <h2 id="leistungen-entwicklung" className="mt-1 text-lg font-black text-[var(--text)]">
-            Entwicklung verstehen, dokumentieren und besprechen
           </h2>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
