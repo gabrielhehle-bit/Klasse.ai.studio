@@ -7,36 +7,17 @@ const dossier = readFileSync('src/components/StudentDossier.tsx', 'utf8');
 const observations = readFileSync('src/components/dossier/DossierBeobachtungenVerlauf.tsx', 'utf8');
 const support = readFileSync('src/components/dossier/DossierFoerderung.tsx', 'utf8');
 
-test('Dossierübersicht: vier kompakte Karten ohne gemischten Notenschnitt und ohne erfundene Förderdiagnose', () => {
-  for (const label of ['Anwesenheit', 'Lernen', 'Beobachtungen', 'Förderung']) {
-    assert.match(overview, new RegExp(`label: '${label}'`));
-  }
-  assert.match(overview, /assessedSubjects\.length/);
-  assert.doesNotMatch(overview, /Notenschnitt/);
-  assert.doesNotMatch(overview, /Präsenz unauffällig/);
-  assert.doesNotMatch(overview, /Kein Förderbedarf/);
-  assert.match(overview, /Noch keine Ziele erfasst/);
-});
-
-test('Dossierübersicht: Notenpunkte und Prozentwerte bleiben je Fach getrennt', () => {
-  assert.match(overview, /mode === 'percent'/);
-  assert.match(overview, /mode === 'points'/);
-  assert.match(overview, /mode === 'grades' && endnote/);
-  assert.match(overview, /assessedSubjects\.slice\(0, 4\)/);
-  assert.match(overview, /Noch keine Bewertungen dokumentiert/);
-});
-
-test('Dossierübersicht: aktive Ziele mit beiden vorhandenen Statusschreibweisen; Abschluss im Originaldatensatz', () => {
-  assert.match(overview, /String\(goal\.status\) === 'in_arbeit'/);
-  assert.match(overview, /goal\.status === 'in Arbeit'/);
-  assert.match(overview, /goal\.id === goalId/);
-  assert.match(overview, /status: 'erreicht'/);
-  assert.match(overview, /Förderziel/);
-  assert.match(overview, /setApp\(previous =>/);
+test('Dossierübersicht: Diagramme ersetzen Förderkarten und gemischte Gesamtnoten', () => {
+  assert.match(overview, /Alle Fächer auf einen Blick/);
+  assert.match(overview, /Verhalten, Befinden & Anwesenheit/);
+  assert.match(overview, /getAssessmentMode/);
+  assert.match(overview, /berechne/);
+  assert.match(overview, /Noch keine Bewertung/);
+  assert.doesNotMatch(overview, /Förderbedarf|Kein Förderbedarf|Präsenz unauffällig/);
 });
 
 test('Dossierübersicht: Eintrag öffnet bestehende Erfassungsformulare für das gewählte Kind', () => {
-  assert.match(overview, /\+ Eintrag/);
+  assert.match(overview, /Eintrag/);
   assert.match(dossier, /onQuickEntry=\{openOverviewQuickEntry\}/);
   assert.match(dossier, /initialQuickNoteCategory=\{pendingQuickEntry === 'parent' \? 'Eltern'/);
   assert.match(dossier, /initialAddGoal=\{pendingQuickEntry === 'goal'\}/);
@@ -46,13 +27,13 @@ test('Dossierübersicht: Eintrag öffnet bestehende Erfassungsformulare für das
   assert.match(support, /strengthInputRef\.current\?\.focus/);
 });
 
-test('Dossierübersicht: fünf Hauptbereiche, Kinderwechsel, KEL, PDF, Druck und Fokus bleiben verfügbar', () => {
+test('Dossierübersicht: vier Hauptbereiche, Kinderwechsel, KEL, PDF, Druck und Fokus bleiben verfügbar', () => {
   assert.match(dossier, /getFilteredMainAreas\(\)\.map/);
   assert.match(dossier, /onStudentChange/);
   assert.match(dossier, /KEL für Eltern/);
   assert.match(dossier, /Dossier \(PDF\)/);
   assert.match(dossier, /setPage\?\.\('drucken'\)/);
   assert.match(dossier, /dossierFocusMode: true/);
-  assert.match(overview, /Letzte Entwicklungen/);
-  assert.match(overview, /Weiter beobachten/);
+  assert.match(overview, /Aktuelle Notizen/);
+  assert.match(overview, /onSubjectSelect/);
 });

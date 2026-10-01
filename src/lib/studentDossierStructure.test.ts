@@ -6,13 +6,12 @@ const dossier = readFileSync("src/components/StudentDossier.tsx", "utf8");
 const studentList = readFileSync("src/components/StudentList.tsx", "utf8");
 const klasseHub = readFileSync("src/components/KlasseHub.tsx", "utf8");
 
-test("Schülerdossier: genau fünf feste Hauptbereiche sind definiert", () => {
+test("Schülerdossier: genau vier feste Hauptbereiche sind definiert", () => {
   const required = [
-    ["uebersicht", "Übersicht"],
-    ["lernen_leistungen", "Lernen & Leistungen"],
-    ["entwicklung_diagnostik", "Entwicklung & Diagnostik"],
-    ["stammdaten_organisation", "Stammdaten & Organisation"],
-    ["berichte_materialien", "Berichte & Materialien"],
+    ["uebersicht", "Überblick"],
+    ["lernen_leistungen", "Leistungen"],
+    ["entwicklung_diagnostik", "Beobachtungen"],
+    ["berichte_materialien", "Mehr"],
   ] as const;
 
   for (const [id, label] of required) {
@@ -46,7 +45,7 @@ test("Schülerdossier: ein Schuljahr ohne Semesterwechsel", () => {
   assert.doesNotMatch(dossier, /setSem\(nextSemester\)/);
 });
 
-test("Schülerdossier: Detailfunktionen der fünf Bereiche bleiben vorhanden", () => {
+test("Schülerdossier: Detailfunktionen der vier Bereiche bleiben vorhanden", () => {
   for (const tab of [
     "leistungen",
     "lernziele",

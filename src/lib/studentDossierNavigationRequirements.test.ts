@@ -4,17 +4,16 @@ import { readFileSync } from "node:fs";
 
 const dossier = readFileSync("src/components/StudentDossier.tsx", "utf8");
 
-test("Schülerdossier: fünf Hauptbereiche sind als eine einheitliche Navigation sichtbar", () => {
+test("Schülerdossier: vier Hauptbereiche sind als eine einheitliche Navigation sichtbar", () => {
   assert.match(dossier, /Dossierbereiche/);
-  assert.match(dossier, /5 Bereiche/);
+  assert.match(dossier, /4 Bereiche/);
   assert.match(dossier, /aria-label="Schülerdossier-Hauptbereiche"/);
   assert.match(dossier, /flex gap-2 overflow-x-auto pb-1 scrollbar-none/);
   for (const label of [
-    "Übersicht",
-    "Lernen & Leistungen",
-    "Entwicklung & Diagnostik",
-    "Stammdaten & Organisation",
-    "Berichte & Materialien",
+    "Überblick",
+    "Leistungen",
+    "Beobachtungen",
+    "Mehr",
   ]) {
     assert.ok(dossier.includes(`label: '${label}'`), `Hauptbereich fehlt: ${label}`);
   }

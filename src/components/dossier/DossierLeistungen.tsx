@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Student } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { getChildWeeklyDossierRows } from '../../lib/classroomWeeklyPlan';
@@ -11,6 +11,7 @@ import { berechne, getNotenLabel } from '../../lib/GradeUtils';
 import { FAECHER_ALLE } from '../../constants';
 
 interface DossierLeistungenProps {
+  initialSubject?: string;
   student: Student;
   semester: '1' | '2';
   onSemesterChange?: (semester: '1' | '2') => void;
@@ -52,11 +53,13 @@ export interface SubjectAssessmentSummary {
 
 export default function DossierLeistungen({
   student,
+  initialSubject,
   semester,
   onNavigateTab
 }: DossierLeistungenProps) {
   const { app, setApp } = useApp();
-  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const [selectedSubject, setSelectedSubject] = useState<string | null>(initialSubject || null);
+  useEffect(() => { setSelectedSubject(initialSubject || null); }, [initialSubject, student.id]);
   const [statusFilter, setStatusFilter] = useState<'all' | 'critical' | 'stable'>('all');
 
   // Modal State for adding/editing an assessment item
