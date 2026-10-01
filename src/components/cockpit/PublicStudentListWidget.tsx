@@ -3,7 +3,7 @@ import type { AppState, Student } from '../../types';
 import { getDisplayStudentName } from './studentSelectionUtils';
 import { useRef } from 'react';
 import { useWidgetSize } from './widgetLayout';
-import { getStudentGridLayout } from '../../lib/studentWidgetGrid';
+import { getCompactStudentGridLayout, getStudentGridLayout } from '../../lib/studentWidgetGrid';
 
 interface Props {
   app: AppState;
@@ -16,6 +16,7 @@ interface Props {
   onExpand?: () => void;
   /** The narrow Cockpit sidebar must show the whole class in a dense grid. */
   sidebarCompact?: boolean;
+  onCompactToggle?: () => void;
 }
 
 /**
@@ -36,14 +37,19 @@ export function PublicStudentListWidget({
   onBehaviorStageChange,
   onExpand,
   sidebarCompact = false,
+  onCompactToggle,
 }: Props) {
   const students = app.schueler ?? [];
   const containerRef = useRef<HTMLElement>(null);
   const size = useWidgetSize(containerRef);
   const grid = getStudentGridLayout(size.width, size.height, students.length, { reservedHeight: sidebarCompact ? 38 : 92, minCardWidth: sidebarCompact ? 144 : 170, minCardHeight: sidebarCompact ? 48 : 58, gap: 6 });
   const gridMode = Boolean(onExpand);
+  const listRef = useRef<HTMLDivElement>(null);
+  const listSize = useWidgetSize(listRef);
   const [compact, setCompact] = useState(false);
   const dense = !gridMode && (sidebarCompact || compact);
+  const compactGrid = !gridMode && (sidebarCompact || compact);
+  const compactLayout = getCompactStudentGridLayout(listSize.width, listSize.height, students.length);
   const showBehavior = app.boardSettings?.showStudentBehaviorInPluspoints === true;
   // Personal emoji is intentionally opt-in; do not invent a placeholder avatar.
   const showStudentEmoji = app.boardSettings?.showStudentEmojiInList === true;
@@ -96,7 +102,7 @@ export function PublicStudentListWidget({
         )}
         {!gridMode && !sidebarCompact && (
           <button type="button" aria-pressed={compact}
-            onClick={() => setCompact(value => !value)}
+            onClick={() => onCompactToggle ? onCompactToggle() : setCompact(value => !value)}
             className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600">
             {compact ? 'Große Ansicht' : 'Kompakt'}
           </button>
@@ -112,8 +118,9 @@ export function PublicStudentListWidget({
           <p className="text-xs text-slate-600">Falls das Gerät sehr klein ist, aktiviere den Vollbildmodus.</p>
         </div>
       ) : null}
-      <div className={gridMode || sidebarCompact ? 'grid min-h-0 flex-1 content-start gap-1.5 overflow-y-auto' : dense ? 'min-h-0 flex-1 space-y-1 overflow-y-auto' : 'min-h-0 flex-1 space-y-2 overflow-y-auto'}
-        style={gridMode || sidebarCompact ? { gridTemplateColumns: `repeat(${grid.columns}, minmax(0, 1fr))` } : undefined} role="list">
+      <div ref={listRef} data-compact-student-grid={compactGrid || undefined}
+        className={compactGrid ? 'grid min-h-0 flex-1 gap-1 overflow-hidden' : gridMode ? 'grid min-h-0 flex-1 content-start gap-1.5 overflow-y-auto' : 'min-h-0 flex-1 space-y-2 overflow-y-auto'}
+        style={compactGrid ? { gridTemplateColumns: `repeat(${compactLayout.columns}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${compactLayout.rows}, minmax(0, 1fr))` } : gridMode ? { gridTemplateColumns: `repeat(${grid.columns}, minmax(0, 1fr))` } : undefined} role="list">
         {students.map((student: Student) => {
           const points = Math.max(0, getTodayPoints(student.id));
           const awarded = lastAwardedId === student.id;
@@ -138,6 +145,35 @@ export function PublicStudentListWidget({
           const cardTone = isRecentlyAwarded
             ? 'border-emerald-300 bg-emerald-50/90 ring-2 ring-emerald-200/80'
             : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md';
+          if (compactGrid) {
+            return (
+              <div key={student.id} role="listitem"
+                className={`flex min-h-0 min-w-0 flex-col justify-center gap-0.5 rounded-lg border px-1.5 py-0.5 ${cardTone}`}>
+                <span className="block break-words text-xs font-extrabold leading-tight text-slate-900">{labels.get(student.id)}</span>
+                <div className="flex min-w-0 items-center justify-between gap-1">
+                  <div className="flex min-w-0 items-center gap-1">
+                    {showBehavior && behaviorStage && <span className="sr-only" aria-label={`Verhaltensstatus: ${behaviorStage.label}`}>{behaviorStage.label}</span>}
+                    {showBehavior && behaviorStage && (onBehaviorStageChange ? (
+                      <button type="button" disabled={!nextBehaviorStage || nextBehaviorStage.id === stageId}
+                        onClick={() => nextBehaviorStage && onBehaviorStageChange(student.id, nextBehaviorStage.id)}
+                        aria-label={`Verhalten von ${labels.get(student.id)}: ${behaviorStage.label}; ${nextBehaviorStage ? `auf ${nextBehaviorStage.label} weiterstellen` : 'keine weitere Stufe vorhanden'}`}
+                        title={behaviorStage.label}
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 ${behaviorColor}`}>
+                        {behaviorStage.icon || '●'}
+                      </button>
+                    ) : <span title={behaviorStage.label} className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-sm ${behaviorColor}`}>{behaviorStage.icon || '●'}</span>)}
+                    <span className="text-[10px] font-bold text-amber-800" aria-label={`${points} Pluspunkte`}>{points} P.</span>
+                  </div>
+                  <button type="button" onClick={event => addParticipation(student.id, event, () => {
+                    setLastAwardedId(student.id);
+                    setRecentlyAwardedId(student.id);
+                  })}
+                    className="h-8 w-8 shrink-0 rounded-md bg-emerald-600 text-xs font-extrabold text-white hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
+                    aria-label={`Pluspunkt für ${labels.get(student.id)} vergeben`}>+1</button>
+                </div>
+              </div>
+            );
+          }
           return (
             <div key={student.id} role="listitem"
               style={gridMode || sidebarCompact ? { minHeight: sidebarCompact ? 48 : 58 } : undefined}

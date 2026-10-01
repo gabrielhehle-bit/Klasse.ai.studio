@@ -68,7 +68,7 @@ test('Öffentliche Plusliste zeigt für eine tatsächlich leere Klasse keine erf
   assert.doesNotMatch(html, /Max|Anna|Lukas|Emma/);
 });
 
-test('Kompakte Cockpit-Seitenleiste zeigt alle 17 echten Kinder in niedrigen Ein-Zeilen-Karten', () => {
+test('Kompakte Cockpit-Seitenleiste zeigt alle 17 Kinder im Raster ohne Scrollen', () => {
   const pupils = Array.from({ length: 17 }, (_, index) => ({
     id: `student-${index}`, vorname: `Kind${index + 1}`, nachname: 'Beispiel',
   })) as unknown as Student[];
@@ -80,13 +80,14 @@ test('Kompakte Cockpit-Seitenleiste zeigt alle 17 echten Kinder in niedrigen Ein
     removeParticipation: () => {},
   }));
   assert.match(teaching, /sidebarCompact=\{sidebarMode === "mini"\}/);
-  assert.match(html, /grid min-h-0 flex-1 content-start gap-1\.5 overflow-y-auto/);
+  assert.match(html, /grid min-h-0 flex-1 gap-1 overflow-hidden/);
   assert.match(html, /1 P\./);
-  assert.match(html, /min-h-11 min-w-11/);
+  assert.match(html, /h-8 w-8 shrink-0/);
   assert.match(html, /Unsere Pluspunkte · 17/);
   for (let i = 1; i <= 17; i++) assert.match(html, new RegExp(`Kind${i}(?!\\d)`));
   assert.equal((html.match(/Pluspunkt für/g) || []).length, 17);
-  assert.doesNotMatch(html, /overflow-hidden.*role="list"/);
+  assert.doesNotMatch(html, /overflow-y-auto/);
+  assert.match(html, /grid-template-rows:repeat\(/);
 });
 
 test('kindgerechte Pluspunkte-Karten behalten die vollständige 17-Kinder-Ansicht und zeigen nur öffentliche Daten', () => {

@@ -404,6 +404,37 @@ async function main() {
     const topButtons = result.topbarVisible.filter(x => !x.label.includes('Navigation'));
     if (topButtons.some(x => x.r && x.r.right > WIDTH + 3)) throw new Error('Phone toolbar action is clipped.');
     await checkRoutine(client);
+    // Exercise both compact entry points at a normal laptop viewport.
+    await client.send('Emulation.setDeviceMetricsOverride', {
+      width: 1280, height: 720, deviceScaleFactor: 1, mobile: false,
+    });
+    await clickSidebar(client, 'Lehrercockpit');
+    await waitFor(client, 'student sidebar or its open action', 'Boolean(document.querySelector(".klassio-student-sidebar, button[aria-label=\\\"Schülerliste einblenden\\\"]"))', 30000);
+    await evaluate(client, 'document.querySelector("button[aria-label=\\\"Schülerliste einblenden\\\"]")?.click()');
+    await waitFor(client, 'student sidebar', 'Boolean(document.querySelector(".klassio-student-sidebar"))', 30000);
+    for (const entry of ['inner', 'header']) {
+      await evaluate(client, `(() => {
+        const sidebar = document.querySelector('.klassio-student-sidebar');
+        const button = ${entry === 'inner'
+          ? "Array.from(sidebar.querySelectorAll('section button')).find(b => b.textContent.trim() === 'Kompakt')"
+          : "sidebar.querySelector('button[aria-label=\"Schüler-Seitenleiste kompakt anzeigen\"]')"};
+        if (!button) throw new Error('Compact entry missing');
+        button.click();
+      })()`);
+      await waitFor(client, 'whole class fits compact sidebar', `(() => {
+        const list = document.querySelector('.klassio-student-sidebar [data-compact-student-grid]');
+        if (!list) return false;
+        const bounds = list.getBoundingClientRect();
+        const cards = Array.from(list.querySelectorAll('[role=listitem]'));
+        return cards.length > 0 && list.scrollHeight <= list.clientHeight + 1 && cards.every(card => {
+          const r = card.getBoundingClientRect();
+          const plus = card.querySelector('button[aria-label^="Pluspunkt für"]')?.getBoundingClientRect();
+          return r.top >= bounds.top - 1 && r.bottom <= bounds.bottom + 1 && plus && plus.bottom <= r.bottom + 1;
+        });
+      })()`, 15000);
+      await evaluate(client, 'document.querySelector("button[aria-label=\\\"Schüler-Seitenleiste groß anzeigen\\\"]").click()');
+      await waitFor(client, 'expanded sidebar restored', 'Boolean(document.querySelector(".klassio-student-sidebar section button[aria-pressed=false]"))');
+    }
   } catch (error) {
     await saveScreenshot(client).catch(() => {});
     throw error;
