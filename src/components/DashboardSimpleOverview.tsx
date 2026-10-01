@@ -88,7 +88,7 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
         </section>
       )}
       <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-start gap-4">
+        <div className="flex min-w-0 flex-1 flex-wrap items-start gap-4">
           <button type="button" onClick={() => p.onNavigate('profil')}
             title="Mein Profil öffnen" aria-label="Profil auf dem Dashboard öffnen"
             className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]">

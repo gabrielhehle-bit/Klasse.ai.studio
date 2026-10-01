@@ -2864,12 +2864,12 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
           fach,
           zeit: (app.stundenZeiten || STUNDEN_INFO)[id] || "",
           thema: tagPlan[id - 1]?.thema || "",
-          isCurrent: currentIdx === (id - 1),
+          isCurrent: dashboardDayLabel === 'Heute' && currentIdx === (id - 1),
         });
       }
     }
     return list;
-  }, [app?.wochenplanung, app?.stammplan, kw, tagName, currentIdx, app?.stundenZeiten]);
+  }, [app?.wochenplanung, app?.stammplan, kw, tagName, currentIdx, dashboardDayLabel, app?.stundenZeiten]);
 
   const openTasksCount = React.useMemo(() => {
     const denkzettel = (app?.denkzettelNotes || []).filter((n: any) => !n.completed).length;
