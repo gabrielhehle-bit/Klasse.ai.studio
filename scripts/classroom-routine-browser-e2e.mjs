@@ -290,6 +290,10 @@ async function checkRoutine(client) {
   await setInputByPlaceholder(client, 'Grund der Abwesenheit oder wichtige Notiz', 'Synthetischer Browser-Testgrund');
   await clickButton(client, 'Speichern', true);
   await openPupil(client, pupilParts);
+  await waitFor(client, 'dossier overview charts', 'Boolean(document.querySelector("[data-dossier-overview]")) && document.body.innerText.includes("Alle Fächer auf einen Blick") && document.body.innerText.includes("Befinden")');
+  const overviewWidth = await evaluate(client, 'document.documentElement.scrollWidth');
+  if (overviewWidth > WIDTH + 5) throw new Error('Dossier overview overflows viewport: ' + overviewWidth);
+  await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-dossier.png'));
   await openObservations(client);
   await clickButton(client, 'Beobachtung notieren');
   await setInputByPlaceholder(client, 'Konkrete, wertfreie Unterrichtsbeobachtung', 'Synthetische Browser-Testnotiz');
