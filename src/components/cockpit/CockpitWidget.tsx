@@ -367,15 +367,26 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     target.addEventListener("pointercancel", finishDrag);
   };
 
+  // Absolute percentages resolve against the stage padding box, excluding its border.
+  // Keep viewport pixels for pointer geometry, including a possible CSS zoom.
+  const getResizeStageRect = () => {
+    const stage = activeStageRef.current;
+    if (!stage) return null;
+    const bounds = stage.getBoundingClientRect();
+    const scaleX = stage.offsetWidth ? bounds.width / stage.offsetWidth : 1;
+    const scaleY = stage.offsetHeight ? bounds.height / stage.offsetHeight : 1;
+    return { left: bounds.left + stage.clientLeft * scaleX, top: bounds.top + stage.clientTop * scaleY,
+      width: stage.clientWidth * scaleX, height: stage.clientHeight * scaleY };
+  };
+
   const handlePointerDownResize = (e: React.PointerEvent<HTMLElement>) => {
     if (!e.isPrimary || e.button !== 0 || isMaximized || layoutLocked) return;
     e.preventDefault();
     e.stopPropagation();
     onFocus();
 
-    const stage = activeStageRef.current;
-    if (!stage) return;
-    const stageRect = stage.getBoundingClientRect();
+    const stageRect = getResizeStageRect();
+    if (!stageRect) return;
 
     const rect = widgetRef.current?.getBoundingClientRect();
     if (!rect || stageRect.width <= 0 || stageRect.height <= 0) return;
@@ -464,7 +475,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     else return;
     event.preventDefault();
     event.stopPropagation();
-    const stage = activeStageRef.current?.getBoundingClientRect();
+    const stage = getResizeStageRect();
     const rect = widgetRef.current?.getBoundingClientRect();
     if (!stage || !rect || stage.width <= 0 || stage.height <= 0) return;
     const next = resizeWidgetRect({ x: rect.left - stage.left, y: rect.top - stage.top, w: rect.width, h: rect.height },
