@@ -223,9 +223,9 @@ async function clickText(client, text) {
   if (!await evaluate(client, expression)) throw new Error('Could not click text "' + text + '".');
 }
 
-async function saveScreenshot(client) {
+async function saveScreenshot(client, path = SCREENSHOT_PATH) {
   const screenshot = await client.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
-  await fs.writeFile(SCREENSHOT_PATH, Buffer.from(screenshot.data, 'base64'));
+  await fs.writeFile(path, Buffer.from(screenshot.data, 'base64'));
 }
 
 async function main() {
@@ -460,6 +460,37 @@ async function main() {
     }
 
     await saveScreenshot(client);
+    // Check the actual planner surfaces after the editing journey, with its saved data.
+    if (await evaluate(client, 'Array.from(document.querySelectorAll("h3")).some(h=>h.textContent?.trim()==="Jahresplanung bearbeiten")')) {
+      await clickButton(client, 'Abbrechen');
+    }
+    for (const [page, selector, key] of [
+      ['Jahresplanung', '[data-yearly-header]', 'yearly'],
+      ['Wochenplan', '[data-weekly-header]', 'weekly'],
+      ['Planung', '[data-planning-hub]', 'hub'],
+    ]) {
+      await client.send('Emulation.setDeviceMetricsOverride', {width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+      await clickSidebar(client, page);
+      await waitFor(client, page+' surface ready', 'Boolean(document.querySelector('+q(selector)+')?.querySelector("h1"))');
+      if (key === 'weekly') {
+        await evaluate(client, 'Array.from(document.querySelectorAll("[data-planning-view] button")).find(b=>b.textContent.trim()==="Tag")?.click()');
+        await waitFor(client, 'daily lesson list', 'Array.from(document.querySelectorAll("section")).some(s=>s.getAttribute("aria-label")==="Tagesansicht des Wochenplans")');
+        await evaluate(client, 'Array.from(document.querySelectorAll("[data-planning-view] button")).find(b=>b.textContent.trim()==="Wochenplan")?.click()');
+      }
+      if (key === 'yearly') {
+        await clickButton(client, 'Monatsübersicht');
+        await waitFor(client, 'month view selected', 'Array.from(document.querySelectorAll("[data-yearly-header] button")).some(b=>b.textContent.trim()==="Monatsübersicht"&&b.getAttribute("aria-pressed")==="true")');
+        await clickButton(client, 'Tabelle', true);
+      }
+      for (const width of [390,820,1440]) {
+        await client.send('Emulation.setDeviceMetricsOverride', {width,height:1000,deviceScaleFactor:1,mobile:false});
+        await sleep(400);
+        const layout = await evaluate(client, '(() => {const surface=document.querySelector('+q(selector)+');const buttons=Array.from(surface.querySelectorAll("button")).filter(b=>b.getBoundingClientRect().width>0);return {overflow:document.documentElement.scrollWidth>innerWidth+3,heading:surface.querySelector("h1")?.textContent.trim(),smallTargets:buttons.filter(b=>b.getBoundingClientRect().height<43).map(b=>b.textContent.trim()),selected:Array.from(surface.querySelectorAll("[data-planning-view] button[aria-pressed=true]")).map(b=>b.textContent.trim())};})()');
+        if(layout.overflow || !layout.heading || layout.smallTargets.length) throw new Error(page+' layout at '+width+': '+JSON.stringify(layout));
+        await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-'+key+'-'+width+'.png'));
+      }
+      console.log('✓ '+page+': responsive controls and no page overflow at 390/820/1440px.');
+    }
     if (uncaught.length) throw new Error('Uncaught browser exceptions:\n' + uncaught.join('\n---\n'));
     console.log('Klassio planning browser E2E passed.');
   } catch (error) {

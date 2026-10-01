@@ -987,32 +987,32 @@ export default function YearlyPlan() {
   const activeTab = app.settings?.planTab || 'jahresplan';
 
   return (
-    <div className={`yearly-plan-shell flex flex-col space-y-4 bg-[#f4f7f3] ${isFullscreen ? 'fixed inset-0 z-[450] w-screen h-screen overflow-y-auto p-3 sm:p-5' : 'h-full px-4 lg:px-6'}`}>
+    <div className={`yearly-plan-shell flex flex-col space-y-4 bg-[#f4f7f3] ${isFullscreen ? 'fixed inset-0 z-[450] w-screen h-screen overflow-y-auto p-3 sm:p-5' : 'h-full min-w-0 px-4 py-4 lg:px-6'}`}>
       {/* Header toolbar */}
-      <div className="flex flex-col gap-2 bg-white p-2 sm:p-3 rounded-2xl border border-slate-200 shadow-sm shrink-0">
+      <div data-yearly-header className="flex flex-col gap-3 bg-white p-3 rounded-2xl border border-slate-200 shrink-0">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full justify-start min-w-0">
           <div className="flex items-center gap-2 mr-auto min-w-[190px]">
             <span className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
               <LayoutGrid size={17} />
             </span>
             <div>
-              <h2 className="text-sm font-black text-slate-900 leading-tight">Jahresübersicht</h2>
-              <p className="text-[10px] font-semibold text-slate-500 mt-0.5">Themen und Lernziele nach Schulwochen planen</p>
+              <h1 className="text-lg font-semibold text-slate-900 leading-tight">Jahresplanung</h1>
+              <p className="text-xs text-slate-500 mt-1">{app.klassenbezeichnung || 'Deine Klasse'} · {app.schuljahr}</p>
             </div>
           </div>
           
-          <div className="flex bg-stone-100 p-0.5 sm:p-1 rounded-xl sm:rounded-2xl border border-stone-200 shrink-0 shadow-inner">
+          <div data-planning-view aria-label="Inhalt wählen" className="flex max-w-full flex-wrap bg-slate-100 p-0.5 rounded-xl border border-slate-200">
             <button 
               onClick={() => setApp(prev => ({ ...prev, settings: { ...prev.settings, planTab: 'jahresplan' } }))}
               aria-pressed={activeTab === 'jahresplan'}
-              className={`px-2.5 sm:px-4 py-1 sm:py-2 rounded-lg sm:rounded-xl text-[0.625rem] sm:text-[0.75rem] font-black uppercase tracking-wider transition-all duration-200 ${activeTab === 'jahresplan' ? 'bg-white text-slate-800 shadow-sm translate-y-[-1px]' : 'text-stone-500 hover:text-stone-800'}`}
+              className={`min-h-11 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${activeTab === 'jahresplan' ? 'bg-white text-slate-800 shadow-sm' : 'text-stone-500 hover:text-stone-800'}`}
             >
               Themen & Stoff
             </button>
             <button 
               onClick={() => setApp(prev => ({ ...prev, settings: { ...prev.settings, planTab: 'lernziele' } }))}
               aria-pressed={activeTab === 'lernziele'}
-              className={`px-2.5 sm:px-4 py-1 sm:py-2 rounded-lg sm:rounded-xl text-[0.625rem] sm:text-[0.75rem] font-black uppercase tracking-wider transition-all duration-200 ${activeTab === 'lernziele' ? 'bg-white text-slate-800 shadow-sm translate-y-[-1px]' : 'text-stone-500 hover:text-stone-800'}`}
+              className={`min-h-11 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${activeTab === 'lernziele' ? 'bg-white text-slate-800 shadow-sm' : 'text-stone-500 hover:text-stone-800'}`}
             >
               Lernziele-Tracker
             </button>
@@ -1020,18 +1020,18 @@ export default function YearlyPlan() {
 
           {activeTab === 'jahresplan' && (
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex bg-stone-100 p-0.5 sm:p-1 rounded-xl sm:rounded-2xl border border-stone-200 shrink-0 shadow-inner">
+              <div data-planning-view aria-label="Darstellung wählen" className="flex max-w-full flex-wrap gap-1">
                 <button 
                   onClick={() => setViewMode('table')}
                   aria-pressed={viewMode === 'table'}
-                  className={`px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[0.5625rem] sm:text-[0.6875rem] font-black uppercase tracking-wider transition-all duration-200 ${viewMode === 'table' ? 'bg-white text-emerald-700 shadow-sm translate-y-[-1px]' : 'text-stone-500 hover:text-stone-800'}`}
+                  className={`min-h-11 px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold transition-colors ${viewMode === 'table' ? 'bg-white text-emerald-700 shadow-sm' : 'text-stone-500 hover:text-stone-800'}`}
                 >
                   Tabelle
                 </button>
                 <button 
                   onClick={() => setViewMode('months')}
                   aria-pressed={viewMode === 'months'}
-                  className={`px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[0.5625rem] sm:text-[0.6875rem] font-black uppercase tracking-wider transition-all duration-200 ${viewMode === 'months' ? 'bg-white text-emerald-700 shadow-sm translate-y-[-1px]' : 'text-stone-500 hover:text-stone-800'}`}
+                  className={`min-h-11 px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold transition-colors ${viewMode === 'months' ? 'bg-white text-emerald-700 shadow-sm' : 'text-stone-500 hover:text-stone-800'}`}
                 >
                   Monatsübersicht
                 </button>
@@ -1042,10 +1042,10 @@ export default function YearlyPlan() {
         </div>
         
         {activeTab === 'jahresplan' && (
-        <div className="flex flex-wrap items-center gap-1.5 w-full justify-start min-w-0 border-t border-slate-100 pt-2">
+        <div className="flex flex-wrap items-center gap-1.5 w-full justify-start min-w-0 border-t border-slate-100 pt-3">
           <button type="button" aria-expanded={showMoreTools} aria-controls="yearly-tools"
             onClick={() => setShowMoreTools(open => !open)}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-bold text-stone-800 hover:bg-stone-100">
+            className="min-h-11 inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-bold text-stone-800 hover:bg-stone-100">
             <Settings size={14} /> {showMoreTools ? 'Werkzeuge schließen' : 'Weitere Werkzeuge'}
           </button>
           <div id="yearly-tools" className={`${showMoreTools ? 'flex' : 'hidden'} flex-wrap items-center gap-1.5`}>
@@ -1055,7 +1055,7 @@ export default function YearlyPlan() {
               setAiGeneratingError(null);
               setShowAiModal(true);
             }}
-            className="inline-flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-[0.75rem] font-black transition-all active:scale-95 shadow-sm cursor-pointer"
+            className="min-h-11 inline-flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-[0.75rem] font-black transition-all active:scale-95 shadow-sm cursor-pointer"
           >
             <span>✨</span> Themen-Assistent (KI)
           </button>}
@@ -1063,7 +1063,7 @@ export default function YearlyPlan() {
           {/* Lehrplan-Seitenlade Button: vorhandener Katalog gilt nur für Volksschule. */}
           {app.schulart !== 'mittelschule' && app.schulart !== 'ahs_unterstufe' && <button 
             onClick={() => setShowLehrplanDrawer(prev => !prev)}
-            className={`flex-1 md:flex-none inline-flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl text-[0.52rem] xs:text-[0.58rem] sm:text-[0.6875rem] md:text-[0.8125rem] font-black transition-all border active:scale-95 shadow-sm cursor-pointer ${
+            className={`min-h-11 flex-1 md:flex-none inline-flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl text-[0.52rem] xs:text-[0.58rem] sm:text-[0.6875rem] md:text-[0.8125rem] font-black transition-all border active:scale-95 shadow-sm cursor-pointer ${
               showLehrplanDrawer 
                 ? 'bg-amber-600 text-white border-amber-600 hover:bg-amber-700' 
                 : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
@@ -1076,7 +1076,7 @@ export default function YearlyPlan() {
           {/* Designer-Farbschemas Preset Picker */}
           <div className="relative group shrink-0">
             <button 
-              className="inline-flex items-center justify-center gap-1 sm:gap-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 px-2 sm:px-3.5 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl text-[0.52rem] xs:text-[0.58rem] sm:text-[0.6875rem] md:text-[0.8125rem] font-black transition-all border border-stone-200 active:scale-95 cursor-pointer"
+              className="min-h-11 inline-flex items-center justify-center gap-1 sm:gap-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 px-2 sm:px-3.5 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl text-[0.52rem] xs:text-[0.58rem] sm:text-[0.6875rem] md:text-[0.8125rem] font-black transition-all border border-stone-200 active:scale-95 cursor-pointer"
               title="Designer-Farbschema wechseln"
             >
               <Palette size={11} className="sm:w-[15px] sm:h-[15px]" />
@@ -1117,29 +1117,29 @@ export default function YearlyPlan() {
               }
               setApp(p => ({ ...p, currentKW: todayKW }));
             }}
-            className="inline-flex items-center justify-center gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700 px-3.5 py-2 rounded-xl text-[0.75rem] font-black transition-all border border-emerald-500 active:scale-95 shadow-sm cursor-pointer"
+            className="min-h-11 inline-flex items-center justify-center gap-1.5 bg-white text-slate-700 hover:bg-slate-50 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors border border-slate-200 cursor-pointer"
           >
-            <Calendar size={11} className="sm:w-[15px] sm:h-[15px]" /> Heute
+            <Calendar size={11} className="sm:w-[15px] sm:h-[15px]" /> Diese Woche
           </button>
           {showMoreTools && <button
             onClick={() => setShowSettings(true)}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-bold text-stone-700 hover:bg-stone-100">
+            className="min-h-11 inline-flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-bold text-stone-700 hover:bg-stone-100">
             <Settings size={14} /> Fächer
           </button>}
           <button type="button" onClick={() => setShowExcelModal(true)}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-bold text-stone-800 hover:bg-stone-100">
+            className="min-h-11 inline-flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-bold text-stone-800 hover:bg-stone-100">
             <Upload size={14} /> Excel importieren
           </button>
           <button type="button"
             onClick={() => setApp(previous => ({ ...previous, currentPage: 'drucken', activePrintTemplate: 'jahresplanung' }))}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-800 hover:bg-indigo-100">
+            className="min-h-11 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
             <FileText size={14} /> Zum Druckzentrum
           </button>
 
           {/* Fullscreen Button */}
           <button 
             onClick={() => setIsFullscreen(!isFullscreen)}
-            className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-[0.75rem] font-black transition-all border active:scale-95 cursor-pointer shadow-xs ${
+            className={`min-h-11 inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-[0.75rem] font-black transition-all border active:scale-95 cursor-pointer shadow-xs ${
               isFullscreen
                 ? 'bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-800'
                 : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
@@ -1214,11 +1214,11 @@ export default function YearlyPlan() {
             <div className="relative overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-stone-200" ref={scrollContainerRef}>
               <table className="w-full border-separate border-spacing-0 text-[0.6875rem] min-w-[1000px]">
               <thead className="sticky top-0 z-40">
-                <tr className="bg-neutral-900">
-                  <th className="sticky left-0 top-0 z-50 w-12 min-w-[48px] py-4 px-2 bg-neutral-900 font-black text-white uppercase border-r-2 border-b-2 border-neutral-800 shadow-[2px_2px_0_0_rgba(0,0,0,0.1)]">
+                <tr className="bg-slate-50">
+                  <th className="sticky left-0 top-0 z-50 w-12 min-w-[48px] py-3 px-2 bg-slate-50 font-semibold text-slate-700 border-r-2 border-b-2 border-slate-200 shadow-[2px_2px_0_0_rgba(0,0,0,0.1)]">
                     SW
                   </th>
-                  <th className="sticky left-12 top-0 z-50 w-24 min-w-[96px] py-4 px-2 bg-neutral-900 font-black text-white uppercase border-r-2 border-b-2 border-neutral-800 shadow-[2px_2px_0_0_rgba(0,0,0,0.1)]">
+                  <th className="sticky left-12 top-0 z-50 w-24 min-w-[96px] py-3 px-2 bg-slate-50 font-semibold text-slate-700 border-r-2 border-b-2 border-slate-200 shadow-[2px_2px_0_0_rgba(0,0,0,0.1)]">
                     KW
                   </th>
                   {visibleSubjects.map(s => {
@@ -1241,18 +1241,18 @@ export default function YearlyPlan() {
                     return (
                       <th 
                         key={s.id} 
-                        className="sticky top-0 z-40 py-4 px-2 font-black text-center border-r border-b-2 border-neutral-800 last:border-r-0 bg-neutral-900 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] min-w-[150px] transition-all hover:bg-neutral-800 group/th cursor-pointer"
+                        className="sticky top-0 z-40 py-3 px-2 font-semibold text-center border-r border-b-2 border-slate-200 last:border-r-0 bg-slate-50 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] min-w-[150px] transition-all hover:bg-slate-100 group/th cursor-pointer"
                         onClick={() => setIsolatedSubjectId(isolatedSubjectId === s.id ? null : s.id)}
                         title={isolatedSubjectId ? "Fokus aufheben" : "Fach isolieren (Fokus-Modus)"}
                       >
-                        <div className={`px-4 py-2 rounded-xl ${s.color} inline-block whitespace-nowrap text-[0.6875rem] font-black uppercase tracking-widest shadow-sm group-hover/th:scale-110 group-hover/th:shadow-md transition-all duration-300 relative`}>
+                        <div className={`px-3 py-1.5 rounded-lg ${s.color} inline-block whitespace-nowrap text-[0.6875rem] font-semibold transition-colors relative`}>
                           {s.label}
                           {isolatedSubjectId && <span className="absolute -top-1 -right-1 bg-red-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-[0.625rem] scale-75 shadow-sm">✕</span>}
                         </div>
                         
                         {/* Fachbezogener Fortschritts- & Abdeckungsbalken */}
-                        <div className="mt-2.5 px-2 max-w-[130px] mx-auto">
-                          <div className="w-full bg-neutral-800 h-1.5 rounded-full overflow-hidden border border-neutral-700/50 flex">
+                        <div className="mt-2 px-2 max-w-[130px] mx-auto">
+                          <div className="w-full bg-slate-200 h-1 rounded-full overflow-hidden border border-slate-200 flex">
                             <div 
                               className={`h-full ${
                                 s.id.includes('deutsch_sprache') ? 'bg-rose-400' :
@@ -1269,9 +1269,9 @@ export default function YearlyPlan() {
                               style={{ width: `${progress}%` }}
                             />
                           </div>
-                          <div className="text-[0.55rem] font-black text-neutral-400 mt-1 uppercase tracking-wider flex items-center justify-between">
+                          <div className="text-[0.625rem] font-semibold text-slate-500 mt-1 flex items-center justify-between">
                             <span>Wochen geplant</span>
-                            <span className="text-neutral-200" title={`${plannedCount} von ${totalTeachingWeeks} Unterrichtswochen`}>{plannedCount}/{totalTeachingWeeks}</span>
+                            <span className="text-slate-700" title={`${plannedCount} von ${totalTeachingWeeks} Unterrichtswochen`}>{plannedCount}/{totalTeachingWeeks}</span>
                           </div>
                         </div>
                       </th>
@@ -1371,13 +1371,13 @@ export default function YearlyPlan() {
 
                         {isTodayKW && !isSelectedKW && (
                            <div className="absolute top-2 right-2 flex flex-col items-center">
-                             <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shadow-[0_0_6px_rgba(245,158,11,0.4)]" />
-                             <span className="text-[0.375rem] font-black uppercase text-amber-600 mt-1">HEUTE</span>
+                             <div className="w-2 h-2 rounded-full bg-amber-500" />
+                             <span className="text-[0.5625rem] font-semibold text-amber-700 mt-1">Diese Woche</span>
                            </div>
                         )}
                         {isSelectedKW && (
                           <div className="absolute top-2 right-2">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                            <div className="w-2 h-2 rounded-full bg-emerald-500" />
                           </div>
                         )}
                       </td>

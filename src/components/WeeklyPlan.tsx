@@ -1887,31 +1887,16 @@ export default function WeeklyPlan() {
       {/* 1. FIXED TOP HEADER CONTROL */}
       <div ref={headerRef} className="bg-[#f4f7f3] border-b border-slate-200 flex flex-col pt-1 shrink-0" data-zoom={app?.settings?.zoomLevel}>
         <div className="py-2 sm:py-3">
-          <div className="flex flex-col bg-white border border-slate-200 rounded-2xl p-2 sm:p-3 gap-2 w-full shadow-sm">
+          <div data-weekly-header className="flex flex-col bg-white border border-slate-200 rounded-2xl p-3 gap-3 w-full">
             
             {/* Row 1: Title, Date Info, Navigation & Primary Actions */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2 border-b border-slate-100 pb-2">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 pb-3">
               <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">WOCHENPLANUNG</h1>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-lg sm:text-xl font-semibold text-slate-900 tracking-tight">Wochenplanung</h1>
                   <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[0.625rem] font-extrabold rounded-full">
                     KW {activeKW}
                   </span>
-                  {(
-                    <button type="button" data-testid="weekly-team-status"
-                      onClick={() => setPage('teamteaching')}
-                      title={weeklyTeam?.syncMessage || 'Klassenteam öffnen, um Freigabe, Stand und ggf. einen Konflikt zu prüfen'}
-                      className={`min-h-9 max-w-full rounded-lg border px-2.5 py-1 text-left text-xs font-bold ${weeklyTeam?.syncStatus === 'synced'
-                        ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
-                        : weeklyTeam?.syncStatus === 'conflict' || weeklyTeam?.syncStatus === 'error'
-                          ? 'border-rose-300 bg-rose-50 text-rose-800'
-                          : 'border-amber-300 bg-amber-50 text-amber-900'}`}
-                    >
-                      👥 {weeklyTeam ? weeklyTeamLabel : weeklyRoom?.teamTeachingSharedClassId
-                        ? 'Teamklasse auf diesem Gerät verbinden – Planung möglicherweise veraltet'
-                        : hasOtherTeamClass ? 'Eigene Klasse – geteilte Klasse im Klassenteam öffnen' : 'Diese Klasse ist nicht für Teamteaching freigegeben'}
-                    </button>
-                  )}
                   {sw && (
                     <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[0.625rem] font-bold rounded-full">
                       SW {sw}
@@ -1925,7 +1910,7 @@ export default function WeeklyPlan() {
               </div>
 
               {/* Navigation & Actions */}
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex min-w-0 flex-1 items-center justify-start lg:justify-end gap-2 flex-wrap">
                 {/* Week Navigation */}
                 <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
                   <button 
@@ -1936,20 +1921,20 @@ export default function WeeklyPlan() {
                     }} 
                     aria-label="Vorherige Woche"
                     title="Vorherige Woche"
-                    className="p-1.5 hover:bg-white rounded-lg text-slate-600 transition-all active:scale-95 cursor-pointer"
+                    className="flex min-h-11 min-w-11 items-center justify-center hover:bg-white rounded-lg text-slate-600 transition-colors cursor-pointer"
                   >
                     <ChevronLeft size={16} />
                   </button>
                   <button 
                     onClick={() => setApp(p => ({ ...p, currentKW: actualKW }))}
-                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${activeKW === actualKW ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                    className={`min-h-11 px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${activeKW === actualKW ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
                     title="Zur aktuellen Woche springen"
                   >
                     Diese Woche
                   </button>
                   <button 
                     onClick={() => setShowWeekPicker(true)}
-                    className="px-2 py-1 text-xs font-bold text-slate-600 hover:bg-white rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+                    className="min-h-11 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-white rounded-lg transition-all flex items-center gap-1 cursor-pointer"
                     title="Woche wählen"
                   >
                     <span>KW {activeKW}</span>
@@ -1963,7 +1948,7 @@ export default function WeeklyPlan() {
                     }} 
                     aria-label="Nächste Woche"
                     title="Nächste Woche"
-                    className="p-1.5 hover:bg-white rounded-lg text-slate-600 transition-all active:scale-95 cursor-pointer"
+                    className="flex min-h-11 min-w-11 items-center justify-center hover:bg-white rounded-lg text-slate-600 transition-colors cursor-pointer"
                   >
                     <ChevronRight size={16} />
                   </button>
@@ -1972,16 +1957,16 @@ export default function WeeklyPlan() {
                 {/* Primary Action Button: Wochenplan für Kinder erstellen */}
                 <button
                   onClick={() => setShowSchuelerWochenplanModal(true)}
-                  className="min-h-12 px-4 py-2 bg-amber-300 hover:bg-amber-200 active:scale-95 !text-slate-950 font-black text-sm rounded-xl border-2 border-amber-500 shadow-lg transition-all flex items-center gap-2 cursor-pointer"
+                  className="min-h-11 px-3 py-2 bg-amber-50 hover:bg-amber-100 !text-amber-900 font-semibold text-sm rounded-xl border border-amber-300 transition-colors flex items-center gap-2 cursor-pointer"
                   title="Erstellt aus dem aktuellen Wochenplan einen kindgerechten Arbeits-/Aufgabenplan für die Kinder"
                 >
                   <CheckSquare size={16} strokeWidth={2.5} />
-                  <span>👧 Kinderplan · Aufgaben & Rückmeldung</span>
+                  <span>Kinderplan öffnen</span>
                 </button>
 
                 {/* Import changes the editable plan; exports belong to PrintCenter. */}
                 <button type="button" onClick={() => setShowExcelModal(true)}
-                  className="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 flex items-center gap-1.5"
+                  className="min-h-11 px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 flex items-center gap-1.5"
                   title="Wochenplanung aus Excel importieren">
                   <Upload size={15} /> <span>Excel importieren</span>
                 </button>
@@ -1990,7 +1975,7 @@ export default function WeeklyPlan() {
                 <button
                   aria-pressed={isFullscreen}
                   onClick={() => setIsFullscreen(!isFullscreen)}
-                  className={`px-3 py-2 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border shadow-xs ${
+                  className={`min-h-11 px-3 py-2 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border shadow-xs ${
                     isFullscreen
                       ? 'bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-800'
                       : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
@@ -2015,7 +2000,7 @@ export default function WeeklyPlan() {
                 <div className="relative z-[210]">
                   <button 
                     onClick={() => setShowWeekMenu(!showWeekMenu)}
-                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200"
+                    className="min-h-11 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200"
                   >
                     <MoreHorizontal size={16} />
                     <span>Mehr</span>
@@ -2079,31 +2064,26 @@ export default function WeeklyPlan() {
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1">
               {/* View Mode */}
               <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+                <div className="flex max-w-full flex-wrap bg-slate-100 p-0.5 rounded-xl border border-slate-200" data-planning-view aria-label="Ansicht wählen">
                   <button
                     type="button"
+                    aria-pressed={viewMode === 'grid'}
                     onClick={() => setViewMode('grid')}
-                    className={`px-2.5 py-1 rounded-lg font-bold text-xs flex items-center gap-1 transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                    className={`min-h-11 px-2.5 py-1 rounded-lg font-semibold text-xs flex items-center gap-1 transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
                   >
                     <Layout size={12} />
                     <span>Wochenplan</span>
                   </button>
                   <button type="button" onClick={() => setViewMode('day')}
                     aria-pressed={viewMode === 'day'}
-                    className={`px-2.5 py-1 rounded-lg font-bold text-xs flex items-center gap-1 transition-all ${viewMode === 'day' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
+                    className={`min-h-11 px-2.5 py-1 rounded-lg font-semibold text-xs flex items-center gap-1 transition-all ${viewMode === 'day' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
                     <Calendar size={12} /> <span>Tag</span>
-                  </button>
-                  <button type="button" onClick={() => {
-                    setSelectedYearPlanBulkKeys([]);
-                    setYearPlanBulkNotice(null);
-                    setShowYearPlanBulkModal(true);
-                  }} className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-800 hover:bg-indigo-100">
-                    Mehrere → Jahresplan
                   </button>
                   <button
                     type="button"
+                    aria-pressed={viewMode === 'klassenbuch'}
                     onClick={() => setViewMode('klassenbuch')}
-                    className={`px-2.5 py-1 rounded-lg font-bold text-xs flex items-center gap-1 transition-all cursor-pointer ${viewMode === 'klassenbuch' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                    className={`min-h-11 px-2.5 py-1 rounded-lg font-semibold text-xs flex items-center gap-1 transition-all cursor-pointer ${viewMode === 'klassenbuch' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
                   >
                     <BookOpen size={12} />
                     <span>Klassenbuch</span>
@@ -2111,8 +2091,34 @@ export default function WeeklyPlan() {
                 </div>
               </div>
 
+                  <button type="button" onClick={() => {
+                    setSelectedYearPlanBulkKeys([]);
+                    setYearPlanBulkNotice(null);
+                    setShowYearPlanBulkModal(true);
+                  }} className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                    Mehrere Stunden übernehmen
+                  </button>
+
               {/* Progress Counters */}
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                  {(
+                    <button type="button" data-testid="weekly-team-status"
+                      onClick={() => setPage('teamteaching')}
+                      title={weeklyTeam?.syncMessage || 'Klassenteam öffnen, um Freigabe, Stand und ggf. einen Konflikt zu prüfen'}
+                      aria-label={weeklyTeam ? weeklyTeamLabel : 'Klassenteam öffnen – diese Klasse ist nicht für Teamteaching freigegeben'}
+                      className={`min-h-11 max-w-full sm:max-w-md rounded-lg border px-2.5 py-1 text-left text-xs font-bold ${weeklyTeam?.syncStatus === 'synced'
+                        ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                        : weeklyTeam?.syncStatus === 'conflict' || weeklyTeam?.syncStatus === 'error'
+                          ? 'border-rose-300 bg-rose-50 text-rose-800'
+                          : weeklyTeam || weeklyRoom?.teamTeachingSharedClassId
+                            ? 'border-amber-300 bg-amber-50 text-amber-900'
+                            : 'border-slate-200 bg-slate-50 text-slate-600'}`}
+                    >
+                      👥 {weeklyTeam ? weeklyTeamLabel : weeklyRoom?.teamTeachingSharedClassId
+                        ? 'Teamklasse auf diesem Gerät verbinden – Planung möglicherweise veraltet'
+                        : hasOtherTeamClass ? 'Eigene Klasse · Klassenteam öffnen' : 'Klasse nicht geteilt'}
+                    </button>
+                  )}
                 <span className="px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200/80 rounded-xl font-bold text-[0.6875rem] flex items-center gap-1">
                   <Check size={12} />
                   <span>{weekMetrics.prepared}/{weekMetrics.total} vorbereitet</span>
@@ -2452,7 +2458,7 @@ export default function WeeklyPlan() {
         </div>
       ) : (
         <div className="w-full pb-6" data-zoom={app?.settings?.zoomLevel}>
-        <div className="bg-white rounded-[32px] border border-slate-200 shadow-2xl relative">
+        <div className="bg-white rounded-2xl border border-slate-200 relative">
            <div className="overflow-x-auto hide-scrollbar">
               
               {/* THE WRAPPER TO ENSURE SYNCED SCROLLING AND STICKY HEADER */}
@@ -2474,20 +2480,20 @@ export default function WeeklyPlan() {
                     const { status, isOverride, holidayName } = getDayStatus(date);
                     
                     return (
-                      <div key={tag} className={`p-4 flex flex-col items-center justify-center relative transition-all duration-300 ${isToday ? 'bg-emerald-50/50' : ''} border-r border-slate-200/50 last:border-r-0`}>
+                      <div key={tag} className={`px-3 py-2 flex flex-col items-center justify-center relative transition-colors ${isToday ? 'bg-emerald-50/50' : ''} border-r border-slate-200/50 last:border-r-0`}>
                         <button 
                           onClick={() => setDateStatusMenu(dateStatusMenu === dateStr ? null : dateStr)}
-                          className="flex flex-col items-center group/header"
+                          className="flex min-h-11 flex-col items-center justify-center group/header"
                         >
-                          <span className={`text-[0.625rem] font-black uppercase tracking-[0.25em] mb-1.5 ${isToday ? 'text-emerald-600' : 'text-slate-400'}`}>{tag}</span>
+                          <span className={`text-xs font-semibold mb-0.5 ${isToday ? 'text-emerald-600' : 'text-slate-400'}`}>{tag}</span>
                           <div className="flex items-baseline gap-2">
-                            <span className={`text-[1.875rem] leading-tight font-black tracking-tighter ${isToday ? 'text-emerald-700' : status === 'free' ? 'text-rose-500' : 'text-slate-900'}`}>{date.getDate()}.</span>
-                            <span className="text-[0.6875rem] font-bold uppercase opacity-30 text-slate-500">{date.toLocaleDateString('de-AT', { month: 'short' }).toUpperCase()}</span>
+                            <span className={`text-xl leading-tight font-semibold ${isToday ? 'text-emerald-700' : status === 'free' ? 'text-rose-500' : 'text-slate-900'}`}>{date.getDate()}.</span>
+                            <span className="text-xs font-medium text-slate-500">{date.toLocaleDateString('de-AT', { month: 'short' }).toUpperCase()}</span>
                           </div>
                         </button>
                         <DailyHomeworkButton day={tag} date={dateStr} />
 
-                        <div className="h-6 flex items-center justify-center">
+                        {(status === 'free' || isOverride) && <div className="mt-1 flex items-center justify-center">
                           {status === 'free' ? (
                             <div className="px-2 py-0.5 bg-rose-500 text-white rounded-full text-[0.4375rem] font-black uppercase tracking-tight shadow-sm shadow-rose-200 flex items-center gap-1">
                               {holidayName || 'Frei'}
@@ -2499,7 +2505,7 @@ export default function WeeklyPlan() {
                               <Check size={8} />
                             </div>
                           ) : null}
-                        </div>
+                        </div>}
 
                         {/* Absence Indicator */}
                         {(() => {
@@ -2528,14 +2534,14 @@ export default function WeeklyPlan() {
                           const progress = getDayProgress(tag);
                           if (progress.total > 0) {
                             return (
-                              <div className="w-full max-w-[80px] mt-2 flex flex-col items-center gap-1 select-none">
+                              <div className="w-full max-w-[160px] mt-2 flex flex-col items-center gap-1 select-none">
                                 <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
                                   <div 
                                     className="h-full bg-emerald-500 rounded-full transition-all duration-500 ease-out" 
                                     style={{ width: `${progress.percent}%` }}
                                   />
                                 </div>
-                                <span className="text-[0.5rem] font-black uppercase text-slate-400 tracking-wider">
+                                <span className="text-[0.625rem] font-medium text-slate-500">
                                   {progress.prepared}/{progress.total} vorbereitet · {progress.completed} erledigt
                                 </span>
                               </div>
@@ -2597,7 +2603,7 @@ export default function WeeklyPlan() {
                           )}
                         </AnimatePresence>
 
-                        {isToday && <div className="absolute bottom-0 inset-x-8 h-1 bg-emerald-500 rounded-t-full shadow-[0_-4px_10px_rgba(16,185,129,0.5)]" />}
+                        {isToday && <div className="absolute bottom-0 inset-x-8 h-1 bg-emerald-500 rounded-t-full" />}
                       </div>
                     );
                   })}
