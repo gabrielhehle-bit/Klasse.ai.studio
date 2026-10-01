@@ -1,5 +1,3 @@
-import { getAttendanceSemester } from './attendanceData';
-import { toLocalDateKey } from './localDate';
 import type { AppState } from '../types';
 export interface ParticipationSettings {
   subjectMode: 'current' | 'choose';
@@ -20,7 +18,9 @@ export function commitParticipationAward(state: AppState, request: { sid: string
     || !request.subject || (state.participationSettings?.subjectMode === 'choose' && !state.faecher?.includes(request.subject))) return state;
   const id = request.id || crypto.randomUUID();
   if (state.mitarbeitLogs?.some(log => log.id === id)) return state;
-  const semester = String(getAttendanceSemester(toLocalDateKey(new Date(timestamp)), state.schuljahr?.replace(/^(\d{4})\/\d{2}(\d{2})$/, '$1/$2'), state.bundesland)) as '1' | '2';
+  // The gradebook uses bucket 1 for the complete school year. Calendar semesters
+  // are selected independently from journal timestamps in the stars diagram.
+  const semester = '1' as const;
   const next = changeGradebook(state, request.sid, request.subject, 1, semester);
   return { ...next, mitarbeitLogs: [...(state.mitarbeitLogs || []), {
     id, sid: request.sid, fach: request.subject, points: 1, timestamp, kind: 'subject', gradebookApplied: true, gradebookSemester: semester,
