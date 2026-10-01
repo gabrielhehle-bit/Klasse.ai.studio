@@ -1578,7 +1578,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
   }
 
   return (
-    <div className="space-y-3 pb-20">
+    <div data-gradebook className="min-w-0 space-y-3 pb-20">
       {istSekundarstufe(app.schulart) && (
         <p role="note" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 print:hidden">
           Die Notenmappe dokumentiert deine Bewertungen. Die schulartspezifische amtliche Beurteilung – insbesondere die Leistungsniveaus der Mittelschule – wird hier noch nicht automatisch abgebildet. Prüfe Zeugnisnoten unabhängig davon.
@@ -1615,9 +1615,10 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
       `}} />
 
       {/* One subject selector and a compact overview; assessment data and calculation remain unchanged. */}
-      <header className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm print:hidden" aria-label="Notenmappe – Fach und Werkzeuge">
+      <header data-gradebook-header className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm print:hidden" aria-label="Notenmappe – Fach und Werkzeuge">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          {activeView === 'verhalten' ? <span className="text-sm font-bold text-slate-800">Verhalten · Klassenübersicht</span> : <div className="flex flex-wrap items-center gap-2">
+          {activeView === 'verhalten' ? <div><h1 className="text-lg font-semibold text-slate-900">Notenmappe</h1><p className="mt-0.5 text-xs text-slate-500">Verhalten · Klassenübersicht</p></div> : <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <div><h1 className="text-lg font-semibold text-slate-900">Notenmappe</h1><p className="mt-0.5 text-xs text-slate-500">{app.klassenbezeichnung || 'Deine Klasse'}</p></div>
             <label className="sr-only" htmlFor="gradebook-active-subject">Schulfach auswählen</label>
             <select id="gradebook-active-subject" value={activeFach}
               onChange={event => {
@@ -1628,13 +1629,13 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                   setActiveView('noten');
                 }
               }}
-              className="max-w-[15rem] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600">
+              className="min-h-11 max-w-full sm:max-w-[15rem] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600">
               {availableSubjects.length === 0 && <option value="">Bitte zuerst im Klassen-Setup Fächer anlegen</option>}
               {availableSubjects.map(fach => <option key={fach} value={fach}>{fach}</option>)}
             </select>
             <button type="button" aria-label="Neues Fach hinzufügen" title="Fach hinzufügen · Klassen-Setup öffnen"
               onClick={() => setApp(prev => ({ ...prev, setupInitialStepMode: 'Fächer', currentPage: 'setup' }))}
-              className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border-2 border-emerald-700 bg-emerald-600 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800">
+              className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800">
               <Plus size={18} aria-hidden="true" /> Fach hinzufügen
             </button>
             <span className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">Ganzes Schuljahr</span>
@@ -1643,7 +1644,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" onClick={() => { setShowGradeCalculator(!showGradeCalculator); setShowWeights(false); }}
                 aria-pressed={showGradeCalculator}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                className="hidden min-h-11 sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
                 <Calculator size={15} /> Notenrechner
               </button>
               <button type="button" onClick={() => {
@@ -1652,14 +1653,14 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                 setShowWeights(false);
                 setShowMoreMenu(false);
               }}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                className="min-h-11 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
                 <BarChart2 size={15} /> Notenübersicht
               </button>
               <button type="button" onClick={() => {
                 setShowDetailedAnalysis(true);
                 setShowFeedback(false); setShowOverview(false); setShowWeights(false);
                 setShowMoreMenu(false); setShowGradeCalculator(false);
-              }} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+              }} className="hidden min-h-11 sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
                 <BarChart2 size={15} /> Auswertungen
               </button>
               <button type="button" onClick={() => {
@@ -1668,12 +1669,12 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                 setShowGradeCalculator(false);
                 setShowWeights(false);
                 setShowMoreMenu(false);
-              }} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+              }} className="hidden min-h-11 sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
                 <MessageSquare size={15} /> Leistungsfeedback
               </button>
               <button type="button" onClick={() => { setShowWeights(!showWeights); setShowGradeCalculator(false); }}
                 aria-pressed={showWeights}
-                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold ${showWeights ? 'border-emerald-700 bg-emerald-700 text-white' : 'border-slate-200 text-slate-700 hover:bg-slate-50'}`}>
+                className={`hidden min-h-11 sm:inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold ${showWeights ? 'border-emerald-700 bg-emerald-700 text-white' : 'border-slate-200 text-slate-700 hover:bg-slate-50'}`}>
                 <Settings size={15} /> Gewichtung
               </button>
             </div>
@@ -1702,13 +1703,13 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
       ) : (
         <div className="contents">
           {/* Streamlined Top Control Bar */}
-          <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm no-print mb-3">
+          <div data-gradebook-actions className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 no-print mb-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <button type="button" aria-pressed={simpleDashboardMode}
                 onClick={() => setSimpleDashboardMode(prev => !prev)}
                 title="Nur die Darstellung vereinfachen – alle Noten und Berechnungen bleiben identisch"
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100">
-                {simpleDashboardMode ? '✨ Einfache Ansicht' : '⚙️ Erweiterte Ansicht'}
+                {simpleDashboardMode ? 'Einfache Ansicht' : 'Erweiterte Ansicht'}
                 <span className="text-[0.65rem] font-semibold text-slate-500">Wechseln</span>
               </button>
               
@@ -1716,16 +1717,16 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowAddAssessmentModal(true)}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-[0.8125rem] rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+                  className="min-h-11 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-[0.8125rem] rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
                 >
                   <Plus size={16} strokeWidth={3} />
-                  <span>Bewertung</span>
+                  <span>Bewertung hinzufügen</span>
                 </button>
 
                 <div className="relative">
                   <button
                     onClick={() => setShowMoreMenu(!showMoreMenu)}
-                    className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[0.8125rem] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200/60"
+                    className="min-h-11 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[0.8125rem] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200/60"
                   >
                     <span>Mehr</span>
                     <ChevronDown size={14} className={`transition-transform ${showMoreMenu ? 'rotate-180' : ''}`} />
@@ -1799,6 +1800,13 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                             <span>Export / Drucken</span>
                           </button>
 
+                          <button type="button" onClick={() => {
+                            setShowDetailedAnalysis(true); setShowFeedback(false); setShowOverview(false); setShowWeights(false);
+                            setShowMoreMenu(false); setShowGradeCalculator(false);
+                          }} className="min-h-11 w-full rounded-xl px-3 py-2.5 text-left text-slate-700 hover:bg-slate-50 sm:hidden">Auswertungen</button>
+                          <button type="button" onClick={() => {
+                            setShowFeedback(true); setShowOverview(false); setShowGradeCalculator(false); setShowWeights(false); setShowMoreMenu(false);
+                          }} className="min-h-11 w-full rounded-xl px-3 py-2.5 text-left text-slate-700 hover:bg-slate-50 sm:hidden">Leistungsfeedback</button>
                           <div className="my-1 border-t border-slate-100" />
 
                           <div className="px-3 py-1 text-[0.625rem] font-black uppercase text-slate-400 tracking-wider">
@@ -1826,7 +1834,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
             </div>
 
             {/* Main View Tabs */}
-            <div className="relative z-10 flex w-full overflow-x-auto rounded-xl border border-slate-200/50 bg-slate-100 p-1">
+            <div data-performance-view aria-label="Bewertungsbereich wählen" className="relative z-10 flex w-full overflow-x-auto rounded-xl border border-slate-200/50 bg-slate-100 p-1">
               {(isFachActive
                 ? [
                     { id: 'noten', label: 'Leistungen' },
@@ -1844,8 +1852,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                 return (
                   <button
                     key={tab.id}
+                    aria-pressed={isSel}
                     onClick={() => setActiveView(tab.id as any)}
-                    className={`relative px-4 py-2 rounded-lg text-[0.8125rem] font-bold tracking-tight transition-all flex items-center justify-center gap-2 flex-1 cursor-pointer select-none leading-none z-10 ${
+                    className={`relative min-h-11 shrink-0 whitespace-nowrap px-4 py-2 rounded-lg text-[0.8125rem] font-bold tracking-tight transition-all flex items-center justify-center gap-2 flex-1 cursor-pointer select-none leading-none z-10 ${
                       isSel ? 'text-slate-950 font-extrabold' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >

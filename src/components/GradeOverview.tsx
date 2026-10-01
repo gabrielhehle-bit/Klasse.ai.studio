@@ -66,14 +66,14 @@ export default function GradeOverview({ embedded = false, onBack }: { embedded?:
           </span>
         </nav>
       )}
-      <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-medium text-amber-900 print:hidden">
+      <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-600 print:hidden">
         Endnoten aller Fächer im Überblick. Manuelle Zeugnisnoten haben Vorrang vor berechneten Fachnoten;
         auch nicht unterrichtete Fächer können bei Bedarf manuell erfasst werden.
       </p>
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 no-print">
         <div className="space-y-1">
-          <h2 className="text-xl font-black leading-tight text-slate-900">Notenübersicht</h2>
+          <h2 className="text-xl font-semibold leading-tight text-slate-900">Notenübersicht</h2>
           <p className="text-sm font-medium text-slate-600">{students.length} Kinder · {app.klassenbezeichnung || "Aktuelle Klasse"} · Ganzes Schuljahr</p>
         </div>
         

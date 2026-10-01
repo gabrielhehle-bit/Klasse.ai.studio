@@ -2781,3 +2781,16 @@ html body [data-style] .klassio-widget-library .klassio-widget-primary.bg-succes
 [data-yearly-header] button {
   min-height: 44px;
 }
+
+[data-style] main [data-performance-view] button[aria-pressed="true"] {
+  box-shadow: none !important;
+  color: var(--accent) !important;
+}
+[data-performance-view] button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+[data-gradebook-header] button,
+[data-gradebook-actions] button {
+  min-height: 44px;
+}
