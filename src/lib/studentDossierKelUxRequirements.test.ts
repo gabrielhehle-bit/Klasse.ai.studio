@@ -15,11 +15,12 @@ test('Schülerdossier hat nur noch eine kompakte Schülernavigation und eine Hau
   assert.doesNotMatch(dossier, /grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5/);
 });
 
-test('Dossierübersicht zeigt vier kompakte Arbeitskarten ohne überladene Fachliste', () => {
-  assert.match(overview, /grid grid-cols-2 gap-2 lg:grid-cols-4/);
-  assert.match(overview, /quickCards\.map\(card =>/);
-  assert.match(overview, /assessedSubjects\.slice\(0, 4\)/);
-  assert.doesNotMatch(overview, /xl:grid-cols-6/);
+test('Dossierübersicht zeigt alle Fächer und die drei Alltagsdiagramme', () => {
+  assert.match(overview, /subjects.map/);
+  assert.match(overview, /lg:grid-cols-3/);
+  assert.match(overview, /Alle Fächer auf einen Blick/);
+  assert.match(overview, /Verhalten, Befinden & Anwesenheit/);
+  assert.doesNotMatch(overview, /assessedSubjects.slice/);
 });
 
 test('KEL shows one clear preparation/presentation switch with an explicit choice of visible content', () => {

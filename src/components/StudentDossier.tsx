@@ -121,70 +121,37 @@ export interface MainAreaDef {
 }
 
 export const MAIN_AREAS: MainAreaDef[] = [
-  {
-    id: 'uebersicht',
-    label: 'Übersicht',
-    subtitle: 'Auf einen Blick & Profil',
-    icon: Sparkles,
-    defaultTab: 'uebersicht',
-    tabs: [
-      { id: 'uebersicht', label: 'Übersicht', shortLabel: 'Übersicht', icon: Sparkles, description: 'Zentrale Gesamtschau des Kindes' }
-    ]
-  },
-  {
-    id: 'lernen_leistungen',
-    label: 'Lernen & Leistungen',
-    subtitle: 'Leistungsübersicht, Lernziele & Sprachstand',
-    icon: BarChart3,
-    defaultTab: 'leistungen',
-    tabs: [
-      { id: 'leistungen', label: 'Leistungsübersicht', shortLabel: 'Leistungen', icon: BarChart3, description: 'Kompakte fachliche Gesamtschau und Leistungsdaten' },
+  { id: 'uebersicht', label: 'Überblick', subtitle: 'Noten und Alltag', icon: Sparkles, defaultTab: 'uebersicht', tabs: [
+    { id: 'uebersicht', label: 'Überblick', icon: Sparkles }
+  ] },
+  { id: 'lernen_leistungen', label: 'Leistungen', subtitle: 'Alle Fachbewertungen', icon: BarChart3, defaultTab: 'leistungen', tabs: [
+    { id: 'leistungen', label: 'Leistungen', icon: BarChart3 }
+  ] },
+  { id: 'entwicklung_diagnostik', label: 'Beobachtungen', subtitle: 'Verhalten, Befinden und Anwesenheit', icon: Clock, defaultTab: 'beobachtungen_verlauf', tabs: [
+    { id: 'beobachtungen_verlauf', label: 'Beobachtungen & Verlauf', icon: Clock }
+  ] },
+  { id: 'berichte_materialien', label: 'Mehr', subtitle: 'Vertiefung und Organisation', icon: FileText, defaultTab: 'entwicklungsuebersicht', tabs: [
+
       { id: 'leistungsfeedback', label: 'Leistungsfeedback erstellen', shortLabel: 'Feedback', icon: FileText, description: 'Ausgewählte Daten und Beobachtungen zu einer Rückmeldung formulieren' },
       { id: 'lernziele', label: 'Lernziele & Kompetenzen', shortLabel: 'Lernziele', icon: Target, description: 'Lehrplan-Kompetenzen und erreichte Teilziele' },
       { id: 'portfolio', label: 'Portfolio', shortLabel: 'Portfolio', icon: BookOpen, description: 'Arbeiten, Fotos und echte individuelle Lernnachweise' },
       { id: 'lernziel_erlaeuterung', label: 'Erläuterung', shortLabel: 'Erläuterung', icon: FileText, description: 'Schulinterne Lernziel-Rückmeldung mit eigenem Text, keine automatische Notenentscheidung' },
       { id: 'mika_d', label: 'Sprachstand', shortLabel: 'Sprachstand', icon: GraduationCap, description: 'MIKA-D Sprachstandsfeststellung' },
       { id: 'antolin', label: 'Lesen & Antolin', shortLabel: 'Antolin', icon: BookOpen, description: 'Dokumentierte Antolin-Berichte und Leseentwicklung des Kindes' },
-    ]
-  },
-  {
-    id: 'entwicklung_diagnostik',
-    label: 'Entwicklung & Diagnostik',
-    subtitle: 'Entwicklungsübersicht, Diagnostik, Förderung & Verlauf',
-    icon: Activity,
-    defaultTab: 'entwicklungsuebersicht',
-    tabs: [
+
       { id: 'entwicklungsuebersicht', label: 'Entwicklungsübersicht', shortLabel: 'Übersicht', icon: Compass, description: 'Pädagogischer Gesamtblick, Stärken und Beobachtungsschwerpunkte' },
       { id: 'diagnostik', label: 'Diagnostik', shortLabel: 'Diagnostik', icon: Stethoscope, description: 'Kompetenzchecks & Erfassung von Lernvoraussetzungen' },
       { id: 'foerderung', label: 'Förderung', shortLabel: 'Förderung', icon: Heart, description: 'Aktive Förderziele, pädagogische Maßnahmen und Stärken' },
-      { id: 'beobachtungen_verlauf', label: 'Beobachtungen & Verlauf', shortLabel: 'Beobachtungen & Verlauf', icon: Clock, description: 'Pädagogische Notizen, Verhaltensverlauf, Anwesenheit und KEL' },
       { id: 'entwicklungslisten', label: 'Entwicklungslisten', shortLabel: 'Entwicklungslisten', icon: ListChecks, description: 'Fortlaufende individuelle Verläufe wie Antolin, Lautlesen und Förderung' },
-    ]
-  },
-  {
-    id: 'stammdaten_organisation',
-    label: 'Stammdaten & Organisation',
-    subtitle: 'Stammdaten, Kontakte & Finanzen',
-    icon: User,
-    defaultTab: 'stammdaten',
-    tabs: [
+
       { id: 'stammdaten', label: 'Stammdaten', shortLabel: 'Stammdaten', icon: User, description: 'Personenstandsdaten und schulische Zuordnung' },
       { id: 'kontakte_einwilligungen', label: 'Kontakte & Einwilligungen', shortLabel: 'Kontakte & Einwilligungen', icon: Phone, description: 'Erziehungsberechtigte und Fotoerlaubnis' },
       { id: 'finanzen', label: 'Finanzen & Organisation', shortLabel: 'Finanzen & Organisation', icon: Banknote, description: 'Klassenkasse, Beiträge und Zahlungsstatus' },
-    ]
-  },
-  {
-    id: 'berichte_materialien',
-    label: 'Berichte & Materialien',
-    subtitle: 'Berichte, Beurteilungen & Materialien',
-    icon: FileText,
-    defaultTab: 'berichte',
-    tabs: [
+
       { id: 'berichte', label: 'Berichte', shortLabel: 'Berichte', icon: FileText, description: 'KI-Zusammenfassung, Eltern-Report, Jahresbericht & Exporte' },
       { id: 'beurteilung_gespraeche', label: 'Gespräche & Beurteilungen', shortLabel: 'Gespräche & Beurteilungen', icon: Award, description: 'Erläuterungsmatrix & Gesprächsvorbereitung' },
       { id: 'materialien', label: 'Materialien', shortLabel: 'Materialien', icon: BookOpen, description: 'Individuelles Fördermaterial & Arbeitsblätter' },
-    ]
-  }
+  ] }
 ];
 
 export const getActiveMainArea = (tab: DossierTab): MainAreaId => {
@@ -193,7 +160,8 @@ export const getActiveMainArea = (tab: DossierTab): MainAreaId => {
       return area.id;
     }
   }
-  if (tab === 'foerderprofil' || tab === 'stats' || tab === 'kel_reflexion' || tab === 'notizen') return 'entwicklung_diagnostik';
+  if (tab === 'stats' || tab === 'kel_reflexion' || tab === 'notizen') return 'entwicklung_diagnostik';
+  if (tab === 'foerderprofil') return 'berichte_materialien';
   if (tab === 'prep' || tab === 'ki_summary' || tab === 'eltern_report' || tab === 'erlaeuterung' || tab === 'arbeitsblatt') return 'berichte_materialien';
   return 'uebersicht';
 };
@@ -204,6 +172,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
   
   // Always start with 'uebersicht'
   const [activeTab, setActiveTab] = useState<DossierTab>(initialReportView ? 'berichte' : 'uebersicht');
+  const [overviewSubject, setOverviewSubject] = useState<string | undefined>();
   const [pendingQuickEntry, setPendingQuickEntry] = useState<'note' | 'strength' | 'parent' | 'goal' | null>(null);
 
   const openOverviewQuickEntry = (type: 'note' | 'strength' | 'parent' | 'goal') => {
@@ -216,6 +185,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
   useEffect(() => {
     setActiveTab(initialReportView ? 'berichte' : 'uebersicht');
     setPendingQuickEntry(null);
+    setOverviewSubject(undefined);
   }, [schuelerId, initialReportView]);
 
   const activeMainArea = getActiveMainArea(activeTab);
@@ -322,7 +292,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
       {/* COMPACT STUDENT NAVIGATION */}
       {!app.dossierFocusMode && (
         <div data-student-dossier-nav className="print:hidden flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3 sm:max-w-[35%]">
             {onBack && (
               <button
                 type="button"
@@ -334,7 +304,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
               </button>
             )}
             <div className="min-w-0">
-              <p className="text-[0.58rem] font-black uppercase tracking-[0.18em] text-slate-400">Schülerdossier</p>
+              <p className="text-[0.58rem] font-black uppercase tracking-[0.18em] text-slate-400">Schülerdossier · {app.klassenbezeichnung} · {app.schuljahr}</p>
               <p className="truncate text-sm font-black text-slate-900">
                 {student.vorname} {student.nachname}
               </p>
@@ -387,6 +357,14 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
               <ChevronRight size={14} />
             </button>
           </div>
+          <details className="relative shrink-0 print:hidden">
+            <summary className="cursor-pointer rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">Aktionen</summary>
+            <div className="absolute right-0 top-full z-40 mt-2 w-52 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+              <button type="button" onClick={() => exportSchuelerPDF(student.id, app)} className="block w-full rounded-lg p-2 text-left text-xs hover:bg-slate-50">Dossier (PDF)</button>
+              <button type="button" onClick={() => setPresentationModeActive(true)} className="block w-full rounded-lg p-2 text-left text-xs hover:bg-slate-50">KEL für Eltern</button>
+              <button type="button" onClick={() => { setApp(prev => ({ ...prev, activePrintTemplate: 'schuelerprofil', activePrintStudentId: student.id })); setPage?.('drucken'); }} className="block w-full rounded-lg p-2 text-left text-xs hover:bg-slate-50">Dossier drucken</button>
+            </div>
+          </details>
         </div>
       )}
 
@@ -402,7 +380,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
           <div data-student-dossier-areas className="mb-4 border-b border-slate-100 pb-3 print:hidden">
               <div className="mb-2 flex items-center justify-between gap-3">
                 <p className="text-[0.6rem] font-black uppercase tracking-[0.18em] text-slate-400">Dossierbereiche</p>
-                <span className="text-[0.62rem] font-bold text-slate-400">5 Bereiche</span>
+                <span className="text-[0.62rem] font-bold text-slate-400">4 Bereiche</span>
               </div>
               <div
                 className="flex gap-2 overflow-x-auto pb-1 scrollbar-none"
@@ -554,8 +532,8 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
           )}
 
           {/* Profile Hero Header Card */}
-          {!app.dossierFocusMode && (
-            <div className={`${activeTab === 'uebersicht' ? 'mb-4 px-3 py-3 sm:px-4' : 'mb-5 px-4 py-4 sm:px-5'} bg-slate-50/70 border ${isBirthdayToday ? 'border-pink-200' : 'border-slate-200'} rounded-2xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 transition-all relative`}>
+          {!app.dossierFocusMode && activeTab !== 'uebersicht' && (
+            <div className={`mb-5 px-4 py-4 sm:px-5 bg-slate-50/70 border ${isBirthdayToday ? 'border-pink-200' : 'border-slate-200'} rounded-2xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 transition-all relative`}>
               
               {isBirthdayToday && (
                 <div className="absolute top-0 right-0 w-28 h-28 bg-pink-500/5 rounded-full blur-2xl pointer-events-none select-none" />
@@ -565,13 +543,13 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
                 {student.foto ? (
                   <img src={student.foto} alt="" className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl object-cover ring-2 ${isBirthdayToday ? 'ring-pink-300' : 'ring-slate-200'} shadow-sm object-top`} referrerPolicy="no-referrer" />
                 ) : (
-                  <div className={`${activeTab === 'uebersicht' ? 'w-10 h-10 sm:w-12 sm:h-12 text-base' : 'w-14 h-14 sm:w-16 sm:h-16'} rounded-2xl bg-slate-100 border border-slate-200/80 text-slate-700 flex items-center justify-center text-xl font-black shadow-inner`}>
+                  <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-100 border border-slate-200/80 text-slate-700 flex items-center justify-center text-xl font-black shadow-inner`}>
                     {student.vorname.charAt(0)}{student.nachname.charAt(0)}
                   </div>
                 )}
                 <div className="space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2.5">
-                    <h1 className={`${activeTab === 'uebersicht' ? 'text-base sm:text-lg' : 'text-lg sm:text-xl'} font-black text-slate-900 tracking-tight leading-tight flex items-center gap-2`}>
+                    <h1 className={`text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-tight flex items-center gap-2`}>
                       <span>{student.vorname} {student.nachname}</span>
                       {isBirthdayToday && (
                         <span className="inline-block text-lg" title="Geburtstagskind!">🎉</span>
@@ -795,6 +773,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
                   <DossierUebersicht
                     student={student}
                     onTabChange={setActiveTab}
+                    onSubjectSelect={fach => { setOverviewSubject(fach); setActiveTab('leistungen'); }}
                     semester={sem as '1' | '2'}
                     onQuickEntry={openOverviewQuickEntry}
                   />
@@ -847,6 +826,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
                 )}
                 {activeTab === 'leistungen' && (
                   <DossierLeistungen
+                    initialSubject={overviewSubject}
                     student={student}
                     semester={sem}
                     onSemesterChange={changeSemester}
