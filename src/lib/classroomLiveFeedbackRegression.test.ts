@@ -6,7 +6,7 @@ const list = readFileSync('src/components/StudentList.tsx', 'utf8');
 const map = readFileSync('src/components/StudentMap.tsx', 'utf8');
 const weekly = readFileSync('src/components/WeeklyPlan.tsx', 'utf8');
 const teaching = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
-const dossier = readFileSync('src/components/dossier/DossierBeobachtungenVerlauf.tsx', 'utf8');
+const dossier = readFileSync('src/lib/dossierObservationStats.ts', 'utf8');
 
 test('Klassenliste druckt ausschließlich über das Druckzentrum', () => {
   assert.doesNotMatch(list, /<span>Liste drucken<\/span>/);
@@ -33,5 +33,5 @@ test('Verhaltens-Tagesabschluss: pro Kind idempotent, im Dossier je Tag nur ein 
   assert.match(teaching, /dailyBehaviorEntries\(prev\.statusLog \|\| \[\], student\.id, todayStr\)\.length\) return/);
   assert.match(teaching, /if \(newEntries\.length === 0\) return prev/);
   assert.match(teaching, /if \(behaviorSavedToday\) return/);
-  assert.match(dossier, /collapseDailyBehaviorHistory\(app\.statusLog \|\| \[\], student\.id\)/);
+  assert.match(dossier, /collapseDailyBehaviorHistory\(app\.statusLog\|\|\[\],studentId\)/);
 });
