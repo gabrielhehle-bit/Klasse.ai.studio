@@ -321,13 +321,13 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
     } animate-in fade-in slide-in-from-bottom-4 duration-500`}>
       {/* COMPACT STUDENT NAVIGATION */}
       {!app.dossierFocusMode && (
-        <div className="print:hidden flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div data-student-dossier-nav className="print:hidden flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">
             {onBack && (
               <button
                 type="button"
                 onClick={onBack}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
                 title="Zur Schülerauswahl"
               >
                 <ArrowLeft size={15} />
@@ -349,7 +349,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
               aria-label={previousStudent
                 ? `Vorheriges Kind: ${previousStudent.vorname} ${previousStudent.nachname}`
                 : 'Kein vorheriges Kind'}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
             >
               <ArrowLeft size={14} />
             </button>
@@ -359,7 +359,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
                 id="student-switcher"
                 value={student.id}
                 onChange={(e) => onStudentChange && onStudentChange(e.target.value)}
-                className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-9 text-xs font-black text-slate-800 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                className="min-h-11 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-9 text-xs font-black text-slate-800 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                 disabled={!onStudentChange}
               >
                 {app.schueler.map((s) => (
@@ -382,7 +382,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
               aria-label={nextStudent
                 ? `Nächstes Kind: ${nextStudent.vorname} ${nextStudent.nachname}`
                 : 'Kein nächstes Kind'}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
             >
               <ChevronRight size={14} />
             </button>
@@ -399,7 +399,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
         <div>
           {/* Dossierbereiche: one compact navigation level */}
           {!app.dossierFocusMode && (
-            <div className="mb-5 border-b border-slate-100 pb-4 print:hidden">
+          <div data-student-dossier-areas className="mb-4 border-b border-slate-100 pb-3 print:hidden">
               <div className="mb-2 flex items-center justify-between gap-3">
                 <p className="text-[0.6rem] font-black uppercase tracking-[0.18em] text-slate-400">Dossierbereiche</p>
                 <span className="text-[0.62rem] font-bold text-slate-400">5 Bereiche</span>
@@ -430,7 +430,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
                       role="tab"
                       aria-selected={isActive}
                       onClick={() => handleSelectArea(area.id)}
-                      className={`flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-xs font-black transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                      className={`flex min-h-11 shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-xs font-black transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                         isActive
                           ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
                           : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -714,7 +714,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
 
           {/* Unterbereiche des gewählten Dossierbereichs */}
           {!app.dossierFocusMode && getFilteredSubTabs(activeMainArea).length > 1 && (
-            <div className="mb-5 flex items-center gap-1.5 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1.5 scrollbar-none lg:flex-wrap print:hidden" role="tablist" aria-label="Dossier-Unterbereiche">
+            <div className="mb-4 flex items-center gap-1.5 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1.5 scrollbar-none lg:flex-wrap print:hidden" role="tablist" aria-label="Dossier-Unterbereiche">
               {getFilteredSubTabs(activeMainArea).map((subTab) => {
                 const isSubActive = activeTab === subTab.id ||
                   (subTab.id === 'foerderung' && activeTab === 'foerderprofil') ||
@@ -730,7 +730,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
                     role="tab"
                     aria-selected={isSubActive}
                     onClick={() => setActiveTab(subTab.id)}
-                    className={`flex items-center gap-1.5 py-2 px-3 rounded-lg text-[0.72rem] leading-tight font-black transition-all cursor-pointer border ${
+                    className={`flex min-h-11 items-center gap-1.5 py-2 px-3 rounded-lg text-[0.72rem] leading-tight font-black transition-all cursor-pointer border ${
 
                       isSubActive
                         ? 'bg-white text-slate-900 shadow-2xs border-slate-200/90'
