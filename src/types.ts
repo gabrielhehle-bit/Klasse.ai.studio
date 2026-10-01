@@ -1123,7 +1123,7 @@ export interface ClassRoom {
   observations?: AppState['observations'];
   metaKognitionsProtokolle?: AppState['metaKognitionsProtokolle'];
   interaktionsLog?: AppState['interaktionsLog'];
-  mitarbeitLogs?: {id: string; sid: string; points: number; timestamp: string; fach?: string; kind?: 'subject' | 'social'; gradebookApplied?: boolean; reverses?: string}[];
+  mitarbeitLogs?: {id: string; sid: string; points: number; timestamp: string; fach?: string; kind?: 'subject' | 'social'; gradebookApplied?: boolean; reverses?: string; resets?: string[]}[];
   mitarbeit: Record<string, Record<string, Record<string, number>>>;
   /** Class-local participation grading thresholds/mode used by the gradebook. */
   mitarbeit_settings?: AppState['mitarbeit_settings'];
@@ -1562,7 +1562,7 @@ export interface AppState {
   schuelerGoals?: SchuelerGoal[];
   observations?: Observation[];
   notizen: Note[];
-  mitarbeitLogs?: {id: string; sid: string; points: number; timestamp: string; fach?: string; kind?: 'subject' | 'social'; gradebookApplied?: boolean; reverses?: string}[];
+  mitarbeitLogs?: {id: string; sid: string; points: number; timestamp: string; fach?: string; kind?: 'subject' | 'social'; gradebookApplied?: boolean; reverses?: string; resets?: string[]}[];
   journal: NoteEntry[];
   notes?: AppNote[];
   dashboardTodos?: {id: string, text: string, done: boolean}[];

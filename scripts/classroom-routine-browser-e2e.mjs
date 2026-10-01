@@ -491,17 +491,17 @@ async function main() {
     await waitFor(client, 'automatic subject awards immediately', pointsExpression + ' === ' + (initialPoints + 2));
     if (await evaluate(client, `Boolean(document.querySelector('[role=dialog][aria-label="Fach für Mitarbeit auswählen"]'))`)) throw new Error('Automatic mode must not ask for a subject.');
     await clickButton(client, '🤝 Sozial +1');
-    await waitFor(client, 'social star counter', `document.querySelector('.klassio-student-sidebar [role=listitem] [aria-label$="Pluspunkte"]').textContent.includes('/10')`);
+    await waitFor(client, 'social star counter', `document.querySelector('.klassio-student-sidebar [role=listitem] [aria-label$="Pluspunkte"]').textContent.includes('⭐') && !document.querySelector('.klassio-student-sidebar [role=listitem] [aria-label$="Pluspunkte"]').textContent.includes('/10')`);
     for (let stars = 1; stars <= 10; stars++) {
       await evaluate(client, `document.querySelector('.klassio-student-sidebar button[aria-label^="Sozialpunkt für"]').click()`);
       await waitFor(client, 'social star ' + stars, pointsExpression + ' === ' + stars);
       const hasBadge = await evaluate(client, `Boolean(document.querySelector('.klassio-student-sidebar [role=listitem] [aria-label="Badge für 10 soziale Sterne"]'))`);
-      if (hasBadge !== (stars >= 10)) throw new Error('Social badge must appear at exactly ten stars.');
+      if (hasBadge) throw new Error('Social stars must never award automatic badges.');
     }
     await evaluate(client, `document.querySelector('.klassio-student-sidebar button[aria-label^="Letzten Pluspunkt"]').click()`);
-    await waitFor(client, 'social correction removes tenth star and badge', pointsExpression + ` === 9 && !document.querySelector('.klassio-student-sidebar [role=listitem] [aria-label="Badge für 10 soziale Sterne"]')`);
+    await waitFor(client, 'social correction removes tenth star', pointsExpression + ` === 9 && !document.querySelector('.klassio-student-sidebar [role=listitem] [aria-label="Badge für 10 soziale Sterne"]')`);
     await evaluate(client, `document.querySelector('.klassio-student-sidebar button[aria-label^="Sozialpunkt für"]').click()`);
-    await waitFor(client, 'social badge re-earned once', pointsExpression + ` === 10 && document.querySelectorAll('.klassio-student-sidebar [role=listitem] [aria-label="Badge für 10 soziale Sterne"]').length === 1`);
+    await waitFor(client, 'social tenth star without an automatic badge', pointsExpression + ` === 10 && document.querySelectorAll('.klassio-student-sidebar [role=listitem] [aria-label="Badge für 10 soziale Sterne"]').length === 0`);
     await clickButton(client, 'Fach +1');
     await waitFor(client, 'subject and social counters remain separate', pointsExpression + ' === ' + (initialPoints + 2));
     await evaluate(client, `document.querySelector('.klassio-student-sidebar button[aria-label^="Badges für"]').click()`);
@@ -517,6 +517,37 @@ async function main() {
     await openGradebook();
     const expectedBookPoints = initialBookPoints + 1 + (automaticSubject === 'Deutsch' ? 1 : 0);
     await waitFor(client, 'subject awards appear in gradebook and social stars do not change it', bookPointsExpression + ' === ' + expectedBookPoints);
+    await clickSidebar(client, 'Lehrercockpit');
+    await waitFor(client, 'cockpit reopened for multiple-point correction', `Boolean(document.querySelector('.klassio-student-sidebar button[aria-label^="Pluspunkt für"]'))`);
+    const resetStars = async kind => {
+      await evaluate(client, `document.querySelector('button[aria-label="Mitarbeit-Einstellungen der Schüler-Seitenleiste öffnen"]').click()`);
+      await waitFor(client, 'reset controls available in participation settings', `Boolean(document.querySelector('select[aria-label="Kind für Sterne zurücksetzen"]'))`);
+      await evaluate(client, `(() => {
+        const kindSelect = document.querySelector('select[aria-label="Art der Sterne zurücksetzen"]');
+        kindSelect.value = ${q(kind)}; kindSelect.dispatchEvent(new Event('change', {bubbles:true}));
+        const child = document.querySelector('select[aria-label="Kind für Sterne zurücksetzen"]');
+        child.value = Array.from(child.options).find(option => option.textContent === ${q(studentName)}).value;
+        child.dispatchEvent(new Event('change', {bubbles:true}));
+      })()`);
+      await evaluate(client, `Array.from(document.querySelectorAll('section[aria-label="Sterne zurücksetzen"] button')).find(button => button.textContent.includes('Sterne zurücksetzen')).click()`);
+      await waitFor(client, 'reset confirmation names its scope', `Boolean(document.querySelector('[aria-label="Zurücksetzen bestätigen"]'))`);
+      await clickButton(client, 'Abbrechen', true);
+      await evaluate(client, `Array.from(document.querySelectorAll('section[aria-label="Sterne zurücksetzen"] button')).find(button => button.textContent.includes('Sterne zurücksetzen')).click()`);
+      await clickButton(client, 'Jetzt zurücksetzen', true);
+      await clickButton(client, 'Fertig', true);
+    };
+    await resetStars('subject');
+    await waitFor(client, 'multiple subject errors reset the counter', pointsExpression + ' === 0');
+    await clickButton(client, '🤝 Sozial +1');
+    await waitFor(client, 'subject reset preserves social stars', pointsExpression + ' === 10');
+    await resetStars('social');
+    await waitFor(client, 'social counter resets independently', pointsExpression + ' === 0');
+    await evaluate(client, `document.querySelector('.klassio-student-sidebar button[aria-label^="Badges für"]').click()`);
+    await waitFor(client, 'manual badges survive resetting stars', `document.querySelector('.klassio-student-sidebar button[aria-label^="Fußball-Badge an"]')?.disabled === true`);
+    await clickButton(client, 'Fertig', true);
+    await openGradebook();
+    await waitFor(client, 'reset also corrects subject participation in the gradebook', bookPointsExpression + ' === ' + initialBookPoints);
+
   } catch (error) {
     await saveScreenshot(client).catch(() => {});
     throw error;

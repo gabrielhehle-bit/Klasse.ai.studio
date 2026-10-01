@@ -7,16 +7,6 @@ export const SOCIAL_BADGE_ID = 'social-stars-10';
 export function getSocialStars(state: Pick<AppState, 'mitarbeitLogs'>, sid: string): number {
   return Math.max(0, (state.mitarbeitLogs || []).reduce((total, log) => total + (log.sid === sid && log.kind === 'social' && Number.isFinite(log.points) ? log.points : 0), 0));
 }
-function reconcileSocialBadge(state: AppState, sid: string, timestamp: string): AppState {
-  const earned = getSocialStars(state, sid) >= 10;
-  return { ...state, schueler: state.schueler.map(student => {
-    if (student.id !== sid) return student;
-    const badges = student.badges || [];
-    if (earned && !badges.some(badge => badge.id === SOCIAL_BADGE_ID)) return { ...student, badges: [...badges, { id: SOCIAL_BADGE_ID, name: 'Teamgeist · 10 soziale Sterne', icon: '🏅', date: timestamp }] };
-    if (!earned && badges.some(badge => badge.id === SOCIAL_BADGE_ID)) return { ...student, badges: badges.filter(badge => badge.id !== SOCIAL_BADGE_ID) };
-    return student;
-  }) };
-}
 function changeGradebook(state: AppState, sid: string, subject: string, delta: number): AppState {
   const pupil = state.mitarbeit?.[sid] || {};
   const fach = pupil[subject] || {};
@@ -37,13 +27,58 @@ export function commitSocialAward(state: AppState, request: { sid: string; class
   if (state.activeClassId !== request.classId || !state.schueler.some(student => student.id === request.sid)) return state;
   const id = request.id || crypto.randomUUID();
   if (state.mitarbeitLogs?.some(log => log.id === id)) return state;
-  return reconcileSocialBadge({ ...state, mitarbeitLogs: [...(state.mitarbeitLogs || []), { id, sid: request.sid, points: 1, timestamp, kind: 'social' }] }, request.sid, timestamp);
+  return { ...state, mitarbeitLogs: [...(state.mitarbeitLogs || []), { id, sid: request.sid, points: 1, timestamp, kind: 'social' }] };
 }
 export function undoParticipationAward(state: AppState, request: { id: string; sid: string; classId: string }, timestamp = new Date().toISOString()): AppState {
   if (state.activeClassId !== request.classId) return state;
   const log = state.mitarbeitLogs?.find(item => item.id === request.id && item.sid === request.sid && item.points === 1);
-  if (!log || state.mitarbeitLogs?.some(item => item.reverses === log.id)) return state;
+  if (!log || state.mitarbeitLogs?.some(item => item.reverses === log.id || item.resets?.includes(log.id))) return state;
   const corrected = { ...state, mitarbeitLogs: [...(state.mitarbeitLogs || []), { ...log, id: crypto.randomUUID(), points: -1, timestamp, reverses: log.id }] };
-  if (log.kind === 'social') return reconcileSocialBadge(corrected, log.sid, timestamp);
+  if (log.kind === 'social') return corrected;
   return log.gradebookApplied && log.fach ? changeGradebook(corrected, log.sid, log.fach, -1) : corrected;
+}
+
+export interface ParticipationResetRequest {
+  classId: string;
+  sid?: string;
+  kind: 'subject' | 'social';
+  scope: 'today' | 'all';
+}
+const localDay = (timestamp: string) => new Date(timestamp).toDateString();
+function resetLogs(state: AppState, request: ParticipationResetRequest, timestamp: string) {
+  const pupils = new Set(state.schueler.map(student => student.id));
+  return (state.mitarbeitLogs || []).filter(log => pupils.has(log.sid)
+    && (!request.sid || request.sid === log.sid)
+    && (log.kind === 'social' ? 'social' : 'subject') === request.kind
+    && (request.scope === 'all' || localDay(log.timestamp) === localDay(timestamp)));
+}
+export function getParticipationResetCount(state: AppState, request: ParticipationResetRequest, timestamp = new Date().toISOString()): number {
+  if (state.activeClassId !== request.classId) return 0;
+  const totals = new Map<string, number>();
+  for (const log of resetLogs(state, request, timestamp)) if (Number.isFinite(log.points)) totals.set(log.sid, (totals.get(log.sid) || 0) + log.points);
+  return [...totals.values()].reduce((sum, points) => sum + Math.max(0, points), 0);
+}
+/** Append corrections; preserve history, other pupils/days, manual badges and unrelated grades. */
+export function resetParticipationStars(state: AppState, request: ParticipationResetRequest, timestamp = new Date().toISOString()): AppState {
+  if (state.activeClassId !== request.classId || (request.sid && !state.schueler.some(student => student.id === request.sid))) return state;
+  const groups = new Map<string, { sid: string; fach?: string; applied: boolean; points: number; ids: string[] }>();
+  for (const log of resetLogs(state, request, timestamp)) {
+    if (!Number.isFinite(log.points)) continue;
+    const applied = request.kind === 'subject' && log.gradebookApplied === true && !!log.fach;
+    const key = JSON.stringify([log.sid, log.fach || '', applied]);
+    const group = groups.get(key) || { sid: log.sid, fach: log.fach, applied, points: 0, ids: [] };
+    group.points += log.points;
+    if (log.points > 0 && log.id) group.ids.push(log.id);
+    groups.set(key, group);
+  }
+  let next = state;
+  for (const group of groups.values()) {
+    if (group.points === 0) continue;
+    if (group.applied) next = changeGradebook(next, group.sid, group.fach!, -group.points);
+    next = { ...next, mitarbeitLogs: [...(next.mitarbeitLogs || []), {
+      id: crypto.randomUUID(), sid: group.sid, fach: group.fach, kind: request.kind,
+      points: -group.points, timestamp, gradebookApplied: group.applied, resets: group.ids,
+    }] };
+  }
+  return next;
 }

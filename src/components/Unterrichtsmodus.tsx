@@ -1,5 +1,6 @@
 import SaveSyncStatus from './SaveSyncStatus';
 import ParticipationSettingsPanel from './cockpit/ParticipationSettingsPanel';
+import ParticipationResetPanel from './cockpit/ParticipationResetPanel';
 import ParticipationSubjectPicker from './cockpit/ParticipationSubjectPicker';
 import StudentBadgePicker from './cockpit/StudentBadgePicker';
 import { commitParticipationAward, commitSocialAward, getSocialStars, undoParticipationAward } from '../lib/participationAward';
@@ -7045,6 +7046,7 @@ ${content}
 
   const [pendingParticipation, setPendingParticipation] = useState<{ sid: string; classId: string; event?: React.MouseEvent; onAwarded?: () => void; inSidebar: boolean } | null>(null);
   const [isParticipationSettingsOpen, setIsParticipationSettingsOpen] = useState(false);
+  const [participationResetVersion, setParticipationResetVersion] = useState(0);
   const [badgeStudentId, setBadgeStudentId] = useState<string | null>(null);
   const lastParticipationAward = useRef<{ id: string; sid: string; classId: string; subject: string } | null>(null);
   const [sidebarParticipationKind, setSidebarParticipationKind] = useState<"subject" | "social">("subject");
@@ -12642,7 +12644,7 @@ ${content}
                         <div role="group" aria-label="Pluspunkt-Art" className="mt-1 flex gap-1 rounded-lg bg-slate-100 p-0.5">
                           {([['subject', 'Fach +1'], ['social', '🤝 Sozial +1']] as const).map(([kind, label]) => <button key={kind} type="button"
                             aria-pressed={sidebarParticipationKind === kind}
-                            title={kind === 'subject' ? `Mitarbeit · ${getActiveSubject()}` : 'Soziale Sterne – Badge ab 10 Sternen'}
+                            title={kind === 'subject' ? `Mitarbeit · ${getActiveSubject()}` : 'Soziale Sterne'}
                             onClick={() => { setPendingParticipation(null); setSidebarParticipationKind(kind); }}
                             className={`min-h-8 flex-1 rounded-md px-2 text-xs font-semibold ${sidebarParticipationKind === kind ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>{label}</button>)}
                         </div>
@@ -12652,7 +12654,7 @@ ${content}
                         className={`flex-1 min-h-0 overflow-hidden ${sidebarMode === "mini" ? "px-1 py-1" : "px-2.5 py-2"}`}
                       >
                         <StudentListWidgetContent
-                          key={app.activeClassId || 'no-class'}
+                          key={`${app.activeClassId || 'no-class'}-${participationResetVersion}`}
                           app={app}
                           getTodayPoints={sidebarParticipationKind === "social" ? sid => getSocialStars(app, sid) : getTodayPoints}
                           addParticipation={sidebarParticipationKind === "social" ? addSocialParticipation : addParticipation}
@@ -12675,9 +12677,14 @@ ${content}
                         <div className="min-h-0 flex-1 overflow-y-auto p-3">
                           <p className="mb-3 rounded-lg bg-slate-50 p-2 text-xs text-slate-600">Aktuelles Fach laut Stundenplan: <strong className="text-slate-900">{getActiveSubject()}</strong></p>
                           <ParticipationSettingsPanel app={app} setApp={setApp} />
+                          <ParticipationResetPanel app={app} setApp={setApp} onReset={() => {
+                            lastParticipationAward.current = null;
+                            setPendingParticipation(null);
+                            setParticipationResetVersion(value => value + 1);
+                          }} />
                           <div className="mt-4 border-t border-slate-200 pt-3 text-xs text-slate-600">
                             <p className="font-semibold text-slate-900">Badges vergeben</p>
-                            <p className="mt-1">Tippe auf den Namen eines Kindes, um ein Sport-, Mathe-, Deutsch- oder anderes Badge hinzuzufügen. Ab 10 sozialen Sternen erscheint das Teamgeist-Badge automatisch.</p>
+                            <p className="mt-1">Tippe auf den Namen eines Kindes, um ein Sport-, Mathe-, Deutsch- oder anderes Badge hinzuzufügen. Du entscheidest selbst, wann ein Kind ein Badge bekommt.</p>
                           </div>
                         </div>
                         <button type="button" onClick={() => setIsParticipationSettingsOpen(false)} className="m-3 min-h-11 shrink-0 rounded-xl bg-emerald-600 text-sm font-bold text-white">Fertig</button>
