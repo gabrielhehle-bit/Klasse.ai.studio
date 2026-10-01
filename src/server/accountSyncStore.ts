@@ -82,6 +82,20 @@ function cloneRecord(record: AccountSyncRecord): AccountSyncRecord {
 export class AccountSyncStore {
   private readonly directory: string;
   private readonly queues = new Map<string, Promise<unknown>>();
+  private readonly listeners = new Map<string, Set<(revision: number) => void>>();
+
+  /** Account-scoped hints only. Ciphertext stays behind the authenticated GET. */
+  subscribe(userId: string, listener: (revision: number) => void): () => void {
+    if (!isSafeUserId(userId)) throw new Error('INVALID_ACCOUNT');
+    const listeners = this.listeners.get(userId) || new Set<(revision: number) => void>();
+    if (listeners.size >= 12) throw new Error('TOO_MANY_LIVE_CONNECTIONS');
+    listeners.add(listener);
+    this.listeners.set(userId, listeners);
+    return () => {
+      listeners.delete(listener);
+      if (!listeners.size) this.listeners.delete(userId);
+    };
+  }
 
   constructor(dataDir: string) {
     this.directory = path.join(dataDir, 'account-sync');
@@ -275,6 +289,10 @@ export class AccountSyncStore {
         // above is mandatory. A cleanup failure must not invalidate a committed PUT.
         try { await this.trimHistory(userId); }
         catch (error) { console.warn('[AccountSync] Encrypted history cleanup failed:', error); }
+      }
+      // Notify only after the atomic write. A broken connection cannot fail a save.
+      for (const listener of this.listeners.get(userId) || []) {
+        try { listener(next.revision); } catch { /* disconnected client */ }
       }
       return cloneRecord(next);
     });

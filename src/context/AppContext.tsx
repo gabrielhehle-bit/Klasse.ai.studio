@@ -1,3 +1,4 @@
+import { parseAccountLiveRevision, needsAccountLiveRefresh, type AccountLiveStatus } from '../lib/accountLiveSync';
 import { assertRestorableAppState } from '../lib/backupRestore';
 import { initialAppState, syncActiveClass, normalizeAppState, switchClassState } from '../lib/appState';
 import { hasEstablishedClassroom, hasUnexpectedClassDisappearance, shouldRestoreEstablishedCloudClassroom } from '../lib/appStateContinuity';
@@ -92,6 +93,7 @@ interface AppContextType {
   localSaveLastAt: string | null;
   accountSyncStatus: AccountSyncStatus;
   accountSyncLastAt: string | null;
+  accountLiveStatus: AccountLiveStatus;
   accountSyncMessage: string | null;
   accountSyncConflictResolvable: boolean;
   retryAccountSync: () => Promise<void>;
@@ -140,6 +142,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [localSaveLastAt, setLocalSaveLastAt] = useState<string | null>(null);
   const [accountSyncStatus, setAccountSyncStatus] = useState<AccountSyncStatus>('idle');
   const [accountSyncLastAt, setAccountSyncLastAt] = useState<string | null>(null);
+  const [accountLiveStatus, setAccountLiveStatus] = useState<AccountLiveStatus>('disabled');
+  const pendingAccountLiveRevisionRef = useRef(0);
   const [accountSyncMessage, setAccountSyncMessage] = useState<string | null>(null);
   const accountSyncStatusRef = useRef<AccountSyncStatus>(accountSyncStatus);
   accountSyncStatusRef.current = accountSyncStatus;
@@ -509,6 +513,74 @@ export function AppProvider({ children }: { children: ReactNode }) {
       accountSyncBusyRef.current = false;
     }
   }, [isVaultUnlocked, reconcileAccountState, setApp]);
+
+  // Server events are revision hints. Keep them pending when typing/saving blocks
+  // reconciliation; retry through the existing guarded path, never setApp directly.
+  const liveAccountEnabled = isLoaded && isVaultUnlocked && accountSyncStatus !== 'disabled';
+  useEffect(() => {
+    if (!liveAccountEnabled || typeof EventSource === 'undefined') {
+      setAccountLiveStatus('disabled');
+      return;
+    }
+    let disposed = false;
+    let stream: EventSource | null = null;
+    let connectionGeneration = 0;
+    const drain = () => {
+      if (accountSyncStatusRef.current === 'conflict' || accountSyncStatusRef.current === 'disabled') return;
+      if (navigator.onLine && needsAccountLiveRefresh(pendingAccountLiveRevisionRef.current, accountSyncRevisionRef.current)) {
+        void refreshAccountState();
+      }
+    };
+    const connect = async () => {
+      const generation = ++connectionGeneration;
+      stream?.close();
+      stream = null;
+      if (!navigator.onLine) { setAccountLiveStatus('offline'); return; }
+      setAccountLiveStatus('connecting');
+      try {
+        if (!await hasEmailAccountSession()) {
+          if (!disposed) setAccountLiveStatus('disabled');
+          return;
+        }
+      } catch {
+        if (!disposed) setAccountLiveStatus('reconnecting');
+        return; // The periodic encrypted refresh remains available.
+      }
+      if (disposed || generation !== connectionGeneration || !navigator.onLine) return;
+      const connection = new EventSource('/api/account-sync/events');
+      stream = connection;
+      connection.onopen = () => {
+        if (!disposed && stream === connection) setAccountLiveStatus('live');
+      };
+      connection.onerror = () => {
+        if (!disposed && stream === connection) setAccountLiveStatus(navigator.onLine ? 'reconnecting' : 'offline');
+      };
+      connection.onmessage = event => {
+        if (disposed || stream !== connection) return;
+        const revision = parseAccountLiveRevision(event.data);
+        if (revision === null) return;
+        pendingAccountLiveRevisionRef.current = Math.max(pendingAccountLiveRevisionRef.current, revision);
+        drain();
+      };
+    };
+    const offline = () => { connectionGeneration++; stream?.close(); stream = null; setAccountLiveStatus('offline'); };
+    const online = () => { void connect(); };
+    const sessionChanged = () => { pendingAccountLiveRevisionRef.current = 0; void connect(); };
+    const timer = window.setInterval(drain, 1_000);
+    window.addEventListener('online', online);
+    window.addEventListener('offline', offline);
+    window.addEventListener(ACCOUNT_SESSION_CHANGED_EVENT, sessionChanged);
+    void connect();
+    return () => {
+      disposed = true;
+      stream?.close();
+      pendingAccountLiveRevisionRef.current = 0;
+      window.clearInterval(timer);
+      window.removeEventListener('online', online);
+      window.removeEventListener('offline', offline);
+      window.removeEventListener(ACCOUNT_SESSION_CHANGED_EVENT, sessionChanged);
+    };
+  }, [liveAccountEnabled, refreshAccountState]);
 
   const retryAccountSync = React.useCallback(async () => {
     setAccountSyncMessage(null);
@@ -1983,11 +2055,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localSaveLastAt,
     accountSyncStatus,
     accountSyncLastAt,
+    accountLiveStatus,
     accountSyncMessage,
     accountSyncConflictResolvable,
     retryAccountSync,
     resolveAccountSyncConflict
-  }), [app, notenUpdateTrigger, calculateWidgetFontSize, screenLocked, updateApp, deleteClass, switchClass, addClass, removeClass, updateStudent, deleteStudent, setPage, saveApp, restoreAppData, isVaultUnlocked, isAppHydrated, lockAppVault, unlockAppVault, localSaveStatus, localSaveLastAt, accountSyncStatus, accountSyncLastAt, accountSyncMessage, accountSyncConflictResolvable, retryAccountSync, resolveAccountSyncConflict]);
+  }), [app, notenUpdateTrigger, calculateWidgetFontSize, screenLocked, updateApp, deleteClass, switchClass, addClass, removeClass, updateStudent, deleteStudent, setPage, saveApp, restoreAppData, isVaultUnlocked, isAppHydrated, lockAppVault, unlockAppVault, localSaveStatus, localSaveLastAt, accountSyncStatus, accountSyncLastAt, accountLiveStatus, accountSyncMessage, accountSyncConflictResolvable, retryAccountSync, resolveAccountSyncConflict]);
 
   if (!isLoaded) {
     return (

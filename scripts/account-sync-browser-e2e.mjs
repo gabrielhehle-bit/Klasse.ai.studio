@@ -462,6 +462,11 @@ async function main() {
     await checkClassNote(school, NOTE_HOME);
     await waitForCloud(school);
     console.log('✓ Real Chrome: home weekly plan and class note appeared on freshly signed-in school PC.');
+    for (const client of [home, school]) {
+      await waitFor(client, 'authenticated live connection active',
+        'document.querySelector("[data-account-live-status=live]") !== null', 30000);
+    }
+
 
     // Modify an existing lesson in the school UI: setup creates only one
     // schedulable weekly cell, so do not invent an extra empty timetable slot.
@@ -487,7 +492,7 @@ async function main() {
     await waitFor(home, 'home class notes view ready', 'Boolean(document.querySelector("textarea#klassio-note-input"))', 30000);
     await addClassNote(school, NOTE_SCHOOL);
     await waitFor(home, 'school note appears automatically at home without sign-out',
-      'document.body?.innerText.includes(' + q(NOTE_SCHOOL) + ')', 45000);
+      'document.body?.innerText.includes(' + q(NOTE_SCHOOL) + ')', 10000);
     await openWeeklyAndCheck(home, TOPIC_SCHOOL);
     console.log('✓ Real Chrome: new school note returned automatically to already open home PC.');
 
