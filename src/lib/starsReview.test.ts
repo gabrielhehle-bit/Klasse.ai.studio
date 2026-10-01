@@ -38,3 +38,28 @@ test('local dates protect end-of-day events and ignore invalid time and other cl
   assert.equal(aggregateStarsReview(children, [{ sid: 'b', points: 1, timestamp: '2026-09-25T23:59:59+02:00', fach: 'Deutsch' }], settings)[0].stars, 1);
   assert.deepEqual(starsReviewSubjects(input, children, ['Musik']), ['Deutsch', 'Mathematik', 'Musik']);
 });
+
+test('Gesamt sammelt alle Jahre, Sozial und fachunabhängige Sterne bleiben unterscheidbar', () => {
+  const settings = { ...DEFAULT_STARS_REVIEW_SETTINGS, period: 'all' as const, limit: 'all' as const };
+  const logs = [
+    { sid: 'a', points: 2, timestamp: '2024-01-01', fach: 'Deutsch', kind: 'subject' as const },
+    { sid: 'a', points: 3, timestamp: '2026-10-01', kind: 'social' as const },
+    { sid: 'a', points: 4, timestamp: '2026-10-01' },
+    { sid: 'a', points: -1, timestamp: '2026-10-01', kind: 'social' as const },
+  ];
+  assert.equal(aggregateStarsReview(children, logs, settings)[0].stars, 8);
+  assert.equal(aggregateStarsReview(children, logs, { ...settings, category: 'social' })[0].stars, 2);
+  assert.equal(aggregateStarsReview(children, logs, { ...settings, category: 'unassigned' })[0].stars, 4);
+  assert.equal(aggregateStarsReview(children, logs, { ...settings, category: 'subject', subjects: ['Deutsch'] })[0].stars, 2);
+});
+test('Semester nutzt Schuljahr und regionalen Semesterwechsel', () => {
+  const settings = { ...DEFAULT_STARS_REVIEW_SETTINGS, period: 'semester' as const, schoolYear: '2026/2027', bundesland: 'VBG' as const, referenceDate: '2026-10-01' };
+  const first = starsReviewRange(settings)!;
+  const second = starsReviewRange({ ...settings, referenceDate: '2027-04-01' })!;
+  assert.equal(first.start, '2026-09-01');
+  assert.equal(second.end, '2027-08-31');
+  assert.equal(second.start, '2027-02-15');
+  assert.ok(first.end < second.start);
+  const boundary = new Date(first.end + 'T12:00:00'); boundary.setDate(boundary.getDate() + 1);
+  assert.equal(second.start, [boundary.getFullYear(), String(boundary.getMonth()+1).padStart(2,'0'), String(boundary.getDate()).padStart(2,'0')].join('-'));
+});

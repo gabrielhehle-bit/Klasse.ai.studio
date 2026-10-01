@@ -501,6 +501,45 @@ async function main() {
     // both devices to have acknowledged their *latest* encrypted state first.
     await waitForCloud(home);
     await waitForCloud(school);
+    // Keep this laptop stale by blocking automatic account reads, then explicitly
+    // download through the user-facing control. This exercises the real encrypted
+    // server snapshot rather than simulating application state in React.
+    const manualNote = 'MANUAL_LATEST_SERVER_NOTE';
+    await evaluate(school, `(() => {
+      window.__manualOriginalFetch = window.fetch.bind(window);
+      window.__manualAllowRead = false;
+      window.fetch = (input, init) => {
+        const url = typeof input === 'string' ? input : input.url;
+        const method = init?.method || input?.method || 'GET';
+        if (url?.endsWith('/api/account-sync') && method === 'GET' && !window.__manualAllowRead) {
+          return Promise.resolve(new Response('temporarily unavailable', { status: 503 }));
+        }
+        return window.__manualOriginalFetch(input, init);
+      };
+    })()`);
+    await openAppPage(home, 'verhalten');
+    await addClassNote(home, manualNote);
+    await waitForCloud(home);
+    await evaluate(school, `(() => {
+      const summary = [...document.querySelectorAll('summary')].find(el => el.getAttribute('aria-label')?.startsWith('Speicherstatus:'));
+      if (!summary) throw new Error('Speicherstatus fehlt');
+      summary.click();
+    })()`);
+    await waitFor(school, 'manual server load control visible', `Boolean(document.querySelector('[data-testid="load-latest-account-state"]'))`, 10000);
+    await evaluate(school, `(() => {
+      window.__manualAllowRead = true;
+      document.querySelector('[data-testid="load-latest-account-state"]').click();
+    })()`);
+    await waitFor(school, 'manual load confirms timestamp and revision',
+      `document.querySelector('[data-testid="server-load-result"]')?.textContent.includes('geladen · Version')`, 30000);
+    await evaluate(school, 'window.fetch = window.__manualOriginalFetch');
+    await clickButton(school, 'Schließen');
+    await openAppPage(school, 'verhalten');
+    await waitFor(school, 'manual load adopts newest note', 'document.body?.innerText.includes(' + q(manualNote) + ')', 15000);
+    await waitForCloud(home);
+    await waitForCloud(school);
+    console.log('✓ Real Chrome: stale laptop manually loaded latest encrypted server note with timestamp and revision.');
+
     // Both profiles reload independently: encrypted state must survive browser refresh.
     console.log('✓ Starting two-profile encrypted persistence check after browser reload');
     // CDP Page.reload acknowledges the request before the old DOM disappears.

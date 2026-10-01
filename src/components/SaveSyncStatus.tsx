@@ -1,3 +1,4 @@
+import AccountServerLoadButton from './AccountServerLoadButton';
 import { createPortal } from 'react-dom';
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
@@ -37,6 +38,7 @@ export default function SaveSyncStatus({ onOpenTeam, fullWidth = false, compact 
       {!online && <p>Offline: Änderungen werden nach der Verbindung erneut übertragen.</p>}
       {accountSyncMessage && <p>{accountSyncMessage}</p>}
       {(meta || room?.teamTeachingSharedClassId) && <div className="space-y-1 border-t pt-2"><p className="font-bold">Teamteaching: {team === 'synced' ? 'Synchronisiert' : team === 'conflict' ? 'Konflikt – keine Änderung überschrieben' : team === 'error' ? 'Sync prüfen' : 'Änderung noch ausstehend'}</p><p>Zuletzt geändert: {meta?.lastChangedBy || 'Noch nicht bestätigt'} · {time(meta?.lastChangedAt)}</p><p>Letzter Team-Abgleich: {time(meta?.lastSyncedAt)}</p>{meta?.syncMessage && <p>{meta.syncMessage}</p>}<button type="button" className="min-h-11 w-full rounded-lg border px-2 font-semibold" onClick={() => onOpenTeam ? onOpenTeam() : setPage('teamteaching')}>Klassenteam öffnen</button></div>}
+      <AccountServerLoadButton />
       <button type="button" disabled={!online || retrying} className="min-h-11 w-full rounded-lg border px-2 font-semibold disabled:opacity-50" onClick={async () => { setRetrying(true); try { await retryAccountSync(); } finally { setRetrying(false); } }}>Jetzt synchronisieren</button>
     </div></>, document.body)}
   </details>;

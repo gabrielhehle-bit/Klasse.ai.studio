@@ -1,3 +1,5 @@
+import { getAttendanceSemester } from './attendanceData';
+import { toLocalDateKey } from './localDate';
 import type { AppState } from '../types';
 export interface ParticipationSettings {
   subjectMode: 'current' | 'choose';
@@ -7,10 +9,10 @@ export const SOCIAL_BADGE_ID = 'social-stars-10';
 export function getSocialStars(state: Pick<AppState, 'mitarbeitLogs'>, sid: string): number {
   return Math.max(0, (state.mitarbeitLogs || []).reduce((total, log) => total + (log.sid === sid && log.kind === 'social' && Number.isFinite(log.points) ? log.points : 0), 0));
 }
-function changeGradebook(state: AppState, sid: string, subject: string, delta: number): AppState {
+function changeGradebook(state: AppState, sid: string, subject: string, delta: number, semester: '1' | '2' = '1'): AppState {
   const pupil = state.mitarbeit?.[sid] || {};
   const fach = pupil[subject] || {};
-  return { ...state, mitarbeit: { ...state.mitarbeit, [sid]: { ...pupil, [subject]: { ...fach, '1': Math.max(0, (fach['1'] || 0) + delta) } } } };
+  return { ...state, mitarbeit: { ...state.mitarbeit, [sid]: { ...pupil, [subject]: { ...fach, [semester]: Math.max(0, (fach[semester] || 0) + delta) } } } };
 }
 /** Journal and gradebook are updated atomically; cancelled/stale selections write nothing. */
 export function commitParticipationAward(state: AppState, request: { sid: string; subject: string; classId: string; id?: string }, timestamp = new Date().toISOString()): AppState {
@@ -18,9 +20,10 @@ export function commitParticipationAward(state: AppState, request: { sid: string
     || !request.subject || (state.participationSettings?.subjectMode === 'choose' && !state.faecher?.includes(request.subject))) return state;
   const id = request.id || crypto.randomUUID();
   if (state.mitarbeitLogs?.some(log => log.id === id)) return state;
-  const next = changeGradebook(state, request.sid, request.subject, 1);
+  const semester = String(getAttendanceSemester(toLocalDateKey(new Date(timestamp)), state.schuljahr?.replace(/^(\d{4})\/\d{2}(\d{2})$/, '$1/$2'), state.bundesland)) as '1' | '2';
+  const next = changeGradebook(state, request.sid, request.subject, 1, semester);
   return { ...next, mitarbeitLogs: [...(state.mitarbeitLogs || []), {
-    id, sid: request.sid, fach: request.subject, points: 1, timestamp, kind: 'subject', gradebookApplied: true,
+    id, sid: request.sid, fach: request.subject, points: 1, timestamp, kind: 'subject', gradebookApplied: true, gradebookSemester: semester,
   }] };
 }
 export function commitSocialAward(state: AppState, request: { sid: string; classId: string; id?: string }, timestamp = new Date().toISOString()): AppState {
@@ -35,7 +38,7 @@ export function undoParticipationAward(state: AppState, request: { id: string; s
   if (!log || state.mitarbeitLogs?.some(item => item.reverses === log.id || item.resets?.includes(log.id))) return state;
   const corrected = { ...state, mitarbeitLogs: [...(state.mitarbeitLogs || []), { ...log, id: crypto.randomUUID(), points: -1, timestamp, reverses: log.id }] };
   if (log.kind === 'social') return corrected;
-  return log.gradebookApplied && log.fach ? changeGradebook(corrected, log.sid, log.fach, -1) : corrected;
+  return log.gradebookApplied && log.fach ? changeGradebook(corrected, log.sid, log.fach, -1, log.gradebookSemester || '1') : corrected;
 }
 
 export interface ParticipationResetRequest {
@@ -68,7 +71,7 @@ export function correctParticipationStars(state: AppState, request: Participatio
     const reversed = history.reduce((total, item) => total + (item.reverses === log.id && item.points < 0 ? -item.points : 0), 0);
     const amount = Math.min(remaining, Math.max(0, log.points - reversed));
     if (!amount) continue;
-    if (request.kind === 'subject' && log.gradebookApplied && log.fach) next = changeGradebook(next, log.sid, log.fach, -amount);
+    if (request.kind === 'subject' && log.gradebookApplied && log.fach) next = changeGradebook(next, log.sid, log.fach, -amount, log.gradebookSemester || '1');
     next = { ...next, mitarbeitLogs: [...(next.mitarbeitLogs || []), {
       ...log, id: crypto.randomUUID(), points: -amount, timestamp, reverses: log.id,
     }] };
@@ -85,12 +88,12 @@ export function getParticipationResetCount(state: AppState, request: Participati
 /** Append corrections; preserve history, other pupils/days, manual badges and unrelated grades. */
 export function resetParticipationStars(state: AppState, request: ParticipationResetRequest, timestamp = new Date().toISOString()): AppState {
   if (state.activeClassId !== request.classId || (request.sid && !state.schueler.some(student => student.id === request.sid))) return state;
-  const groups = new Map<string, { sid: string; fach?: string; applied: boolean; points: number; ids: string[] }>();
+  const groups = new Map<string, { sid: string; fach?: string; applied: boolean; semester: '1' | '2'; points: number; ids: string[] }>();
   for (const log of resetLogs(state, request, timestamp)) {
     if (!Number.isFinite(log.points)) continue;
     const applied = request.kind === 'subject' && log.gradebookApplied === true && !!log.fach;
-    const key = JSON.stringify([log.sid, log.fach || '', applied]);
-    const group = groups.get(key) || { sid: log.sid, fach: log.fach, applied, points: 0, ids: [] };
+    const key = JSON.stringify([log.sid, log.fach || '', applied, log.gradebookSemester || '1']);
+    const group = groups.get(key) || { sid: log.sid, fach: log.fach, applied, semester: log.gradebookSemester || '1', points: 0, ids: [] };
     group.points += log.points;
     if (log.points > 0 && log.id) group.ids.push(log.id);
     groups.set(key, group);
@@ -98,10 +101,10 @@ export function resetParticipationStars(state: AppState, request: ParticipationR
   let next = state;
   for (const group of groups.values()) {
     if (group.points === 0) continue;
-    if (group.applied) next = changeGradebook(next, group.sid, group.fach!, -group.points);
+    if (group.applied) next = changeGradebook(next, group.sid, group.fach!, -group.points, group.semester);
     next = { ...next, mitarbeitLogs: [...(next.mitarbeitLogs || []), {
       id: crypto.randomUUID(), sid: group.sid, fach: group.fach, kind: request.kind,
-      points: -group.points, timestamp, gradebookApplied: group.applied, resets: group.ids,
+      points: -group.points, timestamp, gradebookApplied: group.applied, gradebookSemester: group.semester, resets: group.ids,
     }] };
   }
   return next;

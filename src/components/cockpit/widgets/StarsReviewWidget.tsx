@@ -18,7 +18,7 @@ interface Props {
 }
 function safeSettings(value: unknown): StarsReviewSettings {
   const data = value && typeof value === 'object' ? value as Record<string, unknown> : {};
-  const period: StarsPeriod = data.period === 'month' || data.period === 'custom' ? data.period : 'week';
+  const period: StarsPeriod = data.period === 'all' || data.period === 'semester' || data.period === 'month' || data.period === 'custom' ? data.period : 'week';
   const limit: StarsLimit = data.limit === 10 || data.limit === 'all' ? data.limit : 3;
   return {
     period,
@@ -81,8 +81,8 @@ export default function StarsReviewWidget({
     () => starsReviewSubjects(logs, children, app.faecher || []),
     [logs, children, app.faecher],
   );
-  const range = useMemo(() => starsReviewRange(settings, today), [settings, today]);
-  const ranked = useMemo(() => aggregateStarsReview(children, logs, settings, today), [children, logs, settings, today]);
+  const range = useMemo(() => starsReviewRange({ ...settings, schoolYear: app.schuljahr, bundesland: app.bundesland }, today), [settings, today, app.schuljahr, app.bundesland]);
+  const ranked = useMemo(() => aggregateStarsReview(children, logs, { ...settings, schoolYear: app.schuljahr, bundesland: app.bundesland }, today), [children, logs, settings, today, app.schuljahr, app.bundesland]);
   const duplicateFirstNames = useMemo(() => {
     const counts = new Map<string, number>();
     for (const child of children) {
@@ -112,7 +112,7 @@ export default function StarsReviewWidget({
   return <section ref={containerRef} aria-label="Sterne der Klasse im gewählten Zeitraum" className={`flex h-full min-h-0 flex-col overflow-hidden ${surface}`}>
     <header className={`flex min-h-11 shrink-0 flex-wrap items-center justify-between border-b border-slate-200 dark:border-white/10 ${compact ? "gap-1 px-2 py-1" : "gap-2 px-3 py-2"}`}>
       <p className={`${tiny ? 'text-[10px]' : 'text-xs'} min-w-0 truncate font-semibold text-slate-500 dark:text-slate-400`}>
-        {range ? `${formatDate(range.start)} – ${formatDate(range.end)}` : 'Ungültiger Zeitraum'}
+        {settings.period === 'all' ? 'Gesamt' : range ? `${formatDate(range.start)} – ${formatDate(range.end)}` : 'Ungültiger Zeitraum'}
         {' · '}{settings.subjects.length ? settings.subjects.join(', ') : 'Alle Fächer'}
       </p>
       <div className={`flex flex-wrap ${compact ? "gap-1" : "gap-2"}`}>
@@ -142,7 +142,7 @@ export default function StarsReviewWidget({
         <button type="button" onClick={closeSettings} className="min-h-11 rounded-xl px-3 text-xs font-bold text-accent hover:bg-white/60 dark:hover:bg-white/10">Fertig</button>
       </div>
       <fieldset className="flex flex-wrap gap-2"><legend className="mb-2 text-sm font-black">Zeitraum</legend>
-        {([['week', 'Woche'], ['month', 'Monat'], ['custom', 'Eigene Daten']] as const).map(([period, label]) =>
+        {([['all', 'Gesamt'], ['week', 'Woche'], ['month', 'Monat'], ['semester', 'Semester'], ['custom', 'Eigene Daten']] as const).map(([period, label]) =>
           <button type="button" key={period} aria-pressed={settings.period === period} className={`${button} ${settings.period === period ? 'ring-2 ring-accent' : ''}`} onClick={() => update({ period })}>{label}</button>)}
       </fieldset>
       {settings.period === 'custom' ? <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">

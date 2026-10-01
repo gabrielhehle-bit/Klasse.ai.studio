@@ -1,3 +1,4 @@
+import SidebarStarsOverview from './cockpit/SidebarStarsOverview';
 import SaveSyncStatus from './SaveSyncStatus';
 import ClassTeamStatus from './ClassTeamStatus';
 import ParticipationSettingsPanel from './cockpit/ParticipationSettingsPanel';
@@ -5891,6 +5892,7 @@ ${content}
       "success",
     );
   };
+  const [sidebarContent, setSidebarContent] = useState<'students' | 'stars'>('students');
   const sidebarMode = app.boardSettings?.sidebarMode || "hidden";
   const sidebarPreferredWidth = clampCockpitSidebarWidth((app.boardSettings as any)?.cockpitStudentSidebarWidthByClass?.[boardTextClassKey]);
   const [sidebarResizePreview, setSidebarResizePreview] = useState<number | null>(null);
@@ -12637,6 +12639,9 @@ ${content}
                           <button type="button" onClick={() => changeSidebarMode("hidden")} aria-label="Schülerliste schließen" title="Schülerliste schließen"
                             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600"><X size={16} /></button>
                         </div>
+                        <label className="mt-1 block"><span className="sr-only">Widget der Seitenleiste</span><select aria-label="Widget der Seitenleiste" value={sidebarContent} onChange={event => setSidebarContent(event.target.value as 'students' | 'stars')} className="min-h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold">
+                          <option value="students">Schülerliste · Pluspunkte verteilen</option><option value="stars">Sterneübersicht · Diagramm</option>
+                        </select></label>
                         <div role="group" aria-label="Pluspunkt-Art" className="mt-1 flex gap-1 rounded-lg bg-slate-100 p-0.5">
                           {([['subject', 'Fach +1'], ['social', '🤝 Sozial +1']] as const).map(([kind, label]) => <button key={kind} type="button"
                             aria-pressed={sidebarParticipationKind === kind}
@@ -12649,7 +12654,7 @@ ${content}
                       <div
                         className={`flex-1 min-h-0 overflow-hidden ${sidebarMode === "mini" ? "px-1 py-1" : "px-2.5 py-2"}`}
                       >
-                        <StudentListWidgetContent
+                        {sidebarContent === "stars" ? <SidebarStarsOverview /> : <StudentListWidgetContent
                           key={`${app.activeClassId || 'no-class'}-${participationResetVersion}`}
                           app={app}
                           getTodayPoints={sidebarParticipationKind === "social" ? sid => getSocialStars(app, sid) : getTodayPoints}
@@ -12660,7 +12665,7 @@ ${content}
                           sidebarCompact={sidebarMode === "mini"}
                           socialMode={sidebarParticipationKind === "social"}
                           onBadgeRequest={sid => { setPendingParticipation(null); setIsParticipationSettingsOpen(false); setBadgeStudentId(sid); }}
-                        />
+                        />}
                       </div>
                       {badgeStudentId && <StudentBadgePicker app={app} setApp={setApp} studentId={badgeStudentId} onClose={() => setBadgeStudentId(null)} />}
                       {isParticipationSettingsOpen && <section role="dialog" aria-label="Mitarbeit einstellen"

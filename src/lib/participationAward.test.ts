@@ -196,3 +196,11 @@ test('Stale correction requests and invalid amounts write nothing; social correc
   assert.deepEqual(corrected.mitarbeit,source.mitarbeit);
   assert.deepEqual(corrected.schueler,source.schueler);
 });
+
+test('Fachsterne landen im richtigen Semester; Korrekturen wirken auf das ursprüngliche Semester', () => {
+  const source = { ...state(), schuljahr: '2026/2027', bundesland: 'W' as const };
+  const awarded = commitParticipationAward(source, { sid: source.schueler[0].id, classId: source.activeClassId!, subject: 'Deutsch', id: 'semester-two' }, '2027-04-12T09:00:00+02:00');
+  assert.equal(awarded.mitarbeit[source.schueler[0].id].Deutsch['2'], 1);
+  const undone = undoParticipationAward(awarded, { sid: source.schueler[0].id, classId: source.activeClassId!, id: 'semester-two' }, '2027-09-12T09:00:00+02:00');
+  assert.equal(undone.mitarbeit[source.schueler[0].id].Deutsch['2'], 0);
+});
