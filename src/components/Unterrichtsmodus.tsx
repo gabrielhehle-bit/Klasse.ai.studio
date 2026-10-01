@@ -8344,7 +8344,7 @@ ${content}
                 </span>
               )}
             </div>
-            <SaveSyncStatus onOpenTeam={() => { handleCloseCockpit(); setPage("teamteaching"); }} />
+            <SaveSyncStatus compact onOpenTeam={() => { handleCloseCockpit(); setPage("teamteaching"); }} />
           </div>
         </div>
 
@@ -12618,104 +12618,34 @@ ${content}
                           className="absolute inset-y-0 left-0 z-[70] w-2.5 cursor-col-resize touch-none bg-slate-200/40 hover:bg-indigo-300 focus-visible:bg-indigo-300"
                           title="Ziehen, um die Schülerliste breiter oder schmaler zu machen" />
                       )}
-                      <button type="button" onClick={() => changeSidebarMode("hidden")}
-                        aria-label="Schülerliste schließen"
-                        className="absolute right-2 top-2 z-[80] flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-800 shadow-sm">✕</button>
-                      {/* Subtle Collapse Toggle Handle inside the sidebar edge */}
-                      <button
-                        onClick={() => changeSidebarMode("hidden")}
-                        className="hidden"
-                        title="Seitenleiste einfahren"
-                      >
-                        <ChevronRight
-                          size={16}
-                          className="stroke-[3] group-hover/btn:translate-x-0.5 transition-transform"
-                        />
-                      </button>
-
-                      {/* Compact Header with state controls */}
-                      <div className="flex shrink-0 flex-col gap-1.5 border-b border-slate-200 bg-slate-50 p-2.5 pr-14 text-slate-900">
-                        <div className="flex flex-wrap items-center gap-1">
+                      <div className="shrink-0 border-b border-slate-200 bg-white p-2 text-slate-900">
+                        <div className="flex min-w-0 items-center gap-1">
+                          <span className="min-w-0 flex-1 truncate text-xs font-semibold" title={`${cockpitClassLabel || 'Klasse'} · ${app.schueler.length} Kinder`}>
+                            {cockpitClassLabel || 'Klasse'} <span className="font-normal text-slate-500">· {app.schueler.length} Kinder</span>
+                          </span>
                           <button type="button"
                             aria-label={sidebarMode === "mini" ? "Schüler-Seitenleiste groß anzeigen" : "Schüler-Seitenleiste kompakt anzeigen"}
                             aria-pressed={sidebarMode === "mini"}
+                            title={sidebarMode === "mini" ? "Große Ansicht" : "Kompakte Ansicht – alle Kinder sichtbar"}
                             onClick={() => changeSidebarMode(sidebarMode === "mini" ? "expanded" : "mini")}
-                            className="min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-xs font-bold text-slate-800">
-                            {sidebarMode === "mini" ? "Große Ansicht" : "Kompakt"}
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600">
+                            {sidebarMode === "mini" ? <Maximize2 size={16} /> : <Columns3 size={16} />}
                           </button>
-                          <button type="button" aria-label="Mitarbeit-Einstellungen der Schüler-Seitenleiste öffnen"
-                            onClick={() => {
-                              setPendingParticipation(null);
-                              setIsParticipationSettingsOpen(true);
-                            }}
-                            className="min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-xs font-bold text-slate-800">
-                            +1 einstellen
+                          <button type="button" aria-label="Mitarbeit-Einstellungen der Schüler-Seitenleiste öffnen" title="Schülerliste einstellen"
+                            onClick={() => { setPendingParticipation(null); setIsParticipationSettingsOpen(true); }}
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600">
+                            <Settings2 size={16} />
                           </button>
+                          <button type="button" onClick={() => changeSidebarMode("hidden")} aria-label="Schülerliste schließen" title="Schülerliste schließen"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600"><X size={16} /></button>
                         </div>
-                        <p className="text-[10px] text-slate-500">Name antippen → Badges vergeben</p>
-                        <div role="group" aria-label="Pluspunkt-Art" className="flex gap-1">
+                        <div role="group" aria-label="Pluspunkt-Art" className="mt-1 flex gap-1 rounded-lg bg-slate-100 p-0.5">
                           {([['subject', 'Fach +1'], ['social', '🤝 Sozial +1']] as const).map(([kind, label]) => <button key={kind} type="button"
                             aria-pressed={sidebarParticipationKind === kind}
+                            title={kind === 'subject' ? `Mitarbeit · ${getActiveSubject()}` : 'Soziale Sterne – Badge ab 10 Sternen'}
                             onClick={() => { setPendingParticipation(null); setSidebarParticipationKind(kind); }}
-                            className={`min-h-9 flex-1 rounded-lg border px-2 text-xs font-bold ${sidebarParticipationKind === kind ? 'border-emerald-600 bg-emerald-50 text-emerald-900' : 'border-slate-200 bg-white text-slate-700'}`}>{label}</button>)}
+                            className={`min-h-8 flex-1 rounded-md px-2 text-xs font-semibold ${sidebarParticipationKind === kind ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>{label}</button>)}
                         </div>
-                        {sidebarMode === "mini" && (
-                          <div className="flex flex-row items-center justify-between gap-1 py-0.5 select-none w-full">
-                            <button
-                              type="button"
-                              onClick={() => changeSidebarMode("expanded")}
-                              title="Vollständige Liste"
-                              className="w-8 h-8 rounded-full bg-neutral-800/40 hover:bg-neutral-800 dark:bg-white/5 dark:hover:bg-white/10 flex items-center justify-center text-neutral-400 hover:text-emerald-400 hover:scale-105 active:scale-95 transition-all shadow-md cursor-pointer border border-neutral-700/10"
-                            >
-                              <ChevronLeft size={16} className="stroke-[2.5]" />
-                            </button>
-
-                            <div className="h-5 w-px bg-neutral-200/10 dark:bg-white/5" />
-
-                            <span
-                              className="text-xl shrink-0 leading-none drop-shadow-sm"
-                              title={`Fach: ${getActiveSubject()}`}
-                            >
-                              {getActiveSubject() === "Deutsch"
-                                ? "📕"
-                                : getActiveSubject() === "Mathematik"
-                                  ? "🔢"
-                                  : "🏫"}
-                            </span>
-
-                            <button
-                              type="button"
-                              onClick={() => changeSidebarMode("hidden")}
-                              title="Schülerliste ganz ausblenden"
-                              className="w-6 h-6 rounded-lg text-neutral-450 hover:text-rose-450 hover:bg-rose-500/10 cursor-pointer transition-all flex items-center justify-center shrink-0"
-                            >
-                              <X size={12} className="stroke-[2.5]" />
-                            </button>
-                          </div>
-                        )}
-
-                        {sidebarMode === "expanded" && (
-                          <div className="flex flex-col gap-1.5">
-                            <div className="flex items-center justify-between">
-                              <span
-                                className={`text-[9px] font-black uppercase ${currentIsLight ? "text-slate-400" : "text-neutral-450"}`}
-                              >
-                                Aktuelles Fach:
-                              </span>
-                              <div className="flex items-center gap-1.5">
-                                <span
-                                  className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
-                                    currentIsLight
-                                      ? "bg-slate-100 text-slate-700 border border-slate-200"
-                                      : "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 shadow-sm"
-                                  }`}
-                                >
-                                  {getActiveSubject()}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
                       </div>
 
                       <div
@@ -12728,8 +12658,8 @@ ${content}
                           addParticipation={sidebarParticipationKind === "social" ? addSocialParticipation : addParticipation}
                           removeParticipation={removeParticipation}
                           onBehaviorStageChange={setStudentBehavior}
+                          sidebar
                           sidebarCompact={sidebarMode === "mini"}
-                          onCompactToggle={() => changeSidebarMode("mini")}
                           socialMode={sidebarParticipationKind === "social"}
                           onBadgeRequest={sid => { setPendingParticipation(null); setIsParticipationSettingsOpen(false); setBadgeStudentId(sid); }}
                         />
@@ -12745,6 +12675,10 @@ ${content}
                         <div className="min-h-0 flex-1 overflow-y-auto p-3">
                           <p className="mb-3 rounded-lg bg-slate-50 p-2 text-xs text-slate-600">Aktuelles Fach laut Stundenplan: <strong className="text-slate-900">{getActiveSubject()}</strong></p>
                           <ParticipationSettingsPanel app={app} setApp={setApp} />
+                          <div className="mt-4 border-t border-slate-200 pt-3 text-xs text-slate-600">
+                            <p className="font-semibold text-slate-900">Badges vergeben</p>
+                            <p className="mt-1">Tippe auf den Namen eines Kindes, um ein Sport-, Mathe-, Deutsch- oder anderes Badge hinzuzufügen. Ab 10 sozialen Sternen erscheint das Teamgeist-Badge automatisch.</p>
+                          </div>
                         </div>
                         <button type="button" onClick={() => setIsParticipationSettingsOpen(false)} className="m-3 min-h-11 shrink-0 rounded-xl bg-emerald-600 text-sm font-bold text-white">Fertig</button>
                       </section>}

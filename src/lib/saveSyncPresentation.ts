@@ -9,5 +9,13 @@ export function saveSyncPresentation(local: 'pending' | 'saved' | 'error', accou
     : account === 'error' || team === 'error' ? 'Auf diesem Gerät gespeichert · Sync prüfen'
     : account === 'disabled' ? 'Auf diesem Gerät gespeichert'
     : 'Auf diesem Gerät gespeichert · Sync ausstehend';
-  return { label, ready, attention: local === 'error' || account === 'conflict' || account === 'error' || team === 'conflict' || team === 'error' };
+  const compactLabel = local === 'error' ? 'Speicherfehler'
+    : local === 'pending' ? 'Speichern …'
+    : account === 'conflict' || team === 'conflict' ? 'Sync-Konflikt'
+    : !online ? 'Offline · lokal gespeichert'
+    : ready ? 'Synchronisiert'
+    : account === 'error' || team === 'error' ? 'Lokal gespeichert · Sync prüfen'
+    : account === 'disabled' ? 'Lokal gespeichert'
+    : 'Lokal gespeichert · Sync ausstehend';
+  return { label, compactLabel, ready, attention: local === 'error' || account === 'conflict' || account === 'error' || team === 'conflict' || team === 'error' };
 }
