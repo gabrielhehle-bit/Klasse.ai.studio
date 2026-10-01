@@ -1,7 +1,7 @@
 import SaveSyncStatus from './SaveSyncStatus';
 import ParticipationSettingsPanel from './cockpit/ParticipationSettingsPanel';
 import ParticipationSubjectPicker from './cockpit/ParticipationSubjectPicker';
-import { commitParticipationAward } from '../lib/participationAward';
+import { commitParticipationAward, commitSocialAward, getSocialStars, undoParticipationAward } from '../lib/participationAward';
 import { MASCOT_RITUAL_EVENT } from '../lib/classMascot';
 import { shouldApplyTafelCommand } from '../lib/tafelCommands';
 import { getTodayIsoDate } from '../lib/kidAttendanceAlgorithm';
@@ -6028,7 +6028,7 @@ ${content}
         app.mitarbeitLogs.forEach((log: any) => {
           const d = new Date(log.timestamp);
           const logDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-          if (log.sid === sid && logDateStr === todayStr) {
+          if (log.sid === sid && logDateStr === todayStr && log.kind !== "social") {
             total += log.points;
           }
         });
@@ -7044,7 +7044,8 @@ ${content}
 
   const [pendingParticipation, setPendingParticipation] = useState<{ sid: string; classId: string; event?: React.MouseEvent; onAwarded?: () => void; inSidebar: boolean } | null>(null);
   const [isParticipationSettingsOpen, setIsParticipationSettingsOpen] = useState(false);
-  const lastParticipationAward = useRef<{ sid: string; classId: string; subject: string } | null>(null);
+  const lastParticipationAward = useRef<{ id: string; sid: string; classId: string; subject: string } | null>(null);
+  const [sidebarParticipationKind, setSidebarParticipationKind] = useState<"subject" | "social">("subject");
   useEffect(() => { setPendingParticipation(null); setIsParticipationSettingsOpen(false); lastParticipationAward.current = null; }, [app.activeClassId]);
   useEffect(() => {
     if (!pendingParticipation && !isParticipationSettingsOpen) return;
@@ -7063,8 +7064,9 @@ ${content}
   const awardParticipation = (sid: string, subject: string, classId: string, event?: React.MouseEvent, onAwarded?: () => void) => {
     if (classId !== app.activeClassId || !app.schueler.some(student => student.id === sid)
       || !subject || (app.participationSettings?.subjectMode === 'choose' && !app.faecher?.includes(subject))) return;
-    setApp(prev => commitParticipationAward(prev, { sid, subject, classId }));
-    lastParticipationAward.current = { sid, subject, classId };
+    const id = crypto.randomUUID();
+    setApp(prev => commitParticipationAward(prev, { id, sid, subject, classId }));
+    lastParticipationAward.current = { id, sid, subject, classId };
     (window as any).__lastMitarbeitPlusTime = Date.now();
     const feedback = app.participationSettings?.feedback || 'animation';
     if (event && (feedback === 'animation' || feedback === 'both')) triggerRewardAnimation(sid, event);
@@ -7081,8 +7083,25 @@ ${content}
     awardParticipation(sid, getActiveSubject(), app.activeClassId, event, onAwarded);
   };
 
+  const addSocialParticipation = (sid: string, event?: React.MouseEvent, onAwarded?: () => void) => {
+    if (!app.activeClassId || !app.schueler.some(student => student.id === sid)) return;
+    const id = crypto.randomUUID();
+    const classId = app.activeClassId;
+    setApp(prev => commitSocialAward(prev, { id, sid, classId }));
+    lastParticipationAward.current = { id, sid, classId, subject: '' };
+    const feedback = app.participationSettings?.feedback || 'animation';
+    if (event && (feedback === 'animation' || feedback === 'both')) triggerRewardAnimation(sid, event);
+    if (feedback === 'mascot' || feedback === 'both') window.dispatchEvent(new CustomEvent(MASCOT_RITUAL_EVENT, { detail: 'praise' }));
+    onAwarded?.();
+  };
+
   const removeParticipation = (sid: string) => {
     const last = lastParticipationAward.current;
+    if (last?.sid === sid && last.classId === app.activeClassId) {
+      setApp(prev => undoParticipationAward(prev, last));
+      lastParticipationAward.current = null;
+      return;
+    }
     const subject = last?.sid === sid && last.classId === app.activeClassId ? last.subject : getActiveSubject();
     setApp((prev) => {
       // Find today's accumulated points for this student
@@ -12630,6 +12649,12 @@ ${content}
                             +1 einstellen
                           </button>
                         </div>
+                        <div role="group" aria-label="Pluspunkt-Art" className="flex gap-1">
+                          {([['subject', 'Fach +1'], ['social', '🤝 Sozial +1']] as const).map(([kind, label]) => <button key={kind} type="button"
+                            aria-pressed={sidebarParticipationKind === kind}
+                            onClick={() => { setPendingParticipation(null); setSidebarParticipationKind(kind); }}
+                            className={`min-h-9 flex-1 rounded-lg border px-2 text-xs font-bold ${sidebarParticipationKind === kind ? 'border-emerald-600 bg-emerald-50 text-emerald-900' : 'border-slate-200 bg-white text-slate-700'}`}>{label}</button>)}
+                        </div>
                         {sidebarMode === "mini" && (
                           <div className="flex flex-row items-center justify-between gap-1 py-0.5 select-none w-full">
                             <button
@@ -12695,12 +12720,13 @@ ${content}
                         <StudentListWidgetContent
                           key={app.activeClassId || 'no-class'}
                           app={app}
-                          getTodayPoints={getTodayPoints}
-                          addParticipation={addParticipation}
+                          getTodayPoints={sidebarParticipationKind === "social" ? sid => getSocialStars(app, sid) : getTodayPoints}
+                          addParticipation={sidebarParticipationKind === "social" ? addSocialParticipation : addParticipation}
                           removeParticipation={removeParticipation}
                           onBehaviorStageChange={setStudentBehavior}
                           sidebarCompact={sidebarMode === "mini"}
                           onCompactToggle={() => changeSidebarMode("mini")}
+                          socialMode={sidebarParticipationKind === "social"}
                         />
                       </div>
                       {isParticipationSettingsOpen && <section role="dialog" aria-label="Mitarbeit einstellen"

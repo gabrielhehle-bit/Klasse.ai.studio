@@ -27,8 +27,8 @@ test('Existing student sidebar keeps pluspoint actions, names and classes; legac
   assert.match(source, /PublicStudentListWidget as StudentListWidgetContent/);
   const sidebar = source.slice(source.indexOf('sidebarMode === "expanded"'), source.indexOf('FOKUS BOTTOM DOCK'));
   assert.match(sidebar, /<StudentListWidgetContent/);
-  assert.match(sidebar, /getTodayPoints=\{getTodayPoints\}/);
-  assert.match(sidebar, /addParticipation=\{addParticipation\}/);
+  assert.match(sidebar, /getTodayPoints=\{sidebarParticipationKind === "social" \? sid => getSocialStars\(app, sid\) : getTodayPoints\}/);
+  assert.match(sidebar, /addParticipation=\{sidebarParticipationKind === "social" \? addSocialParticipation : addParticipation\}/);
   assert.match(sidebar, /removeParticipation=\{removeParticipation\}/);
   assert.match(panel, /app\.activeClassId/);
   const known = source.slice(source.indexOf('const knownTypes = ['), source.indexOf('];', source.indexOf('const knownTypes = [')));

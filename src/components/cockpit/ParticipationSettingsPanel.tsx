@@ -10,7 +10,7 @@ export default function ParticipationSettingsPanel({ app, setApp }: { app: AppSt
     <fieldset className="space-y-2">
       <legend className="mb-2 text-sm font-bold">Welchem Fach gehört der Punkt?</legend>
       {([
-        ['current', 'Automatisch laut Stundenplan', '+1 wird sofort als Mitarbeit im aktuellen Fach gespeichert.'],
+        ['current', 'Automatisch laut Stundenplan', '+1 wird sofort in der Notenmappe als Mitarbeit im aktuellen Fach gespeichert.'],
         ['choose', 'Fach bei jedem +1 auswählen', '+1 öffnet die Fächer in der Seitenleiste. Erst dein Klick auf ein Fach vergibt den Punkt.'],
       ] as const).map(([value, title, description]) => <label key={value}
         className={`flex cursor-pointer items-start gap-2 rounded-xl border p-3 ${settings.subjectMode === value ? 'border-emerald-600 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
@@ -28,6 +28,7 @@ export default function ParticipationSettingsPanel({ app, setApp }: { app: AppSt
       </select>
     </label>
     {(settings.feedback === 'mascot' || settings.feedback === 'both') && <p className="text-xs leading-relaxed text-slate-600">Das Maskottchen muss eingeblendet sein. Im Ruhemodus bleibt es ruhig.</p>}
+    <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-900">Sozial +1 sammelt eigene Sterne. Ab 10 Sternen erhält das Kind ein Teamgeist-Badge.</p>
     <p className="text-xs text-slate-600">Gilt für diese Klasse. Änderungen werden automatisch gespeichert.</p>
   </div>;
 }

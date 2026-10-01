@@ -17,6 +17,7 @@ interface Props {
   /** The narrow Cockpit sidebar must show the whole class in a dense grid. */
   sidebarCompact?: boolean;
   onCompactToggle?: () => void;
+  socialMode?: boolean;
 }
 
 /**
@@ -38,6 +39,7 @@ export function PublicStudentListWidget({
   onExpand,
   sidebarCompact = false,
   onCompactToggle,
+  socialMode = false,
 }: Props) {
   const students = app.schueler ?? [];
   const containerRef = useRef<HTMLElement>(null);
@@ -59,7 +61,7 @@ export function PublicStudentListWidget({
   useEffect(() => {
     setLastAwardedId(null);
     setRecentlyAwardedId(null);
-  }, [app.activeClassId]);
+  }, [app.activeClassId, socialMode]);
 
   const labels = useMemo(() => {
     const result = new Map<string, string>();
@@ -92,7 +94,7 @@ export function PublicStudentListWidget({
     <section ref={containerRef} aria-label="Öffentliche Schülerliste und Pluspunkte"
       className={`flex h-full min-h-0 flex-col text-slate-900 ${dense ? 'gap-1 p-1' : 'gap-2 p-2'}`}>
       <div className="flex shrink-0 items-center justify-between gap-1">
-        <h3 className={`${dense ? 'text-xs' : 'text-sm'} font-extrabold`}>✨ Unsere Pluspunkte · {students.length}</h3>
+        <h3 className={`${dense ? 'text-xs' : 'text-sm'} font-extrabold`}>{socialMode ? "🤝 Soziale Sterne" : "✨ Unsere Pluspunkte"} · {students.length}</h3>
         {dense && lastAwardedId && (
           <button type="button" onClick={() => {
             if (getTodayPoints(lastAwardedId) > 0) removeParticipation(lastAwardedId);
@@ -149,7 +151,7 @@ export function PublicStudentListWidget({
             return (
               <div key={student.id} role="listitem"
                 className={`flex min-h-0 min-w-0 flex-col justify-center gap-0.5 rounded-lg border px-1.5 py-0.5 ${cardTone}`}>
-                <span className="block break-words text-xs font-extrabold leading-tight text-slate-900">{labels.get(student.id)}</span>
+                <span className="block break-words text-xs font-extrabold leading-tight text-slate-900">{labels.get(student.id)}{socialMode && student.badges?.some(badge => badge.id === "social-stars-10") && <span aria-label="Badge für 10 soziale Sterne" title="Teamgeist · 10 soziale Sterne"> 🏅</span>}</span>
                 <div className="flex min-w-0 items-center justify-between gap-1">
                   <div className="flex min-w-0 items-center gap-1">
                     {showBehavior && behaviorStage && <span className="sr-only" aria-label={`Verhaltensstatus: ${behaviorStage.label}`}>{behaviorStage.label}</span>}
@@ -162,14 +164,14 @@ export function PublicStudentListWidget({
                         {behaviorStage.icon || '●'}
                       </button>
                     ) : <span title={behaviorStage.label} className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-sm ${behaviorColor}`}>{behaviorStage.icon || '●'}</span>)}
-                    <span className="text-[10px] font-bold text-amber-800" aria-label={`${points} Pluspunkte`}>{points} P.</span>
+                    <span className="text-[10px] font-bold text-amber-800" aria-label={`${points} Pluspunkte`}>{socialMode ? `${points}/10 ⭐` : `${points} P.`}</span>
                   </div>
                   <button type="button" onClick={event => addParticipation(student.id, event, () => {
                     setLastAwardedId(student.id);
                     setRecentlyAwardedId(student.id);
                   })}
                     className="h-8 w-8 shrink-0 rounded-md bg-emerald-600 text-xs font-extrabold text-white hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
-                    aria-label={`Pluspunkt für ${labels.get(student.id)} vergeben`}>+1</button>
+                    aria-label={`${socialMode ? "Sozialpunkt" : "Pluspunkt"} für ${labels.get(student.id)} vergeben`}>+1</button>
                 </div>
               </div>
             );
@@ -203,10 +205,10 @@ export function PublicStudentListWidget({
                     )
                   )}
                   <div className="min-w-0 flex-1">
-                    <span className={`block break-words font-extrabold leading-tight text-slate-900 ${gridMode ? 'text-xs sm:text-sm' : dense ? 'text-xs' : 'text-base'}`}>{labels.get(student.id)}</span>
+                    <span className={`block break-words font-extrabold leading-tight text-slate-900 ${gridMode ? 'text-xs sm:text-sm' : dense ? 'text-xs' : 'text-base'}`}>{labels.get(student.id)}{socialMode && student.badges?.some(badge => badge.id === "social-stars-10") && <span aria-label="Badge für 10 soziale Sterne" title="Teamgeist · 10 soziale Sterne"> 🏅</span>}</span>
                     <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
                       <span className={`block font-bold text-amber-800 ${dense ? 'text-[10px]' : 'text-sm'}`} aria-label={`${points} Pluspunkte`}>
-                        {dense ? `${points} P.` : gridMode ? `⭐ ${points}` : `${'⭐'.repeat(Math.min(points, 8))}${points > 8 ? '…' : ''} ${points}`}
+                        {socialMode ? `${points}/10 ⭐` : dense ? `${points} P.` : gridMode ? `⭐ ${points}` : `${'⭐'.repeat(Math.min(points, 8))}${points > 8 ? '…' : ''} ${points}`}
                       </span>
                       {showBehavior && behaviorStage && (
                         <span aria-label={`Verhaltensstatus: ${behaviorStage.label}`} className="truncate text-[10px] font-bold text-slate-700">
@@ -235,7 +237,7 @@ export function PublicStudentListWidget({
                       });
                     }}
                     className={`${dense ? 'min-h-11 min-w-11 px-1 text-xs rounded-lg' : 'min-h-11 min-w-11 px-3 text-lg rounded-xl'} bg-emerald-600 font-extrabold text-white shadow-sm transition-transform hover:bg-emerald-700 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600`}
-                    aria-label={`Pluspunkt für ${labels.get(student.id)} vergeben`}
+                    aria-label={`${socialMode ? "Sozialpunkt" : "Pluspunkt"} für ${labels.get(student.id)} vergeben`}
                   >{recentlyAwardedId === student.id && !dense ? '✓ +1' : '+1'}</button>
                 </div>
               </div>

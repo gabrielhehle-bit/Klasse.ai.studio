@@ -1,3 +1,4 @@
+import { commitParticipationAward, undoParticipationAward } from '../../lib/participationAward';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { validClassroomQuiz, validClassroomRiddle } from '../../lib/classroomQuizRiddle';
 import { motion, AnimatePresence } from 'motion/react';
@@ -1566,22 +1567,9 @@ export const StudentListWidgetContent: React.FC<StudentListWidgetProps> = ({
         activeSubject = "Unterricht";
       }
 
-      const newLogs = [...(prev.mitarbeitLogs || [])];
-      const nowStr = new Date().toISOString();
-
-      presentStudents.forEach((student: any) => {
-        newLogs.push({
-          sid: student.id,
-          points: 1,
-          timestamp: nowStr,
-          fach: activeSubject || "Unterricht"
-        });
-      });
-
-      return {
-        ...prev,
-        mitarbeitLogs: newLogs
-      };
+      return presentStudents.reduce((state: any, student: any) => commitParticipationAward(state, {
+        sid: student.id, subject: activeSubject || 'Unterricht', classId: state.activeClassId,
+      }), prev);
     });
   };
 
@@ -1590,7 +1578,7 @@ export const StudentListWidgetContent: React.FC<StudentListWidgetProps> = ({
     const logs = (app.mitarbeitLogs || []).filter((log: any) => {
       const d = new Date(log.timestamp);
       const logDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      return logDateStr === todayStr;
+      return logDateStr === todayStr && log.kind !== "social" && log.points > 0 && !(app.mitarbeitLogs || []).some((entry: any) => entry.reverses === log.id);
     });
     return logs.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 3);
   }, [app.mitarbeitLogs, todayStr]);
@@ -1602,10 +1590,10 @@ export const StudentListWidgetContent: React.FC<StudentListWidgetProps> = ({
 
   // Undo a specific action log
   const handleUndoLog = (logToUndo: any) => {
-    setApp((prev: any) => ({
-      ...prev,
-      mitarbeitLogs: (prev.mitarbeitLogs || []).filter((log: any) => log.timestamp !== logToUndo.timestamp || log.sid !== logToUndo.sid)
-    }));
+    setApp((prev: any) => {
+      if (logToUndo.id && (logToUndo.gradebookApplied || logToUndo.kind === 'social')) return undoParticipationAward(prev, { id: logToUndo.id, sid: logToUndo.sid, classId: prev.activeClassId });
+      return { ...prev, mitarbeitLogs: (prev.mitarbeitLogs || []).filter((log: any) => logToUndo.id ? log.id !== logToUndo.id : log.timestamp !== logToUndo.timestamp || log.sid !== logToUndo.sid) };
+    });
   };
 
   return (
