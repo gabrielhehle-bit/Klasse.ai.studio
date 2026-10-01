@@ -702,7 +702,8 @@ async function main() {
         await client.send('Emulation.setDeviceMetricsOverride', {width,height:1000,deviceScaleFactor:1,mobile:false});
         await sleep(350);
         if(key === 'gradebook' && width === 390) {
-          await evaluate(client, `Array.from(document.querySelectorAll('[data-gradebook-actions] button')).find(b=>b.textContent.trim()==='Mehr').click()`);
+          await client.send('Input.dispatchKeyEvent', {type:'keyDown', key:'Escape', code:'Escape'});
+          await client.send('Input.dispatchKeyEvent', {type:'keyUp', key:'Escape', code:'Escape'});
           await sleep(200);
           const available = await evaluate(client, `['Notenrechner','Gewichtung','Auswertungen','Leistungsfeedback'].every(label=>Array.from(document.querySelectorAll('[data-gradebook-actions] button')).some(b=>b.textContent.trim().endsWith(label)&&b.getBoundingClientRect().width>0))`);
           if(!available) throw new Error('Gradebook mobile tools missing.');
