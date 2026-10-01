@@ -4,11 +4,8 @@ import {
   LayoutDashboard,
   CalendarDays,
   CalendarRange,
-  BookOpen,
   Folder,
-  Palette,
   Replace,
-  ClipboardList,
   ChevronRight,
 } from 'lucide-react';
 
@@ -24,19 +21,19 @@ const coreItems: PlanningItem[] = [
   {
     id: 'wochenplanung',
     label: 'Wochenplan',
-    description: 'Die konkrete Unterrichtswoche im Raster planen, im Vollbild bearbeiten und bei Bedarf mit Excel austauschen.',
+    description: 'Unterricht, Hausübungen und Termine für die Woche planen.',
     icon: CalendarDays,
   },
   {
     id: 'jahresplanung',
     label: 'Jahresplanung',
-    description: 'Themen, Stoffverteilung und Schulwochen über das ganze Schuljahr hinweg strukturieren.',
+    description: 'Themen und Lernziele über das Schuljahr verteilen.',
     icon: CalendarRange,
   },
   {
     id: 'planungszentrale',
     label: 'Wochen-Check',
-    description: 'Fehlende Themen in bereits eingetragenen Stunden erkennen. Geplant und bearbeitet wird ausschließlich im Wochenplan.',
+    description: 'Offene Vorbereitungen erkennen und im Wochenplan ergänzen.',
     icon: LayoutDashboard,
   },
 ];
@@ -45,13 +42,13 @@ const preparationItems: PlanningItem[] = [
   {
     id: 'materialien',
     label: 'Materialbibliothek',
-    description: 'Material und wiederverwendbare Unterrichtsvorbereitungen sammeln, ordnen und im Wochenplan einsetzen.',
+    description: 'Material und Unterrichtsvorlagen sammeln und wiederverwenden.',
     icon: Folder,
   },
   {
     id: 'vertretung',
     label: 'Vertretung & Übergabe',
-    description: 'Tages- oder Mehrtagesvertretung einmal vorbereiten, mit Wochenplan, Checkliste und gezielter Druckausgabe.',
+    description: 'Vertretungen mit Wochenplan, Checkliste und Druckausgabe vorbereiten.',
     icon: Replace,
   },
 ];
@@ -68,20 +65,20 @@ function PlanningCard({
     <button
       type="button"
       onClick={() => onOpen(item.id)}
-      className="group flex min-h-32 items-start gap-4 rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--accent)]/35 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+      className="group flex min-h-28 items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-left transition-colors hover:border-[var(--accent)] hover:bg-[var(--surface2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
     >
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
         <Icon size={21} />
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-start justify-between gap-3">
-          <span className="text-base font-black text-[var(--text)]">{item.label}</span>
+          <span className="text-base font-semibold text-[var(--text)]">{item.label}</span>
           <ChevronRight
             size={18}
             className="mt-0.5 shrink-0 text-[var(--text3)] transition group-hover:translate-x-0.5 group-hover:text-[var(--accent)]"
           />
         </span>
-        <span className="mt-1.5 block text-sm font-medium leading-relaxed text-[var(--text2)]">
+        <span className="mt-1 block text-sm leading-relaxed text-[var(--text2)]">
           {item.description}
         </span>
       </span>
@@ -96,23 +93,20 @@ export default function PlanungHub() {
   );
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-7 px-4 py-6 sm:px-6">
-      <header className="rounded-[2rem] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm sm:p-8">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--accent)]">Planung</p>
-        <h1 className="mt-2 text-2xl font-black tracking-tight text-[var(--text)] sm:text-3xl">
-          Vom Schuljahr bis zur nächsten Stunde
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm font-medium leading-relaxed text-[var(--text2)]">
-          Plane zuerst Woche oder Jahr. Ausführliche Unterrichtsentwürfe bearbeitest du im Wochenplan; wiederverwendbare Vorlagen findest du in der Materialbibliothek.
-        </p>
+    <div data-planning-hub className="mx-auto w-full max-w-6xl space-y-6 px-4 py-5 sm:px-6 sm:py-6">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-4">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-[var(--text)] sm:text-2xl">Planung</h1>
+          <p className="mt-1 text-sm text-[var(--text2)]">{app.klassenbezeichnung || 'Deine Klasse'} · {app.schuljahr}</p>
+        </div>
+        <p className="text-sm text-[var(--text2)]">Woche, Schuljahr und Vorbereitung</p>
       </header>
 
       <section className="space-y-3" aria-labelledby="planung-kern">
         <div className="flex items-end justify-between gap-4 px-1">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent)]">Kernplanung</p>
-            <h2 id="planung-kern" className="mt-1 text-lg font-black text-[var(--text)]">
-              Was möchtest du planen?
+            <h2 id="planung-kern" className="text-base font-semibold text-[var(--text)]">
+              Kernplanung
             </h2>
           </div>
         </div>
@@ -125,11 +119,8 @@ export default function PlanungHub() {
 
       <section className="space-y-3" aria-labelledby="planung-vorbereitung">
         <div className="px-1">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--text3)]">
+          <h2 id="planung-vorbereitung" className="text-base font-semibold text-[var(--text)]">
             Vorbereitung & Weitergabe
-          </p>
-          <h2 id="planung-vorbereitung" className="mt-1 text-lg font-black text-[var(--text)]">
-            Material, Entwürfe und Organisation
           </h2>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

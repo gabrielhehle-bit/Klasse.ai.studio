@@ -58,8 +58,8 @@ export default function DailyHomeworkButton({ day, date }: { day: string; date: 
   return <>
     <button type="button" onClick={() => setOpen(true)}
       aria-label={'Hausübung für ' + day + ' ' + date + ' eintragen'}
-      className="mt-1 min-h-9 rounded-xl border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-extrabold text-amber-900 shadow-sm hover:bg-amber-100">
-      📚 HÜ {entries.length ? '· ' + entries.length : '+ hinzufügen'}
+      className="mt-1 min-h-11 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-amber-300 hover:bg-amber-50">
+      Hausübungen {entries.length ? '· ' + entries.length : '+'}
     </button>
     {open && typeof document !== 'undefined' && createPortal(
       <div role="presentation" className="fixed inset-0 z-[100000] flex items-center justify-center bg-slate-950/70 p-3"

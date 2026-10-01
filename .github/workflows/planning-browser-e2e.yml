@@ -7,6 +7,10 @@ on:
     paths:
       - 'src/components/PlanungsZentrale.tsx'
       - 'src/components/PlanungHub.tsx'
+      - 'src/components/WeeklyPlan.tsx'
+      - 'src/components/YearlyPlan.tsx'
+      - 'src/components/DailyHomeworkButton.tsx'
+      - 'src/index.css'
       - 'src/components/Sidebar.tsx'
       - 'scripts/planning-browser-e2e.mjs'
       - '.github/workflows/planning-browser-e2e.yml'
@@ -88,7 +92,7 @@ jobs:
         with:
           name: klassio-planning-browser-${{ github.sha }}
           path: |
-            /tmp/klassio-planning-e2e.png
+            /tmp/klassio-planning-e2e*.png
             /tmp/klassio-planning-server.log
             /tmp/klassio-planning-chrome.log
           if-no-files-found: ignore
