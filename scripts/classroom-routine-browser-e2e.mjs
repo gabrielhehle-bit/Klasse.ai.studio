@@ -603,7 +603,10 @@ async function main() {
     await auditMenu('calculator', 'Minimieren');
     await openAuditWidget('calculator', 'Grundschulrechner');
     if(await evaluate(client, `document.querySelector('#smartboard-calculator').textContent`) !== calculatorState) throw new Error('Calculator loses its state on restore.');
-    await auditMenu('calculator', 'Tafelfläche');
+    await auditMenu('calculator', 'Größe');
+    await clickButton(client, 'Tafelfläche', true);
+    await evaluate(client, `document.querySelector('[data-widget-type="calculator"] button[aria-label="Größeneinstellung schließen"]').click()`);
+    await sleep(400);
     const resizeBox = () => evaluate(client, `(() => {const r=document.querySelector('[data-widget-type="calculator"]').getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height};})()`);
     const dragResize = async (direction, dx, dy) => {
       const point = await evaluate(client, `(() => {const r=document.querySelector('[data-widget-type="calculator"] [data-widget-resize=${q(direction)}]').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
