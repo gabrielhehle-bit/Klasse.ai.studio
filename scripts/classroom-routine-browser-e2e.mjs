@@ -669,8 +669,18 @@ async function main() {
       await auditMenu(type,'Widget schließen');
     }
     console.log('✓ Audit regression: calculator keys/result/restore, compass layout at 100/125/150%, QR alias/readability/title/mode restore');
-
-
+    await openPage(client, 'Klasse');
+    await waitFor(client, 'class overview visible', `Boolean(document.querySelector('[data-class-hub] h1'))`);
+    for (const width of [360, 820, 1360]) {
+      await client.send('Emulation.setDeviceMetricsOverride', {width, height:1000, deviceScaleFactor:1, mobile:false});
+      await sleep(350);
+      const layout = await evaluate(client, `(() => {const hub=document.querySelector('[data-class-hub]');const cards=Array.from(hub.querySelectorAll('section button'));return {overflow:document.documentElement.scrollWidth>innerWidth+3,cardCount:cards.length,smallTarget:cards.some(card=>card.getBoundingClientRect().height<44),heading:hub.querySelector('h1').textContent.trim()};})()`);
+      if(layout.overflow || layout.smallTarget || layout.cardCount < 6 || !layout.heading) throw new Error('Class overview layout failed at '+width+': '+JSON.stringify(layout));
+    }
+    await saveScreenshot(client);
+    await evaluate(client, `document.querySelector('[data-class-hub] header button').click()`);
+    await waitFor(client, 'class attendance shortcut opens attendance', `Array.from(document.querySelectorAll('button[aria-current="page"]')).some(button=>button.textContent.includes('Anwesenheit'))`);
+    console.log('✓ Class overview: responsive layout, usable card targets and attendance shortcut at 360/820/1360px.');
   } catch (error) {
     await saveScreenshot(client).catch(() => {});
     throw error;

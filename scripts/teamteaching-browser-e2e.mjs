@@ -285,7 +285,7 @@ async function createClassInUi(client, className) {
 
 async function openClassTeam(client) {
   await clickSidebar(client, 'Klasse');
-  await waitFor(client, 'class hub', 'document.body?.innerText.includes("Kinder und Klassenalltag im Blick")');
+  await waitFor(client, 'class hub', 'Boolean(document.querySelector("[data-class-hub] h1"))');
   await clickButton(client, 'Klassenteam');
   await waitFor(client, 'class team workspace', 'document.body?.innerText.includes("Eine Klasse gemeinsam führen")', 30000);
 }
