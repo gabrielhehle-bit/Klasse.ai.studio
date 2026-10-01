@@ -28,7 +28,7 @@ export default function ParticipationSettingsPanel({ app, setApp }: { app: AppSt
       </select>
     </label>
     {(settings.feedback === 'mascot' || settings.feedback === 'both') && <p className="text-xs leading-relaxed text-slate-600">Das Maskottchen muss eingeblendet sein. Im Ruhemodus bleibt es ruhig.</p>}
-    <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-900">Sozial +1 sammelt eigene Sterne. Ab 10 Sternen erhält das Kind ein Teamgeist-Badge.</p>
+    <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-900">Sozial +1 sammelt eigene Sterne. Badges vergibst du selbst über den Namen des Kindes.</p>
     <p className="text-xs text-slate-600">Gilt für diese Klasse. Änderungen werden automatisch gespeichert.</p>
   </div>;
 }

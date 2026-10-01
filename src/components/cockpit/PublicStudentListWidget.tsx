@@ -155,7 +155,7 @@ export function PublicStudentListWidget({
             return (
               <div key={student.id} role="listitem"
                 className={`flex min-h-0 min-w-0 flex-col justify-center gap-0.5 rounded-lg border px-1.5 py-0.5 ${cardTone}`}>
-                <span className="block break-words text-xs font-semibold leading-tight text-slate-900">{onBadgeRequest ? <button type="button" className="text-left font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600" aria-label={`Badges für ${labels.get(student.id)} vergeben`} title="Badges vergeben" onClick={() => onBadgeRequest(student.id)}>{labels.get(student.id)}</button> : labels.get(student.id)}{socialMode && student.badges?.some(badge => badge.id === "social-stars-10") && <span aria-label="Badge für 10 soziale Sterne" title="Teamgeist · 10 soziale Sterne"> 🏅</span>}{(socialMode ? [] : student.badges?.filter(badge => badge.visibleInCockpit === true && badge.id !== "social-stars-10"))?.slice(-1).map(badge => <span key={badge.id} title={badge.name} aria-label={`Badge: ${badge.name}`}> {badge.icon}</span>)}</span>
+                <span className="block break-words text-xs font-semibold leading-tight text-slate-900">{onBadgeRequest ? <button type="button" className="text-left font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600" aria-label={`Badges für ${labels.get(student.id)} vergeben`} title="Badges vergeben" onClick={() => onBadgeRequest(student.id)}>{labels.get(student.id)}</button> : labels.get(student.id)}{(socialMode ? [] : student.badges?.filter(badge => badge.visibleInCockpit === true && badge.id !== "social-stars-10"))?.slice(-1).map(badge => <span key={badge.id} title={badge.name} aria-label={`Badge: ${badge.name}`}> {badge.icon}</span>)}</span>
                 <div className="flex min-w-0 items-center justify-between gap-1">
                   <div className="flex min-w-0 items-center gap-1">
                     {showBehavior && behaviorStage && <span className="sr-only" aria-label={`Verhaltensstatus: ${behaviorStage.label}`}>{behaviorStage.label}</span>}
@@ -168,7 +168,7 @@ export function PublicStudentListWidget({
                         {behaviorStage.icon || '●'}
                       </button>
                     ) : <span title={behaviorStage.label} className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs ${behaviorColor}`}>{behaviorStage.icon || '●'}</span>)}
-                    <span className={`text-[10px] tabular-nums ${points > 0 ? 'font-semibold text-emerald-800' : 'text-slate-500'}`} aria-label={`${points} Pluspunkte`}>{socialMode ? `${points}/10 ⭐` : points}</span>
+                    <span className={`text-[10px] tabular-nums ${points > 0 ? 'font-semibold text-emerald-800' : 'text-slate-500'}`} aria-label={`${points} Pluspunkte`}>{socialMode ? `${points} ⭐` : points}</span>
                   </div>
                   <button type="button" onClick={event => addParticipation(student.id, event, () => {
                     setLastAwardedId(student.id);
@@ -209,10 +209,10 @@ export function PublicStudentListWidget({
                     )
                   )}
                   <div className="min-w-0 flex-1">
-                    <span className={`block break-words font-extrabold leading-tight text-slate-900 ${gridMode ? 'text-xs sm:text-sm' : dense ? 'text-xs' : 'text-base'}`}>{onBadgeRequest ? <button type="button" className="text-left font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600" aria-label={`Badges für ${labels.get(student.id)} vergeben`} title="Badges vergeben" onClick={() => onBadgeRequest(student.id)}>{labels.get(student.id)}</button> : labels.get(student.id)}{socialMode && student.badges?.some(badge => badge.id === "social-stars-10") && <span aria-label="Badge für 10 soziale Sterne" title="Teamgeist · 10 soziale Sterne"> 🏅</span>}{(socialMode ? [] : student.badges?.filter(badge => badge.visibleInCockpit === true && badge.id !== "social-stars-10"))?.slice(-1).map(badge => <span key={badge.id} title={badge.name} aria-label={`Badge: ${badge.name}`}> {badge.icon}</span>)}</span>
+                    <span className={`block break-words font-extrabold leading-tight text-slate-900 ${gridMode ? 'text-xs sm:text-sm' : dense ? 'text-xs' : 'text-base'}`}>{onBadgeRequest ? <button type="button" className="text-left font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600" aria-label={`Badges für ${labels.get(student.id)} vergeben`} title="Badges vergeben" onClick={() => onBadgeRequest(student.id)}>{labels.get(student.id)}</button> : labels.get(student.id)}{(socialMode ? [] : student.badges?.filter(badge => badge.visibleInCockpit === true && badge.id !== "social-stars-10"))?.slice(-1).map(badge => <span key={badge.id} title={badge.name} aria-label={`Badge: ${badge.name}`}> {badge.icon}</span>)}</span>
                     <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
                       <span className={sidebar ? `block text-xs tabular-nums ${points > 0 ? 'font-semibold text-emerald-800' : 'text-slate-500'}` : `block font-bold text-amber-800 ${dense ? 'text-[10px]' : 'text-sm'}`} aria-label={`${points} Pluspunkte`}>
-                        {socialMode ? `${points}/10 ⭐` : sidebar ? points : dense ? `${points} P.` : gridMode ? `⭐ ${points}` : `${'⭐'.repeat(Math.min(points, 8))}${points > 8 ? '…' : ''} ${points}`}
+                        {socialMode ? `${points} ⭐` : sidebar ? points : dense ? `${points} P.` : gridMode ? `⭐ ${points}` : `${'⭐'.repeat(Math.min(points, 8))}${points > 8 ? '…' : ''} ${points}`}
                       </span>
                       {showBehavior && behaviorStage && (
                         <span aria-label={`Verhaltensstatus: ${behaviorStage.label}`} className={sidebar ? "sr-only" : "truncate text-[10px] font-bold text-slate-700"}>

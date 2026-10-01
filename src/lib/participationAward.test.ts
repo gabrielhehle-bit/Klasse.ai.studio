@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { commitParticipationAward, commitSocialAward, getSocialStars, undoParticipationAward, SOCIAL_BADGE_ID } from './participationAward';
+import { commitParticipationAward, commitSocialAward, getSocialStars, undoParticipationAward, SOCIAL_BADGE_ID, resetParticipationStars, getParticipationResetCount } from './participationAward';
 import { initialAppState, syncActiveClass, switchClassState, normalizeAppState } from './appState';
 import { accountSyncState, mergeAccountSyncState } from './accountSyncService';
 import { adoptAcknowledgedTeamRoom } from './teamTeachingProjection';
@@ -71,7 +71,7 @@ test('Fachplus erhöht genau den Fachzähler der Notenmappe und Rückgängig kor
   assert.equal(corrected.mitarbeitLogs.reduce((n, log) => n + log.points, 0), 0);
   assert.equal(undoParticipationAward(corrected, { classId: 'a', sid: 'pupil', id: 'award' }), corrected);
 });
-test('Soziale Sterne verändern keine Fach-Mitarbeit; genau ab zehn gibt es ein dauerhaftes Badge', () => {
+test('Soziale Sterne verändern keine Fach-Mitarbeit und vergeben auch über zehn keine automatischen Badges', () => {
   const base = state();
   let next = base;
   for (let i = 1; i <= 9; i++) next = commitSocialAward(next, { classId: 'a', sid: 'pupil', id: `social-${i}` });
@@ -79,19 +79,19 @@ test('Soziale Sterne verändern keine Fach-Mitarbeit; genau ab zehn gibt es ein 
   assert.equal(next.schueler[0].badges?.length || 0, 0);
   next = commitSocialAward(next, { classId: 'a', sid: 'pupil', id: 'social-10' });
   assert.equal(getSocialStars(next, 'pupil'), 10);
-  assert.equal(next.schueler[0].badges?.filter(badge => badge.id === SOCIAL_BADGE_ID).length, 1);
+  assert.equal(next.schueler[0].badges?.filter(badge => badge.id === SOCIAL_BADGE_ID).length || 0, 0);
   assert.deepEqual(next.mitarbeit, base.mitarbeit);
   assert.equal(next.mitarbeitLogs.some(log => log.fach), false);
   const restored = normalizeAppState(JSON.parse(JSON.stringify(accountSyncState(syncActiveClass(next)))));
   assert.equal(getSocialStars(restored, 'pupil'), 10);
-  assert.equal(restored.schueler[0].badges?.filter(badge => badge.id === SOCIAL_BADGE_ID).length, 1);
+  assert.equal(restored.schueler[0].badges?.filter(badge => badge.id === SOCIAL_BADGE_ID).length || 0, 0);
   const undone = undoParticipationAward(next, { classId: 'a', sid: 'pupil', id: 'social-10' });
   assert.equal(getSocialStars(undone, 'pupil'), 9);
-  assert.equal(undone.schueler[0].badges?.some(badge => badge.id === SOCIAL_BADGE_ID), false);
+  assert.equal(Boolean(undone.schueler[0].badges?.some(badge => badge.id === SOCIAL_BADGE_ID)), false);
   next = commitSocialAward(next, { classId: 'a', sid: 'pupil', id: 'social-11' });
-  assert.equal(next.schueler[0].badges?.filter(badge => badge.id === SOCIAL_BADGE_ID).length, 1);
+  assert.equal(next.schueler[0].badges?.filter(badge => badge.id === SOCIAL_BADGE_ID).length || 0, 0);
 });
-test('Soziale Sterne und Badge werden im geteilten Klassendatensatz verschlüsselt übertragen', async () => {
+test('Soziale Sterne werden im geteilten Klassendatensatz verschlüsselt übertragen', async () => {
   let next = state();
   for (let i = 0; i < 10; i++) next = commitSocialAward(next, { classId: 'a', sid: 'pupil' });
   next = syncActiveClass(next);
@@ -100,4 +100,59 @@ test('Soziale Sterne und Badge werden im geteilten Klassendatensatz verschlüsse
   assert.deepEqual(shared.mitarbeitLogs, next.classes[0].mitarbeitLogs);
   assert.deepEqual(shared.schueler[0].badges, next.schueler[0].badges);
   assert.deepEqual(shared.mitarbeit, next.mitarbeit);
+});
+
+test('Zurücksetzen korrigiert mehrere heutige Fachpunkte und lässt andere Kinder, Fächer und Tage unberührt', () => {
+  const now = '2026-10-01T10:00:00Z';
+  let source = { ...state(), schueler: [...state().schueler, { id: 'other', vorname: 'Andere', nachname: 'Kind' }], mitarbeit: { pupil: { Deutsch: { '1': 4, '2': 9 }, Mathematik: { '1': 7 } } } } as any;
+  source = commitParticipationAward(source, { classId: 'a', sid: 'pupil', subject: 'Deutsch', id: 'yesterday' }, '2026-09-30T10:00:00Z');
+  for (let i = 0; i < 3; i++) source = commitParticipationAward(source, { classId: 'a', sid: 'pupil', subject: 'Deutsch', id: `today-${i}` }, now);
+  source = undoParticipationAward(source, { classId: 'a', sid: 'pupil', id: 'today-0' }, now);
+  source = commitParticipationAward(source, { classId: 'a', sid: 'other', subject: 'Deutsch', id: 'other-award' }, now);
+  source = commitSocialAward(source, { classId: 'a', sid: 'pupil', id: 'social' }, now);
+  const request = { classId: 'a', sid: 'pupil', kind: 'subject', scope: 'today' } as const;
+  assert.equal(getParticipationResetCount(source, request, now), 2);
+  const next = resetParticipationStars(source, request, now);
+  assert.equal(getParticipationResetCount(next, request, now), 0);
+  assert.equal(next.mitarbeit.pupil.Deutsch['1'], 5);
+  assert.equal(next.mitarbeit.pupil.Deutsch['2'], 9);
+  assert.equal(next.mitarbeit.pupil.Mathematik['1'], 7);
+  assert.equal(next.mitarbeit.other.Deutsch['1'], 1);
+  assert.equal(getSocialStars(next, 'pupil'), 1);
+  assert.equal(resetParticipationStars(next, request, now), next);
+  assert.equal(undoParticipationAward(next, { classId: 'a', sid: 'pupil', id: 'today-1' }, now), next);
+  assert.equal(resetParticipationStars(next, { ...request, classId: 'b' }, now), next);
+});
+test('Sozialsterne können mehrfach korrigiert werden, manuelle Badges und Fachnoten bleiben erhalten', () => {
+  const now = '2026-10-01T10:00:00Z';
+  let source = { ...state(), schueler: [{ ...state().schueler[0], badges: [{ id: 'manual', name: 'Teamgeist', icon: '🤝', date: now }] }] } as any;
+  for (let i = 0; i < 12; i++) source = commitSocialAward(source, { classId: 'a', sid: 'pupil' }, now);
+  const request = { classId: 'a', sid: 'pupil', kind: 'social', scope: 'all' } as const;
+  const reset = resetParticipationStars(source, request, now);
+  assert.equal(getSocialStars(reset, 'pupil'), 0);
+  assert.deepEqual(reset.schueler, source.schueler);
+  assert.deepEqual(reset.mitarbeit, source.mitarbeit);
+  const awarded = commitSocialAward(reset, { classId: 'a', sid: 'pupil' }, now);
+  assert.equal(getSocialStars(awarded, 'pupil'), 1);
+  assert.equal(getSocialStars(resetParticipationStars(awarded, request, now), 'pupil'), 0);
+});
+test('Legacy-Journalpunkte ohne Notenmappe-Nachweis werden beim Zurücksetzen nicht von alten Fachnoten abgezogen', () => {
+  const now = '2026-10-01T10:00:00Z';
+  let source = { ...state(), mitarbeit: { pupil: { Deutsch: { '1': 8 } } }, mitarbeitLogs: [{ id: 'legacy', sid: 'pupil', fach: 'Deutsch', points: 3, timestamp: now }] } as any;
+  source = commitParticipationAward(source, { classId: 'a', sid: 'pupil', subject: 'Deutsch' }, now);
+  const request = { classId: 'a', kind: 'subject', scope: 'today' } as const;
+  assert.equal(getParticipationResetCount(source, request, now), 4);
+  const next = resetParticipationStars(source, request, now);
+  assert.equal(next.mitarbeit.pupil.Deutsch['1'], 8);
+  assert.equal(getParticipationResetCount(next, request, now), 0);
+  assert.equal(resetParticipationStars(next, request, now), next);
+});
+test('Zurückgesetzte Sterne einschließlich Korrekturen werden verschlüsselt im Klassenteam übertragen', async () => {
+  const now = '2026-10-01T10:00:00Z';
+  let source = commitParticipationAward(state(), { classId: 'a', sid: 'pupil', subject: 'Deutsch' }, now);
+  source = syncActiveClass(resetParticipationStars(source, { classId: 'a', kind: 'subject', scope: 'today' }, now));
+  const key = await generateSharedClassKey();
+  const shared = await decryptSharedClass(await encryptSharedClass(source.classes[0], key), key);
+  assert.deepEqual(shared.mitarbeitLogs, source.mitarbeitLogs);
+  assert.deepEqual(shared.mitarbeit, source.mitarbeit);
 });

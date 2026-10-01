@@ -1578,7 +1578,7 @@ export const StudentListWidgetContent: React.FC<StudentListWidgetProps> = ({
     const logs = (app.mitarbeitLogs || []).filter((log: any) => {
       const d = new Date(log.timestamp);
       const logDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      return logDateStr === todayStr && log.kind !== "social" && log.points > 0 && !(app.mitarbeitLogs || []).some((entry: any) => entry.reverses === log.id);
+      return logDateStr === todayStr && log.kind !== "social" && log.points > 0 && !(app.mitarbeitLogs || []).some((entry: any) => entry.reverses === log.id || entry.resets?.includes(log.id));
     });
     return logs.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 3);
   }, [app.mitarbeitLogs, todayStr]);
