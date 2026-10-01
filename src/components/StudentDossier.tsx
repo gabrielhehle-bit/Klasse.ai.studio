@@ -532,7 +532,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
           )}
 
           {/* Profile Hero Header Card */}
-          {!app.dossierFocusMode && activeTab !== 'uebersicht' && (
+          {!app.dossierFocusMode && activeTab !== 'uebersicht' && activeTab !== 'leistungen' && activeTab !== 'beobachtungen_verlauf' && (
             <div className={`mb-5 px-4 py-4 sm:px-5 bg-slate-50/70 border ${isBirthdayToday ? 'border-pink-200' : 'border-slate-200'} rounded-2xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 transition-all relative`}>
               
               {isBirthdayToday && (

@@ -298,6 +298,30 @@ async function checkRoutine(client) {
   await sleep(500);
   await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-dossier-desktop.png'));
   await client.send('Emulation.setDeviceMetricsOverride', { width: WIDTH, height: 1000, deviceScaleFactor: 1, mobile: true });
+  await clickSelector(client, '[data-dossier-overview] section[aria-label="Notenstand aller Fächer"] .grid button');
+  await waitFor(client, 'direct subject entry with chart', 'Boolean(document.querySelector("[data-dossier-assessment-chart]")) && Boolean(document.querySelector("select[aria-label=\\"Fach auswählen\\"]"))');
+  const firstSubject = await evaluate(client, 'document.querySelector("select[aria-label=\\"Fach auswählen\\"]").value');
+  await clickSelector(client, 'button[aria-label="Nächstes Fach"]');
+  await waitFor(client, 'next subject updates selection', 'document.querySelector("select[aria-label=\\"Fach auswählen\\"]")?.value !== ' + q(firstSubject));
+  await clickSelector(client, 'button[aria-label="Vorheriges Fach"]');
+  await waitFor(client, 'previous subject restores selection', 'document.querySelector("select[aria-label=\\"Fach auswählen\\"]")?.value === ' + q(firstSubject));
+  for (const assessment of [{ label: 'Späterer Test', date: '2026-09-22', grade: '2' }, { label: 'Früherer Test', date: '2026-09-08', grade: '4' }]) {
+    await clickButton(client, 'Leistungsnachweis eintragen');
+    await waitFor(client, 'assessment form', 'Boolean(document.querySelector("input[type=date]"))');
+    await setInputByLabel(client, 'Bezeichnung', assessment.label);
+    await setInputByLabel(client, 'Datum', assessment.date);
+    await setInputByLabel(client, 'Note (1 bis 5)', assessment.grade);
+    await clickButton(client, 'Speichern', true);
+    await waitFor(client, 'assessment form closed', '!document.querySelector("input[type=date]")');
+  }
+  await waitFor(client, 'dated grade dots visible in chronological order', '(() => { const c=document.querySelector("[data-dossier-assessment-chart]"); const dots=Array.from(c?.querySelectorAll(".recharts-line-dot")||[]); return dots.length===2 && Number(dots[0].getAttribute("cy")) > Number(dots[1].getAttribute("cy")) && c.innerText.indexOf("08.09.") < c.innerText.indexOf("22.09."); })()');
+  const subjectWidth = await evaluate(client, 'document.documentElement.scrollWidth');
+  if (subjectWidth > WIDTH + 5) throw new Error('Subject detail overflows viewport: ' + subjectWidth);
+  await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-subject.png'));
+  await client.send('Emulation.setDeviceMetricsOverride', { width: 1360, height: 1000, deviceScaleFactor: 1, mobile: false });
+  await sleep(500);
+  await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-subject-desktop.png'));
+  await client.send('Emulation.setDeviceMetricsOverride', { width: WIDTH, height: 1000, deviceScaleFactor: 1, mobile: true });
   await openObservations(client);
   await clickButton(client, 'Beobachtung notieren');
   await setInputByPlaceholder(client, 'Konkrete, wertfreie Unterrichtsbeobachtung', 'Synthetische Browser-Testnotiz');
