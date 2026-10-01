@@ -1,4 +1,5 @@
 import SaveSyncStatus from './SaveSyncStatus';
+import ClassTeamStatus from './ClassTeamStatus';
 import ParticipationSettingsPanel from './cockpit/ParticipationSettingsPanel';
 import ParticipationResetPanel from './cockpit/ParticipationResetPanel';
 import ParticipationSubjectPicker from './cockpit/ParticipationSubjectPicker';
@@ -8345,6 +8346,7 @@ ${content}
                   {cockpitClassLabel}
                 </span>
               )}
+              <ClassTeamStatus onOpen={() => { handleCloseCockpit(); setPage("teamteaching"); }} />
             </div>
             <SaveSyncStatus compact onOpenTeam={() => { handleCloseCockpit(); setPage("teamteaching"); }} />
           </div>

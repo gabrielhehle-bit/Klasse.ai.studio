@@ -2,8 +2,8 @@ import { createPortal } from 'react-dom';
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { saveSyncPresentation } from '../lib/saveSyncPresentation';
-import { classRoomFingerprint } from '../lib/teamTeachingCrypto';
 import { syncActiveClass } from '../lib/appState';
+import { teamSyncPresentation } from '../lib/teamSyncPresentation';
 const time = (value?: string | null) => value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString('de-AT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'Noch keine Bestätigung';
 export default function SaveSyncStatus({ onOpenTeam, fullWidth = false, compact = false }: { onOpenTeam?: () => void; fullWidth?: boolean; compact?: boolean }) {
   const { app, localSaveStatus, localSaveLastAt, accountSyncStatus, accountSyncLastAt, accountLiveStatus, accountSyncMessage, retryAccountSync, setPage } = useApp();
@@ -19,7 +19,7 @@ export default function SaveSyncStatus({ onOpenTeam, fullWidth = false, compact 
   useEffect(() => { const update = () => setOnline(navigator.onLine); window.addEventListener('online', update); window.addEventListener('offline', update); return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update); }; }, []);
   const room = syncActiveClass(app).classes?.find(candidate => candidate.id === app.activeClassId);
   const meta = room?.teamTeaching;
-  const team = meta ? meta.syncStatus === 'conflict' ? 'conflict' : meta.syncStatus === 'error' ? 'error' : meta.syncStatus === 'synced' && classRoomFingerprint(room!) === meta.lastSyncedHash ? 'synced' : 'pending' : room?.teamTeachingSharedClassId ? 'pending' : undefined;
+  const team = teamSyncPresentation(room)?.status;
   const state = saveSyncPresentation(localSaveStatus, accountSyncStatus, online, team);
   return <details open={detailsOpen} onToggle={event => setDetailsOpen(event.currentTarget.open)} className={`relative min-w-0 text-left text-slate-900 ${compact ? "w-fit self-start" : ""} ${fullWidth ? "w-full" : "max-w-[min(15rem,45vw)]"}`} data-account-live-status={accountLiveStatus} data-account-sync-status={accountSyncStatus} data-local-save-status={localSaveStatus} data-device-switch-ready={state.ready}>
     <summary aria-label={`Speicherstatus: ${state.label}`} title={`${state.label}${accountLiveStatus === 'live' ? ' · Live-Abgleich aktiv' : ''} · Details öffnen`}

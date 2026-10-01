@@ -562,7 +562,7 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                         category: "mindfulness",
                                       },
                                       { type: "scrambler", label: "✍️ Wort- & Satzwerkstatt", desc: "Wörter und Sätze spielerisch ordnen und untersuchen", category: "deutsch" },
-                                      { type: "fractions", label: "◐ Bruch-Visualisierer", desc: "Brüche anschaulich darstellen", category: "mathe" },
+                                      { type: "fractions", label: "◐ Bruch-Visualisierer · Vergleich", desc: "Brüche anschaulich darstellen", category: "mathe" },
                                       { type: "sorting", label: "🔢 Zahlensortierer", desc: "Zahlen vergleichen und sortieren", category: "mathe" },
                                       { type: "piggybank", label: "🐷 Klassen-Sparschwein", desc: "Geldbeträge spielerisch darstellen", category: "mathe" },
                                       { type: "spellingdetective", label: "🔤 Rechtschreib-Detektiv", desc: "Wörter untersuchen und Rechtschreibung trainieren", category: "deutsch" },

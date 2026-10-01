@@ -43,6 +43,7 @@ export interface ParticipationResetRequest {
   sid?: string;
   kind: 'subject' | 'social';
   scope: 'today' | 'all';
+  subject?: string;
 }
 const localDay = (timestamp: string) => new Date(timestamp).toDateString();
 function resetLogs(state: AppState, request: ParticipationResetRequest, timestamp: string) {
@@ -50,7 +51,30 @@ function resetLogs(state: AppState, request: ParticipationResetRequest, timestam
   return (state.mitarbeitLogs || []).filter(log => pupils.has(log.sid)
     && (!request.sid || request.sid === log.sid)
     && (log.kind === 'social' ? 'social' : 'subject') === request.kind
+    && (!request.subject || log.fach === request.subject)
     && (request.scope === 'all' || localDay(log.timestamp) === localDay(timestamp)));
+}
+/** Correct the latest matching awards, including historical multi-point entries.
+ * Reversal links keep subsequent undo/reset operations from deducting twice. */
+export function correctParticipationStars(state: AppState, request: ParticipationResetRequest & { sid: string; amount: number }, timestamp = new Date().toISOString()): AppState {
+  if (state.activeClassId !== request.classId || !state.schueler.some(student => student.id === request.sid)
+    || ![1, 2, 3].includes(request.amount) || (request.kind === 'subject' && !request.subject)) return state;
+  let remaining = Math.min(request.amount, getParticipationResetCount(state, request, timestamp));
+  let next = state;
+  const history = state.mitarbeitLogs || [];
+  for (const log of resetLogs(state, request, timestamp).slice().reverse()) {
+    if (remaining <= 0) break;
+    if (!Number.isFinite(log.points) || log.points <= 0 || history.some(item => item.resets?.includes(log.id))) continue;
+    const reversed = history.reduce((total, item) => total + (item.reverses === log.id && item.points < 0 ? -item.points : 0), 0);
+    const amount = Math.min(remaining, Math.max(0, log.points - reversed));
+    if (!amount) continue;
+    if (request.kind === 'subject' && log.gradebookApplied && log.fach) next = changeGradebook(next, log.sid, log.fach, -amount);
+    next = { ...next, mitarbeitLogs: [...(next.mitarbeitLogs || []), {
+      ...log, id: crypto.randomUUID(), points: -amount, timestamp, reverses: log.id,
+    }] };
+    remaining -= amount;
+  }
+  return next;
 }
 export function getParticipationResetCount(state: AppState, request: ParticipationResetRequest, timestamp = new Date().toISOString()): number {
   if (state.activeClassId !== request.classId) return 0;

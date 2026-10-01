@@ -240,7 +240,7 @@ export function calculateOptimalQRSize(
   const squareSize = Math.min(availW, availH);
 
   if (category === 'compact') {
-    return Math.max(90, Math.min(squareSize, 140));
+    return Math.max(90, Math.min(squareSize, 190));
   }
 
   if (category === 'standard') {
