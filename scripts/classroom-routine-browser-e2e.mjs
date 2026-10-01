@@ -702,12 +702,12 @@ async function main() {
         await client.send('Emulation.setDeviceMetricsOverride', {width,height:1000,deviceScaleFactor:1,mobile:false});
         await sleep(350);
         if(key === 'gradebook' && width === 390) {
-          await client.send('Input.dispatchKeyEvent', {type:'keyDown', key:'Escape', code:'Escape'});
-          await client.send('Input.dispatchKeyEvent', {type:'keyUp', key:'Escape', code:'Escape'});
+          await evaluate(client, `Array.from(document.querySelectorAll('[data-gradebook-actions] button')).find(b=>b.textContent.trim()==='Mehr').click()`);
           await sleep(200);
           const available = await evaluate(client, `['Notenrechner','Gewichtung','Auswertungen','Leistungsfeedback'].every(label=>Array.from(document.querySelectorAll('[data-gradebook-actions] button')).some(b=>b.textContent.trim().endsWith(label)&&b.getBoundingClientRect().width>0))`);
           if(!available) throw new Error('Gradebook mobile tools missing.');
-          await evaluate(client, `Array.from(document.querySelectorAll('[data-gradebook-actions] button')).find(b=>b.textContent.trim()==='Mehr').click()`);
+          await client.send('Input.dispatchKeyEvent', {type:'keyDown', key:'Escape', code:'Escape'});
+          await client.send('Input.dispatchKeyEvent', {type:'keyUp', key:'Escape', code:'Escape'});
           await sleep(200);
         }
         const layout = await evaluate(client, `(() => {const node=document.querySelector('${selector}');return {overflow:document.documentElement.scrollWidth>innerWidth+3,heading:node.querySelector('h1')?.textContent.trim(),smallTargets:Array.from(node.querySelectorAll('${key === 'gradebook' ? '[data-gradebook-header] button, [data-gradebook-actions] button' : 'section button'}')).filter(b=>b.getBoundingClientRect().width>0&&b.getBoundingClientRect().height<43).map(b=>b.textContent.trim())};})()`);
