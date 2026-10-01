@@ -312,7 +312,7 @@ export const MobileRemoteController: React.FC<MobileRemoteControllerProps> = ({ 
       const newLogs = [...(prev.mitarbeitLogs || []), {
          id: Date.now().toString() + Math.random().toString(),
          sid: studentId,
-         points: 1,
+         points: 1, fach: subject, kind: "subject", gradebookApplied: true,
          timestamp: new Date().toISOString()
       }];
 
@@ -341,7 +341,7 @@ export const MobileRemoteController: React.FC<MobileRemoteControllerProps> = ({ 
       const newLogs = [...(prev.mitarbeitLogs || []), {
          id: Date.now().toString() + Math.random().toString(),
          sid: studentId,
-         points: -1,
+         points: -1, fach: subject, kind: "subject", gradebookApplied: true,
          timestamp: new Date().toISOString()
       }];
 

@@ -475,7 +475,7 @@ export interface Student {
   }[];
   foto?: string;
   emoji?: string;
-  badges?: { id: string, name: string, date: string, icon: string }[];
+  badges?: { id: string, name: string, date: string, icon: string, fach?: string, visibleInCockpit?: boolean }[];
   charakter?: string[];
   wunschpartner?: string[]; // student IDs
   sperrpartner?: string[];  // student IDs
@@ -1123,7 +1123,7 @@ export interface ClassRoom {
   observations?: AppState['observations'];
   metaKognitionsProtokolle?: AppState['metaKognitionsProtokolle'];
   interaktionsLog?: AppState['interaktionsLog'];
-  mitarbeitLogs?: {id: string; sid: string; points: number; timestamp: string; fach?: string}[];
+  mitarbeitLogs?: {id: string; sid: string; points: number; timestamp: string; fach?: string; kind?: 'subject' | 'social'; gradebookApplied?: boolean; reverses?: string}[];
   mitarbeit: Record<string, Record<string, Record<string, number>>>;
   /** Class-local participation grading thresholds/mode used by the gradebook. */
   mitarbeit_settings?: AppState['mitarbeit_settings'];
@@ -1562,7 +1562,7 @@ export interface AppState {
   schuelerGoals?: SchuelerGoal[];
   observations?: Observation[];
   notizen: Note[];
-  mitarbeitLogs?: {id: string; sid: string; points: number; timestamp: string; fach?: string}[];
+  mitarbeitLogs?: {id: string; sid: string; points: number; timestamp: string; fach?: string; kind?: 'subject' | 'social'; gradebookApplied?: boolean; reverses?: string}[];
   journal: NoteEntry[];
   notes?: AppNote[];
   dashboardTodos?: {id: string, text: string, done: boolean}[];
@@ -1960,7 +1960,7 @@ export interface CockpitWidgetConfig {
   hasBeenOpened?: boolean;
 }
 
-export const UNIFIED_DEFAULT_BADGES = [
+export const UNIFIED_DEFAULT_BADGES: { id: string; name: string; icon: string; fach?: string }[] = [
   { id: 'cleanup', name: 'Super aufgeräumt', icon: '🧹' },
   { id: 'helper', name: 'Toll geholfen', icon: '🤝' },
   { id: 'creative', name: 'Kreative Idee', icon: '💡' },
@@ -1968,12 +1968,24 @@ export const UNIFIED_DEFAULT_BADGES = [
   { id: 'courage', name: 'Großer Mut', icon: '🦁' },
   { id: 'ant', name: 'Fleißige Ameise', icon: '🐜' },
   { id: 'artist', name: 'Künstler/in', icon: '🎨' },
-  { id: 'genie', name: 'Mathe-Genie', icon: '🧠' },
-  { id: 'book', name: 'Leseratte', icon: '📚' },
+  { id: 'genie', name: 'Mathe-Genie', icon: '🧠', fach: 'Mathematik' },
+  { id: 'book', name: 'Leseratte', icon: '📚', fach: 'Deutsch' },
   { id: 'clown', name: 'Klassenclown', icon: '🤡' },
-  { id: 'sport', name: 'Sport-Champ', icon: '🏆' },
-  { id: 'music', name: 'Musik-Genie', icon: '🎵' },
+  { id: 'sport', name: 'Sport-Champ', icon: '🏆', fach: 'Sport' },
+  { id: 'music', name: 'Musik-Genie', icon: '🎵', fach: 'Musik' },
   { id: 'trash', name: 'Müllmeister', icon: '🧼' },
   { id: 'presentation', name: 'Super-Referat', icon: '🎤' },
-  { id: 'silent', name: 'Leisetreter', icon: '🤫' }
+  { id: 'silent', name: 'Leisetreter', icon: '🤫' },
+  { id: 'football', name: 'Fußball-Badge', icon: '⚽', fach: 'Sport' },
+  { id: 'hockey', name: 'Eishockey-Badge', icon: '🏒', fach: 'Sport' },
+  { id: 'fairplay', name: 'Fairplay', icon: '🤝', fach: 'Sport' },
+  { id: 'numbers', name: 'Zahlenprofi', icon: '🔢', fach: 'Mathematik' },
+  { id: 'arithmetic', name: 'Rechenprofi', icon: '🧮', fach: 'Mathematik' },
+  { id: 'puzzle', name: 'Knobelprofi', icon: '🧩', fach: 'Mathematik' },
+  { id: 'book-explorer', name: 'Bücherentdecker', icon: '📖', fach: 'Deutsch' },
+  { id: 'reading', name: 'Vorleseprofi', icon: '📣', fach: 'Deutsch' },
+  { id: 'writing', name: 'Schreibprofi', icon: '✍️', fach: 'Deutsch' },
+  { id: 'research', name: 'Forschergeist', icon: '🔬', fach: 'Sachunterricht' },
+  { id: 'nature', name: 'Naturprofi', icon: '🌿', fach: 'Sachunterricht' },
+  { id: 'rhythm', name: 'Rhythmusprofi', icon: '🥁', fach: 'Musik' }
 ];
