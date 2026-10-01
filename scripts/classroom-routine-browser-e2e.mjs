@@ -617,6 +617,7 @@ async function main() {
       await client.send('Input.dispatchMouseEvent', {type:'mousePressed',x:point.x,y:point.y,button:'left',clickCount:1});
       await client.send('Input.dispatchMouseEvent', {type:'mouseMoved',x:point.x+dx,y:point.y+dy,button:'left',buttons:1});
       await client.send('Input.dispatchMouseEvent', {type:'mouseReleased',x:point.x+dx,y:point.y+dy,button:'left',clickCount:1});
+      await sleep(350);
     };
     for (const direction of ['n','ne','e','se','s','sw','w','nw']) {
       const before = await resizeBox();
@@ -629,6 +630,7 @@ async function main() {
       const anchorY = direction.includes('n') ? grown.y+grown.h : grown.y;
       if(Math.abs(anchorX-(direction.includes('w') ? before.x+before.w : before.x)) > 3 || Math.abs(anchorY-(direction.includes('n') ? before.y+before.h : before.y)) > 3) throw new Error('Resize moves opposite edge: ' + direction);
       await dragResize(direction, -dx, -dy);
+      console.log('Resize round trip', direction, {before, grown, shrunk:await resizeBox()});
       await waitFor(client, 'widget shrinks from ' + direction, `(() => {const r=document.querySelector('[data-widget-type="calculator"]').getBoundingClientRect();return Math.abs(r.width-${before.w})<3 && Math.abs(r.height-${before.h})<3 && !document.querySelector('[data-widget-type="calculator"]').hasAttribute('data-widget-interacting');})()`);
     }
     console.log('✓ Widget resizes from all four sides and all four corners; opposite edges remain anchored.');

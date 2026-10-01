@@ -653,7 +653,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       className={`cockpit-widget-container absolute flex flex-col transition-[transform,border-color,shadow,background-color,opacity,border-radius,box-shadow,ring-color] duration-300 ease-out select-none group animate-in fade-in zoom-in-95 ${isFreeMascot ? "cockpit-free-mascot rounded-none border-0 bg-transparent shadow-none ring-0 backdrop-blur-none" : ""} ${
         isDirect || isFreeMascot
           ? "rounded-none border-none bg-transparent shadow-none"
-          : "rounded-[24px] backdrop-blur-3xl ring-offset-transparent transition-all " +
+          : "rounded-[24px] backdrop-blur-3xl ring-offset-transparent " +
             (currentIsLight
               ? isFocused
                 ? "bg-white border border-accent ring-4 ring-accent/20 shadow-[0_24px_55px_rgba(15,23,42,0.16),0_1px_3px_rgba(15,23,42,0.06)] text-slate-800"
