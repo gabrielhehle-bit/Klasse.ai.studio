@@ -11,3 +11,8 @@ test('absence hours use the original daily detail precedence and selected school
  const app={schuljahr:'2026/27',anwesenheit:{a:{'2026-09-01':{1:'e',2:'u'},'2026-09-02':{1:'a'},'2025-09-01':{1:'u'}}},anwesenheitDetail:{a:{'2026-09-01':{fehlstunden:6},'2026-09-03':{fehlstunden:3,notiz:'Unentschuldigt'}}}};
  const s=getDossierOverviewStats(app,'a','year',now);assert.equal(s.excused,1);assert.equal(s.unexcused,4);assert.equal(s.attendanceCount,3);assert.equal(s.weeks[0].mood,null);
 });
+
+test('latest mood does not carry a previous school year forward',()=>{
+ const s=getDossierOverviewStats({schuljahr:'2026/27',schuelerStimmung:{a:{'2025-09-01':1,'2026-10-02':2}}},'a','year',now);
+ assert.equal(s.latestMood,undefined);assert.equal(s.moodCount,0);
+});
