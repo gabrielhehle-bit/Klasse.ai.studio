@@ -1,3 +1,4 @@
+import SidebarStarsOverview from './cockpit/SidebarStarsOverview';
 import SaveSyncStatus from './SaveSyncStatus';
 import ClassTeamStatus from './ClassTeamStatus';
 import ParticipationSettingsPanel from './cockpit/ParticipationSettingsPanel';
@@ -5891,6 +5892,7 @@ ${content}
       "success",
     );
   };
+  const [sidebarContent, setSidebarContent] = useState<'students' | 'stars'>('students');
   const sidebarMode = app.boardSettings?.sidebarMode || "hidden";
   const sidebarPreferredWidth = clampCockpitSidebarWidth((app.boardSettings as any)?.cockpitStudentSidebarWidthByClass?.[boardTextClassKey]);
   const [sidebarResizePreview, setSidebarResizePreview] = useState<number | null>(null);
@@ -12616,11 +12618,11 @@ ${content}
                           className="absolute inset-y-0 left-0 z-[70] w-2.5 cursor-col-resize touch-none bg-slate-200/40 hover:bg-indigo-300 focus-visible:bg-indigo-300"
                           title="Ziehen, um die Schülerliste breiter oder schmaler zu machen" />
                       )}
-                      <div className="shrink-0 border-b border-slate-200 bg-white p-2 text-slate-900">
+                      <div className="shrink-0 border-b border-slate-200 bg-white p-1.5 text-slate-900">
                         <div className="flex min-w-0 items-center gap-1">
-                          <span className="min-w-0 flex-1 truncate text-xs font-semibold" title={`${cockpitClassLabel || 'Klasse'} · ${app.schueler.length} Kinder`}>
-                            {cockpitClassLabel || 'Klasse'} <span className="font-normal text-slate-500">· {app.schueler.length} Kinder</span>
-                          </span>
+                          <select aria-label="Widget der Seitenleiste" title={`${cockpitClassLabel || 'Klasse'} · ${app.schueler.length} Kinder`} value={sidebarContent} onChange={event => setSidebarContent(event.target.value as 'students' | 'stars')} className="min-h-8 min-w-0 flex-1 rounded-md border-0 bg-white px-1 text-xs font-semibold">
+                            <option value="students">{cockpitClassLabel || 'Klasse'} · {app.schueler.length} Kinder</option><option value="stars">Sterneübersicht · Diagramm</option>
+                          </select>
                           <button type="button"
                             aria-label={sidebarMode === "mini" ? "Schüler-Seitenleiste groß anzeigen" : "Schüler-Seitenleiste kompakt anzeigen"}
                             aria-pressed={sidebarMode === "mini"}
@@ -12649,7 +12651,7 @@ ${content}
                       <div
                         className={`flex-1 min-h-0 overflow-hidden ${sidebarMode === "mini" ? "px-1 py-1" : "px-2.5 py-2"}`}
                       >
-                        <StudentListWidgetContent
+                        {sidebarContent === "stars" ? <SidebarStarsOverview /> : <StudentListWidgetContent
                           key={`${app.activeClassId || 'no-class'}-${participationResetVersion}`}
                           app={app}
                           getTodayPoints={sidebarParticipationKind === "social" ? sid => getSocialStars(app, sid) : getTodayPoints}
@@ -12660,7 +12662,7 @@ ${content}
                           sidebarCompact={sidebarMode === "mini"}
                           socialMode={sidebarParticipationKind === "social"}
                           onBadgeRequest={sid => { setPendingParticipation(null); setIsParticipationSettingsOpen(false); setBadgeStudentId(sid); }}
-                        />
+                        />}
                       </div>
                       {badgeStudentId && <StudentBadgePicker app={app} setApp={setApp} studentId={badgeStudentId} onClose={() => setBadgeStudentId(null)} />}
                       {isParticipationSettingsOpen && <section role="dialog" aria-label="Mitarbeit einstellen"

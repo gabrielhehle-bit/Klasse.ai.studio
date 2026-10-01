@@ -1123,7 +1123,7 @@ export interface ClassRoom {
   observations?: AppState['observations'];
   metaKognitionsProtokolle?: AppState['metaKognitionsProtokolle'];
   interaktionsLog?: AppState['interaktionsLog'];
-  mitarbeitLogs?: {id: string; sid: string; points: number; timestamp: string; fach?: string; kind?: 'subject' | 'social'; gradebookApplied?: boolean; reverses?: string; resets?: string[]}[];
+  mitarbeitLogs?: {id: string; sid: string; points: number; timestamp: string; fach?: string; kind?: 'subject' | 'social'; gradebookApplied?: boolean; gradebookSemester?: '1' | '2'; reverses?: string; resets?: string[]}[];
   mitarbeit: Record<string, Record<string, Record<string, number>>>;
   /** Class-local participation grading thresholds/mode used by the gradebook. */
   mitarbeit_settings?: AppState['mitarbeit_settings'];
@@ -1562,7 +1562,7 @@ export interface AppState {
   schuelerGoals?: SchuelerGoal[];
   observations?: Observation[];
   notizen: Note[];
-  mitarbeitLogs?: {id: string; sid: string; points: number; timestamp: string; fach?: string; kind?: 'subject' | 'social'; gradebookApplied?: boolean; reverses?: string; resets?: string[]}[];
+  mitarbeitLogs?: {id: string; sid: string; points: number; timestamp: string; fach?: string; kind?: 'subject' | 'social'; gradebookApplied?: boolean; gradebookSemester?: '1' | '2'; reverses?: string; resets?: string[]}[];
   journal: NoteEntry[];
   notes?: AppNote[];
   dashboardTodos?: {id: string, text: string, done: boolean}[];
@@ -1765,6 +1765,7 @@ export interface AppState {
     /** Class-local presets for NEW random-selection widgets, never student records. */
     cockpitRandomNameDefaultsByClass?: Record<string, import('./lib/randomNameWidgetModel').RandomNameWidgetPreferences>;
     cockpitInkByClass?: Record<string, import('./components/cockpit/BoardInk').InkItem[]>;
+    sidebarStarsByClass?: Record<string, { selection: string; period: import('./lib/starsReview').StarsPeriod }>;
     sidebarMode?: 'expanded' | 'mini' | 'hidden';
     activeFont?: string;
     toolbarWidgets?: string[]; // IDs of visible widgets in order

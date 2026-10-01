@@ -1,3 +1,4 @@
+import { needsServerLoadConfirmation } from '../lib/accountServerLoad';
 import { parseAccountLiveRevision, needsAccountLiveRefresh, type AccountLiveStatus } from '../lib/accountLiveSync';
 import { assertRestorableAppState } from '../lib/backupRestore';
 import { initialAppState, syncActiveClass, normalizeAppState, switchClassState } from '../lib/appState';
@@ -97,6 +98,7 @@ interface AppContextType {
   accountSyncMessage: string | null;
   accountSyncConflictResolvable: boolean;
   retryAccountSync: () => Promise<void>;
+  loadLatestAccountState: (confirmReplace: (message: string) => boolean) => Promise<string>;
   resolveAccountSyncConflict: (source: 'local' | 'remote') => Promise<void>;
 }
 
@@ -586,6 +588,83 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAccountSyncMessage(null);
     await refreshAccountState();
   }, [refreshAccountState]);
+
+  const loadLatestAccountState = React.useCallback(async (confirmReplace: (message: string) => boolean): Promise<string> => {
+    if (!navigator.onLine) return 'Offline: Bitte zuerst eine Internetverbindung herstellen.';
+    if (!isVaultUnlocked) return 'Bitte zuerst den Datentresor entsperren.';
+    if (accountSyncBusyRef.current || teamSyncBusyRef.current || localSaveBusyRef.current > 0 || restoringRef.current) {
+      return 'Ein Speichervorgang läuft noch. Bitte gleich erneut laden.';
+    }
+    const key = getActiveVaultKey();
+    if (!key) return 'Bitte zuerst den Datentresor entsperren.';
+    const previous = currentAppRef.current;
+    const previousStatus = accountSyncStatusRef.current;
+    accountSyncBusyRef.current = true;
+    teamSyncBusyRef.current = true;
+    // Pause edits and all background writers for the complete read/backup transaction.
+    restoringRef.current = true;
+    setIsRestoring(true);
+    setAccountSyncStatus('syncing');
+    try {
+      if (!await hasEmailAccountSession()) throw new Error('Bitte zuerst mit deinem E-Mail-Konto anmelden.');
+      const vault = await loadVaultRecord();
+      const remote = await fetchAccountSyncSnapshot();
+      if (!remote) {
+        setAccountSyncStatus(previousStatus);
+        return 'Im Konto ist noch kein gespeicherter Datenstand vorhanden. Es wurde nichts ersetzt oder hochgeladen.';
+      }
+      if (!vault || remote.vaultRecord.id !== vault.id) throw new Error('Der Konto-Stand gehört zu einem anderen Datentresor. Es wurde nichts ersetzt.');
+      const decrypted = await decryptAccountSyncSnapshot(remote, key);
+      assertRestorableAppState(decrypted);
+      const normalized = normalizeAppState(decrypted);
+      let next = syncActiveClass(mergeAccountSyncState(normalized, previous));
+      // Team datasets have their own revisions. Read them rather than importing an
+      // older copy from the personal account or uploading this laptop's old team data.
+      for (const room of syncActiveClass(previous).classes || []) {
+        const sharedId = room.teamTeaching?.sharedClassId || room.teamTeachingSharedClassId;
+        if (!sharedId) continue;
+        const latest = await pullSharedClass(sharedId);
+        next = adoptAcknowledgedTeamRoom(next, latest.room);
+      }
+      const baseline = loadAccountSyncMetadata(vault.id);
+      const stamp = new Date(remote.updatedAt).toLocaleString('de-AT');
+      if (needsServerLoadConfirmation(previous, next, baseline?.fingerprint)
+        && !confirmReplace(`Auf diesem Gerät gibt es abweichende oder noch nicht übertragene Änderungen. Konto-Stand vom ${stamp} (Version ${remote.revision}) laden und diese Änderungen ersetzen? Der bisherige Stand wird vorher verschlüsselt gesichert.`)) {
+        setAccountSyncStatus(previousStatus);
+        return 'Laden abgebrochen. Der Stand auf diesem Gerät bleibt erhalten.';
+      }
+      const checked = await fetchAccountSyncSnapshot();
+      if (!checked || checked.revision !== remote.revision) {
+        setAccountSyncStatus(previousStatus);
+        return 'Der Serverstand hat sich während des Ladens geändert. Bitte erneut laden.';
+      }
+      if (getActiveVaultKey() !== key || currentAppRef.current !== previous) throw new Error('Der lokale Stand oder Tresor hat sich geändert. Bitte erneut laden.');
+      await restoreEncryptedAppState(previous, next, key);
+      if (getActiveVaultKey() !== key) throw new Error('Der Tresor wurde gesperrt. Bitte erneut entsperren.');
+      locallySavedStateRef.current = next;
+      setLocalSaveStatus('saved');
+      setLocalSaveLastAt(new Date().toISOString());
+      currentAppRef.current = next;
+      setAppInternal(next);
+      // A receipt must describe the actual account content, even when team reads
+      // brought a newer shared-class generation than that account snapshot.
+      markAccountSynced(remote, normalized);
+      const message = `Konto-Stand vom ${stamp} geladen · Version ${remote.revision}.`;
+      setAccountSyncMessage(message);
+      return message;
+    } catch (error) {
+      setAccountSyncHealthy(false);
+      setAccountSyncStatus('error');
+      const message = accountSyncErrorMessage(error);
+      setAccountSyncMessage(message);
+      return message;
+    } finally {
+      restoringRef.current = false;
+      setIsRestoring(false);
+      teamSyncBusyRef.current = false;
+      accountSyncBusyRef.current = false;
+    }
+  }, [isVaultUnlocked, markAccountSynced]);
 
   const resolveAccountSyncConflict = React.useCallback(async (source: 'local' | 'remote') => {
     if (!isVaultUnlocked || accountSyncBusyRef.current) return;
@@ -2059,8 +2138,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     accountSyncMessage,
     accountSyncConflictResolvable,
     retryAccountSync,
+    loadLatestAccountState,
     resolveAccountSyncConflict
-  }), [app, notenUpdateTrigger, calculateWidgetFontSize, screenLocked, updateApp, deleteClass, switchClass, addClass, removeClass, updateStudent, deleteStudent, setPage, saveApp, restoreAppData, isVaultUnlocked, isAppHydrated, lockAppVault, unlockAppVault, localSaveStatus, localSaveLastAt, accountSyncStatus, accountSyncLastAt, accountLiveStatus, accountSyncMessage, accountSyncConflictResolvable, retryAccountSync, resolveAccountSyncConflict]);
+  }), [app, notenUpdateTrigger, calculateWidgetFontSize, screenLocked, updateApp, deleteClass, switchClass, addClass, removeClass, updateStudent, deleteStudent, setPage, saveApp, restoreAppData, isVaultUnlocked, isAppHydrated, lockAppVault, unlockAppVault, localSaveStatus, localSaveLastAt, accountSyncStatus, accountSyncLastAt, accountLiveStatus, accountSyncMessage, accountSyncConflictResolvable, retryAccountSync, loadLatestAccountState, resolveAccountSyncConflict]);
 
   if (!isLoaded) {
     return (
@@ -2075,7 +2155,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider value={contextValue}>
       {children}
       {isRestoring && <div role="status" aria-live="polite" className="fixed inset-0 z-[99999] bg-slate-950/80 flex items-center justify-center text-white">
-        <p>Backup wird geprüft und verschlüsselt gespeichert …</p>
+        <p>Datenstand wird geprüft und verschlüsselt gespeichert …</p>
       </div>}
     </AppContext.Provider>
   );

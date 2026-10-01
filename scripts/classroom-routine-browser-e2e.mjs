@@ -514,6 +514,24 @@ async function main() {
     await waitFor(client, 'reading badge awarded', `document.querySelector('.klassio-student-sidebar button[aria-label^="Leseratte an"]')?.disabled === true`);
     await clickButton(client, 'Fertig');
     await waitFor(client, 'manual badges leave participation points unchanged', pointsExpression + ' === ' + (initialPoints + 2));
+    // Sidebar overview uses the same journal as awarding and gradebook updates.
+    const chooseSidebarStars = async (label, value) => {
+      await evaluate(client, `(() => { const select = Array.from(document.querySelectorAll('select')).find(el => el.getAttribute('aria-label') === ${q(label)}); select.value = ${q(value)}; select.dispatchEvent(new Event('change', { bubbles:true })); })()`);
+    };
+    await chooseSidebarStars('Widget der Seitenleiste', 'stars');
+    await waitFor(client, 'sidebar stars chart visible', `Boolean(document.querySelector('[aria-label="Balkendiagramm der gesammelten Sterne pro Kind"]'))`);
+    await chooseSidebarStars('Sterne auswählen', 'social');
+    await waitFor(client, 'social journal totals appear in chart', `Array.from(document.querySelectorAll('[aria-label="Balkendiagramm der gesammelten Sterne pro Kind"] > div')).some(el=>el.getAttribute('aria-label')?.endsWith(': 10 Sterne'))`);
+    for (const period of ['all', 'month', 'semester', 'week']) {
+      await chooseSidebarStars('Zeitraum der Sterne', period);
+      await waitFor(client, 'star chart period ' + period, `document.querySelector('select[aria-label="Zeitraum der Sterne"]').value === ${q(period)}`);
+    }
+    await chooseSidebarStars('Sterne auswählen', 'subject:Deutsch');
+    await waitFor(client, 'subject chart excludes social stars', `document.querySelector('select[aria-label="Sterne auswählen"]').value === 'subject:Deutsch'`);
+    await chooseSidebarStars('Sterne auswählen', 'unassigned');
+    await chooseSidebarStars('Widget der Seitenleiste', 'students');
+    await waitFor(client, 'student list restored after chart', pointsExpression + ' === ' + (initialPoints + 2));
+    console.log('✓ Sidebar: all/social/unassigned/subject stars with total/month/semester/week chart; gradebook still shares awarded subject data.');
     await openGradebook();
     const expectedBookPoints = initialBookPoints + 1 + (automaticSubject === 'Deutsch' ? 1 : 0);
     await waitFor(client, 'subject awards appear in gradebook and social stars do not change it', bookPointsExpression + ' === ' + expectedBookPoints);

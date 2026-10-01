@@ -1,5 +1,7 @@
+import { getAttendanceSemester, getSchoolYearBounds } from './attendanceData';
+import type { Bundesland } from './ferienOesterreich';
 /** Aggregation for the classroom's existing, encrypted participation-star journal. */
-export type StarsPeriod = 'week' | 'month' | 'custom';
+export type StarsPeriod = 'all' | 'semester' | 'week' | 'month' | 'custom';
 export type StarsLimit = 3 | 10 | 'all';
 export interface StarsReviewSettings {
   period: StarsPeriod;
@@ -8,12 +10,16 @@ export interface StarsReviewSettings {
   endDate: string;
   limit: StarsLimit;
   subjects: string[];
+  category?: 'all' | 'unassigned' | 'social' | 'subject';
+  schoolYear?: string;
+  bundesland?: Bundesland;
 }
 export interface ParticipationStarLog {
   sid: string;
   timestamp: string;
   points: number;
   fach?: string;
+  kind?: 'subject' | 'social';
 }
 export interface StarsStudent {
   id: string;
@@ -42,6 +48,19 @@ function parseIsoLocalDate(value: string): Date | null {
 }
 export function starsReviewRange(settings: StarsReviewSettings, today = new Date()): { start: string; end: string } | null {
   const anchor = parseIsoLocalDate(settings.referenceDate) ?? today;
+  if (settings.period === 'all') return { start: '0000-01-01', end: '9999-12-31' };
+  if (settings.period === 'semester') {
+    const startYear = anchor.getMonth() >= 8 ? anchor.getFullYear() : anchor.getFullYear() - 1;
+    const schoolYear = settings.schoolYear?.replace(/^(\d{4})\/\d{2}(\d{2})$/, '$1/$2') || `${startYear}/${String(startYear + 1).slice(-2)}`;
+    const bounds = getSchoolYearBounds(schoolYear);
+    if (!bounds) return null;
+    const selected = getAttendanceSemester(starsIsoLocalDate(anchor), schoolYear, settings.bundesland);
+    const first = new Date(bounds.start);
+    const last = new Date(bounds.end);
+    while (first <= last && getAttendanceSemester(starsIsoLocalDate(first), schoolYear, settings.bundesland) !== selected) first.setDate(first.getDate() + 1);
+    while (last >= first && getAttendanceSemester(starsIsoLocalDate(last), schoolYear, settings.bundesland) !== selected) last.setDate(last.getDate() - 1);
+    return { start: starsIsoLocalDate(first), end: starsIsoLocalDate(last) };
+  }
   if (settings.period === 'custom') {
     const start = parseIsoLocalDate(settings.startDate);
     const end = parseIsoLocalDate(settings.endDate);
@@ -86,7 +105,10 @@ export function aggregateStarsReview(
     const date = starsReviewLogLocalDate(log.timestamp);
     if (!date || date < range.start || date > range.end) continue;
     const subject = typeof log.fach === 'string' ? log.fach.trim() : '';
-    if (requestedSubjects.size && !requestedSubjects.has(subject)) continue;
+    if (settings.category === 'social' && log.kind !== 'social') continue;
+    if (settings.category === 'unassigned' && (log.kind === 'social' || subject)) continue;
+    if (settings.category === 'subject' && (log.kind === 'social' || !subject)) continue;
+    if (requestedSubjects.size && (log.kind === 'social' || !requestedSubjects.has(subject))) continue;
     totals.set(log.sid, (totals.get(log.sid) ?? 0) + log.points);
   }
   const sorted = students.map(student => ({
