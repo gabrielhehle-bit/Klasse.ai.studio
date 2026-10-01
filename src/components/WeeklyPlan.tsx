@@ -1966,7 +1966,7 @@ export default function WeeklyPlan() {
 
                 {/* Import changes the editable plan; exports belong to PrintCenter. */}
                 <button type="button" onClick={() => setShowExcelModal(true)}
-                  className="min-h-11 px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 flex items-center gap-1.5"
+                  className="hidden min-h-11 px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 sm:flex items-center gap-1.5"
                   title="Wochenplanung aus Excel importieren">
                   <Upload size={15} /> <span>Excel importieren</span>
                 </button>
@@ -1975,7 +1975,7 @@ export default function WeeklyPlan() {
                 <button
                   aria-pressed={isFullscreen}
                   onClick={() => setIsFullscreen(!isFullscreen)}
-                  className={`min-h-11 px-3 py-2 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border shadow-xs ${
+                  className={`hidden min-h-11 px-3 py-2 font-bold text-xs rounded-xl transition-all sm:flex items-center gap-1.5 cursor-pointer border shadow-xs ${
                     isFullscreen
                       ? 'bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-800'
                       : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
@@ -2018,6 +2018,17 @@ export default function WeeklyPlan() {
                         </button>
                         <button onClick={() => { setShowWeekMenu(false); setApp(prev => ({ ...prev, currentPage: 'drucken', activePrintTemplate: 'wochenplan' })); }} className="btn !bg-white !text-indigo-700 hover:!bg-indigo-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3">
                           <Printer size={14} /> Druckzentrum öffnen
+                        </button>
+                        <button type="button" onClick={() => { setShowWeekMenu(false); setShowExcelModal(true); }} className="btn sm:!hidden !bg-white !text-slate-700 hover:!bg-slate-50 !justify-start !text-left text-xs gap-3">
+                          <Upload size={14} /> Excel importieren
+                        </button>
+                        <button type="button" onClick={() => {
+                          setShowWeekMenu(false);
+                          setSelectedYearPlanBulkKeys([]);
+                          setYearPlanBulkNotice(null);
+                          setShowYearPlanBulkModal(true);
+                        }} className="btn sm:!hidden !bg-white !text-slate-700 hover:!bg-slate-50 !justify-start !text-left text-xs gap-3">
+                          <Calendar size={14} /> Mehrere Stunden übernehmen
                         </button>
                         <hr className="my-1 border-slate-100" />
                         <button onClick={() => { setShowWeekMenu(false); copyFromLastWeek(); }} className="btn !bg-white !text-slate-700 hover:!bg-slate-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3">
@@ -2095,7 +2106,7 @@ export default function WeeklyPlan() {
                     setSelectedYearPlanBulkKeys([]);
                     setYearPlanBulkNotice(null);
                     setShowYearPlanBulkModal(true);
-                  }} className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                  }} className="hidden min-h-11 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 sm:block">
                     Mehrere Stunden übernehmen
                   </button>
 

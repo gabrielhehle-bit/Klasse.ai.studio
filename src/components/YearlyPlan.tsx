@@ -1127,12 +1127,12 @@ export default function YearlyPlan() {
             <Settings size={14} /> Fächer
           </button>}
           <button type="button" onClick={() => setShowExcelModal(true)}
-            className="min-h-11 inline-flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-bold text-stone-800 hover:bg-stone-100">
+            className={`${showMoreTools ? 'inline-flex' : 'hidden sm:inline-flex'} min-h-11 items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-bold text-stone-800 hover:bg-stone-100`}>
             <Upload size={14} /> Excel importieren
           </button>
           <button type="button"
             onClick={() => setApp(previous => ({ ...previous, currentPage: 'drucken', activePrintTemplate: 'jahresplanung' }))}
-            className="min-h-11 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+            className={`${showMoreTools ? 'inline-flex' : 'hidden sm:inline-flex'} min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50`}>
             <FileText size={14} /> Zum Druckzentrum
           </button>
 
@@ -1199,7 +1199,7 @@ export default function YearlyPlan() {
             <LernzielTracker />
          </div>
       ) : (
-      <div className="flex-1 relative bg-white rounded-2xl border border-slate-200 flex flex-col shadow-sm overflow-hidden">
+      <div className="flex-1 min-h-[26rem] sm:min-h-0 relative bg-white rounded-2xl border border-slate-200 flex flex-col shadow-sm overflow-hidden">
         {/* Progress Bar Gadget */}
         <div className="h-1.5 bg-stone-100 w-full  shrink-0">
           <motion.div 

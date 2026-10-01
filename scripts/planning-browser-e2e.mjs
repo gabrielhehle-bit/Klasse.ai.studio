@@ -485,6 +485,17 @@ async function main() {
       for (const width of [390,820,1440]) {
         await client.send('Emulation.setDeviceMetricsOverride', {width,height:1000,deviceScaleFactor:1,mobile:false});
         await sleep(400);
+        if(width === 390 && key !== 'hub') {
+          const toolsLabel = key === 'weekly' ? 'Mehr' : 'Weitere Werkzeuge';
+          const expanded = await evaluate(client, '(() => {const header=document.querySelector('+q(selector)+');const button=Array.from(header.querySelectorAll("button")).find(b=>b.textContent.trim()==='+q(toolsLabel)+');if(!button)return false;button.click();return true;})()');
+          if(!expanded) throw new Error(page+' mobile tools trigger missing.');
+          await sleep(200);
+          const toolsAvailable = await evaluate(client, '(() => {const header=document.querySelector('+q(selector)+');const required='+q(key === 'weekly' ? ['Excel importieren','Mehrere Stunden übernehmen'] : ['Excel importieren','Zum Druckzentrum'])+';return required.every(label=>Array.from(header.querySelectorAll("button")).some(b=>b.textContent.trim()===label&&b.getBoundingClientRect().width>0));})()');
+          if(!toolsAvailable) throw new Error(page+' mobile tools are inaccessible.');
+          await evaluate(client, 'Array.from(document.querySelector('+q(selector)+').querySelectorAll("button")).find(b=>b.textContent.trim()==='+q(key === 'weekly' ? 'Mehr' : 'Werkzeuge schließen')+')?.click()');
+          await sleep(200);
+          if(key === 'yearly' && !await evaluate(client, 'document.querySelector(".yearly-plan-shell table").parentElement.getBoundingClientRect().height>=400')) throw new Error('Yearly mobile table is too short to work in.');
+        }
         const layout = await evaluate(client, '(() => {const surface=document.querySelector('+q(selector)+');const buttons=Array.from(surface.querySelectorAll("button")).filter(b=>b.getBoundingClientRect().width>0);return {overflow:document.documentElement.scrollWidth>innerWidth+3,heading:surface.querySelector("h1")?.textContent.trim(),smallTargets:buttons.filter(b=>b.getBoundingClientRect().height<43).map(b=>b.textContent.trim()),selected:Array.from(surface.querySelectorAll("[data-planning-view] button[aria-pressed=true]")).map(b=>b.textContent.trim())};})()');
         if(layout.overflow || !layout.heading || layout.smallTargets.length) throw new Error(page+' layout at '+width+': '+JSON.stringify(layout));
         await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-'+key+'-'+width+'.png'));
