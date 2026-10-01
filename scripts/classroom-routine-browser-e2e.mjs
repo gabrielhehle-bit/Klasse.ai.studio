@@ -294,6 +294,10 @@ async function checkRoutine(client) {
   const overviewWidth = await evaluate(client, 'document.documentElement.scrollWidth');
   if (overviewWidth > WIDTH + 5) throw new Error('Dossier overview overflows viewport: ' + overviewWidth);
   await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-dossier.png'));
+  await client.send('Emulation.setDeviceMetricsOverride', { width: 1360, height: 1000, deviceScaleFactor: 1, mobile: false });
+  await sleep(500);
+  await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-dossier-desktop.png'));
+  await client.send('Emulation.setDeviceMetricsOverride', { width: WIDTH, height: 1000, deviceScaleFactor: 1, mobile: true });
   await openObservations(client);
   await clickButton(client, 'Beobachtung notieren');
   await setInputByPlaceholder(client, 'Konkrete, wertfreie Unterrichtsbeobachtung', 'Synthetische Browser-Testnotiz');

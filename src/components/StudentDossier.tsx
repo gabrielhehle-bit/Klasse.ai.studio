@@ -292,7 +292,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
       {/* COMPACT STUDENT NAVIGATION */}
       {!app.dossierFocusMode && (
         <div data-student-dossier-nav className="print:hidden flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3 sm:max-w-[35%]">
             {onBack && (
               <button
                 type="button"
