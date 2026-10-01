@@ -71,7 +71,7 @@ test('Main and simple dashboard show a free-day message without hiding tasks or 
   assert.match(full, /freeDayGreeting && \(/);
   assert.match(simple, /p\.freeDayGreeting && \(/);
   assert.match(simple, /p\.actionItems/);
-  assert.match(simple, /p\.freeDayGreeting\s*\? 'wochenplanung'/);
+  assert.match(simple, /p\.freeDayGreeting \|\| isPreview\s*\? 'wochenplanung'/);
   assert.match(simple, /Planung ansehen/);
   assert.match(simple, /p\.freeDayGreeting \? \(/);
   assert.match(simple, /Heute ist kein regulärer Unterricht vorgesehen/);

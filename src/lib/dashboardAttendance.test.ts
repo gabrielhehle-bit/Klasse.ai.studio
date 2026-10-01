@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isAttendanceCompleteForDay, isAttendanceRequiredForDay } from './dashboardAttendance';
+import { countStudentsWithAttendanceForDay, isAttendanceCompleteForDay, isAttendanceRequiredForDay } from './dashboardAttendance';
 
 test('dashboard requires attendance only on configured school days', () => {
   assert.equal(isAttendanceRequiredForDay({
@@ -49,4 +49,18 @@ test('dashboard only marks attendance recorded when every active hour exists for
 
   assert.equal(isAttendanceCompleteForDay(students, attendance, '2026-09-14', [1, 2]), true);
   assert.equal(isAttendanceCompleteForDay(students, attendance, '2026-09-14', [1, 2, 3]), false);
+});
+
+test('class overview counts student-first attendance for the selected day and class', () => {
+  const students = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+  const attendance = {
+    a: { '2026-10-01': { 1: 'a' }, '2026-10-02': { 1: 'f' } },
+    b: { '2026-10-01': { 2: 'e' } },
+    c: { '2026-10-01': {} },
+    otherClass: { '2026-10-01': { 1: 'a' } },
+  };
+  assert.equal(countStudentsWithAttendanceForDay(students, attendance, '2026-10-01'), 2);
+  assert.equal(countStudentsWithAttendanceForDay(students, attendance, '2026-10-02'), 1);
+  assert.equal(countStudentsWithAttendanceForDay(students, undefined, '2026-10-01'), 0);
+  assert.equal(isAttendanceCompleteForDay(students, attendance, '2026-10-01', [1, 2]), false);
 });

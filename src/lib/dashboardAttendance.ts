@@ -25,3 +25,12 @@ export function isAttendanceCompleteForDay(
     return activeHours.every(hour => Boolean(record[hour]));
   });
 }
+
+export function countStudentsWithAttendanceForDay(
+  students: Array<{ id: string }>,
+  attendance: Record<string, Record<string, Record<number, string>>> | undefined,
+  dateKey: string,
+): number {
+  return students.filter(student => Object.values(attendance?.[student.id]?.[dateKey] || {})
+    .some(status => ['a', 'f', 'e', 'u'].includes(status))).length;
+}

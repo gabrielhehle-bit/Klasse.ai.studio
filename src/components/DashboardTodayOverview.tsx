@@ -70,6 +70,7 @@ export interface DashboardTodayOverviewProps {
   greeting: string;
   freeDayGreeting?: DashboardFreeDayMessage | null;
   dateLabel: string;
+  dayLabel?: string;
   klasseLabel: string;
   manualDateOffset: number;
   onDateOffsetChange: (offset: number) => void;
@@ -212,7 +213,7 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
             
             <p className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
               <CalendarDays size={13} className="text-slate-400 shrink-0" />
-              <span>{dateLabel}</span>
+              <span>{props.dayLabel || 'Heute'} · {dateLabel}</span>
             </p>
             </div>
           </div>
