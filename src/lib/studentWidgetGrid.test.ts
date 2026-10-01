@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { getStudentGridLayout } from './studentWidgetGrid';
+import { getCompactStudentGridLayout, getStudentGridLayout } from './studentWidgetGrid';
 
 test('25 children fit as a readable five-or-more-column grid on a full Smartboard', () => {
   const layout = getStudentGridLayout(1280, 690, 25, { reservedHeight: 146, minCardWidth: 175, minCardHeight: 52, gap: 6 });
@@ -31,5 +31,15 @@ test('both public student widgets have an explicit enlargement action and a fitt
   assert.match(points, /gridMode && !grid\.fits/);
   assert.match(points, /gridTemplateColumns/);
   assert.match(points, /Alle \{students\.length\} Kinder groß anzeigen/);
-  assert.match(points, /gridMode \|\| sidebarCompact \? 'grid min-h-0 flex-1 content-start gap-1\.5 overflow-y-auto'/);
+  assert.match(points, /data-compact-student-grid/);
+});
+
+test('compact sidebar fits the whole class at laptop heights without scrolling', () => {
+  for (const [width, height, count] of [[316, 650, 17], [396, 450, 17], [316, 520, 25], [316, 400, 17]]) {
+    const layout = getCompactStudentGridLayout(width, height, count);
+    assert.equal(layout.fits, true, `${count} children at ${width} × ${height}`);
+    assert.ok(layout.columns >= 2);
+    assert.ok(layout.columns * layout.rows >= count);
+    assert.ok(layout.rows * layout.cardHeight + (layout.rows - 1) * 4 <= height + 0.001);
+  }
 });

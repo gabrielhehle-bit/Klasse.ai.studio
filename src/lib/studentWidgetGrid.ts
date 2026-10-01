@@ -32,3 +32,18 @@ export function getStudentGridLayout(
     fits: n === 0 || (usableW >= minCardWidth && cardHeight >= minCardHeight),
   };
 }
+
+/** Fit the complete sidebar roster into the measured list area, including its gaps. */
+export function getCompactStudentGridLayout(width: number, height: number, count: number): StudentGridLayout {
+  const n = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+  const usableWidth = Number.isFinite(width) ? Math.max(0, width) : 0;
+  const usableHeight = Number.isFinite(height) ? Math.max(0, height) : 0;
+  const gap = 4;
+  const minCardHeight = 52;
+  const maxColumns = Math.max(1, Math.floor((usableWidth + gap) / 104));
+  const rowsThatFit = Math.max(1, Math.floor((usableHeight + gap) / (minCardHeight + gap)));
+  const columns = Math.max(1, Math.min(n || 1, maxColumns, Math.max(usableWidth >= 260 ? 2 : 1, Math.ceil(n / rowsThatFit))));
+  const rows = Math.max(1, Math.ceil(n / columns));
+  const cardHeight = (usableHeight - gap * (rows - 1)) / rows;
+  return { columns, rows, cardHeight, fits: n === 0 || cardHeight >= minCardHeight };
+}

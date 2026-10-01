@@ -12687,6 +12687,7 @@ ${content}
                           removeParticipation={removeParticipation}
                           onBehaviorStageChange={setStudentBehavior}
                           sidebarCompact={sidebarMode === "mini"}
+                          onCompactToggle={() => changeSidebarMode("mini")}
                         />
                       </div>
                     </motion.div>
