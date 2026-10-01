@@ -56,6 +56,7 @@ import {
 import PrintHeader from "./PrintHeader";
 import AttendanceTrends from "./AttendanceTrends";
 import { getAttendanceReasonMenuPlacement } from "../lib/attendanceReasonMenuPlacement";
+import PresenceBehaviorStats from "./PresenceBehaviorStats";
 
 export default function Attendance() {
   const { app, setApp } = useApp();
@@ -1688,6 +1689,10 @@ export default function Attendance() {
             >
               Schließen ✕
             </button>
+          </div>
+
+          <div className="mb-6">
+            <PresenceBehaviorStats compact />
           </div>
 
           <div className="w-full overflow-x-auto no-scrollbar">
