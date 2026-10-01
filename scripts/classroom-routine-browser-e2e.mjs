@@ -603,6 +603,37 @@ async function main() {
     await auditMenu('calculator', 'Minimieren');
     await openAuditWidget('calculator', 'Grundschulrechner');
     if(await evaluate(client, `document.querySelector('#smartboard-calculator').textContent`) !== calculatorState) throw new Error('Calculator loses its state on restore.');
+    await auditMenu('calculator', 'Größe');
+    await clickButton(client, 'Tafelfläche', true);
+    await evaluate(client, `document.querySelector('[data-widget-type="calculator"] button[aria-label="Größeneinstellung schließen"]').click()`);
+    await sleep(400);
+    const resizeBox = () => evaluate(client, `(() => {const r=document.querySelector('[data-widget-type="calculator"]').getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height};})()`);
+    const dragResize = async (direction, dx, dy) => {
+      await waitFor(client, 'resize interaction settled', `!document.querySelector('[data-widget-type="calculator"]').hasAttribute('data-widget-interacting')`);
+      await sleep(300);
+      const point = await evaluate(client, `(() => {const handle=document.querySelector('[data-widget-type="calculator"] [data-widget-resize=${q(direction)}]');const r=handle.getBoundingClientRect();for(const fraction of [0.5,0.2,0.8,0.05,0.95]){const x=r.x+r.width*(r.width>r.height?fraction:0.5),y=r.y+r.height*(r.height>r.width?fraction:0.5);const hit=document.elementFromPoint(x,y)?.closest('[data-widget-resize]')?.getAttribute('data-widget-resize');if(hit===${q(direction)})return {x,y,hit};}return {hit:null};})()`);
+      if(point.hit !== direction) throw new Error('Resize handle is covered: ' + direction + ' hit ' + point.hit);
+      await client.send('Input.dispatchMouseEvent', {type:'mouseMoved',x:point.x,y:point.y});
+      await client.send('Input.dispatchMouseEvent', {type:'mousePressed',x:point.x,y:point.y,button:'left',clickCount:1});
+      await client.send('Input.dispatchMouseEvent', {type:'mouseMoved',x:point.x+dx,y:point.y+dy,button:'left',buttons:1});
+      await client.send('Input.dispatchMouseEvent', {type:'mouseReleased',x:point.x+dx,y:point.y+dy,button:'left',clickCount:1});
+      await sleep(350);
+    };
+    for (const direction of ['n','ne','e','se','s','sw','w','nw']) {
+      const before = await resizeBox();
+      const dx = direction.includes('w') ? -12 : direction.includes('e') ? 12 : 0;
+      const dy = direction.includes('n') ? -12 : direction.includes('s') ? 12 : 0;
+      await dragResize(direction, dx, dy);
+      await waitFor(client, 'widget grows from ' + direction, `(() => {const r=document.querySelector('[data-widget-type="calculator"]').getBoundingClientRect();return ${dx ? 'r.width > ' + (before.w+8) : 'Math.abs(r.width - ' + before.w + ') < 3'} && ${dy ? 'r.height > ' + (before.h+8) : 'Math.abs(r.height - ' + before.h + ') < 3'};})()`);
+      const grown = await resizeBox();
+      const anchorX = direction.includes('w') ? grown.x+grown.w : grown.x;
+      const anchorY = direction.includes('n') ? grown.y+grown.h : grown.y;
+      if(Math.abs(anchorX-(direction.includes('w') ? before.x+before.w : before.x)) > 3 || Math.abs(anchorY-(direction.includes('n') ? before.y+before.h : before.y)) > 3) throw new Error('Resize moves opposite edge: ' + direction);
+      await dragResize(direction, -dx, -dy);
+      console.log('Resize round trip', direction, {before, grown, shrunk:await resizeBox()});
+      await waitFor(client, 'widget shrinks from ' + direction, `(() => {const r=document.querySelector('[data-widget-type="calculator"]').getBoundingClientRect();return Math.abs(r.width-${before.w})<3 && Math.abs(r.height-${before.h})<3 && !document.querySelector('[data-widget-type="calculator"]').hasAttribute('data-widget-interacting');})()`);
+    }
+    console.log('✓ Widget resizes from all four sides and all four corners; opposite edges remain anchored.');
     await auditMenu('calculator', 'Widget schließen');
     await openAuditWidget('compass', 'Geographie-Kompass');
     for(const zoom of [1,1.25,1.5]) {

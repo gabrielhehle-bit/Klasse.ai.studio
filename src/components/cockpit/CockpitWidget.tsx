@@ -1,3 +1,4 @@
+import { resizeWidgetRect, type WidgetResizeDirection } from '../../lib/widgetResize';
 import React, { useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { normalizeClassMascot } from "../../lib/classMascot";
@@ -176,7 +177,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   const contentViewportRef = useRef<HTMLDivElement>(null);
   const [contentPixels, setContentPixels] = useState({ width: 0, height: 0 });
   const dragStartPos = useRef({ x: 0, y: 0, left: 0, top: 0 });
-  const resizeStartPos = useRef({ startX: 0, startY: 0, startW: 0, startH: 0 });
+  const resizeStartPos = useRef({ startX: 0, startY: 0, startW: 0, startH: 0, left: 0, top: 0 });
   const suppressMascotTap = useRef(false);
   const suppressMascotTapTimer = useRef<number | null>(null);
   useEffect(() => () => { if (suppressMascotTapTimer.current !== null) clearTimeout(suppressMascotTapTimer.current); }, []);
@@ -366,20 +367,35 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     target.addEventListener("pointercancel", finishDrag);
   };
 
+  // Absolute percentages resolve against the stage padding box, excluding its border.
+  // Keep viewport pixels for pointer geometry, including a possible CSS zoom.
+  const getResizeStageRect = () => {
+    const stage = activeStageRef.current;
+    if (!stage) return null;
+    const bounds = stage.getBoundingClientRect();
+    const scaleX = stage.offsetWidth ? bounds.width / stage.offsetWidth : 1;
+    const scaleY = stage.offsetHeight ? bounds.height / stage.offsetHeight : 1;
+    return { left: bounds.left + stage.clientLeft * scaleX, top: bounds.top + stage.clientTop * scaleY,
+      width: stage.clientWidth * scaleX, height: stage.clientHeight * scaleY };
+  };
+
   const handlePointerDownResize = (e: React.PointerEvent<HTMLElement>) => {
     if (!e.isPrimary || e.button !== 0 || isMaximized || layoutLocked) return;
+    e.preventDefault();
     e.stopPropagation();
     onFocus();
 
-    const stage = stageRef.current;
-    if (!stage) return;
-    const stageRect = stage.getBoundingClientRect();
+    const stageRect = getResizeStageRect();
+    if (!stageRect) return;
 
+    const rect = widgetRef.current?.getBoundingClientRect();
+    if (!rect || stageRect.width <= 0 || stageRect.height <= 0) return;
+    const direction = (e.currentTarget.dataset.widgetResize || 'se') as WidgetResizeDirection;
+    const pointerId = e.pointerId;
     resizeStartPos.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      startW: (widget.w / 100) * stageRect.width,
-      startH: (widget.h / 100) * stageRect.height,
+      startX: e.clientX, startY: e.clientY,
+      startW: rect.width, startH: rect.height,
+      left: rect.left - stageRect.left, top: rect.top - stageRect.top,
     };
 
     const target = e.currentTarget;
@@ -387,38 +403,17 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     setIsResizing(true);
 
     const handlePointerMove = (moveEvent: PointerEvent) => {
-      const deltaX = moveEvent.clientX - resizeStartPos.current.startX;
-      const deltaY = moveEvent.clientY - resizeStartPos.current.startY;
-
-      const newWidthPx = resizeStartPos.current.startW + deltaX;
-      const newHeightPx = resizeStartPos.current.startH + deltaY;
-
-      const minConfig = getWidgetMinSizeConfig(widget.type);
-      const minW = minConfig.minW;
-      const minH = minConfig.minH;
-
-      const clampedWidthPx = Math.max(
-        minW,
-        Math.min(
-          stageRect.width - (widget.x / 100) * stageRect.width,
-          newWidthPx,
-        ),
-      );
-      const clampedHeightPx = Math.max(
-        minH,
-        Math.min(
-          stageRect.height - (widget.y / 100) * stageRect.height,
-          newHeightPx,
-        ),
-      );
-
-      onUpdate({
-        w: (clampedWidthPx / stageRect.width) * 100,
-        h: (clampedHeightPx / stageRect.height) * 100,
-      });
+      if (moveEvent.pointerId !== pointerId) return;
+      const origin = resizeStartPos.current;
+      const next = resizeWidgetRect({ x: origin.left, y: origin.top, w: origin.startW, h: origin.startH }, direction,
+        moveEvent.clientX - origin.startX, moveEvent.clientY - origin.startY,
+        stageRect, getWidgetMinSizeConfig(widget.type));
+      onUpdate({ x: next.x / stageRect.width * 100, y: next.y / stageRect.height * 100,
+        w: next.w / stageRect.width * 100, h: next.h / stageRect.height * 100 });
     };
 
     const finishResize = (endEvent: PointerEvent) => {
+      if (endEvent.pointerId !== pointerId) return;
       if (target.hasPointerCapture(endEvent.pointerId)) {
         target.releasePointerCapture(endEvent.pointerId);
       }
@@ -469,17 +464,25 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   };
 
   const handleResizeKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (layoutLocked || isMaximized) return;
+    const direction = (event.currentTarget.dataset.widgetResize || 'se') as WidgetResizeDirection;
     const delta = event.shiftKey ? 5 : 2;
-    let dw = 0;
-    let dh = 0;
-    if (event.key === "ArrowLeft") dw = -delta;
-    else if (event.key === "ArrowRight") dw = delta;
-    else if (event.key === "ArrowUp") dh = -delta;
-    else if (event.key === "ArrowDown") dh = delta;
+    let dx = 0, dy = 0;
+    if (event.key === 'ArrowLeft' && /[ew]/.test(direction)) dx = -delta;
+    else if (event.key === 'ArrowRight' && /[ew]/.test(direction)) dx = delta;
+    else if (event.key === 'ArrowUp' && /[ns]/.test(direction)) dy = -delta;
+    else if (event.key === 'ArrowDown' && /[ns]/.test(direction)) dy = delta;
     else return;
     event.preventDefault();
     event.stopPropagation();
-    applyPersistentSize(widget.w + dw, widget.h + dh);
+    const stage = getResizeStageRect();
+    const rect = widgetRef.current?.getBoundingClientRect();
+    if (!stage || !rect || stage.width <= 0 || stage.height <= 0) return;
+    const next = resizeWidgetRect({ x: rect.left - stage.left, y: rect.top - stage.top, w: rect.width, h: rect.height },
+      direction, dx / 100 * stage.width, dy / 100 * stage.height, stage, getWidgetMinSizeConfig(widget.type));
+    onFocus();
+    onUpdate({ x: next.x / stage.width * 100, y: next.y / stage.height * 100,
+      w: next.w / stage.width * 100, h: next.h / stage.height * 100 });
   };
 
   const legacyDisplayLabel = getCockpitWidgetDisplayLabel(widget.type);
@@ -661,7 +664,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       className={`cockpit-widget-container absolute flex flex-col transition-[transform,border-color,shadow,background-color,opacity,border-radius,box-shadow,ring-color] duration-300 ease-out select-none group animate-in fade-in zoom-in-95 ${isFreeMascot ? "cockpit-free-mascot rounded-none border-0 bg-transparent shadow-none ring-0 backdrop-blur-none" : ""} ${
         isDirect || isFreeMascot
           ? "rounded-none border-none bg-transparent shadow-none"
-          : "rounded-[24px] backdrop-blur-3xl ring-offset-transparent transition-all " +
+          : "rounded-[24px] backdrop-blur-3xl ring-offset-transparent " +
             (currentIsLight
               ? isFocused
                 ? "bg-white border border-accent ring-4 ring-accent/20 shadow-[0_24px_55px_rgba(15,23,42,0.16),0_1px_3px_rgba(15,23,42,0.06)] text-slate-800"
@@ -672,6 +675,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       }`}
       style={{
         containerType: "inline-size",
+        transition: isDragging || isResizing ? "none" : undefined,
         left: `${renderedX}%`,
         top: `${renderedY}%`,
         width: isFreeMascot ? `${mascotPixels}px` : `${renderedW}%`,
@@ -1053,6 +1057,24 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
         </div>
       </div>
 
+      {/* All frame edges/corners resize without covering the toolbar controls. */}
+      {!layoutLocked && !isDirect && !isMaximized && !isFreeMascot && (
+        ([
+          ['n', 'oben', '-top-1 left-5 right-5 h-2 cursor-n-resize'],
+          ['ne', 'oben rechts', '-top-2 -right-2 w-5 h-5 cursor-ne-resize'],
+          ['e', 'rechts', '-right-1 top-5 bottom-11 w-2 cursor-e-resize'],
+          ['s', 'unten', '-bottom-1 left-5 right-11 h-2 cursor-s-resize'],
+          ['sw', 'unten links', '-bottom-2 -left-2 w-5 h-5 cursor-sw-resize'],
+          ['w', 'links', '-left-1 top-5 bottom-5 w-2 cursor-w-resize'],
+          ['nw', 'oben links', '-top-2 -left-2 w-5 h-5 cursor-nw-resize'],
+        ] as const).map(([direction, label, position]) => <button key={direction} type="button"
+          data-widget-resize={direction} aria-label={`Widget-Größe ändern: ${label}`}
+          title={`Zum Ändern ${label} ziehen · Pfeiltasten für feine Anpassung`}
+          onPointerDown={handlePointerDownResize} onKeyDown={handleResizeKeyDown}
+          onClick={event => event.stopPropagation()}
+          className={`cockpit-widget-resize-edge absolute z-50 rounded touch-none bg-transparent hover:bg-accent/30 focus-visible:bg-accent/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${position}`}
+          style={{ touchAction: 'none' }} />)
+      )}
       {/* Touch- and keyboard-safe resize handle bottom right */}
       {!layoutLocked && !isDirect && !isMaximized && (
         <button
@@ -1060,6 +1082,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
           onPointerDown={handlePointerDownResize}
           onKeyDown={handleResizeKeyDown}
           onClick={(event) => event.stopPropagation()}
+          data-widget-resize="se"
           aria-label="Widget-Größe ändern"
           title="Ziehen zum Ändern · Pfeiltasten für feine Anpassung"
           className={`cockpit-widget-resize-handle absolute bottom-0 right-0 w-11 h-11 cursor-se-resize flex items-end justify-end p-2 group z-50 touch-none rounded-tl-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${isFreeMascot ? "mascot-widget-resize opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-within:opacity-100" : ""}`}
