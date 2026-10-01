@@ -2105,7 +2105,10 @@ export default function WeeklyPlan() {
                     <button type="button" data-testid="weekly-team-status"
                       onClick={() => setPage('teamteaching')}
                       title={weeklyTeam?.syncMessage || 'Klassenteam öffnen, um Freigabe, Stand und ggf. einen Konflikt zu prüfen'}
-                      aria-label={weeklyTeam ? weeklyTeamLabel : 'Klassenteam öffnen – diese Klasse ist nicht für Teamteaching freigegeben'}
+                      aria-label={weeklyTeam ? weeklyTeamLabel : weeklyRoom?.teamTeachingSharedClassId
+                        ? 'Teamklasse auf diesem Gerät verbinden – Planung möglicherweise veraltet'
+                        : hasOtherTeamClass ? 'Eigene Klasse – geteilte Klasse im Klassenteam öffnen'
+                          : 'Klassenteam öffnen – diese Klasse ist nicht für Teamteaching freigegeben'}
                       className={`min-h-11 max-w-full sm:max-w-md rounded-lg border px-2.5 py-1 text-left text-xs font-bold ${weeklyTeam?.syncStatus === 'synced'
                         ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
                         : weeklyTeam?.syncStatus === 'conflict' || weeklyTeam?.syncStatus === 'error'
