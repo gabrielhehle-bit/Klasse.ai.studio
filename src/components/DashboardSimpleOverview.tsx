@@ -17,6 +17,8 @@ import type { DashboardTodayOverviewProps } from './DashboardTodayOverview';
 export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) {
   const { app } = useApp();
   const [showAllTasks, setShowAllTasks] = useState(false);
+  const dayLabel = p.dayLabel || 'Heute';
+  const isPreview = dayLabel !== 'Heute';
   const button = 'min-h-11 px-4 py-2 rounded-xl text-sm font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]';
   const todayItems = p.actionItems.filter(item => item.type !== 'task' && item.type !== 'money');
   const personalItems = p.actionItems.filter(item => item.type === 'task' || item.type === 'money');
@@ -27,7 +29,7 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
   const primaryTarget =
     p.totalStudents === 0
       ? 'schueler'
-      : p.freeDayGreeting
+      : p.freeDayGreeting || isPreview
         ? 'wochenplanung'
         : p.attendanceRequired && !p.attendanceRecorded
           ? 'anwesenheit'
@@ -40,6 +42,8 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
       ? 'Kinder hinzufügen'
       : p.freeDayGreeting
         ? 'Planung ansehen'
+        : isPreview
+          ? 'Tag vorbereiten'
         : p.attendanceRequired && !p.attendanceRecorded
           ? 'Anwesenheit prüfen'
           : p.currentLesson
@@ -49,7 +53,7 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
               : 'Tagesplan öffnen';
 
   const primaryContext =
-    p.totalStudents === 0 || p.freeDayGreeting || (p.attendanceRequired && !p.attendanceRecorded)
+    p.totalStudents === 0 || p.freeDayGreeting || isPreview || (p.attendanceRequired && !p.attendanceRecorded)
       ? null
       : p.currentLesson
         ? 'Jetzt: ' + (p.currentLesson.fach || 'Unterricht') + (p.currentLesson.zeit ? ' · ' + p.currentLesson.zeit : '')
@@ -64,6 +68,8 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
       ? '••'
       : p.totalStudents === 0
         ? 'Keine Kinder angelegt'
+        : isPreview
+          ? 'Am Unterrichtstag erfassen'
         : !p.attendanceRequired
           ? 'Heute nicht erforderlich'
           : p.attendanceRecorded
@@ -71,7 +77,7 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
             : 'Noch nicht geprüft';
 
   return (
-    <section aria-label="Heute" className="space-y-5 text-slate-900">
+    <section aria-label="Heute" data-dashboard-overview className="space-y-4 text-slate-900">
       {p.freeDayGreeting && (
         <section role="status" aria-label="Wochenende, Ferien oder Feiertag"
           className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-emerald-50 p-5 sm:p-7">
@@ -81,28 +87,27 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
           <p className="mt-3 text-xs text-slate-500">Deine Termine und offenen Aufgaben bleiben unten im Blick.</p>
         </section>
       )}
-      <header className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7">
+      <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-start gap-4">
           <button type="button" onClick={() => p.onNavigate('profil')}
             title="Mein Profil öffnen" aria-label="Profil auf dem Dashboard öffnen"
-            className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]">
-            <TeacherAvatar app={app} size="md" />
+            className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]">
+            <TeacherAvatar app={app} size="sm" />
           </button>
           <div className="min-w-0">
             <p className="text-sm font-medium text-slate-600">{p.klasseLabel || 'Deine Klasse'}</p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{p.greeting}</h1>
-            <p className="mt-1 text-sm font-medium text-slate-500">{p.dateLabel}</p>
+            <h1 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">{p.greeting}</h1>
+            <p className="mt-1 text-sm text-slate-500"><span className="font-semibold text-slate-700">{dayLabel}</span> · {p.dateLabel}</p>
           </div>
 
         </div>
 
-        <div className="mt-6">
-          <p className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-slate-500">Jetzt</p>
+        <div className="shrink-0 sm:max-w-sm">
           <div className="flex flex-col items-start gap-2">
             <button
               type="button"
               onClick={() => p.onNavigate(primaryTarget)}
-              className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-[var(--accent)] px-6 py-4 text-base font-semibold text-white transition hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] sm:w-auto"
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white transition hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] sm:w-auto"
             >
               {primaryTarget === 'cockpit' ? <Play size={20} /> : primaryTarget === 'wochenplanung' ? <CalendarDays size={20} /> : <Users size={20} />}
               {primaryLabel}
@@ -113,21 +118,20 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
         </div>
       </header>
 
-      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-5">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-5">
         <section
           aria-label="Heutiger Unterricht"
-          className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-3"
+          className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 lg:col-span-3"
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--accent)]">Heute</p>
-              <h2 className="mt-1 flex items-center gap-2 text-lg font-semibold">
-                <CalendarDays size={20} className="text-indigo-600" />
+              <h2 className="flex items-center gap-2 text-base font-semibold">
+                <CalendarDays size={20} className="text-[var(--accent)]" />
                 Dein Unterricht
               </h2>
             </div>
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-              {p.freeDayGreeting ? 'Schulfrei' : `${p.todayLessonsList.length} ${p.todayLessonsList.length === 1 ? 'Stunde' : 'Stunden'}`}
+              {dayLabel} · {p.freeDayGreeting ? 'Schulfrei' : `${p.todayLessonsList.length} ${p.todayLessonsList.length === 1 ? 'Stunde' : 'Stunden'}`}
             </span>
           </div>
 
@@ -137,28 +141,28 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
               <p className="mt-1 text-sm text-emerald-800">Dein Stundenplan und deine Planungen bleiben gespeichert.</p>
             </div>
           ) : p.todayLessonsList.length ? (
-            <ol className="space-y-2">
+            <ol className="divide-y divide-slate-100">
               {p.todayLessonsList.map((lesson, index) => (
                 <li key={`${lesson.id ?? index}-${index}`}>
                   <button
                     type="button"
                     onClick={() => p.onNavigate('wochenplanung')}
-                    className={`w-full rounded-xl border p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
+                    className={`min-h-14 w-full rounded-lg border px-3 py-2 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
                       lesson.isCurrent
                         ? 'border-[var(--accent)]/30 bg-[var(--accent-soft)]'
-                        : 'border-slate-100 bg-slate-50 hover:border-slate-200 hover:bg-white'
+                        : 'border-transparent bg-transparent hover:bg-slate-50'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium text-slate-500">
+                      <div className="min-w-0 flex-1 grid grid-cols-[6rem_minmax(0,1fr)] gap-x-3">
+                        <p className="py-0.5 text-xs font-medium text-slate-500">
                           {lesson.zeit || `${lesson.hourNum ?? index + 1}. Stunde`}
                         </p>
-                        <p className="mt-1 truncate text-sm font-semibold text-slate-900">
+                        <p className="break-words text-sm font-semibold text-slate-900">
                           {lesson.fach || 'Unterricht'}
                         </p>
                         {lesson.thema && (
-                          <p className="mt-1 break-words text-sm text-slate-600">
+                          <p className="col-start-2 mt-1 break-words text-sm text-slate-600">
                             {p.privacyMode ? 'Thema verborgen' : lesson.thema}
                           </p>
                         )}
@@ -191,11 +195,10 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
 
         <section
           aria-label="Wichtig und offen"
-          className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-2"
+          className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 lg:col-span-2"
         >
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-700">Wichtig</p>
-            <h2 className="mt-1 flex items-center gap-2 text-lg font-semibold">
+            <h2 className="flex items-center gap-2 text-base font-semibold">
               <ClipboardList size={20} className="text-amber-600" />
               Offen & im Blick
             </h2>
@@ -205,7 +208,7 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
             {visibleTodayItems.length > 0 && (
               <div>
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-800">Heute wichtig</p>
+                  <p className="text-sm font-semibold text-slate-800">{isPreview ? 'Für diesen Tag' : 'Heute wichtig'}</p>
                   <span className="text-xs font-medium text-slate-500">{todayItems.length} Hinweise</span>
                 </div>
                 <ul className="space-y-2">
@@ -238,7 +241,7 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-slate-800">Meine offenen Aufgaben</p>
                   <span className="text-xs font-medium text-slate-500">
-                    {p.openTasksCount} Aufgaben · {p.openCollectionsCount} Sammlungen
+                    {p.openTasksCount} {p.openTasksCount === 1 ? 'Aufgabe' : 'Aufgaben'} · {p.openCollectionsCount} {p.openCollectionsCount === 1 ? 'Sammlung' : 'Sammlungen'}
                   </span>
                 </div>
                 <ul className="space-y-2">
@@ -261,7 +264,7 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
             {!visibleItemCount && (
               <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-sm font-medium text-emerald-800">
                 <CheckCircle2 size={18} className="shrink-0" />
-                Keine zusätzlichen Hinweise für heute.
+                Keine offenen Hinweise.
               </div>
             )}
           </div>
@@ -279,16 +282,17 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
 
           <button
             type="button"
+            disabled={isPreview}
             onClick={() => p.onNavigate(p.totalStudents ? 'anwesenheit' : 'schueler')}
-            className={`w-full rounded-xl border p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
-              p.attendanceRequired && !p.attendanceRecorded && p.totalStudents > 0
+            className={`min-h-14 w-full rounded-lg border px-3 py-2 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
+              !isPreview && p.attendanceRequired && !p.attendanceRecorded && p.totalStudents > 0
                 ? 'border-amber-200 bg-amber-50'
                 : 'border-slate-200 bg-slate-50 hover:bg-white'
             }`}
           >
-            <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+            <span className="flex items-center gap-2 text-xs font-semibold text-slate-500">
               <Users size={15} />
-              Anwesenheit
+              Anwesenheit · {dayLabel}
             </span>
             <strong className="mt-1.5 block text-sm text-slate-900">{attendanceValue}</strong>
             {!p.privacyMode && p.attendanceRecorded && p.absentCount > 0 && (
@@ -298,10 +302,9 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
         </section>
       </div>
 
-      <section aria-label="Schnellzugriff" className="rounded-2xl border border-slate-200 bg-white p-5">
+      <section aria-label="Schnellzugriff" className="rounded-2xl border border-slate-200 bg-white p-4">
         <div className="mb-3">
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Schnell</p>
-          <h2 className="mt-1 text-lg font-semibold">Was brauchst du als Nächstes?</h2>
+          <h2 className="text-base font-semibold">Schnellzugriff</h2>
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

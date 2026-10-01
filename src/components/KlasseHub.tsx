@@ -2,6 +2,7 @@ import React from 'react';
 import { useApp } from '../context/AppContext';
 import { Users, UserCheck, Armchair, Wallet, MessagesSquare, Heart, Notebook, ChevronRight, UserPlus, FileText, ContactRound } from 'lucide-react';
 import { toLocalDateKey } from '../lib/localDate';
+import { countStudentsWithAttendanceForDay } from '../lib/dashboardAttendance';
 
 type HubItem = {
   id: string;
@@ -49,8 +50,7 @@ export default function KlasseHub() {
   const { app, setPage } = useApp();
   const students = app.schueler || [];
   const today = toLocalDateKey();
-  const todayAttendance = app.anwesenheit?.[today] || {};
-  const recordedToday = students.filter(student => todayAttendance[student.id] !== undefined).length;
+  const recordedToday = countStudentsWithAttendanceForDay(students, app.anwesenheit, today);
   const className = app.klassenbezeichnung?.trim();
   const schoolYear = app.schuljahr?.replace(/^(\d{4})\/\d{2}(\d{2})$/, '$1/$2');
   const attendanceLabel = recordedToday > 0 ? `${recordedToday} von ${students.length} erfasst` : 'Heute noch offen';

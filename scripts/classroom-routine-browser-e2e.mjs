@@ -681,6 +681,17 @@ async function main() {
     await evaluate(client, `document.querySelector('[data-class-hub] header button').click()`);
     await waitFor(client, 'class attendance shortcut opens attendance', `Array.from(document.querySelectorAll('button[aria-current="page"]')).some(button=>button.textContent.includes('Anwesenheit'))`);
     console.log('✓ Class overview: responsive layout, usable card targets and attendance shortcut at 360/820/1360px.');
+    await openPage(client, 'Heute');
+    await waitFor(client, 'daily overview visible', `Boolean(document.querySelector('[data-dashboard-overview] h1'))`);
+    for (const width of [360, 820, 1360]) {
+      await client.send('Emulation.setDeviceMetricsOverride', {width, height:1000, deviceScaleFactor:1, mobile:false});
+      await sleep(350);
+      const layout = await evaluate(client, `(() => {const hub=document.querySelector('[data-dashboard-overview]');const header=hub.querySelector('header');return {overflow:document.documentElement.scrollWidth>innerWidth+3,heading:hub.querySelector('h1').textContent.trim(),hasDayLabel:/Heute|Morgen|Vorschau/.test(header.textContent),smallTarget:Array.from(header.querySelectorAll('button')).some(button=>button.getBoundingClientRect().height<44)};})()`);
+      if(layout.overflow || layout.smallTarget || !layout.heading || !layout.hasDayLabel) throw new Error('Daily overview layout failed at '+width+': '+JSON.stringify(layout));
+      await saveScreenshot(client);
+    }
+    console.log('✓ Daily overview: responsive layout, clear day label and usable header targets at 360/820/1360px.');
+
   } catch (error) {
     await saveScreenshot(client).catch(() => {});
     throw error;

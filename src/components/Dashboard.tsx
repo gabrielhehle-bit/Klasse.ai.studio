@@ -2794,6 +2794,11 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
   };
 
   const displayedDateKey = formatLocalDateKey(scheduleDatum);
+  const nextCalendarDay = new Date(heute);
+  nextCalendarDay.setDate(nextCalendarDay.getDate() + 1);
+  const dashboardDayLabel = displayedDateKey === formatLocalDateKey(heute) ? 'Heute'
+    : displayedDateKey === formatLocalDateKey(nextCalendarDay) ? 'Morgen'
+    : `Vorschau · ${scheduleDatum.toLocaleDateString('de-DE', { weekday: 'long' })}`;
   const displayedDayName = getTodayName(scheduleDatum);
   const displayedActiveHours: number[] = displayedDayName
     ? (app?.tageplan?.[displayedDayName]?.stunden || [])
@@ -4535,17 +4540,17 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
             aria-label="Geburtstage diese Woche"
             className="overflow-hidden"
           >
-            <div className="bg-gradient-to-r from-amber-500/10 to-rose-500/10 p-[1px] rounded-3xl border border-amber-500/20 shadow-[0_10px_25px_rgba(245,158,11,0.03)]">
-              <div className="bg-white/95 backdrop-blur-md px-4 sm:px-6 py-4 rounded-[calc(1.5rem-1px)]">
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-amber-100 bg-amber-50 text-amber-600">
+            <div className="rounded-2xl border border-amber-200/60 bg-amber-50/40">
+              <div className="px-4 py-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-amber-100 bg-amber-50 text-amber-600">
                     <Cake size={16} />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <h4 className="text-[0.75rem] leading-tight font-black text-amber-800 uppercase tracking-widest">
+                  <div className="min-w-0 flex-1 flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <h4 className="text-sm font-semibold text-amber-800">
                       {birthdaysToday.length > 0 ? "Heute & diese Woche" : "Geburtstage diese Woche"}
                     </h4>
-                    <div className="mt-2 flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {birthdaysThisWeek.map((s) => {
                         let bdayDate: Date | null = null;
                         const parts = String(s.geburtstag).split(".");
@@ -4579,8 +4584,8 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
                             }}
                             aria-label={description + ". Schülerprofil öffnen"}
                             className={isToday
-                              ? "inline-flex min-h-10 items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-left text-amber-900 transition-colors hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-                              : "inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-left text-slate-700 transition-colors hover:border-amber-200 hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"}
+                              ? "inline-flex min-h-11 items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-left text-amber-900 transition-colors hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                              : "inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-left text-slate-700 transition-colors hover:border-amber-200 hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"}
                           >
                             <span className="font-bold">{s.vorname}</span>
                             <span className={isToday ? "text-xs font-black text-amber-700" : "text-xs text-slate-500"}>
@@ -4694,6 +4699,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
 
       <DashboardTodayOverview
         greeting={getGreeting()}
+        dayLabel={dashboardDayLabel}
         freeDayGreeting={dashboardFreeDay}
         dateLabel={scheduleDatum.toLocaleDateString("de-DE", {
           weekday: "long",
