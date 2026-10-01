@@ -433,11 +433,11 @@ async function main() {
       await evaluate(client, 'document.querySelector("button[aria-label=\\\"Schüler-Seitenleiste groß anzeigen\\\"]").click()');
       await waitFor(client, 'expanded sidebar restored', `Boolean(document.querySelector('.klassio-student-sidebar button[aria-label="Schüler-Seitenleiste kompakt anzeigen"]'))`);
     }
-    await waitFor(client, 'latest local save shown in compact cockpit status', `Boolean(document.querySelector('summary[aria-label^="Speicherstatus:"]')?.closest('details[data-local-save-status="saved"]'))`);
+    await waitFor(client, 'latest local save shown in compact cockpit status', `Boolean(document.querySelector('.klassio-cockpit-shell summary[aria-label^="Speicherstatus:"]')?.closest('details[data-local-save-status="saved"]'))`);
     const tidyHeader = await evaluate(client, `(() => {
       const sidebar = document.querySelector('.klassio-student-sidebar');
       const list = sidebar.querySelector('[role=list]');
-      const sync = document.querySelector('summary[aria-label^="Speicherstatus:"]');
+      const sync = document.querySelector('.klassio-cockpit-shell summary[aria-label^="Speicherstatus:"]');
       return { headerHeight: list.getBoundingClientRect().top - sidebar.getBoundingClientRect().top,
         closeButtons: sidebar.querySelectorAll('button[aria-label="Schülerliste schließen"]').length,
         syncHeight: sync?.getBoundingClientRect().height,
@@ -445,6 +445,7 @@ async function main() {
         extraHeading: sidebar.textContent.includes('Unsere Pluspunkte'),
         settingHint: sidebar.textContent.includes('Name antippen') };
     })()`);
+    console.log('Compact cockpit controls:', JSON.stringify(tidyHeader));
     if (tidyHeader.headerHeight > 115 || tidyHeader.closeButtons !== 1 || tidyHeader.extraHeading || tidyHeader.settingHint) throw new Error('Student sidebar header must stay compact with one close action.');
     if (!tidyHeader.syncHeight || tidyHeader.syncHeight > 28 || !tidyHeader.syncText.includes('Lokal gespeichert')) throw new Error('Cockpit save status must be compact and still distinguish local storage from sync.');
     const studentName = await evaluate(client, `document.querySelector('.klassio-student-sidebar button[aria-label^="Pluspunkt für"]').getAttribute('aria-label').replace('Pluspunkt für ', '').replace(' vergeben', '')`);
