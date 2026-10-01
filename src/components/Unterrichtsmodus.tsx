@@ -12618,7 +12618,7 @@ ${content}
                           className="absolute inset-y-0 left-0 z-[70] w-2.5 cursor-col-resize touch-none bg-slate-200/40 hover:bg-indigo-300 focus-visible:bg-indigo-300"
                           title="Ziehen, um die Schülerliste breiter oder schmaler zu machen" />
                       )}
-                      <div className="shrink-0 border-b border-slate-200 bg-white p-2 text-slate-900">
+                      <div className="shrink-0 border-b border-slate-200 bg-white p-1.5 text-slate-900">
                         <div className="flex min-w-0 items-center gap-1">
                           <select aria-label="Widget der Seitenleiste" title={`${cockpitClassLabel || 'Klasse'} · ${app.schueler.length} Kinder`} value={sidebarContent} onChange={event => setSidebarContent(event.target.value as 'students' | 'stars')} className="min-h-8 min-w-0 flex-1 rounded-md border-0 bg-white px-1 text-xs font-semibold">
                             <option value="students">{cockpitClassLabel || 'Klasse'} · {app.schueler.length} Kinder</option><option value="stars">Sterneübersicht · Diagramm</option>
