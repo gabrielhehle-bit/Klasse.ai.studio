@@ -32,6 +32,7 @@ import { KID_MOOD_SCALE, getMoodMeta } from '../../../lib/moodTypes';
 import { getStudentGridLayout } from '../../../lib/studentWidgetGrid';
 import { getAdaptiveCheckInOptions, getCheckInPageLayout, shouldShowCheckInSummary } from '../../../lib/checkInWidgetLayout';
 import { getCheckInMode } from '../../../lib/checkInWidgetMode';
+import PresenceBehaviorStats from '../../PresenceBehaviorStats';
 
 export interface KidAttendanceWidgetProps {
   widget?: CockpitWidgetConfig;
@@ -101,6 +102,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   const [studentPage, setStudentPage] = useState(0);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [recentlyTappedId, setRecentlyTappedId] = useState<string | null>(null);
+  const [showStatistics, setShowStatistics] = useState(false);
 
   React.useEffect(() => {
     if (!isTeacherModalOpen) setShowTeacherMoodDetails(false);
@@ -144,6 +146,17 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     setStudentPage(0);
     setActiveMoodStudent(null);
   }, [checkInMode, todayStr]);
+
+  if (showStatistics) {
+    return (
+      <div ref={containerRef} className="flex h-full min-h-0 w-full flex-col overflow-auto bg-slate-50 p-2">
+        <PresenceBehaviorStats compact />
+        <button type="button" onClick={() => setShowStatistics(false)} className="mt-2 min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700">
+          Zur Anwesenheit zurück
+        </button>
+      </div>
+    );
+  }
 
   // Mode B selects one child before check-in; mode C never changes attendance.
   const handleStudentCardTap = useCallback((studentId: string) => {
@@ -520,6 +533,9 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           {summary.isComplete ? 'Alle Kinder sind erfasst.' : `${summary.open} von ${summary.total} Kindern noch offen.`}
         </div>
         <div className="flex w-full shrink-0 flex-col gap-1.5">
+          <button type="button" onClick={() => setShowStatistics(true)} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-xs font-bold text-slate-800" aria-label="Ich bin da Statistik öffnen">
+            Statistik öffnen
+          </button>
           <button type="button" onClick={() => setIsTeacherModalOpen(true)}
             className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-accent px-2 py-2 text-xs font-black text-accent-text hover:bg-accent-hover"
             aria-label="Anwesenheit bearbeiten: Da, Fehlt oder Entschuldigt">
@@ -568,6 +584,9 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          <button type="button" onClick={() => setShowStatistics(true)} className={`min-h-11 rounded-lg border px-2 font-bold text-xs ${compactControls ? 'min-w-11' : 'flex items-center gap-1.5'} ${currentIsLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-zinc-800 border-zinc-700 text-white'}`} aria-label="Ich bin da Statistik öffnen">
+            Statistik
+          </button>
           {isStudentPageOpen && <button type="button" onClick={collapseStudentGrid}
             className="min-h-11 min-w-11 rounded-lg border px-2 text-xs font-bold"
             title="Zur ursprünglichen Widgetgröße zurückkehren" aria-label="Zur ursprünglichen Widgetgröße zurückkehren">

@@ -26,6 +26,7 @@ import { formatGermanDate } from '../../lib/diagnosticCoreUtils';
 import { logObservation } from '../../lib/utils';
 import { toLocalDateKey } from '../../lib/localDate';
 import DossierKELReflexion from './DossierKELReflexion';
+import PresenceBehaviorStats from '../PresenceBehaviorStats';
 
 interface DossierBeobachtungenVerlaufProps {
   student: Student;
@@ -481,6 +482,7 @@ export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufPr
       {/* ---------------------------------------------------- */}
       {activeSubSection === 'verhalten' && (
         <div className="space-y-4">
+          <PresenceBehaviorStats studentId={student.id} />
           {/* Constructive overview cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
             <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-3xs space-y-1">
