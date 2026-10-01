@@ -65,7 +65,8 @@ export const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({
   // Synchronisieren, wenn sich widget.settings von außen ändert (z. B. Vorlagenwechsel)
   useEffect(() => {
     const canonical = getCanonicalQRSettings(widget?.settings);
-    setInputVal(canonical.content);
+    // Preserve spaces during typing; normalized echoes are not external edits.
+    setInputVal(current => current.trim() === canonical.content ? current : canonical.content);
     setInputLabel(canonical.label);
   }, [widget?.settings?.content, widget?.settings?.link, widget?.settings?.label]);
 
