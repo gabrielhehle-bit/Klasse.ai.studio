@@ -12620,9 +12620,9 @@ ${content}
                       )}
                       <div className="shrink-0 border-b border-slate-200 bg-white p-2 text-slate-900">
                         <div className="flex min-w-0 items-center gap-1">
-                          <span className="min-w-0 flex-1 truncate text-xs font-semibold" title={`${cockpitClassLabel || 'Klasse'} · ${app.schueler.length} Kinder`}>
-                            {cockpitClassLabel || 'Klasse'} <span className="font-normal text-slate-500">· {app.schueler.length} Kinder</span>
-                          </span>
+                          <select aria-label="Widget der Seitenleiste" title={`${cockpitClassLabel || 'Klasse'} · ${app.schueler.length} Kinder`} value={sidebarContent} onChange={event => setSidebarContent(event.target.value as 'students' | 'stars')} className="min-h-8 min-w-0 flex-1 rounded-md border-0 bg-white px-1 text-xs font-semibold">
+                            <option value="students">{cockpitClassLabel || 'Klasse'} · {app.schueler.length} Kinder</option><option value="stars">Sterneübersicht · Diagramm</option>
+                          </select>
                           <button type="button"
                             aria-label={sidebarMode === "mini" ? "Schüler-Seitenleiste groß anzeigen" : "Schüler-Seitenleiste kompakt anzeigen"}
                             aria-pressed={sidebarMode === "mini"}
@@ -12639,9 +12639,6 @@ ${content}
                           <button type="button" onClick={() => changeSidebarMode("hidden")} aria-label="Schülerliste schließen" title="Schülerliste schließen"
                             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600"><X size={16} /></button>
                         </div>
-                        <label className="mt-1 block"><span className="sr-only">Widget der Seitenleiste</span><select aria-label="Widget der Seitenleiste" value={sidebarContent} onChange={event => setSidebarContent(event.target.value as 'students' | 'stars')} className="min-h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold">
-                          <option value="students">Schülerliste · Pluspunkte verteilen</option><option value="stars">Sterneübersicht · Diagramm</option>
-                        </select></label>
                         <div role="group" aria-label="Pluspunkt-Art" className="mt-1 flex gap-1 rounded-lg bg-slate-100 p-0.5">
                           {([['subject', 'Fach +1'], ['social', '🤝 Sozial +1']] as const).map(([kind, label]) => <button key={kind} type="button"
                             aria-pressed={sidebarParticipationKind === kind}
