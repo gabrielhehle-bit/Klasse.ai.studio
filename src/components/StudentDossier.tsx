@@ -804,7 +804,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
                 {(activeTab === 'beobachtungen_verlauf' || activeTab === 'stats' || activeTab === 'kel_reflexion') && (
                   <DossierBeobachtungenVerlauf
                     student={student}
-                    initialSubSection={activeTab === 'kel_reflexion' ? 'kel' : activeTab === 'stats' ? 'verhalten' : 'beobachtungen'}
+                    initialSubSection={activeTab === 'kel_reflexion' ? 'kel' : 'verhalten'}
                     initialQuickNoteCategory={pendingQuickEntry === 'parent' ? 'Eltern' : pendingQuickEntry === 'note' ? 'Notiz' : undefined}
                     onQuickEntryConsumed={() => setPendingQuickEntry(null)}
                   />

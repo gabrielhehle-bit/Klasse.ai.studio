@@ -266,6 +266,7 @@ async function openPupil(client, nameParts) {
 async function openObservations(client) {
   await clickButton(client, 'Beobachtungen', true);
   await waitFor(client, 'observation page', 'document.body.innerText.includes("Beobachtung notieren")');
+  await clickButton(client, 'Pädagogische Notizen');
 }
 async function reloadAndUnlock(client) {
   const before = client.navigationCount;
@@ -322,12 +323,30 @@ async function checkRoutine(client) {
   await sleep(500);
   await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-subject-desktop.png'));
   await client.send('Emulation.setDeviceMetricsOverride', { width: WIDTH, height: 1000, deviceScaleFactor: 1, mobile: true });
+  await clickButton(client, 'Beobachtungen', true);
+  await waitFor(client, 'observation charts shown first', 'Boolean(document.querySelector("[data-dossier-observation-charts]")) && Boolean(document.querySelector("[data-observation-attendance] .recharts-bar"))');
+  await clickButton(client, 'Gesamtes Schuljahr', true);
+  await waitFor(client, 'school year selected', 'document.querySelector("[aria-label=\\"Beobachtungszeitraum\\"] button[aria-pressed=true]")?.innerText === "Gesamtes Schuljahr"');
+  await clickButton(client, 'Letzte 6 Wochen', true);
+  await clickSelector(client, '[aria-label="Tagesdaten auswählen"] button:last-child');
+  await waitFor(client, 'attendance day and reason shown', 'document.querySelector("[data-observation-records]")?.innerText.includes("Synthetischer Browser-Testgrund") && document.querySelector("[data-observation-records]")?.innerText.includes("Entschuldigt")');
+  if (await evaluate(client, 'document.documentElement.scrollWidth') > WIDTH + 5) throw new Error('Observation charts overflow viewport.');
+  await evaluate(client, 'document.querySelectorAll(".custom-scrollbar").forEach(el => el.scrollTop = 0)');
+  await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-observations.png'));
+  await client.send('Emulation.setDeviceMetricsOverride', { width: 1360, height: 1000, deviceScaleFactor: 1, mobile: false });
+  await sleep(500);
+  await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-observations-desktop.png'));
+  await client.send('Emulation.setDeviceMetricsOverride', { width: WIDTH, height: 1000, deviceScaleFactor: 1, mobile: true });
   await openObservations(client);
   await clickButton(client, 'Beobachtung notieren');
   await setInputByPlaceholder(client, 'Konkrete, wertfreie Unterrichtsbeobachtung', 'Synthetische Browser-Testnotiz');
   await setInputByLabel(client, 'Päd. Einordnung', 'positiv');
   await clickButton(client, 'Beobachtung speichern');
   await waitFor(client, 'positive note visibly saved', 'document.body.innerText.includes("Synthetische Browser-Testnotiz") && document.body.innerText.includes("Stärke / Ressource")');
+  await clickSelector(client, 'button[aria-label="Beobachtung bearbeiten"]');
+  await setInputByPlaceholder(client, 'Konkrete, wertfreie Unterrichtsbeobachtung', 'Synthetische Browser-Testnotiz korrigiert');
+  await clickButton(client, 'Beobachtung speichern');
+  await waitFor(client, 'note edited without duplication', 'Array.from(document.querySelectorAll("p")).filter(p=>p.textContent.includes("Synthetische Browser-Testnotiz")).length === 1 && document.body.innerText.includes("Synthetische Browser-Testnotiz korrigiert")');
   // Navigate to another pupil through the actual selector and ensure no note leakage.
   const selectionBefore = await evaluate(client, 'Array.from(document.querySelectorAll("select")).find(s=>Array.from(s.options).some(o=>' + q(pupilParts) + '.every(p=>o.textContent.includes(p))))?.value');
   const next = await evaluate(client, '(() => { const b=document.querySelector("button[aria-label^=\\"Nächstes Kind:\\"]") || document.querySelector("button[aria-label^=\\"Vorheriges Kind:\\"]"); if (!b) return false; b.click(); return true; })()');
