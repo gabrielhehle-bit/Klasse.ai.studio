@@ -404,7 +404,7 @@ async function main() {
     const topButtons = result.topbarVisible.filter(x => !x.label.includes('Navigation'));
     if (topButtons.some(x => x.r && x.r.right > WIDTH + 3)) throw new Error('Phone toolbar action is clipped.');
     await checkRoutine(client);
-    // Exercise both compact entry points at a normal laptop viewport.
+    // Exercise the single sidebar view switch twice at a normal laptop viewport.
     await client.send('Emulation.setDeviceMetricsOverride', {
       width: 1280, height: 720, deviceScaleFactor: 1, mobile: false,
     });
@@ -412,12 +412,10 @@ async function main() {
     await waitFor(client, 'student sidebar or its open action', 'Boolean(document.querySelector(".klassio-student-sidebar, button[aria-label=\\\"Schülerliste einblenden\\\"]"))', 30000);
     await evaluate(client, 'document.querySelector("button[aria-label=\\\"Schülerliste einblenden\\\"]")?.click()');
     await waitFor(client, 'student sidebar', 'Boolean(document.querySelector(".klassio-student-sidebar"))', 30000);
-    for (const entry of ['inner', 'header']) {
+    for (const entry of ['first', 'second']) {
       await evaluate(client, `(() => {
         const sidebar = document.querySelector('.klassio-student-sidebar');
-        const button = ${entry === 'inner'
-          ? "Array.from(sidebar.querySelectorAll('section button')).find(b => b.textContent.trim() === 'Kompakt')"
-          : "sidebar.querySelector('button[aria-label=\"Schüler-Seitenleiste kompakt anzeigen\"]')"};
+        const button = sidebar.querySelector('button[aria-label="Schüler-Seitenleiste kompakt anzeigen"]');
         if (!button) throw new Error('Compact entry missing');
         button.click();
       })()`);
@@ -433,8 +431,22 @@ async function main() {
         });
       })()`, 15000);
       await evaluate(client, 'document.querySelector("button[aria-label=\\\"Schüler-Seitenleiste groß anzeigen\\\"]").click()');
-      await waitFor(client, 'expanded sidebar restored', 'Boolean(document.querySelector(".klassio-student-sidebar section button[aria-pressed=false]"))');
+      await waitFor(client, 'expanded sidebar restored', `Boolean(document.querySelector('.klassio-student-sidebar button[aria-label="Schüler-Seitenleiste kompakt anzeigen"]'))`);
     }
+    await waitFor(client, 'latest local save shown in compact cockpit status', `Boolean(document.querySelector('summary[aria-label^="Speicherstatus:"]')?.closest('details[data-local-save-status="saved"]'))`);
+    const tidyHeader = await evaluate(client, `(() => {
+      const sidebar = document.querySelector('.klassio-student-sidebar');
+      const list = sidebar.querySelector('[role=list]');
+      const sync = document.querySelector('summary[aria-label^="Speicherstatus:"]');
+      return { headerHeight: list.getBoundingClientRect().top - sidebar.getBoundingClientRect().top,
+        closeButtons: sidebar.querySelectorAll('button[aria-label="Schülerliste schließen"]').length,
+        syncHeight: sync?.getBoundingClientRect().height,
+        syncText: sync?.textContent,
+        extraHeading: sidebar.textContent.includes('Unsere Pluspunkte'),
+        settingHint: sidebar.textContent.includes('Name antippen') };
+    })()`);
+    if (tidyHeader.headerHeight > 115 || tidyHeader.closeButtons !== 1 || tidyHeader.extraHeading || tidyHeader.settingHint) throw new Error('Student sidebar header must stay compact with one close action.');
+    if (!tidyHeader.syncHeight || tidyHeader.syncHeight > 28 || !tidyHeader.syncText.includes('Lokal gespeichert')) throw new Error('Cockpit save status must be compact and still distinguish local storage from sync.');
     const studentName = await evaluate(client, `document.querySelector('.klassio-student-sidebar button[aria-label^="Pluspunkt für"]').getAttribute('aria-label').replace('Pluspunkt für ', '').replace(' vergeben', '')`);
     const leaveCockpit = () => evaluate(client, `document.querySelector('button[aria-label^="Lehrercockpit schließen"]').click()`);
     const openGradebook = async () => {

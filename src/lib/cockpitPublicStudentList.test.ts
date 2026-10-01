@@ -74,6 +74,7 @@ test('Kompakte Cockpit-Seitenleiste zeigt alle 17 Kinder im Raster ohne Scrollen
   })) as unknown as Student[];
   const html = renderToStaticMarkup(React.createElement(PublicStudentListWidget, {
     app: { activeClassId: 'class-a', schueler: pupils } as unknown as AppState,
+    sidebar: true,
     sidebarCompact: true,
     getTodayPoints: () => 1,
     addParticipation: () => {},
@@ -81,9 +82,9 @@ test('Kompakte Cockpit-Seitenleiste zeigt alle 17 Kinder im Raster ohne Scrollen
   }));
   assert.match(teaching, /sidebarCompact=\{sidebarMode === "mini"\}/);
   assert.match(html, /grid min-h-0 flex-1 gap-1 overflow-hidden/);
-  assert.match(html, /1 P\./);
+  assert.match(html, /aria-label="1 Pluspunkte">1<\/span>/);
   assert.match(html, /h-8 w-8 shrink-0/);
-  assert.match(html, /Unsere Pluspunkte · 17/);
+  assert.doesNotMatch(html, /Unsere Pluspunkte|Große Ansicht|Kompakt<\/button>/);
   for (let i = 1; i <= 17; i++) assert.match(html, new RegExp(`Kind${i}(?!\\d)`));
   assert.equal((html.match(/Pluspunkt für/g) || []).length, 17);
   assert.doesNotMatch(html, /overflow-y-auto/);
@@ -157,6 +158,7 @@ test('Die kompakte Schülerliste zeigt den kurzen Verhaltensstatus neben Name, P
       behavior_status: { s1: '5' },
       behavior_stages: [{ id: '5', label: 'Stopp', icon: '🚫', color: 'bg-rose-500' }],
     } as unknown as AppState,
+    sidebar: true,
     sidebarCompact: true,
     getTodayPoints: () => 0,
     addParticipation: () => {},
@@ -165,7 +167,7 @@ test('Die kompakte Schülerliste zeigt den kurzen Verhaltensstatus neben Name, P
   assert.match(html, /Verhaltensstatus: Stopp/);
   assert.match(html, /🚫/);
   assert.match(html, />Stopp<\/span>/);
-  assert.match(html, /0 P\./);
+  assert.match(html, /aria-label="0 Pluspunkte">0<\/span>/);
   assert.match(html, />\+1<\/button>/);
 });
 

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { saveSyncPresentation } from './saveSyncPresentation';
 test('Gerätewechsel ist nur mit lokalem und aktuellem Servernachweis grün', () => {
   assert.equal(saveSyncPresentation('saved', 'synced', true).ready, true);
+  assert.equal(saveSyncPresentation('saved', 'synced', true).compactLabel, 'Synchronisiert');
   for (const local of ['pending', 'error'] as const) assert.equal(saveSyncPresentation(local, 'synced', true).ready, false);
   for (const status of ['disabled', 'idle', 'saved-local', 'syncing', 'conflict', 'error', 'saving-local', 'local-error'] as const) assert.equal(saveSyncPresentation('saved', status, true).ready, false);
   assert.equal(saveSyncPresentation('saved', 'synced', false).ready, false);
@@ -11,6 +12,9 @@ test('Offline, lokaler Nachweis, ausstehende Änderungen und Konflikte sind unte
   assert.equal(saveSyncPresentation('saved', 'saved-local', false).label, 'Offline · auf diesem Gerät gespeichert');
   assert.equal(saveSyncPresentation('pending', 'synced', true).label, 'Änderung noch ausstehend');
   assert.equal(saveSyncPresentation('saved', 'disabled', true).label, 'Auf diesem Gerät gespeichert');
+  assert.equal(saveSyncPresentation('saved', 'disabled', true).compactLabel, 'Lokal gespeichert');
+  assert.equal(saveSyncPresentation('saved', 'saved-local', false).compactLabel, 'Offline · lokal gespeichert');
+  assert.equal(saveSyncPresentation('saved', 'conflict', true).compactLabel, 'Sync-Konflikt');
   assert.equal(saveSyncPresentation('saved', 'conflict', true).label, 'Synchronisationskonflikt');
   assert.equal(saveSyncPresentation('error', 'synced', false).label, 'Speichern fehlgeschlagen');
 });
