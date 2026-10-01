@@ -310,7 +310,7 @@ export default function DossierLeistungen({
   const handleSaveAssessment = () => {
     if (!editingItem) return;
 
-    const { fach, category, colIndex, label, date, grade, score, maxScore, note } = editingItem;
+    const { fach, category, colIndex, label, date, grade, score, maxScore, percent, note } = editingItem;
 
     setApp(prev => {
       const noten = { ...(prev.noten || {}) };
@@ -352,7 +352,7 @@ export default function DossierLeistungen({
           note: note.trim()
         };
       } else {
-        const p = parseFloat(score);
+        const p = parseFloat(percent);
         entryToSave = {
           percent: !isNaN(p) ? p : 0,
           label: label.trim(),
