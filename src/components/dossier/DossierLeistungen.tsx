@@ -7,8 +7,10 @@ import {
   Target, Stethoscope, HeartHandshake, Calendar, FileText, CheckCircle2,
   AlertCircle, Plus, Edit2, Trash2, X, Check, Save, Layers, Clock, TrendingUp
 } from 'lucide-react';
-import { berechne, getNotenLabel } from '../../lib/GradeUtils';
+import { berechne, getNotenLabel, getFachCfg } from '../../lib/GradeUtils';
 import { FAECHER_ALLE } from '../../constants';
+import DossierAssessmentChart from './DossierAssessmentChart';
+import { getDossierAssessmentChart } from '../../lib/dossierAssessmentChart';
 
 interface DossierLeistungenProps {
   initialSubject?: string;
@@ -169,18 +171,10 @@ export default function DossierLeistungen({
 
   // Requirement 6: Methodically clean trend calculation
   const calculateMethodologicalTrend = (items: AssessmentItem[], mode: 'grades' | 'percent' | 'points') => {
-    // Only calculate if at least 2 comparable data points exist
-    if (items.length < 2) {
-      return { direction: 'none' as const, label: null };
-    }
-
+    const chartRows = getDossierAssessmentChart(items, mode).rows;
+    if (chartRows.length < 2) return { direction: 'none' as const, label: null };
     if (mode === 'grades') {
-      const grades = items
-        .map(i => {
-          const n = parseFloat(String(i.rawGrade).replace(',', '.'));
-          return (!isNaN(n) && n >= 1 && n <= 5) ? n : null;
-        })
-        .filter((n): n is number => n !== null);
+      const grades = chartRows.map(row => row.value);
 
       if (grades.length < 2) return { direction: 'none' as const, label: null };
 
@@ -200,9 +194,7 @@ export default function DossierLeistungen({
     }
 
     // Mode is percent or points
-    const percentages = items
-      .map(i => i.percent)
-      .filter((n): n is number => typeof n === 'number' && !isNaN(n));
+    const percentages = chartRows.map(row => row.value);
 
     if (percentages.length < 2) return { direction: 'none' as const, label: null };
 
@@ -252,8 +244,8 @@ export default function DossierLeistungen({
       const latestItem = items.length > 0 ? items[items.length - 1] : null;
 
       // Weights text
-      const g = meta.gewichtung || { sa: 40, lzk: 30, mi: 30 };
-      const weightsSummary = `SA: ${g.sa || 0}%, LZK: ${g.lzk || 0}%, MI: ${g.mi || 0}%`;
+      const g = getFachCfg(app, fach).g;
+      const weightsSummary = (['sa', 'lzk', 'wp', 'obj', 'mi', 'hue'] as const).filter(key => g[key] > 0).map(key => `${getNotenLabel(app, fach, key)}: ${Math.round(g[key] * 100)} %`).join(' · ') || 'Keine Gewichtung hinterlegt';
 
       return {
         fach,
@@ -503,24 +495,15 @@ export default function DossierLeistungen({
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Ganzes Schuljahr</span>
           </div>
 
-          {/* Quick Subject Switcher Pills */}
-          <div className="flex flex-wrap items-center gap-1 overflow-x-auto py-1">
-            {faecher.map(f => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => setSelectedSubject(f)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
-                  f === s.fach
-                    ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {f}
-              </button>
-            ))}
+          <div className="flex min-w-0 items-center gap-2">
+            <button type="button" aria-label="Vorheriges Fach" disabled={faecher.indexOf(s.fach) === 0} onClick={() => setSelectedSubject(faecher[faecher.indexOf(s.fach)-1])} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 disabled:opacity-30"><ArrowLeft size={16}/></button>
+            <select aria-label="Fach auswählen" value={s.fach} onChange={e=>setSelectedSubject(e.target.value)} className="min-h-10 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold sm:max-w-64">
+              {faecher.map(f=><option key={f} value={f}>{f}</option>)}
+            </select>
+            <button type="button" aria-label="Nächstes Fach" disabled={faecher.indexOf(s.fach) === faecher.length-1} onClick={() => setSelectedSubject(faecher[faecher.indexOf(s.fach)+1])} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 disabled:opacity-30"><ChevronRight size={16}/></button>
           </div>
         </div>
+
 
         {/* Fach-Header */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
@@ -532,9 +515,7 @@ export default function DossierLeistungen({
                   {getModeBadge(s.mode)}
                 </span>
               </div>
-              <p className="text-xs text-slate-500">
-                Gewichtung: <span className="font-semibold text-slate-700">{s.weightsSummary}</span>
-              </p>
+              <p className="text-xs text-slate-500">{s.itemsCount} Leistungsnachweise · Ganzes Schuljahr</p>
             </div>
 
             {/* Stand & Action */}
@@ -558,7 +539,10 @@ export default function DossierLeistungen({
           </div>
 
           {/* Querverweise zu Lernzielen, Diagnostik & Förderung */}
-          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+          <details className="mt-3 border-t border-slate-100 pt-3">
+            <summary className="cursor-pointer text-xs font-semibold text-slate-500">Gewichtung, Lernziele & weitere Details</summary>
+            <p className="mt-2 text-xs text-slate-500">Gewichtung: {s.weightsSummary}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
             {onNavigateTab && (
               <button
                 type="button"
@@ -588,92 +572,11 @@ export default function DossierLeistungen({
                 <HeartHandshake size={13} /> Im Förderprofil berücksichtigt
               </button>
             )}
-          </div>
+            </div>
+          </details>
         </div>
 
-        {/* Leistungsentwicklung (zeitlicher Verlauf) (Requirement 4 & 7) */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-          <div className="flex items-center justify-between gap-2 mb-4">
-            <div className="flex items-center gap-2">
-              <Clock size={16} className="text-slate-500" />
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                Leistungsentwicklung im Schuljahr ({s.items.length} {s.items.length === 1 ? 'Nachweis' : 'Nachweise'})
-              </h4>
-            </div>
-
-            {s.trend.direction !== 'none' && (
-              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                s.trend.direction === 'up'
-                  ? 'bg-emerald-100 text-emerald-800'
-                  : s.trend.direction === 'down'
-                  ? 'bg-rose-100 text-rose-800'
-                  : 'bg-slate-100 text-slate-700'
-              }`}>
-                {s.trend.direction === 'up' && <ArrowUpRight size={14} />}
-                {s.trend.direction === 'down' && <ArrowDownRight size={14} />}
-                {s.trend.direction === 'stable' && <ArrowRight size={14} />}
-                {s.trend.label}
-              </span>
-            )}
-          </div>
-
-          {s.items.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-6 text-center text-xs text-slate-500">
-              Für dieses Fach wurden in diesem Schuljahr noch keine Einzelnoten oder Leistungsnachweise erfasst.
-            </div>
-          ) : s.items.length < 2 ? (
-            <div className="space-y-3">
-              <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-600">
-                Bisher liegt 1 Leistungsnachweis vor. Für einen methodisch sauberen Trendverlauf sind mindestens 2 getrennte Erhebungen erforderlich.
-              </div>
-              {/* Single item display */}
-              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3">
-                <div>
-                  <span className="text-xs font-bold text-slate-800">{s.items[0].label}</span>
-                  <div className="text-[0.6875rem] text-slate-400">{s.items[0].date || 'Ohne Datum'} · {s.items[0].categoryLabel}</div>
-                </div>
-                <div className="text-sm font-black text-slate-900">
-                  {mode === 'grades' ? `Note ${s.items[0].rawGrade}` : mode === 'points' ? `${s.items[0].score}/${s.items[0].maxScore} Pkt.` : `${s.items[0].percent}%`}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Timeline Items */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {s.items.map((item, idx) => (
-                  <div key={item.id} className="relative rounded-xl border border-slate-200 bg-slate-50/50 p-3">
-                    <div className="flex items-center justify-between gap-1 mb-1">
-                      <span className="text-[0.625rem] font-bold uppercase tracking-wider text-slate-500">
-                        #{idx + 1} {item.categoryLabel}
-                      </span>
-                      <span className="text-[0.625rem] text-slate-400">
-                        {item.date || 'Kein Datum'}
-                      </span>
-                    </div>
-                    <div className="text-xs font-semibold text-slate-800 truncate mb-1">
-                      {item.label}
-                    </div>
-                    <div className="flex items-center justify-between border-t border-slate-200/60 pt-2 mt-2">
-                      <span className="text-sm font-black text-slate-900">
-                        {mode === 'grades' 
-                          ? `Note ${item.rawGrade}` 
-                          : mode === 'points' 
-                          ? `${item.score ?? '-'} / ${item.maxScore ?? '-'} Pkt.` 
-                          : `${item.percent ?? '-'} %`}
-                      </span>
-                      {mode === 'points' && item.percent !== undefined && (
-                        <span className="text-xs font-medium text-slate-500">
-                          {Math.round(item.percent)} %
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        <DossierAssessmentChart items={s.items} mode={s.mode} />
 
         {/* Leistungsdaten nach Kategorien (Requirement 4 & 5) */}
         <div className="space-y-4">
@@ -932,33 +835,6 @@ export default function DossierLeistungen({
   const completedTaskCount = childWeeklyFeedback.filter(record => record.done).length;
   return (
     <div className="space-y-6">
-      <section aria-label="Wochenplan-Rückmeldungen des Kindes"
-        className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4 text-slate-900">
-        <h3 className="text-base font-extrabold">📋 Wochenplan · Rückmeldungen des Kindes</h3>
-        <p className="mt-1 text-sm text-slate-700">
-          {childWeeklyFeedback.length ? `${completedTaskCount} von ${childWeeklyFeedback.length} dokumentierten Aufgaben fertig · bei ${helpTaskCount} Aufgaben Hilfe angefragt`
-            : 'Noch keine Rückmeldungen aus dem Wochenplan der Kinder.'}
-        </p>
-        {childWeeklyFeedback.length > 0 && (
-          <div className="mt-3 max-h-72 space-y-2 overflow-y-auto" role="list">
-            {childWeeklyFeedback.map(record => (
-              <div key={record.taskId} role="listitem" className="rounded-xl border border-indigo-100 bg-white p-3 text-sm">
-                <p className="font-bold">{record.taskSubject ? `${record.taskSubject} · ` : ''}{record.taskTitle}</p>
-                <p className="text-xs text-slate-600">Schuljahr {record.schoolYear} · KW {record.week}</p>
-                <p className="mt-1 font-semibold">
-                  {record.done ? '✓ Fertig' : record.helpRequested ? '✋ Hilfe angefragt · noch nicht als fertig gemeldet' : 'Noch nicht fertig'}
-                  {record.done && record.difficulty ? ` · Einschätzung: ${record.difficulty === 'sehr-schwierig' ? 'sehr schwer' : record.difficulty === 'schwierig' ? 'schwer' : record.difficulty}` : ''}
-                  {record.helpRequested && record.done ? ' · Zuvor Hilfe angefragt' : ''}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-        <p className="mt-2 text-xs text-slate-600">
-          Die Einschätzungen stammen vom Kind. Eine Hilfeanfrage bleibt auch nach „Fertig“ dokumentiert;
-          gezählt werden Aufgaben mit Hilfeanfrage, nicht die Zahl der Klicks. Nur im Dossier anzeigen.
-        </p>
-      </section>
       {/* Header Area (No cross-subject overall grade! Strictly forbidden by Req 3) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
@@ -1106,6 +982,37 @@ export default function DossierLeistungen({
           );
         })}
       </div>
+
+      <details className="rounded-2xl border border-slate-200 bg-white p-4">
+        <summary className="cursor-pointer text-sm font-semibold text-slate-600">Wochenplan · Rückmeldungen des Kindes ({childWeeklyFeedback.length})</summary>
+      <section aria-label="Wochenplan-Rückmeldungen des Kindes"
+        className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4 text-slate-900">
+        <h3 className="text-base font-extrabold">📋 Wochenplan · Rückmeldungen des Kindes</h3>
+        <p className="mt-1 text-sm text-slate-700">
+          {childWeeklyFeedback.length ? `${completedTaskCount} von ${childWeeklyFeedback.length} dokumentierten Aufgaben fertig · bei ${helpTaskCount} Aufgaben Hilfe angefragt`
+            : 'Noch keine Rückmeldungen aus dem Wochenplan der Kinder.'}
+        </p>
+        {childWeeklyFeedback.length > 0 && (
+          <div className="mt-3 max-h-72 space-y-2 overflow-y-auto" role="list">
+            {childWeeklyFeedback.map(record => (
+              <div key={record.taskId} role="listitem" className="rounded-xl border border-indigo-100 bg-white p-3 text-sm">
+                <p className="font-bold">{record.taskSubject ? `${record.taskSubject} · ` : ''}{record.taskTitle}</p>
+                <p className="text-xs text-slate-600">Schuljahr {record.schoolYear} · KW {record.week}</p>
+                <p className="mt-1 font-semibold">
+                  {record.done ? '✓ Fertig' : record.helpRequested ? '✋ Hilfe angefragt · noch nicht als fertig gemeldet' : 'Noch nicht fertig'}
+                  {record.done && record.difficulty ? ` · Einschätzung: ${record.difficulty === 'sehr-schwierig' ? 'sehr schwer' : record.difficulty === 'schwierig' ? 'schwer' : record.difficulty}` : ''}
+                  {record.helpRequested && record.done ? ' · Zuvor Hilfe angefragt' : ''}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="mt-2 text-xs text-slate-600">
+          Die Einschätzungen stammen vom Kind. Eine Hilfeanfrage bleibt auch nach „Fertig“ dokumentiert;
+          gezählt werden Aufgaben mit Hilfeanfrage, nicht die Zahl der Klicks.
+        </p>
+      </section>
+      </details>
 
       {filteredSummaries.length === 0 && (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-xs text-slate-500">
