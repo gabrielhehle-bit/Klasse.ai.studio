@@ -73,7 +73,7 @@ export default function StarsReviewWidget({
       setPresenting(false);
     }
   }, [externalShowSettings]);
-  const settings = useMemo(() => safeSettings(widget.settings?.starsReview), [widget.settings?.starsReview]);
+  const settings = useMemo(() => ({ ...safeSettings(widget.settings?.starsReview), schoolYear: app.schuljahr, bundesland: app.bundesland }), [widget.settings?.starsReview, app.schuljahr, app.bundesland]);
   const activeClass = getActiveClassContext(app);
   const children = activeClass.students;
   const logs = app.mitarbeitLogs || [];
@@ -81,8 +81,8 @@ export default function StarsReviewWidget({
     () => starsReviewSubjects(logs, children, app.faecher || []),
     [logs, children, app.faecher],
   );
-  const range = useMemo(() => starsReviewRange({ ...settings, schoolYear: app.schuljahr, bundesland: app.bundesland }, today), [settings, today, app.schuljahr, app.bundesland]);
-  const ranked = useMemo(() => aggregateStarsReview(children, logs, { ...settings, schoolYear: app.schuljahr, bundesland: app.bundesland }, today), [children, logs, settings, today, app.schuljahr, app.bundesland]);
+  const range = useMemo(() => starsReviewRange(settings, today), [settings, today, app.schuljahr, app.bundesland]);
+  const ranked = useMemo(() => aggregateStarsReview(children, logs, settings, today), [children, logs, settings, today, app.schuljahr, app.bundesland]);
   const duplicateFirstNames = useMemo(() => {
     const counts = new Map<string, number>();
     for (const child of children) {
