@@ -491,6 +491,16 @@ async function main() {
     await waitFor(client, 'social badge re-earned once', pointsExpression + ` === 10 && document.querySelectorAll('.klassio-student-sidebar [role=listitem] [aria-label="Badge für 10 soziale Sterne"]').length === 1`);
     await clickButton(client, 'Fach +1');
     await waitFor(client, 'subject and social counters remain separate', pointsExpression + ' === ' + (initialPoints + 2));
+    await evaluate(client, `document.querySelector('.klassio-student-sidebar button[aria-label^="Badges für"]').click()`);
+    await waitFor(client, 'badge picker opened by student name', `Boolean(document.querySelector('.klassio-student-sidebar [role=dialog][aria-label^="Badges für"]'))`);
+    await clickButton(client, 'Sport');
+    await evaluate(client, `document.querySelector('.klassio-student-sidebar button[aria-label^="Fußball-Badge an"]').click()`);
+    await waitFor(client, 'football badge awarded once', `document.querySelector('.klassio-student-sidebar button[aria-label^="Fußball-Badge an"]')?.disabled === true`);
+    await clickButton(client, 'Deutsch');
+    await evaluate(client, `document.querySelector('.klassio-student-sidebar button[aria-label^="Leseratte an"]').click()`);
+    await waitFor(client, 'reading badge awarded', `document.querySelector('.klassio-student-sidebar button[aria-label^="Leseratte an"]')?.disabled === true`);
+    await clickButton(client, 'Fertig');
+    await waitFor(client, 'manual badges leave participation points unchanged', pointsExpression + ' === ' + (initialPoints + 2));
     await openGradebook();
     const expectedBookPoints = initialBookPoints + 1 + (automaticSubject === 'Deutsch' ? 1 : 0);
     await waitFor(client, 'subject awards appear in gradebook and social stars do not change it', bookPointsExpression + ' === ' + expectedBookPoints);

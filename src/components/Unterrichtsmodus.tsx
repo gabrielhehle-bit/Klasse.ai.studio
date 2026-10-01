@@ -1,6 +1,7 @@
 import SaveSyncStatus from './SaveSyncStatus';
 import ParticipationSettingsPanel from './cockpit/ParticipationSettingsPanel';
 import ParticipationSubjectPicker from './cockpit/ParticipationSubjectPicker';
+import StudentBadgePicker from './cockpit/StudentBadgePicker';
 import { commitParticipationAward, commitSocialAward, getSocialStars, undoParticipationAward } from '../lib/participationAward';
 import { MASCOT_RITUAL_EVENT } from '../lib/classMascot';
 import { shouldApplyTafelCommand } from '../lib/tafelCommands';
@@ -7044,20 +7045,22 @@ ${content}
 
   const [pendingParticipation, setPendingParticipation] = useState<{ sid: string; classId: string; event?: React.MouseEvent; onAwarded?: () => void; inSidebar: boolean } | null>(null);
   const [isParticipationSettingsOpen, setIsParticipationSettingsOpen] = useState(false);
+  const [badgeStudentId, setBadgeStudentId] = useState<string | null>(null);
   const lastParticipationAward = useRef<{ id: string; sid: string; classId: string; subject: string } | null>(null);
   const [sidebarParticipationKind, setSidebarParticipationKind] = useState<"subject" | "social">("subject");
-  useEffect(() => { setPendingParticipation(null); setIsParticipationSettingsOpen(false); lastParticipationAward.current = null; }, [app.activeClassId]);
+  useEffect(() => { setPendingParticipation(null); setIsParticipationSettingsOpen(false); setBadgeStudentId(null); lastParticipationAward.current = null; }, [app.activeClassId]);
   useEffect(() => {
-    if (!pendingParticipation && !isParticipationSettingsOpen) return;
+    if (!pendingParticipation && !isParticipationSettingsOpen && !badgeStudentId) return;
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { setPendingParticipation(null); setIsParticipationSettingsOpen(false); }
+      if (event.key === 'Escape') { setPendingParticipation(null); setIsParticipationSettingsOpen(false); setBadgeStudentId(null); }
     };
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
-  }, [pendingParticipation, isParticipationSettingsOpen]);
+  }, [pendingParticipation, isParticipationSettingsOpen, badgeStudentId]);
   useEffect(() => {
     if (sidebarMode === 'hidden') {
       setIsParticipationSettingsOpen(false);
+      setBadgeStudentId(null);
       if (pendingParticipation?.inSidebar) setPendingParticipation(null);
     }
   }, [sidebarMode, pendingParticipation?.inSidebar]);
@@ -12649,6 +12652,7 @@ ${content}
                             +1 einstellen
                           </button>
                         </div>
+                        <p className="text-[10px] text-slate-500">Name antippen → Badges vergeben</p>
                         <div role="group" aria-label="Pluspunkt-Art" className="flex gap-1">
                           {([['subject', 'Fach +1'], ['social', '🤝 Sozial +1']] as const).map(([kind, label]) => <button key={kind} type="button"
                             aria-pressed={sidebarParticipationKind === kind}
@@ -12727,8 +12731,10 @@ ${content}
                           sidebarCompact={sidebarMode === "mini"}
                           onCompactToggle={() => changeSidebarMode("mini")}
                           socialMode={sidebarParticipationKind === "social"}
+                          onBadgeRequest={sid => { setPendingParticipation(null); setIsParticipationSettingsOpen(false); setBadgeStudentId(sid); }}
                         />
                       </div>
+                      {badgeStudentId && <StudentBadgePicker app={app} setApp={setApp} studentId={badgeStudentId} onClose={() => setBadgeStudentId(null)} />}
                       {isParticipationSettingsOpen && <section role="dialog" aria-label="Mitarbeit einstellen"
                         className="absolute inset-0 z-[110] flex flex-col rounded-2xl bg-white text-slate-900">
                         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 p-3">

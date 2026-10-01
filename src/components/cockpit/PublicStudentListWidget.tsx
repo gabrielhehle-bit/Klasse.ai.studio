@@ -18,6 +18,7 @@ interface Props {
   sidebarCompact?: boolean;
   onCompactToggle?: () => void;
   socialMode?: boolean;
+  onBadgeRequest?: (studentId: string) => void;
 }
 
 /**
@@ -40,6 +41,7 @@ export function PublicStudentListWidget({
   sidebarCompact = false,
   onCompactToggle,
   socialMode = false,
+  onBadgeRequest,
 }: Props) {
   const students = app.schueler ?? [];
   const containerRef = useRef<HTMLElement>(null);
@@ -151,7 +153,7 @@ export function PublicStudentListWidget({
             return (
               <div key={student.id} role="listitem"
                 className={`flex min-h-0 min-w-0 flex-col justify-center gap-0.5 rounded-lg border px-1.5 py-0.5 ${cardTone}`}>
-                <span className="block break-words text-xs font-extrabold leading-tight text-slate-900">{labels.get(student.id)}{socialMode && student.badges?.some(badge => badge.id === "social-stars-10") && <span aria-label="Badge für 10 soziale Sterne" title="Teamgeist · 10 soziale Sterne"> 🏅</span>}</span>
+                <span className="block break-words text-xs font-extrabold leading-tight text-slate-900">{onBadgeRequest ? <button type="button" className="text-left font-extrabold focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600" aria-label={`Badges für ${labels.get(student.id)} vergeben`} title="Badges vergeben" onClick={() => onBadgeRequest(student.id)}>{labels.get(student.id)}</button> : labels.get(student.id)}{socialMode && student.badges?.some(badge => badge.id === "social-stars-10") && <span aria-label="Badge für 10 soziale Sterne" title="Teamgeist · 10 soziale Sterne"> 🏅</span>}{(socialMode ? [] : student.badges?.filter(badge => badge.visibleInCockpit === true && badge.id !== "social-stars-10"))?.slice(-1).map(badge => <span key={badge.id} title={badge.name} aria-label={`Badge: ${badge.name}`}> {badge.icon}</span>)}</span>
                 <div className="flex min-w-0 items-center justify-between gap-1">
                   <div className="flex min-w-0 items-center gap-1">
                     {showBehavior && behaviorStage && <span className="sr-only" aria-label={`Verhaltensstatus: ${behaviorStage.label}`}>{behaviorStage.label}</span>}
@@ -205,7 +207,7 @@ export function PublicStudentListWidget({
                     )
                   )}
                   <div className="min-w-0 flex-1">
-                    <span className={`block break-words font-extrabold leading-tight text-slate-900 ${gridMode ? 'text-xs sm:text-sm' : dense ? 'text-xs' : 'text-base'}`}>{labels.get(student.id)}{socialMode && student.badges?.some(badge => badge.id === "social-stars-10") && <span aria-label="Badge für 10 soziale Sterne" title="Teamgeist · 10 soziale Sterne"> 🏅</span>}</span>
+                    <span className={`block break-words font-extrabold leading-tight text-slate-900 ${gridMode ? 'text-xs sm:text-sm' : dense ? 'text-xs' : 'text-base'}`}>{onBadgeRequest ? <button type="button" className="text-left font-extrabold focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600" aria-label={`Badges für ${labels.get(student.id)} vergeben`} title="Badges vergeben" onClick={() => onBadgeRequest(student.id)}>{labels.get(student.id)}</button> : labels.get(student.id)}{socialMode && student.badges?.some(badge => badge.id === "social-stars-10") && <span aria-label="Badge für 10 soziale Sterne" title="Teamgeist · 10 soziale Sterne"> 🏅</span>}{(socialMode ? [] : student.badges?.filter(badge => badge.visibleInCockpit === true && badge.id !== "social-stars-10"))?.slice(-1).map(badge => <span key={badge.id} title={badge.name} aria-label={`Badge: ${badge.name}`}> {badge.icon}</span>)}</span>
                     <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
                       <span className={`block font-bold text-amber-800 ${dense ? 'text-[10px]' : 'text-sm'}`} aria-label={`${points} Pluspunkte`}>
                         {socialMode ? `${points}/10 ⭐` : dense ? `${points} P.` : gridMode ? `⭐ ${points}` : `${'⭐'.repeat(Math.min(points, 8))}${points > 8 ? '…' : ''} ${points}`}
