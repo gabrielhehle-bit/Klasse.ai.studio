@@ -91,7 +91,9 @@ async function createClient() {
     if (!event.frame?.parentId) client.navigationCount += 1;
   });
   client.on('Page.javascriptDialogOpening', event => {
-    if (event.type === 'beforeunload') {
+    if (event.type === 'alert' && event.message === 'Gewichtungen erfolgreich gespeichert!') {
+      void client.send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {});
+    } else if (event.type === 'beforeunload') {
       // Keep the page open while its encrypted write finishes, then retry reload.
       void client.send('Page.handleJavaScriptDialog', { accept: false }).catch(() => {});
     }
