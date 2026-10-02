@@ -49,5 +49,5 @@ test('points mode can show or hide the calculated percent consistently across gr
   assert.match(dossierLeistungen, /const showPointsPercent = getShowPointsPercent\(app, s\.fach\)/);
   assert.match(dossierLeistungen, /const maxScore = getMaxPoints\(app, fach, cat\.key, idx\)/);
   assert.match(dossierLeistungen, /showPointsPercent && mode === 'points' && item\.percent !== undefined/);
-  assert.match(dossierLeistungen, /getShowPointsPercent\(app, s\.fach\).*Math\.round\(s\.latestItem\.percent\)/s);
+  assert.match(dossierLeistungen, /getShowPointsPercent\(app, s\.fach\).*s\.latestItem\.percent\.toLocaleString\('de-AT', \{ maximumFractionDigits: 1 \}\)/s);
 });
