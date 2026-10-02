@@ -9,6 +9,8 @@ export interface DossierAssessmentWriteRequest {
   semester: '1' | '2';
   category: DossierAssessmentCategory;
   colIndex: number;
+  originalCategory?: DossierAssessmentCategory;
+  originalColIndex?: number;
   label: string;
   date: string;
   note: string;
@@ -26,20 +28,37 @@ function assessmentInputForMode(request: DossierAssessmentWriteRequest, mode: As
   return request.grade ?? '';
 }
 
+function isEmptyAssessmentCell(value: unknown) {
+  return value === null || value === undefined || value === '';
+}
+
+function firstAvailableAssessmentIndex(list: unknown[]) {
+  const reusableIndex = list.findIndex(isEmptyAssessmentCell);
+  return reusableIndex >= 0 ? reusableIndex : list.length;
+}
+
+function cloneMetaList(container: Record<string, any>, key: string) {
+  container[key] = [...(container[key] || [])];
+  return container[key] as any[];
+}
+
 /**
  * Writes dossier assessment edits in the same primitive cell format used by the
  * gradebook. Presentation metadata stays in notenMeta so both views can edit
  * the same assessment without producing object-valued grade cells.
+ *
+ * If an existing assessment changes category, it is moved instead of copied:
+ * the source cell and its metadata are cleared and the destination uses the
+ * first free slot so an existing assessment can never be overwritten.
  */
 export function writeDossierAssessment(state: AppState, request: DossierAssessmentWriteRequest): AppState {
-  if (!state.schueler.some(student => student.id === request.studentId) || request.colIndex < 0) return state;
-
-  const mode = getAssessmentMode(state, request.fach);
-  const currentMax = getMaxPoints(state, request.fach, request.category, request.colIndex);
-  const requestedMax = Number(String(request.maxScore ?? '').replace(',', '.'));
-  const maxPoints = mode === 'points' && Number.isFinite(requestedMax) && requestedMax > 0 ? requestedMax : currentMax;
-  const parsed = parseAssessmentInput(assessmentInputForMode(request, mode), mode, maxPoints);
-  if (!parsed.valid) return state;
+  const originalCategory = request.originalCategory ?? request.category;
+  const originalColIndex = request.originalColIndex ?? request.colIndex;
+  if (
+    !state.schueler.some(student => student.id === request.studentId) ||
+    request.colIndex < 0 ||
+    originalColIndex < 0
+  ) return state;
 
   const studentGrades = state.noten?.[request.studentId] || {};
   const subjectGrades = studentGrades[request.fach] || {};
@@ -53,9 +72,31 @@ export function writeDossierAssessment(state: AppState, request: DossierAssessme
     hueAnm: [],
     ...previousSemester,
   };
-  const list = Array.isArray(semesterData[request.category]) ? [...semesterData[request.category]] : [];
-  list[request.colIndex] = parsed.value;
-  semesterData[request.category] = list;
+
+  const isCategoryMove = originalCategory !== request.category;
+  const existingTargetList = Array.isArray(semesterData[request.category]) ? [...semesterData[request.category]] : [];
+  const destinationIndex = isCategoryMove
+    ? firstAvailableAssessmentIndex(existingTargetList)
+    : request.colIndex;
+
+  const mode = getAssessmentMode(state, request.fach);
+  const currentMax = isCategoryMove
+    ? getMaxPoints(state, request.fach, originalCategory, originalColIndex)
+    : getMaxPoints(state, request.fach, request.category, destinationIndex);
+  const requestedMax = Number(String(request.maxScore ?? '').replace(',', '.'));
+  const maxPoints = mode === 'points' && Number.isFinite(requestedMax) && requestedMax > 0 ? requestedMax : currentMax;
+  const parsed = parseAssessmentInput(assessmentInputForMode(request, mode), mode, maxPoints);
+  if (!parsed.valid) return state;
+
+  if (isCategoryMove) {
+    const sourceList = Array.isArray(semesterData[originalCategory]) ? [...semesterData[originalCategory]] : [];
+    sourceList[originalColIndex] = null;
+    semesterData[originalCategory] = sourceList;
+  }
+
+  const targetList = Array.isArray(semesterData[request.category]) ? [...semesterData[request.category]] : [];
+  targetList[destinationIndex] = parsed.value;
+  semesterData[request.category] = targetList;
 
   const noten = {
     ...(state.noten || {}),
@@ -72,21 +113,31 @@ export function writeDossierAssessment(state: AppState, request: DossierAssessme
   const colLabels = { ...(subjectMeta.colLabels || {}) };
   const colDates = { ...(subjectMeta.colDates || {}) };
   const colNotes = { ...(subjectMeta.colNotes || {}) };
-  colLabels[request.category] = [...(colLabels[request.category] || [])];
-  colDates[request.category] = [...(colDates[request.category] || [])];
-  colNotes[request.category] = [...(colNotes[request.category] || [])];
-  colLabels[request.category][request.colIndex] = request.label.trim();
-  colDates[request.category][request.colIndex] = request.date;
-  colNotes[request.category][request.colIndex] = request.note.trim();
+
+  if (isCategoryMove) {
+    cloneMetaList(colLabels, originalCategory)[originalColIndex] = null;
+    cloneMetaList(colDates, originalCategory)[originalColIndex] = null;
+    cloneMetaList(colNotes, originalCategory)[originalColIndex] = null;
+  }
+
+  cloneMetaList(colLabels, request.category)[destinationIndex] = request.label.trim();
+  cloneMetaList(colDates, request.category)[destinationIndex] = request.date;
+  cloneMetaList(colNotes, request.category)[destinationIndex] = request.note.trim();
   subjectMeta.colLabels = colLabels;
   subjectMeta.colDates = colDates;
   subjectMeta.colNotes = colNotes;
 
+  const hasMaxPointsMeta = Boolean(subjectMeta.maxPoints);
+  const maxPointsMeta = { ...(subjectMeta.maxPoints || {}) };
+  if (isCategoryMove && (mode === 'points' || hasMaxPointsMeta)) {
+    const sourceKey = metaCategory(originalCategory);
+    cloneMetaList(maxPointsMeta, sourceKey)[originalColIndex] = null;
+  }
   if (mode === 'points') {
-    const maxPointsMeta = { ...(subjectMeta.maxPoints || {}) };
-    const key = metaCategory(request.category);
-    maxPointsMeta[key] = [...(maxPointsMeta[key] || [])];
-    maxPointsMeta[key][request.colIndex] = maxPoints;
+    const destinationKey = metaCategory(request.category);
+    cloneMetaList(maxPointsMeta, destinationKey)[destinationIndex] = maxPoints;
+  }
+  if (mode === 'points' || hasMaxPointsMeta) {
     subjectMeta.maxPoints = maxPointsMeta;
   }
 
