@@ -43,6 +43,27 @@ test('Dossierübersicht: Verläufe sind kompakt, einheitlich und ohne doppelte G
   assert.doesNotMatch(overview, /Letzte 6 Wochen|Gesamtes Schuljahr/);
 });
 
+test('Dossierübersicht: Notizen zeigen Typ, Fach, robuste Datumsquelle und direkte Erfassung', () => {
+  assert.match(overview, /Aktuelle Notizen/);
+  assert.match(overview, /Elternkontakt/);
+  assert.match(overview, /Fachnotiz/);
+  assert.match(overview, /Positive Beobachtung/);
+  assert.match(overview, /noteDateLabel/);
+  assert.match(overview, /note\.timestamp/);
+  assert.match(overview, /Alle Notizen öffnen/);
+  assert.match(overview, /onQuickEntry\?onQuickEntry\('parent'\)/);
+  assert.match(overview, /die neuesten 5 hier im Überblick/);
+});
+
+test('Dossier-Notizdetail nutzt dieselbe Quelle wie der Überblick und pflegt Legacy-Einträge mit', () => {
+  assert.match(observations, /getStudentNotes\(app, student\.id\)/);
+  assert.match(observations, /app\.journal/);
+  assert.match(observations, /app\.notizen/);
+  assert.match(observations, /notizen: \(prev\.notizen \|\| \[\]\)\.map\(patch\)/);
+  assert.match(observations, /notizen: \(prev\.notizen \|\| \[\]\)\.filter/);
+  assert.match(observations, /noteDateKey\(note\)/);
+});
+
 test('Dossierübersicht: Eintrag öffnet bestehende Erfassungsformulare für das gewählte Kind', () => {
   assert.match(overview, /Eintrag/);
   assert.match(dossier, /onQuickEntry=\{openOverviewQuickEntry\}/);
