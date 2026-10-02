@@ -780,7 +780,7 @@ async function main() {
           await clickSelector(client, `input[data-col="${typ}-0"]`);
           await evaluate(client, `(() => {const input=document.querySelector('input[data-col="${typ}-0"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,${q(points)});input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));input.blur();})()`);
           await sleep(650);
-          const headerSelector=typ==='sa'?'button[aria-label^="SA 1: Spaltenoptionen"]':'button[aria-label^="LZK 1: Spaltenoptionen"]';
+          const headerSelector=typ==='sa'?'button[aria-label*=\"Schularbeiten 1\"]':'button[aria-label*=\"Lernzielkontrollen 1\"]';
           await clickSelector(client, headerSelector);
           await setInputByLabel(client, 'Maximal erreichbare Punkte', max);
           await clickSelector(client, '#btn-save-assessment-modal');
