@@ -83,5 +83,6 @@ test("Schülerdossier: Mehr öffnet zuerst eine gruppierte Vertiefungsübersicht
 test("Schülerdossier: in Mehr werden nur die Unterbereiche der aktiven Gruppe direkt gezeigt", () => {
   assert.match(dossier, /activeMoreGroup\.tabs\.map/);
   assert.match(dossier, /onClick=\{\(\) => setActiveTab\('mehr'\)\}/);
+  assert.match(dossier, /areaId === 'berichte_materialien' && activeTab !== 'mehr'/);
   assert.doesNotMatch(dossier, /activeMainArea === 'berichte_materialien' && getFilteredSubTabs\(activeMainArea\)\.length > 1/);
 });
