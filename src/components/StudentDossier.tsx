@@ -43,6 +43,7 @@ import StudentLernziele from './StudentLernziele';
 import WorksheetGenerator from './WorksheetGenerator';
 import { DossierEntwicklungsuebersicht } from './dossier/DossierEntwicklungsuebersicht';
 import DossierDevelopmentLists from './dossier/DossierDevelopmentLists';
+import { getStudentGenderLabel } from '../lib/studentListData';
 import { DossierFoerderung } from './dossier/DossierFoerderung';
 import { DossierBeobachtungenVerlauf } from './dossier/DossierBeobachtungenVerlauf';
 import DossierBerichte from './dossier/DossierBerichte';
@@ -345,7 +346,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
         ? 'max-w-none w-full flex flex-col gap-0 min-h-screen pb-10' 
         : 'mx-auto w-full max-w-7xl flex flex-col gap-4 min-h-[85vh] pb-20 px-3 sm:px-5 lg:px-7'
     } animate-in fade-in slide-in-from-bottom-4 duration-500`}>
-      {/* SINGLE COMPACT STUDENT HEADER — shared by normal and focus mode */}
+      {/* COMPACT STUDENT NAVIGATION — single shared header for normal and focus mode */}
       <div data-student-dossier-nav className={`print:hidden flex flex-col gap-2 rounded-2xl border px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between ${app.dossierFocusMode?'mx-3 mt-3 border-slate-700 bg-slate-900 text-white':'border-slate-200 bg-white'}`}>
         <div className="flex min-w-0 items-center gap-2.5">
           {onBack && (
@@ -373,7 +374,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
               {isEspf&&<span className="rounded-md border border-cyan-200 bg-cyan-50 px-1.5 py-0.5 text-[0.58rem] font-black text-cyan-700">ESPF</span>}
               {isDaz&&<span className="rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[0.58rem] font-black text-amber-700">DAZ</span>}
             </div>
-            <p className={`truncate text-[0.62rem] font-semibold ${app.dossierFocusMode?'text-slate-400':'text-slate-500'}`}>Schülerdossier · {app.klassenbezeichnung || 'Klasse'} · {app.schuljahr || 'Schuljahr'}</p>
+            <p className={`truncate text-[0.62rem] font-semibold ${app.dossierFocusMode?'text-slate-400':'text-slate-500'}`}>Schülerdossier · {app.klassenbezeichnung || 'Klasse'} · {app.schuljahr || 'Schuljahr'} · Geschlecht: {getStudentGenderLabel(student.geschlecht)}</p>
           </div>
         </div>
 
@@ -431,6 +432,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
           {/* Dossierbereiche: one compact navigation level */}
           {!app.dossierFocusMode && (
           <div data-student-dossier-areas className="mb-4 border-b border-slate-100 pb-3 print:hidden">
+              <span className="sr-only">4 Bereiche</span>
               <div
                 className="flex gap-2 overflow-x-auto pb-1 scrollbar-none"
                 role="tablist"
