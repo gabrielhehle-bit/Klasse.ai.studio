@@ -5,12 +5,13 @@ import { getChildWeeklyDossierRows } from '../../lib/classroomWeeklyPlan';
 import { 
   BarChart3, ChevronRight, ArrowLeft, ArrowUpRight, ArrowRight, ArrowDownRight,
   Target, Stethoscope, HeartHandshake, Calendar, FileText, CheckCircle2,
-  AlertCircle, Plus, Edit2, Trash2, X, Check, Save, Layers, Clock, TrendingUp
+  AlertCircle, Plus, Edit2, Trash2, X, Check, Save, Layers, Clock, TrendingUp, Star
 } from 'lucide-react';
 import { berechne, getNotenLabel, getFachCfg, getShowPointsPercent, getMaxPoints } from '../../lib/GradeUtils';
 import { FAECHER_ALLE } from '../../constants';
 import DossierAssessmentChart from './DossierAssessmentChart';
 import { getDossierAssessmentChart } from '../../lib/dossierAssessmentChart';
+import { getStudentSubjectParticipationSummary, type SubjectParticipationSummary } from '../../lib/studentParticipation';
 
 interface DossierLeistungenProps {
   initialSubject?: string;
@@ -51,6 +52,7 @@ export interface SubjectAssessmentSummary {
   };
   hasCriticalGrade: boolean;
   weightsSummary: string;
+  participation: SubjectParticipationSummary;
 }
 
 export default function DossierLeistungen({
@@ -223,6 +225,7 @@ export default function DossierLeistungen({
       const val = berechne(app, student.id, fach, semester);
       const nd = (app.noten?.[student.id]?.[fach]?.[semester] || {}) as any;
       const endnote = nd.endnote ?? null;
+      const participation = getStudentSubjectParticipationSummary(app, student.id, fach, semester);
 
       let currentDisplay = 'Keine Daten';
       let hasCriticalGrade = false;
@@ -258,7 +261,8 @@ export default function DossierLeistungen({
         latestItem,
         trend,
         hasCriticalGrade,
-        weightsSummary
+        weightsSummary,
+        participation
       };
     });
   }, [faecher, app, student.id, semester]);
@@ -578,6 +582,46 @@ export default function DossierLeistungen({
         </div>
 
         <DossierAssessmentChart items={s.items} mode={s.mode} />
+
+        <section className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4" aria-label={`Mitarbeit in ${s.fach}`}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h4 className="flex items-center gap-2 text-sm font-black text-slate-900">
+                <Star size={16} className="text-amber-600" />
+                Mitarbeit
+              </h4>
+              <p className="mt-1 text-xs text-slate-600">
+                Derselbe Fachstand, der auch in der Notenmappe geführt wird.
+              </p>
+            </div>
+            <div className="rounded-xl border border-amber-200 bg-white px-4 py-2 text-right">
+              <div className="text-[0.625rem] font-bold uppercase tracking-wider text-slate-400">Fachsterne</div>
+              <div className="text-lg font-black text-slate-900">{s.participation.total}</div>
+            </div>
+          </div>
+
+          {s.participation.recent.length > 0 ? (
+            <div className="mt-3 border-t border-amber-100 pt-3">
+              <p className="mb-2 text-[0.625rem] font-bold uppercase tracking-wider text-slate-500">Letzte Änderungen</p>
+              <div className="flex flex-wrap gap-2">
+                {s.participation.recent.map(entry => (
+                  <span key={entry.id} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-100 bg-white px-2.5 py-1.5 text-xs text-slate-700">
+                    <span className={entry.points >= 0 ? 'font-black text-emerald-700' : 'font-black text-rose-700'}>
+                      {entry.points > 0 ? '+' : ''}{entry.points}
+                    </span>
+                    <span>
+                      {new Date(entry.timestamp).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' })}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="mt-3 border-t border-amber-100 pt-3 text-xs text-slate-500">
+              Noch keine protokollierten Fachsterne.
+            </p>
+          )}
+        </section>
 
         {/* Leistungsdaten nach Kategorien (Requirement 4 & 5) */}
         <div className="space-y-4">
@@ -917,8 +961,8 @@ export default function DossierLeistungen({
                   )}
                 </div>
 
-                {/* Main Metrics: Aktuelle Bewertung & Nachweise */}
-                <div className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50/70 border border-slate-100 p-3 my-3">
+                {/* Main Metrics: Aktuelle Bewertung, Nachweise & Mitarbeit */}
+                <div className="grid grid-cols-3 gap-3 rounded-xl bg-slate-50/70 border border-slate-100 p-3 my-3">
                   <div>
                     <div className="text-[0.625rem] font-bold uppercase tracking-wider text-slate-400">Aktuelle Bewertung</div>
                     <div className="text-lg font-black text-slate-900 mt-0.5">
@@ -929,6 +973,17 @@ export default function DossierLeistungen({
                     <div className="text-[0.625rem] font-bold uppercase tracking-wider text-slate-400">Leistungsdaten</div>
                     <div className="text-xs font-semibold text-slate-700 mt-1">
                       {s.itemsCount} {s.itemsCount === 1 ? 'Nachweis' : 'Nachweise'} erfasst
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1 text-[0.625rem] font-bold uppercase tracking-wider text-slate-400">
+                      <Star size={11} className="text-amber-500" /> Mitarbeit
+                    </div>
+                    <div className="mt-0.5 text-lg font-black text-slate-900">
+                      {s.participation.total}
+                    </div>
+                    <div className="text-[0.625rem] font-semibold text-slate-500">
+                      {s.participation.total === 1 ? 'Fachstern' : 'Fachsterne'}
                     </div>
                   </div>
                 </div>
