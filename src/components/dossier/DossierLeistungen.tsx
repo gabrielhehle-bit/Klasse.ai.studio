@@ -7,7 +7,7 @@ import {
   Target, Stethoscope, HeartHandshake, Calendar, FileText, CheckCircle2,
   AlertCircle, Plus, Edit2, Trash2, X, Check, Save, Layers, Clock, TrendingUp
 } from 'lucide-react';
-import { berechne, getNotenLabel, getFachCfg, getShowPercentForPoints } from '../../lib/GradeUtils';
+import { berechne, getNotenLabel, getFachCfg, getShowPercentForPoints, getMaxPoints } from '../../lib/GradeUtils';
 import { FAECHER_ALLE } from '../../constants';
 import DossierAssessmentChart from './DossierAssessmentChart';
 import { getDossierAssessmentChart } from '../../lib/dossierAssessmentChart';
@@ -107,7 +107,7 @@ export default function DossierLeistungen({
 
         const defaultLabel = meta.colLabels?.[cat.key]?.[idx] || `${cat.label} ${idx + 1}`;
         const defaultDate = meta.colDates?.[cat.key]?.[idx] || '';
-        const maxScore = meta.colPoints?.[cat.key]?.[idx] || 100;
+        const maxScore = getMaxPoints(app, fach, cat.key, idx);
 
         if (typeof entry === 'object') {
           const rawVal = entry.grade ?? entry.originalGrade ?? entry.numericGrade ?? entry.val ?? entry.note;
