@@ -10,6 +10,11 @@ export function getAssessmentMode(app: AppState, fach: string): AssessmentMode {
   return 'grades';
 }
 
+/** Points are always normalized internally; this controls only the secondary percent display. */
+export function getShowPercentForPoints(app: AppState, fach: string): boolean {
+  return app.notenMeta?.[fach]?.showPercentForPoints !== false;
+}
+
 export interface HomeworkGradebookSettings {
   mode: 'grade' | 'document';
   percentDeduction: number;
