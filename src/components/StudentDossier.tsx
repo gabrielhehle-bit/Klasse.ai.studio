@@ -77,6 +77,7 @@ export type MainAreaId =
 
 export type DossierTab = 
   | 'uebersicht'
+  | 'mehr'
   | 'stammdaten' 
   | 'kontakte_einwilligungen'
   | 'finanzen'
@@ -130,7 +131,7 @@ export const MAIN_AREAS: MainAreaDef[] = [
   { id: 'entwicklung_diagnostik', label: 'Beobachtungen', subtitle: 'Verhalten, Befinden und Anwesenheit', icon: Clock, defaultTab: 'beobachtungen_verlauf', tabs: [
     { id: 'beobachtungen_verlauf', label: 'Beobachtungen & Verlauf', icon: Clock }
   ] },
-  { id: 'berichte_materialien', label: 'Mehr', subtitle: 'Vertiefung und Organisation', icon: FileText, defaultTab: 'entwicklungsuebersicht', tabs: [
+  { id: 'berichte_materialien', label: 'Mehr', subtitle: 'Vertiefung und Organisation', icon: FileText, defaultTab: 'mehr', tabs: [
 
       { id: 'leistungsfeedback', label: 'Leistungsfeedback erstellen', shortLabel: 'Feedback', icon: FileText, description: 'Ausgewählte Daten und Beobachtungen zu einer Rückmeldung formulieren' },
       { id: 'lernziele', label: 'Lernziele & Kompetenzen', shortLabel: 'Lernziele', icon: Target, description: 'Lehrplan-Kompetenzen und erreichte Teilziele' },
@@ -154,7 +155,45 @@ export const MAIN_AREAS: MainAreaDef[] = [
   ] }
 ];
 
+export const MORE_DOSSIER_GROUPS: {
+  id: 'lernen' | 'entwicklung' | 'organisation' | 'berichte';
+  label: string;
+  description: string;
+  icon: React.ComponentType<{ size: number; className?: string }>;
+  tabs: DossierTab[];
+}[] = [
+  {
+    id: 'lernen',
+    label: 'Lernen & Rückmeldung',
+    description: 'Lernziele, Portfolio, Lesen und individuelle Rückmeldungen',
+    icon: BookOpen,
+    tabs: ['leistungsfeedback', 'lernziele', 'portfolio', 'lernziel_erlaeuterung', 'antolin', 'mika_d']
+  },
+  {
+    id: 'entwicklung',
+    label: 'Entwicklung & Förderung',
+    description: 'Vertiefende Diagnostik, Förderziele und Entwicklungsverläufe',
+    icon: Heart,
+    tabs: ['entwicklungsuebersicht', 'diagnostik', 'foerderung', 'entwicklungslisten']
+  },
+  {
+    id: 'organisation',
+    label: 'Organisation',
+    description: 'Stammdaten, Kontakte, Einwilligungen und Finanzen',
+    icon: User,
+    tabs: ['stammdaten', 'kontakte_einwilligungen', 'finanzen']
+  },
+  {
+    id: 'berichte',
+    label: 'Berichte & Materialien',
+    description: 'Gespräche, Berichte, Exporte und individuelles Material',
+    icon: FileText,
+    tabs: ['berichte', 'beurteilung_gespraeche', 'materialien']
+  }
+];
+
 export const getActiveMainArea = (tab: DossierTab): MainAreaId => {
+  if (tab === 'mehr') return 'berichte_materialien';
   for (const area of MAIN_AREAS) {
     if (area.tabs.some(t => t.id === tab)) {
       return area.id;
@@ -239,6 +278,22 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
   };
 
   const getFilteredMainAreas = () => MAIN_AREAS;
+
+  const isSubTabActive = (subTabId: DossierTab) =>
+    activeTab === subTabId ||
+    (subTabId === 'foerderung' && activeTab === 'foerderprofil') ||
+    (subTabId === 'beobachtungen_verlauf' && (activeTab === 'stats' || activeTab === 'kel_reflexion' || activeTab === 'notizen')) ||
+    (subTabId === 'berichte' && (activeTab === 'ki_summary' || activeTab === 'eltern_report')) ||
+    (subTabId === 'beurteilung_gespraeche' && activeTab === 'erlaeuterung') ||
+    (subTabId === 'materialien' && activeTab === 'arbeitsblatt');
+
+  const activeMoreGroup = MORE_DOSSIER_GROUPS.find(group =>
+    group.tabs.some(tabId => isSubTabActive(tabId))
+  );
+
+  const moreTabById = new Map(
+    MAIN_AREAS.find(area => area.id === 'berichte_materialien')?.tabs.map(tab => [tab.id, tab]) || []
+  );
 
   // Helper metric calculations 
   const gradeSummary = getStudentGradeSummary(app, student.id, activeFaecher, sem);
@@ -691,15 +746,10 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
           )}
 
           {/* Unterbereiche des gewählten Dossierbereichs */}
-          {!app.dossierFocusMode && getFilteredSubTabs(activeMainArea).length > 1 && (
+          {!app.dossierFocusMode && activeMainArea !== 'berichte_materialien' && getFilteredSubTabs(activeMainArea).length > 1 && (
             <div className="mb-4 flex items-center gap-1.5 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1.5 scrollbar-none lg:flex-wrap print:hidden" role="tablist" aria-label="Dossier-Unterbereiche">
               {getFilteredSubTabs(activeMainArea).map((subTab) => {
-                const isSubActive = activeTab === subTab.id ||
-                  (subTab.id === 'foerderung' && activeTab === 'foerderprofil') ||
-                  (subTab.id === 'beobachtungen_verlauf' && (activeTab === 'stats' || activeTab === 'kel_reflexion' || activeTab === 'notizen')) ||
-                  (subTab.id === 'berichte' && (activeTab === 'ki_summary' || activeTab === 'eltern_report')) ||
-                  (subTab.id === 'beurteilung_gespraeche' && activeTab === 'erlaeuterung') ||
-                  (subTab.id === 'materialien' && activeTab === 'arbeitsblatt');
+                const isSubActive = isSubTabActive(subTab.id);
                 const SubIcon = subTab.icon;
                 return (
                   <button
@@ -717,31 +767,54 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
                   >
                     <SubIcon size={14} className={isSubActive ? 'text-indigo-600' : 'text-slate-400'} />
                     <span>{subTab.label}</span>
-                    
-                    {/* Sub-tab-specific badges */}
-                    {subTab.id === 'notizen' && notesCount > 0 && (
-                      <span className={`text-[0.59375rem] font-black px-1.5 py-0.5 rounded-full ${isSubActive ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-200 text-slate-700'}`}>
-                        {notesCount}
-                      </span>
-                    )}
-                    {subTab.id === 'stats' && behaviorLogsCount > 0 && (
-                      <span className={`text-[0.59375rem] font-black px-1.5 py-0.5 rounded-full ${isSubActive ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-200 text-slate-700'}`}>
-                        {behaviorLogsCount}
-                      </span>
-                    )}
-                    {subTab.id === 'diagnostik' && totalDiagnosticCount > 0 && (
-                      <span className={`text-[0.59375rem] font-black px-1.5 py-0.5 rounded-full ${isSubActive ? 'bg-indigo-100 text-indigo-800' : (criticalCount > 0 ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-700')}`}>
-                        {totalDiagnosticCount}
-                      </span>
-                    )}
-                    {subTab.id === 'finanzen' && totalOpen > 0 && (
-                      <span className={`text-[0.59375rem] font-black px-1.5 py-0.5 rounded-full ${isSubActive ? 'bg-orange-100 text-orange-800' : 'bg-orange-50 text-orange-600'}`}>
-                        {totalOpen.toFixed(0)} €
-                      </span>
-                    )}
                   </button>
                 );
               })}
+            </div>
+          )}
+
+          {!app.dossierFocusMode && activeMainArea === 'berichte_materialien' && activeTab !== 'mehr' && activeMoreGroup && (
+            <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-1.5 print:hidden">
+              <div className="flex items-center gap-2 overflow-x-auto scrollbar-none lg:flex-wrap" role="tablist" aria-label="Dossier-Unterbereiche">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('mehr')}
+                  className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-transparent px-3 py-2 text-[0.72rem] font-black text-slate-500 transition hover:border-slate-200 hover:bg-white hover:text-slate-900"
+                >
+                  <ArrowLeft size={14} />
+                  <span>Mehr</span>
+                </button>
+                <span className="hidden h-6 w-px bg-slate-200 sm:block" aria-hidden="true" />
+                {activeMoreGroup.tabs.map((tabId) => {
+                  const subTab = moreTabById.get(tabId);
+                  if (!subTab) return null;
+                  const isSubActive = isSubTabActive(tabId);
+                  const SubIcon = subTab.icon;
+                  return (
+                    <button
+                      key={tabId}
+                      type="button"
+                      role="tab"
+                      aria-selected={isSubActive}
+                      onClick={() => setActiveTab(tabId)}
+                      className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-[0.72rem] font-black transition ${isSubActive ? 'border-slate-200 bg-white text-slate-900 shadow-2xs' : 'border-transparent text-slate-600 hover:bg-white/70 hover:text-slate-900'}`}
+                    >
+                      <SubIcon size={14} className={isSubActive ? 'text-indigo-600' : 'text-slate-400'} />
+                      <span>{subTab.shortLabel || subTab.label}</span>
+                      {tabId === 'diagnostik' && totalDiagnosticCount > 0 && (
+                        <span className={`rounded-full px-1.5 py-0.5 text-[0.58rem] font-black ${criticalCount > 0 ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-700'}`}>
+                          {totalDiagnosticCount}
+                        </span>
+                      )}
+                      {tabId === 'finanzen' && totalOpen > 0 && (
+                        <span className="rounded-full bg-orange-50 px-1.5 py-0.5 text-[0.58rem] font-black text-orange-700">
+                          {totalOpen.toFixed(0)} €
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 
@@ -777,6 +850,57 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
                     semester={sem as '1' | '2'}
                     onQuickEntry={openOverviewQuickEntry}
                   />
+                )}
+                {activeTab === 'mehr' && (
+                  <section className="space-y-4" aria-label="Weitere Dossierbereiche">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
+                      <p className="text-[0.6rem] font-black uppercase tracking-[0.18em] text-slate-400">Vertiefung</p>
+                      <h2 className="mt-1 text-lg font-black text-slate-900">Weitere Bereiche</h2>
+                      <p className="mt-1 max-w-3xl text-sm text-slate-500">
+                        Alles, was du nicht für den täglichen Überblick brauchst, ist hier bewusst eine Ebene tiefer gebündelt.
+                      </p>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {MORE_DOSSIER_GROUPS.map(group => {
+                        const GroupIcon = group.icon;
+                        return (
+                          <section key={group.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                            <div className="mb-3 flex items-start gap-3">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+                                <GroupIcon size={17} />
+                              </div>
+                              <div>
+                                <h3 className="text-sm font-black text-slate-900">{group.label}</h3>
+                                <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{group.description}</p>
+                              </div>
+                            </div>
+                            <div className="grid gap-2">
+                              {group.tabs.map(tabId => {
+                                const tab = moreTabById.get(tabId);
+                                if (!tab) return null;
+                                const TabIcon = tab.icon;
+                                return (
+                                  <button
+                                    key={tabId}
+                                    type="button"
+                                    onClick={() => setActiveTab(tabId)}
+                                    className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5 text-left transition hover:border-slate-200 hover:bg-white"
+                                  >
+                                    <TabIcon size={15} className="shrink-0 text-indigo-600" />
+                                    <span className="min-w-0 flex-1">
+                                      <span className="block text-xs font-black text-slate-800">{tab.label}</span>
+                                      {tab.description && <span className="mt-0.5 block text-[0.68rem] leading-relaxed text-slate-500">{tab.description}</span>}
+                                    </span>
+                                    <ChevronRight size={14} className="shrink-0 text-slate-300" />
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </section>
+                        );
+                      })}
+                    </div>
+                  </section>
                 )}
                 {activeTab === 'entwicklungsuebersicht' && (
                   <DossierEntwicklungsuebersicht
