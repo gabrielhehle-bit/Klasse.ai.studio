@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { logActivity, getAccentTextColor } from '../lib/utils';
-import { getFachCfg, berechne, getAssessmentMode, getMaxPoints, calculateItemPercent, getNotenLabel, isAssessmentValueMissing, hasCalculatedAverage, parseAssessmentInput, parseFinalGradeInput, getHomeworkGradebookSettings, getMirroredAssessmentValue, getShowPercentForPoints } from '../lib/GradeUtils';
+import { getFachCfg, berechne, getAssessmentMode, getMaxPoints, calculateItemPercent, getNotenLabel, isAssessmentValueMissing, hasCalculatedAverage, parseAssessmentInput, parseFinalGradeInput, getHomeworkGradebookSettings, getMirroredAssessmentValue, getShowPointsPercent } from '../lib/GradeUtils';
 import { FAECHER_ALLE, NOTE_LABELS, STUNDEN_INFO } from '../constants';
 import { GradeData } from '../types';
 import WeightSettings from './WeightSettings';
@@ -24,7 +24,7 @@ import { AssessmentItemModal } from './gradebook/AssessmentItemModal';
 import { faecherFuerKlasse } from '../lib/sek1Subjects';
 import { istSekundarstufe } from '../lib/sek1Navigation';
 
-const StudentRowWrapper = React.memo(({ s, i, avg, nd, miRaw, isItemSelected, isRowHovered, studentErrors, activeFach, sem, cfg, colCounts, isolatedCol, heatmapMode, mitarbeitSettings, currentSymbol, relativeMiDivisor, studentsCount, assessmentMode, showPercentForPoints, maxPointsMeta, renderRow }: any) => {
+const StudentRowWrapper = React.memo(({ s, i, avg, nd, miRaw, isItemSelected, isRowHovered, studentErrors, activeFach, sem, cfg, colCounts, isolatedCol, heatmapMode, mitarbeitSettings, currentSymbol, relativeMiDivisor, studentsCount, assessmentMode, showPointsPercent, maxPointsMeta, renderRow }: any) => {
   return renderRow();
 }, (prev, next) => {
   return prev.s === next.s &&
@@ -40,7 +40,7 @@ const StudentRowWrapper = React.memo(({ s, i, avg, nd, miRaw, isItemSelected, is
          prev.cfg === next.cfg &&
          prev.colCounts === next.colCounts &&
          prev.assessmentMode === next.assessmentMode &&
-         prev.showPercentForPoints === next.showPercentForPoints &&
+         prev.showPointsPercent === next.showPointsPercent &&
          JSON.stringify(prev.maxPointsMeta) === JSON.stringify(next.maxPointsMeta) &&
          prev.mitarbeitSettings === next.mitarbeitSettings &&
          prev.currentSymbol === next.currentSymbol &&
@@ -866,7 +866,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
 
   const cfg = getFachCfg(app, activeFach);
   const assessmentMode = getAssessmentMode(app, activeFach);
-  const showPercentForPoints = getShowPercentForPoints(app, activeFach);
+  const showPointsPercent = getShowPointsPercent(app, activeFach);
   const homeworkSettings = getHomeworkGradebookSettings(app, activeFach);
 
   const handleModeChange = (fach: string, newMode: 'grades' | 'percent' | 'points') => {
@@ -3543,7 +3543,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                         activeFach={activeFach} sem={sem} cfg={cfg} colCounts={colCounts}
                         isolatedCol={isolatedCol} heatmapMode={heatmapMode} mitarbeitSettings={mitarbeitSettings}
                         currentSymbol={currentSymbol} relativeMiDivisor={relativeMiDivisor} studentsCount={students.length}
-                        assessmentMode={assessmentMode} showPercentForPoints={showPercentForPoints} maxPointsMeta={app.notenMeta?.[activeFach]?.maxPoints}
+                        assessmentMode={assessmentMode} showPointsPercent={showPointsPercent} maxPointsMeta={app.notenMeta?.[activeFach]?.maxPoints}
                         renderRow={() => (
                           <tr key={s.id} className={`group transition-colors ${rowBgClass} print:break-inside-avoid relative`}>
                         <td className={`${dStyle.tdNum} text-left font-bold border-b border-r border-slate-200 sticky left-0 z-[40] print:relative print:left-0 transition-colors shadow-[4px_0_10px_rgba(0,0,0,0.08)] ${stickyBgClass} ${isItemSelected ? 'text-emerald-800' : 'text-slate-400'}`}>{i+1}</td>
@@ -3680,9 +3680,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                       </button>
                                     )}
                                   </div>
-                                  {showPercentForPoints && assessmentMode === 'points' && itemPct !== null && (
-                                    <span className="text-[0.5625rem] font-bold text-slate-400 leading-none" title={`${nd.sa[idx]} von ${maxP} Punkten`}>
-                                      {Math.round(itemPct)}%
+                                  {showPointsPercent && assessmentMode === 'points' && itemPct !== null && (
+                                    <span data-points-percent className="text-[0.6875rem] font-semibold text-slate-600 leading-tight" title={`${nd.sa[idx]} von ${maxP} Punkten`}>
+                                      {itemPct.toLocaleString('de-AT', { maximumFractionDigits: 1 })} %
                                     </span>
                                   )}
                                 </div>
@@ -3736,9 +3736,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                         </div>
                                       )}
                                     </div>
-                                    {showPercentForPoints && assessmentMode === 'points' && itemPct !== null && (
-                                      <span className="text-[0.5625rem] font-bold text-slate-400 leading-none" title={`${nd.lzk[idx]} von ${maxP} Punkten`}>
-                                        {Math.round(itemPct)}%
+                                    {showPointsPercent && assessmentMode === 'points' && itemPct !== null && (
+                                      <span data-points-percent className="text-[0.6875rem] font-semibold text-slate-600 leading-tight" title={`${nd.lzk[idx]} von ${maxP} Punkten`}>
+                                        {itemPct.toLocaleString('de-AT', { maximumFractionDigits: 1 })} %
                                       </span>
                                     )}
                                   </div>
@@ -3795,9 +3795,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                         </div>
                                       )}
                                     </div>
-                                    {showPercentForPoints && assessmentMode === 'points' && itemPct !== null && (
-                                      <span className="text-[0.5625rem] font-bold text-slate-400 leading-none" title={`${nd.wp[idx]} von ${maxP} Punkten`}>
-                                        {Math.round(itemPct)}%
+                                    {showPointsPercent && assessmentMode === 'points' && itemPct !== null && (
+                                      <span data-points-percent className="text-[0.6875rem] font-semibold text-slate-600 leading-tight" title={`${nd.wp[idx]} von ${maxP} Punkten`}>
+                                        {itemPct.toLocaleString('de-AT', { maximumFractionDigits: 1 })} %
                                       </span>
                                     )}
                                   </div>
@@ -3854,9 +3854,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                         </div>
                                       )}
                                     </div>
-                                    {showPercentForPoints && assessmentMode === 'points' && itemPct !== null && (
-                                      <span className="text-[0.5625rem] font-bold text-slate-400 leading-none" title={`${nd.aufgaben[idx]} von ${maxP} Punkten`}>
-                                        {Math.round(itemPct)}%
+                                    {showPointsPercent && assessmentMode === 'points' && itemPct !== null && (
+                                      <span data-points-percent className="text-[0.6875rem] font-semibold text-slate-600 leading-tight" title={`${nd.aufgaben[idx]} von ${maxP} Punkten`}>
+                                        {itemPct.toLocaleString('de-AT', { maximumFractionDigits: 1 })} %
                                       </span>
                                     )}
                                   </div>
