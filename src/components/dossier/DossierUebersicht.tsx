@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Activity, ArrowRight, BarChart3, CalendarDays, Clock, Smile, Plus } from 'lucide-react';
+import { Activity, ArrowRight, BarChart3, CalendarDays, Clock, Smile, Plus, Star, ClipboardCheck } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { Student } from '../../types';
 import { useApp } from '../../context/AppContext';
@@ -9,6 +9,8 @@ import { getStudentNotes } from '../../lib/studentMetrics';
 import { getDossierOverviewStats } from '../../lib/dossierOverviewStats';
 import { getMoodMeta } from '../../lib/moodTypes';
 import { behaviorLogDay } from '../../lib/dailyBehaviorEntries';
+import { getStudentSubjectParticipationSummary } from '../../lib/studentParticipation';
+import { getStudentHomeworkSummary } from '../../lib/studentHomework';
 
 interface Props { student: Student; semester: '1'|'2'; onTabChange: (tab:any)=>void; onSubjectSelect?: (fach:string)=>void; onQuickEntry?: (type:'note'|'strength'|'parent'|'goal')=>void; }
 const dateLabel=(date?:string)=>date ? new Date(date+'T12:00:00').toLocaleDateString('de-AT',{day:'2-digit',month:'2-digit'}) : '';
@@ -18,6 +20,15 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
   const stats=useMemo(()=>getDossierOverviewStats(app,student.id,period),[app,student.id,period]);
   const subjects=faecherFuerKlasse(app).filter(f=>!app.faecher?.length||app.faecher.includes(f));
   const notes=getStudentNotes(app,student.id).slice(0,5);
+  const classroomRows=subjects.map(fach=>({
+    fach,
+    participation:getStudentSubjectParticipationSummary(app,student.id,fach,semester),
+    homework:getStudentHomeworkSummary(app,student.id,fach,semester),
+  }));
+  const classroomRowsWithData=classroomRows.filter(row=>row.participation.hasData||row.homework.tracked);
+  const participationSubjects=classroomRows.filter(row=>row.participation.hasData).length;
+  const trackedHomeworkSubjects=classroomRows.filter(row=>row.homework.tracked).length;
+  const missingHomework=classroomRows.reduce((sum,row)=>sum+(row.homework.tracked?row.homework.missing:0),0);
   const latestStage=stats.stages.find((s:any)=>s.id===stats.latestBehavior?.iconId);
   const mood=stats.latestMood ? getMoodMeta(Number(stats.latestMood[1])) : undefined;
   const todayAttendance=app.anwesenheit?.[student.id]?.[stats.today];
@@ -32,6 +43,32 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
       <div className="grid gap-x-8 gap-y-1 lg:grid-cols-2 xl:grid-cols-3">
       {subjects.map(fach=>{const mode=getAssessmentMode(app,fach);const avg=berechne(app,student.id,fach,semester);const final=app.noten?.[student.id]?.[fach]?.[semester]?.endnote;const hasFinal=mode==='grades'&&final!==undefined&&final!==null&&String(final).trim()!==''&&String(final)!=='—';const numeric=hasFinal?Number(String(final).replace(',','.')):avg;const valid=numeric!==null&&Number.isFinite(numeric);const pos=valid ? mode==='grades'?(Number(numeric)-1)/4*100:Number(numeric) : null;const display=hasFinal?String(final):avg===null?'Noch keine Bewertung':`${avg.toFixed(1).replace('.',',')}${mode==='percent'?' %':mode==='points'?' % (Punkte)':''}`;return <button key={fach} type="button" onClick={()=>openSubject(fach)} className="rounded-xl px-2 py-1 text-left hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"><div className="mb-1 flex items-center justify-between gap-2"><span className="text-sm font-semibold text-slate-800">{fach}</span><span className={`text-xs font-bold ${avg===null&&!hasFinal?'text-slate-400':'text-indigo-700'}`}>{hasFinal?'Endnote ':mode==='grades'&&avg!==null?'Ø ':''}{display}</span></div>{<><div className="relative mx-2 h-2 rounded-full bg-slate-100">{(mode==='grades'?[0,25,50,75,100]:[0,50,100]).map(p=><span key={p} className="absolute top-0 h-2 w-px bg-slate-300" style={{left:`${p}%`}}/>)}{pos!==null&&<span className="absolute -top-1 h-4 w-4 -translate-x-1/2 rounded-full border-2 border-white bg-indigo-600 shadow-sm" style={{left:`${Math.max(0,Math.min(100,pos))}%`}}/>}</div><div className="relative mx-2 mt-1 h-4 text-[10px] text-slate-500">{(mode==='grades'?['1','2','3','4','5']:['0 %','50 %','100 %']).map((t,i,labels)=><span key={t} className="absolute whitespace-nowrap" style={{left:`${i/(labels.length-1)*100}%`,transform:i===0?'none':i===labels.length-1?'translateX(-100%)':'translateX(-50%)'}}>{t}</span>)}</div></>}</button>;})}
       </div>{!subjects.length&&<p className="text-sm text-slate-500">Noch keine Fächer ausgewählt.</p>}
+    </section>
+    <section className={card} aria-label="Mitarbeit und Hausübungen">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="text-base font-bold text-slate-900">Mitarbeit & Hausübungen</h2>
+          <p className="mt-1 text-xs text-slate-500">Direkt aus Notenmappe und Unterrichtsmodus · Fach anklicken für Details</p>
+        </div>
+        <div className="flex flex-wrap gap-2 text-[0.68rem] font-bold">
+          <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-800"><Star size={12} className="mr-1 inline"/>Mitarbeit in {participationSubjects}/{subjects.length || 0} Fächern</span>
+          <span className="rounded-full bg-rose-50 px-2.5 py-1 text-rose-800"><ClipboardCheck size={12} className="mr-1 inline"/>{trackedHomeworkSubjects ? missingHomework+' fehlende HÜ' : 'HÜ noch nicht erfasst'}</span>
+        </div>
+      </div>
+      {classroomRowsWithData.length ? (
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {classroomRowsWithData.map(row=><button key={row.fach} type="button" onClick={()=>openSubject(row.fach)}
+            className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5 text-left transition hover:border-slate-200 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500">
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-bold text-slate-800">{row.fach}</span>
+              <span className="mt-0.5 block text-[0.68rem] text-slate-500">{row.participation.hasData ? row.participation.total+' '+(row.participation.total===1?'Fachstern':'Fachsterne') : 'Mitarbeit noch nicht erfasst'}</span>
+            </span>
+            <span className={'shrink-0 rounded-lg px-2 py-1 text-[0.68rem] font-black '+(!row.homework.tracked?'bg-slate-100 text-slate-500':row.homework.missing>0?'bg-rose-100 text-rose-800':'bg-emerald-100 text-emerald-800')}>
+              {!row.homework.tracked?'HÜ –':row.homework.missing===0?'HÜ ✓':'HÜ −'+row.homework.missing}
+            </span>
+          </button>)}
+        </div>
+      ) : <p className="rounded-xl bg-slate-50 px-3 py-3 text-xs text-slate-500">Noch keine Mitarbeit oder Hausübungen dokumentiert.</p>}
     </section>
     <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-base font-bold text-slate-900">Verhalten, Befinden & Anwesenheit</h2><div className="flex gap-1 rounded-xl bg-slate-100 p-1" role="group" aria-label="Zeitraum der Alltagsdiagramme">{([['recent','Letzte 6 Wochen'],['year','Gesamtes Schuljahr']] as const).map(([key,label])=><button key={key} type="button" aria-pressed={period===key} onClick={()=>setPeriod(key)} className={`rounded-lg px-3 py-2 text-xs font-semibold ${period===key?'bg-white text-slate-900 shadow-sm':'text-slate-500'}`}>{label}</button>)}</div></div>
     <div className="grid gap-4 lg:grid-cols-3">
