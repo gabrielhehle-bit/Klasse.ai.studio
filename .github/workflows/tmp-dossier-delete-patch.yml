@@ -21,6 +21,7 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           path = Path('src/components/dossier/DossierLeistungen.tsx')
           text = path.read_text()
@@ -31,52 +32,30 @@ jobs:
               raise SystemExit('write helper import not found')
           text = text.replace(old_import, new_import, 1)
 
-          old_handler = '''  // Delete Assessment Handler
-          const handleDeleteAssessment = (fach: string, category: string, colIndex: number) => {
-            setApp(prev => {
-              const noten = { ...(prev.noten || {}) };
-              if (!noten[student.id]?.[fach]?.[semester]) return prev;
-
-              const prevSubj = (noten[student.id][fach][semester] || {}) as any;
-              const subjData: any = {
-                sa: [],
-                lzk: [],
-                wp: [],
-                aufgaben: [],
-                hue: 0,
-                hueAnm: [],
-                ...prevSubj
-              };
-              if (Array.isArray(subjData[category])) {
-                const list = [...subjData[category]];
-                list[colIndex] = null;
-                subjData[category] = list;
-                noten[student.id][fach][semester] = subjData;
-              }
-
-              return {
-                ...prev,
-                noten
-              };
-            });
-          };
-          '''
-          new_handler = '''  // Delete Assessment Handler: clear only this student's value.
-          // The assessment column itself (label/date/comment/max points) is shared by the class.
-          const handleDeleteAssessment = (fach: string, category: string, colIndex: number) => {
-            if (!['sa', 'lzk', 'wp', 'aufgaben'].includes(category)) return;
-            setApp(prev => clearDossierAssessmentForStudent(prev, {
-              studentId: student.id,
-              fach,
-              semester,
-              category: category as 'sa' | 'lzk' | 'wp' | 'aufgaben',
-              colIndex,
-            }));
-          };
-          '''
-          if old_handler not in text:
-              raise SystemExit('delete handler not found')
-          text = text.replace(old_handler, new_handler, 1)
+          pattern = re.compile(
+              r"  // Delete Assessment Handler\n"
+              r"  const handleDeleteAssessment = \(fach: string, category: string, colIndex: number\) => \{\n"
+              r".*?"
+              r"\n  \};\n",
+              re.S,
+          )
+          replacement = (
+              "  // Delete Assessment Handler: clear only this student's value.\n"
+              "  // The assessment column itself (label/date/comment/max points) is shared by the class.\n"
+              "  const handleDeleteAssessment = (fach: string, category: string, colIndex: number) => {\n"
+              "    if (!['sa', 'lzk', 'wp', 'aufgaben'].includes(category)) return;\n"
+              "    setApp(prev => clearDossierAssessmentForStudent(prev, {\n"
+              "      studentId: student.id,\n"
+              "      fach,\n"
+              "      semester,\n"
+              "      category: category as 'sa' | 'lzk' | 'wp' | 'aufgaben',\n"
+              "      colIndex,\n"
+              "    }));\n"
+              "  };\n"
+          )
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'delete handler matches: {count}')
           path.write_text(text)
           PY
       - name: Remove temporary workflow
