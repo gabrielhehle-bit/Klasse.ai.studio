@@ -7,7 +7,7 @@ import {
   Target, Stethoscope, HeartHandshake, Calendar, FileText, CheckCircle2,
   AlertCircle, Plus, Edit2, Trash2, X, Check, Save, Layers, Clock, TrendingUp
 } from 'lucide-react';
-import { berechne, getNotenLabel, getFachCfg, getShowPercentForPoints, getMaxPoints } from '../../lib/GradeUtils';
+import { berechne, getNotenLabel, getFachCfg, getShowPointsPercent, getMaxPoints } from '../../lib/GradeUtils';
 import { FAECHER_ALLE } from '../../constants';
 import DossierAssessmentChart from './DossierAssessmentChart';
 import { getDossierAssessmentChart } from '../../lib/dossierAssessmentChart';
@@ -470,7 +470,7 @@ export default function DossierLeistungen({
   if (activeSubjectData) {
     const s = activeSubjectData;
     const mode = s.mode;
-    const showPercentForPoints = getShowPercentForPoints(app, s.fach);
+    const showPointsPercent = getShowPointsPercent(app, s.fach);
 
     // Group items by category (only categories with data or active!)
     const categoriesWithData = [
@@ -638,9 +638,9 @@ export default function DossierLeistungen({
                                 ? `${item.score ?? '-'} / ${item.maxScore ?? '-'} Pkt.` 
                                 : `${item.percent ?? '-'} %`}
                             </div>
-                            {showPercentForPoints && mode === 'points' && item.percent !== undefined && (
+                            {showPointsPercent && mode === 'points' && item.percent !== undefined && (
                               <div className="text-[0.6875rem] text-slate-500 font-medium">
-                                ({Math.round(item.percent)} %)
+                                ({item.percent.toLocaleString('de-AT', { maximumFractionDigits: 1 })} %)
                               </div>
                             )}
                           </div>
@@ -947,7 +947,7 @@ export default function DossierLeistungen({
                         {s.mode === 'grades' 
                           ? `Note ${s.latestItem.rawGrade}` 
                           : s.mode === 'points' 
-                          ? `${s.latestItem.score}/${s.latestItem.maxScore} Pkt.${getShowPercentForPoints(app, s.fach) && s.latestItem.percent !== undefined ? ` · ${Math.round(s.latestItem.percent)} %` : ''}` 
+                          ? `${s.latestItem.score}/${s.latestItem.maxScore} Pkt.${getShowPointsPercent(app, s.fach) && s.latestItem.percent !== undefined ? ` · ${s.latestItem.percent.toLocaleString('de-AT', { maximumFractionDigits: 1 })} %` : ''}` 
                           : `${s.latestItem.percent}%`}
                       </span>
                     </div>
