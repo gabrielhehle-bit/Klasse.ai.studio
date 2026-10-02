@@ -11,8 +11,8 @@ export function getAssessmentMode(app: AppState, fach: string): AssessmentMode {
 }
 
 /** Points are always normalized internally; this controls only the secondary percent display. */
-export function getShowPercentForPoints(app: AppState, fach: string): boolean {
-  return app.notenMeta?.[fach]?.showPercentForPoints !== false;
+export function getShowPointsPercent(app: AppState, fach: string): boolean {
+  return app.notenMeta?.[fach]?.showPointsPercent !== false;
 }
 
 export interface HomeworkGradebookSettings {
