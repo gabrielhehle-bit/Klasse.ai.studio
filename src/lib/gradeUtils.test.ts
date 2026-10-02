@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getFachCfg, berechne, getAssessmentStorageValue, getHomeworkGradebookSettings, getMirroredAssessmentValue, getShowPercentForPoints, isAssessmentValueMissing, hasCalculatedAverage, parseAssessmentInput, parseFinalGradeInput } from './GradeUtils';
+import { getFachCfg, berechne, getAssessmentStorageValue, getHomeworkGradebookSettings, getMirroredAssessmentValue, getShowPointsPercent, isAssessmentValueMissing, hasCalculatedAverage, parseAssessmentInput, parseFinalGradeInput } from './GradeUtils';
 
 function baseApp() {
   return {
@@ -204,11 +204,11 @@ test('points percent visibility defaults to on and can be disabled per subject',
   const app = baseApp();
   app.notenMeta.Deutsch.assessmentMode = 'points';
 
-  assert.equal(getShowPercentForPoints(app, 'Deutsch'), true);
+  assert.equal(getShowPointsPercent(app, 'Deutsch'), true);
 
-  app.notenMeta.Deutsch.showPercentForPoints = false;
-  assert.equal(getShowPercentForPoints(app, 'Deutsch'), false);
+  app.notenMeta.Deutsch.showPointsPercent = false;
+  assert.equal(getShowPointsPercent(app, 'Deutsch'), false);
 
-  app.notenMeta.Deutsch.showPercentForPoints = true;
-  assert.equal(getShowPercentForPoints(app, 'Deutsch'), true);
+  app.notenMeta.Deutsch.showPointsPercent = true;
+  assert.equal(getShowPointsPercent(app, 'Deutsch'), true);
 });
