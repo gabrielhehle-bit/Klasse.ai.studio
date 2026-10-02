@@ -89,7 +89,7 @@ test('Dossierübersicht: vier Hauptbereiche, Kinderwechsel, KEL, PDF, Druck und 
 test('Schülerdossier: Identität, Kinderwechsel und Aktionen leben in genau einem kompakten Kopf', () => {
   assert.equal((dossier.match(/id="student-switcher"/g) || []).length, 1);
   assert.equal((dossier.match(/data-student-dossier-nav/g) || []).length, 1);
-  assert.match(dossier, /SINGLE COMPACT STUDENT HEADER/);
+  assert.match(dossier, /COMPACT STUDENT NAVIGATION/);
   assert.match(dossier, /student\.foto/);
   assert.match(dossier, /🎉 Geburtstag/);
   assert.match(dossier, />SPF</);
