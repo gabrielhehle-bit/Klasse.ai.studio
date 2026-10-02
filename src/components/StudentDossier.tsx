@@ -3,8 +3,8 @@ import { useApp } from '../context/AppContext';
 import { 
   User, Sparkles, BarChart3, Heart, Target, Activity, 
   Stethoscope, GraduationCap, Banknote, FileText, ChevronRight, ChevronDown,
-  ArrowLeft, Download, Printer, Clock, Save, Edit3, Trash2, Award, ClipboardList,
-  AlertCircle, Compass, Maximize2, Minimize2, Calendar, Shield, CheckCircle2,
+  ArrowLeft, Clock, Save, Edit3, Trash2, Award, ClipboardList,
+  AlertCircle, Compass, Calendar, Shield, CheckCircle2,
   BookOpen, Phone, ListChecks
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -346,99 +346,93 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
         ? 'max-w-none w-full flex flex-col gap-0 min-h-screen pb-10' 
         : 'mx-auto w-full max-w-7xl flex flex-col gap-4 min-h-[85vh] pb-20 px-3 sm:px-5 lg:px-7'
     } animate-in fade-in slide-in-from-bottom-4 duration-500`}>
-      {/* COMPACT STUDENT NAVIGATION */}
-      {!app.dossierFocusMode && (
-        <div data-student-dossier-nav className="print:hidden flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-center gap-3 sm:max-w-[35%]">
-            {onBack && (
-              <button
-                type="button"
-                onClick={onBack}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
-                title="Zur Schülerauswahl"
-              >
-                <ArrowLeft size={15} />
-              </button>
-            )}
-            <div className="min-w-0">
-              <p className="text-[0.58rem] font-black uppercase tracking-[0.18em] text-slate-400">Schülerdossier · {app.klassenbezeichnung} · {app.schuljahr}</p>
-              <p className="truncate text-sm font-black text-slate-900">
-                {student.vorname} {student.nachname}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-xl sm:justify-end">
+      {/* COMPACT STUDENT NAVIGATION — single shared header for normal and focus mode */}
+      <div data-student-dossier-nav className={`print:hidden flex flex-col gap-2 rounded-2xl border px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between ${app.dossierFocusMode?'mx-3 mt-3 border-slate-700 bg-slate-900 text-white':'border-slate-200 bg-white'}`}>
+        <div className="flex min-w-0 items-center gap-2.5">
+          {onBack && (
             <button
               type="button"
-              onClick={() => switchStudent(previousStudent?.id)}
-              disabled={!previousStudent}
-              aria-label={previousStudent
-                ? `Vorheriges Kind: ${previousStudent.vorname} ${previousStudent.nachname}`
-                : 'Kein vorheriges Kind'}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
+              onClick={onBack}
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition ${app.dossierFocusMode?'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700':'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}
+              title="Zur Schülerauswahl"
             >
-              <ArrowLeft size={14} />
+              <ArrowLeft size={15} />
             </button>
-
-            <div className="relative min-w-0 flex-1 sm:max-w-sm">
-              <select
-                id="student-switcher"
-                value={student.id}
-                onChange={(e) => onStudentChange && onStudentChange(e.target.value)}
-                className="min-h-11 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-9 text-xs font-black text-slate-800 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-                disabled={!onStudentChange}
-              >
-                {app.schueler.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.vorname} {s.nachname}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          )}
+          {student.foto ? (
+            <img src={student.foto} alt="" className="h-10 w-10 shrink-0 rounded-xl object-cover object-top ring-1 ring-slate-200" referrerPolicy="no-referrer" />
+          ) : (
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-xs font-black ${app.dossierFocusMode?'border-slate-700 bg-slate-800 text-slate-200':'border-slate-200 bg-slate-100 text-slate-700'}`}>
+              {student.vorname.charAt(0)}{student.nachname.charAt(0)}
             </div>
-
-            <span className="hidden text-[0.65rem] font-black tabular-nums text-slate-400 sm:inline">
-              {currentStudentIndex + 1}/{app.schueler.length}
-            </span>
-
-            <button
-              type="button"
-              onClick={() => switchStudent(nextStudent?.id)}
-              disabled={!nextStudent}
-              aria-label={nextStudent
-                ? `Nächstes Kind: ${nextStudent.vorname} ${nextStudent.nachname}`
-                : 'Kein nächstes Kind'}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
-            >
-              <ChevronRight size={14} />
-            </button>
+          )}
+          <div className="min-w-0">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <p className={`truncate text-sm font-black ${app.dossierFocusMode?'text-white':'text-slate-900'}`}>{student.vorname} {student.nachname}</p>
+              {isBirthdayToday&&<span className="rounded-md bg-pink-100 px-1.5 py-0.5 text-[0.58rem] font-black text-pink-700">🎉 Geburtstag</span>}
+              {isSpf&&<span className="rounded-md border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[0.58rem] font-black text-rose-700">SPF</span>}
+              {isEspf&&<span className="rounded-md border border-cyan-200 bg-cyan-50 px-1.5 py-0.5 text-[0.58rem] font-black text-cyan-700">ESPF</span>}
+              {isDaz&&<span className="rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[0.58rem] font-black text-amber-700">DAZ</span>}
+            </div>
+            <p className={`truncate text-[0.62rem] font-semibold ${app.dossierFocusMode?'text-slate-400':'text-slate-500'}`}>Schülerdossier · {app.klassenbezeichnung || 'Klasse'} · {app.schuljahr || 'Schuljahr'} · Geschlecht: {getStudentGenderLabel(student.geschlecht)}</p>
           </div>
-          <details className="relative shrink-0 print:hidden">
-            <summary className="cursor-pointer rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">Aktionen</summary>
-            <div className="absolute right-0 top-full z-40 mt-2 w-52 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+        </div>
+
+        <div className="flex min-w-0 items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => switchStudent(previousStudent?.id)}
+            disabled={!previousStudent}
+            aria-label={previousStudent ? `Vorheriges Kind: ${previousStudent.vorname} ${previousStudent.nachname}` : 'Kein vorheriges Kind'}
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition disabled:cursor-not-allowed disabled:opacity-30 ${app.dossierFocusMode?'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700':'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+          >
+            <ArrowLeft size={14} />
+          </button>
+          <div className="relative min-w-0 flex-1 sm:w-60 sm:flex-none">
+            <select
+              id="student-switcher"
+              value={student.id}
+              onChange={(e) => onStudentChange && onStudentChange(e.target.value)}
+              className={`min-h-10 w-full appearance-none rounded-xl border px-3 py-2 pr-8 text-xs font-black outline-none transition focus:ring-2 focus:ring-indigo-400 ${app.dossierFocusMode?'border-slate-700 bg-slate-800 text-white':'border-slate-200 bg-slate-50 text-slate-800'}`}
+              disabled={!onStudentChange}
+            >
+              {app.schueler.map((s) => <option key={s.id} value={s.id}>{s.vorname} {s.nachname}</option>)}
+            </select>
+            <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          </div>
+          <span className={`hidden text-[0.62rem] font-black tabular-nums sm:inline ${app.dossierFocusMode?'text-slate-500':'text-slate-400'}`}>{currentStudentIndex + 1}/{app.schueler.length}</span>
+          <button
+            type="button"
+            onClick={() => switchStudent(nextStudent?.id)}
+            disabled={!nextStudent}
+            aria-label={nextStudent ? `Nächstes Kind: ${nextStudent.vorname} ${nextStudent.nachname}` : 'Kein nächstes Kind'}
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition disabled:cursor-not-allowed disabled:opacity-30 ${app.dossierFocusMode?'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700':'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+          >
+            <ChevronRight size={14} />
+          </button>
+          <details className="relative shrink-0">
+            <summary className={`cursor-pointer list-none rounded-xl border px-2.5 py-2 text-xs font-semibold ${app.dossierFocusMode?'border-slate-700 bg-slate-800 text-slate-300':'border-slate-200 text-slate-600'}`}>•••</summary>
+            <div className="absolute right-0 top-full z-40 mt-2 w-52 rounded-xl border border-slate-200 bg-white p-2 text-slate-800 shadow-lg">
               <button type="button" onClick={() => exportSchuelerPDF(student.id, app)} className="block w-full rounded-lg p-2 text-left text-xs hover:bg-slate-50">Dossier (PDF)</button>
               <button type="button" onClick={() => setPresentationModeActive(true)} className="block w-full rounded-lg p-2 text-left text-xs hover:bg-slate-50">KEL für Eltern</button>
               <button type="button" onClick={() => { setApp(prev => ({ ...prev, activePrintTemplate: 'schuelerprofil', activePrintStudentId: student.id })); setPage?.('drucken'); }} className="block w-full rounded-lg p-2 text-left text-xs hover:bg-slate-50">Dossier drucken</button>
+              <button type="button" onClick={() => setApp(prev => ({...prev,dossierFocusMode:!prev.dossierFocusMode}))} className="block w-full rounded-lg p-2 text-left text-xs font-semibold text-indigo-700 hover:bg-indigo-50">{app.dossierFocusMode?'Fokusmodus beenden':'Fokusmodus starten'}</button>
             </div>
           </details>
         </div>
-      )}
+      </div>
 
       {/* MAIN CONTENT AREA */}
       <div className={`flex-1 min-w-0 overflow-hidden lg:overflow-visible ${
         app.dossierFocusMode 
-          ? 'bg-white rounded-none border-0 shadow-none p-4 md:p-8' 
+          ? 'bg-white rounded-none border-0 shadow-none p-3 md:p-5' 
           : 'bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 md:p-6'
       } min-h-[70vh] flex flex-col justify-between print:p-0 print:border-none print:shadow-none print:rounded-none`}>
         <div>
           {/* Dossierbereiche: one compact navigation level */}
           {!app.dossierFocusMode && (
           <div data-student-dossier-areas className="mb-4 border-b border-slate-100 pb-3 print:hidden">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <p className="text-[0.6rem] font-black uppercase tracking-[0.18em] text-slate-400">Dossierbereiche</p>
-                <span className="text-[0.62rem] font-bold text-slate-400">4 Bereiche</span>
-              </div>
+              <span className="sr-only">4 Bereiche</span>
               <div
                 className="flex gap-2 overflow-x-auto pb-1 scrollbar-none"
                 role="tablist"
@@ -481,271 +475,31 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
             </div>
           )}
 
-          {/* Interactive Focus Mode Header Bar */}
+          {/* Compact Focus Mode Bar */}
           {app.dossierFocusMode && (
-            <div className="w-full bg-slate-900 text-white rounded-3xl p-4 md:p-5 mb-8 flex flex-col xl:flex-row xl:items-center justify-between gap-5 shadow-2xl border border-slate-800 animate-in fade-in slide-in-from-top-4 duration-300 no-print">
-              <div className="flex flex-wrap items-center justify-between xl:justify-start gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-indigo-500/10 text-indigo-400 rounded-xl flex items-center justify-center border border-indigo-500/20">
-                    <Sparkles size={18} className="animate-pulse" />
-                  </div>
-                  <div>
-                    <h2 className="text-[0.9375rem] font-black tracking-tight flex items-center gap-2 text-white leading-tight">
-                      <span>Fokus-Modus</span>
-                      <span className="text-[0.5625rem] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">Aktiv</span>
-                    </h2>
-                    <p className="text-[0.6875rem] text-slate-400 font-semibold mt-0.5">Mühelose Bearbeitung von Schülerbeobachtungen</p>
-                  </div>
-                </div>
-
-                {/* Quick Switcher inside Focus Mode */}
-                {onStudentChange && (
-                  <div className="flex items-center gap-2.5 pl-4 border-l border-slate-800">
-                    <span className="hidden sm:inline text-[0.6875rem] text-slate-450 font-bold uppercase tracking-wider">Schülerin/Schüler:</span>
-                    <button
-                      type="button"
-                      onClick={() => switchStudent(previousStudent?.id)}
-                      disabled={!previousStudent}
-                      aria-label={previousStudent
-                        ? `Vorheriges Kind: ${previousStudent.vorname} ${previousStudent.nachname}`
-                        : 'Kein vorheriges Kind'}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
-                    >
-                      <ArrowLeft size={13} />
-                    </button>
-                    <select
-                      value={student.id}
-                      onChange={(e) => onStudentChange(e.target.value)}
-                      className="bg-slate-800 border border-slate-700 text-white text-[0.75rem] font-black rounded-xl py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                    >
-                      {app.schueler.map(s => (
-                        <option key={s.id} value={s.id}>{s.nachname} {s.vorname}</option>
-                      ))}
-                    </select>
-                    <span className="text-[0.65rem] font-black tabular-nums text-slate-500">
-                      {currentStudentIndex + 1}/{app.schueler.length}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => switchStudent(nextStudent?.id)}
-                      disabled={!nextStudent}
-                      aria-label={nextStudent
-                        ? `Nächstes Kind: ${nextStudent.vorname} ${nextStudent.nachname}`
-                        : 'Kein nächstes Kind'}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
-                    >
-                      <ChevronRight size={13} />
-                    </button>
-                  </div>
-                )}
+            <div data-dossier-focus-bar className="mb-4 flex w-full flex-col gap-2 rounded-2xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-white shadow-lg no-print lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center gap-2 text-xs font-black">
+                <Sparkles size={14} className="text-indigo-300" />
+                <span>Fokusmodus</span>
               </div>
-
-              {/* Segmented control for the tabs in Focus Mode */}
-              <div className="flex flex-wrap gap-1 bg-slate-950/45 p-1 rounded-xl border border-slate-850 max-w-full overflow-x-auto scrollbar-none">
+              <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl bg-slate-950/45 p-1 scrollbar-none" role="tablist" aria-label="Fokusmodus-Bereiche">
                 {[
                   { id: 'uebersicht', label: 'Übersicht', icon: Sparkles },
-                  { id: 'notizen', label: 'Notizen & Beobachtungen', icon: FileText },
+                  { id: 'notizen', label: 'Notizen', icon: FileText },
                   { id: 'stats', label: 'Verhalten & Präsenz', icon: Activity },
-                  { id: 'kel_reflexion', label: 'KEL Selbstreflexion', icon: Compass },
-                  { id: 'diagnostik', label: 'Päd. Diagnostik', icon: Stethoscope },
-                  { id: 'foerderprofil', label: 'Förderplan', icon: Heart },
+                  { id: 'kel_reflexion', label: 'KEL', icon: Compass },
+                  { id: 'diagnostik', label: 'Diagnostik', icon: Stethoscope },
+                  { id: 'foerderprofil', label: 'Förderung', icon: Heart },
                 ].map((item) => {
                   const isTabActive = activeTab === item.id;
                   const TabIcon = item.icon;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setActiveTab(item.id as DossierTab)}
-                      className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-[0.6875rem] font-bold transition-all cursor-pointer whitespace-nowrap ${
-                        isTabActive 
-                          ? 'bg-indigo-600 text-white shadow-sm font-black' 
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-                      }`}
-                    >
-                      <TabIcon size={12} />
-                      <span>{item.label}</span>
-                    </button>
-                  );
+                  return <button key={item.id} type="button" onClick={() => setActiveTab(item.id as DossierTab)} className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[0.68rem] font-bold transition ${isTabActive?'bg-indigo-600 text-white':'text-slate-400 hover:bg-slate-800/50 hover:text-white'}`}><TabIcon size={12}/><span>{item.label}</span></button>;
                 })}
               </div>
-
-              {/* Exit Focus Mode Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  setApp(prev => ({
-                    ...prev,
-                    dossierFocusMode: false
-                  }));
-                }}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-750 hover:text-white text-slate-300 rounded-xl text-[0.6875rem] leading-tight font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all border border-slate-700 cursor-pointer"
-                title="Fokus-Modus beenden"
-              >
-                <Minimize2 size={13} />
-                <span>Fokus Beenden</span>
-              </button>
             </div>
           )}
 
-          {/* Profile Hero Header Card */}
-          {!app.dossierFocusMode && activeTab !== 'uebersicht' && activeTab !== 'leistungen' && activeTab !== 'beobachtungen_verlauf' && (
-            <div className={`mb-5 px-4 py-4 sm:px-5 bg-slate-50/70 border ${isBirthdayToday ? 'border-pink-200' : 'border-slate-200'} rounded-2xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 transition-all relative`}>
-              
-              {isBirthdayToday && (
-                <div className="absolute top-0 right-0 w-28 h-28 bg-pink-500/5 rounded-full blur-2xl pointer-events-none select-none" />
-              )}
-
-              <div className="flex items-center gap-4 sm:gap-5">
-                {student.foto ? (
-                  <img src={student.foto} alt="" className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl object-cover ring-2 ${isBirthdayToday ? 'ring-pink-300' : 'ring-slate-200'} shadow-sm object-top`} referrerPolicy="no-referrer" />
-                ) : (
-                  <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-100 border border-slate-200/80 text-slate-700 flex items-center justify-center text-xl font-black shadow-inner`}>
-                    {student.vorname.charAt(0)}{student.nachname.charAt(0)}
-                  </div>
-                )}
-                <div className="space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <h1 className={`text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-tight flex items-center gap-2`}>
-                      <span>{student.vorname} {student.nachname}</span>
-                      {isBirthdayToday && (
-                        <span className="inline-block text-lg" title="Geburtstagskind!">🎉</span>
-                      )}
-                    </h1>
-                    <div className="flex gap-1.5 flex-wrap">
-                      {isBirthdayToday && (
-                        <span className="px-2 py-0.5 rounded-lg bg-pink-100 text-pink-700 font-extrabold text-[0.6rem] uppercase tracking-wider">
-                          Geburtstag
-                        </span>
-                      )}
-                      {isSpf && (
-                        <span className="px-2 py-0.5 rounded-lg bg-rose-50 text-rose-600 font-extrabold text-[0.6rem] uppercase tracking-wider border border-rose-200" title="Sonderpädagogischer Förderbedarf">
-                          SPF
-                        </span>
-                      )}
-                      {isEspf && (
-                        <span className="px-2 py-0.5 rounded-lg bg-cyan-50 text-cyan-700 font-extrabold text-[0.6rem] uppercase tracking-wider border border-cyan-200" title="Außerordentlicher Status">
-                          ESPF
-                        </span>
-                      )}
-                      {isDaz && (
-                        <span className="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700 font-extrabold text-[0.6rem] uppercase tracking-wider border border-amber-200" title="Deutsch als Zweitsprache">
-                          DAZ
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 font-semibold">
-                    <span>
-                      Klasse: <strong className="font-black text-slate-700">{[app.stufe ? `${app.stufe}.` : '', app.klassenbezeichnung].filter(Boolean).join(' ') || 'nicht erfasst'}</strong>
-                    </span>
-                    <span className="text-slate-300">·</span>
-                    <span>Geschlecht: {getStudentGenderLabel(student.geschlecht)}</span>
-                    {student.besuchsjahr && (
-                      <>
-                        <span className="text-slate-300">·</span>
-                        <span>{student.besuchsjahr}. Schulbesuchsjahr</span>
-                      </>
-                    )}
-                    <span className="text-slate-300">·</span>
-                    <span>Schuljahr: {app.schuljahr || 'nicht erfasst'}</span>
-                    {(student.geburtstag || student.geburtsdatum) && (
-                      <>
-                        <span className="text-slate-300">·</span>
-                        <span>
-                          {student.geburtstag?.includes('-')
-                            ? student.geburtstag.split('-').reverse().join('.')
-                            : (student.geburtstag || student.geburtsdatum)}
-                          {(() => {
-                            const dateStr = student.geburtstag || student.geburtsdatum;
-                            if (!dateStr) return null;
-                            const parts = dateStr.includes('-') ? dateStr.split('-') : dateStr.split('.');
-                            let bDate: Date;
-                            if (dateStr.includes('-')) {
-                              bDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-                            } else {
-                              bDate = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
-                            }
-                            if (isNaN(bDate.getTime())) return null;
-                            const ageDiff = Date.now() - bDate.getTime();
-                            const age = Math.floor(ageDiff / (1000 * 60 * 60 * 24 * 365.25));
-                            return age > 0 && age < 30 ? ` (${age} Jahre)` : null;
-                          })()}
-                        </span>
-                      </>
-                    )}
-                    {student.niveau !== null && student.niveau !== undefined && (
-                      <>
-                        <span className="text-slate-300">·</span>
-                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[0.65rem] font-bold text-slate-600">Niveau {student.niveau}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 self-stretch lg:self-auto justify-start lg:justify-end flex-wrap">
-                {/* primary action: KEL Presentation */}
-                <button
-                  type="button"
-                  onClick={() => setPresentationModeActive(true)}
-                  className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer"
-                  title="KEL-Präsentationsmodus starten"
-                >
-                  <span>🖥️</span>
-                  <span>KEL für Eltern</span>
-                </button>
-
-                {/* export and print button group */}
-                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
-                  <button 
-                    type="button"
-                    onClick={() => exportSchuelerPDF(student.id, app)}
-                    className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/80 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all shadow-2xs active:scale-95 cursor-pointer"
-                    title="Gesamtes Dossier als PDF exportieren"
-                  >
-                    <Download size={13} className="text-indigo-600" />
-                    <span>Dossier (PDF)</span>
-                  </button>
-
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      setApp(prev => ({
-                        ...prev,
-                        activePrintTemplate: 'schuelerprofil',
-                        activePrintStudentId: student.id
-                      }));
-                      setPage?.('drucken');
-                    }}
-                    className="p-1.5 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200/80 rounded-lg transition-all shadow-2xs active:scale-95 cursor-pointer"
-                    title="Dossier/Bericht drucken"
-                  >
-                    <Printer size={14} />
-                  </button>
-                </div>
-
-                {/* view controls */}
-                <div className="hidden lg:flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setApp(prev => ({
-                        ...prev,
-                        dossierFocusMode: true
-                      }));
-                    }}
-                    className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-200/80 rounded-xl text-[0.72rem] leading-tight font-extrabold flex items-center justify-center gap-1.5 transition-all shadow-2xs active:scale-95 cursor-pointer"
-                    title="Fokus-Modus aktivieren"
-                  >
-                    <Maximize2 size={12} className="text-slate-500" />
-                    <span>Fokus</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Student identity and primary actions live in the single compact header above. */}
 
           {/* Unterbereiche des gewählten Dossierbereichs */}
           {!app.dossierFocusMode && activeMainArea !== 'berichte_materialien' && getFilteredSubTabs(activeMainArea).length > 1 && (

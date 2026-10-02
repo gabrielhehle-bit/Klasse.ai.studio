@@ -81,7 +81,28 @@ test('Dossierübersicht: vier Hauptbereiche, Kinderwechsel, KEL, PDF, Druck und 
   assert.match(dossier, /KEL für Eltern/);
   assert.match(dossier, /Dossier \(PDF\)/);
   assert.match(dossier, /setPage\?\.\('drucken'\)/);
-  assert.match(dossier, /dossierFocusMode: true/);
+  assert.match(dossier, /dossierFocusMode:!prev\.dossierFocusMode/);
   assert.match(overview, /Aktuelle Notizen/);
   assert.match(overview, /onSubjectSelect/);
+});
+
+test('Schülerdossier: Identität, Kinderwechsel und Aktionen leben in genau einem kompakten Kopf', () => {
+  assert.equal((dossier.match(/id="student-switcher"/g) || []).length, 1);
+  assert.equal((dossier.match(/data-student-dossier-nav/g) || []).length, 1);
+  assert.match(dossier, /COMPACT STUDENT NAVIGATION/);
+  assert.match(dossier, /student\.foto/);
+  assert.match(dossier, /🎉 Geburtstag/);
+  assert.match(dossier, />SPF</);
+  assert.match(dossier, />ESPF</);
+  assert.match(dossier, />DAZ</);
+  assert.match(dossier, /Fokusmodus starten/);
+  assert.match(dossier, /Fokusmodus beenden/);
+  assert.doesNotMatch(dossier, /Profile Hero Header Card/);
+});
+
+test('Schülerdossier: Fokusmodus hat nur eine schlanke Modusleiste ohne zweiten Kinderwechsler', () => {
+  assert.match(dossier, /data-dossier-focus-bar/);
+  assert.match(dossier, /aria-label="Fokusmodus-Bereiche"/);
+  assert.doesNotMatch(dossier, /Quick Switcher inside Focus Mode/);
+  assert.doesNotMatch(dossier, /Mühelose Bearbeitung von Schülerbeobachtungen/);
 });

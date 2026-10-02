@@ -44,7 +44,7 @@ test("Schülerdossier: Kindwechsel und Kernaktionen bleiben erhalten", () => {
   assert.match(dossier, /Nächstes Kind:/);
   assert.match(dossier, /exportSchuelerPDF\(student\.id, app\)/);
   assert.match(dossier, /activePrintTemplate: 'schuelerprofil'/);
-  assert.match(dossier, /dossierFocusMode: true/);
+  assert.match(dossier, /dossierFocusMode:!prev.dossierFocusMode/);
   assert.match(dossier, /Geschlecht: \{getStudentGenderLabel\(student\.geschlecht\)\}/);
 });
 
