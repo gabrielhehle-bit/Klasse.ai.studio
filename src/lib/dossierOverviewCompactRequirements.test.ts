@@ -49,7 +49,7 @@ test('Dossierübersicht: Notizen zeigen Typ, Fach, robuste Datumsquelle und dire
   assert.match(overview, /Fachnotiz/);
   assert.match(overview, /Positive Beobachtung/);
   assert.match(overview, /noteDateLabel/);
-  assert.match(overview, /note\.timestamp/);
+  assert.match(overview, /note\?\.timestamp/);
   assert.match(overview, /Alle Notizen öffnen/);
   assert.match(overview, /onQuickEntry\?onQuickEntry\('parent'\)/);
   assert.match(overview, /die neuesten 5 hier im Überblick/);
