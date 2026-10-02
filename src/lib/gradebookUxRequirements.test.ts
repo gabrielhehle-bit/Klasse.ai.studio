@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 const gradebook = readFileSync('src/components/Gradebook.tsx', 'utf8');
 const weights = readFileSync('src/components/WeightSettings.tsx', 'utf8');
 const gradeUtils = readFileSync('src/lib/GradeUtils.ts', 'utf8');
+const dossierLeistungen = readFileSync('src/components/dossier/DossierLeistungen.tsx', 'utf8');
 
 test('gradebook offers one subject picker and uses one school-year period', () => {
   assert.equal((gradebook.match(/<select id="gradebook-active-subject"/g) || []).length, 1);
@@ -37,4 +38,15 @@ test('weight settings focus selected subject but continue to validate and save a
   assert.match(weights, /weight-participation-settings/);
   assert.match(weights, /weight-homework-settings/);
   assert.match(gradebook, /Hausübungsbewertung aktiv, jedoch mit 0 % eigenem Anteil/);
+});
+
+test('points mode can show or hide the calculated percent consistently across gradebook and dossier', () => {
+  assert.match(gradeUtils, /export function getShowPercentForPoints/);
+  assert.match(weights, /Prozentwert zusätzlich anzeigen/);
+  assert.match(weights, /showPercentForPoints: event\.target\.checked/);
+  assert.match(gradebook, /const showPercentForPoints = getShowPercentForPoints\(app, activeFach\)/);
+  assert.match(gradebook, /showPercentForPoints && assessmentMode === 'points' && itemPct !== null/);
+  assert.match(dossierLeistungen, /const showPercentForPoints = getShowPercentForPoints\(app, s\.fach\)/);
+  assert.match(dossierLeistungen, /showPercentForPoints && mode === 'points' && item\.percent !== undefined/);
+  assert.match(dossierLeistungen, /getShowPercentForPoints\(app, s\.fach\).*Math\.round\(s\.latestItem\.percent\)/s);
 });
