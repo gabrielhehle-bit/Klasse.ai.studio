@@ -242,7 +242,7 @@ export default function DossierLeistungen({
           currentDisplay = `${val.toFixed(1).replace('.', ',')} %`;
           if (val < 50) hasCriticalGrade = true;
         } else {
-          currentDisplay = `${val.toFixed(1).replace('.', ',')} % (Punkte)`;
+          currentDisplay = `${val.toFixed(1).replace('.', ',')} % · Punktebasis`;
           if (val < 50) hasCriticalGrade = true;
         }
       }
@@ -434,189 +434,95 @@ export default function DossierLeistungen({
 
     return (
       <div className="space-y-6">
-        {/* Navigation Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setSelectedSubject(null)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer shadow-xs"
-            >
-              <ArrowLeft size={14} /> Zurück zur Fächerübersicht
-            </button>
-            <span className="text-slate-300">|</span>
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Ganzes Schuljahr</span>
-          </div>
-
-          <div className="flex min-w-0 items-center gap-2">
-            <button type="button" aria-label="Vorheriges Fach" disabled={faecher.indexOf(s.fach) === 0} onClick={() => setSelectedSubject(faecher[faecher.indexOf(s.fach)-1])} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 disabled:opacity-30"><ArrowLeft size={16}/></button>
-            <select aria-label="Fach auswählen" value={s.fach} onChange={e=>setSelectedSubject(e.target.value)} className="min-h-10 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold sm:max-w-64">
-              {faecher.map(f=><option key={f} value={f}>{f}</option>)}
-            </select>
-            <button type="button" aria-label="Nächstes Fach" disabled={faecher.indexOf(s.fach) === faecher.length-1} onClick={() => setSelectedSubject(faecher[faecher.indexOf(s.fach)+1])} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 disabled:opacity-30"><ChevronRight size={16}/></button>
-          </div>
-        </div>
-
-
-        {/* Fach-Header */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <h3 className="text-xl font-black text-slate-900">{s.fach}</h3>
-                <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700 border border-slate-200">
-                  {getModeBadge(s.mode)}
-                </span>
-              </div>
-              <p className="text-xs text-slate-500">{s.itemsCount} Leistungsnachweise · Ganzes Schuljahr</p>
-            </div>
-
-            {/* Stand & Action */}
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-right">
-                <div className="text-[0.625rem] font-bold uppercase tracking-wider text-slate-400">Aktuelle Bewertung</div>
-                <div className="text-lg font-black text-slate-900">{s.currentDisplay}</div>
-                {s.endnote && (
-                  <div className="text-[0.6875rem] font-bold text-indigo-700">Endnote fixiert: {s.endnote}</div>
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => handleOpenAddModal(s.fach)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 transition cursor-pointer shadow-xs"
-              >
-                <Plus size={14} /> Leistungsnachweis eintragen
+        {/* Compact subject header: navigation + current state + daily classroom data */}
+        <section data-dossier-performance-header className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+          <div className="flex flex-col gap-3 border-b border-slate-100 pb-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-center gap-2">
+              <button type="button" onClick={() => setSelectedSubject(null)} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+                <ArrowLeft size={14}/> Fächer
               </button>
+              <span className="hidden text-[0.65rem] font-bold uppercase tracking-wider text-slate-400 sm:inline">Ganzes Schuljahr</span>
+            </div>
+            <div className="flex min-w-0 items-center gap-1.5">
+              <button type="button" aria-label="Vorheriges Fach" disabled={faecher.indexOf(s.fach) === 0} onClick={() => setSelectedSubject(faecher[faecher.indexOf(s.fach)-1])} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-30"><ArrowLeft size={15}/></button>
+              <div className="relative min-w-0 flex-1 sm:w-60 sm:flex-none">
+                <select aria-label="Fach auswählen" value={s.fach} onChange={e=>setSelectedSubject(e.target.value)} className="min-h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-black text-slate-800">
+                  {faecher.map(f=><option key={f} value={f}>{f}</option>)}
+                </select>
+              </div>
+              <button type="button" aria-label="Nächstes Fach" disabled={faecher.indexOf(s.fach) === faecher.length-1} onClick={() => setSelectedSubject(faecher[faecher.indexOf(s.fach)+1])} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-30"><ChevronRight size={15}/></button>
             </div>
           </div>
 
-          {/* Querverweise zu Lernzielen, Diagnostik & Förderung */}
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-lg font-black text-slate-900">{s.fach}</h3>
+                <span className="rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[0.65rem] font-bold text-slate-700">{getModeBadge(s.mode)}</span>
+                {s.trend.direction !== 'none' && <span className={`rounded-full px-2 py-0.5 text-[0.62rem] font-bold ${s.trend.direction==='down'?'bg-rose-100 text-rose-800':s.trend.direction==='up'?'bg-emerald-100 text-emerald-800':'bg-slate-100 text-slate-700'}`}>{s.trend.label}</span>}
+              </div>
+              <p className="mt-1 text-xs text-slate-500">{s.itemsCount} {s.itemsCount===1?'Leistungsnachweis':'Leistungsnachweise'} · Daten aus derselben Notenmappe</p>
+            </div>
+            <button type="button" onClick={() => handleOpenAddModal(s.fach)} className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-3.5 text-xs font-bold text-white transition hover:bg-slate-800">
+              <Plus size={14}/> Leistungsnachweis
+            </button>
+          </div>
+
+          <div data-dossier-performance-glance className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50/55 p-3">
+              <div className="text-[0.62rem] font-black uppercase tracking-wider text-indigo-500">Bewertungsstand</div>
+              <div className="mt-1 text-lg font-black text-slate-900">{s.currentDisplay}</div>
+              <div className="mt-0.5 text-[0.65rem] text-slate-500">{s.endnote ? 'Endnote fixiert: '+s.endnote : getModeBadge(s.mode)}</div>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+              <div className="text-[0.62rem] font-black uppercase tracking-wider text-slate-400">Nachweise</div>
+              <div className="mt-1 text-lg font-black text-slate-900">{s.itemsCount}</div>
+              <div className="mt-0.5 truncate text-[0.65rem] text-slate-500">{s.latestItem ? 'Zuletzt: '+s.latestItem.label : 'Noch keine Bewertung erfasst'}</div>
+            </div>
+            <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-3">
+              <div className="flex items-center gap-1 text-[0.62rem] font-black uppercase tracking-wider text-amber-700"><Star size={11}/>Mitarbeit</div>
+              <div className="mt-1 text-lg font-black text-slate-900">{s.participation.total}</div>
+              <div className="mt-0.5 text-[0.65rem] text-slate-500">{s.participation.total === 1 ? 'Fachstern' : 'Fachsterne'}</div>
+            </div>
+            <div className="rounded-xl border border-rose-100 bg-rose-50/55 p-3">
+              <div className="flex items-center gap-1 text-[0.62rem] font-black uppercase tracking-wider text-rose-700"><CheckCircle2 size={11}/>Hausübungen</div>
+              <div className="mt-1 text-lg font-black text-slate-900">{s.homework.tracked ? s.homework.missing : '–'}</div>
+              <div className="mt-0.5 text-[0.65rem] text-slate-500">{s.homework.tracked ? 'fehlende HÜ' : 'nicht erfasst'}</div>
+            </div>
+          </div>
+
           <details className="mt-3 border-t border-slate-100 pt-3">
             <summary className="cursor-pointer text-xs font-semibold text-slate-500">Gewichtung, Lernziele & weitere Details</summary>
             <p className="mt-2 text-xs text-slate-500">Gewichtung: {s.weightsSummary}</p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-            {onNavigateTab && (
-              <button
-                type="button"
-                onClick={() => onNavigateTab('lernziele', { fach: s.fach })}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50/70 px-2.5 py-1 text-xs font-bold text-indigo-800 hover:bg-indigo-100 transition cursor-pointer"
-              >
-                <Target size={13} /> Lernziele zu {s.fach} anzeigen
-              </button>
-            )}
-
-            {diagnosticsForSelectedSubject.length > 0 && onNavigateTab && (
-              <button
-                type="button"
-                onClick={() => onNavigateTab('diagnostik')}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50/70 px-2.5 py-1 text-xs font-bold text-blue-800 hover:bg-blue-100 transition cursor-pointer"
-              >
-                <Stethoscope size={13} /> {diagnosticsForSelectedSubject.length} Diagnostik-Einträge vorhanden
-              </button>
-            )}
-
-            {supportGoalsForSelectedSubject.length > 0 && onNavigateTab && (
-              <button
-                type="button"
-                onClick={() => onNavigateTab('foerderung')}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50/70 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition cursor-pointer"
-              >
-                <HeartHandshake size={13} /> Im Förderprofil berücksichtigt
-              </button>
-            )}
+              {onNavigateTab && <button type="button" onClick={() => onNavigateTab('lernziele', { fach: s.fach })} className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50/70 px-2.5 py-1 text-xs font-bold text-indigo-800"><Target size={13}/> Lernziele zu {s.fach} anzeigen</button>}
+              {diagnosticsForSelectedSubject.length > 0 && onNavigateTab && <button type="button" onClick={() => onNavigateTab('diagnostik')} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50/70 px-2.5 py-1 text-xs font-bold text-blue-800"><Stethoscope size={13}/> {diagnosticsForSelectedSubject.length} Diagnostik-Einträge vorhanden</button>}
+              {supportGoalsForSelectedSubject.length > 0 && onNavigateTab && <button type="button" onClick={() => onNavigateTab('foerderung')} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50/70 px-2.5 py-1 text-xs font-bold text-emerald-800"><HeartHandshake size={13}/> Im Förderprofil berücksichtigt</button>}
             </div>
           </details>
-        </div>
+        </section>
 
         <DossierAssessmentChart items={s.items} mode={s.mode} />
 
-        <div className="grid gap-4 lg:grid-cols-2" aria-label="Fachalltag">
-          <section className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4" aria-label={`Mitarbeit in ${s.fach}`}>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h4 className="flex items-center gap-2 text-sm font-black text-slate-900">
-                  <Star size={16} className="text-amber-600" />
-                  Mitarbeit
-                </h4>
-                <p className="mt-1 text-xs text-slate-600">
-                  Derselbe Fachstand, der auch in der Notenmappe geführt wird.
-                </p>
+        <details data-dossier-performance-everyday className="rounded-2xl border border-slate-200 bg-white">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-black text-slate-800">Mitarbeit & Hausübungen im Detail</summary>
+          <div className="grid gap-3 border-t border-slate-100 p-4 lg:grid-cols-2" aria-label="Fachalltag">
+            <section className="rounded-xl border border-amber-100 bg-amber-50/40 p-3" aria-label={`Mitarbeit in ${s.fach}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div><h4 className="flex items-center gap-2 text-sm font-black text-slate-900"><Star size={15} className="text-amber-600"/>Mitarbeit</h4><p className="mt-1 text-xs text-slate-600">Derselbe Fachstand, der auch in der Notenmappe geführt wird.</p></div>
+                <span className="rounded-lg bg-white px-2.5 py-1 text-sm font-black text-slate-900">{s.participation.total} Fachsterne</span>
               </div>
-              <div className="rounded-xl border border-amber-200 bg-white px-4 py-2 text-right">
-                <div className="text-[0.625rem] font-bold uppercase tracking-wider text-slate-400">Fachsterne</div>
-                <div className="text-lg font-black text-slate-900">{s.participation.total}</div>
+              {s.participation.recent.length > 0 ? <div className="mt-3 border-t border-amber-100 pt-3"><p className="mb-2 text-[0.625rem] font-bold uppercase tracking-wider text-slate-500">Letzte Änderungen</p><div className="flex flex-wrap gap-2">{s.participation.recent.map(entry => <span key={entry.id} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-100 bg-white px-2 py-1 text-xs text-slate-700"><span className={entry.points >= 0 ? 'font-black text-emerald-700' : 'font-black text-rose-700'}>{entry.points > 0 ? '+' : ''}{entry.points}</span><span>{new Date(entry.timestamp).toLocaleDateString('de-AT',{day:'2-digit',month:'2-digit'})}</span></span>)}</div></div> : <p className="mt-3 border-t border-amber-100 pt-3 text-xs text-slate-500">Noch keine protokollierten Fachsterne.</p>}
+            </section>
+            <section className="rounded-xl border border-rose-100 bg-rose-50/35 p-3" aria-label={`Hausübungen in ${s.fach}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div><h4 className="flex items-center gap-2 text-sm font-black text-slate-900"><CheckCircle2 size={15} className="text-rose-600"/>Hausübungen</h4><p className="mt-1 text-xs text-slate-600">Derselbe HÜ-Stand und dieselben Regeln wie in der Notenmappe.</p></div>
+                <div className="text-right"><div className="text-[0.62rem] font-bold uppercase tracking-wider text-slate-400">Fehlende HÜ</div><div className="text-sm font-black text-slate-900">{s.homework.tracked ? s.homework.missing : '–'}</div></div>
               </div>
-            </div>
-
-            {s.participation.recent.length > 0 ? (
-              <div className="mt-3 border-t border-amber-100 pt-3">
-                <p className="mb-2 text-[0.625rem] font-bold uppercase tracking-wider text-slate-500">Letzte Änderungen</p>
-                <div className="flex flex-wrap gap-2">
-                  {s.participation.recent.map(entry => (
-                    <span key={entry.id} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-100 bg-white px-2.5 py-1.5 text-xs text-slate-700">
-                      <span className={entry.points >= 0 ? 'font-black text-emerald-700' : 'font-black text-rose-700'}>
-                        {entry.points > 0 ? '+' : ''}{entry.points}
-                      </span>
-                      <span>
-                        {new Date(entry.timestamp).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' })}
-                      </span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <p className="mt-3 border-t border-amber-100 pt-3 text-xs text-slate-500">
-                Noch keine protokollierten Fachsterne.
-              </p>
-            )}
-          </section>
-
-          <section className="rounded-2xl border border-rose-200 bg-rose-50/40 p-4" aria-label={`Hausübungen in ${s.fach}`}>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h4 className="flex items-center gap-2 text-sm font-black text-slate-900">
-                  <CheckCircle2 size={16} className="text-rose-600" />
-                  Hausübungen
-                </h4>
-                <p className="mt-1 text-xs text-slate-600">
-                  Derselbe HÜ-Stand und dieselben Regeln wie in der Notenmappe.
-                </p>
-              </div>
-              <div className="rounded-xl border border-rose-200 bg-white px-4 py-2 text-right">
-                <div className="text-[0.625rem] font-bold uppercase tracking-wider text-slate-400">Fehlende HÜ</div>
-                <div className="text-lg font-black text-slate-900">
-                  {s.homework.tracked ? s.homework.missing : '–'}
-                </div>
-                {!s.homework.tracked && <div className="text-[0.625rem] font-semibold text-slate-400">nicht erfasst</div>}
-              </div>
-            </div>
-
-            {s.homework.tracked ? (
-              <div className="mt-3 border-t border-rose-100 pt-3 text-xs text-slate-600">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className={`rounded-full border px-2.5 py-1 font-bold ${s.homework.mode === 'document' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-rose-200 bg-white text-rose-700'}`}>
-                    {s.homework.mode === 'document' ? 'Nur dokumentiert' : 'In Bewertung aktiv'}
-                  </span>
-                  {s.homework.mode === 'grade' && s.homework.percent !== null && (
-                    <span className="font-semibold text-slate-700">
-                      {s.homework.percent.toLocaleString('de-AT', { maximumFractionDigits: 1 })} % · rechnerisch Note {s.homework.calculatedGrade}
-                    </span>
-                  )}
-                </div>
-                {s.homework.note && (
-                  <p className="mt-2 rounded-lg border border-rose-100 bg-white px-3 py-2 text-slate-700">
-                    {s.homework.note}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p className="mt-3 border-t border-rose-100 pt-3 text-xs text-slate-500">
-                Für dieses Fach wurde noch kein HÜ-Stand dokumentiert.
-              </p>
-            )}
-          </section>
-        </div>
+              {s.homework.tracked ? <div className="mt-3 border-t border-rose-100 pt-3 text-xs text-slate-600"><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full border px-2.5 py-1 font-bold ${s.homework.mode === 'document' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-rose-200 bg-white text-rose-700'}`}>{s.homework.mode === 'document' ? 'Nur dokumentiert' : 'In Bewertung aktiv'}</span>{s.homework.mode === 'grade' && s.homework.percent !== null && <span className="font-semibold text-slate-700">{s.homework.percent.toLocaleString('de-AT',{maximumFractionDigits:1})} % · rechnerisch Note {s.homework.calculatedGrade}</span>}</div>{s.homework.note && <p className="mt-2 rounded-lg border border-rose-100 bg-white px-3 py-2 text-slate-700">{s.homework.note}</p>}</div> : <p className="mt-3 border-t border-rose-100 pt-3 text-xs text-slate-500">Für dieses Fach wurde noch kein HÜ-Stand dokumentiert.</p>}
+            </section>
+          </div>
+        </details>
 
         {/* Leistungsdaten nach Kategorien (Requirement 4 & 5) */}
         <div className="space-y-4">
