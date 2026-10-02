@@ -79,6 +79,24 @@ export function correctParticipationStars(state: AppState, request: Participatio
   }
   return next;
 }
+export function undoLatestParticipationAward(state: AppState, request: ParticipationResetRequest & { sid: string }, timestamp = new Date().toISOString()): AppState {
+  if (state.activeClassId !== request.classId || !state.schueler.some(student => student.id === request.sid)) return state;
+  const history = state.mitarbeitLogs || [];
+  const candidates = resetLogs(state, request, timestamp).slice().reverse();
+  for (const log of candidates) {
+    if (!Number.isFinite(log.points) || log.points <= 0 || history.some(item => item.resets?.includes(log.id))) continue;
+    const reversed = history.reduce((total, item) => total + (item.reverses === log.id && item.points < 0 ? -item.points : 0), 0);
+    if (log.points - reversed <= 0) continue;
+    if (request.kind === 'subject' && !log.fach) continue;
+    return correctParticipationStars(state, {
+      ...request,
+      subject: request.kind === 'subject' ? log.fach : undefined,
+      amount: 1,
+    }, timestamp);
+  }
+  return state;
+}
+
 export function getParticipationResetCount(state: AppState, request: ParticipationResetRequest, timestamp = new Date().toISOString()): number {
   if (state.activeClassId !== request.classId) return 0;
   const totals = new Map<string, number>();

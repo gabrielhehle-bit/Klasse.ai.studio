@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { correctParticipationStars, commitParticipationAward, commitSocialAward, getSocialStars, undoParticipationAward, SOCIAL_BADGE_ID, resetParticipationStars, getParticipationResetCount } from './participationAward';
+import { correctParticipationStars, commitParticipationAward, commitSocialAward, getSocialStars, undoParticipationAward, undoLatestParticipationAward, SOCIAL_BADGE_ID, resetParticipationStars, getParticipationResetCount } from './participationAward';
 import { initialAppState, syncActiveClass, switchClassState, normalizeAppState } from './appState';
 import { accountSyncState, mergeAccountSyncState } from './accountSyncService';
 import { adoptAcknowledgedTeamRoom } from './teamTeachingProjection';
@@ -214,4 +214,26 @@ test('Korrekturen historischer Fachsterne erhalten deren ursprünglichen Speiche
   source.mitarbeitLogs = [{ id: 'legacy', sid, fach: 'Deutsch', points: 1, timestamp: '2027-04-12', kind: 'subject', gradebookApplied: true, gradebookSemester: '2' }];
   const undone = undoParticipationAward(source, { sid, classId: source.activeClassId!, id: 'legacy' });
   assert.deepEqual(undone.mitarbeit[sid].Deutsch, { '1': 4, '2': 0 });
+});
+
+
+test('Cockpit-Rückgängig findet nach Reload den letzten Fachpunkt und korrigiert die passende Notenmappe', () => {
+  const now = '2026-10-02T10:00:00Z';
+  let source = { ...state(), mitarbeit: { pupil: { Deutsch: { '1': 2 }, Mathematik: { '1': 4 } } } } as any;
+  source = commitParticipationAward(source, { classId: 'a', sid: 'pupil', subject: 'Deutsch', id: 'de' }, now);
+  source = commitParticipationAward(source, { classId: 'a', sid: 'pupil', subject: 'Mathematik', id: 'ma' }, now);
+  const corrected = undoLatestParticipationAward(source, { classId: 'a', sid: 'pupil', kind: 'subject', scope: 'today' }, now);
+  assert.equal(corrected.mitarbeit.pupil.Deutsch['1'], 3);
+  assert.equal(corrected.mitarbeit.pupil.Mathematik['1'], 4);
+  assert.equal(getParticipationResetCount(corrected, { classId: 'a', sid: 'pupil', kind: 'subject', scope: 'today' }, now), 1);
+});
+
+test('Sozial-Rückgängig nach Reload verändert keine fachliche Mitarbeit', () => {
+  const now = '2026-10-02T10:00:00Z';
+  let source = { ...state(), mitarbeit: { pupil: { Deutsch: { '1': 5 } } } } as any;
+  source = commitSocialAward(source, { classId: 'a', sid: 'pupil', id: 'social-a' }, now);
+  source = commitSocialAward(source, { classId: 'a', sid: 'pupil', id: 'social-b' }, now);
+  const corrected = undoLatestParticipationAward(source, { classId: 'a', sid: 'pupil', kind: 'social', scope: 'all' }, now);
+  assert.equal(getSocialStars(corrected, 'pupil'), 1);
+  assert.equal(corrected.mitarbeit.pupil.Deutsch['1'], 5);
 });

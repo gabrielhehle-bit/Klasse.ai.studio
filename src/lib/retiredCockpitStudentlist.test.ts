@@ -29,7 +29,7 @@ test('Existing student sidebar keeps pluspoint actions, names and classes; legac
   assert.match(sidebar, /<StudentListWidgetContent/);
   assert.match(sidebar, /getTodayPoints=\{sidebarParticipationKind === "social" \? sid => getSocialStars\(app, sid\) : getTodayPoints\}/);
   assert.match(sidebar, /addParticipation=\{sidebarParticipationKind === "social" \? addSocialParticipation : addParticipation\}/);
-  assert.match(sidebar, /removeParticipation=\{removeParticipation\}/);
+  assert.match(sidebar, /removeParticipation=\{sidebarParticipationKind === "social" \? removeSocialParticipation : removeParticipation\}/);
   assert.match(panel, /app\.activeClassId/);
   const known = source.slice(source.indexOf('const knownTypes = ['), source.indexOf('];', source.indexOf('const knownTypes = [')));
   assert.match(known, /"studentlist"/);
