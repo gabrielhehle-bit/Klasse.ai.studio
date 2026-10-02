@@ -41,13 +41,13 @@ test('weight settings focus selected subject but continue to validate and save a
 });
 
 test('points mode can show or hide the calculated percent consistently across gradebook and dossier', () => {
-  assert.match(gradeUtils, /export function getShowPercentForPoints/);
-  assert.match(weights, /Prozentwert zusätzlich anzeigen/);
-  assert.match(weights, /showPercentForPoints: event\.target\.checked/);
-  assert.match(gradebook, /const showPercentForPoints = getShowPercentForPoints\(app, activeFach\)/);
-  assert.match(gradebook, /showPercentForPoints && assessmentMode === 'points' && itemPct !== null/);
-  assert.match(dossierLeistungen, /const showPercentForPoints = getShowPercentForPoints\(app, s\.fach\)/);
+  assert.match(gradeUtils, /export function getShowPointsPercent/);
+  assert.match(weights, /Prozentwerte bei Punkten anzeigen/);
+  assert.match(weights, /showPointsPercent: event\.target\.checked/);
+  assert.match(gradebook, /const showPointsPercent = getShowPointsPercent\(app, activeFach\)/);
+  assert.match(gradebook, /showPointsPercent && assessmentMode === 'points' && itemPct !== null/);
+  assert.match(dossierLeistungen, /const showPointsPercent = getShowPointsPercent\(app, s\.fach\)/);
   assert.match(dossierLeistungen, /const maxScore = getMaxPoints\(app, fach, cat\.key, idx\)/);
-  assert.match(dossierLeistungen, /showPercentForPoints && mode === 'points' && item\.percent !== undefined/);
-  assert.match(dossierLeistungen, /getShowPercentForPoints\(app, s\.fach\).*Math\.round\(s\.latestItem\.percent\)/s);
+  assert.match(dossierLeistungen, /showPointsPercent && mode === 'points' && item\.percent !== undefined/);
+  assert.match(dossierLeistungen, /getShowPointsPercent\(app, s\.fach\).*Math\.round\(s\.latestItem\.percent\)/s);
 });
