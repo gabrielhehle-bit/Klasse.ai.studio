@@ -828,6 +828,8 @@ export type AssessmentMode = 'grades' | 'percent' | 'points';
 export interface SubjectNotenMeta {
   saCount?: number;
   assessmentMode?: AssessmentMode;
+  /** In Punkte-Modus Prozentwert zusätzlich anzeigen. Fehlender Wert bedeutet aus Kompatibilitätsgründen: anzeigen. */
+  showPointsPercent?: boolean;
   /** Subject-specific homework handling. Legacy global settings are only migration fallbacks. */
   hueMode?: 'document' | 'grade';
   hueDeduction?: number;

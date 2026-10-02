@@ -290,7 +290,7 @@ async function main() {
       'Array.from(document.querySelectorAll("select")).some(el=>Array.from(el.options).some(option=>option.textContent?.includes("Fach auswählen")))');
     if (subjectRequired) await setInputByLabel(client, 'Fach für diese Stunde', 'Mathematik');
     await clickButton(client, 'In Wochenplan übernehmen');
-    await waitFor(client, 'weekly plan after library action', 'document.body?.innerText.includes("WOCHENPLANUNG")', 30000);
+    await waitFor(client, 'weekly plan after library action', 'document.body?.innerText.toLowerCase().includes("wochenplanung")', 30000);
     await waitFor(client, 'linked material visible in weekly lesson', 'Array.from(document.querySelectorAll("[title]")).some(node=>String(node.getAttribute("title")||"").includes(' + q(title) + '))', 20000);
     console.log('✓ material card links to a visible weekly lesson without creating an invisible orphan slot');
     await saveScreenshot(client);
