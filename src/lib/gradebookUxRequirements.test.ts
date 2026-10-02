@@ -47,6 +47,7 @@ test('points mode can show or hide the calculated percent consistently across gr
   assert.match(gradebook, /const showPercentForPoints = getShowPercentForPoints\(app, activeFach\)/);
   assert.match(gradebook, /showPercentForPoints && assessmentMode === 'points' && itemPct !== null/);
   assert.match(dossierLeistungen, /const showPercentForPoints = getShowPercentForPoints\(app, s\.fach\)/);
+  assert.match(dossierLeistungen, /const maxScore = getMaxPoints\(app, fach, cat\.key, idx\)/);
   assert.match(dossierLeistungen, /showPercentForPoints && mode === 'points' && item\.percent !== undefined/);
   assert.match(dossierLeistungen, /getShowPercentForPoints\(app, s\.fach\).*Math\.round\(s\.latestItem\.percent\)/s);
 });
