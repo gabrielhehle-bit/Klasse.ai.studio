@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { FAECHER_ALLE, DEFAULT_GEWICHTUNG } from '../constants';
-import { getAssessmentMode, getHomeworkGradebookSettings, getNotenLabel, getShowPercentForPoints } from '../lib/GradeUtils';
+import { getAssessmentMode, getHomeworkGradebookSettings, getNotenLabel, getShowPointsPercent } from '../lib/GradeUtils';
 import { Save, RotateCcw, AlertTriangle, Zap, BookOpen, Check, Info, FileText, CheckCircle2 } from 'lucide-react';
 
 export default function WeightSettings({ onBack, initialFach }: { onBack: () => void; initialFach?: string }) {
@@ -403,21 +403,21 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
                   <label className="flex cursor-pointer items-start gap-3">
                     <input
                       type="checkbox"
-                      checked={getShowPercentForPoints(app, fach)}
+                      checked={getShowPointsPercent(app, fach)}
                       onChange={(event) => setApp(prev => ({
                         ...prev,
                         notenMeta: {
                           ...(prev.notenMeta || {}),
                           [fach]: {
                             ...(prev.notenMeta?.[fach] || {}),
-                            showPercentForPoints: event.target.checked,
+                            showPointsPercent: event.target.checked,
                           },
                         },
                       }))}
                       className="mt-0.5 h-4 w-4 rounded border-amber-300 text-amber-700 focus:ring-amber-600"
                     />
                     <span>
-                      <span className="block text-xs font-black text-amber-950">Prozentwert zusätzlich anzeigen</span>
+                      <span className="block text-xs font-black text-amber-950">Prozentwerte bei Punkten anzeigen</span>
                       <span className="mt-0.5 block text-[0.6875rem] leading-relaxed text-amber-800">
                         Zeigt z. B. „24 / 30 Pkt.“ zusätzlich als „80 %“ in Notenmappe und Schülerdossier. Die Prozentberechnung bleibt auch bei ausgeblendeter Anzeige aktiv.
                       </span>
