@@ -5,7 +5,7 @@ import ParticipationSettingsPanel from './cockpit/ParticipationSettingsPanel';
 import ParticipationResetPanel from './cockpit/ParticipationResetPanel';
 import ParticipationSubjectPicker from './cockpit/ParticipationSubjectPicker';
 import StudentBadgePicker from './cockpit/StudentBadgePicker';
-import { commitParticipationAward, commitSocialAward, getSocialStars, undoParticipationAward } from '../lib/participationAward';
+import { commitParticipationAward, commitSocialAward, getSocialStars, undoLatestParticipationAward, undoParticipationAward } from '../lib/participationAward';
 import { MASCOT_RITUAL_EVENT } from '../lib/classMascot';
 import { shouldApplyTafelCommand } from '../lib/tafelCommands';
 import { getTodayIsoDate } from '../lib/kidAttendanceAlgorithm';
@@ -7104,45 +7104,37 @@ ${content}
   };
 
   const removeParticipation = (sid: string) => {
+    if (!app.activeClassId) return;
     const last = lastParticipationAward.current;
-    if (last?.sid === sid && last.classId === app.activeClassId) {
+    if (last?.sid === sid && last.classId === app.activeClassId && last.subject) {
       setApp(prev => undoParticipationAward(prev, last));
       lastParticipationAward.current = null;
       return;
     }
-    const subject = last?.sid === sid && last.classId === app.activeClassId ? last.subject : getActiveSubject();
-    setApp((prev) => {
-      // Find today's accumulated points for this student
-      let todayPoints = 0;
-      const todayStr = getTodayIsoDate();
-      if (prev.mitarbeitLogs && prev.mitarbeitLogs.length > 0) {
-        prev.mitarbeitLogs.forEach((log: any) => {
-          const d = new Date(log.timestamp);
-          const logDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-          if (log.sid === sid && log.fach === subject && logDateStr === todayStr) {
-            todayPoints += log.points;
-          }
-        });
-      }
+    const classId = app.activeClassId;
+    setApp(prev => undoLatestParticipationAward(prev, {
+      classId,
+      sid,
+      kind: 'subject',
+      scope: 'today',
+    }));
+  };
 
-      if (todayPoints <= 0) return prev;
-
-      const newLogs = [
-        ...(prev.mitarbeitLogs || []),
-        {
-          id: Date.now().toString() + Math.random().toString(),
-          sid,
-          points: -1,
-          timestamp: new Date().toISOString(),
-          fach: subject,
-        },
-      ];
-
-      return {
-        ...prev,
-        mitarbeitLogs: newLogs,
-      };
-    });
+  const removeSocialParticipation = (sid: string) => {
+    if (!app.activeClassId) return;
+    const last = lastParticipationAward.current;
+    if (last?.sid === sid && last.classId === app.activeClassId && !last.subject) {
+      setApp(prev => undoParticipationAward(prev, last));
+      lastParticipationAward.current = null;
+      return;
+    }
+    const classId = app.activeClassId;
+    setApp(prev => undoLatestParticipationAward(prev, {
+      classId,
+      sid,
+      kind: 'social',
+      scope: 'all',
+    }));
   };
 
   const clearAllParticipation = () => {
@@ -12656,7 +12648,7 @@ ${content}
                           app={app}
                           getTodayPoints={sidebarParticipationKind === "social" ? sid => getSocialStars(app, sid) : getTodayPoints}
                           addParticipation={sidebarParticipationKind === "social" ? addSocialParticipation : addParticipation}
-                          removeParticipation={removeParticipation}
+                          removeParticipation={sidebarParticipationKind === "social" ? removeSocialParticipation : removeParticipation}
                           onBehaviorStageChange={setStudentBehavior}
                           sidebar
                           sidebarCompact={sidebarMode === "mini"}
