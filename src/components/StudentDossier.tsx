@@ -268,6 +268,10 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
     setPendingQuickEntry(null);
     const targetArea = MAIN_AREAS.find(area => area.id === areaId);
     if (!targetArea) return;
+    if (areaId === 'berichte_materialien' && activeTab !== 'mehr') {
+      setActiveTab('mehr');
+      return;
+    }
     if (targetArea.tabs.some(tab => tab.id === activeTab)) return;
     setActiveTab(targetArea.defaultTab);
   };
@@ -299,8 +303,6 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
   const gradeSummary = getStudentGradeSummary(app, student.id, activeFaecher, sem);
   const summaryGrade = gradeSummary.average;
   const behaviorSummary = getStudentBehaviorSummary(app, student.id);
-  const behaviorLogsCount = behaviorSummary.logs.length;
-  const notesCount = getStudentNotes(app, student.id).length;
   const attendanceSummary = getStudentAttendanceSummary(app, student.id);
   const financeSummary = getStudentFinanceSummary(app, student.id);
   const totalPaid = financeSummary.paid;
