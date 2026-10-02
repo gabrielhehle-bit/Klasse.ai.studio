@@ -31,6 +31,18 @@ test('Dossierübersicht: Mitarbeit und Hausübungen sind vor der Vertiefung dire
   assert.ok(overview.indexOf('Mitarbeit & Hausübungen') < overview.indexOf('Verhalten, Befinden & Anwesenheit'));
 });
 
+test('Dossierübersicht: Verläufe sind kompakt, einheitlich und ohne doppelte Großstatus aufgebaut', () => {
+  assert.match(overview, />Verläufe</);
+  assert.match(overview, /data-dossier-trend-card="behavior"/);
+  assert.match(overview, /data-dossier-trend-card="mood"/);
+  assert.match(overview, /data-dossier-trend-card="attendance"/);
+  assert.match(overview, /['recent','6 Wochen']/);
+  assert.match(overview, /['year','Schuljahr']/);
+  assert.match(overview, /Details erscheinen beim Darüberfahren/);
+  assert.match(overview, /Letzter Eintrag:/);
+  assert.doesNotMatch(overview, /Letzte 6 Wochen|Gesamtes Schuljahr/);
+});
+
 test('Dossierübersicht: Eintrag öffnet bestehende Erfassungsformulare für das gewählte Kind', () => {
   assert.match(overview, /Eintrag/);
   assert.match(dossier, /onQuickEntry=\{openOverviewQuickEntry\}/);
