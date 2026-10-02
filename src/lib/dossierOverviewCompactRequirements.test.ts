@@ -16,6 +16,17 @@ test('Dossierübersicht: Diagramme ersetzen Förderkarten und gemischte Gesamtno
   assert.doesNotMatch(overview, /Förderbedarf|Kein Förderbedarf|Präsenz unauffällig/);
 });
 
+test('Dossierübersicht: Mitarbeit und Hausübungen sind vor der Vertiefung direkt sichtbar', () => {
+  assert.match(overview, /Mitarbeit & Hausübungen/);
+  assert.match(overview, /getStudentSubjectParticipationSummary/);
+  assert.match(overview, /getStudentHomeworkSummary/);
+  assert.match(overview, /Fachsterne/);
+  assert.match(overview, /fehlende HÜ/);
+  assert.match(overview, /Mitarbeit noch nicht erfasst/);
+  assert.match(overview, /HÜ noch nicht erfasst/);
+  assert.ok(overview.indexOf('Mitarbeit & Hausübungen') < overview.indexOf('Verhalten, Befinden & Anwesenheit'));
+});
+
 test('Dossierübersicht: Eintrag öffnet bestehende Erfassungsformulare für das gewählte Kind', () => {
   assert.match(overview, /Eintrag/);
   assert.match(dossier, /onQuickEntry=\{openOverviewQuickEntry\}/);
