@@ -12,6 +12,7 @@ import { FAECHER_ALLE } from '../../constants';
 import DossierAssessmentChart from './DossierAssessmentChart';
 import { getDossierAssessmentChart } from '../../lib/dossierAssessmentChart';
 import { getStudentSubjectParticipationSummary, type SubjectParticipationSummary } from '../../lib/studentParticipation';
+import { getStudentHomeworkSummary, type StudentHomeworkSummary } from '../../lib/studentHomework';
 
 interface DossierLeistungenProps {
   initialSubject?: string;
@@ -53,6 +54,7 @@ export interface SubjectAssessmentSummary {
   hasCriticalGrade: boolean;
   weightsSummary: string;
   participation: SubjectParticipationSummary;
+  homework: StudentHomeworkSummary;
 }
 
 export default function DossierLeistungen({
@@ -226,6 +228,7 @@ export default function DossierLeistungen({
       const nd = (app.noten?.[student.id]?.[fach]?.[semester] || {}) as any;
       const endnote = nd.endnote ?? null;
       const participation = getStudentSubjectParticipationSummary(app, student.id, fach, semester);
+      const homework = getStudentHomeworkSummary(app, student.id, fach, semester);
 
       let currentDisplay = 'Keine Daten';
       let hasCriticalGrade = false;
@@ -262,7 +265,8 @@ export default function DossierLeistungen({
         trend,
         hasCriticalGrade,
         weightsSummary,
-        participation
+        participation,
+        homework
       };
     });
   }, [faecher, app, student.id, semester]);
@@ -583,45 +587,92 @@ export default function DossierLeistungen({
 
         <DossierAssessmentChart items={s.items} mode={s.mode} />
 
-        <section className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4" aria-label={`Mitarbeit in ${s.fach}`}>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h4 className="flex items-center gap-2 text-sm font-black text-slate-900">
-                <Star size={16} className="text-amber-600" />
-                Mitarbeit
-              </h4>
-              <p className="mt-1 text-xs text-slate-600">
-                Derselbe Fachstand, der auch in der Notenmappe geführt wird.
-              </p>
-            </div>
-            <div className="rounded-xl border border-amber-200 bg-white px-4 py-2 text-right">
-              <div className="text-[0.625rem] font-bold uppercase tracking-wider text-slate-400">Fachsterne</div>
-              <div className="text-lg font-black text-slate-900">{s.participation.total}</div>
-            </div>
-          </div>
-
-          {s.participation.recent.length > 0 ? (
-            <div className="mt-3 border-t border-amber-100 pt-3">
-              <p className="mb-2 text-[0.625rem] font-bold uppercase tracking-wider text-slate-500">Letzte Änderungen</p>
-              <div className="flex flex-wrap gap-2">
-                {s.participation.recent.map(entry => (
-                  <span key={entry.id} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-100 bg-white px-2.5 py-1.5 text-xs text-slate-700">
-                    <span className={entry.points >= 0 ? 'font-black text-emerald-700' : 'font-black text-rose-700'}>
-                      {entry.points > 0 ? '+' : ''}{entry.points}
-                    </span>
-                    <span>
-                      {new Date(entry.timestamp).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' })}
-                    </span>
-                  </span>
-                ))}
+        <div className="grid gap-4 lg:grid-cols-2" aria-label="Fachalltag">
+          <section className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4" aria-label={`Mitarbeit in ${s.fach}`}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h4 className="flex items-center gap-2 text-sm font-black text-slate-900">
+                  <Star size={16} className="text-amber-600" />
+                  Mitarbeit
+                </h4>
+                <p className="mt-1 text-xs text-slate-600">
+                  Derselbe Fachstand, der auch in der Notenmappe geführt wird.
+                </p>
+              </div>
+              <div className="rounded-xl border border-amber-200 bg-white px-4 py-2 text-right">
+                <div className="text-[0.625rem] font-bold uppercase tracking-wider text-slate-400">Fachsterne</div>
+                <div className="text-lg font-black text-slate-900">{s.participation.total}</div>
               </div>
             </div>
-          ) : (
-            <p className="mt-3 border-t border-amber-100 pt-3 text-xs text-slate-500">
-              Noch keine protokollierten Fachsterne.
-            </p>
-          )}
-        </section>
+
+            {s.participation.recent.length > 0 ? (
+              <div className="mt-3 border-t border-amber-100 pt-3">
+                <p className="mb-2 text-[0.625rem] font-bold uppercase tracking-wider text-slate-500">Letzte Änderungen</p>
+                <div className="flex flex-wrap gap-2">
+                  {s.participation.recent.map(entry => (
+                    <span key={entry.id} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-100 bg-white px-2.5 py-1.5 text-xs text-slate-700">
+                      <span className={entry.points >= 0 ? 'font-black text-emerald-700' : 'font-black text-rose-700'}>
+                        {entry.points > 0 ? '+' : ''}{entry.points}
+                      </span>
+                      <span>
+                        {new Date(entry.timestamp).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' })}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="mt-3 border-t border-amber-100 pt-3 text-xs text-slate-500">
+                Noch keine protokollierten Fachsterne.
+              </p>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-rose-200 bg-rose-50/40 p-4" aria-label={`Hausübungen in ${s.fach}`}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h4 className="flex items-center gap-2 text-sm font-black text-slate-900">
+                  <CheckCircle2 size={16} className="text-rose-600" />
+                  Hausübungen
+                </h4>
+                <p className="mt-1 text-xs text-slate-600">
+                  Derselbe HÜ-Stand und dieselben Regeln wie in der Notenmappe.
+                </p>
+              </div>
+              <div className="rounded-xl border border-rose-200 bg-white px-4 py-2 text-right">
+                <div className="text-[0.625rem] font-bold uppercase tracking-wider text-slate-400">Fehlende HÜ</div>
+                <div className="text-lg font-black text-slate-900">
+                  {s.homework.tracked ? s.homework.missing : '–'}
+                </div>
+                {!s.homework.tracked && <div className="text-[0.625rem] font-semibold text-slate-400">nicht erfasst</div>}
+              </div>
+            </div>
+
+            {s.homework.tracked ? (
+              <div className="mt-3 border-t border-rose-100 pt-3 text-xs text-slate-600">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full border px-2.5 py-1 font-bold ${s.homework.mode === 'document' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-rose-200 bg-white text-rose-700'}`}>
+                    {s.homework.mode === 'document' ? 'Nur dokumentiert' : 'In Bewertung aktiv'}
+                  </span>
+                  {s.homework.mode === 'grade' && s.homework.percent !== null && (
+                    <span className="font-semibold text-slate-700">
+                      {s.homework.percent.toLocaleString('de-AT', { maximumFractionDigits: 1 })} % · rechnerisch Note {s.homework.calculatedGrade}
+                    </span>
+                  )}
+                </div>
+                {s.homework.note && (
+                  <p className="mt-2 rounded-lg border border-rose-100 bg-white px-3 py-2 text-slate-700">
+                    {s.homework.note}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="mt-3 border-t border-rose-100 pt-3 text-xs text-slate-500">
+                Für dieses Fach wurde noch kein HÜ-Stand dokumentiert.
+              </p>
+            )}
+          </section>
+        </div>
 
         {/* Leistungsdaten nach Kategorien (Requirement 4 & 5) */}
         <div className="space-y-4">
@@ -961,8 +1012,8 @@ export default function DossierLeistungen({
                   )}
                 </div>
 
-                {/* Main Metrics: Aktuelle Bewertung, Nachweise & Mitarbeit */}
-                <div className="grid grid-cols-3 gap-3 rounded-xl bg-slate-50/70 border border-slate-100 p-3 my-3">
+                {/* Main Metrics: Aktuelle Bewertung, Nachweise, Mitarbeit & Hausübungen */}
+                <div className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50/70 border border-slate-100 p-3 my-3 md:grid-cols-4">
                   <div>
                     <div className="text-[0.625rem] font-bold uppercase tracking-wider text-slate-400">Aktuelle Bewertung</div>
                     <div className="text-lg font-black text-slate-900 mt-0.5">
@@ -984,6 +1035,17 @@ export default function DossierLeistungen({
                     </div>
                     <div className="text-[0.625rem] font-semibold text-slate-500">
                       {s.participation.total === 1 ? 'Fachstern' : 'Fachsterne'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1 text-[0.625rem] font-bold uppercase tracking-wider text-slate-400">
+                      <CheckCircle2 size={11} className="text-rose-500" /> Hausübungen
+                    </div>
+                    <div className="mt-0.5 text-lg font-black text-slate-900">
+                      {s.homework.tracked ? s.homework.missing : '–'}
+                    </div>
+                    <div className="text-[0.625rem] font-semibold text-slate-500">
+                      {s.homework.tracked ? (s.homework.missing === 1 ? 'fehlende HÜ' : 'fehlende HÜ') : 'nicht erfasst'}
                     </div>
                   </div>
                 </div>
