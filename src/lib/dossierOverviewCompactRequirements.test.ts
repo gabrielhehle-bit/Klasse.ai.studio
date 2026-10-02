@@ -17,7 +17,11 @@ test('Dossierübersicht: Diagramme ersetzen Förderkarten und gemischte Gesamtno
 });
 
 test('Dossierübersicht: Mitarbeit und Hausübungen sind vor der Vertiefung direkt sichtbar', () => {
+  assert.match(overview, /Kernüberblick/);
   assert.match(overview, /Mitarbeit & Hausübungen/);
+  assert.match(overview, /Fachsterne aus dem Unterrichtsmodus/);
+  assert.match(overview, /Fächer mit HÜ-Daten/);
+  assert.match(overview, /todayHasDetailedAbsence/);
   assert.match(overview, /getStudentSubjectParticipationSummary/);
   assert.match(overview, /getStudentHomeworkSummary/);
   assert.match(overview, /Fachsterne/);
