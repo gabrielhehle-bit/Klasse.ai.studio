@@ -91,7 +91,9 @@ async function createClient() {
     if (!event.frame?.parentId) client.navigationCount += 1;
   });
   client.on('Page.javascriptDialogOpening', event => {
-    if (event.type === 'beforeunload') {
+    if (event.type === 'alert' && event.message === 'Gewichtungen erfolgreich gespeichert!') {
+      void client.send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {});
+    } else if (event.type === 'beforeunload') {
       // Keep the page open while its encrypted write finishes, then retry reload.
       void client.send('Page.handleJavaScriptDialog', { accept: false }).catch(() => {});
     }
@@ -769,6 +771,38 @@ async function main() {
         await waitFor(client, 'embedded grade overview', `Array.from(document.querySelectorAll('button')).some(b=>b.textContent.trim()==='Zur Notenmappe')`);
         await clickButton(client,'Zur Notenmappe');
         await waitFor(client, 'back to gradebook subject', `Boolean(document.querySelector('#gradebook-active-subject'))`);
+        await evaluate(client, `(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+        await clickButton(client, 'Gewichtung', true);
+        await clickButton(client, 'Punkte');
+        await waitFor(client, 'point percentage option available', `Boolean(Array.from(document.querySelectorAll('label')).find(l=>l.textContent.includes('Prozentwerte bei Punkten anzeigen'))?.querySelector('input[type=checkbox]'))`);
+        await clickButton(client, 'Speichern', true);
+        for(const [typ,points,max] of [['sa','18','24'],['lzk','7','20']]) {
+          await clickSelector(client, `input[data-col="${typ}-0"]`);
+          await evaluate(client, `(() => {const input=document.querySelector('input[data-col="${typ}-0"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,${q(points)});input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));input.blur();})()`);
+          await sleep(650);
+          const headerSelector=typ==='sa'?'button[aria-label*=\"Schularbeiten 1\"]':'button[aria-label*=\"Lernzielkontrollen 1\"]';
+          await clickSelector(client, headerSelector);
+          await setInputByLabel(client, 'Maximal erreichbare Punkte', max);
+          await clickSelector(client, '#btn-save-assessment-modal');
+        }
+        const percentageFor=typ=>`document.querySelector('input[data-col="${typ}-0"]')?.closest('td')?.querySelector('[data-points-percent]')?.textContent.trim()`;
+        await waitFor(client, 'SA and LZK calculate against their own maximum', percentageFor('sa')+` === '75 %' && `+percentageFor('lzk')+` === '35 %'`);
+        await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-points-percent.png'));
+        await clickButton(client, 'Gewichtung', true);
+        await evaluate(client, `Array.from(document.querySelectorAll('label')).find(l=>l.textContent.includes('Prozentwerte bei Punkten anzeigen')).querySelector('input').click()`);
+        await clickButton(client, 'Speichern', true);
+        await waitFor(client, 'percentage labels can be hidden', `!document.querySelector('[data-points-percent]')`);
+        if(await evaluate(client, `document.querySelector('input[data-col="sa-0"]').value`) !== '18') throw new Error('Display setting changed stored points.');
+        await reloadAndUnlock(client);
+        await openPage(client,'Notenmappe');
+        await waitFor(client, 'gradebook after reload', `Boolean(document.querySelector('#gradebook-active-subject'))`);
+        await evaluate(client, `(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+        await waitFor(client, 'hidden percentage preference persisted', `document.querySelector('input[data-col="sa-0"]')?.value === '18' && !document.querySelector('[data-points-percent]')`);
+        await clickButton(client, 'Gewichtung', true);
+        await evaluate(client, `Array.from(document.querySelectorAll('label')).find(l=>l.textContent.includes('Prozentwerte bei Punkten anzeigen')).querySelector('input').click()`);
+        await clickButton(client, 'Speichern', true);
+        await waitFor(client, 'percentages return without reentering points', percentageFor('sa')+` === '75 %' && `+percentageFor('lzk')+` === '35 %'`);
+        console.log('✓ Points: SA/LZK percentages, different maxima, hide/show and encrypted reload preserve points.');
       }
       console.log('✓ '+page+': responsive controls and mobile tool access at 390/820/1360px.');
     }
