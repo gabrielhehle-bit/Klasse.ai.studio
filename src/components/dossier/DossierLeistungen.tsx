@@ -13,6 +13,7 @@ import DossierAssessmentChart from './DossierAssessmentChart';
 import { getDossierAssessmentChart } from '../../lib/dossierAssessmentChart';
 import { getStudentSubjectParticipationSummary, type SubjectParticipationSummary } from '../../lib/studentParticipation';
 import { getStudentHomeworkSummary, type StudentHomeworkSummary } from '../../lib/studentHomework';
+import { writeDossierAssessment } from '../../lib/dossierAssessmentWrite';
 
 interface DossierLeistungenProps {
   initialSubject?: string;
@@ -129,7 +130,7 @@ export default function DossierLeistungen({
             score,
             maxScore: maxP,
             percent: pct,
-            note: entry.note || entry.kommentar || '',
+            note: entry.note || entry.kommentar || meta.colNotes?.[cat.key]?.[idx] || '',
             mode,
             colIndex: idx
           });
@@ -156,7 +157,7 @@ export default function DossierLeistungen({
             score,
             maxScore: mode === 'points' ? maxScore : undefined,
             percent: pct,
-            note: '',
+            note: meta.colNotes?.[cat.key]?.[idx] || '',
             mode,
             colIndex: idx
           });
@@ -319,77 +320,20 @@ export default function DossierLeistungen({
     if (!editingItem) return;
 
     const { fach, category, colIndex, label, date, grade, score, maxScore, percent, note } = editingItem;
-
-    setApp(prev => {
-      const noten = { ...(prev.noten || {}) };
-      if (!noten[student.id]) noten[student.id] = {};
-      if (!noten[student.id][fach]) noten[student.id][fach] = {};
-      if (!noten[student.id][fach][semester]) (noten[student.id][fach] as any)[semester] = { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
-
-      const prevSubj = (noten[student.id]?.[fach]?.[semester] || {}) as any;
-      const subjData: any = {
-        sa: [],
-        lzk: [],
-        wp: [],
-        aufgaben: [],
-        hue: 0,
-        hueAnm: [],
-        ...prevSubj
-      };
-      const list = Array.isArray(subjData[category]) ? [...subjData[category]] : [];
-
-      const mode = prev.notenMeta?.[fach]?.assessmentMode || 'grades';
-      
-      let entryToSave: any;
-      if (mode === 'grades') {
-        entryToSave = {
-          grade: grade.trim(),
-          label: label.trim(),
-          date: date,
-          note: note.trim()
-        };
-      } else if (mode === 'points') {
-        const s = parseFloat(score);
-        const ms = parseFloat(maxScore) || 100;
-        entryToSave = {
-          score: !isNaN(s) ? s : 0,
-          maxScore: ms,
-          percent: ms > 0 && !isNaN(s) ? (s / ms) * 100 : 0,
-          label: label.trim(),
-          date: date,
-          note: note.trim()
-        };
-      } else {
-        const p = parseFloat(percent);
-        entryToSave = {
-          percent: !isNaN(p) ? p : 0,
-          label: label.trim(),
-          date: date,
-          note: note.trim()
-        };
-      }
-
-      list[colIndex] = entryToSave;
-      subjData[category] = list;
-      noten[student.id][fach][semester] = subjData;
-
-      // Update meta column labels if provided
-      const notenMeta = { ...(prev.notenMeta || {}) };
-      if (!notenMeta[fach]) notenMeta[fach] = {};
-      if (!notenMeta[fach].colLabels) notenMeta[fach].colLabels = {};
-      if (!notenMeta[fach].colLabels[category]) notenMeta[fach].colLabels[category] = [];
-      notenMeta[fach].colLabels[category][colIndex] = label;
-
-      if (!notenMeta[fach].colDates) notenMeta[fach].colDates = {};
-      if (!notenMeta[fach].colDates[category]) notenMeta[fach].colDates[category] = [];
-      notenMeta[fach].colDates[category][colIndex] = date;
-
-      return {
-        ...prev,
-        noten,
-        notenMeta
-      };
-    });
+    setApp(prev => writeDossierAssessment(prev, {
+      studentId: student.id,
+      fach,
+      semester: semester as '1' | '2',
+      category,
+      colIndex,
+      label,
+      date,
+      grade,
+      score,
+      maxScore,
+      percent,
+      note,
+    }));
 
     setIsModalOpen(false);
     setEditingItem(null);
