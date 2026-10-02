@@ -75,6 +75,8 @@ export default function DossierLeistungen({
     fach: string;
     category: 'sa' | 'lzk' | 'wp' | 'aufgaben';
     colIndex: number;
+    originalCategory?: 'sa' | 'lzk' | 'wp' | 'aufgaben';
+    originalColIndex?: number;
     label: string;
     date: string;
     grade: string;
@@ -319,13 +321,15 @@ export default function DossierLeistungen({
   const handleSaveAssessment = () => {
     if (!editingItem) return;
 
-    const { fach, category, colIndex, label, date, grade, score, maxScore, percent, note } = editingItem;
+    const { fach, category, colIndex, originalCategory, originalColIndex, label, date, grade, score, maxScore, percent, note } = editingItem;
     setApp(prev => writeDossierAssessment(prev, {
       studentId: student.id,
       fach,
       semester: semester as '1' | '2',
       category,
       colIndex,
+      originalCategory,
+      originalColIndex,
       label,
       date,
       grade,
@@ -396,6 +400,8 @@ export default function DossierLeistungen({
       fach,
       category: item.category as any,
       colIndex: item.colIndex ?? 0,
+      originalCategory: item.category as any,
+      originalColIndex: item.colIndex ?? 0,
       label: item.label,
       date: item.date || new Date().toISOString().split('T')[0],
       grade: String(item.rawGrade ?? '2'),
