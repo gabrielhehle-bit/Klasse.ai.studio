@@ -5,6 +5,7 @@ import { FileText, Activity, Users, Plus, Trash2, Search, CheckCircle2, AlertCir
 import { formatGermanDate } from '../../lib/diagnosticCoreUtils';
 import { logObservation } from '../../lib/utils';
 import { toLocalDateKey } from '../../lib/localDate';
+import { getStudentNotes } from '../../lib/studentMetrics';
 import DossierKELReflexion from './DossierKELReflexion';
 import DossierObservationCharts from './DossierObservationCharts';
 
@@ -16,6 +17,14 @@ interface DossierBeobachtungenVerlaufProps {
 }
 
 type SubSection = 'beobachtungen' | 'verhalten' | 'anwesenheit' | 'kel';
+const noteDateKey=(note:any)=>{
+  if (typeof note?.datum==='string' && /^\d{4}-\d{2}-\d{2}/.test(note.datum)) return note.datum.slice(0,10);
+  if (note?.timestamp) {
+    const date=new Date(Number(note.timestamp));
+    if (!Number.isNaN(date.getTime())) return toLocalDateKey(date);
+  }
+  return toLocalDateKey();
+};
 
 export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufProps> = ({
   student,
@@ -29,11 +38,7 @@ export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufPr
   // ----------------------------------------------------
   // 1. Pädagogische Beobachtungen (Notes / Journal)
   // ----------------------------------------------------
-  const studentNotes = useMemo(() => {
-    return (app.notes || [])
-      .filter((n: any) => n.schuelerId === student.id)
-      .sort((a: any, b: any) => (b.datum || '').localeCompare(a.datum || ''));
-  }, [app.notes, student.id]);
+  const studentNotes = useMemo(() => getStudentNotes(app, student.id), [app.notes, app.journal, app.notizen, student.id]);
 
   const [noteCategoryFilter, setNoteCategoryFilter] = useState<string>('alle');
   const [noteSearch, setNoteSearch] = useState<string>('');
@@ -62,7 +67,23 @@ export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufPr
     if (!newNoteText.trim()) return;
 
     if (editingNoteId) {
-      setApp(prev => ({...prev, notes: (prev.notes || []).map(n => n.id === editingNoteId ? {...n, inhalt: newNoteText.trim(), kategorie: newNoteCategory, datum: newNoteDate, fach: newNoteSubject.trim(), art: newNoteType} : n), journal: (prev.journal || []).map(n => n.id === editingNoteId ? {...n, inhalt: newNoteText.trim(), kategorie: newNoteCategory, datum: newNoteDate, fach: newNoteSubject.trim(), art: newNoteType} : n)}));
+      setApp(prev => {
+        const patch = (n:any) => n.id === editingNoteId ? {
+          ...n,
+          inhalt: newNoteText.trim(),
+          kategorie: newNoteCategory,
+          datum: newNoteDate,
+          ...(typeof n.timestamp === 'number' ? { timestamp: new Date(newNoteDate+'T12:00:00').getTime() } : {}),
+          fach: newNoteSubject.trim(),
+          art: newNoteType
+        } : n;
+        return {
+          ...prev,
+          notes: (prev.notes || []).map(patch),
+          journal: (prev.journal || []).map(patch),
+          notizen: (prev.notizen || []).map(patch)
+        };
+      });
     } else logObservation(
       setApp,
       student.id,
@@ -84,7 +105,8 @@ export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufPr
       setApp(prev => ({
         ...prev,
         notes: (prev.notes || []).filter((n: any) => n.id !== noteId),
-        journal: (prev.journal || []).filter((n: any) => n.id !== noteId)
+        journal: (prev.journal || []).filter((n: any) => n.id !== noteId),
+        notizen: (prev.notizen || []).filter((n: any) => n.id !== noteId)
       }));
     }
   };
@@ -333,7 +355,7 @@ export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufPr
                           <span>Weiter beobachten</span>
                         </span>
                       )}
-                      <button type="button" aria-label="Beobachtung bearbeiten" onClick={() => { setEditingNoteId(note.id); setNewNoteText(note.inhalt || ''); setNewNoteCategory(note.kategorie || 'Notiz'); setNewNoteDate(note.datum || toLocalDateKey()); setNewNoteSubject(note.fach || ''); setNewNoteType(note.art || 'neutral'); setIsAddingNote(true); }} className="min-h-10 min-w-10 rounded-lg text-slate-500 hover:bg-slate-100"><Pencil size={14} /></button>
+                      <button type="button" aria-label="Beobachtung bearbeiten" onClick={() => { setEditingNoteId(note.id); setNewNoteText(note.inhalt || note.text || note.titel || ''); setNewNoteCategory((note.kategorie || 'Notiz') as AppNote['kategorie']); setNewNoteDate(noteDateKey(note)); setNewNoteSubject(note.fach || ''); setNewNoteType(note.art || 'neutral'); setIsAddingNote(true); }} className="min-h-10 min-w-10 rounded-lg text-slate-500 hover:bg-slate-100"><Pencil size={14} /></button>
                       <button
                         type="button"
                         onClick={() => handleDeleteNote(note.id)}

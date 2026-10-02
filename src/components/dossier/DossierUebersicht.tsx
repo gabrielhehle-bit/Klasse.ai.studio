@@ -14,12 +14,34 @@ import { getStudentHomeworkSummary } from '../../lib/studentHomework';
 
 interface Props { student: Student; semester: '1'|'2'; onTabChange: (tab:any)=>void; onSubjectSelect?: (fach:string)=>void; onQuickEntry?: (type:'note'|'strength'|'parent'|'goal')=>void; }
 const dateLabel=(date?:string)=>date ? new Date(date+'T12:00:00').toLocaleDateString('de-AT',{day:'2-digit',month:'2-digit'}) : '';
+const noteDateLabel=(note:any)=>{
+  const raw=note?.datum ?? note?.date ?? note?.timestamp;
+  if (raw===null || raw===undefined || raw==='') return 'Ohne Datum';
+  if (typeof raw==='number') return new Date(raw).toLocaleDateString('de-AT',{day:'2-digit',month:'2-digit'});
+  const text=String(raw);
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) return dateLabel(text.slice(0,10));
+  if (/^\d{10,}$/.test(text)) return new Date(Number(text)).toLocaleDateString('de-AT',{day:'2-digit',month:'2-digit'});
+  const parsed=new Date(text);
+  return Number.isNaN(parsed.getTime())?'Ohne Datum':parsed.toLocaleDateString('de-AT',{day:'2-digit',month:'2-digit'});
+};
+const noteDisplayMeta=(note:any)=>{
+  const category=String(note?.kategorie||'Notiz').trim();
+  const subject=String(note?.fach||'').trim();
+  const art=String(note?.art||'neutral');
+  if (/eltern/i.test(category)) return {label:'Elternkontakt', badge:'bg-sky-50 text-sky-800 border-sky-100'};
+  if (subject) return {label:'Fachnotiz', badge:'bg-indigo-50 text-indigo-800 border-indigo-100'};
+  if (/journal|reflexion/i.test(category)) return {label:'Journal', badge:'bg-violet-50 text-violet-800 border-violet-100'};
+  if (art==='positiv') return {label:'Positive Beobachtung', badge:'bg-emerald-50 text-emerald-800 border-emerald-100'};
+  if (art==='beobachten') return {label:'Beobachten', badge:'bg-amber-50 text-amber-800 border-amber-100'};
+  return {label:'Beobachtung', badge:'bg-slate-50 text-slate-700 border-slate-200'};
+};
 export default function DossierUebersicht({student,semester,onTabChange,onSubjectSelect,onQuickEntry}:Props) {
   const {app}=useApp();
   const [period,setPeriod]=useState<'recent'|'year'>('recent');
   const stats=useMemo(()=>getDossierOverviewStats(app,student.id,period),[app,student.id,period]);
   const subjects=faecherFuerKlasse(app).filter(f=>!app.faecher?.length||app.faecher.includes(f));
-  const notes=getStudentNotes(app,student.id).slice(0,5);
+  const allNotes=getStudentNotes(app,student.id);
+  const notes=allNotes.slice(0,5);
   const classroomRows=subjects.map(fach=>({
     fach,
     participation:getStudentSubjectParticipationSummary(app,student.id,fach,semester),
@@ -118,6 +140,41 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
       </div>
       <div className="flex justify-end"><button type="button" onClick={()=>onTabChange('beobachtungen_verlauf')} className="text-xs font-semibold text-indigo-700 hover:underline">Alle Beobachtungen & Verlaufsdaten öffnen <ArrowRight size={13} className="inline"/></button></div>
     </section>
-    <section className={card}><div className="mb-3 flex items-center justify-between"><h3 className="flex items-center gap-2 text-sm font-bold"><Clock size={17}/>Aktuelle Notizen</h3><button type="button" onClick={()=>onQuickEntry?onQuickEntry('note'):onTabChange('beobachtungen_verlauf')} className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-50"><Plus size={14}/>Eintrag</button></div>{notes.length?notes.map((n:any)=><button key={n.id||`${n.datum}-${n.inhalt}`} type="button" onClick={()=>onTabChange('beobachtungen_verlauf')} className="flex w-full gap-3 border-t border-slate-100 py-3 text-left hover:bg-slate-50"><span className="shrink-0 text-xs text-slate-500">{dateLabel(String(n.datum||'').slice(0,10))}</span><span className="min-w-0 text-sm text-slate-800">{n.inhalt||n.notiz||n.text||n.titel}<span className="mt-1 block text-xs text-slate-500">{n.kategorie}{n.fach?` · ${n.fach}`:''}</span></span></button>):<p className="text-xs text-slate-500">Noch keine Notizen dokumentiert.</p>}</section>
+    <section className={card} aria-label="Aktuelle Notizen">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900"><Clock size={17}/>Aktuelle Notizen</h3>
+          <p className="mt-1 text-xs text-slate-500">{allNotes.length ? allNotes.length+' Einträge insgesamt · die neuesten 5 hier im Überblick' : 'Beobachtungen, Fachnotizen und Elternkontakte an einem Ort'}</p>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <button type="button" onClick={()=>onQuickEntry?onQuickEntry('note'):onTabChange('beobachtungen_verlauf')} className="flex min-h-9 items-center gap-1 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100"><Plus size={13}/>Notiz</button>
+          <button type="button" onClick={()=>onQuickEntry?onQuickEntry('parent'):onTabChange('beobachtungen_verlauf')} className="min-h-9 rounded-lg bg-sky-50 px-3 py-2 text-xs font-bold text-sky-800 hover:bg-sky-100">+ Elternkontakt</button>
+        </div>
+      </div>
+      {notes.length ? (
+        <div className="overflow-hidden rounded-xl border border-slate-100">
+          {notes.map((n:any,index:number)=>{
+            const meta=noteDisplayMeta(n);
+            const content=String(n.inhalt||n.notiz||n.text||n.titel||'Ohne Text');
+            const subject=String(n.fach||'').trim();
+            const category=String(n.kategorie||'').trim();
+            return <button key={n.id||String(n.timestamp||n.datum||index)+'-'+content} type="button" onClick={()=>onTabChange('beobachtungen_verlauf')} className="grid w-full gap-2 border-b border-slate-100 px-3 py-2.5 text-left last:border-b-0 hover:bg-slate-50 sm:grid-cols-[4.5rem_minmax(0,1fr)_auto] sm:items-start">
+              <span className="pt-0.5 text-[0.68rem] font-semibold text-slate-500">{noteDateLabel(n)}</span>
+              <span className="min-w-0">
+                <span className="line-clamp-2 block text-sm leading-snug text-slate-800">{content}</span>
+                <span className="mt-1 flex flex-wrap gap-1.5 text-[0.65rem] text-slate-500">
+                  {subject&&<span className="rounded bg-indigo-50 px-1.5 py-0.5 font-semibold text-indigo-700">{subject}</span>}
+                  {category&&category!==meta.label&&<span>{category}</span>}
+                </span>
+              </span>
+              <span className={'w-fit rounded-full border px-2 py-1 text-[0.62rem] font-bold '+meta.badge}>{meta.label}</span>
+            </button>;
+          })}
+        </div>
+      ) : <p className="rounded-xl bg-slate-50 px-3 py-3 text-xs text-slate-500">Noch keine Notizen dokumentiert.</p>}
+      <div className="mt-3 flex justify-end">
+        <button type="button" onClick={()=>onTabChange('beobachtungen_verlauf')} className="text-xs font-semibold text-indigo-700 hover:underline">Alle Notizen öffnen <ArrowRight size={13} className="inline"/></button>
+      </div>
+    </section>
   </div>;
 }
