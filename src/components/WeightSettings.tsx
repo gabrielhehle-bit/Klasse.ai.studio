@@ -396,6 +396,12 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
                     <span>🔢</span> Punkte
                   </button>
                 </div>
+                {currentMode === 'points' && (
+                  <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-white p-3">
+                    <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-indigo-600" checked={app.notenMeta?.[fach]?.showPointsPercent !== false} onChange={e => { const checked = e.target.checked; setApp(prev => ({ ...prev, notenMeta: { ...prev.notenMeta, [fach]: { ...prev.notenMeta?.[fach], showPointsPercent: checked } } })); }} />
+                    <span><span className="block text-sm font-semibold text-slate-800">Prozentwerte bei Punkten anzeigen</span><span className="mt-1 block text-xs text-slate-500">Zusätzlich unter den Punkten, z. B. 18 von 24 Punkten = 75 %. Gilt für die Punktebewertungen in diesem Fach.</span></span>
+                  </label>
+                )}
               </div>
 
               <div className="space-y-4">
