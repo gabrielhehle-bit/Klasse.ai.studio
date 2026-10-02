@@ -68,3 +68,20 @@ test("Schülerdossier: alle bisherigen Detailbereiche bleiben erreichbar", () =>
     assert.ok(dossier.includes(`id: '${tab}'`), `Detailbereich fehlt: ${tab}`);
   }
 });
+
+
+test("Schülerdossier: Mehr öffnet zuerst eine gruppierte Vertiefungsübersicht", () => {
+  assert.match(dossier, /defaultTab: 'mehr'/);
+  assert.match(dossier, /Weitere Bereiche/);
+  assert.match(dossier, /Lernen & Rückmeldung/);
+  assert.match(dossier, /Entwicklung & Förderung/);
+  assert.match(dossier, /Organisation/);
+  assert.match(dossier, /Berichte & Materialien/);
+  assert.match(dossier, /Alles, was du nicht für den täglichen Überblick brauchst/);
+});
+
+test("Schülerdossier: in Mehr werden nur die Unterbereiche der aktiven Gruppe direkt gezeigt", () => {
+  assert.match(dossier, /activeMoreGroup\.tabs\.map/);
+  assert.match(dossier, /onClick=\{\(\) => setActiveTab\('mehr'\)\}/);
+  assert.doesNotMatch(dossier, /activeMainArea === 'berichte_materialien' && getFilteredSubTabs\(activeMainArea\)\.length > 1/);
+});
