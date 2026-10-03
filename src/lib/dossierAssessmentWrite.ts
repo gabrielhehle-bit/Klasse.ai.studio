@@ -20,6 +20,14 @@ export interface DossierAssessmentWriteRequest {
   percent?: string;
 }
 
+export interface DossierAssessmentClearRequest {
+  studentId: string;
+  fach: string;
+  semester: '1' | '2';
+  category: DossierAssessmentCategory;
+  colIndex: number;
+}
+
 const metaCategory = (category: DossierAssessmentCategory) => category === 'aufgaben' ? 'obj' : category;
 
 function assessmentInputForMode(request: DossierAssessmentWriteRequest, mode: AssessmentMode) {
@@ -40,6 +48,45 @@ function firstAvailableAssessmentIndex(list: unknown[]) {
 function cloneMetaList(container: Record<string, any>, key: string) {
   container[key] = [...(container[key] || [])];
   return container[key] as any[];
+}
+
+/**
+ * Clears one student's value for a class-wide assessment. Column metadata such
+ * as label, date, comment and max points belongs to the shared gradebook column
+ * and must stay intact for the other students.
+ */
+export function clearDossierAssessmentForStudent(state: AppState, request: DossierAssessmentClearRequest): AppState {
+  if (request.colIndex < 0 || !state.schueler.some(student => student.id === request.studentId)) return state;
+
+  const studentGrades = state.noten?.[request.studentId];
+  const subjectGrades = studentGrades?.[request.fach];
+  const semesterData = (subjectGrades as any)?.[request.semester];
+  if (!studentGrades || !subjectGrades || !semesterData) return state;
+
+  const currentList = (semesterData as any)[request.category];
+  if (!Array.isArray(currentList) || request.colIndex >= currentList.length || isEmptyAssessmentCell(currentList[request.colIndex])) {
+    return state;
+  }
+
+  const nextList = [...currentList];
+  nextList[request.colIndex] = null;
+
+  return {
+    ...state,
+    noten: {
+      ...(state.noten || {}),
+      [request.studentId]: {
+        ...studentGrades,
+        [request.fach]: {
+          ...subjectGrades,
+          [request.semester]: {
+            ...semesterData,
+            [request.category]: nextList,
+          },
+        },
+      },
+    },
+  };
 }
 
 /**

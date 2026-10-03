@@ -13,7 +13,7 @@ import DossierAssessmentChart from './DossierAssessmentChart';
 import { getDossierAssessmentChart } from '../../lib/dossierAssessmentChart';
 import { getStudentSubjectParticipationSummary, type SubjectParticipationSummary } from '../../lib/studentParticipation';
 import { getStudentHomeworkSummary, type StudentHomeworkSummary } from '../../lib/studentHomework';
-import { writeDossierAssessment } from '../../lib/dossierAssessmentWrite';
+import { clearDossierAssessmentForStudent, writeDossierAssessment } from '../../lib/dossierAssessmentWrite';
 
 interface DossierLeistungenProps {
   initialSubject?: string;
@@ -343,34 +343,17 @@ export default function DossierLeistungen({
     setEditingItem(null);
   };
 
-  // Delete Assessment Handler
+  // Delete Assessment Handler: clear only this student's value.
+  // The assessment column itself (label/date/comment/max points) is shared by the class.
   const handleDeleteAssessment = (fach: string, category: string, colIndex: number) => {
-    setApp(prev => {
-      const noten = { ...(prev.noten || {}) };
-      if (!noten[student.id]?.[fach]?.[semester]) return prev;
-
-      const prevSubj = (noten[student.id][fach][semester] || {}) as any;
-      const subjData: any = {
-        sa: [],
-        lzk: [],
-        wp: [],
-        aufgaben: [],
-        hue: 0,
-        hueAnm: [],
-        ...prevSubj
-      };
-      if (Array.isArray(subjData[category])) {
-        const list = [...subjData[category]];
-        list[colIndex] = null;
-        subjData[category] = list;
-        noten[student.id][fach][semester] = subjData;
-      }
-
-      return {
-        ...prev,
-        noten
-      };
-    });
+    if (!['sa', 'lzk', 'wp', 'aufgaben'].includes(category)) return;
+    setApp(prev => clearDossierAssessmentForStudent(prev, {
+      studentId: student.id,
+      fach,
+      semester,
+      category: category as 'sa' | 'lzk' | 'wp' | 'aufgaben',
+      colIndex,
+    }));
   };
 
   // Open add modal
