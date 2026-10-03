@@ -67,13 +67,16 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
     const final=nd.endnote;
     const hasFinal=mode==='grades'&&final!==undefined&&final!==null&&String(final).trim()!==''&&String(final)!=='—';
     const display=hasFinal?String(final):avg===null?'Noch keine Bewertung':`${avg.toFixed(1).replace('.',',')}${mode==='percent'?' %':mode==='points'?' % · Punktebasis':''}`;
-    const normalizedCurrent=avg===null?null:mode==='grades'?Math.max(0,Math.min(100,((5-avg)/4)*100)):Math.max(0,Math.min(100,avg));
+    const currentNumeric=hasFinal?Number(String(final).replace(',','.')):avg;
+    const normalizedCurrent=currentNumeric===null||!Number.isFinite(Number(currentNumeric))?null:mode==='grades'?Math.max(0,Math.min(100,((5-Number(currentNumeric))/4)*100)):Math.max(0,Math.min(100,Number(currentNumeric)));
     const assessments:{score:number;date:string;order:number}[]=[];
+    let assessmentCount=0;
     let order=0;
     (['sa','lzk','wp','aufgaben'] as const).forEach(category=>{
       const list=Array.isArray(nd[category])?nd[category]:[];
       list.forEach((raw:any,idx:number)=>{
         if(raw===null||raw===undefined||raw===''||['e','f','x','-'].includes(String(raw).toLowerCase())){order++;return;}
+        assessmentCount++;
         const primitive=typeof raw==='object'?(mode==='points'?(raw.score??raw.punkte??raw.grade):(mode==='percent'?(raw.percent??raw.grade):(raw.grade??raw.originalGrade??raw.numericGrade??raw.val??raw.note))):raw;
         const numeric=Number(String(primitive).replace(',','.'));
         if(!Number.isFinite(numeric)){order++;return;}
@@ -89,7 +92,7 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
     const delta=trendValues.length>1?trendValues[trendValues.length-1]-trendValues[0]:null;
     const trendLabel=delta===null?'Noch kein Verlauf':delta>7?'↗ verbessert':delta<-7?'↘ rückläufig':'→ stabil';
     const classroom=classroomRows.find(row=>row.fach===fach)!;
-    return {fach,mode,display,hasFinal,avg,normalizedCurrent,trendValues,trendLabel,assessmentCount:assessments.length,participation:classroom.participation,homework:classroom.homework};
+    return {fach,mode,display,hasFinal,avg,normalizedCurrent,trendValues,trendLabel,assessmentCount,participation:classroom.participation,homework:classroom.homework};
   });
   const assessedSubjects=subjectCards.filter(card=>card.avg!==null||card.hasFinal).length;
   const chartAxes=<><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0"/><XAxis dataKey="label" tick={{fontSize:10}} axisLine={false} tickLine={false} minTickGap={20}/></>;
