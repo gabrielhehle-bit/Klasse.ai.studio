@@ -5,6 +5,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import './index.css';
 import './planning-dialog.css';
 import './weekly-plan-ux.css';
+import './mobileQuickMode';
 
 // Render app
 createRoot(document.getElementById('root')!).render(
