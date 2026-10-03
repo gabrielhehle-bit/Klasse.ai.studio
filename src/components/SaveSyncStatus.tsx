@@ -2,6 +2,7 @@ import AccountServerLoadButton from './AccountServerLoadButton';
 import { createPortal } from 'react-dom';
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useTeamDeviceAuthorization } from '../hooks/useTeamDeviceAuthorization';
 import { saveSyncPresentation } from '../lib/saveSyncPresentation';
 import { syncActiveClass } from '../lib/appState';
 import { teamSyncPresentation } from '../lib/teamSyncPresentation';
@@ -35,7 +36,16 @@ export default function SaveSyncStatus({ onOpenTeam, fullWidth = false, compact 
 
   const room = syncActiveClass(app).classes?.find(candidate => candidate.id === app.activeClassId);
   const meta = room?.teamTeaching;
-  const teamPresentation = teamSyncPresentation(room, { online });
+  const sharedClassId = meta?.sharedClassId || room?.teamTeachingSharedClassId;
+  const deviceAuthorization = useTeamDeviceAuthorization(sharedClassId);
+  const deviceAuthorized = deviceAuthorization === 'authorized'
+    ? true
+    : deviceAuthorization === 'unauthorized'
+      ? false
+      : deviceAuthorization === 'checking'
+        ? null
+        : undefined;
+  const teamPresentation = teamSyncPresentation(room, { online, deviceAuthorized });
   const team = teamPresentation?.status;
   const state = saveSyncPresentation(localSaveStatus, accountSyncStatus, online, team);
   const showAccountLive = !teamPresentation && accountLiveStatus === 'live';
