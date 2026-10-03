@@ -29,13 +29,16 @@ function MapViewportUpdater({
   positions,
   fallbackCenter,
   fallbackZoom,
+  isPlacing,
 }: {
   positions: [number, number][];
   fallbackCenter: [number, number];
   fallbackZoom: number;
+  isPlacing: boolean;
 }) {
   const map = useMap();
   useEffect(() => {
+    if (isPlacing) return;
     try {
       map.invalidateSize();
       if (positions.length === 1) {
@@ -48,7 +51,7 @@ function MapViewportUpdater({
     } catch (e) {
       console.warn("Map viewport update error", e);
     }
-  }, [fallbackCenter, fallbackZoom, map, positions]);
+  }, [fallbackCenter, fallbackZoom, isPlacing, map, positions]);
   return null;
 }
 
@@ -87,6 +90,12 @@ function hasManualPosition(student: Student): student is Student & {
 }
 
 export default function StudentMap({ students }: StudentMapProps) {
+  const { app } = useApp();
+  // A class switch must discard an unfinished placement, including reused pupil IDs.
+  return <ClassStudentMap key={app.activeClassId || 'no-class'} students={students} />;
+}
+
+function ClassStudentMap({ students }: StudentMapProps) {
   const { app, updateStudent } = useApp();
   const [tilesUnavailable, setTilesUnavailable] = useState(false);
   const [schoolLocationUnavailable, setSchoolLocationUnavailable] = useState(false);
@@ -100,6 +109,8 @@ export default function StudentMap({ students }: StudentMapProps) {
     const fetchBase = async () => {
       const cityString = `${app.schulPlz || ''} ${app.schulOrt || ''} Austria`.trim();
       if (!cityString || cityString === 'Austria') {
+        setBaseCenter(null);
+        setIsResolvingSchool(false);
         setSchoolLocationUnavailable(true);
         return;
       }
@@ -123,6 +134,8 @@ export default function StudentMap({ students }: StudentMapProps) {
           const data = await res.json();
           if (data?.features?.length > 0 && isMounted) {
             const coords = data.features[0].geometry.coordinates;
+            if (!Array.isArray(coords) || !Number.isFinite(coords[0]) || !Number.isFinite(coords[1])
+              || Math.abs(coords[0]) > 180 || Math.abs(coords[1]) > 90) continue;
             setBaseCenter([coords[1], coords[0]]);
             found = true;
             break;
@@ -149,8 +162,14 @@ export default function StudentMap({ students }: StudentMapProps) {
     () => positionedStudents.map(student => [student.kartenPosition.lat, student.kartenPosition.lon] as [number, number]),
     [positionedStudents],
   );
-  const fallbackCenter: [number, number] = baseCenter || [47.5162, 14.5501];
+  const fallbackCenter = useMemo<[number, number]>(() => baseCenter || [47.5162, 14.5501], [baseCenter]);
   const fallbackZoom = baseCenter ? 13 : 6;
+
+  useEffect(() => {
+    if (placingStudentId && !students.some(student => student.id === placingStudentId)) {
+      setPlacingStudentId(null);
+    }
+  }, [students, placingStudentId]);
 
   const saveManualPosition = (position: [number, number]) => {
     if (!placingStudentId) return;
@@ -219,10 +238,11 @@ export default function StudentMap({ students }: StudentMapProps) {
 
       <div className={`w-full rounded-2xl border border-slate-200 relative z-0 overflow-hidden ${placingStudentId ? 'cursor-crosshair' : ''}`} style={{ height: '500px' }}>
         <MapErrorBoundary>
-          <MapContainer key={baseCenter ? 'base-set' : 'no-base'} center={fallbackCenter} zoom={fallbackZoom} style={{ height: '100%', width: '100%' }}>
-            <MapViewportUpdater positions={manualPositions} fallbackCenter={fallbackCenter} fallbackZoom={fallbackZoom} />
+          <MapContainer center={fallbackCenter} zoom={fallbackZoom} style={{ height: '100%', width: '100%', cursor: placingStudentId ? 'crosshair' : undefined }}>
+            <MapViewportUpdater positions={manualPositions} fallbackCenter={fallbackCenter} fallbackZoom={fallbackZoom} isPlacing={Boolean(placingStudentId)} />
             <MapClickHandler enabled={Boolean(placingStudentId)} onSelect={saveManualPosition} />
             <TileLayer
+              key={retry}
               eventHandlers={{ tileerror: () => setTilesUnavailable(true), tileload: () => setTilesUnavailable(false) }}
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
               url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -231,7 +251,6 @@ export default function StudentMap({ students }: StudentMapProps) {
               <Marker
                 key={student.id}
                 position={[student.kartenPosition.lat, student.kartenPosition.lon]}
-                eventHandlers={{ click: () => setPlacingStudentId(student.id) }}
               >
                 <Popup>
                   <div className="text-[0.875rem] leading-snug font-bold">
