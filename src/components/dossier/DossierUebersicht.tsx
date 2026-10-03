@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Activity, ArrowRight, BarChart3, CalendarDays, Clock, Smile, Plus, Star, ClipboardCheck } from 'lucide-react';
+import { Activity, ArrowRight, BarChart3, CalendarDays, Clock, Smile, Plus, Star } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { Student } from '../../types';
 import { useApp } from '../../context/AppContext';
@@ -38,7 +38,8 @@ const noteDisplayMeta=(note:any)=>{
 export default function DossierUebersicht({student,semester,onTabChange,onSubjectSelect,onQuickEntry}:Props) {
   const {app}=useApp();
   const [period,setPeriod]=useState<'recent'|'year'>('recent');
-  const stats=useMemo(()=>getDossierOverviewStats(app,student.id,period),[app,student.id,period]);
+  const trendStats=useMemo(()=>getDossierOverviewStats(app,student.id,period),[app,student.id,period]);
+  const yearStats=useMemo(()=>getDossierOverviewStats(app,student.id,'year'),[app,student.id]);
   const subjects=faecherFuerKlasse(app).filter(f=>!app.faecher?.length||app.faecher.includes(f));
   const allNotes=getStudentNotes(app,student.id);
   const notes=allNotes.slice(0,5);
@@ -50,10 +51,12 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
   const participationSubjects=classroomRows.filter(row=>row.participation.hasData).length;
   const trackedHomeworkSubjects=classroomRows.filter(row=>row.homework.tracked).length;
   const missingHomework=classroomRows.reduce((sum,row)=>sum+(row.homework.tracked?row.homework.missing:0),0);
-  const latestStage=stats.stages.find((s:any)=>s.id===stats.latestBehavior?.iconId);
-  const mood=stats.latestMood ? getMoodMeta(Number(stats.latestMood[1])) : undefined;
-  const todayAttendance=app.anwesenheit?.[student.id]?.[stats.today];
-  const todayDetail=app.anwesenheitDetail?.[student.id]?.[stats.today];
+  const latestStage=yearStats.stages.find((s:any)=>s.id===yearStats.latestBehavior?.iconId);
+  const mood=yearStats.latestMood ? getMoodMeta(Number(yearStats.latestMood[1])) : undefined;
+  const trendLatestStage=trendStats.stages.find((s:any)=>s.id===trendStats.latestBehavior?.iconId);
+  const trendMood=trendStats.latestMood ? getMoodMeta(Number(trendStats.latestMood[1])) : undefined;
+  const todayAttendance=app.anwesenheit?.[student.id]?.[yearStats.today];
+  const todayDetail=app.anwesenheitDetail?.[student.id]?.[yearStats.today];
   const todayValues=typeof todayAttendance==='string'?[todayAttendance]:Object.values(todayAttendance||{});
   const todayHasDetailedAbsence=Number(todayDetail?.fehlstunden||0)>0;
   const todayStatus=todayValues.includes('u')?'Unentschuldigt':todayValues.includes('e')?'Entschuldigt':todayHasDetailedAbsence?(todayDetail?.notiz==='Unentschuldigt'?'Unentschuldigt':'Entschuldigt'):todayValues.some(v=>['a','da','v'].includes(String(v)))?'Anwesend':'Heute noch nicht erfasst';
@@ -90,42 +93,45 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
     assessments.sort((a,b)=>a.date&&b.date?a.date.localeCompare(b.date):a.order-b.order);
     const trendValues=assessments.slice(-6).map(item=>item.score);
     const delta=trendValues.length>1?trendValues[trendValues.length-1]-trendValues[0]:null;
-    const trendLabel=delta===null?'Noch kein Verlauf':delta>7?'↗ verbessert':delta<-7?'↘ rückläufig':'→ stabil';
+    const trendLabel=delta===null?'Trend ab 2 Nachweisen':delta>7?'↗ verbessert':delta<-7?'↘ rückläufig':'→ stabil';
     const classroom=classroomRows.find(row=>row.fach===fach)!;
     return {fach,mode,display,hasFinal,avg,normalizedCurrent,trendValues,trendLabel,assessmentCount,participation:classroom.participation,homework:classroom.homework};
   });
   const assessedSubjects=subjectCards.filter(card=>card.avg!==null||card.hasFinal).length;
+  const totalAssessments=subjectCards.reduce((sum,cardData)=>sum+cardData.assessmentCount,0);
+  const homeworkCoreText=trackedHomeworkSubjects===0?'HÜ noch nicht erfasst':missingHomework>0?`${missingHomework} fehlende HÜ`:'keine fehlenden HÜ';
   const chartAxes=<><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0"/><XAxis dataKey="label" tick={{fontSize:10}} axisLine={false} tickLine={false} minTickGap={20}/></>;
   const card='min-w-0 rounded-2xl border border-slate-200 bg-white p-4';
   return <div className="space-y-4" data-dossier-overview>
     <section data-dossier-cockpit aria-label="Schnellüberblick" className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 sm:p-4">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-        <div><p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-slate-400">Auf einen Blick</p><h2 className="mt-0.5 text-lg font-black text-slate-900">{student.vorname} · aktueller Stand</h2></div>
+        <div><p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-slate-400">Auf einen Blick</p><h2 className="mt-0.5 text-lg font-black text-slate-900">Aktueller Stand</h2></div>
         <span className="text-[0.68rem] font-semibold text-slate-500">Ganzes Schuljahr · Details per Klick</span>
       </div>
-      <div aria-label="Kernüberblick" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-        <button type="button" onClick={()=>onTabChange('leistungen')} className="rounded-xl border border-indigo-100 bg-white p-3 text-left shadow-2xs transition hover:border-indigo-200 hover:shadow-sm"><span className="flex items-center gap-2 text-[0.65rem] font-black uppercase tracking-wider text-indigo-700"><BarChart3 size={14}/>Leistung</span><strong className="mt-2 block text-lg font-black text-slate-900">{assessedSubjects}/{subjects.length||0}</strong><span className="mt-0.5 block text-[0.65rem] text-slate-500">Fächer mit Bewertung</span></button>
-        <button type="button" onClick={()=>onTabChange('leistungen')} className="rounded-xl border border-amber-100 bg-white p-3 text-left shadow-2xs transition hover:border-amber-200 hover:shadow-sm"><span className="flex items-center gap-2 text-[0.65rem] font-black uppercase tracking-wider text-amber-700"><Star size={14}/>Mitarbeit</span><strong className="mt-2 block text-lg font-black text-slate-900">{totalParticipation} ★</strong><span className="mt-0.5 block text-[0.65rem] text-slate-500">{participationSubjects}/{subjects.length||0} Fächer erfasst</span></button>
-        <button type="button" onClick={()=>onTabChange('beobachtungen_verlauf')} className="rounded-xl border border-violet-100 bg-white p-3 text-left shadow-2xs transition hover:border-violet-200 hover:shadow-sm"><span className="flex items-center gap-2 text-[0.65rem] font-black uppercase tracking-wider text-violet-700"><Activity size={14}/>Verhalten</span><strong className="mt-2 block truncate text-sm font-black text-slate-900">{latestStage?latestStage.icon+' '+latestStage.label:'Noch nicht erfasst'}</strong><span className="mt-0.5 block text-[0.65rem] text-slate-500">{stats.logs.length} Beobachtungen</span></button>
-        <button type="button" onClick={()=>onTabChange('beobachtungen_verlauf')} className="rounded-xl border border-teal-100 bg-white p-3 text-left shadow-2xs transition hover:border-teal-200 hover:shadow-sm"><span className="flex items-center gap-2 text-[0.65rem] font-black uppercase tracking-wider text-teal-700"><CalendarDays size={14}/>Anwesenheit</span><strong className="mt-2 block truncate text-sm font-black text-slate-900">{todayStatus}</strong><span className="mt-0.5 block text-[0.65rem] text-slate-500">{stats.excused+stats.unexcused} Fehlstunden im Zeitraum</span></button>
-        <button type="button" onClick={()=>onTabChange('beobachtungen_verlauf')} className="rounded-xl border border-rose-100 bg-white p-3 text-left shadow-2xs transition hover:border-rose-200 hover:shadow-sm"><span className="flex items-center gap-2 text-[0.65rem] font-black uppercase tracking-wider text-rose-700"><Smile size={14}/>Befinden</span><strong className="mt-2 block truncate text-sm font-black text-slate-900">{mood?mood.emoji+' '+mood.label:'Noch nicht erfasst'}</strong><span className="mt-0.5 block text-[0.65rem] text-slate-500">{stats.moodCount} Rückmeldungen</span></button>
+      <div aria-label="Kernüberblick" className="grid grid-cols-2 gap-2 lg:grid-cols-5">
+        <button type="button" onClick={()=>onTabChange('leistungen')} className="rounded-xl border border-indigo-100 bg-white p-3 text-left shadow-2xs transition hover:border-indigo-200 hover:shadow-sm"><span className="flex items-center gap-2 text-[0.65rem] font-black uppercase tracking-wider text-indigo-700"><BarChart3 size={14}/>Leistung</span><strong className="mt-2 block text-lg font-black text-slate-900">{assessedSubjects}/{subjects.length||0}</strong><span className="mt-0.5 block text-[0.65rem] leading-snug text-slate-500">Fächer bewertet · {totalAssessments} Nachweise</span></button>
+        <button type="button" onClick={()=>onTabChange('leistungen')} className="rounded-xl border border-amber-100 bg-white p-3 text-left shadow-2xs transition hover:border-amber-200 hover:shadow-sm"><span className="flex items-center gap-2 text-[0.65rem] font-black uppercase tracking-wider text-amber-700"><Star size={14}/>Mitarbeit & HÜ</span><strong className="mt-2 block text-lg font-black text-slate-900">{totalParticipation} ★</strong><span className={`mt-0.5 block text-[0.65rem] leading-snug ${missingHomework>0?'font-semibold text-rose-700':'text-slate-500'}`}>{participationSubjects}/{subjects.length||0} Fächer · {homeworkCoreText}</span></button>
+        <button type="button" onClick={()=>onTabChange('beobachtungen_verlauf')} className="rounded-xl border border-violet-100 bg-white p-3 text-left shadow-2xs transition hover:border-violet-200 hover:shadow-sm"><span className="flex items-center gap-2 text-[0.65rem] font-black uppercase tracking-wider text-violet-700"><Activity size={14}/>Verhalten</span><strong className="mt-2 block truncate text-sm font-black text-slate-900">{latestStage?latestStage.icon+' '+latestStage.label:'Noch nicht erfasst'}</strong><span className="mt-0.5 block text-[0.65rem] text-slate-500">{yearStats.logs.length} Beobachtungen im Schuljahr</span></button>
+        <button type="button" onClick={()=>onTabChange('beobachtungen_verlauf')} className="rounded-xl border border-teal-100 bg-white p-3 text-left shadow-2xs transition hover:border-teal-200 hover:shadow-sm"><span className="flex items-center gap-2 text-[0.65rem] font-black uppercase tracking-wider text-teal-700"><CalendarDays size={14}/>Anwesenheit</span><strong className="mt-2 block truncate text-sm font-black text-slate-900">{todayStatus}</strong><span className="mt-0.5 block text-[0.65rem] text-slate-500">{yearStats.excused+yearStats.unexcused} Fehlstunden im Schuljahr</span></button>
+        <button type="button" onClick={()=>onTabChange('beobachtungen_verlauf')} className="col-span-2 rounded-xl border border-rose-100 bg-white p-3 text-left shadow-2xs transition hover:border-rose-200 hover:shadow-sm lg:col-span-1"><span className="flex items-center gap-2 text-[0.65rem] font-black uppercase tracking-wider text-rose-700"><Smile size={14}/>Befinden</span><strong className="mt-2 block truncate text-sm font-black text-slate-900">{mood?mood.emoji+' '+mood.label:'Noch nicht erfasst'}</strong><span className="mt-0.5 block text-[0.65rem] text-slate-500">{yearStats.moodCount} Rückmeldungen im Schuljahr</span></button>
       </div>
     </section>
 
     <section className={card} aria-label="Notenstand aller Fächer" data-dossier-subject-grid>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div><h2 className="flex items-center gap-2 text-base font-black text-slate-900"><BarChart3 size={18} className="text-indigo-600"/>Alle Fächer auf einen Blick</h2><p className="mt-1 text-xs text-slate-500">Mitarbeit & Hausübungen direkt in den Fachkarten · Fachsterne aus dem Unterrichtsmodus · {trackedHomeworkSubjects} Fächer mit HÜ-Daten</p></div>
+        <div><h2 className="flex items-center gap-2 text-base font-black text-slate-900"><BarChart3 size={18} className="text-indigo-600"/>Alle Fächer auf einen Blick</h2><p className="mt-1 text-xs text-slate-500">Bewertung, Trend, Mitarbeit und Hausübungen direkt pro Fach.</p></div>
         <button type="button" onClick={()=>onTabChange('leistungen')} className="rounded-lg px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-50">Alle Bewertungen <ArrowRight size={14} className="inline"/></button>
       </div>
       <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
         {subjectCards.map(cardData=>{
           const points=cardData.trendValues.length>1?cardData.trendValues.map((value,index,all)=>`${(index/(all.length-1))*100},${27-(Math.max(0,Math.min(100,value))*0.22)}`).join(' '):'';
-          const homeworkText=!cardData.homework.tracked?'HÜ noch nicht erfasst':cardData.homework.missing===0?'HÜ ✓':`${cardData.homework.missing} fehlende HÜ`;
+          const participationText=cardData.participation.hasData?`${cardData.participation.total} ★ Mitarbeit`:'Mitarbeit —';
+          const homeworkText=!cardData.homework.tracked?'HÜ —':cardData.homework.missing===0?'HÜ ✓':`${cardData.homework.missing} fehlende HÜ`;
           return <button key={cardData.fach} type="button" onClick={()=>openSubject(cardData.fach)} className="group rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-indigo-200 hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500">
-            <div className="flex items-start justify-between gap-3"><div className="min-w-0"><span className="block truncate text-sm font-black text-slate-900">{cardData.fach}</span><span className="mt-0.5 block text-[0.62rem] font-semibold text-slate-400">{cardData.mode==='grades'?'Noten 1–5':cardData.mode==='percent'?'Prozent':'Punkte + Prozent'}</span></div><div className="shrink-0 text-right"><strong className={`block text-base font-black ${cardData.avg===null&&!cardData.hasFinal?'text-slate-400':'text-indigo-700'}`}>{cardData.hasFinal?'Endnote ':cardData.mode==='grades'&&cardData.avg!==null?'Ø ':''}{cardData.display}</strong><span className="text-[0.62rem] font-semibold text-slate-500">{cardData.trendLabel}</span></div></div>
+            <div className="flex items-start justify-between gap-3"><div className="min-w-0"><span className="block truncate text-sm font-black text-slate-900">{cardData.fach}</span><span className="mt-0.5 block text-[0.62rem] font-semibold text-slate-400">{cardData.mode==='grades'?'Noten 1–5':cardData.mode==='percent'?'Prozent':'Punkte'}</span></div><div className="shrink-0 text-right"><strong className={`block text-base font-black ${cardData.avg===null&&!cardData.hasFinal?'text-slate-400':'text-indigo-700'}`}>{cardData.hasFinal?'Endnote ':cardData.mode==='grades'&&cardData.avg!==null?'Ø ':''}{cardData.display}</strong><span className="text-[0.62rem] font-semibold text-slate-500">{cardData.trendLabel}</span></div></div>
             <div className="mt-3 grid grid-cols-[1fr_5.5rem] items-center gap-3">
-              <div><div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-indigo-500 transition-all" style={{width:`${cardData.normalizedCurrent??0}%`}}/></div><div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[0.65rem] text-slate-600"><span>{cardData.assessmentCount} {cardData.assessmentCount===1?'Nachweis':'Nachweise'}</span><span>{cardData.participation.hasData?cardData.participation.total+' Fachsterne':'Mitarbeit noch nicht erfasst'}</span><span className={cardData.homework.tracked&&cardData.homework.missing>0?'font-bold text-rose-700':''}>{homeworkText}</span></div></div>
-              <div data-subject-sparkline className="h-9 text-indigo-500">{points?<svg viewBox="0 0 100 30" preserveAspectRatio="none" className="h-full w-full overflow-visible" aria-label={`Verlauf ${cardData.fach}`}><polyline points={points} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/><circle cx="100" cy={27-(Math.max(0,Math.min(100,cardData.trendValues[cardData.trendValues.length-1]))*0.22)} r="3" fill="currentColor"/></svg>:<div className="flex h-full items-center justify-center rounded-lg bg-slate-50 text-[0.58rem] font-semibold text-slate-400">Verlauf folgt</div>}</div>
+              <div><div className="h-1.5 overflow-hidden rounded-full bg-slate-100" aria-label={`Bewertungsstand ${cardData.fach}`}><div className="h-full rounded-full bg-indigo-500 transition-all" style={{width:`${cardData.normalizedCurrent??0}%`}}/></div><div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[0.65rem] text-slate-600"><span>{cardData.assessmentCount} {cardData.assessmentCount===1?'Nachweis':'Nachweise'}</span><span className={cardData.participation.hasData?'':'text-slate-400'}>{participationText}</span><span className={!cardData.homework.tracked?'text-slate-400':cardData.homework.missing>0?'font-bold text-rose-700':''}>{homeworkText}</span></div></div>
+              <div data-subject-sparkline className="h-9 text-indigo-500">{points?<svg viewBox="0 0 100 30" preserveAspectRatio="none" className="h-full w-full overflow-visible" aria-label={`Verlauf ${cardData.fach}`}><polyline points={points} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/><circle cx="100" cy={27-(Math.max(0,Math.min(100,cardData.trendValues[cardData.trendValues.length-1]))*0.22)} r="3" fill="currentColor"/></svg>:<div className="flex h-full items-center justify-center rounded-lg bg-slate-50 px-1 text-center text-[0.58rem] font-semibold leading-tight text-slate-400">Trend ab 2</div>}</div>
             </div>
           </button>;
         })}
@@ -137,7 +143,7 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
         <div>
           <p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-slate-400">Verhalten, Befinden & Anwesenheit</p>
           <h2 className="mt-0.5 text-base font-bold text-slate-900">Verläufe</h2>
-          <p className="mt-1 text-xs text-slate-500">Entwicklung im Zeitverlauf · Details erscheinen beim Darüberfahren</p>
+          <p className="mt-1 text-xs text-slate-500">Entwicklung im Zeitverlauf · Werte per Tipp oder Mauszeiger</p>
         </div>
         <div className="flex gap-1 rounded-xl bg-slate-100 p-1" role="group" aria-label="Zeitraum der Alltagsdiagramme">
           {([['recent','6 Wochen'],['year','Schuljahr']] as const).map(([key,label])=><button key={key} type="button" aria-pressed={period===key} onClick={()=>setPeriod(key)} className={`rounded-lg px-3 py-2 text-xs font-semibold ${period===key?'bg-white text-slate-900 shadow-sm':'text-slate-500'}`}>{label}</button>)}
@@ -146,27 +152,27 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
       <div className="grid gap-3 lg:grid-cols-3">
         <section className={card} data-dossier-trend-card="behavior">
           <div className="flex items-start justify-between gap-3">
-            <div><h3 className="flex items-center gap-2 text-sm font-bold text-slate-900"><Activity size={17} className="text-violet-600"/>Verhalten</h3><p className="mt-1 text-[0.68rem] text-slate-500">{stats.logs.length} Tagesbeobachtungen</p></div>
-            <span className="max-w-[9rem] rounded-full bg-violet-50 px-2.5 py-1 text-right text-[0.68rem] font-bold text-violet-800">{latestStage?latestStage.icon+' '+latestStage.label:'Noch nicht erfasst'}</span>
+            <div><h3 className="flex items-center gap-2 text-sm font-bold text-slate-900"><Activity size={17} className="text-violet-600"/>Verhalten</h3><p className="mt-1 text-[0.68rem] text-slate-500">{trendStats.logs.length} Tagesbeobachtungen</p></div>
+            <span className="max-w-[9rem] rounded-full bg-violet-50 px-2.5 py-1 text-right text-[0.68rem] font-bold text-violet-800">{trendLatestStage?trendLatestStage.icon+' '+trendLatestStage.label:'Noch nicht erfasst'}</span>
           </div>
-          <div className="mt-3 h-32">{stats.logs.length?<ResponsiveContainer width="100%" height="100%"><BarChart data={stats.weeks} margin={{top:4,right:4,left:-8,bottom:0}}>{chartAxes}<YAxis allowDecimals={false} width={22} tick={{fontSize:10}} axisLine={false} tickLine={false}/><Tooltip/>{stats.stages.map((s:any)=><Bar key={s.id} dataKey={(w:any)=>w.stages[s.id]||0} name={s.label} stackId="behavior" fill={s.color} maxBarSize={20}/>)}</BarChart></ResponsiveContainer>:<p className="flex h-full items-center justify-center text-xs text-slate-400">Keine Beobachtungen im Zeitraum</p>}</div>
-          <p className="mt-2 text-[0.65rem] text-slate-500">{stats.latestBehavior?'Letzter Eintrag: '+dateLabel(behaviorLogDay(stats.latestBehavior)):'Noch kein Verhalten dokumentiert'}</p>
+          <div className="mt-3 h-32">{trendStats.logs.length?<ResponsiveContainer width="100%" height="100%"><BarChart data={trendStats.weeks} margin={{top:4,right:4,left:-8,bottom:0}}>{chartAxes}<YAxis allowDecimals={false} width={22} tick={{fontSize:10}} axisLine={false} tickLine={false}/><Tooltip/>{trendStats.stages.map((s:any)=><Bar key={s.id} dataKey={(w:any)=>w.stages[s.id]||0} name={s.label} stackId="behavior" fill={s.color} maxBarSize={20}/>)}</BarChart></ResponsiveContainer>:<p className="flex h-full items-center justify-center text-xs text-slate-400">Keine Beobachtungen im Zeitraum</p>}</div>
+          <p className="mt-2 text-[0.65rem] text-slate-500">{trendStats.latestBehavior?'Letzter Eintrag: '+dateLabel(behaviorLogDay(trendStats.latestBehavior)):'Noch kein Verhalten dokumentiert'}</p>
         </section>
         <section className={card} data-dossier-trend-card="mood">
           <div className="flex items-start justify-between gap-3">
-            <div><h3 className="flex items-center gap-2 text-sm font-bold text-slate-900"><Smile size={17} className="text-amber-600"/>Befinden</h3><p className="mt-1 text-[0.68rem] text-slate-500">{stats.moodCount} Rückmeldungen</p></div>
-            <span className="max-w-[9rem] rounded-full bg-amber-50 px-2.5 py-1 text-right text-[0.68rem] font-bold text-amber-800">{mood?mood.emoji+' '+mood.label:'Noch nicht erfasst'}</span>
+            <div><h3 className="flex items-center gap-2 text-sm font-bold text-slate-900"><Smile size={17} className="text-amber-600"/>Befinden</h3><p className="mt-1 text-[0.68rem] text-slate-500">{trendStats.moodCount} Rückmeldungen</p></div>
+            <span className="max-w-[9rem] rounded-full bg-amber-50 px-2.5 py-1 text-right text-[0.68rem] font-bold text-amber-800">{trendMood?trendMood.emoji+' '+trendMood.label:'Noch nicht erfasst'}</span>
           </div>
-          <div className="mt-3 h-32">{stats.moodCount?<ResponsiveContainer width="100%" height="100%"><LineChart data={stats.weeks} margin={{top:4,right:4,left:-8,bottom:0}}>{chartAxes}<YAxis domain={[1,5]} reversed ticks={[1,3,5]} width={22} tick={{fontSize:10}} axisLine={false} tickLine={false}/><Tooltip formatter={(value:any)=>[Number(value).toFixed(1),'Wochenmittel']}/><Line dataKey="mood" name="Befinden" stroke="#d97706" strokeWidth={2} dot={{r:2.5}} connectNulls={false}/></LineChart></ResponsiveContainer>:<p className="flex h-full items-center justify-center text-xs text-slate-400">Keine Rückmeldungen im Zeitraum</p>}</div>
+          <div className="mt-3 h-32">{trendStats.moodCount?<ResponsiveContainer width="100%" height="100%"><LineChart data={trendStats.weeks} margin={{top:4,right:4,left:-8,bottom:0}}>{chartAxes}<YAxis domain={[1,5]} reversed ticks={[1,3,5]} width={22} tick={{fontSize:10}} axisLine={false} tickLine={false}/><Tooltip formatter={(value:any)=>[Number(value).toFixed(1),'Wochenmittel']}/><Line dataKey="mood" name="Befinden" stroke="#d97706" strokeWidth={2} dot={{r:2.5}} connectNulls={false}/></LineChart></ResponsiveContainer>:<p className="flex h-full items-center justify-center text-xs text-slate-400">Keine Rückmeldungen im Zeitraum</p>}</div>
           <p className="mt-2 text-[0.65rem] text-slate-500">1 = sehr gut · 3 = okay · 5 = schlecht · Wochenmittel</p>
         </section>
         <section className={card} data-dossier-trend-card="attendance">
           <div className="flex items-start justify-between gap-3">
-            <div><h3 className="flex items-center gap-2 text-sm font-bold text-slate-900"><CalendarDays size={17} className="text-teal-600"/>Anwesenheit</h3><p className="mt-1 text-[0.68rem] text-slate-500">{stats.excused+stats.unexcused} Fehlstunden</p></div>
+            <div><h3 className="flex items-center gap-2 text-sm font-bold text-slate-900"><CalendarDays size={17} className="text-teal-600"/>Anwesenheit</h3><p className="mt-1 text-[0.68rem] text-slate-500">{trendStats.excused+trendStats.unexcused} Fehlstunden</p></div>
             <span className="max-w-[9rem] rounded-full bg-teal-50 px-2.5 py-1 text-right text-[0.68rem] font-bold text-teal-800">{todayStatus}</span>
           </div>
-          <div className="mt-3 h-32">{stats.attendanceCount?<ResponsiveContainer width="100%" height="100%"><BarChart data={stats.weeks} margin={{top:4,right:4,left:-8,bottom:0}}>{chartAxes}<YAxis allowDecimals={false} width={22} tick={{fontSize:10}} axisLine={false} tickLine={false}/><Tooltip/><Bar dataKey={(w:any)=>w.attendanceCount?w.excused:null} name="Entschuldigt" stackId="absence" fill="#14b8a6" maxBarSize={20}/><Bar dataKey={(w:any)=>w.attendanceCount?w.unexcused:null} name="Unentschuldigt" stackId="absence" fill="#f43f5e" maxBarSize={20}/></BarChart></ResponsiveContainer>:<p className="flex h-full items-center justify-center text-xs text-slate-400">Noch keine Anwesenheit dokumentiert</p>}</div>
-          <p className="mt-2 text-[0.65rem] text-slate-500">{stats.excused} entschuldigt · {stats.unexcused} unentschuldigt</p>
+          <div className="mt-3 h-32">{trendStats.attendanceCount?<ResponsiveContainer width="100%" height="100%"><BarChart data={trendStats.weeks} margin={{top:4,right:4,left:-8,bottom:0}}>{chartAxes}<YAxis allowDecimals={false} width={22} tick={{fontSize:10}} axisLine={false} tickLine={false}/><Tooltip/><Bar dataKey={(w:any)=>w.attendanceCount?w.excused:null} name="Entschuldigt" stackId="absence" fill="#14b8a6" maxBarSize={20}/><Bar dataKey={(w:any)=>w.attendanceCount?w.unexcused:null} name="Unentschuldigt" stackId="absence" fill="#f43f5e" maxBarSize={20}/></BarChart></ResponsiveContainer>:<p className="flex h-full items-center justify-center text-xs text-slate-400">Noch keine Anwesenheit dokumentiert</p>}</div>
+          <p className="mt-2 text-[0.65rem] text-slate-500">{trendStats.excused} entschuldigt · {trendStats.unexcused} unentschuldigt</p>
         </section>
       </div>
       <div className="flex justify-end"><button type="button" onClick={()=>onTabChange('beobachtungen_verlauf')} className="text-xs font-semibold text-indigo-700 hover:underline">Alle Beobachtungen & Verlaufsdaten öffnen <ArrowRight size={13} className="inline"/></button></div>
