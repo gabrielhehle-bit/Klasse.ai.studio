@@ -23,14 +23,10 @@ export function teamDeviceApprovalRequired(value?: string | null): boolean {
     || message.includes('geräteschlüssel freigeben');
 }
 
-/**
- * One teacher-facing sync state for a shared class.
- * Technical revisions stay available in Teamteaching details, but are not part
- * of the normal status a teacher has to understand.
- */
+/** One teacher-facing sync state for a shared class. */
 export function teamSyncPresentation(
   room?: ClassRoom,
-  options: { online?: boolean; syncing?: boolean } = {},
+  options: { online?: boolean; syncing?: boolean; deviceAuthorized?: boolean | null } = {},
 ): TeamSyncPresentation | undefined {
   if (!room || (!room.teamTeaching && !room.teamTeachingSharedClassId)) return undefined;
 
@@ -40,7 +36,7 @@ export function teamSyncPresentation(
 
   // Missing device authorization has highest priority. It must never look like
   // a working live sync, even if the personal account sync itself is online.
-  if (teamDeviceApprovalRequired(message)) {
+  if (options.deviceAuthorized === false || teamDeviceApprovalRequired(message)) {
     return {
       status: 'approval',
       label: 'Freigabe erforderlich',
@@ -83,7 +79,7 @@ export function teamSyncPresentation(
     && classRoomFingerprint(room) === meta?.lastSyncedHash;
   const confirmed = meta?.syncStatus === 'synced' && fingerprintMatches;
 
-  if (options.syncing || !confirmed && meta?.syncStatus !== 'error') {
+  if (options.syncing || options.deviceAuthorized === null || (!confirmed && meta?.syncStatus !== 'error')) {
     return {
       status: 'syncing',
       label: 'Wird synchronisiert …',
@@ -101,7 +97,7 @@ export function teamSyncPresentation(
       status: 'synced',
       label: 'Alles synchronisiert',
       compactLabel: 'Alles synchronisiert',
-      description: 'Dieser Laptop und das Klassenteam haben denselben bestätigten Stand.',
+      description: 'Dieses Gerät und das Klassenteam haben denselben bestätigten Stand.',
       editor,
       changedAt: meta?.lastChangedAt,
       syncedAt: meta?.lastSyncedAt,
