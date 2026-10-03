@@ -359,13 +359,9 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
               <ArrowLeft size={15} />
             </button>
           )}
-          {student.foto ? (
-            <img src={student.foto} alt="" className="h-10 w-10 shrink-0 rounded-xl object-cover object-top ring-1 ring-slate-200" referrerPolicy="no-referrer" />
-          ) : (
-            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-xs font-black ${app.dossierFocusMode?'border-slate-700 bg-slate-800 text-slate-200':'border-slate-200 bg-slate-100 text-slate-700'}`}>
-              {student.vorname.charAt(0)}{student.nachname.charAt(0)}
-            </div>
-          )}
+          <div aria-label="Initialen" className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-xs font-black ${app.dossierFocusMode?'border-slate-700 bg-slate-800 text-slate-200':'border-slate-200 bg-slate-100 text-slate-700'}`}>
+            {student.vorname.charAt(0)}{student.nachname.charAt(0)}
+          </div>
           <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               <p className={`truncate text-sm font-black ${app.dossierFocusMode?'text-white':'text-slate-900'}`}>{student.vorname} {student.nachname}</p>
