@@ -57,7 +57,8 @@ test('Dossierübersicht: Fachkarten priorisieren konkrete Daten und vermeiden Te
   assert.match(overview, /Trend ab 2 Nachweisen/);
   assert.match(overview, /Trend ab 2/);
   assert.match(overview, /aria-label={`Bewertungsstand \$\{cardData\.fach\}`}/);
-  assert.doesNotMatch(overview, /Mitarbeit noch nicht erfasst|HÜ noch nicht erfasst/);
+  assert.match(overview, /const participationText=.*Mitarbeit —/);
+  assert.match(overview, /const homeworkText=.*HÜ —/);
 });
 
 test('Dossierübersicht: Verläufe sind kompakt, einheitlich und ohne doppelte Großstatus aufgebaut', () => {
