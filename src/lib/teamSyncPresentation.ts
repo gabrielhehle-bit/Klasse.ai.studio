@@ -1,19 +1,122 @@
 import type { ClassRoom } from '../types';
 import { classRoomFingerprint } from './teamTeachingCrypto';
 
-/** A previous acknowledgement is not confirmation of edits made afterwards. */
-export function teamSyncPresentation(room?: ClassRoom) {
+export type TeamSyncDisplayStatus = 'synced' | 'syncing' | 'offline' | 'approval' | 'conflict' | 'error';
+
+export type TeamSyncPresentation = {
+  status: TeamSyncDisplayStatus;
+  label: string;
+  compactLabel: string;
+  description: string;
+  editor: string;
+  changedAt?: string;
+  syncedAt?: string;
+  actionable: boolean;
+};
+
+const clean = (value?: string | null) => value?.trim() || '';
+
+export function teamDeviceApprovalRequired(value?: string | null): boolean {
+  const message = clean(value).toLocaleLowerCase('de-AT');
+  return message.includes('noch nicht freigegeben')
+    || message.includes('gerät im klassenteam hinzufügen')
+    || message.includes('geräteschlüssel freigeben');
+}
+
+/**
+ * One teacher-facing sync state for a shared class.
+ * Technical revisions stay available in Teamteaching details, but are not part
+ * of the normal status a teacher has to understand.
+ */
+export function teamSyncPresentation(
+  room?: ClassRoom,
+  options: { online?: boolean; syncing?: boolean } = {},
+): TeamSyncPresentation | undefined {
   if (!room || (!room.teamTeaching && !room.teamTeachingSharedClassId)) return undefined;
+
   const meta = room.teamTeaching;
-  const status: 'synced' | 'conflict' | 'error' | 'pending' = meta?.syncStatus === 'conflict' ? 'conflict'
-    : meta?.syncStatus === 'error' ? 'error'
-    : meta?.syncStatus === 'synced' && !!meta.lastSyncedHash && classRoomFingerprint(room) === meta.lastSyncedHash ? 'synced'
-    : 'pending';
+  const editor = meta?.lastChangedBy || 'Noch nicht bestätigt';
+  const message = clean(meta?.syncMessage);
+
+  // Missing device authorization has highest priority. It must never look like
+  // a working live sync, even if the personal account sync itself is online.
+  if (teamDeviceApprovalRequired(message)) {
+    return {
+      status: 'approval',
+      label: 'Freigabe erforderlich',
+      compactLabel: 'Gerät freigeben',
+      description: 'Dieses Gerät muss einmal von einer bereits berechtigten Lehrperson bestätigt werden. Danach funktioniert die Synchronisierung automatisch.',
+      editor,
+      changedAt: meta?.lastChangedAt,
+      syncedAt: meta?.lastSyncedAt,
+      actionable: false,
+    };
+  }
+
+  if (meta?.syncStatus === 'conflict') {
+    return {
+      status: 'conflict',
+      label: 'Synchronisierung benötigt deine Entscheidung',
+      compactLabel: 'Sync-Entscheidung nötig',
+      description: 'Dieselbe Information wurde auf mehreren Geräten unterschiedlich geändert. Vergleiche nur diese Änderungen und entscheide, welche Fassung übernommen werden soll.',
+      editor,
+      changedAt: meta?.lastChangedAt,
+      syncedAt: meta?.lastSyncedAt,
+      actionable: true,
+    };
+  }
+
+  if (options.online === false) {
+    return {
+      status: 'offline',
+      label: 'Offline – Änderungen werden später synchronisiert',
+      compactLabel: 'Offline · später synchronisieren',
+      description: 'Deine Änderungen bleiben auf diesem Gerät gespeichert und werden automatisch übertragen, sobald wieder eine Verbindung besteht.',
+      editor,
+      changedAt: meta?.lastChangedAt,
+      syncedAt: meta?.lastSyncedAt,
+      actionable: false,
+    };
+  }
+
+  const fingerprintMatches = Boolean(meta?.lastSyncedHash)
+    && classRoomFingerprint(room) === meta?.lastSyncedHash;
+  const confirmed = meta?.syncStatus === 'synced' && fingerprintMatches;
+
+  if (options.syncing || !confirmed && meta?.syncStatus !== 'error') {
+    return {
+      status: 'syncing',
+      label: 'Wird synchronisiert …',
+      compactLabel: 'Synchronisiert …',
+      description: 'Änderungen werden automatisch mit dem Klassenteam abgeglichen. Du musst nichts senden oder zusammenführen.',
+      editor,
+      changedAt: meta?.lastChangedAt,
+      syncedAt: meta?.lastSyncedAt,
+      actionable: false,
+    };
+  }
+
+  if (confirmed) {
+    return {
+      status: 'synced',
+      label: 'Alles synchronisiert',
+      compactLabel: 'Alles synchronisiert',
+      description: 'Dieser Laptop und das Klassenteam haben denselben bestätigten Stand.',
+      editor,
+      changedAt: meta?.lastChangedAt,
+      syncedAt: meta?.lastSyncedAt,
+      actionable: false,
+    };
+  }
+
   return {
-    status,
-    label: status === 'synced' ? 'Team synchronisiert' : status === 'conflict' ? 'Team-Konflikt' : status === 'error' ? 'Team-Sync prüfen' : 'Team-Änderung ausstehend',
-    editor: meta?.lastChangedBy || 'Noch nicht bestätigt',
+    status: 'error',
+    label: 'Synchronisierung prüfen',
+    compactLabel: 'Sync prüfen',
+    description: message || 'Der automatische Abgleich konnte nicht abgeschlossen werden. Öffne das Klassenteam für Details und einen erneuten Versuch.',
+    editor,
     changedAt: meta?.lastChangedAt,
     syncedAt: meta?.lastSyncedAt,
+    actionable: true,
   };
 }
