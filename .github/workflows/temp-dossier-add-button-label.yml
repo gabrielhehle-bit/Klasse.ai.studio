@@ -1,0 +1,43 @@
+name: Temporary Dossier Add Button Label
+
+on:
+  push:
+    branches:
+      - feature/dossier-visual-cockpit
+    paths:
+      - '.github/workflows/temp-dossier-add-button-label.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/dossier-visual-cockpit
+          fetch-depth: 0
+      - name: Restore explicit add label
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path=Path('src/components/dossier/DossierLeistungen.tsx')
+          text=path.read_text()
+          old='<Plus size={14}/> Leistungsnachweis'
+          new='<Plus size={14}/> Leistungsnachweis eintragen'
+          if old not in text:
+              raise SystemExit('top assessment button label not found')
+          text=text.replace(old,new,1)
+          text=text.replace('Klicke auf „Leistungsnachweis“, um eine Bewertung hinzuzufügen.', 'Klicke auf „Leistungsnachweis eintragen“, um eine Bewertung hinzuzufügen.')
+          path.write_text(text)
+          PY
+      - name: Remove temporary workflow
+        run: rm .github/workflows/temp-dossier-add-button-label.yml
+      - name: Commit fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/components/dossier/DossierLeistungen.tsx .github/workflows/temp-dossier-add-button-label.yml
+          git commit -m 'fix: restore explicit assessment add action label'
+          git push origin HEAD:feature/dossier-visual-cockpit
