@@ -1,0 +1,33 @@
+name: Temporary Dossier Visual Cockpit Patch
+
+on:
+  push:
+    branches:
+      - feature/dossier-visual-cockpit
+    paths:
+      - '.github/workflows/temp-dossier-visual-cockpit.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/dossier-visual-cockpit
+          fetch-depth: 0
+      - name: Apply visual dossier patch
+        run: python3 scripts/apply_dossier_visual_cockpit.py
+      - name: Remove temporary patch files
+        run: |
+          rm scripts/apply_dossier_visual_cockpit.py
+          rm .github/workflows/temp-dossier-visual-cockpit.yml
+      - name: Commit patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/components/dossier/DossierUebersicht.tsx src/components/StudentDossier.tsx src/lib/dossierOverviewCompactRequirements.test.ts scripts/apply_dossier_visual_cockpit.py .github/workflows/temp-dossier-visual-cockpit.yml
+          git commit -m 'feat: redesign dossier as visual student cockpit'
+          git push origin HEAD:feature/dossier-visual-cockpit
