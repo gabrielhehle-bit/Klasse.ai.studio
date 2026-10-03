@@ -5,7 +5,7 @@ export function saveSyncPresentation(
   local: 'pending' | 'saved' | 'error',
   account: AccountSyncStatus,
   online: boolean,
-  team?: TeamSyncDisplayStatus,
+  team?: TeamSyncDisplayStatus | 'pending',
 ) {
   if (team === 'approval') {
     return {
@@ -38,7 +38,7 @@ export function saveSyncPresentation(
     };
   }
 
-  if (local === 'pending' || team === 'syncing') {
+  if (local === 'pending' || team === 'syncing' || team === 'pending') {
     return { label: 'Wird synchronisiert …', compactLabel: 'Synchronisiert …', ready: false, attention: false };
   }
 
