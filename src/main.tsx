@@ -5,7 +5,11 @@ import ErrorBoundary from './components/ErrorBoundary';
 import './index.css';
 import './planning-dialog.css';
 import './weekly-plan-ux.css';
-import './mobileQuickMode';
+
+const smartphoneQuickMode = window.matchMedia('(max-width: 767px) and (pointer: coarse)');
+if (smartphoneQuickMode.matches) {
+  void import('./mobileQuickMode');
+}
 
 // Render app
 createRoot(document.getElementById('root')!).render(
