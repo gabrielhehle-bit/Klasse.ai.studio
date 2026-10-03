@@ -6,7 +6,7 @@ const canva = readFileSync('src/components/CanvaIntegration.tsx', 'utf8');
 const server = readFileSync('server.ts', 'utf8');
 
 test('Canva OAuth popup opens synchronously inside user click and verifies connection afterwards', () => {
-  const connect = canva.slice(canva.indexOf('const connect = async () =>'), canva.indexOf('const disconnect = async () =>'));
+  const connect = canva.slice(canva.indexOf('const connect = async () =>'), canva.indexOf('const handleEmailLoginSuccess'));
   const popupAt = connect.indexOf("window.open('', 'klassio-canva-oauth'");
   const awaitAt = connect.indexOf("await apiJson('/api/canva/auth-url')");
   assert.ok(popupAt >= 0 && awaitAt > popupAt, 'Popup muss vor erstem await geöffnet werden');
@@ -15,6 +15,15 @@ test('Canva OAuth popup opens synchronously inside user click and verifies conne
   assert.match(connect, /popup\.close\(\)/);
   assert.match(canva, /const verified = await refreshStatus\(\)/);
   assert.match(canva, /if \(!verified\.connected\)/);
+});
+
+test('Canva page offers the existing email login directly instead of a disabled dead-end button', () => {
+  assert.match(canva, /import EmailAccountLogin from '\.\/EmailAccountLogin';/);
+  assert.match(canva, /status\.requiresEmailLogin \? \(/);
+  assert.match(canva, /<EmailAccountLogin compact onSuccess=\{\(\) => \{ void handleEmailLoginSuccess\(\); \}\} \/>/);
+  assert.match(canva, /const next = await refreshStatus\(\)/);
+  assert.match(canva, /E-Mail-Konto bestätigt\. Jetzt kannst du Canva verbinden\./);
+  assert.doesNotMatch(canva, /disabled=\{status\.requiresEmailLogin\}/);
 });
 
 test('Canva design thumbnails are permitted in the image CSP only', () => {
