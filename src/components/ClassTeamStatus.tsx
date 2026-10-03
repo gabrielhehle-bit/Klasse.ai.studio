@@ -1,5 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
+import { useTeamDeviceAuthorization } from '../hooks/useTeamDeviceAuthorization';
 import { syncActiveClass } from '../lib/appState';
 import { teamSyncPresentation } from '../lib/teamSyncPresentation';
 
@@ -23,7 +24,16 @@ export default function ClassTeamStatus({ onOpen }: { onOpen?: () => void }) {
   }, []);
 
   const room = syncActiveClass(app).classes?.find(candidate => candidate.id === app.activeClassId);
-  const team = teamSyncPresentation(room, { online });
+  const sharedClassId = room?.teamTeaching?.sharedClassId || room?.teamTeachingSharedClassId;
+  const deviceAuthorization = useTeamDeviceAuthorization(sharedClassId);
+  const deviceAuthorized = deviceAuthorization === 'authorized'
+    ? true
+    : deviceAuthorization === 'unauthorized'
+      ? false
+      : deviceAuthorization === 'checking'
+        ? null
+        : undefined;
+  const team = teamSyncPresentation(room, { online, deviceAuthorized });
   if (!team) return null;
 
   const detail = `${team.label}. ${team.description} Zuletzt geändert: ${team.editor}, ${team.changedAt ? new Date(team.changedAt).toLocaleString('de-AT') : 'offen'}. Letzter Abgleich: ${team.syncedAt ? new Date(team.syncedAt).toLocaleString('de-AT') : 'offen'}.`;
