@@ -4,7 +4,7 @@ import { ResponsiveContainer, LineChart, Line, BarChart, Bar, CartesianGrid, XAx
 import { Student } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { faecherFuerKlasse } from '../../lib/sek1Subjects';
-import { berechne, getAssessmentMode } from '../../lib/GradeUtils';
+import { berechne, calculateItemPercent, getAssessmentMode, getMaxPoints } from '../../lib/GradeUtils';
 import { getStudentNotes } from '../../lib/studentMetrics';
 import { getDossierOverviewStats } from '../../lib/dossierOverviewStats';
 import { getMoodMeta } from '../../lib/moodTypes';
@@ -47,7 +47,6 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
     participation:getStudentSubjectParticipationSummary(app,student.id,fach,semester),
     homework:getStudentHomeworkSummary(app,student.id,fach,semester),
   }));
-  const classroomRowsWithData=classroomRows.filter(row=>row.participation.hasData||row.homework.tracked);
   const participationSubjects=classroomRows.filter(row=>row.participation.hasData).length;
   const trackedHomeworkSubjects=classroomRows.filter(row=>row.homework.tracked).length;
   const missingHomework=classroomRows.reduce((sum,row)=>sum+(row.homework.tracked?row.homework.missing:0),0);
@@ -59,47 +58,79 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
   const todayHasDetailedAbsence=Number(todayDetail?.fehlstunden||0)>0;
   const todayStatus=todayValues.includes('u')?'Unentschuldigt':todayValues.includes('e')?'Entschuldigt':todayHasDetailedAbsence?(todayDetail?.notiz==='Unentschuldigt'?'Unentschuldigt':'Entschuldigt'):todayValues.some(v=>['a','da','v'].includes(String(v)))?'Anwesend':'Heute noch nicht erfasst';
   const openSubject=(fach:string)=>onSubjectSelect?onSubjectSelect(fach):onTabChange('leistungen');
+  const totalParticipation=classroomRows.reduce((sum,row)=>sum+row.participation.total,0);
+  const subjectCards=subjects.map(fach=>{
+    const mode=getAssessmentMode(app,fach);
+    const nd:any=app.noten?.[student.id]?.[fach]?.[semester]||{};
+    const meta:any=app.notenMeta?.[fach]||{};
+    const avg=berechne(app,student.id,fach,semester);
+    const final=nd.endnote;
+    const hasFinal=mode==='grades'&&final!==undefined&&final!==null&&String(final).trim()!==''&&String(final)!=='—';
+    const display=hasFinal?String(final):avg===null?'Noch keine Bewertung':`${avg.toFixed(1).replace('.',',')}${mode==='percent'?' %':mode==='points'?' % · Punktebasis':''}`;
+    const currentNumeric=hasFinal?Number(String(final).replace(',','.')):avg;
+    const normalizedCurrent=currentNumeric===null||!Number.isFinite(Number(currentNumeric))?null:mode==='grades'?Math.max(0,Math.min(100,((5-Number(currentNumeric))/4)*100)):Math.max(0,Math.min(100,Number(currentNumeric)));
+    const assessments:{score:number;date:string;order:number}[]=[];
+    let assessmentCount=0;
+    let order=0;
+    (['sa','lzk','wp','aufgaben'] as const).forEach(category=>{
+      const list=Array.isArray(nd[category])?nd[category]:[];
+      list.forEach((raw:any,idx:number)=>{
+        if(raw===null||raw===undefined||raw===''||['e','f','x','-'].includes(String(raw).toLowerCase())){order++;return;}
+        assessmentCount++;
+        const primitive=typeof raw==='object'?(mode==='points'?(raw.score??raw.punkte??raw.grade):(mode==='percent'?(raw.percent??raw.grade):(raw.grade??raw.originalGrade??raw.numericGrade??raw.val??raw.note))):raw;
+        const numeric=Number(String(primitive).replace(',','.'));
+        if(!Number.isFinite(numeric)){order++;return;}
+        let score:number|null=null;
+        if(mode==='grades'&&numeric>=1&&numeric<=5) score=((5-numeric)/4)*100;
+        else score=calculateItemPercent(numeric,mode,getMaxPoints(app,fach,category,idx));
+        if(score!==null) assessments.push({score,date:String(meta.colDates?.[category]?.[idx]||''),order});
+        order++;
+      });
+    });
+    assessments.sort((a,b)=>a.date&&b.date?a.date.localeCompare(b.date):a.order-b.order);
+    const trendValues=assessments.slice(-6).map(item=>item.score);
+    const delta=trendValues.length>1?trendValues[trendValues.length-1]-trendValues[0]:null;
+    const trendLabel=delta===null?'Noch kein Verlauf':delta>7?'↗ verbessert':delta<-7?'↘ rückläufig':'→ stabil';
+    const classroom=classroomRows.find(row=>row.fach===fach)!;
+    return {fach,mode,display,hasFinal,avg,normalizedCurrent,trendValues,trendLabel,assessmentCount,participation:classroom.participation,homework:classroom.homework};
+  });
+  const assessedSubjects=subjectCards.filter(card=>card.avg!==null||card.hasFinal).length;
   const chartAxes=<><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0"/><XAxis dataKey="label" tick={{fontSize:10}} axisLine={false} tickLine={false} minTickGap={20}/></>;
   const card='min-w-0 rounded-2xl border border-slate-200 bg-white p-4';
   return <div className="space-y-4" data-dossier-overview>
-    <section className={card} aria-label="Notenstand aller Fächer">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><div><h2 className="flex items-center gap-2 text-lg font-bold text-slate-900"><BarChart3 size={20} className="text-indigo-600"/>Alle Fächer auf einen Blick</h2><p className="mt-1 text-xs text-slate-500">Je Fach gilt die in der Notenmappe eingestellte Skala · Fach anklicken für Einzelbewertungen</p></div><button type="button" onClick={()=>onTabChange('leistungen')} className="rounded-lg px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-50">Alle Bewertungen <ArrowRight size={14} className="inline"/></button></div>
-      <div className="grid gap-x-8 gap-y-1 lg:grid-cols-2 xl:grid-cols-3">
-      {subjects.map(fach=>{const mode=getAssessmentMode(app,fach);const avg=berechne(app,student.id,fach,semester);const final=app.noten?.[student.id]?.[fach]?.[semester]?.endnote;const hasFinal=mode==='grades'&&final!==undefined&&final!==null&&String(final).trim()!==''&&String(final)!=='—';const numeric=hasFinal?Number(String(final).replace(',','.')):avg;const valid=numeric!==null&&Number.isFinite(numeric);const pos=valid ? mode==='grades'?(Number(numeric)-1)/4*100:Number(numeric) : null;const display=hasFinal?String(final):avg===null?'Noch keine Bewertung':`${avg.toFixed(1).replace('.',',')}${mode==='percent'?' %':mode==='points'?' % (Punkte)':''}`;return <button key={fach} type="button" onClick={()=>openSubject(fach)} className="rounded-xl px-2 py-1 text-left hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"><div className="mb-1 flex items-center justify-between gap-2"><span className="text-sm font-semibold text-slate-800">{fach}</span><span className={`text-xs font-bold ${avg===null&&!hasFinal?'text-slate-400':'text-indigo-700'}`}>{hasFinal?'Endnote ':mode==='grades'&&avg!==null?'Ø ':''}{display}</span></div>{<><div className="relative mx-2 h-2 rounded-full bg-slate-100">{(mode==='grades'?[0,25,50,75,100]:[0,50,100]).map(p=><span key={p} className="absolute top-0 h-2 w-px bg-slate-300" style={{left:`${p}%`}}/>)}{pos!==null&&<span className="absolute -top-1 h-4 w-4 -translate-x-1/2 rounded-full border-2 border-white bg-indigo-600 shadow-sm" style={{left:`${Math.max(0,Math.min(100,pos))}%`}}/>}</div><div className="relative mx-2 mt-1 h-4 text-[10px] text-slate-500">{(mode==='grades'?['1','2','3','4','5']:['0 %','50 %','100 %']).map((t,i,labels)=><span key={t} className="absolute whitespace-nowrap" style={{left:`${i/(labels.length-1)*100}%`,transform:i===0?'none':i===labels.length-1?'translateX(-100%)':'translateX(-50%)'}}>{t}</span>)}</div></>}</button>;})}
-      </div>{!subjects.length&&<p className="text-sm text-slate-500">Noch keine Fächer ausgewählt.</p>}
-    </section>
-    <section aria-label="Kernüberblick" className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-      <button type="button" onClick={()=>onTabChange('beobachtungen_verlauf')} className="rounded-2xl border border-violet-100 bg-violet-50/60 p-3 text-left hover:bg-violet-50"><span className="flex items-center gap-2 text-xs font-bold text-violet-800"><Activity size={15}/>Verhalten</span><strong className="mt-2 block text-sm text-slate-900">{latestStage?latestStage.icon+' '+latestStage.label:'Noch nicht erfasst'}</strong><span className="mt-1 block text-[0.65rem] text-slate-500">{stats.logs.length} Beobachtungen im Zeitraum</span></button>
-      <button type="button" onClick={()=>onTabChange('beobachtungen_verlauf')} className="rounded-2xl border border-amber-100 bg-amber-50/60 p-3 text-left hover:bg-amber-50"><span className="flex items-center gap-2 text-xs font-bold text-amber-800"><Smile size={15}/>Befinden</span><strong className="mt-2 block text-sm text-slate-900">{mood?mood.emoji+' '+mood.label:'Noch nicht erfasst'}</strong><span className="mt-1 block text-[0.65rem] text-slate-500">{stats.moodCount} Rückmeldungen im Zeitraum</span></button>
-      <button type="button" onClick={()=>onTabChange('beobachtungen_verlauf')} className="rounded-2xl border border-teal-100 bg-teal-50/60 p-3 text-left hover:bg-teal-50"><span className="flex items-center gap-2 text-xs font-bold text-teal-800"><CalendarDays size={15}/>Anwesenheit</span><strong className="mt-2 block text-sm text-slate-900">{todayStatus}</strong><span className="mt-1 block text-[0.65rem] text-slate-500">{stats.excused+stats.unexcused} Fehlstunden im Zeitraum</span></button>
-      <button type="button" onClick={()=>onTabChange('leistungen')} className="rounded-2xl border border-yellow-100 bg-yellow-50/60 p-3 text-left hover:bg-yellow-50"><span className="flex items-center gap-2 text-xs font-bold text-yellow-800"><Star size={15}/>Mitarbeit</span><strong className="mt-2 block text-sm text-slate-900">{participationSubjects}/{subjects.length || 0} Fächer erfasst</strong><span className="mt-1 block text-[0.65rem] text-slate-500">Fachsterne aus dem Unterrichtsmodus</span></button>
-      <button type="button" onClick={()=>onTabChange('leistungen')} className="rounded-2xl border border-rose-100 bg-rose-50/60 p-3 text-left hover:bg-rose-50"><span className="flex items-center gap-2 text-xs font-bold text-rose-800"><ClipboardCheck size={15}/>Hausübungen</span><strong className="mt-2 block text-sm text-slate-900">{trackedHomeworkSubjects?missingHomework+' fehlend':'Noch nicht erfasst'}</strong><span className="mt-1 block text-[0.65rem] text-slate-500">{trackedHomeworkSubjects} Fächer mit HÜ-Daten</span></button>
-    </section>
-    <section className={card} aria-label="Mitarbeit und Hausübungen">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="text-base font-bold text-slate-900">Mitarbeit & Hausübungen</h2>
-          <p className="mt-1 text-xs text-slate-500">Direkt aus Notenmappe und Unterrichtsmodus · Fach anklicken für Details</p>
-        </div>
-        <div className="flex flex-wrap gap-2 text-[0.68rem] font-bold">
-          <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-800"><Star size={12} className="mr-1 inline"/>Mitarbeit in {participationSubjects}/{subjects.length || 0} Fächern</span>
-          <span className="rounded-full bg-rose-50 px-2.5 py-1 text-rose-800"><ClipboardCheck size={12} className="mr-1 inline"/>{trackedHomeworkSubjects ? missingHomework+' fehlende HÜ' : 'HÜ noch nicht erfasst'}</span>
-        </div>
+    <section data-dossier-cockpit aria-label="Schnellüberblick" className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 sm:p-4">
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+        <div><p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-slate-400">Auf einen Blick</p><h2 className="mt-0.5 text-lg font-black text-slate-900">{student.vorname} · aktueller Stand</h2></div>
+        <span className="text-[0.68rem] font-semibold text-slate-500">Ganzes Schuljahr · Details per Klick</span>
       </div>
-      {classroomRowsWithData.length ? (
-        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-          {classroomRowsWithData.map(row=><button key={row.fach} type="button" onClick={()=>openSubject(row.fach)}
-            className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5 text-left transition hover:border-slate-200 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500">
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-bold text-slate-800">{row.fach}</span>
-              <span className="mt-0.5 block text-[0.68rem] text-slate-500">{row.participation.hasData ? row.participation.total+' '+(row.participation.total===1?'Fachstern':'Fachsterne') : 'Mitarbeit noch nicht erfasst'}</span>
-            </span>
-            <span className={'shrink-0 rounded-lg px-2 py-1 text-[0.68rem] font-black '+(!row.homework.tracked?'bg-slate-100 text-slate-500':row.homework.missing>0?'bg-rose-100 text-rose-800':'bg-emerald-100 text-emerald-800')}>
-              {!row.homework.tracked?'HÜ –':row.homework.missing===0?'HÜ ✓':'HÜ −'+row.homework.missing}
-            </span>
-          </button>)}
-        </div>
-      ) : <p className="rounded-xl bg-slate-50 px-3 py-3 text-xs text-slate-500">Noch keine Mitarbeit oder Hausübungen dokumentiert.</p>}
+      <div aria-label="Kernüberblick" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        <button type="button" onClick={()=>onTabChange('leistungen')} className="rounded-xl border border-indigo-100 bg-white p-3 text-left shadow-2xs transition hover:border-indigo-200 hover:shadow-sm"><span className="flex items-center gap-2 text-[0.65rem] font-black uppercase tracking-wider text-indigo-700"><BarChart3 size={14}/>Leistung</span><strong className="mt-2 block text-lg font-black text-slate-900">{assessedSubjects}/{subjects.length||0}</strong><span className="mt-0.5 block text-[0.65rem] text-slate-500">Fächer mit Bewertung</span></button>
+        <button type="button" onClick={()=>onTabChange('leistungen')} className="rounded-xl border border-amber-100 bg-white p-3 text-left shadow-2xs transition hover:border-amber-200 hover:shadow-sm"><span className="flex items-center gap-2 text-[0.65rem] font-black uppercase tracking-wider text-amber-700"><Star size={14}/>Mitarbeit</span><strong className="mt-2 block text-lg font-black text-slate-900">{totalParticipation} ★</strong><span className="mt-0.5 block text-[0.65rem] text-slate-500">{participationSubjects}/{subjects.length||0} Fächer erfasst</span></button>
+        <button type="button" onClick={()=>onTabChange('beobachtungen_verlauf')} className="rounded-xl border border-violet-100 bg-white p-3 text-left shadow-2xs transition hover:border-violet-200 hover:shadow-sm"><span className="flex items-center gap-2 text-[0.65rem] font-black uppercase tracking-wider text-violet-700"><Activity size={14}/>Verhalten</span><strong className="mt-2 block truncate text-sm font-black text-slate-900">{latestStage?latestStage.icon+' '+latestStage.label:'Noch nicht erfasst'}</strong><span className="mt-0.5 block text-[0.65rem] text-slate-500">{stats.logs.length} Beobachtungen</span></button>
+        <button type="button" onClick={()=>onTabChange('beobachtungen_verlauf')} className="rounded-xl border border-teal-100 bg-white p-3 text-left shadow-2xs transition hover:border-teal-200 hover:shadow-sm"><span className="flex items-center gap-2 text-[0.65rem] font-black uppercase tracking-wider text-teal-700"><CalendarDays size={14}/>Anwesenheit</span><strong className="mt-2 block truncate text-sm font-black text-slate-900">{todayStatus}</strong><span className="mt-0.5 block text-[0.65rem] text-slate-500">{stats.excused+stats.unexcused} Fehlstunden im Zeitraum</span></button>
+        <button type="button" onClick={()=>onTabChange('beobachtungen_verlauf')} className="rounded-xl border border-rose-100 bg-white p-3 text-left shadow-2xs transition hover:border-rose-200 hover:shadow-sm"><span className="flex items-center gap-2 text-[0.65rem] font-black uppercase tracking-wider text-rose-700"><Smile size={14}/>Befinden</span><strong className="mt-2 block truncate text-sm font-black text-slate-900">{mood?mood.emoji+' '+mood.label:'Noch nicht erfasst'}</strong><span className="mt-0.5 block text-[0.65rem] text-slate-500">{stats.moodCount} Rückmeldungen</span></button>
+      </div>
+    </section>
+
+    <section className={card} aria-label="Notenstand aller Fächer" data-dossier-subject-grid>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div><h2 className="flex items-center gap-2 text-base font-black text-slate-900"><BarChart3 size={18} className="text-indigo-600"/>Alle Fächer auf einen Blick</h2><p className="mt-1 text-xs text-slate-500">Mitarbeit & Hausübungen direkt in den Fachkarten · Fachsterne aus dem Unterrichtsmodus · {trackedHomeworkSubjects} Fächer mit HÜ-Daten</p></div>
+        <button type="button" onClick={()=>onTabChange('leistungen')} className="rounded-lg px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-50">Alle Bewertungen <ArrowRight size={14} className="inline"/></button>
+      </div>
+      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+        {subjectCards.map(cardData=>{
+          const points=cardData.trendValues.length>1?cardData.trendValues.map((value,index,all)=>`${(index/(all.length-1))*100},${27-(Math.max(0,Math.min(100,value))*0.22)}`).join(' '):'';
+          const homeworkText=!cardData.homework.tracked?'HÜ noch nicht erfasst':cardData.homework.missing===0?'HÜ ✓':`${cardData.homework.missing} fehlende HÜ`;
+          return <button key={cardData.fach} type="button" onClick={()=>openSubject(cardData.fach)} className="group rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-indigo-200 hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500">
+            <div className="flex items-start justify-between gap-3"><div className="min-w-0"><span className="block truncate text-sm font-black text-slate-900">{cardData.fach}</span><span className="mt-0.5 block text-[0.62rem] font-semibold text-slate-400">{cardData.mode==='grades'?'Noten 1–5':cardData.mode==='percent'?'Prozent':'Punkte + Prozent'}</span></div><div className="shrink-0 text-right"><strong className={`block text-base font-black ${cardData.avg===null&&!cardData.hasFinal?'text-slate-400':'text-indigo-700'}`}>{cardData.hasFinal?'Endnote ':cardData.mode==='grades'&&cardData.avg!==null?'Ø ':''}{cardData.display}</strong><span className="text-[0.62rem] font-semibold text-slate-500">{cardData.trendLabel}</span></div></div>
+            <div className="mt-3 grid grid-cols-[1fr_5.5rem] items-center gap-3">
+              <div><div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-indigo-500 transition-all" style={{width:`${cardData.normalizedCurrent??0}%`}}/></div><div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[0.65rem] text-slate-600"><span>{cardData.assessmentCount} {cardData.assessmentCount===1?'Nachweis':'Nachweise'}</span><span>{cardData.participation.hasData?cardData.participation.total+' Fachsterne':'Mitarbeit noch nicht erfasst'}</span><span className={cardData.homework.tracked&&cardData.homework.missing>0?'font-bold text-rose-700':''}>{homeworkText}</span></div></div>
+              <div data-subject-sparkline className="h-9 text-indigo-500">{points?<svg viewBox="0 0 100 30" preserveAspectRatio="none" className="h-full w-full overflow-visible" aria-label={`Verlauf ${cardData.fach}`}><polyline points={points} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/><circle cx="100" cy={27-(Math.max(0,Math.min(100,cardData.trendValues[cardData.trendValues.length-1]))*0.22)} r="3" fill="currentColor"/></svg>:<div className="flex h-full items-center justify-center rounded-lg bg-slate-50 text-[0.58rem] font-semibold text-slate-400">Verlauf folgt</div>}</div>
+            </div>
+          </button>;
+        })}
+      </div>
+      {!subjects.length&&<p className="text-sm text-slate-500">Noch keine Fächer ausgewählt.</p>}
     </section>
     <section aria-label="Verhalten, Befinden & Anwesenheit" className="space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-3">

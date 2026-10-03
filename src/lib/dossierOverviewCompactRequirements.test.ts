@@ -16,6 +16,17 @@ test('Dossierübersicht: Diagramme ersetzen Förderkarten und gemischte Gesamtno
   assert.doesNotMatch(overview, /Förderbedarf|Kein Förderbedarf|Präsenz unauffällig/);
 });
 
+test('Dossierübersicht: visueller Schnellüberblick kommt vor den Fachkarten und nutzt keinen gemischten Gesamtnotenschnitt', () => {
+  assert.match(overview, /data-dossier-cockpit/);
+  assert.match(overview, /data-dossier-subject-grid/);
+  assert.match(overview, /data-subject-sparkline/);
+  assert.match(overview, />Leistung</);
+  assert.match(overview, /Fächer mit Bewertung/);
+  assert.match(overview, /Punkte \+ Prozent/);
+  assert.ok(overview.indexOf('data-dossier-cockpit') < overview.indexOf('data-dossier-subject-grid'));
+  assert.ok(overview.indexOf('data-dossier-subject-grid') < overview.indexOf('Verhalten, Befinden & Anwesenheit'));
+});
+
 test('Dossierübersicht: Mitarbeit und Hausübungen sind vor der Vertiefung direkt sichtbar', () => {
   assert.match(overview, /Kernüberblick/);
   assert.match(overview, /Mitarbeit & Hausübungen/);
@@ -90,7 +101,8 @@ test('Schülerdossier: Identität, Kinderwechsel und Aktionen leben in genau ein
   assert.equal((dossier.match(/id="student-switcher"/g) || []).length, 1);
   assert.equal((dossier.match(/data-student-dossier-nav/g) || []).length, 1);
   assert.match(dossier, /COMPACT STUDENT NAVIGATION/);
-  assert.match(dossier, /student\.foto/);
+  assert.doesNotMatch(dossier, /student\.foto/);
+  assert.match(dossier, /aria-label="Initialen"/);
   assert.match(dossier, /🎉 Geburtstag/);
   assert.match(dossier, />SPF</);
   assert.match(dossier, />ESPF</);

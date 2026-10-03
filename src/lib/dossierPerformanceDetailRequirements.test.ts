@@ -12,7 +12,7 @@ test('Leistungsdetail: Fachnavigation und vier Kernwerte stehen in einem kompakt
   assert.match(dossier, />Mitarbeit</);
   assert.match(dossier, />Hausübungen</);
   assert.match(dossier, /aria-label="Fach auswählen"/);
-  assert.match(dossier, /Leistungsnachweis/);
+  assert.match(dossier, /Leistungsnachweis eintragen/);
   assert.ok(dossier.indexOf('data-dossier-performance-glance') < dossier.indexOf('<DossierAssessmentChart'));
 });
 
