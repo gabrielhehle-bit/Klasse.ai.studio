@@ -453,7 +453,7 @@ export default function DossierLeistungen({
               <p className="mt-1 text-xs text-slate-500">{s.itemsCount} {s.itemsCount===1?'Leistungsnachweis':'Leistungsnachweise'} · Daten aus derselben Notenmappe</p>
             </div>
             <button type="button" onClick={() => handleOpenAddModal(s.fach)} className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-3.5 text-xs font-bold text-white transition hover:bg-slate-800">
-              <Plus size={14}/> Leistungsnachweis
+              <Plus size={14}/> Leistungsnachweis eintragen
             </button>
           </div>
 
@@ -525,7 +525,7 @@ export default function DossierLeistungen({
 
           {categoriesWithData.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-xs text-slate-500">
-              In diesem Fach sind noch keine Einträge vorhanden. Klicke auf „Leistungsnachweis“, um eine Bewertung hinzuzufügen.
+              In diesem Fach sind noch keine Einträge vorhanden. Klicke auf „Leistungsnachweis eintragen“, um eine Bewertung hinzuzufügen.
             </div>
           ) : (
             <div className="grid gap-3 xl:grid-cols-2">
