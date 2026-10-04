@@ -5,8 +5,14 @@ export function saveSyncPresentation(
   local: 'pending' | 'saved' | 'error',
   account: AccountSyncStatus,
   online: boolean,
-  team?: TeamSyncDisplayStatus | 'pending',
+  team?: TeamSyncDisplayStatus,
 ) {
+  // Preserve the existing local/account status contract. The richer team-sync
+  // states below add context without changing established save-status wording.
+  if (local === 'error') {
+    return { label: 'Speichern fehlgeschlagen', compactLabel: 'Speicherfehler', ready: false, attention: true };
+  }
+
   if (team === 'approval') {
     return {
       label: 'Freigabe erforderlich',
@@ -16,20 +22,16 @@ export function saveSyncPresentation(
     };
   }
 
-  if (team === 'conflict') {
+  if (team === 'conflict' || account === 'conflict') {
     return {
-      label: 'Synchronisierung benötigt deine Entscheidung',
-      compactLabel: 'Sync-Entscheidung nötig',
+      label: 'Synchronisationskonflikt',
+      compactLabel: 'Sync-Konflikt',
       ready: false,
       attention: true,
     };
   }
 
-  if (local === 'error') {
-    return { label: 'Speichern fehlgeschlagen', compactLabel: 'Speicherfehler', ready: false, attention: true };
-  }
-
-  if (team === 'offline' || !online) {
+  if (team === 'offline') {
     return {
       label: 'Offline – Änderungen werden später synchronisiert',
       compactLabel: 'Offline · später synchronisieren',
@@ -38,12 +40,25 @@ export function saveSyncPresentation(
     };
   }
 
-  if (local === 'pending' || team === 'syncing' || team === 'pending') {
+  if (!online) {
+    return {
+      label: 'Offline · auf diesem Gerät gespeichert',
+      compactLabel: 'Offline · lokal gespeichert',
+      ready: false,
+      attention: false,
+    };
+  }
+
+  if (local === 'pending') {
+    return { label: 'Änderung noch ausstehend', compactLabel: 'Speichern …', ready: false, attention: false };
+  }
+
+  if (team === 'syncing' || team === 'pending') {
     return { label: 'Wird synchronisiert …', compactLabel: 'Synchronisiert …', ready: false, attention: false };
   }
 
-  if (team === 'error' || account === 'error' || account === 'conflict') {
-    return { label: 'Synchronisierung prüfen', compactLabel: 'Sync prüfen', ready: false, attention: true };
+  if (team === 'error' || account === 'error') {
+    return { label: 'Auf diesem Gerät gespeichert · Sync prüfen', compactLabel: 'Lokal gespeichert · Sync prüfen', ready: false, attention: true };
   }
 
   if (team === 'synced') {
