@@ -1,7 +1,7 @@
 import type { ClassRoom } from '../types';
 import { classRoomFingerprint } from './teamTeachingCrypto';
 
-export type TeamSyncDisplayStatus = 'synced' | 'syncing' | 'offline' | 'approval' | 'conflict' | 'error';
+export type TeamSyncDisplayStatus = 'synced' | 'syncing' | 'pending' | 'offline' | 'approval' | 'conflict' | 'error';
 
 export type TeamSyncPresentation = {
   status: TeamSyncDisplayStatus;
@@ -79,9 +79,22 @@ export function teamSyncPresentation(
     && classRoomFingerprint(room) === meta?.lastSyncedHash;
   const confirmed = meta?.syncStatus === 'synced' && fingerprintMatches;
 
-  if (options.syncing || options.deviceAuthorized === null || (!confirmed && meta?.syncStatus !== 'error')) {
+  if (options.syncing || options.deviceAuthorized === null) {
     return {
       status: 'syncing',
+      label: 'Wird synchronisiert …',
+      compactLabel: 'Synchronisiert …',
+      description: 'Änderungen werden automatisch mit dem Klassenteam abgeglichen. Du musst nichts senden oder zusammenführen.',
+      editor,
+      changedAt: meta?.lastChangedAt,
+      syncedAt: meta?.lastSyncedAt,
+      actionable: false,
+    };
+  }
+
+  if (!confirmed && meta?.syncStatus !== 'error') {
+    return {
+      status: 'pending',
       label: 'Wird synchronisiert …',
       compactLabel: 'Synchronisiert …',
       description: 'Änderungen werden automatisch mit dem Klassenteam abgeglichen. Du musst nichts senden oder zusammenführen.',
