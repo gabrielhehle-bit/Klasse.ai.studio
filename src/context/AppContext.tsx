@@ -1149,6 +1149,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        // A device can already know the newest server revision while its visible
+        // class body is still the previous acknowledged baseline. In that equal-revision
+        // case there is no competing local edit, so heal the stale device from the server
+        // instead of silently staying green with old lesson content.
+        if (localHash === baseline && remoteHash !== localHash) {
+          setLocalTeamStatus('syncing');
+          applyRemoteRoom(remote.room, latestRoom.id, meta.revision, localHash);
+          return;
+        }
+
         if (meta.role === 'viewer') {
           if (localHash !== remoteHash) applyRemoteRoom(remote.room, latestRoom.id, meta.revision, localHash);
           return;
