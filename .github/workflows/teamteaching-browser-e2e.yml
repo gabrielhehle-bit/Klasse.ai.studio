@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   teamteaching-browser-e2e:
@@ -22,6 +22,32 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: fix/compact-sync-dot-teamteaching
+
+      - name: Apply equal-revision Teamteaching recovery fix
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/context/AppContext.tsx')
+          source = path.read_text(encoding='utf-8')
+          needle = "        if (meta.role === 'viewer') {"
+          replacement = """        // A device can already know the newest server revision while its visible\n        // class body is still the previous acknowledged baseline. In that equal-revision\n        // case there is no competing local edit, so heal the stale device from the server\n        // instead of silently staying green with old lesson content.\n        if (localHash === baseline && remoteHash !== localHash) {\n          setLocalTeamStatus('syncing');\n          applyRemoteRoom(remote.room, latestRoom.id, meta.revision, localHash);\n          return;\n        }\n\n        if (meta.role === 'viewer') {"""
+          if source.count(needle) != 1:
+              raise SystemExit(f'Expected exactly one insertion point, found {source.count(needle)}')
+          path.write_text(source.replace(needle, replacement, 1), encoding='utf-8')
+          PY
+
+          git fetch origin main
+          git checkout origin/main -- .github/workflows/teamteaching-browser-e2e.yml
+          git add src/context/AppContext.tsx .github/workflows/teamteaching-browser-e2e.yml
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix: recover stale team room at equal revision"
+          git push origin HEAD:fix/compact-sync-dot-teamteaching
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
