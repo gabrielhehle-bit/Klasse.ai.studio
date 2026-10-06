@@ -34,6 +34,7 @@ export default function SaveSyncStatus({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [cockpitEditing, setCockpitEditing] = useState(false);
+  const isDashboard = (app.currentPage || 'dashboard') === 'dashboard';
 
   useEffect(() => {
     if (!detailsOpen) return;
@@ -251,6 +252,18 @@ export default function SaveSyncStatus({
           document.body,
         )}
       </details>
+
+      {!compact && isDashboard && (
+        <button
+          type="button"
+          aria-label="Heute bearbeiten"
+          title="Heute anpassen"
+          onClick={() => window.dispatchEvent(new Event('open-dashboard-customize'))}
+          className="hidden h-8 w-[5.75rem] shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white px-2 text-[10px] font-black uppercase tracking-wide text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 sm:inline-flex"
+        >
+          Bearbeiten
+        </button>
+      )}
 
       {compact && (
         <button
