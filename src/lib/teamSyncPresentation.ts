@@ -34,14 +34,14 @@ export function teamSyncPresentation(
   const editor = meta?.lastChangedBy || 'Noch nicht bestätigt';
   const message = clean(meta?.syncMessage);
 
-  // Missing device authorization has highest priority. It must never look like
-  // a working live sync, even if the personal account sync itself is online.
+  // Missing device authorization has highest priority. The authorization hook
+  // now resolves this automatically through an already authorized team session.
   if (options.deviceAuthorized === false || teamDeviceApprovalRequired(message)) {
     return {
       status: 'approval',
-      label: 'Freigabe erforderlich',
-      compactLabel: 'Gerät freigeben',
-      description: 'Dieses Gerät muss einmal von einer bereits berechtigten Lehrperson bestätigt werden. Danach funktioniert die Synchronisierung automatisch.',
+      label: 'Teamzugang wird aktiviert',
+      compactLabel: 'Teamzugang wird aktiviert',
+      description: 'Dieses Gerät wird automatisch freigeschaltet, sobald ein bereits berechtigtes Teamgerät die Klasse geöffnet hat. Du musst es nicht manuell im Klassenteam hinzufügen.',
       editor,
       changedAt: meta?.lastChangedAt,
       syncedAt: meta?.lastSyncedAt,
