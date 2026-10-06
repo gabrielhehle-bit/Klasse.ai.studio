@@ -15,7 +15,7 @@ test('Lehrercockpit verwendet den kompakten Benutzen/Bearbeiten-Schalter', () =>
 });
 
 test('Benutzen-Modus schützt Layout, lässt Widget-Inhalte aber bedienbar', () => {
-  assert.match(saveSyncStatus, /data\.cockpitLayoutMode/);
+  assert.match(saveSyncStatus, /dataset\.cockpitLayoutMode/);
   assert.match(saveSyncStatus, /data-widget-resize/);
   assert.match(saveSyncStatus, /board-widget-element/);
   assert.match(saveSyncStatus, /button, a, input, textarea, select/);
