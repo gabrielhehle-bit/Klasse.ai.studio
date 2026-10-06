@@ -47,12 +47,15 @@ export default function PublicFreePromise() {
 
   return (
     <div className="pointer-events-none fixed inset-x-0 top-[76px] z-[120] flex justify-center px-3 sm:top-[84px]">
-      <div className="pointer-events-auto flex max-w-[calc(100vw-1.5rem)] flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-2xl border border-emerald-200 bg-emerald-50/95 px-4 py-2.5 text-center text-[0.7rem] font-black text-emerald-900 shadow-lg shadow-emerald-950/5 backdrop-blur-xl sm:rounded-full sm:px-5 sm:text-xs">
+      <div className="pointer-events-auto flex max-w-[calc(100vw-1.5rem)] flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-2xl border border-emerald-200 bg-emerald-50/95 px-4 py-2.5 text-center text-[0.7rem] font-black text-emerald-900 shadow-lg shadow-emerald-950/5 backdrop-blur-xl sm:rounded-[1.35rem] sm:px-5 sm:text-xs">
         <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-white">0 € dauerhaft</span>
         <span>Kein Abo.</span>
         <span>Keine Paywall.</span>
         <span>Alle Funktionen frei.</span>
         <span className="font-bold text-emerald-700">Freiwillige Unterstützung statt Bezahlschranke.</span>
+        <span className="basis-full pt-0.5 text-[0.62rem] font-semibold leading-snug text-emerald-800/70 sm:text-[0.68rem]">
+          Die Entwicklung von KLASSIO wird im Rahmen einer wissenschaftlichen Arbeit an der PH Feldkirch begleitet.
+        </span>
       </div>
     </div>
   );

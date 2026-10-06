@@ -1,0 +1,174 @@
+:root {
+  --klassio-radius-area: 1.25rem;
+  --klassio-radius-control: 0.875rem;
+  --klassio-radius-compact: 0.625rem;
+  --klassio-space-section: 1rem;
+  --klassio-shadow-float: 0 18px 48px -34px rgba(15, 23, 42, 0.38);
+  --klassio-shadow-control: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+/*
+ * UI Polish 1 — one visual hierarchy for KLASSIO:
+ * app background -> section surface -> interactive element.
+ * Avoid extra framed layers and reserve stronger shadows for floating UI.
+ */
+[data-klassio-area],
+[data-dossier-overview] > section,
+.klassio-widget-library-sidebar,
+.klassio-widget-library-content {
+  border-radius: var(--klassio-radius-area);
+}
+
+[data-klassio-interactive],
+[data-dossier-overview] button,
+.klassio-widget-library button,
+.klassio-widget-library input,
+.klassio-widget-library select {
+  border-radius: var(--klassio-radius-control);
+}
+
+[data-dossier-overview] {
+  --dossier-line: color-mix(in srgb, var(--border, #dce5e2) 72%, transparent);
+}
+
+[data-dossier-overview] > section {
+  box-shadow: none;
+}
+
+[data-dossier-overview] [data-dossier-cockpit] {
+  background: color-mix(in srgb, var(--surface2, #f0f4f2) 72%, white);
+  border-color: var(--dossier-line);
+}
+
+[data-dossier-overview] [data-dossier-summary-card] {
+  min-height: 8.6rem;
+  border-color: var(--dossier-line);
+  box-shadow: var(--klassio-shadow-control);
+}
+
+[data-dossier-overview] [data-dossier-summary-card]:hover,
+[data-dossier-overview] [data-dossier-subject-grid] button:hover {
+  transform: translateY(-1px);
+}
+
+[data-dossier-overview] [data-attendance-heatmap] {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+[data-dossier-overview] [data-attendance-day] {
+  aspect-ratio: 1;
+  min-width: 0;
+  border-radius: 0.38rem;
+}
+
+/* Widget gallery: visually behaves like a compact app picker, not a settings form. */
+.klassio-widget-library-header {
+  gap: 0.75rem;
+}
+
+.klassio-widget-library-sidebar {
+  border-color: color-mix(in srgb, var(--border, #dce5e2) 78%, transparent) !important;
+  box-shadow: none !important;
+}
+
+.klassio-widget-library-search input {
+  box-shadow: none !important;
+}
+
+.klassio-widget-card {
+  box-shadow: none !important;
+  transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease;
+}
+
+.klassio-widget-card:hover {
+  transform: translateY(-1px);
+}
+
+/* Projected student lists stay simple: name first, controls second, no decorative card stack. */
+[aria-label="Öffentliche Schülerliste und Pluspunkte"] [role="listitem"] {
+  box-shadow: none !important;
+}
+
+[aria-label="Öffentliche Schülerliste und Pluspunkte"] [role="listitem"] button {
+  touch-action: manipulation;
+}
+
+/* Shared interaction feedback. Success should be felt, not announced permanently. */
+@keyframes klassio-confirm-pop {
+  0% { transform: scale(0.98); }
+  45% { transform: scale(1.015); }
+  100% { transform: scale(1); }
+}
+
+.klassio-confirm-pop {
+  animation: klassio-confirm-pop 220ms ease-out;
+}
+
+.klassio-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface2, #f0f4f2) 88%, transparent);
+}
+
+.klassio-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.62), transparent);
+  animation: klassio-skeleton-sweep 1.25s ease-in-out infinite;
+}
+
+@keyframes klassio-skeleton-sweep {
+  100% { transform: translateX(100%); }
+}
+
+/* Tablet / smartboard: touch-first, no hover dependency. */
+@media (pointer: coarse) {
+  .klassio-widget-library button,
+  .klassio-widget-library input,
+  .klassio-widget-library select,
+  [data-dossier-overview] button {
+    min-height: 44px;
+  }
+
+  .klassio-widget-card:hover,
+  [data-dossier-overview] [data-dossier-summary-card]:hover,
+  [data-dossier-overview] [data-dossier-subject-grid] button:hover {
+    transform: none;
+  }
+}
+
+@media (min-width: 1100px) and (pointer: coarse) {
+  :root {
+    --klassio-space-section: 1.25rem;
+  }
+
+  .klassio-widget-library button,
+  .klassio-widget-library input,
+  .klassio-widget-library select,
+  [aria-label="Öffentliche Schülerliste und Pluspunkte"] button,
+  [data-dossier-overview] button {
+    min-height: 48px;
+  }
+
+  .klassio-widget-library-sidebar {
+    padding: 0.75rem !important;
+  }
+}
+
+@media (max-width: 767px) {
+  [data-dossier-overview] [data-dossier-summary-card] {
+    min-height: 7.6rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .klassio-confirm-pop,
+  .klassio-skeleton::after,
+  .klassio-widget-card,
+  [data-dossier-overview] button {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}
