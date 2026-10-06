@@ -11,12 +11,14 @@ on:
       - 'src/components/GradeOverview.tsx'
       - 'src/components/StudentDossier.tsx'
       - 'src/components/StudentDossierHub.tsx'
+      - 'src/components/ClassDossier.tsx'
       - 'src/components/dossier/DossierBeobachtungenVerlauf.tsx'
       - 'src/context/AppContext.tsx'
       - 'src/lib/utils.ts'
       - 'src/components/Topbar.tsx'
       - 'src/components/Sidebar.tsx'
       - 'scripts/classroom-routine-browser-e2e.mjs'
+      - 'scripts/classroom-routine-browser-e2e-stable.mjs'
       - '.github/workflows/classroom-routine-browser-e2e.yml'
   workflow_dispatch:
 
@@ -93,7 +95,7 @@ jobs:
             sleep 0.5
           done
           grep -q '"status":"ok"' /tmp/klassio-classroom-routine-health.json
-          bun scripts/classroom-routine-browser-e2e.mjs
+          bun scripts/classroom-routine-browser-e2e-stable.mjs
 
       - name: Upload browser screenshot and diagnostics
         if: always()
