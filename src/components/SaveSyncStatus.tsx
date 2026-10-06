@@ -2,6 +2,7 @@ import AccountServerLoadButton from './AccountServerLoadButton';
 import { createPortal } from 'react-dom';
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useTeamDeviceAuthorization } from '../hooks/useTeamDeviceAuthorization';
 import { saveSyncPresentation } from '../lib/saveSyncPresentation';
 import { syncActiveClass } from '../lib/appState';
 import { teamSyncPresentation } from '../lib/teamSyncPresentation';
@@ -20,6 +21,8 @@ export default function SaveSyncStatus({ onOpenTeam }: { onOpenTeam?: () => void
   useEffect(() => { const update = () => setOnline(navigator.onLine); window.addEventListener('online', update); window.addEventListener('offline', update); return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update); }; }, []);
   const room = syncActiveClass(app).classes?.find(candidate => candidate.id === app.activeClassId);
   const meta = room?.teamTeaching;
+  const sharedClassId = meta?.sharedClassId || room?.teamTeachingSharedClassId;
+  const deviceAuthorization = useTeamDeviceAuthorization(sharedClassId);
   const team = teamSyncPresentation(room)?.status;
   const state = saveSyncPresentation(localSaveStatus, accountSyncStatus, online, team);
   const statusTitle = `${state.label}${accountLiveStatus === 'live' ? ' · Live-Abgleich aktiv' : ''} · Details öffnen`;
@@ -38,7 +41,7 @@ export default function SaveSyncStatus({ onOpenTeam }: { onOpenTeam?: () => void
       <p>Gleichzeitige Änderungen werden geprüft; Konflikte werden nicht automatisch überschrieben.</p>
       {!online && <p>Offline: Änderungen werden nach der Verbindung erneut übertragen.</p>}
       {accountSyncMessage && <p>{accountSyncMessage}</p>}
-      {(meta || room?.teamTeachingSharedClassId) && <div className="space-y-1 border-t pt-2"><p className="font-bold">Teamteaching: {team === 'synced' ? 'Synchronisiert' : team === 'conflict' ? 'Konflikt – keine Änderung überschrieben' : team === 'error' ? 'Sync prüfen' : 'Änderung noch ausstehend'}</p><p>Zuletzt geändert: {meta?.lastChangedBy || 'Noch nicht bestätigt'} · {time(meta?.lastChangedAt)}</p><p>Letzter Team-Abgleich: {time(meta?.lastSyncedAt)}</p>{meta?.syncMessage && <p>{meta.syncMessage}</p>}<button type="button" className="min-h-11 w-full rounded-lg border px-2 font-semibold" onClick={() => onOpenTeam ? onOpenTeam() : setPage('teamteaching')}>Klassenteam öffnen</button></div>}
+      {(meta || room?.teamTeachingSharedClassId) && <div className="space-y-1 border-t pt-2"><p className="font-bold">Teamteaching: {deviceAuthorization === 'unauthorized' ? 'Teamzugang wird automatisch eingerichtet' : deviceAuthorization === 'checking' ? 'Teamzugang wird geprüft' : team === 'synced' ? 'Synchronisiert' : team === 'conflict' ? 'Konflikt – keine Änderung überschrieben' : team === 'error' ? 'Sync prüfen' : 'Änderung noch ausstehend'}</p>{deviceAuthorization === 'unauthorized' && <p>Dieses Gerät wird automatisch freigeschaltet, sobald ein bereits berechtigtes Teamgerät die Klasse geöffnet hat. Es muss nicht manuell im Klassenteam hinzugefügt werden.</p>}<p>Zuletzt geändert: {meta?.lastChangedBy || 'Noch nicht bestätigt'} · {time(meta?.lastChangedAt)}</p><p>Letzter Team-Abgleich: {time(meta?.lastSyncedAt)}</p>{meta?.syncMessage && deviceAuthorization !== 'unauthorized' && <p>{meta.syncMessage}</p>}<button type="button" className="min-h-11 w-full rounded-lg border px-2 font-semibold" onClick={() => onOpenTeam ? onOpenTeam() : setPage('teamteaching')}>Klassenteam öffnen</button></div>}
       <AccountServerLoadButton />
       <button type="button" disabled={!online || retrying} className="min-h-11 w-full rounded-lg border px-2 font-semibold disabled:opacity-50" onClick={async () => { setRetrying(true); try { await retryAccountSync(); } finally { setRetrying(false); } }}>Jetzt synchronisieren</button>
     </div></>, document.body)}
