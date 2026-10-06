@@ -22,6 +22,13 @@ test('Benutzen-Modus schützt Layout, lässt Widget-Inhalte aber bedienbar', () 
   assert.match(saveSyncStatus, /event\.clientY <= rect\.top \+ 50/);
 });
 
+test('Heute hat einen klaren Bearbeiten-Einstieg ohne wechselnde Breite', () => {
+  assert.match(saveSyncStatus, /isDashboard/);
+  assert.match(saveSyncStatus, /open-dashboard-customize/);
+  assert.match(saveSyncStatus, /aria-label="Heute bearbeiten"/);
+  assert.match(saveSyncStatus, /w-\[5\.75rem\]/);
+});
+
 test('Speicherstatus bleibt in Heute und Cockpit ein fester Punkt', () => {
   assert.match(topbar, /<SaveSyncStatus \/>/);
   assert.match(saveSyncStatus, /h-8 w-8/);
