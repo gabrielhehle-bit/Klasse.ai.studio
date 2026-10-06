@@ -4,6 +4,7 @@ import App from './App.tsx';
 import ErrorBoundary from './components/ErrorBoundary';
 import PublicFreePromise from './components/PublicFreePromise';
 import './index.css';
+import './ui-polish.css';
 import './planning-dialog.css';
 import './weekly-plan-ux.css';
 
