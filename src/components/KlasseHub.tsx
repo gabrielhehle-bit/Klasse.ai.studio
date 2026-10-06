@@ -1,8 +1,10 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { Users, UserCheck, Armchair, Wallet, MessagesSquare, Heart, Notebook, ChevronRight, UserPlus, FileText, ContactRound } from 'lucide-react';
+import { Users, UserCheck, Armchair, Wallet, MessagesSquare, Heart, Notebook, ChevronRight, UserPlus, FileText, ContactRound, BarChart3, ArrowLeft } from 'lucide-react';
 import { toLocalDateKey } from '../lib/localDate';
 import { countStudentsWithAttendanceForDay } from '../lib/dashboardAttendance';
+import ClassDossier from './ClassDossier';
+import StudentDossier from './StudentDossier';
 
 type HubItem = {
   id: string;
@@ -48,12 +50,45 @@ function ClassCard({
 
 export default function KlasseHub() {
   const { app, setPage } = useApp();
+  const [showClassDossier, setShowClassDossier] = React.useState(false);
+  const [selectedStudentId, setSelectedStudentId] = React.useState<string | null>(null);
   const students = app.schueler || [];
   const today = toLocalDateKey();
   const recordedToday = countStudentsWithAttendanceForDay(students, app.anwesenheit, today);
   const className = app.klassenbezeichnung?.trim();
   const schoolYear = app.schuljahr?.replace(/^(\d{4})\/\d{2}(\d{2})$/, '$1/$2');
   const attendanceLabel = recordedToday > 0 ? `${recordedToday} von ${students.length} erfasst` : 'Heute noch offen';
+
+  React.useEffect(() => {
+    setShowClassDossier(false);
+    setSelectedStudentId(null);
+  }, [app.activeClassId]);
+
+  if (selectedStudentId) {
+    return (
+      <StudentDossier
+        schuelerId={selectedStudentId}
+        onBack={() => setSelectedStudentId(null)}
+        onStudentChange={setSelectedStudentId}
+      />
+    );
+  }
+
+  if (showClassDossier) {
+    return (
+      <div className="mx-auto w-full max-w-[1500px] space-y-4 px-3 py-4 sm:px-5 sm:py-5" data-class-dossier-page>
+        <button
+          type="button"
+          onClick={() => setShowClassDossier(false)}
+          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold text-[var(--text2)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+        >
+          <ArrowLeft size={17} />
+          Zur Klassenübersicht
+        </button>
+        <ClassDossier onSelectStudent={setSelectedStudentId} />
+      </div>
+    );
+  }
 
   const dailyItems: HubItem[] = [
     {
@@ -64,17 +99,22 @@ export default function KlasseHub() {
       meta: `${students.length} Kinder`,
     },
     {
+      id: 'anwesenheit',
+      title: 'Anwesenheit & Befinden',
+      description: 'Anwesenheit und Befinden erfassen.',
+      icon: UserCheck,
+    },
+    {
       id: 'dossier',
       title: 'Schülerdossier',
       description: 'Entwicklung und Informationen eines Kindes ansehen.',
       icon: ContactRound,
     },
     {
-      id: 'anwesenheit',
-      title: 'Anwesenheit & Befinden',
-      description: 'Anwesenheit und Befinden erfassen.',
-      icon: UserCheck,
-
+      id: 'klassendossier',
+      title: 'Klassendossier',
+      description: 'Überblick und Entwicklung der gesamten Klasse ansehen.',
+      icon: BarChart3,
     },
     {
       id: 'sitzplan',
@@ -132,6 +172,14 @@ export default function KlasseHub() {
     item => !item.klassenvorstandOnly || app.klassenvorstand,
   );
 
+  const openItem = (id: string) => {
+    if (id === 'klassendossier') {
+      setShowClassDossier(true);
+      return;
+    }
+    setPage(id);
+  };
+
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-5 sm:px-6 sm:py-6" data-class-hub>
       <header className="flex flex-col gap-4 border-b border-[var(--border)] pb-5 sm:flex-row sm:items-center sm:justify-between">
@@ -165,7 +213,7 @@ export default function KlasseHub() {
         </div>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {dailyItems.map(item => (
-            <ClassCard key={item.id} item={item} onOpen={setPage} />
+            <ClassCard key={item.id} item={item} onOpen={openItem} />
           ))}
         </div>
       </section>
