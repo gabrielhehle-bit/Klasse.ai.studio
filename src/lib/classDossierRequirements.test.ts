@@ -2,14 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const hub = readFileSync('src/components/StudentDossierHub.tsx', 'utf8');
+const studentHub = readFileSync('src/components/StudentDossierHub.tsx', 'utf8');
+const classHub = readFileSync('src/components/KlasseHub.tsx', 'utf8');
 const dossier = readFileSync('src/components/ClassDossier.tsx', 'utf8');
 
-test('Schüler- und Klassendossier stehen direkt nebeneinander', () => {
-  assert.match(hub, /data-dossier-switch/);
-  assert.match(hub, /Schülerdossier/);
-  assert.match(hub, /Klassendossier/);
-  assert.match(hub, /<ClassDossier onSelectStudent=/);
+test('Klassendossier ist in der Klassenübersicht und nicht im Schülerdossier', () => {
+  assert.match(classHub, /id: 'klassendossier'/);
+  assert.match(classHub, /title: 'Schülerdossier'[\s\S]*?title: 'Klassendossier'/);
+  assert.match(classHub, /<ClassDossier onSelectStudent=/);
+  assert.match(classHub, /Zur Klassenübersicht/);
+  assert.doesNotMatch(studentHub, /ClassDossier/);
+  assert.doesNotMatch(studentHub, /Klassendossier/);
 });
 
 test('Klassendossier bietet Zeitraumfilter inklusive eigenem Zeitraum', () => {
