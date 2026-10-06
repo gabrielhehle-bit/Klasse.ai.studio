@@ -33,7 +33,6 @@ export default function SaveSyncStatus({
   const [online, setOnline] = useState(() => navigator.onLine);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [retrying, setRetrying] = useState(false);
-  const [cockpitEditing, setCockpitEditing] = useState(false);
   const isDashboard = (app.currentPage || 'dashboard') === 'dashboard';
 
   useEffect(() => {
@@ -55,53 +54,6 @@ export default function SaveSyncStatus({
     };
   }, []);
 
-  // Im Lehrercockpit ist der Normalzustand "Benutzen": Widget-Inhalte bleiben
-  // interaktiv, aber versehentliches Verschieben/Skalieren wird abgefangen.
-  // Erst der bewusst gewählte Bearbeiten-Modus gibt die Layout-Griffe wieder frei.
-  useEffect(() => {
-    if (!compact) return;
-
-    const root = document.documentElement;
-    root.dataset.cockpitLayoutMode = cockpitEditing ? 'edit' : 'use';
-
-    const blockAccidentalLayoutChanges = (event: PointerEvent) => {
-      if (cockpitEditing) return;
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-
-      const resizeControl = target.closest(
-        '[data-widget-resize], .cockpit-widget-resize-edge, .cockpit-widget-resize-handle',
-      );
-      if (resizeControl) {
-        event.preventDefault();
-        event.stopPropagation();
-        return;
-      }
-
-      const widget = target.closest('.board-widget-element');
-      if (!(widget instanceof HTMLElement)) return;
-
-      // Buttons, Eingabefelder, Zeichenflächen usw. müssen im Benutzen-Modus
-      // vollständig bedienbar bleiben. Nur der leere Kopfbereich wird gesperrt.
-      const interactive = target.closest(
-        'button, a, input, textarea, select, [role="button"], [contenteditable="true"], canvas, [data-no-drag]',
-      );
-      if (interactive) return;
-
-      const rect = widget.getBoundingClientRect();
-      if (event.clientY <= rect.top + 50) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-    };
-
-    document.addEventListener('pointerdown', blockAccidentalLayoutChanges, true);
-    return () => {
-      document.removeEventListener('pointerdown', blockAccidentalLayoutChanges, true);
-      delete root.dataset.cockpitLayoutMode;
-    };
-  }, [compact, cockpitEditing]);
-
   const room = syncActiveClass(app).classes?.find(candidate => candidate.id === app.activeClassId);
   const meta = room?.teamTeaching;
   const sharedClassId = meta?.sharedClassId || room?.teamTeachingSharedClassId;
@@ -112,22 +64,6 @@ export default function SaveSyncStatus({
 
   return (
     <div className="flex shrink-0 items-center gap-1" data-save-sync-status>
-      {compact && (
-        <style>{`
-          [data-cockpit-layout-mode="use"] .cockpit-widget-resize-edge,
-          [data-cockpit-layout-mode="use"] .cockpit-widget-resize-handle {
-            display: none !important;
-          }
-          [data-cockpit-layout-mode="use"] .board-widget-element {
-            cursor: default !important;
-          }
-          [data-cockpit-layout-mode="use"] .board-widget-element [class*="cursor-grab"] {
-            cursor: default !important;
-            touch-action: auto !important;
-          }
-        `}</style>
-      )}
-
       <details
         open={detailsOpen}
         onToggle={event => setDetailsOpen(event.currentTarget.open)}
@@ -262,23 +198,6 @@ export default function SaveSyncStatus({
           className="hidden h-8 w-[5.75rem] shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white px-2 text-[10px] font-black uppercase tracking-wide text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 sm:inline-flex"
         >
           Bearbeiten
-        </button>
-      )}
-
-      {compact && (
-        <button
-          type="button"
-          aria-pressed={cockpitEditing}
-          aria-label={cockpitEditing ? 'Lehrercockpit: Bearbeiten aktiv' : 'Lehrercockpit: Benutzen aktiv'}
-          title={cockpitEditing ? 'Bearbeiten aktiv – zum Benutzen sperren' : 'Benutzen aktiv – zum Bearbeiten entsperren'}
-          onClick={() => setCockpitEditing(value => !value)}
-          className={`h-8 w-[5.75rem] shrink-0 rounded-lg border px-2 text-[10px] font-black uppercase tracking-wide transition-colors ${
-            cockpitEditing
-              ? 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
-              : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-          }`}
-        >
-          {cockpitEditing ? 'Bearbeiten' : 'Benutzen'}
         </button>
       )}
     </div>
