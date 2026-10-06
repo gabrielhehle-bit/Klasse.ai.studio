@@ -7,70 +7,73 @@ const dossier = readFileSync('src/components/StudentDossier.tsx', 'utf8');
 const observations = readFileSync('src/components/dossier/DossierBeobachtungenVerlauf.tsx', 'utf8');
 const support = readFileSync('src/components/dossier/DossierFoerderung.tsx', 'utf8');
 
-test('Dossierübersicht: Diagramme ersetzen Förderkarten und gemischte Gesamtnoten', () => {
+test('Dossierübersicht: sinnvolle Verläufe ersetzen Förderkarten und gemischte Gesamtnoten', () => {
   assert.match(overview, /Alle Fächer auf einen Blick/);
-  assert.match(overview, /Verhalten, Befinden & Anwesenheit/);
+  assert.match(overview, /Mitarbeit, Verhalten, Befinden & Anwesenheit/);
   assert.match(overview, /getAssessmentMode/);
   assert.match(overview, /berechne/);
   assert.match(overview, /Noch keine Bewertung/);
   assert.doesNotMatch(overview, /Förderbedarf|Kein Förderbedarf|Präsenz unauffällig/);
 });
 
-test('Dossierübersicht: visueller Schnellüberblick kommt vor den Fachkarten und nutzt keinen gemischten Gesamtnotenschnitt', () => {
+test('Dossierübersicht: vier visuelle Kernbereiche kommen vor den Fachkarten', () => {
   assert.match(overview, /data-dossier-cockpit/);
   assert.match(overview, /data-dossier-subject-grid/);
   assert.match(overview, /data-subject-sparkline/);
-  assert.match(overview, />Leistung</);
-  assert.match(overview, /Fächer bewertet/);
+  assert.match(overview, />Anwesenheit</);
+  assert.match(overview, />Mitarbeit</);
+  assert.match(overview, />Verhalten & Befinden</);
+  assert.match(overview, />Lernentwicklung</);
+  assert.match(overview, /xl:grid-cols-4/);
   assert.match(overview, /Punktebasis/);
   assert.doesNotMatch(overview, /Punkte \+ Prozent/);
   assert.ok(overview.indexOf('data-dossier-cockpit') < overview.indexOf('data-dossier-subject-grid'));
-  assert.ok(overview.indexOf('data-dossier-subject-grid') < overview.indexOf('Verhalten, Befinden & Anwesenheit'));
+  assert.ok(overview.indexOf('data-dossier-subject-grid') < overview.indexOf('Mitarbeit, Verhalten, Befinden & Anwesenheit'));
 });
 
 test('Dossierübersicht: Schnellüberblick bleibt ein echter Schuljahresstand unabhängig vom Diagrammfilter', () => {
   assert.match(overview, /const trendStats=useMemo\(\(\)=>getDossierOverviewStats\(app,student\.id,period\)/);
   assert.match(overview, /const yearStats=useMemo\(\(\)=>getDossierOverviewStats\(app,student\.id,'year'\)/);
-  assert.match(overview, /yearStats\.logs\.length/);
   assert.match(overview, /yearStats\.excused\+yearStats\.unexcused/);
   assert.match(overview, /yearStats\.moodCount/);
   assert.match(overview, /trendStats\.weeks/);
   assert.match(overview, /Ganzes Schuljahr · Details per Klick/);
 });
 
-test('Dossierübersicht: Mitarbeit und Hausübungen sind vor der Vertiefung direkt sichtbar und mobil verdichtet', () => {
+test('Dossierübersicht: Mitarbeit und Hausübungen bleiben vor der Vertiefung direkt sichtbar', () => {
   assert.match(overview, /Kernüberblick/);
-  assert.match(overview, /Mitarbeit & HÜ/);
   assert.match(overview, /homeworkCoreText/);
   assert.match(overview, /fehlende HÜ/);
   assert.match(overview, /getStudentSubjectParticipationSummary/);
   assert.match(overview, /getStudentHomeworkSummary/);
   assert.match(overview, /Mitarbeit —/);
   assert.match(overview, /HÜ —/);
-  assert.match(overview, /grid grid-cols-2 gap-2 lg:grid-cols-5/);
-  assert.match(overview, /col-span-2[^"]*lg:col-span-1/);
-  assert.ok(overview.indexOf('Mitarbeit & HÜ') < overview.indexOf('Verhalten, Befinden & Anwesenheit'));
+  assert.match(overview, /participationTimeline/);
+  assert.ok(overview.indexOf('>Mitarbeit') < overview.indexOf('Mitarbeit, Verhalten, Befinden & Anwesenheit'));
 });
 
-test('Dossierübersicht: Fachkarten priorisieren konkrete Daten und vermeiden Textballast', () => {
+test('Dossierübersicht: Fachkarten priorisieren konkrete Daten und kleine Lernentwicklungs-Sparklines', () => {
   assert.match(overview, /Bewertung, Trend, Mitarbeit und Hausübungen direkt pro Fach/);
   assert.match(overview, /Trend ab 2 Nachweisen/);
   assert.match(overview, /Trend ab 2/);
   assert.match(overview, /aria-label={`Bewertungsstand \$\{cardData\.fach\}`}/);
   assert.match(overview, /const participationText=.*Mitarbeit —/);
   assert.match(overview, /const homeworkText=.*HÜ —/);
+  assert.match(overview, /data-subject-sparkline/);
 });
 
-test('Dossierübersicht: Verläufe sind kompakt, einheitlich und ohne doppelte Großstatus aufgebaut', () => {
-  assert.match(overview, />Verläufe</);
-  assert.match(overview, /data-dossier-trend-card="behavior"/);
-  assert.match(overview, /data-dossier-trend-card="mood"/);
+test('Dossierübersicht: Verläufe nutzen passende Diagrammtypen statt drei ähnlicher Balkencharts', () => {
+  assert.match(overview, /Verläufe, die etwas sagen/);
+  assert.match(overview, /data-dossier-trend-card="participation"/);
+  assert.match(overview, /data-dossier-trend-card="wellbeing"/);
   assert.match(overview, /data-dossier-trend-card="attendance"/);
+  assert.match(overview, /data-attendance-heatmap/);
+  assert.match(overview, /Kalender statt weiterer Balken/);
+  assert.match(overview, /Gemeinsamer Verlauf ohne Kreisdiagramm/);
   assert.match(overview, /['recent','6 Wochen']/);
   assert.match(overview, /['year','Schuljahr']/);
   assert.match(overview, /Werte per Tipp oder Mauszeiger/);
   assert.match(overview, /Letzter Eintrag:/);
-  assert.doesNotMatch(overview, /Letzte 6 Wochen|Gesamtes Schuljahr/);
 });
 
 test('Dossierübersicht: Notizen zeigen Typ, Fach, robuste Datumsquelle und direkte Erfassung', () => {
