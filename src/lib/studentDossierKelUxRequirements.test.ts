@@ -17,7 +17,7 @@ test('Schülerdossier hat nur noch eine kompakte Schülernavigation und eine Hau
 
 test('Dossierübersicht zeigt alle Fächer und die drei Alltagsdiagramme', () => {
   assert.match(overview, /subjects.map/);
-  assert.match(overview, /lg:grid-cols-3/);
+  assert.match(overview, /xl:grid-cols-3/);
   assert.match(overview, /Alle Fächer auf einen Blick/);
   assert.match(overview, /Verhalten, Befinden & Anwesenheit/);
   assert.doesNotMatch(overview, /assessedSubjects.slice/);
