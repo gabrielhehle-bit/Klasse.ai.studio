@@ -5,6 +5,7 @@ on:
     branches:
       - 'chore/teamteaching-browser-e2e'
       - feature/usability-widgets-tools-notes
+      - release/klassio-stable
       - main
   pull_request:
     branches:
