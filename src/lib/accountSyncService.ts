@@ -180,24 +180,39 @@ export function accountSyncState(state: AppState): AppState {
   return clone;
 }
 
-/** The team server, not a teacher's older personal account snapshot, owns shared class contents. */
+/**
+ * Account revisions track personal/account data. A Teamteaching class has its
+ * own encrypted server, revision and conflict protection; only its stable link
+ * belongs in the personal-account fingerprint.
+ */
+export function accountFingerprintState(state: AppState): AppState {
+  const clone = accountSyncState(state);
+  if (Array.isArray(clone.classes)) {
+    clone.classes = clone.classes.map(room => {
+      const sharedClassId = room.teamTeachingSharedClassId;
+      if (!sharedClassId) return room;
+      return {
+        id: room.id,
+        teamTeachingSharedClassId: sharedClassId,
+      } as ClassRoom;
+    });
+  }
+  return clone;
+}
+
+/**
+ * Shared class CONTENT is owned by the Teamteaching server and must never
+ * manufacture a personal-account conflict. Only a contradictory workspace
+ * pointer for the same local class is an account-level drift.
+ */
 export function hasSharedClassAccountDrift(remote: AppState, local: AppState): boolean {
   for (const localRoom of local.classes || []) {
-    if (!localRoom.teamTeaching) continue;
+    const localSharedId = localRoom.teamTeaching?.sharedClassId || localRoom.teamTeachingSharedClassId;
+    if (!localSharedId) continue;
     const remoteRoom = (remote.classes || []).find(room => room.id === localRoom.id);
-    if (!remoteRoom) return true;
-    const { teamTeaching: _localMeta, teamTeachingSharedClassId: _localLink, ...localContent } = localRoom;
-    const { teamTeaching: _remoteMeta, teamTeachingSharedClassId: _remoteLink, ...remoteContent } = remoteRoom;
-    // The personal-account payload normalizes sparse legacy class defaults.
-    // An absent vs. empty mission list is not a teammate's changed lesson.
-    // Apply the SAME defaults on both sides before checking for real drift.
-    const comparableLocal = canonicalizeSyncDefaults({
-      classes: [JSON.parse(JSON.stringify(localContent))],
-    } as AppState).classes[0];
-    const comparableRemote = canonicalizeSyncDefaults({
-      classes: [JSON.parse(JSON.stringify(remoteContent))],
-    } as AppState).classes[0];
-    if (stableSerialize(comparableLocal) !== stableSerialize(comparableRemote)) return true;
+    if (!remoteRoom) continue;
+    const remoteSharedId = remoteRoom.teamTeaching?.sharedClassId || remoteRoom.teamTeachingSharedClassId;
+    if (remoteSharedId && remoteSharedId !== localSharedId) return true;
   }
   return false;
 }
@@ -260,7 +275,7 @@ function stableSerialize(value: unknown): string {
 }
 
 export function appStateFingerprint(state: AppState): string {
-  const json = stableSerialize(accountSyncState(state));
+  const json = stableSerialize(accountFingerprintState(state));
   let hash = 2166136261;
   for (let i = 0; i < json.length; i++) {
     hash ^= json.charCodeAt(i);
