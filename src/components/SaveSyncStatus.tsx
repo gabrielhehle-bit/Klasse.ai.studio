@@ -6,6 +6,9 @@ import { useTeamDeviceAuthorization } from '../hooks/useTeamDeviceAuthorization'
 import { saveSyncPresentation } from '../lib/saveSyncPresentation';
 import { syncActiveClass } from '../lib/appState';
 import { teamSyncPresentation } from '../lib/teamSyncPresentation';
+import { classRoomFingerprint } from '../lib/teamTeachingCrypto';
+import { adoptAcknowledgedTeamRoom } from '../lib/teamTeachingProjection';
+import { hydrateLinkedTeamClasses } from '../lib/teamTeachingBootstrap';
 
 const time = (value?: string | null) => value && Number.isFinite(Date.parse(value))
   ? new Date(value).toLocaleString('de-AT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -21,6 +24,7 @@ export default function SaveSyncStatus({
 }) {
   const {
     app,
+    setApp,
     localSaveStatus,
     localSaveLastAt,
     accountSyncStatus,
@@ -30,6 +34,9 @@ export default function SaveSyncStatus({
     retryAccountSync,
     setPage,
   } = useApp();
+  const liveAppRef = React.useRef(app);
+  liveAppRef.current = app;
+  const teamBootstrapBusyRef = React.useRef(false);
   const [online, setOnline] = useState(() => navigator.onLine);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [retrying, setRetrying] = useState(false);
@@ -58,9 +65,60 @@ export default function SaveSyncStatus({
   const meta = room?.teamTeaching;
   const sharedClassId = meta?.sharedClassId || room?.teamTeachingSharedClassId;
   const deviceAuthorization = useTeamDeviceAuthorization(sharedClassId);
+  const needsTeamBootstrap = Boolean(room?.teamTeachingSharedClassId && !room.teamTeaching);
   const team = teamSyncPresentation(room)?.status;
   const state = saveSyncPresentation(localSaveStatus, accountSyncStatus, online, team);
   const statusTitle = `${state.label}${accountLiveStatus === 'live' ? ' · Live-Abgleich aktiv' : ''} · Details öffnen`;
+
+  // A restored second device initially knows only the opaque shared-class ID.
+  // Once its device key is authorized, pull the authoritative encrypted team
+  // snapshot and establish the REAL revision/hash before any Team push can run.
+  // If the teacher edits the pointer-only stale copy while the pull is in flight,
+  // never overwrite it automatically; the guarded updater simply leaves it alone.
+  useEffect(() => {
+    if (!online || deviceAuthorization !== 'authorized' || !needsTeamBootstrap
+      || !room?.id || !room.teamTeachingSharedClassId) return;
+
+    let cancelled = false;
+    const roomId = room.id;
+    const sharedId = room.teamTeachingSharedClassId;
+    const startingHash = classRoomFingerprint(room);
+
+    const bootstrap = async () => {
+      if (cancelled || teamBootstrapBusyRef.current) return;
+      const latestState = syncActiveClass(liveAppRef.current);
+      const latestRoom = latestState.classes?.find(candidate => candidate.id === roomId);
+      if (!latestRoom || latestRoom.teamTeaching
+        || latestRoom.teamTeachingSharedClassId !== sharedId
+        || classRoomFingerprint(latestRoom) !== startingHash) return;
+
+      teamBootstrapBusyRef.current = true;
+      try {
+        const hydratedState = await hydrateLinkedTeamClasses(latestState);
+        if (cancelled) return;
+        const hydratedRoom = hydratedState.classes?.find(candidate => candidate.id === roomId);
+        if (!hydratedRoom?.teamTeaching || hydratedRoom.teamTeaching.sharedClassId !== sharedId) return;
+
+        setApp(prev => {
+          const current = syncActiveClass(prev);
+          const currentRoom = current.classes?.find(candidate => candidate.id === roomId);
+          if (!currentRoom || currentRoom.teamTeaching
+            || currentRoom.teamTeachingSharedClassId !== sharedId
+            || classRoomFingerprint(currentRoom) !== startingHash) return prev;
+          return adoptAcknowledgedTeamRoom({ ...current, activeClassId: undefined }, hydratedRoom);
+        });
+      } finally {
+        teamBootstrapBusyRef.current = false;
+      }
+    };
+
+    void bootstrap();
+    const retry = window.setInterval(() => void bootstrap(), 5_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(retry);
+    };
+  }, [deviceAuthorization, needsTeamBootstrap, online, room?.id, room?.teamTeachingSharedClassId, setApp]);
 
   return (
     <div className="flex shrink-0 items-center gap-1" data-save-sync-status>
