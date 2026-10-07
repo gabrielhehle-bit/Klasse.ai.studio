@@ -42,17 +42,33 @@ function makeState(classes: ClassRoom[], activeClassId = 'class-1'): AppState {
   } as unknown as AppState;
 }
 
-test('restored account pointer becomes a conservative Teamteaching baseline', () => {
+test('restored account pointer becomes an unconfirmed Teamteaching baseline', () => {
   const accountRoom = makeRoom();
   const expectedBaseline = classRoomFingerprint(accountRoom);
 
   const restored = bootstrapRestoredTeamTeachingRoom(accountRoom);
 
   assert.equal(restored.teamTeaching?.sharedClassId, 'shared-1');
-  assert.equal(restored.teamTeaching?.role, 'viewer');
-  assert.equal(restored.teamTeaching?.revision, -1);
+  assert.equal(restored.teamTeaching?.role, 'editor');
+  assert.equal(restored.teamTeaching?.revision, 0);
   assert.equal(restored.teamTeaching?.lastSyncedHash, expectedBaseline);
   assert.equal(restored.teamTeaching?.syncStatus, 'idle');
+});
+
+test('a quick local edit stays distinguishable from the restored baseline before first pull', () => {
+  const accountRoom = makeRoom({
+    wochenplanung: { 41: { Montag: { 1: { thema: 'Silbenlesen' } } } },
+  });
+  const restored = bootstrapRestoredTeamTeachingRoom(accountRoom);
+  const baseline = restored.teamTeaching?.lastSyncedHash;
+  const edited = {
+    ...restored,
+    wochenplanung: { 41: { Montag: { 1: { thema: 'Silbenlesen + Leseblatt' } } } },
+  } as ClassRoom;
+
+  assert.equal(baseline, classRoomFingerprint(accountRoom));
+  assert.notEqual(classRoomFingerprint(edited), baseline);
+  assert.equal(restored.teamTeaching?.revision, 0);
 });
 
 test('account sync still strips device-local Teamteaching metadata but keeps the shared pointer', () => {
@@ -75,7 +91,7 @@ test('second device receives a baseline instead of a shared-id-only dead end', (
   const mergedRoom = merged.classes?.[0];
 
   assert.equal(mergedRoom?.teamTeaching?.sharedClassId, 'shared-1');
-  assert.equal(mergedRoom?.teamTeaching?.revision, -1);
+  assert.equal(mergedRoom?.teamTeaching?.revision, 0);
   assert.equal(mergedRoom?.teamTeaching?.lastSyncedHash, classRoomFingerprint(remoteAccountRoom));
 });
 
