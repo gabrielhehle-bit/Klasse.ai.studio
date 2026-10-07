@@ -217,11 +217,13 @@ export function bootstrapRestoredTeamTeachingRoom(room: ClassRoom): ClassRoom {
     ...room,
     teamTeaching: {
       sharedClassId: room.teamTeachingSharedClassId,
-      // Until the Teamteaching server confirms the real role, stay read-only.
-      role: 'viewer',
-      // Server revisions are non-negative. -1 guarantees the first successful
-      // pull is handled as authoritative/newer, including a brand-new revision 0.
-      revision: -1,
+      // Revision 0 means "linked from account restore, but not yet confirmed by
+      // the Teamteaching server". Real shared classes start at revision 1.
+      // Use an editor placeholder only to let the existing metadata-only branch
+      // preserve a quick local edit. Before any push it replaces this placeholder
+      // with remote.detail.myRole, so a real viewer still cannot write.
+      role: 'editor',
+      revision: 0,
       lastSyncedHash: classRoomFingerprint(room),
       syncStatus: 'idle',
       syncMessage: 'Teamstand wird auf diesem Gerät verbunden.',
