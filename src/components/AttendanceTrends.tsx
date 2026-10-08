@@ -2,18 +2,19 @@ import React, { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts';
 import { useApp } from '../context/AppContext';
 import { Calendar, AlertCircle } from 'lucide-react';
-import { buildAttendanceTrendData } from '../lib/attendanceData';
+import { buildAttendanceTrendData, type AttendanceDateRange } from '../lib/attendanceData';
 
-export default function AttendanceTrends() {
+export default function AttendanceTrends({ range }: { range?: AttendanceDateRange | null }) {
   const { app } = useApp();
 
   const trends = useMemo(
     () => buildAttendanceTrendData(
-      app.anwesenheit,
-      app.anwesenheitDetail,
-      app.schuljahr
+      Object.fromEntries(app.schueler.map(student => [student.id, app.anwesenheit?.[student.id] || {}])),
+      Object.fromEntries(app.schueler.map(student => [student.id, app.anwesenheitDetail?.[student.id] || {}])),
+      app.schuljahr,
+      range
     ),
-    [app.anwesenheit, app.anwesenheitDetail, app.schuljahr]
+    [app.schueler, app.anwesenheit, app.anwesenheitDetail, app.schuljahr, range]
   );
 
   if (trends.weekdayData.every(d => d.Fehlstunden === 0) && trends.weeklyData.length === 0) {

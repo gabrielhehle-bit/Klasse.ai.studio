@@ -61,7 +61,7 @@ class CdpClient {
 
 async function waitForChrome() {
   let lastError;
-  for (let attempt = 0; attempt < 80; attempt++) {
+  for (let attempt = 0; attempt < 180; attempt++) {
     try {
       const response = await fetch(DEBUG_URL + '/json/version');
       if (response.ok) return;
@@ -164,6 +164,15 @@ async function clickButton(client, text, exact = false) {
 }
 
 async function clickSidebar(client, label) {
+  await evaluate(client, 'Array.from(document.querySelectorAll("button")).find(button=>button.textContent.includes("Heute nicht mehr anzeigen"))?.click()');
+  if (await evaluate(client, 'Boolean(document.querySelector("#klassio-mobile-quick-mode")) && innerWidth < 768')) {
+    const sheet = label === 'Anwesenheit & Befinden' ? 'entry' : 'more';
+    await evaluate(client, 'document.querySelector(' + q('#klassio-mobile-quick-mode .kqm-nav-button[data-kind="' + sheet + '"]') + ')?.click()');
+    await waitFor(client, 'mobile action ' + label, 'Array.from(document.querySelectorAll("#klassio-mobile-quick-mode .kqm-action")).some(button=>getComputedStyle(button).visibility!=="hidden"&&button.querySelector("strong")?.textContent===' + q(label) + ')');
+    await evaluate(client, 'Array.from(document.querySelectorAll("#klassio-mobile-quick-mode .kqm-action")).find(button=>getComputedStyle(button).visibility!=="hidden"&&button.querySelector("strong")?.textContent===' + q(label) + ')?.click()');
+    await waitFor(client, 'mobile page ' + label, 'Array.from(document.querySelectorAll("button[aria-current=page]")).some(button=>button.textContent.trim()===' + q(label) + ')');
+    return;
+  }
   const visible = await evaluate(client,
     'Array.from(document.querySelectorAll("button")).some(button=>{' +
     'const text=String(button.textContent||"").replace(/\\s+/g," ").trim();' +

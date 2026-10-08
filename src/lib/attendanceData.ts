@@ -188,11 +188,14 @@ export function getDayAbsenceBreakdown(
   return { e, u, total: e + u };
 }
 
+export interface AttendanceDateRange { start: string; end: string }
+
 export function getStudentAttendanceStats(
   attendance: Record<string, AttendanceDay> | undefined,
   details: Record<string, AttendanceDetail> | undefined,
   schoolYear: string,
-  bundesland: Bundesland = 'VBG'
+  bundesland: Bundesland = 'VBG',
+  range?: AttendanceDateRange | null
 ) {
   const result = {
     s1: { e: 0, u: 0, total: 0 },
@@ -206,7 +209,7 @@ export function getStudentAttendanceStats(
   ]);
 
   for (const dateKey of dates) {
-    if (!isDateInSchoolYear(dateKey, schoolYear)) continue;
+    if (!isDateInSchoolYear(dateKey, schoolYear) || range === null || (range && (dateKey < range.start || dateKey > range.end))) continue;
     const breakdown = getDayAbsenceBreakdown(attendance?.[dateKey], details?.[dateKey]);
     if (breakdown.total <= 0) continue;
     const semester = getAttendanceSemester(dateKey, schoolYear, bundesland);
@@ -254,7 +257,8 @@ function getIsoWeekInfo(date: Date): { year: number; week: number } {
 export function buildAttendanceTrendData(
   attendance: AttendanceMap | undefined,
   details: AttendanceDetailMap | undefined,
-  schoolYear: string
+  schoolYear: string,
+  range?: AttendanceDateRange | null
 ) {
   const dayLabels = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
   const weekdayCounts = [0, 0, 0, 0, 0];
@@ -274,7 +278,7 @@ export function buildAttendanceTrendData(
     ]);
 
     for (const dateKey of dates) {
-      if (!isDateInSchoolYear(dateKey, schoolYear)) continue;
+      if (!isDateInSchoolYear(dateKey, schoolYear) || range === null || (range && (dateKey < range.start || dateKey > range.end))) continue;
       const date = parseLocalDateKey(dateKey);
       if (!date || date.getDay() === 0 || date.getDay() === 6) continue;
       const breakdown = getDayAbsenceBreakdown(studentAttendance[dateKey], studentDetails[dateKey]);
