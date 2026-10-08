@@ -294,6 +294,18 @@ async function checkRoutine(client) {
   await clickButton(client, 'Speichern', true);
   await openPupil(client, pupilParts);
   await waitFor(client, 'dossier overview charts', 'Boolean(document.querySelector("[data-dossier-overview]")) && document.body.innerText.includes("Alle Fächer auf einen Blick") && document.body.innerText.includes("Befinden")');
+  const overviewOrder = await evaluate(client, `Boolean(document.querySelector('[data-dossier-trend-card="attendance"]').compareDocumentPosition(document.querySelector('[data-dossier-subject-grid]')) & Node.DOCUMENT_POSITION_FOLLOWING)`);
+  if (!overviewOrder) throw new Error('Dossier overview must show everyday charts before detailed subject cards.');
+  for (const label of ['Schuljahr', '6 Wochen']) {
+    await evaluate(client, `Array.from(document.querySelectorAll('[aria-label="Zeitraum der Alltagsdiagramme"] button')).find(b=>b.textContent===${q(label)}).click()`);
+    await waitFor(client, 'dossier calendar covers ' + label, `(() => {
+      const calendar=document.querySelector('[data-attendance-heatmap]');
+      const dates=Array.from(calendar.querySelectorAll('[data-attendance-day]')).map(day=>day.dataset.date);
+      const start=calendar.dataset.periodStart,end=calendar.dataset.periodEnd;
+      const count=Math.round((Date.parse(end+'T00:00:00Z')-Date.parse(start+'T00:00:00Z'))/86400000)+1;
+      return dates.length===Math.max(0,count) && (!dates.length || (dates[0]===start && dates.at(-1)===end));
+    })()`);
+  }
   const overviewWidth = await evaluate(client, 'document.documentElement.scrollWidth');
   if (overviewWidth > WIDTH + 5) throw new Error('Dossier overview overflows viewport: ' + overviewWidth);
   await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-dossier.png'));
