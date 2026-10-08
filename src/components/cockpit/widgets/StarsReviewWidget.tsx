@@ -44,7 +44,10 @@ export default function StarsReviewWidget({
 }: Props) {
   const { app } = useApp();
   const containerRef = useRef<HTMLElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef);
+  const resultsSize = useWidgetSize(resultsRef);
+  const [page, setPage] = useState(0);
   const compact = size.width < 620 || size.height < 420;
   const tiny = size.width < 420 || size.height < 300;
   const roomy = size.width >= 900 && size.height >= 520;
@@ -83,6 +86,16 @@ export default function StarsReviewWidget({
   );
   const range = useMemo(() => starsReviewRange(settings, today), [settings, today, app.schuljahr, app.bundesland]);
   const ranked = useMemo(() => aggregateStarsReview(children, logs, settings, today), [children, logs, settings, today, app.schuljahr, app.bundesland]);
+  // Reserve room for the summary, padding and 44px page actions before fitting rows.
+  const nameFontPixels = compact ? 14 : roomy ? 20 : 16;
+  const nameWidth = Math.max(48, resultsSize.width - 160);
+  const longestName = Math.max(1, ...children.map(child => (child.vorname || "").length + 8));
+  const rowHeight = Math.max(64, Math.ceil(longestName * nameFontPixels / nameWidth) * nameFontPixels * 1.375 + 16);
+  const rowsPerPage = Math.max(1, Math.floor((resultsSize.height - 108) / (rowHeight + 8)));
+  const pageCount = Math.max(1, Math.ceil(ranked.length / rowsPerPage));
+  const currentPage = Math.min(page, pageCount - 1);
+  const visibleRows = ranked.slice(currentPage * rowsPerPage, (currentPage + 1) * rowsPerPage);
+  useEffect(() => { setPage(0); }, [settings, app.activeClassId]);
   const duplicateFirstNames = useMemo(() => {
     const counts = new Map<string, number>();
     for (const child of children) {
@@ -136,6 +149,7 @@ export default function StarsReviewWidget({
         )}
       </div>
     </header>
+    <div ref={resultsRef} className="flex min-h-0 flex-1 flex-col">
     {showSettings ? <div className="min-h-0 flex-1 overflow-y-auto space-y-4 p-3" aria-label="Sterne-Auswertung konfigurieren">
       <div className="flex min-h-11 items-center justify-between rounded-xl border border-accent bg-accent-soft px-2.5">
         <span className="text-[10px] font-black uppercase tracking-wider text-accent">Sterne-Auswertung einstellen</span>
@@ -174,17 +188,23 @@ export default function StarsReviewWidget({
       <p className={`${roomy ? 'max-w-xl text-xl' : 'max-w-md text-base'} font-semibold`}>Die Sterneauswertung ist vorbereitet. Die Namen und Punktzahlen sind erst nach deiner Freigabe auf der Tafel sichtbar.</p>
       <button type="button" disabled={!range || !children.length} className={`${button} border-accent bg-accent text-accent-text hover:bg-accent-hover disabled:opacity-40`} onClick={() => setPresenting(true)}>⭐ Ergebnisse jetzt zeigen</button>
       {!children.length && <p className="text-sm font-semibold">In dieser Klasse sind noch keine Kinder eingetragen.</p>}
-    </div> : <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${compact ? "p-1.5" : "p-3"}`} aria-live="polite">
-      <p className="mb-3 text-xs font-semibold opacity-80">{settings.limit === 'all' ? 'Alle Kinder' : `Top ${settings.limit}`} · {ranked.length} {ranked.length === 1 ? 'Kind' : 'Kinder'} · dokumentierte Sterne im gewählten Zeitraum</p>
-      <ol className={roomy ? "space-y-3" : "space-y-2"}>{ranked.map(row => {
+    </div> : <div data-stars-results className={`flex min-h-0 flex-1 flex-col gap-2 overflow-hidden ${compact ? "p-1.5" : "p-3"}`} aria-live="polite">
+      <p className="shrink-0 text-xs font-semibold opacity-80">{settings.limit === 'all' ? 'Alle Kinder' : `Top ${settings.limit}`} · {ranked.length} {ranked.length === 1 ? 'Kind' : 'Kinder'}</p>
+      <ol className="min-h-0 flex-1 space-y-2" start={currentPage * rowsPerPage + 1}>{visibleRows.map(row => {
         const child = children.find(item => item.id === row.studentId);
         const duplicate = (duplicateFirstNames.get(row.firstName.toLocaleLowerCase('de-AT')) || 0) > 1;
         const label = duplicate && child?.nachname ? `${row.firstName} ${child.nachname.slice(0, 1)}.` : row.firstName;
-        return <li key={row.studentId} className={`flex items-center justify-between rounded-xl border border-slate-200 bg-white text-slate-900 dark:border-white/10 dark:bg-zinc-900 dark:text-slate-100 ${compact ? "min-h-10 gap-1 px-2 py-1.5" : roomy ? "min-h-16 gap-4 px-5 py-3" : "min-h-12 gap-3 px-3 py-2"}`}>
-          <span className={`min-w-0 break-words [overflow-wrap:anywhere] font-extrabold leading-snug ${compact ? "text-sm" : roomy ? "text-xl" : "text-base"}`}><span className="mr-2 text-amber-700">{row.rank}.</span>{label}</span>
+        return <li key={row.studentId} data-stars-student={row.studentId} style={{ minHeight: rowHeight }} className="flex min-h-16 items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-zinc-900 dark:text-slate-100">
+          <span title={label} className={`min-w-0 break-words [overflow-wrap:anywhere] font-extrabold leading-snug ${compact ? "text-sm" : roomy ? "text-xl" : "text-base"}`}><span className="mr-2 text-amber-700">{row.rank}.</span>{label}</span>
           <span className={`${roomy ? 'text-2xl' : 'text-base'} shrink-0 font-black text-amber-800`} aria-label={`${row.stars} Sterne`}>⭐ {row.stars}</span>
         </li>;
       })}</ol>
+      {pageCount > 1 && <nav aria-label="Sterneseiten" className="flex shrink-0 items-center justify-between gap-2 text-xs font-bold">
+        <button type="button" className={button} aria-label="Vorherige Sterneseite" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>← Zurück</button>
+        <span>Seite {currentPage + 1} / {pageCount}</span>
+        <button type="button" className={button} aria-label="Nächste Sterneseite" disabled={currentPage === pageCount - 1} onClick={() => setPage(currentPage + 1)}>Weiter →</button>
+      </nav>}
     </div>}
+    </div>
   </section>;
 }

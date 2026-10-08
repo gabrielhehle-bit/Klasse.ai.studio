@@ -821,6 +821,56 @@ async function main() {
       await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-widget-'+type+'.png'));
       await auditMenu(type,'Widget schließen');
     }
+    await openAuditWidget('groups', 'Gruppen-Einteiler');
+    await clickButton(client, 'Gruppen bilden', true);
+    await waitFor(client, 'groups formed inside widget without automatic full screen', `Boolean(document.querySelector('[data-widget-type="groups"] [role="listitem"]')) && !document.querySelector('[role="dialog"][aria-label="Gruppen groß anzeigen"]')`);
+    const groupState = await evaluate(client, `document.querySelector('[data-widget-type="groups"] [data-widget-content]').textContent`);
+    await auditMenu('groups', 'Minimieren');
+    await openAuditWidget('groups', 'Gruppen-Einteiler');
+    await waitFor(client, 'group assignment survives minimize', `document.querySelector('[data-widget-type="groups"] [data-widget-content]').textContent === ${q(groupState)}`);
+    await auditMenu('groups', 'Widget schließen');
+
+    await openAuditWidget('wheel', 'Glücksrad');
+    await evaluate(client, `document.querySelector('[data-widget-type="wheel"] button[aria-label="Glücksrad drehen"]').click()`);
+    await waitFor(client, 'wheel finishes a real draw', `Boolean(document.querySelector('[data-widget-type="wheel"] [title="Klicken für nochmal drehen"]'))`, 30000);
+    const winner = await evaluate(client, `document.querySelector('[data-widget-type="wheel"] [title="Klicken für nochmal drehen"]').textContent`);
+    await auditMenu('wheel', 'Minimieren');
+    await openAuditWidget('wheel', 'Glücksrad');
+    await waitFor(client, 'wheel winner survives minimize', `document.querySelector('[data-widget-type="wheel"] [title="Klicken für nochmal drehen"]')?.textContent === ${q(winner)}`);
+    await auditMenu('wheel', 'Widget schließen');
+
+    await openAuditWidget('starsreview', 'Sterne der Woche');
+    if (await evaluate(client, `Boolean(document.querySelector('[data-stars-student]'))`)) throw new Error('Star rankings are revealed before consent.');
+    await evaluate(client, `document.querySelector('[data-widget-type="starsreview"] button[aria-label$="Einstellungen öffnen"]').click()`);
+    await waitFor(client, 'star ranking settings', `Boolean(document.querySelector('[aria-label="Sterne-Auswertung konfigurieren"]'))`);
+    await clickButton(client, 'Alle Kinder', true);
+    await clickButton(client, 'Fertig', true);
+    await clickButton(client, '⭐ Ergebnisse jetzt zeigen', true);
+    await waitFor(client, 'star results and pages', `Boolean(document.querySelector('[data-stars-results] [data-stars-student]'))`);
+    const expectedStars = await evaluate(client, `Number(document.querySelector('[data-stars-results] > p').textContent.match(/(\\d+) Kinder/)[1])`);
+    const starChildren = new Set();
+    for (let page = 0; page < expectedStars; page++) {
+      const layout = await waitFor(client, 'star rows and page controls fit without inner scrolling', `(() => {
+        const root=document.querySelector('[data-stars-results]'),r=root.getBoundingClientRect();
+        const rows=Array.from(root.querySelectorAll('[data-stars-student]'));
+        const controls=Array.from(root.querySelectorAll('nav button'));
+        const fits=root.scrollHeight<=root.clientHeight+2 && rows.length>0 && [...rows,...controls].every(e=>{const b=e.getBoundingClientRect();return b.top>=r.top && b.bottom<=r.bottom+1 && b.height>=44;});
+        return fits && rows.map(e=>e.dataset.starsStudent);
+      })()`);
+      layout.forEach(id => starChildren.add(id));
+      const hasNext = await evaluate(client, `Boolean(document.querySelector('[aria-label="Nächste Sterneseite"]:not(:disabled)'))`);
+      if (!hasNext) break;
+      const beforePage=await evaluate(client, `document.querySelector('[aria-label="Sterneseiten"]').textContent`);
+      await clickSelector(client, '[aria-label="Nächste Sterneseite"]');
+      await waitFor(client, 'next star page selected', `document.querySelector('[aria-label="Sterneseiten"]').textContent !== ${q(beforePage)}`);
+    }
+    if (starChildren.size !== expectedStars) throw new Error('Star pages omit or duplicate children: '+starChildren.size+'/'+expectedStars);
+    const starsState=await evaluate(client, `Array.from(document.querySelectorAll('[data-stars-student]')).map(e=>e.dataset.starsStudent).join(',')`);
+    await auditMenu('starsreview', 'Minimieren');
+    await openAuditWidget('starsreview', 'Sterne der Woche');
+    await waitFor(client, 'star page survives minimize', `Array.from(document.querySelectorAll('[data-stars-student]')).map(e=>e.dataset.starsStudent).join(',') === ${q(starsState)}`);
+    await auditMenu('starsreview', 'Widget schließen');
+    console.log('✓ Widget block: groups stay in widget, real wheel winner restored, all star children reachable without inner scrolling.');
     console.log('✓ Widget block: 12 widgets checked; stopwatch pause and traffic light mode survive restore.');
     console.log('✓ Audit regression: calculator keys/result/restore, compass layout at 100/125/150%, QR alias/readability/title/mode restore');
     await openPage(client, 'Klasse');
