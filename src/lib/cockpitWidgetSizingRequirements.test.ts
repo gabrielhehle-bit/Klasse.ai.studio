@@ -121,8 +121,8 @@ test("Hausübungen, Sterne und Klassenziel behalten touch-sichere Bedienflächen
 
   assert.doesNotMatch(starsReviewWidget, /const button = compact \? 'min-h-9/);
   assert.match(starsReviewWidget, /const button = compact[\s\S]{0,80}\? 'min-h-11/);
-  // Ergebniszeilen dürfen kompakter sein: sie sind keine interaktiven Touch-Ziele.
-  assert.match(starsReviewWidget, /compact \? "min-h-10 gap-1/);
+  // Ergebniszeilen bleiben lesbar, Seitenaktionen behalten 44px Touch-Ziele.
+  assert.match(starsReviewWidget, /flex min-h-16 items-center/);
 
   assert.doesNotMatch(classRewardWidget, /className="w-8 h-8 rounded-lg flex items-center justify-center/);
   assert.match(classRewardWidget, /className="w-11 h-11 rounded-xl flex items-center justify-center/);
@@ -239,7 +239,7 @@ test("Präsentationswidgets nutzen große Tafelflächen sichtbar aus", () => {
   assert.match(randomNameWidget, /roomyPicker\s+\? 'text-5xl sm:text-6xl'/);
 
   assert.match(starsReviewWidget, /const roomy = size\.width >= 900 && size\.height >= 520/);
-  assert.match(starsReviewWidget, /roomy \? "min-h-16 gap-4 px-5 py-3"/);
+  assert.match(starsReviewWidget, /roomy \? "text-xl"/);
 
   assert.match(homeworkWidget, /const roomy = size\.width >= 980 && size\.height >= 520/);
   assert.match(homeworkWidget, /const columns = size\.width >= 1280 \? 3 : size\.width >= 760 \? 2 : 1/);
