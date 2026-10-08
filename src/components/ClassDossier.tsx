@@ -27,7 +27,7 @@ import { faecherFuerKlasse } from '../lib/sek1Subjects';
 import { calculateItemPercent, getAssessmentMode, getMaxPoints } from '../lib/GradeUtils';
 import { getStudentGenderLabel } from '../lib/studentListData';
 
-type PeriodKey = 'today' | 'week' | 'month' | 'semester' | 'year' | 'custom';
+type PeriodKey = 'today' | 'week' | '30d' | 'month' | 'semester' | 'year' | 'custom';
 type Range = { from: Date; to: Date };
 
 type AttendanceTotals = {
@@ -55,6 +55,7 @@ interface Props {
 const PERIODS: Array<{ key: PeriodKey; label: string }> = [
   { key: 'today', label: 'Heute' },
   { key: 'week', label: 'Woche' },
+  { key: '30d', label: '30 Tage' },
   { key: 'month', label: 'Monat' },
   { key: 'semester', label: 'Semester' },
   { key: 'year', label: 'Schuljahr' },
@@ -126,6 +127,7 @@ function resolveRange(key: PeriodKey, app: any, customFrom: string, customTo: st
     const weekday = (today.getDay() + 6) % 7;
     return { from: addDays(today, -weekday), to: today };
   }
+  if (key === '30d') return { from: addDays(today, -29), to: today };
   if (key === 'month') return { from: new Date(today.getFullYear(), today.getMonth(), 1, 12), to: today };
   if (key === 'semester') {
     const yearStart = schoolYearStart(app, today);
