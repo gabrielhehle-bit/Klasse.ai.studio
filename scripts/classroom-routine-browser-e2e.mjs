@@ -670,7 +670,7 @@ async function main() {
       await waitFor(client, 'widget audit search field', `Boolean(document.querySelector('input[aria-label="Widget suchen"]'))`);
       await setInputByLabel(client, 'Widget suchen', search);
       await waitFor(client, 'widget audit search result: ' + search, `Array.from(document.querySelectorAll('[role=dialog][aria-label="Widget-Bibliothek"] button[data-widget-card-action="primary"]')).some(b=>b.getAttribute('aria-label').startsWith(${q(label || search)}))`);
-      await evaluate(client, `(() => {const buttons=Array.from(document.querySelectorAll('[role=dialog][aria-label="Widget-Bibliothek"] button[data-widget-card-action="primary"]'));const button=${q(label || "")} ? buttons.find(b=>b.getAttribute("aria-label").startsWith(${q(label || "")})) : buttons[0];if(!button)throw new Error("Widget entry missing");button.click();})()`);
+      await evaluate(client, `(() => {const buttons=Array.from(document.querySelectorAll('[role=dialog][aria-label="Widget-Bibliothek"] button[data-widget-card-action="primary"]'));const button=buttons.find(b=>b.getAttribute("aria-label").startsWith(${q(label || search)}));if(!button)throw new Error("Widget entry missing");button.click();})()`);
       await waitFor(client, 'widget audit opens ' + type, `Array.from(document.querySelectorAll('[data-widget-type=${q(type)}]')).some(el=>el.getClientRects().length)`);
     };
     const auditMenu = async (type, action) => {
