@@ -670,7 +670,7 @@ async function main() {
       await waitFor(client, 'widget audit search field', `Boolean(document.querySelector('input[aria-label="Widget suchen"]'))`);
       await setInputByLabel(client, 'Widget suchen', search);
       await waitFor(client, 'widget audit search result: ' + search, `Array.from(document.querySelectorAll('[role=dialog][aria-label="Widget-Bibliothek"] button[data-widget-card-action="primary"]')).some(b=>b.getAttribute('aria-label').startsWith(${q(label || search)}))`);
-      await evaluate(client, `(() => {const buttons=Array.from(document.querySelectorAll('[role=dialog][aria-label="Widget-Bibliothek"] button[data-widget-card-action="primary"]'));const button=${q(label || "")} ? buttons.find(b=>b.getAttribute("aria-label").startsWith(${q(label || "")})) : buttons[0];if(!button)throw new Error("Widget entry missing");button.click();})()`);
+      await evaluate(client, `(() => {const buttons=Array.from(document.querySelectorAll('[role=dialog][aria-label="Widget-Bibliothek"] button[data-widget-card-action="primary"]'));const button=buttons.find(b=>b.getAttribute("aria-label").startsWith(${q(label || search)}));if(!button)throw new Error("Widget entry missing");button.click();})()`);
       await waitFor(client, 'widget audit opens ' + type, `Array.from(document.querySelectorAll('[data-widget-type=${q(type)}]')).some(el=>el.getClientRects().length)`);
     };
     const auditMenu = async (type, action) => {
@@ -744,6 +744,24 @@ async function main() {
     for(const [type,search,label] of [['timer','Timer / Sanduhr','Timer / Sanduhr'],['timeline','Tagesablauf','Tagesablauf'],['fractionvisualizer','Bruch-Visualisierer','Bruch-Visualisierer'],['fractions','Bruch-Visualisierer · Vergleich','Bruch-Visualisierer · Vergleich'],['wheel','Glücksrad','Glücksrad']]) {
       await openAuditWidget(type,search,label);
       if(type === 'timer') {
+        const setTimerTime = async (minutes,seconds) => {
+          await evaluate(client, `(() => {const root=document.querySelector('[data-widget-type="timer"]');const own=Array.from(root.querySelectorAll('button')).find(b=>b.getClientRects().length && b.textContent.includes('Eigene Zeit'));if(own)own.click();else root.querySelector('[aria-label="Weitere Optionen"]').click();})()`);
+          if(!await evaluate(client, `Boolean(document.querySelector('[aria-label="Timer-Minuten"]'))`)) {
+            await waitFor(client,'timer quick menu',`Boolean(document.querySelector('[role="dialog"][aria-label="Timer-Schnellauswahl"]'))`);
+            await clickButton(client,'Eigene Zeit eingeben',true);
+          }
+          await waitFor(client,'custom timer dialog',`Boolean(document.querySelector('[role="dialog"][aria-label="Eigene Timer-Zeit"]'))`);
+          await setInputByLabel(client,'Timer-Minuten',minutes);
+          await setInputByLabel(client,'Timer-Sekunden',seconds);
+          await evaluate(client, `Array.from(document.querySelectorAll('[aria-label="Eigene Timer-Zeit"] button')).find(b=>b.textContent.includes('Übernehmen')).click()`);
+          await waitFor(client,'custom timer accepted',`!document.querySelector('[aria-label="Timer-Minuten"]')`);
+        };
+        await setTimerTime('720','0');
+        const maximumText=await evaluate(client,`document.querySelector('[data-widget-type="timer"] [data-widget-content]').textContent`);
+        await evaluate(client,`document.querySelector('[data-widget-type="timer"] button[title="1 Minute hinzufügen"]').click()`);
+        if(await evaluate(client,`document.querySelector('[data-widget-type="timer"] [data-widget-content]').textContent`) !== maximumText) throw new Error('Timer exceeds twelve hours via minute control.');
+        await setTimerTime('0','30');
+        if(!await evaluate(client,`document.querySelector('[data-widget-type="timer"] button[title="1 Minute abziehen"]').disabled`)) throw new Error('Ready timer allows subtracting its last minute.');
         await clickButton(client,'Start',true);await clickButton(client,'Pause',true);
         await waitFor(client,'paused timer before restore',`document.querySelector('[data-widget-type="timer"]').textContent.includes('Weiter')`);
       }
@@ -753,6 +771,36 @@ async function main() {
       if(type !== 'timeline' && await evaluate(client,`document.querySelector('[data-widget-type=${q(type)}] [data-widget-content]').textContent`) !== stateBefore) throw new Error(type + ' loses its state when restored.');
       await auditMenu(type,'Widget schließen');
     }
+    for(const [type,search] of [['stopwatch','Stoppuhr'],['trafficlight','Status-Ampel'],['todo','Aufgaben-Checkliste'],['links','Materialien & Links']]) {
+      await openAuditWidget(type,search);
+      const root = `[data-widget-type="${type}"] [data-widget-content]`;
+      if(type === 'stopwatch') {
+        await evaluate(client, `document.querySelector('[data-stopwatch-action="start"]').click()`);
+        await sleep(350);
+        await evaluate(client, `document.querySelector('[data-stopwatch-action="stop"]').click()`);
+        await waitFor(client,'stopwatch paused',`document.querySelector('${root}').textContent.includes('Weiter')`);
+      }
+      if(type === 'trafficlight') {
+        await evaluate(client, `Array.from(document.querySelectorAll('${root} button')).find(b=>b.textContent.trim()==='Lautstärke').click()`);
+        await waitFor(client,'traffic light scale mode',`Array.from(document.querySelectorAll('${root} button')).some(b=>b.textContent.trim()==='Lautstärke' && b.getAttribute('aria-pressed')==='true')`);
+      }
+      if(type === 'links') {
+        await waitFor(client,'link page navigation',`Boolean(document.querySelector('[aria-label="Linkseiten"]'))`);
+        await evaluate(client,`document.querySelector('[aria-label="Nächste Linkseite"]').click()`);
+        await waitFor(client,'second link page',`document.querySelector('[aria-label="Linkseiten"]').textContent.includes('Seite 2')`);
+        const fits = await evaluate(client,`(() => {const root=document.querySelector('#widget-links-container'),r=root.getBoundingClientRect();return Array.from(root.querySelectorAll('[id^="link-open-btn"],[id^="link-qr-btn"],nav button')).every(b=>{const t=b.getBoundingClientRect();return t.height>=43 && t.bottom<=r.bottom+1 && t.top>=r.top;});})()`);
+        if(!fits) throw new Error('Link actions or page controls are clipped.');
+        const scroll = await evaluate(client,`(() => {const e=document.querySelector('#links-content-scrollable');return e.scrollHeight>e.clientHeight+2;})()`);
+        if(scroll) throw new Error('Teaching links still require inner scrolling.');
+      }
+      const before = await evaluate(client, `document.querySelector('${root}').textContent`);
+      await auditMenu(type,'Minimieren');
+      await openAuditWidget(type,search);
+      if(await evaluate(client, `document.querySelector('${root}').textContent`) !== before) throw new Error(type+' loses its state when restored.');
+      await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-widget-'+type+'.png'));
+      await auditMenu(type,'Widget schließen');
+    }
+    console.log('✓ Widget block: 12 widgets checked; stopwatch pause and traffic light mode survive restore.');
     console.log('✓ Audit regression: calculator keys/result/restore, compass layout at 100/125/150%, QR alias/readability/title/mode restore');
     await openPage(client, 'Klasse');
     await waitFor(client, 'class overview visible', `Boolean(document.querySelector('[data-class-hub] h1'))`);
