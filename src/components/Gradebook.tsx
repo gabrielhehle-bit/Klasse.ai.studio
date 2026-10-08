@@ -20,6 +20,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { CanvasBarChart } from './charts/CanvasBarChart';
 import { DebouncedInput } from './DebouncedInput';
 import BehaviorSettings from './gradebook/BehaviorSettings';
+import ParticipationOverview from './gradebook/ParticipationOverview';
+import { setGradebookParticipationTotal } from '../lib/participationAward';
 import { AssessmentItemModal } from './gradebook/AssessmentItemModal';
 import { faecherFuerKlasse } from '../lib/sek1Subjects';
 import { istSekundarstufe } from '../lib/sek1Navigation';
@@ -751,25 +753,11 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
   };
 
   const changeMI = (sid: string, delta: number) => {
-    setApp(prev => {
-      const studentMI = prev.mitarbeit[sid] || {};
-      const fachMI = studentMI[activeFach] || {};
-      const current = fachMI[sem] || 0;
-      const nextVal = Math.max(0, current + delta);
-      return {
-        ...prev,
-        mitarbeit: {
-          ...prev.mitarbeit,
-          [sid]: {
-            ...studentMI,
-            [activeFach]: {
-              ...fachMI,
-              [sem]: nextVal
-            }
-          }
-        }
-      };
-    });
+    const classId = app.activeClassId;
+    setApp(prev => setGradebookParticipationTotal(prev, {
+      classId, sid, subject: activeFach, semester: sem,
+      total: Math.max(0, (prev.mitarbeit?.[sid]?.[activeFach]?.[sem] || 0) + delta),
+    }));
 
     if (delta > 0) {
       try {
@@ -785,24 +773,10 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
   };
 
   const setMIVal = (sid: string, value: number) => {
-    setApp(prev => {
-      const studentMI = prev.mitarbeit[sid] || {};
-      const fachMI = studentMI[activeFach] || {};
-      const nextVal = Math.max(0, value);
-      return {
-        ...prev,
-        mitarbeit: {
-          ...prev.mitarbeit,
-          [sid]: {
-            ...studentMI,
-            [activeFach]: {
-              ...fachMI,
-              [sem]: nextVal
-            }
-          }
-        }
-      };
-    });
+    const classId = app.activeClassId;
+    setApp(prev => setGradebookParticipationTotal(prev, {
+      classId, sid, subject: activeFach, semester: sem, total: Math.max(0, value),
+    }));
   };
 
   const addColumn = (e: React.MouseEvent, typ: 'lzk' | 'wp' | 'obj') => {
@@ -2061,6 +2035,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
         </div>
       ) : activeView === 'mitarbeit' && !showWeights ? (
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+           <ParticipationOverview key={`${app.activeClassId}:${activeFach}`} app={app} subject={activeFach} />
            <div className="card !p-0 shadow-lg border border-slate-200 bg-white rounded-2xl overflow-hidden">
               <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/40 flex justify-between items-center">
                  <div className="flex items-center gap-3">
@@ -2140,6 +2115,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                    ) : (
                                       <div className="flex items-center gap-4 justify-center">
                                          <button 
+                                           aria-label={`Mitarbeit für ${s.vorname} verringern`}
                                            onClick={() => changeMI(s.id, -1)} 
                                            className={`shrink-0 border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50 hover:text-slate-800 hover:border-slate-300 active:scale-95 transition-all text-slate-500 shadow-3xs ${zoomLevel === 'compact' ? 'w-7 h-7 rounded-md' : zoomLevel === 'large' ? 'w-11 h-11 rounded-xl' : 'w-9 h-9 rounded-lg'}`}
                                          >
@@ -2157,6 +2133,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                                   type="number" 
                                                   min="0"
                                                   value={val || ''}
+                                                  aria-label={`Mitarbeitspunkte für ${s.vorname}`}
                                                   onChange={(e) => setMIVal(s.id, e.target.value === '' ? 0 : parseInt(e.target.value) || 0)}
                                                   onKeyDown={(event) => handleQuickEntryKey(event, 'mitarbeit', idx)}
                                                   data-quick-entry="mitarbeit"
@@ -2202,6 +2179,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                        </div>
 
                                       <button 
+                                        aria-label={`Mitarbeit für ${s.vorname} erhöhen`}
                                         onClick={() => changeMI(s.id, 1)} 
                                         className={`shrink-0 border border-slate-200 bg-amber-50 flex items-center justify-center hover:bg-amber-100 hover:border-amber-300 active:scale-95 transition-all text-amber-700 font-black shadow-3xs ${zoomLevel === 'compact' ? 'w-7 h-7 rounded-md' : zoomLevel === 'large' ? 'w-11 h-11 rounded-xl' : 'w-9 h-9 rounded-lg'}`}
                                       >

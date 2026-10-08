@@ -12,6 +12,41 @@ function changeGradebook(state: AppState, sid: string, subject: string, delta: n
   const fach = pupil[subject] || {};
   return { ...state, mitarbeit: { ...state.mitarbeit, [sid]: { ...pupil, [subject]: { ...fach, [semester]: Math.max(0, (fach[semester] || 0) + delta) } } } };
 }
+/** Record direct gradebook edits as deltas, retaining undated historical totals.
+ * Link deductions to existing awards so a later cockpit undo cannot deduct twice. */
+export function setGradebookParticipationTotal(state: AppState, request: {
+  classId: string; sid: string; subject: string; semester: '1' | '2'; total: number;
+}, timestamp = new Date().toISOString()): AppState {
+  if (state.activeClassId !== request.classId || !state.schueler.some(student => student.id === request.sid)
+    || !request.subject || !['1', '2'].includes(request.semester) || !Number.isFinite(request.total)
+    || request.total < 0 || !Number.isFinite(new Date(timestamp).getTime())) return state;
+  const current = state.mitarbeit?.[request.sid]?.[request.subject]?.[request.semester] || 0;
+  const delta = request.total - current;
+  if (!delta) return state;
+  const history = state.mitarbeitLogs || [];
+  const additions: NonNullable<AppState['mitarbeitLogs']> = [];
+  const append = (points: number, reverses?: string) => additions.push({
+    id: crypto.randomUUID(), sid: request.sid, fach: request.subject, kind: 'subject',
+    points, timestamp, gradebookApplied: true, gradebookSemester: request.semester,
+    ...(reverses ? { reverses } : {}),
+  });
+  if (delta > 0) append(delta);
+  else {
+    let remaining = -delta;
+    for (const log of history.slice().reverse()) {
+      if (remaining <= 0) break;
+      if (log.sid !== request.sid || log.fach !== request.subject || log.kind === 'social'
+        || !log.gradebookApplied || (log.gradebookSemester || '1') !== request.semester
+        || !Number.isFinite(log.points) || log.points <= 0 || history.some(item => item.resets?.includes(log.id))) continue;
+      const reversed = history.reduce((sum, item) => sum + (item.reverses === log.id && item.points < 0 ? -item.points : 0), 0);
+      const amount = Math.min(remaining, Math.max(0, log.points - reversed));
+      if (amount) { append(-amount, log.id); remaining -= amount; }
+    }
+    if (remaining > 0) append(-remaining);
+  }
+  return { ...changeGradebook(state, request.sid, request.subject, delta, request.semester),
+    mitarbeitLogs: [...history, ...additions] };
+}
 /** Journal and gradebook are updated atomically; cancelled/stale selections write nothing. */
 export function commitParticipationAward(state: AppState, request: { sid: string; subject: string; classId: string; id?: string }, timestamp = new Date().toISOString()): AppState {
   if (state.activeClassId !== request.classId || !state.schueler.some(student => student.id === request.sid)
