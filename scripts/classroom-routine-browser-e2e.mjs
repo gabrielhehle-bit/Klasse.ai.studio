@@ -302,7 +302,7 @@ async function checkRoutine(client) {
   await waitFor(client, 'dossier overview charts', 'Boolean(document.querySelector("[data-dossier-overview]")) && document.body.innerText.includes("Alle Fächer auf einen Blick") && document.body.innerText.includes("Befinden")');
   const assertWellbeingAxis = async () => {
     await waitFor(client, 'dossier places positive behavior and mood values at the top', `(() => {
-      const ticks=Array.from(document.querySelectorAll('[data-dossier-trend-card="wellbeing"] .recharts-yAxis .recharts-cartesian-axis-tick-value'));
+      const ticks=Array.from(document.querySelectorAll('[data-dossier-trend-card="wellbeing"] .recharts-yAxis-tick-labels .recharts-cartesian-axis-tick-value'));
       const good=ticks.find(t=>t.textContent.trim()==='1'),poor=ticks.find(t=>t.textContent.trim()==='5');
       return Boolean(good && poor && good.getBoundingClientRect().y < poor.getBoundingClientRect().y);
     })()`);
