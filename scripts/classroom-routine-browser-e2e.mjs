@@ -815,6 +815,24 @@ async function main() {
         await clickButton(client, 'Speichern', true);
         await waitFor(client, 'percentages return without reentering points', percentageFor('sa')+` === '75 %' && `+percentageFor('lzk')+` === '35 %'`);
         console.log('✓ Points: SA/LZK percentages, different maxima, hide/show and encrypted reload preserve points.');
+        await clickButton(client, 'Mitarbeit', true);
+        await waitFor(client, 'participation journal overview', `Boolean(document.querySelector('[aria-label="Zeitraum der Mitarbeit"]')) && Boolean(document.querySelector('input[data-quick-entry="mitarbeit"]'))`);
+        const firstParticipation = await evaluate(client, `(() => {const input=document.querySelector('input[data-quick-entry="mitarbeit"]');return {label:input.getAttribute('aria-label'),value:Number(input.value||0)};})()`);
+        await evaluate(client, `document.querySelector('button[aria-label$=" erhöhen"]').click()`);
+        await waitFor(client, 'gradebook plus updates journal and total', `Number(document.querySelector('input[data-quick-entry="mitarbeit"]').value) === ${firstParticipation.value+1}`);
+        await evaluate(client, `(() => {const s=document.querySelector('[aria-label="Zeitraum der Mitarbeit"]');s.value='week';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+        await waitFor(client, 'direct gradebook plus appears in weekly chart', `document.querySelector('[data-participation-period-total]')?.textContent === '1 Fachpunkte'`);
+        await evaluate(client, `document.querySelector('button[aria-label$=" verringern"]').click()`);
+        await waitFor(client, 'gradebook minus corrects journal and total', `Number(document.querySelector('input[data-quick-entry="mitarbeit"]').value) === ${firstParticipation.value} && document.querySelector('[data-participation-period-total]')?.textContent === '0 Fachpunkte'`);
+        await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-participation-period.png'));
+        await reloadAndUnlock(client);
+        await openPage(client,'Notenmappe');
+        await waitFor(client, 'gradebook restored for participation', `Boolean(document.querySelector('#gradebook-active-subject'))`);
+        await evaluate(client, `(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+        await clickButton(client, 'Mitarbeit', true);
+        await waitFor(client, 'participation counter survives encrypted reload', `Number(document.querySelector('input[data-quick-entry="mitarbeit"]')?.value || 0) === ${firstParticipation.value} && Boolean(document.querySelector('[data-participation-period-total]'))`);
+        console.log('✓ Direct gradebook participation plus/minus updates weekly chart and survives encrypted reload.');
+
       }
       console.log('✓ '+page+': responsive controls and mobile tool access at 390/820/1360px.');
     }

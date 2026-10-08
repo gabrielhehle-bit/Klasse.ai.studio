@@ -1,6 +1,8 @@
+import { getStudentSubjectParticipationSummary } from './studentParticipation';
+import { aggregateStarsReview, DEFAULT_STARS_REVIEW_SETTINGS } from './starsReview';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { correctParticipationStars, commitParticipationAward, commitSocialAward, getSocialStars, undoParticipationAward, undoLatestParticipationAward, SOCIAL_BADGE_ID, resetParticipationStars, getParticipationResetCount } from './participationAward';
+import { setGradebookParticipationTotal, correctParticipationStars, commitParticipationAward, commitSocialAward, getSocialStars, undoParticipationAward, undoLatestParticipationAward, SOCIAL_BADGE_ID, resetParticipationStars, getParticipationResetCount } from './participationAward';
 import { initialAppState, syncActiveClass, switchClassState, normalizeAppState } from './appState';
 import { accountSyncState, mergeAccountSyncState } from './accountSyncService';
 import { adoptAcknowledgedTeamRoom } from './teamTeachingProjection';
@@ -236,4 +238,56 @@ test('Sozial-Rückgängig nach Reload verändert keine fachliche Mitarbeit', () 
   const corrected = undoLatestParticipationAward(source, { classId: 'a', sid: 'pupil', kind: 'social', scope: 'all' }, now);
   assert.equal(getSocialStars(corrected, 'pupil'), 1);
   assert.equal(corrected.mitarbeit.pupil.Deutsch['1'], 5);
+});
+
+test('Direkte Notenmappe-Einträge erreichen Fachverlauf, Sterne und Dossier ohne Altdaten zu datieren', () => {
+  const base = { ...state(), mitarbeit: { pupil: { Deutsch: { '1': 5, '2': 9 }, Mathematik: { '1': 2 } } } };
+  const request = { classId: 'a', sid: 'pupil', subject: 'Deutsch', semester: '1', total: 8 } as const;
+  const updated = setGradebookParticipationTotal(base, request, '2026-10-08T10:00:00Z');
+  assert.equal(updated.mitarbeit.pupil.Deutsch['1'], 8);
+  assert.equal(updated.mitarbeit.pupil.Deutsch['2'], 9);
+  assert.equal(updated.mitarbeit.pupil.Mathematik['1'], 2);
+  assert.deepEqual(updated.mitarbeitLogs.map(log => [log.fach, log.points]), [['Deutsch', 3]]);
+  assert.equal(getStudentSubjectParticipationSummary(updated, 'pupil', 'Deutsch').total, 8);
+  const settings = { ...DEFAULT_STARS_REVIEW_SETTINGS, referenceDate: '2026-10-08', subjects: ['Deutsch'], category: 'subject' as const, limit: 'all' as const, period: 'week' as const };
+  assert.equal(aggregateStarsReview(updated.schueler, updated.mitarbeitLogs, settings)[0].stars, 3);
+  assert.equal(setGradebookParticipationTotal(updated, request), updated);
+  assert.equal(base.mitarbeitLogs, undefined);
+});
+
+test('Notenmappe-Abzug verhindert doppelte Rücknahme im Cockpit, auch bei Mehrfachpunkten', () => {
+  const request = { classId: 'a', sid: 'pupil', subject: 'Deutsch', semester: '1' } as const;
+  let source = commitParticipationAward(state(), { ...request, id: 'cockpit' }, '2026-10-08T09:00:00Z');
+  source = setGradebookParticipationTotal(source, { ...request, total: 4 }, '2026-10-08T10:00:00Z');
+  const direct = source.mitarbeitLogs[1];
+  const corrected = setGradebookParticipationTotal(source, { ...request, total: 1 }, '2026-10-08T11:00:00Z');
+  assert.equal(corrected.mitarbeit.pupil.Deutsch['1'], 1);
+  assert.equal(corrected.mitarbeitLogs.at(-1)?.reverses, direct.id);
+  const undo = undoLatestParticipationAward(corrected, { classId: 'a', sid: 'pupil', kind: 'subject', scope: 'today', subject: 'Deutsch' }, '2026-10-08T12:00:00Z');
+  assert.equal(undo.mitarbeit.pupil.Deutsch['1'], 0);
+  assert.equal(getParticipationResetCount(undo, { classId: 'a', sid: 'pupil', kind: 'subject', scope: 'all' }), 0);
+  assert.equal(undoParticipationAward(undo, { classId: 'a', sid: 'pupil', id: 'cockpit' }), undo);
+});
+
+test('Notenmappe-Korrektur erhält andere Semester, Sozialsterne und historische Punkte', () => {
+  const source = commitSocialAward(commitParticipationAward(state(), { classId: 'a', sid: 'pupil', subject: 'Deutsch', id: 'award' } ), { classId: 'a', sid: 'pupil' });
+  const base = { ...source, mitarbeit: { pupil: { Deutsch: { '1': 6, '2': 7 } } } };
+  const corrected = setGradebookParticipationTotal(base, { classId: 'a', sid: 'pupil', subject: 'Deutsch', semester: '1', total: 2 });
+  assert.equal(corrected.mitarbeit.pupil.Deutsch['1'], 2);
+  assert.equal(corrected.mitarbeit.pupil.Deutsch['2'], 7);
+  assert.equal(getSocialStars(corrected, 'pupil'), 1);
+  assert.equal(undoParticipationAward(corrected, { classId: 'a', sid: 'pupil', id: 'award' }), corrected);
+  assert.equal(corrected.mitarbeitLogs.filter(log => log.points < 0).reduce((sum, log) => sum + log.points, 0), -4);
+  const otherSemester = setGradebookParticipationTotal(base, { classId: 'a', sid: 'pupil', subject: 'Deutsch', semester: '2', total: 8 });
+  assert.equal(otherSemester.mitarbeitLogs.at(-1)?.gradebookSemester, '2');
+  assert.equal(otherSemester.mitarbeit.pupil.Deutsch['1'], 6);
+});
+
+test('Ungültige oder veraltete direkte Mitarbeitseingaben schreiben nichts', () => {
+  const base = state();
+  const request = { classId: 'a', sid: 'pupil', subject: 'Deutsch', semester: '1', total: 1 } as const;
+  for (const patch of [{ classId: 'b' }, { sid: 'missing' }, { subject: '' }, { total: NaN }, { total: Infinity }, { total: -1 }]) {
+    assert.equal(setGradebookParticipationTotal(base, { ...request, ...patch }), base);
+  }
+  assert.equal(setGradebookParticipationTotal(base, request, 'invalid'), base);
 });

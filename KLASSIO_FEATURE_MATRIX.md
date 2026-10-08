@@ -1,5 +1,16 @@
 # KLASSIO – Feature Matrix
 
+## Aktueller Listenpunkt 6 – Notenmappe / Mitarbeit (2026-10-08)
+
+Diese Ergänzung dokumentiert ausschließlich den aktuellen Listenpunkt; die historische Matrix darunter ist keine aktuelle Gesamtabnahme.
+
+- [x] Fachpunkte aus dem Cockpit werden in der Notenmappe gesammelt; Sozialsterne bleiben getrennt.
+- [x] Direkte Plus-/Minus- und Zähleränderungen in der Notenmappe werden atomar im Fachverlauf protokolliert.
+- [x] Abzüge verweisen auf bereits vergebene Punkte und verhindern doppelte Rücknahme im Cockpit.
+- [x] Mitarbeit zeigt Gesamt / Monat / Semester / Woche mit Fachpunkte-Diagramm pro Kind.
+- [x] Gesamt erhält ältere Zählerstände ohne Datum; Zeitraumdiagramme verwenden ausschließlich datierte Einträge und Korrekturen.
+- [ ] Browserabnahme einschließlich verschlüsseltem Neuladen und Veröffentlichung dieses Standes bestätigt.
+
 > **Statusprüfung 2026-09-20:** Die folgende historische Matrix bildet nicht vollständig den heutigen GitHub-`main`-Stand ab. Vor PR #185 geprüft: `main` = `b40f56f64ed9f8aeff57cb8a853ff2bf4a83042b`, PR #180/#183 integriert; #182 weiter als separater Draft offen. Im **Draft-PR #185** sind die Cockpit-Hauptleiste (TEXT/Papier), Papierabstände/Häuschen und der direkte Klassenkassen-Einstieg bearbeitet; keine Freigabe ohne CI + Browser-/Backup-Abnahme. **Offen:** alle Widgets tatsächlich ohne Scrollbedarf inkl. 25 Kinder, zusätzliche Widget-Leiste mit Reset, reale Canva-OAuth-/Importabnahme, getrennte verschlüsselte Materialdateien/Quoten und serverseitige Bezahlbestätigung. PayPal-Links und Preise in bestehenden Zahlungsplänen bleiben unangetastet. Produktionsstand und Speicherreserve sind serverseitig noch nicht verifiziert.
 
 > **Aktualisierung 2026-09-19:** Die früheren ✅-Angaben unten gelten nur für den damaligen Prüfstand. Insbesondere #145–159 sind auf `main` nicht enthalten. Aktueller Integrationsstatus samt offenen Fehlern in [`docs/KLASSIO_REINTEGRATION_2026-09-19.md`](docs/KLASSIO_REINTEGRATION_2026-09-19.md). Kein Feature als live/fertig einstufen, bevor ein gemeinsamer geprüfter Release-Commit belegt ist.
