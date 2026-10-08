@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   ExternalLink,
   QrCode,
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
+import { readWidgetLifecycleState, usePersistedWidgetLifecycleState } from '../../../lib/widgetLifecycleState';
 import {
   UnterrichtsLink,
   LinkCategory,
@@ -127,7 +128,11 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
   const [isAdding, setIsAdding] = useState(false);
   const [editingLink, setEditingLink] = useState<UnterrichtsLink | null>(null);
   const [qrModalLink, setQrModalLink] = useState<UnterrichtsLink | null>(null);
-  const [compactShowAll, setCompactShowAll] = useState(false);
+  const [page, setPage] = useState(() => {
+    const stored = readWidgetLifecycleState(widget, 'links', { page: 0 }).page;
+    return Number.isSafeInteger(stored) && stored >= 0 ? stored : 0;
+  });
+  usePersistedWidgetLifecycleState(widget, onUpdate, 'links', { page });
 
   // Formular-Zustände für Hinzufügen / Bearbeiten
   const [formTitle, setFormTitle] = useState('');
@@ -222,13 +227,13 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
     persistLinks(DEFAULT_SAMPLE_LINKS);
   };
 
-  // Angezeigte Links je nach Responsive-Kategorie
-  const displayedLinks = useMemo(() => {
-    if (size.isCompact && !compactShowAll) {
-      return links.slice(0, 3);
-    }
-    return links;
-  }, [links, size.isCompact, compactShowAll]);
+  // Teaching view has explicit pages; only the separate management view may scroll.
+  const columns = size.width >= 640 ? 2 : 1;
+  const pageSize = Math.max(1, Math.floor((size.height - 140) / 180)) * columns;
+  const pageCount = Math.max(1, Math.ceil(links.length / pageSize));
+  const currentPage = Math.min(page, pageCount - 1);
+  const pageStart = currentPage * pageSize;
+  const displayedLinks = isManaging ? links : links.slice(pageStart, pageStart + pageSize);
 
   // Farb- und Designvariablen
   const bgCard = currentIsLight
@@ -299,7 +304,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
       {/* 2. Scrollbarer Inhaltsbereich */}
       <div
         id="links-content-scrollable"
-        className="flex-1 overflow-y-auto min-h-0 p-2.5 space-y-2"
+        className={`flex-1 min-h-0 p-2.5 space-y-2 ${isManaging ? 'overflow-y-auto' : 'overflow-hidden'}`}
       >
         {links.length === 0 ? (
           <div
@@ -346,14 +351,15 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
         ) : (
           <div
             className={`grid gap-2 ${
-              size.isLarge || isFs
+              columns === 2
                 ? 'grid-cols-2'
                 : 'grid-cols-1'
             }`}
           >
             {displayedLinks.map((link, index) => {
-              const isFirst = index === 0;
-              const isLast = index === links.length - 1;
+              const linkIndex = isManaging ? index : pageStart + index;
+              const isFirst = linkIndex === 0;
+              const isLast = linkIndex === links.length - 1;
               const categoryObj = LINK_CATEGORIES.find((c) => c.id === link.category);
 
               return (
@@ -404,7 +410,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
                         <button
                           type="button"
                           disabled={isFirst}
-                          onClick={() => handleMove(index, 'up')}
+                          onClick={() => handleMove(linkIndex, 'up')}
                           title="Nach oben verschieben"
                           className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 disabled:opacity-30 cursor-pointer"
                         >
@@ -413,7 +419,7 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
                         <button
                           type="button"
                           disabled={isLast}
-                          onClick={() => handleMove(index, 'down')}
+                          onClick={() => handleMove(linkIndex, 'down')}
                           title="Nach unten verschieben"
                           className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 disabled:opacity-30 cursor-pointer"
                         >
@@ -474,40 +480,16 @@ export const LinksWidget: React.FC<LinksWidgetProps> = ({
           </div>
         )}
 
-        {/* 3. Compact "Mehr anzeigen" Toggle */}
-        {size.isCompact && links.length > 3 && (
-          <div className="pt-1">
-            <button
-              id="links-compact-toggle-btn"
-              type="button"
-              onClick={() => setCompactShowAll(!compactShowAll)}
-              className={`w-full py-1.5 text-center text-xs font-bold rounded-xl border transition-all cursor-pointer min-h-11 ${
-                currentIsLight
-                  ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
-                  : 'bg-zinc-800 hover:bg-zinc-700 border-white/10 text-slate-300'
-              }`}
-            >
-              {compactShowAll ? (
-                <span>Weniger anzeigen (3)</span>
-              ) : (
-                <span>Alle Links anzeigen ({links.length})</span>
-              )}
-            </button>
-          </div>
-        )}
-
-        {/* 4. Dezent: Offline / Sicherheitshinweis */}
-        <div className="pt-2 pb-1 flex items-center justify-between text-[9px] text-slate-400 dark:text-zinc-500 px-1 select-none">
-          <div className="flex items-center gap-1">
-            <Wifi className="w-3 h-3 text-accent/80" />
-            <span>Widget 100 % offline • Externe Links benötigen Internet</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <ShieldCheck className="w-3 h-3 text-emerald-500/80" />
-            <span>Sicher & trackingfrei</span>
-          </div>
-        </div>
       </div>
+      {!isManaging && pageCount > 1 && (
+        <nav aria-label="Linkseiten" className="flex shrink-0 items-center justify-between gap-1 px-2.5 pb-2 text-xs font-bold">
+          <button type="button" aria-label="Vorherige Linkseite" disabled={currentPage === 0}
+            onClick={() => setPage(currentPage - 1)} className="min-h-11 rounded-xl border px-2 disabled:opacity-40">← Zurück</button>
+          <span>Seite {currentPage + 1} / {pageCount}</span>
+          <button type="button" aria-label="Nächste Linkseite" disabled={currentPage >= pageCount - 1}
+            onClick={() => setPage(currentPage + 1)} className="min-h-11 rounded-xl border px-2 disabled:opacity-40">Weiter →</button>
+        </nav>
+      )}
 
       {/* 5. Modal: Link hinzufügen oder bearbeiten */}
       {(isAdding || editingLink) && (

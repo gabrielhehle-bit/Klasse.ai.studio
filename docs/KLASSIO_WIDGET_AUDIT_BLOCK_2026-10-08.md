@@ -18,13 +18,16 @@ Dieser Block ersetzt keine frühere Gesamtliste und bestätigt nicht alle Widget
 | Stoppuhr | Start, Stopp, pausierter Stand nach Minimieren |
 | Status-Ampel | Lautstärkeansicht nach Minimieren |
 | Aufgaben-Checkliste | Standardinhalt nach Minimieren |
-| Materialien & Links | Standardinhalt nach Minimieren |
+| Materialien & Links | Zweite Seite nach Minimieren; QR-/Öffnen-Aktionen und Seitentasten sichtbar, ohne inneres Scrollen |
 
 Browser: echte Chrome-Prüfung im bestehenden Classroom-Routine-Workflow,
 Tafelfläche 1366 × 768. Die Routine beginnt zusätzlich mit Mobilansichten 360/820.
 Quelle: scripts/classroom-routine-browser-e2e.mjs.
 
 ## Korrekturen
+
+- Links: explizite Seiten statt innerer Scrollfläche im Unterricht, gespeicherte Seite und ausreichend hohe Mindestfläche. Verwaltung bleibt separat scrollbar.
+- Lautstärkeansicht: kompakter Aufbau ohne überlappende Fußzeile; Arbeitsampel erhält ausreichend hohe Mindestfläche.
 
 - Timer: Minutenaddition respektiert die gleiche Obergrenze wie eigene Zeiteingabe.
 - Timer: vorbereitete und pausierte Zeiten bleiben positiv. Während eines laufenden

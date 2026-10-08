@@ -784,6 +784,15 @@ async function main() {
         await evaluate(client, `Array.from(document.querySelectorAll('${root} button')).find(b=>b.textContent.trim()==='Lautstärke').click()`);
         await waitFor(client,'traffic light scale mode',`Array.from(document.querySelectorAll('${root} button')).some(b=>b.textContent.trim()==='Lautstärke' && b.getAttribute('aria-pressed')==='true')`);
       }
+      if(type === 'links') {
+        await waitFor(client,'link page navigation',`Boolean(document.querySelector('[aria-label="Linkseiten"]'))`);
+        await evaluate(client,`document.querySelector('[aria-label="Nächste Linkseite"]').click()`);
+        await waitFor(client,'second link page',`document.querySelector('[aria-label="Linkseiten"]').textContent.includes('Seite 2')`);
+        const fits = await evaluate(client,`(() => {const root=document.querySelector('#widget-links-container'),r=root.getBoundingClientRect();return Array.from(root.querySelectorAll('[id^="link-open-btn"],[id^="link-qr-btn"],nav button')).every(b=>{const t=b.getBoundingClientRect();return t.height>=43 && t.bottom<=r.bottom+1 && t.top>=r.top;})() `);
+        if(!fits) throw new Error('Link actions or page controls are clipped.');
+        const scroll = await evaluate(client,`(() => {const e=document.querySelector('#links-content-scrollable');return e.scrollHeight>e.clientHeight+2;})()`);
+        if(scroll) throw new Error('Teaching links still require inner scrolling.');
+      }
       const before = await evaluate(client, `document.querySelector('${root}').textContent`);
       await auditMenu(type,'Minimieren');
       await openAuditWidget(type,search);

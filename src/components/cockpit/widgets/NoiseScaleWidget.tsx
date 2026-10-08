@@ -47,7 +47,7 @@ export const NoiseScaleWidget: React.FC<NoiseScaleWidgetProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`w-full h-full flex flex-col justify-between select-none p-3 overflow-hidden transition-colors ${
+      className={`w-full h-full flex flex-col justify-between select-none min-h-0 p-1.5 overflow-hidden transition-colors ${
         currentIsLight ? 'text-slate-800' : 'text-slate-100'
       }`}
     >
@@ -61,17 +61,17 @@ export const NoiseScaleWidget: React.FC<NoiseScaleWidgetProps> = ({
       </div>
 
       {/* 2. Main Content Area */}
-      <div className="flex-1 flex flex-col justify-center my-2 min-h-0 w-full">
+      <div className="flex-1 flex flex-col justify-center my-1 min-h-0 w-full">
         {/* COMPACT VIEW (280–379 px) */}
         {size.isCompact ? (
-          <div className="flex flex-col items-center justify-between h-full gap-2 py-1">
+          <div className="flex flex-col items-center justify-between h-full min-h-0 gap-1 py-1">
             {/* Spotlight Card */}
             <div
-              className={`w-full flex-1 flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all ${
+              className={`w-full flex-1 min-h-0 flex flex-col items-center justify-center p-1.5 rounded-2xl border text-center transition-all ${
                 activeStage.activeBg
               } ${activeStage.accentBorder}`}
             >
-              <span className="text-3xl mb-1">{activeStage.icon}</span>
+              <span className="text-2xl mb-1">{activeStage.icon}</span>
               <h3 className="text-sm font-black leading-tight">{activeStage.label}</h3>
               <p className="text-[10px] opacity-80 mt-0.5 max-w-[200px] truncate">
                 {activeStage.classroomRule}
@@ -203,10 +203,10 @@ export const NoiseScaleWidget: React.FC<NoiseScaleWidgetProps> = ({
       </div>
 
       {/* 3. Footer */}
-      <div className="pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-[9px] text-slate-400 shrink-0">
+      {size.height >= 240 && <div className="pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-[9px] text-slate-400 shrink-0">
         <span>Didaktisches Lautstärkeziel</span>
         <span>1-Klick-Auswahl</span>
-      </div>
+      </div>}
     </div>
   );
 };
