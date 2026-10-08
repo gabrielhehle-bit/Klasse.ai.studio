@@ -18,3 +18,10 @@ export function classTimerOwnsShortcut(container: HTMLElement | null, target: Ev
     (document.activeElement instanceof Node && container.contains(document.activeElement) &&
       !document.activeElement.parentElement?.closest('button, input, select, textarea, [contenteditable="true"]'));
 }
+
+/** Keep minute controls inside the same bounds as custom input. Running timers may expire. */
+export function adjustClassTimerMinute(seconds: number, direction: 1 | -1, running = false): number {
+  if (direction === 1) return Math.min(MAX_CLASS_TIMER_SECONDS, seconds + 60);
+  if (!running && seconds <= 60) return seconds;
+  return Math.max(running ? 0 : 1, seconds - 60);
+}
