@@ -8,6 +8,18 @@ let source = await fs.readFile(sourceUrl, 'utf8');
 
 const oldClickSidebar = /async function clickSidebar\(client, label\) \{[\s\S]*?\n\}\n\nasync function clickCheckboxNearText/;
 const newClickSidebar = `async function clickSidebar(client, label) {
+  await evaluate(client, '(() => { const close=Array.from(document.querySelectorAll("button")).find(b=>b.textContent.includes("Heute nicht mehr anzeigen"));close?.click(); })()');
+  const quickMode = await evaluate(client, 'innerWidth < 768 && Boolean(document.querySelector("#klassio-mobile-quick-mode"))');
+  if (quickMode) {
+    const sheet = label === 'Anwesenheit & Befinden' ? 'entry' : 'more';
+    await evaluate(client, 'document.querySelector(' + q('#klassio-mobile-quick-mode .kqm-nav-button[data-kind="' + sheet + '"]') + ')?.click()');
+    await waitFor(client, 'mobile action ' + label,
+      'Array.from(document.querySelectorAll("#klassio-mobile-quick-mode .kqm-action")).some(b=>getComputedStyle(b).visibility!=="hidden"&&b.querySelector("strong")?.textContent===' + q(label) + ')');
+    await evaluate(client, 'Array.from(document.querySelectorAll("#klassio-mobile-quick-mode .kqm-action")).find(b=>getComputedStyle(b).visibility!=="hidden"&&b.querySelector("strong")?.textContent===' + q(label) + ')?.click()');
+    await waitFor(client, 'mobile page ' + label,
+      'Array.from(document.querySelectorAll("button[aria-current=page]")).some(b=>String(b.textContent||"").trim()===' + q(label) + ')');
+    return;
+  }
   let lastError;
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
