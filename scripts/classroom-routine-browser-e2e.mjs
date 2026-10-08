@@ -788,7 +788,7 @@ async function main() {
         await waitFor(client,'link page navigation',`Boolean(document.querySelector('[aria-label="Linkseiten"]'))`);
         await evaluate(client,`document.querySelector('[aria-label="Nächste Linkseite"]').click()`);
         await waitFor(client,'second link page',`document.querySelector('[aria-label="Linkseiten"]').textContent.includes('Seite 2')`);
-        const fits = await evaluate(client,`(() => {const root=document.querySelector('#widget-links-container'),r=root.getBoundingClientRect();return Array.from(root.querySelectorAll('[id^="link-open-btn"],[id^="link-qr-btn"],nav button')).every(b=>{const t=b.getBoundingClientRect();return t.height>=43 && t.bottom<=r.bottom+1 && t.top>=r.top;})() `);
+        const fits = await evaluate(client,`(() => {const root=document.querySelector('#widget-links-container'),r=root.getBoundingClientRect();return Array.from(root.querySelectorAll('[id^="link-open-btn"],[id^="link-qr-btn"],nav button')).every(b=>{const t=b.getBoundingClientRect();return t.height>=43 && t.bottom<=r.bottom+1 && t.top>=r.top;});})()`);
         if(!fits) throw new Error('Link actions or page controls are clipped.');
         const scroll = await evaluate(client,`(() => {const e=document.querySelector('#links-content-scrollable');return e.scrollHeight>e.clientHeight+2;})()`);
         if(scroll) throw new Error('Teaching links still require inner scrolling.');
