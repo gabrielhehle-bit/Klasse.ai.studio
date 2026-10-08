@@ -1,5 +1,16 @@
 # KLASSIO – Feature Matrix
 
+## Aktueller Listenpunkt 7 – Anwesenheit (2026-10-08)
+
+- [x] Entschuldigte/unentschuldigte Fehlzeiten und optionale Vorauswahl „standardmäßig anwesend“ sind vorhanden; Vorauswahl erfordert tägliche Bestätigung.
+- [x] Befinden in kompakter Liste und Stundenansicht liest/korrigiert den bestehenden Tageswert aus „Ich bin da“, ohne zweite Speicherung oder Änderung der Anwesenheit.
+- [x] Fehlstundenstatistik: ausgewählter Tag / Woche / Monat / Semester / Schuljahr / eigener Zeitraum, bezogen auf das gewählte Anwesenheitsdatum.
+- [x] Tabelle und Fehlzeiten-Diagramme verwenden denselben Zeitraum innerhalb des aktiven Schuljahres; ungültige Zeiträume bleiben leer.
+- [x] Automatisierte Regressionsprüfung für inklusive Datumsgrenzen, Semesterkalender, reine Detail-Einträge und Erhalt gespeicherter Datensätze.
+- [ ] Manueller Praxistest im Unterricht.
+
+Veröffentlichung dieses Listenpunkts erfolgt nach grünem CI über den bestehenden Produktionsaudit; die Live-Version wird nach Auslieferung geprüft.
+
 ## Aktueller Listenpunkt 6 – Notenmappe / Mitarbeit (2026-10-08)
 
 Diese Ergänzung dokumentiert ausschließlich den aktuellen Listenpunkt; die historische Matrix darunter ist keine aktuelle Gesamtabnahme.
@@ -9,7 +20,8 @@ Diese Ergänzung dokumentiert ausschließlich den aktuellen Listenpunkt; die his
 - [x] Abzüge verweisen auf bereits vergebene Punkte und verhindern doppelte Rücknahme im Cockpit.
 - [x] Mitarbeit zeigt Gesamt / Monat / Semester / Woche mit Fachpunkte-Diagramm pro Kind.
 - [x] Gesamt erhält ältere Zählerstände ohne Datum; Zeitraumdiagramme verwenden ausschließlich datierte Einträge und Korrekturen.
-- [ ] Browserabnahme einschließlich verschlüsseltem Neuladen und Veröffentlichung dieses Standes bestätigt.
+- [x] Automatisierte Browserabnahme inklusive verschlüsseltem Neuladen bestanden; PR #480 auf `klassio.at` als `dd740fee30274e67af84fe892d7fb09c4abcb571` veröffentlicht und Release-/Health-Endpunkte geprüft.
+- [ ] Manueller Praxistest im Unterricht; der Gerätewechsel-Test Lea/Manu bleibt separat offen.
 
 > **Statusprüfung 2026-09-20:** Die folgende historische Matrix bildet nicht vollständig den heutigen GitHub-`main`-Stand ab. Vor PR #185 geprüft: `main` = `b40f56f64ed9f8aeff57cb8a853ff2bf4a83042b`, PR #180/#183 integriert; #182 weiter als separater Draft offen. Im **Draft-PR #185** sind die Cockpit-Hauptleiste (TEXT/Papier), Papierabstände/Häuschen und der direkte Klassenkassen-Einstieg bearbeitet; keine Freigabe ohne CI + Browser-/Backup-Abnahme. **Offen:** alle Widgets tatsächlich ohne Scrollbedarf inkl. 25 Kinder, zusätzliche Widget-Leiste mit Reset, reale Canva-OAuth-/Importabnahme, getrennte verschlüsselte Materialdateien/Quoten und serverseitige Bezahlbestätigung. PayPal-Links und Preise in bestehenden Zahlungsplänen bleiben unangetastet. Produktionsstand und Speicherreserve sind serverseitig noch nicht verifiziert.
 

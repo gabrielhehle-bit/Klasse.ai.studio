@@ -287,12 +287,18 @@ async function reloadAndUnlock(client) {
 async function checkRoutine(client) {
   const pupilParts = await evaluate(client, '(() => { const note=document.querySelector("button[aria-label=\\"Notiz oder Grund eintragen\\"]"); let row=note; const nameButton=el=>Array.from(el?.querySelectorAll("button")||[]).find(b=>!b.querySelector("svg") && b.textContent.trim()); while(row && !nameButton(row)) row=row.parentElement; return nameButton(row)?.textContent.trim().split(/\\s+/); })()');
   if (!pupilParts?.length) throw new Error('Cannot identify attendance pupil.');
+  const moodSelector='[data-attendance-student] select[aria-label^="Befinden für"]';
+  const attendanceDate = await evaluate(client, `document.querySelector('[aria-label="Anwesenheitsdatum"]').value`);
+  await evaluate(client, `(() => {const select=document.querySelector(${q(moodSelector)});select.value='2';select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await waitFor(client, 'daily mood shown in attendance', `document.querySelector(${q(moodSelector)})?.value === '2'`);
+
   await clickButton(client, 'fehlt', true);
   // Clicking "fehlt" records an excused absence; dismiss its reason menu by opening the note.
   await clickSelector(client, 'button[aria-label="Notiz oder Grund eintragen"]');
   await setInputByPlaceholder(client, 'Grund der Abwesenheit oder wichtige Notiz', 'Synthetischer Browser-Testgrund');
   await clickButton(client, 'Speichern', true);
   await openPupil(client, pupilParts);
+  await waitFor(client, 'attendance mood reaches shared pupil dossier', `document.querySelector('[data-dossier-overview]')?.innerText.includes('🙂 Gut')`);
   await waitFor(client, 'dossier overview charts', 'Boolean(document.querySelector("[data-dossier-overview]")) && document.body.innerText.includes("Alle Fächer auf einen Blick") && document.body.innerText.includes("Befinden")');
   const overviewOrder = await evaluate(client, `Boolean(document.querySelector('[data-dossier-trend-card="attendance"]').compareDocumentPosition(document.querySelector('[data-dossier-subject-grid]')) & Node.DOCUMENT_POSITION_FOLLOWING)`);
   if (!overviewOrder) throw new Error('Dossier overview must show everyday charts before detailed subject cards.');
@@ -382,6 +388,21 @@ async function checkRoutine(client) {
   if (width > WIDTH + 5) throw new Error('Dossier overflows viewport: ' + width + ' > ' + WIDTH);
   await openPage(client, 'Anwesenheit & Befinden');
   await waitFor(client, 'attendance restored', 'Boolean(document.querySelector("button[aria-label=\\"Notiz oder Grund eintragen\\"]"))');
+  await waitFor(client, 'daily mood survives encrypted reload', `document.querySelector(${q(moodSelector)})?.value === '2'`);
+  await evaluate(client, `Array.from(document.querySelectorAll('header button')).find(button=>button.querySelector('svg.lucide-ellipsis')).click()`);
+  await clickButton(client, 'Statistik & Monatsübersicht', true);
+  await waitFor(client, 'attendance period filter', `Boolean(document.querySelector('[aria-label="Zeitraum der Fehlstunden"]'))`);
+  await evaluate(client, `(() => {const select=document.querySelector('[aria-label="Zeitraum der Fehlstunden"]');select.value='custom';select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await setInputByLabel(client, 'Fehlstunden von', attendanceDate);
+  await setInputByLabel(client, 'Fehlstunden bis', attendanceDate);
+  await waitFor(client, 'custom period shows the selected absence', `document.querySelector('[data-attendance-range-label]')?.textContent.includes(${q(attendanceDate.split('-').reverse().join('.'))}) && Number(document.querySelector('[data-attendance-period-table] tbody tr td:nth-child(6)')?.textContent) > 0`);
+  await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-attendance-period.png'));
+  await setInputByLabel(client, 'Fehlstunden bis', '1900-01-01');
+  await waitFor(client, 'invalid period is empty without changing attendance', `!document.querySelector('[data-attendance-range-label]') && Array.from(document.querySelectorAll('[data-attendance-period-table] tbody td:not(:first-child)')).every(cell=>Number(cell.textContent)===0)`);
+  await evaluate(client, `(() => {const select=document.querySelector('[aria-label="Zeitraum der Fehlstunden"]');select.value='year';select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await waitFor(client, 'school year totals return after invalid range', `Number(document.querySelector('[data-attendance-period-table] tbody tr td:nth-child(6)')?.textContent) > 0`);
+  await evaluate(client, `Array.from(document.querySelectorAll('button')).find(button=>button.textContent.trim()==='Schließen ✕').click()`);
+
   await clickSelector(client, 'button[aria-label="Notiz oder Grund eintragen"]');
   await waitFor(client, 'absence reason restored after reload', 'document.querySelector("textarea")?.value === "Synthetischer Browser-Testgrund"');
   await clickButton(client, 'Abbrechen', true);

@@ -6,6 +6,7 @@ import { getTodayName, isHoliday } from "../lib/utils";
 import { STUNDEN_INFO } from "../constants";
 import {
   findAdjacentSchoolDate,
+  parseLocalDateKey,
   getAttendanceDayStats,
   getLocalAttendanceDateKey,
   getStudentAbsenceDates,
@@ -55,6 +56,8 @@ import {
 } from "recharts";
 import PrintHeader from "./PrintHeader";
 import AttendanceTrends from "./AttendanceTrends";
+import AttendanceMoodField from "./AttendanceMoodField";
+import { getAttendanceReportingRange, type AttendancePeriod } from "../lib/attendancePeriod";
 import { getAttendanceReasonMenuPlacement } from "../lib/attendanceReasonMenuPlacement";
 import PresenceBehaviorStats from "./PresenceBehaviorStats";
 
@@ -77,6 +80,11 @@ export default function Attendance() {
   const [viewMode, setViewMode] = useState<"compact" | "hourly">("compact");
   const [showMehrMenu, setShowMehrMenu] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [statsPeriod, setStatsPeriod] = useState<AttendancePeriod>('year');
+  const [statsStart, setStatsStart] = useState('');
+  const [statsEnd, setStatsEnd] = useState('');
+  const statsRange = useMemo(() => getAttendanceReportingRange(statsPeriod, app.schuljahr, app.bundesland || 'VBG',
+    selectedDate, statsStart, statsEnd), [statsPeriod, app.schuljahr, app.bundesland, selectedDate, statsStart, statsEnd]);
   const [showValidation, setShowValidation] = useState(false);
 
   // Active student modals & popovers
@@ -109,6 +117,9 @@ export default function Attendance() {
   useEffect(() => {
     // Anwesenheitsbezogene UI-Zustände dürfen niemals in die nächste Klasse mitwandern.
     setRecentChanges([]);
+    setStatsPeriod('year');
+    setStatsStart('');
+    setStatsEnd('');
     setActiveNoteSid(null);
     setActiveDelaySid(null);
     setActiveFehlstundenSid(null);
@@ -885,7 +896,8 @@ export default function Attendance() {
     app.anwesenheit[sid] || {},
     app.anwesenheitDetail?.[sid] || {},
     app.schuljahr,
-    app.bundesland || "VBG"
+    app.bundesland || "VBG",
+    statsRange
   );
 
   const chartData = useMemo(() => {
@@ -897,7 +909,7 @@ export default function Attendance() {
         Unentschuldigt: stats.total.u,
       };
     });
-  }, [sortedStudents, app.anwesenheit, app.anwesenheitDetail, app.schuljahr, app.bundesland]);
+  }, [sortedStudents, app.anwesenheit, app.anwesenheitDetail, app.schuljahr, app.bundesland, statsRange]);
 
   const validationErrors = getValidationErrors();
 
@@ -935,9 +947,10 @@ export default function Attendance() {
                 <span className="block min-w-0 truncate text-[0.75rem] sm:text-[0.875rem]">{formattedDate}</span>
                 <input
                   type="date"
+                  aria-label="Anwesenheitsdatum"
                   className="sr-only"
                   value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
+                  onChange={(e) => { if (parseLocalDateKey(e.target.value)) setSelectedDate(e.target.value); }}
                 />
               </label>
               {isFree && (
@@ -1299,6 +1312,7 @@ export default function Attendance() {
                 return (
                   <div
                     key={s.id}
+                    data-attendance-student={s.id}
                     className={`p-2.5 sm:px-4 sm:py-3.5 flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 transition-colors ${
                       isAbsent
                         ? isUnexcused
@@ -1351,6 +1365,7 @@ export default function Attendance() {
                           )}
                         </div>
 
+                        <div className="mt-1"><AttendanceMoodField studentId={s.id} name={`${s.vorname} ${s.nachname}`} date={selectedDate} /></div>
                         {/* Note / Reason Pill / Fehlstunden if present */}
                         {(details?.notiz || details?.verspaetung || studentFehlstunden > 0) && (
                           <div className="flex items-center gap-1.5 flex-wrap mt-0.5 text-[0.6875rem]">
@@ -1596,6 +1611,7 @@ export default function Attendance() {
                   <tr className="bg-slate-50 border-b border-slate-200 text-[0.625rem] font-black uppercase text-slate-500 tracking-wider">
                     <th className="p-3 w-10">#</th>
                     <th className="p-3 w-40">Name</th>
+                    <th className="p-3">Befinden</th>
                     <th className="p-3 text-center w-20">Tag</th>
                     {activeHours.map((hourNum) => (
                       <th key={hourNum} className="p-2 text-center w-16 border-l border-slate-200/60">
@@ -1616,6 +1632,7 @@ export default function Attendance() {
                         <td className="p-3 font-bold text-slate-900">
                           {s.nachname} {s.vorname}
                         </td>
+                        <td className="p-3"><AttendanceMoodField studentId={s.id} name={`${s.vorname} ${s.nachname}`} date={selectedDate} /></td>
                         <td className="p-3 text-center">
                           <div className="inline-flex gap-1">
                             <button
@@ -1691,12 +1708,25 @@ export default function Attendance() {
             </button>
           </div>
 
-          <div className="mb-6">
-            <PresenceBehaviorStats compact />
-          </div>
 
+
+          <div className="mb-4 space-y-3" data-attendance-report-range>
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="text-xs font-semibold text-slate-600">Zeitraum der Fehlstunden
+                <select aria-label="Zeitraum der Fehlstunden" className="ml-2 min-h-10 rounded-lg border border-slate-200 bg-white px-2" value={statsPeriod} onChange={event => setStatsPeriod(event.target.value as AttendancePeriod)}>
+                  <option value="today">Ausgewählter Tag</option><option value="week">Woche</option><option value="month">Monat</option><option value="semester">Semester</option><option value="year">Schuljahr</option><option value="custom">Eigener Zeitraum</option>
+                </select>
+              </label>
+              {statsPeriod === 'custom' && <>
+                <label className="text-xs font-semibold text-slate-600">Von <input aria-label="Fehlstunden von" type="date" className="min-h-10 rounded-lg border border-slate-200 px-2" value={statsStart} onChange={event => setStatsStart(event.target.value)} /></label>
+                <label className="text-xs font-semibold text-slate-600">Bis <input aria-label="Fehlstunden bis" type="date" className="min-h-10 rounded-lg border border-slate-200 px-2" value={statsEnd} onChange={event => setStatsEnd(event.target.value)} /></label>
+              </>}
+            </div>
+            {statsRange ? <p className="text-xs text-slate-500" data-attendance-range-label>{statsRange.start.split('-').reverse().join('.')} – {statsRange.end.split('-').reverse().join('.')} · Fehlstunden im gewählten Zeitraum{statsPeriod !== 'year' && statsPeriod !== 'custom' ? ' · bezogen auf das oben ausgewählte Datum' : ''}</p>
+              : <p role="status" className="text-xs text-amber-700">Bitte einen gültigen Zeitraum innerhalb des Schuljahres wählen.</p>}
+          </div>
           <div className="w-full overflow-x-auto no-scrollbar">
-            <table className="w-full text-left text-[0.8125rem]">
+            <table className="w-full text-left text-[0.8125rem]" data-attendance-period-table>
               <thead>
                 <tr className="border-b border-slate-200 text-[0.625rem] font-black uppercase tracking-wider text-slate-400">
                   <th className="p-3">Schüler</th>
@@ -1766,7 +1796,8 @@ export default function Attendance() {
             </ResponsiveContainer>
           </div>
 
-          <AttendanceTrends />
+          <AttendanceTrends range={statsRange} />
+          <div className="mt-6 border-t border-slate-100 pt-6"><PresenceBehaviorStats compact /></div>
         </motion.div>
       )}
 
