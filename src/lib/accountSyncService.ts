@@ -1,6 +1,7 @@
 import type { AppState, ClassRoom } from '../types';
 import { switchClassState } from './appState';
 import { decryptData, encryptData, type EncryptedPayloadV1 } from './crypto';
+import { classRoomFingerprint } from './teamTeachingCrypto';
 import type { VaultRecordV1 } from './vaultService';
 
 export type AccountSyncStatus = 'disabled' | 'idle' | 'saving-local' | 'saved-local' | 'local-error' | 'syncing' | 'synced' | 'conflict' | 'error';
@@ -202,6 +203,34 @@ export function hasSharedClassAccountDrift(remote: AppState, local: AppState): b
   return false;
 }
 
+/**
+ * Account sync intentionally stores only the opaque Teamteaching workspace ID.
+ * On a second device that means the class has no device-local revision/baseline yet.
+ * Recreate a conservative local bootstrap record so the normal Teamteaching pull can
+ * reconnect immediately. The account copy itself becomes the temporary baseline:
+ * if the teacher edits before the first pull finishes, a differing server copy is
+ * treated as a real conflict instead of silently overwriting that local edit.
+ */
+export function bootstrapRestoredTeamTeachingRoom(room: ClassRoom): ClassRoom {
+  if (room.teamTeaching || !room.teamTeachingSharedClassId) return room;
+  return {
+    ...room,
+    teamTeaching: {
+      sharedClassId: room.teamTeachingSharedClassId,
+      // Revision 0 means "linked from account restore, but not yet confirmed by
+      // the Teamteaching server". Real shared classes start at revision 1.
+      // Use an editor placeholder only to let the existing metadata-only branch
+      // preserve a quick local edit. Before any push it replaces this placeholder
+      // with remote.detail.myRole, so a real viewer still cannot write.
+      role: 'editor',
+      revision: 0,
+      lastSyncedHash: classRoomFingerprint(room),
+      syncStatus: 'idle',
+      syncMessage: 'Teamstand wird auf diesem Gerät verbunden.',
+    },
+  };
+}
+
 export function mergeAccountSyncState(remote: AppState, local: AppState): AppState {
   const localSharedRooms = new Map<string, ClassRoom>(
     (local.classes || [])
@@ -213,7 +242,9 @@ export function mergeAccountSyncState(remote: AppState, local: AppState): AppSta
     // Retain the FULL class, not just its device-local team metadata. Otherwise
     // a delayed personal-account refresh can silently replace a colleague's
     // newer weekly plan with an older copy and then publish that stale copy.
-    return localSharedRooms.get(room.id) || accountRoom;
+    const localSharedRoom = localSharedRooms.get(room.id);
+    if (localSharedRoom) return localSharedRoom;
+    return bootstrapRestoredTeamTeachingRoom(accountRoom as ClassRoom);
   });
   for (const [id, room] of localSharedRooms) {
     if (!classes.some(candidate => candidate.id === id)) classes.push(room);
