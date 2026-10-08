@@ -389,7 +389,8 @@ async function checkRoutine(client) {
   await openPage(client, 'Anwesenheit & Befinden');
   await waitFor(client, 'attendance restored', 'Boolean(document.querySelector("button[aria-label=\\"Notiz oder Grund eintragen\\"]"))');
   await waitFor(client, 'daily mood survives encrypted reload', `document.querySelector(${q(moodSelector)})?.value === '2'`);
-  await evaluate(client, `Array.from(document.querySelectorAll('header button')).find(button=>button.querySelector('svg.lucide-ellipsis')).click()`);
+  await evaluate(client, `Array.from(document.querySelectorAll('header')).find(header=>header.querySelector('h1')?.textContent.trim()==='Anwesenheit').querySelector('button svg.lucide-ellipsis').closest('button').click()`);
+  await waitFor(client, 'attendance report menu', `Array.from(document.querySelectorAll('button')).some(button=>button.textContent.trim()==='Statistik & Monatsübersicht')`);
   await clickButton(client, 'Statistik & Monatsübersicht', true);
   await waitFor(client, 'attendance period filter', `Boolean(document.querySelector('[aria-label="Zeitraum der Fehlstunden"]'))`);
   await evaluate(client, `(() => {const select=document.querySelector('[aria-label="Zeitraum der Fehlstunden"]');select.value='custom';select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
