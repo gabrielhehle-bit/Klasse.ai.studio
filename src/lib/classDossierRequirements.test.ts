@@ -39,5 +39,5 @@ test('Klassendossier zeigt echte Klassenbereiche und Diagramme', () => {
 test('Klassendossier schützt vertrauliche Notiztexte und verlinkt ins Schülerdossier', () => {
   assert.match(dossier, /Keine vertraulichen Notiztexte/);
   assert.match(dossier, /onSelectStudent\(row\.id\)/);
-  assert.doesNotMatch(dossier, /statusLog.*map\(/s);
+  assert.doesNotMatch(dossier, /log\.(?:notiz|notizen|text|kommentar|beschreibung)/i);
 });
