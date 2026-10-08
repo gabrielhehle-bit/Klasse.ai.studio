@@ -792,7 +792,7 @@ async function main() {
       }
       await auditMenu(type,'Widget schließen');
     }
-    for(const [type,search] of [['stopwatch','Stoppuhr'],['trafficlight','Status-Ampel'],['todo','Aufgaben-Checkliste'],['links','Materialien & Links']]) {
+    for(const [type,search] of [['stopwatch','Stoppuhr'],['trafficlight','Status-Ampel'],['todo','Aufgaben-Checkliste'],['links','Materialien & Links'],['kidattendance','Ich bin da!']]) {
       await openAuditWidget(type,search);
       const root = `[data-widget-type="${type}"] [data-widget-content]`;
       if(type === 'stopwatch') {
@@ -813,6 +813,14 @@ async function main() {
         if(!fits) throw new Error('Link actions or page controls are clipped.');
         const scroll = await evaluate(client,`(() => {const e=document.querySelector('#links-content-scrollable');return e.scrollHeight>e.clientHeight+2;})()`);
         if(scroll) throw new Error('Teaching links still require inner scrolling.');
+      }
+      if(type === 'kidattendance') {
+        await clickButton(client, 'Statistik öffnen', true);
+        await waitFor(client, 'attendance widget statistics opens', `Boolean(document.querySelector('[data-presence-behavior-stats]')) && Boolean(document.querySelector('[aria-label="Statistikzeitraum"]'))`);
+        await clickButton(client, 'Gesamtes Schuljahr', true);
+        await waitFor(client, 'attendance widget yearly statistics', `document.querySelector('[aria-label="Statistikzeitraum"] button[aria-selected="true"]')?.textContent.trim() === 'Gesamtes Schuljahr'`);
+        await clickButton(client, 'Zur Anwesenheit zurück', true);
+        await waitFor(client, 'attendance widget returns from statistics', `!document.querySelector('[data-presence-behavior-stats]')`);
       }
       const before = await evaluate(client, `document.querySelector('${root}').textContent`);
       await auditMenu(type,'Minimieren');
