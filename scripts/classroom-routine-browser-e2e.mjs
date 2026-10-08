@@ -301,11 +301,17 @@ async function checkRoutine(client) {
   await waitFor(client, 'attendance mood reaches shared pupil dossier', `document.querySelector('[data-dossier-overview]')?.innerText.includes('🙂 Gut')`);
   await waitFor(client, 'dossier overview charts', 'Boolean(document.querySelector("[data-dossier-overview]")) && document.body.innerText.includes("Alle Fächer auf einen Blick") && document.body.innerText.includes("Befinden")');
   const assertWellbeingAxis = async () => {
+    await evaluate(client, `document.querySelector('[data-dossier-trend-card="wellbeing"]').scrollIntoView({block:'center'})`);
+    try {
     await waitFor(client, 'dossier places positive behavior and mood values at the top', `(() => {
-      const ticks=Array.from(document.querySelectorAll('[data-dossier-trend-card="wellbeing"] .recharts-yAxis-tick-labels .recharts-cartesian-axis-tick-value'));
+      const ticks=Array.from(document.querySelectorAll('[data-dossier-trend-card="wellbeing"] .recharts-cartesian-axis-tick-value'));
       const good=ticks.find(t=>t.textContent.trim()==='1'),poor=ticks.find(t=>t.textContent.trim()==='5');
       return Boolean(good && poor && good.getBoundingClientRect().y < poor.getBoundingClientRect().y);
     })()`);
+    } catch (error) {
+      console.log('Wellbeing axis diagnostics',await evaluate(client, `document.querySelector('[data-dossier-trend-card="wellbeing"]').outerHTML.slice(0,12000)`));
+      throw error;
+    }
     await waitFor(client, 'dossier names both wellbeing lines', `document.querySelector('[aria-label="Legende für Verhalten und Befinden"]')?.textContent.includes('Verhalten') && document.querySelector('[aria-label="Legende für Verhalten und Befinden"]')?.textContent.includes('Befinden')`);
   };
   await assertWellbeingAxis();
