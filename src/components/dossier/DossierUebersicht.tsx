@@ -6,7 +6,7 @@ import { useApp } from '../../context/AppContext';
 import { faecherFuerKlasse } from '../../lib/sek1Subjects';
 import { berechne, calculateItemPercent, getAssessmentMode, getMaxPoints } from '../../lib/GradeUtils';
 import { getStudentNotes } from '../../lib/studentMetrics';
-import { getDossierOverviewStats } from '../../lib/dossierOverviewStats';
+import { getDossierOverviewStats, getDossierPeriodDays, getDossierParticipationTimeline } from '../../lib/dossierOverviewStats';
 import { getMoodMeta } from '../../lib/moodTypes';
 import { behaviorLogDay } from '../../lib/dailyBehaviorEntries';
 import { getStudentSubjectParticipationSummary } from '../../lib/studentParticipation';
@@ -23,19 +23,6 @@ interface Props {
 type AttendanceHeatStatus = 'present'|'excused'|'unexcused'|'empty'|'weekend';
 
 const dateLabel=(date?:string)=>date ? new Date(date+'T12:00:00').toLocaleDateString('de-AT',{day:'2-digit',month:'2-digit'}) : '';
-const localIsoDate=(date:Date)=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
-const mondayOf=(value:Date)=>{
-  const date=new Date(value);
-  date.setHours(12,0,0,0);
-  const day=date.getDay()||7;
-  date.setDate(date.getDate()-day+1);
-  return date;
-};
-const addDays=(value:Date,days:number)=>{
-  const date=new Date(value);
-  date.setDate(date.getDate()+days);
-  return date;
-};
 const noteDateLabel=(note:any)=>{
   const raw=note?.datum ?? note?.date ?? note?.timestamp;
   if (raw===null || raw===undefined || raw==='') return 'Ohne Datum';
@@ -127,38 +114,11 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
   const totalAssessments=subjectCards.reduce((sum,cardData)=>sum+cardData.assessmentCount,0);
   const homeworkCoreText=trackedHomeworkSubjects===0?'HÜ noch nicht erfasst':missingHomework>0?`${missingHomework} fehlende HÜ`:'keine fehlenden HÜ';
 
-  const participationTimeline=useMemo(()=>{
-    const now=new Date();
-    now.setHours(12,0,0,0);
-    if(period==='recent'){
-      const thisMonday=mondayOf(now);
-      return Array.from({length:6},(_,index)=>{
-        const start=addDays(thisMonday,(index-5)*7);
-        const end=addDays(start,7);
-        const points=participationEntries.reduce((sum,entry)=>{
-          const date=new Date(entry.timestamp);
-          return date>=start&&date<end?sum+Number(entry.points||0):sum;
-        },0);
-        return {label:start.toLocaleDateString('de-AT',{day:'2-digit',month:'2-digit'}),points};
-      });
-    }
-    const schoolYearStart=new Date(now.getMonth()>=8?now.getFullYear():now.getFullYear()-1,8,1,12);
-    const months:number[]=[];
-    const cursor=new Date(schoolYearStart);
-    while(cursor<=now&&months.length<12){
-      months.push(cursor.getMonth()+cursor.getFullYear()*12);
-      cursor.setMonth(cursor.getMonth()+1);
-    }
-    return months.map(monthKey=>{
-      const year=Math.floor(monthKey/12);
-      const month=monthKey%12;
-      const points=participationEntries.reduce((sum,entry)=>{
-        const date=new Date(entry.timestamp);
-        return date.getFullYear()===year&&date.getMonth()===month?sum+Number(entry.points||0):sum;
-      },0);
-      return {label:new Date(year,month,1).toLocaleDateString('de-AT',{month:'short'}),points};
-    });
-  },[participationEntries,period]);
+  const participationPeriod=useMemo(
+    ()=>getDossierParticipationTimeline(participationEntries,trendStats,period),
+    [participationEntries,trendStats,period]
+  );
+  const participationTimeline=participationPeriod.timeline;
 
   const wellbeingTimeline=useMemo(()=>trendStats.weeks.map((week:any)=>{
     let count=0;
@@ -172,14 +132,10 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
   }),[trendStats]);
 
   const attendanceHeatmap=useMemo(()=>{
-    const count=period==='recent'?42:84;
-    const today=new Date();
-    today.setHours(12,0,0,0);
     const attendance=(app.anwesenheit?.[student.id]||{}) as Record<string,any>;
     const details=(app.anwesenheitDetail?.[student.id]||{}) as Record<string,any>;
-    return Array.from({length:count},(_,index)=>{
-      const date=addDays(today,index-count+1);
-      const key=localIsoDate(date);
+    return getDossierPeriodDays(trendStats.start,trendStats.today).map(key=>{
+      const date=new Date(key+'T12:00:00');
       const raw=attendance[key];
       const values=typeof raw==='string'?[raw]:Object.values(raw||{}).map(String);
       const detail=details[key];
@@ -191,7 +147,7 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
       else if(values.some(value=>['a','da','v'].includes(value))) status='present';
       return {key,status,label:date.toLocaleDateString('de-AT',{weekday:'short',day:'2-digit',month:'2-digit'})};
     });
-  },[app.anwesenheit,app.anwesenheitDetail,student.id,period]);
+  },[app.anwesenheit,app.anwesenheitDetail,student.id,trendStats.start,trendStats.today]);
 
   const attendanceTone:Record<AttendanceHeatStatus,string>={
     present:'bg-teal-500',
@@ -236,6 +192,51 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
       </div>
     </section>
 
+    <section aria-label="Mitarbeit, Verhalten, Befinden & Anwesenheit" className="space-y-3" data-klassio-area>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-slate-400">Mitarbeit, Verhalten, Befinden & Anwesenheit</p>
+          <h2 className="mt-0.5 text-base font-bold text-slate-900">Verläufe, die etwas sagen</h2>
+          <p className="mt-1 text-xs text-slate-500">Zeitverlauf statt dekorativer Kennzahlen · Werte per Tipp oder Mauszeiger</p>
+        </div>
+        <div className="flex gap-1 rounded-xl bg-slate-100 p-1" role="group" aria-label="Zeitraum der Alltagsdiagramme">
+          {([['recent','6 Wochen'],['year','Schuljahr']] as const).map(([key,label])=><button key={key} type="button" aria-pressed={period===key} onClick={()=>setPeriod(key)} className={`rounded-lg px-3 py-2 text-xs font-semibold ${period===key?'bg-white text-slate-900 shadow-sm':'text-slate-500'}`}>{label}</button>)}
+        </div>
+      </div>
+      <div className="grid gap-3 xl:grid-cols-3">
+        <section className={card} data-dossier-trend-card="participation">
+          <div className="flex items-start justify-between gap-3">
+            <div><h3 className="flex items-center gap-2 text-sm font-bold text-slate-900"><Star size={17} className="text-amber-600"/>Mitarbeit</h3><p className="mt-1 text-[0.68rem] text-slate-500">Punkte im gewählten Zeitraum</p></div>
+            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[0.68rem] font-bold text-amber-800">{participationPeriod.total} ★ im Zeitraum</span>
+          </div>
+          <div className="mt-3 h-32">{participationTimeline.some(item=>item.points!==0)?<ResponsiveContainer width="100%" height="100%"><BarChart data={participationTimeline} margin={{top:4,right:4,left:-8,bottom:0}}>{chartAxes}<YAxis allowDecimals={false} width={22} tick={{fontSize:10}} axisLine={false} tickLine={false}/><Tooltip/><Bar dataKey="points" name="Mitarbeit" fill="#d97706" radius={[5,5,0,0]} maxBarSize={24}/></BarChart></ResponsiveContainer>:<p className="flex h-full items-center justify-center text-xs text-slate-400">Keine Mitarbeitseinträge im Zeitraum</p>}</div>
+          <p className="mt-2 text-[0.65rem] text-slate-500">{participationPeriod.count} protokollierte Einträge im Zeitraum</p>
+        </section>
+
+        <section className={card} data-dossier-trend-card="wellbeing">
+          <div className="flex items-start justify-between gap-3">
+            <div><h3 className="flex items-center gap-2 text-sm font-bold text-slate-900"><Activity size={17} className="text-violet-600"/>Verhalten & Befinden</h3><p className="mt-1 text-[0.68rem] text-slate-500">Gemeinsamer Verlauf ohne Kreisdiagramm</p></div>
+            <span className="max-w-[10rem] rounded-full bg-violet-50 px-2.5 py-1 text-right text-[0.68rem] font-bold text-violet-800">{trendLatestStage?trendLatestStage.icon+' '+trendLatestStage.label:trendMood?trendMood.emoji+' '+trendMood.label:'Noch nicht erfasst'}</span>
+          </div>
+          <div className="mt-3 h-32">{trendStats.logs.length||trendStats.moodCount?<ResponsiveContainer width="100%" height="100%"><LineChart data={wellbeingTimeline} margin={{top:4,right:4,left:-8,bottom:0}}>{chartAxes}<YAxis domain={[1,Math.max(5,trendStats.stages.length)]} ticks={[1,3,5]} width={22} tick={{fontSize:10}} axisLine={false} tickLine={false}/><Tooltip formatter={(value:any,name:any)=>name==='Befinden'?[Number(value).toFixed(1),'Befinden']:[Number(value).toFixed(1),'Verhalten']}/><Line dataKey="behavior" name="Verhalten" stroke="#7c3aed" strokeWidth={2.5} dot={{r:2.5}} connectNulls={false}/><Line dataKey="mood" name="Befinden" stroke="#d97706" strokeWidth={2} strokeDasharray="5 4" dot={{r:2}} connectNulls={false}/></LineChart></ResponsiveContainer>:<p className="flex h-full items-center justify-center text-xs text-slate-400">Noch keine Verlaufsdaten im Zeitraum</p>}</div>
+          <p className="mt-2 text-[0.65rem] text-slate-500">{trendStats.latestBehavior?'Letzter Eintrag: '+dateLabel(behaviorLogDay(trendStats.latestBehavior)):'Noch kein Verhalten dokumentiert'} · {trendStats.moodCount} Befindens-Rückmeldungen im Zeitraum</p>
+        </section>
+
+        <section className={card} data-dossier-trend-card="attendance">
+          <div className="flex items-start justify-between gap-3">
+            <div><h3 className="flex items-center gap-2 text-sm font-bold text-slate-900"><CalendarDays size={17} className="text-teal-600"/>Anwesenheit</h3><p className="mt-1 text-[0.68rem] text-slate-500">Kalender statt weiterer Balken</p></div>
+            <span className="max-w-[9rem] rounded-full bg-teal-50 px-2.5 py-1 text-right text-[0.68rem] font-bold text-teal-800">{todayStatus}</span>
+          </div>
+          <div className="mt-4 grid max-h-48 gap-1 overflow-y-auto" data-attendance-heatmap data-period-start={trendStats.start} data-period-end={trendStats.today} role="group" tabIndex={0} aria-label="Anwesenheitskalender">
+            {attendanceHeatmap.map(day=><span key={day.key} data-attendance-day data-date={day.key} title={`${day.label}: ${day.status==='present'?'anwesend':day.status==='excused'?'entschuldigt':day.status==='unexcused'?'unentschuldigt':day.status==='weekend'?'Wochenende':'nicht erfasst'}`} aria-label={`${day.label}: ${day.status}`} className={`${attendanceTone[day.status]} block`}/>)}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[0.62rem] font-semibold text-slate-500"><span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-teal-500"/>anwesend</span><span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-amber-300"/>entschuldigt</span><span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-rose-500"/>unentschuldigt</span></div>
+          <p className="mt-2 text-[0.65rem] text-slate-500">{trendStats.excused} entschuldigt · {trendStats.unexcused} unentschuldigt</p>
+        </section>
+      </div>
+      <div className="flex justify-end"><button type="button" onClick={()=>onTabChange('beobachtungen_verlauf')} className="text-xs font-semibold text-indigo-700 hover:underline">Alle Beobachtungen & Verlaufsdaten öffnen <ArrowRight size={13} className="inline"/></button></div>
+    </section>
+
     <section className={card} aria-label="Notenstand aller Fächer" data-dossier-subject-grid data-klassio-area>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div><h2 className="flex items-center gap-2 text-base font-black text-slate-900"><BarChart3 size={18} className="text-indigo-600"/>Alle Fächer auf einen Blick</h2><p className="mt-1 text-xs text-slate-500">Bewertung, Trend, Mitarbeit und Hausübungen direkt pro Fach.</p></div>
@@ -262,51 +263,6 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
         })}
       </div>
       {!subjects.length&&<p className="text-sm text-slate-500">Noch keine Fächer ausgewählt.</p>}
-    </section>
-
-    <section aria-label="Mitarbeit, Verhalten, Befinden & Anwesenheit" className="space-y-3" data-klassio-area>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-slate-400">Mitarbeit, Verhalten, Befinden & Anwesenheit</p>
-          <h2 className="mt-0.5 text-base font-bold text-slate-900">Verläufe, die etwas sagen</h2>
-          <p className="mt-1 text-xs text-slate-500">Zeitverlauf statt dekorativer Kennzahlen · Werte per Tipp oder Mauszeiger</p>
-        </div>
-        <div className="flex gap-1 rounded-xl bg-slate-100 p-1" role="group" aria-label="Zeitraum der Alltagsdiagramme">
-          {([['recent','6 Wochen'],['year','Schuljahr']] as const).map(([key,label])=><button key={key} type="button" aria-pressed={period===key} onClick={()=>setPeriod(key)} className={`rounded-lg px-3 py-2 text-xs font-semibold ${period===key?'bg-white text-slate-900 shadow-sm':'text-slate-500'}`}>{label}</button>)}
-        </div>
-      </div>
-      <div className="grid gap-3 xl:grid-cols-3">
-        <section className={card} data-dossier-trend-card="participation">
-          <div className="flex items-start justify-between gap-3">
-            <div><h3 className="flex items-center gap-2 text-sm font-bold text-slate-900"><Star size={17} className="text-amber-600"/>Mitarbeit</h3><p className="mt-1 text-[0.68rem] text-slate-500">Punkte im gewählten Zeitraum</p></div>
-            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[0.68rem] font-bold text-amber-800">{totalParticipation} ★ gesamt</span>
-          </div>
-          <div className="mt-3 h-32">{participationTimeline.some(item=>item.points!==0)?<ResponsiveContainer width="100%" height="100%"><BarChart data={participationTimeline} margin={{top:4,right:4,left:-8,bottom:0}}>{chartAxes}<YAxis allowDecimals={false} width={22} tick={{fontSize:10}} axisLine={false} tickLine={false}/><Tooltip/><Bar dataKey="points" name="Mitarbeit" fill="#d97706" radius={[5,5,0,0]} maxBarSize={24}/></BarChart></ResponsiveContainer>:<p className="flex h-full items-center justify-center text-xs text-slate-400">Keine Mitarbeitseinträge im Zeitraum</p>}</div>
-          <p className="mt-2 text-[0.65rem] text-slate-500">{participationEntries.length} protokollierte Einträge · fachbezogene Summen oben</p>
-        </section>
-
-        <section className={card} data-dossier-trend-card="wellbeing">
-          <div className="flex items-start justify-between gap-3">
-            <div><h3 className="flex items-center gap-2 text-sm font-bold text-slate-900"><Activity size={17} className="text-violet-600"/>Verhalten & Befinden</h3><p className="mt-1 text-[0.68rem] text-slate-500">Gemeinsamer Verlauf ohne Kreisdiagramm</p></div>
-            <span className="max-w-[10rem] rounded-full bg-violet-50 px-2.5 py-1 text-right text-[0.68rem] font-bold text-violet-800">{trendLatestStage?trendLatestStage.icon+' '+trendLatestStage.label:trendMood?trendMood.emoji+' '+trendMood.label:'Noch nicht erfasst'}</span>
-          </div>
-          <div className="mt-3 h-32">{trendStats.logs.length||trendStats.moodCount?<ResponsiveContainer width="100%" height="100%"><LineChart data={wellbeingTimeline} margin={{top:4,right:4,left:-8,bottom:0}}>{chartAxes}<YAxis domain={[1,Math.max(5,trendStats.stages.length)]} ticks={[1,3,5]} width={22} tick={{fontSize:10}} axisLine={false} tickLine={false}/><Tooltip formatter={(value:any,name:any)=>name==='Befinden'?[Number(value).toFixed(1),'Befinden']:[Number(value).toFixed(1),'Verhalten']}/><Line dataKey="behavior" name="Verhalten" stroke="#7c3aed" strokeWidth={2.5} dot={{r:2.5}} connectNulls={false}/><Line dataKey="mood" name="Befinden" stroke="#d97706" strokeWidth={2} strokeDasharray="5 4" dot={{r:2}} connectNulls={false}/></LineChart></ResponsiveContainer>:<p className="flex h-full items-center justify-center text-xs text-slate-400">Noch keine Verlaufsdaten im Zeitraum</p>}</div>
-          <p className="mt-2 text-[0.65rem] text-slate-500">{trendStats.latestBehavior?'Letzter Eintrag: '+dateLabel(behaviorLogDay(trendStats.latestBehavior)):'Noch kein Verhalten dokumentiert'} · {yearStats.moodCount} Befindens-Rückmeldungen</p>
-        </section>
-
-        <section className={card} data-dossier-trend-card="attendance">
-          <div className="flex items-start justify-between gap-3">
-            <div><h3 className="flex items-center gap-2 text-sm font-bold text-slate-900"><CalendarDays size={17} className="text-teal-600"/>Anwesenheit</h3><p className="mt-1 text-[0.68rem] text-slate-500">Kalender statt weiterer Balken</p></div>
-            <span className="max-w-[9rem] rounded-full bg-teal-50 px-2.5 py-1 text-right text-[0.68rem] font-bold text-teal-800">{todayStatus}</span>
-          </div>
-          <div className="mt-4 grid gap-1" data-attendance-heatmap aria-label="Anwesenheitskalender">
-            {attendanceHeatmap.map(day=><span key={day.key} data-attendance-day title={`${day.label}: ${day.status==='present'?'anwesend':day.status==='excused'?'entschuldigt':day.status==='unexcused'?'unentschuldigt':day.status==='weekend'?'Wochenende':'nicht erfasst'}`} aria-label={`${day.label}: ${day.status}`} className={`${attendanceTone[day.status]} block`}/>)}
-          </div>
-          <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[0.62rem] font-semibold text-slate-500"><span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-teal-500"/>anwesend</span><span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-amber-300"/>entschuldigt</span><span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-rose-500"/>unentschuldigt</span></div>
-          <p className="mt-2 text-[0.65rem] text-slate-500">{trendStats.excused} entschuldigt · {trendStats.unexcused} unentschuldigt</p>
-        </section>
-      </div>
-      <div className="flex justify-end"><button type="button" onClick={()=>onTabChange('beobachtungen_verlauf')} className="text-xs font-semibold text-indigo-700 hover:underline">Alle Beobachtungen & Verlaufsdaten öffnen <ArrowRight size={13} className="inline"/></button></div>
     </section>
 
     <section className={card} aria-label="Aktuelle Notizen" data-klassio-area>

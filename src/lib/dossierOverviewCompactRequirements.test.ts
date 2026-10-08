@@ -28,7 +28,7 @@ test('Dossierübersicht: vier visuelle Kernbereiche kommen vor den Fachkarten', 
   assert.match(overview, /Punktebasis/);
   assert.doesNotMatch(overview, /Punkte \+ Prozent/);
   assert.ok(overview.indexOf('data-dossier-cockpit') < overview.indexOf('data-dossier-subject-grid'));
-  assert.ok(overview.indexOf('data-dossier-subject-grid') < overview.indexOf('Mitarbeit, Verhalten, Befinden & Anwesenheit'));
+  assert.ok(overview.indexOf('data-dossier-trend-card="attendance"') < overview.indexOf('data-dossier-subject-grid'));
 });
 
 test('Dossierübersicht: Schnellüberblick bleibt ein echter Schuljahresstand unabhängig vom Diagrammfilter', () => {
