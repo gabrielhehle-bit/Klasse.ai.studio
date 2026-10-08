@@ -784,7 +784,12 @@ async function main() {
       const stateBefore = await evaluate(client, `document.querySelector('[data-widget-type=${q(type)}] [data-widget-content]').textContent`);
       await auditMenu(type,'Minimieren');
       await openAuditWidget(type,search,label);
-      if(type !== 'timeline' && await evaluate(client,`document.querySelector('[data-widget-type=${q(type)}] [data-widget-content]').textContent`) !== stateBefore) throw new Error(type + ' loses its state when restored.');
+      if(type !== 'timeline') {
+        // Restoring a hidden widget triggers ResizeObserver and its responsive layout.
+        // Require the complete original content after layout settles, not on the first frame.
+        await waitFor(client, type + ' restores its complete state after resize',
+          `document.querySelector('[data-widget-type=${q(type)}] [data-widget-content]').textContent === ${q(stateBefore)}`);
+      }
       await auditMenu(type,'Widget schließen');
     }
     for(const [type,search] of [['stopwatch','Stoppuhr'],['trafficlight','Status-Ampel'],['todo','Aufgaben-Checkliste'],['links','Materialien & Links']]) {
