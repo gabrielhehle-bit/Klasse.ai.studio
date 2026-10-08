@@ -815,7 +815,8 @@ async function main() {
         if(scroll) throw new Error('Teaching links still require inner scrolling.');
       }
       if(type === 'kidattendance') {
-        await clickButton(client, 'Statistik öffnen', true);
+        await waitFor(client, 'attendance widget statistics action', `Boolean(Array.from(document.querySelectorAll('[data-widget-type=\"kidattendance\"] button')).find(button => /Statistik/.test(button.getAttribute('aria-label') || '') || /Statistik/.test(button.textContent || '')))`);
+        await evaluate(client, `(() => { const root=document.querySelector('[data-widget-type=\"kidattendance\"]'); const button=Array.from(root.querySelectorAll('button')).find(button => /Statistik/.test(button.getAttribute('aria-label') || '') || /Statistik/.test(button.textContent || '')); if(!button) return false; button.click(); return true; })()`);
         await waitFor(client, 'attendance widget statistics opens', `Boolean(document.querySelector('[data-presence-behavior-stats]')) && Boolean(document.querySelector('[aria-label="Statistikzeitraum"]'))`);
         await clickButton(client, 'Gesamtes Schuljahr', true);
         await waitFor(client, 'attendance widget yearly statistics', `document.querySelector('[aria-label="Statistikzeitraum"] button[aria-selected="true"]')?.textContent.trim() === 'Gesamtes Schuljahr'`);
