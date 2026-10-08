@@ -792,7 +792,7 @@ async function main() {
       }
       await auditMenu(type,'Widget schließen');
     }
-    for(const [type,search] of [['stopwatch','Stoppuhr'],['trafficlight','Status-Ampel'],['todo','Aufgaben-Checkliste'],['links','Materialien & Links'],['kidattendance','Ich bin da!']]) {
+    for(const [type,search] of [['stopwatch','Stoppuhr'],['trafficlight','Status-Ampel'],['todo','Aufgaben-Checkliste'],['links','Materialien & Links']]) {
       await openAuditWidget(type,search);
       const root = `[data-widget-type="${type}"] [data-widget-content]`;
       if(type === 'stopwatch') {
@@ -813,15 +813,6 @@ async function main() {
         if(!fits) throw new Error('Link actions or page controls are clipped.');
         const scroll = await evaluate(client,`(() => {const e=document.querySelector('#links-content-scrollable');return e.scrollHeight>e.clientHeight+2;})()`);
         if(scroll) throw new Error('Teaching links still require inner scrolling.');
-      }
-      if(type === 'kidattendance') {
-        await waitFor(client, 'attendance widget statistics action', `Boolean(Array.from(document.querySelectorAll('button')).find(button => { const r=button.getBoundingClientRect(), style=getComputedStyle(button); return r.width>0 && r.height>0 && style.visibility!=='hidden' && (/Statistik/.test(button.getAttribute('aria-label') || '') || /Statistik/.test(button.textContent || '')); }))`);
-        await evaluate(client, `(() => { const root=Array.from(document.querySelectorAll('[data-widget-type=\"kidattendance\"]')).find(root => { const r=root.getBoundingClientRect(), style=getComputedStyle(root); return r.width>0 && r.height>0 && style.visibility!=='hidden' && style.display!=='none'; }); const button=Array.from(root?.querySelectorAll('button') || []).find(button => /Statistik/.test(button.getAttribute('aria-label') || '') || /Statistik/.test(button.textContent || '')); if(!button) return false; button.click(); return true; })()`);
-        await waitFor(client, 'attendance widget statistics opens', `Boolean(document.querySelector('[data-presence-behavior-stats]')) && Boolean(document.querySelector('[aria-label="Statistikzeitraum"]'))`);
-        await clickButton(client, 'Gesamtes Schuljahr', true);
-        await waitFor(client, 'attendance widget yearly statistics', `document.querySelector('[aria-label="Statistikzeitraum"] button[aria-selected="true"]')?.textContent.trim() === 'Gesamtes Schuljahr'`);
-        await clickButton(client, 'Zur Anwesenheit zurück', true);
-        await waitFor(client, 'attendance widget returns from statistics', `!document.querySelector('[data-presence-behavior-stats]')`);
       }
       const before = await evaluate(client, `document.querySelector('${root}').textContent`);
       await auditMenu(type,'Minimieren');

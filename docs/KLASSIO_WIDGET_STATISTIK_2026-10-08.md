@@ -1,13 +1,11 @@
 # Klassio: Statistik im Widget prüfen
 
-Die bestehende Statistik im Widget „Ich bin da!“ wird im Classroom-Browserlauf
-jetzt direkt geprüft:
+Der Statistikbereich ist im bestehenden „Ich bin da!“- und Anwesenheitsbereich
+vorhanden. Der stabile Classroom-Browserlauf prüft bereits die Statistikseite
+mit Zeitraumfilter, eigenen Datumsgrenzen, Schuljahr und Rückkehr zur
+Anwesenheit. Die gemeinsame Auswertung nutzt Wochenwerte für Anwesenheit,
+Verhalten und Befinden.
 
-- Statistikansicht öffnen und wieder schließen
-- Zeitraum „Letzte 6 Wochen“ und „Gesamtes Schuljahr“ umschalten
-- Wochenverlauf, Anwesenheit, Verhalten und Befinden bleiben sichtbar
-- Statistik bleibt innerhalb der Widgetfläche bedienbar
-
-Damit ist die vorhandene Wochen-/Schuljahresauswertung als Teil von Roadmap-
-Punkt 8 abgesichert. Die vollständige Statistikseite und die reale
-Touch-Tafel-Abnahme bleiben eigene Prüfpunkte.
+Die direkte Statistikschaltfläche im frei verschiebbaren Widget bleibt als
+manueller Touch-Tafel-Punkt offen, weil beim Öffnen und Schließen mehrere
+responsive Widget-Rahmen kurz parallel existieren können.
