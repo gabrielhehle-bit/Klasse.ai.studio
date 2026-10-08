@@ -300,6 +300,21 @@ async function checkRoutine(client) {
   await openPupil(client, pupilParts);
   await waitFor(client, 'attendance mood reaches shared pupil dossier', `document.querySelector('[data-dossier-overview]')?.innerText.includes('🙂 Gut')`);
   await waitFor(client, 'dossier overview charts', 'Boolean(document.querySelector("[data-dossier-overview]")) && document.body.innerText.includes("Alle Fächer auf einen Blick") && document.body.innerText.includes("Befinden")');
+  const assertWellbeingAxis = async () => {
+    await evaluate(client, `document.querySelector('[data-dossier-trend-card="wellbeing"]').scrollIntoView({block:'center'})`);
+    try {
+    await waitFor(client, 'dossier places positive behavior and mood values at the top', `(() => {
+      const ticks=Array.from(document.querySelectorAll('[data-dossier-trend-card="wellbeing"] .recharts-cartesian-axis-tick-value'));
+      const good=ticks.find(t=>t.textContent.trim()==='1'),poor=ticks.find(t=>t.textContent.trim()==='5');
+      return Boolean(good && poor && good.getBoundingClientRect().y < poor.getBoundingClientRect().y);
+    })()`);
+    } catch (error) {
+      console.log('Wellbeing axis diagnostics',await evaluate(client, `document.querySelector('[data-dossier-trend-card="wellbeing"]').outerHTML.slice(0,12000)`));
+      throw error;
+    }
+    await waitFor(client, 'dossier names both wellbeing lines', `document.querySelector('[aria-label="Legende für Verhalten und Befinden"]')?.textContent.includes('Verhalten') && document.querySelector('[aria-label="Legende für Verhalten und Befinden"]')?.textContent.includes('Befinden')`);
+  };
+  await assertWellbeingAxis();
   const overviewOrder = await evaluate(client, `Boolean(document.querySelector('[data-dossier-trend-card="attendance"]').compareDocumentPosition(document.querySelector('[data-dossier-subject-grid]')) & Node.DOCUMENT_POSITION_FOLLOWING)`);
   if (!overviewOrder) throw new Error('Dossier overview must show everyday charts before detailed subject cards.');
   for (const label of ['Schuljahr', '6 Wochen']) {
@@ -317,6 +332,7 @@ async function checkRoutine(client) {
   await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-dossier.png'));
   await client.send('Emulation.setDeviceMetricsOverride', { width: 1360, height: 1000, deviceScaleFactor: 1, mobile: false });
   await sleep(500);
+  await assertWellbeingAxis();
   await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-dossier-desktop.png'));
   await client.send('Emulation.setDeviceMetricsOverride', { width: WIDTH, height: 1000, deviceScaleFactor: 1, mobile: true });
   await clickSelector(client, '[data-dossier-overview] section[aria-label="Notenstand aller Fächer"] .grid button');
@@ -768,7 +784,12 @@ async function main() {
       const stateBefore = await evaluate(client, `document.querySelector('[data-widget-type=${q(type)}] [data-widget-content]').textContent`);
       await auditMenu(type,'Minimieren');
       await openAuditWidget(type,search,label);
-      if(type !== 'timeline' && await evaluate(client,`document.querySelector('[data-widget-type=${q(type)}] [data-widget-content]').textContent`) !== stateBefore) throw new Error(type + ' loses its state when restored.');
+      if(type !== 'timeline') {
+        // Restoring a hidden widget triggers ResizeObserver and its responsive layout.
+        // Require the complete original content after layout settles, not on the first frame.
+        await waitFor(client, type + ' restores its complete state after resize',
+          `document.querySelector('[data-widget-type=${q(type)}] [data-widget-content]').textContent === ${q(stateBefore)}`);
+      }
       await auditMenu(type,'Widget schließen');
     }
     for(const [type,search] of [['stopwatch','Stoppuhr'],['trafficlight','Status-Ampel'],['todo','Aufgaben-Checkliste'],['links','Materialien & Links']]) {

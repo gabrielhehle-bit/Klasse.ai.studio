@@ -69,7 +69,7 @@ test('Dossierübersicht: Verläufe nutzen passende Diagrammtypen statt drei ähn
   assert.match(overview, /data-dossier-trend-card="attendance"/);
   assert.match(overview, /data-attendance-heatmap/);
   assert.match(overview, /Kalender statt weiterer Balken/);
-  assert.match(overview, /Gemeinsamer Verlauf ohne Kreisdiagramm/);
+  assert.match(overview, /Wochenmittel · bessere Werte oben/);
   assert.match(overview, /['recent','6 Wochen']/);
   assert.match(overview, /['year','Schuljahr']/);
   assert.match(overview, /Werte per Tipp oder Mauszeiger/);

@@ -69,7 +69,7 @@ class CdpClient {
 
 async function waitForChrome(debugUrl) {
   let lastError;
-  for (let attempt = 0; attempt < 80; attempt++) {
+  for (let attempt = 0; attempt < 180; attempt++) {
     try {
       const response = await fetch(debugUrl + '/json/version');
       if (response.ok) return;
