@@ -783,6 +783,58 @@ async function main() {
     await clickButton(client,'Nein',true);
     await clickSelector(client,'[data-widget-type="dienste"] button[aria-label$="Einstellungen schließen"]');
     await waitFor(client,'cancel clearing keeps duty assignments',assignedState+" === "+q(dutyState));
+    // Assign the entire fixture through the UI: the card must not grow with the roster.
+    await clickSelector(client,'#'+firstDienst+' button[title="Kinder zuordnen"]');
+    const allDutyIds=await evaluate(client,"Array.from(document.querySelectorAll("+q(drawer+' [data-dienst-assign-student]')+")).map(b=>b.dataset.dienstAssignStudent)");
+    let threeChildrenHeight;
+    for(const id of allDutyIds){
+      const choice=drawer+' [data-dienst-assign-student='+q(id)+']';
+      if(!await evaluate(client,"document.querySelector("+q(choice)+").getAttribute('aria-pressed') === 'true'")) await clickSelector(client,choice);
+      const count=await evaluate(client,"document.querySelectorAll("+q(drawer+' [aria-pressed="true"]')+").length");
+      if(count===3) threeChildrenHeight=await evaluate(client,"document.querySelector("+q('#'+firstDienst+' [data-dienst-children-summary]')+").getBoundingClientRect().height");
+    }
+    await clickButton(client,'Schließen ✕',true);
+    const childrenSummary='#'+firstDienst+' [data-dienst-children-summary]';
+    await waitFor(client,'large duty list stays compact',"document.querySelector("+q(childrenSummary)+").textContent.includes("+q('Alle '+dienstRosterCount+' Kinder ansehen')+") && document.querySelectorAll("+q('#'+firstDienst+' [data-dienst-student]')+").length === 0");
+    const fullSummaryHeight=await evaluate(client,"document.querySelector("+q(childrenSummary)+").getBoundingClientRect().height");
+    if(!threeChildrenHeight || Math.abs(fullSummaryHeight-threeChildrenHeight)>1) throw new Error('Duty summary grows with the number of assigned children.');
+    await clickSelector(client,childrenSummary);
+    const childrenDialog='dialog[open][aria-label="Eingeteilte Kinder"]';
+    const childrenRows=childrenDialog+' [data-dienst-student]';
+    await waitFor(client,'all assigned children available in full list',"document.querySelectorAll("+q(childrenRows)+").length === "+dienstRosterCount);
+    const allAssignedState="JSON.stringify(Array.from(document.querySelectorAll("+q(childrenRows)+")).map(e=>[e.dataset.dienstStudent,e.dataset.dienstSubstitute||null]))";
+    const allAssigned=await evaluate(client,allAssignedState);
+    if(new Set(JSON.parse(allAssigned).map(row=>row[0])).size!==dienstRosterCount) throw new Error('Assigned children are duplicated or missing.');
+    for(const [width,listWidth] of [[820,390],[820,null],[1366,null]]){
+      await client.send('Emulation.setDeviceMetricsOverride',{width,height:768,deviceScaleFactor:1,mobile:false});
+      await evaluate(client,"document.querySelector("+q(childrenDialog)+").style.width = "+q(listWidth ? listWidth+'px' : ''));
+      await sleep(150);
+      const fits=await evaluate(client,"(() => {const d=document.querySelector("+q(childrenDialog)+"),r=d.getBoundingClientRect(),body=d.querySelector('[data-dienst-children-list]'),close=d.querySelector('header button').getBoundingClientRect();const cards=Array.from(body.querySelectorAll('[data-dienst-student]'));cards.at(-1).scrollIntoView({block:'end'});const last=cards.at(-1).getBoundingClientRect(),b=body.getBoundingClientRect();return r.left>=0 && r.right<=innerWidth && r.top>=0 && r.bottom<=innerHeight && close.height>=44 && close.top>=r.top && close.bottom<=r.bottom && body.scrollWidth<=body.clientWidth+1 && last.bottom<=b.bottom+1 && last.top>=b.top && cards.every(card=>{const c=card.getBoundingClientRect(),name=card.querySelector('span').getBoundingClientRect();return name.width>=100 && Array.from(card.querySelectorAll('button')).every(button=>{const t=button.getBoundingClientRect();return t.height>=44 && t.left>=c.left && t.right<=c.right+1;});});})()");
+      if(!fits) throw new Error('Full duty children list clips names, touch targets or closing action at '+width+'px.');
+      if(listWidth) await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-duty-children-narrow.png'));
+    }
+    await evaluate(client,"document.querySelector("+q(childrenDialog+' [data-dienst-children-list]')+").scrollTop=0");
+    await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-duty-children.png'));
+    const nestedSubstituteTrigger=childrenDialog+' [data-dienst-student='+q(absentDienstId)+'] button[title="Heutige Vertretung auswählen"]';
+    await clickSelector(client,nestedSubstituteTrigger);
+    await waitFor(client,'substitution opens above assigned children',"Boolean(document.querySelector("+q(substituteDialog)+"))");
+    await client.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape'});
+    await client.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape'});
+    await waitFor(client,'Escape returns to unchanged full children list',"!document.querySelector("+q(substituteDialog)+") && document.activeElement.matches("+q(nestedSubstituteTrigger)+") && "+allAssignedState+" === "+q(allAssigned));
+    await client.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape'});
+    await client.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape'});
+    await waitFor(client,'closing children list returns focus to summary',"!document.querySelector("+q(childrenDialog)+") && document.activeElement.matches("+q(childrenSummary)+")");
+    await clickSelector(client,childrenSummary);
+    await waitFor(client,'children list can be reopened',"document.querySelectorAll("+q(childrenRows)+").length === "+dienstRosterCount);
+    const lastDutyChild=allDutyIds.at(-1);
+    await clickSelector(client,childrenDialog+' [data-dienst-student='+q(lastDutyChild)+'] button[title="Schüler abteilen"]');
+    await waitFor(client,'removing child updates full list and compact summary',"document.querySelectorAll("+q(childrenRows)+").length === "+(dienstRosterCount-1)+" && document.querySelector("+q(childrenSummary)+").textContent.includes("+q('Alle '+(dienstRosterCount-1)+' Kinder ansehen')+")");
+    for(const id of allDutyIds.filter(id=>!originalAssignedIds.includes(id) && id!==lastDutyChild)){
+      await clickSelector(client,childrenDialog+' [data-dienst-student='+q(id)+'] button[title="Schüler abteilen"]');
+    }
+    await waitFor(client,'reducing full list keeps two original children',allAssignedState+" === "+q(dutyState)+" && !document.querySelector("+q(childrenSummary)+")");
+    await clickSelector(client,childrenDialog+' header button');
+    await waitFor(client,'closing reduced list returns focus to assignment action',"!document.querySelector("+q(childrenDialog)+") && document.activeElement.matches("+q('#'+firstDienst+' button[title="Kinder zuordnen"]')+") && "+assignedState+" === "+q(dutyState));
     const turnDutyPage=async selector => {
       const before=await evaluate(client,"document.querySelector('#dienste-content-scrollable [id^=dienst-item-]').id");
       await clickSelector(client,selector);
