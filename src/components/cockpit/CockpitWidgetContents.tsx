@@ -3032,8 +3032,9 @@ export const DiceWidgetContent: React.FC<{
   return (
     <div data-classroom-dice data-dice-values={JSON.stringify(values)} data-dice-mode={mathMode} data-dice-rolling={rolling} className="flex-grow flex flex-col items-center justify-between p-2 gap-2 h-full pointer-events-auto min-h-0 overflow-y-auto">
       {/* Selector Toolbar - Number of Dice */}
-      <div className="flex items-center gap-1 shrink-0 z-10 select-none">
+      <div className="flex flex-col items-center gap-1 shrink-0 z-10 select-none">
         <span className={`text-xs font-black uppercase tracking-wider ${currentIsLight ? 'text-slate-400' : 'text-slate-500'}`}>Würfel:</span>
+        <div className="flex flex-wrap items-center justify-center gap-1">
         {[1, 2, 3, 4, 5, 6].map((num) => (
           <button
             type="button"
@@ -3058,6 +3059,7 @@ export const DiceWidgetContent: React.FC<{
             {num}
           </button>
         ))}
+        </div>
       </div>
 
       <div className="flex-grow flex flex-col items-center justify-center gap-2 py-1 select-none">
