@@ -8,6 +8,8 @@ on:
       - 'src/components/Attendance.tsx'
       - 'src/components/PresenceBehaviorStats.tsx'
       - 'src/components/cockpit/WidgetReadableText.tsx'
+      - 'src/components/cockpit/widgets/ClockWidget.tsx'
+      - 'src/components/cockpit/CockpitWidgetContents.tsx'
       - 'src/components/cockpit/widgets/KidAttendanceWidget.tsx'
       - 'src/components/cockpit/widgets/TodoWidget.tsx'
       - 'src/components/cockpit/widgets/GroupsWidget.tsx'

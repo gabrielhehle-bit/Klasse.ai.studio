@@ -718,6 +718,43 @@ async function main() {
       await waitFor(client, 'reading closes and returns keyboard focus', `!document.querySelector('dialog[open]') && document.activeElement?.matches('${trigger}')`);
       await sleep(250);
     };
+    for (const mode of ['Analog', 'Digital']) {
+      await openAuditWidget('clock', 'Uhrzeit & Datum');
+      const root='[data-widget-type="clock"]';
+      await clickSelector(client, root+' button[aria-label$="Einstellungen öffnen"]');
+      await clickButton(client,mode,true);
+      await clickSelector(client,root+' [aria-label="Einstellungen schließen"]');
+      const face="document.querySelector("+q(root+' svg[viewBox="0 0 100 100"]')+")";
+      const display=mode==='Analog' ? "Boolean("+face+") && Array.from("+face+".querySelectorAll('text')).map(e=>e.textContent).join(',') === '12,1,2,3,4,5,6,7,8,9,10,11'" : "!"+face+" && Boolean(document.querySelector("+q(root+' [role="region"][aria-label^="Uhrzeit "]')+"))";
+      await waitFor(client,mode+' clock displayed',display);
+      await auditMenu('clock','Minimieren');
+      await openAuditWidget('clock','Uhrzeit & Datum');
+      await waitFor(client,mode+' clock survives restore',display);
+      await auditMenu('clock','Widget schließen');
+    }
+    await openAuditWidget('wordclock','Deutsche Wort-Uhr');
+    const wordRoot='[data-widget-type="wordclock"]';
+    const wordText="document.querySelector("+q(wordRoot)+").textContent";
+    await clickSelector(client,wordRoot+' button[aria-label$="Einstellungen öffnen"]');
+    await clickButton(client,'💡 Üben',true);
+    for (const [hour,minute,spoken] of [[23,55,'Fünf vor 12'],[23,30,'Halb 12'],[0,0,'Punkt 12 Uhr'],[10,15,'Viertel nach 10']]) {
+      await setInputByLabel(client,'Stunde',String(hour));
+      await setInputByLabel(client,'Minute',String(minute));
+      await clickButton(client,'Fertig',true);
+      const time=String(hour).padStart(2,'0')+':'+String(minute).padStart(2,'0');
+      await waitFor(client,'word-clock practice '+time,wordText+".includes("+q(spoken)+") && "+wordText+".includes("+q(time)+")");
+      if (hour !== 10) await clickSelector(client,wordRoot+' button[aria-label$="Einstellungen öffnen"]');
+    }
+    const practiceState=await evaluate(client,wordText);
+    await auditMenu('wordclock','Minimieren');
+    await openAuditWidget('wordclock','Deutsche Wort-Uhr');
+    await waitFor(client,'word-clock practice survives restore',wordText+" === "+q(practiceState));
+    await clickSelector(client,wordRoot+' button[aria-label$="Einstellungen öffnen"]');
+    await clickButton(client,'⏱️ Echtzeit',true);
+    await clickButton(client,'Fertig',true);
+    await waitFor(client,'word-clock returns to live mode',wordText+".includes('⏱️ Echtzeit') && !"+wordText+".includes('💡 Übungsmodus')");
+    await auditMenu('wordclock','Widget schließen');
+
     await openAuditWidget('calculator', 'Grundschulrechner');
     const calculatorFits = await evaluate(client, `(() => {const root=document.querySelector('#smartboard-calculator');const r=root.getBoundingClientRect();return Array.from(root.querySelector('[data-calculator-keypad]').querySelectorAll('button')).every(b=>{const t=b.getBoundingClientRect();return t.top>=r.top && t.bottom<=r.bottom+1 && t.height>=43;});})()`);
     if(!calculatorFits) throw new Error('Calculator clips a key or shrinks a touch target in its default size.');
