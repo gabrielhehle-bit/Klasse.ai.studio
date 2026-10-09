@@ -443,7 +443,7 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
         </div>
 
         {/* Kurze, kindgerechte Begleitanweisung */}
-        <p className="mt-2 text-center text-xs font-semibold opacity-80 min-h-4 px-2 max-w-xs truncate">
+        <p className="mt-2 text-center text-xs font-semibold opacity-80 min-h-4 px-2 max-w-xs break-words">
           {isRunning ? currentPhaseState.phaseInstruction : 'Klicke auf Start für eine gemeinsame Atempause'}
         </p>
 

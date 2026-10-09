@@ -1479,6 +1479,11 @@ async function main() {
       await clickSelector(client, calm+' [id^="calmrain-toggle-btn-"]');
       await waitFor(client, 'focus sounds stop and close audio resources', `${calmState}?.dataset.calmPlaying==='false' && window.__auditCalmContexts.every(c=>c.state==='closed')`);
       await waitFor(client, 'master slider has a 44px interaction surface', `Array.from(document.querySelectorAll('${calm} input[type="range"]')).filter(i=>['Gesamtlautstärke','Master-Lautstärke'].includes(i.getAttribute('aria-label'))).every(i=>i.getBoundingClientRect().height>=44)`);
+      for (const track of ['Regen','Wind','Kaminfeuer','Waldvögel','Waldbach']) {
+        const slider = calm+' input[aria-label='+q('Lautstärke für '+track)+']';
+        await evaluate(client, `document.querySelector(${q(slider)}).scrollIntoView({block:'nearest'})`);
+        await waitFor(client, 'mixer reaches '+track+' with primary controls always visible', `(() => {const root=${calmState},r=root.getBoundingClientRect(),m=root.querySelector('[data-calm-mixer]').getBoundingClientRect(),s=document.querySelector(${q(slider)}).getBoundingClientRect();return s.top>=m.top-1&&s.bottom<=m.bottom+1&&Array.from(root.querySelectorAll('[data-calm-primary] button,[data-calm-primary] input')).every(b=>{const t=b.getBoundingClientRect();return t.width>=44&&t.height>=44&&t.left>=r.left&&t.right<=r.right+1&&t.top>=r.top&&t.bottom<=r.bottom+1;});})()`);
+      }
       await sleep(400);
       await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-widget-calmrain.png'));
       await clickSelector(client, calm+' [id^="calmrain-toggle-btn-"]');
