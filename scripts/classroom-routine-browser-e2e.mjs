@@ -1579,13 +1579,15 @@ async function main() {
 
     // Five-widget math batch: independently calculate displayed tasks, then use the real UI.
     const auditWidgetMinimum = async type => {
+      const [minimumWidth,minimumHeight]=type==='sorting'?[420,520]:[460,560];
+      await waitFor(client,type+' resize grip is reachable after opening', `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('[data-widget-resize]')?.dataset.widgetResize==='se';})()`);
       const point=await evaluate(client, `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
       await client.send('Input.dispatchMouseEvent',{type:'mouseMoved',...point});
       await client.send('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',clickCount:1});
       const end={x:Math.max(1,point.x-500),y:Math.max(1,point.y-500)};
       await client.send('Input.dispatchMouseEvent',{type:'mouseMoved',...end,button:'left',buttons:1});
       await client.send('Input.dispatchMouseEvent',{type:'mouseReleased',...end,button:'left',clickCount:1});
-      await sleep(400);
+      await waitFor(client,type+' really reaches its configured minimum', `(() => {const r=document.querySelector('[data-widget-type=${q(type)}]').getBoundingClientRect();return Math.abs(r.width-${minimumWidth})<2&&Math.abs(r.height-${minimumHeight})<2;})()`);
     };
     const pressAuditKey = async (key,code=key) => {
       await client.send('Input.dispatchKeyEvent',{type:'keyDown',key,code});

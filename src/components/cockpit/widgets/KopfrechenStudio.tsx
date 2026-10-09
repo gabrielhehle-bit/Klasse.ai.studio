@@ -416,7 +416,13 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
       {showSettingsDrawer && createPortal(
         <dialog ref={settingsDialogRef} aria-label="Kopfrechnen-Einstellungen"
           onCancel={event => { event.preventDefault(); onCloseSettings?.(); }}
-          onKeyDown={event => event.stopPropagation()}
+          onKeyDown={event => {
+            event.stopPropagation();
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              onCloseSettings?.();
+            }
+          }}
           className={`fixed inset-0 m-auto w-[min(94vw,760px)] max-w-none max-h-[85dvh] overflow-y-auto overscroll-contain rounded-xl border border-slate-300 p-4 shadow-xl backdrop:bg-slate-950/60 ${currentIsLight ? 'bg-white text-slate-800' : 'bg-slate-900 text-slate-100'}`}>
         <div className="text-xs flex flex-col gap-3">
           <div className="flex items-center justify-between gap-2"><span className="font-bold text-sm">Kopfrechnen einstellen</span><button type="button" onClick={onCloseSettings} className="min-h-11 min-w-11 rounded-lg border border-slate-300 dark:border-slate-700 px-3 font-semibold" aria-label="Kopfrechnen-Einstellungen schließen">Fertig</button></div>
