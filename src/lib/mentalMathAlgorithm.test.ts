@@ -372,6 +372,23 @@ test('25. Legacy mathchain', () => {
   assert.strictEqual(migrated.chainLength, 4);
 });
 
+test('Saved studio settings survive a second migration for every legacy alias', () => {
+  for (const type of ['mathcards', 'multitrainer', 'mathchain']) {
+    const saved = {
+      ...migrateLegacyMentalMathWidget(type, {}),
+      mode: 'chain' as const,
+      presentationMode: 'student' as const,
+      range: 1000 as const,
+      selectedTables: [2, 5, 10],
+      tablesVariant: 'reverse_mult' as const,
+      chainLength: 5 as const,
+      chainDifficulty: 'hard' as const,
+      showIntermediates: true,
+    };
+    assert.deepEqual(migrateLegacyMentalMathWidget(type, saved), saved, type);
+  }
+});
+
 test('26. nur ein Picker-Eintrag', () => {
   // Verifiziere das Register-Konzept für Kopfrechnen
   const widgetId = 'kopfrechnen';

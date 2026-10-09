@@ -446,6 +446,12 @@ export function migrateLegacyMentalMathWidget(type: string, oldSettings?: any): 
 
   if (!oldSettings && !type) return base;
 
+  // Once an alias has saved studio settings, do not migrate it a second time.
+  // Otherwise a reload silently discards its mode, number range and options.
+  if (oldSettings?.mode === 'flash' || oldSettings?.mode === 'tables' || oldSettings?.mode === 'chain') {
+    return { ...base, ...oldSettings };
+  }
+
   if (type === 'multitrainer') {
     base.mode = 'tables';
     base.tablesVariant = 'mult';

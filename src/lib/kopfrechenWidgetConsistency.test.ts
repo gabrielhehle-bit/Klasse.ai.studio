@@ -24,10 +24,12 @@ test('Kopfrechentrainer folgt überall der KLASSIO-Akzentfarbe', () => {
   assert.match(studio, /focus-visible:ring-accent/);
 });
 
-test('Kopfrechentrainer erzeugt keine abgeschnittene eigene Widget-Fläche', () => {
-  assert.doesNotMatch(studio, /overflow-hidden/);
-  assert.match(studio, /min-h-full w-full flex flex-col/);
-  assert.match(studio, /overflow-visible/);
+test('Kopfrechentrainer hält die Aufgabe im nativen Rahmen und öffnet Einstellungen außerhalb', () => {
+  assert.match(studio, /h-full min-h-0 w-full flex flex-col/);
+  assert.match(studio, /showSettingsDrawer && createPortal/);
+  assert.match(studio, /dialog\.showModal\(\)/);
+  assert.match(studio, /max-h-\[85dvh\] overflow-y-auto/);
+  assert.match(studio, /settingsTrigger\?\.isConnected/);
 });
 
 test('Kopfrechentrainer behält direkte Lehrer- und Schülerinteraktion touchfreundlich', () => {
