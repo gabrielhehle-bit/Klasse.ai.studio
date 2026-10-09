@@ -574,6 +574,8 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                         return (
                           <div
                             key={assignee.originalStudentId}
+                            data-dienst-student={assignee.originalStudentId}
+                            data-dienst-substitute={assignee.substituteStudentId || undefined}
                             className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-black transition-all ${
                               assignee.isAbsent
                                 ? 'bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-300'
@@ -706,6 +708,8 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                             return (
                               <button
                                 key={s.id}
+                                aria-pressed={isAssigned}
+                                aria-label={name + (isAssigned ? ' abteilen' : ' zuteilen')}
                                 onClick={() => handleToggleStudent(dienst.id, s.id)}
                                 className={`min-h-11 px-2 py-1.5 rounded-lg border text-left text-xs font-bold flex items-center justify-between gap-1 transition-all cursor-pointer ${
                                   isAssigned

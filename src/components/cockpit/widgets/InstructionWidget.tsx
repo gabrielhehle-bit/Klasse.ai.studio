@@ -462,7 +462,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                     isDarkCanvas ? 'text-white drop-shadow-sm' : 'text-slate-900'
                   }`}
                 >
-                  {assignmentPages[safeTextPage]}
+                  <span data-instruction-text-page>{assignmentPages[safeTextPage]}</span>
                 </div>
                 {assignmentPages.length > 1 && <div role="group" aria-label="Arbeitsauftrag-Textseiten"
                   className="mt-2 flex items-center justify-center gap-2">
@@ -497,7 +497,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                         aria-label={`Arbeitsschritt ${item.text} ${item.done ? 'wieder öffnen' : 'abhaken'}`}
                         aria-pressed={item.done}
                         onClick={() => handleToggleCheckItem(item.id)}
-                        className={`flex items-center gap-2.5 p-2 rounded-xl transition-all cursor-pointer border ${
+                        className={`flex min-h-11 items-center gap-2.5 p-2 rounded-xl transition-all cursor-pointer border ${
                           item.done
                             ? isDarkCanvas
                               ? 'bg-white/5 border-white/5 text-white/50 line-through'
@@ -705,6 +705,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
               </div>
               <textarea
                 rows={3}
+                aria-label="Arbeitsauftrag Haupttext"
                 value={draftTaskText}
                 onChange={(e) => setDraftTaskText(e.target.value)}
                 placeholder="Was sollen die Kinder tun?&#10;z. B.: 1. Lies S. 42&#10;2. Bearbeite Nr. 1–3 im Heft"
