@@ -69,7 +69,8 @@ export default function ClassroomWeeklyPlanWidget({
     onUpdate?.({ settings: { ...(widget?.settings || {}), ...patch } });
   };
   const [todayWeek, setTodayWeek] = useState(() => getKW(new Date()));
-  const [week, setWeek] = useState(() => app.currentKW || getKW(new Date()));
+  const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
+  const week = selectedWeek ?? todayWeek;
   const [finishStep, setFinishStep] = useState<FinishStep | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [childId, setChildId] = useState<string | null>(null);
@@ -109,8 +110,8 @@ export default function ClassroomWeeklyPlanWidget({
   }, [scope]);
   useEffect(() => {
     setIsExpanded(false);
-    setWeek(app.currentKW || getKW(new Date()));
-  }, [classId]);
+    setSelectedWeek(null);
+  }, [classId, app.schuljahr]);
 
   useEffect(() => {
     if (!isExpanded && !finishStep) return;
@@ -183,12 +184,12 @@ export default function ClassroomWeeklyPlanWidget({
           className={`weekly-plan-dark-action min-h-11 rounded-xl bg-accent text-sm font-bold text-accent-text ${compactBoard ? "min-w-11 px-2" : "px-3"}`}
           aria-label="Wochenplan groß anzeigen" title="Wochenplan groß anzeigen">{compactBoard ? "⛶" : "⛶ Groß anzeigen"}</button>}
         <button type="button" aria-label="Vorherige Woche" disabled={week <= 1}
-          onClick={() => setWeek(w => Math.max(1, w - 1))}
+          onClick={() => setSelectedWeek(Math.max(1, week - 1))}
           className={`min-h-11 min-w-11 rounded-xl border border-slate-200 bg-white px-2 text-xl disabled:opacity-40`}>‹</button>
-        <button type="button" onClick={() => setWeek(todayWeek)} aria-label="Aktuelle Woche anzeigen"
+        <button type="button" onClick={() => setSelectedWeek(null)} aria-label="Aktuelle Woche anzeigen"
           className={`min-h-11 rounded-xl border border-slate-200 bg-white text-sm font-bold ${compactBoard ? "px-2" : "px-3"}`}>{compactBoard ? "Heute" : "Diese Woche"}</button>
         <button type="button" aria-label="Nächste Woche" disabled={week >= 53}
-          onClick={() => setWeek(w => Math.min(53, w + 1))}
+          onClick={() => setSelectedWeek(Math.min(53, week + 1))}
           className={`min-h-11 min-w-11 rounded-xl border border-slate-200 bg-white px-2 text-xl disabled:opacity-40`}>›</button>
       </div>
     </header>

@@ -805,6 +805,32 @@ async function main() {
         await evaluate(client, `Array.from(document.querySelectorAll('${root} button')).find(b=>b.textContent.trim()==='Lautstärke').click()`);
         await waitFor(client,'traffic light scale mode',`Array.from(document.querySelectorAll('${root} button')).some(b=>b.textContent.trim()==='Lautstärke' && b.getAttribute('aria-pressed')==='true')`);
       }
+      if(type === 'todo') {
+        for (const task of ['Synthetischer Schritt: Seite 24 lesen', 'Synthetischer Zusatz: Bild zeichnen']) {
+          if (task.includes('Zusatz')) await clickSelector(client, `${root} [aria-label="Neue Aufgabe als Zusatzaufgabe"]`);
+          await setInputByLabel(client, 'Neuer Aufgabenschritt', task);
+          await clickSelector(client, `${root} [aria-label="Schritt zur Liste hinzufügen"]`);
+          await waitFor(client, 'own task is added once', `document.querySelectorAll('${root} button[aria-label=${q('Aufgabe '+task+' als erledigt markieren')}]').length === 1`);
+        }
+        const originalTask = 'Synthetischer Zusatz: Bild zeichnen';
+        const correctedTask = 'Synthetischer Zusatz: Zwei Bilder zeichnen';
+        const originalCheckbox = `${root} button[aria-label=${q('Aufgabe '+originalTask+' als erledigt markieren')}]`;
+        await clickSelector(client, originalCheckbox);
+        await waitFor(client, 'own task completion is stored', `document.querySelector('${root} button[aria-label=${q('Aufgabe '+originalTask+' als offen markieren')}]')?.getAttribute('aria-pressed') === 'true'`);
+        await clickSelector(client, '[data-widget-type="todo"] button[aria-label$="Einstellungen öffnen"]');
+        await evaluate(client, `document.querySelector('${root} button[aria-label=${q('Aufgabe '+originalTask+' als offen markieren')}]').closest('.group').querySelector('button[title="Text korrigieren"]').click()`);
+        await setInputByLabel(client, 'Aufgabentext bearbeiten', correctedTask);
+        await clickSelector(client, `${root} [aria-label="Aufgabentext speichern"]`);
+        await clickSelector(client, `${root} [aria-label="Aufgaben-Einstellungen schließen"]`);
+        await waitFor(client, 'editing preserves completed task', `document.querySelector('${root} button[aria-label=${q('Aufgabe '+correctedTask+' als offen markieren')}]')?.getAttribute('aria-pressed') === 'true'`);
+        const editedState = await evaluate(client, `document.querySelector('${root}').textContent`);
+        await clickSelector(client, `${root} [aria-label="Neue Aufgabenliste anlegen"]`);
+        await waitFor(client, 'reset requires confirmation', `document.querySelector('${root}').textContent.includes('Aktuelle Liste leeren?')`);
+        await evaluate(client, `Array.from(document.querySelectorAll('${root} button')).find(b=>b.textContent.trim()==='Abbrechen').click()`);
+        await waitFor(client, 'cancel reset preserves own tasks', `document.querySelector('${root}').textContent === ${q(editedState)}`);
+        const addControlsFit = await evaluate(client, `(() => {const root=document.querySelector('${root}'),r=root.getBoundingClientRect();return Array.from(root.querySelectorAll('form input,form button')).every(e=>{const b=e.getBoundingClientRect();return b.height>=44 && b.bottom<=r.bottom+1 && b.left>=r.left && b.right<=r.right+1;});})()`);
+        if (!addControlsFit) throw new Error('Task entry controls are clipped or smaller than 44px.');
+      }
       if(type === 'links') {
         await waitFor(client,'link page navigation',`Boolean(document.querySelector('[aria-label="Linkseiten"]'))`);
         await evaluate(client,`document.querySelector('[aria-label="Nächste Linkseite"]').click()`);
@@ -893,6 +919,40 @@ async function main() {
     }
     await auditMenu('kidattendance', 'Widget schließen');
     console.log('✓ Check-in widget: statistics opens twice, recent/year switches, selected year survives minimize, attendance remains unchanged.');
+    await openPage(client, 'Wochenplan');
+    await waitFor(client, 'weekly planner week selector', `Boolean(document.querySelector('button[title="Woche wählen"]'))`);
+    const currentWidgetWeek = await evaluate(client, `Number(document.querySelector('button[title="Woche wählen"]').textContent.match(/KW\\s+(\\d+)/)[1])`);
+    const ownHomework = 'Synthetische Widget-Hausübung: Silben lesen';
+    await clickSelector(client, 'button[aria-label^="Hausübung für Montag"]');
+    await waitFor(client, 'widget homework day editor', `Boolean(document.querySelector('[role="dialog"][aria-label^="Hausübungen Montag"]'))`);
+    await setInputByPlaceholder(client, 'z. B. Deutsch', 'Deutsch');
+    await setInputByLabel(client, 'Welche Hausübung?', ownHomework);
+    await clickButton(client, 'Hausübung speichern', true);
+    await waitFor(client, 'own homework saved for current week', `document.querySelector('[role="dialog"][aria-label^="Hausübungen Montag"]')?.textContent.includes(${q(ownHomework)})`);
+    await clickSelector(client, '[aria-label="Hausübungen schließen"]');
+    await clickSelector(client, 'button[aria-label="Nächste Woche"]');
+    await waitFor(client, 'teacher planner intentionally moved ahead', `Number(document.querySelector('button[title="Woche wählen"]')?.textContent.match(/KW\\s+(\\d+)/)[1]) !== ${currentWidgetWeek}`);
+    await clickSidebar(client, 'Lehrercockpit');
+    for (const [type, search, boardSelector, nextLabel, todayLabel] of [
+      ['homework', 'Hausübungen', '.classroom-homework-widget', 'Nächste HÜ-Woche', null],
+      ['classweeklyplan', 'Wochenplan der Kinder', '.classroom-weekly-plan', 'Nächste Woche', 'Aktuelle Woche anzeigen'],
+    ]) {
+      await openAuditWidget(type, search);
+      const board = `[data-widget-type="${type}"] ${boardSelector}`;
+      const weekExpression = `Number(document.querySelector('${board}')?.textContent.match(/KW\\s+(\\d+)/)?.[1])`;
+      await waitFor(client, type+' starts with actual week despite teacher planning ahead', `${weekExpression} === ${currentWidgetWeek} && document.querySelector('${board}').textContent.includes(${q(ownHomework)})`);
+      await clickSelector(client, `${board} [aria-label="${nextLabel}"]`);
+      await waitFor(client, type+' permits deliberate week navigation', `${weekExpression} !== ${currentWidgetWeek} && !document.querySelector('${board}').textContent.includes(${q(ownHomework)})`);
+      const navigatedWeek = await evaluate(client, weekExpression);
+      await auditMenu(type, 'Minimieren');
+      await openAuditWidget(type, search);
+      await waitFor(client, type+' chosen week survives minimize', `${weekExpression} === ${navigatedWeek}`);
+      await evaluate(client, `Array.from(document.querySelectorAll('${board} button')).find(b=>${todayLabel ? `b.getAttribute('aria-label') === ${q(todayLabel)}` : `b.textContent.trim() === 'Heute'`}).click()`);
+      await waitFor(client, type+' returns to current homework', `${weekExpression} === ${currentWidgetWeek} && document.querySelector('${board}').textContent.includes(${q(ownHomework)})`);
+      await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-widget-'+type+'.png'));
+      await auditMenu(type, 'Widget schließen');
+    }
+    console.log('✓ Homework/children weekly plan: current week despite teacher planning ahead, own homework, navigation and restore.');
     console.log('✓ Widget block: groups stay in widget, real wheel winner restored, all star children reachable without inner scrolling.');
     console.log('✓ Widget block: 12 widgets checked; stopwatch pause and traffic light mode survive restore.');
     console.log('✓ Audit regression: calculator keys/result/restore, compass layout at 100/125/150%, QR alias/readability/title/mode restore');
