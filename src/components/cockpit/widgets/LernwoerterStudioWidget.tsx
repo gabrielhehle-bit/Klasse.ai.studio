@@ -633,9 +633,9 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
         {/* MODUS B: STOLPERSTELLEN                                   */}
         {/* ========================================================= */}
         {state.mode === 'spelling' && (
-          <div className="flex-1 flex flex-col justify-between p-3 min-h-0 overflow-y-auto">
+          <div className="flex-1 flex flex-col justify-between p-3 min-h-0 overflow-hidden">
             {/* Header: Wortnavigation */}
-            <div className="flex items-center justify-between mb-3 text-xs md:text-sm text-slate-500">
+            <div className="flex items-center justify-between mb-2 text-xs md:text-sm text-slate-500">
               <span className="font-medium">
                 Wort {state.words.length > 0 ? activeIndex + 1 : 0} von {state.words.length}
               </span>
@@ -662,9 +662,9 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
             </div>
 
             {/* Interaktive Wortdarstellung: Buchstaben antippbar */}
-            <div className="flex-1 flex flex-col items-center justify-center py-2">
+            <div className="flex-1 flex flex-col items-center justify-center py-1">
               <div
-                className={`w-full max-w-2xl p-3 rounded-2xl border flex flex-col items-center justify-center shadow-sm ${
+                className={`w-full max-w-2xl p-2 rounded-2xl border flex flex-col items-center justify-center shadow-sm ${
                   currentIsLight ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-700'
                 }`}
               >
@@ -725,18 +725,16 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
 
                 {/* Markierte Stellen Liste */}
                 {currentWordItem && currentWordItem.highlights.length > 0 && (
-                  <div className="w-full mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
-                    <div className="flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2">
-                      <span>Markierte Stellen:</span>
+                  <div aria-label="Markierte Stellen" className="w-full mt-2 pt-2 border-t border-slate-200 dark:border-slate-700 flex flex-wrap items-center gap-2">
                       <button
                         onClick={() =>
                           updateState((prev) => clearWordHighlights(prev, currentWordItem.id))
                         }
-                        className="text-slate-400 hover:text-rose-500 text-[11px]"
+                        aria-label="Alle Markierungen löschen"
+                        className="text-slate-400 hover:text-rose-500 text-xs min-h-11 min-w-11 px-2"
                       >
                         Alle löschen
                       </button>
-                    </div>
                     <div className="flex flex-wrap gap-2">
                       {currentWordItem.highlights.map((hl) => {
                         const rule = STOLPERSTELLEN_RULES.find((r) => r.id === hl.category);
@@ -778,7 +776,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
 
             {/* Kategoriewahl für Stolperstellen */}
             <div
-              className={`p-3 rounded-xl border shrink-0 ${
+              className={`p-2 rounded-xl border shrink-0 ${
                 currentIsLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-800/80 border-slate-700'
               }`}
             >
