@@ -16,6 +16,7 @@ import {
 import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
 import { getTodoPageWindow, getTodoRowsPerPage } from '../todoLayout';
 import { useAccessibleAction } from '../../../lib/accessibleAction';
+import { WidgetReadableText } from '../WidgetReadableText';
 import {
   ClassroomTodoItem,
   ClassroomTodoState,
@@ -483,16 +484,15 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
                           ⭐ Zusatz
                         </span>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => handleToggleItem(item.id)}
-                        aria-label={`Aufgabe ${item.text} umschalten`}
+                      <WidgetReadableText
+                        text={item.text}
+                        title="Aufgabe"
+                        onShortClick={() => handleToggleItem(item.id)}
+                        shortLabel={`Aufgabe ${item.text} umschalten`}
                         className={`flex-1 min-w-0 text-left cursor-pointer break-words whitespace-normal leading-snug select-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${itemTextSizeClass} ${
                           item.done ? 'line-through opacity-75' : ''
                         }`}
-                      >
-                        {item.text}
-                      </button>
+                      />
                     </div>
                   )}
                 </div>

@@ -4,6 +4,7 @@ import { useApp } from '../../../context/AppContext';
 import { getKW } from '../../../lib/utils';
 import { homeworkForWeek } from '../../../lib/dailyHomework';
 import type { HomeworkAssignment } from '../../../types';
+import { WidgetReadableText } from '../WidgetReadableText';
 
 function localDate(iso: string): string {
   const [year, month, day] = iso.split('-');
@@ -23,7 +24,7 @@ export function HomeworkList({ items, compact = false, roomy = false, columns = 
   return <div className={compact ? 'space-y-1.5' : 'grid gap-3'} style={compact ? undefined : { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
     {items.map(item => <article key={item.id} className={`min-w-0 rounded-xl border border-slate-200 bg-white ${compact ? 'p-2' : roomy ? 'p-5' : 'p-3'} text-slate-900 shadow-xs dark:border-white/10 dark:bg-zinc-900 dark:text-slate-100`}>
       <p className={`${roomy ? 'text-base' : 'text-sm'} font-extrabold text-accent`}>📚 {item.fach} · aufgegeben {localDate(item.aufgegebenAm)}</p>
-      <p className={`${roomy ? 'mt-2 text-xl' : 'mt-1 text-base'} whitespace-pre-wrap break-words font-semibold leading-snug`}>{item.aufgabe}</p>
+      <WidgetReadableText text={item.aufgabe} title="Hausübung" className={`${roomy ? 'mt-2 text-xl' : 'mt-1 text-base'} font-semibold leading-snug`} />
       <p className={`${roomy ? 'mt-4 px-3 py-2 text-base' : 'mt-2 px-2 py-1 text-sm'} rounded-lg bg-accent-soft font-black text-accent`}>
         📅 Bis {localDate(item.faelligAm)}
       </p>
