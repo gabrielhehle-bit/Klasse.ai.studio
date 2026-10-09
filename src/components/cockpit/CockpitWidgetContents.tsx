@@ -3030,10 +3030,10 @@ export const DiceWidgetContent: React.FC<{
   }, [values, mathMode, resultValue]);
 
   return (
-    <div className="flex-grow flex flex-col items-center justify-between p-2 gap-2 h-full pointer-events-auto min-h-0 overflow-y-auto">
+    <div data-classroom-dice data-dice-values={JSON.stringify(values)} data-dice-mode={mathMode} data-dice-rolling={rolling} className="flex-grow flex flex-col items-center justify-between p-2 gap-2 h-full pointer-events-auto min-h-0 overflow-y-auto">
       {/* Selector Toolbar - Number of Dice */}
       <div className="flex items-center gap-1 shrink-0 z-10 select-none">
-        <span className={`text-[8.5px] font-black uppercase tracking-wider ${currentIsLight ? 'text-slate-400' : 'text-slate-500'}`}>Würfel:</span>
+        <span className={`text-xs font-black uppercase tracking-wider ${currentIsLight ? 'text-slate-400' : 'text-slate-500'}`}>Würfel:</span>
         {[1, 2, 3, 4, 5, 6].map((num) => (
           <button
             type="button"
@@ -3094,7 +3094,7 @@ export const DiceWidgetContent: React.FC<{
                 </motion.button>
 
                 {/* Subtitle Label for each die showing start/subtract value */}
-                <span className="text-[6.5px] font-black uppercase tracking-wider text-slate-400">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
                   {style.label}
                 </span>
               </div>
@@ -3108,8 +3108,9 @@ export const DiceWidgetContent: React.FC<{
             {!revealed ? (
               <button
                 type="button"
+                aria-label="Würfelergebnis aufdecken"
                 onClick={() => setRevealed(true)}
-                className="min-h-11 px-3.5 py-1 rounded-xl bg-amber-500 hover:bg-amber-600 text-amber-950 font-black text-[9px] uppercase tracking-wider shadow-md hover:scale-102 cursor-pointer active:scale-95 transition-all flex items-center gap-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                className="min-h-11 px-3.5 py-1 rounded-xl bg-amber-500 hover:bg-amber-600 text-amber-950 font-black text-[10px] uppercase tracking-wider shadow-md hover:scale-102 cursor-pointer active:scale-95 transition-all flex items-center gap-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
               >
                 <span>🧠</span> Ergebnis raten (Aufdecken!)
               </button>
@@ -3125,7 +3126,7 @@ export const DiceWidgetContent: React.FC<{
                 }`}
                 title="Wieder verdecken"
               >
-                <div className="text-[7.5px] font-black uppercase tracking-widest opacity-60">Rechnung ({resultLabel}):</div>
+                <div className="text-[10px] font-black uppercase tracking-widest opacity-60">Rechnung ({resultLabel}):</div>
                 {equationDisplay}
               </motion.button>
             )}
@@ -3146,8 +3147,9 @@ export const DiceWidgetContent: React.FC<{
                       setRevealed(false);
                       persistDice(dice, mode);
                     }}
+                    aria-label={`Rechenart ${item.label}`}
                     aria-pressed={mathMode === item.mode}
-                    className={`min-h-11 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase transition-all whitespace-nowrap cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
+                    className={`min-h-11 px-1.5 py-0.5 rounded text-xs font-bold uppercase transition-all whitespace-nowrap cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
                       mathMode === item.mode
                         ? 'bg-indigo-500 text-white shadow-xs'
                         : currentIsLight
