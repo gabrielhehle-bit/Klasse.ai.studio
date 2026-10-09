@@ -906,7 +906,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
                 );
               })}
             </div>
-            <div className="mt-2 flex shrink-0 items-center justify-between gap-2" aria-label="ABC-Seiten">
+            <div className="mt-2 flex shrink-0 items-center justify-between gap-2 pr-12" aria-label="ABC-Seiten">
               <button type="button" aria-label="Vorherige ABC-Seite" disabled={safeAbcPage === 0} onClick={() => setAbcPage(safeAbcPage - 1)} className="min-h-11 min-w-11 rounded-lg border px-3 disabled:opacity-40">←</button>
               <span className="text-xs font-bold">Seite {safeAbcPage + 1} von {abcPageCount}</span>
               <button type="button" aria-label="Nächste ABC-Seite" disabled={safeAbcPage === abcPageCount - 1} onClick={() => setAbcPage(safeAbcPage + 1)} className="min-h-11 min-w-11 rounded-lg border px-3 disabled:opacity-40">→</button>
