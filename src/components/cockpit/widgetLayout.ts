@@ -60,6 +60,7 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   klassenglas: { minW: 300, minH: 320, prefW: 380, prefH: 340 },
   thermometer: { minW: 300, minH: 320, prefW: 380, prefH: 340 },
   classtarget: { minW: 300, minH: 320, prefW: 380, prefH: 340 },
+  piggybank: { minW: 300, minH: 320, prefW: 380, prefH: 340 },
   // Keep six dice selectors and eight piano keys at their native touch size.
   dice: { minW: 360, minH: 480, prefW: 460, prefH: 500 },
   piano: { minW: 460, minH: 420, prefW: 620, prefH: 460 },

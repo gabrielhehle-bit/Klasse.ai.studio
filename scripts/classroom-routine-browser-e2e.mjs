@@ -1380,10 +1380,12 @@ async function main() {
       ['klassenglas', 'Klassenziel', 'jar', 'Belohnungsglas'],
       ['thermometer', 'Ziel-Thermometer', 'thermometer', 'Ziel-Thermometer'],
       ['classtarget', 'Klassen-Ziel', 'barometer', 'Fortschritts-Ring'],
+      ['piggybank', 'Klassen-Sparschwein', 'jar', 'Belohnungsglas'],
     ]) {
       await openAuditWidget(type, search);
       const goalRoot = `[data-widget-type="${type}"] #class-reward-widget-root`;
       const settings = '[role="dialog"][aria-label="Klassenziel anpassen"]';
+      const symbolLabel = type === 'piggybank' ? 'Münze (Sparschwein)' : 'Stern';
       const goalState = `(() => {const r=document.querySelector('${goalRoot}');return r&&{count:Number(r.dataset.classGoalCount),goal:Number(r.dataset.classGoalGoal),style:r.dataset.classGoalStyle};})()`;
       await clickSelector(client, `[data-widget-type="${type}"] button[aria-label$="Einstellungen öffnen"]`);
       await waitFor(client, type+' settings open', `Boolean(document.querySelector('${settings}'))`);
@@ -1392,9 +1394,9 @@ async function main() {
       await waitFor(client, type+' rejects an invalid goal without closing', `Boolean(document.querySelector('${settings} [role="alert"]'))`);
       await setInputByLabel(client, 'Zielanzahl', '3');
       await setInputByLabel(client, 'Belohnung / Ziel-Name', 'Gemeinsames Testziel');
-      await clickSelector(client, settings+' button[aria-label="Stern"]');
+      await clickSelector(client, settings+' button[aria-label='+q(symbolLabel)+']');
       await clickSelector(client, settings+' button[aria-label='+q(styleLabel)+']');
-      await waitFor(client, type+' symbol and style selections are announced', `document.querySelector('${settings} [aria-label="Stern"]')?.getAttribute('aria-pressed')==='true' && document.querySelector('${settings} [aria-label=${q(styleLabel)}]')?.getAttribute('aria-pressed')==='true'`);
+      await waitFor(client, type+' symbol and style selections are announced', `document.querySelector('${settings} [aria-label=${q(symbolLabel)}]')?.getAttribute('aria-pressed')==='true' && document.querySelector('${settings} [aria-label=${q(styleLabel)}]')?.getAttribute('aria-pressed')==='true'`);
       await evaluate(client, `Array.from(document.querySelectorAll('${settings} button')).find(b=>b.textContent.trim()==='Speichern').click()`);
       await waitFor(client, type+' saves goal and its visualization', `!document.querySelector('${settings}') && (${goalState})?.goal===3 && (${goalState})?.style===${q(style)} && document.querySelector('${goalRoot}').textContent.includes('Gemeinsames Testziel')`);
       if((await evaluate(client, goalState)).count!==0) throw new Error('Previous goal reset did not clear shared count.');
@@ -1416,12 +1418,13 @@ async function main() {
       await waitFor(client, type+' reached banner leaves visualization and controls unobscured', `(() => {const root=document.querySelector('${goalRoot}'),banner=root.querySelector('[data-class-goal-banner]').getBoundingClientRect(),visual=root.querySelector('[data-class-goal-visual]').getBoundingClientRect(),r=root.getBoundingClientRect();return visual.top>=banner.bottom-1 && visual.height>30 && Array.from(root.querySelectorAll('#reward-add-btn,#reward-correction-btn,#reward-reset-btn')).every(b=>{const t=b.getBoundingClientRect();return t.width>=44 && t.height>=44 && t.left>=r.left && t.right<=r.right+1 && t.bottom<=r.bottom+1;});})()`);
       await sleep(500);
       await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-widget-'+type+'.png'));
+      if(type==='piggybank' && !await evaluate(client, `document.querySelector('${goalRoot} #reward-add-btn').textContent.includes('🪙')`)) throw new Error('Piggybank loses its chosen coin symbol.');
       await clickSelector(client, goalRoot+' #reward-reset-btn');
       await clickButton(client, 'Ja, leeren', true);
       await waitFor(client, type+' confirmed reset clears only count', `(${goalState})?.count===0 && (${goalState})?.goal===3 && (${goalState})?.style===${q(style)} && document.querySelector('${goalRoot}').textContent.includes('Gemeinsames Testziel')`);
       await auditMenu(type, 'Widget schließen');
     }
-    console.log('✓ Scoreboard/class goals: real points, correction, tied winners, new round cancellation/confirmation, step restore; all three goal variants validate settings, reach/reset goal and restore progress.');
+    console.log('✓ Scoreboard/class goals: real points, correction, tied winners, new round cancellation/confirmation, step restore; all four goal variants validate settings, reach/reset goal and restore progress.');
     await openAuditWidget('breathing', 'Atempause');
     const breath = '[data-widget-type="breathing"]';
     const breathState = `document.querySelector('${breath} [data-breathing-running]')`;
