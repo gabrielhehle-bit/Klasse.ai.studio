@@ -718,6 +718,109 @@ async function main() {
       await waitFor(client, 'reading closes and returns keyboard focus', `!document.querySelector('dialog[open]') && document.activeElement?.matches('${trigger}')`);
       await sleep(250);
     };
+    await openAuditWidget('dienste','Klassendienste');
+    if (await evaluate(client,"Boolean(document.querySelector('#dienste-empty-state'))")) await clickButton(client,'Dienste einrichten',true);
+    const firstDienst = await evaluate(client,"document.querySelector('#dienste-content-scrollable [id^=dienst-item-]').id");
+    await clickSelector(client,'#'+firstDienst+' button[title="Kinder zuordnen"]');
+    const drawer='#'+firstDienst.replace('dienst-item-','dienst-assign-drawer-');
+    await waitFor(client,'duty assignment roster available',"document.querySelectorAll("+q(drawer+' button[aria-pressed]')+").length >= 2");
+    while(await evaluate(client,"Boolean(document.querySelector("+q(drawer+' button[aria-pressed="true"]')+"))")) await clickSelector(client,drawer+' button[aria-pressed="true"]');
+    const selectedChildren=await evaluate(client,"Array.from(document.querySelectorAll("+q(drawer+' button[aria-pressed]')+")).slice(0,2).map(b=>b.getAttribute('aria-label'))");
+    for (const label of selectedChildren) await clickSelector(client,drawer+' button[aria-label='+q(label)+']');
+    await clickButton(client,'Schließen ✕',true);
+    const assignedState="JSON.stringify(Array.from(document.querySelectorAll("+q('#'+firstDienst+' [data-dienst-student]')+")).map(e=>[e.dataset.dienstStudent,e.dataset.dienstSubstitute||null]))";
+    await waitFor(client,'two children assigned to duty',assignedState+".length > 2 && document.querySelectorAll("+q('#'+firstDienst+' [data-dienst-student]')+").length === 2");
+    const dutyState=await evaluate(client,assignedState);
+    await auditMenu('dienste','Minimieren');
+    await openAuditWidget('dienste','Klassendienste');
+    await waitFor(client,'duty assignments survive restore',assignedState+" === "+q(dutyState));
+    await clickSelector(client,'[data-widget-type="dienste"] button[aria-label$="Einstellungen öffnen"]');
+    await clickButton(client,'Zuweisungen leeren',true);
+    await waitFor(client,'clearing duties requires confirmation',"document.querySelector('#dienste-manage-dropdown').textContent.includes('Wirklich alle Zuweisungen leeren?')");
+    await clickButton(client,'Nein',true);
+    await clickSelector(client,'[data-widget-type="dienste"] button[aria-label$="Einstellungen schließen"]');
+    await waitFor(client,'cancel clearing keeps duty assignments',assignedState+" === "+q(dutyState));
+    const turnDutyPage=async selector => {
+      const before=await evaluate(client,"document.querySelector('#dienste-content-scrollable [id^=dienst-item-]').id");
+      await clickSelector(client,selector);
+      await waitFor(client,'duty page changed',"document.querySelector('#dienste-content-scrollable [id^=dienst-item-]').id !== "+q(before));
+    };
+    const readDuties=async () => {
+      while(await evaluate(client,"Boolean(document.querySelector('[aria-label=\"Vorherige Klassendienste\"]:not(:disabled)'))")) await turnDutyPage('[aria-label="Vorherige Klassendienste"]');
+      const duties=[];
+      for(let page=0;page<30;page++){
+        const rows=await evaluate(client,"Array.from(document.querySelectorAll('#dienste-content-scrollable [id^=dienst-item-]')).map(e=>e.id)");
+        duties.push(...rows);
+        if(!await evaluate(client,"Boolean(document.querySelector('[aria-label=\"Weitere Klassendienste\"]:not(:disabled)'))")) break;
+        await turnDutyPage('[aria-label="Weitere Klassendienste"]');
+      }
+      return duties;
+    };
+    const allDuties=await readDuties();
+    if(allDuties.length<8 || new Set(allDuties).size!==allDuties.length) throw new Error('Duty pagination duplicates or hides a default service.');
+    await auditMenu('dienste','Minimieren');
+    await openAuditWidget('dienste','Klassendienste');
+    if(JSON.stringify(await readDuties())!==JSON.stringify(allDuties)) throw new Error('Duty pages change on restore.');
+    await auditMenu('dienste','Widget schließen');
+
+    await openAuditWidget('instruction','Arbeitsauftrag');
+    if(!await evaluate(client,"Boolean(document.querySelector('[role=dialog][aria-label=\\\"Arbeitsauftrag bearbeiten\\\"]'))")) await clickSelector(client,'[data-widget-type="instruction"] button[aria-label$="Einstellungen öffnen"]');
+    await waitFor(client,'assignment editor available',"Boolean(document.querySelector('[role=dialog][aria-label=\"Arbeitsauftrag bearbeiten\"]'))");
+    const assignmentText='Synthetischer Arbeitsauftrag: '+('Lies die Silben laut und zeichne das passende Bild. ').repeat(10)+'ENDE DES ARBEITSAUFTRAGS';
+    await setInputByLabel(client,'Arbeitsauftrag Haupttext',assignmentText);
+    await clickButton(client,'Anzeigen',true);
+    const instructionRoot='[data-widget-type="instruction"]';
+    await waitFor(client,'long assignment has text pages',"Boolean(document.querySelector("+q(instructionRoot+' [aria-label="Arbeitsauftrag-Textseiten"]')+"))");
+    await sleep(250);
+    const pages=[];
+    for(let page=0;page<40;page++){
+      pages.push(await evaluate(client,"document.querySelector('[data-instruction-text-page]').textContent"));
+      const fits=await evaluate(client,"(() => {const text=document.querySelector('[data-instruction-text-page]'),root=document.querySelector("+q(instructionRoot)+"),r=root.getBoundingClientRect(),t=text.getBoundingClientRect();return t.top>=r.top && t.bottom<=r.bottom+1 && t.left>=r.left && t.right<=r.right+1 && Array.from(root.querySelectorAll('[aria-label=\"Arbeitsauftrag-Textseiten\"] button')).every(b=>{const t=b.getBoundingClientRect();return t.height>=44 && t.bottom<=r.bottom+1;});})()");
+      if(!fits) throw new Error('Assignment text or page controls are clipped.');
+      const next=instructionRoot+' [aria-label="Arbeitsauftrag-Textseiten"] button:last-child';
+      if(await evaluate(client,"document.querySelector("+q(next)+").disabled")) break;
+      await clickSelector(client,next);
+    }
+    if(pages.length<2 || pages.join('')!==assignmentText) throw new Error('Assignment pages lose original words.');
+    const lastAssignmentPage=await evaluate(client,"document.querySelector('[data-instruction-text-page]').textContent");
+    await auditMenu('instruction','Minimieren');
+    await openAuditWidget('instruction','Arbeitsauftrag');
+    await waitFor(client,'assignment restores selected text page',"document.querySelector('[data-instruction-text-page]').textContent === "+q(lastAssignmentPage));
+    await clickSelector(client,instructionRoot+' button[aria-label$="Einstellungen öffnen"]');
+    await setInputByLabel(client,'Arbeitsauftrag Haupttext','Lies die Silben.');
+    for(let index=1;index<=8;index++){
+      await setInputByPlaceholder(client,'Schritt hinzufügen','Synthetischer Schritt '+index);
+      await evaluate(client,"Array.from(document.querySelectorAll('[role=dialog][aria-label=\"Arbeitsauftrag bearbeiten\"] button')).find(b=>b.textContent.trim()==='Hinzufügen').click()");
+    }
+    await clickButton(client,'Anzeigen',true);
+    await waitFor(client,'assignment checklist displayed',"Boolean(document.querySelector("+q(instructionRoot+' button[aria-pressed]')+"))");
+    await clickSelector(client,instructionRoot+' button[aria-pressed]');
+    const readSteps=async () => {
+      const group=instructionRoot+' [aria-label="Arbeitsschritte-Seiten"]';
+      const turn=async selector => {
+        const old=await evaluate(client,"document.querySelector("+q(instructionRoot+' button[aria-pressed]')+").getAttribute('aria-label')");
+        await clickSelector(client,selector);
+        await waitFor(client,'assignment checklist page changed',"document.querySelector("+q(instructionRoot+' button[aria-pressed]')+").getAttribute('aria-label') !== "+q(old));
+      };
+      while(await evaluate(client,"Boolean(document.querySelector("+q(group+' button:first-child:not(:disabled)')+"))")) await turn(group+' button:first-child');
+      const result=[];
+      for(let page=0;page<30;page++){
+        const rows=await evaluate(client,"Array.from(document.querySelectorAll("+q(instructionRoot+' button[aria-pressed]')+")).map(b=>[b.getAttribute('aria-label'),b.getAttribute('aria-pressed')])");
+        const fits=await evaluate(client,"(() => {const root=document.querySelector("+q(instructionRoot)+"),r=root.getBoundingClientRect();return Array.from(root.querySelectorAll('button[aria-pressed]')).every(b=>{const t=b.getBoundingClientRect();return t.height>=44 && t.top>=r.top && t.bottom<=r.bottom+1;});})()");
+        if(!fits) throw new Error('Assignment checklist actions are clipped or smaller than touch targets.');
+        result.push(...rows);
+        if(!await evaluate(client,"Boolean(document.querySelector("+q(group+' button:last-child:not(:disabled)')+"))")) break;
+        await turn(group+' button:last-child');
+      }
+      return result;
+    };
+    const checkedSteps=await readSteps();
+    if(checkedSteps.length!==8 || checkedSteps.filter(row=>row[1]==='true').length!==1) throw new Error('Assignment checklist hides steps or loses completion.');
+    await auditMenu('instruction','Minimieren');
+    await openAuditWidget('instruction','Arbeitsauftrag');
+    if(JSON.stringify(await readSteps())!==JSON.stringify(checkedSteps)) throw new Error('Assignment checklist loses state on restore.');
+    await auditMenu('instruction','Widget schließen');
+
     for (const mode of ['Analog', 'Digital']) {
       await openAuditWidget('clock', 'Uhrzeit & Datum');
       const root='[data-widget-type="clock"]';
