@@ -285,7 +285,8 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
       <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-2 relative overflow-hidden">
         {/* ZIEL ERREICHT BANNER */}
         {goalAchieved && (
-          <div className="absolute top-1 inset-x-2 z-20 flex items-center justify-center gap-1.5 py-1 px-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-emerald-500 text-white font-black text-[11px] shadow-md animate-bounce">
+          <div data-class-goal-banner
+            className="shrink-0 mb-1 w-full flex items-center justify-center gap-1.5 py-1 px-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-emerald-500 text-white font-black text-[11px] shadow-md">
             <Trophy size={14} className="shrink-0" />
             <span className="truncate">Klassenziel erreicht! 🎉</span>
           </div>
@@ -293,7 +294,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
 
         {/* 1. VISUALISIERUNGS-STIL: GLAS (JAR) */}
         {style === 'jar' && (
-          <div className="flex-1 w-full flex flex-col items-center justify-center relative min-h-0 py-1">
+          <div data-class-goal-visual className="flex-1 w-full flex flex-col items-center justify-center relative min-h-0 py-1">
             {/* Das Glas-Gefäß */}
             <div
               className={`relative h-full min-h-0 flex flex-col justify-end items-center rounded-b-3xl rounded-t-lg border-2 border-dashed transition-all overflow-hidden ${
@@ -348,7 +349,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
 
         {/* 2. VISUALISIERUNGS-STIL: THERMOMETER */}
         {style === 'thermometer' && (
-          <div className="flex-1 w-full flex items-center justify-center gap-4 py-1">
+          <div data-class-goal-visual className="flex-1 min-h-0 w-full flex items-center justify-center gap-4 py-1">
             {/* Vertikales Thermometer */}
             <div className="relative h-full min-h-0 flex flex-col justify-end items-center rounded-full border-2 border-slate-300 dark:border-white/20 bg-slate-100 dark:bg-white/5 overflow-hidden shadow-inner"
               style={{ width: Math.max(32, Math.min(72, size.width * 0.13)), maxHeight: '100%' }}>
@@ -380,7 +381,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
 
         {/* 3. VISUALISIERUNGS-STIL: BAROMETER (RING) */}
         {style === 'barometer' && (
-          <div className="flex-1 w-full flex flex-col items-center justify-center relative py-1">
+          <div data-class-goal-visual className="flex-1 min-h-0 w-full flex flex-col items-center justify-center relative py-1">
             <div className="relative flex min-h-0 items-center justify-center"
               style={{ width: visualSize, height: visualSize, maxWidth: '100%', maxHeight: '100%', aspectRatio: '1' }}>
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">

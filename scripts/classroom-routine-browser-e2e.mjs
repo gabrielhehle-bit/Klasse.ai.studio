@@ -1373,6 +1373,7 @@ async function main() {
     await auditMenu('scoreboard', 'Minimieren');
     await openAuditWidget('scoreboard', 'Gruppen-Punkte');
     await waitFor(client, 'scoreboard step and score survive restore', `(${readScores})[0].score===4 && document.querySelector('${scoreRoot}').textContent.includes('Schritt +5')`);
+    await sleep(500); // Let the restored frame and closing options drawer finish animating.
     await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-widget-scoreboard.png'));
     await auditMenu('scoreboard', 'Widget schließen');
     for (const [type, search, style, styleLabel] of [
@@ -1412,6 +1413,8 @@ async function main() {
       await clickSelector(client, goalRoot+' #reward-add-btn');
       await clickSelector(client, goalRoot+' #reward-add-btn');
       await waitFor(client, type+' announces the reached goal', `(${goalState})?.count===3 && document.querySelector('${goalRoot}').textContent.includes('Klassenziel erreicht!')`);
+      await waitFor(client, type+' reached banner leaves visualization and controls unobscured', `(() => {const root=document.querySelector('${goalRoot}'),banner=root.querySelector('[data-class-goal-banner]').getBoundingClientRect(),visual=root.querySelector('[data-class-goal-visual]').getBoundingClientRect(),r=root.getBoundingClientRect();return visual.top>=banner.bottom-1 && visual.height>30 && Array.from(root.querySelectorAll('#reward-add-btn,#reward-correction-btn,#reward-reset-btn')).every(b=>{const t=b.getBoundingClientRect();return t.width>=44 && t.height>=44 && t.left>=r.left && t.right<=r.right+1 && t.bottom<=r.bottom+1;});})()`);
+      await sleep(500);
       await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-widget-'+type+'.png'));
       await clickSelector(client, goalRoot+' #reward-reset-btn');
       await clickButton(client, 'Ja, leeren', true);
