@@ -873,7 +873,12 @@ async function main() {
       const before = await evaluate(client, stateExpression);
       await auditMenu(type,'Minimieren');
       await openAuditWidget(type,search);
-      await waitFor(client, type+' restores its saved state after layout settles', `${stateExpression} === ${q(before)}`);
+      try {
+        await waitFor(client, type+' restores its saved state after layout settles', `${stateExpression} === ${q(before)}`);
+      } catch (error) {
+        console.log('Restore failure diagnostics: '+JSON.stringify({before,after:await evaluate(client,stateExpression),navigation:await evaluate(client, `({cockpit:Boolean(document.querySelector('.klassio-cockpit-shell')),page:Array.from(document.querySelectorAll('[aria-current="page"]')).map(e=>e.textContent.trim()),clicks:window.__widgetClickTrace?.slice(-12),tasks:document.querySelector('[data-widget-type="todo"]')?.textContent?.slice(-700)})`)}));
+        throw error;
+      }
       await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-widget-'+type+'.png'));
       if(type === 'todo') console.log('Task restore navigation diagnostics: '+JSON.stringify(await evaluate(client, `({cockpit:Boolean(document.querySelector('.klassio-cockpit-shell')),page:Array.from(document.querySelectorAll('[aria-current="page"]')).map(e=>e.textContent.trim()),clicks:window.__widgetClickTrace?.slice(-12)})`)));
       await auditMenu(type,'Widget schließen');
