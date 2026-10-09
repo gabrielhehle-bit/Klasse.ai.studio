@@ -118,6 +118,17 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
 
   // UI-Zustände
   const [activeAssignDienstId, setActiveAssignDienstId] = useState<string | null>(null);
+  const [activeChildrenDienstId, setActiveChildrenDienstId] = useState<string | null>(null);
+  const childrenDialogRef = useRef<HTMLDialogElement>(null);
+  const childrenTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const activeChildrenDienst = dienste.find(dienst => dienst.id === activeChildrenDienstId);
+  useEffect(() => {
+    const dialog = childrenDialogRef.current;
+    if (!activeChildrenDienst || !dialog) return;
+    dialog.showModal();
+    return () => { if (dialog.open) dialog.close(); };
+  }, [activeChildrenDienstId, Boolean(activeChildrenDienst)]);
+  useEffect(() => { setActiveChildrenDienstId(null); }, [app?.activeClassId]);
   const [activeSubstituteModal, setActiveSubstituteModal] = useState<{
     dienstId: string;
     absentStudentId: string;
@@ -259,6 +270,108 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
   const textMuted = isLight ? 'text-slate-500' : 'text-zinc-400';
   const textPrimary = isLight ? 'text-slate-900' : 'text-white';
   const headerBg = 'bg-accent-soft border-b border-accent/15';
+
+  const renderAssignee = (dienst: DiensteItem, assignee: ReturnType<typeof getEffectiveDienstAssignees>[number]) => {
+    const originalStudent = allStudents.find(
+      (s) => s.id === assignee.originalStudentId
+    );
+    const originalName = originalStudent
+      ? getDisplayStudentName(originalStudent, allStudents)
+      : 'Schüler';
+
+    const substituteStudent = assignee.substituteStudentId
+      ? allStudents.find(
+          (s) => s.id === assignee.substituteStudentId
+        )
+      : null;
+    const substituteName = substituteStudent
+      ? getDisplayStudentName(substituteStudent, allStudents)
+      : 'Vertretung';
+
+    return (
+      <div
+        key={assignee.originalStudentId}
+        data-dienst-student={assignee.originalStudentId}
+        data-dienst-substitute={assignee.substituteStudentId || undefined}
+        className={`flex w-full min-w-0 flex-wrap items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-black transition-all ${
+          assignee.isAbsent
+            ? 'bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-300'
+            : isLight
+            ? 'bg-slate-100/90 border-slate-200 text-slate-800'
+            : 'bg-zinc-800 border-white/10 text-zinc-100'
+        }`}
+      >
+        {/* Originalname */}
+        <span
+          className={`w-full min-w-0 [overflow-wrap:anywhere] ${
+            assignee.isAbsent ? 'line-through opacity-70' : ''
+          }`}
+        >
+          {originalName}
+        </span>
+
+        {/* Abwesenheitshinweis */}
+        {assignee.isAbsent && (
+          <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 shrink-0">
+            abwesend
+          </span>
+        )}
+
+        {/* Vertretung aktiv */}
+        {assignee.isAbsent && assignee.substituteStudentId && (
+          <div className="flex w-full min-w-0 flex-wrap items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">
+            <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">➔ {substituteName}</span>
+            <button
+              onClick={(e) =>
+                handleRemoveSubstitute(
+                  dienst.id,
+                  assignee.originalStudentId,
+                  e
+                )
+              }
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-rose-500/20 hover:text-rose-500 cursor-pointer"
+              title="Vertretung aufheben"
+            >
+              <X size={10} />
+            </button>
+          </div>
+        )}
+
+        {/* Vertretung wählen Button bei Abwesenheit */}
+        {assignee.isAbsent && !assignee.substituteStudentId && (
+          <button
+            onClick={event => {
+              substituteTriggerRef.current = event.currentTarget;
+              event.currentTarget.focus();
+              setActiveSubstituteModal({
+                dienstId: dienst.id,
+                absentStudentId: assignee.originalStudentId,
+              });
+            }}
+            className="min-h-11 px-2 py-0.5 rounded-lg text-[9px] font-black bg-amber-500 text-white hover:bg-amber-600 cursor-pointer transition-all shrink-0"
+            title="Heutige Vertretung auswählen"
+          >
+            + Vertretung
+          </button>
+        )}
+
+        {/* Schüler entfernen */}
+        <button
+          onClick={() =>
+            handleToggleStudent(
+              dienst.id,
+              assignee.originalStudentId
+            )
+          }
+          className="ml-0.5 flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+          title="Schüler abteilen"
+          aria-label={originalName + ' abteilen'}
+        >
+          <X size={11} />
+        </button>
+      </div>
+    );
+  };
 
   return (
     <div
@@ -562,106 +675,19 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                   {/* Eingeteilte Kinder */}
                   <div className="flex flex-wrap items-center gap-1.5 pt-0.5 min-h-[28px]">
                     {hasKids ? (
-                      assignees.map((assignee) => {
-                        const originalStudent = allStudents.find(
-                          (s) => s.id === assignee.originalStudentId
-                        );
-                        const originalName = originalStudent
-                          ? getDisplayStudentName(originalStudent, allStudents)
-                          : 'Schüler';
-
-                        const substituteStudent = assignee.substituteStudentId
-                          ? allStudents.find(
-                              (s) => s.id === assignee.substituteStudentId
-                            )
-                          : null;
-                        const substituteName = substituteStudent
-                          ? getDisplayStudentName(substituteStudent, allStudents)
-                          : 'Vertretung';
-
-                        return (
-                          <div
-                            key={assignee.originalStudentId}
-                            data-dienst-student={assignee.originalStudentId}
-                            data-dienst-substitute={assignee.substituteStudentId || undefined}
-                            className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-black transition-all ${
-                              assignee.isAbsent
-                                ? 'bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-300'
-                                : isLight
-                                ? 'bg-slate-100/90 border-slate-200 text-slate-800'
-                                : 'bg-zinc-800 border-white/10 text-zinc-100'
-                            }`}
-                          >
-                            {/* Originalname */}
-                            <span
-                              className={`break-words ${
-                                assignee.isAbsent ? 'line-through opacity-70' : ''
-                              }`}
-                            >
-                              {originalName}
-                            </span>
-
-                            {/* Abwesenheitshinweis */}
-                            {assignee.isAbsent && (
-                              <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 shrink-0">
-                                abwesend
-                              </span>
-                            )}
-
-                            {/* Vertretung aktiv */}
-                            {assignee.isAbsent && assignee.substituteStudentId && (
-                              <div className="inline-flex items-center gap-1 pl-1 border-l border-amber-400/40 text-emerald-600 dark:text-emerald-400 font-bold">
-                                <span>➔ {substituteName}</span>
-                                <button
-                                  onClick={(e) =>
-                                    handleRemoveSubstitute(
-                                      dienst.id,
-                                      assignee.originalStudentId,
-                                      e
-                                    )
-                                  }
-                                  className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-rose-500/20 hover:text-rose-500 cursor-pointer"
-                                  title="Vertretung aufheben"
-                                >
-                                  <X size={10} />
-                                </button>
-                              </div>
-                            )}
-
-                            {/* Vertretung wählen Button bei Abwesenheit */}
-                            {assignee.isAbsent && !assignee.substituteStudentId && (
-                              <button
-                                onClick={event => {
-                                  substituteTriggerRef.current = event.currentTarget;
-                                  event.currentTarget.focus();
-                                  setActiveSubstituteModal({
-                                    dienstId: dienst.id,
-                                    absentStudentId: assignee.originalStudentId,
-                                  });
-                                }}
-                                className="min-h-11 px-2 py-0.5 rounded-lg text-[9px] font-black bg-amber-500 text-white hover:bg-amber-600 cursor-pointer transition-all shrink-0"
-                                title="Heutige Vertretung auswählen"
-                              >
-                                + Vertretung
-                              </button>
-                            )}
-
-                            {/* Schüler entfernen */}
-                            <button
-                              onClick={() =>
-                                handleToggleStudent(
-                                  dienst.id,
-                                  assignee.originalStudentId
-                                )
-                              }
-                              className="ml-0.5 flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
-                              title="Schüler abteilen"
-                            >
-                              <X size={11} />
-                            </button>
-                          </div>
-                        );
-                      })
+                      assignees.length > 2 ? (
+                        <button type="button" data-dienst-children-summary
+                          onClick={event => {
+                            childrenTriggerRef.current = event.currentTarget;
+                            event.currentTarget.focus();
+                            setActiveChildrenDienstId(dienst.id);
+                          }}
+                          className={'w-full min-h-11 rounded-lg border px-2 py-2 text-left text-xs font-bold ' + (isLight ? 'border-slate-200 bg-slate-50 text-slate-800' : 'border-white/10 bg-zinc-800 text-white')}>
+                          <span className="block">Alle {assignees.length} Kinder ansehen</span>
+                          {assignees.some(assignee => assignee.isAbsent) &&
+                            <span className="block text-amber-700 dark:text-amber-300">{assignees.filter(assignee => assignee.isAbsent).length} abwesend</span>}
+                        </button>
+                      ) : assignees.map(assignee => renderAssignee(dienst, assignee))
                     ) : (
                       <span className={`text-xs italic ${textMuted}`}>
                         noch unbesetzt
@@ -835,6 +861,36 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
             </form>
           </div>
         </div>
+      )}
+
+      {activeChildrenDienst && createPortal(
+        <dialog ref={childrenDialogRef} aria-label="Eingeteilte Kinder"
+          data-dienst-children={activeChildrenDienst.id}
+          onClose={() => {
+            setActiveChildrenDienstId(null);
+            if (childrenTriggerRef.current?.isConnected) childrenTriggerRef.current.focus();
+            else document.getElementById('dienst-item-' + activeChildrenDienstId)?.querySelector<HTMLButtonElement>('button[title="Kinder zuordnen"]')?.focus();
+          }}
+          onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); childrenDialogRef.current?.close(); } }}
+          className={'fixed inset-0 m-auto h-[min(85dvh,680px)] w-[min(94vw,760px)] max-w-none rounded-2xl border p-0 shadow-2xl backdrop:bg-black/50 ' + (isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-zinc-900 border-white/15 text-white')}>
+          <div className="flex h-full min-h-0 flex-col">
+            <header className="flex shrink-0 items-start justify-between gap-3 border-b p-3">
+              <div className="min-w-0">
+                <h2 className="text-lg font-bold">Eingeteilte Kinder</h2>
+                <p className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{activeChildrenDienst.titel}</p>
+                <p className="text-xs">{activeChildrenDienst.schuelerIds.length} Kinder zugeteilt</p>
+              </div>
+              <button type="button" autoFocus onClick={() => childrenDialogRef.current?.close()}
+                className="min-h-11 shrink-0 rounded-lg border px-3 font-bold">Schließen</button>
+            </header>
+            <div data-dienst-children-list tabIndex={0} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] items-start gap-2">
+                {getEffectiveDienstAssignees(activeChildrenDienst, isAbsent).map(assignee => renderAssignee(activeChildrenDienst, assignee))}
+              </div>
+              {!activeChildrenDienst.schuelerIds.length && <p>noch unbesetzt</p>}
+            </div>
+          </div>
+        </dialog>, document.body
       )}
 
       {/* ========================================== */}
