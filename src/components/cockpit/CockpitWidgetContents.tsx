@@ -1,3 +1,4 @@
+import { createWordgrid, readWordgridSelection } from '../../lib/wordgridGame';
 import { commitParticipationAward, undoParticipationAward } from '../../lib/participationAward';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { validClassroomQuiz, validClassroomRiddle } from '../../lib/classroomQuizRiddle';
@@ -4806,6 +4807,11 @@ export const WordchainWidgetContent: React.FC<{
     owlState,
   });
 
+  const [chainPage, setChainPage] = useState(0);
+  const chainPageCount = Math.max(1, Math.ceil(chain.length / 6));
+  const safeChainPage = Math.min(chainPage, chainPageCount - 1);
+  const chainVisible = chain.slice(safeChainPage * 6, safeChainPage * 6 + 6);
+
   const schoolWordsDict: Record<string, string[]> = {
     A: ["Apfel 🍎", "Affe 🐒", "Ameise 🐜", "Auto 🚗", "Auge 👁️"],
     B: ["Baum 🌳", "Ball ⚽", "Biene 🐝", "Buch 📖", "Brot 🍞"],
@@ -4851,7 +4857,8 @@ export const WordchainWidgetContent: React.FC<{
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
         osc.connect(gain).connect(ctx.destination);
         osc.start(now);
-        osc.stop(now + 0.2);
+        osc.onended = () => { void ctx.close().catch(() => {}); };
+      osc.stop(now + 0.2);
       } else {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -4861,7 +4868,8 @@ export const WordchainWidgetContent: React.FC<{
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
         osc.connect(gain).connect(ctx.destination);
         osc.start(now);
-        osc.stop(now + 0.16);
+        osc.onended = () => { void ctx.close().catch(() => {}); };
+      osc.stop(now + 0.16);
       }
     } catch (e) {}
   };
@@ -4871,7 +4879,7 @@ export const WordchainWidgetContent: React.FC<{
     : '?';
 
   const triggerHint = () => {
-    const list = schoolWordsDict[currLetter] || [];
+    const list = (schoolWordsDict[currLetter] || []).filter(hint => !chain.some(word => word.toLocaleLowerCase("de") === hint.split(" ")[0].toLocaleLowerCase("de")));
     if (list.length > 0) {
       const shuffled = [...list].sort(() => 0.5 - Math.random()).slice(0, 3);
       setHints(shuffled);
@@ -4926,6 +4934,7 @@ export const WordchainWidgetContent: React.FC<{
 
     // Success commit
     setChain(prev => [...prev, cleanWord]);
+    setChainPage(Math.floor(chain.length / 6));
     setWordInput("");
     setFeedback(null);
     setHints([]);
@@ -4967,26 +4976,26 @@ export const WordchainWidgetContent: React.FC<{
   };
 
   return (
-    <div className="flex-grow flex flex-col justify-between p-2.5 h-full min-h-0 pointer-events-auto select-none gap-1.5">
+    <div data-wordchain-count={chain.length} data-wordchain-letter={currLetter} className="flex-grow flex flex-col justify-between p-3 h-full min-h-0 overflow-hidden pointer-events-auto select-none gap-2">
       <div className="flex justify-between items-center px-1 shrink-0">
         <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
+          <span className={`text-xs font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
             🔗 Phonetische Wortkette
           </span>
-          <span className="text-[7.5px] font-mono opacity-80 font-black">Score: {chain.length} Wörter</span>
+          <span className="text-xs font-mono opacity-80 font-black">Score: {chain.length} Wörter</span>
         </div>
         <div className="flex gap-1.5 items-center">
-          <button 
+          <button style={{ minHeight: 44, minWidth: 44 }} 
             onClick={triggerHint}
-            className="px-2 py-0.5 rounded text-[7.5px] font-black uppercase bg-amber-500 hover:bg-amber-600 text-white cursor-pointer active:scale-95 transition-all shadow-xs"
+            className="px-2 py-0.5 rounded text-xs font-black uppercase bg-amber-500 hover:bg-amber-600 text-white cursor-pointer active: transition-all shadow-xs"
             title="Tipp bekommen"
           >
             💡 Tipp
           </button>
           {chain.length > 1 && (
-            <button 
+            <button style={{ minHeight: 44, minWidth: 44 }} 
               onClick={popWord}
-              className="text-[7.5px] font-black text-rose-500 uppercase tracking-widest hover:underline cursor-pointer"
+              className="text-xs font-black text-rose-500 uppercase tracking-widest hover:underline cursor-pointer"
             >
               Zurück ⬅️
             </button>
@@ -4996,15 +5005,17 @@ export const WordchainWidgetContent: React.FC<{
 
       <div className="flex-grow flex flex-col justify-between min-h-0 py-0.5 gap-1.5 select-none">
         {/* Animated word lists chain */}
-        <div className="flex-grow overflow-y-auto max-h-[85px] py-1 px-1.5 flex flex-wrap gap-1.5 items-center justify-start border-2 border-dashed rounded-xl border-indigo-200/55 dark:border-white/10 select-none scrollbar-thin">
-          {chain.map((w, idx) => {
+        <div className="min-h-0 py-2 px-1.5 flex flex-wrap gap-1.5 items-center justify-start border-2 border-dashed rounded-xl border-indigo-200/55 dark:border-white/10 select-none scrollbar-thin">
+          {chainVisible.map((w, pageIndex) => {
+            const idx = safeChainPage * 6 + pageIndex;
             const isActive = idx === chain.length - 1;
             return (
               <div key={idx} className="flex items-center gap-1 shrink-0 select-none">
-                {idx > 0 && <span className="text-[8px] text-slate-400">➔</span>}
-                <button
+                {idx > 0 && <span className="text-xs text-slate-400">➔</span>}
+                <button style={{ minHeight: 44, minWidth: 44 }}
+                  data-chain-word={w}
                   onClick={() => speakWord(w)}
-                  className={`px-2 py-0.5 rounded-lg text-[9.5px] shadow-xs select-none transition-all cursor-pointer hover:scale-105 active:scale-95 border ${
+                  className={`px-2 py-0.5 rounded-lg text-xs shadow-xs select-none transition-all cursor-pointer hover: active: border ${
                     isActive
                       ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white tracking-wide scale-[1.03] ring-2 ring-indigo-400/30 border-transparent font-extrabold'
                       : currentIsLight
@@ -5020,13 +5031,18 @@ export const WordchainWidgetContent: React.FC<{
           })}
         </div>
 
+        <div className="flex items-center justify-between gap-2" aria-label="Wortketten-Seiten">
+          <button style={{minHeight:44,minWidth:44}} aria-label="Vorherige Kettenseite" disabled={safeChainPage === 0} onClick={() => setChainPage(safeChainPage-1)}>←</button>
+          <span className="text-xs">Seite {safeChainPage+1} von {chainPageCount}</span>
+          <button style={{minHeight:44,minWidth:44}} aria-label="Nächste Kettenseite" disabled={safeChainPage === chainPageCount-1} onClick={() => setChainPage(safeChainPage+1)}>→</button>
+        </div>
         {/* Word hints display */}
         {hints.length > 0 && (
           <div className="flex flex-col items-center justify-center p-1.5 bg-amber-500/10 border border-amber-500/20 rounded-xl animate-fade-in shrink-0">
-            <span className="text-[7.5px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Tipp-Kiste von Schlaubi:</span>
+            <span className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Tipp-Kiste von Schlaubi:</span>
             <div className="flex gap-1.5 mt-1">
               {hints.map((hint, i) => (
-                <button
+                <button style={{ minHeight: 44, minWidth: 44 }}
                   key={i}
                   onClick={() => {
                     const rawWord = hint.split(" ")[0]; // remove emoji
@@ -5034,7 +5050,7 @@ export const WordchainWidgetContent: React.FC<{
                     setHints([]);
                     setOwlState('cheering');
                   }}
-                  className="px-2 py-0.5 rounded-md bg-amber-500 hover:bg-amber-600 text-white font-black text-[8px] cursor-pointer transition-transform hover:scale-105 active:scale-95 shadow-sm"
+                  className="px-2 py-0.5 rounded-md bg-amber-500 hover:bg-amber-600 text-white font-black text-xs cursor-pointer transition-transform hover: active: shadow-sm"
                 >
                   {hint}
                 </button>
@@ -5044,35 +5060,36 @@ export const WordchainWidgetContent: React.FC<{
         )}
 
         {/* Teacher Owl & Letter alert status bar */}
-        <div className="h-6 flex items-center justify-between px-1.5 bg-slate-50 dark:bg-zinc-900/60 rounded-lg border border-slate-200/40 dark:border-white/5 shrink-0 select-none">
+        <div className="min-h-16 flex items-center justify-between px-1.5 bg-slate-50 dark:bg-zinc-900/60 rounded-lg border border-slate-200/40 dark:border-white/5 shrink-0 select-none">
           <div className="flex items-center gap-1">
             <span className="text-sm animate-pulse">{getOwlEmoji()}</span>
-            <span className="text-[7.5px] font-black text-indigo-600 dark:text-indigo-400">SCHLAUBI</span>
+            <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">SCHLAUBI</span>
           </div>
 
           <div className="flex-grow text-center px-2">
             {feedback ? (
-              <span className="text-[7.5px] font-black uppercase text-rose-500 animate-bounce leading-none">{feedback}</span>
+              <span role="status" className="text-xs font-black text-rose-500 leading-normal">{feedback}</span>
             ) : (
-              <span className="text-[7px] font-bold text-slate-500 dark:text-slate-400">
-                Endet auf <span className="text-[8.5px] font-black text-amber-500">'{currLetter}'</span> ➔ Beginne mit <span className="text-[8.5px] font-black text-emerald-500">'{currLetter}'</span>
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                Endet auf <span className="text-xs font-black text-amber-500">'{currLetter}'</span> ➔ Beginne mit <span className="text-xs font-black text-emerald-500">'{currLetter}'</span>
               </span>
             )}
           </div>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex gap-1.5 shrink-0 select-none">
-        <input
+      <form onSubmit={handleSubmit} className="flex gap-1.5 shrink-0 select-none pr-10">
+        <input style={{ minHeight: 44, minWidth: 44 }}
           type="text"
           value={wordInput}
           onChange={e => setWordInput(e.target.value.replace(/[^a-zA-ZäöüÄÖÜß-]/g, ""))}
           placeholder={`Wort mit '${currLetter}'...`}
-          className="flex-grow text-[9.5px] font-bold px-2.5 py-1.5 rounded-lg border outline-none dark:bg-zinc-800 text-slate-800 dark:text-slate-100 placeholder-slate-450 border-slate-200 dark:border-white/5 focus:border-indigo-400 transition-colors"
+          aria-label="Nächstes Kettenwort"
+          className="min-w-0 flex-grow text-sm font-bold px-2.5 py-1.5 rounded-lg border outline-none dark:bg-zinc-800 text-slate-800 dark:text-slate-100 placeholder-slate-450 border-slate-200 dark:border-white/5 focus:border-indigo-400 transition-colors"
         />
-        <button
+        <button style={{ minHeight: 44, minWidth: 44 }}
           type="submit"
-          className="px-3.5 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white font-black text-[9px] uppercase tracking-widest cursor-pointer shadow-md select-none active:scale-95 transition-all"
+          className="px-3.5 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white font-black text-xs uppercase tracking-widest cursor-pointer shadow-md select-none active: transition-all"
         >
           Senden
         </button>
@@ -5721,82 +5738,10 @@ export const WordgridWidgetContent: React.FC<{
     stars,
   });
 
-  // Word pools for each difficulty
-  const wordPools = {
-    easy: ['BUCH', 'KIND', 'HEFT', 'TAFEL', 'MAUS', 'TIER', 'BAUM'],
-    medium: ['SCHULE', 'LERNEN', 'SPIEL', 'KLASSE', 'STIFT', 'HEUTE', 'TINTE'],
-    hard: ['SCHREIBEN', 'RECHNEN', 'FERIEN', 'LEHRER', 'WISSEN', 'FREUNDE', 'ZEICHNEN']
-  };
-
   const initGridGame = useCallback((diff: 'easy' | 'medium' | 'hard') => {
-    const size = diff === 'easy' ? 5 : diff === 'medium' ? 6 : 7;
-    const pool = wordPools[diff];
-    const numWords = diff === 'easy' ? 3 : diff === 'medium' ? 4 : 5;
-    const shuffledPool = [...pool].sort(() => Math.random() - 0.5);
-    const selected = shuffledPool.slice(0, numWords);
-    
-    // Initialize empty grid
-    let newGrid: string[][] = Array(size).fill(null).map(() => Array(size).fill(''));
-    
-    selected.forEach(word => {
-      let placed = false;
-      let attempts = 0;
-      while (!placed && attempts < 100) {
-        attempts++;
-        const dir = Math.floor(Math.random() * 2); // 0 = horizontal, 1 = vertical
-        const row = Math.floor(Math.random() * size);
-        const col = Math.floor(Math.random() * size);
-        
-        if (dir === 0) {
-          // Horizontal
-          if (col + word.length <= size) {
-            let canPlace = true;
-            for (let i = 0; i < word.length; i++) {
-              if (newGrid[row][col + i] !== '' && newGrid[row][col + i] !== word[i]) {
-                canPlace = false;
-                break;
-              }
-            }
-            if (canPlace) {
-              for (let i = 0; i < word.length; i++) {
-                newGrid[row][col + i] = word[i];
-              }
-              placed = true;
-            }
-          }
-        } else {
-          // Vertical
-          if (row + word.length <= size) {
-            let canPlace = true;
-            for (let i = 0; i < word.length; i++) {
-              if (newGrid[row + i][col] !== '' && newGrid[row + i][col] !== word[i]) {
-                canPlace = false;
-                break;
-              }
-            }
-            if (canPlace) {
-              for (let i = 0; i < word.length; i++) {
-                newGrid[row + i][col] = word[i];
-              }
-              placed = true;
-            }
-          }
-        }
-      }
-    });
-
-    // Fill empty cells with random letters
-    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    for (let r = 0; r < size; r++) {
-      for (let c = 0; c < size; c++) {
-        if (newGrid[r][c] === '') {
-          newGrid[r][c] = alphabet[Math.floor(Math.random() * alphabet.length)];
-        }
-      }
-    }
-
-    setGrid(newGrid);
-    setTargetWords(selected);
+    const next = createWordgrid(diff);
+    setGrid(next.grid);
+    setTargetWords(next.words);
     setSelectedLetters([]);
     setFoundWords([]);
     setFoundCells([]);
@@ -5806,7 +5751,9 @@ export const WordgridWidgetContent: React.FC<{
   useEffect(() => {
     const difficultyChanged = previousDifficultyRef.current !== difficulty;
     previousDifficultyRef.current = difficulty;
-    if (!didRestoreRef.current || difficultyChanged) {
+    const lines = [...grid.map(row => row.join('')), ...(grid[0] || []).map((_, col) => grid.map(row => row[col]).join(''))];
+    const validRestoredGrid = targetWords.length > 0 && targetWords.every(word => lines.some(line => line.includes(word)));
+    if (!didRestoreRef.current || difficultyChanged || !validRestoredGrid) {
       didRestoreRef.current = true;
       initGridGame(difficulty);
     }
@@ -5814,7 +5761,7 @@ export const WordgridWidgetContent: React.FC<{
 
   const toggleLetter = (row: number, col: number) => {
     const key = `${row}-${col}`;
-    if (foundCells.includes(key)) return; // Already solved
+    // Solved cells can also belong to another word in restored overlapping grids.
     
     // Constraint: only allow selecting adjacent or free selection
     // To make it super simple, we let kids toggle free-style, but we maintain the click sequence!
@@ -5840,13 +5787,15 @@ export const WordgridWidgetContent: React.FC<{
         gain.gain.setValueAtTime(0.08, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
         osc.start();
-        osc.stop(ctx.currentTime + 0.4);
+        osc.onended = () => { void ctx.close().catch(() => {}); };
+      osc.stop(ctx.currentTime + 0.4);
       } else {
         osc.frequency.setValueAtTime(150, ctx.currentTime);
         gain.gain.setValueAtTime(0.12, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
         osc.start();
-        osc.stop(ctx.currentTime + 0.22);
+        osc.onended = () => { void ctx.close().catch(() => {}); };
+      osc.stop(ctx.currentTime + 0.22);
       }
     } catch {}
   };
@@ -5861,29 +5810,8 @@ export const WordgridWidgetContent: React.FC<{
   const checkSelection = () => {
     if (selectedLetters.length === 0) return;
     
-    // Sort selected letters by coordinate sequence to respect reading direction
-    const sortedKeys = [...selectedLetters].sort((a, b) => {
-      const [r1, c1] = a.split('-').map(Number);
-      const [r2, c2] = b.split('-').map(Number);
-      return r1 === r2 ? c1 - c2 : r1 - r2;
-    });
-
-    const wordSorted = sortedKeys.map(k => {
-      const [r, c] = k.split('-').map(Number);
-      return grid[r][c];
-    }).join('');
-
-    const wordRaw = selectedLetters.map(k => {
-      const [r, c] = k.split('-').map(Number);
-      return grid[r][c];
-    }).join('');
-
-    const matchingWord = targetWords.find(w => 
-      w === wordSorted || 
-      w === wordSorted.split('').reverse().join('') || 
-      w === wordRaw || 
-      w === wordRaw.split('').reverse().join('')
-    );
+    const selectedWord = readWordgridSelection(grid, selectedLetters);
+    const matchingWord = selectedWord && targetWords.find(word => word === selectedWord || word === [...selectedWord].reverse().join(''));
 
     if (matchingWord) {
       if (foundWords.includes(matchingWord)) {
@@ -5910,147 +5838,30 @@ export const WordgridWidgetContent: React.FC<{
     }
   };
 
-  const size = difficulty === 'easy' ? 5 : difficulty === 'medium' ? 6 : 7;
-
+  const size = grid.length;
   return (
-    <div className="flex-grow flex flex-col justify-between p-2.5 h-full min-h-0 pointer-events-auto select-none gap-1.5">
-      <div className="flex justify-between items-center px-1 shrink-0">
-        <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
-            🔍 Buchstabengitter
-          </span>
-          <span className="text-[7.5px] font-mono opacity-80 font-black">Sterne: {"⭐".repeat(stars)}</span>
+    <div data-wordgrid-difficulty={difficulty} data-wordgrid-stars={stars} className="h-full min-h-0 w-full p-3 flex flex-col gap-2 overflow-hidden">
+      <header className="flex items-center justify-between gap-2 shrink-0">
+        <span className="font-bold text-sm">Buchstabengitter · Sterne: {stars}</span>
+        <button className="min-h-11 min-w-11 px-3 rounded-lg border text-xs font-bold" onClick={() => {initGridGame(difficulty);setStars(0);}}>Neu Mischen 🔄</button>
+      </header>
+      <div className="flex flex-1 min-h-0 items-center gap-3">
+        <div className="grid gap-1 shrink-0" style={{gridTemplateColumns: `repeat(${size},44px)`}} aria-label="Suchgitter">
+          {grid.map((row,r) => row.map((letter,c) => {
+            const key = `${r}-${c}`, selected = selectedLetters.includes(key), found = foundCells.includes(key);
+            return <button key={key} data-grid-cell={key} aria-label={`Zeile ${r+1}, Spalte ${c+1}: ${letter}`} aria-pressed={selected} onClick={() => toggleLetter(r,c)} className={`w-11 h-11 rounded-lg border text-lg font-bold ${selected ? 'bg-indigo-600 text-white' : found ? 'bg-emerald-100 text-emerald-800' : currentIsLight ? 'bg-white text-slate-800' : 'bg-slate-800 text-slate-100'}`}>{letter}</button>;
+          }))}
         </div>
-        <button 
-          onClick={() => {
-            initGridGame(difficulty);
-            setStars(0);
-          }} 
-          className="text-[7.5px] font-black uppercase tracking-wider text-indigo-500 hover:text-indigo-600 cursor-pointer"
-        >
-          Neu Mischen 🔄
-        </button>
-      </div>
-
-      {/* Difficulty selector */}
-      <div className="flex gap-1.5 shrink-0 justify-center scale-95 leading-none">
-        {(['easy', 'medium', 'hard'] as const).map(d => (
-          <button
-            key={d}
-            onClick={() => {
-              setDifficulty(d);
-              setStars(0);
-            }}
-            className={`px-2 py-0.5 rounded text-[7px] font-black uppercase tracking-wide cursor-pointer transition-all ${
-              difficulty === d
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : currentIsLight
-                  ? 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                  : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-750'
-            }`}
-          >
-            {d === 'easy' ? 'Leicht (5x5)' : d === 'medium' ? 'Mittel (6x6)' : 'Schwer (7x7)'}
-          </button>
-        ))}
-      </div>
-
-      {/* Spelled word bubble helper */}
-      <div className="shrink-0 flex items-center justify-center min-h-[22px] px-1 bg-indigo-50 dark:bg-zinc-900/40 rounded-lg border border-indigo-100/40 dark:border-white/5">
-        {selectedLetters.length > 0 ? (
-          <div className="flex gap-1 items-center animate-fade-in">
-            <span className="text-[7px] font-black uppercase tracking-widest text-indigo-500 mr-1">Dein Wort:</span>
-            {currentSpelledWord.split('').map((char, index) => (
-              <span key={index} className="w-4 h-4 rounded bg-indigo-500 text-white font-black text-[9px] flex items-center justify-center shadow-xs">
-                {char}
-              </span>
-            ))}
+        <div className="flex flex-col flex-1 min-w-0 gap-2 self-stretch justify-center pb-10">
+          <div className="flex flex-col gap-1" aria-label="Suchgitter-Schwierigkeit">
+            {(['easy','medium','hard'] as const).map(d => <button key={d} aria-pressed={difficulty===d} className={`min-h-11 px-2 rounded-lg text-xs font-bold border ${difficulty===d?'bg-indigo-600 text-white':''}`} onClick={() => {setDifficulty(d);setStars(0);}}>{d==='easy'?'Leicht (5×5)':d==='medium'?'Mittel (6×6)':'Schwer (9×9)'}</button>)}
           </div>
-        ) : (
-          <span className="text-[7.5px] font-bold text-slate-400 dark:text-slate-500">Tippe Buchstaben nacheinander an!</span>
-        )}
-      </div>
-
-      {/* Word Search Grid */}
-      <div className="flex-grow flex items-center justify-center min-h-0">
-        <div 
-          className="grid gap-1 mx-auto"
-          style={{ gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))` }}
-        >
-          {grid.map((row, rIdx) => 
-            row.map((letter, cIdx) => {
-              const key = `${rIdx}-${cIdx}`;
-              const isSel = selectedLetters.includes(key);
-              const isFound = foundCells.includes(key);
-              
-              // Get click order index
-              const clickIndex = selectedLetters.indexOf(key);
-
-              return (
-                <button
-                  key={key}
-                  onClick={() => toggleLetter(rIdx, cIdx)}
-                  disabled={isFound}
-                  className={`w-7 h-7 rounded-lg text-[11px] font-black flex items-center justify-center border transition-all cursor-pointer relative ${
-                    isFound
-                      ? 'bg-emerald-500 border-emerald-500 text-white opacity-90 shadow-sm font-extrabold scale-[0.98]'
-                      : isSel
-                        ? 'bg-indigo-500 border-indigo-500 text-white shadow-md font-black scale-105'
-                        : currentIsLight
-                          ? 'bg-slate-50 hover:bg-slate-150 border-slate-200 text-slate-800'
-                          : 'bg-zinc-850 hover:bg-zinc-750 border-white/5 text-slate-200'
-                  }`}
-                >
-                  {letter}
-                  {isSel && (
-                    <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-500 text-white text-[6px] font-mono font-black flex items-center justify-center shadow-xs scale-90 border border-white dark:border-zinc-900">
-                      {clickIndex + 1}
-                    </span>
-                  )}
-                </button>
-              );
-            })
-          )}
+          <p className="text-xs break-words" aria-label="Ausgewählte Buchstaben">{currentSpelledWord || 'Wörter waagrecht oder senkrecht markieren.'}</p>
+          <div className="flex flex-wrap gap-1" aria-label="Gesuchte Wörter">{targetWords.map(word => <span key={word} data-grid-target={word} data-grid-found={foundWords.includes(word)} className={`text-xs font-bold px-1 ${foundWords.includes(word)?'line-through text-emerald-600':''}`}>{word}</span>)}</div>
+          <p role="status" className="text-xs break-words">{message}</p>
+          <button className="min-h-11 min-w-11 px-2 rounded-lg bg-indigo-600 text-white text-xs font-bold disabled:opacity-40" disabled={!selectedLetters.length} onClick={checkSelection}>Wort prüfen ({selectedLetters.length} Buchstaben)</button>
         </div>
       </div>
-
-      {/* Word lists to search */}
-      <div className="shrink-0 text-center">
-        <p className={`text-[8px] font-black uppercase tracking-wide truncate ${
-          foundWords.length === targetWords.length ? 'text-emerald-500 animate-pulse' : currentIsLight ? 'text-slate-700' : 'text-slate-300'
-        }`}>
-          {message}
-        </p>
-        
-        <div className="flex flex-wrap gap-1 justify-center mt-1.5 max-h-12 overflow-y-auto">
-          {targetWords.map(word => {
-            const isFound = foundWords.includes(word);
-            return (
-              <span
-                key={word}
-                className={`text-[7.5px] px-1.5 py-0.5 rounded-md font-extrabold transition-all border ${
-                  isFound
-                    ? 'bg-emerald-500/15 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 line-through scale-95 opacity-60'
-                    : currentIsLight ? 'bg-slate-100 border-slate-205 text-slate-650' : 'bg-zinc-900 border-white/5 text-slate-300'
-                }`}
-              >
-                {word}
-              </span>
-            );
-          })}
-        </div>
-      </div>
-
-      <button
-        onClick={checkSelection}
-        disabled={selectedLetters.length === 0}
-        className={`w-full py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider text-center cursor-pointer transition-all ${
-          selectedLetters.length > 0
-            ? 'bg-indigo-500 hover:bg-indigo-600 text-white shadow-md hover:scale-[1.01] active:scale-95'
-            : 'bg-slate-200 text-slate-400 dark:bg-zinc-800 dark:text-zinc-650 cursor-not-allowed'
-        }`}
-      >
-        ✔ Wort Prüfen ({selectedLetters.length} Briefe)
-      </button>
     </div>
   );
 };
@@ -10471,6 +10282,7 @@ export const WordscrambleWidgetContent: React.FC<{
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start();
+      osc.onended = () => { void ctx.close().catch(() => {}); };
       osc.stop(ctx.currentTime + 0.12);
     } catch (e) {}
   };
@@ -10492,6 +10304,7 @@ export const WordscrambleWidgetContent: React.FC<{
       osc1.connect(gain);
       gain.connect(ctx.destination);
       osc1.start();
+      osc1.onended = () => { void ctx.close().catch(() => {}); };
       osc1.stop(ctx.currentTime + 0.45);
     } catch (e) {}
   };
@@ -10509,13 +10322,14 @@ export const WordscrambleWidgetContent: React.FC<{
 
   const handleLetterClick = (id: number) => {
     if (solved) return;
-    setSelectedIds([...selectedIds, id]);
+    if (selectedIds.includes(id)) return;
+    setSelectedIds(prev => prev.includes(id) ? prev : [...prev, id]);
     playClickSound(selectedIds.length);
   };
 
   const handleSlotClick = (id: number) => {
     if (solved) return;
-    setSelectedIds(selectedIds.filter(selectedId => selectedId !== id));
+    setSelectedIds(prev => prev.filter(selectedId => selectedId !== id));
     playClickSound(selectedIds.length - 1);
   };
 
@@ -10564,13 +10378,13 @@ export const WordscrambleWidgetContent: React.FC<{
     if (firstMismatchIdx !== -1) {
       const targetChar = targetChars[firstMismatchIdx];
       // Find a matching letter object that isn't selected yet
+      const correctPrefix = selectedIds.slice(0, firstMismatchIdx);
       const matchingLetter = scrambledLetters.find(
-        l => l.char === targetChar && !selectedIds.includes(l.id)
+        l => l.char === targetChar && !correctPrefix.includes(l.id)
       );
       
       if (matchingLetter) {
         // Truncate selected list up to mismatch, then append matching
-        const correctPrefix = selectedIds.slice(0, firstMismatchIdx);
         setSelectedIds([...correctPrefix, matchingLetter.id]);
         setFeedback(`Eule Schlaumeier flüstert: Der nächste Buchstabe ist "${targetChar}"! 💡`);
         playClickSound(firstMismatchIdx);
@@ -10580,19 +10394,19 @@ export const WordscrambleWidgetContent: React.FC<{
   };
 
   return (
-    <div className="flex-grow flex flex-col justify-between p-2.5 h-full min-h-0 pointer-events-auto select-none gap-2">
+    <div data-wordscramble-difficulty={difficulty} data-wordscramble-index={wordIdx} data-wordscramble-score={score} data-wordscramble-solved={solved} className="flex-grow flex flex-col justify-between p-3 h-full min-h-0 overflow-hidden pointer-events-auto select-none gap-2">
       {/* Header with Title and Difficulty Selector */}
-      <div className="flex justify-between items-center px-1 shrink-0">
+      <div className="flex flex-wrap gap-2 justify-between items-center px-1 shrink-0">
         <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
+          <span className={`text-xs font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
             🥗 Wort-Salat
           </span>
           <div className="flex gap-1 mt-0.5">
             {(['easy', 'medium', 'hard', 'expert'] as const).map(d => (
-              <button
+              <button style={{ minHeight: 44, minWidth: 44 }}
                 key={d}
                 onClick={() => setDifficulty(d)}
-                className={`px-1.5 py-0.5 rounded text-[6px] font-extrabold uppercase tracking-wide cursor-pointer transition-all ${
+                className={`px-1.5 py-0.5 rounded text-xs font-extrabold uppercase tracking-wide cursor-pointer transition-all ${
                   difficulty === d
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : currentIsLight
@@ -10606,18 +10420,18 @@ export const WordscrambleWidgetContent: React.FC<{
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <button 
+          <button style={{ minHeight: 44, minWidth: 44 }} 
             onClick={loadAIWords}
             disabled={isLoadingAI}
             title={`Generiert Aufgaben basierend auf Niveau ${averageNiveau}`}
-            className={`px-1.5 py-0.5 rounded text-[6px] font-bold flex items-center gap-0.5 transition-all text-white ${
-              isLoadingAI ? 'bg-indigo-300 animate-pulse' : 'bg-indigo-600 hover:bg-indigo-700 active:scale-95 cursor-pointer'
+            className={`px-1.5 py-0.5 rounded text-xs font-bold flex items-center gap-0.5 transition-all text-white ${
+              isLoadingAI ? 'bg-indigo-300 animate-pulse' : 'bg-indigo-600 hover:bg-indigo-700 active: cursor-pointer'
             }`}
           >
             <Sparkles className="w-1.5 h-1.5" />
             {isLoadingAI ? "KI..." : `KI ✨`}
           </button>
-          <span className="text-[7.5px] bg-indigo-50/10 text-indigo-500 px-1.5 font-black rounded">
+          <span className="text-xs bg-indigo-50/10 text-indigo-500 px-1.5 font-black rounded">
             {wordIdx + 1}/{activeDictionary.length}
           </span>
         </div>
@@ -10625,11 +10439,11 @@ export const WordscrambleWidgetContent: React.FC<{
 
       {/* Mascot Bubble */}
       <div className="shrink-0 flex items-center justify-between gap-1.5 bg-indigo-50/40 dark:bg-zinc-900/40 p-1.5 rounded-xl border border-indigo-500/5">
-        <div className="flex items-center gap-1.5 truncate flex-grow">
+        <div className="flex items-center gap-1.5 min-w-0 flex-grow">
           <span className="text-xl shrink-0 animate-bounce">🦉</span>
-          <div className="flex flex-col text-left truncate">
-            <span className="text-[6px] font-black uppercase text-indigo-500">Eule Schlaumeier</span>
-            <p className="text-[7.5px] font-medium text-slate-600 dark:text-slate-300 leading-none truncate max-w-56">
+          <div className="flex flex-col text-left min-w-0">
+            <span className="text-xs font-black uppercase text-indigo-500">Eule Schlaumeier</span>
+            <p className="text-xs font-medium text-slate-600 dark:text-slate-300 leading-normal [overflow-wrap:anywhere]">
               {solved 
                 ? "Unglaublich! Du bist ein echter Wort-Meister! 🌟" 
                 : showHint 
@@ -10640,7 +10454,7 @@ export const WordscrambleWidgetContent: React.FC<{
           </div>
         </div>
         {!solved && (
-          <button
+          <button style={{ minHeight: 44, minWidth: 44 }}
             onClick={() => setShowHint(!showHint)}
             className={`p-1 rounded-lg transition-all border shrink-0 cursor-pointer ${
               showHint
@@ -10655,7 +10469,7 @@ export const WordscrambleWidgetContent: React.FC<{
       </div>
 
       {/* Main Game Stage */}
-      <div className="flex flex-col items-center justify-center flex-grow p-1 text-center">
+      <div className="flex flex-col min-h-0 items-center justify-center flex-grow p-1 text-center">
         {/* Dash Slot Placeholders for target word */}
         <div className="flex gap-1 mb-3.5 justify-center flex-wrap">
           {currentWord.original.split('').map((_, idx) => {
@@ -10663,14 +10477,16 @@ export const WordscrambleWidgetContent: React.FC<{
             const letterObj = scrambledLetters.find(l => l.id === selectedLetterId);
             
             return (
-              <button
+              <button style={{ minHeight: 44, minWidth: 44 }}
                 key={idx}
+                data-scramble-slot={idx}
+                aria-label={`Antwortbuchstabe ${idx+1}${letterObj ? `: ${letterObj.char}` : ": leer"}`}
                 onClick={() => letterObj && handleSlotClick(letterObj.id)}
                 disabled={solved || !letterObj}
-                className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs transition-all border relative cursor-pointer ${
+                className={`w-11 h-11 rounded-xl flex items-center justify-center font-black text-xs transition-all border relative cursor-pointer ${
                   letterObj
                     ? solved
-                      ? 'bg-emerald-500 border-emerald-600 text-white animate-bounce shadow-md scale-105'
+                      ? 'bg-emerald-500 border-emerald-600 text-white animate-bounce shadow-md '
                       : 'bg-indigo-500 border-indigo-600 text-white shadow hover:bg-indigo-600'
                     : 'bg-transparent border-dashed border-slate-300 dark:border-zinc-800 text-transparent'
                 }`}
@@ -10690,16 +10506,18 @@ export const WordscrambleWidgetContent: React.FC<{
             const isUsed = selectedIds.includes(letterObj.id);
 
             return (
-              <button
+              <button style={{ minHeight: 44, minWidth: 44 }}
                 key={letterObj.id}
+                data-scramble-letter={letterObj.id}
+                aria-label={`Buchstabe ${letterObj.char}, Karte ${letterObj.id+1}`}
                 disabled={isUsed || solved}
                 onClick={() => handleLetterClick(letterObj.id)}
-                className={`w-6.5 h-6.5 rounded-lg text-[9.5px] font-black shadow-sm transition-all border cursor-pointer ${
+                className={`w-11 h-11 rounded-lg text-xs font-black shadow-sm transition-all border cursor-pointer ${
                   isUsed
-                    ? 'opacity-15 bg-slate-100 border-transparent text-slate-300 dark:bg-zinc-900 dark:text-zinc-800 scale-95'
+                    ? 'opacity-15 bg-slate-100 border-transparent text-slate-300 dark:bg-zinc-900 dark:text-zinc-800 '
                     : currentIsLight 
-                      ? 'bg-white border-slate-200 hover:bg-slate-100 hover:scale-102 text-slate-800' 
-                      : 'bg-zinc-850 border-white/5 hover:bg-zinc-800 hover:scale-102 text-slate-200'
+                      ? 'bg-white border-slate-200 hover:bg-slate-100  text-slate-800' 
+                      : 'bg-zinc-850 border-white/5 hover:bg-zinc-800  text-slate-200'
                 }`}
               >
                 {letterObj.char}
@@ -10712,16 +10530,16 @@ export const WordscrambleWidgetContent: React.FC<{
       {/* Control Footer */}
       <div className="shrink-0 flex gap-1.5 pt-0.5 items-center justify-between">
         {/* Stars counter / Stats */}
-        <div className="flex gap-0.5 items-center bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-xl text-[8px] font-extrabold text-amber-500">
+        <div className="flex gap-0.5 items-center bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-xl text-xs font-extrabold text-amber-500">
           <Trophy className="w-2.5 h-2.5 text-amber-500 shrink-0" />
           <span>Sterne: {score}</span>
         </div>
 
         {/* Tipp button */}
-        <button
+        <button style={{ minHeight: 44, minWidth: 44 }}
           onClick={handleHint}
           disabled={solved}
-          className={`px-2 py-1 rounded-xl border text-[8px] font-black uppercase transition-all flex items-center gap-0.5 cursor-pointer ${
+          className={`px-2 py-1 rounded-xl border text-xs font-black uppercase transition-all flex items-center gap-0.5 cursor-pointer ${
             solved
               ? 'opacity-40 cursor-not-allowed border-transparent text-slate-400 bg-slate-100'
               : currentIsLight
@@ -10736,17 +10554,17 @@ export const WordscrambleWidgetContent: React.FC<{
         {/* Next / Clear */}
         <div className="flex-1 flex justify-end gap-1">
           {solved ? (
-            <button
+            <button style={{ minHeight: 44, minWidth: 44 }}
               onClick={handleNext}
-              className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[8.5px] uppercase tracking-wider transition-all shadow-md cursor-pointer flex items-center gap-1"
+              className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer flex items-center gap-1"
             >
               Nächstes Wort ➔
             </button>
           ) : (
-            <button
+            <button style={{ minHeight: 44, minWidth: 44 }}
               onClick={handleClear}
               disabled={selectedIds.length === 0}
-              className={`px-2 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-wider transition-all cursor-pointer border ${
+              className={`px-2 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer border ${
                 selectedIds.length === 0
                   ? 'opacity-40 cursor-not-allowed border-transparent text-slate-400 bg-slate-100 dark:bg-zinc-900'
                   : currentIsLight 
@@ -10761,7 +10579,7 @@ export const WordscrambleWidgetContent: React.FC<{
       </div>
 
       {/* Rhythmic Status message */}
-      <p className="shrink-0 text-[7px] font-extrabold text-indigo-500 text-center truncate">{feedback}</p>
+      <p role="status" className="shrink-0 text-xs font-extrabold text-indigo-500 text-center [overflow-wrap:anywhere]">{feedback}</p>
     </div>
   );
 };
@@ -18525,29 +18343,32 @@ export const SecretcodeWidgetContent: React.FC<{
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start();
+      osc.onended = () => { void ctx.close().catch(() => {}); };
       osc.stop(ctx.currentTime + dur);
     } catch {}
   };
 
   return (
-    <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-y-auto overflow-x-hidden">
+    <div data-secretcode-method={method} className="flex flex-col h-full w-full p-3 justify-between select-none min-h-0 overflow-hidden gap-2">
       <div className="shrink-0 flex justify-between items-center mb-1">
         <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
+          <span className={`text-xs font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
             🕵️ Agenten-Kryptobox
           </span>
-          <span className="text-[7.5px] font-mono opacity-80">Geheimsprachen spielerisch lernen</span>
+          <span className="text-xs font-mono opacity-80">Geheimsprachen spielerisch lernen</span>
         </div>
         <div className="flex gap-1.5">
-          <button
+          <button style={{ minHeight: 44, minWidth: 44 }}
+            aria-pressed={method === "caesar"}
             onClick={() => setMethod('caesar')}
-            className={`px-1 py-0.5 rounded text-[7px] font-black ${method === 'caesar' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'}`}
+            className={`px-1 py-0.5 rounded text-xs font-black ${method === 'caesar' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'}`}
           >
             Caesar
           </button>
-          <button
+          <button style={{ minHeight: 44, minWidth: 44 }}
+            aria-pressed={method === "rot13"}
             onClick={() => setMethod('rot13')}
-            className={`px-1 py-0.5 rounded text-[7px] font-black ${method === 'rot13' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'}`}
+            className={`px-1 py-0.5 rounded text-xs font-black ${method === 'rot13' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'}`}
           >
             ROT13
           </button>
@@ -18556,8 +18377,9 @@ export const SecretcodeWidgetContent: React.FC<{
 
       <div className="flex-grow flex flex-col justify-around py-1.5 min-h-0 gap-1.5">
         <div>
-          <label className="text-[7.5px] font-extrabold uppercase opacity-70 block mb-0.5">Klartext eingeben:</label>
-          <input
+          <label className="text-xs font-extrabold uppercase opacity-70 block mb-0.5">Klartext eingeben:</label>
+          <input style={{ minHeight: 44, minWidth: 44 }}
+            aria-label="Klartext"
             type="text"
             maxLength={12}
             value={textToEncode}
@@ -18573,8 +18395,9 @@ export const SecretcodeWidgetContent: React.FC<{
 
         {method === 'caesar' && (
           <div className="flex items-center gap-2">
-            <span className="text-[7.5px] font-bold">Verschiebung:</span>
-            <input
+            <span className="text-xs font-bold">Verschiebung:</span>
+            <input style={{ minHeight: 44, minWidth: 44 }}
+              aria-label="Caesar-Verschiebung"
               type="range"
               min="1"
               max="10"
@@ -18583,21 +18406,21 @@ export const SecretcodeWidgetContent: React.FC<{
                 setCaesarKey(parseInt(e.target.value));
                 playAgentBeep(1000, 0.04);
               }}
-              className="flex-grow h-1 bg-indigo-200 rounded appearance-none cursor-pointer"
+              className="flex-grow min-h-11 bg-indigo-200 rounded appearance-none cursor-pointer"
             />
             <span className="text-xs font-black text-indigo-500">+{caesarKey}</span>
           </div>
         )}
 
         <div className="p-2 border border-dashed rounded-xl border-indigo-400 bg-indigo-500/5 text-center">
-          <span className="text-[7px] font-black uppercase text-indigo-400 block tracking-widest leading-none mb-1">Geheimcode (Verschlüsselt):</span>
-          <span className="text-sm font-extrabold tracking-widest text-emerald-500 break-words font-mono block">
+          <span className="text-xs font-black uppercase text-indigo-400 block tracking-widest leading-none mb-1">Geheimcode (Verschlüsselt):</span>
+          <output aria-label="Verschlüsselte Botschaft" className="text-xl font-extrabold tracking-widest text-emerald-600 dark:text-emerald-400 break-words font-mono block">
             {encodedText || "___"}
-          </span>
+          </output>
         </div>
       </div>
 
-      <p className="shrink-0 text-[7px] font-extrabold text-blue-500 text-center truncate mt-0.5">{feedback}</p>
+      <p className="shrink-0 text-xs font-extrabold text-blue-500 text-center truncate mt-0.5">{feedback}</p>
     </div>
   );
 };

@@ -98,7 +98,11 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   wordbuilder: { minW: 620, minH: 560, prefW: 720, prefH: 560 },
   scrambler: { minW: 620, minH: 560, prefW: 720, prefH: 560 },
   compoundsplit: { minW: 620, minH: 560, prefW: 720, prefH: 560 },
-  storyemojis: { minW: 280, minH: 220, prefW: 420, prefH: 340 },
+  wordchain: { minW: 500, minH: 520, prefW: 620, prefH: 540 },
+  wordgrid: { minW: 640, minH: 560, prefW: 720, prefH: 560 },
+  wordscramble: { minW: 600, minH: 560, prefW: 680, prefH: 560 },
+  secretcode: { minW: 440, minH: 420, prefW: 520, prefH: 460 },
+  storyemojis: { minW: 640, minH: 560, prefW: 720, prefH: 560 },
 };
 
 export const DEFAULT_WIDGET_MIN_SIZE: WidgetMinSizeConfig = {
