@@ -941,7 +941,7 @@ async function main() {
     ]) {
       await openAuditWidget(type, search);
       const board = `[data-widget-type="${type}"] ${boardSelector}`;
-      const weekExpression = `Number(document.querySelector('${board}')?.textContent.match(/KW\\s+(\\d+)/)?.[1])`;
+      const weekExpression = `Number(document.querySelector('${board}')?.querySelector('p')?.textContent.match(/KW\\s+(\\d+)/)?.[1])`;
       await waitFor(client, type+' starts with actual week despite teacher planning ahead', `${weekExpression} === ${currentWidgetWeek} && document.querySelector('${board}').textContent.includes(${q(ownHomework)})`);
       await clickSelector(client, `${board} [aria-label="${nextLabel}"]`);
       await waitFor(client, type+' permits deliberate week navigation', `${weekExpression} !== ${currentWidgetWeek} && !document.querySelector('${board}').textContent.includes(${q(ownHomework)})`);
