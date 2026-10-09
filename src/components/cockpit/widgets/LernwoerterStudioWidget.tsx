@@ -791,7 +791,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
                     key={rule.id}
                     aria-pressed={selectedRule === rule.id}
                     onClick={() => setSelectedRule(rule.id)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all min-h-[44px] flex items-center border ${
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all min-h-[44px] min-w-[44px] flex items-center border ${
                       selectedRule === rule.id
                         ? 'bg-rose-500 text-white border-rose-600 shadow-sm'
                         : currentIsLight
