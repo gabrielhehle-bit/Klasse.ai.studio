@@ -80,7 +80,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
     const dialog = settingsDialogRef.current;
     if (!showSettings || !dialog) return;
     const previousFocus = document.activeElement as HTMLElement | null;
-    const settingsTrigger = containerRef.current?.closest('[data-widget-type]')?.querySelector<HTMLButtonElement>('button[aria-label$="Einstellungen öffnen"]');
+    const settingsTrigger = containerRef.current?.closest('[data-widget-type]')?.querySelector<HTMLButtonElement>('button[aria-label$="Einstellungen öffnen"], button[aria-label$="Einstellungen schließen"]');
     dialog.showModal();
     return () => {
       if (dialog.open) dialog.close();
