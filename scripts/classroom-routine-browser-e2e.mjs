@@ -694,20 +694,22 @@ async function main() {
       await clickButton(client, action, true);
     };
     const readLongWidgetText = async (type, text, title) => {
-      await evaluate(client, `(() => {if(window.__widgetClickTrace)return;window.__widgetClickTrace=[];document.addEventListener('click',e=>{const b=e.target.closest?.('button');if(b)window.__widgetClickTrace.push({label:b.getAttribute('aria-label')?.slice(0,80),text:b.textContent?.trim().slice(0,60)});},true);})()`);
       const trigger = `[data-widget-type="${type}"] [data-widget-text-reader="true"]`;
       await waitFor(client, 'long '+title+' has explicit reading action', `Boolean(document.querySelector('${trigger}'))`);
       await clickSelector(client, trigger);
       await waitFor(client, 'complete '+title+' opens in modal', `document.querySelector('dialog[open] [data-widget-full-text]')?.textContent === ${q(text)}`);
-      for (const width of [390, 1366]) {
+      // Smartphone quick mode intentionally leaves the cockpit below 768px.
+      // Exercise a 390px reader within a supported tablet viewport instead.
+      for (const [width, readerWidth] of [[820, 390], [820, null], [1366, null]]) {
         await client.send('Emulation.setDeviceMetricsOverride', {width,height:768,deviceScaleFactor:1,mobile:false});
+        await evaluate(client, `document.querySelector('dialog[open]').style.width = ${q(readerWidth ? readerWidth+'px' : '')}`);
         await sleep(150);
         const fits = await evaluate(client, `(() => {
           const dialog=document.querySelector('dialog[open]'),body=dialog.querySelector('[data-widget-full-text]'),close=dialog.querySelector('button');
           const r=dialog.getBoundingClientRect(),b=close.getBoundingClientRect();body.scrollTop=body.scrollHeight;
           const range=document.createRange();range.setStart(body.firstChild,body.firstChild.length-12);range.setEnd(body.firstChild,body.firstChild.length);
           const end=range.getBoundingClientRect(),content=body.getBoundingClientRect();
-          return r.left>=0 && r.right<=innerWidth && r.bottom<=innerHeight && b.height>=44 && b.bottom<=r.bottom && body.scrollWidth<=body.clientWidth+1 && end.top>=content.top && end.bottom<=content.bottom+1;
+          return (${readerWidth ? 'Math.abs(r.width-390)<1' : 'true'}) && r.left>=0 && r.right<=innerWidth && r.bottom<=innerHeight && b.height>=44 && b.bottom<=r.bottom && body.scrollWidth<=body.clientWidth+1 && end.top>=content.top && end.bottom<=content.bottom+1;
         })()`);
         if (!fits) throw new Error(title+' full text or closing action is clipped at '+width+'px.');
       }
@@ -873,14 +875,8 @@ async function main() {
       const before = await evaluate(client, stateExpression);
       await auditMenu(type,'Minimieren');
       await openAuditWidget(type,search);
-      try {
-        await waitFor(client, type+' restores its saved state after layout settles', `${stateExpression} === ${q(before)}`);
-      } catch (error) {
-        console.log('Restore failure diagnostics: '+JSON.stringify({before,after:await evaluate(client,stateExpression),navigation:await evaluate(client, `({cockpit:Boolean(document.querySelector('.klassio-cockpit-shell')),page:Array.from(document.querySelectorAll('[aria-current="page"]')).map(e=>e.textContent.trim()),clicks:window.__widgetClickTrace?.slice(-12),tasks:document.querySelector('[data-widget-type="todo"]')?.textContent?.slice(-700)})`)}));
-        throw error;
-      }
+      await waitFor(client, type+' restores its saved state after layout settles', `${stateExpression} === ${q(before)}`);
       await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-widget-'+type+'.png'));
-      if(type === 'todo') console.log('Task restore navigation diagnostics: '+JSON.stringify(await evaluate(client, `({cockpit:Boolean(document.querySelector('.klassio-cockpit-shell')),page:Array.from(document.querySelectorAll('[aria-current="page"]')).map(e=>e.textContent.trim()),clicks:window.__widgetClickTrace?.slice(-12)})`)));
       await auditMenu(type,'Widget schließen');
     }
     await openAuditWidget('groups', 'Gruppen-Einteiler');

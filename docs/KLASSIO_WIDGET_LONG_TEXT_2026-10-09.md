@@ -16,7 +16,10 @@ bleibt direkt bedienbar. Das Lesen verändert keinen Erledigtstatus.
 Der Classroom-Browserlauf verwendet lange echte Aufgaben-/Hausübungseinträge
 mit langen Links. Er prüft den vollständigen Text, die letzten Zeichen nach
 dem Scrollen, fehlenden horizontalen Überlauf, sichtbare Schließen-Aktionen und
-Escape/Fokusrückgabe bei 390 und 1366 Pixeln Breite. Minimieren/Wiederherstellen
+Escape/Fokusrückgabe bei Tablet- und Desktopbreite (820/1366 Pixel) sowie
+einer auf 390 Pixel begrenzten Leseansicht. Eine Smartphonebreite des gesamten
+Cockpits ist bewusst ausgeschlossen: Der Smartphone-Schnellmodus navigiert
+dort zurück zu „Heute“. Minimieren/Wiederherstellen
 und die Wochenwechsel bleiben Teil des bestehenden Ablaufs.
 
 Die Geräteabnahme an der echten Touch-Tafel und weitere Widgets bleiben offen.
