@@ -3,7 +3,8 @@
 Fortsetzung von Roadmap-Punkt 8 „Widgets“.
 
 Lange Diensttitel haben eine Zweizeilen-Vorschau mit „Ganz lesen“ und kompletter
-Leseansicht. Umbenennen bleibt bis 80 Zeichen möglich; Eingabefeld und Symbolwahl
+Leseansicht. In schmalen Karten wechseln die Dienstaktionen unter den Titel,
+statt die Leseaktion auf wenige Zeichen Breite zu drücken. Umbenennen bleibt bis 80 Zeichen möglich; Eingabefeld und Symbolwahl
 sind benannt und mindestens 44 Pixel hoch.
 
 Die Vertretungsauswahl öffnet als nativer Dialog außerhalb des Widget-Rahmens.

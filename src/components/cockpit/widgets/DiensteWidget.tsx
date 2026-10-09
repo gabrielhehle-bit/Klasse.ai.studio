@@ -461,7 +461,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                   }`}
                 >
                   {/* Dienst-Titelzeile mit Emoji */}
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     {isEditingThis ? (
                       <div className="flex min-w-0 items-center gap-1.5 flex-grow">
                         <select
@@ -510,7 +510,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                       </div>
                     ) : (
                       <>
-                        <div className="flex flex-1 items-center gap-2 min-w-0">
+                        <div className="flex flex-1 items-center gap-2 min-w-[140px]">
                           <span className="text-lg shrink-0" role="img" aria-label={dienst.titel}>
                             {dienst.emoji || '📋'}
                           </span>

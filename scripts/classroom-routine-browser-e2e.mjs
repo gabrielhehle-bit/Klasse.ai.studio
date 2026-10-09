@@ -742,6 +742,8 @@ async function main() {
     await setInputByLabel(client,'Diensttitel bearbeiten',longDienstTitle);
     await clickSelector(client,'#'+firstDienst+' button[title="Speichern"]');
     await waitFor(client,'long duty title saved',"document.querySelector("+q('#'+firstDienst+' [data-widget-text-preview]')+").textContent === "+q(longDienstTitle));
+    const dutyTitleFits=await evaluate(client,"(() => {const root=document.querySelector("+q('#'+firstDienst)+"),r=root.getBoundingClientRect(),reader=root.querySelector('[data-widget-text-preview]').closest('button');return reader.getBoundingClientRect().width>=100 && Array.from(root.querySelectorAll('button[title=\"Kinder zuordnen\"],button[title=\"Dienst umbenennen\"],button[title=\"Dienst löschen\"]')).every(b=>{const t=b.getBoundingClientRect();return t.height>=44 && t.left>=r.left && t.right<=r.right+1;});})()");
+    if(!dutyTitleFits) throw new Error('Duty title reading action is too narrow or crowded by controls.');
     await readLongWidgetText('dienste',longDienstTitle,'Diensttitel');
     await waitFor(client,'reading duty title keeps assignments',assignedState+" === "+q(dutyState));
     const absentDienstId=await evaluate(client,"Array.from(document.querySelectorAll("+q('#'+firstDienst+' [data-dienst-student]')+")).find(e=>e.textContent.includes('abwesend')).dataset.dienstStudent");
