@@ -1579,7 +1579,7 @@ async function main() {
 
     // Five-widget math batch: independently calculate displayed tasks, then use the real UI.
     const auditWidgetMinimum = async type => {
-      const minimumSizes={sorting:[420,520],vocabulary:[640,560],spellingdetective:[640,560],wordbuilder:[620,560],scrambler:[620,560],compoundsplit:[620,560]};
+      const minimumSizes={sorting:[420,520],vocabulary:[640,560],spellingdetective:[640,560],wordbuilder:[620,560],scrambler:[620,560],compoundsplit:[620,560],wordchain:[500,520],wordgrid:[640,560],wordscramble:[600,560],secretcode:[440,420],storyemojis:[640,560]};
       const [minimumWidth,minimumHeight]=minimumSizes[type]||[460,560];
       await waitFor(client,type+' resize grip is reachable after opening', `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('[data-widget-resize]')?.dataset.widgetResize==='se';})()`);
       const point=await evaluate(client, `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
@@ -1880,6 +1880,112 @@ async function main() {
       await auditMenu(type,'Widget schließen');
     }
     console.log('✓ Five German widgets: native editors/gear/focus, seven teacher words with import/edit/delete, card Space and navigation, spelling ranges, complete ABC pages, real word/sentence/compound tasks, wrong/correct order, keyboard/solution and restore at exact minimum sizes.');
+
+    // Five further German widgets: solve the visible game, rather than seeding lifecycle answers.
+    const wordplayScreens = async type => { await waitFor(client,type+' all native lesson controls fit',languageFits('[data-widget-type="'+type+'"] [data-wordplay-root]')); await sleep(400);await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-widget-'+type+'.png')); };
+    await openAuditWidget('wordchain','Wortketten-Spiel');
+    await auditWidgetMinimum('wordchain');
+    const chainRoot='[data-widget-type="wordchain"] [data-wordchain-count]';
+    await evaluate(client,`document.querySelector(${q(chainRoot)}).dataset.wordplayRoot=''`);
+    await setInputByLabel(client,'Nächstes Kettenwort','Maus');
+    await clickMathText(chainRoot,'Senden');
+    await waitFor(client,'wordchain rejects an incorrect first letter',`document.querySelector(${q(chainRoot+' [role="status"]')})?.textContent.includes("'R'") && document.querySelector(${q(chainRoot)}).dataset.wordchainCount==='4'`);
+    await clickMathText(chainRoot,'💡 Tipp');
+    await waitFor(client,'wordchain offers real R word hints',`Array.from(document.querySelectorAll(${q(chainRoot+' button')})).some(b=>b.textContent.trim().startsWith('Robbe')||b.textContent.trim().startsWith('Rakete')||b.textContent.trim().startsWith('Regen')||b.textContent.trim().startsWith('Ring')||b.textContent.trim().startsWith('Rad'))`);
+    const appended=['Robbe','Ente','Eis','Sonne','Erde','Eimer','Rad','Dach','Hund','Dino','Opa','Ast','Tanne'];
+    for(const word of appended){await setInputByLabel(client,'Nächstes Kettenwort',word);await clickMathText(chainRoot,'Senden');}
+    await waitFor(client,'wordchain stores seventeen actual chain words',`document.querySelector(${q(chainRoot)}).dataset.wordchainCount==='17'`);
+    await setInputByLabel(client,'Nächstes Kettenwort','Esel');await clickMathText(chainRoot,'Senden');
+    await waitFor(client,'wordchain rejects a duplicate',`document.querySelector(${q(chainRoot+' [role="status"]')})?.textContent.includes('bereits verwendet') && document.querySelector(${q(chainRoot)}).dataset.wordchainCount==='17'`);
+    await clickMathText(chainRoot,'Zurück ⬅️');
+    await waitFor(client,'wordchain removes precisely its last word',`document.querySelector(${q(chainRoot)}).dataset.wordchainCount==='16' && document.querySelector(${q(chainRoot)}).dataset.wordchainLetter==='T'`);
+    while(!await evaluate(client,`document.querySelector(${q(chainRoot+' [aria-label="Vorherige Kettenseite"]')}).disabled`))await clickSelector(client,chainRoot+' [aria-label="Vorherige Kettenseite"]');
+    const chainWords=[];
+    for(let page=0;page<10;page++){await waitFor(client,'wordchain page '+page+' remains readable',languageFits(chainRoot));chainWords.push(...await evaluate(client,`Array.from(document.querySelectorAll(${q(chainRoot+' [data-chain-word]')})).map(b=>b.dataset.chainWord)`));if(await evaluate(client,`document.querySelector(${q(chainRoot+' [aria-label="Nächste Kettenseite"]')}).disabled`))break;await clickSelector(client,chainRoot+' [aria-label="Nächste Kettenseite"]');}
+    if(JSON.stringify(chainWords)!==JSON.stringify(['Esel','Löwe','Elefant','Tiger',...appended.slice(0,-1)]))throw Error('Wortketten pages lost real words');
+    await setInputByLabel(client,'Nächstes Kettenwort','Tanne');
+    await auditMenu('wordchain','Minimieren');await openAuditWidget('wordchain','Wortketten-Spiel');
+    await waitFor(client,'wordchain restores chain and draft',`document.querySelector(${q(chainRoot)}).dataset.wordchainCount==='16' && document.querySelector(${q(chainRoot+' input')}).value==='Tanne'`);
+    await evaluate(client,`document.querySelector(${q(chainRoot)}).dataset.wordplayRoot=''`);await wordplayScreens('wordchain');await auditMenu('wordchain','Widget schließen');
+
+    await openAuditWidget('wordgrid','Buchstaben-Suchgitter');await auditWidgetMinimum('wordgrid');
+    const gridRoot='[data-widget-type="wordgrid"] [data-wordgrid-difficulty]';
+    for(const [difficulty,label,count,size] of [['easy','Leicht (5×5)',3,5],['medium','Mittel (6×6)',4,6],['hard','Schwer (9×9)',5,9]]){
+      await clickMathText(gridRoot,label);
+      await waitFor(client,'wordgrid '+difficulty+' has the expected genuine grid',`document.querySelectorAll(${q(gridRoot+' [data-grid-cell]')}).length===${size*size} && document.querySelector(${q(gridRoot)}).dataset.wordgridDifficulty===${q(difficulty)}`);
+      await clickSelector(client,gridRoot+' [data-grid-cell="0-0"]');
+      await evaluate(client,`Array.from(document.querySelectorAll(${q(gridRoot+' button')})).find(b=>b.textContent.startsWith('Wort prüfen')).click()`);
+      await waitFor(client,'wordgrid rejects a single unrelated letter',`document.querySelector(${q(gridRoot)}).dataset.wordgridStars==='0' && document.querySelector(${q(gridRoot+' [role="status"]')}).textContent.includes('Kein passendes Wort')`);
+      const targets=await evaluate(client,`Array.from(document.querySelectorAll(${q(gridRoot+' [data-grid-target]')})).map(b=>b.dataset.gridTarget)`);
+      if(targets.length!==count)throw Error('Unexpected target count');
+      for(const word of targets){
+        const path=await evaluate(client,`(() => {const cells=Array.from(document.querySelectorAll(${q(gridRoot+' [data-grid-cell]')})),map=new Map(cells.map(b=>[b.dataset.gridCell,b.textContent.trim()]));for(let r=0;r<${size};r++)for(let c=0;c<${size};c++)for(const [dr,dc] of [[0,1],[1,0]]){const keys=Array.from({length:${word.length}},(_,i)=>(r+i*dr)+'-'+(c+i*dc));if(keys.map(k=>map.get(k)||'').join('')===${q(word)})return keys;}return null;})()`);
+        if(!path)throw Error('Impossible requested word: '+word);
+        for(const key of path)await clickSelector(client,gridRoot+' [data-grid-cell="'+key+'"]');
+        await evaluate(client,`Array.from(document.querySelectorAll(${q(gridRoot+' button')})).find(b=>b.textContent.startsWith('Wort prüfen')).click()`);
+        await waitFor(client,'wordgrid actually accepts '+word,`document.querySelector(${q(gridRoot+' [data-grid-target="'+word+'"]')}).dataset.gridFound==='true'`);
+      }
+      await waitFor(client,'wordgrid '+difficulty+' completes all requested words',`document.querySelector(${q(gridRoot)}).dataset.wordgridStars===${q(String(count))} && document.querySelector(${q(gridRoot+' [role="status"]')}).textContent.includes('alle Wörter')`);
+      await waitFor(client,'wordgrid '+difficulty+' all letters and controls fit',languageFits(gridRoot));
+    }
+    const gridSnapshot=await evaluate(client,`Array.from(document.querySelectorAll(${q(gridRoot+' [data-grid-cell]')})).map(b=>b.textContent).join('')`);
+    await auditMenu('wordgrid','Minimieren');await openAuditWidget('wordgrid','Buchstaben-Suchgitter');
+    await waitFor(client,'wordgrid restores the exact solved hard grid and stars',`document.querySelector(${q(gridRoot)}).dataset.wordgridDifficulty==='hard' && document.querySelector(${q(gridRoot)}).dataset.wordgridStars==='5' && Array.from(document.querySelectorAll(${q(gridRoot+' [data-grid-cell]')})).map(b=>b.textContent).join('')===${q(gridSnapshot)}`);
+    await evaluate(client,`document.querySelector(${q(gridRoot)}).dataset.wordplayRoot=''`);await wordplayScreens('wordgrid');await auditMenu('wordgrid','Widget schließen');
+
+    await openAuditWidget('wordscramble','Wort-Salat');await auditWidgetMinimum('wordscramble');
+    const saladRoot='[data-widget-type="wordscramble"] [data-wordscramble-difficulty]';
+    await clickMathText(saladRoot,'Experte');
+    await waitFor(client,'word salad expert loads its eleven-letter first task',`document.querySelector(${q(saladRoot)}).dataset.wordscrambleDifficulty==='expert' && document.querySelectorAll(${q(saladRoot+' [data-scramble-letter]')}).length===11`);
+    const chooseSaladLetter=async char=>{await evaluate(client,`Array.from(document.querySelectorAll(${q(saladRoot+' [data-scramble-letter]')})).find(b=>!b.disabled&&b.textContent.trim()===${q(char)}).click()`);};
+    await chooseSaladLetter('A');await chooseSaladLetter('H');
+    await waitFor(client,'word salad does not accept a wrong prefix',`document.querySelector(${q(saladRoot)}).dataset.wordscrambleSolved==='false' && document.querySelector(${q(saladRoot)}).dataset.wordscrambleScore==='0'`);
+    await clickMathText(saladRoot,'Tipp 💡');
+    await waitFor(client,'word salad hint reuses a misplaced selected letter',`Array.from(document.querySelectorAll(${q(saladRoot+' [data-scramble-slot]')})).map(b=>b.textContent.trim()).join('')==='H'`);
+    await clickMathText(saladRoot,'Tipp 💡');
+    await waitFor(client,'word salad second hint adds the next real letter',`Array.from(document.querySelectorAll(${q(saladRoot+' [data-scramble-slot]')})).map(b=>b.textContent.trim()).join('')==='HA'`);
+    for(const char of 'USAUFGABE')await chooseSaladLetter(char);
+    await waitFor(client,'word salad scores the real solved expert word exactly once',`document.querySelector(${q(saladRoot)}).dataset.wordscrambleSolved==='true' && document.querySelector(${q(saladRoot)}).dataset.wordscrambleScore==='1'`);
+    await auditMenu('wordscramble','Minimieren');await openAuditWidget('wordscramble','Wort-Salat');
+    await waitFor(client,'word salad restores solution without scoring it twice',`document.querySelector(${q(saladRoot)}).dataset.wordscrambleSolved==='true' && document.querySelector(${q(saladRoot)}).dataset.wordscrambleScore==='1'`);
+    await evaluate(client,`document.querySelector(${q(saladRoot)}).dataset.wordplayRoot=''`);await wordplayScreens('wordscramble');
+    await clickMathText(saladRoot,'Nächstes Wort ➔');await waitFor(client,'word salad next task clears the previous answer',`document.querySelector(${q(saladRoot)}).dataset.wordscrambleIndex==='1' && document.querySelector(${q(saladRoot)}).dataset.wordscrambleSolved==='false'`);await auditMenu('wordscramble','Widget schließen');
+
+    await openAuditWidget('secretcode','Geheimsprachen-Box');await auditWidgetMinimum('secretcode');
+    const codeRoot='[data-widget-type="secretcode"] [data-secretcode-method]';
+    await setInputByLabel(client,'Klartext','XYZ ABC!');await setInputByLabel(client,'Caesar-Verschiebung','10');
+    await waitFor(client,'Caesar encryption wraps Z to A correctly',`document.querySelector(${q(codeRoot+' output')}).textContent.trim()==='HIJ KLM!'`);
+    await clickMathText(codeRoot,'ROT13');
+    await waitFor(client,'ROT13 displays the independently calculated code',`document.querySelector(${q(codeRoot+' output')}).textContent.trim()==='KLM NOP!'`);
+    await setInputByLabel(client,'Klartext','KLM NOP!');await waitFor(client,'ROT13 decrypts the same message',`document.querySelector(${q(codeRoot+' output')}).textContent.trim()==='XYZ ABC!'`);
+    await auditMenu('secretcode','Minimieren');await openAuditWidget('secretcode','Geheimsprachen-Box');
+    await waitFor(client,'secret code restores method text and encoded result',`document.querySelector(${q(codeRoot)}).dataset.secretcodeMethod==='rot13' && document.querySelector(${q(codeRoot+' input')}).value==='KLM NOP!' && document.querySelector(${q(codeRoot+' output')}).textContent.trim()==='XYZ ABC!'`);
+    await evaluate(client,`document.querySelector(${q(codeRoot)}).dataset.wordplayRoot=''`);await wordplayScreens('secretcode');await auditMenu('secretcode','Widget schließen');
+
+    await openAuditWidget('storyemojis','Story-Emojis');await auditWidgetMinimum('storyemojis');
+    const storyRoot='[data-widget-type="storyemojis"] [id^="storyemojis-widget-"]',storyDialog='dialog[open][aria-label="Story-Emojis Einstellungen"]';
+    await clickSelector(client,'[data-widget-type="storyemojis"] .cockpit-widget-settings-trigger');
+    await waitFor(client,'Story Emojis gear opens the native editor',`Boolean(document.querySelector(${q(storyDialog)}))`);
+    await clickSelector(client,storyDialog+' #storyemojis-popover-count-6');
+    await setInputByLabel(client,'Oder eigener Arbeitsauftrag:','Erzähle eine Geschichte über Freundschaft.');await clickMathText(storyDialog,'Setzen');
+    await clickSelector(client,storyDialog+' #storyemojis-toggle-labels-btn');
+    await pressAuditKey('Escape');
+    await waitFor(client,'Story Emojis editor closes and returns gear focus',`!document.querySelector(${q(storyDialog)}) && document.activeElement?.matches('[data-widget-type="storyemojis"] .cockpit-widget-settings-trigger')`);
+    await waitFor(client,'Story Emojis displays six impulses and the teacher prompt',`document.querySelectorAll(${q(storyRoot+' [data-story-emoji-id]')}).length===6 && document.querySelector(${q(storyRoot)}).textContent.includes('Erzähle eine Geschichte über Freundschaft.')`);
+    const firstStoryId=await evaluate(client,`document.querySelector(${q(storyRoot+' #storyemojis-card-0')}).dataset.storyEmojiId`);
+    await clickSelector(client,storyRoot+' #storyemojis-lock-toggle-0');await clickSelector(client,storyRoot+' #storyemojis-roll-new-button');
+    await waitFor(client,'Story Emojis locked picture survives a new story',`document.querySelector(${q(storyRoot+' #storyemojis-card-0')}).dataset.storyEmojiId===${q(firstStoryId)} && document.querySelector(${q(storyRoot+' #storyemojis-card-0')}).dataset.storyLocked==='true'`);
+    await clickSelector(client,storyRoot+' #storyemojis-move-right-0');
+    await waitFor(client,'Story Emojis moves the real locked picture one position',`document.querySelector(${q(storyRoot+' #storyemojis-card-1')}).dataset.storyEmojiId===${q(firstStoryId)} && document.querySelector(${q(storyRoot+' #storyemojis-card-1')}).dataset.storyLocked==='true'`);
+    const secondStoryId=await evaluate(client,`document.querySelector(${q(storyRoot+' #storyemojis-card-0')}).dataset.storyEmojiId`);
+    await clickSelector(client,storyRoot+' #storyemojis-reroll-item-0');
+    await waitFor(client,'Story Emojis replaces only the requested unlocked picture',`document.querySelector(${q(storyRoot+' #storyemojis-card-0')}).dataset.storyEmojiId!==${q(secondStoryId)} && document.querySelector(${q(storyRoot+' #storyemojis-card-1')}).dataset.storyEmojiId===${q(firstStoryId)}`);
+    const storySnapshot=await evaluate(client,`Array.from(document.querySelectorAll(${q(storyRoot+' [data-story-emoji-id]')})).map(b=>[b.dataset.storyEmojiId,b.dataset.storyLocked])`);
+    await auditMenu('storyemojis','Minimieren');await openAuditWidget('storyemojis','Story-Emojis');
+    await waitFor(client,'Story Emojis restores exact picture order locks and teacher prompt',`JSON.stringify(Array.from(document.querySelectorAll(${q(storyRoot+' [data-story-emoji-id]')})).map(b=>[b.dataset.storyEmojiId,b.dataset.storyLocked]))===${q(JSON.stringify(storySnapshot))} && document.querySelector(${q(storyRoot)}).textContent.includes('Erzähle eine Geschichte über Freundschaft.')`);
+    await evaluate(client,`document.querySelector(${q(storyRoot)}).dataset.wordplayRoot=''`);await wordplayScreens('storyemojis');await auditMenu('storyemojis','Widget schließen');
+    console.log('✓ Five wordplay widgets: paged real chains/errors/hints/drafts, all grid words solved at every level including 9×9, expert anagram/hint repair/scoring, Caesar wrap and ROT13 roundtrip, six story images/lock/move/reroll/prompt/native gear, exact minimums and restore.');
+
 
     console.log('✓ Widget block: groups stay in widget, real wheel winner restored, all star children reachable without inner scrolling.');
     console.log('✓ Widget block: 12 widgets checked; stopwatch pause and traffic light mode survive restore.');

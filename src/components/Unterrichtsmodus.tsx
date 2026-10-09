@@ -11528,6 +11528,8 @@ ${content}
                                       return (
                                         <StoryemojisWidgetContent
                                           widget={widget}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                           currentIsLight={currentIsLight}
                                           onUpdate={(updates) =>
                                             handleUpdateWidgetPos(

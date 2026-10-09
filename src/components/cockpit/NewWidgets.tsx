@@ -464,6 +464,8 @@ export const StoryemojisWidgetContent: React.FC<{
   currentIsLight: boolean;
   onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
   isFullscreen?: boolean;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
 }> = (props) => {
   return <StoryEmojisWidget {...props} />;
 };

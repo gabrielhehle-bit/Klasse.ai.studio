@@ -11,6 +11,8 @@ on:
       - 'src/components/cockpit/widgetLayout.ts'
       - 'src/components/cockpit/widgets/LernwoerterStudioWidget.tsx'
       - 'src/components/cockpit/widgets/WortSatzWerkstattWidget.tsx'
+      - 'src/components/cockpit/widgets/StoryEmojisWidget.tsx'
+      - 'src/lib/wordgridGame.ts'
       - 'src/lib/cockpitWidgetCatalog.ts'
       - 'src/lib/mentalMathAlgorithm.ts'
       - 'src/lib/sortingWidgetModel.ts'
