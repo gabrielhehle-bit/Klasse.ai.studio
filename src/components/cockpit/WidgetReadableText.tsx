@@ -10,6 +10,7 @@ export function WidgetReadableText({ text, title, className = '', onShortClick, 
   shortLabel?: string;
 }) {
   const previewRef = useRef<HTMLSpanElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [clipped, setClipped] = useState(false);
   const [open, setOpen] = useState(false);
@@ -31,7 +32,7 @@ export function WidgetReadableText({ text, title, className = '', onShortClick, 
   }, [open]);
   const read = clipped || !onShortClick;
   return <>
-    <button type="button" data-widget-text-reader={clipped ? 'true' : undefined}
+    <button ref={triggerRef} type="button" data-widget-text-reader={clipped ? 'true' : undefined}
       aria-label={read ? `${title} vollständig lesen` : shortLabel}
       onClick={event => { if (read) { event.currentTarget.focus(); setOpen(true); } else onShortClick?.(); }}
       className={`block min-h-11 w-full min-w-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${className}`}>
@@ -39,7 +40,8 @@ export function WidgetReadableText({ text, title, className = '', onShortClick, 
       {clipped && <span className="block text-xs font-bold underline">Ganz lesen ↗</span>}
     </button>
     {open && createPortal(<dialog ref={dialogRef} aria-label={`${title} vollständig lesen`}
-      onClose={() => setOpen(false)}
+      onClose={() => { setOpen(false); triggerRef.current?.focus(); }}
+      onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); dialogRef.current?.close(); } }}
       className="fixed inset-0 m-auto h-[min(85dvh,760px)] w-[min(94vw,960px)] max-w-none rounded-2xl border border-slate-300 bg-white p-0 text-slate-950 shadow-2xl backdrop:bg-slate-950/60">
       <div className="flex h-full min-h-0 flex-col">
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 p-3">
