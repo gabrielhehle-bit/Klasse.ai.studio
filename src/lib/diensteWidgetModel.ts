@@ -13,7 +13,9 @@ export function readClassDienste(
 /** One page is always reachable, even when the original widget is very small. */
 export function dienstPageWindow(total: number, width: number, height: number, page: number) {
   const columns = width >= 550 ? 2 : 1;
-  const rows = height < 320 ? 1 : height < 430 ? 2 : height < 600 ? 3 : 4;
+  // Reserve the header, page controls and padding. A row must also fit a long
+  // title and two touch-sized assignee cards; additional children use the dialog.
+  const rows = Math.max(1, Math.min(4, Math.floor((height - 112) / 340)));
   const perPage = columns * rows;
   const pageCount = Math.max(1, Math.ceil(Math.max(0, total) / perPage));
   const current = Math.max(0, Math.min(pageCount - 1, Math.floor(Number.isFinite(page) ? page : 0)));

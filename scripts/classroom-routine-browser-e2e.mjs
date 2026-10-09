@@ -776,6 +776,27 @@ async function main() {
     await waitFor(client,'long duty title saved',"document.querySelector("+q('#'+firstDienst+' [data-widget-text-preview]')+").textContent === "+q(longDienstTitle));
     // Restoring the widget animates its scale; measure the settled touch targets.
     await waitFor(client,'duty title reading action and controls fit after restore',"(() => {const root=document.querySelector("+q('#'+firstDienst)+"),r=root.getBoundingClientRect(),reader=root.querySelector('[data-widget-text-preview]').closest('button');return reader.getBoundingClientRect().width>=100 && Array.from(root.querySelectorAll('button[title=\"Kinder zuordnen\"],button[title=\"Dienst umbenennen\"],button[title=\"Dienst löschen\"]')).every(b=>{const t=b.getBoundingClientRect();return t.height>=44 && t.left>=r.left && t.right<=r.right+1;});})()");
+    const dutyFits="(() => {const root=document.querySelector('#widget-dienste-container'),body=document.querySelector('#dienste-content-scrollable'),b=body.getBoundingClientRect(),r=root.getBoundingClientRect(),pages=root.querySelector('[aria-label=\"Klassendienste-Seiten\"]'),p=pages?.getBoundingClientRect(),controls=Array.from(body.querySelectorAll('button'));return body.scrollHeight<=body.clientHeight+1 && body.scrollWidth<=body.clientWidth+1 && controls.every(control=>{const c=control.getBoundingClientRect();return c.height>=44 && c.left>=b.left && c.right<=b.right+1 && c.top>=b.top && c.bottom<=b.bottom+1;}) && (!pages || (!body.contains(pages) && p.top>=b.bottom-1 && p.bottom<=r.bottom+1 && Array.from(pages.querySelectorAll('button')).every(button=>button.getBoundingClientRect().height>=44)));})()";
+    const assertDutyFits=async () => {
+      try { await waitFor(client,'duty content and page controls fit without scrolling',dutyFits); }
+      catch(error){ console.log('Duty layout failure',await evaluate(client,"(() => {const body=document.querySelector('#dienste-content-scrollable'),root=document.querySelector('#widget-dienste-container');return {body:body.getBoundingClientRect().toJSON(),scrollHeight:body.scrollHeight,clientHeight:body.clientHeight,root:root.getBoundingClientRect().toJSON(),buttons:Array.from(body.querySelectorAll('button')).map(b=>({title:b.title,label:b.getAttribute('aria-label'),r:b.getBoundingClientRect().toJSON()}))};})()"));throw error; }
+    };
+    const resizeDuty=async (width,height) => {
+      await waitFor(client,'duty resize interaction settled',"!document.querySelector('[data-widget-type=\"dienste\"]').hasAttribute('data-widget-interacting')");
+      await sleep(300);
+      const box=await evaluate(client,"(() => {const root=document.querySelector('[data-widget-type=\"dienste\"]'),r=root.getBoundingClientRect(),handle=root.querySelector('[data-widget-resize=\"se\"]'),h=handle.getBoundingClientRect(),x=h.x+h.width/2,y=h.y+h.height/2;return {x,y,width:r.width,height:r.height,hit:document.elementFromPoint(x,y)?.closest('[data-widget-resize]')?.dataset.widgetResize};})()");
+      if(box.hit!=='se') throw new Error('Duty resize handle is covered.');
+      await client.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:box.x,y:box.y});
+      await client.send('Input.dispatchMouseEvent',{type:'mousePressed',x:box.x,y:box.y,button:'left',clickCount:1});
+      await client.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:box.x+width-box.width,y:box.y+height-box.height,button:'left',buttons:1});
+      await client.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:box.x+width-box.width,y:box.y+height-box.height,button:'left',clickCount:1});
+      await sleep(350);
+      await waitFor(client,'requested duty widget dimensions reached',"(() => {const r=document.querySelector('[data-widget-type=\"dienste\"]').getBoundingClientRect();return Math.abs(r.width-"+width+")<3 && Math.abs(r.height-"+height+")<3;})()");
+      await assertDutyFits();
+      if(await evaluate(client,assignedState)!==dutyState) throw new Error('Resizing duties changes the original assignments.');
+      await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-duty-layout-'+width+'x'+height+'.png'));
+    };
+    for(const [width,height] of [[280,520],[380,520],[650,520],[280,520]]) await resizeDuty(width,height);
     await readLongWidgetText('dienste',longDienstTitle,'Diensttitel');
     await waitFor(client,'reading duty title keeps assignments',assignedState+" === "+q(dutyState));
     const absentDienstId=await evaluate(client,"Array.from(document.querySelectorAll("+q('#'+firstDienst+' [data-dienst-student]')+")).find(e=>e.textContent.includes('abwesend')).dataset.dienstStudent");
@@ -798,6 +819,7 @@ async function main() {
     if(!substituteId) throw new Error('No independent present substitute available.');
     await clickSelector(client,substituteDialog+' [data-dienst-substitute-choice='+q(substituteId)+']');
     await waitFor(client,'temporary substitution assigned',"!document.querySelector("+q(substituteDialog)+") && document.querySelector("+q(absentChip)+").dataset.dienstSubstitute === "+q(substituteId));
+    await assertDutyFits();
     const substitutionState=await evaluate(client,assignedState);
     await auditMenu('dienste','Minimieren');
     await openAuditWidget('dienste','Klassendienste');
@@ -872,6 +894,7 @@ async function main() {
       const before=await evaluate(client,"document.querySelector('#dienste-content-scrollable [id^=dienst-item-]').id");
       await clickSelector(client,selector);
       await waitFor(client,'duty page changed',"document.querySelector('#dienste-content-scrollable [id^=dienst-item-]').id !== "+q(before));
+      await assertDutyFits();
     };
     const readDuties=async () => {
       while(await evaluate(client,"Boolean(document.querySelector('[aria-label=\"Vorherige Klassendienste\"]:not(:disabled)'))")) await turnDutyPage('[aria-label="Vorherige Klassendienste"]');
