@@ -147,17 +147,6 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     setActiveMoodStudent(null);
   }, [checkInMode, todayStr]);
 
-  if (showStatistics) {
-    return (
-      <div ref={containerRef} className="flex h-full min-h-0 w-full flex-col overflow-auto bg-slate-50 p-2">
-        <PresenceBehaviorStats compact />
-        <button type="button" onClick={() => setShowStatistics(false)} className="mt-2 min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700">
-          Zur Anwesenheit zurück
-        </button>
-      </div>
-    );
-  }
-
   // Mode B selects one child before check-in; mode C never changes attendance.
   const handleStudentCardTap = useCallback((studentId: string) => {
     const currentStatus = getStudentAttendanceStatus(studentId, app, todayStr);
@@ -334,6 +323,18 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     window.addEventListener('klassio:checkin-frame-size', handleFrameSize);
     return () => window.removeEventListener('klassio:checkin-frame-size', handleFrameSize);
   }, [widget?.id]);
+
+  // All hooks must run in both attendance and statistics views.
+  if (showStatistics) {
+    return (
+      <div ref={containerRef} className="flex h-full min-h-0 w-full flex-col overflow-auto bg-slate-50 p-2">
+        <PresenceBehaviorStats compact />
+        <button type="button" onClick={() => setShowStatistics(false)} className="mt-2 min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700">
+          Zur Anwesenheit zurück
+        </button>
+      </div>
+    );
+  }
 
   // Keine Schüler in Klasse
   if (students.length === 0) {

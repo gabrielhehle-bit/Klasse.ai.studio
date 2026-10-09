@@ -870,6 +870,29 @@ async function main() {
     await openAuditWidget('starsreview', 'Sterne der Woche');
     await waitFor(client, 'star page survives minimize', `Array.from(document.querySelectorAll('[data-stars-student]')).map(e=>e.dataset.starsStudent).join(',') === ${q(starsState)}`);
     await auditMenu('starsreview', 'Widget schließen');
+    await openAuditWidget('kidattendance', 'Ich bin da!', 'Ich bin da!');
+    const checkInRoot = `Array.from(document.querySelectorAll('[data-widget-type="kidattendance"]')).find(el=>el.getClientRects().length)`;
+    const checkInContent = `${checkInRoot}?.querySelector('[data-widget-content]')?.textContent`;
+    const checkInBefore = await evaluate(client, checkInContent);
+    const statsTabs = `${checkInRoot}?.querySelector('[data-presence-behavior-stats] [role="tablist"]')`;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await evaluate(client, `${checkInRoot}.querySelector('button[aria-label="Ich bin da Statistik öffnen"]').click()`);
+      await waitFor(client, 'check-in statistics opens with recent weeks', `${statsTabs}?.querySelector('[aria-selected="true"]')?.textContent === 'Letzte 6 Wochen'`);
+      await evaluate(client, `Array.from(${statsTabs}.querySelectorAll('[role="tab"]')).find(b=>b.textContent==='Gesamtes Schuljahr').click()`);
+      await waitFor(client, 'check-in statistics selects school year', `${statsTabs}?.querySelector('[aria-selected="true"]')?.textContent === 'Gesamtes Schuljahr'`);
+      if (attempt === 0) {
+        await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-widget-checkin-statistics.png'));
+        await auditMenu('kidattendance', 'Minimieren');
+        await openAuditWidget('kidattendance', 'Ich bin da!', 'Ich bin da!');
+        await waitFor(client, 'check-in school year survives minimize and restore', `${statsTabs}?.querySelector('[aria-selected="true"]')?.textContent === 'Gesamtes Schuljahr'`);
+      }
+      await evaluate(client, `Array.from(${statsTabs}.querySelectorAll('[role="tab"]')).find(b=>b.textContent==='Letzte 6 Wochen').click()`);
+      await waitFor(client, 'check-in statistics returns to recent weeks', `${statsTabs}?.querySelector('[aria-selected="true"]')?.textContent === 'Letzte 6 Wochen'`);
+      await evaluate(client, `Array.from(${checkInRoot}.querySelectorAll('button')).find(b=>b.textContent.trim()==='Zur Anwesenheit zurück').click()`);
+      await waitFor(client, 'check-in attendance survives statistics round trip', `!${checkInRoot}?.querySelector('[data-presence-behavior-stats]') && ${checkInContent} === ${q(checkInBefore)}`);
+    }
+    await auditMenu('kidattendance', 'Widget schließen');
+    console.log('✓ Check-in widget: statistics opens twice, recent/year switches, selected year survives minimize, attendance remains unchanged.');
     console.log('✓ Widget block: groups stay in widget, real wheel winner restored, all star children reachable without inner scrolling.');
     console.log('✓ Widget block: 12 widgets checked; stopwatch pause and traffic light mode survive restore.');
     console.log('✓ Audit regression: calculator keys/result/restore, compass layout at 100/125/150%, QR alias/readability/title/mode restore');
