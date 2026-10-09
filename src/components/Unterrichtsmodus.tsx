@@ -1931,6 +1931,15 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     visible: false,
   },
   {
+    id: "widget-mathcards",
+    type: "mathcards",
+    x: 50,
+    y: 45,
+    w: 38,
+    h: 48,
+    visible: false,
+  },
+  {
     id: "widget-scrambler",
     type: "scrambler",
     x: 74,

@@ -60,16 +60,19 @@ test("Cockpit: alle erhaltenen Standard-Widgettypen kommen aus einem gemeinsamen
   const defaults = widgetTypes(teachingSurface.slice(defaultStart, defaultEnd));
   const catalog = widgetTypes(widgetCatalog);
 
-  assert.equal(defaults.length, 112, "Standardlayout muss alle bisherigen Typen plus Flaggenquiz enthalten");
+  assert.equal(defaults.length, 113, "Standardlayout muss alle Bibliothekswidgets und die historische Schülerliste enthalten");
   assert.equal(catalog.length, 112, "Gemeinsamer Widget-Katalog bietet alle Standardwidgets außer der doppelten Schülerliste");
   assert.match(teachingSurface, /const allAvailableWidgets = COCKPIT_WIDGET_LIBRARY_ITEMS;/);
 
-  // Historic studentlist remains in the 112-entry layout/backup schema but
+  // Historic studentlist remains in the layout/backup schema but
   // must not be offered as a duplicate of the existing student sidebar.
   assert.ok(defaults.includes("studentlist"), "Historische Schülerliste muss beim Backup-Laden erhalten bleiben");
   assert.equal(catalog.includes("studentlist"), false);
   for (const type of defaults.filter(type => type !== "studentlist")) {
     assert.ok(catalog.includes(type), `Gemeinsamer Widget-Katalog kennt ${type} nicht`);
+  }
+  for (const type of catalog) {
+    assert.ok(defaults.includes(type), `Bibliothekswidget ${type} braucht ein öffnungsfähiges Standardlayout`);
   }
 });
 
