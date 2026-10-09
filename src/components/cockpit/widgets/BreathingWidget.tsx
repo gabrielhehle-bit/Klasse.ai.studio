@@ -306,6 +306,9 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
     <div
       ref={containerRef}
       id={`breathing-widget-${widget.id}`}
+      data-breathing-running={isRunning}
+      data-breathing-elapsed={elapsedTotalSeconds}
+      data-breathing-phase={currentPhaseState.phase}
       className={`w-full h-full flex flex-col justify-between select-none overflow-hidden ${
         currentIsLight ? 'text-slate-800' : 'text-slate-100'
       } ${
@@ -380,6 +383,7 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
       {/* 2. Hauptbereich: Zentraler Atemkreis mit animierter Ausdehnung */}
       <div className="flex-grow flex flex-col items-center justify-center min-h-0 relative my-auto py-2">
         <div
+          data-breathing-visual
           className="relative flex items-center justify-center shrink-0"
           style={{ width: `${circleBaseSize}px`, height: `${circleBaseSize}px` }}
         >
@@ -453,7 +457,8 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
       </div>
 
       {/* 3. Steuerleiste: Start/Pause, Dauerwahl & Rhythmus */}
-      <div className="shrink-0 flex flex-col gap-2 mt-1">
+      <div data-breathing-controls
+        className="shrink-0 flex flex-col gap-2 mt-1">
         {/* Haupt-Buttons: Start/Pause & Reset */}
         <div className="flex items-center gap-2">
           <button
@@ -501,7 +506,7 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
         {/* Dauer-Presets & Rhythmus (in STANDARD/LARGE/FULLSCREEN oder aufklappbar) */}
         <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] pt-1 border-t border-slate-100 dark:border-white/5">
           {/* Dauer */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="opacity-60 text-[10px] font-semibold">Dauer:</span>
             {durationOptions.map((opt) => {
               const isSelected = settings.durationPreset === opt.value;
@@ -510,6 +515,7 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
                   key={String(opt.value)}
                   type="button"
                   aria-pressed={isSelected}
+                  aria-label={`Atemdauer ${opt.label}`}
                   onClick={() => handleSelectPreset(opt.value)}
                   style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
                   className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
@@ -527,8 +533,8 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
           </div>
 
           {/* Rhythmus (nur bei Standard / Large / Fullscreen) */}
-          {size.category !== 'compact' && (
-            <div className="flex items-center gap-1">
+          {(
+            <div className="flex flex-wrap items-center gap-1">
               <span className="opacity-60 text-[10px] font-semibold">Muster:</span>
               {rhythmOptions.map((r) => {
                 const isSelected = settings.rhythm === r.value;
@@ -537,6 +543,7 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
                     key={r.value}
                      type="button"
                      aria-pressed={isSelected}
+                    aria-label={`Atemmuster ${r.label}`}
                     onClick={() => handleSelectRhythm(r.value)}
                      style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
                     className={`px-1.5 py-0.5 rounded-md text-[10px] font-semibold transition-all cursor-pointer whitespace-nowrap ${

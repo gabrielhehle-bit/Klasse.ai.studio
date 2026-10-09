@@ -236,6 +236,8 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
     <div
       ref={containerRef}
       id={`calmrain-widget-${widget.id}`}
+      data-calm-playing={isPlaying}
+      data-calm-remaining={secondsRemaining ?? "endless"}
       className={`w-full h-full flex flex-col justify-between select-none overflow-hidden ${
         currentIsLight ? 'text-slate-800' : 'text-slate-100'
       } ${
@@ -344,7 +346,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                 value={settings.masterVolume}
                 onChange={(e) => handleMasterVolumeChange(Number(e.target.value))}
                 aria-label="Gesamtlautstärke"
-                className="w-full accent-blue-600 cursor-pointer h-2 rounded-lg bg-slate-200 dark:bg-zinc-700"
+                className="w-full accent-blue-600 cursor-pointer h-11 rounded-lg bg-slate-200 dark:bg-zinc-700"
               />
             </div>
 
@@ -426,7 +428,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                           value={settings.volumes[track.id]}
                           onChange={(e) => handleTrackVolumeChange(track.id, Number(e.target.value))}
                           aria-label={`Lautstärke für ${track.label}`}
-                          className={`w-full h-1.5 rounded-lg accent-blue-600 cursor-pointer ${
+                          className={`w-full h-11 rounded-lg accent-blue-600 cursor-pointer ${
                             !isActive ? 'opacity-30 cursor-not-allowed' : ''
                           }`}
                         />
@@ -473,7 +475,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                   type="button"
                   onClick={toggleMasterMute}
                   title={isAllMuted ? "Ton an" : "Stummschalten"}
-                  aria-label="Lautstärke stummschalten"
+                  aria-label={isAllMuted ? "Lautstärke einschalten" : "Lautstärke stummschalten"}
                   style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
                   className={`p-2 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
                     isAllMuted
@@ -497,7 +499,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                   value={settings.masterVolume}
                   onChange={(e) => handleMasterVolumeChange(Number(e.target.value))}
                   aria-label="Master-Lautstärke"
-                  className="w-full accent-blue-600 cursor-pointer h-2 rounded-lg bg-slate-200 dark:bg-zinc-700"
+                  className="w-full accent-blue-600 cursor-pointer h-11 rounded-lg bg-slate-200 dark:bg-zinc-700"
                 />
                 <span className="font-mono text-xs w-8 text-right">{settings.masterVolume}%</span>
               </div>
@@ -578,7 +580,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                         value={volume}
                         onChange={(e) => handleTrackVolumeChange(track.id, Number(e.target.value))}
                         aria-label={`Lautstärke ${track.label}`}
-                        className={`w-full h-1.5 rounded-lg accent-blue-600 cursor-pointer ${
+                        className={`w-full h-11 rounded-lg accent-blue-600 cursor-pointer ${
                           !isActive ? 'opacity-30 cursor-not-allowed' : ''
                         }`}
                       />
@@ -608,6 +610,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                 key={String(opt.value)}
                  type="button"
                  aria-pressed={isSelected}
+                aria-label={`Klangdauer ${opt.label}`}
                 onClick={() => handleSelectTimer(opt.value)}
                  style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
                 className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
