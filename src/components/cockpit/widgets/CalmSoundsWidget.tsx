@@ -236,6 +236,8 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
     <div
       ref={containerRef}
       id={`calmrain-widget-${widget.id}`}
+      data-calm-playing={isPlaying}
+      data-calm-remaining={secondsRemaining ?? "endless"}
       className={`w-full h-full flex flex-col justify-between select-none overflow-hidden ${
         currentIsLight ? 'text-slate-800' : 'text-slate-100'
       } ${
@@ -297,59 +299,73 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
         )}
       </div>
 
-      {/* 2. Hauptbereich: Je nach Kategorie COMPACT vs STANDARD/LARGE/FULLSCREEN */}
-      <div className="flex-grow flex flex-col justify-center min-h-0 overflow-y-auto overflow-x-hidden gap-2.5 py-1">
-        
-        {/* COMPACT LAYOUT (280–379 px) */}
-        {size.category === 'compact' ? (
-          <div className="flex flex-col gap-2.5 my-auto">
-            {/* Großer Start / Stopp Button */}
-            <button
+      {/* Primary controls stay reachable while the track mixer scrolls. */}
+      <div data-calm-primary className="shrink-0 my-2">
+            {/* Hauptsteuerleiste: Start/Stopp & Gesamtlautstärke */}
+            <div className={`p-3 rounded-2xl border flex flex-col items-center justify-between gap-3 ${
+              currentIsLight ? 'bg-slate-50 border-slate-200/90' : 'bg-zinc-900/70 border-white/5'
+            }`}>
+              <div className="flex items-center gap-3 w-full">
+                <button
                 type="button"
-              id={`calmrain-toggle-btn-${widget.id}`}
-              onClick={isPlaying ? handleStop : handleStart}
-              style={{ minHeight: `${TOUCH_TARGET_MIN}px` }}
-              className={`w-full py-2.5 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm ${
-                isPlaying
-                  ? 'bg-rose-500 hover:bg-rose-600 text-white'
-                  : SMARTBOARD_PRIMARY_ACTION_CLASS
-              }`}
-            >
-              {isPlaying ? (
-                <>
-                  <Square size={16} className="fill-current" />
-                  <span>Stoppen</span>
-                </>
-              ) : (
-                <>
-                  <Play size={16} className="fill-current" />
-                  <span>Klänge starten</span>
-                </>
-              )}
-            </button>
+                  id={`calmrain-toggle-btn-${widget.id}`}
+                  onClick={isPlaying ? handleStop : handleStart}
+                  style={{ minHeight: `${TOUCH_TARGET_MIN}px` }}
+                  className={`flex-1 px-5 py-2 rounded-xl font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm text-sm ${
+                    isPlaying
+                      ? 'bg-rose-500 hover:bg-rose-600 text-white'
+                      : SMARTBOARD_PRIMARY_ACTION_CLASS
+                  }`}
+                >
+                  {isPlaying ? (
+                    <>
+                      <Square size={16} className="fill-current" />
+                      <span>Stoppen</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play size={16} className="fill-current" />
+                      <span>Klänge starten</span>
+                    </>
+                  )}
+                </button>
 
-            {/* Master Lautstärke Slider */}
-            <div className={`p-2 rounded-xl border ${currentIsLight ? 'bg-slate-50 border-slate-200/80' : 'bg-zinc-900/60 border-white/5'}`}>
-              <div className="flex items-center justify-between text-[11px] font-semibold mb-1">
-                <span className="flex items-center gap-1.5">
-                  <Volume2 size={13} />
-                  Gesamtlautstärke
-                </span>
-                <span className="font-mono">{settings.masterVolume}%</span>
+                <button
+                  type="button"
+                  onClick={toggleMasterMute}
+                  title={isAllMuted ? "Ton an" : "Stummschalten"}
+                  aria-label={isAllMuted ? "Lautstärke einschalten" : "Lautstärke stummschalten"}
+                  style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
+                  className={`p-2 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
+                    isAllMuted
+                      ? 'bg-rose-500/10 text-rose-500 border-rose-300 dark:border-rose-800'
+                      : currentIsLight
+                      ? 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
+                      : 'bg-zinc-800 border-zinc-700 text-slate-300 hover:bg-zinc-700'
+                  }`}
+                >
+                  {isAllMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                </button>
               </div>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={settings.masterVolume}
-                onChange={(e) => handleMasterVolumeChange(Number(e.target.value))}
-                aria-label="Gesamtlautstärke"
-                className="w-full accent-blue-600 cursor-pointer h-2 rounded-lg bg-slate-200 dark:bg-zinc-700"
-              />
+
+              {/* Master Volume Slider */}
+              <div className="w-full flex items-center gap-2">
+                <span className="text-xs font-semibold whitespace-nowrap opacity-80">Master:</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={settings.masterVolume}
+                  onChange={(e) => handleMasterVolumeChange(Number(e.target.value))}
+                  aria-label="Master-Lautstärke"
+                  className="w-full accent-blue-600 cursor-pointer h-11 rounded-lg bg-slate-200 dark:bg-zinc-700"
+                />
+                <span className="font-mono text-xs w-8 text-right">{settings.masterVolume}%</span>
+              </div>
             </div>
 
-            {/* Schnellauswahl der Klangspuren als Chips */}
-            <div>
+      </div>
+      {size.category === 'compact' && (
               <div className="flex items-center justify-between text-[11px] font-bold opacity-70 uppercase tracking-wider mb-1.5">
                 <span>Klangquellen ({activeTrackCount})</span>
                 <button
@@ -364,6 +380,17 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                 </button>
               </div>
 
+      )}
+
+      {/* 2. Hauptbereich: Je nach Kategorie COMPACT vs STANDARD/LARGE/FULLSCREEN */}
+      <div data-calm-mixer
+        className="flex-grow flex flex-col min-h-0 overflow-y-auto overflow-x-hidden gap-2.5 py-1">
+        
+        {/* COMPACT LAYOUT (280–379 px) */}
+        {size.category === 'compact' ? (
+          <div className="flex flex-col gap-2.5">
+            {/* Schnellauswahl der Klangspuren als Chips */}
+            <div>
               {!showMixerDetails ? (
                 <div className="grid grid-cols-2 gap-2">
                   {CALM_TRACKS.map((track) => {
@@ -407,7 +434,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                         }`}
                       >
                         <div className="flex items-center justify-between mb-1">
-                          <label className="flex items-center gap-1.5 font-semibold cursor-pointer">
+                          <label className="flex min-h-11 items-center gap-1.5 font-semibold cursor-pointer">
                             <input
                               type="checkbox"
                               checked={isActive}
@@ -426,7 +453,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                           value={settings.volumes[track.id]}
                           onChange={(e) => handleTrackVolumeChange(track.id, Number(e.target.value))}
                           aria-label={`Lautstärke für ${track.label}`}
-                          className={`w-full h-1.5 rounded-lg accent-blue-600 cursor-pointer ${
+                          className={`w-full h-11 rounded-lg accent-blue-600 cursor-pointer ${
                             !isActive ? 'opacity-30 cursor-not-allowed' : ''
                           }`}
                         />
@@ -439,70 +466,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
           </div>
         ) : (
           /* STANDARD / LARGE / FULLSCREEN LAYOUT */
-          <div className="flex flex-col gap-3 my-auto">
-            {/* Hauptsteuerleiste: Start/Stopp & Gesamtlautstärke */}
-            <div className={`p-3 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-3 ${
-              currentIsLight ? 'bg-slate-50 border-slate-200/90' : 'bg-zinc-900/70 border-white/5'
-            }`}>
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <button
-                type="button"
-                  id={`calmrain-toggle-btn-${widget.id}`}
-                  onClick={isPlaying ? handleStop : handleStart}
-                  style={{ minHeight: `${TOUCH_TARGET_MIN}px` }}
-                  className={`flex-1 sm:flex-initial px-5 py-2 rounded-xl font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm text-sm ${
-                    isPlaying
-                      ? 'bg-rose-500 hover:bg-rose-600 text-white'
-                      : SMARTBOARD_PRIMARY_ACTION_CLASS
-                  }`}
-                >
-                  {isPlaying ? (
-                    <>
-                      <Square size={16} className="fill-current" />
-                      <span>Stoppen</span>
-                    </>
-                  ) : (
-                    <>
-                      <Play size={16} className="fill-current" />
-                      <span>Klänge starten</span>
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={toggleMasterMute}
-                  title={isAllMuted ? "Ton an" : "Stummschalten"}
-                  aria-label="Lautstärke stummschalten"
-                  style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
-                  className={`p-2 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
-                    isAllMuted
-                      ? 'bg-rose-500/10 text-rose-500 border-rose-300 dark:border-rose-800'
-                      : currentIsLight
-                      ? 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
-                      : 'bg-zinc-800 border-zinc-700 text-slate-300 hover:bg-zinc-700'
-                  }`}
-                >
-                  {isAllMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                </button>
-              </div>
-
-              {/* Master Volume Slider */}
-              <div className="w-full sm:w-56 flex items-center gap-2">
-                <span className="text-xs font-semibold whitespace-nowrap opacity-80">Master:</span>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={settings.masterVolume}
-                  onChange={(e) => handleMasterVolumeChange(Number(e.target.value))}
-                  aria-label="Master-Lautstärke"
-                  className="w-full accent-blue-600 cursor-pointer h-2 rounded-lg bg-slate-200 dark:bg-zinc-700"
-                />
-                <span className="font-mono text-xs w-8 text-right">{settings.masterVolume}%</span>
-              </div>
-            </div>
-
+          <div className="flex flex-col gap-3">
             {/* Kachel-Raster für die 5 Naturklänge */}
             <div className={`grid gap-2 ${
               size.category === 'fullscreen'
@@ -578,7 +542,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                         value={volume}
                         onChange={(e) => handleTrackVolumeChange(track.id, Number(e.target.value))}
                         aria-label={`Lautstärke ${track.label}`}
-                        className={`w-full h-1.5 rounded-lg accent-blue-600 cursor-pointer ${
+                        className={`w-full h-11 rounded-lg accent-blue-600 cursor-pointer ${
                           !isActive ? 'opacity-30 cursor-not-allowed' : ''
                         }`}
                       />
@@ -608,6 +572,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                 key={String(opt.value)}
                  type="button"
                  aria-pressed={isSelected}
+                aria-label={`Klangdauer ${opt.label}`}
                 onClick={() => handleSelectTimer(opt.value)}
                  style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
                 className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer whitespace-nowrap ${

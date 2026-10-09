@@ -1422,6 +1422,79 @@ async function main() {
       await auditMenu(type, 'Widget schließen');
     }
     console.log('✓ Scoreboard/class goals: real points, correction, tied winners, new round cancellation/confirmation, step restore; all three goal variants validate settings, reach/reset goal and restore progress.');
+    await openAuditWidget('breathing', 'Atempause');
+    const breath = '[data-widget-type="breathing"]';
+    const breathState = `document.querySelector('${breath} [data-breathing-running]')`;
+    if(await evaluate(client, `Boolean(document.querySelector('${breath} [aria-label="Ton ausschalten"]'))`)) await clickSelector(client, breath+' [aria-label="Ton ausschalten"]');
+    await clickSelector(client, breath+' [aria-label="Atemdauer 30s"]');
+    await clickSelector(client, breath+' [aria-label="Atemmuster 4-2-4 (Ruhe)"]');
+    await waitFor(client, 'breathing controls and visual fit together', `(() => {const root=${breathState},r=root.getBoundingClientRect(),v=root.querySelector('[data-breathing-visual]').getBoundingClientRect(),c=root.querySelector('[data-breathing-controls]').getBoundingClientRect();return v.bottom<=c.top+1 && Array.from(root.querySelectorAll('button')).every(b=>{const t=b.getBoundingClientRect();return t.width>=44&&t.height>=44&&t.left>=r.left&&t.right<=r.right+1&&t.top>=r.top&&t.bottom<=r.bottom+1;});})()`);
+    await clickSelector(client, breath+' [id^="breathing-toggle-btn-"]');
+    await waitFor(client, 'breathing reaches real hold phase after inhaling', `${breathState}?.dataset.breathingRunning==='true' && ${breathState}?.dataset.breathingPhase==='hold'`, 10000);
+    await clickSelector(client, breath+' [id^="breathing-toggle-btn-"]');
+    const pausedBreath = await evaluate(client, `${breathState}.dataset.breathingElapsed`);
+    await sleep(1100);
+    if(await evaluate(client, `${breathState}.dataset.breathingElapsed`)!==pausedBreath) throw new Error('Paused breathing clock keeps advancing.');
+    await auditMenu('breathing', 'Minimieren');
+    await openAuditWidget('breathing', 'Atempause');
+    await waitFor(client, 'paused breathing time rhythm duration and mute survive restore', `${breathState}?.dataset.breathingElapsed===${q(pausedBreath)} && ${breathState}?.dataset.breathingRunning==='false' && document.querySelector('${breath} [aria-label="Atemmuster 4-2-4 (Ruhe)"]')?.getAttribute('aria-pressed')==='true' && document.querySelector('${breath} [aria-label="Atemdauer 30s"]')?.getAttribute('aria-pressed')==='true' && Boolean(document.querySelector('${breath} [aria-label="Ton einschalten"]'))`);
+    await clickSelector(client, breath+' [id^="breathing-toggle-btn-"]');
+    await waitFor(client, 'breathing continues from paused time', `Number(${breathState}?.dataset.breathingElapsed)>${Number(pausedBreath)}`);
+    await clickSelector(client, breath+' [aria-label="Atempause zurücksetzen"]');
+    await waitFor(client, 'breathing reset preserves chosen settings and clears clock', `${breathState}?.dataset.breathingRunning==='false' && ${breathState}?.dataset.breathingElapsed==='0' && document.querySelector('${breath} [aria-label="Atemmuster 4-2-4 (Ruhe)"]')?.getAttribute('aria-pressed')==='true'`);
+    await clickSelector(client, breath+' [aria-label="Atemdauer Endlos"]');
+    await clickSelector(client, breath+' [aria-label="Ton einschalten"]');
+    await auditMenu('breathing', 'Minimieren');
+    await openAuditWidget('breathing', 'Atempause');
+    await waitFor(client, 'breathing endless duration and sound choice survive restore', `document.querySelector('${breath} [aria-label="Atemdauer Endlos"]')?.getAttribute('aria-pressed')==='true' && Boolean(document.querySelector('${breath} [aria-label="Ton ausschalten"]'))`);
+    await sleep(400);
+    await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-widget-breathing.png'));
+    await auditMenu('breathing', 'Widget schließen');
+    // Observe genuine Chrome AudioContexts/GainNodes, without replacing audio with a mock.
+    await evaluate(client, `window.__auditNativeAudioContext=window.AudioContext;window.__auditCalmContexts=[];window.AudioContext=class extends window.__auditNativeAudioContext {constructor(...args){super(...args);this.auditGains=[];window.__auditCalmContexts.push(this);}createGain(){const gain=super.createGain();this.auditGains.push(gain);return gain;}}`);
+    try {
+      await openAuditWidget('calmrain', 'Fokus-Klänge');
+      const calm = '[data-widget-type="calmrain"]';
+      const calmState = `document.querySelector('${calm} [data-calm-playing]')`;
+      const masterLabel = await evaluate(client, `Array.from(document.querySelectorAll('${calm} input[type="range"]')).find(i=>['Gesamtlautstärke','Master-Lautstärke'].includes(i.getAttribute('aria-label'))).getAttribute('aria-label')`);
+      await setInputByLabel(client, masterLabel, '35');
+      const windChip = calm+' #calmrain-track-btn-wind';
+      if(await evaluate(client, `document.querySelector('${windChip}')?.getAttribute('aria-pressed')!=='true'`)) await clickSelector(client, windChip);
+      await evaluate(client, `Array.from(document.querySelectorAll('${calm} button')).find(b=>b.textContent.trim()==='Regler').click()`);
+      await waitFor(client, 'focus sound mixer exposes wind volume', `Boolean(document.querySelector('${calm} [aria-label="Lautstärke für Wind"]'))`);
+      await setInputByLabel(client, 'Lautstärke für Wind', '25');
+      await clickSelector(client, calm+' [aria-label="Klangdauer 5m"]');
+      await clickSelector(client, calm+' [id^="calmrain-toggle-btn-"]');
+      await waitFor(client, 'focus sounds start a genuine Chrome audio context and timer', `${calmState}?.dataset.calmPlaying==='true' && Number(${calmState}?.dataset.calmRemaining)>290 && window.__auditCalmContexts.length===1 && window.__auditCalmContexts[0].state==='running' && Math.abs(window.__auditCalmContexts[0].auditGains[0].gain.value-0.35)<0.001`);
+      await setInputByLabel(client, masterLabel, '0');
+      await waitFor(client, 'focus sounds mute the actual master gain completely', `window.__auditCalmContexts[0].auditGains[0].gain.value===0`);
+      await auditMenu('calmrain', 'Minimieren');
+      await openAuditWidget('calmrain', 'Fokus-Klänge');
+      await waitFor(client, 'focus sounds retain playing muted state and timer on restore', `${calmState}?.dataset.calmPlaying==='true' && Number(${calmState}?.dataset.calmRemaining)>280 && window.__auditCalmContexts.length===1 && window.__auditCalmContexts[0].auditGains[0].gain.value===0 && document.querySelector('${calm} [aria-label="Klangdauer 5m"]')?.getAttribute('aria-pressed')==='true'`);
+      await waitFor(client, 'focus sound mixer selection and volume survive restore', `document.querySelector('${calm} [aria-label="Lautstärke für Wind"]')?.value==='25' && document.querySelector('${calm} [aria-label="Lautstärke für Wind"]')?.disabled===false`);
+      await setInputByLabel(client, masterLabel, '35');
+      await waitFor(client, 'focus sounds restore selected audible gain', `Math.abs(window.__auditCalmContexts[0].auditGains[0].gain.value-0.35)<0.001`);
+      await clickSelector(client, calm+' [aria-label="Klangdauer Endlos"]');
+      await waitFor(client, 'focus sounds switch a running timer to endless', `${calmState}?.dataset.calmRemaining==='endless'`);
+      await clickSelector(client, calm+' [id^="calmrain-toggle-btn-"]');
+      await waitFor(client, 'focus sounds stop and close audio resources', `${calmState}?.dataset.calmPlaying==='false' && window.__auditCalmContexts.every(c=>c.state==='closed')`);
+      await waitFor(client, 'master slider has a 44px interaction surface', `Array.from(document.querySelectorAll('${calm} input[type="range"]')).filter(i=>['Gesamtlautstärke','Master-Lautstärke'].includes(i.getAttribute('aria-label'))).every(i=>i.getBoundingClientRect().height>=44)`);
+      for (const track of ['Regen','Wind','Kaminfeuer','Waldvögel','Waldbach']) {
+        const slider = calm+' input[aria-label='+q('Lautstärke für '+track)+']';
+        await evaluate(client, `document.querySelector(${q(slider)}).scrollIntoView({block:'nearest'})`);
+        await waitFor(client, 'mixer reaches '+track+' with primary controls always visible', `(() => {const root=${calmState},r=root.getBoundingClientRect(),m=root.querySelector('[data-calm-mixer]').getBoundingClientRect(),s=document.querySelector(${q(slider)}).getBoundingClientRect();return s.top>=m.top-1&&s.bottom<=m.bottom+1&&Array.from(root.querySelectorAll('[data-calm-primary] button,[data-calm-primary] input')).every(b=>{const t=b.getBoundingClientRect();return t.width>=44&&t.height>=44&&t.left>=r.left&&t.right<=r.right+1&&t.top>=r.top&&t.bottom<=r.bottom+1;});})()`);
+      }
+      await sleep(400);
+      await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-widget-calmrain.png'));
+      await clickSelector(client, calm+' [id^="calmrain-toggle-btn-"]');
+      await waitFor(client, 'focus sounds restart with a fresh audio context', `window.__auditCalmContexts.length===2 && window.__auditCalmContexts[1].state==='running'`);
+      await auditMenu('calmrain', 'Widget schließen');
+      await waitFor(client, 'closing focus sounds releases the active audio context', `window.__auditCalmContexts.every(c=>c.state==='closed')`);
+    } finally {
+      await evaluate(client, `window.AudioContext=window.__auditNativeAudioContext;delete window.__auditNativeAudioContext;delete window.__auditCalmContexts`);
+    }
+    console.log('✓ Breathing/focus sounds: real breath phase, pause/resume/reset and restore; genuine audio start, exact zero mute, timer switch, stop/restart and close cleanup.');
+
 
     console.log('✓ Widget block: groups stay in widget, real wheel winner restored, all star children reachable without inner scrolling.');
     console.log('✓ Widget block: 12 widgets checked; stopwatch pause and traffic light mode survive restore.');

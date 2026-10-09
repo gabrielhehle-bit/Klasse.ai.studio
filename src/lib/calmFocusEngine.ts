@@ -318,7 +318,7 @@ export class CalmAudioEngine {
 
       // Master Gain
       const master = ctx.createGain();
-      master.gain.setValueAtTime(Math.max(0.0001, settings.masterVolume / 100), now);
+      master.gain.setValueAtTime(Math.max(0, Math.min(1, settings.masterVolume / 100)), now);
       master.connect(ctx.destination);
       this.masterGain = master;
 
@@ -580,7 +580,7 @@ export class CalmAudioEngine {
       const now = this.ctx.currentTime;
 
       if (this.masterGain) {
-        this.masterGain.gain.setValueAtTime(Math.max(0.0001, settings.masterVolume / 100), now);
+        this.masterGain.gain.setValueAtTime(Math.max(0, Math.min(1, settings.masterVolume / 100)), now);
       }
       if (this.rainGain) {
         const vol = calculateEffectiveGain(100, settings.volumes.rain, settings.activeTracks.rain, 0.2);
