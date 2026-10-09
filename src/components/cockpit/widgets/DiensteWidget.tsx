@@ -827,15 +827,15 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
               <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] items-start gap-2">
                 {filteredAssignStudents.map(student => {
                   const assigned = activeAssignDienst.schuelerIds.includes(student.id);
-                  const absent = isAbsent(student.id);
+                  const studentAbsent = isAbsent(student.id);
                   const name = getDisplayStudentName(student, allStudents);
                   return <button type="button" key={student.id} aria-pressed={assigned}
                     data-dienst-assign-student={student.id} aria-label={name + (assigned ? ' abteilen' : ' zuteilen')}
                     onClick={() => handleToggleStudent(activeAssignDienst.id, student.id)}
                     className={'flex min-h-11 min-w-0 items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-base font-bold ' +
-                      (assigned ? 'border-accent bg-accent text-accent-text' : absent ? (isLight ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-amber-700 bg-amber-950/30 text-amber-200') : (isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-white/10 bg-zinc-800 text-white'))}>
+                      (assigned ? 'border-accent bg-accent text-accent-text' : studentAbsent ? (isLight ? 'border-rose-200 bg-rose-50/50 text-rose-700' : 'border-rose-900/30 bg-rose-950/20 text-rose-300') : (isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-white/10 bg-zinc-800 text-white'))}>
                     <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{name}</span>
-                    {absent && <span className="shrink-0 text-xs">fehlt</span>}
+                    {studentAbsent && <span className="shrink-0 text-xs">fehlt</span>}
                     {assigned && <Check size={18} className="shrink-0" />}
                   </button>;
                 })}

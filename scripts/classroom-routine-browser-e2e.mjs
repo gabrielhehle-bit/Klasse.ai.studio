@@ -754,7 +754,7 @@ async function main() {
     await setInputByLabel(client,'Dienstkinder suchen',searchCandidate.name);
     await client.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape'});
     await client.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape'});
-    await waitFor(client,'closing assignment returns keyboard focus',"!document.querySelector("+q(assignmentDialog)+") && document.activeElement.matches("+q(assignmentTrigger)+")");
+    await waitFor(client,'closing assignment returns keyboard focus',"!document.querySelector("+q(assignmentDialog.replace('[open]',''))+") && document.activeElement.matches("+q(assignmentTrigger)+")");
     await clickSelector(client,assignmentTrigger);
     await waitFor(client,'reopening assignment resets search and keeps empty selection',"document.querySelector("+q(drawer+' input')+").value==='' && document.querySelectorAll("+q(drawer+' [data-dienst-assign-student]')+").length>=12 && !document.querySelector("+q(drawer+' [aria-pressed="true"]')+")");
     const absentDienstStudents=await evaluate(client,"Array.from(document.querySelectorAll("+q(drawer+' button[data-dienst-assign-student]')+")).filter(b=>b.textContent.includes('fehlt')).map(b=>b.dataset.dienstAssignStudent)");
@@ -856,7 +856,7 @@ async function main() {
     await waitFor(client,'Escape returns to unchanged full children list',"!document.querySelector("+q(substituteDialog)+") && document.activeElement.matches("+q(nestedSubstituteTrigger)+") && "+allAssignedState+" === "+q(allAssigned));
     await client.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape'});
     await client.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape'});
-    await waitFor(client,'closing children list returns focus to summary',"!document.querySelector("+q(childrenDialog)+") && document.activeElement.matches("+q(childrenSummary)+")");
+    await waitFor(client,'closing children list returns focus to summary',"!document.querySelector("+q(childrenDialog.replace('[open]',''))+") && document.activeElement.matches("+q(childrenSummary)+")");
     await clickSelector(client,childrenSummary);
     await waitFor(client,'children list can be reopened',"document.querySelectorAll("+q(childrenRows)+").length === "+dienstRosterCount);
     const lastDutyChild=allDutyIds.at(-1);
@@ -867,7 +867,7 @@ async function main() {
     }
     await waitFor(client,'reducing full list keeps two original children',allAssignedState+" === "+q(dutyState)+" && !document.querySelector("+q(childrenSummary)+")");
     await clickSelector(client,childrenDialog+' header button');
-    await waitFor(client,'closing reduced list returns focus to assignment action',"!document.querySelector("+q(childrenDialog)+") && document.activeElement.matches("+q('#'+firstDienst+' button[title="Kinder zuordnen"]')+") && "+assignedState+" === "+q(dutyState));
+    await waitFor(client,'closing reduced list returns focus to assignment action',"!document.querySelector("+q(childrenDialog.replace('[open]',''))+") && document.activeElement.matches("+q('#'+firstDienst+' button[title="Kinder zuordnen"]')+") && "+assignedState+" === "+q(dutyState));
     const turnDutyPage=async selector => {
       const before=await evaluate(client,"document.querySelector('#dienste-content-scrollable [id^=dienst-item-]').id");
       await clickSelector(client,selector);
