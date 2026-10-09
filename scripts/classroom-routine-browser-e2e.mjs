@@ -116,7 +116,7 @@ async function evaluate(client, expression) {
     returnByValue: true,
     userGesture: true,
   });
-  if (result.exceptionDetails) throw new Error(result.exceptionDetails.text || 'Browser evaluation failed.');
+  if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text || 'Browser evaluation failed.');
   return result.result?.value;
 }
 
@@ -693,6 +693,31 @@ async function main() {
       await evaluate(client, `Array.from(document.querySelectorAll('[data-widget-type=${q(type)}]')).find(el=>el.getClientRects().length).querySelector('button[aria-label="Widget-Menü öffnen"]').click()`);
       await clickButton(client, action, true);
     };
+    const readLongWidgetText = async (type, text, title) => {
+      const trigger = `[data-widget-type="${type}"] [data-widget-text-reader="true"]`;
+      await waitFor(client, 'long '+title+' has explicit reading action', `Boolean(document.querySelector('${trigger}'))`);
+      await clickSelector(client, trigger);
+      await waitFor(client, 'complete '+title+' opens in modal', `document.querySelector('dialog[open] [data-widget-full-text]')?.textContent === ${q(text)}`);
+      // Smartphone quick mode intentionally leaves the cockpit below 768px.
+      // Exercise a 390px reader within a supported tablet viewport instead.
+      for (const [width, readerWidth] of [[820, 390], [820, null], [1366, null]]) {
+        await client.send('Emulation.setDeviceMetricsOverride', {width,height:768,deviceScaleFactor:1,mobile:false});
+        await evaluate(client, `document.querySelector('dialog[open]').style.width = ${q(readerWidth ? readerWidth+'px' : '')}`);
+        await sleep(150);
+        const fits = await evaluate(client, `(() => {
+          const dialog=document.querySelector('dialog[open]'),body=dialog.querySelector('[data-widget-full-text]'),close=dialog.querySelector('button');
+          const r=dialog.getBoundingClientRect(),b=close.getBoundingClientRect();body.scrollTop=body.scrollHeight;
+          const range=document.createRange();range.setStart(body.firstChild,body.firstChild.length-12);range.setEnd(body.firstChild,body.firstChild.length);
+          const end=range.getBoundingClientRect(),content=body.getBoundingClientRect();
+          return (${readerWidth ? 'Math.abs(r.width-390)<1' : 'true'}) && r.left>=0 && r.right<=innerWidth && r.bottom<=innerHeight && b.height>=44 && b.bottom<=r.bottom && body.scrollWidth<=body.clientWidth+1 && end.top>=content.top && end.bottom<=content.bottom+1;
+        })()`);
+        if (!fits) throw new Error(title+' full text or closing action is clipped at '+width+'px.');
+      }
+      await client.send('Input.dispatchKeyEvent', {type:'keyDown',key:'Escape',code:'Escape'});
+      await client.send('Input.dispatchKeyEvent', {type:'keyUp',key:'Escape',code:'Escape'});
+      await waitFor(client, 'reading closes and returns keyboard focus', `!document.querySelector('dialog[open]') && document.activeElement?.matches('${trigger}')`);
+      await sleep(250);
+    };
     await openAuditWidget('calculator', 'Grundschulrechner');
     const calculatorFits = await evaluate(client, `(() => {const root=document.querySelector('#smartboard-calculator');const r=root.getBoundingClientRect();return Array.from(root.querySelector('[data-calculator-keypad]').querySelectorAll('button')).every(b=>{const t=b.getBoundingClientRect();return t.top>=r.top && t.bottom<=r.bottom+1 && t.height>=43;});})()`);
     if(!calculatorFits) throw new Error('Calculator clips a key or shrinks a touch target in its default size.');
@@ -795,6 +820,7 @@ async function main() {
     for(const [type,search] of [['stopwatch','Stoppuhr'],['trafficlight','Status-Ampel'],['todo','Aufgaben-Checkliste'],['links','Materialien & Links']]) {
       await openAuditWidget(type,search);
       const root = `[data-widget-type="${type}"] [data-widget-content]`;
+      const taskStateExpression = `JSON.stringify(Array.from(document.querySelectorAll('${root} button[aria-pressed][aria-label^="Aufgabe "]')).map(b=>[b.getAttribute('aria-label'),b.getAttribute('aria-pressed')]))`;
       if(type === 'stopwatch') {
         await evaluate(client, `document.querySelector('[data-stopwatch-action="start"]').click()`);
         await sleep(350);
@@ -823,13 +849,18 @@ async function main() {
         await clickSelector(client, `${root} [aria-label="Aufgabentext speichern"]`);
         await clickSelector(client, `${root} [aria-label="Aufgaben-Einstellungen schließen"]`);
         await waitFor(client, 'editing preserves completed task', `document.querySelector('${root} button[aria-label=${q('Aufgabe '+correctedTask+' als offen markieren')}]')?.getAttribute('aria-pressed') === 'true'`);
-        const editedState = await evaluate(client, `document.querySelector('${root}').textContent`);
+        const editedState = await evaluate(client, taskStateExpression);
         await clickSelector(client, `${root} [aria-label="Neue Aufgabenliste anlegen"]`);
         await waitFor(client, 'reset requires confirmation', `document.querySelector('${root}').textContent.includes('Aktuelle Liste leeren?')`);
         await evaluate(client, `Array.from(document.querySelectorAll('${root} button')).find(b=>b.textContent.trim()==='Abbrechen').click()`);
-        await waitFor(client, 'cancel reset preserves own tasks', `document.querySelector('${root}').textContent === ${q(editedState)}`);
+        await waitFor(client, 'cancel reset preserves own tasks', `${taskStateExpression} === ${q(editedState)}`);
         const addControlsFit = await evaluate(client, `(() => {const root=document.querySelector('${root}'),r=root.getBoundingClientRect();return Array.from(root.querySelectorAll('form input,form button')).every(e=>{const b=e.getBoundingClientRect();return b.height>=44 && b.bottom<=r.bottom+1 && b.left>=r.left && b.right<=r.right+1;});})()`);
         if (!addControlsFit) throw new Error('Task entry controls are clipped or smaller than 44px.');
+        const longTask = 'Synthetischer Langtext: '+('Lies die Silben laut und zeichne das passende Bild. '+ 'https://beispiel.test/'+ 'a'.repeat(90)+' ').repeat(12)+'ENDE DER AUFGABE';
+        await setInputByLabel(client, 'Neuer Aufgabenschritt', longTask);
+        await clickSelector(client, `${root} [aria-label="Schritt zur Liste hinzufügen"]`);
+        await readLongWidgetText('todo', longTask, 'Aufgabe');
+        await waitFor(client, 'reading long task never marks it complete', `document.querySelector('${root} button[aria-label=${q('Aufgabe '+longTask+' als erledigt markieren')}]')?.getAttribute('aria-pressed') === 'false'`);
       }
       if(type === 'links') {
         await waitFor(client,'link page navigation',`Boolean(document.querySelector('[aria-label="Linkseiten"]'))`);
@@ -840,10 +871,11 @@ async function main() {
         const scroll = await evaluate(client,`(() => {const e=document.querySelector('#links-content-scrollable');return e.scrollHeight>e.clientHeight+2;})()`);
         if(scroll) throw new Error('Teaching links still require inner scrolling.');
       }
-      const before = await evaluate(client, `document.querySelector('${root}').textContent`);
+      const stateExpression = type === 'todo' ? taskStateExpression : `document.querySelector('${root}').textContent`;
+      const before = await evaluate(client, stateExpression);
       await auditMenu(type,'Minimieren');
       await openAuditWidget(type,search);
-      if(await evaluate(client, `document.querySelector('${root}').textContent`) !== before) throw new Error(type+' loses its state when restored.');
+      await waitFor(client, type+' restores its saved state after layout settles', `${stateExpression} === ${q(before)}`);
       await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-widget-'+type+'.png'));
       await auditMenu(type,'Widget schließen');
     }
@@ -935,7 +967,7 @@ async function main() {
     await openPage(client, 'Wochenplan');
     await waitFor(client, 'weekly planner week selector', `Boolean(document.querySelector('button[title="Woche wählen"]'))`);
     const currentWidgetWeek = await evaluate(client, `Number(document.querySelector('button[title="Woche wählen"]').textContent.match(/KW\\s+(\\d+)/)[1])`);
-    const ownHomework = 'Synthetische Widget-Hausübung: Silben lesen';
+    const ownHomework = 'Synthetische Widget-Hausübung: '+('Lies die Silben und erkläre das passende Bild. '+ 'https://beispiel.test/'+ 'b'.repeat(90)+' ').repeat(10)+'ENDE DER HAUSÜBUNG';
     await clickSelector(client, 'button[aria-label^="Hausübung für Montag"]');
     await waitFor(client, 'widget homework day editor', `Boolean(document.querySelector('[role="dialog"][aria-label^="Hausübungen Montag"]'))`);
     await setInputByPlaceholder(client, 'z. B. Deutsch', 'Deutsch');
@@ -964,6 +996,7 @@ async function main() {
       await waitFor(client, type+' chosen week survives minimize', `${weekExpression} === ${navigatedWeek}`);
       await evaluate(client, `Array.from(document.querySelectorAll('${board} button')).find(b=>${todayLabel ? `b.getAttribute('aria-label') === ${q(todayLabel)}` : `b.textContent.trim() === 'Heute'`}).click()`);
       await waitFor(client, type+' returns to current homework', `${weekExpression} === ${currentWidgetWeek} && document.querySelector('${board}').textContent.includes(${q(ownHomework)})`);
+      await readLongWidgetText(type, ownHomework, 'Hausübung');
       await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-widget-'+type+'.png'));
       await auditMenu(type, 'Widget schließen');
     }

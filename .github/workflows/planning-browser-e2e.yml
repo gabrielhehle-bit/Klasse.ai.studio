@@ -10,6 +10,7 @@ on:
       - 'src/components/WeeklyPlan.tsx'
       - 'src/components/YearlyPlan.tsx'
       - 'src/components/DailyHomeworkButton.tsx'
+      - 'src/components/cockpit/WidgetReadableText.tsx'
       - 'src/components/cockpit/widgets/HomeworkWidget.tsx'
       - 'src/components/cockpit/widgets/ClassroomWeeklyPlanWidget.tsx'
       - 'src/index.css'
