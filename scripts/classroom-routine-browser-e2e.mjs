@@ -1796,6 +1796,7 @@ async function main() {
       const expectedWords=['Sommer','Apfel','Biene','Hase','Katze','Wasser','Blume'].sort((a,b)=>a.localeCompare(b,'de-AT'));
       const allWords=[];
       for(let page=0;page<10;page++){
+        console.log('ABC geometry',await evaluate(client,`(() => {const el=document.querySelector(${q(root)}),r=el.getBoundingClientRect();return {root:[r.x,r.y,r.width,r.height,el.scrollWidth,el.clientWidth,el.scrollHeight,el.clientHeight],controls:Array.from(el.querySelectorAll('button,input,[role="button"],[data-abc-word]')).map(b=>{const t=b.getBoundingClientRect(),hit=document.elementFromPoint(t.x+t.width/2,t.y+t.height/2);return {label:b.getAttribute('aria-label')||b.textContent.trim(),rect:[t.x,t.y,t.width,t.height],disabled:b.disabled,hit:hit?.outerHTML.slice(0,150),ok:b.disabled||b.contains(hit)};})};})()`));
         await waitFor(client,type+' ABC page '+page+' fits without a scroll pane',languageFits(root));
         allWords.push(...await evaluate(client,`Array.from(document.querySelectorAll(${q(root+' [data-abc-word]')})).map(el=>el.dataset.abcWord)`));
         if(await evaluate(client,`document.querySelector(${q(root+' [aria-label="Nächste ABC-Seite"]')}).disabled`))break;
