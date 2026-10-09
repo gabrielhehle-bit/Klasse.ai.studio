@@ -1509,6 +1509,7 @@ async function main() {
       await clickSelector(client, diceRoot+' [aria-label="Würfelergebnis aufdecken"]');
       const expected = await evaluate(client, `(${diceValues}).reduce((a,v,i)=>${mode==='sum'?'a+v':mode==='prod'?'a*v':'i===0?v:a-v'},${mode==='prod'?1:0})`);
       await waitFor(client, 'dice calculate actual '+label, `Number(Array.from(document.querySelector('${diceRoot} [aria-label="Ergebnis wieder verdecken"]').querySelectorAll('span')).at(-1).textContent)===${expected}`);
+      await waitFor(client, 'six dice '+label+' result and actions fit without inner scrolling', `(() => {const root=${diceState},r=root.getBoundingClientRect();return root.scrollWidth<=root.clientWidth+1&&root.scrollHeight<=root.clientHeight+1&&Array.from(root.querySelectorAll('button')).every(b=>{const t=b.getBoundingClientRect();return t.width>=44&&t.height>=44&&t.left>=r.left&&t.right<=r.right+1&&t.top>=r.top&&t.bottom<=r.bottom+1;});})()`);
       await clickSelector(client, diceRoot+' [aria-label="Ergebnis wieder verdecken"]');
       await waitFor(client, 'dice cover '+label+' again', `Boolean(document.querySelector('${diceRoot} [aria-label="Würfelergebnis aufdecken"]'))`);
     }

@@ -2988,7 +2988,7 @@ export const DiceWidgetContent: React.FC<{
   const equationDisplay = useMemo(() => {
     if (mathMode === 'diff') {
       return (
-        <div className="flex items-center gap-1 font-mono text-xs font-black select-none">
+        <div className="flex max-w-full flex-wrap items-center justify-center gap-1 font-mono text-xs font-black select-none">
           <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-lg bg-blue-500 text-white shadow-xs text-[10px]">🔵 {values[0]}</span>
           {values.slice(1).map((val, idx) => (
             <React.Fragment key={idx}>
@@ -3002,7 +3002,7 @@ export const DiceWidgetContent: React.FC<{
       );
     } else if (mathMode === 'prod') {
       return (
-        <div className="flex items-center gap-1 font-mono text-xs font-black select-none">
+        <div className="flex max-w-full flex-wrap items-center justify-center gap-1 font-mono text-xs font-black select-none">
           {values.map((val, idx) => (
             <React.Fragment key={idx}>
               {idx > 0 && <span className="mx-0.5 text-slate-400 font-extrabold">×</span>}
@@ -3015,7 +3015,7 @@ export const DiceWidgetContent: React.FC<{
       );
     } else {
       return (
-        <div className="flex items-center gap-1 font-mono text-xs font-black select-none">
+        <div className="flex max-w-full flex-wrap items-center justify-center gap-1 font-mono text-xs font-black select-none">
           {values.map((val, idx) => (
             <React.Fragment key={idx}>
               {idx > 0 && <span className="mx-0.5 text-slate-400 font-extrabold">+</span>}
@@ -3106,7 +3106,7 @@ export const DiceWidgetContent: React.FC<{
 
         {/* Math mode result with covering mechanism */}
         {!rolling && (
-          <div className="flex flex-col items-center gap-2 mt-1">
+          <div className="flex min-w-0 max-w-full flex-col items-center gap-2 mt-1">
             {!revealed ? (
               <button
                 type="button"
@@ -3123,7 +3123,7 @@ export const DiceWidgetContent: React.FC<{
                 aria-label="Ergebnis wieder verdecken"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className={`min-h-11 p-2 rounded-xl border shadow-sm cursor-pointer select-none hover:opacity-95 active:scale-95 transition-all flex flex-col items-center gap-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
+                className={`min-h-11 min-w-0 max-w-full p-2 rounded-xl border shadow-sm cursor-pointer select-none hover:opacity-95 active:scale-95 transition-all flex flex-col items-center gap-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
                   currentIsLight ? 'bg-indigo-50 border-indigo-150 text-indigo-700' : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300'
                 }`}
                 title="Wieder verdecken"
