@@ -725,7 +725,10 @@ async function main() {
     const drawer='#'+firstDienst.replace('dienst-item-','dienst-assign-drawer-');
     await waitFor(client,'duty assignment roster available',"document.querySelectorAll("+q(drawer+' button[aria-pressed]')+").length >= 2");
     while(await evaluate(client,"Boolean(document.querySelector("+q(drawer+' button[aria-pressed="true"]')+"))")) await clickSelector(client,drawer+' button[aria-pressed="true"]');
-    const selectedChildren=await evaluate(client,"Array.from(document.querySelectorAll("+q(drawer+' button[aria-pressed]')+")).slice(0,2).map(b=>b.getAttribute('aria-label'))");
+    const absentDienstStudents=await evaluate(client,"Array.from(document.querySelectorAll("+q(drawer+' button[data-dienst-assign-student]')+")).filter(b=>b.textContent.includes('fehlt')).map(b=>b.dataset.dienstAssignStudent)");
+    const dienstRosterCount=await evaluate(client,"document.querySelectorAll("+q(drawer+' button[data-dienst-assign-student]')+").length");
+    if(!absentDienstStudents.length) throw new Error('Substitution fixture needs the excused absence created through Attendance.');
+    const selectedChildren=await evaluate(client,"Array.from(document.querySelectorAll("+q(drawer+' button[aria-pressed]')+")).sort((a,b)=>Number(b.textContent.includes('fehlt'))-Number(a.textContent.includes('fehlt'))).slice(0,2).map(b=>b.getAttribute('aria-label'))");
     for (const label of selectedChildren) await clickSelector(client,drawer+' button[aria-label='+q(label)+']');
     await clickButton(client,'Schließen ✕',true);
     const assignedState="JSON.stringify(Array.from(document.querySelectorAll("+q('#'+firstDienst+' [data-dienst-student]')+")).map(e=>[e.dataset.dienstStudent,e.dataset.dienstSubstitute||null]))";
@@ -734,6 +737,46 @@ async function main() {
     await auditMenu('dienste','Minimieren');
     await openAuditWidget('dienste','Klassendienste');
     await waitFor(client,'duty assignments survive restore',assignedState+" === "+q(dutyState));
+    const longDienstTitle='Synthetischer Dienst '+('a'.repeat(59));
+    await clickSelector(client,'#'+firstDienst+' button[title="Dienst umbenennen"]');
+    await setInputByLabel(client,'Diensttitel bearbeiten',longDienstTitle);
+    await clickSelector(client,'#'+firstDienst+' button[title="Speichern"]');
+    await waitFor(client,'long duty title saved',"document.querySelector("+q('#'+firstDienst+' [data-widget-text-preview]')+").textContent === "+q(longDienstTitle));
+    // Restoring the widget animates its scale; measure the settled touch targets.
+    await waitFor(client,'duty title reading action and controls fit after restore',"(() => {const root=document.querySelector("+q('#'+firstDienst)+"),r=root.getBoundingClientRect(),reader=root.querySelector('[data-widget-text-preview]').closest('button');return reader.getBoundingClientRect().width>=100 && Array.from(root.querySelectorAll('button[title=\"Kinder zuordnen\"],button[title=\"Dienst umbenennen\"],button[title=\"Dienst löschen\"]')).every(b=>{const t=b.getBoundingClientRect();return t.height>=44 && t.left>=r.left && t.right<=r.right+1;});})()");
+    await readLongWidgetText('dienste',longDienstTitle,'Diensttitel');
+    await waitFor(client,'reading duty title keeps assignments',assignedState+" === "+q(dutyState));
+    const absentDienstId=await evaluate(client,"Array.from(document.querySelectorAll("+q('#'+firstDienst+' [data-dienst-student]')+")).find(e=>e.textContent.includes('abwesend')).dataset.dienstStudent");
+    const absentChip='#'+firstDienst+' [data-dienst-student='+q(absentDienstId)+']';
+    const substitutionTrigger=absentChip+' button[title="Heutige Vertretung auswählen"]';
+    await clickSelector(client,substitutionTrigger);
+    const substituteDialog='dialog[open][aria-label="Vertretung auswählen"]';
+    await waitFor(client,'substitution selection opens as native modal',"Boolean(document.querySelector("+q(substituteDialog)+"))");
+    const substituteChoices=await evaluate(client,"Array.from(document.querySelectorAll("+q(substituteDialog+' [data-dienst-substitute-choice]')+")).map(b=>b.dataset.dienstSubstituteChoice)");
+    if(substituteChoices.length!==dienstRosterCount-absentDienstStudents.length || substituteChoices.some(id=>absentDienstStudents.includes(id))) throw new Error('Substitution selection includes absent children or hides a present child.');
+    for(const width of [820,1366]){
+      await client.send('Emulation.setDeviceMetricsOverride',{width,height:768,deviceScaleFactor:1,mobile:false});
+      await sleep(150);
+      const fits=await evaluate(client,"(() => {const d=document.querySelector("+q(substituteDialog)+"),r=d.getBoundingClientRect(),close=d.querySelector('[aria-label=\"Vertretungsauswahl schließen\"]').getBoundingClientRect(),cancel=Array.from(d.querySelectorAll('button')).find(b=>b.textContent.trim()==='Abbrechen').getBoundingClientRect();return r.left>=0 && r.right<=innerWidth && r.top>=0 && r.bottom<=innerHeight && close.height>=44 && close.bottom<=r.bottom && cancel.height>=44 && cancel.bottom<=r.bottom && Array.from(d.querySelectorAll('[data-dienst-substitute-choice]')).every(b=>b.getBoundingClientRect().height>=44);})()");
+      if(!fits) throw new Error('Substitution dialog clips its closing controls or touch targets.');
+    }
+    await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-duty-substitution.png'));
+    const originalAssignedIds=JSON.parse(dutyState).map(row=>row[0]);
+    const substituteId=substituteChoices.find(id=>!originalAssignedIds.includes(id));
+    if(!substituteId) throw new Error('No independent present substitute available.');
+    await clickSelector(client,substituteDialog+' [data-dienst-substitute-choice='+q(substituteId)+']');
+    await waitFor(client,'temporary substitution assigned',"!document.querySelector("+q(substituteDialog)+") && document.querySelector("+q(absentChip)+").dataset.dienstSubstitute === "+q(substituteId));
+    const substitutionState=await evaluate(client,assignedState);
+    await auditMenu('dienste','Minimieren');
+    await openAuditWidget('dienste','Klassendienste');
+    await waitFor(client,'substitution and long title survive restore',assignedState+" === "+q(substitutionState)+" && document.querySelector("+q('#'+firstDienst+' [data-widget-text-preview]')+").textContent === "+q(longDienstTitle));
+    await clickSelector(client,absentChip+' button[title="Vertretung aufheben"]');
+    await waitFor(client,'removing substitute preserves original duties',assignedState+" === "+q(dutyState));
+    await clickSelector(client,substitutionTrigger);
+    await waitFor(client,'substitution selection reopened',"Boolean(document.querySelector("+q(substituteDialog)+"))");
+    await client.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape'});
+    await client.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape'});
+    await waitFor(client,'cancel substitution returns focus without assigning',"!document.querySelector("+q(substituteDialog)+") && document.activeElement.matches("+q(substitutionTrigger)+") && "+assignedState+" === "+q(dutyState));
     await clickSelector(client,'[data-widget-type="dienste"] button[aria-label$="Einstellungen öffnen"]');
     await clickButton(client,'Zuweisungen leeren',true);
     await waitFor(client,'clearing duties requires confirmation',"document.querySelector('#dienste-manage-dropdown').textContent.includes('Wirklich alle Zuweisungen leeren?')");

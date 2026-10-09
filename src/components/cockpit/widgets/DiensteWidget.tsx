@@ -1,4 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { WidgetReadableText } from '../WidgetReadableText';
 import {
   Users,
   RotateCcw,
@@ -120,6 +122,14 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
     dienstId: string;
     absentStudentId: string;
   } | null>(null);
+  const substituteDialogRef = useRef<HTMLDialogElement>(null);
+  const substituteTriggerRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    const dialog = substituteDialogRef.current;
+    if (!activeSubstituteModal || !dialog) return;
+    dialog.showModal();
+    return () => { if (dialog.open) dialog.close(); };
+  }, [activeSubstituteModal]);
   const [showManageMenu, setShowManageMenu] = useState(false);
   const hasExternalSettingsControl = typeof externalShowSettings === 'boolean';
   const manageMenuOpen = hasExternalSettingsControl ? externalShowSettings : showManageMenu;
@@ -451,13 +461,14 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                   }`}
                 >
                   {/* Dienst-Titelzeile mit Emoji */}
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     {isEditingThis ? (
-                      <div className="flex items-center gap-1.5 flex-grow">
+                      <div className="flex min-w-0 items-center gap-1.5 flex-grow">
                         <select
                           value={editingEmoji}
+                          aria-label="Dienstsymbol"
                           onChange={(e) => setEditingEmoji(e.target.value)}
-                          className={`p-1 rounded text-base border outline-none cursor-pointer ${
+                          className={`min-h-11 p-1 rounded text-base border outline-none cursor-pointer ${
                             isLight ? 'bg-white border-slate-300' : 'bg-zinc-800 border-white/20'
                           }`}
                         >
@@ -470,13 +481,15 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                         <input
                           type="text"
                           value={editingTitel}
+                          aria-label="Diensttitel bearbeiten"
+                          maxLength={80}
                           onChange={(e) => setEditingTitel(e.target.value)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') handleSaveEdit(dienst.id);
                             if (e.key === 'Escape') setEditingDienstId(null);
                           }}
                           autoFocus
-                          className={`flex-grow px-2 py-1 text-xs font-bold rounded border outline-none ${
+                          className={`min-h-11 min-w-0 w-0 flex-grow px-2 py-1 text-xs font-bold rounded border outline-none ${
                             isLight ? 'bg-white border-slate-300' : 'bg-zinc-800 border-white/20'
                           }`}
                         />
@@ -497,17 +510,12 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                       </div>
                     ) : (
                       <>
-                        <div className="flex items-center gap-2 min-w-0">
+                        <div className="flex flex-1 items-center gap-2 min-w-[140px]">
                           <span className="text-lg shrink-0" role="img" aria-label={dienst.titel}>
                             {dienst.emoji || '📋'}
                           </span>
-                          <span
-                            className={`font-black break-words ${
-                              isFs ? 'text-lg' : 'text-xs'
-                            } ${textPrimary}`}
-                          >
-                            {dienst.titel}
-                          </span>
+                          <WidgetReadableText text={dienst.titel} title="Diensttitel"
+                            className={'font-black ' + (isFs ? 'text-lg ' : 'text-xs ') + textPrimary} />
                         </div>
 
                         {/* Aktionen auf Dienst-Ebene: Edit, Zuweisen, Löschen */}
@@ -623,12 +631,14 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                             {/* Vertretung wählen Button bei Abwesenheit */}
                             {assignee.isAbsent && !assignee.substituteStudentId && (
                               <button
-                                onClick={() =>
+                                onClick={event => {
+                                  substituteTriggerRef.current = event.currentTarget;
+                                  event.currentTarget.focus();
                                   setActiveSubstituteModal({
                                     dienstId: dienst.id,
                                     absentStudentId: assignee.originalStudentId,
-                                  })
-                                }
+                                  });
+                                }}
                                 className="min-h-11 px-2 py-0.5 rounded-lg text-[9px] font-black bg-amber-500 text-white hover:bg-amber-600 cursor-pointer transition-all shrink-0"
                                 title="Heutige Vertretung auswählen"
                               >
@@ -709,6 +719,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                               <button
                                 key={s.id}
                                 aria-pressed={isAssigned}
+                                data-dienst-assign-student={s.id}
                                 aria-label={name + (isAssigned ? ' abteilen' : ' zuteilen')}
                                 onClick={() => handleToggleStudent(dienst.id, s.id)}
                                 className={`min-h-11 px-2 py-1.5 rounded-lg border text-left text-xs font-bold flex items-center justify-between gap-1 transition-all cursor-pointer ${
@@ -829,17 +840,13 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
       {/* ========================================== */}
       {/* 4. MODAL: VERTRETUNG AUSWÄHLEN              */}
       {/* ========================================== */}
-      {activeSubstituteModal && (
-        <div
-          id="dienste-substitute-modal"
-          className="absolute inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50"
-        >
-          <div
-            className={`w-full max-w-sm rounded-2xl p-4 border shadow-2xl flex flex-col gap-3 max-h-[80%] ${
-              isLight ? 'bg-white border-slate-200' : 'bg-zinc-900 border-white/15'
-            }`}
-          >
-            <div className="flex items-center justify-between border-b pb-2">
+      {activeSubstituteModal && createPortal(
+        <dialog ref={substituteDialogRef} aria-label="Vertretung auswählen"
+          onClose={() => { setActiveSubstituteModal(null); substituteTriggerRef.current?.focus(); }}
+          onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); substituteDialogRef.current?.close(); } }}
+          className={'fixed inset-0 m-auto h-[min(85dvh,680px)] w-[min(94vw,640px)] max-w-none rounded-2xl border p-0 shadow-2xl backdrop:bg-black/50 ' + (isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-zinc-900 border-white/15 text-white')}>
+          <div className="flex h-full min-h-0 flex-col gap-3 p-4">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b pb-2">
               <div>
                 <div className={`text-xs font-black uppercase tracking-wider ${textPrimary}`}>
                   Vertretung für heute wählen
@@ -849,14 +856,15 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                 </div>
               </div>
               <button
-                onClick={() => setActiveSubstituteModal(null)}
+                onClick={() => substituteDialogRef.current?.close()}
+                aria-label="Vertretungsauswahl schließen"
                 className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-800 dark:hover:text-white"
               >
                 <X size={15} />
               </button>
             </div>
 
-            <div className="flex-grow overflow-y-auto grid grid-cols-2 gap-1.5 py-1">
+            <div className="min-h-0 flex-1 overflow-y-auto grid grid-cols-2 content-start gap-1.5 py-1">
               {presentStudents
                 .filter((s) => s.id !== activeSubstituteModal.absentStudentId)
                 .map((s) => {
@@ -864,6 +872,8 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                   return (
                     <button
                       key={s.id}
+                      data-dienst-substitute-choice={s.id}
+                      aria-label={name + ' als Vertretung wählen'}
                       onClick={() => handleSelectSubstitute(s.id)}
                       className={`min-h-11 px-2.5 py-2 rounded-xl border text-left text-xs font-bold transition-all cursor-pointer flex items-center justify-between ${
                         isLight
@@ -871,23 +881,23 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                           : 'bg-zinc-800 hover:bg-amber-500 hover:text-white border-white/10'
                       }`}
                     >
-                      <span className="truncate">{name}</span>
+                      <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">{name}</span>
                       <Plus size={11} className="opacity-60" />
                     </button>
                   );
                 })}
             </div>
 
-            <div className="flex justify-end pt-1">
+            <div className="flex shrink-0 justify-end pt-1">
               <button
-                onClick={() => setActiveSubstituteModal(null)}
+                onClick={() => substituteDialogRef.current?.close()}
                 className="min-h-11 rounded-lg px-3 py-1 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-zinc-800 dark:hover:text-white"
               >
                 Abbrechen
               </button>
             </div>
           </div>
-        </div>
+        </dialog>, document.body
       )}
     </div>
   );
