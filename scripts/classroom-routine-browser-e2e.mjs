@@ -850,10 +850,23 @@ async function main() {
     await openAuditWidget('groups', 'Gruppen-Einteiler');
     await clickButton(client, 'Gruppen bilden', true);
     await waitFor(client, 'groups formed inside widget without automatic full screen', `Boolean(document.querySelector('[data-widget-type="groups"] [role="listitem"]')) && !document.querySelector('[role="dialog"][aria-label="Gruppen groß anzeigen"]')`);
-    const groupState = await evaluate(client, `document.querySelector('[data-widget-type="groups"] [data-widget-content]').textContent`);
+    const readAllGroupAssignments = async () => {
+      await clickSelector(client, '[data-widget-type="groups"] [aria-label="Alle Gruppen anzeigen"]');
+      const state = await waitFor(client, 'all group assignments are available for comparison', `(() => {
+        const dialog=document.querySelector('[role="dialog"][aria-label="Gruppen groß anzeigen"]');
+        if(!dialog)return false;
+        const assignments=Array.from(dialog.querySelectorAll('[data-group-id] [data-group-student]')).map(child=>[child.closest('[data-group-id]').dataset.groupId,child.dataset.groupStudent]);
+        return assignments.length>0 && JSON.stringify(assignments.sort((a,b)=>a.join(':').localeCompare(b.join(':'))));
+      })()`);
+      await evaluate(client, `Array.from(document.querySelectorAll('[role="dialog"][aria-label="Gruppen groß anzeigen"] button')).find(b=>b.textContent.trim()==='Zurück zur Widgetgröße').click()`);
+      await waitFor(client, 'groups return to widget size', `!document.querySelector('[role="dialog"][aria-label="Gruppen groß anzeigen"]')`);
+      return state;
+    };
+    const groupState = await readAllGroupAssignments();
     await auditMenu('groups', 'Minimieren');
     await openAuditWidget('groups', 'Gruppen-Einteiler');
-    await waitFor(client, 'group assignment survives minimize', `document.querySelector('[data-widget-type="groups"] [data-widget-content]').textContent === ${q(groupState)}`);
+    if (await readAllGroupAssignments() !== groupState) throw new Error('Group membership changes after minimize and restore.');
+    console.log('✓ all group assignments survive minimize');
     await auditMenu('groups', 'Widget schließen');
 
     await openAuditWidget('wheel', 'Glücksrad');

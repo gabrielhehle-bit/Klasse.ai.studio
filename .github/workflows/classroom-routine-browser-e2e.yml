@@ -9,6 +9,7 @@ on:
       - 'src/components/PresenceBehaviorStats.tsx'
       - 'src/components/cockpit/widgets/KidAttendanceWidget.tsx'
       - 'src/components/cockpit/widgets/TodoWidget.tsx'
+      - 'src/components/cockpit/widgets/GroupsWidget.tsx'
       - 'src/components/cockpit/widgets/HomeworkWidget.tsx'
       - 'src/components/cockpit/widgets/ClassroomWeeklyPlanWidget.tsx'
       - 'src/components/LeistungenHub.tsx'

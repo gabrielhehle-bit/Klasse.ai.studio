@@ -20,6 +20,9 @@ Die Classroom-Routine prüft echte eigene Aufgaben und eine echte Hausübung:
   korrigieren, ohne den Erledigtstatus zu verlieren.
 - Leeren abbrechen, Einträge erhalten und die bearbeitete Liste minimieren
   und wiederherstellen; Eingabeflächen passen in die Widgetfläche.
+- Die frühere Gruppenprüfung vergleicht jetzt die vollständigen Zuordnungen
+  aus Gruppen- und Kinder-IDs statt den Widgettext mit kurzlebiger Erfolgsmeldung.
+  Die Großansicht wird dafür ausdrücklich geöffnet und wieder geschlossen.
 - Eine Hausübung im aktuellen Lehrer-Wochenplan speichern, dort absichtlich
   zur nächsten Woche wechseln und danach beide Tafelwidgets öffnen.
 - Beide Widgets zeigen zunächst die aktuelle Woche mit der eigenen Hausübung.
