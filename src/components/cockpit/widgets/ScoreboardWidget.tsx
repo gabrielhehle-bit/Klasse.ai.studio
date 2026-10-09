@@ -293,14 +293,14 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
               <button
                 onClick={handleStartNewRound}
                 aria-label="Neue Runde bestätigen"
-                className="p-1 rounded-lg bg-rose-500 text-white hover:bg-rose-600 transition-colors"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-rose-500 text-white hover:bg-rose-600 transition-colors"
               >
                 <Check size={13} />
               </button>
               <button
                 onClick={() => setIsConfirmingNewRound(false)}
                 aria-label="Abbrechen"
-                className="p-1 rounded-lg bg-slate-200 dark:bg-zinc-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 transition-colors"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-slate-200 dark:bg-zinc-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 transition-colors"
               >
                 <X size={13} />
               </button>
@@ -365,6 +365,7 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
               <span className="text-xs font-black uppercase tracking-wider">Scoreboard Optionen</span>
               <button
                 onClick={closeSettingsMenu}
+                aria-label="Scoreboard Optionen schließen"
                 className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-slate-400"
               >
                 <X size={15} />
@@ -395,6 +396,8 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
                     <button
                       key={step}
                       onClick={() => handleSetStepSize(step)}
+                      aria-label={`Schrittweite +${step}`}
+                      aria-pressed={settings.stepSize === step}
                       className={`min-h-11 min-w-11 px-2.5 py-1 rounded-lg font-black text-xs transition-all ${
                         settings.stepSize === step
                           ? 'bg-accent text-accent-text'
@@ -473,6 +476,8 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
               return (
                 <div
                   key={team.id}
+                  data-scoreboard-team={team.id}
+                  data-scoreboard-winner={isWinner ? "true" : undefined}
                   className={`flex items-center justify-between p-2 rounded-2xl border transition-all ${
                     isWinner
                       ? 'bg-amber-100/90 dark:bg-amber-950/40 border-amber-400 ring-2 ring-amber-400 shadow-md'
@@ -534,6 +539,7 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
                     <div className="w-12 text-center">
                       <motion.span
                         key={team.score}
+                    data-scoreboard-score
                         initial={{ scale: 0.8 }}
                         animate={{ scale: 1 }}
                         className={`text-2xl font-black tracking-tight ${
@@ -563,6 +569,8 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
             return (
               <div
                 key={team.id}
+                  data-scoreboard-team={team.id}
+                  data-scoreboard-winner={isWinner ? "true" : undefined}
                 className={`flex flex-col justify-between rounded-2xl border transition-all relative ${
                   isWinner
                     ? 'bg-amber-100/90 dark:bg-amber-950/40 border-amber-400 ring-2 ring-amber-400 shadow-lg'
@@ -652,6 +660,7 @@ export const ScoreboardWidget: React.FC<ScoreboardWidgetProps> = ({
                 <div className="flex-1 flex flex-col items-center justify-center my-auto py-2">
                   <motion.span
                     key={team.score}
+                    data-scoreboard-score
                     initial={{ scale: 0.85, opacity: 0.8 }}
                     animate={{ scale: 1, opacity: 1 }}
                     className={`font-black tracking-tight tabular-nums select-none ${

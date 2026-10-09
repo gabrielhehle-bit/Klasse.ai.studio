@@ -252,6 +252,9 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
     <div
       ref={containerRef}
       id="class-reward-widget-root"
+      data-class-goal-count={count}
+      data-class-goal-goal={goal}
+      data-class-goal-style={style}
       className={`relative w-full h-full flex flex-col justify-between select-none overflow-hidden rounded-2xl transition-colors ${
         currentIsLight
           ? 'bg-white/90 text-slate-800 border border-slate-200/80 shadow-sm'
@@ -463,6 +466,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
               <button
                 type="button"
                 onClick={closeSettings}
+                aria-label="Klassenziel-Einstellungen schließen"
                 className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-white/10 dark:hover:text-white"
               >
                 <X size={16} />
@@ -476,6 +480,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
               </label>
               <input
                 type="text"
+                aria-label="Belohnung / Ziel-Name"
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
                 maxLength={100}
@@ -534,6 +539,8 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
                         : 'border-slate-200 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5'
                     }`}
                     title={s.label}
+                    aria-label={s.label}
+                    aria-pressed={editSymbol === s.char}
                   >
                     {s.char}
                   </button>
@@ -552,6 +559,8 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
                     key={st.id}
                     type="button"
                     onClick={() => setEditStyle(st.id)}
+                    aria-label={st.label}
+                    aria-pressed={editStyle === st.id}
                     className={`min-h-11 py-1.5 px-2 rounded-lg text-[10px] font-bold border flex flex-col items-center justify-center gap-0.5 ${
                       editStyle === st.id
                         ? 'bg-accent text-accent-text border-accent'
