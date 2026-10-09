@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   BookA,
   Search,
@@ -113,6 +114,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
     return migrateLegacyWidgetSettings(legacyType, oldSettings, app?.lernwoerter);
   };
   const [state, setState] = useState<LernwoerterStudioState>(loadCurrentWords);
+  const stateRef = useRef(state);
   const previousWordsRef = useRef(JSON.stringify(state.words.map(w => w.text)));
   const classWidgetKey = String(app?.activeClassId || '') + ':' + String(widget?.id || '');
   const loadedWidgetKey = useRef(classWidgetKey);
@@ -121,6 +123,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
     loadedWidgetKey.current = classWidgetKey;
     const loaded = loadCurrentWords();
     previousWordsRef.current = JSON.stringify(loaded.words.map(w => w.text));
+    stateRef.current = loaded;
     setState(loaded);
     setCharSelectionStart(null);
   }, [classWidgetKey]);
@@ -164,11 +167,10 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
   );
 
   const updateState = (updater: (prev: LernwoerterStudioState) => LernwoerterStudioState) => {
-    setState((prev) => {
-      const next = updater(prev);
-      persistState(next);
-      return next;
-    });
+    const next = updater(stateRef.current);
+    stateRef.current = next;
+    setState(next);
+    persistState(next);
   };
 
   // UI Dialog / Modal States
@@ -186,6 +188,14 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
       onCloseSettings();
     }
   };
+  const manageDialogRef = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = manageDialogRef.current;
+    if (!showManageModal || !dialog) return;
+    const trigger = containerRef.current?.closest('[data-widget-type]')?.querySelector<HTMLButtonElement>('.cockpit-widget-settings-trigger');
+    dialog.showModal();
+    return () => { if (dialog.open) dialog.close(); trigger?.focus(); };
+  }, [showManageModal]);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [newWordInput, setNewWordInput] = useState('');
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
@@ -211,7 +221,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
       if (showManageModal || !containerRef.current ||
           !containerRef.current.contains(document.activeElement) ||
           !containerRef.current.contains(e.target as Node) ||
-          (e.target as HTMLElement)?.closest('button, input, textarea, select, [contenteditable="true"]')) return;
+          (e.target as HTMLElement)?.closest('button, [role="button"], input, textarea, select, [contenteditable="true"]')) return;
 
       if (e.key === 'ArrowRight') {
         e.preventDefault();
@@ -328,6 +338,12 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
     return checkAbcOrder(abcItems.map((w) => w.text));
   }, [abcItems]);
 
+  const [abcPage, setAbcPage] = useState(0);
+  const abcPageSize = Math.max(1, Math.floor((size.height - 220) / 70));
+  const abcPageCount = Math.max(1, Math.ceil(abcItems.length / abcPageSize));
+  const safeAbcPage = Math.min(abcPage, abcPageCount - 1);
+  const abcVisibleItems = abcItems.slice(safeAbcPage * abcPageSize, (safeAbcPage + 1) * abcPageSize);
+
   // Dynamische Typografie für Hauptwortanzeige
   const currentWordText = currentWordItem ? currentWordItem.text : 'Keine Wörter';
   const textLength = currentWordText.length;
@@ -346,6 +362,10 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
     <div
       ref={containerRef}
       id="lernwoerter-studio"
+      data-learning-word-mode={state.mode}
+      data-learning-word-index={activeIndex}
+      data-learning-word-count={state.words.length}
+      data-learning-word-covered={state.isCovered}
       tabIndex={0}
       aria-label="Lernwörter: zum Blättern Widget auswählen, dann Pfeiltasten verwenden"
       className={`w-full h-full flex flex-col select-none overflow-hidden ${
@@ -355,7 +375,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
       {/* 1. Header & Modus-Umschaltung (wenn nicht im reduzierten Präsentationsmodus) */}
       {!state.presentationMode && (
         <header
-          className={`flex items-center justify-between border-b px-3 py-2 shrink-0 ${
+          className={`flex flex-wrap gap-2 items-center justify-between border-b px-3 py-2 shrink-0 ${
             currentIsLight ? 'border-slate-200 bg-white' : 'border-slate-800 bg-slate-900/90'
           }`}
         >
@@ -471,7 +491,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
         {/* MODUS A: LERNKARTEI                                       */}
         {/* ========================================================= */}
         {state.mode === 'cards' && (
-          <div className="flex-1 flex flex-col justify-between p-3 md:p-6 min-h-0">
+          <div className="flex-1 flex flex-col justify-between p-3 min-h-0">
             {/* Zähler & Shuffle-Status */}
             <div className="flex items-center justify-between text-xs md:text-sm text-slate-500">
               <span className="font-medium">
@@ -505,10 +525,11 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
+                    e.stopPropagation();
                     updateState((prev) => toggleCoverWord(prev));
                   }
                 }}
-                className={`w-full max-w-2xl py-8 px-6 rounded-2xl border-2 flex flex-col items-center justify-center cursor-pointer transition-all shadow-sm ${
+                className={`w-full max-w-2xl py-4 px-3 rounded-2xl border-2 flex flex-col items-center justify-center cursor-pointer transition-all shadow-sm ${
                   state.isCovered
                     ? currentIsLight
                       ? 'bg-amber-50/70 border-dashed border-amber-300'
@@ -519,7 +540,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
                 }`}
               >
                 {state.isCovered ? (
-                  <div className="flex flex-col items-center space-y-2 py-4">
+                  <div className="flex flex-col items-center space-y-2 py-2">
                     <EyeOff className="w-10 h-10 md:w-14 md:h-14 text-amber-500/80 animate-pulse" />
                     <span className="text-sm md:text-base font-medium text-amber-600 dark:text-amber-400">
                       Wort verdeckt – Tippen zum Aufdecken
@@ -528,7 +549,8 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
                 ) : (
                   <div className="flex flex-col items-center justify-center text-center">
                     <span
-                      className={`font-bold tracking-tight select-text break-words ${wordFontSize} ${
+                      data-learning-word-visible
+                      className={`max-w-full min-w-0 font-bold tracking-tight select-text [overflow-wrap:anywhere] ${wordFontSize} ${
                         currentIsLight ? 'text-slate-900' : 'text-white'
                       }`}
                     >
@@ -559,7 +581,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
             </div>
 
             {/* Steuerung Navigation: Vorheriges / Aufdecken / Nächstes */}
-            <div className="flex items-center justify-center space-x-3 md:space-x-6 pb-2">
+            <div className="flex items-center justify-center gap-3 flex-wrap pb-2">
               <button
                 id="cards-btn-prev"
                 onClick={() => updateState((prev) => prevWord(prev))}
@@ -611,9 +633,9 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
         {/* MODUS B: STOLPERSTELLEN                                   */}
         {/* ========================================================= */}
         {state.mode === 'spelling' && (
-          <div className="flex-1 flex flex-col justify-between p-3 md:p-6 min-h-0 overflow-y-auto">
+          <div className="flex-1 flex flex-col justify-between p-3 min-h-0 overflow-hidden">
             {/* Header: Wortnavigation */}
-            <div className="flex items-center justify-between mb-3 text-xs md:text-sm text-slate-500">
+            <div className="flex items-center justify-between mb-2 text-xs md:text-sm text-slate-500">
               <span className="font-medium">
                 Wort {state.words.length > 0 ? activeIndex + 1 : 0} von {state.words.length}
               </span>
@@ -640,9 +662,9 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
             </div>
 
             {/* Interaktive Wortdarstellung: Buchstaben antippbar */}
-            <div className="flex-1 flex flex-col items-center justify-center py-4">
+            <div className="flex-1 flex flex-col items-center justify-center py-1">
               <div
-                className={`w-full max-w-2xl p-6 rounded-2xl border flex flex-col items-center justify-center shadow-sm ${
+                className={`w-full max-w-2xl p-2 rounded-2xl border flex flex-col items-center justify-center shadow-sm ${
                   currentIsLight ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-700'
                 }`}
               >
@@ -651,7 +673,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
                 </span>
 
                 {/* Buchstaben-Kacheln zum Antippen */}
-                <div className="flex flex-wrap items-center justify-center gap-1.5 md:gap-2 my-2">
+                <div className="flex flex-wrap items-center justify-center gap-1.5 my-2">
                   {currentWordText.split('').map((char, charIdx) => {
                     // Prüfen, ob Buchstabe in einem bestehenden Highlight liegt
                     const activeHl = currentWordItem?.highlights.find(
@@ -665,8 +687,11 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
                     return (
                       <button
                         key={charIdx}
+                        aria-label={`Buchstabe ${charIdx + 1}: ${char}`}
+                        aria-pressed={!!activeHl || isSelected}
+                        data-word-highlight={activeHl?.category}
                         onClick={() => handleLetterClick(charIdx)}
-                        className={`min-w-[44px] min-h-[50px] md:min-w-[56px] md:min-h-[64px] rounded-xl font-bold text-2xl md:text-3xl flex flex-col items-center justify-center transition-all border-2 ${
+                        className={`min-w-[44px] min-h-[44px] rounded-xl font-bold text-2xl flex flex-col items-center justify-center transition-all border-2 ${
                           activeHl
                             ? 'bg-rose-50 border-rose-500 text-rose-700 dark:bg-rose-950/60 dark:text-rose-200 shadow-md ring-2 ring-rose-400/50'
                             : isSelected
@@ -700,18 +725,16 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
 
                 {/* Markierte Stellen Liste */}
                 {currentWordItem && currentWordItem.highlights.length > 0 && (
-                  <div className="w-full mt-4 pt-3 border-t border-slate-200 dark:border-slate-700">
-                    <div className="flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2">
-                      <span>Markierte Stellen:</span>
+                  <div aria-label="Markierte Stellen" className="w-full mt-2 pt-2 border-t border-slate-200 dark:border-slate-700 flex flex-wrap items-center gap-2">
                       <button
                         onClick={() =>
                           updateState((prev) => clearWordHighlights(prev, currentWordItem.id))
                         }
-                        className="text-slate-400 hover:text-rose-500 text-[11px]"
+                        aria-label="Alle Markierungen löschen"
+                        className="text-slate-400 hover:text-rose-500 text-xs min-h-11 min-w-11 px-2"
                       >
                         Alle löschen
                       </button>
-                    </div>
                     <div className="flex flex-wrap gap-2">
                       {currentWordItem.highlights.map((hl) => {
                         const rule = STOLPERSTELLEN_RULES.find((r) => r.id === hl.category);
@@ -753,7 +776,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
 
             {/* Kategoriewahl für Stolperstellen */}
             <div
-              className={`p-3 rounded-xl border shrink-0 ${
+              className={`p-2 rounded-xl border shrink-0 ${
                 currentIsLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-800/80 border-slate-700'
               }`}
             >
@@ -764,8 +787,9 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
                 {STOLPERSTELLEN_RULES.map((rule) => (
                   <button
                     key={rule.id}
+                    aria-pressed={selectedRule === rule.id}
                     onClick={() => setSelectedRule(rule.id)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all min-h-[44px] flex items-center border ${
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all min-h-[44px] min-w-[44px] flex items-center border ${
                       selectedRule === rule.id
                         ? 'bg-rose-500 text-white border-rose-600 shadow-sm'
                         : currentIsLight
@@ -785,9 +809,9 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
         {/* MODUS C: ABC-ORDNUNG                                      */}
         {/* ========================================================= */}
         {state.mode === 'alphabet' && (
-          <div className="flex-1 flex flex-col justify-between p-3 md:p-6 min-h-0 overflow-hidden">
+          <div className="flex-1 flex flex-col justify-between p-3 min-h-0 overflow-hidden">
             {/* Kopfleiste mit Status & Auto-Sortieren Button */}
-            <div className="flex items-center justify-between mb-3 shrink-0">
+            <div className="flex flex-wrap gap-2 items-center justify-between mb-3 shrink-0">
               <div className="flex items-center space-x-2">
                 <ListOrdered className="w-4 h-4 text-blue-500" />
                 <span className="text-xs md:text-sm font-semibold">
@@ -819,12 +843,14 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
             </div>
 
             {/* Scrollbare Liste von Wortkarten mit Pfeilen */}
-            <div className="flex-1 overflow-y-auto pr-1 space-y-1.5">
-              {abcItems.map((item, idx) => {
+            <div data-abc-word-list className="min-h-0 flex-1 space-y-1.5">
+              {abcVisibleItems.map((item, pageIndex) => {
+                const idx = safeAbcPage * abcPageSize + pageIndex;
                 const isOutOfOrder = abcCheck.incorrectIndices.includes(idx);
                 return (
                   <div
                     key={item.id}
+                    data-abc-word={item.text}
                     className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
                       isOutOfOrder
                         ? 'border-amber-400 bg-amber-50/50 dark:bg-amber-950/20'
@@ -833,11 +859,11 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
                         : 'bg-slate-800 border-slate-700'
                     }`}
                   >
-                    <div className="flex items-center space-x-3">
+                    <div className="min-w-0 flex items-center gap-3">
                       <span className="w-6 text-xs font-mono font-bold text-slate-400 text-center">
                         {idx + 1}.
                       </span>
-                      <span className="font-bold text-base md:text-lg">{item.text}</span>
+                      <span className="min-w-0 font-bold text-base [overflow-wrap:anywhere]">{item.text}</span>
                     </div>
 
                     {/* Verschiebetasten Nach Oben / Nach Unten */}
@@ -880,6 +906,11 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
                 );
               })}
             </div>
+            <div className="mt-2 flex shrink-0 items-center justify-between gap-2 pr-12" aria-label="ABC-Seiten">
+              <button type="button" aria-label="Vorherige ABC-Seite" disabled={safeAbcPage === 0} onClick={() => setAbcPage(safeAbcPage - 1)} className="min-h-11 min-w-11 rounded-lg border px-3 disabled:opacity-40">←</button>
+              <span className="text-xs font-bold">Seite {safeAbcPage + 1} von {abcPageCount}</span>
+              <button type="button" aria-label="Nächste ABC-Seite" disabled={safeAbcPage === abcPageCount - 1} onClick={() => setAbcPage(safeAbcPage + 1)} className="min-h-11 min-w-11 rounded-lg border px-3 disabled:opacity-40">→</button>
+            </div>
           </div>
         )}
       </main>
@@ -887,10 +918,13 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
       {/* ========================================================= */}
       {/* MODAL: WORTLISTEN-VERWALTUNG                              */}
       {/* ========================================================= */}
-      {showManageModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+      {showManageModal && createPortal(
+        <dialog ref={manageDialogRef} aria-label="Lernwortliste verwalten"
+          onCancel={event => { event.preventDefault(); handleCloseModal(); }}
+          onKeyDown={event => { event.stopPropagation(); if (event.key === 'Escape') { event.preventDefault(); handleCloseModal(); } }}
+          className="fixed inset-0 m-auto w-[min(94vw,640px)] max-w-none rounded-2xl border border-slate-300 bg-white p-0 shadow-2xl backdrop:bg-slate-950/60">
           <div
-            className={`w-full max-w-lg max-h-[85vh] rounded-2xl flex flex-col shadow-2xl border overflow-hidden ${
+            className={`w-full max-h-[85dvh] rounded-2xl flex flex-col shadow-2xl border overflow-hidden ${
               currentIsLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700'
             }`}
           >
@@ -902,6 +936,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
               </div>
               <button
                 onClick={handleCloseModal}
+                aria-label="Lernwortliste schließen"
                 className="p-1 rounded-lg text-slate-400 hover:text-slate-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
               >
                 <X className="w-5 h-5" />
@@ -909,7 +944,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
             </div>
 
             {/* Modal-Body */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 space-y-4">
               {/* Dubletten-Warnung */}
               {duplicateWarning && (
                 <div className="flex items-center space-x-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 text-xs text-amber-800 dark:text-amber-200">
@@ -944,8 +979,9 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
                     type="text"
                     value={newWordInput}
                     onChange={(e) => setNewWordInput(e.target.value)}
+                    aria-label="Neues Lernwort"
                     placeholder="Neues Lernwort eingeben..."
-                    className={`flex-1 px-3 py-2 rounded-xl border text-sm font-medium focus:ring-2 focus:ring-amber-500 outline-hidden min-h-[44px] ${
+                    className={`min-w-0 flex-1 px-3 py-2 rounded-xl border text-sm font-medium focus:ring-2 focus:ring-amber-500 outline-hidden min-h-[44px] ${
                       currentIsLight ? 'bg-slate-50 border-slate-300' : 'bg-slate-800 border-slate-700'
                     }`}
                   />
@@ -963,6 +999,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
                     Füge Wörter ein (ein Wort pro Zeile oder durch Kommas getrennt):
                   </p>
                   <textarea
+                    aria-label="Lernwörter importieren"
                     rows={4}
                     value={batchImportText}
                     onChange={(e) => setBatchImportText(e.target.value)}
@@ -992,7 +1029,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
                         updateState(() => getInitialLernwoerterStudioState(DEFAULT_LERNWOERTER));
                       }
                     }}
-                    className="text-amber-600 dark:text-amber-400 hover:underline"
+                    className="min-h-11 px-2 text-amber-600 dark:text-amber-400 hover:underline"
                   >
                     Standard wiederherstellen
                   </button>
@@ -1002,6 +1039,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
                   {state.words.map((w, idx) => (
                     <div
                       key={w.id}
+                    data-managed-word={w.text}
                       className={`flex items-center justify-between p-2 rounded-lg border text-sm ${
                         currentIsLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-800/60 border-slate-700'
                       }`}
@@ -1010,12 +1048,14 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
                         <div className="flex-1 flex items-center space-x-1 mr-2">
                           <input
                             type="text"
+                            aria-label="Lernwort bearbeiten"
                             value={editingText}
                             onChange={(e) => setEditingText(e.target.value)}
-                            className="flex-1 px-2 py-1 text-xs border rounded min-h-11"
+                            className="min-w-0 flex-1 px-2 py-1 text-xs border rounded min-h-11"
                             autoFocus
                           />
                           <button
+                            aria-label="Wortänderung speichern"
                             onClick={() => handleSaveEdit(w.id)}
                             className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded min-h-11 min-w-11 flex items-center justify-center"
                           >
@@ -1047,6 +1087,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
                             setEditingText(w.text);
                           }}
                           className="p-1.5 text-slate-400 hover:text-slate-600 min-h-11 min-w-11 flex items-center justify-center"
+                          aria-label={`Wort ${w.text} bearbeiten`}
                           title="Bearbeiten"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
@@ -1054,6 +1095,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
                         <button
                           onClick={() => updateState((prev) => deleteWord(prev, w.id))}
                           className="p-1.5 text-slate-400 hover:text-rose-600 min-h-11 min-w-11 flex items-center justify-center"
+                          aria-label={`Wort ${w.text} löschen`}
                           title="Löschen"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -1075,7 +1117,7 @@ export const LernwoerterStudioWidget: React.FC<LernwoerterStudioWidgetProps> = (
               </button>
             </div>
           </div>
-        </div>
+        </dialog>, document.body
       )}
     </div>
   );

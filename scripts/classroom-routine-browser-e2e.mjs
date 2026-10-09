@@ -1579,7 +1579,8 @@ async function main() {
 
     // Five-widget math batch: independently calculate displayed tasks, then use the real UI.
     const auditWidgetMinimum = async type => {
-      const [minimumWidth,minimumHeight]=type==='sorting'?[420,520]:[460,560];
+      const minimumSizes={sorting:[420,520],vocabulary:[640,560],spellingdetective:[640,560],wordbuilder:[620,560],scrambler:[620,560],compoundsplit:[620,560]};
+      const [minimumWidth,minimumHeight]=minimumSizes[type]||[460,560];
       await waitFor(client,type+' resize grip is reachable after opening', `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('[data-widget-resize]')?.dataset.widgetResize==='se';})()`);
       const point=await evaluate(client, `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
       await client.send('Input.dispatchMouseEvent',{type:'mouseMoved',...point});
@@ -1731,6 +1732,154 @@ async function main() {
     await clickMathText(sortingRoot,'Fertig');
     await auditMenu('sorting','Widget schließen');
     console.log('✓ Five math widgets: independently calculated answers, wrong/correct input, real keypad and keyboard, native minimum layouts/settings, restore and continue; sorting seven integers/decimals/negative numbers in both directions.');
+
+    // Five German widgets: edit real lists/tasks, then exercise their actual lesson workflows.
+    const languageFits = root => `(() => {const el=document.querySelector(${q(root)}),r=el.getBoundingClientRect();return el.scrollWidth<=el.clientWidth+1&&el.scrollHeight<=el.clientHeight+1&&Array.from(el.querySelectorAll('button,input,[role="button"],[data-abc-word]')).every(b=>{const t=b.getBoundingClientRect();return t.width>=44&&t.height>=44&&t.left>=r.left-1&&t.right<=r.right+1&&t.top>=r.top-1&&t.bottom<=r.bottom+1&&(b.disabled||b.contains(document.elementFromPoint(t.x+t.width/2,t.y+t.height/2)));});})()`;
+    const listDialog='dialog[open][aria-label="Lernwortliste verwalten"]';
+    for(const [type,search,initialMode] of [['vocabulary','Lernwörter-Studio','cards'],['spellingdetective','Rechtschreib-Detektiv','spelling']]){
+      await openAuditWidget(type,search);
+      const frame='[data-widget-type="'+type+'"]',root=frame+' [data-learning-word-mode]',state=`document.querySelector(${q(root)})`;
+      await waitFor(client,type+' opens the right learning mode',`${state}?.dataset.learningWordMode===${q(initialMode)}`);
+      await auditWidgetMinimum(type);
+      await clickSelector(client,frame+' button[aria-label$="Einstellungen öffnen"]');
+      await waitFor(client,type+' opens the native list editor',`Boolean(document.querySelector(${q(listDialog)}))`);
+      // Only seeded CI data is changed. Replace the sample words with a known teacher list.
+      await evaluate(client,`(() => {const dialog=document.querySelector(${q(listDialog)});for(const b of Array.from(dialog.querySelectorAll('button[aria-label$=" löschen"]')))b.click();})()`);
+      await waitFor(client,type+' deletes the sample word list',`document.querySelectorAll(${q(listDialog+' [data-managed-word]')}).length===0`);
+      await clickMathText(listDialog,'Import (Liste / Komma)');
+      const words=['Sommer','Apfel','Zebra','Biene','Hase','Katze','Wasser'];
+      await setInputByLabel(client,'Lernwörter importieren',words.concat('Sommer').join('\n'));
+      await clickMathText(listDialog,'Wörter importieren');
+      await waitFor(client,type+' imports seven words and skips a duplicate',`document.querySelectorAll(${q(listDialog+' [data-managed-word]')}).length===7 && document.querySelector(${q(listDialog)}).textContent.includes('Dublette')`);
+      await clickSelector(client,listDialog+' [aria-label="Wort Zebra bearbeiten"]');
+      await setInputByLabel(client,'Lernwort bearbeiten','Ziege');
+      await clickSelector(client,listDialog+' [aria-label="Wortänderung speichern"]');
+      await waitFor(client,type+' edits the real word rather than adding another',`document.querySelectorAll(${q(listDialog+' [data-managed-word]')}).length===7 && Boolean(document.querySelector(${q(listDialog+' [data-managed-word="Ziege"]')})) && !document.querySelector(${q(listDialog+' [data-managed-word="Zebra"]')})`);
+      await clickSelector(client,listDialog+' [aria-label="Wort Ziege löschen"]');
+      await setInputByLabel(client,'Neues Lernwort','Blume');
+      await clickMathText(listDialog,'Hinzufügen');
+      await waitFor(client,type+' adds a single replacement word',`document.querySelectorAll(${q(listDialog+' [data-managed-word]')}).length===7 && Boolean(document.querySelector(${q(listDialog+' [data-managed-word="Blume"]')}))`);
+      await pressAuditKey('Escape');
+      await waitFor(client,type+' closes list editor with focus on its gear',`!document.querySelector(${q(listDialog)}) && document.activeElement?.matches(${q(frame+' .cockpit-widget-settings-trigger')})`);
+      await clickSelector(client,root+' #mode-btn-cards');
+      await waitFor(client,type+' shows the first actual teacher word',`document.querySelector(${q(root+' [data-learning-word-visible]')})?.textContent.trim()==='Sommer' && ${state}.dataset.learningWordCount==='7'`);
+      await waitFor(client,type+' card controls fit at the dragged minimum',languageFits(root));
+      await evaluate(client,`document.querySelector(${q(root+' [role="button"]')}).focus()`);
+      await pressAuditKey(' ','Space');
+      await waitFor(client,type+' Space covers the card exactly once',`${state}.dataset.learningWordCovered==='true' && !document.querySelector(${q(root+' [data-learning-word-visible]')})`);
+      await pressAuditKey(' ','Space');
+      await waitFor(client,type+' Space reveals the same card',`${state}.dataset.learningWordCovered==='false' && document.querySelector(${q(root+' [data-learning-word-visible]')})?.textContent.trim()==='Sommer'`);
+      await evaluate(client,`${state}.focus()`);
+      await pressAuditKey('ArrowRight');
+      await waitFor(client,type+' keyboard advances exactly one word',`${state}.dataset.learningWordIndex==='1' && document.querySelector(${q(root+' [data-learning-word-visible]')})?.textContent.trim()==='Apfel'`);
+      await clickSelector(client,root+' #cards-btn-prev');
+      await clickSelector(client,root+' #cards-btn-prev');
+      await waitFor(client,type+' previous wraps to the last teacher word',`${state}.dataset.learningWordIndex==='6' && document.querySelector(${q(root+' [data-learning-word-visible]')})?.textContent.trim()==='Blume'`);
+      await clickSelector(client,root+' #cards-btn-next');
+      await clickSelector(client,root+' #mode-btn-spelling');
+      await clickMathText(root,'Doppel-Konsonant');
+      await clickSelector(client,root+' [aria-label="Buchstabe 3: m"]');
+      await clickSelector(client,root+' [aria-label="Buchstabe 4: m"]');
+      await waitFor(client,type+' marks both actual double consonants',`document.querySelectorAll(${q(root+' [data-word-highlight="doppelkonsonant"]')}).length===2`);
+      await waitFor(client,type+' spelling letters categories and marked range all fit',languageFits(root));
+      await auditMenu(type,'Minimieren');
+      await openAuditWidget(type,search);
+      await waitFor(client,type+' spelling word list and highlights survive restore',`${state}?.dataset.learningWordMode==='spelling' && ${state}.dataset.learningWordCount==='7' && document.querySelectorAll(${q(root+' [data-word-highlight="doppelkonsonant"]')}).length===2`);
+      await waitFor(client,type+' spelling controls fit after restore',languageFits(root));
+      await sleep(400);
+      await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-widget-'+type+'-spelling.png'));
+      await clickSelector(client,root+' #mode-btn-alphabet');
+      await waitFor(client,type+' ABC list has multiple native pages',`!document.querySelector(${q(root+' [aria-label="Nächste ABC-Seite"]')}).disabled`);
+      await clickSelector(client,root+' [aria-label="Wort Apfel nach oben verschieben"]');
+      await waitFor(client,type+' ABC move changes the genuine word order',`document.querySelector(${q(root+' [data-abc-word]')})?.dataset.abcWord==='Apfel'`);
+      await clickMathText(root,'Automatisch sortieren (de-AT)');
+      const expectedWords=['Sommer','Apfel','Biene','Hase','Katze','Wasser','Blume'].sort((a,b)=>a.localeCompare(b,'de-AT'));
+      const allWords=[];
+      for(let page=0;page<10;page++){
+        await waitFor(client,type+' ABC page '+page+' fits without a scroll pane',languageFits(root));
+        allWords.push(...await evaluate(client,`Array.from(document.querySelectorAll(${q(root+' [data-abc-word]')})).map(el=>el.dataset.abcWord)`));
+        if(await evaluate(client,`document.querySelector(${q(root+' [aria-label="Nächste ABC-Seite"]')}).disabled`))break;
+        await clickSelector(client,root+' [aria-label="Nächste ABC-Seite"]');
+      }
+      if(JSON.stringify(allWords)!==JSON.stringify(expectedWords))throw new Error(type+' ABC pages lose or misorder teacher words: '+JSON.stringify(allWords));
+      await waitFor(client,type+' last ABC word cannot move down',`document.querySelector(${q(root+' [aria-label="Wort Wasser nach unten verschieben"]')}).disabled`);
+      await sleep(400);
+      await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-widget-'+type+'-abc.png'));
+      await clickSelector(client,frame+' button[aria-label$="Einstellungen öffnen"]');
+      await waitFor(client,type+' word editor retains the actual seven-word list',`document.querySelectorAll(${q(listDialog+' [data-managed-word]')}).length===7`);
+      await clickSelector(client,listDialog+' [aria-label="Lernwortliste schließen"]');
+      await auditMenu(type,'Widget schließen');
+    }
+    const workshopDialog='dialog[open][aria-label="Wörter und Sätze bearbeiten"]';
+    for(const [type,search,label,mode,target,parts] of [
+      ['wordbuilder','Wort-Baukasten','Wort-Baukasten','word','SOMMER',['SOM','MER']],
+      ['scrambler','scrambler','Wort- & Satzwerkstatt','sentence','Wir lesen heute im Garten.',['Wir','lesen','heute','im','Garten.']],
+      ['compoundsplit','Zusammengesetzte Wörter','Zusammengesetzte Wörter','compound','Schultasche',['Schul','tasche']],
+    ]){
+      await openAuditWidget(type,search,label);
+      const frame='[data-widget-type="'+type+'"]',root=frame+' [data-language-workshop-mode]',state=`document.querySelector(${q(root)})`;
+      const cards=`Array.from(document.querySelectorAll(${q(root+' button[id^="card-item-"]')})).map(b=>b.querySelector('span').textContent)`;
+      await waitFor(client,type+' starts its migrated task mode',`${state}?.dataset.languageWorkshopMode===${q(mode)}`);
+      await auditWidgetMinimum(type);
+      await clickSelector(client,frame+' button[aria-label$="Einstellungen öffnen"]');
+      await waitFor(client,type+' gear opens its native task editor',`Boolean(document.querySelector(${q(workshopDialog)}))`);
+      if(mode==='word'){
+        await setInputByLabel(client,'Zielwort',target);
+        await setInputByLabel(client,'Wortbausteine','SON-MER');
+        await clickMathText(workshopDialog,'Hinzufügen');
+        await waitFor(client,'impossible word parts are rejected in the real editor',`document.querySelector(${q(workshopDialog+' [role="alert"]')})?.textContent.includes('genau das Zielwort')`);
+        await setInputByLabel(client,'Wortbausteine',parts.join('|'));
+      }else if(mode==='compound'){
+        await setInputByLabel(client,'Zusammengesetztes Wort',target);
+        await setInputByLabel(client,'Wortbestandteile','Schuh|tasche');
+        await clickMathText(workshopDialog,'Hinzufügen');
+        await waitFor(client,'impossible compound parts are rejected in the real editor',`document.querySelector(${q(workshopDialog+' [role="alert"]')})?.textContent.includes('zusammengesetzte Wort')`);
+        await setInputByLabel(client,'Wortbestandteile',parts.join('|'));
+      }else await setInputByLabel(client,'Vollständiger Satz',target);
+      await clickMathText(workshopDialog,'Hinzufügen');
+      await waitFor(client,type+' accepts the corrected teacher task',`!document.querySelector(${q(workshopDialog+' [role="alert"]')}) && Array.from(document.querySelectorAll(${q(workshopDialog+' input')})).every(input=>input.value==='')`);
+      await pressAuditKey('Escape');
+      await waitFor(client,type+' Escape closes editor and returns gear focus',`!document.querySelector(${q(workshopDialog)}) && document.activeElement?.matches(${q(frame+' .cockpit-widget-settings-trigger')})`);
+      await clickSelector(client,root+' #btn-prev-task'); // Wrap from the first preset to the new teacher task.
+      await waitFor(client,type+' actual cards contain the teacher task',`JSON.stringify((${cards}).slice().sort())===${q(JSON.stringify(parts.slice().sort()))}`);
+      const orderCards=async desired=>{
+        for(let destination=0;destination<desired.length;destination++){
+          let values=await evaluate(client,cards),position=values.indexOf(desired[destination],destination);
+          if(position<0)throw new Error('Teacher card missing: '+desired[destination]);
+          if(position===destination)continue;
+          await clickSelector(client,root+' #card-item-'+position);
+          while(position>destination){await clickSelector(client,root+' #btn-move-left');position--;}
+        }
+      };
+      await orderCards(parts.slice().reverse());
+      await clickSelector(client,root+' #btn-check');
+      await waitFor(client,type+' wrong real arrangement is not accepted',`Boolean(document.querySelector(${q(root+' #feedback-incorrect')}))`);
+      await waitFor(client,type+' wrong arrangement and all controls fit at minimum',languageFits(root));
+      await orderCards(parts);
+      await clickSelector(client,root+' #btn-check');
+      await waitFor(client,type+' manually ordered teacher task checks correctly',`Boolean(document.querySelector(${q(root+' #feedback-correct')})) && JSON.stringify(${cards})===${q(JSON.stringify(parts))}`);
+      // Genuine local keyboard move must not be intercepted by another widget.
+      await clickSelector(client,root+' #card-item-1');
+      await evaluate(client,`${state}.focus()`);
+      await pressAuditKey('ArrowLeft');
+      await waitFor(client,type+' focused keyboard moves the selected card once',`(${cards})[0]===${q(parts[1])}`);
+      await clickSelector(client,root+' #btn-show-solution');
+      await waitFor(client,type+' visible solution restores the genuine teacher order',`JSON.stringify(${cards})===${q(JSON.stringify(parts))} && Boolean(document.querySelector(${q(root+' #feedback-correct')}))`);
+      if(mode==='word')await clickSelector(client,root+' #btn-toggle-cover');
+      if(mode==='compound')await clickSelector(client,root+' #btn-toggle-compound-split');
+      await auditMenu(type,'Minimieren');
+      await openAuditWidget(type,search,label);
+      await waitFor(client,type+' task mode cards and success survive restore',`${state}?.dataset.languageWorkshopMode===${q(mode)} && JSON.stringify(${cards})===${q(JSON.stringify(parts))} && Boolean(document.querySelector(${q(root+' #feedback-correct')}))`);
+      if(mode==='word'&&!await evaluate(client,`document.querySelector(${q(root+' #btn-toggle-cover')}).textContent.includes('Aufdecken')`))throw new Error('Word cover state is lost.');
+      if(mode==='compound'&&!await evaluate(client,`document.querySelector(${q(root+' #btn-toggle-compound-split')}).textContent.includes('Zusammenfügen')`))throw new Error('Compound separation state is lost.');
+      await waitFor(client,type+' solution and controls fit after restore',languageFits(root));
+      await sleep(400);
+      await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-widget-'+type+'.png'));
+      await clickSelector(client,root+' #btn-next-task');
+      await waitFor(client,type+' next task clears previous feedback',`!document.querySelector(${q(root+' #feedback-correct')}) && !document.querySelector(${q(root+' #feedback-incorrect')})`);
+      await auditMenu(type,'Widget schließen');
+    }
+    console.log('✓ Five German widgets: native editors/gear/focus, seven teacher words with import/edit/delete, card Space and navigation, spelling ranges, complete ABC pages, real word/sentence/compound tasks, wrong/correct order, keyboard/solution and restore at exact minimum sizes.');
 
     console.log('✓ Widget block: groups stay in widget, real wheel winner restored, all star children reachable without inner scrolling.');
     console.log('✓ Widget block: 12 widgets checked; stopwatch pause and traffic light mode survive restore.');

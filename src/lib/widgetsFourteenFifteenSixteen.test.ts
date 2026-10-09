@@ -36,7 +36,8 @@ test('15 Wörter & Sätze: retain old task fields, reject impossible letter comb
   assert.match(workshop, /DEFAULT_COMPOUND_TASKS\[0\]/);
   assert.match(workshop, /DEFAULT_SENTENCE_TASKS\[0\]/);
   assert.match(workshop, /containerRef\.current\.contains\(document\.activeElement\)/);
-  assert.match(workshop, /role="dialog" aria-modal="true" aria-label="Wörter und Sätze bearbeiten"/);
+  assert.match(workshop, /<dialog ref=\{editorDialogRef\} aria-label="Wörter und Sätze bearbeiten"/);
+  assert.match(workshop, /dialog\.showModal\(\)/);
   assert.match(workshop, /document\.body/);
   assert.match(workshop, /role="alert"/);
 });

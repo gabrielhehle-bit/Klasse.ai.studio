@@ -91,10 +91,13 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   compass: { minW: 420, minH: 620, prefW: 640, prefH: 640 },
   angledetective: { minW: 360, minH: 420, prefW: 520, prefH: 480 },
   estimationjar: { minW: 280, minH: 220, prefW: 380, prefH: 340 },
-  vocabulary: { minW: 280, minH: 220, prefW: 460, prefH: 380 },
-  spellingdetective: { minW: 280, minH: 220, prefW: 460, prefH: 380 },
+  vocabulary: { minW: 640, minH: 560, prefW: 720, prefH: 560 },
+  spellingdetective: { minW: 640, minH: 560, prefW: 720, prefH: 560 },
   abcorder: { minW: 280, minH: 220, prefW: 460, prefH: 380 },
   lernwoerter: { minW: 280, minH: 220, prefW: 460, prefH: 380 },
+  wordbuilder: { minW: 620, minH: 560, prefW: 720, prefH: 560 },
+  scrambler: { minW: 620, minH: 560, prefW: 720, prefH: 560 },
+  compoundsplit: { minW: 620, minH: 560, prefW: 720, prefH: 560 },
   storyemojis: { minW: 280, minH: 220, prefW: 420, prefH: 340 },
 };
 
