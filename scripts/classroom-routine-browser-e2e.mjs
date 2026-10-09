@@ -1380,10 +1380,12 @@ async function main() {
       ['klassenglas', 'Klassenziel', 'jar', 'Belohnungsglas'],
       ['thermometer', 'Ziel-Thermometer', 'thermometer', 'Ziel-Thermometer'],
       ['classtarget', 'Klassen-Ziel', 'barometer', 'Fortschritts-Ring'],
+      ['piggybank', 'Klassen-Sparschwein', 'jar', 'Belohnungsglas'],
     ]) {
       await openAuditWidget(type, search);
       const goalRoot = `[data-widget-type="${type}"] #class-reward-widget-root`;
       const settings = '[role="dialog"][aria-label="Klassenziel anpassen"]';
+      const symbolLabel = type === 'piggybank' ? 'Münze (Sparschwein)' : 'Stern';
       const goalState = `(() => {const r=document.querySelector('${goalRoot}');return r&&{count:Number(r.dataset.classGoalCount),goal:Number(r.dataset.classGoalGoal),style:r.dataset.classGoalStyle};})()`;
       await clickSelector(client, `[data-widget-type="${type}"] button[aria-label$="Einstellungen öffnen"]`);
       await waitFor(client, type+' settings open', `Boolean(document.querySelector('${settings}'))`);
@@ -1392,9 +1394,9 @@ async function main() {
       await waitFor(client, type+' rejects an invalid goal without closing', `Boolean(document.querySelector('${settings} [role="alert"]'))`);
       await setInputByLabel(client, 'Zielanzahl', '3');
       await setInputByLabel(client, 'Belohnung / Ziel-Name', 'Gemeinsames Testziel');
-      await clickSelector(client, settings+' button[aria-label="Stern"]');
+      await clickSelector(client, settings+' button[aria-label='+q(symbolLabel)+']');
       await clickSelector(client, settings+' button[aria-label='+q(styleLabel)+']');
-      await waitFor(client, type+' symbol and style selections are announced', `document.querySelector('${settings} [aria-label="Stern"]')?.getAttribute('aria-pressed')==='true' && document.querySelector('${settings} [aria-label=${q(styleLabel)}]')?.getAttribute('aria-pressed')==='true'`);
+      await waitFor(client, type+' symbol and style selections are announced', `document.querySelector('${settings} [aria-label=${q(symbolLabel)}]')?.getAttribute('aria-pressed')==='true' && document.querySelector('${settings} [aria-label=${q(styleLabel)}]')?.getAttribute('aria-pressed')==='true'`);
       await evaluate(client, `Array.from(document.querySelectorAll('${settings} button')).find(b=>b.textContent.trim()==='Speichern').click()`);
       await waitFor(client, type+' saves goal and its visualization', `!document.querySelector('${settings}') && (${goalState})?.goal===3 && (${goalState})?.style===${q(style)} && document.querySelector('${goalRoot}').textContent.includes('Gemeinsames Testziel')`);
       if((await evaluate(client, goalState)).count!==0) throw new Error('Previous goal reset did not clear shared count.');
@@ -1416,12 +1418,13 @@ async function main() {
       await waitFor(client, type+' reached banner leaves visualization and controls unobscured', `(() => {const root=document.querySelector('${goalRoot}'),banner=root.querySelector('[data-class-goal-banner]').getBoundingClientRect(),visual=root.querySelector('[data-class-goal-visual]').getBoundingClientRect(),r=root.getBoundingClientRect();return visual.top>=banner.bottom-1 && visual.height>30 && Array.from(root.querySelectorAll('#reward-add-btn,#reward-correction-btn,#reward-reset-btn')).every(b=>{const t=b.getBoundingClientRect();return t.width>=44 && t.height>=44 && t.left>=r.left && t.right<=r.right+1 && t.bottom<=r.bottom+1;});})()`);
       await sleep(500);
       await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-widget-'+type+'.png'));
+      if(type==='piggybank' && !await evaluate(client, `document.querySelector('${goalRoot} #reward-add-btn').textContent.includes('🪙')`)) throw new Error('Piggybank loses its chosen coin symbol.');
       await clickSelector(client, goalRoot+' #reward-reset-btn');
       await clickButton(client, 'Ja, leeren', true);
       await waitFor(client, type+' confirmed reset clears only count', `(${goalState})?.count===0 && (${goalState})?.goal===3 && (${goalState})?.style===${q(style)} && document.querySelector('${goalRoot}').textContent.includes('Gemeinsames Testziel')`);
       await auditMenu(type, 'Widget schließen');
     }
-    console.log('✓ Scoreboard/class goals: real points, correction, tied winners, new round cancellation/confirmation, step restore; all three goal variants validate settings, reach/reset goal and restore progress.');
+    console.log('✓ Scoreboard/class goals: real points, correction, tied winners, new round cancellation/confirmation, step restore; all four goal variants validate settings, reach/reset goal and restore progress.');
     await openAuditWidget('breathing', 'Atempause');
     const breath = '[data-widget-type="breathing"]';
     const breathState = `document.querySelector('${breath} [data-breathing-running]')`;
@@ -1494,6 +1497,84 @@ async function main() {
       await evaluate(client, `window.AudioContext=window.__auditNativeAudioContext;delete window.__auditNativeAudioContext;delete window.__auditCalmContexts`);
     }
     console.log('✓ Breathing/focus sounds: real breath phase, pause/resume/reset and restore; genuine audio start, exact zero mute, timer switch, stop/restart and close cleanup.');
+    await openAuditWidget('dice', 'Tafel-Würfel');
+    const diceRoot = '[data-widget-type="dice"]';
+    const diceState = `document.querySelector('${diceRoot} [data-classroom-dice]')`;
+    const diceValues = `JSON.parse(${diceState}.dataset.diceValues)`;
+    await clickSelector(client, diceRoot+' [aria-label="6 Würfel auswählen"]');
+    await waitFor(client, 'six dice and all controls fit at native size', `(() => {const root=${diceState},r=root.getBoundingClientRect();return (${diceValues}).length===6&&root.scrollWidth<=root.clientWidth+1&&root.scrollHeight<=root.clientHeight+1&&Array.from(root.querySelectorAll('button')).every(b=>{const t=b.getBoundingClientRect();return t.width>=44&&t.height>=44&&t.left>=r.left&&t.right<=r.right+1&&t.top>=r.top&&t.bottom<=r.bottom+1;});})()`);
+    if(!await evaluate(client, `document.querySelector('${diceRoot} [aria-label="Einen Würfel hinzufügen"]').disabled`)) throw new Error('Dice count exceeds six.');
+    for (const [mode,label] of [['sum','Summe'],['diff','Differenz'],['prod','Produkt']]) {
+      await clickSelector(client, diceRoot+' [aria-label='+q('Rechenart '+label)+']');
+      await clickSelector(client, diceRoot+' [aria-label="Würfelergebnis aufdecken"]');
+      const expected = await evaluate(client, `(${diceValues}).reduce((a,v,i)=>${mode==='sum'?'a+v':mode==='prod'?'a*v':'i===0?v:a-v'},${mode==='prod'?1:0})`);
+      await waitFor(client, 'dice calculate actual '+label, `Number(Array.from(document.querySelector('${diceRoot} [aria-label="Ergebnis wieder verdecken"]').querySelectorAll('span')).at(-1).textContent)===${expected}`);
+      await waitFor(client, 'six dice '+label+' result and actions fit without inner scrolling', `(() => {const root=${diceState},r=root.getBoundingClientRect();return root.scrollWidth<=root.clientWidth+1&&root.scrollHeight<=root.clientHeight+1&&Array.from(root.querySelectorAll('button')).every(b=>{const t=b.getBoundingClientRect();return t.width>=44&&t.height>=44&&t.left>=r.left&&t.right<=r.right+1&&t.top>=r.top&&t.bottom<=r.bottom+1;});})()`);
+      await clickSelector(client, diceRoot+' [aria-label="Ergebnis wieder verdecken"]');
+      await waitFor(client, 'dice cover '+label+' again', `Boolean(document.querySelector('${diceRoot} [aria-label="Würfelergebnis aufdecken"]'))`);
+    }
+    await clickSelector(client, diceRoot+' [aria-label="Würfel werfen"]');
+    await waitFor(client, 'dice block count changes during the real roll', `${diceState}?.dataset.diceRolling==='true' && document.querySelector('${diceRoot} [aria-label="6 Würfel auswählen"]').disabled && document.querySelector('${diceRoot} [aria-label="Einen Würfel entfernen"]').disabled`);
+    await waitFor(client, 'dice finish with six valid faces', `${diceState}?.dataset.diceRolling==='false' && (${diceValues}).length===6 && (${diceValues}).every(v=>Number.isInteger(v)&&v>=1&&v<=6)`);
+    const rolledDice = await evaluate(client, `${diceState}.dataset.diceValues`);
+    await clickSelector(client, diceRoot+' [aria-label="Würfelergebnis aufdecken"]');
+    await auditMenu('dice', 'Minimieren');
+    await openAuditWidget('dice', 'Tafel-Würfel');
+    await waitFor(client, 'dice faces mode and revealed result survive restore', `${diceState}?.dataset.diceValues===${q(rolledDice)} && ${diceState}?.dataset.diceMode==='prod' && Boolean(document.querySelector('${diceRoot} [aria-label="Ergebnis wieder verdecken"]'))`);
+    await sleep(400);
+    await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-widget-dice.png'));
+    await clickSelector(client, diceRoot+' [aria-label="1 Würfel auswählen"]');
+    await waitFor(client, 'single die prevents removal and hides arithmetic mode controls', `(${diceValues}).length===1 && document.querySelector('${diceRoot} [aria-label="Einen Würfel entfernen"]').disabled && !document.querySelector('${diceRoot} [aria-label="Rechenart Summe"]')`);
+    await clickSelector(client, diceRoot+' [aria-label="Einen Würfel hinzufügen"]');
+    await waitFor(client, 'dice add and remove preserve the other face', `(${diceValues}).length===2`);
+    const firstFace = await evaluate(client, `(${diceValues})[0]`);
+    await clickSelector(client, diceRoot+' [aria-label="Einen Würfel entfernen"]');
+    if(await evaluate(client, `(${diceValues})[0]`)!==firstFace) throw new Error('Removing a die changes the remaining face.');
+    await auditMenu('dice', 'Widget schließen');
+    await evaluate(client, `window.__auditNativePianoContext=window.AudioContext;window.__auditPianoContexts=[];window.AudioContext=class extends window.__auditNativePianoContext {constructor(...a){super(...a);this.auditOscillators=[];window.__auditPianoContexts.push(this);}createOscillator(){const o=super.createOscillator();this.auditOscillators.push(o);return o;}}`);
+    try {
+      await openAuditWidget('piano', 'Klassen-Klavier');
+      const piano = '[data-widget-type="piano"]';
+      const pianoRegion = piano+' [aria-label="Klassen-Klavier"]';
+      await waitFor(client, 'all eight piano keys have visible 44px targets', `(() => {const root=document.querySelector('${pianoRegion}'),r=root.getBoundingClientRect(),keys=Array.from(root.querySelectorAll('button[aria-label*="Taste "]'));return keys.length===8 && keys.every(b=>{const t=b.getBoundingClientRect();return t.width>=44&&t.height>=44&&t.left>=r.left&&t.right<=r.right+1&&t.top>=r.top&&t.bottom<=r.bottom+1;});})()`);
+      const notes = [['Do','C4',261.63],['Re','D4',293.66],['Mi','E4',329.63],['Fa','F4',349.23],['Sol','G4',392],['La','A4',440],['Si','B4',493.88],['Do','C5',523.25]];
+      for (let i=0;i<notes.length;i++) {
+        const [name,note,hz]=notes[i];
+        await clickSelector(client, piano+' button[aria-label='+q(name+', '+note+', Taste '+(i+1))+']');
+        await waitFor(client, 'piano plays genuine '+note+' frequency', `window.__auditPianoContexts.length===1 && window.__auditPianoContexts[0].state==='running' && window.__auditPianoContexts[0].auditOscillators.length===${(i+1)*3} && Math.abs(window.__auditPianoContexts[0].auditOscillators[${i*3}].frequency.value-${hz})<0.01 && document.querySelector('${piano} [role="status"]').textContent.includes(${q(note)})`);
+      }
+      const pressPianoKey = async key => {
+        await client.send('Input.dispatchKeyEvent',{type:'keyDown',key,code:'Digit'+key});
+        await client.send('Input.dispatchKeyEvent',{type:'keyUp',key,code:'Digit'+key});
+      };
+      await evaluate(client, `document.querySelector('${pianoRegion}').focus()`);
+      await pressPianoKey('3');
+      await waitFor(client, 'piano number key plays the matching note', `window.__auditPianoContexts[0].auditOscillators.length===27 && Math.abs(window.__auditPianoContexts[0].auditOscillators[24].frequency.value-329.63)<0.01`);
+      await clickSelector(client, piano+' button[aria-label$="Einstellungen öffnen"]');
+      const pianoSetting = async text => evaluate(client, `Array.from(document.querySelectorAll('${piano} button')).find(b=>b.textContent.trim()===${q(text)}).click()`);
+      await pianoSetting('C D E');
+      await pianoSetting('Leise');
+      await pianoSetting('Farbpunkte anzeigen');
+      await pressPianoKey('2');
+      if(await evaluate(client, `window.__auditPianoContexts[0].auditOscillators.length`)!==27) throw new Error('Piano keyboard plays while settings are open.');
+      await pianoSetting('Fertig');
+      await auditMenu('piano', 'Minimieren');
+      await openAuditWidget('piano', 'Klassen-Klavier');
+      await clickSelector(client, piano+' button[aria-label$="Einstellungen öffnen"]');
+      await waitFor(client, 'piano label volume and color settings survive restore', `['C D E','Leise','Farbpunkte ausblenden'].every(text=>Array.from(document.querySelectorAll('${piano} button')).some(b=>b.textContent.trim()===text && b.getAttribute('aria-pressed')===(text==='Farbpunkte ausblenden'?'false':'true')))`);
+      await pianoSetting('Fertig');
+      await evaluate(client, `document.querySelector('${pianoRegion}').focus()`);
+      await pressPianoKey('4');
+      await waitFor(client, 'piano reuses its audio context after restore', `window.__auditPianoContexts.length===1 && window.__auditPianoContexts[0].auditOscillators.length===30 && Math.abs(window.__auditPianoContexts[0].auditOscillators[27].frequency.value-349.23)<0.01`);
+      await sleep(400);
+      await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-widget-piano.png'));
+      await auditMenu('piano', 'Widget schließen');
+      await waitFor(client, 'closing piano releases its genuine audio context', `window.__auditPianoContexts.every(c=>c.state==='closed')`);
+    } finally {
+      await evaluate(client, `window.AudioContext=window.__auditNativePianoContext;delete window.__auditNativePianoContext;delete window.__auditPianoContexts`);
+    }
+    console.log('✓ Dice/piano: six dice, real arithmetic and roll, count bounds and restore; eight genuine note frequencies, keyboard/settings guard, persisted options and audio cleanup.');
+
 
 
     console.log('✓ Widget block: groups stay in widget, real wheel winner restored, all star children reachable without inner scrolling.');
