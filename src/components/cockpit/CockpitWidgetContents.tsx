@@ -4987,7 +4987,7 @@ export const WordchainWidgetContent: React.FC<{
         <div className="flex gap-1.5 items-center">
           <button style={{ minHeight: 44, minWidth: 44 }} 
             onClick={triggerHint}
-            className="px-2 py-0.5 rounded text-xs font-black uppercase bg-amber-500 hover:bg-amber-600 text-white cursor-pointer active: transition-all shadow-xs"
+            className="px-2 py-0.5 rounded text-xs font-black uppercase bg-amber-500 hover:bg-amber-600 text-white cursor-pointer transition-all shadow-xs"
             title="Tipp bekommen"
           >
             💡 Tipp
@@ -5015,7 +5015,7 @@ export const WordchainWidgetContent: React.FC<{
                 <button style={{ minHeight: 44, minWidth: 44 }}
                   data-chain-word={w}
                   onClick={() => speakWord(w)}
-                  className={`px-2 py-0.5 rounded-lg text-xs shadow-xs select-none transition-all cursor-pointer hover: active: border ${
+                  className={`px-2 py-0.5 rounded-lg text-xs shadow-xs select-none transition-all cursor-pointer border ${
                     isActive
                       ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white tracking-wide scale-[1.03] ring-2 ring-indigo-400/30 border-transparent font-extrabold'
                       : currentIsLight
@@ -5050,7 +5050,7 @@ export const WordchainWidgetContent: React.FC<{
                     setHints([]);
                     setOwlState('cheering');
                   }}
-                  className="px-2 py-0.5 rounded-md bg-amber-500 hover:bg-amber-600 text-white font-black text-xs cursor-pointer transition-transform hover: active: shadow-sm"
+                  className="px-2 py-0.5 rounded-md bg-amber-500 hover:bg-amber-600 text-white font-black text-xs cursor-pointer transition-transform shadow-sm"
                 >
                   {hint}
                 </button>
@@ -5089,7 +5089,7 @@ export const WordchainWidgetContent: React.FC<{
         />
         <button style={{ minHeight: 44, minWidth: 44 }}
           type="submit"
-          className="px-3.5 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white font-black text-xs uppercase tracking-widest cursor-pointer shadow-md select-none active: transition-all"
+          className="px-3.5 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white font-black text-xs uppercase tracking-widest cursor-pointer shadow-md select-none transition-all"
         >
           Senden
         </button>
@@ -5740,6 +5740,7 @@ export const WordgridWidgetContent: React.FC<{
 
   const initGridGame = useCallback((diff: 'easy' | 'medium' | 'hard') => {
     const next = createWordgrid(diff);
+    setStars(0);
     setGrid(next.grid);
     setTargetWords(next.words);
     setSelectedLetters([]);
@@ -10425,7 +10426,7 @@ export const WordscrambleWidgetContent: React.FC<{
             disabled={isLoadingAI}
             title={`Generiert Aufgaben basierend auf Niveau ${averageNiveau}`}
             className={`px-1.5 py-0.5 rounded text-xs font-bold flex items-center gap-0.5 transition-all text-white ${
-              isLoadingAI ? 'bg-indigo-300 animate-pulse' : 'bg-indigo-600 hover:bg-indigo-700 active: cursor-pointer'
+              isLoadingAI ? 'bg-indigo-300 animate-pulse' : 'bg-indigo-600 hover:bg-indigo-700 cursor-pointer'
             }`}
           >
             <Sparkles className="w-1.5 h-1.5" />
