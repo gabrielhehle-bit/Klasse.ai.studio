@@ -694,6 +694,7 @@ async function main() {
       await clickButton(client, action, true);
     };
     const readLongWidgetText = async (type, text, title) => {
+      await evaluate(client, `(() => {if(window.__widgetClickTrace)return;window.__widgetClickTrace=[];document.addEventListener('click',e=>{const b=e.target.closest?.('button');if(b)window.__widgetClickTrace.push({label:b.getAttribute('aria-label')?.slice(0,80),text:b.textContent?.trim().slice(0,60)});},true);})()`);
       const trigger = `[data-widget-type="${type}"] [data-widget-text-reader="true"]`;
       await waitFor(client, 'long '+title+' has explicit reading action', `Boolean(document.querySelector('${trigger}'))`);
       await clickSelector(client, trigger);
@@ -874,6 +875,7 @@ async function main() {
       await openAuditWidget(type,search);
       await waitFor(client, type+' restores its saved state after layout settles', `${stateExpression} === ${q(before)}`);
       await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-widget-'+type+'.png'));
+      if(type === 'todo') console.log('Task restore navigation diagnostics: '+JSON.stringify(await evaluate(client, `({cockpit:Boolean(document.querySelector('.klassio-cockpit-shell')),page:Array.from(document.querySelectorAll('[aria-current="page"]')).map(e=>e.textContent.trim()),clicks:window.__widgetClickTrace?.slice(-12)})`)));
       await auditMenu(type,'Widget schließen');
     }
     await openAuditWidget('groups', 'Gruppen-Einteiler');
