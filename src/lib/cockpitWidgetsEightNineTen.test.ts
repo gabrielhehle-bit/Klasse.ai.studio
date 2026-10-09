@@ -43,6 +43,13 @@ test('8 Klassendienste: paging reaches every duty without silently hiding items 
   assert.match(dutyUI, /aria-label="Weitere Klassendienste"/);
 });
 
+test('8 Klassendienste: rows reserve room for titles, two children and touch controls', () => {
+  assert.equal(dienstPageWindow(13, 280, 436, 0).perPage, 1);
+  assert.equal(dienstPageWindow(13, 380, 476, 0).perPage, 1);
+  assert.equal(dienstPageWindow(13, 650, 600, 0).perPage, 2);
+  assert.equal(dienstPageWindow(13, 650, 800, 0).perPage, 4);
+});
+
 test('8 Klassendienste: a dated substitute expires tomorrow; dates rotate with duty assignments', () => {
   assert.equal(localDienstDate(new Date(2026, 8, 24, 0, 20)), '2026-09-24');
   const today = '2026-09-24', nextDay = '2026-09-25';

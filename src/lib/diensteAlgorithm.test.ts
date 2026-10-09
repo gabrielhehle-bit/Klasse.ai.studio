@@ -181,7 +181,7 @@ test('Dienste: 16. FULLSCREEN Responsive Kategorie (>= 800 px oder isFullscreen=
 test('Dienste: 17. Kein horizontaler Overflow / Mindestmaße im Register', () => {
   assert.ok(WIDGET_MIN_SIZES.dienste);
   assert.equal(WIDGET_MIN_SIZES.dienste.minW, 280);
-  assert.equal(WIDGET_MIN_SIZES.dienste.minH, 220);
+  assert.equal(WIDGET_MIN_SIZES.dienste.minH, 520);
 });
 
 test('Dienste: 18. Keine Netzwerkrequests (100% Offline-fähig)', () => {
