@@ -110,8 +110,26 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
         });
       }
     },
-    [onUpdate]
+    [onUpdate, widget?.settings]
   );
+
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const updateState = (updater: (previous: WortSatzWerkstattState) => WortSatzWerkstattState) => {
+    const next = updater(stateRef.current);
+    stateRef.current = next;
+    setState(next);
+    persistState(next);
+  };
+  const editorDialogRef = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = editorDialogRef.current;
+    if (!editorOpen || !dialog) return;
+    const trigger = containerRef.current?.closest('[data-widget-type]')?.querySelector<HTMLButtonElement>('.cockpit-widget-settings-trigger');
+    dialog.showModal();
+    return () => { if (dialog.open) dialog.close(); trigger?.focus(); };
+  }, [editorOpen]);
+  const closeEditor = () => { setEditorOpen(false); onCloseSettings?.(); };
 
   // Wenn externer Settings-Modus geschaltet wird
   useEffect(() => {
@@ -142,7 +160,7 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
 
   // Modus wechseln
   const handleSetMode = (newMode: WortSatzMode) => {
-    setState((prev) => {
+    updateState((prev) => {
       const nextTaskIdx = 0;
       let targetTask: WordTask | CompoundTask | SentenceTask = prev.wordTasks[0];
       if (newMode === 'compound') targetTask = prev.compoundTasks[0];
@@ -159,14 +177,13 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
         checkFeedback: null,
         showSolution: false,
       };
-      persistState(next);
       return next;
     });
   };
 
   // Nächste / Vorherige Aufgabe
   const handleNavTask = (delta: number) => {
-    setState((prev) => {
+    updateState((prev) => {
       const listLength =
         prev.mode === 'word'
           ? prev.wordTasks.length
@@ -192,14 +209,13 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
         checkFeedback: null,
         showSolution: false,
       };
-      persistState(next);
       return next;
     });
   };
 
   // Mischen
   const handleShuffle = () => {
-    setState((prev) => {
+    updateState((prev) => {
       const nextItems = shuffleArray(prev.currentItems);
       const next: WortSatzWerkstattState = {
         ...prev,
@@ -209,7 +225,6 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
         checkFeedback: null,
         showSolution: false,
       };
-      persistState(next);
       return next;
     });
   };
@@ -226,7 +241,7 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
   // Nach links verschieben
   const handleMoveLeft = () => {
     if (state.selectedIndex === null || state.selectedIndex <= 0) return;
-    setState((prev) => {
+    updateState((prev) => {
       if (prev.selectedIndex === null) return prev;
       const { newItems, newIndex } = moveItemLeft(prev.currentItems, prev.selectedIndex);
       const next: WortSatzWerkstattState = {
@@ -235,7 +250,6 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
         selectedIndex: newIndex,
         checkFeedback: null,
       };
-      persistState(next);
       return next;
     });
   };
@@ -247,7 +261,7 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
       state.selectedIndex >= state.currentItems.length - 1
     )
       return;
-    setState((prev) => {
+    updateState((prev) => {
       if (prev.selectedIndex === null) return prev;
       const { newItems, newIndex } = moveItemRight(prev.currentItems, prev.selectedIndex);
       const next: WortSatzWerkstattState = {
@@ -256,7 +270,6 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
         selectedIndex: newIndex,
         checkFeedback: null,
       };
-      persistState(next);
       return next;
     });
   };
@@ -283,20 +296,19 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
   // Prüfen (nur "Passt." oder "Noch nicht ganz.", absolut keine Gamification)
   const handleCheck = () => {
     const isCorrect = checkCurrentTask(state);
-    setState((prev) => {
+    updateState((prev) => {
       const next: WortSatzWerkstattState = {
         ...prev,
         isSolved: isCorrect,
         checkFeedback: isCorrect ? 'correct' : 'incorrect',
       };
-      persistState(next);
       return next;
     });
   };
 
   // Lösung anzeigen / übernehmen
   const handleShowSolution = () => {
-    setState((prev) => {
+    updateState((prev) => {
       const canonical = getCanonicalParts(prev.mode, currentTask);
       const next: WortSatzWerkstattState = {
         ...prev,
@@ -306,25 +318,22 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
         checkFeedback: 'correct',
         showSolution: true,
       };
-      persistState(next);
       return next;
     });
   };
 
   // Zielwort abdecken / aufdecken (nur im word-Modus)
   const handleToggleCover = () => {
-    setState((prev) => {
+    updateState((prev) => {
       const next = { ...prev, isCovered: !prev.isCovered };
-      persistState(next);
       return next;
     });
   };
 
   // Kompositum zerlegt vs. zusammenfügen
   const handleToggleCompoundSeparation = () => {
-    setState((prev) => {
+    updateState((prev) => {
       const next = { ...prev, isCompoundSeparated: !prev.isCompoundSeparated };
-      persistState(next);
       return next;
     });
   };
@@ -353,10 +362,9 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
       parts,
       type: parts.length === targetWord.length ? 'letters' : 'syllables',
     };
-    setState((prev) => {
+    updateState((prev) => {
       const nextTasks = [...prev.wordTasks, newTask];
       const next = { ...prev, wordTasks: nextTasks };
-      persistState(next);
       return next;
     });
     setNewWordTarget('');
@@ -382,10 +390,9 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
       parts,
       article: newCompoundArticle,
     };
-    setState((prev) => {
+    updateState((prev) => {
       const nextTasks = [...prev.compoundTasks, newTask];
       const next = { ...prev, compoundTasks: nextTasks };
-      persistState(next);
       return next;
     });
     setNewCompoundWord('');
@@ -401,10 +408,9 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
       originalSentence,
       words,
     };
-    setState((prev) => {
+    updateState((prev) => {
       const nextTasks = [...prev.sentenceTasks, newTask];
       const next = { ...prev, sentenceTasks: nextTasks };
-      persistState(next);
       return next;
     });
     setNewSentenceText('');
@@ -412,7 +418,7 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
 
   // Standard-Presets wiederherstellen
   const handleResetToPresets = () => {
-    setState((prev) => {
+    updateState((prev) => {
       const next: WortSatzWerkstattState = {
         ...prev,
         wordTasks: DEFAULT_WORD_TASKS,
@@ -427,7 +433,6 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
         checkFeedback: null,
         showSolution: false,
       };
-      persistState(next);
       return next;
     });
   };
@@ -445,9 +450,11 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
     <div
       ref={containerRef}
       id="wort-satz-werkstatt-container"
+      data-language-workshop-mode={state.mode}
+      data-language-task-index={state.currentTaskIndex}
       tabIndex={0}
       aria-label="Wörter und Sätze: die Werkstatt auswählen, dann Karten mit den Pfeiltasten bewegen"
-      className={`relative flex flex-col w-full h-full min-h-0 overflow-x-hidden select-none transition-colors duration-150 ${
+      className={`relative flex flex-col w-full h-full min-h-0 overflow-hidden select-none transition-colors duration-150 ${
         currentIsLight
           ? 'bg-slate-50/90 text-slate-900'
           : 'bg-neutral-900 text-neutral-100'
@@ -563,9 +570,9 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
 
       {/* 2. Aufgaben-Vorgabe & didaktischer Kontext */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {state.mode === 'word' && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-neutral-400">
                 Zielwort:
               </span>
@@ -604,7 +611,7 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
           )}
 
           {state.mode === 'compound' && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-neutral-400">
                 Zusammengesetztes Wort:
               </span>
@@ -683,8 +690,8 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
                 onClick={() => handleSelectItem(idx)}
                 style={{ minHeight: TOUCH_TARGET_MIN, minWidth: TOUCH_TARGET_MIN }}
                 aria-pressed={isSelected}
-                className={`relative flex items-center justify-center px-4 py-3 rounded-xl border-2 font-black transition-all cursor-pointer select-none ${
-                  size.isLarge ? 'text-2xl px-5 py-4' : 'text-lg'
+                className={`relative flex items-center justify-center max-w-full px-3 py-2 rounded-xl border-2 [overflow-wrap:anywhere] font-black transition-all cursor-pointer select-none ${
+                  size.isLarge ? 'text-xl' : 'text-lg'
                 } ${
                   isSelected
                     ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 shadow-md ring-2 ring-indigo-400 -translate-y-1'
@@ -720,7 +727,7 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
         )}
 
         {/* Verschieben-Steuerung für ausgewählte Karte */}
-        <div className="flex items-center gap-3 mt-3">
+        <div className="flex flex-wrap justify-center items-center gap-3 mt-3">
           <button
             id="btn-move-left"
             onClick={handleMoveLeft}
@@ -776,7 +783,8 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
           {state.checkFeedback === 'correct' && (
             <div
               id="feedback-correct"
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200 text-sm font-black"
+              role="status"
+              className="flex flex-wrap items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200 text-sm font-black"
             >
               <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>Passt.</span>
@@ -785,7 +793,8 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
           {state.checkFeedback === 'incorrect' && (
             <div
               id="feedback-incorrect"
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 text-sm font-black"
+              role="status"
+              className="flex flex-wrap items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 text-sm font-black"
             >
               <span>Noch nicht ganz.</span>
             </div>
@@ -793,7 +802,7 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
         </div>
 
         {/* Aktionsbuttons: Prüfen & Lösung */}
-        <div className="flex items-center gap-2 ml-auto">
+        <div className="flex flex-wrap items-center gap-2 ml-auto">
           <button
             id="btn-show-solution"
             onClick={handleShowSolution}
@@ -820,21 +829,20 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
 
       {/* 5. Aufgaben-Editor (Aufgaben verwalten & Presets) */}
       {editorOpen && createPortal(
-        <div role="dialog" aria-modal="true" aria-label="Wörter und Sätze bearbeiten"
+        <dialog ref={editorDialogRef} aria-label="Wörter und Sätze bearbeiten"
+          onCancel={event => { event.preventDefault(); closeEditor(); }}
+          onKeyDown={event => { event.stopPropagation(); if (event.key === 'Escape') { event.preventDefault(); closeEditor(); } }}
           id="task-editor-panel"
-          className="fixed inset-0 z-[99999] mx-auto flex w-full max-w-4xl flex-col p-4 bg-slate-50 text-slate-900 dark:bg-neutral-900 dark:text-white overflow-y-auto sm:inset-y-4 sm:rounded-2xl sm:shadow-2xl"
+          className="fixed inset-0 m-auto flex w-[min(94vw,900px)] max-w-none max-h-[85dvh] flex-col p-4 bg-slate-50 text-slate-900 dark:bg-neutral-900 dark:text-white overflow-y-auto rounded-2xl shadow-2xl backdrop:bg-slate-950/60"
         >
           {taskError && <p role="alert" className="mb-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-bold text-rose-800">{taskError}</p>}
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-neutral-800 pb-3 mb-3">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Settings className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
               <h2 className="text-base font-black">Aufgaben-Editor</h2>
             </div>
             <button
-              onClick={() => {
-                setEditorOpen(false);
-                if (onCloseSettings) onCloseSettings();
-              }}
+              onClick={closeEditor}
               style={{ minHeight: TOUCH_TARGET_MIN, minWidth: TOUCH_TARGET_MIN }}
               className="px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-neutral-800 hover:bg-slate-300 dark:hover:bg-neutral-700 text-xs font-bold"
             >
@@ -852,17 +860,19 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
                 <div className="flex flex-wrap gap-2">
                   <input
                     type="text"
+                    aria-label="Zielwort"
                     placeholder="Zielwort (z.B. SOMMER)"
                     value={newWordTarget}
                     onChange={(e) => setNewWordTarget(e.target.value)}
-                    className="flex-1 min-w-[140px] px-3 py-2 rounded-lg border border-slate-300 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-xs font-bold"
+                    className="min-h-11 flex-1 min-w-[140px] px-3 py-2 rounded-lg border border-slate-300 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-xs font-bold"
                   />
                   <input
                     type="text"
+                    aria-label="Wortbausteine"
                     placeholder="Bausteine getrennt (z.B. SOM-MER oder S-O-M-M-E-R)"
                     value={newWordParts}
                     onChange={(e) => setNewWordParts(e.target.value)}
-                    className="flex-1 min-w-[180px] px-3 py-2 rounded-lg border border-slate-300 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-xs"
+                    className="min-h-11 flex-1 min-w-[180px] px-3 py-2 rounded-lg border border-slate-300 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-xs"
                   />
                   <button
                     onClick={handleAddWordTask}
@@ -886,7 +896,8 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
                   <select
                     value={newCompoundArticle}
                     onChange={(e) => setNewCompoundArticle(e.target.value)}
-                    className="px-2 py-2 rounded-lg border border-slate-300 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-xs font-bold"
+                    aria-label="Artikel"
+                    className="min-h-11 px-2 py-2 rounded-lg border border-slate-300 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-xs font-bold"
                   >
                     <option value="der">der</option>
                     <option value="die">die</option>
@@ -894,17 +905,19 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
                   </select>
                   <input
                     type="text"
+                    aria-label="Zusammengesetztes Wort"
                     placeholder="Gesamtwort (z.B. Haustür)"
                     value={newCompoundWord}
                     onChange={(e) => setNewCompoundWord(e.target.value)}
-                    className="flex-1 min-w-[140px] px-3 py-2 rounded-lg border border-slate-300 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-xs font-bold"
+                    className="min-h-11 flex-1 min-w-[140px] px-3 py-2 rounded-lg border border-slate-300 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-xs font-bold"
                   />
                   <input
                     type="text"
+                    aria-label="Wortbestandteile"
                     placeholder="Bestandteile (z.B. Haus | Tür oder Geburt | s | Tag)"
                     value={newCompoundParts}
                     onChange={(e) => setNewCompoundParts(e.target.value)}
-                    className="flex-1 min-w-[180px] px-3 py-2 rounded-lg border border-slate-300 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-xs"
+                    className="min-h-11 flex-1 min-w-[180px] px-3 py-2 rounded-lg border border-slate-300 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-xs"
                   />
                   <button
                     onClick={handleAddCompoundTask}
@@ -927,10 +940,11 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
                 <div className="flex flex-wrap gap-2">
                   <input
                     type="text"
+                    aria-label="Vollständiger Satz"
                     placeholder="Vollständiger Satz mit Satzzeichen (z.B. Wir spielen im Hof.)"
                     value={newSentenceText}
                     onChange={(e) => setNewSentenceText(e.target.value)}
-                    className="flex-1 min-w-[240px] px-3 py-2 rounded-lg border border-slate-300 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-xs font-bold"
+                    className="min-h-11 flex-1 min-w-[240px] px-3 py-2 rounded-lg border border-slate-300 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-xs font-bold"
                   />
                   <button
                     onClick={handleAddSentenceTask}
@@ -957,7 +971,7 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
               </button>
             </div>
           </div>
-        </div>,
+        </dialog>,
         document.body
       )}
     </div>

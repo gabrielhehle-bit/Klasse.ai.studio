@@ -12262,7 +12262,7 @@ export const SoundmemoryWidgetContent: React.FC<{ widget: any, currentIsLight: b
 // ==========================================
 // NEW WIDGET 23: WORT-DETEKTIV (Spelling Detective -> Lernwörter-Studio)
 // ==========================================
-export const SpellingdetectiveWidgetContent: React.FC<{ widget: any, currentIsLight: boolean, onUpdate?: (updates: any) => void }> = ({ widget, currentIsLight, onUpdate }) => {
+export const SpellingdetectiveWidgetContent: React.FC<{ widget: any, currentIsLight: boolean, onUpdate?: (updates: any) => void, showSettings?: boolean, onCloseSettings?: () => void }> = ({ widget, currentIsLight, onUpdate, showSettings, onCloseSettings }) => {
   const { app, setApp } = useApp();
   return (
     <LernwoerterStudioWidget
@@ -12272,6 +12272,8 @@ export const SpellingdetectiveWidgetContent: React.FC<{ widget: any, currentIsLi
       setApp={setApp}
       currentIsLight={currentIsLight}
       defaultMode="spelling"
+      showSettings={showSettings}
+      onCloseSettings={onCloseSettings}
     />
   );
 };

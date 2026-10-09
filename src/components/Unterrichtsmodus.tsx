@@ -11045,6 +11045,9 @@ ${content}
                                         <SpellingdetectiveWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
+                                        onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
@@ -11106,6 +11109,8 @@ ${content}
                                           isFullscreen={
                                             fullscreenWidgetId === widget.id
                                           }
+                                        showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
@@ -11410,6 +11415,8 @@ ${content}
                                           isFullscreen={
                                             fullscreenWidgetId === widget.id
                                           }
+                                        showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
@@ -12353,6 +12360,8 @@ ${content}
                                           isFullscreen={
                                             fullscreenWidgetId === widget.id
                                           }
+                                        showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
