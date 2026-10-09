@@ -55,7 +55,11 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   image: { minW: 280, minH: 200, prefW: 420, prefH: 340 },
   drawing: { minW: 280, minH: 200, prefW: 420, prefH: 340 },
   stopwatch: { minW: 280, minH: 200, prefW: 380, prefH: 300 },
-  klassenglas: { minW: 280, minH: 220, prefW: 380, prefH: 340 },
+  // All ClassRewardWidget variants need an unscaled title, reached banner,
+  // visualization and 44px action row, including restored legacy windows.
+  klassenglas: { minW: 300, minH: 320, prefW: 380, prefH: 340 },
+  thermometer: { minW: 300, minH: 320, prefW: 380, prefH: 340 },
+  classtarget: { minW: 300, minH: 320, prefW: 380, prefH: 340 },
   scoreboard: { minW: 280, minH: 220, prefW: 380, prefH: 320 },
   starsreview: { minW: 320, minH: 280, prefW: 680, prefH: 600 },
   calmrain: { minW: 280, minH: 220, prefW: 380, prefH: 320 },

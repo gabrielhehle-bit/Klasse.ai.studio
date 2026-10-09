@@ -301,11 +301,15 @@ describe('F22 – Team-Scoreboard (widget-scoreboard)', () => {
     assert.strictEqual(sanitized.stepSize, 2);
   });
 
-  // 24. andere Widgets unverändert
-  it('24. Mindestmaße anderer Widgets im Register bleiben exakt unberührt', () => {
+  // 24. eigenständige Mindestgrößen bleiben vom Scoreboard getrennt
+  it('24. sichere Mindestmaße der anderen Widgets bleiben erhalten', () => {
     assert.strictEqual(WIDGET_MIN_SIZES.stopwatch.minW, 280);
     // Todo's later no-scroll layout increased only its own minimum width.\n    assert.strictEqual(WIDGET_MIN_SIZES.todo.minW, 340);
-    assert.strictEqual(WIDGET_MIN_SIZES.klassenglas.minW, 280);
+    // Class-goal variants now reserve unscaled controls and the reached banner.
+    for (const type of ["klassenglas", "thermometer", "classtarget"]) {
+      assert.strictEqual(WIDGET_MIN_SIZES[type].minW, 300);
+      assert.strictEqual(WIDGET_MIN_SIZES[type].minH, 320);
+    }
     assert.strictEqual(WIDGET_MIN_SIZES.timer.minW, 280);
   });
 });

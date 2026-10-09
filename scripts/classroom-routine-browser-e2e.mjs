@@ -1339,6 +1339,90 @@ async function main() {
       await auditMenu(type, 'Widget schließen');
     }
     console.log('✓ Homework/children weekly plan: current week despite teacher planning ahead, own homework, navigation and restore.');
+    await openAuditWidget('scoreboard', 'Gruppen-Punkte');
+    const scoreRoot = '[data-widget-type="scoreboard"]';
+    const readScores = `Array.from(document.querySelectorAll('${scoreRoot} [data-scoreboard-team]')).map(row=>({id:row.dataset.scoreboardTeam,score:Number(row.querySelector('[data-scoreboard-score]').textContent),winner:row.dataset.scoreboardWinner==='true'}))`;
+    const teams = await evaluate(client, readScores);
+    if(teams.length < 2 || teams.some(t=>t.score!==0)) throw new Error('Expected fresh scoreboard teams.');
+    const teamRoot = id => scoreRoot+' [data-scoreboard-team='+q(id)+']';
+    await clickSelector(client, teamRoot(teams[0].id)+' button[aria-label$="Punkt hinzufügen"]');
+    await clickSelector(client, teamRoot(teams[0].id)+' button[aria-label$="Punkt hinzufügen"]');
+    await clickSelector(client, teamRoot(teams[0].id)+' button[aria-label$="Punkt korrigieren"]');
+    await clickSelector(client, teamRoot(teams[1].id)+' button[aria-label$="Punkt hinzufügen"]');
+    await waitFor(client, 'scoreboard corrections produce a tie', `(${readScores}).slice(0,2).every(t=>t.score===1)`);
+    await clickSelector(client, scoreRoot+' button[aria-label="Runde beenden"]');
+    await waitFor(client, 'scoreboard highlights both tied winners', `(${readScores}).filter(t=>t.winner).length===2 && document.querySelector('${scoreRoot}').textContent.includes('Gleichstand!')`);
+    const tiedScores = await evaluate(client, readScores);
+    await auditMenu('scoreboard', 'Minimieren');
+    await openAuditWidget('scoreboard', 'Gruppen-Punkte');
+    await waitFor(client, 'scoreboard scores and winners survive restore', `JSON.stringify(${readScores})===${q(JSON.stringify(tiedScores))}`);
+    await clickSelector(client, scoreRoot+' button[aria-label="Neue Runde starten"]');
+    await waitFor(client, 'new round confirmation has usable targets', `Array.from(document.querySelectorAll('${scoreRoot} button[aria-label="Neue Runde bestätigen"],${scoreRoot} button[aria-label="Abbrechen"]')).length===2 && Array.from(document.querySelectorAll('${scoreRoot} button[aria-label="Neue Runde bestätigen"],${scoreRoot} button[aria-label="Abbrechen"]')).every(b=>{const r=b.getBoundingClientRect();return r.width>=44&&r.height>=44;})`);
+    await clickSelector(client, scoreRoot+' button[aria-label="Abbrechen"]');
+    if(JSON.stringify(await evaluate(client, readScores))!==JSON.stringify(tiedScores)) throw new Error('Cancelled round changes scores.');
+    await clickSelector(client, scoreRoot+' button[aria-label="Neue Runde starten"]');
+    await clickSelector(client, scoreRoot+' button[aria-label="Neue Runde bestätigen"]');
+    await waitFor(client, 'new round preserves teams and clears scores and winners', `(${readScores}).every(t=>t.score===0&&!t.winner) && JSON.stringify((${readScores}).map(t=>t.id))===${q(JSON.stringify(teams.map(t=>t.id)))}`);
+    await clickSelector(client, scoreRoot+' button[aria-label$="Einstellungen öffnen"]');
+    await clickSelector(client, scoreRoot+' button[aria-label="Schrittweite +5"]');
+    await waitFor(client, 'scoreboard step selection is announced', `document.querySelector('${scoreRoot} [aria-label="Schrittweite +5"]')?.getAttribute('aria-pressed')==='true'`);
+    await clickSelector(client, scoreRoot+' button[aria-label="Scoreboard Optionen schließen"]');
+    await clickSelector(client, teamRoot(teams[0].id)+' button[aria-label$="Punkt hinzufügen"]');
+    await clickSelector(client, teamRoot(teams[0].id)+' button[aria-label$="Punkt korrigieren"]');
+    await waitFor(client, 'step five adds five but correction removes one', `(${readScores})[0].score===4`);
+    await auditMenu('scoreboard', 'Minimieren');
+    await openAuditWidget('scoreboard', 'Gruppen-Punkte');
+    await waitFor(client, 'scoreboard step and score survive restore', `(${readScores})[0].score===4 && document.querySelector('${scoreRoot}').textContent.includes('Schritt +5')`);
+    await sleep(500); // Let the restored frame and closing options drawer finish animating.
+    await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-widget-scoreboard.png'));
+    await auditMenu('scoreboard', 'Widget schließen');
+    for (const [type, search, style, styleLabel] of [
+      ['klassenglas', 'Klassenziel', 'jar', 'Belohnungsglas'],
+      ['thermometer', 'Ziel-Thermometer', 'thermometer', 'Ziel-Thermometer'],
+      ['classtarget', 'Klassen-Ziel', 'barometer', 'Fortschritts-Ring'],
+    ]) {
+      await openAuditWidget(type, search);
+      const goalRoot = `[data-widget-type="${type}"] #class-reward-widget-root`;
+      const settings = '[role="dialog"][aria-label="Klassenziel anpassen"]';
+      const goalState = `(() => {const r=document.querySelector('${goalRoot}');return r&&{count:Number(r.dataset.classGoalCount),goal:Number(r.dataset.classGoalGoal),style:r.dataset.classGoalStyle};})()`;
+      await clickSelector(client, `[data-widget-type="${type}"] button[aria-label$="Einstellungen öffnen"]`);
+      await waitFor(client, type+' settings open', `Boolean(document.querySelector('${settings}'))`);
+      await setInputByLabel(client, 'Zielanzahl', '0');
+      await evaluate(client, `Array.from(document.querySelectorAll('${settings} button')).find(b=>b.textContent.trim()==='Speichern').click()`);
+      await waitFor(client, type+' rejects an invalid goal without closing', `Boolean(document.querySelector('${settings} [role="alert"]'))`);
+      await setInputByLabel(client, 'Zielanzahl', '3');
+      await setInputByLabel(client, 'Belohnung / Ziel-Name', 'Gemeinsames Testziel');
+      await clickSelector(client, settings+' button[aria-label="Stern"]');
+      await clickSelector(client, settings+' button[aria-label='+q(styleLabel)+']');
+      await waitFor(client, type+' symbol and style selections are announced', `document.querySelector('${settings} [aria-label="Stern"]')?.getAttribute('aria-pressed')==='true' && document.querySelector('${settings} [aria-label=${q(styleLabel)}]')?.getAttribute('aria-pressed')==='true'`);
+      await evaluate(client, `Array.from(document.querySelectorAll('${settings} button')).find(b=>b.textContent.trim()==='Speichern').click()`);
+      await waitFor(client, type+' saves goal and its visualization', `!document.querySelector('${settings}') && (${goalState})?.goal===3 && (${goalState})?.style===${q(style)} && document.querySelector('${goalRoot}').textContent.includes('Gemeinsames Testziel')`);
+      if((await evaluate(client, goalState)).count!==0) throw new Error('Previous goal reset did not clear shared count.');
+      await waitFor(client, type+' cannot correct below zero', `document.querySelector('${goalRoot} #reward-correction-btn')?.disabled===true`);
+      await clickSelector(client, goalRoot+' #reward-add-btn');
+      await clickSelector(client, goalRoot+' #reward-add-btn');
+      await clickSelector(client, goalRoot+' #reward-correction-btn');
+      await waitFor(client, type+' adds and corrects shared progress', `(${goalState})?.count===1`);
+      await auditMenu(type, 'Minimieren');
+      await openAuditWidget(type, search);
+      await waitFor(client, type+' count goal style and title survive restore', `(${goalState})?.count===1 && (${goalState})?.goal===3 && (${goalState})?.style===${q(style)} && document.querySelector('${goalRoot}').textContent.includes('Gemeinsames Testziel')`);
+      await clickSelector(client, goalRoot+' #reward-reset-btn');
+      await waitFor(client, type+' reset asks for confirmation', `Boolean(document.querySelector('[role="alertdialog"][aria-label="Klassenziel zurücksetzen"]'))`);
+      await clickButton(client, 'Nein', true);
+      await waitFor(client, type+' cancelled reset preserves count', `!document.querySelector('[role="alertdialog"][aria-label="Klassenziel zurücksetzen"]') && (${goalState})?.count===1`);
+      await clickSelector(client, goalRoot+' #reward-add-btn');
+      await clickSelector(client, goalRoot+' #reward-add-btn');
+      await waitFor(client, type+' announces the reached goal', `(${goalState})?.count===3 && document.querySelector('${goalRoot}').textContent.includes('Klassenziel erreicht!')`);
+      await waitFor(client, type+' reached banner leaves visualization and controls unobscured', `(() => {const root=document.querySelector('${goalRoot}'),banner=root.querySelector('[data-class-goal-banner]').getBoundingClientRect(),visual=root.querySelector('[data-class-goal-visual]').getBoundingClientRect(),r=root.getBoundingClientRect();return visual.top>=banner.bottom-1 && visual.height>30 && Array.from(root.querySelectorAll('#reward-add-btn,#reward-correction-btn,#reward-reset-btn')).every(b=>{const t=b.getBoundingClientRect();return t.width>=44 && t.height>=44 && t.left>=r.left && t.right<=r.right+1 && t.bottom<=r.bottom+1;});})()`);
+      await sleep(500);
+      await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-widget-'+type+'.png'));
+      await clickSelector(client, goalRoot+' #reward-reset-btn');
+      await clickButton(client, 'Ja, leeren', true);
+      await waitFor(client, type+' confirmed reset clears only count', `(${goalState})?.count===0 && (${goalState})?.goal===3 && (${goalState})?.style===${q(style)} && document.querySelector('${goalRoot}').textContent.includes('Gemeinsames Testziel')`);
+      await auditMenu(type, 'Widget schließen');
+    }
+    console.log('✓ Scoreboard/class goals: real points, correction, tied winners, new round cancellation/confirmation, step restore; all three goal variants validate settings, reach/reset goal and restore progress.');
+
     console.log('✓ Widget block: groups stay in widget, real wheel winner restored, all star children reachable without inner scrolling.');
     console.log('✓ Widget block: 12 widgets checked; stopwatch pause and traffic light mode survive restore.');
     console.log('✓ Audit regression: calculator keys/result/restore, compass layout at 100/125/150%, QR alias/readability/title/mode restore');
