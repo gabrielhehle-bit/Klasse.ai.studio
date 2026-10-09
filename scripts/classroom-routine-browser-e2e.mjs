@@ -1579,7 +1579,7 @@ async function main() {
 
     // Five-widget math batch: independently calculate displayed tasks, then use the real UI.
     const auditWidgetMinimum = async type => {
-      const minimumSizes={sorting:[420,520],vocabulary:[640,600],spellingdetective:[640,600],wordbuilder:[620,600],scrambler:[620,600],compoundsplit:[620,600]};
+      const minimumSizes={sorting:[420,520],vocabulary:[640,560],spellingdetective:[640,560],wordbuilder:[620,560],scrambler:[620,560],compoundsplit:[620,560]};
       const [minimumWidth,minimumHeight]=minimumSizes[type]||[460,560];
       await waitFor(client,type+' resize grip is reachable after opening', `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('[data-widget-resize]')?.dataset.widgetResize==='se';})()`);
       const point=await evaluate(client, `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
@@ -1734,7 +1734,7 @@ async function main() {
     console.log('✓ Five math widgets: independently calculated answers, wrong/correct input, real keypad and keyboard, native minimum layouts/settings, restore and continue; sorting seven integers/decimals/negative numbers in both directions.');
 
     // Five German widgets: edit real lists/tasks, then exercise their actual lesson workflows.
-    const languageFits = root => `(() => {const el=document.querySelector(${q(root)}),r=el.getBoundingClientRect();return el.scrollWidth<=el.clientWidth+1&&el.scrollHeight<=el.clientHeight+1&&Array.from(el.querySelectorAll('button,input,[role="button"],[data-abc-word]')).every(b=>{const t=b.getBoundingClientRect();return t.width>=44&&t.height>=44&&t.left>=r.left-1&&t.right<=r.right+1&&t.top>=r.top-1&&t.bottom<=r.bottom+1;});})()`;
+    const languageFits = root => `(() => {const el=document.querySelector(${q(root)}),r=el.getBoundingClientRect();return el.scrollWidth<=el.clientWidth+1&&el.scrollHeight<=el.clientHeight+1&&Array.from(el.querySelectorAll('button,input,[role="button"],[data-abc-word]')).every(b=>{const t=b.getBoundingClientRect();return t.width>=44&&t.height>=44&&t.left>=r.left-1&&t.right<=r.right+1&&t.top>=r.top-1&&t.bottom<=r.bottom+1&&b.contains(document.elementFromPoint(t.x+t.width/2,t.y+t.height/2));});})()`;
     const listDialog='dialog[open][aria-label="Lernwortliste verwalten"]';
     for(const [type,search,initialMode] of [['vocabulary','Lernwörter-Studio','cards'],['spellingdetective','Rechtschreib-Detektiv','spelling']]){
       await openAuditWidget(type,search);
