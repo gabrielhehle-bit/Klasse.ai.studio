@@ -447,6 +447,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
                     <div className="flex items-center gap-1">
                       <input
                         type="text"
+                        aria-label="Aufgabentext bearbeiten"
                         value={editingItemText}
                         onChange={e => setEditingItemText(e.target.value)}
                         onKeyDown={e => {
@@ -462,6 +463,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
                       />
                       <button
                         type="button"
+                        aria-label="Aufgabentext speichern"
                         onClick={() => handleSaveEdit(item.id)}
                         className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg bg-accent text-xs font-bold text-accent-text"
                       >
@@ -587,7 +589,9 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
           <button
             type="button"
             onClick={() => setInputIsBonus(prev => !prev)}
-            className={`shrink-0 p-2 rounded-lg border transition-all text-xs flex items-center justify-center ${
+            aria-pressed={inputIsBonus}
+            aria-label="Neue Aufgabe als Zusatzaufgabe"
+            className={`shrink-0 min-h-11 min-w-11 p-2 rounded-lg border transition-all text-xs flex items-center justify-center ${
               inputIsBonus
                 ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
                 : currentIsLight
@@ -603,6 +607,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
           <div className="relative flex-1 min-w-0">
             <input
               type="text"
+              aria-label="Neuer Aufgabenschritt"
               value={inputText}
               onChange={e => setInputText(e.target.value)}
               placeholder={
@@ -610,7 +615,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
                   ? 'Zusatzschritt eintragen (z.B. Nr. 5 für Schnelle)...'
                   : 'Neuen Schritt hinzufügen (z.B. Seite 24 lesen)...'
               }
-              className={`w-full px-3 py-2 text-xs sm:text-sm font-medium rounded-lg border outline-none transition-all placeholder:font-normal placeholder:opacity-50 ${
+              className={`w-full min-h-11 px-3 py-2 text-xs sm:text-sm font-medium rounded-lg border outline-none transition-all placeholder:font-normal placeholder:opacity-50 ${
                 currentIsLight
                   ? 'bg-white border-slate-200 focus:border-accent text-slate-900'
                   : 'bg-slate-800 border-slate-700 focus:border-accent text-slate-100'

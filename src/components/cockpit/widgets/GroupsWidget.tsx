@@ -830,6 +830,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                 <div
                   key={`${group.id}:${segment.part}`}
                   role="listitem"
+                  data-group-id={group.id}
                   className={`min-h-0 rounded-2xl border-2 flex flex-col overflow-hidden shadow-xs transition-all ${palette.border} ${palette.bg}`}
                 >
                   {/* Gruppen Header */}
@@ -869,6 +870,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                       return (
                         <button
                           key={studentId}
+                          data-group-student={studentId}
                           onClick={() => handleStudentClick(studentId)}
                           className={`w-full ${compactGroupWidget ? 'min-h-11 px-2 py-1 rounded-lg gap-1' : 'min-h-[44px] px-2.5 py-1.5 rounded-xl gap-1.5'} text-left font-bold flex items-center justify-between transition-all cursor-pointer border ${
                             isSelected

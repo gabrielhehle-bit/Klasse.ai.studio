@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useWidgetSize } from '../widgetLayout';
 import { useApp } from '../../../context/AppContext';
 import { getKW } from '../../../lib/utils';
@@ -39,9 +39,16 @@ export default function HomeworkWidget() {
   const tiny = size.width < 520 || size.height < 300;
   const roomy = size.width >= 980 && size.height >= 520;
   const columns = size.width >= 1280 ? 3 : size.width >= 760 ? 2 : 1;
-  const todayWeek = getKW(new Date());
+  const [todayWeek, setTodayWeek] = useState(() => getKW(new Date()));
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
-  const week = selectedWeek ?? app.currentKW ?? todayWeek;
+  const week = selectedWeek ?? todayWeek;
+  useEffect(() => {
+    const update = () => setTodayWeek(getKW(new Date()));
+    window.addEventListener('focus', update);
+    const timer = window.setInterval(update, 60_000);
+    return () => { window.removeEventListener('focus', update); window.clearInterval(timer); };
+  }, []);
+  useEffect(() => { setSelectedWeek(null); }, [app.activeClassId, app.schuljahr]);
   const items = useMemo(() => homeworkForWeek(app, week),
     [app.hausuebungen, app.schuljahr, app.bundesland, week]);
   return <section
@@ -65,7 +72,7 @@ export default function HomeworkWidget() {
         </button>
         <button
           type="button"
-          onClick={() => setSelectedWeek(todayWeek)}
+          onClick={() => setSelectedWeek(null)}
           className={`min-h-11 rounded-xl border px-3 text-sm font-bold transition-colors ${
             week === todayWeek
               ? 'border-accent bg-accent text-accent-text'
