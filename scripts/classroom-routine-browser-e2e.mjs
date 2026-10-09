@@ -927,8 +927,10 @@ async function main() {
     await waitFor(client, 'widget homework day editor', `Boolean(document.querySelector('[role="dialog"][aria-label^="Hausübungen Montag"]'))`);
     await setInputByPlaceholder(client, 'z. B. Deutsch', 'Deutsch');
     await setInputByLabel(client, 'Welche Hausübung?', ownHomework);
+    const homeworkIssueDate = await evaluate(client, `document.querySelector('[role="dialog"][aria-label^="Hausübungen Montag"] input[type="date"]').min`);
+    await setInputByLabel(client, 'Bis wann?', homeworkIssueDate);
     await clickButton(client, 'Hausübung speichern', true);
-    await waitFor(client, 'own homework saved for current week', `document.querySelector('[role="dialog"][aria-label^="Hausübungen Montag"]')?.textContent.includes(${q(ownHomework)})`);
+    await waitFor(client, 'own homework saved for current week', `Array.from(document.querySelectorAll('[role="dialog"][aria-label^="Hausübungen Montag"] [aria-label="Eingetragene Hausübungen"] article')).some(article=>article.textContent.includes(${q(ownHomework)}))`);
     await clickSelector(client, '[aria-label="Hausübungen schließen"]');
     await clickSelector(client, 'button[aria-label="Nächste Woche"]');
     await waitFor(client, 'teacher planner intentionally moved ahead', `Number(document.querySelector('button[title="Woche wählen"]')?.textContent.match(/KW\\s+(\\d+)/)[1]) !== ${currentWidgetWeek}`);
