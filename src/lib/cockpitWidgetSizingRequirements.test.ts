@@ -282,6 +282,7 @@ test("Sekundäre Widget-Einstellungen bleiben ebenfalls fingergerecht", () => {
   assert.match(dutiesWidget, /dienste-rotate-btn-header[\s\S]*min-h-11 px-2\.5 py-1/);
   assert.match(dutiesWidget, /dienste-menu-toggle-btn[\s\S]*min-h-11 min-w-11/);
   assert.match(dutiesWidget, /min-h-11 px-2 py-0\.5 rounded-lg text-\[10px\] font-bold border/);
-  assert.match(dutiesWidget, /min-h-11 px-2 py-1\.5 rounded-lg border text-left text-xs font-bold/);
+  assert.match(dutiesWidget, /data-dienst-assign-student[\s\S]{0,400}min-h-11/);
+  assert.match(dutiesWidget, /aria-label="Dienstkinder suchen"[\s\S]{0,320}min-h-11/);
   assert.doesNotMatch(dutiesWidget, /p-1 rounded-md text-slate-400/);
 });

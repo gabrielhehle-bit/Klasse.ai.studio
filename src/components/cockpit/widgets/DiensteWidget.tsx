@@ -118,6 +118,15 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
 
   // UI-Zustände
   const [activeAssignDienstId, setActiveAssignDienstId] = useState<string | null>(null);
+  const assignDialogRef = useRef<HTMLDialogElement>(null);
+  const assignTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const activeAssignDienst = dienste.find(dienst => dienst.id === activeAssignDienstId);
+  useEffect(() => {
+    const dialog = assignDialogRef.current;
+    if (!activeAssignDienst || !dialog) return;
+    dialog.showModal();
+    return () => { if (dialog.open) dialog.close(); };
+  }, [activeAssignDienstId, Boolean(activeAssignDienst)]);
   const [activeChildrenDienstId, setActiveChildrenDienstId] = useState<string | null>(null);
   const childrenDialogRef = useRef<HTMLDialogElement>(null);
   const childrenTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -165,6 +174,9 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
 
   // Studentensuche für Zuweisungs-Drawer
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
+
+  const filteredAssignStudents = allStudents.filter(student =>
+    getDisplayStudentName(student, allStudents).toLocaleLowerCase().includes(studentSearchQuery.trim().toLocaleLowerCase()));
 
   // Anwesenheitsprüfung
   const isAbsent = (studentId: string) => isStudentAbsentToday(studentId, app);
@@ -634,11 +646,12 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                         {/* Aktionen auf Dienst-Ebene: Edit, Zuweisen, Löschen */}
                         <div className="flex items-center gap-1 shrink-0">
                           <button
-                            onClick={() =>
-                              setActiveAssignDienstId(
-                                isAssigningThis ? null : dienst.id
-                              )
-                            }
+                            onClick={event => {
+                              assignTriggerRef.current = event.currentTarget;
+                              event.currentTarget.focus();
+                              setStudentSearchQuery('');
+                              setActiveAssignDienstId(dienst.id);
+                            }}
                             className={`min-h-11 px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
                               isAssigningThis
                                 ? 'bg-accent text-accent-text border-accent'
@@ -695,82 +708,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                     )}
                   </div>
 
-                  {/* SCHÜLER-ZUWEISUNGS-DRAWER (Inline unter dem jeweiligen Dienst) */}
-                  {isAssigningThis && (
-                    <div
-                      id={`dienst-assign-drawer-${dienst.id}`}
-                      className={`mt-2 p-2.5 rounded-xl border flex flex-col gap-2 shadow-inner z-10 ${
-                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-950 border-white/10'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2 border-b pb-1.5">
-                        <span className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400 tracking-wider">
-                          Kinder zuordnen (Mehrfachauswahl möglich)
-                        </span>
-                        <button
-                          onClick={() => setActiveAssignDienstId(null)}
-                          className="min-h-11 rounded-lg px-2 text-[10px] font-bold text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-zinc-800 dark:hover:text-white"
-                        >
-                          Schließen ✕
-                        </button>
-                      </div>
 
-                      {/* Suchfeld bei vielen Schülern */}
-                      {allStudents.length > 8 && (
-                        <input
-                          type="text"
-                          placeholder="Name suchen..."
-                          value={studentSearchQuery}
-                          onChange={(e) => setStudentSearchQuery(e.target.value)}
-                          className={`min-h-11 px-2 py-1 text-xs rounded-lg border outline-none ${
-                            isLight ? 'bg-white border-slate-300' : 'bg-zinc-900 border-white/10'
-                          }`}
-                        />
-                      )}
-
-                      {/* Schüler-Chips */}
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 max-h-36 overflow-y-auto pr-1">
-                        {allStudents
-                          .filter((s) => {
-                            if (!studentSearchQuery) return true;
-                            const name = getDisplayStudentName(s, allStudents).toLowerCase();
-                            return name.includes(studentSearchQuery.toLowerCase());
-                          })
-                          .map((s) => {
-                            const isAssigned = dienst.schuelerIds.includes(s.id);
-                            const studentAbsent = isAbsent(s.id);
-                            const name = getDisplayStudentName(s, allStudents);
-
-                            return (
-                              <button
-                                key={s.id}
-                                aria-pressed={isAssigned}
-                                data-dienst-assign-student={s.id}
-                                aria-label={name + (isAssigned ? ' abteilen' : ' zuteilen')}
-                                onClick={() => handleToggleStudent(dienst.id, s.id)}
-                                className={`min-h-11 px-2 py-1.5 rounded-lg border text-left text-xs font-bold flex items-center justify-between gap-1 transition-all cursor-pointer ${
-                                  isAssigned
-                                    ? 'bg-accent border-accent text-accent-text shadow-xs'
-                                    : studentAbsent
-                                    ? isLight
-                                      ? 'bg-rose-50/50 border-rose-200 text-rose-700 hover:bg-rose-50'
-                                      : 'bg-rose-950/20 border-rose-900/30 text-rose-300'
-                                    : isLight
-                                    ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-800'
-                                    : 'bg-zinc-900 hover:bg-zinc-800 border-white/5 text-zinc-200'
-                                }`}
-                              >
-                                <span className="truncate">{name}</span>
-                                {isAssigned && <Check size={11} className="shrink-0" />}
-                                {!isAssigned && studentAbsent && (
-                                  <span className="text-[8px] opacity-70 shrink-0">fehlt</span>
-                                )}
-                              </button>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -861,6 +799,51 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
             </form>
           </div>
         </div>
+      )}
+
+      {activeAssignDienst && createPortal(
+        <dialog ref={assignDialogRef} id={`dienst-assign-drawer-${activeAssignDienst.id}`}
+          aria-label="Kinder zuordnen"
+          onClose={() => { setActiveAssignDienstId(null); setStudentSearchQuery(''); assignTriggerRef.current?.focus(); }}
+          onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); assignDialogRef.current?.close(); } }}
+          className={'fixed inset-0 m-auto h-[min(85dvh,680px)] w-[min(94vw,760px)] max-w-none rounded-2xl border p-0 shadow-2xl backdrop:bg-black/50 ' + (isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-zinc-900 border-white/15 text-white')}>
+          <div className="flex h-full min-h-0 flex-col">
+            <header className="shrink-0 space-y-2 border-b p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-lg font-bold">Kinder zuordnen</h2>
+                  <p className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{activeAssignDienst.titel}</p>
+                  <p className="text-xs">Mehrfachauswahl · Änderungen werden sofort übernommen</p>
+                </div>
+                <button type="button" autoFocus onClick={() => assignDialogRef.current?.close()}
+                  className="min-h-11 shrink-0 rounded-lg border px-3 font-bold">Schließen ✕</button>
+              </div>
+              <input type="search" aria-label="Dienstkinder suchen" placeholder="Name suchen…"
+                value={studentSearchQuery} onChange={event => setStudentSearchQuery(event.target.value)}
+                className={'min-h-11 w-full rounded-lg border px-3 text-base ' + (isLight ? 'border-slate-300 bg-white' : 'border-white/15 bg-zinc-800')} />
+              <p aria-live="polite" className="text-xs">{activeAssignDienst.schuelerIds.length} {activeAssignDienst.schuelerIds.length === 1 ? 'Kind' : 'Kinder'} zugeteilt</p>
+            </header>
+            <div data-dienst-assignment-list tabIndex={0} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] items-start gap-2">
+                {filteredAssignStudents.map(student => {
+                  const assigned = activeAssignDienst.schuelerIds.includes(student.id);
+                  const studentAbsent = isAbsent(student.id);
+                  const name = getDisplayStudentName(student, allStudents);
+                  return <button type="button" key={student.id} aria-pressed={assigned}
+                    data-dienst-assign-student={student.id} aria-label={name + (assigned ? ' abteilen' : ' zuteilen')}
+                    onClick={() => handleToggleStudent(activeAssignDienst.id, student.id)}
+                    className={'flex min-h-11 min-w-0 items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-base font-bold ' +
+                      (assigned ? 'border-accent bg-accent text-accent-text' : studentAbsent ? (isLight ? 'border-rose-200 bg-rose-50/50 text-rose-700' : 'border-rose-900/30 bg-rose-950/20 text-rose-300') : (isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-white/10 bg-zinc-800 text-white'))}>
+                    <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{name}</span>
+                    {studentAbsent && <span className="shrink-0 text-xs">fehlt</span>}
+                    {assigned && <Check size={18} className="shrink-0" />}
+                  </button>;
+                })}
+              </div>
+              {!filteredAssignStudents.length && <p role="status" className="py-3 text-sm">{allStudents.length ? 'Keine Kinder gefunden.' : 'Keine Kinder in dieser Klasse.'}</p>}
+            </div>
+          </div>
+        </dialog>, document.body
       )}
 
       {activeChildrenDienst && createPortal(
