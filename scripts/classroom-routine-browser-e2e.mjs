@@ -889,6 +889,53 @@ async function main() {
     await auditMenu('dienste','Minimieren');
     await openAuditWidget('dienste','Klassendienste');
     if(JSON.stringify(await readDuties())!==JSON.stringify(allDuties)) throw new Error('Duty pages change on restore.');
+    const addDutyDialog='dialog[open][aria-label="Neuen Dienst hinzufügen"]';
+    const openAddDuty=async () => {
+      await clickSelector(client,'[data-widget-type="dienste"] button[aria-label$="Einstellungen öffnen"]');
+      await clickButton(client,'Dienst hinzufügen',true);
+      await waitFor(client,'new duty opens outside widget frame',"Boolean(document.querySelector("+q(addDutyDialog)+")) && !document.querySelector("+q('[data-widget-type="dienste"]')+").contains(document.querySelector("+q(addDutyDialog)+"))");
+    };
+    const addDutyClosed="!document.querySelector('#dienste-add-modal') && document.activeElement.matches('[data-widget-type=\"dienste\"] button[aria-label$=\"Einstellungen öffnen\"]')";
+    await openAddDuty();
+    await waitFor(client,'empty duty title cannot be added',"document.querySelector("+q(addDutyDialog+' button[type="submit"]')+").disabled");
+    await setInputByLabel(client,'Diensttitel','   ');
+    await waitFor(client,'whitespace duty title cannot be added',"document.querySelector("+q(addDutyDialog+' button[type="submit"]')+").disabled");
+    await setInputByLabel(client,'Diensttitel','Dieser Entwurf wird abgebrochen');
+    const newDutyEmoji=await evaluate(client,"Array.from(document.querySelector("+q(addDutyDialog+' select')+").options).find(o=>o.value!=='🧽').value");
+    await setInputByLabel(client,'Dienstsymbol',newDutyEmoji);
+    await clickSelector(client,addDutyDialog+' footer button[type="button"]');
+    await waitFor(client,'cancel adding returns focus without creating duty',addDutyClosed);
+    if(JSON.stringify(await readDuties())!==JSON.stringify(allDuties)) throw new Error('Cancelled duty changed the existing services.');
+    await openAddDuty();
+    await waitFor(client,'cancelled draft is cleared on reopening',"document.querySelector("+q(addDutyDialog+' input')+").value==='' && document.querySelector("+q(addDutyDialog+' select')+").value==='🧽'");
+    await setInputByLabel(client,'Diensttitel','Auch dieser Entwurf wird nicht gespeichert');
+    await client.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape'});
+    await client.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape'});
+    await waitFor(client,'Escape adding returns focus without creating duty',addDutyClosed);
+    await openAddDuty();
+    const newDutyTitle='Neuer Dienst '+('b'.repeat(67));
+    await setInputByLabel(client,'Diensttitel',newDutyTitle);
+    await setInputByLabel(client,'Dienstsymbol',newDutyEmoji);
+    for(const [width,dialogWidth] of [[820,390],[820,null],[1366,null]]){
+      await client.send('Emulation.setDeviceMetricsOverride',{width,height:768,deviceScaleFactor:1,mobile:false});
+      await evaluate(client,"document.querySelector("+q(addDutyDialog)+").style.width = "+q(dialogWidth ? dialogWidth+'px' : ''));
+      await sleep(150);
+      const fits=await evaluate(client,"(() => {const d=document.querySelector("+q(addDutyDialog)+"),r=d.getBoundingClientRect(),controls=Array.from(d.querySelectorAll('input,select,button'));return r.left>=0 && r.right<=innerWidth && r.top>=0 && r.bottom<=innerHeight && d.scrollWidth<=d.clientWidth+1 && d.querySelector('input').maxLength===80 && controls.every(control=>{const c=control.getBoundingClientRect();return c.height>=44 && c.left>=r.left && c.right<=r.right && c.top>=r.top && c.bottom<=r.bottom;});})()");
+      if(!fits) throw new Error('Adding duty clips labelled fields or action controls at '+width+'px.');
+      if(dialogWidth) await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-duty-add-narrow.png'));
+    }
+    await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-duty-add.png'));
+    await clickSelector(client,addDutyDialog+' button[type="submit"]');
+    await waitFor(client,'adding saves and returns focus',addDutyClosed);
+    const dutiesAfterAdd=await readDuties();
+    const newDutyIds=dutiesAfterAdd.filter(id=>!allDuties.includes(id));
+    if(dutiesAfterAdd.length!==allDuties.length+1 || newDutyIds.length!==1 || !allDuties.every(id=>dutiesAfterAdd.includes(id))) throw new Error('Adding duty duplicates or changes an existing service.');
+    const newDutySelector='#'+newDutyIds[0];
+    // The new service is appended and is reachable on the final page.
+    await waitFor(client,'new duty keeps long title, symbol and empty assignments',"document.querySelector("+q(newDutySelector+' [data-widget-text-preview]')+").textContent==="+q(newDutyTitle)+" && document.querySelector("+q(newDutySelector+' [role="img"]')+").textContent==="+q(newDutyEmoji)+" && document.querySelectorAll("+q(newDutySelector+' [data-dienst-student]')+").length===0");
+    await auditMenu('dienste','Minimieren');
+    await openAuditWidget('dienste','Klassendienste');
+    if(JSON.stringify(await readDuties())!==JSON.stringify(dutiesAfterAdd)) throw new Error('New duty does not survive restore.');
     await auditMenu('dienste','Widget schließen');
 
     await openAuditWidget('instruction','Arbeitsauftrag');

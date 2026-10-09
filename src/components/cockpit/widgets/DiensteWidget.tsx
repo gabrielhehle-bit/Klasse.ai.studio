@@ -158,6 +158,14 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
     else setShowManageMenu(false);
   };
   const [showAddModal, setShowAddModal] = useState(false);
+  const addDialogRef = useRef<HTMLDialogElement>(null);
+  const addTriggerRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    const dialog = addDialogRef.current;
+    if (!showAddModal || !dialog) return;
+    dialog.showModal();
+    return () => { if (dialog.open) dialog.close(); };
+  }, [showAddModal]);
   const [newDienstTitel, setNewDienstTitel] = useState('');
   const [newDienstEmoji, setNewDienstEmoji] = useState('🧽');
 
@@ -196,7 +204,9 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
     const updated = addDienst(dienste, newDienstTitel.trim().slice(0, 80), newDienstEmoji);
     commitDienste(updated);
     setNewDienstTitel('');
+    addDialogRef.current?.close();
     setShowAddModal(false);
+    addTriggerRef.current?.focus();
   };
 
   const handleStartEdit = (d: DiensteItem, e: React.MouseEvent) => {
@@ -273,7 +283,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
   // ==========================================
   const dutyWindow = dienstPageWindow(dienste.length, size.width, size.height, dienstPage);
   const displayedDienste = dienste.slice(dutyWindow.start, dutyWindow.end);
-  useEffect(() => { setDienstPage(0); setActiveAssignDienstId(null); setStudentSearchQuery(''); },
+  useEffect(() => { setDienstPage(0); setActiveAssignDienstId(null); setStudentSearchQuery(''); setShowAddModal(false); },
     [app?.activeClassId]);
 
   // Theme Styles
@@ -454,6 +464,10 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
               >
                 <button
                   onClick={() => {
+                    const root = containerRef.current?.closest('[data-widget-type="dienste"]') || containerRef.current;
+                    addTriggerRef.current = root?.querySelector<HTMLButtonElement>('button[aria-label$="Einstellungen schließen"],button[aria-label$="Einstellungen öffnen"],#dienste-menu-toggle-btn') || null;
+                    setNewDienstTitel('');
+                    setNewDienstEmoji('🧽');
                     setShowAddModal(true);
                     closeManageMenu();
                   }}
@@ -730,75 +744,39 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
       {/* ========================================== */}
       {/* 3. MODAL: NEUEN DIENST HINZUFÜGEN           */}
       {/* ========================================== */}
-      {showAddModal && (
-        <div
-          id="dienste-add-modal"
-          className="absolute inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50"
-        >
-          <div
-            className={`w-full max-w-sm rounded-2xl p-4 border shadow-2xl flex flex-col gap-3 ${
-              isLight ? 'bg-white border-slate-200' : 'bg-zinc-900 border-white/15'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className={`text-xs font-black uppercase tracking-wider ${textPrimary}`}>
-                Neuen Dienst hinzufügen
-              </span>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-800 dark:hover:text-white"
-              >
-                <X size={15} />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddDienstSubmit} className="flex flex-col gap-2.5">
-              <div className="flex gap-2">
-                <select
-                  value={newDienstEmoji}
-                  onChange={(e) => setNewDienstEmoji(e.target.value)}
-                  className={`min-h-11 px-2 py-1.5 text-base rounded-xl border outline-none cursor-pointer ${
-                    isLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-800 border-white/10'
-                  }`}
-                >
-                  {DIENSTE_EMOJI_PALETTE.map((em) => (
-                    <option key={em} value={em}>
-                      {em}
-                    </option>
-                  ))}
+      {showAddModal && createPortal(
+        <dialog ref={addDialogRef} id="dienste-add-modal" aria-label="Neuen Dienst hinzufügen"
+          onClose={() => { setShowAddModal(false); addTriggerRef.current?.focus(); }}
+          onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); addDialogRef.current?.close(); } }}
+          className={'fixed inset-0 m-auto max-h-[85dvh] w-[min(94vw,560px)] max-w-none rounded-2xl border p-0 shadow-2xl backdrop:bg-black/50 ' + (isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-zinc-900 border-white/15 text-white')}>
+          <form onSubmit={handleAddDienstSubmit} className="flex max-h-[85dvh] min-h-0 flex-col">
+            <header className="flex shrink-0 items-center justify-between gap-3 border-b p-3">
+              <h2 className="text-lg font-bold">Neuen Dienst hinzufügen</h2>
+              <button type="button" onClick={() => addDialogRef.current?.close()}
+                aria-label="Dienst hinzufügen schließen"
+                className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border"><X size={20} /></button>
+            </header>
+            <div className="min-h-0 space-y-3 overflow-y-auto p-4">
+              <label className="block text-sm font-bold">Diensttitel
+                <input type="text" placeholder="z. B. Technik, Bücher, Müll…" value={newDienstTitel}
+                  maxLength={80} onChange={event => setNewDienstTitel(event.target.value)} autoFocus
+                  className={'mt-1 min-h-11 w-full min-w-0 rounded-xl border px-3 text-base ' + (isLight ? 'border-slate-300 bg-slate-50' : 'border-white/15 bg-zinc-800')} />
+              </label>
+              <label className="block text-sm font-bold">Dienstsymbol
+                <select value={newDienstEmoji} onChange={event => setNewDienstEmoji(event.target.value)}
+                  className={'mt-1 min-h-11 w-full rounded-xl border px-3 text-base ' + (isLight ? 'border-slate-300 bg-slate-50' : 'border-white/15 bg-zinc-800')}>
+                  {DIENSTE_EMOJI_PALETTE.map(emoji => <option key={emoji} value={emoji}>{emoji}</option>)}
                 </select>
-
-                <input
-                  type="text"
-                  placeholder="z. B. Technik, Bücher, Müll..."
-                  value={newDienstTitel}
-                  onChange={(e) => setNewDienstTitel(e.target.value)}
-                  autoFocus
-                  className={`min-h-11 flex-grow px-3 py-1.5 text-xs font-bold rounded-xl border outline-none ${
-                    isLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-800 border-white/10'
-                  }`}
-                />
-              </div>
-
-              <div className="flex gap-2 justify-end pt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="min-h-11 px-3 py-1.5 text-xs font-bold rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800"
-                >
-                  Abbrechen
-                </button>
-                <button
-                  type="submit"
-                  disabled={!newDienstTitel.trim()}
-                  className="min-h-11 px-4 py-1.5 text-xs font-black rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white shadow-xs"
-                >
-                  Hinzufügen
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+              </label>
+            </div>
+            <footer className="flex shrink-0 flex-wrap justify-end gap-2 border-t p-3">
+              <button type="button" onClick={() => addDialogRef.current?.close()}
+                className="min-h-11 rounded-xl border px-3 text-sm font-bold">Abbrechen</button>
+              <button type="submit" disabled={!newDienstTitel.trim()}
+                className="min-h-11 rounded-xl bg-accent px-4 text-sm font-bold text-accent-text disabled:opacity-50">Hinzufügen</button>
+            </footer>
+          </form>
+        </dialog>, document.body
       )}
 
       {activeAssignDienst && createPortal(
