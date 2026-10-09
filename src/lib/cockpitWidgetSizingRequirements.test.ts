@@ -277,7 +277,7 @@ test("Sekundäre Widget-Einstellungen bleiben ebenfalls fingergerecht", () => {
 
   assert.doesNotMatch(mentalMathWidget, /w-(?:6|7) h-(?:6|7) rounded text-xs font-mono font-bold/);
   assert.match(mentalMathWidget, /min-h-11 min-w-11 rounded text-xs font-mono font-bold/);
-  assert.match(mentalMathWidget, /min-h-11 px-2 py-1 rounded text-xs font-mono font-medium/);
+  assert.match(mentalMathWidget, /min-h-11 min-w-11 px-2 py-1 rounded text-xs font-mono font-medium/);
 
   assert.match(dutiesWidget, /dienste-rotate-btn-header[\s\S]*min-h-11 px-2\.5 py-1/);
   assert.match(dutiesWidget, /dienste-menu-toggle-btn[\s\S]*min-h-11 min-w-11/);

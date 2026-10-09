@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Sparkles,
   ChevronRight,
@@ -74,6 +75,19 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
   const [studentInput, setStudentInput] = useState<string>('');
   const [feedbackState, setFeedbackState] = useState<'idle' | 'correct' | 'try_again'>('idle');
   const showSettingsDrawer = showSettings;
+  const settingsDialogRef = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = settingsDialogRef.current;
+    if (!showSettings || !dialog) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const settingsTrigger = containerRef.current?.closest('[data-widget-type]')?.querySelector<HTMLButtonElement>('button[aria-label$="Einstellungen öffnen"]');
+    dialog.showModal();
+    return () => {
+      if (dialog.open) dialog.close();
+      if (settingsTrigger?.isConnected) settingsTrigger.focus();
+      else if (previousFocus?.isConnected) previousFocus.focus();
+    };
+  }, [showSettings]);
 
   // Sync to backend/cockpit persistence
   const updateSettings = useCallback(
@@ -178,6 +192,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
     if (settings.mode === 'chain') {
       return (
         <div className="flex flex-col items-center justify-center text-center px-2">
+          <p className="mb-2 text-xs font-semibold text-slate-500">Schritt für Schritt von links nach rechts</p>
           <div
             className={`font-mono font-bold tracking-tight text-slate-800 dark:text-slate-100 ${
               isFullscreen
@@ -190,7 +205,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
             {currentTask.questionText}
             <span className="text-slate-400 mx-2">=</span>
             {isRevealed ? (
-              <span className="text-accent underline decoration-current decoration-wavy">
+              <span data-mental-math-answer className="text-accent underline decoration-current decoration-wavy">
                 {currentTask.correctAnswer}
               </span>
             ) : (
@@ -233,7 +248,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
           {currentTask.missingPart === 'left' ? (
             <>
               {isRevealed ? (
-                <span className="text-accent underline decoration-current">
+                <span data-mental-math-answer className="text-accent underline decoration-current">
                   {currentTask.correctAnswer}
                 </span>
               ) : (
@@ -249,7 +264,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
               <span>{currentTask.left}</span>
               <span className="mx-2">{currentTask.operator}</span>
               {isRevealed ? (
-                <span className="text-accent underline decoration-current">
+                <span data-mental-math-answer className="text-accent underline decoration-current">
                   {currentTask.correctAnswer}
                 </span>
               ) : (
@@ -279,7 +294,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
         <span>{currentTask.right}</span>
         <span className="text-slate-400 mx-2.5">=</span>
         {isRevealed ? (
-          <span className="text-accent underline decoration-current decoration-wavy">
+          <span data-mental-math-answer className="text-accent underline decoration-current decoration-wavy">
             {currentTask.correctAnswer}
           </span>
         ) : (
@@ -305,18 +320,22 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
   return (
     <div
       ref={containerRef}
+      data-mental-math-mode={settings.mode}
+      data-mental-math-presentation={settings.presentationMode}
+      data-mental-math-feedback={feedbackState}
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      className={`min-h-full w-full flex flex-col justify-between select-none outline-none focus-visible:ring-2 focus-visible:ring-accent p-2.5 sm:p-3 overflow-visible transition-colors ${
+      className={`h-full min-h-0 w-full flex flex-col justify-between select-none outline-none focus-visible:ring-2 focus-visible:ring-accent p-3 overflow-hidden transition-colors ${
         currentIsLight ? 'bg-slate-50 text-slate-800' : 'bg-slate-900 text-slate-100'
       }`}
     >
       {/* 1. Header Toolbar */}
-      <div className="shrink-0 flex items-center justify-between gap-1.5 pb-2 border-b border-slate-200 dark:border-slate-800">
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-1.5 pb-2 border-b border-slate-200 dark:border-slate-800">
         {/* Modus Umschalter Tabs */}
         <div className="flex items-center gap-1 bg-slate-200/70 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-semibold">
           <button
             type="button"
+            aria-pressed={settings.mode === 'flash'}
             onClick={() => updateSettings({ mode: 'flash' })}
             className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 min-h-11 ${
               settings.mode === 'flash'
@@ -329,6 +348,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
           </button>
           <button
             type="button"
+            aria-pressed={settings.mode === 'tables'}
             onClick={() => updateSettings({ mode: 'tables' })}
             className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 min-h-11 ${
               settings.mode === 'tables'
@@ -341,6 +361,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
           </button>
           <button
             type="button"
+            aria-pressed={settings.mode === 'chain'}
             onClick={() => updateSettings({ mode: 'chain' })}
             className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 min-h-11 ${
               settings.mode === 'chain'
@@ -360,6 +381,8 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
             <button
               type="button"
               title="Lehrkraft-Modus (Smartboard / Aufdecken)"
+              aria-label="Lehrkraft-Modus"
+              aria-pressed={settings.presentationMode === 'teacher'}
               onClick={() => updateSettings({ presentationMode: 'teacher' })}
               className={`p-1.5 rounded-md min-h-11 min-w-11 flex items-center justify-center transition-all ${
                 settings.presentationMode === 'teacher'
@@ -372,6 +395,8 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
             <button
               type="button"
               title="Schüler-Modus (Direkteingabe & Prüfung)"
+              aria-label="Schüler-Modus"
+              aria-pressed={settings.presentationMode === 'student'}
               onClick={() => updateSettings({ presentationMode: 'student' })}
               className={`p-1.5 rounded-md min-h-11 min-w-11 flex items-center justify-center transition-all ${
                 settings.presentationMode === 'student'
@@ -388,21 +413,26 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
       </div>
 
       {/* 2. Optional: Settings Drawer (oder Bar in Standard/Large) */}
-      {showSettingsDrawer && (
-        <div role="region" aria-label="Kopfrechnen-Einstellungen" className="shrink-0 p-2.5 my-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 shadow-sm text-xs flex flex-col gap-2">
-          <div className="flex items-center justify-between gap-2"><span className="font-bold text-sm">Kopfrechnen einstellen</span><button type="button" onClick={onCloseSettings} className="min-h-11 rounded-lg border border-slate-300 dark:border-slate-700 px-3 font-semibold" aria-label="Kopfrechnen-Einstellungen schließen">Fertig</button></div>
+      {showSettingsDrawer && createPortal(
+        <dialog ref={settingsDialogRef} aria-label="Kopfrechnen-Einstellungen"
+          onCancel={event => { event.preventDefault(); onCloseSettings?.(); }}
+          onKeyDown={event => event.stopPropagation()}
+          className={`fixed inset-0 m-auto w-[min(94vw,760px)] max-w-none max-h-[85dvh] overflow-y-auto overscroll-contain rounded-xl border border-slate-300 p-4 shadow-xl backdrop:bg-slate-950/60 ${currentIsLight ? 'bg-white text-slate-800' : 'bg-slate-900 text-slate-100'}`}>
+        <div className="text-xs flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-2"><span className="font-bold text-sm">Kopfrechnen einstellen</span><button type="button" onClick={onCloseSettings} className="min-h-11 min-w-11 rounded-lg border border-slate-300 dark:border-slate-700 px-3 font-semibold" aria-label="Kopfrechnen-Einstellungen schließen">Fertig</button></div>
           {/* Settings nach Modus */}
           {settings.mode === 'flash' && (
             <div className="flex flex-wrap items-center justify-between gap-2">
               {/* Zahlenraum */}
-              <div className="flex items-center gap-1">
+              <div className="flex flex-wrap items-center gap-1">
                 <span className="font-semibold text-slate-500">Zahlenraum:</span>
                 {([10, 20, 100, 1000] as MentalMathRange[]).map((r) => (
                   <button
                     key={r}
                     type="button"
+                    aria-pressed={settings.range === r}
                     onClick={() => updateSettings({ range: r })}
-                    className={`min-h-11 px-2 py-1 rounded text-xs font-mono font-medium transition-all ${
+                    className={`min-h-11 min-w-11 px-2 py-1 rounded text-xs font-mono font-medium transition-all ${
                       settings.range === r
                         ? 'bg-accent text-accent-text'
                         : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
@@ -414,7 +444,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
               </div>
 
               {/* Operatoren */}
-              <div className="flex items-center gap-1">
+              <div className="flex flex-wrap items-center gap-1">
                 <span className="font-semibold text-slate-500">Operatoren:</span>
                 {(['+', '-', '×', '÷'] as MentalMathOperator[]).map((op) => {
                   const active = settings.operators.includes(op);
@@ -422,6 +452,8 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                     <button
                       key={op}
                       type="button"
+                      aria-label={`Rechenart ${op}`}
+                      aria-pressed={active}
                       onClick={() => {
                         let next = active
                           ? settings.operators.filter((o) => o !== op)
@@ -442,7 +474,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
               </div>
 
               {/* Zehnerübergang */}
-              <div className="flex items-center gap-1">
+              <div className="flex flex-wrap items-center gap-1">
                 <span className="font-semibold text-slate-500">Zehnerübergang:</span>
                 {(
                   [
@@ -454,8 +486,9 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                   <button
                     key={opt.id}
                     type="button"
+                    aria-pressed={settings.tenCrossing === opt.id}
                     onClick={() => updateSettings({ tenCrossing: opt.id })}
-                    className={`min-h-11 px-2 py-0.5 rounded text-[11px] font-medium transition-all ${
+                    className={`min-h-11 min-w-11 px-2 py-0.5 rounded text-[11px] font-medium transition-all ${
                       settings.tenCrossing === opt.id
                         ? 'bg-accent text-accent-text'
                         : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
@@ -471,7 +504,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
           {settings.mode === 'tables' && (
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-1 flex-wrap">
-                <div className="flex items-center gap-1">
+                <div className="flex flex-wrap items-center gap-1">
                   <span className="font-semibold text-slate-500">Reihen:</span>
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
                     const active = settings.selectedTables.includes(num);
@@ -479,6 +512,8 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                       <button
                         key={num}
                         type="button"
+                        aria-label={`${num}er-Reihe`}
+                        aria-pressed={active}
                         onClick={() => {
                           const next = active
                             ? settings.selectedTables.filter((n) => n !== num)
@@ -497,11 +532,11 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                   })}
                 </div>
 
-                <div className="flex items-center gap-1">
+                <div className="flex flex-wrap items-center gap-1">
                   <button
                     type="button"
                     onClick={() => updateSettings({ selectedTables: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] })}
-                    className="min-h-11 rounded-lg px-2 py-0.5 text-[11px] font-semibold text-accent hover:bg-accent-soft hover:underline"
+                    className="min-h-11 min-w-11 rounded-lg px-2 py-0.5 text-[11px] font-semibold text-accent hover:bg-accent-soft hover:underline"
                   >
                     Alle
                   </button>
@@ -509,7 +544,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                   <button
                     type="button"
                     onClick={() => updateSettings({ selectedTables: [2, 5, 10] })}
-                    className="min-h-11 rounded-lg px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 hover:underline dark:hover:bg-slate-700"
+                    className="min-h-11 min-w-11 rounded-lg px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 hover:underline dark:hover:bg-slate-700"
                   >
                     Kernaufgaben (2, 5, 10)
                   </button>
@@ -517,7 +552,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
               </div>
 
               {/* Varianten */}
-              <div className="flex items-center gap-1 flex-wrap">
+              <div className="flex flex-wrap items-center gap-1">
                 <span className="font-semibold text-slate-500">Aufgabentyp:</span>
                 {(
                   [
@@ -530,8 +565,9 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                   <button
                     key={v.id}
                     type="button"
+                    aria-pressed={settings.tablesVariant === v.id}
                     onClick={() => updateSettings({ tablesVariant: v.id })}
-                    className={`min-h-11 px-2.5 py-1 rounded text-xs font-mono font-medium transition-all ${
+                    className={`min-h-11 min-w-11 px-2.5 py-1 rounded text-xs font-mono font-medium transition-all ${
                       settings.tablesVariant === v.id
                         ? 'bg-accent text-accent-text'
                         : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
@@ -547,12 +583,13 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
           {settings.mode === 'chain' && (
             <div className="flex flex-wrap items-center justify-between gap-2">
               {/* Kettenlänge */}
-              <div className="flex items-center gap-1">
+              <div className="flex flex-wrap items-center gap-1">
                 <span className="font-semibold text-slate-500">Schritte:</span>
                 {([2, 3, 4, 5] as const).map((len) => (
                   <button
                     key={len}
                     type="button"
+                    aria-pressed={settings.chainLength === len}
                     onClick={() => updateSettings({ chainLength: len })}
                     className={`min-h-11 min-w-11 rounded text-xs font-mono font-bold transition-all ${
                       settings.chainLength === len
@@ -566,7 +603,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
               </div>
 
               {/* Schwierigkeit */}
-              <div className="flex items-center gap-1">
+              <div className="flex flex-wrap items-center gap-1">
                 <span className="font-semibold text-slate-500">Stufe:</span>
                 {(
                   [
@@ -578,8 +615,9 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                   <button
                     key={d.id}
                     type="button"
+                    aria-pressed={settings.chainDifficulty === d.id}
                     onClick={() => updateSettings({ chainDifficulty: d.id })}
-                    className={`min-h-11 px-2 py-0.5 rounded text-xs font-medium transition-all ${
+                    className={`min-h-11 min-w-11 px-2 py-0.5 rounded text-xs font-medium transition-all ${
                       settings.chainDifficulty === d.id
                         ? 'bg-accent text-accent-text'
                         : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
@@ -593,8 +631,9 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
               {/* Zwischenwerte anzeigen Toggle */}
               <button
                 type="button"
+                aria-pressed={settings.showIntermediates}
                 onClick={() => updateSettings({ showIntermediates: !settings.showIntermediates })}
-                className={`min-h-11 px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
+                className={`min-h-11 min-w-11 px-2.5 py-1 rounded-lg text-xs font-medium flex flex-wrap items-center gap-1.5 transition-all ${
                   settings.showIntermediates
                     ? 'bg-accent-soft text-accent border border-accent'
                     : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
@@ -606,16 +645,19 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
             </div>
           )}
         </div>
+        </dialog>, document.body
       )}
 
       {/* 3. Zentraler Präsentationsbereich (Aufgabe groß) */}
       <div className="flex-grow flex flex-col items-center justify-center p-2 min-h-0 relative">
-        <div className="w-full flex flex-col items-center justify-center gap-3">
+        <div data-mental-math-question={currentTask.questionText} className="w-full min-w-0 flex flex-col items-center justify-center gap-3 [overflow-wrap:anywhere]">
           {renderFormula()}
 
           {/* Feedback-Anzeige im Schüler-Modus */}
           {settings.presentationMode === 'student' && feedbackState !== 'idle' && (
             <div
+              role="status"
+              aria-live="polite"
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
                 feedbackState === 'correct'
                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
@@ -642,7 +684,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
       <div className="shrink-0 pt-2 border-t border-slate-200 dark:border-slate-800 flex flex-col gap-2">
         {settings.presentationMode === 'teacher' ? (
           /* LEHRKRAFT-MODUS: Großes Smartboard-Steuerfeld */
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -705,6 +747,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                   <button
                     type="button"
                     onClick={() => setStudentInput('')}
+                    aria-label="Ergebnis löschen"
                     className="absolute right-1 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -737,6 +780,8 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                 type="button"
                 onClick={() => setIsRevealed((prev) => !prev)}
                 title="Lösung ein-/ausblenden"
+                aria-label="Lösung ein-/ausblenden"
+                aria-pressed={isRevealed}
                 className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
               >
                 {isRevealed ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -759,6 +804,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                 type="button"
                 onClick={() => handleKeypadPress('backspace')}
                 title="Löschen"
+                aria-label="Letzte Ziffer löschen"
                 className="py-2 rounded-lg bg-slate-200/80 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 min-h-11 flex items-center justify-center cursor-pointer active:scale-95 transition-transform col-span-2"
               >
                 <Delete className="w-4 h-4" />

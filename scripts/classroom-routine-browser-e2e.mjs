@@ -1577,6 +1577,159 @@ async function main() {
 
 
 
+    // Five-widget math batch: independently calculate displayed tasks, then use the real UI.
+    const auditWidgetMinimum = async type => {
+      const point=await evaluate(client, `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
+      await client.send('Input.dispatchMouseEvent',{type:'mouseMoved',...point});
+      await client.send('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',clickCount:1});
+      const end={x:Math.max(1,point.x-500),y:Math.max(1,point.y-500)};
+      await client.send('Input.dispatchMouseEvent',{type:'mouseMoved',...end,button:'left',buttons:1});
+      await client.send('Input.dispatchMouseEvent',{type:'mouseReleased',...end,button:'left',clickCount:1});
+      await sleep(400);
+    };
+    const pressAuditKey = async (key,code=key) => {
+      await client.send('Input.dispatchKeyEvent',{type:'keyDown',key,code});
+      await client.send('Input.dispatchKeyEvent',{type:'keyUp',key,code});
+    };
+    const clickMathText = async (scope,text) => {
+      await evaluate(client, `(() => {const b=Array.from(document.querySelectorAll(${q(scope+' button')})).find(b=>b.textContent.trim()===${q(text)});if(!b)throw new Error('Math control missing: '+${q(text)});b.click();})()`);
+    };
+    const calculateMathQuestion = question => {
+      const missing=question.match(/^\? × (\d+) = (\d+)$/);
+      if(missing) return Number(missing[2])/Number(missing[1]);
+      const divisor=question.match(/^(\d+) ÷ \? = (\d+)$/);
+      if(divisor) return Number(divisor[1])/Number(divisor[2]);
+      const tokens=question.split(' ');
+      if(tokens.length<3||tokens.length%2!==1) throw new Error('Unexpected displayed math task: '+question);
+      let result=Number(tokens[0]);
+      for(let i=1;i<tokens.length;i+=2){const operand=Number(tokens[i+1]);switch(tokens[i]){case '+':result+=operand;break;case '-':result-=operand;break;case '×':result*=operand;break;case '÷':result/=operand;break;default:throw new Error('Unknown math operator');}}
+      if(!Number.isInteger(result)||result<0)throw new Error('Invalid displayed math result: '+question);
+      return result;
+    };
+    const mathDialog='dialog[open][aria-label="Kopfrechnen-Einstellungen"]';
+    for(const [type,search,mode] of [
+      ['kopfrechnen','Kopfrechentrainer','flash'],
+      ['mathcards','Mathe-Karten','flash'],
+      ['multitrainer','Multi-Trainer','tables'],
+      ['mathchain','Rechenkette','chain'],
+    ]) {
+      await openAuditWidget(type,search);
+      const frame='[data-widget-type="'+type+'"]', root=frame+' [data-mental-math-mode]';
+      const state=`document.querySelector(${q(root)})`, task=`document.querySelector(${q(root+' [data-mental-math-question]')})`;
+      await waitFor(client,type+' opens its migrated mode',`${state}?.dataset.mentalMathMode===${q(mode)}`);
+      await auditWidgetMinimum(type);
+      await clickSelector(client,frame+' button[aria-label$="Einstellungen öffnen"]');
+      await waitFor(client,type+' opens a native settings dialog',`Boolean(document.querySelector(${q(mathDialog)}))`);
+      if(mode==='flash'){
+        await clickMathText(mathDialog,type==='mathcards'?'ZR1000':'ZR20');
+        // Exercise operation toggles without allowing an empty set.
+        for(const op of ['+','-','×','÷']){
+          const selected=await evaluate(client,`document.querySelector(${q(mathDialog+' [aria-label="Rechenart '+op+'"]')}).getAttribute('aria-pressed')==='true'`);
+          if(selected !== (op==='+'))await clickSelector(client,mathDialog+' [aria-label="Rechenart '+op+'"]');
+        }
+      } else if(mode==='tables'){
+        await clickMathText(mathDialog,'Kernaufgaben (2, 5, 10)');
+        await clickMathText(mathDialog,'? × 4 = 24');
+      } else {
+        await clickMathText(mathDialog,'5');
+        await clickMathText(mathDialog,'Anspruchsvoll');
+        await clickMathText(mathDialog,'Zwischenschritte einblenden');
+      }
+      await waitFor(client,type+' settings do not overflow horizontally and have reachable 44px controls',`(() => {const d=document.querySelector(${q(mathDialog)}),r=d.getBoundingClientRect();return d.scrollWidth<=d.clientWidth+1&&r.left>=0&&r.right<=innerWidth&&r.bottom<=innerHeight&&Array.from(d.querySelectorAll('button')).every(b=>b.getBoundingClientRect().height>=44);})()`);
+      await pressAuditKey('Escape');
+      await waitFor(client,type+' closes settings and returns focus',`!document.querySelector(${q(mathDialog)}) && document.activeElement?.matches(${q(frame+' button[aria-label$="Einstellungen öffnen"]')})`);
+      const question=await evaluate(client,`${task}.dataset.mentalMathQuestion`), expected=calculateMathQuestion(question);
+      if(!await evaluate(client,`${task}.textContent.replace(/\\s/g,'').includes(${q(question.replace(/\s/g,''))})`))throw new Error(type+' task instrumentation disagrees with the visible formula.');
+      if(await evaluate(client,`Boolean(document.querySelector(${q(root+' [data-mental-math-answer]')}))`))throw new Error(type+' starts with its answer exposed.');
+      await clickMathText(root,'Lösung aufdecken');
+      await waitFor(client,type+' reveals independently calculated answer',`Number(document.querySelector(${q(root+' [data-mental-math-answer]')})?.textContent)===${expected}`);
+      await clickMathText(root,'Lösung verbergen');
+      await clickSelector(client,root+' [aria-label="Schüler-Modus"]');
+      await waitFor(client,type+' presentation changes preserve the problem',`${task}.dataset.mentalMathQuestion===${q(question)} && ${state}.dataset.mentalMathPresentation==='student'`);
+      const fits=`(() => {const el=${state},r=el.getBoundingClientRect();const f=${task}.getBoundingClientRect();return f.top>=el.firstElementChild.getBoundingClientRect().bottom-1&&f.bottom<=el.lastElementChild.getBoundingClientRect().top+1&&el.scrollWidth<=el.clientWidth+1&&el.scrollHeight<=el.clientHeight+1&&Array.from(el.querySelectorAll('button,input')).every(b=>{const t=b.getBoundingClientRect();return t.width>=44&&t.height>=44&&t.left>=r.left-1&&t.right<=r.right+1&&t.top>=r.top-1&&t.bottom<=r.bottom+1;});})()`;
+      await waitFor(client,type+' student keypad and actions fit at the true minimum',fits);
+      await setInputByLabel(client,'Ergebnis eingeben',String(expected+1));
+      await clickMathText(root,'Prüfen');
+      await waitFor(client,type+' wrong answer preserves task and hides solution',`${state}.dataset.mentalMathFeedback==='try_again' && ${task}.dataset.mentalMathQuestion===${q(question)} && !document.querySelector(${q(root+' [data-mental-math-answer]')})`);
+      await waitFor(client,type+' retry feedback fits with the keypad',fits);
+      await clickSelector(client,root+' [aria-label="Ergebnis löschen"]');
+      for(const digit of String(expected))await clickMathText(root,digit);
+      await clickMathText(root,'0');
+      await clickSelector(client,root+' [aria-label="Letzte Ziffer löschen"]');
+      await waitFor(client,type+' touchscreen keypad enters and deletes actual digits',`document.querySelector(${q(root+' input[aria-label="Ergebnis eingeben"]')}).value===${q(String(expected))}`);
+      await evaluate(client,`document.querySelector(${q(root+' input')}).focus()`);
+      await pressAuditKey('Enter');
+      await waitFor(client,type+' keyboard checks the genuine result',`${state}.dataset.mentalMathFeedback==='correct' && Number(document.querySelector(${q(root+' [data-mental-math-answer]')})?.textContent)===${expected}`);
+      await auditMenu(type,'Minimieren');
+      await openAuditWidget(type,search);
+      await waitFor(client,type+' task answer feedback and presentation survive restore',`${state}?.dataset.mentalMathFeedback==='correct' && ${state}.dataset.mentalMathPresentation==='student' && ${task}.dataset.mentalMathQuestion===${q(question)} && document.querySelector(${q(root+' input')}).value===${q(String(expected))}`);
+      await waitFor(client,type+' correct feedback fits after restore',fits);
+      await sleep(400);
+      await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-widget-'+type+'.png'));
+      await clickMathText(root,'Weiter');
+      await waitFor(client,type+' continue clears input feedback and answer',`${state}.dataset.mentalMathFeedback==='idle' && document.querySelector(${q(root+' input')}).value==='' && !document.querySelector(${q(root+' [data-mental-math-answer]')})`);
+      // Every alias must also retain settings without changing the current task.
+      const nextQuestion=await evaluate(client,`${task}.dataset.mentalMathQuestion`);
+      await clickSelector(client,frame+' button[aria-label$="Einstellungen öffnen"]');
+      const setting=mode==='flash'?(type==='mathcards'?'ZR1000':'ZR20'):mode==='tables'?'? × 4 = 24':'5';
+      if(!await evaluate(client,`Array.from(document.querySelectorAll(${q(mathDialog+' button')})).some(b=>b.textContent.trim()===${q(setting)}&&b.getAttribute('aria-pressed')==='true')`))throw new Error(type+' loses its selected setting.');
+      await clickSelector(client,mathDialog+' [aria-label="Kopfrechnen-Einstellungen schließen"]');
+      await waitFor(client,type+' closing settings does not generate a new task',`!document.querySelector(${q(mathDialog)}) && ${task}.dataset.mentalMathQuestion===${q(nextQuestion)}`);
+      if(mode==='tables') {
+        for(const variant of ['24 ÷ 6 = ?','6 × 4 = ?']){
+          await clickSelector(client,frame+' button[aria-label$="Einstellungen öffnen"]');
+          await clickMathText(mathDialog,variant);
+          await clickSelector(client,mathDialog+' [aria-label="Kopfrechnen-Einstellungen schließen"]');
+          const answer=calculateMathQuestion(await evaluate(client,`${task}.dataset.mentalMathQuestion`));
+          await setInputByLabel(client,'Ergebnis eingeben',String(answer));
+          await clickMathText(root,'Prüfen');
+          await waitFor(client,'table variant '+variant+' checks actual arithmetic',`${state}.dataset.mentalMathFeedback==='correct' && Number(document.querySelector(${q(root+' [data-mental-math-answer]')})?.textContent)===${answer}`);
+        }
+      }
+      await auditMenu(type,'Widget schließen');
+    }
+    await openAuditWidget('sorting','Zahlensortierer');
+    const sortingFrame='[data-widget-type="sorting"]',sortingRoot=sortingFrame+' [aria-label="Zahlensortierer"]';
+    const sortingNumbers=`Array.from(document.querySelectorAll(${q(sortingRoot+' button[aria-label$=" wählen"]')})).map(b=>Number(b.textContent.trim().replace(',','.')))`;
+    const sortingResult=`Array.from(document.querySelectorAll(${q(sortingRoot+' [aria-label="Bereits richtig sortierte Zahlen"] span')})).map(el=>el.textContent.trim())`;
+    const sortingStatus=`document.querySelector(${q(sortingRoot+' [role="status"]')}).textContent`;
+    await auditWidgetMinimum('sorting');
+    await clickSelector(client,sortingFrame+' button[aria-label$="Einstellungen öffnen"]');
+    await clickMathText(sortingRoot,'7 Zahlen');
+    await clickMathText(sortingRoot,'Bestätigungston an');
+    await clickMathText(sortingRoot,'Zahlenraum 1000');
+    await clickMathText(sortingRoot,'Fertig');
+    for(const [range,direction] of [['Zahlenraum 1000','asc'],['Dezimalzahlen 0–10','asc'],['Negative Zahlen −50 bis 50','desc']]){
+      if(range!=='Zahlenraum 1000'){
+        await clickSelector(client,sortingFrame+' button[aria-label$="Einstellungen öffnen"]');
+        await clickMathText(sortingRoot,range);
+        await clickMathText(sortingRoot,direction==='asc'?'Klein → groß':'Groß → klein');
+        await clickMathText(sortingRoot,'Fertig');
+      }
+      await waitFor(client,'seven sorting numbers fit natively without inner scrolling',`(() => {const root=document.querySelector(${q(sortingRoot)}),r=root.getBoundingClientRect();return (${sortingNumbers}).length===7&&root.scrollWidth<=root.clientWidth+1&&root.scrollHeight<=root.clientHeight+1&&Array.from(root.querySelectorAll('button')).every(b=>{const t=b.getBoundingClientRect();return t.width>=44&&t.height>=44&&t.left>=r.left&&t.right<=r.right+1&&t.top>=r.top&&t.bottom<=r.bottom+1;});})()`);
+      const numbers=await evaluate(client,sortingNumbers),ordered=[...numbers].sort((a,b)=>direction==='asc'?a-b:b-a);
+      if(new Set(numbers).size!==7)throw new Error('Sorting task contains duplicates.');
+      const numberSelector=n=>sortingRoot+' [aria-label='+q(String(n).replace('.',',')+' wählen')+']';
+      await clickSelector(client,numberSelector(ordered.at(-1)));
+      await waitFor(client,'wrong sorting choice leaves every result slot empty',`(${sortingStatus}).includes(${q(direction==='asc'?'zu groß':'zu klein')}) && (${sortingResult}).every(text=>text==='·')`);
+      await clickSelector(client,numberSelector(ordered[0]));
+      await auditMenu('sorting','Minimieren');
+      await openAuditWidget('sorting','Zahlensortierer');
+      await waitFor(client,'sorting numbers and first correct step survive restore',`JSON.stringify(${sortingNumbers})===${q(JSON.stringify(numbers))} && (${sortingResult})[0]===${q(String(ordered[0]).replace('.',','))}`);
+      for(const number of ordered.slice(1))await clickSelector(client,numberSelector(number));
+      await waitFor(client,'sorting completes the genuine '+direction+' order',`(${sortingStatus}).includes('Geschafft!') && JSON.stringify(${sortingResult})===${q(JSON.stringify(ordered.map(n=>String(n).replace('.',','))))} && Array.from(document.querySelectorAll(${q(sortingRoot+' button[aria-label$=" wählen"]')})).every(b=>b.disabled)`);
+      await sleep(400);
+      await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-widget-sorting-'+direction+(range.includes('Dezimal')?'-decimal':'')+'.png'));
+      await clickMathText(sortingRoot,'Neue Aufgabe');
+      await waitFor(client,'new sorting task clears results and re-enables seven choices',`(${sortingResult}).every(text=>text==='·') && Array.from(document.querySelectorAll(${q(sortingRoot+' button[aria-label$=" wählen"]')})).every(b=>!b.disabled)`);
+    }
+    await clickSelector(client,sortingFrame+' button[aria-label$="Einstellungen öffnen"]');
+    for(const label of ['7 Zahlen','Groß → klein','Negative Zahlen −50 bis 50'])if(!await evaluate(client,`Array.from(document.querySelectorAll(${q(sortingRoot+' button')})).some(b=>b.textContent.trim()===${q(label)}&&b.getAttribute('aria-pressed')==='true')`))throw new Error('Sorting loses setting '+label);
+    if(!await evaluate(client,`Array.from(document.querySelectorAll(${q(sortingRoot+' button')})).some(b=>b.textContent.trim()==='Bestätigungston aus'&&b.getAttribute('aria-pressed')==='false')`))throw new Error('Sorting loses disabled audio setting.');
+    await clickMathText(sortingRoot,'Fertig');
+    await auditMenu('sorting','Widget schließen');
+    console.log('✓ Five math widgets: independently calculated answers, wrong/correct input, real keypad and keyboard, native minimum layouts/settings, restore and continue; sorting seven integers/decimals/negative numbers in both directions.');
+
     console.log('✓ Widget block: groups stay in widget, real wheel winner restored, all star children reachable without inner scrolling.');
     console.log('✓ Widget block: 12 widgets checked; stopwatch pause and traffic light mode survive restore.');
     console.log('✓ Audit regression: calculator keys/result/restore, compass layout at 100/125/150%, QR alias/readability/title/mode restore');
