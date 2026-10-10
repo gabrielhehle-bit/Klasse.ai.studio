@@ -4342,7 +4342,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
 
     // Restore these teaching tools inside the currently usable board, including
     // after zoom changed its measurements. Keep the dock clear of resize grips.
-    if (useOld && ['geometry', 'shapepuzzle', 'angledetective', 'estimationjar', 'divrobot', 'bodyparts', 'compass', 'weekdays', 'trafficquiz', 'watercycle', 'constellation', 'planetarium', 'flagquiz', 'geographyquiz', 'wastebin'].includes(String(type))) {
+    if (useOld && ['challenge', 'secretagent', 'weightscale', 'reflexgame', 'clockpuzzle', 'geometry', 'shapepuzzle', 'angledetective', 'estimationjar', 'divrobot', 'bodyparts', 'compass', 'weekdays', 'trafficquiz', 'watercycle', 'constellation', 'planetarium', 'flagquiz', 'geographyquiz', 'wastebin'].includes(String(type))) {
       const area = measureCockpitUsableBoardArea();
       if (area) {
         const size = getWidgetMinSizeConfig(String(type));
@@ -10957,6 +10957,7 @@ ${content}
                                       return (
                                         <ChallengeWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -11185,6 +11186,7 @@ ${content}
                                       return (
                                         <SecretagentWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -11234,6 +11236,7 @@ ${content}
                                       return (
                                         <WeightscaleWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -11292,6 +11295,7 @@ ${content}
                                       return (
                                         <ReflexgameWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -11430,6 +11434,7 @@ ${content}
                                       return (
                                         <ClockpuzzleWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}
                                         />
                                       );

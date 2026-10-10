@@ -8299,7 +8299,8 @@ export const ToothbrushWidgetContent: React.FC<{ widget: any, currentIsLight: bo
 // ==========================================
 // NEW WIDGET 22: KLASSEN-CHALLENGE (Daily Mission)
 // ==========================================
-export const ChallengeWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+export const ChallengeWidgetContent: React.FC<{ widget: any, currentIsLight: boolean, onUpdate?: (updates:any)=>void }> = ({ widget, currentIsLight, onUpdate }) => {
+  const saved = readWidgetLifecycleState(widget, "challenge", {idx: 0,complete: false,});
   const challenges = [
     { title: "Das Echo der Höflichkeit 🌸", desc: "Jedes Kind sagt heute mindestens dreimal 'Danke!' oder 'Bitte!' zu einem Mitschüler." },
     { title: "Die Aufräum-Blitze ⚡", desc: "Wenn das Signal ertönt, räumt jeder im Handumdrehen 3 herumliegende Papierchen auf!" },
@@ -8309,8 +8310,9 @@ export const ChallengeWidgetContent: React.FC<{ widget: any, currentIsLight: boo
     { title: "Teamwork-Raketen 🚀", desc: "Löse eine Arbeitsaufgabe komplett zu zweit und helft euch gegenseitig." }
   ];
 
-  const [idx, setIdx] = useState(0);
-  const [complete, setComplete] = useState(false);
+  const [idx, setIdx] = useState(() => saved.idx);
+  const [complete, setComplete] = useState(() => saved.complete);
+  usePersistedWidgetLifecycleState(widget, onUpdate, "challenge", {idx, complete});
 
   const triggerNext = () => {
     setIdx((prev) => (prev + 1) % challenges.length);
@@ -8331,12 +8333,13 @@ export const ChallengeWidgetContent: React.FC<{ widget: any, currentIsLight: boo
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start();
+      osc.onended = () => { void ctx.close(); };
       osc.stop(ctx.currentTime + 0.5);
     } catch (e) {}
   };
 
   return (
-    <div className="flex-grow flex flex-col justify-between p-2 h-full min-h-0 pointer-events-auto select-none gap-2">
+    <div data-practice-root className="flex-grow flex flex-col justify-between p-2 h-full min-h-0 pointer-events-auto select-none gap-2">
       <div className="flex justify-end items-center px-1 shrink-0 min-h-6">
         <span className="text-[9px] px-2 py-1 rounded-full font-black bg-accent-soft text-accent uppercase">
           Mission {idx + 1}
@@ -11255,14 +11258,16 @@ export const GuitartunerWidgetContent: React.FC<{ widget: any, currentIsLight: b
 // ========================================================
 // 1. WIDGET: KLASSEN-KRYPTOGRAPH (SecretagentWidgetContent)
 // ========================================================
-export const SecretagentWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [shift, setShift] = useState<number>(3);
-  const [inputText, setInputText] = useState<string>("GEHEIM");
-  const [gameUnlocked, setGameUnlocked] = useState<boolean>(false);
-  const [safeGuess, setSafeGuess] = useState<number>(1);
-  const [safeTarget, setSafeTarget] = useState<number>(() => Math.floor(Math.random() * 10) + 1);
-  const [safeMessage, setSafeMessage] = useState<string>("Drehe am Schloss!");
-  const [showInstructions, setShowInstructions] = useState<boolean>(false);
+export const SecretagentWidgetContent: React.FC<{ widget: any, currentIsLight: boolean, onUpdate?: (updates:any)=>void }> = ({ widget, currentIsLight, onUpdate }) => {
+  const saved = readWidgetLifecycleState(widget, "secretagent", {shift: 3 as number,inputText: "GEHEIM" as string,gameUnlocked: false as boolean,safeGuess: 1 as number,safeTarget: Math.floor(Math.random() * 10) + 1 as number,safeMessage: "Drehe am Schloss!" as string,showInstructions: false as boolean,});
+  const [shift, setShift] = useState<number>(() => saved.shift);
+  const [inputText, setInputText] = useState<string>(() => saved.inputText);
+  const [gameUnlocked, setGameUnlocked] = useState<boolean>(() => saved.gameUnlocked);
+  const [safeGuess, setSafeGuess] = useState<number>(() => saved.safeGuess);
+  const [safeTarget, setSafeTarget] = useState<number>(() => saved.safeTarget);
+  const [safeMessage, setSafeMessage] = useState<string>(() => saved.safeMessage);
+  const [showInstructions, setShowInstructions] = useState<boolean>(() => saved.showInstructions);
+  usePersistedWidgetLifecycleState(widget, onUpdate, "secretagent", {shift, inputText, gameUnlocked, safeGuess, safeTarget, safeMessage, showInstructions});
 
   const caesarCipher = (str: string, originalShift: number) => {
     return str.replace(/[A-Z]/gi, (char) => {
@@ -11291,12 +11296,14 @@ export const SecretagentWidgetContent: React.FC<{ widget: any, currentIsLight: b
         osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.3); // G5
         gain.gain.setValueAtTime(0.2, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+        osc.onended = () => { void ctx.close(); };
         osc.start();
         osc.stop(ctx.currentTime + 0.5);
       } else {
         osc.frequency.setValueAtTime(120, ctx.currentTime);
         gain.gain.setValueAtTime(0.25, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc.onended = () => { void ctx.close(); };
         osc.start();
         osc.stop(ctx.currentTime + 0.3);
       }
@@ -11315,9 +11322,9 @@ export const SecretagentWidgetContent: React.FC<{ widget: any, currentIsLight: b
   };
 
   return (
-    <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-y-auto overflow-x-hidden">
+    <div data-practice-root className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-hidden">
       <div className="shrink-0 flex flex-wrap justify-between items-center gap-2 mb-1">
-        <span className="text-[10px] font-mono font-bold opacity-70">Codieren & Safe knacken · Cäsar</span>
+        <span className="text-sm font-mono font-bold opacity-70">Codieren & Safe knacken · Cäsar</span>
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setShowInstructions(!showInstructions)}
@@ -11329,25 +11336,26 @@ export const SecretagentWidgetContent: React.FC<{ widget: any, currentIsLight: b
             onClick={() => {
               setSafeTarget(Math.floor(Math.random() * 10) + 1);
               setGameUnlocked(false);
+              setSafeGuess(1);
               setSafeMessage("Drehe am Schloss!");
             }}
             className="min-h-11 px-3 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-bold text-[10px] cursor-pointer"
           >
-            Reset Game
+            Neuer Tresor
           </button>
         </div>
       </div>
 
       {showInstructions && (
-        <div className={`p-2 rounded-xl mb-1 text-[8px] leading-relaxed border animate-fade-in shrink-0 ${
+        <div className={`p-2 rounded-xl mb-1 text-sm leading-relaxed border animate-fade-in shrink-0 ${
           currentIsLight ? 'bg-amber-50/80 border-amber-200 text-slate-800' : 'bg-amber-500/10 border-amber-500/20 text-amber-200'
         }`}>
-          <p className="font-extrabold text-[8.5px] mb-1 text-amber-600 dark:text-amber-400">🕵️ Missions-Briefing:</p>
+          <p className="font-extrabold text-sm mb-1 text-amber-600 dark:text-amber-400">🕵️ Missions-Briefing:</p>
           <ol className="list-decimal pl-3 space-y-0.5">
             <li><strong>Caesar-Verschlüsselung:</strong> Verschiebe die Buchstaben deines Wortes um die eingestellte Anzahl (Schlüssel). A wird bei 3 zu D. Versuche Geheimbotschaften an deine Klasse zu senden!</li>
-            <li><strong>Knobelspiel (Tresor):</strong> Finde die geheime Zahl (1 bis 10). Die Waage bzw. das Schloss gibt dir Geräusche und Klicks als Feedback:
+            <li><strong>Knobelspiel (Tresor):</strong> Finde die geheime Zahl (1 bis 10). Die Rückmeldung sagt dir, ob die gesuchte Zahl höher oder niedriger ist:
               <br/>- <em>Höher drehen:</em> Ein Klick-Ton ertönt.
-              <br/>- <em>Niedriger drehen:</em> Spürbarer Widerstand (tiefer Ton).
+              <br/>- <em>Niedriger drehen:</em> Ein tiefer Ton ertönt.
             </li>
           </ol>
         </div>
@@ -11362,6 +11370,7 @@ export const SecretagentWidgetContent: React.FC<{ widget: any, currentIsLight: b
           </div>
           <div className="grid grid-cols-2 gap-2 mb-1.5">
             <input
+              aria-label="Geheimtext"
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
@@ -11369,17 +11378,18 @@ export const SecretagentWidgetContent: React.FC<{ widget: any, currentIsLight: b
               maxLength={15}
               className={`min-h-11 px-2 rounded-xl text-[11px] uppercase font-bold text-center border ${currentIsLight ? 'bg-white text-slate-800' : 'bg-zinc-950 text-white border-zinc-700'}`}
             />
-            <div className={`px-1.5 py-0.5 rounded text-[9.5px] text-emerald-500 font-bold text-center border truncate ${currentIsLight ? 'bg-white border-slate-200' : 'bg-zinc-950 border-zinc-700'}`}>
+            <div aria-label="Verschlüsselter Text" className={`px-1.5 py-0.5 min-h-11 flex items-center justify-center rounded text-[9.5px] text-emerald-500 font-bold text-center border truncate ${currentIsLight ? 'bg-white border-slate-200' : 'bg-zinc-950 border-zinc-700'}`}>
               {caesarCipher(inputText, shift) || "---"}
             </div>
           </div>
           <input
+            aria-label="Cäsar-Schlüssel"
             type="range"
             min="1"
             max="25"
             value={shift}
             onChange={(e) => setShift(parseInt(e.target.value))}
-            className="w-full text-accent accent-current h-2 cursor-pointer"
+            className="w-full text-accent accent-current min-h-11 cursor-pointer"
           />
         </div>
 
@@ -11392,6 +11402,7 @@ export const SecretagentWidgetContent: React.FC<{ widget: any, currentIsLight: b
           <div className="flex gap-2 items-center justify-between">
             <div className="flex items-center gap-1.5">
               <input
+                aria-label="Tresorzahl"
                 type="number"
                 min="1"
                 max="10"
@@ -12211,10 +12222,11 @@ export const WordexplorerWidgetContent: React.FC<{
 // ========================================================
 // 6. WIDGET: WAAGEN-SCHÄTZER (WeightscaleWidgetContent)
 // ========================================================
-export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [mode, setMode] = useState<'free' | 'mystery'>('free');
-  const [leftWeight, setLeftWeight] = useState<number>(100);
-  const [rightWeight, setRightWeight] = useState<number>(0);
+export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: boolean, onUpdate?: (updates:any)=>void }> = ({ widget, currentIsLight, onUpdate }) => {
+  const saved = readWidgetLifecycleState(widget, "weightscale", {mode: 'free' as 'free' | 'mystery',leftWeight: 100 as number,rightWeight: 0 as number,activeMysteryIdx: 0 as number,});
+  const [mode, setMode] = useState<'free' | 'mystery'>(() => saved.mode);
+  const [leftWeight, setLeftWeight] = useState<number>(() => saved.leftWeight);
+  const [rightWeight, setRightWeight] = useState<number>(() => saved.rightWeight);
   
   // Mystery Game States
   const mysteryItems = [
@@ -12225,15 +12237,15 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
     { name: "Schulranzen 🎒", weight: 1200, emoji: "🎒" },
     { name: "Kätzchen 🐱", weight: 2000, emoji: "🐱" }
   ];
-  const [activeMysteryIdx, setActiveMysteryIdx] = useState<number>(0);
-  const [guessChecked, setGuessChecked] = useState<boolean>(false);
+  const [activeMysteryIdx, setActiveMysteryIdx] = useState<number>(() => saved.activeMysteryIdx);
+  usePersistedWidgetLifecycleState(widget, onUpdate, "weightscale", {mode, leftWeight, rightWeight, activeMysteryIdx});
+
 
   const activeMystery = mysteryItems[activeMysteryIdx];
 
   const handleModeChange = (newMode: 'free' | 'mystery') => {
     setMode(newMode);
     setRightWeight(0);
-    setGuessChecked(false);
     if (newMode === 'free') {
       setLeftWeight(150);
     } else {
@@ -12244,7 +12256,6 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
   const handleMysteryItemChange = (idx: number) => {
     setActiveMysteryIdx(idx);
     setRightWeight(0);
-    setGuessChecked(false);
     setLeftWeight(mysteryItems[idx].weight);
   };
 
@@ -12254,20 +12265,19 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
 
   const clearRightWeight = () => {
     setRightWeight(0);
-    setGuessChecked(false);
   };
 
   const diff = leftWeight - rightWeight;
-  const rotation = Math.max(-18, Math.min(18, diff * 0.12));
+  const rotation = Math.max(-18, Math.min(18, -diff * 0.12));
 
   return (
-    <div className="flex flex-col h-full w-full p-2 justify-between select-none min-h-0 overflow-y-auto overflow-x-hidden">
+    <div data-practice-root data-left-weight={leftWeight} data-right-weight={rightWeight} className="flex flex-col h-full w-full p-2 justify-between select-none min-h-0 overflow-hidden">
       {/* Mode Toggle: direct learning interaction, not hidden configuration */}
       <div className="shrink-0 flex flex-wrap justify-between items-center gap-2 mb-1">
         <span className="text-[10px] font-mono font-bold opacity-70">Gewichte schätzen & vergleichen</span>
         <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl border border-slate-200/50 dark:border-zinc-700/50 shrink-0">
           <button
-            onClick={() => handleModeChange('free')}
+            aria-pressed={mode === "free"} onClick={() => { if(mode !== "free") handleModeChange('free'); }}
             className={`min-h-11 px-3 rounded-lg text-[10px] font-black cursor-pointer transition-all ${
               mode === 'free'
                 ? 'bg-accent text-accent-text shadow-sm'
@@ -12277,7 +12287,7 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
             Frei
           </button>
           <button
-            onClick={() => handleModeChange('mystery')}
+            aria-pressed={mode === "mystery"} onClick={() => { if(mode !== "mystery") handleModeChange('mystery'); }}
             className={`min-h-11 px-3 rounded-lg text-[10px] font-black cursor-pointer transition-all ${
               mode === 'mystery'
                 ? 'bg-accent text-accent-text shadow-sm'
@@ -12292,7 +12302,7 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
       {/* Main Board */}
       <div className="flex-grow flex flex-col justify-center items-center py-1 min-h-0">
         {/* Custom Visual Scale SVG */}
-        <div className="relative w-full max-w-[150px] aspect-[16/10] flex flex-col items-center justify-end overflow-hidden mb-1.5 bg-slate-500/5 dark:bg-zinc-900/10 rounded-xl p-1 border border-slate-200/20 dark:border-zinc-850">
+        <div className="relative w-full max-w-[300px] aspect-[16/10] flex flex-col items-center justify-end overflow-hidden mb-1.5 bg-slate-500/5 dark:bg-zinc-900/10 rounded-xl p-1 border border-slate-200/20 dark:border-zinc-850">
           
           {/* Mystery target hints */}
           {mode === 'mystery' && (
@@ -12333,7 +12343,7 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
           {/* Graphical objects rendered over plates */}
           <div className="absolute inset-x-0 bottom-4 flex justify-between px-3.5 pointer-events-none">
             {/* Left plate object representation */}
-            <div className="w-9 flex flex-col items-center justify-end transform transition-transform" style={{ transform: `translateY(${rotation * 0.45}px)` }}>
+            <div className="w-9 flex flex-col items-center justify-end transform transition-transform" style={{ transform: `translateY(${-rotation * 0.45}px)` }}>
               {mode === 'mystery' ? (
                 <span className="text-xl animate-bounce duration-1000">{activeMystery.emoji}</span>
               ) : (
@@ -12344,14 +12354,10 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
             </div>
 
             {/* Right plate object representation */}
-            <div className="w-9 flex flex-col items-center justify-end transform transition-transform" style={{ transform: `translateY(${-rotation * 0.45}px)` }}>
+            <div className="w-9 flex flex-col items-center justify-end transform transition-transform" style={{ transform: `translateY(${rotation * 0.45}px)` }}>
               {rightWeight > 0 ? (
                 <div className="flex flex-col-reverse items-center justify-end -space-y-1">
-                  {/* Visual weight blocks stack */}
-                  {rightWeight >= 1000 && <div className="w-6 h-3 bg-amber-600 border border-amber-700 text-[6px] font-bold text-white flex items-center justify-center rounded-sm">1kg</div>}
-                  {rightWeight % 1000 >= 500 && <div className="w-5 h-2.5 bg-yellow-600 border border-yellow-700 text-[5px] font-bold text-white flex items-center justify-center rounded-sm">500g</div>}
-                  {rightWeight % 500 >= 100 && <div className="w-4 h-2 bg-slate-400 border border-slate-500 text-[5px] font-bold text-white flex items-center justify-center rounded-sm">100g</div>}
-                  {rightWeight % 100 > 0 && <div className="w-3 h-1.5 bg-accent border border-accent text-[4px] font-bold text-accent-text flex items-center justify-center rounded-xs">..</div>}
+                  <div className="rounded bg-slate-600 px-1 text-white text-xs font-bold">{rightWeight}g</div>
                 </div>
               ) : (
                 <span className="text-[6.5px] text-slate-400 dark:text-zinc-600 italic">Leer</span>
@@ -12368,7 +12374,7 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
               <div className="text-center font-black text-[7.5px] text-slate-400 dark:text-zinc-500 uppercase">Links: {leftWeight}g</div>
               <div className="flex gap-1 justify-center mt-1">
                 <button onClick={() => setLeftWeight(prev => Math.max(0, prev - 50))} className="min-h-11 min-w-11 px-2 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-[10px] font-black cursor-pointer">-50</button>
-                <button onClick={() => setLeftWeight(prev => prev + 50)} className="min-h-11 min-w-11 px-2 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-[10px] font-black cursor-pointer">+50</button>
+                <button onClick={() => setLeftWeight(prev => Math.min(5000, prev + 50))} className="min-h-11 min-w-11 px-2 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-[10px] font-black cursor-pointer">+50</button>
               </div>
             </div>
 
@@ -12377,7 +12383,7 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
               <div className="text-center font-black text-[7.5px] text-slate-400 dark:text-zinc-500 uppercase">Rechts: {rightWeight}g</div>
               <div className="flex gap-1 justify-center mt-1">
                 <button onClick={() => setRightWeight(prev => Math.max(0, prev - 50))} className="min-h-11 min-w-11 px-2 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-[10px] font-black cursor-pointer">-50</button>
-                <button onClick={() => setRightWeight(prev => prev + 50)} className="min-h-11 min-w-11 px-2 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-[10px] font-black cursor-pointer">+50</button>
+                <button onClick={() => setRightWeight(prev => Math.min(5000, prev + 50))} className="min-h-11 min-w-11 px-2 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-[10px] font-black cursor-pointer">+50</button>
               </div>
             </div>
           </div>
@@ -12388,7 +12394,7 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
               {mysteryItems.map((item, idx) => (
                 <button
                   key={idx}
-                  onClick={() => handleMysteryItemChange(idx)}
+                  aria-pressed={activeMysteryIdx === idx} onClick={() => handleMysteryItemChange(idx)}
                   className={`min-h-11 px-2 rounded-xl text-[10px] font-bold border transition-all cursor-pointer ${
                     activeMysteryIdx === idx
                       ? 'bg-accent border-accent text-accent-text font-black'
@@ -12420,6 +12426,7 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
                   </button>
                 ))}
               </div>
+              <div className="grid grid-cols-4 gap-1 mt-1">{[10,50,100,500].map(amt => <button key={amt} onClick={() => setRightWeight(prev => Math.max(0,prev-amt))} className="min-h-11 rounded-xl border border-slate-300 font-bold text-xs">−{amt}g</button>)}</div>
             </div>
           </div>
         )}
@@ -12439,7 +12446,7 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
         <div className="flex-grow text-center">
           {mode === 'mystery' ? (
             Math.abs(diff) === 0 ? (
-              <span className="text-[8.5px] font-black text-emerald-500 animate-bounce block">🎉 Perfekt ausbalanciert! Das Gewicht ist genau {leftWeight}g!</span>
+              <span className="text-sm font-black text-emerald-500 animate-bounce block">🎉 Perfekt ausbalanciert! Das Gewicht ist genau {leftWeight}g!</span>
             ) : rightWeight > 0 ? (
               <span className={`text-[10px] font-bold block ${diff > 0 ? 'text-blue-500' : 'text-red-500'}`}>
                 {diff > 0 ? "⚠️ Zu leicht! Lege mehr Gewichte auf." : "⚠️ Zu schwer! Nimm Gewicht herunter."}
@@ -12448,7 +12455,7 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
               <span className="text-[10px] text-slate-500 dark:text-zinc-500 block">Finde das Gewicht von {activeMystery.emoji} heraus!</span>
             )
           ) : Math.abs(diff) < 10 ? (
-            <span className="text-[8px] font-black text-emerald-500 animate-pulse block">🎉 Waage im perfekten Gleichgewicht! (⚖️)</span>
+            <span className="text-sm font-black text-emerald-500 animate-pulse block">🎉 Waage im perfekten Gleichgewicht! (⚖️)</span>
           ) : (
             <span className="text-[7.5px] text-slate-400 dark:text-zinc-500 block">Passe die Gewichte an, um die Waage auszubalancieren</span>
           )}
@@ -12764,12 +12771,16 @@ export const EstimationjarWidgetContent: React.FC<{
 };
 
 
-export const ReflexgameWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [gameState, setGameState] = useState<'idle' | 'waiting' | 'trigger' | 'done'>('idle');
+export const ReflexgameWidgetContent: React.FC<{ widget: any, currentIsLight: boolean, onUpdate?: (updates:any)=>void }> = ({ widget, currentIsLight, onUpdate }) => {
+  const saved = readWidgetLifecycleState(widget, "reflexgame", {gameState: 'idle' as 'idle' | 'waiting' | 'trigger' | 'done',leftScore: null as number | null,rightScore: null as number | null,winnerMessage: "Bist du schneller?" as string,});
+  const [gameState, setGameState] = useState<'idle' | 'waiting' | 'trigger' | 'done'>(() => saved.gameState === "waiting" || saved.gameState === "trigger" ? "idle" : saved.gameState);
   const [triggerTime, setTriggerTime] = useState<number>(0);
-  const [leftScore, setLeftScore] = useState<number | null>(null);
-  const [rightScore, setRightScore] = useState<number | null>(null);
-  const [winnerMessage, setWinnerMessage] = useState<string>("Bist du schneller?");
+  const [leftScore, setLeftScore] = useState<number | null>(() => saved.leftScore);
+  const [rightScore, setRightScore] = useState<number | null>(() => saved.rightScore);
+  const [winnerMessage, setWinnerMessage] = useState<string>(() => saved.gameState === "waiting" || saved.gameState === "trigger" ? "Runde unterbrochen – starte ein neues Duell." : saved.winnerMessage);
+  usePersistedWidgetLifecycleState(widget, onUpdate, "reflexgame", {gameState, leftScore, rightScore, winnerMessage});
+  const roundStateRef = useRef(gameState);
+  roundStateRef.current = gameState;
   const triggerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearTriggerTimer = useCallback(() => {
@@ -12783,6 +12794,7 @@ export const ReflexgameWidgetContent: React.FC<{ widget: any, currentIsLight: bo
 
   const triggerReaction = () => {
     clearTriggerTimer();
+    roundStateRef.current = 'waiting';
     setGameState('waiting');
     setLeftScore(null);
     setRightScore(null);
@@ -12791,6 +12803,7 @@ export const ReflexgameWidgetContent: React.FC<{ widget: any, currentIsLight: bo
     const delay = Math.floor(Math.random() * 3000) + 2000;
     triggerTimerRef.current = setTimeout(() => {
       triggerTimerRef.current = null;
+      roundStateRef.current = 'trigger';
       setGameState('trigger');
       setTriggerTime(performance.now());
       setWinnerMessage("💥 JETZT DRÜCKEN! 💥");
@@ -12798,14 +12811,16 @@ export const ReflexgameWidgetContent: React.FC<{ widget: any, currentIsLight: bo
   };
 
   const handleTap = (side: 'left' | 'right') => {
-    if (gameState === 'waiting') {
+    if (roundStateRef.current === 'waiting') {
       clearTriggerTimer();
       setWinnerMessage(side === 'left' ? "🔴 Links: Fehlstart!" : "🔵 Rechts: Fehlstart!");
+      roundStateRef.current = 'idle';
       setGameState('idle');
       return;
     }
 
-    if (gameState !== 'trigger') return;
+    if (roundStateRef.current !== 'trigger') return;
+    roundStateRef.current = 'done';
 
     const elapsed = Math.max(0, Math.round(performance.now() - triggerTime));
     if (side === 'left') {
@@ -12822,7 +12837,10 @@ export const ReflexgameWidgetContent: React.FC<{ widget: any, currentIsLight: bo
   const ready = gameState === 'trigger';
 
   return (
-    <div className="flex flex-col h-full w-full p-2.5 select-none min-h-0 overflow-hidden gap-2">
+    <div data-practice-root tabIndex={0} aria-label="Reaktionstrainer: A links, L rechts" onKeyDown={event => {
+      if(event.repeat || event.altKey || event.ctrlKey || event.metaKey || /INPUT|TEXTAREA|SELECT/.test((event.target as HTMLElement).tagName)) return;
+      const key=event.key.toLowerCase(); if(key === 'a' || key === 'l') {event.preventDefault();handleTap(key === 'a' ? 'left' : 'right');}
+    }} className="flex flex-col h-full w-full p-2.5 select-none min-h-0 overflow-hidden gap-2">
       <div className="shrink-0 flex flex-wrap justify-between items-center gap-2">
         <span className="text-[10px] font-mono font-bold opacity-70">
           Reaktionszeit-Duell · links A · rechts L
@@ -15459,17 +15477,19 @@ export const SecretcodeWidgetContent: React.FC<{
 // ========================================================
 // 22. WIDGET: UHREN-LERN-TRAINER (ClockpuzzleWidgetContent)
 // ========================================================
-export const ClockpuzzleWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+export const ClockpuzzleWidgetContent: React.FC<{ widget: any, currentIsLight: boolean, onUpdate?: (updates:any)=>void }> = ({ widget, currentIsLight, onUpdate }) => {
   type Mode = 'read' | 'set';
   type Level = 'hour' | 'half' | 'quarter';
-  const [mode, setMode] = useState<Mode>('read');
-  const [level, setLevel] = useState<Level>('quarter');
-  const [targetClock, setTargetClock] = useState<{ h: number; m: number }>({ h: 8, m: 15 });
-  const [studentClock, setStudentClock] = useState<{ h: number; m: number }>({ h: 8, m: 0 });
-  const [choices, setChoices] = useState<string[]>([]);
-  const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
-  const [checked, setChecked] = useState(false);
-  const [feedback, setFeedback] = useState<string>('Lies die Uhrzeit am Zifferblatt ab.');
+  const saved = readWidgetLifecycleState(widget, "clockpuzzle", {mode: 'read' as Mode,level: 'quarter' as Level,targetClock: { h: 8, m: 15 } as { h: number; m: number },studentClock: { h: 8, m: 0 } as { h: number; m: number },choices: ['08:15','08:45','09:15','09:45'] as string[],selectedChoice: null as string | null,checked: false,feedback: 'Lies die Uhrzeit am Zifferblatt ab.' as string,});
+  const [mode, setMode] = useState<Mode>(() => saved.mode);
+  const [level, setLevel] = useState<Level>(() => saved.level);
+  const [targetClock, setTargetClock] = useState<{ h: number; m: number }>(() => saved.targetClock);
+  const [studentClock, setStudentClock] = useState<{ h: number; m: number }>(() => saved.studentClock);
+  const [choices, setChoices] = useState<string[]>(() => saved.choices);
+  const [selectedChoice, setSelectedChoice] = useState<string | null>(() => saved.selectedChoice);
+  const [checked, setChecked] = useState(() => saved.checked);
+  const [feedback, setFeedback] = useState<string>(() => saved.feedback);
+  usePersistedWidgetLifecycleState(widget, onUpdate, "clockpuzzle", {mode, level, targetClock, studentClock, choices, selectedChoice, checked, feedback});
 
   const minuteOptions = useMemo(() => {
     if (level === 'hour') return [0];
@@ -15491,13 +15511,9 @@ export const ClockpuzzleWidgetContent: React.FC<{ widget: any, currentIsLight: b
 
     if (nextMode === 'read') {
       const correct = formatTime(target);
-      const options = new Set<string>([correct]);
-      while (options.size < 4) {
-        const wrongH = Math.floor(Math.random() * 12) + 1;
-        const wrongM = minutes[Math.floor(Math.random() * minutes.length)];
-        options.add(formatTime({ h: wrongH, m: wrongM }));
-      }
-      setChoices([...options].sort());
+      const distractors = Array.from({length:12},(_,i)=>i+1).flatMap(h => minutes.map(m => formatTime({h,m}))).filter(time => time !== correct);
+      for(let i=distractors.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[distractors[i],distractors[j]]=[distractors[j],distractors[i]];}
+      setChoices([correct,...distractors.slice(0,3)].sort());
       setFeedback('Welche Uhrzeit zeigt die Uhr?');
     } else {
       setStudentClock({ h: 12, m: 0 });
@@ -15505,8 +15521,11 @@ export const ClockpuzzleWidgetContent: React.FC<{ widget: any, currentIsLight: b
     }
   }, [level, mode]);
 
+  const previousTaskSettings = useRef({mode,level});
   useEffect(() => {
-    rollNewTime(mode);
+    const previous=previousTaskSettings.current;
+    previousTaskSettings.current={mode,level};
+    if(previous.mode !== mode || previous.level !== level) rollNewTime(mode);
   }, [level, mode, rollNewTime]);
 
   const playDing = (success: boolean) => {
@@ -15521,6 +15540,7 @@ export const ClockpuzzleWidgetContent: React.FC<{ widget: any, currentIsLight: b
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.24);
       osc.connect(gain);
       gain.connect(ctx.destination);
+      osc.onended = () => { void ctx.close(); };
       osc.start();
       osc.stop(ctx.currentTime + 0.26);
     } catch {}
@@ -15549,6 +15569,7 @@ export const ClockpuzzleWidgetContent: React.FC<{ widget: any, currentIsLight: b
   const changeStudentHour = (delta: number) => {
     setStudentClock((current) => ({ ...current, h: ((current.h - 1 + delta + 12) % 12) + 1 }));
     setChecked(false);
+    setFeedback(`Stelle ${formatTime(targetClock)} Uhr ein.`);
   };
 
   const changeStudentMinute = (delta: number) => {
@@ -15559,6 +15580,7 @@ export const ClockpuzzleWidgetContent: React.FC<{ widget: any, currentIsLight: b
       return { ...current, m: options[nextIndex] };
     });
     setChecked(false);
+    setFeedback(`Stelle ${formatTime(targetClock)} Uhr ein.`);
   };
 
   const checkSetAnswer = () => {
@@ -15576,7 +15598,7 @@ export const ClockpuzzleWidgetContent: React.FC<{ widget: any, currentIsLight: b
     : checked && studentClock.h === targetClock.h && studentClock.m === targetClock.m;
 
   return (
-    <div className="min-h-full w-full p-3 sm:p-4 flex flex-col gap-3 select-none overflow-visible">
+    <div data-practice-root className="h-full w-full p-2 flex flex-col gap-2 select-none overflow-hidden">
       <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
         <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1" role="tablist" aria-label="Uhrentrainer-Modus">
           <button
@@ -15608,7 +15630,7 @@ export const ClockpuzzleWidgetContent: React.FC<{ widget: any, currentIsLight: b
             <button
               key={difficulty}
               type="button"
-              onClick={() => setLevel(difficulty)}
+              aria-pressed={level === difficulty} onClick={() => setLevel(difficulty)}
               className={`min-h-11 px-2.5 rounded-lg border text-xs font-bold ${
                 level === difficulty
                   ? 'bg-accent text-accent-text border-accent'
@@ -15639,8 +15661,8 @@ export const ClockpuzzleWidgetContent: React.FC<{ widget: any, currentIsLight: b
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col md:flex-row items-center justify-center gap-5 sm:gap-7 py-2">
-        <div className="relative w-52 h-52 sm:w-60 sm:h-60 rounded-full bg-amber-50 border-4 border-amber-500 flex items-center justify-center shadow-lg">
+      <div className="flex-1 min-h-0 flex flex-row items-center justify-center gap-4 py-1">
+        <div className="relative w-52 h-52 shrink-0 rounded-full bg-amber-50 border-4 border-amber-500 flex items-center justify-center shadow-lg">
           <svg className="w-[92%] h-[92%]" viewBox="0 0 100 100" role="img" aria-label={`Analoge Uhr mit ${formatTime(displayClock)} Uhr`}>
             <circle cx="50" cy="50" r="48" fill="white" stroke="#d97706" strokeWidth="1.5" />
             {Array.from({ length: 60 }, (_, index) => {
@@ -15690,7 +15712,7 @@ export const ClockpuzzleWidgetContent: React.FC<{ widget: any, currentIsLight: b
                   <button
                     key={choice}
                     type="button"
-                    onClick={() => checkReadAnswer(choice)}
+                    aria-pressed={selectedChoice === choice} onClick={() => checkReadAnswer(choice)}
                     className={`min-h-14 rounded-xl border-2 font-mono font-black text-base active:scale-95 transition-all ${
                       checked && selected
                         ? correct
@@ -15706,7 +15728,7 @@ export const ClockpuzzleWidgetContent: React.FC<{ widget: any, currentIsLight: b
             </div>
           </div>
         ) : (
-          <div className="w-full max-w-xs flex flex-col gap-3">
+          <div className="w-full max-w-xs flex flex-col gap-2">
             <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3 text-center">
               <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Deine Uhr</div>
               <div className="mt-1 text-3xl font-black tabular-nums text-accent">{formatTime(studentClock)}</div>

@@ -105,7 +105,11 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   mathbalancer: { minW: 640, minH: 560, prefW: 680, prefH: 560 },
   moneycalc: { minW: 760, minH: 560, prefW: 800, prefH: 560 },
   mathpyramid: { minW: 740, minH: 560, prefW: 780, prefH: 560 },
-  clockpuzzle: { minW: 280, minH: 220, prefW: 380, prefH: 340 },
+  challenge: { minW: 460, minH: 560, prefW: 460, prefH: 560 },
+  secretagent: { minW: 760, minH: 560, prefW: 760, prefH: 560 },
+  weightscale: { minW: 740, minH: 560, prefW: 740, prefH: 560 },
+  reflexgame: { minW: 640, minH: 560, prefW: 640, prefH: 560 },
+  clockpuzzle: { minW: 760, minH: 560, prefW: 800, prefH: 560 },
   // Geometry and angle tasks need the instrument, controls and feedback visible together.
   geometry: { minW: 760, minH: 560, prefW: 800, prefH: 560 },
   compass: { minW: 620, minH: 560, prefW: 700, prefH: 560 },

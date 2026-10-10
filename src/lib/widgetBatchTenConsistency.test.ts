@@ -39,7 +39,7 @@ test('Batch 10: KLASSIO-Akzentfarbe statt festem Indigo', () => {
 test('Batch 10: Fehlstart löscht den ausstehenden Reaktions-Timer', () => {
   assert.match(reflex, /triggerTimerRef/);
   assert.match(reflex, /clearTimeout\(triggerTimerRef\.current\)/);
-  assert.match(reflex, /if \(gameState === 'waiting'\)/);
+  assert.match(reflex, /if \(roundStateRef\.current === 'waiting'\)/);
   assert.match(reflex, /clearTriggerTimer\(\)/);
   assert.match(reflex, /useEffect\(\(\) => \(\) => clearTriggerTimer\(\)/);
 });

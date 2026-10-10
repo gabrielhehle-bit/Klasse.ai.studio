@@ -1649,7 +1649,7 @@ async function main() {
 
     // Five-widget math batch: independently calculate displayed tasks, then use the real UI.
     const auditWidgetMinimum = async type => {
-      if(['geometry','angledetective','estimationjar','shapepuzzle','divrobot','fractions','fractioncake','fractiongrid','moneycalc'].includes(type)){
+      if(['challenge','secretagent','weightscale','reflexgame','clockpuzzle','geometry','angledetective','estimationjar','shapepuzzle','divrobot','fractions','fractioncake','fractiongrid','moneycalc'].includes(type)){
         // Earlier routines may leave a restored window at the lower board edge.
         // Use the real size preset and drag header before testing the visible grip.
         await auditMenu(type,'Größe');await clickButton(client,'Passend',true);
@@ -1662,7 +1662,7 @@ async function main() {
         await client.send('Input.dispatchMouseEvent',{type:'mouseReleased',...end,button:'left',clickCount:1});
         await waitFor(client,type+' real header drag settles before resize',`!document.querySelector('[data-widget-type=${q(type)}]').hasAttribute('data-widget-interacting')`);
       }
-      const minimumSizes={geometry:[760,560],angledetective:[740,560],estimationjar:[760,560],shapepuzzle:[640,560],divrobot:[760,560],fractions:[640,560],fractioncake:[640,560],fractiongrid:[640,560],moneycalc:[760,560],mathcards:[640,560],mathchain:[640,560],mathduel:[760,560],mathpyramid:[740,560],mathbalancer:[640,560],riddle:[700,560],colormixer:[760,560],shadowshapes:[840,560],clocksync:[740,560],kidweather:[760,560],constellation:[720,560],planetarium:[720,560],flagquiz:[700,560],geographyquiz:[700,560],wastebin:[820,560],bodyparts:[620,560],compass:[620,560],weekdays:[620,560],trafficquiz:[800,560],watercycle:[760,560],dictionary:[460,540],patternmaker:[580,520],alphabetsoup:[640,560],morsecode:[620,560],hangman:[640,560],sorting:[420,520],vocabulary:[640,560],spellingdetective:[640,560],wordbuilder:[620,560],scrambler:[620,560],compoundsplit:[620,560],wordchain:[500,520],wordgrid:[640,560],wordscramble:[600,560],secretcode:[440,420],storyemojis:[640,560],abcorder:[640,560],sentencebuilding:[620,560],wordexplorer:[520,540],rhymemachine:[500,540],punctuationzoo:[620,560]};
+      const minimumSizes={challenge:[460,560],secretagent:[760,560],weightscale:[740,560],reflexgame:[640,560],clockpuzzle:[760,560],geometry:[760,560],angledetective:[740,560],estimationjar:[760,560],shapepuzzle:[640,560],divrobot:[760,560],fractions:[640,560],fractioncake:[640,560],fractiongrid:[640,560],moneycalc:[760,560],mathcards:[640,560],mathchain:[640,560],mathduel:[760,560],mathpyramid:[740,560],mathbalancer:[640,560],riddle:[700,560],colormixer:[760,560],shadowshapes:[840,560],clocksync:[740,560],kidweather:[760,560],constellation:[720,560],planetarium:[720,560],flagquiz:[700,560],geographyquiz:[700,560],wastebin:[820,560],bodyparts:[620,560],compass:[620,560],weekdays:[620,560],trafficquiz:[800,560],watercycle:[760,560],dictionary:[460,540],patternmaker:[580,520],alphabetsoup:[640,560],morsecode:[620,560],hangman:[640,560],sorting:[420,520],vocabulary:[640,560],spellingdetective:[640,560],wordbuilder:[620,560],scrambler:[620,560],compoundsplit:[620,560],wordchain:[500,520],wordgrid:[640,560],wordscramble:[600,560],secretcode:[440,420],storyemojis:[640,560],abcorder:[640,560],sentencebuilding:[620,560],wordexplorer:[520,540],rhymemachine:[500,540],punctuationzoo:[620,560]};
       const [minimumWidth,minimumHeight]=minimumSizes[type]||[460,560];
       await waitFor(client,type+' resize grip is reachable after opening', `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('[data-widget-resize]')?.dataset.widgetResize==='se';})()`);
       const point=await evaluate(client, `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
@@ -2749,6 +2749,79 @@ async function main() {
       await practiceScreen('divrobot');if(rule===2)await practiceRestore('divrobot','Teilbarkeits-Roboter');
     }
     await auditMenu('divrobot','Widget schließen');
+
+    // Interaction/clock block: real feedback, physical geometry and exact completed-state restoration.
+    await openAuditWidget('challenge','Klassen-Challenge');await auditWidgetMinimum('challenge');const challengeRoot=practiceRoot('challenge');
+    for(let i=1;i<=6;i++){
+      await waitFor(client,'six distinct class missions '+i,`document.querySelector(${q(challengeRoot)}).textContent.includes(${q('Mission '+i)})`);
+      await natureClick(challengeRoot,'Klasse geschafft! 💪');
+      await waitFor(client,'mission completion locks the award',`Array.from(document.querySelectorAll(${q(challengeRoot+' button')})).some(b=>b.disabled&&b.textContent.includes('Erledigt!'))`);
+      if(i===1)await practiceRestore('challenge','Klassen-Challenge');
+      await natureClick(challengeRoot,'🎲 Neu');
+    }
+    await practiceScreen('challenge');await auditMenu('challenge','Widget schließen');
+
+    await openAuditWidget('secretagent','Klassen-Kryptograph');await auditWidgetMinimum('secretagent');const agentRoot=practiceRoot('secretagent');
+    await setInputByLabel(client,'Geheimtext','Zebra ÄÖ!');await setInputByLabel(client,'Cäsar-Schlüssel','3');
+    await waitFor(client,'Caesar wraps Z and preserves punctuation/umlauts',`document.querySelector(${q(agentRoot+' [aria-label="Verschlüsselter Text"]')}).textContent==='Cheud ÄÖ!'`);
+    await natureClick(agentRoot,'Anleitung ❓');await practiceScreen('secretagent');await practiceRestore('secretagent','Klassen-Kryptograph');
+    await natureClick(agentRoot,'Neuer Tresor');
+    for(let guess=1;guess<=10;guess++){
+      await setInputByLabel(client,'Tresorzahl',String(guess));await natureClick(agentRoot,'Drehen & Testen');
+      if(await evaluate(client,`document.querySelector(${q(agentRoot)}).textContent.includes('Schloss geknackt')`))break;
+      await waitFor(client,'wrong safe guess guides upwards',`document.querySelector(${q(agentRoot)}).textContent.includes('Höher drehen')`);
+    }
+    await waitFor(client,'safe solved through public hints',`document.querySelector(${q(agentRoot)}).textContent.includes('Schloss geknackt')`);
+    await practiceRestore('secretagent','Klassen-Kryptograph');await auditMenu('secretagent','Widget schließen');
+
+    await openAuditWidget('weightscale','Waagen-Schätzer');await auditWidgetMinimum('weightscale');const scaleRoot=practiceRoot('weightscale');
+    await waitFor(client,'heavier left pan hangs lower',`Number(document.querySelector(${q(scaleRoot+' svg g')}).getAttribute('transform').split('(')[1].split(' ')[0])<0`);
+    await natureClick(scaleRoot,'Rätsel 🕵️');
+    for(const [label,weight] of [['🍏 Apfel',150],['📚 Buch',400],['🏆 Pokal',750],['💎 Diamant',50],['🎒 Schulranzen',1200],['🐱 Kätzchen',2000]]){
+      await natureClick(scaleRoot,label);await natureClick(scaleRoot,'+500g');
+      if(weight<500){await waitFor(client,'heavier right pan hangs lower',`Number(document.querySelector(${q(scaleRoot+' svg g')}).getAttribute('transform').split('(')[1].split(' ')[0])>0`);await natureClick(scaleRoot,'−500g');}
+      else await natureClick(scaleRoot,'Leeren 🗑️');
+      let remaining=weight;for(const amount of [500,100,50,10])while(remaining>=amount){await natureClick(scaleRoot,'+'+amount+'g');remaining-=amount;}
+      await waitFor(client,'mystery is really balanced '+label,`document.querySelector(${q(scaleRoot)}).dataset.rightWeight===${q(String(weight))}&&document.querySelector(${q(scaleRoot)}).textContent.includes('Perfekt ausbalanciert')&&document.querySelector(${q(scaleRoot+' svg g')}).getAttribute('transform')==='rotate(0 50 25)'`);
+      if(weight===150)await practiceRestore('weightscale','Waagen-Schätzer');await practiceScreen('weightscale');
+    }
+    await auditMenu('weightscale','Widget schließen');
+
+    await openAuditWidget('reflexgame','Blitz-Reaktions-Trainer');await auditWidgetMinimum('reflexgame');const reflexRoot=practiceRoot('reflexgame');
+    await natureClick(reflexRoot,'Start Duell ⏱️');await clickSelector(client,reflexRoot+' [aria-label="Team Links drücken"]');
+    await waitFor(client,'early real tap cancels the round',`document.querySelector(${q(reflexRoot)}).textContent.includes('Links: Fehlstart!')`);
+    await sleep(5200);await waitFor(client,'cancelled timer cannot resurrect the signal',`!document.querySelector(${q(reflexRoot)}).textContent.includes('JETZT DRÜCKEN')`);
+    await practiceRestore('reflexgame','Blitz-Reaktions-Trainer');await natureClick(reflexRoot,'Start Duell ⏱️');
+    await waitFor(client,'real reaction timer signals',`document.querySelector(${q(reflexRoot)}).textContent.includes('JETZT DRÜCKEN')`);
+    await evaluate(client,`document.querySelector(${q(reflexRoot)}).focus()`);await pressAuditKey('l','KeyL');
+    await waitFor(client,'advertised keyboard actually wins the duel',`document.querySelector(${q(reflexRoot)}).textContent.includes('Team RECHTS gewinnt!')`);
+    await clickSelector(client,reflexRoot+' [aria-label="Team Links drücken"]');await waitFor(client,'later tap cannot replace the winner',`document.querySelector(${q(reflexRoot)}).textContent.includes('Team RECHTS gewinnt!')`);
+    await practiceRestore('reflexgame','Blitz-Reaktions-Trainer');await natureClick(reflexRoot,'Nochmal');
+    await auditMenu('reflexgame','Widget schließen');await openAuditWidget('reflexgame','Blitz-Reaktions-Trainer');
+    await waitFor(client,'closing a running round explicitly interrupts it',`document.querySelector(${q(reflexRoot)}).textContent.includes('Runde unterbrochen')`);
+    await sleep(5200);await waitFor(client,'closed timer cannot return on remount',`!document.querySelector(${q(reflexRoot)}).textContent.includes('JETZT DRÜCKEN')`);
+    await practiceScreen('reflexgame');await auditMenu('reflexgame','Widget schließen');
+
+    await openAuditWidget('clockpuzzle','Uhren-Lern-Trainer');await auditWidgetMinimum('clockpuzzle');const clockPuzzleRoot=practiceRoot('clockpuzzle');
+    const readPuzzleClock=()=>evaluate(client,`(() => {const svg=document.querySelector(${q(clockPuzzleRoot+' svg')});const degrees=color=>Number(svg.querySelector('line[stroke="'+color+'"]').getAttribute('transform').split('(')[1].split(' ')[0]);const m=Math.round(degrees('#ea580c')/6);const h=Math.round((degrees('#1e293b')-m*0.5)/30)||12;return {h,m,text:String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')};})()`);
+    for(const level of ['Volle Stunden','Halbe Stunden','Viertelstunden']){
+      await natureClick(clockPuzzleRoot,level);await sleep(100);
+      const target=await readPuzzleClock();const choices=await evaluate(client,`Array.from(document.querySelectorAll(${q(clockPuzzleRoot+' button')})).map(b=>b.textContent.trim()).filter(s=>/^\\d\\d:\\d\\d Uhr$/.test(s))`);
+      if(choices.length!==4||new Set(choices).size!==4||!choices.includes(target.text+' Uhr'))throw new Error('Clock choices do not match its independently decoded hands');
+      await natureClick(clockPuzzleRoot,choices.find(c=>c!==target.text+' Uhr'));await waitFor(client,'wrong clock reading explains the hands',`(document.querySelector(${q(clockPuzzleRoot)}).textContent.includes('passt noch nicht')||document.querySelector(${q(clockPuzzleRoot)}).textContent.includes('Die Minuten stimmen.'))`);
+      await natureClick(clockPuzzleRoot,target.text+' Uhr');await waitFor(client,'independent clock reading correct',`document.querySelector(${q(clockPuzzleRoot)}).textContent.includes('Richtig –')`);
+      await practiceRestore('clockpuzzle','Uhren-Lern-Trainer');
+      await natureClick(clockPuzzleRoot,'Uhr einstellen');await sleep(100);
+      const goal=await evaluate(client,`document.querySelector(${q(clockPuzzleRoot)}).textContent.match(/Ziel: (\\d\\d):(\\d\\d)/).slice(1).map(Number)`);
+      for(let h=12;h!==(goal[0]||12);h=h%12+1)await clickSelector(client,clockPuzzleRoot+' [aria-label="Stundenzeiger vor"]');
+      const step=level==='Volle Stunden'?60:level==='Halbe Stunden'?30:15;for(let m=0;m<goal[1];m+=step)await clickSelector(client,clockPuzzleRoot+' [aria-label="Minutenzeiger vor"]');
+      const setClock=await readPuzzleClock();if(setClock.h!==goal[0]||setClock.m!==goal[1])throw new Error('Clock controls and real hands disagree');
+      await natureClick(clockPuzzleRoot,'Uhr prüfen');await waitFor(client,'clock setting solved',`document.querySelector(${q(clockPuzzleRoot)}).textContent.includes('Richtig eingestellt.')`);
+      await practiceRestore('clockpuzzle','Uhren-Lern-Trainer');await clickSelector(client,clockPuzzleRoot+' [aria-label="Stundenzeiger vor"]');
+      await waitFor(client,'editing clears stale success',`!document.querySelector(${q(clockPuzzleRoot)}).textContent.includes('Richtig eingestellt.')`);await natureClick(clockPuzzleRoot,'Uhr ablesen');
+    }
+    await practiceScreen('clockpuzzle');await auditMenu('clockpuzzle','Widget schließen');
+    console.log('✓ Interaction/clock: six missions, Caesar wrap and ten-code safe, six balanced mysteries with physical beam direction/removal, reaction false start/keyboard/result, all clock levels and both modes; native controls and exact close/remount.');
 
     // Class behavior uses the pupil scale: 1 is positive and must be above 5.
     await clickSelector(client, '[aria-label="Weitere Optionen und Layout-Werkzeuge"]');
