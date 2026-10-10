@@ -1649,7 +1649,7 @@ async function main() {
 
     // Five-widget math batch: independently calculate displayed tasks, then use the real UI.
     const auditWidgetMinimum = async type => {
-      if(['fractions','fractioncake','fractiongrid','moneycalc'].includes(type)){
+      if(['geometry','angledetective','estimationjar','shapepuzzle','divrobot','fractions','fractioncake','fractiongrid','moneycalc'].includes(type)){
         // Earlier routines may leave a restored window at the lower board edge.
         // Use the real size preset and drag header before testing the visible grip.
         await auditMenu(type,'Größe');await clickButton(client,'Passend',true);
@@ -1662,7 +1662,7 @@ async function main() {
         await client.send('Input.dispatchMouseEvent',{type:'mouseReleased',...end,button:'left',clickCount:1});
         await waitFor(client,type+' real header drag settles before resize',`!document.querySelector('[data-widget-type=${q(type)}]').hasAttribute('data-widget-interacting')`);
       }
-      const minimumSizes={fractions:[640,560],fractioncake:[640,560],fractiongrid:[640,560],moneycalc:[760,560],mathcards:[640,560],mathchain:[640,560],mathduel:[760,560],mathpyramid:[740,560],mathbalancer:[640,560],riddle:[700,560],colormixer:[760,560],shadowshapes:[840,560],clocksync:[740,560],kidweather:[760,560],constellation:[720,560],planetarium:[720,560],flagquiz:[700,560],geographyquiz:[700,560],wastebin:[820,560],bodyparts:[620,560],compass:[620,560],weekdays:[620,560],trafficquiz:[800,560],watercycle:[760,560],dictionary:[460,540],patternmaker:[580,520],alphabetsoup:[640,560],morsecode:[620,560],hangman:[640,560],sorting:[420,520],vocabulary:[640,560],spellingdetective:[640,560],wordbuilder:[620,560],scrambler:[620,560],compoundsplit:[620,560],wordchain:[500,520],wordgrid:[640,560],wordscramble:[600,560],secretcode:[440,420],storyemojis:[640,560],abcorder:[640,560],sentencebuilding:[620,560],wordexplorer:[520,540],rhymemachine:[500,540],punctuationzoo:[620,560]};
+      const minimumSizes={geometry:[760,560],angledetective:[740,560],estimationjar:[760,560],shapepuzzle:[640,560],divrobot:[760,560],fractions:[640,560],fractioncake:[640,560],fractiongrid:[640,560],moneycalc:[760,560],mathcards:[640,560],mathchain:[640,560],mathduel:[760,560],mathpyramid:[740,560],mathbalancer:[640,560],riddle:[700,560],colormixer:[760,560],shadowshapes:[840,560],clocksync:[740,560],kidweather:[760,560],constellation:[720,560],planetarium:[720,560],flagquiz:[700,560],geographyquiz:[700,560],wastebin:[820,560],bodyparts:[620,560],compass:[620,560],weekdays:[620,560],trafficquiz:[800,560],watercycle:[760,560],dictionary:[460,540],patternmaker:[580,520],alphabetsoup:[640,560],morsecode:[620,560],hangman:[640,560],sorting:[420,520],vocabulary:[640,560],spellingdetective:[640,560],wordbuilder:[620,560],scrambler:[620,560],compoundsplit:[620,560],wordchain:[500,520],wordgrid:[640,560],wordscramble:[600,560],secretcode:[440,420],storyemojis:[640,560],abcorder:[640,560],sentencebuilding:[620,560],wordexplorer:[520,540],rhymemachine:[500,540],punctuationzoo:[620,560]};
       const [minimumWidth,minimumHeight]=minimumSizes[type]||[460,560];
       await waitFor(client,type+' resize grip is reachable after opening', `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('[data-widget-resize]')?.dataset.widgetResize==='se';})()`);
       const point=await evaluate(client, `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
@@ -2663,6 +2663,89 @@ async function main() {
     await waitFor(client,'money preserves exact target amount and success',`Math.round(100*Number(document.querySelector(${q(moneyRoot)}).dataset.moneyTarget))===${cents}&&Math.round(100*Number(document.querySelector(${q(moneyRoot)}).dataset.moneyTotal))===${cents}&&document.querySelector(${q(moneyRoot)}).textContent.includes('Genau richtig')`);
     }
     await practiceScreen('moneycalc');await auditMenu('moneycalc','Widget schließen');
+
+    // Geometry/estimation block: inspect rendered shapes, rays and individual jar items.
+    await openAuditWidget('geometry','Geometrie-Muster');await auditWidgetMinimum('geometry');const geometryRoot=practiceRoot('geometry');
+    await natureClick(geometryRoot,'Alles löschen').catch(()=>{});
+    for(const [shape,color] of [['Kreis','Rot'],['Quadrat','Gelb'],['Rechteck','Grün'],['Dreieck','Blau']]){
+      await natureClick(geometryRoot,shape);await clickSelector(client,geometryRoot+' [aria-label="'+color+'"]');
+      await setInputByLabel(client,'Formgröße','76');await setInputByLabel(client,'Drehwinkel','330');await natureClick(geometryRoot,'Form mittig setzen');
+    }
+    await waitFor(client,'four distinct geometric placements',`document.querySelector(${q(geometryRoot)}).dataset.geometryCount==='4'`);
+    await natureClick(geometryRoot,'Letzte zurück');await waitFor(client,'geometry undo removes only the last shape',`document.querySelector(${q(geometryRoot)}).dataset.geometryCount==='3'`);
+    await practiceRestore('geometry','Geometrie-Muster');
+    await natureClick(geometryRoot,'2D ↔ 3D');
+    for(const [shape,solid,properties] of [['Kreis','Kugel','eine gekrümmte Oberfläche'],['Quadrat','Würfel','12 Kanten'],['Rechteck','Quader','12 Kanten'],['Dreieck','Dreiecksprisma','9 Kanten']]){
+      await natureClick(geometryRoot,shape);await practiceScreen('geometry');
+      await waitFor(client,'geometry properties match '+shape,`document.querySelector(${q(geometryRoot)}).textContent.includes(${q(solid)})&&document.querySelector(${q(geometryRoot)}).textContent.includes(${q(properties)})`);
+    }
+    await setInputByLabel(client,'3D-Körper drehen','-35');await practiceRestore('geometry','Geometrie-Muster');await auditMenu('geometry','Widget schließen');
+
+    await openAuditWidget('shapepuzzle','Formen-Entdecker');await auditWidgetMinimum('shapepuzzle');const shapeRoot=practiceRoot('shapepuzzle');
+    for(const [sides,vertices,edges,faces] of [[3,4,6,4],[4,8,12,6],[5,10,15,7],[6,12,18,8]]){
+      await waitFor(client,'next actual polygon',`document.querySelector(${q(shapeRoot)}).dataset.shapeSides===${q(String(sides))}`);
+      await clickSelector(client,shapeRoot+' [aria-label="Ecke 1"]');await clickSelector(client,shapeRoot+' [aria-label="Seite 1"]');
+      if(sides===3)await practiceRestore('shapepuzzle','Formen-Entdecker');
+      await clickSelector(client,shapeRoot+' [aria-label="'+(sides===3?4:3)+' Ecken antworten"]');
+      await waitFor(client,'wrong corner count remains editable',`document.querySelector(${q(shapeRoot+' [role="status"]')}).textContent.includes('stimmt noch nicht')`);
+      await clickSelector(client,shapeRoot+' [aria-label="'+sides+' Ecken antworten"]');
+      await waitFor(client,'correct polygon count',`document.querySelector(${q(shapeRoot+' [role="status"]')}).textContent.includes('Richtig!')`);await practiceScreen('shapepuzzle');
+      if(sides===3)await practiceRestore('shapepuzzle','Formen-Entdecker');
+      await natureClick(shapeRoot,'3D Körper');
+      await waitFor(client,'actual solid edges and vertices match Euler topology',`document.querySelectorAll(${q(shapeRoot+' [data-solid-edge]')}).length===${edges}&&document.querySelectorAll(${q(shapeRoot+' [data-solid-vertex]')}).length===${vertices}&&document.querySelector(${q(shapeRoot)}).textContent.includes(${q(faces+' Flächen')})`);
+      await setInputByLabel(client,'Körper drehen','-45');await practiceScreen('shapepuzzle');if(sides===3)await practiceRestore('shapepuzzle','Formen-Entdecker');await natureClick(shapeRoot,'Nächste Form');
+    }
+    await auditMenu('shapepuzzle','Widget schließen');
+
+    await openAuditWidget('angledetective','Winkel-Detektiv');await auditWidgetMinimum('angledetective');const angleRoot=practiceRoot('angledetective');
+    for(const level of ['Grundwinkel','Gemischt','10°-Schritte']){
+      await natureClick(angleRoot,level);
+      const target=await evaluate(client,`(() => {const ray=document.querySelector(${q(angleRoot+' svg line[stroke="#3b82f6"]')});return Math.round(Math.atan2(50-Number(ray.getAttribute('y2')),50-Number(ray.getAttribute('x2')))*180/Math.PI);})()`);
+      const wrong=target<=90?180:0;
+      await setInputByLabel(client,'Geschätzten Winkel einstellen',String(wrong));await natureClick(angleRoot,'Schätzung prüfen');await practiceScreen('angledetective');
+      await waitFor(client,'wrong angular estimate shows independently measured deviation',`document.querySelector(${q(angleRoot)}).textContent.includes(${q(Math.abs(wrong-target)+'°')})`);
+      await practiceRestore('angledetective','Winkel-Detektiv');
+      await setInputByLabel(client,'Geschätzten Winkel einstellen',String(target));
+      await waitFor(client,'editing angular estimate clears stale solution',`document.querySelector(${q(angleRoot)}).textContent.includes('Schätzung geändert.')&&!document.querySelector(${q(angleRoot)}).textContent.includes('Ziel:')`);
+      await natureClick(angleRoot,'Schätzung prüfen');
+      await waitFor(client,'exact independently measured angle succeeds',`document.querySelector(${q(angleRoot)}).textContent.includes(${q('Sehr genau: '+target+'°')})`);
+      await practiceRestore('angledetective','Winkel-Detektiv');await natureClick(angleRoot,'Nächster Winkel');
+    }
+    await auditMenu('angledetective','Widget schließen');
+
+    await openAuditWidget('estimationjar','Schätz-Glas');await auditWidgetMinimum('estimationjar');const jarRoot=practiceRoot('estimationjar');
+    for(const [level,min,max,step] of [['10–25',10,25,1],['25–60',25,60,5],['60–120',60,120,5]]){
+      await natureClick(jarRoot,level);
+      for(const content of ['beads','marbles','stars','cookies','gummybears','coins']){
+        await practiceSelect(jarRoot,'Glas-Inhalt',content);
+        const count=await evaluate(client,`document.querySelectorAll(${q(jarRoot+' [data-jar-item]')}).length`);
+        if(count<min||count>max)throw Error('Jar quantity outside selected range');
+        await waitFor(client,'estimate starts independently of hidden amount',`Number(document.querySelector(${q(jarRoot+' input')}).value)===${Math.round((min+max)/2/step)*step}`);
+        const wrong=count===min?max:min;await setInputByLabel(client,'Menge schätzen',String(wrong));await natureClick(jarRoot,'Schätzung prüfen');
+        await waitFor(client,'jar independently counted amount is revealed',`document.querySelector(${q(jarRoot)}).textContent.includes(${q('Es sind '+count)})||document.querySelector(${q(jarRoot)}).textContent.includes(${q('Sehr gut geschätzt: '+count)})`);
+        await practiceScreen('estimationjar');
+        if(content==='beads')await practiceRestore('estimationjar','Schätz-Glas');
+        await setInputByLabel(client,'Menge schätzen',String(count));await natureClick(jarRoot,'Schätzung prüfen');
+        await waitFor(client,'each exact quantity is selectable including nonmultiples of five',`document.querySelector(${q(jarRoot)}).textContent.includes(${q('Exakt getroffen: '+count)})`);
+      }
+      await practiceRestore('estimationjar','Schätz-Glas');await natureClick(jarRoot,'Neues Glas');
+    }
+    await auditMenu('estimationjar','Widget schließen');
+
+    await openAuditWidget('divrobot','Teilbarkeits-Roboter');await auditWidgetMinimum('divrobot');const robotRoot=practiceRoot('divrobot');
+    for(const level of ['Leicht','Mittel','Schwer'])for(const rule of [2,3,4,5,6,8,9,10]){
+      await natureClick(robotRoot,level);await clickSelector(client,robotRoot+' [aria-label="Teilbarkeit durch '+rule+'"]');
+      await natureClick(robotRoot,'Neu füllen');
+      const numbers=await evaluate(client,`Array.from(document.querySelectorAll(${q(robotRoot+' [data-div-number]')})).map(b=>Number(b.dataset.divNumber))`),fitting=numbers.filter(n=>n%rule===0),wrong=numbers.find(n=>n%rule!==0);
+      if(new Set(numbers).size!==6||fitting.length!==3)throw Error('Robot round lacks balanced unique choices');
+      await clickSelector(client,robotRoot+' [data-div-number="'+wrong+'"]');await practiceScreen('divrobot');
+      await waitFor(client,'nondivisible choice consumed once',`document.querySelector(${q(robotRoot+' [data-div-number="'+wrong+'"]')}).disabled&&document.querySelector(${q(robotRoot)}).textContent.includes('mit Rest')`);
+      if(rule===2)await practiceRestore('divrobot','Teilbarkeits-Roboter');
+      for(const n of fitting)await clickSelector(client,robotRoot+' [data-div-number="'+n+'"]');
+      await waitFor(client,'all three actual divisible numbers finish the round',`document.querySelector(${q(robotRoot)}).textContent.includes('Alle passenden Zahlen gefunden!')&&Number(document.querySelector(${q(robotRoot)}).dataset.divScore)>=30`);
+      await practiceScreen('divrobot');if(rule===2)await practiceRestore('divrobot','Teilbarkeits-Roboter');
+    }
+    await auditMenu('divrobot','Widget schließen');
 
     // Class behavior uses the pupil scale: 1 is positive and must be above 5.
     await clickSelector(client, '[aria-label="Weitere Optionen und Layout-Werkzeuge"]');

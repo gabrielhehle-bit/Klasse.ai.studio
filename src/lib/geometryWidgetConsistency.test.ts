@@ -69,6 +69,6 @@ test('Geometrie-Muster erhält eine gemeinsame Fachwidget-Mindestgröße', () =>
   const frame = readFileSync('src/components/cockpit/CockpitWidget.tsx', 'utf8');
 
   assert.match(cockpit, /id: "widget-geometry",[\s\S]{0,180}w: 46,[\s\S]{0,80}h: 58/);
-  assert.match(layout, /geometry: \{ minW: 360, minH: 460, prefW: 560, prefH: 560 \}/);
+  assert.match(layout, /geometry: \{ minW: 760, minH: 560, prefW: 800, prefH: 560 \}/);
   assert.match(frame, /geometry: \{ w: 46, h: 58 \}/);
 });

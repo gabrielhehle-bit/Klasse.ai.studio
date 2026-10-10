@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { getTodayIsoDate } from './kidAttendanceAlgorithm';
 import assert from 'node:assert/strict';
 import {
   getDisplayStudentName,
@@ -31,7 +32,7 @@ test('F6 - studentSelectionUtils: Abwesende Kinder nach F5/F6-Logik ausschließe
     ],
     anwesenheit: {
       s3: {
-        [new Date().toISOString().split('T')[0]]: { stunde1: 'e' }
+        [getTodayIsoDate()]: { stunde1: 'e' }
       }
     }
   };
