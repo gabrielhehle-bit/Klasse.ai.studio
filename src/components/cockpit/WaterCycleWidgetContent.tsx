@@ -356,7 +356,7 @@ export const WaterCycleWidgetContent: React.FC<WaterCycleWidgetContentProps> = (
               return (
                 <div
                   key={stageId}
-                  className={`flex min-h-14 items-center gap-3 rounded-2xl border px-3 py-2 ${
+                  className={`flex min-h-14 items-center gap-3 rounded-2xl border px-3 py-1 ${
                     currentIsLight ? 'border-slate-200 bg-white' : 'border-white/10 bg-white/5'
                   }`}
                 >

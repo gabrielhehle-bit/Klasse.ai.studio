@@ -552,8 +552,31 @@ export const TrafficQuizWidgetContent: React.FC<TrafficQuizWidgetContentProps> =
           </div>
 
           <div className="grid min-h-0 flex-1 grid-cols-[minmax(190px,0.9fr)_minmax(260px,1.1fr)] items-center gap-4 py-3">
-            <div className="h-full min-h-48">
-              <TrafficVisual visual={activeQuestion.visual} currentIsLight={currentIsLight} />
+            <div className="flex h-full min-h-0 flex-col gap-2">
+              <div className="min-h-32 flex-1">
+                <TrafficVisual visual={activeQuestion.visual} currentIsLight={currentIsLight} />
+              </div>
+              {selectedOption !== null && (
+                <div className={`shrink-0 rounded-2xl border p-3 ${
+                  isCorrect
+                    ? 'border-emerald-500/40 bg-emerald-500/10'
+                    : 'border-rose-500/40 bg-rose-500/10'
+                }`}>
+                  <p
+                    role="status"
+                    aria-live="polite"
+                    className={`text-sm font-black ${
+                      isCorrect
+                        ? 'text-emerald-700 dark:text-emerald-300'
+                        : 'text-rose-700 dark:text-rose-300'
+                    }`}
+                  >
+                    {isCorrect ? 'Richtig.' : 'Nicht ganz.'}
+                  </p>
+                  <p className="mt-1 text-xs font-semibold leading-relaxed">{activeQuestion.explanation}</p>
+                  <p className="mt-1 text-[10px] font-bold opacity-50">Quelle: {activeQuestion.source}</p>
+                </div>
+              )}
             </div>
 
             <div className="flex min-h-0 flex-col justify-center">
@@ -610,27 +633,7 @@ export const TrafficQuizWidgetContent: React.FC<TrafficQuizWidgetContentProps> =
                 })}
               </div>
 
-              {selectedOption !== null && (
-                <div className={`mt-3 rounded-2xl border p-3 ${
-                  isCorrect
-                    ? 'border-emerald-500/40 bg-emerald-500/10'
-                    : 'border-rose-500/40 bg-rose-500/10'
-                }`}>
-                  <p
-                    role="status"
-                    aria-live="polite"
-                    className={`text-sm font-black ${
-                      isCorrect
-                        ? 'text-emerald-700 dark:text-emerald-300'
-                        : 'text-rose-700 dark:text-rose-300'
-                    }`}
-                  >
-                    {isCorrect ? 'Richtig.' : 'Nicht ganz.'}
-                  </p>
-                  <p className="mt-1 text-xs font-semibold leading-relaxed">{activeQuestion.explanation}</p>
-                  <p className="mt-1 text-[10px] font-bold opacity-50">Quelle: {activeQuestion.source}</p>
-                </div>
-              )}
+
             </div>
           </div>
 
