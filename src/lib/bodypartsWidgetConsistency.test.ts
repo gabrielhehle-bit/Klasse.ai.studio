@@ -16,7 +16,9 @@ test('bodyparts uses shared widget settings and safe atomic persistence', () => 
   const source = bodypartsSource();
 
   assert.match(catalog, /COCKPIT_WIDGET_SETTINGS_IDS[\s\S]*"bodyparts",/);
-  assert.match(cockpit, /case "bodyparts":[\s\S]*showSettings=\{widgetSettingsOpenId === widget\.id\}/);
+  const bodyBranch = cockpit.slice(cockpit.indexOf('case "bodyparts":'), cockpit.indexOf('case "toothbrush":'));
+  assert.match(bodyBranch, /onUpdate=/);
+  assert.match(bodyBranch, /showSettings=\{widgetSettingsOpenId === widget\.id\}/);
   assert.match(cockpit, /w\.type === "bodyparts" && updates\.settings/);
   assert.match(source, /Körper-Entdecker-Einstellungen/);
 });

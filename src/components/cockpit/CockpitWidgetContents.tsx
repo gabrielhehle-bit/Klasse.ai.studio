@@ -8564,11 +8564,19 @@ export const BodypartsWidgetContent: React.FC<{
     () => normalizeBodypartsWidgetSettings(widget?.settings),
     [widget?.settings],
   );
-  const [selectedPartId, setSelectedPartId] = useState<string>(BODY_PARTS[0].id);
-  const [round, setRound] = useState<BodypartsQuizRound | null>(() => createBodypartsQuizRound());
-  const [selectedChoiceId, setSelectedChoiceId] = useState<string | null>(null);
-  const [answerState, setAnswerState] = useState<'idle' | 'wrong' | 'correct'>('idle');
-  const [feedback, setFeedback] = useState('');
+  const lifecycle = readWidgetLifecycleState(widget, "bodyparts", {
+    selectedPartId: BODY_PARTS[0].id,
+    round: createBodypartsQuizRound(),
+    selectedChoiceId: null as string | null,
+    answerState: 'idle' as 'idle' | 'wrong' | 'correct',
+    feedback: ''
+  });
+  const [selectedPartId, setSelectedPartId] = useState<string>(lifecycle.selectedPartId);
+  const [round, setRound] = useState<BodypartsQuizRound | null>(lifecycle.round);
+  const [selectedChoiceId, setSelectedChoiceId] = useState<string | null>(lifecycle.selectedChoiceId);
+  const [answerState, setAnswerState] = useState<'idle' | 'wrong' | 'correct'>(lifecycle.answerState);
+  const [feedback, setFeedback] = useState(lifecycle.feedback);
+  usePersistedWidgetLifecycleState(widget, onUpdate, "bodyparts", { selectedPartId, round, selectedChoiceId, answerState, feedback });
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
 
@@ -8579,14 +8587,18 @@ export const BodypartsWidgetContent: React.FC<{
     onUpdateRef.current({ settings: patch });
   }, []);
 
-  const changeMode = (mode: BodypartsMode) => {
-    persistSettings({ mode });
+  const previousMode = useRef(settings.mode);
+  useEffect(() => {
+    if (previousMode.current === settings.mode) return;
+    previousMode.current = settings.mode;
     setSelectedChoiceId(null);
     setAnswerState('idle');
     setFeedback('');
-    if (mode === 'quiz') {
-      setRound(createBodypartsQuizRound());
-    }
+    if (settings.mode === 'quiz') setRound(createBodypartsQuizRound());
+  }, [settings.mode]);
+
+  const changeMode = (mode: BodypartsMode) => {
+    if (mode !== settings.mode) persistSettings({ mode });
   };
 
   const selectPart = (id: string) => {
@@ -9278,12 +9290,17 @@ export const CompassWidgetContent: React.FC<{
     () => getCompassDirections(settings.directionSet),
     [settings.directionSet],
   );
-  const [angle, setAngle] = useState<number>(0);
-  const [practiceRound, setPracticeRound] = useState<CompassPracticeRound | null>(
-    () => createCompassPracticeRound(getCompassDirections(settings.directionSet)),
-  );
-  const [answerState, setAnswerState] = useState<'idle' | 'wrong' | 'correct'>('idle');
-  const [feedback, setFeedback] = useState('');
+  const lifecycle = readWidgetLifecycleState(widget, "compass", {
+    angle: 0,
+    practiceRound: createCompassPracticeRound(getCompassDirections(settings.directionSet)),
+    answerState: 'idle' as 'idle' | 'wrong' | 'correct',
+    feedback: ''
+  });
+  const [angle, setAngle] = useState<number>(lifecycle.angle);
+  const [practiceRound, setPracticeRound] = useState<CompassPracticeRound | null>(lifecycle.practiceRound);
+  const [answerState, setAnswerState] = useState<'idle' | 'wrong' | 'correct'>(lifecycle.answerState);
+  const [feedback, setFeedback] = useState(lifecycle.feedback);
+  usePersistedWidgetLifecycleState(widget, onUpdate, "compass", { angle, practiceRound, answerState, feedback });
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
 
@@ -9294,7 +9311,11 @@ export const CompassWidgetContent: React.FC<{
     onUpdateRef.current({ settings: patch });
   }, []);
 
+  const previousDirectionSet = useRef(settings.directionSet);
+  const previousMode = useRef(settings.mode);
   useEffect(() => {
+    if (previousDirectionSet.current === settings.directionSet) return;
+    previousDirectionSet.current = settings.directionSet;
     const nextDirections = getCompassDirections(settings.directionSet);
     setAngle(previous =>
       nextDirections.some(direction => direction.angle === previous)
@@ -9309,6 +9330,8 @@ export const CompassWidgetContent: React.FC<{
   }, [settings.directionSet]);
 
   useEffect(() => {
+    if (previousMode.current === settings.mode) return;
+    previousMode.current = settings.mode;
     setAnswerState('idle');
     setFeedback('');
     if (settings.mode === 'practice') {
@@ -9474,7 +9497,7 @@ export const CompassWidgetContent: React.FC<{
         </button>
       </div>
 
-      <div data-compass-layout className="grid shrink-0 items-center gap-3 py-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))' }}>
+      <div data-compass-layout className="grid shrink-0 items-center gap-3 py-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))' }}>
         <div data-compass-instrument className="flex w-full min-w-0 items-center justify-center">
           <div className={`relative aspect-square w-full max-w-52 rounded-full border-4 shadow-sm ${
             currentIsLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-zinc-800'
@@ -9682,12 +9705,17 @@ export const WeekdaysWidgetContent: React.FC<{
   const today = useMemo(() => new Date(), []);
   const items = useMemo(() => getCalendarItems(settings.view), [settings.view]);
   const actualIndex = getCalendarIndexForDate(settings.view, today);
-  const [selectedIndex, setSelectedIndex] = useState(actualIndex);
-  const [practiceRound, setPracticeRound] = useState<CalendarPracticeRound>(
-    () => createCalendarPracticeRound(settings.view),
-  );
-  const [answerState, setAnswerState] = useState<'idle' | 'wrong' | 'correct'>('idle');
-  const [feedback, setFeedback] = useState('');
+  const lifecycle = readWidgetLifecycleState(widget, "weekdays", {
+    selectedIndex: actualIndex,
+    practiceRound: createCalendarPracticeRound(settings.view),
+    answerState: 'idle' as 'idle' | 'wrong' | 'correct',
+    feedback: ''
+  });
+  const [selectedIndex, setSelectedIndex] = useState(lifecycle.selectedIndex);
+  const [practiceRound, setPracticeRound] = useState<CalendarPracticeRound>(lifecycle.practiceRound);
+  const [answerState, setAnswerState] = useState<'idle' | 'wrong' | 'correct'>(lifecycle.answerState);
+  const [feedback, setFeedback] = useState(lifecycle.feedback);
+  usePersistedWidgetLifecycleState(widget, onUpdate, "weekdays", { selectedIndex, practiceRound, answerState, feedback });
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
 
@@ -9696,7 +9724,11 @@ export const WeekdaysWidgetContent: React.FC<{
     onUpdateRef.current({ settings: patch });
   }, []);
 
+  const previousView = useRef(settings.view);
+  const previousMode = useRef(settings.mode);
   useEffect(() => {
+    if (previousView.current === settings.view) return;
+    previousView.current = settings.view;
     const nextActualIndex = getCalendarIndexForDate(settings.view, today);
     setSelectedIndex(nextActualIndex);
     setPracticeRound(previous =>
@@ -9707,6 +9739,8 @@ export const WeekdaysWidgetContent: React.FC<{
   }, [settings.view, today]);
 
   useEffect(() => {
+    if (previousMode.current === settings.mode) return;
+    previousMode.current = settings.mode;
     setAnswerState('idle');
     setFeedback('');
     if (settings.mode === 'practice') {
@@ -9960,19 +9994,19 @@ export const WeekdaysWidgetContent: React.FC<{
         }`}>
           <div className="flex min-h-11 flex-col items-center justify-center rounded-xl px-2 text-center">
             <span className="text-[10px] font-black uppercase tracking-wider opacity-45">
-              {settings.view === 'weekdays' ? 'Gestern' : 'Davor'}
+              {settings.view === 'weekdays' && selectedIsActual ? 'Gestern' : 'Davor'}
             </span>
             <span className="mt-0.5 text-xs font-bold">{items[previousIndex]}</span>
           </div>
           <div className="flex min-h-11 flex-col items-center justify-center rounded-xl bg-accent-soft px-2 text-center text-accent">
             <span className="text-[10px] font-black uppercase tracking-wider opacity-70">
-              {settings.view === 'weekdays' ? 'Heute' : 'Ausgewählt'}
+              {settings.view === 'weekdays' && selectedIsActual ? 'Heute' : 'Ausgewählt'}
             </span>
             <span className="mt-0.5 text-sm font-black">{items[selectedIndex]}</span>
           </div>
           <div className="flex min-h-11 flex-col items-center justify-center rounded-xl px-2 text-center">
             <span className="text-[10px] font-black uppercase tracking-wider opacity-45">
-              {settings.view === 'weekdays' ? 'Morgen' : 'Danach'}
+              {settings.view === 'weekdays' && selectedIsActual ? 'Morgen' : 'Danach'}
             </span>
             <span className="mt-0.5 text-xs font-bold">{items[nextIndex]}</span>
           </div>

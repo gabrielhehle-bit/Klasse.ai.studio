@@ -1,3 +1,4 @@
+import { readWidgetLifecycleState, usePersistedWidgetLifecycleState } from '../../lib/widgetLifecycleState';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   TRAFFIC_QUIZ_CATEGORY_LABELS,
@@ -232,18 +233,28 @@ export const TrafficQuizWidgetContent: React.FC<TrafficQuizWidgetContentProps> =
     () => normalizeTrafficQuizSettings(widget?.settings),
     [widget?.settings],
   );
-  const [mode, setMode] = useState<'practice' | 'exam'>('practice');
-  const [practiceQuestion, setPracticeQuestion] = useState<TrafficQuizQuestion>(
-    () => createTrafficPracticeQuestion(settings.category),
-  );
-  const [examQuestions, setExamQuestions] = useState<TrafficQuizQuestion[]>([]);
-  const [examIndex, setExamIndex] = useState(0);
-  const [examCorrect, setExamCorrect] = useState(0);
-  const [examFinished, setExamFinished] = useState(false);
-  const [selectedOption, setSelectedOption] = useState<number | null>(null);
-  const [practiceCorrect, setPracticeCorrect] = useState(0);
-  const [practiceAnswered, setPracticeAnswered] = useState(0);
+  const lifecycle = readWidgetLifecycleState(widget, "trafficquiz", {
+    mode: 'practice' as 'practice' | 'exam',
+    practiceQuestion: createTrafficPracticeQuestion(settings.category),
+    examQuestions: [] as TrafficQuizQuestion[],
+    examIndex: 0,
+    examCorrect: 0,
+    examFinished: false,
+    selectedOption: null as number | null,
+    practiceCorrect: 0,
+    practiceAnswered: 0
+  });
+  const [mode, setMode] = useState<'practice' | 'exam'>(lifecycle.mode);
+  const [practiceQuestion, setPracticeQuestion] = useState<TrafficQuizQuestion>(lifecycle.practiceQuestion);
+  const [examQuestions, setExamQuestions] = useState<TrafficQuizQuestion[]>(lifecycle.examQuestions);
+  const [examIndex, setExamIndex] = useState(lifecycle.examIndex);
+  const [examCorrect, setExamCorrect] = useState(lifecycle.examCorrect);
+  const [examFinished, setExamFinished] = useState(lifecycle.examFinished);
+  const [selectedOption, setSelectedOption] = useState<number | null>(lifecycle.selectedOption);
+  const [practiceCorrect, setPracticeCorrect] = useState(lifecycle.practiceCorrect);
+  const [practiceAnswered, setPracticeAnswered] = useState(lifecycle.practiceAnswered);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  usePersistedWidgetLifecycleState(widget, onUpdate, "trafficquiz", { mode, practiceQuestion, examQuestions, examIndex, examCorrect, examFinished, selectedOption, practiceCorrect, practiceAnswered });
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
 
@@ -270,7 +281,10 @@ export const TrafficQuizWidgetContent: React.FC<TrafficQuizWidgetContentProps> =
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
   }, []);
 
+  const previousCategory = useRef(settings.category);
   useEffect(() => {
+    if (previousCategory.current === settings.category) return;
+    previousCategory.current = settings.category;
     stopSpeech();
     setMode('practice');
     setPracticeQuestion(createTrafficPracticeQuestion(settings.category));

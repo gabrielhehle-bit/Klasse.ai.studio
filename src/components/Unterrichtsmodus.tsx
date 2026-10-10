@@ -3758,6 +3758,20 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     string | null
   >(null);
 
+  useEffect(() => {
+    const type = cockpitWidgets.find(widget => widget.id === widgetSettingsOpenId)?.type;
+    if (!type || !['bodyparts', 'compass', 'weekdays', 'trafficquiz', 'watercycle'].includes(type)) return;
+    const closeSettings = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setWidgetSettingsOpenId(null);
+      requestAnimationFrame(() => {
+        document.querySelector<HTMLButtonElement>(`[data-widget-type="${type}"] .cockpit-widget-settings-trigger`)?.focus();
+      });
+    };
+    window.addEventListener('keydown', closeSettings);
+    return () => window.removeEventListener('keydown', closeSettings);
+  }, [widgetSettingsOpenId, cockpitWidgets]);
+
   const isCockpitWidget = (id: string) => {
     const cockpitTypes = [
       "clock",
@@ -3791,6 +3805,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       "starsreview",
       "toothbrush",
       "challenge",
+      "bodyparts",
       "compass",
       "weekdays",
       "piggybank",
@@ -10905,6 +10920,9 @@ ${content}
                                         <BodypartsWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 

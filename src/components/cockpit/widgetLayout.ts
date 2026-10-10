@@ -36,6 +36,10 @@ export interface WidgetMinSizeConfig {
  * Verbindliche Mindestgrößen für Widgets
  */
 export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
+  bodyparts: { minW: 620, minH: 560, prefW: 700, prefH: 560 },
+  weekdays: { minW: 620, minH: 560, prefW: 700, prefH: 560 },
+  trafficquiz: { minW: 800, minH: 560, prefW: 860, prefH: 600 },
+  watercycle: { minW: 760, minH: 560, prefW: 840, prefH: 600 },
   dictionary: { minW: 460, minH: 540, prefW: 580, prefH: 560 },
   patternmaker: { minW: 580, minH: 520, prefW: 640, prefH: 560 },
   alphabetsoup: { minW: 640, minH: 560, prefW: 700, prefH: 560 },

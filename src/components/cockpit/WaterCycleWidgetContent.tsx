@@ -1,3 +1,4 @@
+import { readWidgetLifecycleState, usePersistedWidgetLifecycleState } from '../../lib/widgetLifecycleState';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   WATER_CYCLE_QUIZ,
@@ -56,20 +57,30 @@ export const WaterCycleWidgetContent: React.FC<WaterCycleWidgetContentProps> = (
     () => normalizeWaterCycleSettings(widget?.settings),
     [widget?.settings],
   );
-  const [mode, setMode] = useState<WaterCycleMode>('cycle');
-  const [puzzlePath, setPuzzlePath] = useState<WaterCyclePuzzlePath>(
-    () => createWaterCyclePuzzle(settings.level),
-  );
-  const [puzzleOrder, setPuzzleOrder] = useState<string[]>(
-    () => shuffleWaterCycleItems(puzzlePath.stageIds),
-  );
-  const [puzzleFeedback, setPuzzleFeedback] = useState('Ordne einen möglichen Weg des Wassers.');
-  const [quizQuestions, setQuizQuestions] = useState<WaterCycleQuizQuestion[]>(
-    () => createWaterCycleQuiz(settings.quizLength),
-  );
-  const [quizIndex, setQuizIndex] = useState(0);
-  const [selectedOption, setSelectedOption] = useState<number | null>(null);
-  const [quizCorrect, setQuizCorrect] = useState(0);
+  const lifecycle = readWidgetLifecycleState(widget, "watercycle", {
+    mode: 'cycle' as WaterCycleMode,
+    puzzlePath: createWaterCyclePuzzle(settings.level),
+    puzzleOrder: [] as string[],
+    puzzleFeedback: 'Ordne einen möglichen Weg des Wassers.',
+    quizQuestions: createWaterCycleQuiz(settings.quizLength),
+    quizIndex: 0,
+    selectedOption: null as number | null,
+    quizCorrect: 0
+  });
+  if (!lifecycle.puzzleOrder.length) {
+    const order = shuffleWaterCycleItems(lifecycle.puzzlePath.stageIds);
+    lifecycle.puzzleOrder = order.every((id, index) => id === lifecycle.puzzlePath.stageIds[index])
+      ? [...order.slice(1), order[0]] : order;
+  }
+  const [mode, setMode] = useState<WaterCycleMode>(lifecycle.mode);
+  const [puzzlePath, setPuzzlePath] = useState<WaterCyclePuzzlePath>(lifecycle.puzzlePath);
+  const [puzzleOrder, setPuzzleOrder] = useState<string[]>(lifecycle.puzzleOrder);
+  const [puzzleFeedback, setPuzzleFeedback] = useState(lifecycle.puzzleFeedback);
+  const [quizQuestions, setQuizQuestions] = useState<WaterCycleQuizQuestion[]>(lifecycle.quizQuestions);
+  const [quizIndex, setQuizIndex] = useState(lifecycle.quizIndex);
+  const [selectedOption, setSelectedOption] = useState<number | null>(lifecycle.selectedOption);
+  const [quizCorrect, setQuizCorrect] = useState(lifecycle.quizCorrect);
+  usePersistedWidgetLifecycleState(widget, onUpdate, "watercycle", { mode, puzzlePath, puzzleOrder, puzzleFeedback, quizQuestions, quizIndex, selectedOption, quizCorrect });
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
 
@@ -104,11 +115,17 @@ export const WaterCycleWidgetContent: React.FC<WaterCycleWidgetContentProps> = (
     setQuizCorrect(0);
   }, [settings.quizLength]);
 
+  const previousLevel = useRef(settings.level);
   useEffect(() => {
+    if (previousLevel.current === settings.level) return;
+    previousLevel.current = settings.level;
     resetPuzzle(settings.level);
   }, [settings.level, resetPuzzle]);
 
+  const previousQuizLength = useRef(settings.quizLength);
   useEffect(() => {
+    if (previousQuizLength.current === settings.quizLength) return;
+    previousQuizLength.current = settings.quizLength;
     resetQuiz(settings.quizLength);
   }, [settings.quizLength, resetQuiz]);
 

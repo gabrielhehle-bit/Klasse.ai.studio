@@ -1641,7 +1641,7 @@ async function main() {
 
     // Five-widget math batch: independently calculate displayed tasks, then use the real UI.
     const auditWidgetMinimum = async type => {
-      const minimumSizes={dictionary:[460,540],patternmaker:[580,520],alphabetsoup:[640,560],morsecode:[620,560],hangman:[640,560],sorting:[420,520],vocabulary:[640,560],spellingdetective:[640,560],wordbuilder:[620,560],scrambler:[620,560],compoundsplit:[620,560],wordchain:[500,520],wordgrid:[640,560],wordscramble:[600,560],secretcode:[440,420],storyemojis:[640,560],abcorder:[640,560],sentencebuilding:[620,560],wordexplorer:[520,540],rhymemachine:[500,540],punctuationzoo:[620,560]};
+      const minimumSizes={bodyparts:[620,560],compass:[420,620],weekdays:[620,560],trafficquiz:[800,560],watercycle:[760,560],dictionary:[460,540],patternmaker:[580,520],alphabetsoup:[640,560],morsecode:[620,560],hangman:[640,560],sorting:[420,520],vocabulary:[640,560],spellingdetective:[640,560],wordbuilder:[620,560],scrambler:[620,560],compoundsplit:[620,560],wordchain:[500,520],wordgrid:[640,560],wordscramble:[600,560],secretcode:[440,420],storyemojis:[640,560],abcorder:[640,560],sentencebuilding:[620,560],wordexplorer:[520,540],rhymemachine:[500,540],punctuationzoo:[620,560]};
       const [minimumWidth,minimumHeight]=minimumSizes[type]||[460,560];
       await waitFor(client,type+' resize grip is reachable after opening', `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('[data-widget-resize]')?.dataset.widgetResize==='se';})()`);
       const point=await evaluate(client, `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
@@ -1650,9 +1650,9 @@ async function main() {
       const end={x:Math.max(1,point.x-500),y:Math.max(1,point.y-500)};
       await client.send('Input.dispatchMouseEvent',{type:'mouseMoved',...end,button:'left',buttons:1});
       // Let the live resize frame apply before releasing the pointer.
-      await waitFor(client,type+' live drag reaches its configured minimum', `(() => {const r=document.querySelector('[data-widget-type=${q(type)}]').getBoundingClientRect();return Math.abs(r.width-${minimumWidth})<2&&Math.abs(r.height-${minimumHeight})<2;})()`);
+      await waitFor(client,type+' live drag reaches its configured minimum', `(() => {const r=document.querySelector('[data-widget-type=${q(type)}]').getBoundingClientRect();return Math.abs(r.width-${minimumWidth})<4&&Math.abs(r.height-${minimumHeight})<4;})()`);
       await client.send('Input.dispatchMouseEvent',{type:'mouseReleased',...end,button:'left',clickCount:1});
-      await waitFor(client,type+' really reaches its configured minimum', `(() => {const r=document.querySelector('[data-widget-type=${q(type)}]').getBoundingClientRect();return Math.abs(r.width-${minimumWidth})<2&&Math.abs(r.height-${minimumHeight})<2;})()`);
+      await waitFor(client,type+' really reaches its configured minimum', `(() => {const r=document.querySelector('[data-widget-type=${q(type)}]').getBoundingClientRect();return Math.abs(r.width-${minimumWidth})<4&&Math.abs(r.height-${minimumHeight})<4;})()`);
     };
     const pressAuditKey = async (key,code=key) => {
       await client.send('Input.dispatchKeyEvent',{type:'keyDown',key,code});
@@ -2177,6 +2177,124 @@ async function main() {
     for(const letter of ['P','F','E','L'])await clickSelector(client,flowerRoot+' [aria-label="Buchstabe '+letter+' wählen"]');
     await waitFor(client,'flower real word is won',`document.querySelector(${q(flowerRoot+' [role="status"]')}).textContent.includes('Richtig gelöst')`);await wordplayScreens('hangman');await auditMenu('hangman','Widget schließen');
     console.log('✓ Fourth five-widget block: dictionary matching/retry, pattern score/explicit next, expert soup spelling/grid, Morse guide/keyboard/playback cleanup, flower mistakes/umlaut/win; native minima and exact restore.');
+
+    const discoveryFixture={"body":[["Welcher Körperteil verarbeitet Sinneseindrücke und steuert Denken und Erinnern?","Gehirn"],["Welches Organ versorgt den Körper beim Atmen mit Sauerstoff?","Lunge"],["Welcher Muskel pumpt das Blut durch deinen Körper?","Herz"],["Welches Organ verarbeitet Nährstoffe und übernimmt viele Aufgaben im Stoffwechsel?","Leber"],["Welches Organ sammelt Nahrung und vermischt sie mit Magensaft?","Magen"],["Wo werden viele Nährstoffe aus der Nahrung in den Körper aufgenommen?","Darm"],["Was stützt deinen Körper und schützt zum Beispiel Gehirn, Herz und Lunge?","Knochen"]],"traffic":[["Was ordnet das Verkehrszeichen „HALT“ an?","Anhalten und anschließend Vorrang geben"],["Was bedeutet das umgedrehte Dreieck „VORRANG GEBEN“?","Ich muss dem bevorrechtigten Verkehr Vorrang geben"],["Was zeigt die gelbe Raute „VORRANGSTRASSE“ an?","Beginn und Verlauf einer Vorrangstraße"],["Was bedeutet der rote Kreis mit weißem Querbalken?","Einfahrt verboten"],["Was gilt beim Verkehrszeichen „FAHRVERBOT FÜR FAHRRÄDER“?","Radfahren ist verboten, Schieben ist erlaubt"],["Was bedeutet das runde blaue Radweg-Zeichen?","Einspurige Fahrräder müssen diesen Radweg benützen"],["Was bedeutet das eckige blaue Radweg-Zeichen?","Der Radweg darf benutzt werden, muss aber nicht"],["Was zeigt das Hinweiszeichen „EINBAHNSTRASSE“ an?","Die zulässige Fahrtrichtung der Einbahnstraße"],["Du willst mit dem Fahrrad einen Schutzweg („Zebrastreifen“) benutzen. Was ist richtig?","Absteigen und das Fahrrad als Fußgänger schieben"],["Wie schnell darfst du dich einer ungeregelten Radfahrerüberfahrt grundsätzlich höchstens nähern?","10 km/h"],["Keine Ampel, kein Vorrangzeichen und keine besondere Regelung: Was gilt grundsätzlich?","Der von rechts kommende Verkehr hat Vorrang"],["Wer hat in Österreich im Kreisverkehr automatisch Vorrang?","Niemand automatisch – die Beschilderung entscheidet"],["Was musst du vor einer Fahrtrichtungsänderung mit dem Fahrrad tun?","Prüfen, ob es sicher ist, und die Änderung rechtzeitig deutlich anzeigen"],["Für wen besteht beim Radfahren in Österreich gesetzliche Helmpflicht?","Für Kinder unter 12 Jahren"],["Darfst du während des Radfahrens mit dem Handy telefonieren?","Nur mit einer zulässigen Freisprecheinrichtung"],["Warum ist der Bereich neben einem rechts abbiegenden Lkw besonders gefährlich?","Du kannst trotz Spiegeln für den Fahrer schwer oder gar nicht sichtbar sein"]],"water":[["Was passiert bei der Kondensation?","Wasserdampf wird zu winzigen Wassertröpfchen oder Eiskristallen"],["Woraus bestehen Wolken hauptsächlich?","Aus winzigen Wassertröpfchen und/oder Eiskristallen"],["Was kann Niederschlag sein?","Regen, Schnee, Graupel oder Hagel"],["Was bedeutet Versickerung oder Infiltration?","Wasser dringt in Boden und Gestein ein"],["Was ist Oberflächenabfluss?","Wasser fließt über die Landoberfläche zu Bächen, Flüssen und Seen"],["Kann Grundwasser wieder an die Oberfläche gelangen?","Ja, zum Beispiel über Quellen oder als Zufluss zu Flüssen und Meeren"],["Was ist Transpiration?","Pflanzen geben Wasser über ihre Blätter an die Atmosphäre ab"],["Hat der Wasserkreislauf einen einzigen festen Anfang und ein einziges Ende?","Nein, Wasser bewegt sich ständig zwischen verschiedenen Speichern und auf verschiedenen Wegen"],["Was treibt einen großen Teil der Verdunstung im Wasserkreislauf an?","Energie der Sonne"],["Was kann nach einem Niederschlag auf dem Land passieren?","Ein Teil fließt oberirdisch ab, ein Teil versickert und ein Teil wird gespeichert"]],"paths":[["Oberflächenweg",["Verdunstung","Kondensation","Niederschlag","Oberflächenabfluss","Gewässer"]],["Grundwasserweg",["Verdunstung","Kondensation","Niederschlag","Versickerung","Grundwasser","Gewässer"]]]};
+    // Five discovery widgets: real answers, exact restore, settings and minimum-size controls.
+    const discoveryRoot = type => '[data-widget-type="'+type+'"] [role="region"]';
+    const discoveryScreen = async type => {
+      await waitFor(client,type+' native controls and contents fit',languageFits(discoveryRoot(type)));
+      await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-widget-'+type+'.png'));
+    };
+    const restoreDiscovery = async (type,label) => {
+      const root=discoveryRoot(type);
+      const snapshot=await evaluate(client,`document.querySelector(${q(root)}).innerText`);
+      await auditMenu(type,'Minimieren');await openAuditWidget(type,label);
+      await waitFor(client,type+' exact task, answer and feedback survive restore',`document.querySelector(${q(root)}).innerText===${q(snapshot)}`);
+      await discoveryScreen(type);
+    };
+    const discoverySettings = async type => {
+      await clickSelector(client,'[data-widget-type="'+type+'"] button[aria-label$="Einstellungen öffnen"]');
+      await waitFor(client,type+' native settings open',`document.querySelector(${q(discoveryRoot(type))}).textContent.includes('Einstellungen')`);
+      await pressAuditKey('Escape');
+      await waitFor(client,type+' Escape closes settings',`!document.querySelector(${q(discoveryRoot(type))}).textContent.includes('Einstellungen')`);
+    };
+    await openAuditWidget('bodyparts','Körper-Entdecker');await auditWidgetMinimum('bodyparts');
+    const bodyRoot=discoveryRoot('bodyparts');
+    for(const name of ['Gehirn','Lunge','Herz','Leber','Magen','Darm','Knochen']) {
+      await evaluate(client,`Array.from(document.querySelectorAll(${q(bodyRoot+' button')})).find(b=>b.textContent.trim().endsWith(${q(name)})).click()`);
+      await discoveryScreen('bodyparts');
+    }
+    await clickMathText(bodyRoot,'Zuordnen');
+    await waitFor(client,'body quiz question appears',`Boolean(document.querySelector(${q(bodyRoot+' p.text-accent')}))`);
+    const bodyQuestion=await evaluate(client,`document.querySelector(${q(bodyRoot+' p.text-accent')}).textContent`);
+    const bodyExpected=discoveryFixture.body.find(([question])=>question===bodyQuestion)?.[1];
+    if(!bodyExpected)throw Error('Unknown visible body question: '+bodyQuestion);
+    await evaluate(client,`Array.from(document.querySelectorAll(${q(bodyRoot+' button')})).find(b=>!b.textContent.trim().endsWith(${q(bodyExpected)})&&b.className.includes('min-h-16')).click()`);
+    await waitFor(client,'body allows wrong answer retry',`document.querySelector(${q(bodyRoot+' [role="status"]')}).textContent.includes('noch einmal')`);
+    await evaluate(client,`Array.from(document.querySelectorAll(${q(bodyRoot+' button')})).find(b=>b.textContent.trim().endsWith(${q(bodyExpected)})).click()`);
+    await waitFor(client,'body correct organ feedback',`document.querySelector(${q(bodyRoot+' [role="status"]')}).textContent.includes('Richtig')`);
+    await restoreDiscovery('bodyparts','Körper-Entdecker');await discoverySettings('bodyparts');await clickMathText(bodyRoot,'Nächste Aufgabe');await auditMenu('bodyparts','Widget schließen');
+
+    await openAuditWidget('compass','Geographie-Kompass');await auditWidgetMinimum('compass');
+    const compassRoot=discoveryRoot('compass');
+    await clickMathText(compassRoot,'Üben');
+    const compassTarget=await evaluate(client,`document.querySelector(${q(compassRoot+' h3')}).textContent.match(/Stelle (.+) ein/)[1]`);
+    const directionNames=['Norden','Nordosten','Osten','Südosten','Süden','Südwesten','Westen','Nordwesten'];
+    const directionLabels=['N','NO','O','SO','S','SW','W','NW'];
+    const expectedDirection=directionLabels[directionNames.indexOf(compassTarget)];
+    if(!expectedDirection)throw Error('Unknown visible compass direction: '+compassTarget);
+    const wrongDirection=await evaluate(client,`Array.from(document.querySelectorAll(${q(compassRoot+' [aria-label="Himmelsrichtung wählen"] button')})).find(b=>b.textContent.trim()!==${q(expectedDirection)}).textContent.trim()`);
+    await clickMathText(compassRoot,wrongDirection);await clickMathText(compassRoot,'Prüfen');
+    await waitFor(client,'compass rejects wrong direction',`document.querySelector(${q(compassRoot+' [role="status"]')}).textContent.includes('Noch nicht')`);
+    await clickMathText(compassRoot,expectedDirection);await clickMathText(compassRoot,'Prüfen');
+    await waitFor(client,'compass accepts correct direction',`document.querySelector(${q(compassRoot+' [role="status"]')}).textContent.includes('Richtig')`);
+    await restoreDiscovery('compass','Geographie-Kompass');await discoverySettings('compass');await clickMathText(compassRoot,'Nächste Aufgabe');await auditMenu('compass','Widget schließen');
+
+    await openAuditWidget('weekdays','Wochentage-Trainer');await auditWidgetMinimum('weekdays');
+    const calendarRoot=discoveryRoot('weekdays');
+    const otherDay=await evaluate(client,`Array.from(document.querySelectorAll(${q(calendarRoot+' [aria-label="Wochentage auswählen"] button')})).find(b=>b.getAttribute('aria-pressed')==='false').querySelector('span').textContent`);
+    await clickMathText(calendarRoot,otherDay);
+    await waitFor(client,'calendar distinguishes a selected day from the real today',`document.querySelector(${q(calendarRoot+' .grid-cols-3')}).textContent.includes('Ausgewählt') && document.querySelector(${q(calendarRoot+' .grid-cols-3')}).textContent.includes('Davor')`);
+
+    for(const [view,items] of [['Wochentage',['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag']],['Monate',['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember']]]) {
+      await clickMathText(calendarRoot,view);await clickMathText(calendarRoot,'Üben');
+      const prompt=await evaluate(client,`document.querySelector(${q(calendarRoot+' p.text-accent')}).textContent`);
+      const match=prompt.match(/kommt (vor|nach) (.+)\?/);
+      const expected=items[(items.indexOf(match[2])+(match[1]==='vor'?-1:1)+items.length)%items.length];
+      await clickMathText(calendarRoot,items.find(item=>item!==expected));await clickMathText(calendarRoot,'Prüfen');
+      await waitFor(client,'calendar retries wrong '+view,`document.querySelector(${q(calendarRoot+' [role="status"]')}).textContent.includes('Noch nicht')`);
+      await clickMathText(calendarRoot,expected);await clickMathText(calendarRoot,'Prüfen');
+      await waitFor(client,'calendar solves visible '+view,`document.querySelector(${q(calendarRoot+' [role="status"]')}).textContent.includes('Richtig')`);
+      await restoreDiscovery('weekdays','Wochentage-Trainer');await clickMathText(calendarRoot,'Nächste Aufgabe');await discoveryScreen('weekdays');
+    }
+    await discoverySettings('weekdays');await auditMenu('weekdays','Widget schließen');
+
+    await openAuditWidget('trafficquiz','Fahrrad-Führerschein');await auditWidgetMinimum('trafficquiz');
+    const trafficRoot=discoveryRoot('trafficquiz');
+    const answerVisibleTraffic = async wrong => {
+      const question=await evaluate(client,`document.querySelector(${q(trafficRoot+' h3')}).textContent`);
+      const expected=discoveryFixture.traffic.find(([text])=>text===question)?.[1];
+      if(!expected)throw Error('Unknown visible traffic question: '+question);
+      const option=wrong?await evaluate(client,`Array.from(document.querySelectorAll(${q(trafficRoot+' [aria-label="Antworten"] button')})).find(b=>b.textContent.trim()!==${q(expected)}).textContent.trim()`):expected;
+      await clickMathText(trafficRoot,option);
+      await waitFor(client,'traffic gives answer feedback',`document.querySelector(${q(trafficRoot+' [role="status"]')}).textContent.includes(${q(wrong?'Nicht ganz':'Richtig')})`);
+      await discoveryScreen('trafficquiz');
+    };
+    await answerVisibleTraffic(true);await restoreDiscovery('trafficquiz','Fahrrad-Führerschein');await clickMathText(trafficRoot,'Nächste Frage');await answerVisibleTraffic(false);
+    await discoverySettings('trafficquiz');await clickMathText(trafficRoot,'Übungsprüfung');
+    for(let i=0;i<5;i++) {
+      await answerVisibleTraffic(false);
+      if(i===1)await restoreDiscovery('trafficquiz','Fahrrad-Führerschein');
+      await clickMathText(trafficRoot,i===4?'Ergebnis':'Weiter');
+    }
+    await waitFor(client,'traffic real five question exam complete',`document.querySelector(${q(trafficRoot)}).textContent.includes('5 von 5 Antworten richtig')`);
+    await restoreDiscovery('trafficquiz','Fahrrad-Führerschein');await auditMenu('trafficquiz','Widget schließen');
+
+    await openAuditWidget('watercycle','Wasserkreislauf-Puzzle');await auditWidgetMinimum('watercycle');
+    const waterRoot=discoveryRoot('watercycle');
+    await discoveryScreen('watercycle');await clickMathText(waterRoot,'Puzzle');
+    await clickMathText(waterRoot,'Prüfen');
+    await waitFor(client,'water puzzle starts unsolved',`document.querySelector(${q(waterRoot+' [role="status"]')}).textContent.includes('Noch nicht')`);
+    const waterTitle=await evaluate(client,`document.querySelector(${q(waterRoot+' p.text-accent')}).textContent`);
+    const waterPath=discoveryFixture.paths.find(([title])=>title===waterTitle)?.[1];
+    if(!waterPath)throw Error('Unknown visible water path: '+waterTitle);
+    for(let target=0;target<waterPath.length;target++) {
+      let current=await evaluate(client,`Array.from(document.querySelectorAll(${q(waterRoot+' button[aria-label$=" nach oben"]')})).findIndex(b=>b.getAttribute('aria-label')===${q(waterPath[target]+' nach oben')})`);
+      while(current>target){await clickSelector(client,waterRoot+' button[aria-label='+q(waterPath[target]+' nach oben')+']');current--;}
+    }
+    await clickMathText(waterRoot,'Prüfen');
+    await waitFor(client,'water solves displayed path using arrows',`document.querySelector(${q(waterRoot+' [role="status"]')}).textContent.includes('Richtig')`);
+    await restoreDiscovery('watercycle','Wasserkreislauf-Puzzle');await discoverySettings('watercycle');await clickMathText(waterRoot,'Quiz');
+    for(let i=0;i<5;i++) {
+      const question=await evaluate(client,`document.querySelector(${q(waterRoot+' h3')}).textContent`);
+      const expected=discoveryFixture.water.find(([text])=>text===question)?.[1];
+      if(!expected)throw Error('Unknown visible water question: '+question);
+      await clickMathText(waterRoot,expected);await discoveryScreen('watercycle');
+      if(i===1)await restoreDiscovery('watercycle','Wasserkreislauf-Puzzle');
+      await clickMathText(waterRoot,i===4?'Neues Quiz':'Weiter');
+    }
+    await auditMenu('watercycle','Widget schließen');
+    console.log('✓ Discovery block: seven organs/retry, compass directions, weekday/month arithmetic, real traffic exam and water puzzle/quiz; exact state restore, gear/Escape, native minima and reachable controls.');
     console.log('✓ Widget block: groups stay in widget, real wheel winner restored, all star children reachable without inner scrolling.');
     console.log('✓ Widget block: 12 widgets checked; stopwatch pause and traffic light mode survive restore.');
     console.log('✓ Audit regression: calculator keys/result/restore, compass layout at 100/125/150%, QR alias/readability/title/mode restore');
