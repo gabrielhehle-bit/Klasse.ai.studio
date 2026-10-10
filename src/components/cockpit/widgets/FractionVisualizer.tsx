@@ -391,7 +391,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
               key={idx}
               type="button"
               onClick={() => onSelect(p)}
-              className={`min-h-11 min-w-11 px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all ${
+              className={`min-h-11 px-2.5 py-1 text-xs font-semibold min-w-11 rounded-lg border transition-all ${
                 isSelected
                   ? 'bg-accent text-accent-text border-accent shadow-sm'
                   : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-accent hover:bg-accent-soft dark:hover:bg-accent-soft'
