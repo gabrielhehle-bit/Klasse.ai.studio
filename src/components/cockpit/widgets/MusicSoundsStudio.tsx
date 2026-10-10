@@ -57,7 +57,7 @@ export const MusicSoundsStudio: React.FC<MusicSoundsStudioProps> = ({
         <select
           id={`music-studio-mode-${widget.id}`}
           aria-label="Musik & Klänge: Bereich auswählen"
-          className={`min-h-10 min-w-0 flex-1 rounded-xl border px-2 text-sm font-bold ${currentIsLight ? 'border-slate-300 bg-white text-slate-900' : 'border-white/20 bg-zinc-800 text-white'}`}
+          className={`min-h-11 min-w-0 flex-1 rounded-xl border px-2 text-sm font-bold ${currentIsLight ? 'border-slate-300 bg-white text-slate-900' : 'border-white/20 bg-zinc-800 text-white'}`}
           value={mode}
           onChange={event => changeMode(normalizeMusicStudioMode(event.target.value))}
         >
@@ -75,7 +75,7 @@ export const MusicSoundsStudio: React.FC<MusicSoundsStudioProps> = ({
           <label className="block text-xs font-semibold" htmlFor={`music-studio-start-${widget.id}`}>Bereich beim Öffnen</label>
           <select id={`music-studio-start-${widget.id}`} value={mode}
             onChange={event => changeMode(normalizeMusicStudioMode(event.target.value))}
-            className={`min-h-10 w-full rounded-lg border px-2 text-sm ${currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-white'}`}>
+            className={`min-h-11 w-full rounded-lg border px-2 text-sm ${currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-white'}`}>
             {MUSIC_STUDIO_MODES.map(item => <option key={item.id} value={item.id}>{item.label} · {item.description}</option>)}
           </select>
           <label htmlFor={`music-studio-volume-${widget.id}`} className="block text-xs font-semibold">
@@ -83,20 +83,20 @@ export const MusicSoundsStudio: React.FC<MusicSoundsStudioProps> = ({
           </label>
           <input id={`music-studio-volume-${widget.id}`} type="range" min="0" max="100" step="5"
             value={Math.round(volume * 100)} onChange={event => changeVolume(Number(event.target.value) / 100)}
-            className="w-full accent-indigo-600" />
+            className="w-full min-h-11 accent-accent" />
           <p className="text-xs opacity-80">Für Naturklänge gibt es eigene Lautstärkeregler im Klangmixer. Töne starten nur nach einem Klick.</p>
         </section>
       )}
 
-      <div className="min-h-0 flex-1" key={mode}>
+      {!showSettings && <div className="min-h-0 flex-1" key={mode}>
         {mode === 'signals' && <SoundsWidget widget={widget} currentIsLight={currentIsLight}
           isFullscreen={isFullscreen} onUpdate={onUpdate} showVolumeControls={false} />}
         {mode === 'piano' && <PianoWidgetContent widget={widget} currentIsLight={currentIsLight} />}
-        {mode === 'rhythm' && <RhythmWidgetContent widget={widget} currentIsLight={currentIsLight} />}
-        {mode === 'tonetrainer' && <TonetrainerWidgetContent widget={widget} currentIsLight={currentIsLight} />}
+        {mode === 'rhythm' && <RhythmWidgetContent onUpdate={onUpdate} widget={widget} currentIsLight={currentIsLight} />}
+        {mode === 'tonetrainer' && <TonetrainerWidgetContent onUpdate={onUpdate} widget={widget} currentIsLight={currentIsLight} />}
         {mode === 'ambient' && <SoundmachineWidgetContent widget={widget} currentIsLight={currentIsLight}
           isFullscreen={isFullscreen} onUpdate={onUpdate} />}
-      </div>
+      </div>}
     </div>
   );
 };

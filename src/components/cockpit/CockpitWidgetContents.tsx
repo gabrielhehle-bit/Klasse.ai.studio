@@ -1,3 +1,4 @@
+export { RhythmWidgetContent, SoundmemoryWidgetContent, GuitartunerWidgetContent } from './MusicPracticeWidgets';
 export { ShapepuzzleWidgetContent, DivrobotWidgetContent } from './GeometryPracticeWidgets';
 import { estimatePresets, initialEstimate, prism, projectSolid } from '../../lib/geometryPractice';
 export { MathduelWidgetContent } from './MathPracticeWidgets';
@@ -4988,417 +4989,7 @@ export const WordgridWidgetContent: React.FC<{
 // ==========================================
 // NEW WIDGET 12: RHYTHMUS-KLOPFER (Rhythm Sequencer Practice)
 // ==========================================
-export const RhythmWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [bpm, setBpm] = useState<number>(90);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [currentStep, setCurrentStep] = useState<number>(0);
-  const [isMuted, setIsMuted] = useState<boolean>(false);
-  
-  // Custom Time Signatures & Bar Length setup
-  const [timeSignature, setTimeSignature] = useState<'4_4' | '3_4'>('4_4');
-  const [numBars, setNumBars] = useState<1 | 2>(1);
 
-  // Score stats
-  const [streak, setStreak] = useState<number>(0);
-  const [rating, setRating] = useState<string>('Bereit für den Beat? 🥁');
-
-  // Steps sequence containing 'clap' (Klatschen), 'slap' (Patschen), 'stomp' (Stampfen) or 'rest' (Pause)
-  const [sequence, setSequence] = useState<('clap' | 'slap' | 'stomp' | 'rest')[]>([
-    'stomp', 'slap', 'clap', 'rest',
-    'stomp', 'slap', 'clap', 'rest'
-  ]);
-
-  // Compute actual active steps based on timeSignature and numBars
-  const activeStepsCount = useMemo(() => {
-    const stepsInBar = timeSignature === '4_4' ? 4 : 3;
-    return stepsInBar * numBars;
-  }, [timeSignature, numBars]);
-
-  // Adjust active step index limits
-  useEffect(() => {
-    if (currentStep >= activeStepsCount) {
-      setCurrentStep(0);
-    }
-  }, [activeStepsCount, currentStep]);
-
-  // High-fidelity analog percussion synthesis using Web Audio API
-  const triggerAnalogSound = useCallback((type: 'clap' | 'slap' | 'stomp' | 'lightTick' | 'successClick') => {
-    if (isMuted) return;
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const now = ctx.currentTime;
-
-      if (type === 'stomp') {
-        // High-fidelity Deep Bass Drum (Stampfen) - Sine pitch sweep 150Hz -> 40Hz
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(150, now);
-        osc.frequency.exponentialRampToValueAtTime(38, now + 0.16);
-
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.linearToValueAtTimeAtNow ? (gain.gain as any).linearToValueAtTimeAtNow(0.4, now) : gain.gain.linearRampToValueAtTime(0.4, now + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
-
-        osc.connect(gain).connect(ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.3);
-      } else if (type === 'slap') {
-        // High-fidelity Woodblock / Rimshot (Patschen) - Mid range high Q bandpass
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        const filter = ctx.createBiquadFilter();
-
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(450, now);
-        osc.frequency.exponentialRampToValueAtTime(180, now + 0.08);
-
-        filter.type = 'bandpass';
-        filter.frequency.setValueAtTime(500, now);
-        filter.Q.setValueAtTime(5, now);
-
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(0.25, now + 0.005);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-
-        osc.connect(filter).connect(gain).connect(ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.15);
-      } else if (type === 'clap') {
-        // High-fidelity Handclap (Klatschen) - Modulated filtered noise
-        const bufferSize = ctx.sampleRate * 0.15; 
-        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-          data[i] = Math.random() * 2 - 1;
-        }
-        const noise = ctx.createBufferSource();
-        noise.buffer = buffer;
-
-        const filter = ctx.createBiquadFilter();
-        filter.type = 'bandpass';
-        filter.frequency.setValueAtTime(1000, now);
-        filter.Q.setValueAtTime(2.5, now);
-
-        const gain = ctx.createGain();
-        gain.gain.setValueAtTime(0, now);
-        // Emulate rapid double-triggering of a handclap
-        gain.gain.linearRampToValueAtTime(0.15, now + 0.01);
-        gain.gain.linearRampToValueAtTime(0.05, now + 0.025);
-        gain.gain.linearRampToValueAtTime(0.18, now + 0.035);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
-
-        noise.connect(filter).connect(gain).connect(ctx.destination);
-        noise.start(now);
-        noise.stop(now + 0.15);
-      } else if (type === 'successClick') {
-        // Bright cheerful synthesizer note (Pentatonic chime)
-        const osc = ctx.createOscillator();
-        const osc2 = ctx.createOscillator();
-        const gain = ctx.createGain();
-        
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(523.25, now); // C5
-        osc2.type = 'sine';
-        osc2.frequency.setValueAtTime(659.25, now); // E5
-
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(0.08, now + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
-
-        osc.connect(gain);
-        osc2.connect(gain);
-        gain.connect(ctx.destination);
-        
-        osc.start(now);
-        osc2.start(now);
-        osc.stop(now + 0.25);
-        osc2.stop(now + 0.25);
-      } else {
-        // Soft analog tick for Rest / Metronome pulse
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(800, now);
-        
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(0.012, now + 0.002);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
-
-        osc.connect(gain).connect(ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.03);
-      }
-    } catch (e) {}
-  }, [isMuted]);
-
-  // Handle step clock interval
-  useEffect(() => {
-    if (!isPlaying) return;
-    const intervalMs = (60 / bpm) * 1000;
-    const intervalId = setInterval(() => {
-      setCurrentStep(prev => {
-        const next = (prev + 1) % activeStepsCount;
-        const action = sequence[next];
-        if (action === 'clap' || action === 'slap' || action === 'stomp') {
-          triggerAnalogSound(action);
-        } else {
-          triggerAnalogSound('lightTick');
-        }
-        return next;
-      });
-    }, intervalMs);
-
-    return () => clearInterval(intervalId);
-  }, [isPlaying, bpm, sequence, activeStepsCount, triggerAnalogSound]);
-
-  // Click / Space game timing trigger
-  const handleKlopfen = () => {
-    if (!isPlaying) {
-      setRating('Starte den Beat, um mitzuspielen! ▶');
-      return;
-    }
-
-    const currentExpectation = sequence[currentStep];
-    if (currentExpectation !== 'rest') {
-      // Good hit!
-      setStreak(s => s + 1);
-      triggerAnalogSound('successClick');
-
-      // Random funny rating message
-      const ratings = ["SUPER!", "PERFEKT!", "IM TAKT! ⭐", "GROOVY! 🎉"];
-      const randomMsg = ratings[Math.floor(Math.random() * ratings.length)];
-      setRating(`${randomMsg} (+${streak + 1})`);
-    } else {
-      // Oops! Rest hit
-      setStreak(0);
-      triggerAnalogSound('lightTick');
-      setRating("Hoppla! Das war eine Pause 💤");
-    }
-  };
-
-  const toggleSequence = (idx: number) => {
-    setSequence(prev => {
-      const copy = [...prev];
-      const moves: ('clap' | 'slap' | 'stomp' | 'rest')[] = ['stomp', 'slap', 'clap', 'rest'];
-      const curIdx = moves.indexOf(copy[idx] || 'rest');
-      const nextIdx = (curIdx + 1) % moves.length;
-      copy[idx] = moves[nextIdx];
-      
-      // Play brief feedback sound of the selected item
-      const added = copy[idx];
-      if (added !== 'rest') {
-        triggerAnalogSound(added);
-      } else {
-        triggerAnalogSound('lightTick');
-      }
-      return copy;
-    });
-  };
-
-  // Quick preset templates for classrooms
-  const applyPreset = (type: 'basic' | 'march' | 'waltz' | 'funky') => {
-    if (type === 'basic') {
-      setSequence(['stomp', 'slap', 'clap', 'rest', 'stomp', 'slap', 'clap', 'rest']);
-      setTimeSignature('4_4');
-    } else if (type === 'march') {
-      setSequence(['stomp', 'stomp', 'clap', 'rest', 'stomp', 'stomp', 'clap', 'rest']);
-      setTimeSignature('4_4');
-    } else if (type === 'waltz') {
-      setSequence(['stomp', 'slap', 'slap', 'stomp', 'slap', 'slap', 'stomp', 'slap']);
-      setTimeSignature('3_4');
-    } else if (type === 'funky') {
-      setSequence(['stomp', 'clap', 'slap', 'clap', 'stomp', 'clap', 'slap', 'clap']);
-      setTimeSignature('4_4');
-    }
-    setStreak(0);
-    setCurrentStep(0);
-    setRating('Muster geladen! Probiere es aus.');
-  };
-
-  return (
-    <div className="flex-grow flex flex-col justify-between p-2 h-full min-h-0 pointer-events-auto select-none gap-2">
-      
-      {/* Configuration Header Row */}
-      <div className="flex flex-col gap-1.5 shrink-0">
-        <div className="flex justify-between items-center">
-          <span className={`text-[8.5px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-450'}`}>
-            ⚡ Rhythmus-Klopfer
-          </span>
-          
-          {/* Mute and Setup options */}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setIsMuted(!isMuted)}
-              className={`px-1.5 py-0.5 rounded text-[7.5px] font-bold border transition-all cursor-pointer ${
-                isMuted 
-                  ? currentIsLight ? 'bg-slate-100 text-slate-400 border-slate-200' : 'bg-zinc-800 text-zinc-500 border-zinc-700'
-                  : 'bg-indigo-500 text-white border-transparent'
-              }`}
-            >
-              {isMuted ? "🔇 Stumm" : "🔊 Ton"}
-            </button>
-          </div>
-        </div>
-
-        {/* Bar & Signature Selectors */}
-        <div className="flex justify-between items-center gap-1.5 text-[7px] font-black bg-slate-55/50 dark:bg-zinc-900/40 p-1 rounded-lg">
-          <div className="flex gap-1.5">
-            {/* 3/4 or 4/4 Selector */}
-            <div className="flex bg-slate-100 dark:bg-zinc-800 rounded-md p-0.5 border border-slate-200 dark:border-white/5">
-              {(['4_4', '3_4'] as const).map((sig) => (
-                <button
-                  key={sig}
-                  onClick={() => { setTimeSignature(sig); setStreak(0); }}
-                  className={`px-1.5 py-0.5 rounded transition-all cursor-pointer text-[7px] ${
-                    timeSignature === sig ? 'bg-indigo-500 text-white font-extrabold' : 'text-slate-500 dark:text-slate-400'
-                  }`}
-                >
-                  {sig === '4_4' ? '4/4' : '3/4'}
-                </button>
-              ))}
-            </div>
-
-            {/* 1 or 2 Bars Selector */}
-            <div className="flex bg-slate-100 dark:bg-zinc-800 rounded-md p-0.5 border border-slate-200 dark:border-white/5">
-              {([1, 2] as const).map((bar) => (
-                <button
-                  key={bar}
-                  onClick={() => { setNumBars(bar); setStreak(0); }}
-                  className={`px-1.5 py-0.5 rounded transition-all cursor-pointer text-[7px] ${
-                    numBars === bar ? 'bg-indigo-500 text-white font-extrabold' : 'text-slate-500 dark:text-slate-400'
-                  }`}
-                >
-                  {bar} Takt{bar > 1 ? 'e' : ''}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Quick presets list */}
-          <div className="flex gap-1">
-            {(['basic', 'waltz', 'funky'] as const).map((preset) => (
-              <button
-                key={preset}
-                onClick={() => applyPreset(preset)}
-                className="bg-indigo-500/10 text-indigo-500 px-1 rounded border border-indigo-500/20 text-[6.5px] uppercase cursor-pointer py-0.5"
-              >
-                {preset}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Tempo controls */}
-        <div className="flex justify-between items-center bg-slate-50/50 dark:bg-zinc-900/30 p-1 rounded-lg">
-          <span className="text-[7.5px] font-extrabold text-slate-500 dark:text-zinc-400 uppercase">Tempo:</span>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[8px] font-black text-indigo-500 font-mono">{bpm} BPM</span>
-            <input 
-              type="range" 
-              min="55" 
-              max="160" 
-              value={bpm} 
-              onChange={(e) => setBpm(Number(e.target.value))}
-              className="w-20 accent-indigo-500 cursor-pointer"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Dynamic Grid Steps Display */}
-      <div className="flex flex-wrap gap-1.5 justify-center my-1.5 shrink-0 z-10">
-        {Array.from({ length: activeStepsCount }).map((_, idx) => {
-          const step = sequence[idx] || 'rest';
-          const isActive = idx === currentStep && isPlaying;
-          
-          let icon = '💤';
-          let label = 'Ruhe';
-          let borderStyle = 'border-slate-200 dark:border-zinc-800';
-          let pulseClass = '';
-          
-          if (step === 'clap') { 
-            icon = '👏'; 
-            label = 'Klatschen';
-            borderStyle = 'border-rose-350 dark:border-rose-900'; 
-          } else if (step === 'slap') { 
-            icon = '🖐️'; 
-            label = 'Patschen';
-            borderStyle = 'border-blue-350 dark:border-blue-900'; 
-          } else if (step === 'stomp') { 
-            icon = '🥾'; 
-            label = 'Stampfen';
-            borderStyle = 'border-amber-400 dark:border-amber-900'; 
-          }
-
-          if (isActive) {
-            pulseClass = "scale-110 ring-4 ring-amber-400 bg-amber-450 z-20 text-slate-900 shadow-lg";
-          }
-
-          return (
-            <button
-              key={idx}
-              onClick={() => toggleSequence(idx)}
-              className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex flex-col items-center justify-between border p-1 transition-all cursor-pointer relative overflow-hidden ${borderStyle} ${
-                isActive
-                  ? 'bg-amber-400 text-slate-900 font-bold'
-                  : step !== 'rest'
-                    ? currentIsLight ? 'bg-indigo-50/80 text-indigo-700 hover:bg-indigo-100/90' : 'bg-indigo-950/45 text-indigo-400 hover:bg-indigo-900/40'
-                    : currentIsLight ? 'bg-slate-50 hover:bg-slate-100 text-slate-400' : 'bg-zinc-850/60 border-white/5 text-slate-600 hover:bg-zinc-800'
-              } ${pulseClass}`}
-            >
-              <span className={`text-sm sm:text-base ${isActive ? 'animate-bounce' : ''}`}>{icon}</span>
-              <span className="text-[5.5px] font-black uppercase opacity-65 leading-none">
-                S{idx+1}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Feedback Dashboard Screen & Streak indicators */}
-      <div className="bg-slate-50 dark:bg-zinc-950 p-2 rounded-xl flex flex-col items-center justify-center border border-slate-150 dark:border-white/5 min-h-[48px] text-center">
-        <div className="flex items-center gap-1.5">
-          <p className="text-[9px] font-black uppercase tracking-wider text-indigo-500 animate-pulse">
-            {rating}
-          </p>
-          {streak > 0 && (
-            <span className="text-[7.5px] font-extrabold bg-rose-500 text-white px-1.5 py-0.2 rounded-full shadow animate-bounce">
-              {streak}x 🔥
-            </span>
-          )}
-        </div>
-        <p className={`text-[6.5px] font-mono mt-0.5 opacity-60 ${currentIsLight ? 'text-slate-500' : 'text-slate-400'}`}>
-          Klicke auf die Symbole oben, um deinen eigenen Rhythmus zu komponieren! 🎶
-        </p>
-      </div>
-
-      {/* Primary Action controls */}
-      <div className="flex gap-1.5 shrink-0 select-none">
-        <button
-          onClick={() => {
-            setIsPlaying(!isPlaying);
-            setStreak(0);
-            setRating(isPlaying ? 'Rhythmus pausiert! ⏸' : 'Lass uns klatschen! ▶');
-          }}
-          className={`flex-1 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer transition-all ${
-            isPlaying ? 'bg-rose-500 text-white hover:bg-rose-600 shadow-md shadow-rose-500/10' : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-md shadow-emerald-500/10'
-          }`}
-        >
-          {isPlaying ? '■ Rhythmus Stop' : '▶ Rhythmus Start'}
-        </button>
-        <button
-          onClick={handleKlopfen}
-          className="flex-1 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider bg-indigo-500 hover:bg-indigo-600 text-white shadow-md shadow-indigo-500/15 active:scale-95 cursor-pointer transition-all flex items-center justify-center gap-1"
-        >
-          <span>🥁 JETZT KLOPFEN!</span>
-        </button>
-      </div>
-    </div>
-  );
-};
 
 // ==========================================
 // NEW WIDGET 13: GEOMETRIE-MUSTER (Shape collage generator)
@@ -9976,334 +9567,7 @@ export const EmotionsWidgetContent: React.FC<{ widget: any, currentIsLight: bool
 // ==========================================
 // NEW WIDGET 30: UHRZEIT-MACHER (Analog Clocks)
 // ==========================================
-export const SoundmemoryWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [difficulty, setDifficulty] = useState<4 | 6 | 8 | 12 | 16>(6);
-  const [cards, setCards] = useState<{ id: number; freq: number; flipped: boolean; matched: boolean }[]>([]);
-  const [selected, setSelected] = useState<number[]>([]);
-  const [win, setWin] = useState(false);
-  const [instrument, setInstrument] = useState<'xylophone' | 'piano' | 'flute' | 'guitar' | 'retro'>('xylophone');
 
-  // Pure pentatonic/C-major musical frequencies for ears stimulation
-  const getFrequenciesForDifficulty = (diff: number) => {
-    const list = [
-      261.63, // C4
-      293.66, // D4
-      329.63, // E4
-      349.23, // F4
-      392.00, // G4
-      440.00, // A4
-      523.25, // C5
-      587.33, // D5
-      659.25, // E5
-      698.46  // F5
-    ];
-    return list.slice(0, diff / 2);
-  };
-
-  const playFrequency = (freq: number, instType: string = instrument) => {
-    try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const now = ctx.currentTime;
-
-      if (instType === "piano") {
-        // Klavier (Piano): Blend of triangle (fundamental) & sine (overtone) with exponential decay
-        const gainNode = ctx.createGain();
-        gainNode.gain.setValueAtTime(0, now);
-        gainNode.gain.linearRampToValueAtTime(0.12, now + 0.005);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
-
-        const osc1 = ctx.createOscillator();
-        osc1.type = "triangle";
-        osc1.frequency.setValueAtTime(freq, now);
-
-        const osc2 = ctx.createOscillator();
-        osc2.type = "sine";
-        osc2.frequency.setValueAtTime(freq * 2, now);
-        
-        const gain2 = ctx.createGain();
-        gain2.gain.setValueAtTime(0.04, now);
-
-        osc1.connect(gainNode);
-        osc2.connect(gain2);
-        gain2.connect(gainNode);
-        gainNode.connect(ctx.destination);
-
-        osc1.start(now);
-        osc2.start(now);
-        osc1.stop(now + 1.3);
-        osc2.stop(now + 1.3);
-      } else if (instType === "flute") {
-        // Flöte (Flute): Soft attack/release, pure sine wave with gentle 6Hz LFO vibrato
-        const osc = ctx.createOscillator();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(freq, now);
-
-        const lfo = ctx.createOscillator();
-        lfo.frequency.setValueAtTime(6, now); // 6 Hz vibrato
-        const lfoGain = ctx.createGain();
-        lfoGain.gain.setValueAtTime(4, now); // vibrato depth
-        lfo.connect(lfoGain);
-        lfoGain.connect(osc.frequency);
-
-        const gain = ctx.createGain();
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(0.1, now + 0.08); // soft attack
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.85); // soft release
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        lfo.start(now);
-        osc.start(now);
-        lfo.stop(now + 0.9);
-        osc.stop(now + 0.9);
-      } else if (instType === "guitar") {
-        // Gitarre (Guitar): Low-pass swept triangle wave for string pluck simulation
-        const osc = ctx.createOscillator();
-        osc.type = "triangle";
-        osc.frequency.setValueAtTime(freq, now);
-
-        const filter = ctx.createBiquadFilter();
-        filter.type = "lowpass";
-        filter.Q.setValueAtTime(1, now);
-        filter.frequency.setValueAtTime(1800, now);
-        filter.frequency.exponentialRampToValueAtTime(180, now + 0.7);
-
-        const gain = ctx.createGain();
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(0.12, now + 0.015);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.95);
-
-        osc.connect(filter);
-        filter.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc.start(now);
-        osc.stop(now + 1.0);
-      } else if (instType === "retro") {
-        // Retro (8-Bit Sound): Classic arcade square wave, immediate attack, short envelope
-        const osc = ctx.createOscillator();
-        osc.type = "square";
-        osc.frequency.setValueAtTime(freq, now);
-
-        const gain = ctx.createGain();
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(0.05, now + 0.002);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc.start(now);
-        osc.stop(now + 0.45);
-      } else {
-        // Xylophon (Xylophone) - default: Metallic high overtone strike + sine wave fundamental
-        const osc1 = ctx.createOscillator();
-        osc1.type = "sine";
-        osc1.frequency.setValueAtTime(freq, now);
-        const gain1 = ctx.createGain();
-        gain1.gain.setValueAtTime(0, now);
-        gain1.gain.linearRampToValueAtTime(0.15, now + 0.002);
-        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-        osc1.connect(gain1);
-        gain1.connect(ctx.destination);
-
-        const osc2 = ctx.createOscillator();
-        osc2.type = "sine";
-        osc2.frequency.setValueAtTime(freq * 3, now); // high overtone
-        const gain2 = ctx.createGain();
-        gain2.gain.setValueAtTime(0, now);
-        gain2.gain.linearRampToValueAtTime(0.08, now + 0.002);
-        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.08); // decays instantly
-        osc2.connect(gain2);
-        gain2.connect(ctx.destination);
-
-        osc1.start(now);
-        osc2.start(now);
-        osc1.stop(now + 0.55);
-        osc2.stop(now + 0.55);
-      }
-    } catch (e) {}
-  };
-
-  const setupGame = (currentDiff: number = difficulty) => {
-    const freqsToUse = getFrequenciesForDifficulty(currentDiff);
-    const list = [...freqsToUse, ...freqsToUse];
-    const shuffled = list
-      .map((freq, idx) => ({ id: idx, freq, flipped: false, matched: false }))
-      .sort(() => Math.random() - 0.5);
-    setCards(shuffled);
-    setSelected([]);
-    setWin(false);
-  };
-
-  useEffect(() => {
-    setupGame();
-  }, [difficulty]);
-
-  const handleCardClick = (id: number, freq: number) => {
-    if (selected.length === 2 || win) return;
-    const card = cards.find(c => c.id === id);
-    if (!card || card.flipped || card.matched) return;
-
-    playFrequency(freq);
-
-    const updated = cards.map(c => c.id === id ? { ...c, flipped: true } : c);
-    setCards(updated);
-
-    const nextSelected = [...selected, id];
-    setSelected(nextSelected);
-
-    if (nextSelected.length === 2) {
-      const [firstId, secondId] = nextSelected;
-      const firstCard = cards.find(c => c.id === firstId);
-      const secondCard = cards.find(c => c.id === secondId);
-
-      if (firstCard && secondCard) {
-        if (firstCard.freq === secondCard.freq) {
-          setTimeout(() => {
-            setCards(prev => prev.map(c => (c.id === firstId || c.id === secondId) ? { ...c, matched: true, flipped: false } : c));
-            setSelected([]);
-            
-            // Success celebrate jingle (with selected instrument!)
-            playFrequency(659.25, instrument); // E5
-          }, 500);
-        } else {
-          setTimeout(() => {
-            setCards(prev => prev.map(c => (c.id === firstId || c.id === secondId) ? { ...c, flipped: false } : c));
-            setSelected([]);
-          }, 1100);
-        }
-      }
-    }
-  };
-
-  useEffect(() => {
-    if (cards.length > 0 && cards.every(c => c.matched)) {
-      setWin(true);
-    }
-  }, [cards]);
-
-  const getInstrumentIcon = (instType: string) => {
-    switch (instType) {
-      case 'piano': return '🎹';
-      case 'flute': return '💨';
-      case 'guitar': return '🎸';
-      case 'retro': return '👾';
-      default: return '🪵';
-    }
-  };
-
-  return (
-    <div className="flex-grow flex flex-col justify-between p-2 h-full min-h-0 pointer-events-auto select-none gap-2">
-      {/* Top Header Row */}
-      <div className="flex justify-between items-center px-1 shrink-0 flex-wrap gap-1">
-        <span className={`text-[8px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-400'}`}>
-          🎵 Klang-Memory
-        </span>
-        
-        {/* Memory Grid cards configuration links */}
-        <div className="flex bg-slate-100 dark:bg-zinc-805 bg-zinc-805 p-0.5 rounded-lg border border-slate-300/10 text-[6px] font-black shrink-0">
-          {([4, 6, 8, 12, 16] as const).map((count) => (
-            <button
-               key={count}
-               onClick={() => setDifficulty(count)}
-               className={`px-1 py-0.5 rounded cursor-pointer transition-all ${
-                 difficulty === count ? 'bg-indigo-500 text-white font-extrabold' : 'text-slate-500 dark:text-neutral-300'
-               }`}
-            >
-              {count}
-            </button>
-          ))}
-        </div>
-
-        <button
-          onClick={() => setupGame()}
-          className={`px-1 py-0.5 rounded text-[6.5px] font-black uppercase cursor-pointer transition-all border ${
-            currentIsLight 
-              ? 'bg-white hover:bg-slate-100 text-slate-755 border-slate-300' 
-              : 'bg-zinc-800 hover:bg-zinc-700 text-neutral-200 border-zinc-700'
-          }`}
-        >
-          Mischen 🔁
-        </button>
-      </div>
-
-      {/* Instrument Selection Row */}
-      <div className={`flex justify-center gap-1 p-1 rounded-xl border ${
-        currentIsLight 
-          ? 'bg-slate-50 border-slate-200/50' 
-          : 'bg-zinc-900/60 border-zinc-800/60'
-      } shrink-0`}>
-        {([
-          { id: 'xylophone', label: 'Xylophon', icon: '🪵' },
-          { id: 'piano', label: 'Klavier', icon: '🎹' },
-          { id: 'flute', label: 'Flöte', icon: '💨' },
-          { id: 'guitar', label: 'Gitarre', icon: '🎸' },
-          { id: 'retro', label: 'Retro', icon: '👾' }
-        ] as const).map((inst) => (
-          <button
-            key={inst.id}
-            onClick={() => {
-              setInstrument(inst.id);
-              playFrequency(349.23, inst.id); // Play trial F4 tone
-            }}
-            className={`flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[7px] font-extrabold uppercase transition-all cursor-pointer ${
-              instrument === inst.id
-                ? 'bg-indigo-500 text-white shadow-sm'
-                : currentIsLight
-                  ? 'hover:bg-slate-200/50 text-slate-600'
-                  : 'hover:bg-zinc-800/50 text-slate-350'
-            }`}
-            title={`Instrument wechseln zu ${inst.label}`}
-          >
-            <span className="text-xs">{inst.icon}</span>
-            <span className="hidden sm:inline">{inst.label}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Game Grid area */}
-      <div className="flex-grow flex flex-col justify-center items-center px-1 py-1 min-h-0">
-        {win ? (
-          <div className="text-center animate-fade-in p-2">
-            <span className="text-2xl block mb-1">🎉 🥳 🏆</span>
-            <p className="text-[10px] font-extrabold text-emerald-500 uppercase tracking-wider">Super Gehört!</p>
-            <p className="text-[7.5px] text-slate-400 mt-0.5">Alle Klangpaare erfolgreich erkannt.</p>
-          </div>
-        ) : (
-          <div className={`grid gap-1 w-full max-w-[210px] ${
-            difficulty <= 6 
-              ? 'grid-cols-3' 
-              : 'grid-cols-4'
-          }`}>
-            {cards.map((card) => {
-              const isRevealed = card.flipped || card.matched;
-              return (
-                <button
-                  key={card.id}
-                  onClick={() => handleCardClick(card.id, card.freq)}
-                  disabled={card.matched}
-                  className={`aspect-square rounded-lg border flex items-center justify-center text-xs transition-all transform duration-300 cursor-pointer ${
-                    card.matched 
-                      ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-500 scale-95' 
-                      : isRevealed
-                        ? 'bg-indigo-500/15 border-indigo-500/40 text-indigo-500 font-bold scale-105 shadow'
-                        : currentIsLight
-                          ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-600'
-                          : 'bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-slate-450'
-                  }`}
-                >
-                  {card.matched ? "✓" : isRevealed ? getInstrumentIcon(instrument) : "❓"}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
 
 // ==========================================
 // NEW WIDGET 23: WORT-DETEKTIV (Spelling Detective -> Lernwörter-Studio)
@@ -10826,436 +10090,6 @@ export const SoundquizWidgetContent: React.FC<{ widget: any, currentIsLight: boo
 // ==========================================
 // NEW WIDGET 29: KOPFRECHEN-DUELL (2-Player Local Math Duel)
 // ==========================================
-interface ReferenceString {
-  label: string;
-  note: string;
-  freq: number;
-  stringNum: number;
-  name: string;
-}
-
-const REFERENCE_STRINGS: ReferenceString[] = [
-  { label: 'e', note: 'E4', freq: 329.63, stringNum: 1, name: '1. Saite: Hohes E' },
-  { label: 'H', note: 'B3', freq: 246.94, stringNum: 2, name: '2. Saite: H' },
-  { label: 'G', note: 'G3', freq: 196.00, stringNum: 3, name: '3. Saite: G' },
-  { label: 'D', note: 'D3', freq: 146.83, stringNum: 4, name: '4. Saite: D' },
-  { label: 'A', note: 'A2', freq: 110.00, stringNum: 5, name: '5. Saite: A' },
-  { label: 'E', note: 'E2', freq: 82.41, stringNum: 6, name: '6. Saite: Tiefer-Bass E' },
-];
-
-export const GuitartunerWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [activeStringIndex, setActiveStringIndex] = useState<number>(2); // Default to G string
-  const [isPlayingRef, setIsPlayingRef] = useState<boolean>(false);
-  const [isListening, setIsListening] = useState<boolean>(false);
-  
-  // Audio state
-  const [detectedFreq, setDetectedFreq] = useState<number | null>(null);
-  const [deviationCents, setDeviationCents] = useState<number>(0);
-  const [autoDetectString, setAutoDetectString] = useState<boolean>(true);
-  const [audioError, setAudioError] = useState<string | null>(null);
-
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const oscRef = useRef<OscillatorNode | null>(null);
-  const oscGainRef = useRef<GainNode | null>(null);
-
-  const micStreamRef = useRef<MediaStream | null>(null);
-  const analyzerRef = useRef<AnalyserNode | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
-
-  // Play standard reference tone using Web Audio synthesis
-  const playReferenceTone = (freq: number) => {
-    try {
-      // Stop anything active
-      stopReferenceTone();
-
-      const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtxClass) return;
-
-      const actx = new AudioCtxClass();
-      audioCtxRef.current = actx;
-
-      // Primary sine oscillator for pure pitch
-      const osc = actx.createOscillator();
-      osc.type = 'triangle'; // triangle has warmer acoustic tone
-      osc.frequency.setValueAtTime(freq, actx.currentTime);
-
-      // Lowpass filter to make the wave warmer (guitar-like feel)
-      const biquad = actx.createBiquadFilter();
-      biquad.type = 'lowpass';
-      biquad.frequency.setValueAtTime(800, actx.currentTime);
-
-      // Gain envelope for volume decay
-      const gainNode = actx.createGain();
-      gainNode.gain.setValueAtTime(0.35, actx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + 3.5);
-
-      osc.connect(biquad);
-      biquad.connect(gainNode);
-      gainNode.connect(actx.destination);
-
-      oscRef.current = osc;
-      oscGainRef.current = gainNode;
-
-      osc.start();
-      setIsPlayingRef(true);
-
-      // Auto clear state after sound has died
-      setTimeout(() => {
-        setIsPlayingRef(false);
-      }, 3500);
-
-    } catch (e) {
-      console.error("Audio Synthesis error", e);
-    }
-  };
-
-  const stopReferenceTone = () => {
-    if (oscRef.current) {
-      try { oscRef.current.stop(); } catch (e) {}
-      oscRef.current = null;
-    }
-    if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
-      audioCtxRef.current.close().catch(() => {});
-    }
-    setIsPlayingRef(false);
-  };
-
-  // Auto-correlation implementation for accurate pitch detection
-  const performAutoCorrelation = (buffer: Float32Array, sampleRate: number): number => {
-    const SIZE = buffer.length;
-    let rms = 0;
-
-    for (let i = 0; i < SIZE; i++) {
-      const val = buffer[i];
-      rms += val * val;
-    }
-    rms = Math.sqrt(rms / SIZE);
-    if (rms < 0.008) return -1; // Silent room threshold
-
-    let r1 = 0;
-    let r2 = SIZE - 1;
-    const thres = 0.2;
-    for (let i = 0; i < SIZE / 2; i++) {
-      if (Math.abs(buffer[i]) < thres) { r1 = i; break; }
-    }
-    for (let i = SIZE - 1; i >= SIZE / 2; i--) {
-      if (Math.abs(buffer[i]) < thres) { r2 = i; break; }
-    }
-
-    const buf = buffer.subarray(r1, r2);
-    const len = buf.length;
-
-    const c = new Float32Array(len);
-    for (let i = 0; i < len; i++) {
-      for (let j = 0; j < len - i; j++) {
-        c[i] = c[i] + buf[j] * buf[j + i];
-      }
-    }
-
-    let d = 0;
-    while (c[d] > c[d + 1]) d++;
-    let maxval = -1;
-    let maxpos = -1;
-    for (let i = d; i < len; i++) {
-      if (c[i] > maxval) {
-        maxval = c[i];
-        maxpos = i;
-      }
-    }
-    let T0 = maxpos;
-
-    const x1 = c[T0 - 1];
-    const x2 = c[T0];
-    const x3 = c[T0 + 1];
-    const a = (x1 + x3 - 2 * x2) / 2;
-    const b = (x3 - x1) / 2;
-    if (a) T0 = T0 - b / (2 * a);
-
-    return sampleRate / T0;
-  };
-
-  // Start analyzer loop for Microphone monitoring
-  const animateMicPitch = () => {
-    if (!analyzerRef.current) return;
-    
-    const bufferSize = 2048;
-    const buffer = new Float32Array(bufferSize);
-    analyzerRef.current.getFloatTimeDomainData(buffer);
-
-    const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
-    const tempCtx = new AudioCtxClass();
-    const rate = tempCtx.sampleRate;
-    tempCtx.close().catch(() => {});
-
-    const frequency = performAutoCorrelation(buffer, rate);
-
-    if (frequency > 50 && frequency < 800) {
-      setDetectedFreq(Math.round(frequency * 10) / 10);
-
-      // Find best target string reference match
-      let targetIdx = activeStringIndex;
-      if (autoDetectString) {
-        let nearestIdx = 0;
-        let minDiff = Infinity;
-        REFERENCE_STRINGS.forEach((str, idx) => {
-          const diff = Math.abs(frequency - str.freq);
-          if (diff < minDiff) {
-            minDiff = diff;
-            nearestIdx = idx;
-          }
-        });
-        targetIdx = nearestIdx;
-        setActiveStringIndex(nearestIdx);
-      }
-
-      const targetFreq = REFERENCE_STRINGS[targetIdx].freq;
-      
-      // Calculate deviation in cents (1 scale unit = 1 cent)
-      const cents = 1200 * Math.log2(frequency / targetFreq);
-      
-      // Filter out crazy jumps, cap deviation at -50 to +50
-      if (!isNaN(cents) && Math.abs(cents) < 180) {
-        setDeviationCents(Math.max(-50, Math.min(50, cents)));
-      }
-    } else {
-      // Graceful decay towards neutral if silent
-      setDeviationCents(prev => prev * 0.82);
-    }
-
-    animationFrameRef.current = requestAnimationFrame(animateMicPitch);
-  };
-
-  const startListening = async () => {
-    setAudioError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      micStreamRef.current = stream;
-
-      const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
-      const actx = new AudioCtxClass();
-      const source = actx.createMediaStreamSource(stream);
-      const analyzer = actx.createAnalyser();
-      analyzer.fftSize = 2048;
-      
-      source.connect(analyzer);
-      analyzerRef.current = analyzer;
-      setIsListening(true);
-      
-      // Begin tracking loop
-      animationFrameRef.current = requestAnimationFrame(animateMicPitch);
-    } catch (err: any) {
-      console.error("Microphone access failed", err);
-      setAudioError("Mikrofon-Berechtigung wurde verweigert oder ist nicht verfügbar.");
-    }
-  };
-
-  const stopListening = () => {
-    setIsListening(false);
-    setDetectedFreq(null);
-    setDeviationCents(0);
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
-    if (micStreamRef.current) {
-      micStreamRef.current.getTracks().forEach(track => track.stop());
-      micStreamRef.current = null;
-    }
-    analyzerRef.current = null;
-  };
-
-  // Cleanup audio contexts on unmount
-  useEffect(() => {
-    return () => {
-      stopReferenceTone();
-      stopListening();
-    };
-  }, []);
-
-  const activeStr = REFERENCE_STRINGS[activeStringIndex];
-  const isPerfect = Math.abs(deviationCents) <= 3.5;
-  const isFlat = deviationCents < -3.5;
-  const isSharp = deviationCents > 3.5;
-
-  return (
-    <div className="flex flex-col h-full w-full p-2.5 select-none min-h-0 justify-between">
-      {/* Dynamic Upper Title and Mic Button */}
-      <div className="flex justify-between items-center mb-1 shrink-0">
-        <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
-            🎸 Gitarren-Stimmgerät
-          </span>
-          <span className="text-[7.5px] font-mono opacity-80">Pitch Tracker & Audio-Saiten</span>
-        </div>
-
-        <button
-          onClick={isListening ? stopListening : startListening}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl font-bold text-[8.5px] shadow-sm cursor-pointer transition-all ${
-            isListening 
-              ? 'bg-rose-500 hover:bg-rose-600 text-white animate-pulse' 
-              : 'bg-emerald-500 hover:bg-emerald-600 text-white'
-          }`}
-        >
-          {isListening ? (
-            <>
-              <MicOff size={11} /> Stop Mic
-            </>
-          ) : (
-            <>
-              <Mic size={11} /> Live Stimm-Modus
-            </>
-          )}
-        </button>
-      </div>
-
-      {audioError && (
-        <p className="text-[7px] text-red-500 font-extrabold text-center leading-normal mb-1">
-          ⚠️ {audioError}
-        </p>
-      )}
-
-      {/* Main Alignment Dial & Needle */}
-      <div className="flex-grow flex flex-col justify-center items-center py-1 min-h-0">
-        <div className="relative w-full max-w-[130px] aspect-video flex flex-col items-center justify-end overflow-hidden mb-1">
-          {/* Dial Scale Base (SVG Arc) */}
-          <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 50">
-            {/* Gray baseline path */}
-            <path
-              d="M 10 45 A 35 35 0 0 1 90 45"
-              fill="none"
-              stroke={currentIsLight ? "#e2e8f0" : "#3f3f46"}
-              strokeWidth="3"
-              strokeLinecap="round"
-            />
-            
-            {/* Center target zone highlight */}
-            <path
-              d="M 42 12 A 35 35 0 0 1 58 12"
-              fill="none"
-              stroke="#10b981"
-              strokeWidth="4"
-              strokeLinecap="round"
-            />
-
-            {/* Zero point anchor mark */}
-            <line x1="50" y1="5" x2="50" y2="10" stroke="#10b981" strokeWidth="2" />
-          </svg>
-
-          {/* Rotated Physical Compass Needle */}
-          <div 
-            className="absolute bottom-1 w-0.5 h-12 bg-indigo-500 origin-bottom rounded-full transition-transform duration-150 ease-out"
-            style={{ 
-              transform: `rotate(${deviationCents * 1.5}deg)`,
-              backgroundColor: isPerfect ? '#10b981' : isFlat ? '#f59e0b' : '#ef4444'
-            }}
-          />
-
-          {/* Text Status Indicator overlay */}
-          <div className="text-center translate-y-2 z-10 shrink-0 select-none">
-            {isListening ? (
-              <div className="font-black text-xs leading-none">
-                <span className={isPerfect ? 'text-emerald-500' : isFlat ? 'text-amber-500' : 'text-red-500'}>
-                  {activeStr.label.toUpperCase()}
-                </span>
-                <span className="text-[7.5px] font-bold tracking-widest block opacity-70 mt-0.5">
-                  {detectedFreq ? `${detectedFreq} Hz` : '-- Hz'}
-                </span>
-              </div>
-            ) : (
-              <span className="text-[8px] font-extrabold tracking-wider uppercase opacity-40">
-                Wähle eine Saite
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Flat / In-Tune / Sharp Visual Badge Panel */}
-        <div className="h-4 flex items-center justify-center shrink-0 w-full mb-1">
-          {isListening && (
-            <div className={`text-[8.5px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1.5 transition-all ${
-              isPerfect 
-                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-400' 
-                : isFlat 
-                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-400' 
-                  : 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400'
-            }`}>
-              {isPerfect && (<><CheckCircle size={9.5} /> Perfekt gestimmt!</>)}
-              {isFlat && "Zu tief (Spann herauf! 🪕)"}
-              {isSharp && "Zu hoch (Lockere die Saite! ➔)"}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Manual String Selection Row (Guitar pegs visual layout) */}
-      <div className="shrink-0 flex flex-col gap-1.5">
-        <div className="flex justify-between items-center text-[7px] font-extrabold text-slate-400 dark:text-neutral-500 px-1">
-          <span>TIEFE SAITEN (6)</span>
-          <span>HOHE SAITEN (1)</span>
-        </div>
-
-        <div className="grid grid-cols-6 gap-1.5">
-          {REFERENCE_STRINGS.map((str, idx) => {
-            const isActive = activeStringIndex === idx;
-            return (
-              <button
-                key={str.stringNum}
-                onClick={() => {
-                  stopReferenceTone();
-                  setActiveStringIndex(idx);
-                  playReferenceTone(str.freq);
-                }}
-                className={`flex flex-col items-center justify-center py-1 rounded-xl transition-all cursor-pointer border ${
-                  isActive 
-                    ? 'bg-indigo-500 text-white shadow-md border-indigo-600' 
-                    : currentIsLight 
-                      ? 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-800' 
-                      : 'bg-zinc-800/80 border-zinc-700/60 hover:bg-zinc-700 text-neutral-200'
-                }`}
-              >
-                <span className="text-[10px] font-black leading-none">{str.label}</span>
-                <span className="text-[6.5px] mt-0.5 opacity-60 font-mono leading-none">{str.note}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Audio control reference button */}
-        <div className="flex gap-1 items-center mt-1">
-          <button
-            onClick={() => {
-              if (isPlayingRef) {
-                stopReferenceTone();
-              } else {
-                playReferenceTone(activeStr.freq);
-              }
-            }}
-            className={`flex-1 py-1 px-2 rounded-xl text-[8px] font-extrabold uppercase tracking-wide flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-all ${
-              isPlayingRef
-                ? 'bg-red-500 hover:bg-red-600 text-white'
-                : 'bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-neutral-100'
-            }`}
-          >
-            <Volume2 size={10} />
-            {isPlayingRef ? "Ton Stoppen" : `${activeStr.label}-Ton abspielen`}
-          </button>
-
-          <label className="flex items-center gap-1 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={autoDetectString}
-              onChange={(e) => setAutoDetectString(e.target.checked)}
-              className="rounded text-indigo-500 accent-indigo-500 text-[8px] scale-80 cursor-pointer"
-            />
-            <span className="text-[7px] font-black uppercase tracking-wider text-slate-400 dark:text-neutral-500 select-none">Saite automatisch erkennen</span>
-          </label>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-
-// ========================================================
 // 1. WIDGET: KLASSEN-KRYPTOGRAPH (SecretagentWidgetContent)
 // ========================================================
 export const SecretagentWidgetContent: React.FC<{ widget: any, currentIsLight: boolean, onUpdate?: (updates:any)=>void }> = ({ widget, currentIsLight, onUpdate }) => {
@@ -13369,7 +12203,7 @@ interface Melody {
   notes: { label: string; index: number }[];
 }
 
-export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: boolean, onUpdate?: (updates:any)=>void }> = ({ widget,currentIsLight,onUpdate }) => {
   type Instrument = 'xylophon' | 'glockenspiel' | 'klavier';
   type Mode = 'freeplay' | 'memory' | 'learn';
 
@@ -13413,16 +12247,19 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
     },
   ], []);
 
-  const [instrument, setInstrument] = useState<Instrument>('xylophon');
-  const [mode, setMode] = useState<Mode>('freeplay');
+  const saved=readWidgetLifecycleState(widget,"tonetrainer",{wasPlaying:false,instrument: 'xylophon' as Instrument,mode: 'freeplay' as Mode,feedback: 'Spiele frei oder wähle eine Hörübung.',memoryLength: 4,memorySequence: [] as number[],memoryStep: 0,selectedMelody: melodies[0] as Melody,melodyStep: 0});
+  const [instrument, setInstrument] = useState<Instrument>(() => saved.instrument);
+  const [mode, setMode] = useState<Mode>(() => saved.mode);
   const [activeNote, setActiveNote] = useState<number | null>(null);
-  const [feedback, setFeedback] = useState('Spiele frei oder wähle eine Hörübung.');
-  const [memoryLength, setMemoryLength] = useState(4);
-  const [memorySequence, setMemorySequence] = useState<number[]>([]);
-  const [memoryStep, setMemoryStep] = useState(0);
+  const [feedback, setFeedback] = useState(() => saved.wasPlaying ? "Wiedergabe unterbrochen. Höre die Folge erneut an." : saved.feedback);
+  const [memoryLength, setMemoryLength] = useState(() => saved.memoryLength);
+  const [memorySequence, setMemorySequence] = useState<number[]>(() => saved.memorySequence);
+  const [memoryStep, setMemoryStep] = useState(() => saved.memoryStep);
+  const [selectedMelody, setSelectedMelody] = useState<Melody>(() => saved.selectedMelody);
+  const [melodyStep, setMelodyStep] = useState(() => saved.melodyStep);
   const [isPlayingSequence, setIsPlayingSequence] = useState(false);
-  const [selectedMelody, setSelectedMelody] = useState<Melody>(melodies[0]);
-  const [melodyStep, setMelodyStep] = useState(0);
+  usePersistedWidgetLifecycleState(widget,onUpdate,"tonetrainer",{wasPlaying:isPlayingSequence,instrument,mode,feedback,memoryLength,memorySequence,memoryStep,selectedMelody,melodyStep});
+  const rootRef=useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const timersRef = useRef<number[]>([]);
 
@@ -13474,7 +12311,7 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
     if (instrument === 'glockenspiel') {
       const osc = ctx.createOscillator();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq * 2, now);
+      osc.frequency.setValueAtTime(freq, now);
       gain.gain.exponentialRampToValueAtTime(0.12, now + 0.003);
       gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.05);
       osc.connect(gain).connect(ctx.destination);
@@ -13529,12 +12366,14 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
   const playScale = () => {
     clearTimers();
     setMode('freeplay');
+    setIsPlayingSequence(true);
     setFeedback('Höre die Tonleiter: Jeder Ton wird Schritt für Schritt höher.');
     notes.forEach((_, index) => {
       const timer = window.setTimeout(() => {
         flashAndPlay(index);
         if (index === notes.length - 1) {
           const finishTimer = window.setTimeout(() => {
+            setIsPlayingSequence(false);
             setFeedback('C bis C₂ bilden zusammen eine Oktave.');
           }, 400);
           timersRef.current.push(finishTimer);
@@ -13588,7 +12427,7 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
       }
       const nextStep = melodyStep + 1;
       if (nextStep >= selectedMelody.notes.length) {
-        setFeedback(`${selectedMelody.name} geschafft. Spiele es noch einmal oder wähle ein anderes Lied.`);
+        setFeedback(`Ausschnitt von ${selectedMelody.name} geschafft. Spiele es noch einmal oder wähle ein anderes Lied.`);
         setMelodyStep(0);
       } else {
         setMelodyStep(nextStep);
@@ -13600,6 +12439,7 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
+      if(!rootRef.current?.contains(target) || !rootRef.current.getClientRects().length || event.altKey || event.ctrlKey || event.metaKey) return;
       if (target?.closest('input, select, textarea, [contenteditable="true"]')) return;
       const noteIndex = notes.findIndex((note) => note.key === event.key);
       if (noteIndex >= 0 && !event.repeat) {
@@ -13611,10 +12451,10 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
     return () => window.removeEventListener('keydown', onKeyDown);
   });
 
-  const barHeights = [176, 164, 152, 140, 128, 116, 104, 92];
+  const barHeights = [120, 114, 108, 102, 96, 90, 84, 78];
 
   return (
-    <div className="min-h-full w-full p-3 sm:p-4 flex flex-col gap-3 select-none overflow-visible">
+    <div ref={rootRef} data-practice-root tabIndex={0} aria-label="Tonleiter-Entdecker" className="min-h-full w-full h-full p-2 flex flex-col gap-2 select-none overflow-hidden">
       <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
         <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1" role="tablist" aria-label="Tontrainer-Modus">
           {([
@@ -13628,6 +12468,7 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
               role="tab"
               aria-selected={mode === value}
               onClick={() => {
+                if(mode === value) return;
                 clearTimers();
                 setMode(value);
                 if (value === 'freeplay') setFeedback('Spiele frei auf den Klangstäben.');
@@ -13645,7 +12486,7 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
         <label className="text-xs font-bold text-slate-600 dark:text-slate-300">
           Klang
           <select
-            value={instrument}
+            aria-label="Tontrainer-Klangfarbe" value={instrument}
             onChange={(event) => setInstrument(event.target.value as Instrument)}
             className="ml-2 min-h-11 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 font-bold"
           >
@@ -13662,7 +12503,7 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
             <button
               key={length}
               type="button"
-              onClick={() => setMemoryLength(length)}
+              aria-pressed={memoryLength === length} onClick={() => setMemoryLength(length)}
               className={`min-h-11 px-3 rounded-xl border font-bold text-sm ${
                 memoryLength === length ? 'bg-accent text-accent-text border-accent' : 'border-slate-300 dark:border-slate-700 hover:border-accent'
               }`}
@@ -13697,7 +12538,7 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
             <button
               key={melody.name}
               type="button"
-              onClick={() => startLearning(melody)}
+              aria-pressed={selectedMelody.name === melody.name} onClick={() => startLearning(melody)}
               className={`min-h-11 px-3 rounded-xl border font-bold text-sm ${
                 selectedMelody.name === melody.name
                   ? 'bg-accent text-accent-text border-accent'
@@ -13713,7 +12554,7 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
       <div className="shrink-0 rounded-xl bg-accent-soft border border-accent/20 px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
         {mode === 'freeplay' && 'Entdecke: Von links nach rechts werden die Töne höher. C bis C₂ ist eine Oktave.'}
         {mode === 'memory' && `Hören → merken → nachspielen. Fortschritt: ${memoryStep}/${memorySequence.length || memoryLength}`}
-        {mode === 'learn' && `${selectedMelody.name}: Ton ${melodyStep + 1} von ${selectedMelody.notes.length} · Ziel: ${selectedMelody.notes[melodyStep]?.label}`}
+        {mode === 'learn' && `Liedausschnitt: ${selectedMelody.name}: Ton ${melodyStep + 1} von ${selectedMelody.notes.length} · Ziel: ${selectedMelody.notes[melodyStep]?.label}`}
       </div>
 
       {mode === 'freeplay' && (
@@ -13734,7 +12575,7 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
         <span>höher</span>
       </div>
 
-      <div className={`flex-1 min-h-60 rounded-2xl border px-3 py-5 flex items-end justify-center gap-2 sm:gap-3 ${
+      <div className={`flex-1 min-h-44 rounded-2xl border px-3 py-8 flex items-end justify-center gap-2 sm:gap-3 ${
         currentIsLight ? 'bg-amber-50/60 border-amber-200' : 'bg-slate-900 border-slate-700'
       }`}>
         {notes.map((note, index) => {
@@ -13747,7 +12588,7 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
               onClick={() => handleTap(index)}
               disabled={isPlayingSequence}
               aria-label={`Ton ${note.label} spielen, Taste ${note.key}`}
-              className={`relative min-w-10 sm:min-w-12 rounded-xl border-2 text-white font-black shadow-md transition-all active:translate-y-1 disabled:cursor-default ${note.color} ${
+              className={`relative min-w-11 sm:min-w-12 rounded-xl border-2 text-white font-black shadow-md transition-all active:translate-y-1 disabled:cursor-default ${note.color} ${
                 isActive ? 'ring-4 ring-white scale-105' : ''
               } ${isLearnTarget ? 'ring-4 ring-accent ring-offset-2 dark:ring-offset-slate-900' : ''}`}
               style={{ height: barHeights[index] }}
@@ -16292,12 +15133,18 @@ export const MathbalancerWidgetContent: React.FC<{ widget: any, currentIsLight: 
 // ========================================================
 // 29. WIDGET: ANIMAL AUDIO MEMORY (AnimalvoiceWidgetContent)
 // ========================================================
-export const AnimalvoiceWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [pitch, setPitch] = useState<number>(880);
-  const [resonance, setResonance] = useState<number>(4);
-  const [selectedProgram, setSelectedProgram] = useState<string>('chatter');
+export const AnimalvoiceWidgetContent: React.FC<{ widget: any, currentIsLight: boolean, onUpdate?: (updates:any)=>void }> = ({ widget,currentIsLight,onUpdate }) => {
+  const saved=readWidgetLifecycleState(widget,"animalvoice",{pitch: 880 as number,resonance: 4 as number,selectedProgram: 'chatter' as string,feedback: "Synthesizer bereit. Drücke PROGRAMM-TASTEN! 🤖" as string});
+  const [pitch, setPitch] = useState<number>(() => saved.pitch);
+  const [resonance, setResonance] = useState<number>(() => saved.resonance);
+  const [selectedProgram, setSelectedProgram] = useState<string>(() => saved.selectedProgram);
   const [isGlowing, setIsGlowing] = useState<boolean>(false);
-  const [feedback, setFeedback] = useState<string>("Synthesizer bereit. Drücke PROGRAMM-TASTEN! 🤖");
+  const [feedback, setFeedback] = useState<string>(() => saved.feedback);
+  usePersistedWidgetLifecycleState(widget,onUpdate,"animalvoice",{pitch,resonance,selectedProgram,feedback});
+
+  const contexts=useRef(new Set<AudioContext>());
+  const glowTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  useEffect(()=>()=>{if(glowTimer.current)clearTimeout(glowTimer.current);for(const ctx of contexts.current)void ctx.close().catch(()=>{});contexts.current.clear();},[]);
 
   const programs = [
     { id: 'chatter', name: 'Computer 👾', desc: 'Süße binäre Chatters' },
@@ -16313,9 +15160,12 @@ export const AnimalvoiceWidgetContent: React.FC<{ widget: any, currentIsLight: b
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
+      contexts.current.add(ctx);
+      const cleanup=ctx.createOscillator();cleanup.connect(ctx.createGain());cleanup.onended=()=>{contexts.current.delete(ctx);void ctx.close().catch(()=>{});};cleanup.start();cleanup.stop(ctx.currentTime+0.6);
       const now = ctx.currentTime;
       setIsGlowing(true);
-      setTimeout(() => setIsGlowing(false), 350);
+      if(glowTimer.current)clearTimeout(glowTimer.current);
+      glowTimer.current=setTimeout(() => setIsGlowing(false), 350);
 
       // Lowpass/Bandpass filter setup to map the Resonance slider
       const filter = ctx.createBiquadFilter();
@@ -16326,7 +15176,7 @@ export const AnimalvoiceWidgetContent: React.FC<{ widget: any, currentIsLight: b
 
       if (selectedProgram === 'chatter') {
         // Stochastic arpeggiator computer chatter trigger
-        setFeedback("⚙️ Generiere arithmetische Binär-Chatters...");
+        setFeedback("⚙️ Generiere kurze elektronische Töne...");
         [0, 0.05, 0.1, 0.15, 0.2, 0.25].forEach((delay, idx) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
@@ -16345,7 +15195,7 @@ export const AnimalvoiceWidgetContent: React.FC<{ widget: any, currentIsLight: b
         });
       } else if (selectedProgram === 'laser') {
         // Fast downward pitch sweep (Laser)
-        setFeedback("🛸 Zapp! Kosmische Gamma-Explosion!");
+        setFeedback("🛸 Zapp! ein abwärts gleitender Ton!");
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sawtooth';
@@ -16432,7 +15282,7 @@ export const AnimalvoiceWidgetContent: React.FC<{ widget: any, currentIsLight: b
         osc.stop(now + 0.4);
       } else {
         // Metallic speech ring modulation (Robo-Greet)
-        setFeedback("🤖 Servus! Ich bin dein Klassen-Snythesizers!");
+        setFeedback("🤖 Servus! Ich bin dein Klassen-Synthesizer!");
         const carrier = ctx.createOscillator();
         const modulator = ctx.createOscillator();
         const modGain = ctx.createGain();
@@ -16462,13 +15312,13 @@ export const AnimalvoiceWidgetContent: React.FC<{ widget: any, currentIsLight: b
   const robotSoundAction = useAccessibleAction(triggerRobotSynthSound);
 
   return (
-    <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 pointer-events-auto">
+    <div data-practice-root className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 pointer-events-auto">
       <div className="shrink-0 flex justify-between items-center mb-1">
         <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
-            👂 Roboter-Sounds
+          <span className={`text-sm font-black uppercase tracking-widest ${currentIsLight ? 'text-accent' : 'text-accent'}`}>
+            Elektronische Klangfarben
           </span>
-          <span className="text-[7.5px] font-mono opacity-80 font-black">Synthesizer-Gehörschulung & Klangwelten</span>
+          <span className="text-sm font-mono opacity-80 font-black">Wähle ein Programm und verändere die Klangfarbe.</span>
         </div>
       </div>
 
@@ -16479,9 +15329,9 @@ export const AnimalvoiceWidgetContent: React.FC<{ widget: any, currentIsLight: b
           type="button"
           {...robotSoundAction.buttonProps}
           aria-label="Roboter-Sound abspielen"
-          className={`relative min-h-11 min-w-11 w-[65px] h-[78px] rounded-2xl border-3 flex flex-col items-center justify-around p-1.5 shadow-sm cursor-pointer transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
+          className={`relative min-h-11 min-w-11 w-[150px] h-[180px] rounded-2xl border-3 flex flex-col items-center justify-around p-1.5 shadow-sm cursor-pointer transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
             isGlowing
-              ? 'bg-indigo-500/20 border-teal-400 scale-105 shadow-xl ring-2 ring-teal-400'
+              ? 'bg-accent/20 border-teal-400 scale-105 shadow-xl ring-2 ring-teal-400'
               : 'bg-slate-100/60 border-slate-400 dark:bg-black/30 dark:border-zinc-700'
           }`}
         >
@@ -16518,13 +15368,13 @@ export const AnimalvoiceWidgetContent: React.FC<{ widget: any, currentIsLight: b
             {programs.map((prog) => (
               <button
                 key={prog.id}
-                onClick={() => {
+                aria-pressed={selectedProgram === prog.id} onClick={() => {
                   setSelectedProgram(prog.id);
                   setFeedback(`Bereit: ${prog.name}. Drücke links aufs Gesicht!`);
                 }}
-                className={`py-1 text-[7px] font-black truncate rounded-lg border transition-all cursor-pointer ${
+                className={`min-h-11 py-1 text-sm font-black truncate rounded-lg border transition-all cursor-pointer ${
                   selectedProgram === prog.id
-                    ? 'bg-indigo-500 text-white border-indigo-600 scale-95 font-black shadow'
+                    ? 'bg-accent text-white border-accent font-black shadow'
                     : currentIsLight
                       ? 'bg-white border-slate-200 text-slate-800 hover:bg-slate-50'
                       : 'bg-zinc-800 border-zinc-700 text-slate-300 hover:bg-zinc-750'
@@ -16537,36 +15387,36 @@ export const AnimalvoiceWidgetContent: React.FC<{ widget: any, currentIsLight: b
 
           {/* Knobs / Sliders to adjust sound synthesis online */}
           <div className="space-y-1 bg-slate-100/30 dark:bg-zinc-900/40 p-1.5 rounded-lg border border-slate-200/50 dark:border-white/5">
-            <div className="flex justify-between text-[6.5px] font-extrabold uppercase text-slate-500">
+            <div className="flex justify-between text-sm font-extrabold uppercase text-slate-500">
               <span>Frequenz (Hz):</span>
-              <span className="font-mono text-indigo-505 text-indigo-500 font-black">{pitch}Hz</span>
+              <span className="font-mono text-accent font-black">{pitch}Hz</span>
             </div>
             <input 
-              type="range"
+              aria-label="Roboter-Tonhöhe" type="range"
               min="150"
               max="1800"
               value={pitch}
               onChange={(e) => setPitch(parseInt(e.target.value))}
-              className="w-full accent-teal-400 h-1"
+              className="w-full accent-accent min-h-11"
             />
 
-            <div className="flex justify-between text-[6.5px] font-extrabold uppercase text-slate-500">
+            <div className="flex justify-between text-sm font-extrabold uppercase text-slate-500">
               <span>Filter-Resonanz (Q):</span>
-              <span className="font-mono text-indigo-505 text-indigo-500 font-black">Q={resonance}</span>
+              <span className="font-mono text-accent font-black">Q={resonance}</span>
             </div>
             <input 
-              type="range"
+              aria-label="Roboter-Resonanz" type="range"
               min="1"
               max="15"
               value={resonance}
               onChange={(e) => setResonance(parseInt(e.target.value))}
-              className="w-full accent-teal-400 h-1"
+              className="w-full accent-accent min-h-11"
             />
           </div>
         </div>
       </div>
 
-      <p className="shrink-0 text-[7px] font-extrabold text-blue-500 text-center truncate mt-0.5">{feedback}</p>
+      <p role="status" className="shrink-0 min-h-11 text-sm font-extrabold text-blue-500 text-center mt-0.5">{feedback}</p>
     </div>
   );
 };

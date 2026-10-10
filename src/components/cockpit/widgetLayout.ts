@@ -66,7 +66,7 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   trafficlight: { minW: 280, minH: 300, prefW: 360, prefH: 360 },
   noisemeter: { minW: 280, minH: 200, prefW: 380, prefH: 280 },
   noisescales: { minW: 280, minH: 180, prefW: 360, prefH: 260 },
-  sounds: { minW: 280, minH: 200, prefW: 380, prefH: 280 },
+  sounds: { minW: 840, minH: 560, prefW: 840, prefH: 560 },
   // Header, one readable task, page controls and input must fit at the same time.
   todo: { minW: 340, minH: 360, prefW: 460, prefH: 500 },
   dienste: { minW: 640, minH: 560, prefW: 760, prefH: 600 },
@@ -109,6 +109,11 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   secretagent: { minW: 760, minH: 560, prefW: 760, prefH: 560 },
   weightscale: { minW: 740, minH: 560, prefW: 740, prefH: 560 },
   reflexgame: { minW: 640, minH: 560, prefW: 640, prefH: 560 },
+  rhythm: { minW: 760, minH: 560, prefW: 760, prefH: 560 },
+  soundmemory: { minW: 760, minH: 560, prefW: 760, prefH: 560 },
+  guitartuner: { minW: 760, minH: 560, prefW: 760, prefH: 560 },
+  tonetrainer: { minW: 840, minH: 560, prefW: 840, prefH: 560 },
+  animalvoice: { minW: 760, minH: 560, prefW: 760, prefH: 560 },
   clockpuzzle: { minW: 760, minH: 560, prefW: 800, prefH: 560 },
   // Geometry and angle tasks need the instrument, controls and feedback visible together.
   geometry: { minW: 760, minH: 560, prefW: 800, prefH: 560 },
