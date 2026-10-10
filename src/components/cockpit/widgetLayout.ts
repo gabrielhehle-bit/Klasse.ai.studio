@@ -36,6 +36,11 @@ export interface WidgetMinSizeConfig {
  * Verbindliche Mindestgrößen für Widgets
  */
 export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
+  riddle: { minW: 700, minH: 560, prefW: 760, prefH: 560 },
+  colormixer: { minW: 760, minH: 560, prefW: 800, prefH: 560 },
+  shadowshapes: { minW: 840, minH: 560, prefW: 900, prefH: 560 },
+  clocksync: { minW: 740, minH: 560, prefW: 800, prefH: 560 },
+  kidweather: { minW: 760, minH: 560, prefW: 800, prefH: 560 },
   constellation: { minW: 720, minH: 560, prefW: 800, prefH: 600 },
   planetarium: { minW: 720, minH: 560, prefW: 800, prefH: 600 },
   flagquiz: { minW: 700, minH: 560, prefW: 800, prefH: 600 },
