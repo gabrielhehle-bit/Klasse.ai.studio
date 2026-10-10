@@ -2413,8 +2413,11 @@ async function main() {
       await client.send('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1});
     }
     await clickSelector(client,'[data-widget-type="flagquiz"] button[aria-label$="Einstellungen öffnen"]');
-    await waitFor(client,'flag settings usable together',languageFits(flagRoot));
-    await evaluate(client,`Array.from(document.querySelectorAll(${q(flagRoot+' button')})).find(b=>b.textContent.trim().startsWith('Europa')).click()`);
+    // The settings overlay covers the quiz; only its active controls must be hit-testable.
+    const flagSettingsRoot=flagRoot+' > .absolute';
+    await waitFor(client,'flag settings usable together',languageFits(flagSettingsRoot));
+    const europeSetting=await evaluate(client,`(() => {const button=Array.from(document.querySelectorAll(${q(flagSettingsRoot+' button')})).find(b=>b.textContent.trim().startsWith('Europa'));if(!button)throw Error('Missing Europe filter');button.dataset.natureAction='europe';return ${q(flagSettingsRoot)}+' [data-nature-action="europe"]';})()`);
+    await clickSelector(client,europeSetting);
     await pressAuditKey('Escape');await waitFor(client,'flag filter actually applies and starts a new round',`document.querySelector(${q(flagRoot)}).textContent.includes('Europa')&&document.querySelector(${q(flagRoot)}).textContent.includes('Noch keine Antwort')`);
     await discoverySettings('flagquiz');await auditMenu('flagquiz','Widget schließen');
 
