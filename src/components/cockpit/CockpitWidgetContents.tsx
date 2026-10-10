@@ -1,3 +1,5 @@
+export { ShapepuzzleWidgetContent, DivrobotWidgetContent } from './GeometryPracticeWidgets';
+import { estimatePresets, initialEstimate, prism, projectSolid } from '../../lib/geometryPractice';
 export { MathduelWidgetContent } from './MathPracticeWidgets';
 export { KidWeatherWidgetContent, ColormixerWidgetContent, ShadowshapesWidgetContent, ClocksyncWidgetContent } from './LearningPracticeWidgets';
 import { CLASSROOM_RIDDLES } from '../../lib/practiceLearningModel';
@@ -5497,7 +5499,7 @@ export const GeometryWidgetContent: React.FC<{
     if (shape === 'circle') {
       return (
         <div
-          className="w-28 h-28 rounded-full border-2 shadow-xl"
+          className="w-16 h-16 rounded-full border-2 shadow-xl"
           style={{
             borderColor: color,
             background: `radial-gradient(circle at 32% 28%, #ffffff, ${color}88 45%, ${color} 100%)`,
@@ -5508,15 +5510,15 @@ export const GeometryWidgetContent: React.FC<{
     }
 
     if (shape === 'square' || shape === 'rectangle') {
-      const width = shape === 'rectangle' ? 112 : 88;
-      const depth = shape === 'rectangle' ? 34 : 44;
+      const width = shape === 'rectangle' ? 72 : 56;
+      const depth = shape === 'rectangle' ? 22 : 28;
       return (
-        <div className="relative h-28 flex items-center justify-center" aria-label={shape === 'square' ? 'Würfel' : 'Quader'}>
+        <div className="relative h-20 flex items-center justify-center" aria-label={shape === 'square' ? 'Würfel' : 'Quader'}>
           <div
             className="relative border-2 shadow-lg"
             style={{
               width,
-              height: shape === 'rectangle' ? 64 : 88,
+              height: shape === 'rectangle' ? 40 : 56,
               borderColor: color,
               backgroundColor: `${color}35`,
               transform: `rotateX(-12deg) rotateY(${compareRotation}deg)`,
@@ -5549,16 +5551,13 @@ export const GeometryWidgetContent: React.FC<{
       );
     }
 
+    const solid = prism(3, 'Dreiecksprisma');
+    const projected = projectSolid(solid.vertices, compareRotation);
     return (
-      <div className="relative w-32 h-28" aria-label="Dreiecksprisma">
-        <svg viewBox="0 0 160 120" className="w-full h-full">
-          <polygon points="30,95 70,25 110,95" fill={`${color}25`} stroke={color} strokeWidth="4" />
-          <polygon points="70,70 110,10 150,70" fill={`${color}18`} stroke={color} strokeWidth="4" />
-          <line x1="30" y1="95" x2="70" y2="70" stroke={color} strokeWidth="4" />
-          <line x1="70" y1="25" x2="110" y2="10" stroke={color} strokeWidth="4" />
-          <line x1="110" y1="95" x2="150" y2="70" stroke={color} strokeWidth="4" />
-        </svg>
-      </div>
+      <svg viewBox="0 0 200 200" className="w-24 h-20" role="img" aria-label="Dreiecksprisma">
+        {[0, 3].map(start=><polygon key={start} points={projected.slice(start,start+3).map(p=>`${p.x},${p.y}`).join(' ')} fill={`${color}25`} />)}
+        {solid.edges.map(([a,b],i)=><line key={i} x1={projected[a].x} y1={projected[a].y} x2={projected[b].x} y2={projected[b].y} stroke={color} strokeWidth="4" />)}
+      </svg>
     );
   };
 
@@ -5588,7 +5587,7 @@ export const GeometryWidgetContent: React.FC<{
   const activeProperties = properties[activeShape];
 
   return (
-    <div className="min-h-full w-full p-3 sm:p-4 flex flex-col gap-3 select-none overflow-visible">
+    <div data-practice-root data-geometry-mode={mode} data-geometry-count={placedShapes.length} className="h-full min-h-full w-full p-2 flex flex-col gap-2 select-none overflow-visible">
       <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
         <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1" role="tablist" aria-label="Geometrie-Modus">
           <button
@@ -5641,7 +5640,7 @@ export const GeometryWidgetContent: React.FC<{
 
           <div
             onClick={handleCanvasClick}
-            className={`flex-1 min-h-52 sm:min-h-64 rounded-2xl border-2 relative overflow-hidden cursor-crosshair ${
+            className={`flex-1 min-h-36 rounded-2xl border-2 relative overflow-hidden cursor-crosshair ${
               currentIsLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700'
             }`}
             aria-label="Musterfläche – zum Platzieren einer Form tippen"
@@ -5658,19 +5657,20 @@ export const GeometryWidgetContent: React.FC<{
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="max-w-xs text-center">
                   <div className="text-base font-black text-slate-600 dark:text-slate-300">Baue ein Muster</div>
-                  <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">Wähle Form und Farbe und tippe auf die Fläche.</div>
+                  <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Wähle Form und Farbe und tippe auf die Fläche.</div>
                 </div>
               </div>
             )}
             {placedShapes.map((shape) => (
               <div
                 key={shape.id}
+                data-placed-shape={shape.type}
                 className="absolute flex items-center justify-center pointer-events-none transition-transform"
                 style={{
                   width: shape.size,
                   height: shape.size,
-                  left: `${shape.x}%`,
-                  top: `${shape.y}%`,
+                  left: `clamp(${shape.size * 0.9}px, ${shape.x}%, calc(100% - ${shape.size * 0.9}px))`,
+                  top: `clamp(${shape.size * 0.9}px, ${shape.y}%, calc(100% - ${shape.size * 0.9}px))`,
                   transform: `translate(-50%, -50%) rotate(${shape.rotation}deg)`,
                 }}
               >
@@ -5689,7 +5689,7 @@ export const GeometryWidgetContent: React.FC<{
                   max="76"
                   value={size}
                   onChange={(event) => setSize(Number(event.target.value))}
-                  className="mt-2 w-full h-11 accent-accent cursor-pointer"
+                  className="mt-1 w-full h-11 accent-accent cursor-pointer"
                   aria-label="Formgröße"
                 />
               </label>
@@ -5702,7 +5702,7 @@ export const GeometryWidgetContent: React.FC<{
                   step="30"
                   value={rotation}
                   onChange={(event) => setRotation(Number(event.target.value))}
-                  className="mt-2 w-full h-11 accent-accent cursor-pointer"
+                  className="mt-1 w-full h-11 accent-accent cursor-pointer"
                   aria-label="Drehwinkel"
                 />
               </label>
@@ -5754,30 +5754,30 @@ export const GeometryWidgetContent: React.FC<{
             Vergleiche Fläche und Körper: Was bleibt gleich, was kommt in 3D dazu?
           </div>
 
-          <div className="flex-1 min-h-52 sm:min-h-64 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className={`rounded-2xl border p-4 flex flex-col items-center justify-center gap-3 ${
+          <div className="flex-1 min-h-36 grid grid-cols-2 gap-2">
+            <div className={`rounded-2xl border p-2 flex flex-col items-center justify-center gap-1 ${
               currentIsLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700'
             }`}>
               <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">2D-Fläche</div>
-              <div className="w-28 h-28 flex items-center justify-center">
-                {renderFlatShape(activeShape, colorVal, 'w-24 h-24')}
+              <div className="w-16 h-16 flex items-center justify-center">
+                {renderFlatShape(activeShape, colorVal, 'w-14 h-14')}
               </div>
-              <div className="text-lg font-black text-slate-900 dark:text-slate-100">{activeMeta.label}</div>
-              <div className="text-sm text-slate-500 dark:text-slate-400 text-center">flach · Länge und Breite</div>
+              <div className="text-base font-black text-slate-900 dark:text-slate-100">{activeMeta.label}</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400 text-center">flach · Länge und Breite</div>
               <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-1 text-center">
                 {activeProperties.flat.map((item) => <li key={item}>• {item}</li>)}
               </ul>
             </div>
 
-            <div className={`rounded-2xl border p-4 flex flex-col items-center justify-center gap-3 ${
+            <div className={`rounded-2xl border p-2 flex flex-col items-center justify-center gap-1 ${
               currentIsLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700'
             }`}>
               <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">3D-Körper</div>
-              <div className="w-full h-32 flex items-center justify-center" style={{ perspective: '700px' }}>
+              <div className="w-full h-20 flex items-center justify-center" style={{ perspective: '700px' }}>
                 {renderSolid(activeShape, colorVal)}
               </div>
-              <div className="text-lg font-black text-slate-900 dark:text-slate-100">{activeMeta.solid}</div>
-              <div className="text-sm text-slate-500 dark:text-slate-400 text-center">räumlich · Länge, Breite und Höhe</div>
+              <div className="text-base font-black text-slate-900 dark:text-slate-100">{activeMeta.solid}</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400 text-center">räumlich · Länge, Breite und Höhe</div>
               <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-1 text-center">
                 {activeProperties.solid.map((item) => <li key={item}>• {item}</li>)}
               </ul>
@@ -5796,7 +5796,7 @@ export const GeometryWidgetContent: React.FC<{
               max="45"
               value={compareRotation}
               onChange={(event) => setCompareRotation(Number(event.target.value))}
-              className="mt-2 w-full h-11 accent-accent cursor-pointer"
+              className="mt-1 w-full h-11 accent-accent cursor-pointer"
               aria-label="3D-Körper drehen"
             />
           </label>
@@ -10823,407 +10823,6 @@ export const SoundquizWidgetContent: React.FC<{ widget: any, currentIsLight: boo
 // ==========================================
 // NEW WIDGET 29: KOPFRECHEN-DUELL (2-Player Local Math Duel)
 // ==========================================
-export const ShapepuzzleWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const figures = [
-    { 
-      id: "triangle", 
-      name: "Dreieck", 
-      emoji: "🔺", 
-      vertices: 3, 
-      sides: 3,
-      points: [{x:50, y:20}, {x:15, y:80}, {x:80, y:80}], 
-      text: "Zähle die Ecken und Seiten dieses roten Dreiecks:",
-      colorCorner: "#ef4444", // Red
-      colorSide: "#f59e0b", // Amber
-      colorFace: "rgba(239, 68, 68, 0.15)",
-      name3D: "Dreiecks-Pyramide (Tetraeder)",
-      faces3D: 4,
-      edges3D: 6,
-      vertices3D: 4,
-      css3dClass: "pyramid"
-    },
-    { 
-      id: "square", 
-      name: "Quadrat", 
-      emoji: "🟩", 
-      vertices: 4, 
-      sides: 4,
-      points: [{x:25, y:25}, {x:75, y:25}, {x:75, y:75}, {x:25, y:75}], 
-      text: "Zähle die Ecken und Seiten dieses viereckigen Quadrats:",
-      colorCorner: "#3b82f6", // Blue
-      colorSide: "#10b981", // Emerald
-      colorFace: "rgba(59, 130, 246, 0.15)",
-      name3D: "Würfel (Hexaeder)",
-      faces3D: 6,
-      edges3D: 12,
-      vertices3D: 8,
-      css3dClass: "cube"
-    },
-    { 
-      id: "pentagon", 
-      name: "Fünfeck", 
-      emoji: "⬠", 
-      vertices: 5, 
-      sides: 5,
-      points: [{x:50, y:15}, {x:85, y:40}, {x:72, y:82}, {x:28, y:82}, {x:15, y:40}], 
-      text: "Ein schönes, gleichmäßiges Haus/Fünfeck:",
-      colorCorner: "#a855f7", // Purple
-      colorSide: "#ec4899", // Pink
-      colorFace: "rgba(168, 85, 247, 0.15)",
-      name3D: "Fünfeckiges Prisma",
-      faces3D: 7,
-      edges3D: 15,
-      vertices3D: 10,
-      css3dClass: "prism5"
-    },
-    { 
-      id: "hexagon", 
-      name: "Sechseck", 
-      emoji: "⬡", 
-      vertices: 6, 
-      sides: 6,
-      points: [{x:50, y:15}, {x:80, y:33}, {x:80, y:67}, {x:50, y:85}, {x:20, y:67}, {x:20, y:33}], 
-      text: "Die Bienenwabe hat genau diese Anzahl Ecken:",
-      colorCorner: "#06b6d4", // Cyan
-      colorSide: "#f59e0b", // Amber
-      colorFace: "rgba(6, 182, 212, 0.15)",
-      name3D: "Sechseckiges Prisma",
-      faces3D: 8,
-      edges3D: 18,
-      vertices3D: 12,
-      css3dClass: "prism6"
-    }
-  ];
-
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [clickedVertices, setClickedVertices] = useState<number[]>([]);
-  const [clickedSides, setClickedSides] = useState<number[]>([]);
-  const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
-  const [solved, setSolved] = useState(false);
-  const [guess, setGuess] = useState<number | null>(null);
-
-  const fig = figures[currentIdx];
-
-  const handleVertexClick = (idx: number) => {
-    if (solved || viewMode === '3d') return;
-    if (clickedVertices.includes(idx)) {
-      setClickedVertices(prev => prev.filter(v => v !== idx));
-    } else {
-      setClickedVertices(prev => [...prev, idx]);
-      playTone(330 + idx * 50);
-    }
-  };
-
-  const handleSideClick = (idx: number) => {
-    if (solved || viewMode === '3d') return;
-    if (clickedSides.includes(idx)) {
-      setClickedSides(prev => prev.filter(s => s !== idx));
-    } else {
-      setClickedSides(prev => [...prev, idx]);
-      playTone(440 + idx * 60);
-    }
-  };
-
-  const playTone = (freq: number) => {
-    try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      gain.gain.setValueAtTime(0.04, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.17);
-    } catch (e) {}
-  };
-
-  const handleGuessSubmit = (val: number) => {
-    if (solved) return;
-    setGuess(val);
-    if (val === fig.vertices) {
-      setSolved(true);
-      setClickedVertices(fig.points.map((_, i) => i)); // reveal all
-      setClickedSides(fig.points.map((_, i) => i)); // reveal all
-      playTone(523.25);
-    } else {
-      playTone(120);
-    }
-  };
-
-  const loadNextFigure = () => {
-    setCurrentIdx((prev) => (prev + 1) % figures.length);
-    setClickedVertices([]);
-    setClickedSides([]);
-    setSolved(false);
-    setGuess(null);
-    setViewMode('2d');
-  };
-
-  return (
-    <div className="flex-grow flex flex-col justify-between p-2 h-full min-h-0 pointer-events-auto select-none gap-2">
-      <div className="flex justify-between items-center px-1 shrink-0">
-        <span className={`text-[8px] font-black uppercase tracking-widest ${currentIsLight ? 'text-slate-400' : 'text-slate-500'}`}>
-          📐 Formen-Entdecker (2D & 3D)
-        </span>
-        
-        {/* View mode toggle */}
-        <div className="flex gap-0.5 bg-slate-150 dark:bg-zinc-900 p-0.5 rounded-lg border border-slate-300/10">
-          <button
-            onClick={() => setViewMode('2d')}
-            className={`px-1.5 py-0.5 rounded text-[6.5px] font-black cursor-pointer transition-colors ${
-              viewMode === '2d' ? 'bg-indigo-500 text-white shadow' : 'text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            2D Fläche
-          </button>
-          <button
-            onClick={() => setViewMode('3d')}
-            className={`px-1.5 py-0.5 rounded text-[6.5px] font-black cursor-pointer transition-colors ${
-              viewMode === '3d' ? 'bg-indigo-500 text-white shadow' : 'text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            3D Körper 🧊
-          </button>
-        </div>
-      </div>
-
-      <div className="flex-grow flex flex-col justify-center items-center px-1 text-center">
-        <p className="text-[7.5px] text-slate-400 font-extrabold uppercase mb-1 leading-none">
-          {viewMode === '2d' ? fig.text : `3D Körper: ${fig.name3D}`}
-        </p>
-
-        {/* Visualizer Frame */}
-        <div className="w-24 h-24 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl relative overflow-hidden mb-1.5 flex items-center justify-center">
-          {viewMode === '2d' ? (
-            <svg className="w-full h-full pointer-events-auto absolute" viewBox="0 0 100 100">
-              {/* Fill Face (Fläche) */}
-              <polygon
-                points={fig.points.map(p => `${p.x},${p.y}`).join(" ")}
-                style={{ fill: fig.colorFace }}
-                className={`transition-all duration-300 ${solved ? 'stroke-2' : ''}`}
-              />
-
-              {/* Draw individual Sides/Edges with clickable hit areas */}
-              {fig.points.map((pt, idx) => {
-                const nextPt = fig.points[(idx + 1) % fig.points.length];
-                const isSideSelected = clickedSides.includes(idx);
-                return (
-                  <g key={`side-${idx}`}>
-                    {/* Thick invisible interaction stroke */}
-                    <line
-                      x1={pt.x}
-                      y1={pt.y}
-                      x2={nextPt.x}
-                      y2={nextPt.y}
-                      stroke="transparent"
-                      strokeWidth="8"
-                      className="cursor-pointer"
-                      onClick={() => handleSideClick(idx)}
-                    />
-                    {/* Visual side stroke */}
-                    <line
-                      x1={pt.x}
-                      y1={pt.y}
-                      x2={nextPt.x}
-                      y2={nextPt.y}
-                      stroke={isSideSelected || solved ? fig.colorSide : "#cbd5e1"}
-                      strokeWidth={isSideSelected || solved ? "2.5" : "1.5"}
-                      className="pointer-events-none transition-all duration-300"
-                    />
-                  </g>
-                );
-              })}
-              
-              {/* Dots Corners (Ecken) to click */}
-              {fig.points.map((pt, idx) => {
-                const isSelected = clickedVertices.includes(idx);
-                return (
-                  <circle
-                    key={`corner-${idx}`}
-                    cx={pt.x}
-                    cy={pt.y}
-                    r={isSelected || solved ? 4 : 2.5}
-                    onClick={() => handleVertexClick(idx)}
-                    style={{ fill: isSelected || solved ? fig.colorCorner : "#94a3b8" }}
-                    className="cursor-pointer transition-all duration-300 stroke-white stroke-1 hover:scale-125"
-                  />
-                );
-              })}
-            </svg>
-          ) : (
-            /* Premium Interactive 3D Perspective CSS rendering */
-            <div className="relative w-full h-full flex items-center justify-center perspective-[300px] overflow-visible">
-              <div 
-                className="w-10 h-10 relative transform-style-3d animate-spin-slow transition-transform"
-                style={{ 
-                  animation: 'spin 12s linear infinite',
-                  transformStyle: 'preserve-3d'
-                }}
-              >
-                {/* Custom geometric shape representation */}
-                {fig.id === 'triangle' && (
-                  <div className="absolute inset-0 transform-style-3d">
-                    {/* 4 triangular faces for a tetrahedron */}
-                    {[0, 1, 2, 3].map((f) => {
-                      const rotY = f * 120;
-                      return (
-                        <div 
-                          key={f}
-                          className="absolute w-0 h-0 border-l-[20px] border-l-transparent border-r-[20px] border-r-transparent border-b-[35px]"
-                          style={{
-                            borderBottomColor: fig.colorSide,
-                            transform: `rotateY(${rotY}deg) translateZ(12px) rotateX(19.5deg)`,
-                            opacity: 0.75,
-                            transformOrigin: '50% 100%'
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
-                )}
-
-                {fig.id === 'square' && (
-                  <div className="absolute inset-0 transform-style-3d">
-                    {/* 6 Cube faces */}
-                    <div className="absolute inset-0 border border-emerald-400 bg-emerald-500/20" style={{ transform: 'translateZ(20px)' }} />
-                    <div className="absolute inset-0 border border-emerald-400 bg-emerald-500/20" style={{ transform: 'rotateY(180deg) translateZ(20px)' }} />
-                    <div className="absolute inset-0 border border-emerald-400 bg-emerald-500/20" style={{ transform: 'rotateY(90deg) translateZ(20px)' }} />
-                    <div className="absolute inset-0 border border-emerald-400 bg-emerald-500/20" style={{ transform: 'rotateY(-90deg) translateZ(20px)' }} />
-                    <div className="absolute inset-0 border border-emerald-400 bg-emerald-500/20" style={{ transform: 'rotateX(90deg) translateZ(20px)' }} />
-                    <div className="absolute inset-0 border border-emerald-400 bg-emerald-500/20" style={{ transform: 'rotateX(-90deg) translateZ(20px)' }} />
-                  </div>
-                )}
-
-                {fig.id === 'pentagon' && (
-                  <div className="absolute inset-0 transform-style-3d">
-                    {/* Pentagon prism body sides */}
-                    {[0,1,2,3,4].map((s) => (
-                      <div 
-                        key={s}
-                        className="absolute w-6 h-12 border border-pink-400 bg-pink-500/15"
-                        style={{
-                          transform: `rotateY(${s * 72}deg) translateZ(16px)`,
-                          left: '8px',
-                          top: '-10px'
-                        }}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {fig.id === 'hexagon' && (
-                  <div className="absolute inset-0 transform-style-3d">
-                    {/* Hexagonal prism body sides */}
-                    {[0,1,2,3,4,5].map((s) => (
-                      <div 
-                        key={s}
-                        className="absolute w-6 h-12 border border-amber-400 bg-amber-500/15"
-                        style={{
-                          transform: `rotateY(${s * 60}deg) translateZ(18px)`,
-                          left: '8px',
-                          top: '-10px'
-                        }}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Infinite rotation CSS */}
-              <style>{`
-                @keyframes spin {
-                  0% { transform: rotateX(-20deg) rotateY(0deg); }
-                  100% { transform: rotateX(-20deg) rotateY(360deg); }
-                }
-                .perspective-300 { perspective: 300px; }
-                .transform-style-3d { transform-style: preserve-3d; }
-              `}</style>
-            </div>
-          )}
-        </div>
-
-        {viewMode === '2d' ? (
-          <>
-            {/* Legend / Info guide to teach correct names */}
-            <div className="flex gap-2 justify-center mb-1.5 text-[6.5px] font-bold">
-              <span className="flex items-center gap-0.5">
-                <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ backgroundColor: fig.colorCorner }} />
-                Ecken: {clickedVertices.length} / {fig.vertices}
-              </span>
-              <span className="flex items-center gap-0.5">
-                <span className="w-2.5 h-0.5 inline-block" style={{ backgroundColor: fig.colorSide }} />
-                Seiten: {clickedSides.length} / {fig.sides}
-              </span>
-            </div>
-
-            {/* Guess Selector */}
-            <div className="flex gap-1 justify-center shrink-0 w-full mb-1">
-              {[3, 4, 5, 6].map((num) => (
-                <button
-                  key={num}
-                  onClick={() => handleGuessSubmit(num)}
-                  disabled={solved}
-                  className={`flex-1 py-0.5 rounded font-black text-[10px] cursor-pointer transition-all ${
-                    solved && num === fig.vertices
-                      ? 'bg-emerald-500 text-white shadow ring-2 ring-emerald-200'
-                      : guess === num
-                        ? 'bg-red-500 text-white'
-                        : currentIsLight
-                          ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                          : 'bg-zinc-800 hover:bg-zinc-700 text-neutral-200'
-                  }`}
-                >
-                  {num}
-                </button>
-              ))}
-            </div>
-
-            {solved && (
-              <div className="text-center p-0.5 bg-emerald-500/10 rounded border border-emerald-500/20 w-full animate-fade-in leading-none">
-                <span className="text-[8px] font-extrabold text-emerald-500 uppercase">Super! Genau {fig.vertices} Ecken und {fig.sides} Seiten! ⭐</span>
-              </div>
-            )}
-          </>
-        ) : (
-          /* 3D Property Card */
-          <div className="w-full bg-indigo-500/5 border border-indigo-500/10 rounded-xl p-1 text-left flex flex-col gap-0.5 leading-none animate-fade-in">
-            <span className="text-[7.5px] font-black uppercase text-indigo-400">Eigenschaften des Körpers:</span>
-            <div className="grid grid-cols-3 gap-1 mt-0.5 text-[7px] font-bold">
-              <div className="p-0.5 rounded bg-white/5 border border-white/5">
-                <span className="block text-slate-400">Flächen:</span>
-                <span className="text-[8.5px] font-black text-indigo-400">{fig.faces3D}</span>
-              </div>
-              <div className="p-0.5 rounded bg-white/5 border border-white/5">
-                <span className="block text-slate-400">Ecken:</span>
-                <span className="text-[8.5px] font-black text-indigo-400">{fig.vertices3D}</span>
-              </div>
-              <div className="p-0.5 rounded bg-white/5 border border-white/5">
-                <span className="block text-slate-400">Kanten:</span>
-                <span className="text-[8.5px] font-black text-indigo-400">{fig.edges3D}</span>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="shrink-0 flex gap-1">
-        <button
-          onClick={loadNextFigure}
-          className="w-full py-1 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white font-black text-[7.5px] uppercase transition-all shadow cursor-pointer text-center"
-        >
-          Nächste Figur ➔
-        </button>
-      </div>
-    </div>
-  );
-};
-
-
-// ==========================================
-// WIDGET: GITARREN-STIMMGERÄT (GuitartunerWidgetContent)
-// ==========================================
 interface ReferenceString {
   label: string;
   note: string;
@@ -12926,7 +12525,7 @@ export const EstimationjarWidgetContent: React.FC<{
   const regenerateJar = useCallback((nextDifficulty: 'easy' | 'medium' | 'hard' = difficulty) => {
     const range = ranges[nextDifficulty];
     const count = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
-    const roundedGuess = Math.round(count / range.step) * range.step;
+    const roundedGuess = initialEstimate(range.min, range.max, range.step);
     setJarCount(count);
     setUserGuess(Math.max(range.min, Math.min(range.max, roundedGuess)));
     setRevealed(false);
@@ -12986,6 +12585,7 @@ export const EstimationjarWidgetContent: React.FC<{
   const setGuess = (value: number) => {
     setUserGuess(Math.max(activeRange.min, Math.min(activeRange.max, value)));
     setRevealed(false);
+    setFeedback(`Schätze: Wie viele ${activeContent.plural} sind im Glas?`);
   };
 
   const guessDifference = userGuess - jarCount;
@@ -13008,24 +12608,13 @@ export const EstimationjarWidgetContent: React.FC<{
   };
 
   return (
-    <div className="min-h-full w-full p-3 sm:p-4 flex flex-col gap-3 select-none overflow-visible">
+    <div data-practice-root className="h-full min-h-full w-full p-2 flex flex-col gap-2 select-none overflow-visible">
       <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-1" role="group" aria-label="Inhalt auswählen">
-          {(Object.keys(contentMeta) as Array<keyof typeof contentMeta>).map((type) => (
-            <button
-              key={type}
-              type="button"
-              onClick={() => setContentType(type)}
-              className={`min-h-11 px-2.5 rounded-lg border text-xs font-bold ${
-                contentType === type
-                  ? 'bg-accent text-accent-text border-accent'
-                  : 'border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-accent'
-              }`}
-            >
-              {contentMeta[type].emoji} {contentMeta[type].plural}
-            </button>
-          ))}
-        </div>
+        <label className="flex items-center gap-2 text-sm font-bold">Inhalt
+          <select aria-label="Glas-Inhalt" value={contentType} onChange={event=>setContentType(event.target.value as typeof contentType)} className="min-h-11 min-w-44 rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent px-3">
+            {(Object.keys(contentMeta) as Array<keyof typeof contentMeta>).map(type=><option key={type} value={type}>{contentMeta[type].emoji} {contentMeta[type].plural}</option>)}
+          </select>
+        </label>
 
         <div className="flex flex-wrap gap-1" role="group" aria-label="Schwierigkeitsstufe">
           {(['easy', 'medium', 'hard'] as const).map((level) => (
@@ -13046,16 +12635,17 @@ export const EstimationjarWidgetContent: React.FC<{
       </div>
 
       <div className="shrink-0 rounded-xl bg-accent-soft border border-accent/20 px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
-        Schätz-Tipp: Teile das Glas gedanklich in Gruppen von 5 oder 10 statt jedes Stück einzeln zu zählen.
+        Schätz-Tipp: Nutze Gruppen von 5 oder 10, statt jedes Stück einzeln zu zählen.
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col md:flex-row items-center justify-center gap-5">
-        <div className="relative w-56 h-72 sm:w-64 sm:h-80 rounded-t-[2rem] rounded-b-[4rem] border-4 border-slate-400/80 dark:border-slate-600 bg-slate-100/30 dark:bg-slate-900/40 shadow-xl overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-row items-center justify-center gap-3">
+        <div className="relative shrink-0 w-48 h-60 rounded-t-[2rem] rounded-b-[4rem] border-4 border-slate-400/80 dark:border-slate-600 bg-slate-100/30 dark:bg-slate-900/40 shadow-xl overflow-hidden">
           <div className="absolute top-0 left-[20%] right-[20%] h-8 rounded-b-xl bg-amber-800 border-b-2 border-amber-950" />
           <div className="absolute inset-y-8 left-3 w-3 rounded-full bg-white/25 pointer-events-none" />
           {itemCoords.slice(0, jarCount).map((coord, index) => (
             <div
               key={index}
+              data-jar-item
               className="absolute flex items-center justify-center pointer-events-none"
               style={{
                 left: `${coord.x}%`,
@@ -13084,7 +12674,7 @@ export const EstimationjarWidgetContent: React.FC<{
           </div>
         </div>
 
-        <div className="w-full max-w-sm flex flex-col gap-3">
+        <div className="w-full max-w-sm flex flex-col gap-2">
           <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3 text-center">
             <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Deine Schätzung</div>
             <div className="mt-1 text-4xl font-black tabular-nums text-accent">{userGuess}</div>
@@ -13103,7 +12693,7 @@ export const EstimationjarWidgetContent: React.FC<{
               type="range"
               min={activeRange.min}
               max={activeRange.max}
-              step={activeRange.step}
+              step={1}
               value={userGuess}
               onChange={(event) => setGuess(Number(event.target.value))}
               className="w-full h-11 accent-accent cursor-pointer"
@@ -13120,12 +12710,7 @@ export const EstimationjarWidgetContent: React.FC<{
           </div>
 
           <div className="grid grid-cols-4 gap-2">
-            {[
-              activeRange.min,
-              Math.round((activeRange.min + activeRange.max) / 3 / activeRange.step) * activeRange.step,
-              Math.round(((activeRange.min + activeRange.max) * 2 / 3) / activeRange.step) * activeRange.step,
-              activeRange.max,
-            ].map((value) => (
+            {estimatePresets(activeRange.min, activeRange.max, activeRange.step).map((value) => (
               <button
                 key={value}
                 type="button"
@@ -13150,23 +12735,21 @@ export const EstimationjarWidgetContent: React.FC<{
       {revealed && (
         <>
         <div className="shrink-0 grid grid-cols-3 gap-2 text-center">
-          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-2">
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-1">
             <div className="text-xs font-bold text-slate-500 dark:text-slate-400">Geschätzt</div>
-            <div className="text-lg font-black">{userGuess}</div>
+            <div className="text-base font-black">{userGuess}</div>
           </div>
-          <div className="rounded-xl border border-accent/30 bg-accent-soft px-2 py-2">
+          <div className="rounded-xl border border-accent/30 bg-accent-soft px-2 py-1">
             <div className="text-xs font-bold text-slate-500 dark:text-slate-400">Tatsächlich</div>
-            <div className="text-lg font-black">{jarCount}</div>
+            <div className="text-base font-black">{jarCount}</div>
           </div>
-          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-2">
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-1">
             <div className="text-xs font-bold text-slate-500 dark:text-slate-400">Abweichung</div>
-            <div className="text-lg font-black">{Math.abs(userGuess - jarCount)}</div>
+            <div className="text-base font-black">{Math.abs(userGuess - jarCount)}</div>
           </div>
         </div>
 
-        <div className="shrink-0 rounded-xl border border-accent/30 bg-accent-soft px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
-          {reflectionText} Die tatsächliche Menge liegt nahe bei {nearestTen}. Nutze beim nächsten Mal 10er-Gruppen als Orientierung.
-        </div>
+
         </>
       )}
 
@@ -13174,7 +12757,7 @@ export const EstimationjarWidgetContent: React.FC<{
         aria-live="polite"
         className="shrink-0 min-h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 flex items-center justify-center text-center text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300"
       >
-        {feedback}
+        {feedback} {revealed && `${reflectionText} Nutze 10er-Gruppen als Orientierung; die Menge liegt nahe bei ${nearestTen}.`}
       </p>
     </div>
   );
@@ -14286,7 +13869,7 @@ export const AngledetectiveWidgetContent: React.FC<{
   const relationToRightAngle = targetAngle === 90 ? 'genau 90°' : targetAngle < 90 ? 'kleiner als 90°' : 'größer als 90°';
 
   return (
-    <div className="min-h-full w-full p-3 sm:p-4 flex flex-col gap-3 select-none overflow-visible">
+    <div data-practice-root className="h-full min-h-full w-full p-2 flex flex-col gap-2 select-none overflow-visible">
       <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-1" role="group" aria-label="Winkel-Schwierigkeit">
           {(['basic', 'mixed', 'precise'] as const).map((difficulty) => (
@@ -14321,7 +13904,7 @@ export const AngledetectiveWidgetContent: React.FC<{
         {[
           ['< 90°', 'spitz'],
           ['90°', 'recht'],
-          ['90–180°', 'stumpf'],
+          ['90° < Winkel < 180°', 'stumpf'],
           ['180°', 'gestreckt'],
         ].map(([rangeLabel, typeLabel]) => (
           <div key={typeLabel} className="rounded-xl border border-slate-200 dark:border-slate-700 px-2 py-2 text-center bg-slate-50 dark:bg-slate-800">
@@ -14331,7 +13914,7 @@ export const AngledetectiveWidgetContent: React.FC<{
         ))}
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col md:flex-row items-center justify-center gap-5">
+      <div className="flex-1 min-h-0 flex flex-row items-center justify-center gap-3">
         <div className="relative w-64 h-36 sm:w-72 sm:h-40">
           <svg className="w-full h-full" viewBox="0 0 100 55" role="img" aria-label="Winkel mit Halbkreis-Winkelmesser">
             <path d="M 6 50 A 44 44 0 0 1 94 50" fill="none" stroke={currentIsLight ? '#cbd5e1' : '#475569'} strokeWidth="1.5" />
@@ -14366,7 +13949,7 @@ export const AngledetectiveWidgetContent: React.FC<{
           </svg>
         </div>
 
-        <div className="w-full max-w-sm flex flex-col gap-3">
+        <div className="w-full max-w-sm flex flex-col gap-2">
           <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3 text-center">
             <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Deine Schätzung</div>
             <div className="mt-1 text-4xl font-black tabular-nums text-accent">{guessAngle}°</div>
@@ -14383,20 +13966,22 @@ export const AngledetectiveWidgetContent: React.FC<{
               onChange={(event) => {
                 setGuessAngle(Number(event.target.value));
                 setIsRevealed(false);
+                setFeedback('Schätzung geändert. Prüfe deinen neuen Tipp.');
               }}
-              className="mt-2 w-full h-11 accent-accent cursor-pointer"
+              className="mt-1 w-full h-11 accent-accent cursor-pointer"
               aria-label="Geschätzten Winkel einstellen"
             />
           </label>
 
           <div className="grid grid-cols-4 gap-2">
-            {[45, 90, 135, 180].map((preset) => (
+            {(level === 'precise' ? [40, 90, 140, 180] : [45, 90, 135, 180]).map((preset) => (
               <button
                 key={preset}
                 type="button"
                 onClick={() => {
                   setGuessAngle(preset);
                   setIsRevealed(false);
+                  setFeedback('Schätzung geändert. Prüfe deinen neuen Tipp.');
                 }}
                 className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-700 font-bold text-sm hover:border-accent"
               >
@@ -15025,297 +14610,6 @@ export const AlphabetsoupWidgetContent: React.FC<{
 
 // ========================================================
 // 17. WIDGET: TEILBARKEITS-ROBOTER (DivrobotWidgetContent)
-// ========================================================
-export const DivrobotWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [divRule, setDivRule] = useState<number>(3);
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
-  const [numbersPool, setNumbersPool] = useState<number[]>([]);
-  const [feedback, setFeedback] = useState<string>("Füttere den Roboter! 🤖");
-  const [score, setScore] = useState<number>(0);
-  const [emotion, setEmotion] = useState<'idle' | 'happy' | 'sad'>('idle');
-  const [explanation, setExplanation] = useState<string | null>(null);
-
-  // Rules dictionary in German for children
-  const rulesDict: Record<number, string> = {
-    2: "Eine Zahl ist durch 2 teilbar, wenn sie gerade ist (endet auf 0, 2, 4, 6, 8).",
-    3: "Eine Zahl ist durch 3 teilbar, wenn ihre Quersumme (Ziffernsumme) durch 3 teilbar ist.",
-    4: "Eine Zahl ist durch 4 teilbar, wenn ihre letzten zwei Stellen durch 4 teilbar sind.",
-    5: "Eine Zahl ist durch 5 teilbar, wenn sie auf 0 oder 5 endet.",
-    6: "Eine Zahl ist durch 6 teilbar, wenn sie durch 2 (gerade) und durch 3 (Quersumme) teilbar ist.",
-    8: "Eine Zahl ist durch 8 teilbar, wenn ihre letzten drei Stellen durch 8 teilbar sind (oder 3-mal halbierbar).",
-    9: "Eine Zahl ist durch 9 teilbar, wenn ihre Quersumme (Ziffernsumme) durch 9 teilbar ist.",
-    10: "Eine Zahl ist durch 10 teilbar, wenn sie auf 0 endet."
-  };
-
-  const getExplanationText = (num: number, rule: number): string => {
-    const isDiv = num % rule === 0;
-    const isEven = num % 2 === 0;
-    const lastDigit = num % 10;
-    const digits = num.toString().split('').map(Number);
-    const sum = digits.reduce((a, b) => a + b, 0);
-
-    if (rule === 2) {
-      return `${num} endet auf ${lastDigit}. Da ${lastDigit} ${isEven ? 'gerade' : 'ungerade'} ist, ist ${num} ${isDiv ? 'teilbar' : 'NICHT teilbar'}!`;
-    }
-    if (rule === 3) {
-      return `Quersumme von ${num} ist: ${digits.join('+')} = ${sum}. Da ${sum} ${sum % 3 === 0 ? 'durch 3 teilbar' : 'NICHT durch 3 teilbar'} ist, ist ${num} ${isDiv ? 'teilbar' : 'NICHT teilbar'}!`;
-    }
-    if (rule === 5) {
-      return `${num} endet auf ${lastDigit}. Da es ${isDiv ? 'auf 0 oder 5' : 'nicht auf 0 oder 5'} endet, ist ${num} ${isDiv ? 'teilbar' : 'NICHT teilbar'}!`;
-    }
-    if (rule === 10) {
-      return `${num} endet auf ${lastDigit}. Durch 10 teilbare Zahlen müssen auf 0 enden. Also ${isDiv ? 'teilbar' : 'NICHT teilbar'}!`;
-    }
-    if (rule === 9) {
-      return `Quersumme von ${num} ist: ${digits.join('+')} = ${sum}. Da ${sum} ${sum % 9 === 0 ? 'durch 9 teilbar' : 'NICHT durch 9 teilbar'} ist, ist ${num} ${isDiv ? 'teilbar' : 'NICHT teilbar'}!`;
-    }
-    if (rule === 6) {
-      const div3 = sum % 3 === 0;
-      return `${num} ist ${isEven ? 'gerade' : 'ungerade'} und hat Quersumme ${sum} (${div3 ? 'teilbar' : 'nicht teilbar'} durch 3). Da ${isDiv ? 'beide Bedingungen gelten' : 'nicht beide Bedingungen gelten'}, ist ${num} ${isDiv ? 'teilbar' : 'NICHT teilbar'}!`;
-    }
-    // General rule explanation fallback
-    return `${num} geteilt durch ${rule} ist ${Math.floor(num / rule)} ${isDiv ? 'ohne Rest' : `mit Rest ${num % rule}`}. Daher ${isDiv ? 'teilbar' : 'NICHT teilbar'}!`;
-  };
-
-  const generateNumbers = useCallback((rule: number, diff: 'easy' | 'medium' | 'hard') => {
-    const maxVal = diff === 'easy' ? 40 : diff === 'medium' ? 120 : 300;
-    const list: number[] = [];
-    while (list.length < 6) {
-      const isDiv = Math.random() > 0.45;
-      if (isDiv) {
-        const mult = Math.floor(Math.random() * Math.floor(maxVal / rule)) + 1;
-        const candidate = mult * rule;
-        if (candidate > 0 && candidate <= maxVal && !list.includes(candidate)) {
-          list.push(candidate);
-        }
-      } else {
-        const candidate = Math.floor(Math.random() * (maxVal - 10)) + 10;
-        if (candidate % rule !== 0 && !list.includes(candidate)) {
-          list.push(candidate);
-        }
-      }
-    }
-    setNumbersPool(list);
-    setExplanation(null);
-  }, []);
-
-  useEffect(() => {
-    generateNumbers(divRule, difficulty);
-  }, [divRule, difficulty, generateNumbers]);
-
-  const playRobotSound = (success: boolean) => {
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      if (success) {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.frequency.setValueAtTime(400, ctx.currentTime);
-        osc.frequency.linearRampToValueAtTime(1000, ctx.currentTime + 0.15);
-        gain.gain.setValueAtTime(0.08, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.2);
-      } else {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(120, ctx.currentTime);
-        gain.gain.setValueAtTime(0.15, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.22);
-      }
-    } catch {}
-  };
-
-  const handleEatNumber = (num: number) => {
-    const isDiv = num % divRule === 0;
-    const expl = getExplanationText(num, divRule);
-    setExplanation(expl);
-
-    if (isDiv) {
-      setScore(s => s + 10);
-      setEmotion('happy');
-      setFeedback(`🤖 Mjam! ${num} ist teilbar!`);
-      playRobotSound(true);
-      setNumbersPool(prev => prev.filter(n => n !== num));
-      setTimeout(() => setEmotion('idle'), 1600);
-    } else {
-      setScore(s => Math.max(0, s - 5));
-      setEmotion('sad');
-      setFeedback(`⚡ Autsch! ${num} liegt schwer im Magen!`);
-      playRobotSound(false);
-      setTimeout(() => setEmotion('idle'), 1600);
-    }
-  };
-
-  const changeRule = (rule: number) => {
-    setDivRule(rule);
-    setScore(0);
-    setEmotion('idle');
-    setExplanation(null);
-    setFeedback(`🤖 Neue Diät! Isst jetzt Teilbares durch ${rule}`);
-  };
-
-  const renderRobotSvg = () => {
-    let eyeColor = '#22d3ee'; // cyan
-    let mouthPath = 'M 15 28 Q 20 28 25 28'; // straight line
-    let antennaColor = '#f59e0b'; // amber
-
-    if (emotion === 'happy') {
-      eyeColor = '#10b981'; // emerald
-      mouthPath = 'M 15 26 Q 20 34 25 26'; // wide happy chewing smile
-      antennaColor = '#10b981';
-    } else if (emotion === 'sad') {
-      eyeColor = '#ef4444'; // red
-      mouthPath = 'M 15 31 Q 20 24 25 31'; // frown
-      antennaColor = '#ef4444';
-    }
-
-    return (
-      <svg className="w-16 h-24 filter drop-shadow-md" viewBox="0 0 40 50">
-        {/* Antenna */}
-        <line x1="20" y1="10" x2="20" y2="4" stroke="#64748b" strokeWidth="2" />
-        <circle cx="20" cy="3" r="2.5" fill={antennaColor} className="animate-pulse" />
-        <circle cx="20" cy="3" r="2" fill={antennaColor} />
-
-        {/* Head */}
-        <rect x="6" y="10" width="28" height="24" rx="4" fill="#cbd5e1" stroke="#475569" strokeWidth="2" />
-        {/* Screen around eyes */}
-        <rect x="9" y="13" width="22" height="10" rx="2" fill="#1e293b" />
-        
-        {/* Eyes */}
-        <circle cx="14" cy="18" r="2.5" fill={eyeColor} />
-        <circle cx="26" cy="18" r="2.5" fill={eyeColor} />
-
-        {/* Mouth */}
-        <path d={mouthPath} stroke="#1e293b" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-
-        {/* Neck */}
-        <rect x="16" y="34" width="8" height="4" fill="#94a3b8" />
-
-        {/* Body badge with division rule */}
-        <rect x="10" y="38" width="20" height="10" rx="2" fill="#475569" />
-        <text x="20" y="45.5" fill="#22d3ee" fontSize="7" fontWeight="black" textAnchor="middle" fontFamily="monospace">
-          :{divRule}
-        </text>
-      </svg>
-    );
-  };
-
-  return (
-    <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-y-auto overflow-x-hidden">
-      
-      {/* Top selection area */}
-      <div className="shrink-0 flex flex-col gap-1 mb-1 border-b border-slate-100 dark:border-zinc-800 pb-1">
-        <div className="flex justify-between items-start">
-          <div className="flex flex-col">
-            <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
-              🤖 Teilbarkeits-Roboter
-            </span>
-            {/* Difficulty picker */}
-            <div className="flex gap-1 mt-0.5">
-              {(['easy', 'medium', 'hard'] as const).map(d => (
-                <button
-                  key={d}
-                  onClick={() => setDifficulty(d)}
-                  className={`px-1.5 py-0.2 rounded text-[6.5px] font-black uppercase tracking-wide cursor-pointer transition-all ${
-                    difficulty === d
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : currentIsLight
-                        ? 'bg-slate-100 text-slate-500 hover:bg-slate-150'
-                        : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-750'
-                  }`}
-                >
-                  {d === 'easy' ? 'Leicht' : d === 'medium' ? 'Mittel' : 'Schwer'}
-                </button>
-              ))}
-            </div>
-          </div>
-          
-          {/* Rule picker */}
-          <div className="flex flex-wrap gap-0.5 max-w-[130px] justify-end">
-            {[2, 3, 4, 5, 6, 8, 9, 10].map(r => (
-              <button
-                key={r}
-                onClick={() => changeRule(r)}
-                className={`px-1 py-0.5 rounded font-black text-[6.5px] cursor-pointer transition-colors ${
-                  divRule === r ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-neutral-300'
-                }`}
-              >
-                :{r}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Dynamic rule of thumb hint display */}
-        <div className="bg-indigo-50/50 dark:bg-black/20 p-1 rounded-md text-left mt-0.5 border border-indigo-100/30">
-          <p className="text-[6.5px]/tight font-medium text-indigo-700 dark:text-indigo-300">
-            💡 <span className="font-extrabold uppercase">Regel für :{divRule}</span> — {rulesDict[divRule]}
-          </p>
-        </div>
-      </div>
-
-      <div className="flex-grow flex flex-row items-center justify-around gap-2 py-1 min-h-0">
-        
-        {/* Animated robot visualizer */}
-        <div className="shrink-0 flex items-center justify-center p-1">
-          {renderRobotSvg()}
-        </div>
-
-        {/* Numbers options */}
-        <div className="flex-1 grid grid-cols-3 gap-1 content-center scale-95">
-          {numbersPool.map((n, i) => (
-            <button
-              key={i}
-              onClick={() => handleEatNumber(n)}
-              className={`py-2 text-center rounded-lg border-2 font-black text-[10px] tracking-wide active:scale-90 transition-transform cursor-pointer ${
-                currentIsLight 
-                  ? 'bg-amber-100/90 border-amber-300 text-amber-900 shadow-xs hover:bg-amber-50' 
-                  : 'bg-zinc-800 border-zinc-700 text-slate-200 shadow-xs hover:bg-zinc-700'
-              }`}
-            >
-              {n}
-            </button>
-          ))}
-          {numbersPool.length === 0 && (
-            <button
-              onClick={() => generateNumbers(divRule, difficulty)}
-              className="col-span-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-[8px] rounded uppercase cursor-pointer"
-            >
-              Neu füllen 🍎
-            </button>
-          )}
-        </div>
-      </div>
-
-      {explanation && (
-        <div className="shrink-0 bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/25 p-1 rounded-lg text-left my-1">
-          <p className="text-[6.5px]/snug font-bold text-amber-600 dark:text-amber-400">
-            📖 Erklärung: {explanation}
-          </p>
-        </div>
-      )}
-
-      {/* Footer statistics */}
-      <div className="shrink-0 flex justify-between items-center bg-slate-100/30 dark:bg-black/10 px-2 py-0.5 rounded-lg border border-slate-200/20">
-        <span className="text-[7.5px] font-extrabold text-blue-500 truncate max-w-[130px]">{feedback}</span>
-        <span className="text-[7px] font-black uppercase text-emerald-500">Score: {score}</span>
-      </div>
-    </div>
-  );
-};
-
-
-// ========================================================
-// WIDGET: KLASSENZIEL-BAROMETER (Migriert & konsolidiert auf Klassenglas-Daten mit Barometer-Stil)
 // ========================================================
 export const ClasstargetWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ widget, currentIsLight }) => {
   const { app, setApp } = useApp();

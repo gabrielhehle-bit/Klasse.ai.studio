@@ -26,6 +26,8 @@ on:
       - 'src/components/cockpit/widgets/DiensteWidget.tsx'
       - 'src/components/cockpit/widgets/InstructionWidget.tsx'
       - 'src/components/cockpit/CockpitWidgetContents.tsx'
+      - 'src/components/cockpit/GeometryPracticeWidgets.tsx'
+      - 'src/lib/geometryPractice.ts'
       - 'src/components/cockpit/widgets/KidAttendanceWidget.tsx'
       - 'src/components/cockpit/widgets/TodoWidget.tsx'
       - 'src/components/cockpit/widgets/GroupsWidget.tsx'

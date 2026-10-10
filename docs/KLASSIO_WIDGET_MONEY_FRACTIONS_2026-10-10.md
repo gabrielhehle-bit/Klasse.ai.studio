@@ -10,7 +10,7 @@ Minimums: Geldbörse 760×560; the three Bruch aliases 640×560. Preset buttons 
 
 Local tests, TypeScript, production build and both complete Chrome routines must pass before merge. Physical touch hardware and listening remain open. Final CI/deployment evidence is recorded in the PR.
 
-Zusätzliche vorbereitete Browserfälle: Unterzahlung, Überzahlung, Münzen/Scheine entfernen und korrekt zahlen auf allen drei Stufen; exakte Wiederherstellung auch nach Fehlversuchen. Diese Browserfälle sind noch nicht ausgeführt. Upload/CI/Veröffentlichung bleiben durch die automatische Freigabeprüfung blockiert.
+Zusätzliche vorbereitete Browserfälle: Unterzahlung, Überzahlung, Münzen/Scheine entfernen und korrekt zahlen auf allen drei Stufen; exakte Wiederherstellung auch nach Fehlversuchen. Diese Fälle wurden im endgültigen Chrome-CI-Lauf ausgeführt und bestanden. PR #510 ist nach allen acht grünen Prüfungen veröffentlicht; Release `75707366b2a0ee6443a8fe431a8356de78e0ad35`, Production Deploy erfolgreich, öffentliche Release-SHA und Health bestätigt.
 
 ## Zusätzlicher lokaler Funktionsnachweis
 
@@ -18,6 +18,6 @@ Die aktiven React-Komponenten wurden in JSDOM tatsächlich gemountet, über echt
 
 Für jeden der drei Bruch-Katalogtypen wurden Kreis, Streifen und Vergleich über die tatsächlichen Einstellungen ausgewählt, Nenner und Zähler verändert, im Vergleich Bruch A/B getrennt bedient und nach vollständigem Unmount exakt wiederhergestellt. Alle neun Kombinationen bestanden. Zusätzlich wurden 7.744 Bruchvergleiche unabhängig über Kreuzmultiplikation und 264 Alias-Wiederherstellungen geprüft; 34 gezielte Bibliothekstests bestanden.
 
-Dieser DOM-Nachweis bestätigt Funktionen und Wiederherstellung, enthält aber keine Browser-, Layout-, Audio- oder Touch-Hardwareprüfung. Der lokale Chrome-Download lieferte kein verwendbares ZIP; echte Browser-CI bleibt offen. Die automatische Freigabeprüfung blockiert weiterhin den GitHub-Upload; es wurde nichts veröffentlicht.
+Dieser DOM-Nachweis bestätigt Funktionen und Wiederherstellung, enthält aber keine Browser-, Layout-, Audio- oder Touch-Hardwareprüfung. Der erste lokale Chrome-Download lieferte kein verwendbares ZIP. Anschließend wurde lokaler Chromium verfügbar; echte Browser-CI, Upload und Veröffentlichung wurden erfolgreich abgeschlossen (PR #510).
 
 Die Chrome-CI deckte verdeckte Bedienelemente unter dem Dock auf. Bruchvergleich und Geldbörse sind nun für 560 Pixel Rahmenhöhe kompakter angeordnet; alle Geldstück- und Direktaktionsflächen behalten mindestens 44 Pixel. Doppelte Fehlermeldungen in der Geldbörse entfallen zugunsten der bestehenden konkreten Haupt-Rückmeldung. Native Mindestgrößen werden im gemeinsamen Browserlauf ausdrücklich durch Ziehen geprüft.
