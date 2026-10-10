@@ -576,10 +576,10 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                       { type: "sentencebuilding", label: "✍️ Satzbau", desc: "Sätze aufbauen und Satzteile ordnen", category: "deutsch" },
                                       { type: "divrobot", label: "🤖 Teilbarkeits-Roboter", desc: "Teilbarkeit spielerisch untersuchen", category: "mathe" },
                                       { type: "classtarget", label: "🎯 Klassen-Ziel", desc: "Gemeinsame Ziele sichtbar verfolgen", category: "interactivity" },
-                                      { type: "fractiongrid", label: "◐ Bruch-Raster", desc: "Brüche im Raster visualisieren", category: "mathe" },
+                                      { type: "fractiongrid", label: "◐ Bruch-Raster", desc: "Bruchteile als gleichmäßigen Streifen darstellen", category: "mathe" },
                                       { type: "wordbuilder", label: "🔤 Wort-Baukasten", desc: "Wörter aus Bausteinen zusammensetzen", category: "deutsch" },
                                       { type: "soundmachine", label: "🎵 Klang-Maschine", desc: "Klänge und Signale im Unterricht einsetzen", category: "tools" },
-                                      { type: "multitrainer", label: "🧠 Multi-Trainer", desc: "Verschiedene Rechenarten trainieren", category: "mathe" },
+                                      { type: "multitrainer", label: "🧠 Multi-Trainer", desc: "Einmaleins und Umkehraufgaben trainieren", category: "mathe" },
                                       { type: "abcorder", label: "🔤 ABC-Sortierer", desc: "Wörter alphabetisch ordnen", category: "deutsch" },
                                       { type: "anschauung", label: "🔢 Zahlenraum-Studio", desc: "Zahlenräume anschaulich darstellen", category: "mathe" },
                                     ] as const;

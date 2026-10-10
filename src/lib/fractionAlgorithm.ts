@@ -220,6 +220,11 @@ export function migrateLegacyFractionWidget(
   legacyType: string,
   rawSettings?: any
 ): FractionVisualizerSettings {
+  // Migration only applies to legacy data; edited canonical settings take precedence.
+  if (rawSettings && ['circle', 'strip', 'compare'].includes(rawSettings.mode) && rawSettings.primary) {
+    return validateSettings(rawSettings);
+  }
+
   if (legacyType === 'fractioncake') {
     // Bruch-Torte -> Kreis
     const denom = typeof rawSettings?.denom === 'number'

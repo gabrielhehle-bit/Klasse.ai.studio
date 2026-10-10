@@ -193,7 +193,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
               type="button"
               onClick={() => onNumChange(f.numerator - 1)}
               disabled={f.numerator <= MIN_NUMERATOR}
-              aria-label="Zähler verringern"
+              aria-label={`${labelPrefix || 'Bruch'}: Zähler verringern`}
               className="w-11 h-11 flex items-center justify-center rounded-lg bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-30 disabled:pointer-events-none transition-colors active:scale-95"
             >
               <Minus className="w-4 h-4" />
@@ -205,7 +205,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
               type="button"
               onClick={() => onNumChange(f.numerator + 1)}
               disabled={f.numerator >= f.denominator}
-              aria-label="Zähler erhöhen"
+              aria-label={`${labelPrefix || 'Bruch'}: Zähler erhöhen`}
               className="w-11 h-11 flex items-center justify-center rounded-lg bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-30 disabled:pointer-events-none transition-colors active:scale-95"
             >
               <Plus className="w-4 h-4" />
@@ -221,7 +221,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
               type="button"
               onClick={() => onDenChange(f.denominator - 1)}
               disabled={f.denominator <= MIN_DENOMINATOR}
-              aria-label="Nenner verringern"
+              aria-label={`${labelPrefix || 'Bruch'}: Nenner verringern`}
               className="w-11 h-11 flex items-center justify-center rounded-lg bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-30 disabled:pointer-events-none transition-colors active:scale-95"
             >
               <Minus className="w-4 h-4" />
@@ -233,7 +233,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
               type="button"
               onClick={() => onDenChange(f.denominator + 1)}
               disabled={f.denominator >= MAX_DENOMINATOR}
-              aria-label="Nenner erhöhen"
+              aria-label={`${labelPrefix || 'Bruch'}: Nenner erhöhen`}
               className="w-11 h-11 flex items-center justify-center rounded-lg bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-30 disabled:pointer-events-none transition-colors active:scale-95"
             >
               <Plus className="w-4 h-4" />
@@ -391,7 +391,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
               key={idx}
               type="button"
               onClick={() => onSelect(p)}
-              className={`min-h-11 px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all ${
+              className={`min-h-11 px-2.5 py-1 text-xs font-semibold min-w-11 rounded-lg border transition-all ${
                 isSelected
                   ? 'bg-accent text-accent-text border-accent shadow-sm'
                   : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-accent hover:bg-accent-soft dark:hover:bg-accent-soft'
@@ -408,7 +408,9 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`min-h-full w-full flex flex-col p-3 sm:p-4 gap-3 select-none overflow-visible ${
+      data-practice-root data-fraction-mode={settings.mode} data-fraction-primary={`${settings.primary.numerator}/${settings.primary.denominator}`} data-fraction-secondary={`${sec.numerator}/${sec.denominator}`}
+      role="region" aria-label="Brüche darstellen und vergleichen"
+      className={`min-h-full w-full flex flex-col p-2 gap-2 select-none overflow-visible ${
         currentIsLight ? 'bg-white text-slate-800' : 'bg-slate-900 text-slate-100'
       }`}
     >
@@ -472,7 +474,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
                 isFullscreen ? 280 : isLarge ? 220 : 180
               )}
               <div className="text-xs text-slate-500 dark:text-slate-400">
-                Tippe auf Segmente zum Einfärben
+                Tippe bis zum gewünschten Anteil; mit dem Zähler kannst du auch Teile entfernen
               </div>
             </div>
 
@@ -528,7 +530,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
 
       {/* MODUS C: VERGLEICH */}
       {settings.mode === 'compare' && (
-        <div className="flex-1 flex flex-col gap-4">
+        <div className="flex-1 flex flex-col gap-2">
           {/* Umschalter Kreis vs Streifen im Vergleich */}
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
@@ -563,11 +565,11 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
           {/* Vergleichs-Flächen (Bruch A vs Bruch B) mit identischer Größe */}
           <div
             className={`flex-1 grid ${
-              isCompact ? 'grid-cols-1 gap-3' : 'grid-cols-2 gap-4'
+              isCompact ? 'grid-cols-1 gap-3' : 'grid-cols-2 gap-3'
             } items-stretch`}
           >
             {/* BRUCH A */}
-            <div className="flex flex-col items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 gap-3">
+            <div className="flex flex-col items-center justify-between p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 gap-2">
               <div className="flex items-center justify-between w-full">
                 <span className="text-xs font-bold text-accent tracking-wider">
                   BRUCH A
@@ -585,7 +587,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
                     settings.primary,
                     true,
                     (idx) => updatePrimary({ numerator: idx + 1 }),
-                    isCompact ? 130 : 150
+                    96
                   )}
                 </div>
               )}
@@ -599,7 +601,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
             </div>
 
             {/* BRUCH B */}
-            <div className="flex flex-col items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 gap-3">
+            <div className="flex flex-col items-center justify-between p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 gap-2">
               <div className="flex items-center justify-between w-full">
                 <span className="text-xs font-bold text-accent tracking-wider">
                   BRUCH B
@@ -617,7 +619,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
                     sec,
                     true,
                     (idx) => updateSecondary({ numerator: idx + 1 }),
-                    isCompact ? 130 : 150
+                    96
                   )}
                 </div>
               )}
@@ -635,7 +637,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
           {(() => {
             const comparison = getComparisonExplanation(settings.primary, sec);
             return (
-              <div className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 shrink-0">
+              <div className="flex flex-col items-center gap-2 p-2 rounded-2xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 shrink-0">
                 <div className="flex items-center justify-between w-full">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
@@ -684,7 +686,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
                 </div>
 
                 {settings.revealComparison && (
-                  <div className="w-full text-xs sm:text-sm text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 mt-1">
+                  <div className="w-full text-xs sm:text-sm text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-200 dark:border-slate-800">
                     <span className="font-semibold text-slate-700 dark:text-slate-200">
                       Didaktischer Rechenweg:{' '}
                     </span>

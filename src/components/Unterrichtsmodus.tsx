@@ -11567,6 +11567,7 @@ ${content}
                                     case "moneycalc":
                                       return (
                                         <MoneycalcWidgetContent
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           widget={widget}
                                           currentIsLight={currentIsLight}
                                         />

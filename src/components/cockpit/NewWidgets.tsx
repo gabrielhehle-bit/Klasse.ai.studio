@@ -1,3 +1,4 @@
+import {readWidgetLifecycleState,usePersistedWidgetLifecycleState} from '../../lib/widgetLifecycleState';
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { TableCheckWidget } from './widgets/TableCheckWidget';
 import { FairCallWidget } from './widgets/FairCallWidget';
@@ -84,17 +85,20 @@ export const MultitrainerWidgetContent: React.FC<{ widget: any, currentIsLight: 
 // ========================================================
 // 32. WIDGET: GELDBÖRSE (MoneycalcWidgetContent)
 // ========================================================
-export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boolean, onUpdate?: (updates:any)=>void }> = ({ widget, currentIsLight, onUpdate }) => {
   type MoneyItem = { id: number; value: number; label: string; isBill: boolean; color: string };
-  const [activeTab, setActiveTab] = useState<'count' | 'quiz'>('count');
-  const [total, setTotal] = useState<number>(0);
-  const [addedItems, setAddedItems] = useState<MoneyItem[]>([]);
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
-  const [quizTarget, setQuizTarget] = useState<number>(10);
-  const [feedback, setFeedback] = useState<string>('Lege Münzen und Scheine in die Geldbörse.');
-  const [quizSolved, setQuizSolved] = useState<boolean>(false);
-  const [quizChecked, setQuizChecked] = useState<boolean>(false);
-  const idCounter = useRef(0);
+  const saved = readWidgetLifecycleState(widget,'moneycalc',{activeTab:'count' as 'count'|'quiz',addedItems:[] as MoneyItem[],difficulty:'medium' as 'easy'|'medium'|'hard',quizTarget:10,feedback:'Lege Münzen und Scheine in die Geldbörse.',quizSolved:false,quizChecked:false});
+  const [activeTab,setActiveTab]=useState(saved.activeTab);
+  const [addedItems,setAddedItems]=useState(saved.addedItems);
+  // Derive the amount from the actual money: restoration and rapid taps cannot drift.
+  const total=addedItems.reduce((sum,item)=>sum+Math.round(item.value*100),0)/100;
+  const [difficulty,setDifficulty]=useState(saved.difficulty);
+  const [quizTarget,setQuizTarget]=useState(saved.quizTarget);
+  const [feedback,setFeedback]=useState(saved.feedback);
+  const [quizSolved,setQuizSolved]=useState(saved.quizSolved);
+  const [quizChecked,setQuizChecked]=useState(saved.quizChecked);
+  const idCounter=useRef(Math.max(0,...saved.addedItems.map(item=>item.id)));
+  usePersistedWidgetLifecycleState(widget,onUpdate,'moneycalc',{activeTab,addedItems,difficulty,quizTarget,feedback,quizSolved,quizChecked});
 
   const formatEuro = (value: number) =>
     value.toLocaleString('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -117,7 +121,6 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
   const startNewQuiz = useCallback((diff: 'easy' | 'medium' | 'hard') => {
     const target = createQuizTarget(diff);
     setQuizTarget(target);
-    setTotal(0);
     setAddedItems([]);
     setQuizSolved(false);
     setQuizChecked(false);
@@ -126,7 +129,6 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
 
   const enterCountMode = () => {
     setActiveTab('count');
-    setTotal(0);
     setAddedItems([]);
     setQuizSolved(false);
     setQuizChecked(false);
@@ -148,6 +150,7 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
+      setTimeout(()=>{void ctx.close().catch(()=>{});},300);
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.frequency.setValueAtTime(isBill ? 330 : 660, ctx.currentTime);
@@ -164,8 +167,8 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
     if (quizSolved && activeTab === 'quiz') return;
     idCounter.current += 1;
     setAddedItems((prev) => [...prev, { id: idCounter.current, value: val, label, isBill, color }]);
-    setTotal((current) => Number((current + val).toFixed(2)));
     setQuizChecked(false);
+    setFeedback('Geld ergänzt. Prüfe den neuen Betrag.');
     playMoneySound(isBill);
   };
 
@@ -178,8 +181,8 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
       next.splice(index, 1);
       return next;
     });
-    setTotal((current) => Number(Math.max(0, current - value).toFixed(2)));
     setQuizChecked(false);
+    setFeedback('Geld entfernt. Prüfe den neuen Betrag.');
   };
 
   const groupedItems = useMemo(() => {
@@ -211,7 +214,6 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
   };
 
   const resetMoney = () => {
-    setTotal(0);
     setAddedItems([]);
     setQuizSolved(false);
     setQuizChecked(false);
@@ -242,7 +244,7 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
   ];
 
   return (
-    <div className="min-h-full w-full p-3 sm:p-4 flex flex-col gap-3 select-none overflow-visible">
+    <div data-practice-root data-money-target={quizTarget} data-money-total={total} role="region" aria-label="Geld zählen und passend zahlen" className="min-h-full w-full p-2 flex flex-col gap-2 select-none overflow-visible">
       <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
         <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1" role="tablist" aria-label="Taschengeld-Modus">
           <button
@@ -289,7 +291,7 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
         )}
       </div>
 
-      <div className={`shrink-0 rounded-2xl border p-3 sm:p-4 ${
+      <div className={`shrink-0 rounded-2xl border p-1 ${
         currentIsLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-800/70 border-slate-700'
       }`}>
         <div className="grid grid-cols-2 gap-3 items-center">
@@ -308,7 +310,7 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
         </div>
 
         {activeTab === 'quiz' && (
-          <div className="mt-3">
+          <div className="mt-1.5">
             <div className="flex items-center justify-between gap-2 text-xs font-bold">
               <span className="text-slate-500 dark:text-slate-400">
                 {Math.abs(difference) < 0.001
@@ -319,7 +321,7 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
               </span>
               <span className="tabular-nums text-slate-500 dark:text-slate-400">{Math.round(targetProgress)}%</span>
             </div>
-            <div className="mt-1.5 h-2.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden" aria-label="Fortschritt zum Zielbetrag">
+            <div className="mt-1.5 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden" aria-label="Fortschritt zum Zielbetrag">
               <div
                 className={`h-full rounded-full transition-all duration-300 ${
                   difference < 0 ? 'bg-rose-500' : Math.abs(difference) < 0.001 ? 'bg-emerald-500' : 'bg-accent'
@@ -331,7 +333,7 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
         )}
       </div>
 
-      <div className={`shrink-0 min-h-20 rounded-2xl border border-dashed p-2 flex flex-wrap items-center justify-center gap-2 ${
+      <div className={`shrink-0 min-h-11 rounded-2xl border border-dashed p-1 flex flex-wrap items-center justify-center gap-1 ${
         groupedItems.length === 0
           ? 'border-slate-300 dark:border-slate-700'
           : 'border-accent/40 bg-accent-soft'
@@ -357,9 +359,8 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
         )}
       </div>
 
-      <div className="flex-1 flex flex-col gap-3 min-h-0">
-        <section>
-          <div className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Scheine</div>
+      <div className="flex-1 flex flex-col gap-2 min-h-0">
+        <section aria-label="Scheine">
           <div className="grid grid-cols-5 gap-2">
             {bills.map((bill) => (
               <button
@@ -377,8 +378,7 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
           </div>
         </section>
 
-        <section>
-          <div className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Münzen</div>
+        <section aria-label="Münzen">
           <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
             {coins.map((coin) => (
               <button
@@ -395,16 +395,6 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
           </div>
         </section>
       </div>
-
-      {activeTab === 'quiz' && quizChecked && !quizSolved && (
-        <div className={`shrink-0 rounded-xl border px-3 py-2 text-center text-sm font-bold ${
-          difference > 0
-            ? 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200'
-            : 'bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-200'
-        }`}>
-          {difference > 0 ? `Noch ${formatEuro(difference)} € ergänzen.` : `${formatEuro(Math.abs(difference))} € wieder wegnehmen.`}
-        </div>
-      )}
 
       <div className="shrink-0 flex flex-wrap gap-2">
         {activeTab === 'quiz' ? (
