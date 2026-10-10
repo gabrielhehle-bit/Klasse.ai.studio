@@ -238,7 +238,7 @@ function behaviorForStudent(app: any, studentId: string, range: Range) {
     ? app.behavior_stages
     : DEFAULT_BEHAVIOR_STAGES;
   const scoreByStage = new Map<string, number>(
-    stages.map((stage: any, index: number) => [String(stage.id), Math.max(1, 5 - index)])
+    stages.map((stage: any, index: number) => [String(stage.id), index + 1])
   );
   const configuredStart = parseIso(String(app.settings?.behaviorStartDate || ''));
   const values = (app.statusLog || [])
@@ -249,7 +249,7 @@ function behaviorForStudent(app: any, studentId: string, range: Range) {
     })
     .map((log: any) => scoreByStage.get(String(log.iconId)))
     .filter((value: unknown): value is number => typeof value === 'number' && Number.isFinite(value));
-  const positive = values.filter(value => value >= 4).length;
+  const positive = values.filter(value => value <= 2).length;
   return {
     values,
     average: mean(values),
@@ -316,6 +316,7 @@ export default function ClassDossier({ onSelectStudent }: Props) {
   const [customFrom, setCustomFrom] = useState(() => iso(addDays(new Date(), -29)));
   const [customTo, setCustomTo] = useState(() => iso(new Date()));
 
+  const behaviorScaleMax = Math.max(5, anyApp.behavior_stages?.length || DEFAULT_BEHAVIOR_STAGES.length);
   const students = useMemo(() => [...(app.schueler || [])], [app.schueler]);
   const subjects = useMemo(
     () => faecherFuerKlasse(app).filter(subject => !app.faecher?.length || app.faecher.includes(subject)),
@@ -372,7 +373,7 @@ export default function ClassDossier({ onSelectStudent }: Props) {
     const scoreValues = students.flatMap(student =>
       subjects.flatMap(subject => subjectAssessmentValues(anyApp, student.id, subject, targetRange).scores)
     );
-    const positiveBehavior = behaviorValues.filter(value => value >= 4).length;
+    const positiveBehavior = behaviorValues.filter(value => value <= 2).length;
 
     return {
       studentRows,
@@ -486,7 +487,7 @@ export default function ClassDossier({ onSelectStudent }: Props) {
     if (current.behaviorAverage !== null && previous.behaviorAverage !== null) {
       const delta = current.behaviorAverage - previous.behaviorAverage;
       if (Math.abs(delta) >= 0.15) {
-        items.push(`Verhalten ${delta > 0 ? 'entwickelt sich positiver' : 'liegt niedriger'} als im vorherigen Zeitraum (${delta > 0 ? '+' : ''}${fmt(delta)}).`);
+        items.push(`Verhalten ${delta < 0 ? 'entwickelt sich positiver' : 'zeigt mehr Unterstützungsbedarf'} als im vorherigen Zeitraum (${delta > 0 ? '+' : ''}${fmt(delta)}).`);
       }
     }
     if (students.length && current.participationCount > 0) {
@@ -544,7 +545,7 @@ export default function ClassDossier({ onSelectStudent }: Props) {
     },
     {
       label: 'Verhalten',
-      value: current.behaviorAverage === null ? '—' : `${fmt(current.behaviorAverage)} / 5`,
+      value: current.behaviorAverage === null ? '—' : `${fmt(current.behaviorAverage)} / ${behaviorScaleMax}`,
       sub: current.behaviorPositiveRate === null
         ? 'Noch keine Einträge'
         : `${current.behaviorCount} Einträge · ${fmt(current.behaviorPositiveRate, 0)} % positiv`,
@@ -706,7 +707,7 @@ export default function ClassDossier({ onSelectStudent }: Props) {
               <Activity size={17} className="text-emerald-600" />
               Verhalten
             </h2>
-            <p className="mt-1 text-xs text-[var(--text3)]">Aus den fünf Verhaltensstufen · 5 = sehr positiv</p>
+            <p className="mt-1 text-xs text-[var(--text3)]">1 = sehr positiv · {behaviorScaleMax} = Unterstützungsbedarf · gut oben</p>
           </div>
           <div className="mt-3 h-48">
             {timeline.some(item => item.behavior !== null) ? (
@@ -714,7 +715,7 @@ export default function ClassDossier({ onSelectStudent }: Props) {
                 <LineChart data={timeline} margin={{ top: 8, right: 10, left: -8, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="label" tick={{ fontSize: 10 }} minTickGap={20} />
-                  <YAxis domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} width={24} tick={{ fontSize: 10 }} />
+                  <YAxis reversed interval={0} domain={[1, behaviorScaleMax]} ticks={Array.from({ length: behaviorScaleMax }, (_, index) => index + 1)} width={24} tick={{ fontSize: 10 }} />
                   <Tooltip formatter={(value: any) => [fmt(Number(value)), 'Verhalten']} />
                   <Line type="monotone" dataKey="behavior" stroke="#059669" strokeWidth={2.5} dot={{ r: 2.5 }} connectNulls />
                 </LineChart>
@@ -894,7 +895,7 @@ export default function ClassDossier({ onSelectStudent }: Props) {
                     {row.grade !== null ? `Ø ${fmt(row.grade)}` : row.performance !== null ? `${fmt(row.performance, 0)} %` : '—'}
                   </td>
                   <td className="border-b border-[var(--border)]/70 px-3 py-2.5 font-semibold text-[var(--text2)]">
-                    {row.behavior === null ? '—' : `${fmt(row.behavior)} / 5`}
+                    {row.behavior === null ? '—' : `${fmt(row.behavior)} / ${behaviorScaleMax}`}
                   </td>
                   <td className="border-b border-[var(--border)]/70 px-3 py-2.5 text-right">
                     {onSelectStudent && (

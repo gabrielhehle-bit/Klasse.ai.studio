@@ -2180,6 +2180,20 @@ async function main() {
     console.log('✓ Widget block: groups stay in widget, real wheel winner restored, all star children reachable without inner scrolling.');
     console.log('✓ Widget block: 12 widgets checked; stopwatch pause and traffic light mode survive restore.');
     console.log('✓ Audit regression: calculator keys/result/restore, compass layout at 100/125/150%, QR alias/readability/title/mode restore');
+    // Class behavior uses the pupil scale: 1 is positive and must be above 5.
+    await clickSelector(client, '[aria-label="Weitere Optionen und Layout-Werkzeuge"]');
+    const publicBehaviorOption='[aria-label="Verhalten der Kinder öffentlich in der Schülerliste anzeigen"]';
+    await waitFor(client, 'public behavior option is visible', `Boolean(document.querySelector(${q(publicBehaviorOption)}))`);
+    if(!await evaluate(client, `document.querySelector(${q(publicBehaviorOption)}).checked`))await clickSelector(client,publicBehaviorOption);
+    await clickSelector(client, '[aria-label="Weitere Optionen und Layout-Werkzeuge"]');
+    const behaviorButton='[aria-label="Öffentliche Schülerliste und Pluspunkte"] button[aria-label^="Verhalten von"]';
+    await waitFor(client,'public behavior controls available',`Boolean(document.querySelector(${q(behaviorButton)}))`);
+    const behaviorChild=await evaluate(client,`document.querySelector(${q(behaviorButton)}).getAttribute('aria-label').match(/^Verhalten von (.+):/)[1]`);
+    await waitFor(client,'synthetic behavior starts at neutral',`document.querySelector(${q(behaviorButton)}).getAttribute('aria-label').includes(': OK;')`);
+    for(const stageLabel of ['Achtung','Stopp','Super','Gut','OK','Achtung']){
+      await clickSelector(client,behaviorButton);
+      await waitFor(client,'actual behavior stage '+stageLabel,`document.querySelector(${q(behaviorButton)}).getAttribute('aria-label').includes(${q(': '+stageLabel+';')})`);
+    }
     await openPage(client, 'Klasse');
     await waitFor(client, 'class overview visible', `Boolean(document.querySelector('[data-class-hub] h1'))`);
     for (const width of [360, 820, 1360]) {
@@ -2188,6 +2202,20 @@ async function main() {
       const layout = await evaluate(client, `(() => {const hub=document.querySelector('[data-class-hub]');const cards=Array.from(hub.querySelectorAll('section button'));return {overflow:document.documentElement.scrollWidth>innerWidth+3,cardCount:cards.length,smallTarget:cards.some(card=>card.getBoundingClientRect().height<44),heading:hub.querySelector('h1').textContent.trim()};})()`);
       if(layout.overflow || layout.smallTarget || layout.cardCount < 6 || !layout.heading) throw new Error('Class overview layout failed at '+width+': '+JSON.stringify(layout));
     }
+    await clickButton(client,'Klassendossier');
+    await waitFor(client,'class dossier opens',`Boolean(document.querySelector('[data-class-dossier]'))`);
+    await clickSelector(client,'[data-class-period="today"]');
+    // Existing neutral daily record plus real changes 4,5,1,2,3,4: 22/7 = 3.1, not 2.9.
+    await waitFor(client,'class dossier preserves actual stage numbering',`Array.from(document.querySelectorAll('[data-class-student-table] tbody tr')).some(row=>row.firstElementChild.textContent.startsWith(${q(behaviorChild)}) && row.children[5].textContent.trim()==='3,1 / 5')`);
+    await waitFor(client,'positive class share still counts the first two stages',`document.querySelector('[aria-label="Klassendossier Kennzahlen"]').textContent.includes('18 Einträge · 11 % positiv')`);
+    for(const width of [360,820,1360]){
+      await client.send('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:false});
+      await evaluate(client,`document.querySelector('[data-class-chart="behavior"]').scrollIntoView({block:'center'})`);
+      await waitFor(client,'class behavior good above poor at '+width,`(() => {const root=document.querySelector('[data-class-chart="behavior"]'),ticks=Array.from(root.querySelectorAll('.recharts-cartesian-axis-tick-value'));const good=ticks.find(t=>t.textContent==='1'),poor=ticks.find(t=>t.textContent==='5');return good&&poor&&good.getBoundingClientRect().top<poor.getBoundingClientRect().top&&root.textContent.includes('1 = sehr positiv');})()`);
+      await saveScreenshot(client,SCREENSHOT_PATH.replace('.png','-class-behavior-'+width+'.png'));
+    }
+    await clickButton(client,'Zur Klassenübersicht',true);
+    await waitFor(client,'class overview returns after behavior check',`Boolean(document.querySelector('[data-class-hub] h1'))`);
     await saveScreenshot(client);
     await evaluate(client, `document.querySelector('[data-class-hub] header button').click()`);
     await waitFor(client, 'class attendance shortcut opens attendance', `Array.from(document.querySelectorAll('button[aria-current="page"]')).some(button=>button.textContent.includes('Anwesenheit'))`);
