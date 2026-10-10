@@ -7977,6 +7977,7 @@ export const DictionaryWidgetContent: React.FC<{
       }`}
       role="region"
       aria-label="Bildwörterbuch"
+      data-wordplay-root
     >
       {showSettings && (
         <div className={`absolute inset-0 z-30 flex min-h-0 flex-col overflow-y-auto p-4 ${
@@ -14242,7 +14243,7 @@ const PATTERNS_BY_LEVEL: Record<'easy' | 'medium' | 'hard' | 'extreme', LogikPat
   ],
   hard: [
     { sequence: ['⬆️', '➡️', '⬇️', '⬅️', '⬆️'], options: ['⬆️', '➡️', '⬇️', '⬅️'], correct: '➡️' },
-    { sequence: ['🌑', '🌒', '🌓', '🌔', '🌕'], options: ['🌑', '🌒', '🌓', '🌕'], correct: '🌑' },
+    { sequence: ['🌑', '🌒', '🌓', '🌔', '🌕'], options: ['🌖', '🌒', '🌓', '🌕'], correct: '🌖' },
     { sequence: ['🥚', '🐣', '🐥', '🐔', '🥚'], options: ['🥚', '🐣', '🐥', '🐔'], correct: '🐣' },
     { sequence: ['🥇', '🥈', '🥉', '🥇', '🥈'], options: ['🥇', '🥈', '🥉', '🏆'], correct: '🥉' },
     { sequence: ['🌧️', '🌈', '☀️', '🌧️', '🌈'], options: ['🌧️', '🌈', '☀️', '❄️'], correct: '☀️' },
@@ -14285,6 +14286,8 @@ export const PatternmakerWidgetContent: React.FC<{
   const didRestoreRef = useRef(hasWidgetLifecycleState(widget, "patternmaker"));
   const previousDifficultyRef = useRef(difficulty);
 
+  const [solved, setSolved] = useState(() => lifecycle.feedback.includes("Absolut richtig"));
+
   usePersistedWidgetLifecycleState(widget, onUpdate, "patternmaker", {
     difficulty,
     aiPatterns,
@@ -14312,6 +14315,7 @@ export const PatternmakerWidgetContent: React.FC<{
     setAiPatterns(null);
     setPatternIdx(0);
     setStreak(0);
+    setSolved(false);
     setFeedback("Finde das fehlende Symbol!");
     setAiStatus("idle");
     setAiError(null);
@@ -14333,6 +14337,7 @@ export const PatternmakerWidgetContent: React.FC<{
         setAiPatterns(result.tasks);
         setPatternIdx(0);
         setStreak(0);
+    setSolved(false);
         setFeedback("✨ Frische KI-Muster geladen!");
         setAiStatus("success");
       } else {
@@ -14362,12 +14367,14 @@ export const PatternmakerWidgetContent: React.FC<{
         osc.frequency.setValueAtTime(600, ctx.currentTime);
         gain.gain.setValueAtTime(0.15, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc.onended = () => { void ctx.close(); };
         osc.start();
         osc.stop(ctx.currentTime + 0.3);
       } else {
         osc.frequency.setValueAtTime(220, ctx.currentTime);
         gain.gain.setValueAtTime(0.2, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+        osc.onended = () => { void ctx.close(); };
         osc.start();
         osc.stop(ctx.currentTime + 0.4);
       }
@@ -14375,32 +14382,31 @@ export const PatternmakerWidgetContent: React.FC<{
   };
 
   const handleGuess = (item: string) => {
+    if (solved) return;
     if (item === activePattern.correct) {
+      setSolved(true);
       setStreak(prev => prev + 1);
       setFeedback("🌟 Klasse! Absolut richtig!");
       triggerSound(true);
-      setTimeout(() => {
-        setPatternIdx((patternIdx + 1) % activePatterns.length);
-        setFeedback("Finde das nächste Glied!");
-      }, 1000);
     } else {
       setStreak(0);
+      setSolved(false);
       setFeedback("❌ Schade, versuche es nochmal!");
       triggerSound(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-y-auto overflow-x-hidden">
+    <div data-wordplay-root data-pattern-correct={activePattern.correct} data-pattern-solved={solved} data-pattern-streak={streak} className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-hidden">
       <div className="shrink-0 flex flex-col gap-1 mb-1 pb-1 border-b border-slate-100 dark:border-zinc-800">
         <div className="flex justify-between items-start">
           <div className="flex flex-col">
-            <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
+            <span className={`text-sm font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
               🎨 Logische Mustermacher {aiPatterns ? "✨ KI" : ""}
             </span>
-            <span className="text-[7px] font-mono opacity-80">Sequenzen & logische Folgen</span>
+            <span className="text-xs font-mono opacity-80">Sequenzen & logische Folgen</span>
           </div>
-          <span className="text-[8px] font-mono font-black border px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-800 dark:bg-zinc-800 dark:text-neutral-200">
+          <span className="text-xs font-mono font-black border px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-800 dark:bg-zinc-800 dark:text-neutral-200">
             Serie: {streak} 🔥
           </span>
         </div>
@@ -14409,10 +14415,10 @@ export const PatternmakerWidgetContent: React.FC<{
         <div className="flex justify-between items-center gap-1 mt-1">
           <div className="flex gap-0.5">
             {(['easy', 'medium', 'hard', 'extreme'] as const).map(d => (
-              <button
+              <button type="button"
                 key={d}
                 onClick={() => setDifficulty(d)}
-                className={`px-1 py-0.5 rounded text-[6.5px] font-black uppercase tracking-wide cursor-pointer transition-all ${
+                className={`min-h-11 min-w-11 px-2 py-1 rounded text-xs font-black uppercase tracking-wide cursor-pointer transition-all ${
                   difficulty === d && !aiPatterns
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : currentIsLight
@@ -14425,11 +14431,11 @@ export const PatternmakerWidgetContent: React.FC<{
             ))}
           </div>
 
-          <button 
+          <button type="button"
             onClick={loadAIPatterns}
             disabled={isLoadingAI}
             title={`Generiert Muster per KI für Level ${difficulty}`}
-            className={`px-1.5 py-0.5 rounded text-[6.5px] font-bold flex items-center gap-0.5 transition-all text-white ${
+            className={`min-h-11 min-w-11 px-2 py-1 rounded text-xs font-bold flex items-center gap-0.5 transition-all text-white ${
               isLoadingAI ? 'bg-indigo-300 animate-pulse' : 'bg-amber-500 hover:bg-amber-600 active:scale-95 cursor-pointer'
             }`}
           >
@@ -14438,10 +14444,10 @@ export const PatternmakerWidgetContent: React.FC<{
           </button>
         </div>
         {aiStatus !== "idle" && aiStatus !== "success" && (
-          <div role="status" aria-live="polite" className="flex items-center justify-between gap-1 text-[7px] text-amber-700 dark:text-amber-300">
+          <div role="status" aria-live="polite" className="flex items-center justify-between gap-1 text-xs text-amber-700 dark:text-amber-300">
             <span>{aiError || getWidgetAiStatusMessage(aiStatus)}</span>
             {aiStatus !== "loading" && (
-              <button type="button" onClick={loadAIPatterns} className="underline font-bold cursor-pointer">Erneut versuchen</button>
+              <button type="button" onClick={loadAIPatterns} className="min-h-11 min-w-11 underline font-bold cursor-pointer">Erneut versuchen</button>
             )}
           </div>
         )}
@@ -14479,8 +14485,10 @@ export const PatternmakerWidgetContent: React.FC<{
               key={`${patternIdx}-opt-${i}`}
               whileHover={{ scale: 1.06 }}
               whileTap={{ scale: 0.94 }}
+              data-pattern-choice={option}
+              disabled={solved}
               onClick={() => handleGuess(option)}
-              className={`p-2.5 text-center text-lg rounded-xl bg-white hover:bg-slate-50 dark:bg-zinc-850 border border-slate-150 dark:border-zinc-750 text-slate-800 dark:text-neutral-100 cursor-pointer shadow-sm transition-colors`}
+              className={`min-h-14 min-w-11 p-2.5 text-center text-2xl rounded-xl bg-white hover:bg-slate-50 dark:bg-zinc-850 border border-slate-150 dark:border-zinc-750 text-slate-800 dark:text-neutral-100 cursor-pointer shadow-sm transition-colors`}
             >
               {option}
             </motion.button>
@@ -14489,7 +14497,8 @@ export const PatternmakerWidgetContent: React.FC<{
       </div>
 
       <div className="shrink-0 text-center min-h-6">
-        <p className="text-[8.5px] font-black uppercase text-blue-500 tracking-wider animate-pulse">{feedback}</p>
+        <p role="status" aria-live="polite" className="text-sm font-black uppercase text-blue-500 tracking-wider animate-pulse">{feedback}</p>
+        {solved && <button type="button" className="min-h-11 mt-2 w-full rounded-xl bg-indigo-600 text-white text-sm font-bold" onClick={() => { setPatternIdx(prev => (prev + 1) % activePatterns.length); setSolved(false); setFeedback("Finde das nächste Glied!"); }}>Nächstes Muster</button>}
       </div>
     </div>
   );
@@ -17133,13 +17142,6 @@ export const AlphabetsoupWidgetContent: React.FC<{
     }
   }, [startNewSoup, difficulty, activeDictionary]);
 
-  // Reset when difficulty changes
-  useEffect(() => {
-    setAiDictionary(null);
-    setAiStatus("idle");
-    setAiError(null);
-  }, [difficulty]);
-
   const triggerBubblePop = (success: boolean) => {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -17154,6 +17156,7 @@ export const AlphabetsoupWidgetContent: React.FC<{
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
         osc.connect(gain);
         gain.connect(ctx.destination);
+        osc.onended = () => { void ctx.close(); };
         osc.start();
         osc.stop(ctx.currentTime + 0.12);
       } else {
@@ -17163,6 +17166,7 @@ export const AlphabetsoupWidgetContent: React.FC<{
         gain.gain.setValueAtTime(0.1, ctx.currentTime);
         osc.connect(gain);
         gain.connect(ctx.destination);
+        osc.onended = () => { void ctx.close(); };
         osc.start();
         osc.stop(ctx.currentTime + 0.2);
       }
@@ -17170,7 +17174,7 @@ export const AlphabetsoupWidgetContent: React.FC<{
   };
 
   const handleBubbleClick = (item: { char: string, id: number }) => {
-    if (consumedIds.includes(item.id)) return;
+    if (consumedIds.includes(item.id) || userInput === targetWord) return;
 
     const nextInput = userInput + item.char;
     const newConsumed = [...consumedIds, item.id];
@@ -17188,25 +17192,25 @@ export const AlphabetsoupWidgetContent: React.FC<{
 
     if (nextInput === targetWord) {
       setFeedback(`🎉 Perfekt Gelöst! "${targetWord}" ist geschafft!`);
-      setTimeout(() => startNewSoup(), 1200);
+
     } else {
       setFeedback("👍 Richtig! Finde den nächsten Buchstaben!");
     }
   };
 
   return (
-    <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-y-auto overflow-x-hidden">
+    <div data-wordplay-root data-soup-word={targetWord} data-soup-input={userInput} className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-hidden">
       <div className="shrink-0 flex flex-col gap-1 mb-1 pb-1 border-b border-slate-100 dark:border-zinc-800">
         <div className="flex justify-between items-center">
           <div className="flex flex-col">
-            <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
+            <span className={`text-sm font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
               🥣 Buchstaben-Suppe {aiDictionary ? "✨ KI" : ""}
             </span>
-            <span className="text-[7px] font-mono opacity-80">Schwimmende Buchstaben tippen</span>
+            <span className="text-xs font-mono opacity-80">Schwimmende Buchstaben tippen</span>
           </div>
-          <button
+          <button type="button"
             onClick={startNewSoup}
-            className="px-1.5 py-0.5 rounded bg-indigo-500 hover:bg-indigo-600 text-white font-black text-[6.5px] uppercase tracking-wider cursor-pointer active:scale-95"
+            className="min-h-11 min-w-11 px-2 py-1 rounded bg-indigo-500 hover:bg-indigo-600 text-white font-black text-xs uppercase tracking-wider cursor-pointer active:scale-95"
           >
             Mischen 🍲
           </button>
@@ -17216,10 +17220,10 @@ export const AlphabetsoupWidgetContent: React.FC<{
         <div className="flex justify-between items-center gap-1 mt-1">
           <div className="flex gap-0.5">
             {(['easy', 'medium', 'hard', 'extreme'] as const).map(d => (
-              <button
+              <button type="button"
                 key={d}
-                onClick={() => setDifficulty(d)}
-                className={`px-1.5 py-0.5 rounded text-[6.5px] font-black uppercase tracking-wide cursor-pointer transition-all ${
+                onClick={() => { setAiDictionary(null); setAiStatus("idle"); setAiError(null); setDifficulty(d); }}
+                className={`min-h-11 min-w-11 px-2 py-1 rounded text-xs font-black uppercase tracking-wide cursor-pointer transition-all ${
                   difficulty === d && !aiDictionary
                     ? 'bg-emerald-600 text-white shadow-xs'
                     : currentIsLight
@@ -17232,11 +17236,11 @@ export const AlphabetsoupWidgetContent: React.FC<{
             ))}
           </div>
 
-          <button 
+          <button type="button"
             onClick={loadAISoup}
             disabled={isLoadingAI}
             title={`Generiert Wörter per KI für Level ${difficulty}`}
-            className={`px-1.5 py-0.5 rounded text-[6.5px] font-bold flex items-center gap-0.5 transition-all text-white ${
+            className={`min-h-11 min-w-11 px-2 py-1 rounded text-xs font-bold flex items-center gap-0.5 transition-all text-white ${
               isLoadingAI ? 'bg-indigo-300 animate-pulse' : 'bg-amber-500 hover:bg-amber-600 active:scale-95 cursor-pointer'
             }`}
           >
@@ -17245,10 +17249,10 @@ export const AlphabetsoupWidgetContent: React.FC<{
           </button>
         </div>
         {aiStatus !== "idle" && aiStatus !== "success" && (
-          <div role="status" aria-live="polite" className="flex items-center justify-between gap-1 text-[7px] text-amber-700 dark:text-amber-300">
+          <div role="status" aria-live="polite" className="flex items-center justify-between gap-1 text-xs text-amber-700 dark:text-amber-300">
             <span>{aiError || getWidgetAiStatusMessage(aiStatus)}</span>
             {aiStatus !== "loading" && (
-              <button type="button" onClick={loadAISoup} className="underline font-bold cursor-pointer">Erneut versuchen</button>
+              <button type="button" onClick={loadAISoup} className="min-h-11 min-w-11 underline font-bold cursor-pointer">Erneut versuchen</button>
             )}
           </div>
         )}
@@ -17258,33 +17262,17 @@ export const AlphabetsoupWidgetContent: React.FC<{
       <div className="flex-grow flex flex-col justify-between relative min-h-0 bg-amber-50/10 dark:bg-zinc-900/40 rounded-2xl border-2 border-amber-500/30 overflow-hidden py-1 mb-1">
         
         {/* Interactive floating soup basin */}
-        <div className="relative flex-grow min-h-[140px] z-10 overflow-hidden">
+        <div className="grid grid-cols-6 content-center gap-2 p-3 flex-grow min-h-0 z-10 overflow-hidden">
           {letters.map((bubble, i) => {
             const isConsumed = consumedIds.includes(bubble.id);
             return (
               <motion.button
                 key={`${bubble.id}-${bubble.char}`}
                 onClick={() => handleBubbleClick(bubble)}
-                animate={isConsumed ? {
-                  scale: [1, 1.4, 0],
-                  opacity: 0,
-                } : {
-                  x: [0, Math.sin(i + 1) * 12, -Math.sin(i + 2) * 12, 0],
-                  y: [0, Math.cos(i + 2) * 10, -Math.cos(i + 1) * 10, 0],
-                }}
-                transition={isConsumed ? {
-                  duration: 0.25,
-                } : {
-                  repeat: Infinity,
-                  duration: 5 + (i % 3) * 2,
-                  ease: "easeInOut"
-                }}
-                className={`absolute w-7 h-7 rounded-full flex items-center justify-center font-black text-[11px] border border-white/60 shadow-md cursor-pointer transition-colors ${bubble.color}`}
-                style={{
-                  left: `${bubble.x}%`,
-                  top: `${bubble.y}%`,
-                  pointerEvents: isConsumed ? 'none' : 'auto',
-                }}
+                data-soup-letter={bubble.char}
+                disabled={isConsumed || userInput === targetWord}
+                aria-label={`Buchstabe ${bubble.char} wählen`}
+                className={`min-h-11 min-w-11 rounded-xl flex items-center justify-center font-black text-xl border border-white/60 shadow-sm disabled:opacity-30 ${bubble.color}`}
               >
                 {bubble.char}
               </motion.button>
@@ -17294,20 +17282,20 @@ export const AlphabetsoupWidgetContent: React.FC<{
 
         {/* Word Board HUD */}
         <div className="shrink-0 bg-amber-500/10 dark:bg-zinc-900 py-1.5 px-3 text-center border-t border-amber-500/20 z-20">
-          <span className="text-[7px] text-amber-600 dark:text-amber-400 uppercase block font-extrabold tracking-wider">Gesuchtes Wort:</span>
+          <span className="text-xs text-amber-600 dark:text-amber-400 uppercase block font-extrabold tracking-wider">Gesuchtes Wort:</span>
           <span className="text-sm font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest block py-0.5">
             {targetWord}
           </span>
           <div className="inline-flex items-center gap-1.5 bg-white dark:bg-zinc-800 border border-slate-100 dark:border-zinc-700 rounded-full px-3 py-0.5 mt-0.5 shadow-inner">
-            <span className="text-[7px] text-slate-400 uppercase font-black">Eingabe:</span>
-            <span className="text-[9px] font-mono font-black text-indigo-600 dark:text-indigo-400 tracking-wider">
+            <span className="text-xs text-slate-400 uppercase font-black">Eingabe:</span>
+            <span className="text-sm font-mono font-black text-indigo-600 dark:text-indigo-400 tracking-wider">
               {userInput || "___"}
             </span>
           </div>
         </div>
       </div>
 
-      <p className="shrink-0 text-[7px] font-extrabold text-blue-500 text-center truncate mt-0.5">{feedback}</p>
+      <p role="status" aria-live="polite" className="shrink-0 text-xs font-extrabold text-blue-500 text-center whitespace-normal mt-0.5">{feedback}</p>
     </div>
   );
 };
@@ -17645,10 +17633,10 @@ export const MorsecodeWidgetContent: React.FC<{
     isAiActive: false,
     showGuide: false,
   });
-  const [isGlowing, setIsGlowing] = useState<boolean>(() => lifecycle.isGlowing);
+  const [isGlowing, setIsGlowing] = useState<boolean>(false);
   const [challengeWord, setChallengeWord] = useState<string>(() => lifecycle.challengeWord);
   const [userInput, setUserInput] = useState<string>(() => lifecycle.userInput);
-  const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback);
+  const [feedback, setFeedback] = useState<string>(() => lifecycle.feedback === "Taschenlampe blinkt... 🔦" ? "Wiedergabe unterbrochen – du kannst das Wort erneut abspielen." : lifecycle.feedback);
   const [aiStatus, setAiStatus] = useState<WidgetAiStatus>(() => lifecycle.aiStatus);
   const [aiError, setAiError] = useState<string | null>(() => lifecycle.aiError);
   const isAiLoading = aiStatus === "loading";
@@ -17656,7 +17644,6 @@ export const MorsecodeWidgetContent: React.FC<{
   const [showGuide, setShowGuide] = useState<boolean>(() => lifecycle.showGuide);
 
   usePersistedWidgetLifecycleState(widget, onUpdate, "morsecode", {
-    isGlowing,
     challengeWord,
     userInput,
     feedback,
@@ -17666,9 +17653,20 @@ export const MorsecodeWidgetContent: React.FC<{
     showGuide,
   });
 
+  const playbackTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const stopPlayback = () => {
+    playbackTimers.current.forEach(clearTimeout);
+    playbackTimers.current = [];
+    setIsGlowing(false);
+    setIsPlaying(false);
+  };
+  useEffect(() => () => { playbackTimers.current.forEach(clearTimeout); }, []);
+
   const dictionary = useMemo(() => ["SOS", "JA", "HI", "SCHULE", "ZEIT", "KIND"], []);
 
   const triggerChallenge = () => {
+    stopPlayback();
     setIsAiActive(false);
     setAiStatus("idle");
     setAiError(null);
@@ -17692,6 +17690,7 @@ export const MorsecodeWidgetContent: React.FC<{
       
       osc.connect(gain);
       gain.connect(ctx.destination);
+      osc.onended = () => { void ctx.close(); };
       osc.start();
       osc.stop(ctx.currentTime + duration);
     } catch {}
@@ -17733,6 +17732,8 @@ export const MorsecodeWidgetContent: React.FC<{
   };
 
   const runSecretMorseFlash = () => {
+    stopPlayback();
+    setIsPlaying(true);
     setFeedback("Taschenlampe blinkt... 🔦");
     let cumulativeDelay = 100;
 
@@ -17741,23 +17742,24 @@ export const MorsecodeWidgetContent: React.FC<{
       morsePattern.split("").forEach((sig) => {
         const activeTime = sig === '.' ? 150 : 380;
         
-        setTimeout(() => {
+        playbackTimers.current.push(setTimeout(() => {
           setIsGlowing(true);
           playCustomBeep(650, activeTime / 1000);
-        }, cumulativeDelay);
+        }, cumulativeDelay));
 
-        setTimeout(() => {
+        playbackTimers.current.push(setTimeout(() => {
           setIsGlowing(false);
-        }, cumulativeDelay + activeTime);
+        }, cumulativeDelay + activeTime));
 
         cumulativeDelay += activeTime + 180;
       });
       cumulativeDelay += 350;
     });
 
-    setTimeout(() => {
+    playbackTimers.current.push(setTimeout(() => {
+      setIsPlaying(false);
       setFeedback("Wie lautete das geheime blinkende Wort?");
-    }, cumulativeDelay);
+    }, cumulativeDelay));
   };
 
   const checkTranslate = () => {
@@ -17782,18 +17784,18 @@ export const MorsecodeWidgetContent: React.FC<{
   };
 
   return (
-    <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-y-auto overflow-x-hidden">
+    <div data-wordplay-root data-morse-playing={isPlaying} className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-hidden">
       <div className="shrink-0 flex justify-between items-center mb-1">
         <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
+          <span className={`text-sm font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
             🔦 Morse-Station {isAiActive ? "✨ AI" : ""}
           </span>
-          <span className="text-[7.5px] font-mono opacity-80">Codes mit Licht und Beep</span>
+          <span className="text-sm font-mono opacity-80">Codes mit Licht und Beep</span>
         </div>
         <div className="flex gap-1">
-          <button
+          <button type="button"
             onClick={() => setShowGuide(!showGuide)}
-            className={`px-1.5 py-0.5 rounded font-black text-[7px] cursor-pointer transition-colors ${
+            className={`min-h-11 min-w-11 px-2 py-1 rounded font-black text-xs cursor-pointer transition-colors ${
               showGuide
                 ? 'bg-amber-500 text-white'
                 : 'bg-teal-500 hover:bg-teal-600 text-white'
@@ -17801,25 +17803,25 @@ export const MorsecodeWidgetContent: React.FC<{
           >
             📚 {showGuide ? "Spiel" : "Anleitung"}
           </button>
-          <button
+          <button type="button"
             onClick={fetchAiWord}
             disabled={isAiLoading}
-            className="px-1.5 py-0.5 rounded bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-extrabold text-[7px]"
+            className="min-h-11 min-w-11 px-2 py-1 rounded bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-extrabold text-xs"
           >
             {isAiLoading ? "Funk... 📻" : "✨ KI-Code"}
           </button>
-          <button
+          <button type="button"
             onClick={triggerChallenge}
-            className="px-1.5 py-0.5 rounded bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-[7px] cursor-pointer"
+            className="min-h-11 min-w-11 px-2 py-1 rounded bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-xs cursor-pointer"
           >
             Standard 🔮
           </button>
         </div>
       {aiStatus !== "idle" && aiStatus !== "success" && (
-        <div role="status" aria-live="polite" className="flex items-center justify-between gap-1 text-[7px] text-amber-700 dark:text-amber-300">
+        <div role="status" aria-live="polite" className="flex items-center justify-between gap-1 text-xs text-amber-700 dark:text-amber-300">
           <span>{aiError || getWidgetAiStatusMessage(aiStatus)}</span>
           {aiStatus !== "loading" && (
-            <button type="button" onClick={fetchAiWord} className="underline font-bold cursor-pointer">Erneut versuchen</button>
+            <button type="button" onClick={fetchAiWord} className="min-h-11 min-w-11 underline font-bold cursor-pointer">Erneut versuchen</button>
           )}
         </div>
       )}
@@ -17829,8 +17831,8 @@ export const MorsecodeWidgetContent: React.FC<{
       {showGuide ? (
         <div className="flex-grow flex flex-col p-2 bg-indigo-50/50 dark:bg-zinc-900/60 rounded-xl border border-indigo-100/30 dark:border-zinc-800 text-left min-h-0 overflow-y-auto gap-2">
           <div>
-            <h4 className="text-[9px] font-black uppercase text-indigo-600 dark:text-indigo-400">📖 Anleitung für Kinder:</h4>
-            <p className="text-[7.5px]/snug text-slate-650 dark:text-slate-350 mt-0.5">
+            <h4 className="text-sm font-black uppercase text-indigo-600 dark:text-indigo-400">📖 Anleitung für Kinder:</h4>
+            <p className="text-sm leading-snug text-slate-650 dark:text-slate-350 mt-0.5">
               1. Klicke auf <span className="font-bold">🔊 Abspielen</span>, um das geheime Wort anzuhören und leuchten zu sehen.<br />
               2. Ein kurzer Ton/Blitz <span className="font-bold">·</span> ist ein Punkt. Ein langer Ton/Blitz <span className="font-bold">-</span> ist ein Strich.<br />
               3. Entschlüssle Buchstabe für Buchstabe mit der Tabelle unten und trage das Wort ein!
@@ -17838,12 +17840,12 @@ export const MorsecodeWidgetContent: React.FC<{
           </div>
 
           <div>
-            <h4 className="text-[8.5px] font-black uppercase text-amber-500 mb-1">📻 Das Morse-Alphabet:</h4>
-            <div className="grid grid-cols-4 gap-1">
+            <h4 className="text-sm font-black uppercase text-amber-500 mb-1">📻 Das Morse-Alphabet:</h4>
+            <div className="grid grid-cols-6 gap-1">
               {Object.entries(morseAlphabet).map(([lettr, code]) => (
-                <div key={lettr} className="flex justify-between items-center px-1.5 py-0.5 rounded bg-white dark:bg-zinc-800 border border-slate-100 dark:border-zinc-700/50">
-                  <span className="text-[9px] font-black text-slate-800 dark:text-white">{lettr}</span>
-                  <span className="text-[8.5px] font-mono font-black text-indigo-500 dark:text-indigo-400">{code}</span>
+                <div key={lettr} className="flex justify-between items-center min-h-7 px-2 py-1 rounded bg-white dark:bg-zinc-800 border border-slate-100 dark:border-zinc-700/50">
+                  <span className="text-sm font-black text-slate-800 dark:text-white">{lettr}</span>
+                  <span className="text-sm font-mono font-black text-indigo-500 dark:text-indigo-400">{code}</span>
                 </div>
               ))}
             </div>
@@ -17851,34 +17853,38 @@ export const MorsecodeWidgetContent: React.FC<{
         </div>
       ) : (
         <div className="flex-grow flex flex-row items-center justify-around gap-2 py-1 min-h-0">
-          <div className={`relative w-15 h-15 rounded-full border-3 flex justify-center items-center transition-all ${
+          <div className={`relative w-28 h-28 rounded-full border-3 flex justify-center items-center transition-all ${
             isGlowing 
               ? 'bg-yellow-300 border-yellow-400 shadow-xl shadow-yellow-200 ring-4 ring-yellow-400/20' 
               : 'bg-zinc-800 border-zinc-900 text-slate-500'
           }`}>
-            <span className={`text-xl ${isGlowing ? 'animate-pulse' : 'opacity-60'}`}>🔦</span>
+            <span className={`text-4xl ${isGlowing ? 'animate-pulse' : 'opacity-60'}`}>🔦</span>
             {isGlowing && <div className="absolute inset-0 rounded-full bg-yellow-400/20 animate-ping" />}
           </div>
 
-          <div className="flex flex-col gap-1.5 flex-1 max-w-[110px]">
-            <button
+          <div className="flex flex-col gap-1.5 flex-1 max-w-[260px]">
+            <button type="button"
+              disabled={isPlaying}
               onClick={runSecretMorseFlash}
-              className="w-full py-1 text-center font-black rounded-lg bg-teal-500 hover:bg-teal-600 text-white text-[7.5px] uppercase tracking-wider cursor-pointer active:scale-95"
+              className="min-h-11 w-full py-1 text-center font-black rounded-lg bg-teal-500 hover:bg-teal-600 text-white text-sm uppercase tracking-wider cursor-pointer active:scale-95"
             >
               🔊 Abspielen!
             </button>
             <input
               type="text"
+              aria-label="Morse-Wort entschlüsseln"
+              maxLength={20}
+              onKeyDown={e => { if (e.key === "Enter") checkTranslate(); }}
               placeholder="Wort eingeben"
               value={userInput}
               onChange={(e) => setUserInput(e.target.value.toUpperCase())}
-              className={`w-full px-1 py-1 text-center font-black rounded border text-[10px] ${
+              className={`min-h-11 w-full px-1 py-1 text-center font-black rounded border text-base ${
                 currentIsLight ? 'bg-white border-slate-300 text-slate-800' : 'bg-zinc-950 border-zinc-700 text-white'
               }`}
             />
-            <button
+            <button type="button"
               onClick={checkTranslate}
-              className="w-full py-0.5 rounded bg-rose-500 hover:bg-rose-600 text-white font-black text-[7px] uppercase tracking-wider cursor-pointer transition-colors"
+              className="min-h-11 w-full py-0.5 rounded bg-rose-500 hover:bg-rose-600 text-white font-black text-xs uppercase tracking-wider cursor-pointer transition-colors"
             >
               Raten 🔎
             </button>
@@ -17886,7 +17892,7 @@ export const MorsecodeWidgetContent: React.FC<{
         </div>
       )}
 
-      <p className="shrink-0 text-[7px] font-extrabold text-blue-500 text-center truncate mt-0.5">{feedback}</p>
+      <p role="status" aria-live="polite" className="shrink-0 text-xs font-extrabold text-blue-500 text-center whitespace-normal mt-0.5">{feedback}</p>
     </div>
   );
 };

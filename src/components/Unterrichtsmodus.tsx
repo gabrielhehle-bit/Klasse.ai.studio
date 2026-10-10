@@ -10764,6 +10764,8 @@ ${content}
                                       return (
                                         <div className="w-[100%] h-full p-2 relative">
                                           <MemoizedFlowerPuzzleWidget
+                                            widget={widget}
+                                            onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                             stufe={
                                               parseInt(
                                                 app?.klassenbezeichnung || "4",

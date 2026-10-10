@@ -1641,7 +1641,7 @@ async function main() {
 
     // Five-widget math batch: independently calculate displayed tasks, then use the real UI.
     const auditWidgetMinimum = async type => {
-      const minimumSizes={sorting:[420,520],vocabulary:[640,560],spellingdetective:[640,560],wordbuilder:[620,560],scrambler:[620,560],compoundsplit:[620,560],wordchain:[500,520],wordgrid:[640,560],wordscramble:[600,560],secretcode:[440,420],storyemojis:[640,560],abcorder:[640,560],sentencebuilding:[620,560],wordexplorer:[520,540],rhymemachine:[500,540],punctuationzoo:[620,560]};
+      const minimumSizes={dictionary:[460,540],patternmaker:[580,520],alphabetsoup:[640,560],morsecode:[620,560],hangman:[640,560],sorting:[420,520],vocabulary:[640,560],spellingdetective:[640,560],wordbuilder:[620,560],scrambler:[620,560],compoundsplit:[620,560],wordchain:[500,520],wordgrid:[640,560],wordscramble:[600,560],secretcode:[440,420],storyemojis:[640,560],abcorder:[640,560],sentencebuilding:[620,560],wordexplorer:[520,540],rhymemachine:[500,540],punctuationzoo:[620,560]};
       const [minimumWidth,minimumHeight]=minimumSizes[type]||[460,560];
       await waitFor(client,type+' resize grip is reachable after opening', `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('[data-widget-resize]')?.dataset.widgetResize==='se';})()`);
       const point=await evaluate(client, `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
@@ -2112,6 +2112,71 @@ async function main() {
     console.log('✓ Five wordplay widgets: paged real chains/errors/hints/drafts, all grid words solved at every level including 9×9, expert anagram/hint repair/scoring, Caesar wrap and ROT13 roundtrip, six story images/lock/move/reroll/prompt/native gear, exact minimums and restore.');
 
 
+
+    // Fourth five-widget language/play block: real actions and preserved rounds.
+    await openAuditWidget('dictionary','Bildwörterbuch');await auditWidgetMinimum('dictionary');
+    const dictRoot='[data-widget-type="dictionary"] [data-wordplay-root]';
+    await clickMathText(dictRoot,'Weiter');
+    const dictSnapshot=await evaluate(client,`document.querySelector(${q(dictRoot)}).innerText`);
+    await wordplayScreens('dictionary');await auditMenu('dictionary','Minimieren');await openAuditWidget('dictionary','Bildwörterbuch');
+    await waitFor(client,'dictionary restores current learning card',`document.querySelector(${q(dictRoot)}).innerText===${q(dictSnapshot)}`);
+    await clickMathText(dictRoot,'Zuordnen');
+    const dictAnswer=await evaluate(client,`document.querySelector(${q(dictRoot+' [aria-label$=" vorlesen"]')}).getAttribute('aria-label').replace(/ vorlesen$/,'')`);
+    await evaluate(client,`Array.from(document.querySelectorAll(${q(dictRoot+' [aria-label^="Bild auswählen:"]')})).find(b=>b.getAttribute('aria-label')!==${q('Bild auswählen: '+dictAnswer)}).click()`);
+    await waitFor(client,'dictionary wrong choice can be retried',`document.querySelector(${q(dictRoot+' [role="status"]')}).textContent.includes('noch einmal')`);
+    await clickSelector(client,dictRoot+' [aria-label="Bild auswählen: '+dictAnswer+'"]');
+    await waitFor(client,'dictionary accepts visible matching picture',`document.querySelector(${q(dictRoot+' [role="status"]')}).textContent.includes('Richtig')`);
+    await wordplayScreens('dictionary');await auditMenu('dictionary','Widget schließen');
+
+    await openAuditWidget('patternmaker','Sequenz-Muster-Macher');await auditWidgetMinimum('patternmaker');
+    const patternRoot='[data-widget-type="patternmaker"] [data-wordplay-root]';
+    await clickMathText(patternRoot,'Leicht');
+    await waitFor(client,'pattern shows real alternating colors',`document.querySelector(${q(patternRoot)}).textContent.includes('🔴') && document.querySelector(${q(patternRoot)}).dataset.patternCorrect==='🔵'`);
+    await clickSelector(client,patternRoot+' [data-pattern-choice="🔴"]');
+    await waitFor(client,'pattern wrong answer is retryable',`document.querySelector(${q(patternRoot+' [role="status"]')}).textContent.includes('nochmal')`);
+    await clickSelector(client,patternRoot+' [data-pattern-choice="🔵"]');
+    await waitFor(client,'pattern scores once',`document.querySelector(${q(patternRoot)}).dataset.patternStreak==='1' && document.querySelector(${q(patternRoot)}).dataset.patternSolved==='true'`);
+    await sleep(1300);await wordplayScreens('patternmaker');await auditMenu('patternmaker','Minimieren');await openAuditWidget('patternmaker','Sequenz-Muster-Macher');
+    await waitFor(client,'pattern solved round survives restore',`document.querySelector(${q(patternRoot)}).dataset.patternStreak==='1' && document.querySelector(${q(patternRoot)}).dataset.patternSolved==='true'`);
+    await clickMathText(patternRoot,'Nächstes Muster');await waitFor(client,'next pattern unlocks',`document.querySelector(${q(patternRoot)}).dataset.patternSolved==='false'`);await auditMenu('patternmaker','Widget schließen');
+
+    await openAuditWidget('alphabetsoup','Buchstaben-Suppe');await auditWidgetMinimum('alphabetsoup');
+    const soupRoot='[data-widget-type="alphabetsoup"] [data-wordplay-root]';
+    await clickMathText(soupRoot,'💥 Extrem');
+    await waitFor(client,'expert soup letters rendered',`document.querySelectorAll(${q(soupRoot+' [data-soup-letter]')}).length>=19`);
+    const soupWord=await evaluate(client,`document.querySelector(${q(soupRoot)}).dataset.soupWord`);
+    await evaluate(client,`Array.from(document.querySelectorAll(${q(soupRoot+' [data-soup-letter]')})).find(b=>b.dataset.soupLetter!==${q(soupWord[0])}).click()`);
+    await waitFor(client,'soup wrong letter resets attempt',`document.querySelector(${q(soupRoot)}).dataset.soupInput==='' && document.querySelector(${q(soupRoot+' [role="status"]')}).textContent.includes('falsch')`);
+    for(let i=0;i<soupWord.length;i++){
+      await evaluate(client,`Array.from(document.querySelectorAll(${q(soupRoot+' [data-soup-letter]')})).find(b=>!b.disabled && b.dataset.soupLetter===${q(soupWord[i])}).click()`);
+      await waitFor(client,'soup accepts letter '+i,`document.querySelector(${q(soupRoot)}).dataset.soupInput===${q(soupWord.slice(0,i+1))}`);
+    }
+    await sleep(1400);await wordplayScreens('alphabetsoup');await auditMenu('alphabetsoup','Minimieren');await openAuditWidget('alphabetsoup','Buchstaben-Suppe');
+    await waitFor(client,'soup solved word survives restore',`document.querySelector(${q(soupRoot)}).dataset.soupInput===${q(soupWord)} && document.querySelector(${q(soupRoot)}).dataset.soupWord===${q(soupWord)}`);await auditMenu('alphabetsoup','Widget schließen');
+
+    await openAuditWidget('morsecode','Morse-Code-Station');await auditWidgetMinimum('morsecode');
+    const morseRoot='[data-widget-type="morsecode"] [data-wordplay-root]';
+    await clickMathText(morseRoot,'📚 Anleitung');await wordplayScreens('morsecode');await clickMathText(morseRoot,'📚 Spiel');
+    await setInputByLabel(client,'Morse-Wort entschlüsseln','NEIN');await clickMathText(morseRoot,'Raten 🔎');
+    await waitFor(client,'morse wrong answer shown',`document.querySelector(${q(morseRoot+' [role="status"]')}).textContent.includes('Huch')`);
+    await setInputByLabel(client,'Morse-Wort entschlüsseln','SOS');await pressAuditKey('Enter');
+    await waitFor(client,'morse keyboard answer accepted',`document.querySelector(${q(morseRoot+' [role="status"]')}).textContent.includes('Perfekt entschlüsselt')`);
+    await wordplayScreens('morsecode');await clickMathText(morseRoot,'🔊 Abspielen!');
+    await waitFor(client,'morse playback starts',`document.querySelector(${q(morseRoot)}).dataset.morsePlaying==='true'`);
+    await auditMenu('morsecode','Minimieren');await openAuditWidget('morsecode','Morse-Code-Station');
+    await waitFor(client,'morse interrupted playback is stopped but input restored',`document.querySelector(${q(morseRoot)}).dataset.morsePlaying==='false' && document.querySelector('[aria-label="Morse-Wort entschlüsseln"]').value==='SOS'`);
+    await auditMenu('morsecode','Widget schließen');
+
+    await openAuditWidget('hangman','Blumen-Rätsel');await auditWidgetMinimum('hangman');
+    const flowerRoot='[data-widget-type="hangman"] [data-wordplay-root]';
+    await setInputByLabel(client,'Geheimes Wort für das Blumen-Rätsel','ÄPFEL');await clickMathText(flowerRoot,'Spiel Starten');
+    await clickSelector(client,flowerRoot+' [aria-label="Buchstabe X wählen"]');await clickSelector(client,flowerRoot+' [aria-label="Buchstabe Ä wählen"]');
+    await waitFor(client,'flower counts wrong attempt once',`document.querySelector(${q(flowerRoot+' [role="status"]')}).textContent.includes('1 von 6')`);
+    await wordplayScreens('hangman');await auditMenu('hangman','Minimieren');await openAuditWidget('hangman','Blumen-Rätsel');
+    await waitFor(client,'flower restores guesses and mistakes',`document.querySelector(${q(flowerRoot+' [aria-label="Buchstabe Ä – richtig"]')})?.disabled && document.querySelector(${q(flowerRoot+' [role="status"]')}).textContent.includes('1 von 6')`);
+    for(const letter of ['P','F','E','L'])await clickSelector(client,flowerRoot+' [aria-label="Buchstabe '+letter+' wählen"]');
+    await waitFor(client,'flower real word is won',`document.querySelector(${q(flowerRoot+' [role="status"]')}).textContent.includes('Richtig gelöst')`);await wordplayScreens('hangman');await auditMenu('hangman','Widget schließen');
+    console.log('✓ Fourth five-widget block: dictionary matching/retry, pattern score/explicit next, expert soup spelling/grid, Morse guide/keyboard/playback cleanup, flower mistakes/umlaut/win; native minima and exact restore.');
     console.log('✓ Widget block: groups stay in widget, real wheel winner restored, all star children reachable without inner scrolling.');
     console.log('✓ Widget block: 12 widgets checked; stopwatch pause and traffic light mode survive restore.');
     console.log('✓ Audit regression: calculator keys/result/restore, compass layout at 100/125/150%, QR alias/readability/title/mode restore');
