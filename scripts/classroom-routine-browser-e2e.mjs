@@ -2679,7 +2679,10 @@ async function main() {
       await natureClick(geometryRoot,shape);await practiceScreen('geometry');
       await waitFor(client,'geometry properties match '+shape,`document.querySelector(${q(geometryRoot)}).textContent.includes(${q(solid)})&&document.querySelector(${q(geometryRoot)}).textContent.includes(${q(properties)})`);
     }
-    await setInputByLabel(client,'3D-Körper drehen','-35');await practiceRestore('geometry','Geometrie-Muster');await auditMenu('geometry','Widget schließen');
+    const prismBefore=await evaluate(client,`document.querySelector(${q(geometryRoot+' svg[aria-label="Dreiecksprisma"]')}).innerHTML`);
+    await setInputByLabel(client,'3D-Körper drehen','-35');
+    await waitFor(client,'triangular prism really rotates without changing topology',`document.querySelector(${q(geometryRoot+' svg[aria-label="Dreiecksprisma"]')}).innerHTML!==${q(prismBefore)}&&document.querySelectorAll(${q(geometryRoot+' svg[aria-label="Dreiecksprisma"] line')}).length===9`);
+    await practiceRestore('geometry','Geometrie-Muster');await auditMenu('geometry','Widget schließen');
 
     await openAuditWidget('shapepuzzle','Formen-Entdecker');await auditWidgetMinimum('shapepuzzle');const shapeRoot=practiceRoot('shapepuzzle');
     for(const [sides,vertices,edges,faces] of [[3,4,6,4],[4,8,12,6],[5,10,15,7],[6,12,18,8]]){

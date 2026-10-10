@@ -1,5 +1,5 @@
 export { ShapepuzzleWidgetContent, DivrobotWidgetContent } from './GeometryPracticeWidgets';
-import { estimatePresets, initialEstimate } from '../../lib/geometryPractice';
+import { estimatePresets, initialEstimate, prism, projectSolid } from '../../lib/geometryPractice';
 export { MathduelWidgetContent } from './MathPracticeWidgets';
 export { KidWeatherWidgetContent, ColormixerWidgetContent, ShadowshapesWidgetContent, ClocksyncWidgetContent } from './LearningPracticeWidgets';
 import { CLASSROOM_RIDDLES } from '../../lib/practiceLearningModel';
@@ -5551,16 +5551,13 @@ export const GeometryWidgetContent: React.FC<{
       );
     }
 
+    const solid = prism(3, 'Dreiecksprisma');
+    const projected = projectSolid(solid.vertices, compareRotation);
     return (
-      <div className="relative w-24 h-20" aria-label="Dreiecksprisma">
-        <svg viewBox="0 0 160 120" className="w-full h-full">
-          <polygon points="30,95 70,25 110,95" fill={`${color}25`} stroke={color} strokeWidth="4" />
-          <polygon points="70,70 110,10 150,70" fill={`${color}18`} stroke={color} strokeWidth="4" />
-          <line x1="30" y1="95" x2="70" y2="70" stroke={color} strokeWidth="4" />
-          <line x1="70" y1="25" x2="110" y2="10" stroke={color} strokeWidth="4" />
-          <line x1="110" y1="95" x2="150" y2="70" stroke={color} strokeWidth="4" />
-        </svg>
-      </div>
+      <svg viewBox="0 0 200 200" className="w-24 h-20" role="img" aria-label="Dreiecksprisma">
+        {[0, 3].map(start=><polygon key={start} points={projected.slice(start,start+3).map(p=>`${p.x},${p.y}`).join(' ')} fill={`${color}25`} />)}
+        {solid.edges.map(([a,b],i)=><line key={i} x1={projected[a].x} y1={projected[a].y} x2={projected[b].x} y2={projected[b].y} stroke={color} strokeWidth="4" />)}
+      </svg>
     );
   };
 

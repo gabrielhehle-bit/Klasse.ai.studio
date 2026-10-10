@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GEOMETRY_FIGURES, projectSolid, DIVISIBILITY_RULES, generateDivisibilityPool, estimatePresets, initialEstimate } from './geometryPractice';
+import { GEOMETRY_FIGURES, prism, projectSolid, DIVISIBILITY_RULES, generateDivisibilityPool, estimatePresets, initialEstimate } from './geometryPractice';
 
 test('every displayed solid has the correct topology, including one tetrahedron apex', () => {
   const expected = [[4,6,4],[8,12,6],[10,15,7],[12,18,8]];
@@ -12,6 +12,12 @@ test('every displayed solid has the correct topology, including one tetrahedron 
     for(const [a,b] of solid.edges) { assert.notEqual(a,b); assert.ok(solid.vertices[a] && solid.vertices[b]); }
     for(const angle of [-45,0,28,45])for(const p of projectSolid(solid.vertices,angle))assert.ok(p.x>0 && p.x<200 && p.y>0 && p.y<200);
   });
+});
+
+test('triangle comparison uses a rotatable six-vertex, nine-edge, five-face prism', () => {
+  const solid=prism(3,'Dreiecksprisma');
+  assert.deepEqual([solid.vertices.length,solid.edges.length,solid.faces],[6,9,5]);
+  assert.notDeepEqual(projectSolid(solid.vertices,28),projectSolid(solid.vertices,-35));
 });
 
 test('robot rounds always contain three fitting and three nonfitting unique numbers without retry loops', () => {
