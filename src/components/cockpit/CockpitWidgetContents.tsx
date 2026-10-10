@@ -18143,7 +18143,7 @@ Gib absolut nichts anderes aus als diese Zeile!`;
       <div className="flex-grow flex flex-col justify-center items-center py-2 bg-slate-50 dark:bg-zinc-900/40 rounded-2xl relative min-h-0 border border-slate-100 dark:border-zinc-800 shadow-xs overflow-hidden mt-1.5">
         
         {/* Interactive Cage */}
-        <div className="relative w-16 h-16 bg-amber-500/5 dark:bg-amber-500/5 rounded-2xl flex items-center justify-center border border-amber-500/10 shadow-inner">
+        <div className="relative shrink-0 w-12 h-12 bg-amber-500/5 dark:bg-amber-500/5 rounded-2xl flex items-center justify-center border border-amber-500/10 shadow-inner">
           {/* Cage Bars (Animated with Framer Motion) */}
           <AnimatePresence>
             {isLocked && (
@@ -18176,7 +18176,7 @@ Gib absolut nichts anderes aus als diese Zeile!`;
 
         {/* MAXIMUM READABILITY TYPOGRAPHY PANEL */}
         <div className="mt-2.5 px-4 text-center w-full max-w-full">
-          <div className="relative bg-white dark:bg-zinc-850 p-3 rounded-2xl border-l-4 border-indigo-500 dark:border-indigo-400 shadow-md flex flex-col items-center gap-1">
+          <div className="relative bg-white dark:bg-zinc-850 p-2 rounded-2xl border-l-4 border-indigo-500 dark:border-indigo-400 shadow-md flex flex-col items-center gap-1">
             <p className="font-extrabold text-xl leading-snug text-slate-900 dark:text-neutral-50 px-1 font-sans">
               „{activeSentence?.text}
               <span className={`inline-flex items-center justify-center px-1.5 py-0.2 ml-1 font-black rounded-lg transition-all ${
@@ -18211,7 +18211,7 @@ Gib absolut nichts anderes aus als diese Zeile!`;
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="mt-2 mx-4 p-2 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900 rounded-xl text-center max-w-full"
+              className="mt-1 mx-4 p-1.5 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900 rounded-xl text-center max-w-full"
             >
               <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400 leading-normal">
                 💡 {activeSentence.explanation}

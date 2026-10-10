@@ -6,7 +6,7 @@ Basis: veröffentlichter PR #502, f657ddf6deef9018a8a7b011abee43037271ddd2.
 | --- | --- | --- |
 | Wortforscher | Eingabe behält Groß-/Kleinschreibung. Silbenzahl ausdrücklich als korrigierbare Schätzung; Großschreibung ist keine Nomenbestimmung. Leere Eingabe, Umlaute, langes Wort und gespeicherte Korrektur. | 520×540 |
 | Reim-Maschine | Vollständige Wörter Katze/Tatze; Wolke statt des ebenfalls gültigen Reims Wand als falsche Hand-Antwort. Gespeicherte Runde wird beim Wiederöffnen nicht ersetzt. Falsche/richtige Antwort und genaue Wiederherstellung. | 500×540 |
-| Satzzeichen-Zoo | Lesbare Erklärung und Rückmeldung, große Satzzeichen/Aktionen. Falsche/richtige Auswahl für Frage, Aussage und Ausruf; gelöste Aufgabe und Serie beim Wiederöffnen. | 620×620 |
+| Satzzeichen-Zoo | Lesbare Erklärung und Rückmeldung, große Satzzeichen/Aktionen. Falsche/richtige Auswahl für Frage, Aussage und Ausruf; gelöste Aufgabe und Serie beim Wiederöffnen. | 620×560 |
 | Satzbau | Gemeinsames Zahnrad öffnet den vorhandenen Aufgabeneditor. Eigener Satz, manuelle falsche/richtige Reihenfolge, Tastatur, Lösung und Wiederöffnen. | 620×560 |
 | ABC-Sortierer | Zahnrad und Speicherung der vorhandenen Lernwort-Komponente vollständig verdrahtet. Eigene Siebenwortliste, Import/Dubletten, Bearbeiten/Löschen, ABC-Seiten und Wiederöffnen. | 640×560 |
 

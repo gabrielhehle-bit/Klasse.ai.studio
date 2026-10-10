@@ -105,7 +105,7 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   sentencebuilding: { minW: 620, minH: 560, prefW: 720, prefH: 560 },
   wordexplorer: { minW: 520, minH: 540, prefW: 620, prefH: 560 },
   rhymemachine: { minW: 500, minH: 540, prefW: 620, prefH: 560 },
-  punctuationzoo: { minW: 620, minH: 620, prefW: 720, prefH: 640 },
+  punctuationzoo: { minW: 620, minH: 560, prefW: 720, prefH: 560 },
   storyemojis: { minW: 640, minH: 560, prefW: 720, prefH: 560 },
 };
 
