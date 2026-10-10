@@ -313,7 +313,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
     if (val === 'backspace') {
       editAnswer(studentInput.slice(0,-1));
     } else if (val === 'clear') {
-      setStudentInput('');
+      editAnswer('');
     } else {
       if (studentInput.length < 5) {
         editAnswer(studentInput+val);
@@ -750,7 +750,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                   maxLength={5}
                   aria-label="Ergebnis eingeben"
                   value={studentInput}
-                  onChange={(e) => setStudentInput(e.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
+                  onChange={(e) => editAnswer(e.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
                   placeholder="Ergebnis..."
                   className="w-full pl-3.5 pr-14 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono text-lg font-bold text-center outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 min-h-[44px]"
                 />
