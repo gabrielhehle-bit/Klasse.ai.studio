@@ -36,6 +36,7 @@ export interface WidgetMinSizeConfig {
  * Verbindliche Mindestgrößen für Widgets
  */
 export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
+  mathduel: { minW: 760, minH: 560, prefW: 800, prefH: 560 },
   riddle: { minW: 700, minH: 560, prefW: 760, prefH: 560 },
   colormixer: { minW: 760, minH: 560, prefW: 800, prefH: 560 },
   shadowshapes: { minW: 840, minH: 560, prefW: 900, prefH: 560 },
@@ -92,18 +93,18 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   anschauung: { minW: 300, minH: 220, prefW: 460, prefH: 360 },
   numberline: { minW: 300, minH: 220, prefW: 460, prefH: 360 },
   kopfrechnen: { minW: 460, minH: 560, prefW: 620, prefH: 560 },
-  mathcards: { minW: 460, minH: 560, prefW: 620, prefH: 560 },
+  mathcards: { minW: 640, minH: 560, prefW: 680, prefH: 560 },
   multitrainer: { minW: 460, minH: 560, prefW: 620, prefH: 560 },
-  mathchain: { minW: 460, minH: 560, prefW: 620, prefH: 560 },
+  mathchain: { minW: 640, minH: 560, prefW: 680, prefH: 560 },
   sorting: { minW: 420, minH: 520, prefW: 460, prefH: 540 },
   fractionvisualizer: { minW: 460, minH: 560, prefW: 640, prefH: 620 },
   fractions: { minW: 460, minH: 560, prefW: 640, prefH: 620 },
   fractioncake: { minW: 280, minH: 220, prefW: 400, prefH: 360 },
   fractiongrid: { minW: 280, minH: 220, prefW: 400, prefH: 360 },
   calculator: { minW: 260, minH: 480, prefW: 340, prefH: 520 },
-  mathbalancer: { minW: 280, minH: 220, prefW: 400, prefH: 340 },
+  mathbalancer: { minW: 640, minH: 560, prefW: 680, prefH: 560 },
   moneycalc: { minW: 280, minH: 220, prefW: 400, prefH: 340 },
-  mathpyramid: { minW: 280, minH: 220, prefW: 380, prefH: 340 },
+  mathpyramid: { minW: 740, minH: 560, prefW: 780, prefH: 560 },
   clockpuzzle: { minW: 280, minH: 220, prefW: 380, prefH: 340 },
   // Geometry and angle tasks need the instrument, controls and feedback visible together.
   geometry: { minW: 360, minH: 460, prefW: 560, prefH: 560 },

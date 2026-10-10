@@ -407,20 +407,21 @@ export function generateChainTask(settings: KopfrechenSettings, rng: RNG = Math.
     }
   }
 
-  // Robuster Fallback (2 einfache Schritte)
-  return {
-    id: `chain-fallback-${Date.now()}`,
-    mode: 'chain',
-    questionText: '10 + 5 - 3',
-    correctAnswer: 12,
-    startValue: 10,
-    steps: [
-      { op: '+', operand: 5, subtotal: 15 },
-      { op: '-', operand: 3, subtotal: 12 },
-    ],
-    missingPart: 'result',
-    displayEquation: '10 + 5 - 3 = ?',
-  };
+  // Construct a bounded fallback with exactly the requested steps and an allowed operation.
+  const fallbackOp=allowedOps[0];
+  const fallbackStart=fallbackOp==='÷'?2**stepsCount:fallbackOp==='-'?stepsCount+1:1;
+  let fallbackValue=fallbackStart;
+  const fallbackSteps:MentalMathStep[]=[];
+  for(let i=0;i<stepsCount;i++){
+    const operand=fallbackOp==='÷'?2:1;
+    if(fallbackOp==='+')fallbackValue+=operand;
+    else if(fallbackOp==='-')fallbackValue-=operand;
+    else if(fallbackOp==='×')fallbackValue*=operand;
+    else fallbackValue/=operand;
+    fallbackSteps.push({op:fallbackOp,operand,subtotal:fallbackValue});
+  }
+  const questionText=String(fallbackStart)+fallbackSteps.map(step=>' '+step.op+' '+step.operand).join('');
+  return {id:`chain-fallback-${Date.now()}`,mode:'chain',questionText,correctAnswer:fallbackValue,startValue:fallbackStart,steps:fallbackSteps,missingPart:'result',displayEquation:questionText+' = ?'};
 }
 
 /**

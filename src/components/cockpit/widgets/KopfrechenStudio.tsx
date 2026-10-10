@@ -1,3 +1,4 @@
+import {readWidgetLifecycleState,usePersistedWidgetLifecycleState} from '../../../lib/widgetLifecycleState';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -68,12 +69,15 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
     return { ...DEFAULT_KOPFRECHEN_SETTINGS };
   }, [widget?.type, widget?.settings]);
 
+  const saved=readWidgetLifecycleState(widget,'mentalMath',{currentTask:generateMentalMathTask(initialSettings),isRevealed:false,studentInput:'',feedbackState:'idle' as 'idle'|'correct'|'try_again'});
   const [settings, setSettings] = useState<KopfrechenSettings>(initialSettings);
   const settingsRef = useRef(settings);
-  const [currentTask, setCurrentTask] = useState<MentalMathTask>(() => generateMentalMathTask(initialSettings));
-  const [isRevealed, setIsRevealed] = useState<boolean>(false);
-  const [studentInput, setStudentInput] = useState<string>('');
-  const [feedbackState, setFeedbackState] = useState<'idle' | 'correct' | 'try_again'>('idle');
+  const [currentTask, setCurrentTask] = useState<MentalMathTask>(() => saved.currentTask);
+  const [isRevealed, setIsRevealed] = useState<boolean>(saved.isRevealed);
+  const [studentInput, setStudentInput] = useState<string>(saved.studentInput);
+  const [feedbackState, setFeedbackState] = useState<'idle' | 'correct' | 'try_again'>(saved.feedbackState);
+  usePersistedWidgetLifecycleState(widget,onUpdate,'mentalMath',{currentTask,isRevealed,studentInput,feedbackState});
+  const editAnswer=(value:string)=>{setStudentInput(value);setFeedbackState('idle');setIsRevealed(false);};
   const showSettingsDrawer = showSettings;
   const settingsDialogRef = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -307,12 +311,12 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
   // NumPad Klick Handler
   const handleKeypadPress = (val: string) => {
     if (val === 'backspace') {
-      setStudentInput((prev) => prev.slice(0, -1));
+      editAnswer(studentInput.slice(0,-1));
     } else if (val === 'clear') {
-      setStudentInput('');
+      editAnswer('');
     } else {
       if (studentInput.length < 5) {
-        setStudentInput((prev) => prev + val);
+        editAnswer(studentInput+val);
       }
     }
   };
@@ -320,6 +324,7 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
   return (
     <div
       ref={containerRef}
+      data-practice-root role="region" aria-label="Kopfrechnen üben"
       data-mental-math-mode={settings.mode}
       data-mental-math-presentation={settings.presentationMode}
       data-mental-math-feedback={feedbackState}
@@ -745,14 +750,14 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
                   maxLength={5}
                   aria-label="Ergebnis eingeben"
                   value={studentInput}
-                  onChange={(e) => setStudentInput(e.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
+                  onChange={(e) => editAnswer(e.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
                   placeholder="Ergebnis..."
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono text-lg font-bold text-center outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 min-h-[44px]"
+                  className="w-full pl-3.5 pr-14 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono text-lg font-bold text-center outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 min-h-[44px]"
                 />
                 {studentInput && (
                   <button
                     type="button"
-                    onClick={() => setStudentInput('')}
+                    onClick={() => editAnswer('')}
                     aria-label="Ergebnis löschen"
                     className="absolute right-1 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
                   >
