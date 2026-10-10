@@ -3,7 +3,7 @@ import { readWidgetLifecycleState, usePersistedWidgetLifecycleState } from '../.
 import { GEOMETRY_FIGURES, projectSolid, generateDivisibilityPool, DIVISIBILITY_RULES } from '../../lib/geometryPractice';
 
 type Props = { widget: any; currentIsLight: boolean; onUpdate?: (updates: any) => void };
-const button = 'min-h-11 min-w-11 px-3 rounded-xl border border-slate-300 dark:border-slate-600 text-sm font-bold hover:border-accent disabled:opacity-50';
+const button = 'min-h-11 min-w-11 px-3 rounded-xl border border-slate-300 dark:border-slate-600 text-sm font-bold hover:border-accent aria-pressed:bg-accent aria-pressed:text-accent-text aria-pressed:border-accent disabled:opacity-50';
 const panel = 'rounded-xl border border-slate-200 dark:border-slate-700 p-2';
 const playTone = (success: boolean) => {
   try {
