@@ -33,7 +33,7 @@ test('Ton-Trainer unterstützt Tastatur 1 bis 8', () => {
 });
 
 test('Ton-Trainer nutzt große Klangstäbe, Touchflächen und KLASSIO-Akzent', () => {
-  assert.match(widget, /min-w-10 sm:min-w-12/);
+  assert.match(widget, /min-w-11 sm:min-w-12/);
   assert.match(widget, /min-h-11 px-4 rounded-xl bg-accent/);
   assert.match(widget, /bg-accent text-accent-text/);
 });
