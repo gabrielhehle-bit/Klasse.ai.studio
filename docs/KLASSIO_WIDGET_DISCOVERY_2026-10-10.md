@@ -15,7 +15,11 @@ seine Mindestfläche. Die Resize-Messung erlaubt vier Pixel für Rahmen und
 Bruchteile der prozentualen Tafelkoordinaten; Erreichbarkeit und 44-Pixel-Ziele
 werden gesondert anhand der tatsächlichen Browserkoordinaten geprüft. Die
 Aufgaben werden über die sichtbare UI beantwortet, ohne Lösungszustand einzusetzen.
-Zahnrad/Escape und genaue Wiederherstellung der sichtbaren Aufgabe werden geprüft.
+Zahnrad/Escape und genaue Wiederherstellung der sichtbaren Aufgabe werden geprüft,
+sowohl nach Minimieren als auch nach vollständigem Schließen und Wiederöffnen.
+Gespeicherte Fenster dieser fünf Werkzeuge werden beim Wiederöffnen in die
+aktuell nutzbare Tafelfläche zurückgesetzt, damit Zoom oder ein Verschieben an
+den unteren Rand die Griffe nicht unter der Werkzeugleiste verschwinden lassen.
 
 TypeScript, Produktionsbuild und lokale Modelltests sind Voraussetzung, ebenso
 alle acht endgültigen PR-Prüfungen. Nach Merge zusätzlich Deployment,

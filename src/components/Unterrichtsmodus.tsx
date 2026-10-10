@@ -4338,6 +4338,23 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       }
     }
 
+    // Restore these teaching tools inside the currently usable board, including
+    // after zoom changed its measurements. Keep the dock clear of resize grips.
+    if (useOld && ['bodyparts', 'compass', 'weekdays', 'trafficquiz', 'watercycle'].includes(String(type))) {
+      const area = measureCockpitUsableBoardArea();
+      if (area) {
+        const size = getWidgetMinSizeConfig(String(type));
+        const width = Math.max(size.minW, Math.min(area.usableWidthPx, placement.w / 100 * area.boardRect.width));
+        const height = Math.max(size.minH, Math.min(area.usableHeightPx, placement.h / 100 * area.boardRect.height));
+        placement = {
+          x: Math.max(0, Math.min(placement.x / 100 * area.boardRect.width, area.usableWidthPx - width)) / area.boardRect.width * 100,
+          y: Math.max(0, Math.min(placement.y / 100 * area.boardRect.height, area.usableHeightPx - height)) / area.boardRect.height * 100,
+          w: width / area.boardRect.width * 100,
+          h: height / area.boardRect.height * 100,
+        };
+      }
+    }
+
     const updated = cockpitWidgets.map((widget) => {
       if (widget.type !== type) return widget;
       return {

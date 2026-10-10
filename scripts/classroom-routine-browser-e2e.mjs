@@ -1170,6 +1170,14 @@ async function main() {
     await evaluate(client, `document.documentElement.style.zoom='1'`);
     await clickButton(client, 'Üben', true);
     await waitFor(client, 'compass practice task', `document.querySelector('[data-compass-explanation]').textContent.includes('Stelle')`);
+    const compassDrag=await evaluate(client,`(() => {const r=document.querySelector('[data-widget-type="compass"]').getBoundingClientRect();return {x:r.x+80,y:r.y+23};})()`);
+    await client.send('Input.dispatchMouseEvent',{type:'mouseMoved',...compassDrag});
+    await client.send('Input.dispatchMouseEvent',{type:'mousePressed',...compassDrag,button:'left',clickCount:1});
+    await client.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:compassDrag.x,y:compassDrag.y+100,button:'left',buttons:1});
+    await sleep(100);
+    await client.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:compassDrag.x,y:compassDrag.y+100,button:'left',clickCount:1});
+    await waitFor(client,'compass drag ends before closing',`!document.querySelector('[data-widget-type="compass"]').hasAttribute('data-widget-interacting')`);
+
     await auditMenu('compass', 'Widget schließen');
     await openAuditWidget('qrcode', 'QR-Code & Link', 'QR-Code');
     await setInputByLabel(client, 'URL oder Text für den QR-Code', 'Aufgabe Regenbogen 3');
@@ -2191,6 +2199,9 @@ async function main() {
       await auditMenu(type,'Minimieren');await openAuditWidget(type,label);
       await waitFor(client,type+' exact task, answer and feedback survive restore',`document.querySelector(${q(root)}).innerText===${q(snapshot)}`);
       await discoveryScreen(type);
+      await auditMenu(type,'Widget schließen');await openAuditWidget(type,label);
+      await waitFor(client,type+' exact task survives full close and remount',`document.querySelector(${q(root)}).innerText===${q(snapshot)}`);
+      await discoveryScreen(type);
     };
     const discoverySettings = async type => {
       await clickSelector(client,'[data-widget-type="'+type+'"] button[aria-label$="Einstellungen öffnen"]');
@@ -2217,6 +2228,7 @@ async function main() {
 
     await openAuditWidget('compass','Geographie-Kompass');await auditWidgetMinimum('compass');
     const compassRoot=discoveryRoot('compass');
+    await clickMathText(compassRoot,'Erkunden');await sleep(100);
     for(const label of ['N','NO','O','SO','S','SW','W','NW']) {
       await evaluate(client,`Array.from(document.querySelectorAll(${q(compassRoot+' [aria-label="Himmelsrichtung wählen"] button')})).find(b=>b.querySelector('span').textContent===${q(label)}).click()`);
       await discoveryScreen('compass');
