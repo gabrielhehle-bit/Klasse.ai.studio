@@ -2418,7 +2418,9 @@ async function main() {
     await waitFor(client,'flag settings usable together',languageFits(flagSettingsRoot));
     const europeSetting=await evaluate(client,`(() => {const button=Array.from(document.querySelectorAll(${q(flagSettingsRoot+' button')})).find(b=>b.textContent.trim().startsWith('Europa'));if(!button)throw Error('Missing Europe filter');button.dataset.natureAction='europe';return ${q(flagSettingsRoot)}+' [data-nature-action="europe"]';})()`);
     await clickSelector(client,europeSetting);
-    await pressAuditKey('Escape');await waitFor(client,'flag filter actually applies and starts a new round',`document.querySelector(${q(flagRoot)}).textContent.includes('Europa')&&document.querySelector(${q(flagRoot)}).textContent.includes('Noch keine Antwort')`);
+    await pressAuditKey('Escape');
+    await waitFor(client,'flag settings close before reopening',`!document.querySelector(${q(flagSettingsRoot)})&&Boolean(document.querySelector('[data-widget-type="flagquiz"] button[aria-label$="Einstellungen öffnen"]'))`);
+    await waitFor(client,'flag filter actually applies and starts a new round',`document.querySelector(${q(flagRoot)}).textContent.includes('Europa')&&document.querySelector(${q(flagRoot)}).textContent.includes('Noch keine Antwort')`);
     await discoverySettings('flagquiz');await auditMenu('flagquiz','Widget schließen');
 
     await openAuditWidget('wastebin','Müll-Trenner');await auditWidgetMinimum('wastebin');
