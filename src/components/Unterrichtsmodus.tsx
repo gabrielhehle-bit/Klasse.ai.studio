@@ -3760,7 +3760,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     const type = cockpitWidgets.find(widget => widget.id === widgetSettingsOpenId)?.type;
-    if (!type || !['bodyparts', 'compass', 'weekdays', 'trafficquiz', 'watercycle'].includes(type)) return;
+    if (!type || !['bodyparts', 'compass', 'weekdays', 'trafficquiz', 'watercycle', 'constellation', 'planetarium', 'flagquiz', 'geographyquiz', 'wastebin'].includes(type)) return;
     const closeSettings = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       setWidgetSettingsOpenId(null);
@@ -3831,6 +3831,8 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       "wordexplorer",
       "weightscale",
       "geographyquiz",
+      "flagquiz",
+      "planetarium",
       "calmrain",
       "estimationjar",
       "reflexgame",
@@ -4340,7 +4342,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
 
     // Restore these teaching tools inside the currently usable board, including
     // after zoom changed its measurements. Keep the dock clear of resize grips.
-    if (useOld && ['bodyparts', 'compass', 'weekdays', 'trafficquiz', 'watercycle'].includes(String(type))) {
+    if (useOld && ['bodyparts', 'compass', 'weekdays', 'trafficquiz', 'watercycle', 'constellation', 'planetarium', 'flagquiz', 'geographyquiz', 'wastebin'].includes(String(type))) {
       const area = measureCockpitUsableBoardArea();
       if (area) {
         const size = getWidgetMinSizeConfig(String(type));
@@ -10797,7 +10799,7 @@ ${content}
                                         <div className="w-[100%] h-full p-2 relative">
                                           <MemoizedFlowerPuzzleWidget
                                             widget={widget}
-                                            onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
+                                              onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                             stufe={
                                               parseInt(
                                                 app?.klassenbezeichnung || "4",
@@ -10861,7 +10863,7 @@ ${content}
                                       return (
                                         <WordclockWidgetContent
                                           widget={widget}
-                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
+                                            onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}
                                           showSettings={widgetSettingsOpenId === widget.id}
                                           onCloseSettings={() => setWidgetSettingsOpenId(null)}
@@ -10937,7 +10939,7 @@ ${content}
                                         <BodypartsWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
-                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
+                                            onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           showSettings={widgetSettingsOpenId === widget.id}
                                           onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
@@ -11082,7 +11084,7 @@ ${content}
                                         <SpellingdetectiveWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
-                                        onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           showSettings={widgetSettingsOpenId === widget.id}
                                           onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
@@ -11237,6 +11239,7 @@ ${content}
                                         <GeographyquizWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                         />
                                       );
 
@@ -11302,6 +11305,7 @@ ${content}
                                         <WastebinWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                         />
                                       );
 
@@ -11589,7 +11593,7 @@ ${content}
                                           currentIsLight={currentIsLight}
                                           showSettings={widgetSettingsOpenId === widget.id}
                                           onCloseSettings={() => setWidgetSettingsOpenId(null)}
-                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
+                                            onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                         />
                                       );
 
@@ -11663,7 +11667,7 @@ ${content}
                                       return (
                                         <ClassroomWeeklyPlanWidget
                                           widget={widget}
-                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
+                                            onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           showSettings={widgetSettingsOpenId === widget.id}
                                           onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
@@ -12300,7 +12304,7 @@ ${content}
                                       return (
                                         <AIQuizWidgetContent
                                           widget={widget}
-                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
+                                            onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -12309,7 +12313,7 @@ ${content}
                                       return (
                                         <StarsReviewWidget
                                           widget={widget}
-                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
+                                            onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}
                                           showSettings={widgetSettingsOpenId === widget.id}
                                           onCloseSettings={() => setWidgetSettingsOpenId(null)}
@@ -12448,7 +12452,7 @@ ${content}
                                       return (
                                         <RiddleWidgetContent
                                           widget={widget}
-                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
+                                            onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -12487,7 +12491,7 @@ ${content}
                                       return (
                                         <DiceWidgetContent
                                           widget={widget}
-                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
+                                            onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}
                                         />
                                       );

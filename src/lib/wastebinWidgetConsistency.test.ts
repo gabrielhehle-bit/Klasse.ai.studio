@@ -42,7 +42,7 @@ test('Müll-Trenner nutzt große Touchflächen und KLASSIO-Akzent', () => {
 test('Müll-Trenner besitzt keinen doppelten Innentitel und keine eigene Scrollfläche', () => {
   assert.doesNotMatch(widget, />\s*♻️ Müll-Trenner/);
   assert.doesNotMatch(widget, /overflow-y-auto/);
-  assert.match(widget, /min-h-full w-full/);
+  assert.match(widget, /h-full min-h-0 w-full/);
 });
 
 

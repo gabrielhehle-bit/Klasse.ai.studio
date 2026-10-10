@@ -1,3 +1,4 @@
+import { readWidgetLifecycleState, usePersistedWidgetLifecycleState } from '../../lib/widgetLifecycleState';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   PLANETARIUM_KIND_LABELS,
@@ -39,12 +40,14 @@ export const PlanetariumWidgetContent: React.FC<PlanetariumWidgetContentProps> =
     () => getPlanetariumQuiz(settings.quizLength),
     [settings.quizLength],
   );
-  const [mode, setMode] = useState<PlanetariumMode>('discover');
-  const [selectedId, setSelectedId] = useState('earth');
-  const [earthAge, setEarthAge] = useState(9);
-  const [quizIndex, setQuizIndex] = useState(0);
-  const [quizScore, setQuizScore] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const lifecycle = readWidgetLifecycleState(widget, "planetarium", { mode: 'discover' as PlanetariumMode, selectedId: 'earth', earthAge: 9, quizIndex: 0, quizScore: 0, selectedAnswer: null as string | null });
+  const [mode, setMode] = useState<PlanetariumMode>(() => lifecycle.mode);
+  const [selectedId, setSelectedId] = useState(() => lifecycle.selectedId);
+  const [earthAge, setEarthAge] = useState(() => lifecycle.earthAge);
+  const [quizIndex, setQuizIndex] = useState(() => lifecycle.quizIndex);
+  const [quizScore, setQuizScore] = useState(() => lifecycle.quizScore);
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(() => lifecycle.selectedAnswer);
+  usePersistedWidgetLifecycleState(widget, onUpdate, "planetarium", { mode, selectedId, earthAge, quizIndex, quizScore, selectedAnswer });
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
 
@@ -56,7 +59,10 @@ export const PlanetariumWidgetContent: React.FC<PlanetariumWidgetContentProps> =
     selectedAnswer !== null &&
     quizIndex === quizQuestions.length - 1;
 
+  const previousQuizLength = useRef(settings.quizLength);
   useEffect(() => {
+    if (previousQuizLength.current === settings.quizLength) return;
+    previousQuizLength.current = settings.quizLength;
     setQuizIndex(0);
     setQuizScore(0);
     setSelectedAnswer(null);
@@ -217,8 +223,8 @@ export const PlanetariumWidgetContent: React.FC<PlanetariumWidgetContentProps> =
 
       {mode === 'discover' && (
         <div className="mt-2 flex min-h-0 flex-1 flex-col">
-          <div className="shrink-0 overflow-x-auto pb-1">
-            <div className="flex min-w-max items-center gap-1.5">
+          <div className="shrink-0 pb-1">
+            <div className="grid grid-cols-5 gap-1.5">
               {SOLAR_SYSTEM_BODIES.map(body => (
                 <button
                   key={body.id}

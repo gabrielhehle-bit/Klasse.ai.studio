@@ -1,0 +1,1 @@
+Country flag SVGs from flag-icons 7.5.0 (https://github.com/lipis/flag-icons), MIT license; bundled locally for the 195 countries in the Klassio flag quiz. Original license: LICENSE.txt. No changes to the artwork.

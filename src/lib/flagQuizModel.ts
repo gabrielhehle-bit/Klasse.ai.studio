@@ -338,5 +338,5 @@ export function createFlagQuizQuestion(
 }
 
 export function getFlagIconUrl(code: string): string {
-  return `https://cdn.jsdelivr.net/npm/flag-icons@${FLAG_ICON_VERSION}/flags/4x3/${code.toLowerCase()}.svg`;
+  return `/flags/${code.toLowerCase()}.svg`;
 }

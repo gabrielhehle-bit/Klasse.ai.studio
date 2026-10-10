@@ -14971,215 +14971,8 @@ export const WeightscaleWidgetContent: React.FC<{ widget: any, currentIsLight: b
 // ========================================================
 // 7. WIDGET: BUNDESLÄNDER-FORSCHER (GeographyquizWidgetContent)
 // ========================================================
-interface GeoState {
-  name: string;
-  capital: string;
-  fact: string;
-}
+export { GeographyquizWidgetContent } from './GeographyQuizWidgetContent';
 
-const DE_STATES: GeoState[] = [
-  { name: "Wien", capital: "Wien", fact: "Größte Stadt Österreichs mit Stephansdom" },
-  { name: "Steiermark", capital: "Graz", fact: "Das grüne Herz Österreichs mit viel Wald" },
-  { name: "Salzburg", capital: "Salzburg", fact: "Geburtsort von Mozart & weltberühmten Festspielen" },
-  { name: "Tirol", capital: "Innsbruck", fact: "Gebirgsland mit der berühmten Bergisel-Schanze" },
-  { name: "Kärnten", capital: "Klagenfurt", fact: "Berühmt für warme Badeseen wie den Wörthersee" },
-];
-
-export const GeographyquizWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [activeGeoIndex, setActiveGeoIndex] = useState<number>(0);
-  const [userGuess, setUserGuess] = useState<string>("");
-  const [feedback, setFeedback] = useState<string>("Errate die Landeshauptstadt!");
-  
-  // AI State extensions
-  const [aiDetails, setAiDetails] = useState<{ rivers: string, mountains: string, funFact: string } | null>(null);
-  const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
-  const [aiQuiz, setAiQuiz] = useState<{ question: string, choices: string[], correctIndex: number } | null>(null);
-  const [isLoadingQuiz, setIsLoadingQuiz] = useState<boolean>(false);
-  const [quizFeedback, setQuizFeedback] = useState<string>("");
-
-  const activeState = DE_STATES[activeGeoIndex];
-
-  const checkCapital = () => {
-    if (userGuess.trim().toLowerCase() === activeState.capital.toLowerCase()) {
-      setFeedback("🎉 Richtig! Fantastisch gemacht!");
-    } else {
-      setFeedback(`❌ Falsch, versuche es nochmal!`);
-    }
-  };
-
-  const handleNextState = () => {
-    setActiveGeoIndex((activeGeoIndex + 1) % DE_STATES.length);
-    setUserGuess("");
-    setFeedback("Errate die Landeshauptstadt!");
-    setAiDetails(null);
-    setAiQuiz(null);
-    setQuizFeedback("");
-  };
-
-  const fetchAiDetails = async () => {
-    setIsLoadingDetails(true);
-    try {
-      const prompt = `Beschreibe das österreichische Bundesland "${activeState.name}" für Grundschulkinder. Nenne die wichtigsten Flüsse, Seen, Berge und einen witzigen Fakt oder eine Sage.
-Antworte exakt in folgendem Format (einzelne Zeile mit Semikolons, kein Markdown):
-Flüsse: <Die Flüsse>; Berge: <Berge & Seen>; Fakt: <Lustiger Fakt für Kinder>`;
-      const response = await askAI('ki-wissen', prompt);
-      if (response && response.includes(';')) {
-        const parts = response.split(';');
-        let rivers = "Flüsse nicht geladen";
-        let mountains = "Berge nicht geladen";
-        let funFact = "Fakt nicht geladen";
-        parts.forEach(p => {
-          const lower = p.toLowerCase().trim();
-          if (lower.startsWith('flüsse:')) rivers = p.substring(p.indexOf(':') + 1).trim();
-          else if (lower.startsWith('berge:')) mountains = p.substring(p.indexOf(':') + 1).trim();
-          else if (lower.startsWith('fakt:') || lower.startsWith('fact:')) funFact = p.substring(p.indexOf(':') + 1).trim();
-        });
-        setAiDetails({ rivers, mountains, funFact });
-      } else {
-        setAiDetails({
-          rivers: "Flüsse & Seen erkunden! 🌊",
-          mountains: "Alpen & Täler erforschen! 🏔️",
-          funFact: response || "Schönes Land!"
-        });
-      }
-    } catch (e) {
-      setFeedback("Details-AI momentan nicht erreichbar.");
-    } finally {
-      setIsLoadingDetails(false);
-    }
-  };
-
-  const fetchAiQuiz = async () => {
-    setIsLoadingQuiz(true);
-    setQuizFeedback("");
-    try {
-      const prompt = `Erstelle eine spannende, kindgerechte Multiple-Choice-Frage über das österreichische Bundesland "${activeState.name}" (Geographie, Natur, Flüsse, Kultur oder Sage).
-Der Ausgang MUSS exakt folgendes JSON Format haben (ohne Markdown):
-{
-  "question": "Kurze Frage?",
-  "choices": ["Antwort A", "Antwort B", "Antwort C"],
-  "correctIndex": 1
-}
-Wobei 'correctIndex' der 0-basierte Index (0, 1 oder 2) der richtigen Antwort im choices-Array ist.`;
-      const response = await askAI('ki-quiz', prompt);
-      const cleaned = response.replace(/```json/g, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(cleaned);
-      if (parsed && typeof parsed.question === 'string' && Array.isArray(parsed.choices)) {
-        setAiQuiz(parsed);
-      }
-    } catch (e) {
-      setQuizFeedback("Quiz-Generation ist fehlgeschlagen.");
-    } finally {
-      setIsLoadingQuiz(false);
-    }
-  };
-
-  const handleQuizAnswer = (idx: number) => {
-    if (!aiQuiz) return;
-    if (idx === aiQuiz.correctIndex) {
-      setQuizFeedback("🎉 Genial gelöst! Das stimmt exakt!");
-    } else {
-      setQuizFeedback(`❌ Oh Schade! Probiere eine andere Antwort.`);
-    }
-  };
-
-  return (
-    <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-y-auto overflow-x-hidden">
-      <div className="shrink-0 flex justify-between items-center mb-1">
-        <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
-            🗺️ Bundesländer-Forscher (AUSTRIAN EDITION)
-          </span>
-          <span className="text-[7.5px] font-mono opacity-80">Geographie spielerisch erkunden</span>
-        </div>
-        <button
-          onClick={handleNextState}
-          className="px-1.5 py-0.5 rounded bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-[7px] cursor-pointer"
-        >
-          Nächstes Land ➔
-        </button>
-      </div>
-
-      <div className="flex-grow flex flex-col justify-start py-1 min-h-0 gap-1.5">
-        <div className="bg-slate-100/50 dark:bg-zinc-800/40 rounded-xl p-1.5 border dark:border-zinc-700 text-center">
-          <span className="text-xs font-black text-rose-500 tracking-wide uppercase">{activeState.name}</span>
-          <p className="text-[8px] text-center opacity-80 block my-0.5">{activeState.fact}</p>
-
-          <div className="flex gap-1.5 items-center w-full mt-1.5 justify-center">
-            <input
-              type="text"
-              value={userGuess}
-              onChange={(e) => setUserGuess(e.target.value)}
-              placeholder="Hauptstadt..."
-              className={`flex-1 max-w-[100px] px-1.5 py-0.5 rounded text-[10px] uppercase font-bold text-center border ${currentIsLight ? 'bg-white text-slate-800 border-slate-200' : 'bg-zinc-950 text-white border-zinc-700'}`}
-            />
-            <button
-              onClick={checkCapital}
-              className="px-2 py-0.5 rounded bg-rose-500 hover:bg-rose-600 text-white font-black text-[8px] uppercase tracking-wider cursor-pointer active:scale-95 transition-all"
-            >
-              Prüfen
-            </button>
-          </div>
-          <p className="text-[7.5px] font-bold text-blue-500 mt-1">{feedback}</p>
-        </div>
-
-        {/* AI Geography Details Block */}
-        <div className="bg-amber-100/10 dark:bg-amber-500/5 border border-amber-500/20 rounded-xl p-1.5 min-h-[45px] flex flex-col justify-center">
-          {aiDetails ? (
-            <div className="text-[7.5px]/tight text-left text-slate-800 dark:text-amber-200 font-medium space-y-1">
-              <p>🌊 <span className="font-extrabold text-blue-500">Gewässer:</span> {aiDetails.rivers}</p>
-              <p>🏔️ <span className="font-extrabold text-emerald-500">Landschaft:</span> {aiDetails.mountains}</p>
-              <p>💡 <span className="font-extrabold text-amber-500">Fun Fact:</span> {aiDetails.funFact}</p>
-            </div>
-          ) : (
-            <button
-              onClick={fetchAiDetails}
-              disabled={isLoadingDetails}
-              className="w-full text-center font-bold text-[7.5px] uppercase text-amber-600 dark:text-amber-400 hover:text-amber-700 flex items-center justify-center gap-1 cursor-pointer"
-            >
-              {isLoadingDetails ? "Erforsche Gewässer & Berge... 🧭" : "🧭 Naturforsche starten (Flüsse, Berge, Seen)"}
-            </button>
-          )}
-        </div>
-
-        {/* AI Quiz Trivia Questions Block */}
-        <div className="bg-indigo-100/10 dark:bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-1.5 min-h-[45px] flex flex-col justify-center text-center">
-          {aiQuiz ? (
-            <div className="space-y-1.5">
-              <p className="text-[8px] font-extrabold text-indigo-700 dark:text-indigo-300 leading-tight">❓ Geographie-Quiz: {aiQuiz.question}</p>
-              <div className="flex gap-1 justify-center">
-                {aiQuiz.choices.map((choice, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleQuizAnswer(i)}
-                    className="px-1.5 py-0.5 rounded bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-[7px]"
-                  >
-                    {choice}
-                  </button>
-                ))}
-              </div>
-              {quizFeedback && <p className="text-[7.5px] font-black text-emerald-500">{quizFeedback}</p>}
-            </div>
-          ) : (
-            <button
-              onClick={fetchAiQuiz}
-              disabled={isLoadingQuiz}
-              className="w-full text-center font-bold text-[7.5px] uppercase text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 flex items-center justify-center gap-1 cursor-pointer"
-            >
-              {isLoadingQuiz ? "Generiere Quiz-Frage... 🧠" : "❓ Interaktive KI-Spezialfrage laden"}
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-
-// ========================================================
-// ========================================================
-// 8. WIDGET: NATUR-MISCHPULT / FOKUS-KLÄNGE (CalmrainWidgetContent)
-// ========================================================
 export const CalmrainWidgetContent: React.FC<CalmSoundsWidgetProps> = (props) => {
   return <CalmSoundsWidget {...props} />;
 };
@@ -15908,7 +15701,7 @@ interface WasteItem {
   explanation: string;
 }
 
-export const WastebinWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+export const WastebinWidgetContent: React.FC<{ widget: any, currentIsLight: boolean, onUpdate?: (updates: any) => void }> = ({ widget, currentIsLight, onUpdate }) => {
   const wasteDatabase: WasteItem[] = useMemo(() => [
     { id: 1, name: 'Apfelrest', emoji: '🍎', binType: 'bio', explanation: 'Obst- und Gemüsereste gehören normalerweise in den Biomüll oder auf den Kompost.' },
     { id: 2, name: 'Bananenschale', emoji: '🍌', binType: 'bio', explanation: 'Obstschalen sind Bioabfall und können kompostiert werden.' },
@@ -15935,31 +15728,26 @@ export const WastebinWidgetContent: React.FC<{ widget: any, currentIsLight: bool
     { id: 'rest' as const, label: 'Restmüll', hint: 'nicht verwertbarer Rest', rule: 'kein Bioabfall, kein Papier und keine Verpackung', icon: '🗑️', surface: 'bg-slate-700', text: 'text-white' },
   ];
 
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedBin, setSelectedBin] = useState<string | null>(null);
-  const [answered, setAnswered] = useState(false);
-  const [correctCount, setCorrectCount] = useState(0);
-  const [attemptCount, setAttemptCount] = useState(0);
-  const [feedback, setFeedback] = useState('Wähle die passende Entsorgung.');
+  const saved = readWidgetLifecycleState(widget, 'wastebin', { currentIndex: Math.floor(Math.random() * wasteDatabase.length), selectedBin: null as string | null, answered: false, correctCount: 0, attemptCount: 0, feedback: 'Wähle die passende Entsorgung.' });
+  const [currentIndex, setCurrentIndex] = useState(saved.currentIndex);
+  const [selectedBin, setSelectedBin] = useState<string | null>(saved.selectedBin);
+  const [answered, setAnswered] = useState(saved.answered);
+  const [correctCount, setCorrectCount] = useState(saved.correctCount);
+  const [attemptCount, setAttemptCount] = useState(saved.attemptCount);
+  const [feedback, setFeedback] = useState(saved.feedback);
+
+  usePersistedWidgetLifecycleState(widget, onUpdate, 'wastebin', { currentIndex, selectedBin, answered, correctCount, attemptCount, feedback });
 
   const currentItem = wasteDatabase[currentIndex % wasteDatabase.length];
 
   const pickNewItem = useCallback(() => {
-    setCurrentIndex((current) => {
-      let next = current;
-      while (next === current && wasteDatabase.length > 1) {
-        next = Math.floor(Math.random() * wasteDatabase.length);
-      }
-      return next;
-    });
+    // Visit every example once before repeating, including all five categories.
+    setCurrentIndex(current => (current + 1) % wasteDatabase.length);
     setSelectedBin(null);
     setAnswered(false);
     setFeedback('Wähle die passende Entsorgung.');
   }, [wasteDatabase.length]);
 
-  useEffect(() => {
-    setCurrentIndex(Math.floor(Math.random() * wasteDatabase.length));
-  }, [wasteDatabase.length]);
 
   const handleRecycle = (type: WasteItem['binType']) => {
     if (answered) return;
@@ -15980,7 +15768,7 @@ export const WastebinWidgetContent: React.FC<{ widget: any, currentIsLight: bool
   const correctBinMeta = bins.find((bin) => bin.id === currentItem.binType)!;
 
   return (
-    <div className="min-h-full w-full p-3 sm:p-4 flex flex-col gap-3 select-none overflow-visible">
+    <div role="region" aria-label="Mülltrennung" className="h-full min-h-0 w-full p-3 flex flex-col gap-2 select-none overflow-hidden">
       <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
         <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2">
           <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Übung</div>
@@ -15994,7 +15782,7 @@ export const WastebinWidgetContent: React.FC<{ widget: any, currentIsLight: bool
         )}
       </div>
 
-      <div className={`flex-1 min-h-44 rounded-2xl border-2 flex flex-col items-center justify-center gap-3 px-4 py-5 transition-colors ${
+      <div className={`flex-1 min-h-0 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 px-3 py-2 transition-colors ${
         answered
           ? selectedBin === currentItem.binType
             ? 'bg-emerald-50 border-emerald-300 dark:bg-emerald-950/30 dark:border-emerald-800'
@@ -16003,8 +15791,8 @@ export const WastebinWidgetContent: React.FC<{ widget: any, currentIsLight: bool
             ? 'bg-white border-slate-200'
             : 'bg-slate-900 border-slate-700'
       }`}>
-        <div className="text-6xl sm:text-7xl" aria-hidden="true">{currentItem.emoji}</div>
-        <div className="text-xl sm:text-2xl font-black text-center text-slate-900 dark:text-slate-100">{currentItem.name}</div>
+        <div className="text-4xl" aria-hidden="true">{currentItem.emoji}</div>
+        <div className="text-xl font-black text-center text-slate-900 dark:text-slate-100">{currentItem.name}</div>
         {!answered && (
           <div className="text-sm text-center text-slate-500 dark:text-slate-400">Wohin gehört dieser Gegenstand?</div>
         )}
@@ -16012,7 +15800,7 @@ export const WastebinWidgetContent: React.FC<{ widget: any, currentIsLight: bool
           <div className="max-w-xl rounded-xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 px-3 py-2 text-center">
             <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Warum?</div>
             <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{currentItem.explanation}</div>
-            <div className="mt-2 rounded-lg bg-accent-soft border border-accent/20 px-2 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200">
+            <div className="mt-1 rounded-lg bg-accent-soft border border-accent/20 px-2 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200">
               Merkregel: {correctBinMeta.rule}
             </div>
           </div>
@@ -16023,7 +15811,7 @@ export const WastebinWidgetContent: React.FC<{ widget: any, currentIsLight: bool
         Denkregel: Ist es Bioabfall, Papier, Verpackung, Problemstoff/Elektro oder bleibt nur Restmüll?
       </div>
 
-      <div className="shrink-0 grid grid-cols-2 sm:grid-cols-5 gap-2">
+      <div className="shrink-0 grid grid-cols-5 gap-2">
         {bins.map((bin) => {
           const isSelected = selectedBin === bin.id;
           const isCorrect = answered && currentItem.binType === bin.id;
@@ -16035,7 +15823,7 @@ export const WastebinWidgetContent: React.FC<{ widget: any, currentIsLight: bool
               onClick={() => handleRecycle(bin.id)}
               disabled={answered}
               aria-pressed={isSelected}
-              className={`min-h-20 rounded-2xl border-2 px-2 py-3 font-bold shadow-sm transition-all disabled:cursor-default ${
+              className={`min-h-20 rounded-2xl border-2 px-2 py-2 font-bold shadow-sm transition-all disabled:cursor-default ${
                 isCorrect
                   ? 'ring-4 ring-emerald-300 border-emerald-600'
                   : isWrongSelected

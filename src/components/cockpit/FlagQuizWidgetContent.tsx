@@ -1,3 +1,4 @@
+import { readWidgetLifecycleState, usePersistedWidgetLifecycleState } from '../../lib/widgetLifecycleState';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FLAG_QUIZ_CONTINENT_LABELS,
@@ -48,13 +49,13 @@ export const FlagQuizWidgetContent: React.FC<FlagQuizWidgetContentProps> = ({
     () => normalizeFlagQuizSettings(widget?.settings),
     [widget?.settings],
   );
-  const [question, setQuestion] = useState<FlagQuizQuestion | null>(
-    () => createFlagQuizQuestion(settings),
-  );
-  const [answeredCode, setAnsweredCode] = useState<string | null>(null);
+  const lifecycle = readWidgetLifecycleState(widget, "flagquiz", { question: createFlagQuizQuestion(settings), answeredCode: null as string | null, correctAnswers: 0, answeredQuestions: 0 });
+  const [question, setQuestion] = useState<FlagQuizQuestion | null>(() => lifecycle.question);
+  const [answeredCode, setAnsweredCode] = useState<string | null>(() => lifecycle.answeredCode);
   const [flagLoadFailed, setFlagLoadFailed] = useState(false);
-  const [correctAnswers, setCorrectAnswers] = useState(0);
-  const [answeredQuestions, setAnsweredQuestions] = useState(0);
+  const [correctAnswers, setCorrectAnswers] = useState(() => lifecycle.correctAnswers);
+  const [answeredQuestions, setAnsweredQuestions] = useState(() => lifecycle.answeredQuestions);
+  usePersistedWidgetLifecycleState(widget, onUpdate, "flagquiz", { question, answeredCode, correctAnswers, answeredQuestions });
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
 
@@ -71,7 +72,11 @@ export const FlagQuizWidgetContent: React.FC<FlagQuizWidgetContentProps> = ({
     setFlagLoadFailed(false);
   }, [settings]);
 
+  const previousFilters = useRef(`${settings.continent}:${settings.difficulty}`);
   useEffect(() => {
+    const key = `${settings.continent}:${settings.difficulty}`;
+    if (previousFilters.current === key) return;
+    previousFilters.current = key;
     setQuestion(createFlagQuizQuestion(settings));
     setAnsweredCode(null);
     setFlagLoadFailed(false);
@@ -131,7 +136,7 @@ export const FlagQuizWidgetContent: React.FC<FlagQuizWidgetContentProps> = ({
       }`}
     >
       {showSettings && (
-        <div className={`absolute inset-0 z-30 flex min-h-0 flex-col overflow-y-auto p-4 ${
+        <div className={`absolute inset-0 z-30 flex min-h-0 flex-col overflow-y-auto p-3 ${
           currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-slate-100'
         }`}>
           <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 pb-3 dark:border-white/10">
@@ -150,7 +155,8 @@ export const FlagQuizWidgetContent: React.FC<FlagQuizWidgetContentProps> = ({
             </button>
           </div>
 
-          <section className="mt-4 shrink-0">
+          <div className="grid grid-cols-2 gap-3">
+          <section className="mt-2 shrink-0">
             <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider opacity-55">Kontinent</p>
             <div className="grid grid-cols-2 gap-2">
               {CONTINENT_OPTIONS.map(option => {
@@ -174,7 +180,7 @@ export const FlagQuizWidgetContent: React.FC<FlagQuizWidgetContentProps> = ({
             </div>
           </section>
 
-          <section className="mt-4 shrink-0">
+          <section className="mt-2 shrink-0">
             <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider opacity-55">Schwierigkeit</p>
             <div className="grid grid-cols-2 gap-2">
               {DIFFICULTY_OPTIONS.map(option => {
@@ -198,7 +204,8 @@ export const FlagQuizWidgetContent: React.FC<FlagQuizWidgetContentProps> = ({
             </div>
           </section>
 
-          <div className={`mt-4 rounded-2xl border p-3 text-xs leading-relaxed ${
+          </div>
+          <div className={`mt-2 rounded-2xl border p-3 text-xs leading-relaxed ${
             currentIsLight ? 'border-slate-200 bg-slate-50 text-slate-600' : 'border-white/10 bg-white/5 text-slate-300'
           }`}>
             Die 195 Länder sind geografisch nach einer festen UN-M49-Zuordnung einsortiert. Die Stufen „Einfach“, „Mittel“ und „Schwer“ sind eine didaktische KLASSIO-Einstufung.
