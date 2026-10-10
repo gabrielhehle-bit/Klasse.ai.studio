@@ -15782,7 +15782,7 @@ export const WastebinWidgetContent: React.FC<{ widget: any, currentIsLight: bool
         )}
       </div>
 
-      <div className={`flex-1 min-h-0 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 px-3 py-2 transition-colors ${
+      <div data-wastebin-question className={`flex-1 min-h-0 rounded-2xl border-2 items-center gap-2 px-3 py-2 transition-colors ${answered ? 'grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]' : 'flex flex-col justify-center'} ${
         answered
           ? selectedBin === currentItem.binType
             ? 'bg-emerald-50 border-emerald-300 dark:bg-emerald-950/30 dark:border-emerald-800'
@@ -15791,13 +15791,15 @@ export const WastebinWidgetContent: React.FC<{ widget: any, currentIsLight: bool
             ? 'bg-white border-slate-200'
             : 'bg-slate-900 border-slate-700'
       }`}>
-        <div className="text-4xl" aria-hidden="true">{currentItem.emoji}</div>
-        <div className="text-xl font-black text-center text-slate-900 dark:text-slate-100">{currentItem.name}</div>
+        <div className="flex min-w-0 flex-col items-center justify-center gap-2">
+          <div className="text-4xl" aria-hidden="true">{currentItem.emoji}</div>
+          <div className="text-xl font-black text-center text-slate-900 dark:text-slate-100">{currentItem.name}</div>
+        </div>
         {!answered && (
           <div className="text-sm text-center text-slate-500 dark:text-slate-400">Wohin gehört dieser Gegenstand?</div>
         )}
         {answered && (
-          <div className="max-w-xl rounded-xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 px-3 py-2 text-center">
+          <div data-wastebin-explanation className="min-w-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 px-3 py-2 text-center">
             <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Warum?</div>
             <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{currentItem.explanation}</div>
             <div className="mt-1 rounded-lg bg-accent-soft border border-accent/20 px-2 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200">
@@ -15807,9 +15809,9 @@ export const WastebinWidgetContent: React.FC<{ widget: any, currentIsLight: bool
         )}
       </div>
 
-      <div className="shrink-0 rounded-xl bg-accent-soft border border-accent/20 px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
+      {!answered && <div className="shrink-0 rounded-xl bg-accent-soft border border-accent/20 px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
         Denkregel: Ist es Bioabfall, Papier, Verpackung, Problemstoff/Elektro oder bleibt nur Restmüll?
-      </div>
+      </div>}
 
       <div className="shrink-0 grid grid-cols-5 gap-2">
         {bins.map((bin) => {
@@ -15820,6 +15822,7 @@ export const WastebinWidgetContent: React.FC<{ widget: any, currentIsLight: bool
             <button
               key={bin.id}
               type="button"
+              data-wastebin-choice={bin.id}
               onClick={() => handleRecycle(bin.id)}
               disabled={answered}
               aria-pressed={isSelected}

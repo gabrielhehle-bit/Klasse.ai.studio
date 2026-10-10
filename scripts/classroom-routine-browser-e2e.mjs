@@ -2433,6 +2433,8 @@ async function main() {
       const answer=i===0?(expected==='Restmüll'?'Biomüll':'Restmüll'):expected;
       const bin=await evaluate(client,`Array.from(document.querySelectorAll(${q(wasteRoot+' button')})).find(b=>b.querySelector('span.block.mt-1')?.textContent===${q(answer)}).textContent.trim()`);
       await natureClick(wasteRoot,bin);await discoveryScreen('wastebin');
+      await waitFor(client,'waste explanation and rule stay inside their panel',`(() => {const panel=document.querySelector(${q(wasteRoot+' [data-wastebin-question]')}),explanation=document.querySelector(${q(wasteRoot+' [data-wastebin-explanation]')});if(!panel||!explanation)return false;const p=panel.getBoundingClientRect(),e=explanation.getBoundingClientRect();return e.top>=p.top&&e.bottom<=p.bottom&&e.left>=p.left&&e.right<=p.right&&explanation.scrollHeight<=explanation.clientHeight+1;})()`);
+      await waitFor(client,'rest waste label stays white after answering',`getComputedStyle(document.querySelector(${q(wasteRoot+' [data-wastebin-choice="rest"] span.block.mt-1')})).color==='rgb(255, 255, 255)'`);
       await waitFor(client,'waste explanation reflects actual answer',`document.querySelector(${q(wasteRoot)}).textContent.includes(${q(i===0?'Noch nicht.':'Richtig zugeordnet.')})`);
       if(i===0||i===14)await natureRestore('wastebin','Müll-Trenner');
       await natureClick(wasteRoot,'Nächster Gegenstand');
