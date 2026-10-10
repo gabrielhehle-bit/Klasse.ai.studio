@@ -8360,7 +8360,7 @@ export const ChallengeWidgetContent: React.FC<{ widget: any, currentIsLight: boo
         </p>
       </div>
 
-      <div className="shrink-0 flex gap-1.5">
+      <div className="shrink-0 flex gap-1.5 pr-11">
         <button
           onClick={playSuccessChime}
           disabled={complete}
