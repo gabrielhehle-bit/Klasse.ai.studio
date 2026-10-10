@@ -2794,3 +2794,10 @@ html body [data-style] .klassio-widget-library .klassio-widget-primary.bg-succes
 [data-gradebook-actions] button {
   min-height: 44px;
 }
+
+/* Waste categories retain white labels on their dark semantic surfaces, including answered buttons. */
+html body [data-style] .cockpit-widget-content [data-wastebin-choice]:not([data-wastebin-choice="gelb"]),
+html body [data-style] .cockpit-widget-content [data-wastebin-choice]:not([data-wastebin-choice="gelb"]) span {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}

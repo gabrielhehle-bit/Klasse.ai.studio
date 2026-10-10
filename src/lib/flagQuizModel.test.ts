@@ -71,10 +71,21 @@ test('Quizfrage hat vier eindeutige Antworten und enthält die richtige Lösung'
   assert.ok(question!.choices.some(choice => choice.code === question!.country.code));
 });
 
-test('Flaggenquelle ist auf eine geprüfte flag-icons-Version gepinnt', () => {
+test('Lokale Flaggenquelle verwendet die geprüfte flag-icons-Version', () => {
   assert.equal(FLAG_ICON_VERSION, '7.5.0');
   assert.equal(
     getFlagIconUrl('AT'),
-    'https://cdn.jsdelivr.net/npm/flag-icons@7.5.0/flags/4x3/at.svg',
+    '/flags/at.svg',
   );
+});
+
+
+test('Jedes Quizland besitzt eine lokale, echte SVG-Flagge samt Lizenz', async () => {
+  const { readFile } = await import('node:fs/promises');
+  for (const country of FLAG_QUIZ_COUNTRIES) {
+    const svg = await readFile('public' + getFlagIconUrl(country.code), 'utf8');
+    assert.match(svg, /<svg\b/);
+    assert.doesNotMatch(svg, /<script\b|(?:href|src)=["\']https?:\/\//);
+  }
+  assert.match(await readFile('public/flags/LICENSE.txt', 'utf8'), /MIT License/);
 });

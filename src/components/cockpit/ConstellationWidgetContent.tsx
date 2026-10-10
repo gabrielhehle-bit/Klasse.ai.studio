@@ -1,3 +1,4 @@
+import { readWidgetLifecycleState, usePersistedWidgetLifecycleState } from '../../lib/widgetLifecycleState';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   SKY_PATTERN_FILTER_LABELS,
@@ -35,18 +36,23 @@ export const ConstellationWidgetContent: React.FC<ConstellationWidgetContentProp
     () => filterSkyPatterns(settings.filter),
     [settings.filter],
   );
-  const [mode, setMode] = useState<'discover' | 'connect'>('discover');
-  const [patternIndex, setPatternIndex] = useState(0);
-  const [selectedStarId, setSelectedStarId] = useState<string | null>(null);
-  const [firstConnectStarId, setFirstConnectStarId] = useState<string | null>(null);
-  const [connectedEdgeKeys, setConnectedEdgeKeys] = useState<Set<string>>(new Set());
-  const [feedback, setFeedback] = useState('Tippe einen Stern an, um seinen Namen zu sehen.');
+  const lifecycle = readWidgetLifecycleState(widget, "constellation", { mode: 'discover' as 'discover' | 'connect', patternIndex: 0, selectedStarId: null as string | null, firstConnectStarId: null as string | null, connectedEdgeKeys: [] as string[], feedback: 'Tippe einen Stern an, um seinen Namen zu sehen.' });
+  const [mode, setMode] = useState<'discover' | 'connect'>(() => lifecycle.mode);
+  const [patternIndex, setPatternIndex] = useState(() => lifecycle.patternIndex);
+  const [selectedStarId, setSelectedStarId] = useState<string | null>(() => lifecycle.selectedStarId);
+  const [firstConnectStarId, setFirstConnectStarId] = useState<string | null>(() => lifecycle.firstConnectStarId);
+  const [connectedEdgeKeys, setConnectedEdgeKeys] = useState<Set<string>>(() => new Set(lifecycle.connectedEdgeKeys));
+  const [feedback, setFeedback] = useState(() => lifecycle.feedback);
+  usePersistedWidgetLifecycleState(widget, onUpdate, "constellation", { mode, patternIndex, selectedStarId, firstConnectStarId, feedback, connectedEdgeKeys: Array.from(connectedEdgeKeys) });
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
 
   const pattern: SkyPattern = patterns[patternIndex] ?? patterns[0];
 
+  const previousFilter = useRef(settings.filter);
   useEffect(() => {
+    if (previousFilter.current === settings.filter) return;
+    previousFilter.current = settings.filter;
     setPatternIndex(0);
     setSelectedStarId(null);
     setFirstConnectStarId(null);
@@ -54,7 +60,11 @@ export const ConstellationWidgetContent: React.FC<ConstellationWidgetContentProp
     setFeedback('Tippe einen Stern an, um seinen Namen zu sehen.');
   }, [settings.filter]);
 
+  const previousPatternMode = useRef(`${patternIndex}:${mode}`);
   useEffect(() => {
+    const key = `${patternIndex}:${mode}`;
+    if (previousPatternMode.current === key) return;
+    previousPatternMode.current = key;
     setSelectedStarId(null);
     setFirstConnectStarId(null);
     setConnectedEdgeKeys(new Set());
@@ -305,7 +315,7 @@ export const ConstellationWidgetContent: React.FC<ConstellationWidgetContentProp
           })}
         </div>
 
-        <svg className="absolute inset-0 h-full w-full" aria-hidden="true">
+        <svg className="absolute" style={{ left: 24, top: 24, width: 'calc(100% - 48px)', height: 'calc(100% - 48px)' }} aria-hidden="true">
           {drawEdges.map(edge => {
             const a = getSkyPatternStar(pattern, edge.a);
             const b = getSkyPatternStar(pattern, edge.b);
@@ -340,12 +350,12 @@ export const ConstellationWidgetContent: React.FC<ConstellationWidgetContentProp
                     ? 'border-accent bg-slate-900 text-white ring-4 ring-accent/30'
                     : 'border-white/70 bg-slate-900 text-white'
               }`}
-              style={{ left: `${star.x}%`, top: `${star.y}%` }}
+              style={{ left: `calc(${star.x}% + ${24 - star.x * 0.48}px)`, top: `calc(${star.y}% + ${24 - star.y * 0.48}px)` }}
               aria-label={settings.showStarNames ? star.name : 'Stern'}
             >
               ★
               {settings.showStarNames && (
-                <span className="pointer-events-none absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-950/90 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                <span data-star-name className="pointer-events-none absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-accent-soft px-1.5 py-0.5 text-[10px] font-bold text-accent">
                   {star.name}
                 </span>
               )}

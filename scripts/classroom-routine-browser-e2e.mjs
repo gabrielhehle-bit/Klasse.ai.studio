@@ -1649,7 +1649,7 @@ async function main() {
 
     // Five-widget math batch: independently calculate displayed tasks, then use the real UI.
     const auditWidgetMinimum = async type => {
-      const minimumSizes={bodyparts:[620,560],compass:[620,560],weekdays:[620,560],trafficquiz:[800,560],watercycle:[760,560],dictionary:[460,540],patternmaker:[580,520],alphabetsoup:[640,560],morsecode:[620,560],hangman:[640,560],sorting:[420,520],vocabulary:[640,560],spellingdetective:[640,560],wordbuilder:[620,560],scrambler:[620,560],compoundsplit:[620,560],wordchain:[500,520],wordgrid:[640,560],wordscramble:[600,560],secretcode:[440,420],storyemojis:[640,560],abcorder:[640,560],sentencebuilding:[620,560],wordexplorer:[520,540],rhymemachine:[500,540],punctuationzoo:[620,560]};
+      const minimumSizes={constellation:[720,560],planetarium:[720,560],flagquiz:[700,560],geographyquiz:[700,560],wastebin:[820,560],bodyparts:[620,560],compass:[620,560],weekdays:[620,560],trafficquiz:[800,560],watercycle:[760,560],dictionary:[460,540],patternmaker:[580,520],alphabetsoup:[640,560],morsecode:[620,560],hangman:[640,560],sorting:[420,520],vocabulary:[640,560],spellingdetective:[640,560],wordbuilder:[620,560],scrambler:[620,560],compoundsplit:[620,560],wordchain:[500,520],wordgrid:[640,560],wordscramble:[600,560],secretcode:[440,420],storyemojis:[640,560],abcorder:[640,560],sentencebuilding:[620,560],wordexplorer:[520,540],rhymemachine:[500,540],punctuationzoo:[620,560]};
       const [minimumWidth,minimumHeight]=minimumSizes[type]||[460,560];
       await waitFor(client,type+' resize grip is reachable after opening', `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('[data-widget-resize]')?.dataset.widgetResize==='se';})()`);
       const point=await evaluate(client, `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
@@ -2314,6 +2314,136 @@ async function main() {
     }
     await auditMenu('watercycle','Widget schließen');
     console.log('✓ Discovery block: seven organs/retry, compass directions, weekday/month arithmetic, real traffic exam and water puzzle/quiz; exact state restore, gear/Escape, native minima and reachable controls.');
+    // Nature and geography block: solve actual displayed tasks; no seeded lifecycle answers.
+    const natureFixture={"sky":[{"name":"Cassiopeia","stars":[{"id":"caph","name":"Caph"},{"id":"schedar","name":"Schedar"},{"id":"gamma-cas","name":"Gamma Cassiopeiae"},{"id":"ruchbah","name":"Ruchbah"},{"id":"segin","name":"Segin"}],"edges":[{"a":"caph","b":"schedar"},{"a":"schedar","b":"gamma-cas"},{"a":"gamma-cas","b":"ruchbah"},{"a":"ruchbah","b":"segin"}]},{"name":"Orion","stars":[{"id":"betelgeuse","name":"Betelgeuse"},{"id":"bellatrix","name":"Bellatrix"},{"id":"alnitak","name":"Alnitak"},{"id":"alnilam","name":"Alnilam"},{"id":"mintaka","name":"Mintaka"},{"id":"saiph","name":"Saiph"},{"id":"rigel","name":"Rigel"}],"edges":[{"a":"betelgeuse","b":"bellatrix"},{"a":"betelgeuse","b":"alnitak"},{"a":"bellatrix","b":"mintaka"},{"a":"alnitak","b":"alnilam"},{"a":"alnilam","b":"mintaka"},{"a":"alnitak","b":"saiph"},{"a":"mintaka","b":"rigel"}]},{"name":"Großer Wagen","stars":[{"id":"dubhe","name":"Dubhe"},{"id":"merak","name":"Merak"},{"id":"phecda","name":"Phecda"},{"id":"megrez","name":"Megrez"},{"id":"alioth","name":"Alioth"},{"id":"mizar","name":"Mizar"},{"id":"alkaid","name":"Alkaid"}],"edges":[{"a":"alkaid","b":"mizar"},{"a":"mizar","b":"alioth"},{"a":"alioth","b":"megrez"},{"a":"megrez","b":"phecda"},{"a":"phecda","b":"merak"},{"a":"merak","b":"dubhe"},{"a":"dubhe","b":"megrez"}]},{"name":"Sommerdreieck","stars":[{"id":"vega","name":"Vega"},{"id":"deneb","name":"Deneb"},{"id":"altair","name":"Altair"}],"edges":[{"a":"vega","b":"deneb"},{"a":"deneb","b":"altair"},{"a":"altair","b":"vega"}]}],"planets":[["Welcher Planet ist der Sonne am nächsten?","Merkur"],["Welcher Planet ist am heißesten?","Venus"],["Welcher Planet ist der größte?","Jupiter"],["Welcher Planet heißt auch „Roter Planet“?","Mars"],["Welcher Planet ist besonders für sein auffälliges Ringsystem bekannt?","Saturn"],["Welcher Planet dreht sich beinahe „auf der Seite“?","Uranus"],["Welcher der acht Planeten ist am weitesten von der Sonne entfernt?","Neptun"],["Wie viele Planeten hat unser Sonnensystem?","8"]],"flags":[["dz","Algerien"],["ao","Angola"],["bj","Benin"],["bw","Botsuana"],["bf","Burkina Faso"],["bi","Burundi"],["cv","Cabo Verde"],["cm","Kamerun"],["cf","Zentralafrikanische Republik"],["td","Tschad"],["km","Komoren"],["cd","Demokratische Republik Kongo"],["cg","Republik Kongo"],["ci","Elfenbeinküste"],["dj","Dschibuti"],["eg","Ägypten"],["gq","Äquatorialguinea"],["er","Eritrea"],["sz","Eswatini"],["et","Äthiopien"],["ga","Gabun"],["gm","Gambia"],["gh","Ghana"],["gn","Guinea"],["gw","Guinea-Bissau"],["ke","Kenia"],["ls","Lesotho"],["lr","Liberia"],["ly","Libyen"],["mg","Madagaskar"],["mw","Malawi"],["ml","Mali"],["mr","Mauretanien"],["mu","Mauritius"],["ma","Marokko"],["mz","Mosambik"],["na","Namibia"],["ne","Niger"],["ng","Nigeria"],["rw","Ruanda"],["st","São Tomé und Príncipe"],["sn","Senegal"],["sc","Seychellen"],["sl","Sierra Leone"],["so","Somalia"],["za","Südafrika"],["ss","Südsudan"],["sd","Sudan"],["tz","Tansania"],["tg","Togo"],["tn","Tunesien"],["ug","Uganda"],["zm","Sambia"],["zw","Simbabwe"],["af","Afghanistan"],["am","Armenien"],["az","Aserbaidschan"],["bh","Bahrain"],["bd","Bangladesch"],["bt","Bhutan"],["bn","Brunei"],["kh","Kambodscha"],["cn","China"],["cy","Zypern"],["ge","Georgien"],["in","Indien"],["id","Indonesien"],["ir","Iran"],["iq","Irak"],["il","Israel"],["jp","Japan"],["jo","Jordanien"],["kz","Kasachstan"],["kw","Kuwait"],["kg","Kirgisistan"],["la","Laos"],["lb","Libanon"],["my","Malaysia"],["mv","Malediven"],["mn","Mongolei"],["mm","Myanmar"],["np","Nepal"],["kp","Nordkorea"],["om","Oman"],["pk","Pakistan"],["ps","Palästina"],["ph","Philippinen"],["qa","Katar"],["sa","Saudi-Arabien"],["sg","Singapur"],["kr","Südkorea"],["lk","Sri Lanka"],["sy","Syrien"],["tj","Tadschikistan"],["th","Thailand"],["tl","Timor-Leste"],["tr","Türkei"],["tm","Turkmenistan"],["ae","Vereinigte Arabische Emirate"],["uz","Usbekistan"],["vn","Vietnam"],["ye","Jemen"],["al","Albanien"],["ad","Andorra"],["at","Österreich"],["by","Belarus"],["be","Belgien"],["ba","Bosnien und Herzegowina"],["bg","Bulgarien"],["hr","Kroatien"],["cz","Tschechien"],["dk","Dänemark"],["ee","Estland"],["fi","Finnland"],["fr","Frankreich"],["de","Deutschland"],["gr","Griechenland"],["va","Vatikanstadt"],["hu","Ungarn"],["is","Island"],["ie","Irland"],["it","Italien"],["lv","Lettland"],["li","Liechtenstein"],["lt","Litauen"],["lu","Luxemburg"],["mt","Malta"],["md","Moldau"],["mc","Monaco"],["me","Montenegro"],["nl","Niederlande"],["mk","Nordmazedonien"],["no","Norwegen"],["pl","Polen"],["pt","Portugal"],["ro","Rumänien"],["ru","Russland"],["sm","San Marino"],["rs","Serbien"],["sk","Slowakei"],["si","Slowenien"],["es","Spanien"],["se","Schweden"],["ch","Schweiz"],["ua","Ukraine"],["gb","Vereinigtes Königreich"],["ag","Antigua und Barbuda"],["bs","Bahamas"],["bb","Barbados"],["bz","Belize"],["ca","Kanada"],["cr","Costa Rica"],["cu","Kuba"],["dm","Dominica"],["do","Dominikanische Republik"],["sv","El Salvador"],["gd","Grenada"],["gt","Guatemala"],["ht","Haiti"],["hn","Honduras"],["jm","Jamaika"],["mx","Mexiko"],["ni","Nicaragua"],["pa","Panama"],["kn","St. Kitts und Nevis"],["lc","St. Lucia"],["vc","St. Vincent und die Grenadinen"],["tt","Trinidad und Tobago"],["us","USA"],["ar","Argentinien"],["bo","Bolivien"],["br","Brasilien"],["cl","Chile"],["co","Kolumbien"],["ec","Ecuador"],["gy","Guyana"],["py","Paraguay"],["pe","Peru"],["sr","Suriname"],["uy","Uruguay"],["ve","Venezuela"],["au","Australien"],["fj","Fidschi"],["ki","Kiribati"],["mh","Marshallinseln"],["fm","Mikronesien"],["nr","Nauru"],["nz","Neuseeland"],["pw","Palau"],["pg","Papua-Neuguinea"],["ws","Samoa"],["sb","Salomonen"],["to","Tonga"],["tv","Tuvalu"],["vu","Vanuatu"]]};
+    const natureClick = async (root,text) => {
+      const selector=await evaluate(client,`(() => {const buttons=Array.from(document.querySelectorAll(${q(root+' button')}));const i=buttons.findIndex(b=>b.textContent.trim()===${q(text)});if(i<0)throw Error('Missing nature control '+${q(text)});buttons[i].dataset.natureAction='current';return ${q(root)}+' [data-nature-action="current"]';})()`);
+      await clickSelector(client,selector);
+      await evaluate(client,`document.querySelector(${q(selector)})?.removeAttribute('data-nature-action')`);
+      await sleep(100);
+    };
+    const natureRestore=async(type,label)=>{
+      const root=discoveryRoot(type),snapshot=await evaluate(client,`({text:document.querySelector(${q(root)}).innerText,inputs:Array.from(document.querySelectorAll(${q(root+' input')})).map(i=>i.value)})`);
+      for(const action of ['Minimieren','Widget schließen']) {
+        await auditMenu(type,action);await openAuditWidget(type,label);
+        await waitFor(client,type+' preserves task feedback and inputs after '+action,`JSON.stringify(({text:document.querySelector(${q(root)}).innerText,inputs:Array.from(document.querySelectorAll(${q(root+' input')})).map(i=>i.value)}))===${q(JSON.stringify(snapshot))}`);
+        await discoveryScreen(type);
+      }
+    };
+    await openAuditWidget('constellation','Sternbilder-Zeichner');await auditWidgetMinimum('constellation');
+    const skyRoot=discoveryRoot('constellation');
+    for(const pattern of natureFixture.sky) {
+      await waitFor(client,'displayed sky pattern '+pattern.name,`document.querySelector(${q(skyRoot+' h3')}).textContent===${q(pattern.name)}`);
+      await discoveryScreen('constellation');
+      await waitFor(client,'star names have readable text contrast',`(() => {const luminance=color=>{const rgb=color.match(/[\\d.]+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=0.04045?v/12.92:((v+0.055)/1.055)**2.4;});return rgb[0]*0.2126+rgb[1]*0.7152+rgb[2]*0.0722;};const labels=Array.from(document.querySelectorAll(${q(skyRoot+' [data-star-name]')}));return labels.length>0&&labels.every(el=>{const style=getComputedStyle(el),a=luminance(style.color),b=luminance(style.backgroundColor);return (Math.max(a,b)+0.05)/(Math.min(a,b)+0.05)>=4.5;});})()`);
+      await clickSelector(client,skyRoot+' button[aria-label='+q(pattern.stars[0].name)+']');
+      await waitFor(client,'sky discovery selects real star',`document.querySelector(${q(skyRoot+' [role="status"]')}).textContent.includes(${q(pattern.stars[0].name)})`);
+      await natureClick(skyRoot,'Verbinden');
+      const starName=id=>pattern.stars.find(s=>s.id===id).name;
+      const first=pattern.edges[0],wrong=pattern.stars.find(s=>s.id!==first.a&&s.id!==first.b);
+      await clickSelector(client,skyRoot+' button[aria-label='+q(wrong.name)+']');
+      await waitFor(client,'sky rejects unmarked star',`document.querySelector(${q(skyRoot+' [role="status"]')}).textContent.includes('Noch nicht')`);
+      for(let i=0;i<pattern.edges.length;i++) {
+        const edge=pattern.edges[i];
+        await clickSelector(client,skyRoot+' button[aria-label='+q(starName(edge.a))+']');
+        if(i===1)await natureRestore('constellation','Sternbilder-Zeichner');
+        await clickSelector(client,skyRoot+' button[aria-label='+q(starName(edge.b))+']');
+      }
+      await waitFor(client,'sky actual complete pattern '+pattern.name,`document.querySelector(${q(skyRoot+' [role="status"]')}).textContent.includes('vollständig verbunden') && document.querySelectorAll(${q(skyRoot+' svg line')}).length===${pattern.edges.length}`);
+      await natureRestore('constellation','Sternbilder-Zeichner');
+      await natureClick(skyRoot,'Entdecken');await clickSelector(client,skyRoot+' [aria-label="Nächstes Himmelsmuster"]');
+    }
+    await discoverySettings('constellation');await auditMenu('constellation','Widget schließen');
+
+    await openAuditWidget('planetarium','Planetensystem');await auditWidgetMinimum('planetarium');
+    const planetRoot=discoveryRoot('planetarium');
+    for(const name of ['Sonne','Merkur','Venus','Erde','Mars','Jupiter','Saturn','Uranus','Neptun']) {
+      const label=await evaluate(client,`Array.from(document.querySelectorAll(${q(planetRoot+' button')})).find(b=>b.textContent.trim().endsWith(${q(name)}))?.textContent.trim()`);
+      await natureClick(planetRoot,label);await discoveryScreen('planetarium');
+      await waitFor(client,'planet selection '+name,`document.querySelector(${q(planetRoot+' h3')}).textContent===${q(name)}`);
+    }
+    await natureRestore('planetarium','Planetensystem');await natureClick(planetRoot,'Umläufe');
+    await setInputByLabel(client,'Alter auf der Erde','18');
+    await waitFor(client,'planet orbit ages retain real Earth input',`document.querySelector(${q(planetRoot+' input')}).value==='18' && document.querySelector(${q(planetRoot)}).textContent.includes('18,0')`);
+    await natureRestore('planetarium','Planetensystem');await natureClick(planetRoot,'Quiz');
+    const answerPlanet=async(wrong=false)=>{
+      const text=await evaluate(client,`document.querySelector(${q(planetRoot+' .text-base.font-black.leading-snug')}).textContent`);
+      const expected=natureFixture.planets.find(([question])=>question===text)?.[1];if(!expected)throw Error('Unknown planet quiz '+text);
+      const answer=wrong?await evaluate(client,`Array.from(document.querySelectorAll(${q(planetRoot+' button')})).find(b=>b.textContent.trim()!==${q(expected)}&&b.className.includes('min-h-12')).textContent.trim()`):expected;
+      await natureClick(planetRoot,answer);await discoveryScreen('planetarium');
+      await waitFor(client,'planet quiz response',`document.querySelector(${q(planetRoot)}).textContent.includes(${q(wrong?'Richtig ist:':'Richtig.')})`);
+    };
+    for(let i=0;i<5;i++){await answerPlanet(i===0);if(i===1)await natureRestore('planetarium','Planetensystem');if(i<4)await natureClick(planetRoot,'Nächste Frage');}
+    await waitFor(client,'planet five-question quiz completes with actual four correct answers',`document.querySelector(${q(planetRoot)}).textContent.includes('4 richtig') && document.querySelector(${q(planetRoot)}).textContent.includes('Quiz neu starten')`);
+    await natureRestore('planetarium','Planetensystem');await discoverySettings('planetarium');await natureClick(planetRoot,'Quiz neu starten');await auditMenu('planetarium','Widget schließen');
+
+    await openAuditWidget('geographyquiz','Bundesländer-Forscher');await auditWidgetMinimum('geographyquiz');
+    const geoRoot=discoveryRoot('geographyquiz');
+    const geoPairs=[['Burgenland','Eisenstadt'],['Kärnten','Klagenfurt'],['Niederösterreich','Sankt Pölten'],['Oberösterreich','Linz'],['Salzburg','Salzburg'],['Steiermark','Graz'],['Tirol','Innsbruck'],['Vorarlberg','Bregenz'],['Wien','Wien']];
+    await waitFor(client,'all nine state buttons exist together',`document.querySelectorAll(${q(geoRoot+' [aria-label="Alle neun Bundesländer"] button')}).length===9`);
+    await natureClick(geoRoot,'Üben');
+    for(const [name,capital] of geoPairs) {
+      await natureClick(geoRoot,name);await setInputByLabel(client,'Landeshauptstadt','Feldkirch');await natureClick(geoRoot,'Prüfen');
+      await waitFor(client,'state wrong answer '+name,`document.querySelector(${q(geoRoot+' [role="status"]')}).textContent.includes('Noch nicht')`);
+      await setInputByLabel(client,'Landeshauptstadt',capital);await natureClick(geoRoot,'Prüfen');
+      await waitFor(client,'state genuine correct answer '+name,`document.querySelector(${q(geoRoot+' [role="status"]')}).textContent.startsWith('Richtig!')`);
+      await discoveryScreen('geographyquiz');
+    }
+    await natureRestore('geographyquiz','Bundesländer-Forscher');await natureClick(geoRoot,'Nächstes Bundesland');
+    await setInputByLabel(client,'Landeshauptstadt','Eigener Entwurf');await natureRestore('geographyquiz','Bundesländer-Forscher');
+    await natureClick(geoRoot,'Lösung zeigen');await waitFor(client,'state solution reveals correct city',`document.querySelector(${q(geoRoot+' [role="status"]')}).textContent==='Lösung: Eisenstadt'`);
+    await natureClick(geoRoot,'Entdecken');await discoveryScreen('geographyquiz');await auditMenu('geographyquiz','Widget schließen');
+
+    await openAuditWidget('flagquiz','Flaggenquiz');await auditWidgetMinimum('flagquiz');
+    const flagRoot=discoveryRoot('flagquiz');
+    for(let i=0;i<3;i++) {
+      await waitFor(client,'flag image succeeds or explicit retry shown',`(() => {const img=document.querySelector(${q(flagRoot+' img')});return Boolean(img?.complete&&img.naturalWidth>0)||document.querySelector(${q(flagRoot)}).textContent.includes('Flagge konnte nicht geladen werden.');})()`);
+      const code=await evaluate(client,`document.querySelector(${q(flagRoot+' img')})?.src.split('/').pop().replace('.svg','')`);
+      if(!code)throw Error('Flag image missing; cannot solve the visible flag');
+      const expected=natureFixture.flags.find(([c])=>c===code)?.[1];if(!expected)throw Error('Unknown pictured flag '+code);
+      const answer=i===0?await evaluate(client,`Array.from(document.querySelectorAll(${q(flagRoot+' [aria-label="Länder auswählen"] button')})).find(b=>b.textContent.trim()!==${q(expected)}).textContent.trim()`):expected;
+      await natureClick(flagRoot,answer);await discoveryScreen('flagquiz');
+      await natureRestore('flagquiz','Flaggenquiz');await natureClick(flagRoot,'Nächste Flagge');
+    }
+    await client.send('Network.enable');
+    await client.send('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:0,uploadThroughput:0});
+    try {
+      await natureClick(flagRoot,'Andere Flagge');
+      await waitFor(client,'different local flag loads while the browser is offline',`(() => {const img=document.querySelector(${q(flagRoot+' img')});return Boolean(img?.complete&&img.naturalWidth>0);})()`);
+    } finally {
+      await client.send('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1});
+    }
+    await clickSelector(client,'[data-widget-type="flagquiz"] button[aria-label$="Einstellungen öffnen"]');
+    // The settings overlay covers the quiz; only its active controls must be hit-testable.
+    const flagSettingsRoot=flagRoot+' > .absolute';
+    await waitFor(client,'flag settings usable together',languageFits(flagSettingsRoot));
+    const europeSetting=await evaluate(client,`(() => {const button=Array.from(document.querySelectorAll(${q(flagSettingsRoot+' button')})).find(b=>b.textContent.trim().startsWith('Europa'));if(!button)throw Error('Missing Europe filter');button.dataset.natureAction='europe';return ${q(flagSettingsRoot)}+' [data-nature-action="europe"]';})()`);
+    await clickSelector(client,europeSetting);
+    await pressAuditKey('Escape');
+    await waitFor(client,'flag settings close before reopening',`!document.querySelector(${q(flagSettingsRoot)})&&Boolean(document.querySelector('[data-widget-type="flagquiz"] button[aria-label$="Einstellungen öffnen"]'))`);
+    await waitFor(client,'flag filter actually applies and starts a new round',`document.querySelector(${q(flagRoot)}).textContent.includes('Europa')&&document.querySelector(${q(flagRoot)}).textContent.includes('Noch keine Antwort')`);
+    await discoverySettings('flagquiz');await auditMenu('flagquiz','Widget schließen');
+
+    await openAuditWidget('wastebin','Müll-Trenner');await auditWidgetMinimum('wastebin');
+    const wasteRoot=discoveryRoot('wastebin');
+    const wastePairs=[['Apfelrest','Biomüll'],['Bananenschale','Biomüll'],['Welke Blumen','Biomüll'],['Zeitung','Altpapier'],['Karton','Altpapier'],['Schulheft ohne Plastikhülle','Altpapier'],['Joghurtbecher','Verpackung'],['Getränkedose','Verpackung'],['Getränkekarton','Verpackung'],['Batterie','Sammelstelle'],['LED-Lampe','Sammelstelle'],['Kaputter Taschenrechner','Sammelstelle'],['Benutztes Pflaster','Restmüll'],['Kaugummi','Restmüll'],['Kaputtes Plastiklineal','Restmüll']];
+    const seenWaste=[];
+    for(let i=0;i<15;i++) {
+      const name=await evaluate(client,`document.querySelector(${q(wasteRoot+' .text-xl.font-black')}).textContent`);
+      const expected=wastePairs.find(([n])=>n===name)?.[1];if(!expected)throw Error('Unknown displayed waste '+name);seenWaste.push(name);
+      const answer=i===0?(expected==='Restmüll'?'Biomüll':'Restmüll'):expected;
+      const bin=await evaluate(client,`Array.from(document.querySelectorAll(${q(wasteRoot+' button')})).find(b=>b.querySelector('span.block.mt-1')?.textContent===${q(answer)}).textContent.trim()`);
+      await natureClick(wasteRoot,bin);await discoveryScreen('wastebin');
+      await waitFor(client,'waste explanation and rule stay inside their panel',`(() => {const panel=document.querySelector(${q(wasteRoot+' [data-wastebin-question]')}),explanation=document.querySelector(${q(wasteRoot+' [data-wastebin-explanation]')});if(!panel||!explanation)return false;const p=panel.getBoundingClientRect(),e=explanation.getBoundingClientRect();return e.top>=p.top&&e.bottom<=p.bottom&&e.left>=p.left&&e.right<=p.right&&explanation.scrollHeight<=explanation.clientHeight+1;})()`);
+      await waitFor(client,'rest waste label stays white after answering',`getComputedStyle(document.querySelector(${q(wasteRoot+' [data-wastebin-choice="rest"] span.block.mt-1')})).color==='rgb(255, 255, 255)'`);
+      await waitFor(client,'waste explanation reflects actual answer',`document.querySelector(${q(wasteRoot)}).textContent.includes(${q(i===0?'Noch nicht.':'Richtig zugeordnet.')})`);
+      if(i===0||i===14)await natureRestore('wastebin','Müll-Trenner');
+      await natureClick(wasteRoot,'Nächster Gegenstand');
+    }
+    if(new Set(seenWaste).size!==15)throw Error('Waste cycle repeated before all fifteen examples');
+    await waitFor(client,'waste score counts each actual answer once',`document.querySelector(${q(wasteRoot)}).textContent.includes('14/15 richtig')`);
+    await auditMenu('wastebin','Widget schließen');
+    console.log('✓ Nature block: every sky pattern connected; all nine solar bodies and real planet quiz; nine Austrian states with wrong/correct capitals; pictured flags/filter; all fifteen waste examples; physical clicks, native minima and full close/remount.');
     console.log('✓ Widget block: groups stay in widget, real wheel winner restored, all star children reachable without inner scrolling.');
     console.log('✓ Widget block: 12 widgets checked; stopwatch pause and traffic light mode survive restore.');
     console.log('✓ Audit regression: calculator keys/result/restore, compass layout at 100/125/150%, QR alias/readability/title/mode restore');
