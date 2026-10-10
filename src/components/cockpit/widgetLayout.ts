@@ -36,6 +36,11 @@ export interface WidgetMinSizeConfig {
  * Verbindliche Mindestgrößen für Widgets
  */
 export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
+  dictionary: { minW: 460, minH: 540, prefW: 580, prefH: 560 },
+  patternmaker: { minW: 580, minH: 520, prefW: 640, prefH: 560 },
+  alphabetsoup: { minW: 640, minH: 560, prefW: 700, prefH: 560 },
+  morsecode: { minW: 620, minH: 560, prefW: 700, prefH: 560 },
+  hangman: { minW: 640, minH: 560, prefW: 700, prefH: 560 },
   timer: { minW: 280, minH: 220, prefW: 380, prefH: 340 },
   groups: { minW: 300, minH: 240, prefW: 460, prefH: 420 },
   kidattendance: { minW: 280, minH: 220, prefW: 480, prefH: 420 },
