@@ -1649,6 +1649,19 @@ async function main() {
 
     // Five-widget math batch: independently calculate displayed tasks, then use the real UI.
     const auditWidgetMinimum = async type => {
+      if(['fractions','fractioncake','fractiongrid','moneycalc'].includes(type)){
+        // Earlier routines may leave a restored window at the lower board edge.
+        // Use the real size preset and drag header before testing the visible grip.
+        await auditMenu(type,'Größe');await clickButton(client,'Passend',true);
+        await clickSelector(client,'[data-widget-type="'+type+'"] [aria-label="Größeneinstellung schließen"]');
+        const start=await evaluate(client,`(() => {const r=document.querySelector('[data-widget-type=${q(type)}]').getBoundingClientRect();return {x:r.x+70,y:r.y+23};})()`);
+        await client.send('Input.dispatchMouseEvent',{type:'mouseMoved',...start});
+        await client.send('Input.dispatchMouseEvent',{type:'mousePressed',...start,button:'left',clickCount:1});
+        const end={x:Math.max(1,start.x-1000),y:Math.max(1,start.y-1000)};
+        await client.send('Input.dispatchMouseEvent',{type:'mouseMoved',...end,button:'left',buttons:1});await sleep(200);
+        await client.send('Input.dispatchMouseEvent',{type:'mouseReleased',...end,button:'left',clickCount:1});
+        await waitFor(client,type+' real header drag settles before resize',`!document.querySelector('[data-widget-type=${q(type)}]').hasAttribute('data-widget-interacting')`);
+      }
       const minimumSizes={fractions:[640,560],fractioncake:[640,560],fractiongrid:[640,560],moneycalc:[760,560],mathcards:[640,560],mathchain:[640,560],mathduel:[760,560],mathpyramid:[740,560],mathbalancer:[640,560],riddle:[700,560],colormixer:[760,560],shadowshapes:[840,560],clocksync:[740,560],kidweather:[760,560],constellation:[720,560],planetarium:[720,560],flagquiz:[700,560],geographyquiz:[700,560],wastebin:[820,560],bodyparts:[620,560],compass:[620,560],weekdays:[620,560],trafficquiz:[800,560],watercycle:[760,560],dictionary:[460,540],patternmaker:[580,520],alphabetsoup:[640,560],morsecode:[620,560],hangman:[640,560],sorting:[420,520],vocabulary:[640,560],spellingdetective:[640,560],wordbuilder:[620,560],scrambler:[620,560],compoundsplit:[620,560],wordchain:[500,520],wordgrid:[640,560],wordscramble:[600,560],secretcode:[440,420],storyemojis:[640,560],abcorder:[640,560],sentencebuilding:[620,560],wordexplorer:[520,540],rhymemachine:[500,540],punctuationzoo:[620,560]};
       const [minimumWidth,minimumHeight]=minimumSizes[type]||[460,560];
       await waitFor(client,type+' resize grip is reachable after opening', `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('[data-widget-resize]')?.dataset.widgetResize==='se';})()`);
