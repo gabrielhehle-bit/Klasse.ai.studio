@@ -11051,6 +11051,7 @@ ${content}
                                       return (
                                         <ShadowshapesWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -11067,6 +11068,7 @@ ${content}
                                       return (
                                         <ClocksyncWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -12371,6 +12373,7 @@ ${content}
                                       return (
                                         <KidWeatherWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -12444,6 +12447,7 @@ ${content}
                                       return (
                                         <ColormixerWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}
                                         />
                                       );

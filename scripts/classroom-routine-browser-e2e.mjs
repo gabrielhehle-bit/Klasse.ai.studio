@@ -1649,7 +1649,7 @@ async function main() {
 
     // Five-widget math batch: independently calculate displayed tasks, then use the real UI.
     const auditWidgetMinimum = async type => {
-      const minimumSizes={constellation:[720,560],planetarium:[720,560],flagquiz:[700,560],geographyquiz:[700,560],wastebin:[820,560],bodyparts:[620,560],compass:[620,560],weekdays:[620,560],trafficquiz:[800,560],watercycle:[760,560],dictionary:[460,540],patternmaker:[580,520],alphabetsoup:[640,560],morsecode:[620,560],hangman:[640,560],sorting:[420,520],vocabulary:[640,560],spellingdetective:[640,560],wordbuilder:[620,560],scrambler:[620,560],compoundsplit:[620,560],wordchain:[500,520],wordgrid:[640,560],wordscramble:[600,560],secretcode:[440,420],storyemojis:[640,560],abcorder:[640,560],sentencebuilding:[620,560],wordexplorer:[520,540],rhymemachine:[500,540],punctuationzoo:[620,560]};
+      const minimumSizes={riddle:[700,560],colormixer:[760,560],shadowshapes:[840,560],clocksync:[740,560],kidweather:[760,560],constellation:[720,560],planetarium:[720,560],flagquiz:[700,560],geographyquiz:[700,560],wastebin:[820,560],bodyparts:[620,560],compass:[620,560],weekdays:[620,560],trafficquiz:[800,560],watercycle:[760,560],dictionary:[460,540],patternmaker:[580,520],alphabetsoup:[640,560],morsecode:[620,560],hangman:[640,560],sorting:[420,520],vocabulary:[640,560],spellingdetective:[640,560],wordbuilder:[620,560],scrambler:[620,560],compoundsplit:[620,560],wordchain:[500,520],wordgrid:[640,560],wordscramble:[600,560],secretcode:[440,420],storyemojis:[640,560],abcorder:[640,560],sentencebuilding:[620,560],wordexplorer:[520,540],rhymemachine:[500,540],punctuationzoo:[620,560]};
       const [minimumWidth,minimumHeight]=minimumSizes[type]||[460,560];
       await waitFor(client,type+' resize grip is reachable after opening', `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('[data-widget-resize]')?.dataset.widgetResize==='se';})()`);
       const point=await evaluate(client, `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
@@ -2447,6 +2447,105 @@ async function main() {
     console.log('✓ Widget block: groups stay in widget, real wheel winner restored, all star children reachable without inner scrolling.');
     console.log('✓ Widget block: 12 widgets checked; stopwatch pause and traffic light mode survive restore.');
     console.log('✓ Audit regression: calculator keys/result/restore, compass layout at 100/125/150%, QR alias/readability/title/mode restore');
+    // Content audit: real child-facing tasks, physical choices and persisted lesson progress.
+    const practiceFixture={"colors":[{"name":"Grün","recipe":["yellow","blue"],"hint":"Gelb und Blau ergeben im vereinfachten Malfarbenmodell Grün."},{"name":"Orange","recipe":["red","yellow"],"hint":"Rot und Gelb ergeben Orange."},{"name":"Violett","recipe":["red","blue"],"hint":"Rot und Blau ergeben Violett."},{"name":"Rosa","recipe":["red","white"],"hint":"Weiß hellt Rot zu Rosa auf."},{"name":"Hellgrün","recipe":["yellow","blue","white"],"hint":"Mische zuerst Grün aus Gelb und Blau. Weiß hellt es auf."}],"paintLabels":{"red":"Rot","yellow":"Gelb","blue":"Blau","white":"Weiß"},"clocks":[{"text":"Stelle drei Uhr ein.","hour":3,"minute":0},{"text":"Stelle halb fünf ein.","hour":4,"minute":30},{"text":"Stelle Viertel vor zwölf ein.","hour":11,"minute":45},{"text":"Stelle Viertel nach neun ein.","hour":9,"minute":15},{"text":"Stelle zehn nach zehn ein.","hour":10,"minute":10}],"weather":[{"id":"sun","label":"Sonne","emoji":"☀️","text":"Es ist sonnig und warm: 25 °C. Wähle aus diesen Dingen etwas für Kopf und Oberkörper.","required":["kappe","tshirt"],"optional":[],"explanation":"Leichte Kleidung und eine Kappe passen. Schatten und Sonnenschutz sind zusätzlich wichtig."},{"id":"rain","label":"Regen","emoji":"🌧️","text":"Es regnet bei 10 °C. Wähle aus diesen Dingen Schutz für Oberkörper und Füße.","required":["jacke","stiefel"],"optional":["schirm","tshirt"],"explanation":"Eine Regenjacke und geeignete Stiefel halten dich trocken. Ein Schirm ist bei Regen ohne Gewitter zusätzlich möglich."},{"id":"cloud","label":"Wolken","emoji":"☁️","text":"Es ist bewölkt und kühl: 12 °C. Wähle zwei Schichten für den Oberkörper.","required":["jacke","tshirt"],"optional":[],"explanation":"T-Shirt und Jacke sind zwei Schichten. Wolken allein sagen nicht, wie kalt es ist: Achte auch auf Temperatur und Wind."},{"id":"snow","label":"Schnee","emoji":"❄️","text":"Es schneit bei 0 °C. Wähle aus diesen Dingen etwas für Kopf, Hände, Oberkörper und Füße.","required":["winterjacke","stiefel","handschuhe","haube"],"optional":["tshirt"],"explanation":"Winterjacke, Mütze, Handschuhe und geeignete Stiefel wärmen. Darunter gehören passende weitere Kleidungsschichten."},{"id":"tempest","label":"Gewitter","emoji":"🌩️","text":"Du hörst Donner. Was ist jetzt wichtig?","required":["shelter"],"optional":[],"explanation":"Geh mit einer erwachsenen Person sofort in ein festes Gebäude. Ein Regenschirm, ein Baum oder eine offene Hütte schützen nicht vor Blitzschlag."}],"items":[{"id":"kappe","label":"Sonnenkappe","emoji":"🧢"},{"id":"tshirt","label":"T-Shirt","emoji":"👕"},{"id":"jacke","label":"Regenjacke","emoji":"🧥"},{"id":"winterjacke","label":"Winterjacke","emoji":"🧥"},{"id":"stiefel","label":"Stiefel","emoji":"🥾"},{"id":"handschuhe","label":"Handschuhe","emoji":"🧤"},{"id":"schirm","label":"Regenschirm","emoji":"☂️"},{"id":"haube","label":"Wollmütze","emoji":"🧶"}],"puzzles":[{"name":"Sehr leicht: Herz ❤️","size":2,"rows":4,"presets":[[0,1],[1,1],[1,1],[0,1]]},{"name":"Leicht: Tannenbaum 🌲","size":2,"rows":5,"presets":[[0,4],[0,4],[1,4],[1,4],[0,6]]},{"name":"Leicht: Schmetterling 🦋","size":2,"rows":4,"presets":[[1,0],[1,3],[0,3],[1,0]]},{"name":"Mittel: Bunte Krone 👑","size":3,"rows":6,"presets":[[0,2,0],[3,3,0],[0,3,4],[0,2,4],[5,0,0],[5,0,2]]},{"name":"Knifflig: Rakete 🚀","size":3,"rows":6,"presets":[[0,0,1],[0,1,2],[0,2,2],[0,2,6],[3,3,6],[1,0,0]]},{"name":"Sehr knifflig: Bunte Spinne 🕷️","size":4,"rows":8,"presets":[[6,5,0,0],[0,6,5,0],[6,0,0,5],[5,6,4,0],[0,4,6,5],[1,0,6,0],[0,1,0,6],[6,1,0,0]]},{"name":"Fortgeschritten: Turm 🏰","size":4,"rows":6,"presets":[[0,2,0,6],[0,2,1,6],[0,3,2,2],[0,3,2,6],[4,4,2,6],[4,4,4,4]]},{"name":"Fortgeschritten: Maske 🎭","size":5,"rows":7,"presets":[[5,0,5,0,0],[5,5,5,2,0],[0,5,6,2,2],[0,5,5,6,2],[0,0,5,5,5],[0,0,0,5,5],[0,0,0,0,5]]},{"name":"Profi: Mandala 🌺","size":5,"rows":8,"presets":[[3,0,0,0,3],[0,3,0,3,0],[0,0,5,0,0],[0,5,1,5,0],[3,0,1,0,3],[0,3,4,3,0],[0,4,4,4,0],[4,0,4,0,4]]},{"name":"Meister: Phönix 🦅","size":6,"rows":8,"presets":[[0,0,0,0,1,1],[0,0,0,1,1,3],[0,0,1,1,3,3],[1,1,1,3,3,0],[1,1,3,3,0,0],[0,1,3,0,0,0],[0,0,3,4,0,0],[0,0,0,4,4,0]]},{"name":"Meister: Pixel-Alien 👾","size":6,"rows":9,"presets":[[0,0,2,2,0,0],[0,2,2,2,2,0],[2,2,6,2,2,2],[2,2,2,2,2,2],[2,0,2,2,0,2],[0,2,2,2,2,0],[0,0,2,2,0,0],[0,2,0,0,2,0],[2,0,0,0,0,2]]},{"name":"Großmeister: Diamant 💎","size":6,"rows":10,"presets":[[0,0,0,0,0,2],[0,0,0,0,2,2],[0,0,0,2,2,5],[0,0,2,2,5,5],[0,2,2,5,5,2],[2,2,5,5,2,0],[2,5,5,2,0,0],[5,5,2,0,0,0],[5,2,0,0,0,0],[2,0,0,0,0,0]]},{"name":"Ultra-Knifflig: Labyrinth 🕸️","size":7,"rows":10,"presets":[[6,6,6,6,6,6,6],[6,0,0,0,0,0,0],[6,0,6,6,6,6,6],[6,0,6,0,0,0,6],[6,0,6,0,6,0,6],[6,0,6,0,6,0,6],[6,0,0,0,6,0,6],[6,6,6,6,6,0,6],[0,0,0,0,0,0,6],[6,6,6,6,6,6,6]]},{"name":"Extrem: Yin Yang ☯️","size":6,"rows":10,"presets":[[0,0,6,6,6,6],[0,6,6,6,6,6],[6,6,6,0,0,6],[6,6,6,0,0,6],[6,6,6,6,6,6],[0,0,0,0,0,0],[0,0,0,6,6,0],[0,0,0,6,6,0],[0,0,0,0,0,0],[0,0,0,0,0,0]]},{"name":"Große Herausforderung: Mega-Mosaik 🌌","size":8,"rows":11,"presets":[[1,2,3,4,5,6,1,2],[2,3,4,5,6,1,2,3],[3,4,5,6,1,2,3,4],[4,5,0,0,0,0,4,5],[5,6,0,3,3,0,5,6],[6,1,0,3,3,0,6,1],[1,2,0,0,0,0,1,2],[2,3,4,5,6,1,2,3],[3,4,5,6,1,2,3,4],[4,5,6,1,2,3,4,5],[5,6,1,2,3,4,5,6]]}],"riddles":[{"category":"Scherzfragen","q":"Was hat einen Hals, aber keinen Kopf?","a":"Eine Flasche","hint":"Du kannst Wasser hineingießen.","emoji":"🧴"},{"category":"Tiere","q":"Wer trägt sein Haus auf dem Rücken und kriecht langsam?","a":"Eine Schnecke","hint":"Das Haus ist ein spiraliges Gehäuse.","emoji":"🐌"},{"category":"Tiere","q":"Ich habe lange Ohren, weiches Fell und hüpfe. Wer bin ich?","a":"Ein Hase","hint":"Mein Name beginnt mit H.","emoji":"🐰"},{"category":"Tiere","q":"Ich bin ein kleines Nagetier mit langem Schwanz. Wer bin ich?","a":"Eine Maus","hint":"Mein Name beginnt mit M.","emoji":"🐭"},{"category":"Schule","q":"Ich habe Blätter, aber bin kein Baum. In mir stehen Geschichten. Was bin ich?","a":"Ein Buch","hint":"Du kannst darin lesen.","emoji":"📚"},{"category":"Schule","q":"Ich mache Bleistiftspuren weg und werde dabei kleiner. Was bin ich?","a":"Ein Radiergummi","hint":"Du reibst mich über das Papier.","emoji":"✏️"},{"category":"Schule","q":"In meinem Bauch wohnen deine Stifte. Was bin ich?","a":"Ein Federmäppchen","hint":"Du findest mich in der Schultasche.","emoji":"🎒"},{"category":"Natur","q":"Ich falle als Tropfen aus Wolken und mache den Boden nass. Was bin ich?","a":"Regen","hint":"Pflanzen brauchen das Wasser.","emoji":"🌧️"},{"category":"Natur","q":"Ich bin ein Stern und wärme die Erde. Wer bin ich?","a":"Die Sonne","hint":"Du siehst mich am Tag am Himmel.","emoji":"☀️"},{"category":"Natur","q":"Ich falle im Winter als kleine Eiskristalle aus Wolken. Was bin ich?","a":"Schnee","hint":"Aus mir kannst du einen Schneemann bauen.","emoji":"❄️"},{"category":"Scherzfragen","q":"Welcher Kopf kann nicht denken und wächst im Garten?","a":"Ein Kohlkopf","hint":"Du kannst ihn essen.","emoji":"🥬"},{"category":"Scherzfragen","q":"Was wird nasser, je mehr du dich damit abtrocknest?","a":"Ein Handtuch","hint":"Du benutzt es nach dem Waschen.","emoji":"🧼"}]};
+    const practiceRoot=type=>'[data-widget-type="'+type+'"] [data-practice-root]';
+    const practiceFits=root=>`(() => {const el=document.querySelector(${q(root)});if(!el)return false;const r=el.getBoundingClientRect();return el.scrollWidth<=el.clientWidth+1&&el.scrollHeight<=el.clientHeight+1&&Array.from(el.querySelectorAll('button,input,select')).every(b=>{const t=b.getBoundingClientRect();return t.width>=44&&t.height>=44&&t.left>=r.left-1&&t.right<=r.right+1&&t.top>=r.top-1&&t.bottom<=r.bottom+1&&(b.disabled||b.contains(document.elementFromPoint(t.x+t.width/2,t.y+t.height/2)));});})()`;
+    const practiceScreen=async type=>{await waitFor(client,type+' native learning controls fit',practiceFits(practiceRoot(type)));await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-widget-'+type+'.png'));};
+    const practiceRestore=async(type,label)=>{
+      const root=practiceRoot(type),snapshot=await evaluate(client,`({text:document.querySelector(${q(root)}).innerText,inputs:Array.from(document.querySelectorAll(${q(root+' input')})).map(i=>i.value),pressed:Array.from(document.querySelectorAll(${q(root+' [aria-pressed]')})).map(b=>b.getAttribute('aria-pressed')),colors:Array.from(document.querySelectorAll(${q(root+' [data-color]')})).map(c=>c.dataset.color)})`);
+      for(const action of ['Minimieren','Widget schließen']){await auditMenu(type,action);await openAuditWidget(type,label);await waitFor(client,type+' exact lesson content survives '+action,`JSON.stringify(({text:document.querySelector(${q(root)}).innerText,inputs:Array.from(document.querySelectorAll(${q(root+' input')})).map(i=>i.value),pressed:Array.from(document.querySelectorAll(${q(root+' [aria-pressed]')})).map(b=>b.getAttribute('aria-pressed')),colors:Array.from(document.querySelectorAll(${q(root+' [data-color]')})).map(c=>c.dataset.color)}))===${q(JSON.stringify(snapshot))}`);await practiceScreen(type);}
+    };
+    const practiceSelect=async(root,label,value)=>{await evaluate(client,`(() => {const el=document.querySelector(${q(root+' select[aria-label="'+label+'"]')});el.value=${q(String(value))};el.dispatchEvent(new Event('change',{bubbles:true}));})()`);await waitFor(client,'practice selection '+label,`document.querySelector(${q(root+' select[aria-label="'+label+'"]')}).value===${q(String(value))}`);};
+
+    await openAuditWidget('colormixer','Kunst Farbmischung');await auditWidgetMinimum('colormixer');
+    const paintRoot=practiceRoot('colormixer');
+    for(let i=0;i<practiceFixture.colors.length;i++){
+      await waitFor(client,'displayed paint target',`document.querySelector(${q(paintRoot+' h3')}).textContent.includes(${q(practiceFixture.colors[i].name)})`);
+      if(i===0){await natureClick(paintRoot,'Rot');await natureClick(paintRoot,'Mischen & prüfen');await waitFor(client,'wrong paint feedback',`document.querySelector(${q(paintRoot+' [role="status"]')}).textContent.startsWith('Noch nicht.')`);await natureClick(paintRoot,'Leeren');}
+      for(const p of practiceFixture.colors[i].recipe)await natureClick(paintRoot,practiceFixture.paintLabels[p]);
+      await natureClick(paintRoot,'Mischen & prüfen');await waitFor(client,'actual matching paint answer',`document.querySelector(${q(paintRoot+' [role="status"]')}).textContent.startsWith('Richtig!')`);
+      await practiceScreen('colormixer');
+      await natureClick(paintRoot,'Mischen & prüfen');await waitFor(client,'paint cannot farm the same solved task',`document.querySelector(${q(paintRoot)}).textContent.includes(${q((i+1)+' gelöst')})`);
+      if(i===0){await natureClick(paintRoot,'Tipp zeigen');await practiceRestore('colormixer','Kunst Farbmischung');}
+      await natureClick(paintRoot,'Nächste Aufgabe');
+    }
+    await auditMenu('colormixer','Widget schließen');
+
+    await openAuditWidget('clocksync','Uhrzeit-Macher');await auditWidgetMinimum('clocksync');
+    const clockPracticeRoot=practiceRoot('clocksync');
+    for(let i=0;i<practiceFixture.clocks.length;i++){
+      const task=practiceFixture.clocks[i];
+      await clickSelector(client,clockPracticeRoot+' [aria-label="'+task.hour+' Uhr einstellen"]');
+      await clickSelector(client,clockPracticeRoot+' [aria-label="'+task.minute+' Minuten einstellen"]');
+      await waitFor(client,'real clock solution '+i,`document.querySelector(${q(clockPracticeRoot+' [role="status"]')}).textContent.includes('Richtig eingestellt!')`);
+      const angle=(task.hour%12)*30+task.minute*0.5;
+      await waitFor(client,'hour hand moves between numbers',`document.querySelector(${q(clockPracticeRoot+' [data-clock-hand="hour"]')}).getAttribute('transform')===${q('rotate('+angle+' 50 50)')}`);
+      if(i===1){await natureClick(clockPracticeRoot,'Digitalhilfe zeigen');await practiceRestore('clocksync','Uhrzeit-Macher');}
+      await practiceScreen('clocksync');await natureClick(clockPracticeRoot,'Nächste Uhr');
+    }
+    await clickSelector(client,clockPracticeRoot+' [aria-label="11 Uhr einstellen"]');await clickSelector(client,clockPracticeRoot+' [aria-label="55 Minuten einstellen"]');await natureClick(clockPracticeRoot,'Minute +5');await natureClick(clockPracticeRoot,'Digitalhilfe zeigen');
+    await waitFor(client,'clock minute carry reaches twelve',`document.querySelector(${q(clockPracticeRoot)}).textContent.includes('Eingestellt: 12:00')`);
+    await natureClick(clockPracticeRoot,'Minute −5');await waitFor(client,'clock reverse carry restores eleven fifty-five',`document.querySelector(${q(clockPracticeRoot)}).textContent.includes('Eingestellt: 11:55')`);
+    await auditMenu('clocksync','Widget schließen');
+
+    await openAuditWidget('kidweather','Wetterfrosch Station');await auditWidgetMinimum('kidweather');
+    const clothingRoot=practiceRoot('kidweather');
+    const clothingButton=id=>practiceFixture.items.find(x=>x.id===id);
+    for(let i=0;i<practiceFixture.weather.length;i++){
+      const task=practiceFixture.weather[i];
+      if(task.id==='tempest'){
+        await natureClick(clothingRoot,'☂️ Den Schirm aufspannen');await natureClick(clothingRoot,'Auswahl prüfen');await waitFor(client,'umbrella never marked safe in thunderstorm',`document.querySelector(${q(clothingRoot+' [role="status"]')}).textContent.includes('schützen nicht vor Blitzschlag')&&!document.querySelector(${q(clothingRoot+' [role="status"]')}).textContent.startsWith('Passend!')`);
+        await natureClick(clothingRoot,'🏠 In ein festes Gebäude gehen');
+      }else{await natureClick(clothingRoot,'Auswahl prüfen');await waitFor(client,'missing weather clothing explains the error',`document.querySelector(${q(clothingRoot+' [role="status"]')}).textContent.includes('Es fehlt:')`);for(const id of task.required){const item=clothingButton(id);await natureClick(clothingRoot,item.emoji+' '+item.label);}}
+      await natureClick(clothingRoot,'Auswahl prüfen');await waitFor(client,'weather choice is factually correct '+task.id,`document.querySelector(${q(clothingRoot+' [role="status"]')}).textContent.startsWith('Passend!')`);
+      await practiceScreen('kidweather');if(i===1||i===4)await practiceRestore('kidweather','Wetterfrosch Station');
+      await natureClick(clothingRoot,'Nächstes Wetter');
+    }
+    await auditMenu('kidweather','Widget schließen');
+
+    await openAuditWidget('shadowshapes','Symmetrie-Spiel');await auditWidgetMinimum('shadowshapes');
+    const mirrorRoot=practiceRoot('shadowshapes');
+    for(let puzzleIndex=0;puzzleIndex<practiceFixture.puzzles.length;puzzleIndex++){
+      const puzzle=practiceFixture.puzzles[puzzleIndex];await practiceSelect(mirrorRoot,'Symmetrie-Motiv',puzzleIndex);
+      const modes=puzzleIndex===0?['classic','swap','rotate']:['classic'];
+      for(const mode of modes){await practiceSelect(mirrorRoot,'Symmetrie-Modus',mode);
+        await natureClick(mirrorRoot,'Motiv prüfen');await waitFor(client,'incorrect symmetry is detected',`document.querySelector(${q(mirrorRoot+' [role="status"]')}).textContent.startsWith('Noch nicht.')`);
+        const swap=[0,2,1,4,3,6,5];
+        for(let page=0;page<Math.ceil(puzzle.rows/3);page++){
+          const observed=await evaluate(client,`Array.from(document.querySelectorAll(${q(mirrorRoot+' [data-symmetry-left]')})).map(c=>({key:c.dataset.symmetryLeft,value:Number(c.dataset.color)}))`);
+          if(observed.some(c=>{const [r,col]=c.key.split('-').map(Number);return c.value!==puzzle.presets[r][col];}))throw Error('Displayed symmetry template disagrees with fixture');
+          for(let r=page*3;r<Math.min(page*3+3,puzzle.rows);r++)for(let c=0;c<puzzle.size;c++){
+            const value=mode==='rotate'?puzzle.presets[puzzle.rows-1-r][puzzle.size-1-c]:puzzle.presets[r][puzzle.size-1-c],expected=mode==='swap'?swap[value]:value;
+            if(!expected)continue;
+            await natureClick(mirrorRoot,['Radierer','Rot','Blau','Gold','Grün','Pink','Schwarz'][expected]);
+            await clickSelector(client,mirrorRoot+' [data-symmetry-cell="'+r+'-'+c+'"]');
+          }
+          await practiceScreen('shadowshapes');if(page===0&&puzzleIndex===0)await practiceRestore('shadowshapes','Symmetrie-Spiel');
+          if(page<Math.ceil(puzzle.rows/3)-1)await natureClick(mirrorRoot,'Nächste Zeilen');
+        }
+        await natureClick(mirrorRoot,'Motiv prüfen');await waitFor(client,'complete symmetry solution '+puzzleIndex+' '+mode,`document.querySelector(${q(mirrorRoot+' [role="status"]')}).textContent.startsWith('Richtig!')`);
+      }
+    }
+    await practiceRestore('shadowshapes','Symmetrie-Spiel');await auditMenu('shadowshapes','Widget schließen');
+
+    await openAuditWidget('riddle','Scherz- & Logikrätsel');await auditWidgetMinimum('riddle');
+    const riddlePracticeRoot=practiceRoot('riddle');
+    for(const [category,label] of [['Tiere','🐾 Tiere'],['Schule','🎒 Schule'],['Natur','🌲 Natur'],['Scherzfragen','😜 Witze']]){
+      await natureClick(riddlePracticeRoot,label);
+      const questions=practiceFixture.riddles.filter(r=>r.category===category);
+      for(let i=0;i<questions.length;i++){
+        const question=await evaluate(client,`document.querySelector(${q(riddlePracticeRoot+' h3')}).textContent`),fixture=questions.find(r=>question.includes(r.q));if(!fixture)throw Error('Unexpected local riddle '+question);
+        await natureClick(riddlePracticeRoot,'Tipp anzeigen 🔎');await practiceScreen('riddle');
+        await natureClick(riddlePracticeRoot,'Lösung zeigen 💡');await waitFor(client,'riddle solution is correct',`document.querySelector(${q(riddlePracticeRoot)}).textContent.includes(${q(fixture.a)})`);
+        await practiceScreen('riddle');
+        await clickSelector(client,riddlePracticeRoot+' button[title="Neues Rätsel erfinden"]');
+        await waitFor(client,'new category riddle changes immediately',`document.querySelector(${q(riddlePracticeRoot+' h3')}).textContent!==${q(question)}`);
+      }
+    }
+    await setInputByLabel(client,'Eigenes Rätsel-Thema','Mein eigenes Thema');await natureClick(riddlePracticeRoot,'Tipp anzeigen 🔎');await practiceRestore('riddle','Scherz- & Logikrätsel');await auditMenu('riddle','Widget schließen');
+    console.log('✓ Content block: five paint recipes, minute carry and actual clock hands, weather temperature/clothing and storm shelter, all fifteen symmetry motifs and three transformations, every local riddle category, native controls and exact restore.');
+
     // Class behavior uses the pupil scale: 1 is positive and must be above 5.
     await clickSelector(client, '[aria-label="Weitere Optionen und Layout-Werkzeuge"]');
     const publicBehaviorOption='[aria-label="Verhalten der Kinder öffentlich in der Schülerliste anzeigen"]';
