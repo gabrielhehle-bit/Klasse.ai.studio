@@ -2048,7 +2048,7 @@ async function main() {
     await waitFor(client,'Story Emojis restores exact picture order locks and teacher prompt',`JSON.stringify(Array.from(document.querySelectorAll(${q(storyRoot+' [data-story-emoji-id]')})).map(b=>[b.dataset.storyEmojiId,b.dataset.storyLocked]))===${q(JSON.stringify(storySnapshot))} && document.querySelector(${q(storyRoot)}).textContent.includes('Erzähle eine Geschichte über Freundschaft.')`);
     await evaluate(client,`document.querySelector(${q(storyRoot)}).dataset.wordplayRoot=''`);await wordplayScreens('storyemojis');await auditMenu('storyemojis','Widget schließen');
     // Next five German catalog entries: aliases above plus three distinct lesson tools.
-    await openAuditWidget('wordexplorer','Wortforscher');await auditWidgetMinimum('wordexplorer');
+    await openAuditWidget('wordexplorer','Wort-Analysator');await auditWidgetMinimum('wordexplorer');
     const explorerRoot='[data-widget-type="wordexplorer"] [data-wordplay-root]';
     for(const [word,count,capital] of [['Schule',2,'Ja (Groß)'],['feiern',2,'Nein (Klein)'],['Äpfel',2,'Ja (Groß)'],['',0,'Nein (Klein)']]){
       await setInputByLabel(client,'Wort untersuchen',word);
@@ -2059,7 +2059,7 @@ async function main() {
     await setInputByLabel(client,'Silbenzahl korrigieren','9');
     await waitFor(client,'word explorer shows uncertainty and corrected count',`document.querySelector(${q(explorerRoot)}).textContent.includes('Schätzung') && !document.querySelector(${q(explorerRoot)}).textContent.includes('Nomen?') && document.querySelector('[aria-label="Silbenzahl korrigieren"]').value==='9'`);
     await wordplayScreens('wordexplorer');
-    await auditMenu('wordexplorer','Minimieren');await openAuditWidget('wordexplorer','Wortforscher');
+    await auditMenu('wordexplorer','Minimieren');await openAuditWidget('wordexplorer','Wort-Analysator');
     await waitFor(client,'word explorer restores exact casing and teacher correction',`document.querySelector('[aria-label="Wort untersuchen"]').value===${q(longWord)} && document.querySelector('[aria-label="Silbenzahl korrigieren"]').value==='9'`);
     await auditMenu('wordexplorer','Widget schließen');
 

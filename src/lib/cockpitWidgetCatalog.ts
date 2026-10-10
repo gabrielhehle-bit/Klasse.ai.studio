@@ -260,7 +260,7 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                       {
                                         type: "wordexplorer",
                                         label: "🔍 Wort-Analysator",
-                                        desc: "Silben, Vokale & Wortart bestimmen",
+                                        desc: "Silben schätzen, Selbstlaute und Großschreibung",
                                         category: "deutsch",
                                       },
                                       {
