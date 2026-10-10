@@ -49,7 +49,7 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   sounds: { minW: 280, minH: 200, prefW: 380, prefH: 280 },
   // Header, one readable task, page controls and input must fit at the same time.
   todo: { minW: 340, minH: 360, prefW: 460, prefH: 500 },
-  dienste: { minW: 280, minH: 520, prefW: 380, prefH: 540 },
+  dienste: { minW: 640, minH: 560, prefW: 760, prefH: 600 },
   links: { minW: 340, minH: 360, prefW: 460, prefH: 420 },
   qrcode: { minW: 320, minH: 560, prefW: 400, prefH: 600 },
   image: { minW: 280, minH: 200, prefW: 420, prefH: 340 },

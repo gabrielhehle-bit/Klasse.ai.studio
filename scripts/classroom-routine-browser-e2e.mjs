@@ -718,7 +718,24 @@ async function main() {
       await waitFor(client, 'reading closes and returns keyboard focus', `!document.querySelector('dialog[open]') && document.activeElement?.matches('${trigger}')`);
       await sleep(250);
     };
+    const auditDutyOverview = async (count, suffix) => {
+      await waitFor(client,'every duty visible together without pages or scrolling',`(() => {
+        const body=document.querySelector('#dienste-content-scrollable'),r=body?.getBoundingClientRect(),cards=Array.from(document.querySelectorAll('[data-dienst-overview]'));
+        return cards.length===${count} && !document.querySelector('[aria-label="Klassendienste-Seiten"]') && body.scrollHeight<=body.clientHeight+1 && body.scrollWidth<=body.clientWidth+1 && cards.every(card=>{
+          const c=card.getBoundingClientRect();return c.height>=44 && c.left>=r.left && c.right<=r.right+1 && c.top>=r.top && c.bottom<=r.bottom+1 && Array.from(card.querySelectorAll('[data-dienst-overview-title],[data-dienst-overview-student]')).every(text=>{const t=text.getBoundingClientRect();return t.left>=c.left && t.right<=c.right+1 && t.bottom<=c.bottom && parseFloat(getComputedStyle(text).fontSize)>=14;});
+        });
+      })()`);
+      await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-duty-overview'+suffix+'.png'));
+    };
     await openAuditWidget('dienste','Klassendienste');
+    if (await evaluate(client,"Boolean(document.querySelector('#dienste-empty-state'))")) await clickButton(client,'Dienste einrichten',true);
+    await auditDutyOverview(8,'');
+    const overviewDuties=await evaluate(client,"Array.from(document.querySelectorAll('[data-dienst-overview]')).map(e=>e.dataset.dienstOverview)");
+    await clickSelector(client,'[data-dienst-overview]');
+    await waitFor(client,'empty overview card opens assignment',"Boolean(document.querySelector('dialog[open][aria-label=\"Kinder zuordnen\"]'))");
+    await clickButton(client,'Schließen ✕',true);
+    await waitFor(client,'closing returns to overview card',"document.activeElement.matches('[data-dienst-overview]')");
+    if (await evaluate(client,"Boolean(document.querySelector('button[aria-label=\"Klassendienste bearbeiten\"]'))")) await clickSelector(client,'button[aria-label="Klassendienste bearbeiten"]');
     if (await evaluate(client,"Boolean(document.querySelector('#dienste-empty-state'))")) await clickButton(client,'Dienste einrichten',true);
     const firstDienst = await evaluate(client,"document.querySelector('#dienste-content-scrollable [id^=dienst-item-]').id");
     await clickSelector(client,'#'+firstDienst+' button[title="Kinder zuordnen"]');
@@ -768,6 +785,7 @@ async function main() {
     const dutyState=await evaluate(client,assignedState);
     await auditMenu('dienste','Minimieren');
     await openAuditWidget('dienste','Klassendienste');
+    if (await evaluate(client,"Boolean(document.querySelector('button[aria-label=\"Klassendienste bearbeiten\"]'))")) await clickSelector(client,'button[aria-label="Klassendienste bearbeiten"]');
     await waitFor(client,'duty assignments survive restore',assignedState+" === "+q(dutyState));
     const longDienstTitle='Synthetischer Dienst '+('a'.repeat(59));
     await clickSelector(client,'#'+firstDienst+' button[title="Dienst umbenennen"]');
@@ -796,7 +814,7 @@ async function main() {
       if(await evaluate(client,assignedState)!==dutyState) throw new Error('Resizing duties changes the original assignments.');
       await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-duty-layout-'+width+'x'+height+'.png'));
     };
-    for(const [width,height] of [[280,520],[380,520],[650,520],[280,520]]) await resizeDuty(width,height);
+    for(const [width,height] of [[640,560],[760,560],[880,560],[640,560]]) await resizeDuty(width,height);
     await readLongWidgetText('dienste',longDienstTitle,'Diensttitel');
     await waitFor(client,'reading duty title keeps assignments',assignedState+" === "+q(dutyState));
     const absentDienstId=await evaluate(client,"Array.from(document.querySelectorAll("+q('#'+firstDienst+' [data-dienst-student]')+")).find(e=>e.textContent.includes('abwesend')).dataset.dienstStudent");
@@ -821,8 +839,15 @@ async function main() {
     await waitFor(client,'temporary substitution assigned',"!document.querySelector("+q(substituteDialog)+") && document.querySelector("+q(absentChip)+").dataset.dienstSubstitute === "+q(substituteId));
     await assertDutyFits();
     const substitutionState=await evaluate(client,assignedState);
+    await clickSelector(client,'button[aria-label="Alle Klassendienste anzeigen"]');
+    await auditDutyOverview(8,'-substitution');
+    await waitFor(client,'overview visibly retains absent child and today substitute',"(() => {const chip=document.querySelector("+q('[data-dienst-overview-student='+q(absentDienstId)+']')+");return chip?.dataset.dienstSubstitute === "+q(substituteId)+" && chip.textContent.includes('(fehlt)') && chip.textContent.includes('→') && Boolean(chip.querySelector('.line-through'));})()");
+    await clickSelector(client,'button[aria-label="Klassendienste bearbeiten"]');
+    await waitFor(client,'return from overview preserves substitution',assignedState+" === "+q(substitutionState));
+
     await auditMenu('dienste','Minimieren');
     await openAuditWidget('dienste','Klassendienste');
+    if (await evaluate(client,"Boolean(document.querySelector('button[aria-label=\"Klassendienste bearbeiten\"]'))")) await clickSelector(client,'button[aria-label="Klassendienste bearbeiten"]');
     await waitFor(client,'substitution and long title survive restore',assignedState+" === "+q(substitutionState)+" && document.querySelector("+q('#'+firstDienst+' [data-widget-text-preview]')+").textContent === "+q(longDienstTitle));
     await clickSelector(client,absentChip+' button[title="Vertretung aufheben"]');
     await waitFor(client,'removing substitute preserves original duties',assignedState+" === "+q(dutyState));
@@ -853,6 +878,16 @@ async function main() {
     await waitFor(client,'large duty list stays compact',"document.querySelector("+q(childrenSummary)+").textContent.includes("+q('Alle '+dienstRosterCount+' Kinder ansehen')+") && document.querySelectorAll("+q('#'+firstDienst+' [data-dienst-student]')+").length === 0");
     const fullSummaryHeight=await evaluate(client,"document.querySelector("+q(childrenSummary)+").getBoundingClientRect().height");
     if(!threeChildrenHeight || Math.abs(fullSummaryHeight-threeChildrenHeight)>1) throw new Error('Duty summary grows with the number of assigned children.');
+    await clickSelector(client,'button[aria-label="Alle Klassendienste anzeigen"]');
+    await auditDutyOverview(8,'-all-children');
+    const overviewChildrenSelector='[data-dienst-overview='+q(firstDienst.replace('dienst-item-',''))+'] [data-dienst-overview-student]';
+    const overviewChildren=await evaluate(client,'Array.from(document.querySelectorAll('+q(overviewChildrenSelector)+')).map(e=>e.dataset.dienstOverviewStudent)');
+    if(overviewChildren.length!==dienstRosterCount || allDutyIds.some(id=>!overviewChildren.includes(id))) throw new Error('Overview hides assigned children behind a count or dialog.');
+    await clickSelector(client,'[data-dienst-overview='+q(firstDienst.replace('dienst-item-',''))+']');
+    await waitFor(client,'assigned overview card opens children',"Boolean(document.querySelector('dialog[open][aria-label=\"Eingeteilte Kinder\"]'))");
+    await clickSelector(client,'dialog[open][aria-label="Eingeteilte Kinder"] header button');
+    await waitFor(client,'children list returns to overview card',"document.activeElement.matches('[data-dienst-overview]')");
+    if (await evaluate(client,"Boolean(document.querySelector('button[aria-label=\"Klassendienste bearbeiten\"]'))")) await clickSelector(client,'button[aria-label="Klassendienste bearbeiten"]');
     await clickSelector(client,childrenSummary);
     const childrenDialog='dialog[open][aria-label="Eingeteilte Kinder"]';
     const childrenRows=childrenDialog+' [data-dienst-student]';
@@ -911,6 +946,7 @@ async function main() {
     if(allDuties.length<8 || new Set(allDuties).size!==allDuties.length) throw new Error('Duty pagination duplicates or hides a default service.');
     await auditMenu('dienste','Minimieren');
     await openAuditWidget('dienste','Klassendienste');
+    if (await evaluate(client,"Boolean(document.querySelector('button[aria-label=\"Klassendienste bearbeiten\"]'))")) await clickSelector(client,'button[aria-label="Klassendienste bearbeiten"]');
     if(JSON.stringify(await readDuties())!==JSON.stringify(allDuties)) throw new Error('Duty pages change on restore.');
     const addDutyDialog='dialog[open][aria-label="Neuen Dienst hinzufügen"]';
     const openAddDuty=async () => {
@@ -958,8 +994,21 @@ async function main() {
     await waitFor(client,'new duty keeps long title, symbol and empty assignments',"document.querySelector("+q(newDutySelector+' [data-widget-text-preview]')+").textContent==="+q(newDutyTitle)+" && document.querySelector("+q(newDutySelector+' [role="img"]')+").textContent==="+q(newDutyEmoji)+" && document.querySelectorAll("+q(newDutySelector+' [data-dienst-student]')+").length===0");
     await auditMenu('dienste','Minimieren');
     await openAuditWidget('dienste','Klassendienste');
+    if (await evaluate(client,"Boolean(document.querySelector('button[aria-label=\"Klassendienste bearbeiten\"]'))")) await clickSelector(client,'button[aria-label="Klassendienste bearbeiten"]');
     if(JSON.stringify(await readDuties())!==JSON.stringify(dutiesAfterAdd)) throw new Error('New duty does not survive restore.');
+    await clickSelector(client,'button[aria-label="Alle Klassendienste anzeigen"]');
+    await auditDutyOverview(9,'-added');
+    const finalOverview=await evaluate(client,"Array.from(document.querySelectorAll('[data-dienst-overview]')).map(e=>e.dataset.dienstOverview)");
+    if(!overviewDuties.every(id=>finalOverview.includes(id)) || finalOverview.length!==9) throw new Error('Added duty missing from complete overview.');
+    await auditMenu('dienste','Minimieren');
+    await openAuditWidget('dienste','Klassendienste');
+    await auditDutyOverview(9,'-restored');
     await auditMenu('dienste','Widget schließen');
+    if (process.env.KLASSIO_E2E_WIDGET_FOCUS === 'dienste') {
+      console.log('Klassendienste browser audit passed at '+WIDTH+'px: all services and children, substitution, native dialogs, resize and restore.');
+      return;
+    }
+
 
     await openAuditWidget('instruction','Arbeitsauftrag');
     if(!await evaluate(client,"Boolean(document.querySelector('[role=dialog][aria-label=\\\"Arbeitsauftrag bearbeiten\\\"]'))")) await clickSelector(client,'[data-widget-type="instruction"] button[aria-label$="Einstellungen öffnen"]');
