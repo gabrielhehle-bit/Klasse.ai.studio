@@ -17013,7 +17013,7 @@ export const AlphabetsoupWidgetContent: React.FC<{
     letters: [] as { id: number; char: string; x: number; y: number; color: string }[],
     userInput: "",
     consumedIds: [] as number[],
-    feedback: "Tippe schwimmende Zutaten-Buchstaben! 🍲",
+    feedback: "Finde die Buchstaben der Reihe nach! 🍲",
   });
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'extreme'>(() => lifecycle.difficulty);
   const [aiDictionary, setAiDictionary] = useState<string[] | null>(() => lifecycle.aiDictionary);
@@ -17206,7 +17206,7 @@ export const AlphabetsoupWidgetContent: React.FC<{
             <span className={`text-sm font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
               🥣 Buchstaben-Suppe {aiDictionary ? "✨ KI" : ""}
             </span>
-            <span className="text-xs font-mono opacity-80">Schwimmende Buchstaben tippen</span>
+            <span className="text-xs font-mono opacity-80">Finde die Buchstaben der Reihe nach</span>
           </div>
           <button type="button"
             onClick={startNewSoup}
