@@ -2070,7 +2070,7 @@ async function main() {
       await evaluate(client,`window.klassioAuditRandom=Math.random;Math.random=()=>${value}`);
       try {await action();} finally {await evaluate(client,'Math.random=window.klassioAuditRandom;delete window.klassioAuditRandom');}
     };
-    for(const [index,base,right,wrong] of [[5,'Hand','Sand','Wolke'],[2,'Katze','Tatze','Mund']]){
+    for(const [index,base,right,wrong] of [[0,'Maus','Haus','Katze'],[5,'Hand','Sand','Wolke'],[2,'Katze','Tatze','Mund']]){
       await controlledRandom((index+0.1)/20,async()=>{
         await clickMathText(rhymeRoot,'🎰 Drehen!');
         await waitFor(client,'real rhyme round '+base,`document.querySelector(${q(rhymeRoot)}).dataset.rhymeBase===${q(base)} && document.querySelectorAll(${q(rhymeRoot+' [data-rhyme-choice]')}).length===4 && !Array.from(document.querySelectorAll(${q(rhymeRoot+' button')})).find(b=>b.textContent.includes('Drehen!')).disabled`);

@@ -16734,7 +16734,7 @@ export const RhymemachineWidgetContent: React.FC<{
   currentIsLight: boolean;
 }> = ({ widget, onUpdate, currentIsLight }) => {
   const wordsDatabase: RhymeWord[] = useMemo(() => [
-    { base: "Maus", rhyme: "Haus", wrongs: ["Hose", "Baum", "Katz"] },
+    { base: "Maus", rhyme: "Haus", wrongs: ["Hose", "Baum", "Katze"] },
     { base: "Baum", rhyme: "Traum", wrongs: ["Hand", "Buch", "Lied"] },
     { base: "Katze", rhyme: "Tatze", wrongs: ["Mund", "Blume", "Stift"] },
     { base: "Kopf", rhyme: "Topf", wrongs: ["Brot", "Fenster", "Schrank"] },
@@ -16742,7 +16742,7 @@ export const RhymemachineWidgetContent: React.FC<{
     { base: "Hand", rhyme: "Sand", wrongs: ["Wolke", "Ball", "Buch"] },
     { base: "Kind", rhyme: "Wind", wrongs: ["Vogel", "Hund", "Schule"] },
     { base: "Hund", rhyme: "Mund", wrongs: ["Zahn", "Nase", "Fuß"] },
-    { base: "Schaf", rhyme: "Schlaf", wrongs: ["Woll", "Berg", "Gras"] },
+    { base: "Schaf", rhyme: "Schlaf", wrongs: ["Wolle", "Berg", "Gras"] },
     { base: "Rose", rhyme: "Hose", wrongs: ["Garten", "Duft", "Blatt"] },
     { base: "Zahn", rhyme: "Bahn", wrongs: ["Kopf", "Weg", "Rad"] },
     { base: "Brot", rhyme: "Rot", wrongs: ["Teig", "Butter", "Käse"] },
@@ -16752,7 +16752,7 @@ export const RhymemachineWidgetContent: React.FC<{
     { base: "Ball", rhyme: "Knall", wrongs: ["Tor", "Spiel", "Wiese"] },
     { base: "Licht", rhyme: "Gesicht", wrongs: ["Lampe", "Tag", "Dunkel"] },
     { base: "Wald", rhyme: "Kalt", wrongs: ["Baum", "Blatt", "Natur"] },
-    { base: "Bär", rhyme: "Meer", wrongs: ["Honig", "Wald", "Tatz"] },
+    { base: "Bär", rhyme: "Meer", wrongs: ["Honig", "Wald", "Tatze"] },
     { base: "Schuh", rhyme: "Kuh", wrongs: ["Socke", "Leder", "Schritt"] }
   ], []);
 
@@ -16795,7 +16795,7 @@ export const RhymemachineWidgetContent: React.FC<{
 
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) {
+      if (AudioCtx && navigator.userActivation?.isActive) {
         const ctx = new AudioCtx();
         for (let i = 0; i < 5; i++) {
           setTimeout(() => {
