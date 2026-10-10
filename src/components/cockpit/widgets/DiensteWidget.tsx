@@ -138,6 +138,18 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
     return () => { if (dialog.open) dialog.close(); };
   }, [activeChildrenDienstId, Boolean(activeChildrenDienst)]);
   useEffect(() => { setActiveChildrenDienstId(null); }, [app?.activeClassId]);
+  const closeAssignDialog = () => {
+    assignDialogRef.current?.close();
+    setActiveAssignDienstId(null);
+    setStudentSearchQuery('');
+    assignTriggerRef.current?.focus();
+  };
+  const closeChildrenDialog = () => {
+    childrenDialogRef.current?.close();
+    setActiveChildrenDienstId(null);
+    if (childrenTriggerRef.current?.isConnected) childrenTriggerRef.current.focus();
+    else document.getElementById('dienst-item-' + activeChildrenDienstId)?.querySelector<HTMLButtonElement>('button[title="Kinder zuordnen"]')?.focus();
+  };
   const [activeSubstituteModal, setActiveSubstituteModal] = useState<{
     dienstId: string;
     absentStudentId: string;
@@ -151,6 +163,8 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
     return () => { if (dialog.open) dialog.close(); };
   }, [activeSubstituteModal]);
   const [showManageMenu, setShowManageMenu] = useState(false);
+  const [editView, setEditView] = useState(false);
+  useEffect(() => { setEditView(false); }, [app?.activeClassId]);
   const hasExternalSettingsControl = typeof externalShowSettings === 'boolean';
   const manageMenuOpen = hasExternalSettingsControl ? externalShowSettings : showManageMenu;
   const closeManageMenu = () => {
@@ -421,6 +435,12 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
 
         {/* Kopfzeilen-Aktionen */}
         <div className="flex items-center gap-1 shrink-0">
+          {dienste.length > 0 && <button type="button" aria-pressed={editView}
+            aria-label={editView ? 'Alle Klassendienste anzeigen' : 'Klassendienste bearbeiten'}
+            onClick={() => { setEditView(value => !value); setEditingDienstId(null); closeManageMenu(); }}
+            className="min-h-11 rounded-lg border border-accent/20 px-3 text-xs font-bold text-accent hover:bg-accent-soft">
+            {editView ? 'Übersicht' : 'Bearbeiten'}
+          </button>}
           {/* Schneller Rotieren-Button (ab Standard-Größe direkt erreichbar) */}
           {!size.isCompact && dienste.length > 1 && (
             <button
@@ -577,6 +597,39 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
               <span>Dienste einrichten</span>
             </button>
           </div>
+        ) : !editView ? (
+          <div data-dienste-overview style={{ columnCount: size.width >= 900 || dienste.length > 8 ? 3 : 2, columnGap: 12 }}>
+            {dienste.map(dienst => {
+              const assignees = getEffectiveDienstAssignees(dienst, isAbsent);
+              return <button type="button" key={dienst.id} data-dienst-overview={dienst.id}
+                aria-label={dienst.titel + (assignees.length ? ': eingeteilte Kinder ansehen' : ': Kinder zuordnen')}
+                onClick={event => {
+                  event.currentTarget.focus();
+                  if (assignees.length) { childrenTriggerRef.current = event.currentTarget; setActiveChildrenDienstId(dienst.id); }
+                  else { assignTriggerRef.current = event.currentTarget; setStudentSearchQuery(''); setActiveAssignDienstId(dienst.id); }
+                }}
+                className={'mb-2 inline-block min-h-11 w-full break-inside-avoid rounded-xl border p-2 text-left align-top ' + bgCard}>
+                <span className={'mb-1 flex items-start gap-2 text-base font-black ' + textPrimary}>
+                  <span aria-hidden="true" className="shrink-0 text-xl">{dienst.emoji || '📋'}</span>
+                  <span data-dienst-overview-title className="min-w-0 [overflow-wrap:anywhere]">{dienst.titel}</span>
+                </span>
+                <span className="flex flex-wrap gap-x-2 gap-y-1">
+                  {assignees.length ? assignees.map(assignee => {
+                    const student = allStudents.find(s => s.id === assignee.originalStudentId);
+                    const substitute = allStudents.find(s => s.id === assignee.substituteStudentId);
+                    return <span key={assignee.originalStudentId} data-dienst-overview-student={assignee.originalStudentId}
+                      data-dienst-substitute={assignee.substituteStudentId || undefined}
+                      className={'min-w-0 max-w-full rounded-md px-1.5 py-0.5 text-sm font-semibold [overflow-wrap:anywhere] ' +
+                        (assignee.isAbsent ? (isLight ? 'bg-amber-50 text-amber-800' : 'bg-amber-500/10 text-amber-300') : (isLight ? 'bg-slate-100 text-slate-800' : 'bg-zinc-800 text-zinc-100'))}>
+                      <span className={assignee.isAbsent ? 'line-through' : ''}>{student ? getDisplayStudentName(student, allStudents) : 'Schüler'}</span>
+                      {assignee.isAbsent && <span> (fehlt)</span>}
+                      {assignee.isAbsent && substitute && <span className="font-bold"> → {getDisplayStudentName(substitute, allStudents)}</span>}
+                    </span>;
+                  }) : <span className={'text-sm italic ' + textMuted}>noch unbesetzt</span>}
+                </span>
+              </button>;
+            })}
+          </div>
         ) : (
           <div
             className={`grid gap-2 ${
@@ -731,7 +784,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
 
       </div>
 
-        {dutyWindow.pageCount > 1 && <div role="group" aria-label="Klassendienste-Seiten"
+        {editView && dutyWindow.pageCount > 1 && <div role="group" aria-label="Klassendienste-Seiten"
           className="shrink-0 flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/95 p-1 text-xs font-bold text-slate-800 shadow-sm dark:border-white/10 dark:bg-zinc-900/95 dark:text-white">
           <button type="button" aria-label="Vorherige Klassendienste" disabled={dutyWindow.page === 0}
             onClick={() => { setDienstPage(page => Math.max(0, page - 1)); setActiveAssignDienstId(null); }}
@@ -783,8 +836,8 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
       {activeAssignDienst && createPortal(
         <dialog ref={assignDialogRef} id={`dienst-assign-drawer-${activeAssignDienst.id}`}
           aria-label="Kinder zuordnen"
-          onClose={() => { setActiveAssignDienstId(null); setStudentSearchQuery(''); assignTriggerRef.current?.focus(); }}
-          onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); assignDialogRef.current?.close(); } }}
+          onCancel={event => { event.preventDefault(); closeAssignDialog(); }}
+          onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeAssignDialog(); } }}
           className={'fixed inset-0 m-auto h-[min(85dvh,680px)] w-[min(94vw,760px)] max-w-none rounded-2xl border p-0 shadow-2xl backdrop:bg-black/50 ' + (isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-zinc-900 border-white/15 text-white')}>
           <div className="flex h-full min-h-0 flex-col">
             <header className="shrink-0 space-y-2 border-b p-3">
@@ -794,7 +847,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                   <p className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{activeAssignDienst.titel}</p>
                   <p className="text-xs">Mehrfachauswahl · Änderungen werden sofort übernommen</p>
                 </div>
-                <button type="button" autoFocus onClick={() => assignDialogRef.current?.close()}
+                <button type="button" autoFocus onClick={closeAssignDialog}
                   className="min-h-11 shrink-0 rounded-lg border px-3 font-bold">Schließen ✕</button>
               </div>
               <input type="search" aria-label="Dienstkinder suchen" placeholder="Name suchen…"
@@ -828,12 +881,8 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
       {activeChildrenDienst && createPortal(
         <dialog ref={childrenDialogRef} aria-label="Eingeteilte Kinder"
           data-dienst-children={activeChildrenDienst.id}
-          onClose={() => {
-            setActiveChildrenDienstId(null);
-            if (childrenTriggerRef.current?.isConnected) childrenTriggerRef.current.focus();
-            else document.getElementById('dienst-item-' + activeChildrenDienstId)?.querySelector<HTMLButtonElement>('button[title="Kinder zuordnen"]')?.focus();
-          }}
-          onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); childrenDialogRef.current?.close(); } }}
+          onCancel={event => { event.preventDefault(); closeChildrenDialog(); }}
+          onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeChildrenDialog(); } }}
           className={'fixed inset-0 m-auto h-[min(85dvh,680px)] w-[min(94vw,760px)] max-w-none rounded-2xl border p-0 shadow-2xl backdrop:bg-black/50 ' + (isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-zinc-900 border-white/15 text-white')}>
           <div className="flex h-full min-h-0 flex-col">
             <header className="flex shrink-0 items-start justify-between gap-3 border-b p-3">
@@ -842,7 +891,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
                 <p className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{activeChildrenDienst.titel}</p>
                 <p className="text-xs">{activeChildrenDienst.schuelerIds.length} Kinder zugeteilt</p>
               </div>
-              <button type="button" autoFocus onClick={() => childrenDialogRef.current?.close()}
+              <button type="button" autoFocus onClick={closeChildrenDialog}
                 className="min-h-11 shrink-0 rounded-lg border px-3 font-bold">Schließen</button>
             </header>
             <div data-dienst-children-list tabIndex={0} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
