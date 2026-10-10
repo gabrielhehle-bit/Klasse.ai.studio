@@ -2217,7 +2217,13 @@ async function main() {
 
     await openAuditWidget('compass','Geographie-Kompass');await auditWidgetMinimum('compass');
     const compassRoot=discoveryRoot('compass');
+    for(const label of ['N','NO','O','SO','S','SW','W','NW']) {
+      await evaluate(client,`Array.from(document.querySelectorAll(${q(compassRoot+' [aria-label="Himmelsrichtung wählen"] button')})).find(b=>b.querySelector('span').textContent===${q(label)}).click()`);
+      await discoveryScreen('compass');
+    }
+
     await clickMathText(compassRoot,'Üben');
+    await sleep(100); // Let the mode effect finish preparing its new round.
     const compassTarget=await evaluate(client,`document.querySelector(${q(compassRoot+' h3')}).textContent.match(/Stelle (.+) ein/)[1]`);
     const directionNames=['Norden','Nordosten','Osten','Südosten','Süden','Südwesten','Westen','Nordwesten'];
     const directionLabels=['N','NO','O','SO','S','SW','W','NW'];
@@ -2238,6 +2244,7 @@ async function main() {
 
     for(const [view,items] of [['Wochentage',['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag']],['Monate',['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember']]]) {
       await clickMathText(calendarRoot,view);await clickMathText(calendarRoot,'Üben');
+      await sleep(100); // View/mode changes prepare a new round after the render.
       const prompt=await evaluate(client,`document.querySelector(${q(calendarRoot+' p.text-accent')}).textContent`);
       const match=prompt.match(/kommt (vor|nach) (.+)\?/);
       const expected=items[(items.indexOf(match[2])+(match[1]==='vor'?-1:1)+items.length)%items.length];

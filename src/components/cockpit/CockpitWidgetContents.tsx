@@ -9557,7 +9557,7 @@ export const CompassWidgetContent: React.FC<{
           </div>
         </div>
 
-        <div data-compass-explanation className={`flex min-w-0 flex-col justify-center rounded-3xl border p-4 ${
+        <div data-compass-explanation className={`flex min-w-0 flex-col justify-center rounded-3xl border p-3 ${
           currentIsLight ? 'border-slate-200 bg-slate-50/80' : 'border-white/10 bg-white/5'
         }`}>
           {settings.mode === 'explore' ? (
@@ -9579,13 +9579,15 @@ export const CompassWidgetContent: React.FC<{
               <h3 className="mt-1 text-base font-black leading-snug text-accent">
                 Stelle {practiceRound.target.name} ein.
               </h3>
-              <p className="mt-2 text-xs font-semibold leading-relaxed opacity-65">
-                Wähle eine Richtung und prüfe anschließend deine Einstellung.
-              </p>
+              {answerState !== 'correct' && (
+                <p className="mt-2 text-xs font-semibold leading-relaxed opacity-65">
+                  Wähle eine Richtung und prüfe anschließend deine Einstellung.
+                </p>
+              )}
               <p
                 role="status"
                 aria-live="polite"
-                className={`mt-3 min-h-10 text-sm font-bold leading-relaxed ${
+                className={`mt-2 min-h-5 text-sm font-bold leading-relaxed ${
                   answerState === 'correct'
                     ? 'text-emerald-600 dark:text-emerald-400'
                     : answerState === 'wrong'
