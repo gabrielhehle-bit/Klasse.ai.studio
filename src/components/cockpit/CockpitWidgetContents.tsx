@@ -3706,11 +3706,12 @@ const ClassroomRiddleGame: React.FC<{ widget: any, onUpdate?: (updates: any) => 
                   <motion.div 
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
+                    style={{background:'#fffbeb',color:'#78350f',borderColor:'#f59e0b'}}
                     className={`text-xs p-2 rounded-xl text-center border font-bold ${
                       currentIsLight ? 'bg-amber-50 border-amber-250 text-amber-700' : 'bg-amber-950/20 border-amber-900/50 text-amber-400'
                     }`}
                   >
-                    {CLASSROOM_RIDDLES.find(r=>r.q===item.q)?.hint} · Erster Buchstabe der Lösung: <span className="font-mono text-xs uppercase font-black bg-amber-500/20 px-1 py-0.5 rounded">{firstNounLetter}</span> {isArticleSkipped ? <span className="text-xs text-amber-600 dark:text-amber-500 block mt-0.5">(Artikel übersprungen!)</span> : ""} • Wortlänge: <span className="font-mono text-xs font-black">{strippedLength}</span> Zeichen
+                    {CLASSROOM_RIDDLES.find(r=>r.q===item.q)?.hint} · Erster Buchstabe der Lösung: <span className="font-mono text-xs uppercase font-black bg-amber-500/20 px-1 py-0.5 rounded">{firstNounLetter}</span> {isArticleSkipped ? <span className="text-xs block mt-0.5">(Artikel übersprungen!)</span> : ""} • Wortlänge: <span className="font-mono text-xs font-black">{strippedLength}</span> Zeichen
                   </motion.div>
                 )}
               </div>
