@@ -86,6 +86,19 @@ async function createClient() {
   const client = new CdpClient(target.webSocketDebuggerUrl);
   await client.connect();
   await client.send('Page.enable');
+  // Keep the attendance and duty fixtures on the same school day on weekend CI runs.
+  // Shift the browser calendar only; elapsed time and native timers still advance.
+  await client.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => {
+    const NativeDate = Date, now = new NativeDate(), schoolDay = new NativeDate(now);
+    const weekday = now.getDay();
+    if (weekday !== 0 && weekday !== 6) return;
+    schoolDay.setDate(now.getDate() - (weekday === 6 ? 1 : 2));
+    const offset = schoolDay.getTime() - now.getTime();
+    window.Date = class extends NativeDate {
+      constructor(...args) { super(...(args.length ? args : [NativeDate.now() + offset])); }
+      static now() { return NativeDate.now() + offset; }
+    };
+  })()` });
   client.navigationCount = 0;
   client.on('Page.frameNavigated', event => {
     if (!event.frame?.parentId) client.navigationCount += 1;
