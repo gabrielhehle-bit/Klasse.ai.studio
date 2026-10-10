@@ -93,7 +93,7 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   estimationjar: { minW: 280, minH: 220, prefW: 380, prefH: 340 },
   vocabulary: { minW: 640, minH: 560, prefW: 720, prefH: 560 },
   spellingdetective: { minW: 640, minH: 560, prefW: 720, prefH: 560 },
-  abcorder: { minW: 280, minH: 220, prefW: 460, prefH: 380 },
+  abcorder: { minW: 640, minH: 560, prefW: 720, prefH: 560 },
   lernwoerter: { minW: 280, minH: 220, prefW: 460, prefH: 380 },
   wordbuilder: { minW: 620, minH: 560, prefW: 720, prefH: 560 },
   scrambler: { minW: 620, minH: 560, prefW: 720, prefH: 560 },
@@ -102,6 +102,10 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   wordgrid: { minW: 640, minH: 560, prefW: 720, prefH: 560 },
   wordscramble: { minW: 600, minH: 560, prefW: 680, prefH: 560 },
   secretcode: { minW: 440, minH: 420, prefW: 520, prefH: 460 },
+  sentencebuilding: { minW: 620, minH: 560, prefW: 720, prefH: 560 },
+  wordexplorer: { minW: 520, minH: 540, prefW: 620, prefH: 560 },
+  rhymemachine: { minW: 500, minH: 540, prefW: 620, prefH: 560 },
+  punctuationzoo: { minW: 620, minH: 620, prefW: 720, prefH: 640 },
   storyemojis: { minW: 640, minH: 560, prefW: 720, prefH: 560 },
 };
 

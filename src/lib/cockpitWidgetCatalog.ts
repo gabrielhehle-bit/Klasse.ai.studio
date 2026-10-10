@@ -617,6 +617,8 @@ const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
   "scrambler",
   "compoundsplit",
   "storyemojis",
+  "sentencebuilding",
+  "abcorder",
   "qrcode",
   "image",
   "links",

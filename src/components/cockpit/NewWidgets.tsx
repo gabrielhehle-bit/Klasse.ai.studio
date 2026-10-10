@@ -474,12 +474,15 @@ export const StoryemojisWidgetContent: React.FC<{
 // 34. WIDGET: ABC-SORTIERER (AbcorderWidgetContent)
 // Konsolidiert in Lernwörter-Studio (Modus: alphabet)
 // ========================================================
-export const AbcorderWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ widget, currentIsLight }) => {
+export const AbcorderWidgetContent: React.FC<{ widget: any, currentIsLight: boolean, onUpdate?: (updates: any) => void, showSettings?: boolean, onCloseSettings?: () => void }> = ({ widget, currentIsLight, onUpdate, showSettings, onCloseSettings }) => {
   return (
     <LernwoerterStudioWidget
       widget={widget}
       currentIsLight={currentIsLight}
       defaultMode="alphabet"
+      onUpdate={onUpdate}
+      showSettings={showSettings}
+      onCloseSettings={onCloseSettings}
     />
   );
 };
