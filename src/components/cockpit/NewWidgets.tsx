@@ -244,7 +244,7 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
   ];
 
   return (
-    <div data-practice-root data-money-target={quizTarget} data-money-total={total} role="region" aria-label="Geld zählen und passend zahlen" className="min-h-full w-full p-3 sm:p-4 flex flex-col gap-3 select-none overflow-visible">
+    <div data-practice-root data-money-target={quizTarget} data-money-total={total} role="region" aria-label="Geld zählen und passend zahlen" className="min-h-full w-full p-2 flex flex-col gap-2 select-none overflow-visible">
       <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
         <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1" role="tablist" aria-label="Taschengeld-Modus">
           <button
@@ -291,7 +291,7 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
         )}
       </div>
 
-      <div className={`shrink-0 rounded-2xl border p-3 sm:p-4 ${
+      <div className={`shrink-0 rounded-2xl border p-1 ${
         currentIsLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-800/70 border-slate-700'
       }`}>
         <div className="grid grid-cols-2 gap-3 items-center">
@@ -310,7 +310,7 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
         </div>
 
         {activeTab === 'quiz' && (
-          <div className="mt-3">
+          <div className="mt-1.5">
             <div className="flex items-center justify-between gap-2 text-xs font-bold">
               <span className="text-slate-500 dark:text-slate-400">
                 {Math.abs(difference) < 0.001
@@ -321,7 +321,7 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
               </span>
               <span className="tabular-nums text-slate-500 dark:text-slate-400">{Math.round(targetProgress)}%</span>
             </div>
-            <div className="mt-1.5 h-2.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden" aria-label="Fortschritt zum Zielbetrag">
+            <div className="mt-1.5 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden" aria-label="Fortschritt zum Zielbetrag">
               <div
                 className={`h-full rounded-full transition-all duration-300 ${
                   difference < 0 ? 'bg-rose-500' : Math.abs(difference) < 0.001 ? 'bg-emerald-500' : 'bg-accent'
@@ -333,7 +333,7 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
         )}
       </div>
 
-      <div className={`shrink-0 min-h-20 rounded-2xl border border-dashed p-2 flex flex-wrap items-center justify-center gap-2 ${
+      <div className={`shrink-0 min-h-11 rounded-2xl border border-dashed p-1 flex flex-wrap items-center justify-center gap-1 ${
         groupedItems.length === 0
           ? 'border-slate-300 dark:border-slate-700'
           : 'border-accent/40 bg-accent-soft'
@@ -359,9 +359,8 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
         )}
       </div>
 
-      <div className="flex-1 flex flex-col gap-3 min-h-0">
-        <section>
-          <div className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Scheine</div>
+      <div className="flex-1 flex flex-col gap-2 min-h-0">
+        <section aria-label="Scheine">
           <div className="grid grid-cols-5 gap-2">
             {bills.map((bill) => (
               <button
@@ -379,8 +378,7 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
           </div>
         </section>
 
-        <section>
-          <div className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Münzen</div>
+        <section aria-label="Münzen">
           <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
             {coins.map((coin) => (
               <button
@@ -397,16 +395,6 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
           </div>
         </section>
       </div>
-
-      {activeTab === 'quiz' && quizChecked && !quizSolved && (
-        <div className={`shrink-0 rounded-xl border px-3 py-2 text-center text-sm font-bold ${
-          difference > 0
-            ? 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200'
-            : 'bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-200'
-        }`}>
-          {difference > 0 ? `Noch ${formatEuro(difference)} € ergänzen.` : `${formatEuro(Math.abs(difference))} € wieder wegnehmen.`}
-        </div>
-      )}
 
       <div className="shrink-0 flex flex-wrap gap-2">
         {activeTab === 'quiz' ? (
