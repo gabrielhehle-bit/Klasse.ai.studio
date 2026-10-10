@@ -1641,7 +1641,7 @@ async function main() {
 
     // Five-widget math batch: independently calculate displayed tasks, then use the real UI.
     const auditWidgetMinimum = async type => {
-      const minimumSizes={sorting:[420,520],vocabulary:[640,560],spellingdetective:[640,560],wordbuilder:[620,560],scrambler:[620,560],compoundsplit:[620,560],wordchain:[500,520],wordgrid:[640,560],wordscramble:[600,560],secretcode:[440,420],storyemojis:[640,560]};
+      const minimumSizes={sorting:[420,520],vocabulary:[640,560],spellingdetective:[640,560],wordbuilder:[620,560],scrambler:[620,560],compoundsplit:[620,560],wordchain:[500,520],wordgrid:[640,560],wordscramble:[600,560],secretcode:[440,420],storyemojis:[640,560],abcorder:[640,560],sentencebuilding:[620,560],wordexplorer:[520,540],rhymemachine:[500,540],punctuationzoo:[620,560]};
       const [minimumWidth,minimumHeight]=minimumSizes[type]||[460,560];
       await waitFor(client,type+' resize grip is reachable after opening', `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('[data-widget-resize]')?.dataset.widgetResize==='se';})()`);
       const point=await evaluate(client, `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
@@ -1649,6 +1649,8 @@ async function main() {
       await client.send('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',clickCount:1});
       const end={x:Math.max(1,point.x-500),y:Math.max(1,point.y-500)};
       await client.send('Input.dispatchMouseEvent',{type:'mouseMoved',...end,button:'left',buttons:1});
+      // Let the live resize frame apply before releasing the pointer.
+      await waitFor(client,type+' live drag reaches its configured minimum', `(() => {const r=document.querySelector('[data-widget-type=${q(type)}]').getBoundingClientRect();return Math.abs(r.width-${minimumWidth})<2&&Math.abs(r.height-${minimumHeight})<2;})()`);
       await client.send('Input.dispatchMouseEvent',{type:'mouseReleased',...end,button:'left',clickCount:1});
       await waitFor(client,type+' really reaches its configured minimum', `(() => {const r=document.querySelector('[data-widget-type=${q(type)}]').getBoundingClientRect();return Math.abs(r.width-${minimumWidth})<2&&Math.abs(r.height-${minimumHeight})<2;})()`);
     };
@@ -1798,7 +1800,7 @@ async function main() {
     // Five German widgets: edit real lists/tasks, then exercise their actual lesson workflows.
     const languageFits = root => `(() => {const el=document.querySelector(${q(root)}),r=el.getBoundingClientRect();return el.scrollWidth<=el.clientWidth+1&&el.scrollHeight<=el.clientHeight+1&&Array.from(el.querySelectorAll('button,input,[role="button"],[data-abc-word]')).every(b=>{const t=b.getBoundingClientRect();return t.width>=44&&t.height>=44&&t.left>=r.left-1&&t.right<=r.right+1&&t.top>=r.top-1&&t.bottom<=r.bottom+1&&(b.disabled||b.contains(document.elementFromPoint(t.x+t.width/2,t.y+t.height/2)));});})()`;
     const listDialog='dialog[open][aria-label="Lernwortliste verwalten"]';
-    for(const [type,search,initialMode] of [['vocabulary','Lernwörter-Studio','cards'],['spellingdetective','Rechtschreib-Detektiv','spelling']]){
+    for(const [type,search,initialMode] of [['vocabulary','Lernwörter-Studio','cards'],['spellingdetective','Rechtschreib-Detektiv','spelling'],['abcorder','ABC-Sortierer','alphabet']]){
       await openAuditWidget(type,search);
       const frame='[data-widget-type="'+type+'"]',root=frame+' [data-learning-word-mode]',state=`document.querySelector(${q(root)})`;
       await waitFor(client,type+' opens the right learning mode',`${state}?.dataset.learningWordMode===${q(initialMode)}`);
@@ -1877,6 +1879,7 @@ async function main() {
       ['wordbuilder','Wort-Baukasten','Wort-Baukasten','word','SOMMER',['SOM','MER']],
       ['scrambler','scrambler','Wort- & Satzwerkstatt','sentence','Wir lesen heute im Garten.',['Wir','lesen','heute','im','Garten.']],
       ['compoundsplit','Zusammengesetzte Wörter','Zusammengesetzte Wörter','compound','Schultasche',['Schul','tasche']],
+      ['sentencebuilding','Satzbau','Satzbau','sentence','Wir lesen heute im Garten.',['Wir','lesen','heute','im','Garten.']],
     ]){
       await openAuditWidget(type,search,label);
       const frame='[data-widget-type="'+type+'"]',root=frame+' [data-language-workshop-mode]',state=`document.querySelector(${q(root)})`;
@@ -2046,6 +2049,66 @@ async function main() {
     await auditMenu('storyemojis','Minimieren');await openAuditWidget('storyemojis','Story-Emojis');
     await waitFor(client,'Story Emojis restores exact picture order locks and teacher prompt',`JSON.stringify(Array.from(document.querySelectorAll(${q(storyRoot+' [data-story-emoji-id]')})).map(b=>[b.dataset.storyEmojiId,b.dataset.storyLocked]))===${q(JSON.stringify(storySnapshot))} && document.querySelector(${q(storyRoot)}).textContent.includes('Erzähle eine Geschichte über Freundschaft.')`);
     await evaluate(client,`document.querySelector(${q(storyRoot)}).dataset.wordplayRoot=''`);await wordplayScreens('storyemojis');await auditMenu('storyemojis','Widget schließen');
+    // Next five German catalog entries: aliases above plus three distinct lesson tools.
+    await openAuditWidget('wordexplorer','Wort-Analysator');await auditWidgetMinimum('wordexplorer');
+    const explorerRoot='[data-widget-type="wordexplorer"] [data-wordplay-root]';
+    for(const [word,count,capital] of [['Schule',2,'Ja (Groß)'],['feiern',2,'Nein (Klein)'],['Äpfel',2,'Ja (Groß)'],['',0,'Nein (Klein)']]){
+      await setInputByLabel(client,'Wort untersuchen',word);
+      await waitFor(client,'word explorer analyzes '+word,`document.querySelector(${q(explorerRoot)}).dataset.wordexplorerWord===${q(word)} && document.querySelector('[aria-label="Silbenzahl korrigieren"]').value===${q(String(count))} && document.querySelector(${q(explorerRoot)}).textContent.includes(${q(capital)})`);
+    }
+    const longWord='Donaudampfschifffahrtsgesellschaft';
+    await setInputByLabel(client,'Wort untersuchen',longWord);
+    await setInputByLabel(client,'Silbenzahl korrigieren','9');
+    await waitFor(client,'word explorer shows uncertainty and corrected count',`document.querySelector(${q(explorerRoot)}).textContent.includes('Schätzung') && !document.querySelector(${q(explorerRoot)}).textContent.includes('Nomen?') && document.querySelector('[aria-label="Silbenzahl korrigieren"]').value==='9'`);
+    await wordplayScreens('wordexplorer');
+    await auditMenu('wordexplorer','Minimieren');await openAuditWidget('wordexplorer','Wort-Analysator');
+    await waitFor(client,'word explorer restores exact casing and teacher correction',`document.querySelector('[aria-label="Wort untersuchen"]').value===${q(longWord)} && document.querySelector('[aria-label="Silbenzahl korrigieren"]').value==='9'`);
+    await auditMenu('wordexplorer','Widget schließen');
+
+    await openAuditWidget('rhymemachine','Reim-Maschine');await auditWidgetMinimum('rhymemachine');
+    const rhymeRoot='[data-widget-type="rhymemachine"] [data-wordplay-root]';
+    await waitFor(client,'rhyme round is ready',`document.querySelectorAll(${q(rhymeRoot+' [data-rhyme-choice]')}).length===4 && !Array.from(document.querySelectorAll(${q(rhymeRoot+' button')})).find(b=>b.textContent.includes('Drehen!')).disabled`);
+    const controlledRandom = async (value,action) => {
+      await evaluate(client,`window.klassioAuditRandom=Math.random;Math.random=()=>${value}`);
+      try {await action();} finally {await evaluate(client,'Math.random=window.klassioAuditRandom;delete window.klassioAuditRandom');}
+    };
+    for(const [index,base,right,wrong] of [[0,'Maus','Haus','Katze'],[5,'Hand','Sand','Wolke'],[2,'Katze','Tatze','Mund']]){
+      await controlledRandom((index+0.1)/20,async()=>{
+        await clickMathText(rhymeRoot,'🎰 Drehen!');
+        await waitFor(client,'real rhyme round '+base,`document.querySelector(${q(rhymeRoot)}).dataset.rhymeBase===${q(base)} && document.querySelectorAll(${q(rhymeRoot+' [data-rhyme-choice]')}).length===4 && !Array.from(document.querySelectorAll(${q(rhymeRoot+' button')})).find(b=>b.textContent.includes('Drehen!')).disabled`);
+      });
+      await clickSelector(client,rhymeRoot+' [data-rhyme-choice="'+wrong+'"]');
+      await waitFor(client,'rhyme wrong answer remains correctable',`document.querySelector(${q(rhymeRoot+' [role="status"]')}).textContent.includes('Daneben')`);
+      await clickSelector(client,rhymeRoot+' [data-rhyme-choice="'+right+'"]');
+      await waitFor(client,'rhyme real answer accepted',`document.querySelector(${q(rhymeRoot+' [role="status"]')}).textContent.includes('Absolut richtig')`);
+    }
+    const rhymeSnapshot=await evaluate(client,`document.querySelector(${q(rhymeRoot)}).innerText`);
+    await wordplayScreens('rhymemachine');await auditMenu('rhymemachine','Minimieren');await openAuditWidget('rhymemachine','Reim-Maschine');
+    await sleep(1000);
+    await waitFor(client,'rhyme restores exact round choices and solved feedback',`document.querySelector(${q(rhymeRoot)}).innerText===${q(rhymeSnapshot)}`);
+    await auditMenu('rhymemachine','Widget schließen');
+
+    await openAuditWidget('punctuationzoo','Satzzeichen-Zoo');await auditWidgetMinimum('punctuationzoo');
+    const zooRoot='[data-widget-type="punctuationzoo"] [data-wordplay-root]';
+    const zooSentences=['Wohin hüpft der kleine grüne Frosch','Das gestreifte Zebra knabbert an frischem Heu','Lauf schnell weg vor dem hungrigen Löwen'];
+    for(const [index,mark] of [[0,'?'],[1,'.'],[2,'!']]){
+      const current=await evaluate(client,`document.querySelector(${q(zooRoot)}).dataset.zooSentence`);
+      if(current!==zooSentences[index])await controlledRandom((index+0.1)/10,async()=>{
+        await clickMathText(zooRoot,'Nächstes Tier 🦒 →');
+        await waitFor(client,'real zoo sentence '+index,`document.querySelector(${q(zooRoot)}).dataset.zooSentence===${q(zooSentences[index])}`);
+      });
+      const wrong=mark==='?'?'.':'?';
+      await evaluate(client,`Array.from(document.querySelectorAll(${q(zooRoot+' [data-zoo-choice]')})).find(b=>b.querySelector('span').textContent===${q(wrong)}).click()`);
+      await waitFor(client,'zoo keeps cage locked after wrong mark',`document.querySelector(${q(zooRoot)}).dataset.zooLocked==='true' && document.querySelector(${q(zooRoot)}).textContent.includes('Das passt leider nicht')`);
+      await evaluate(client,`Array.from(document.querySelectorAll(${q(zooRoot+' [data-zoo-choice]')})).find(b=>b.querySelector('span').textContent===${q(mark)}).click()`);
+      await waitFor(client,'zoo accepts '+mark+' once and shows explanation',`document.querySelector(${q(zooRoot)}).dataset.zooLocked==='false' && document.querySelector(${q(zooRoot)}).dataset.zooStreak==='1' && Array.from(document.querySelectorAll(${q(zooRoot+' [data-zoo-choice]')})).every(b=>b.disabled)`);
+      await wordplayScreens('punctuationzoo');
+    }
+    const zooSnapshot=await evaluate(client,`document.querySelector(${q(zooRoot)}).innerText`);
+    await auditMenu('punctuationzoo','Minimieren');await openAuditWidget('punctuationzoo','Satzzeichen-Zoo');
+    await waitFor(client,'zoo restores solved sentence and explanation',`document.querySelector(${q(zooRoot)}).innerText===${q(zooSnapshot)} && document.querySelector(${q(zooRoot)}).dataset.zooLocked==='false'`);
+    await auditMenu('punctuationzoo','Widget schließen');
+    console.log('✓ Next five German widgets: actual ABC list and sentence task, corrected word analysis, unambiguous rhymes, all three punctuation types, native minima and saved restore.');
     console.log('✓ Five wordplay widgets: paged real chains/errors/hints/drafts, all grid words solved at every level including 9×9, expert anagram/hint repair/scoring, Caesar wrap and ROT13 roundtrip, six story images/lock/move/reroll/prompt/native gear, exact minimums and restore.');
 
 

@@ -14505,7 +14505,7 @@ export const WordexplorerWidgetContent: React.FC<{
   currentIsLight: boolean;
 }> = ({ widget, onUpdate, currentIsLight }) => {
   const lifecycle = readWidgetLifecycleState(widget, "wordexplorer", {
-    word: "SCHULE",
+    word: "Schule",
     syllablesCount: 2,
     vowelsList: ["U", "E"],
     isNoun: true,
@@ -14534,29 +14534,29 @@ export const WordexplorerWidgetContent: React.FC<{
 
   const testWord = (wInput: string) => {
     const caps = wInput.toUpperCase().trim();
-    setWord(caps);
+    setWord(wInput);
     setAiExplanation(""); // Reset explanation upon word change
     setAiStatus("idle");
     setAiError(null);
 
     // simple syllable logic count - count vowel clusters
-    const clusterRegex = /[AEIOUYÄÖÜ]+|EI|AU|EU|IE/gi;
+    const clusterRegex = /AU|ÄU|EU|EI|AI|IE|[AEIOUYÄÖÜ]/gi;
     const matches = caps.match(clusterRegex);
-    const count = matches ? matches.length : 1;
-    setSyllablesCount(count === 0 ? 1 : count);
+    const count = matches ? matches.length : 0;
+    setSyllablesCount(count);
 
     // extract vowels
     const vowels = caps.split('').filter(char => /[AEIOUÄÖÜ]/i.test(char));
     setVowelsList([...new Set(vowels)]);
 
-    // check noun - usually nouns start with a upper letter in normal texts
-    setIsNoun(/[A-Z]/.test(wInput[0]));
+    // Capitalization is observable; it is not a reliable noun classification.
+    setIsNoun(/^[A-ZÄÖÜ]/.test(wInput.trim()));
   };
 
   const playClap = (count: number) => {
     try {
       const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtxClass) return;
+      if (!AudioCtxClass || count < 1) return;
       const ctx = new AudioCtxClass();
       for (let i = 0; i < count; i++) {
         setTimeout(() => {
@@ -14569,6 +14569,7 @@ export const WordexplorerWidgetContent: React.FC<{
           gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
           osc.start();
           osc.stop(ctx.currentTime + 0.15);
+          if (i === count - 1) osc.onended = () => { void ctx.close().catch(() => {}); };
         }, i * 360);
       }
     } catch(e){}
@@ -14597,13 +14598,13 @@ export const WordexplorerWidgetContent: React.FC<{
   };
 
   return (
-    <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-y-auto overflow-x-hidden">
+    <div data-wordplay-root data-wordexplorer-word={word} className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-hidden gap-2">
       <div className="shrink-0 flex justify-between items-center mb-1">
         <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
+          <span className={`text-sm font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
             🔍 Wort-Analysator {aiExplanation && "✨ AI"}
           </span>
-          <span className="text-[7.5px] font-mono opacity-80">Silben, Selbstlaute & Wortart</span>
+          <span className="text-sm font-mono opacity-80">Silben schätzen und Selbstlaute entdecken</span>
         </div>
       </div>
 
@@ -14611,18 +14612,12 @@ export const WordexplorerWidgetContent: React.FC<{
         <div className="flex gap-1.5">
           <input
             type="text"
-            defaultValue={word}
-            onBlur={(e) => testWord(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                testWord((e.target as HTMLInputElement).value);
-              }
-            }}
-            className={`flex-1 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold text-center border ${currentIsLight ? 'bg-white text-slate-800 border-slate-200' : 'bg-zinc-950 text-white border-zinc-700'}`}
+            aria-label="Wort untersuchen" maxLength={40} value={word} onChange={(e) => testWord(e.target.value)}
+            className={`flex-1 px-1.5 py-0.5 rounded text-sm min-w-0 min-h-11 font-bold text-center border ${currentIsLight ? 'bg-white text-slate-800 border-slate-200' : 'bg-zinc-950 text-white border-zinc-700'}`}
           />
           <button
             onClick={() => playClap(syllablesCount)}
-            className="px-2 py-0.5 rounded bg-amber-500 hover:bg-amber-600 text-white text-[8px] font-bold flex gap-1 items-center cursor-pointer active:scale-95 transition-all"
+            className="min-h-11 px-2 py-0.5 rounded bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold flex gap-1 items-center cursor-pointer active:scale-95 transition-all"
           >
             🔊 Klatschen
           </button>
@@ -14630,38 +14625,38 @@ export const WordexplorerWidgetContent: React.FC<{
 
         <div className="grid grid-cols-3 gap-1.5 mt-1">
           <div className="p-1 rounded bg-slate-100 dark:bg-zinc-800 text-center border dark:border-zinc-700">
-            <span className="text-[7.5px] uppercase block opacity-60">Silbenanzahl</span>
-            <span className="text-sm font-black text-rose-500 font-mono">{syllablesCount}</span>
+            <span className="text-sm uppercase block opacity-60">Silben (Schätzung)</span>
+            <input aria-label="Silbenzahl korrigieren" type="number" min="0" max="20" value={syllablesCount} onChange={e => setSyllablesCount(Math.max(0, Math.min(20, Number(e.target.value))))} className="min-h-11 w-full text-center text-xl font-black text-rose-500 bg-transparent" />
           </div>
 
           <div className="p-1 rounded bg-slate-100 dark:bg-zinc-800 text-center border dark:border-zinc-700">
-            <span className="text-[7.5px] uppercase block opacity-60">Selbstlaute</span>
-            <span className="text-[9.5px]/tight font-black font-mono text-teal-600 truncate block mt-0.5">{vowelsList.join(', ') || '-'}</span>
+            <span className="text-sm uppercase block opacity-60">Selbstlaute</span>
+            <span className="text-sm font-black font-mono text-teal-600 break-words block mt-0.5">{vowelsList.join(', ') || '-'}</span>
           </div>
 
           <div className="p-1 rounded bg-slate-100 dark:bg-zinc-800 text-center border dark:border-zinc-700">
-            <span className="text-[7.5px] uppercase block opacity-60">Nomen?</span>
-            <span className="text-[9.5px]/tight font-black text-indigo-500 block mt-0.5">{isNoun ? "Ja (Groß)" : "Nein (Klein)"}</span>
+            <span className="text-sm uppercase block opacity-60">Großgeschrieben?</span>
+            <span className="text-sm font-black text-indigo-500 block mt-0.5">{isNoun ? "Ja (Groß)" : "Nein (Klein)"}</span>
           </div>
         </div>
 
         {/* AI block of explanations */}
         <div className="mt-1 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-lg p-1.5 border border-indigo-200/30 text-left min-h-[38px] flex flex-col justify-center">
           {aiExplanation && (
-            <p className="text-[8px] font-medium leading-normal text-slate-700 dark:text-indigo-200">{aiExplanation}</p>
+            <p className="text-sm font-medium leading-normal text-slate-700 dark:text-indigo-200">{aiExplanation}</p>
           )}
           {aiStatus !== "idle" && aiStatus !== "success" ? (
-            <div role="status" aria-live="polite" className="flex items-center justify-between gap-1 text-[7px] text-indigo-700 dark:text-indigo-300">
+            <div role="status" aria-live="polite" className="flex items-center justify-between gap-1 text-sm text-indigo-700 dark:text-indigo-300">
               <span>{aiError || getWidgetAiStatusMessage(aiStatus)}</span>
               {aiStatus !== "loading" && (
-                <button type="button" onClick={handleFetchAiExplanation} className="underline font-bold cursor-pointer">Erneut versuchen</button>
+                <button type="button" onClick={handleFetchAiExplanation} className="min-h-11 px-2 underline font-bold cursor-pointer">Erneut versuchen</button>
               )}
             </div>
           ) : !aiExplanation ? (
             <button
               onClick={handleFetchAiExplanation}
               disabled={isAiLoading}
-              className="w-full py-1 text-center font-bold text-[8px] uppercase text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 flex items-center justify-center gap-1 cursor-pointer"
+              className="min-h-11 w-full py-1 text-center font-bold text-sm uppercase text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 flex items-center justify-center gap-1 cursor-pointer"
             >
               <span className="animate-pulse">✨</span> KI-Weisheit & Beispielsatz abrufen!
             </button>
@@ -14670,7 +14665,7 @@ export const WordexplorerWidgetContent: React.FC<{
       </div>
 
       <div className="shrink-0 mt-1">
-        <span className="text-[7px] text-center block text-slate-400 dark:text-neutral-500 font-mono">Trage ein Wort ein und drücke Enter. Hol dir dann KI-Unterstützung!</span>
+        <span className="text-sm text-center block text-slate-400 dark:text-neutral-500 font-mono">Die Silbenzahl ist eine Schätzung. Du kannst sie korrigieren. Großschreibung allein bestimmt keine Wortart.</span>
       </div>
     </div>
   );
@@ -16739,15 +16734,15 @@ export const RhymemachineWidgetContent: React.FC<{
   currentIsLight: boolean;
 }> = ({ widget, onUpdate, currentIsLight }) => {
   const wordsDatabase: RhymeWord[] = useMemo(() => [
-    { base: "Maus", rhyme: "Haus", wrongs: ["Hose", "Baum", "Katz"] },
+    { base: "Maus", rhyme: "Haus", wrongs: ["Hose", "Baum", "Katze"] },
     { base: "Baum", rhyme: "Traum", wrongs: ["Hand", "Buch", "Lied"] },
-    { base: "Katz", rhyme: "Spatz", wrongs: ["Mund", "Blume", "Stift"] },
+    { base: "Katze", rhyme: "Tatze", wrongs: ["Mund", "Blume", "Stift"] },
     { base: "Kopf", rhyme: "Topf", wrongs: ["Brot", "Fenster", "Schrank"] },
     { base: "Sonne", rhyme: "Tonne", wrongs: ["Wolke", "Regen", "Mond"] },
-    { base: "Hand", rhyme: "Sand", wrongs: ["Wand", "Ball", "Buch"] },
+    { base: "Hand", rhyme: "Sand", wrongs: ["Wolke", "Ball", "Buch"] },
     { base: "Kind", rhyme: "Wind", wrongs: ["Vogel", "Hund", "Schule"] },
     { base: "Hund", rhyme: "Mund", wrongs: ["Zahn", "Nase", "Fuß"] },
-    { base: "Schaf", rhyme: "Schlaf", wrongs: ["Woll", "Berg", "Gras"] },
+    { base: "Schaf", rhyme: "Schlaf", wrongs: ["Wolle", "Berg", "Gras"] },
     { base: "Rose", rhyme: "Hose", wrongs: ["Garten", "Duft", "Blatt"] },
     { base: "Zahn", rhyme: "Bahn", wrongs: ["Kopf", "Weg", "Rad"] },
     { base: "Brot", rhyme: "Rot", wrongs: ["Teig", "Butter", "Käse"] },
@@ -16757,7 +16752,7 @@ export const RhymemachineWidgetContent: React.FC<{
     { base: "Ball", rhyme: "Knall", wrongs: ["Tor", "Spiel", "Wiese"] },
     { base: "Licht", rhyme: "Gesicht", wrongs: ["Lampe", "Tag", "Dunkel"] },
     { base: "Wald", rhyme: "Kalt", wrongs: ["Baum", "Blatt", "Natur"] },
-    { base: "Bär", rhyme: "Meer", wrongs: ["Honig", "Wald", "Tatz"] },
+    { base: "Bär", rhyme: "Meer", wrongs: ["Honig", "Wald", "Tatze"] },
     { base: "Schuh", rhyme: "Kuh", wrongs: ["Socke", "Leder", "Schritt"] }
   ], []);
 
@@ -16789,6 +16784,8 @@ export const RhymemachineWidgetContent: React.FC<{
     aiError,
   });
 
+  const spinTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const restoredRound = useRef(hasWidgetLifecycleState(widget, "rhymemachine") && !lifecycle.spinning && lifecycle.choices.length === 4 && lifecycle.choices.includes(wordsDatabase[lifecycle.activeWordIdx]?.rhyme));
   const spinMachine = useCallback(() => {
     setSpinning(true);
     setPoem("");
@@ -16798,7 +16795,7 @@ export const RhymemachineWidgetContent: React.FC<{
 
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) {
+      if (AudioCtx && navigator.userActivation?.isActive) {
         const ctx = new AudioCtx();
         for (let i = 0; i < 5; i++) {
           setTimeout(() => {
@@ -16810,12 +16807,13 @@ export const RhymemachineWidgetContent: React.FC<{
             gain.connect(ctx.destination);
             osc.start();
             osc.stop(ctx.currentTime + 0.05);
+            if (i === 4) osc.onended = () => { void ctx.close().catch(() => {}); };
           }, i * 120);
         }
       }
     } catch {}
 
-    setTimeout(() => {
+    spinTimer.current = setTimeout(() => {
       const pickedIdx = Math.floor(Math.random() * wordsDatabase.length);
       setActiveWordIdx(pickedIdx);
       const picked = wordsDatabase[pickedIdx];
@@ -16854,7 +16852,8 @@ Antworte NUR mit dem Gedicht (4 Zeilen getrennt durch Zeilenumbruch, max. 30 Wö
   };
 
   useEffect(() => {
-    spinMachine();
+    if (!restoredRound.current) spinMachine();
+    return () => { if (spinTimer.current) clearTimeout(spinTimer.current); };
   }, [spinMachine]);
 
   const speakRhymeTone = (success: boolean) => {
@@ -16873,6 +16872,7 @@ Antworte NUR mit dem Gedicht (4 Zeilen getrennt durch Zeilenumbruch, max. 30 Wö
           gain.connect(ctx.destination);
           osc.start(ctx.currentTime + idx * 0.07);
           osc.stop(ctx.currentTime + idx * 0.07 + 0.15);
+          if (idx === 3) osc.onended = () => { void ctx.close().catch(() => {}); };
         });
       } else {
         const osc = ctx.createOscillator();
@@ -16884,6 +16884,7 @@ Antworte NUR mit dem Gedicht (4 Zeilen getrennt durch Zeilenumbruch, max. 30 Wö
         gain.connect(ctx.destination);
         osc.start();
         osc.stop(ctx.currentTime + 0.35);
+        osc.onended = () => { void ctx.close().catch(() => {}); };
       }
     } catch {}
   };
@@ -16900,38 +16901,39 @@ Antworte NUR mit dem Gedicht (4 Zeilen getrennt durch Zeilenumbruch, max. 30 Wö
   };
 
   return (
-    <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-y-auto overflow-x-hidden">
+    <div data-wordplay-root data-rhyme-base={wordsDatabase[activeWordIdx]?.base} className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-hidden gap-2">
       <div className="shrink-0 flex justify-between items-center mb-1">
         <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
+          <span className={`text-sm font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'}`}>
             🎰 Reim-Maschine {poem && "✨ AI"}
           </span>
-          <span className="text-[7.5px] font-mono opacity-80">Sprachgefühl & Reime schulen</span>
+          <span className="text-sm font-mono opacity-80">Sprachgefühl & Reime schulen</span>
         </div>
         <button
           onClick={spinMachine}
           disabled={spinning}
-          className="px-1.5 py-0.5 rounded bg-indigo-500 text-white font-bold text-[7.5px] active:scale-95 transition-all"
+          className="min-h-11 px-1.5 py-0.5 rounded bg-indigo-500 text-white font-bold text-sm active:scale-95 transition-all"
         >
           🎰 Drehen!
         </button>
       </div>
 
       <div className="flex-grow flex flex-col justify-center items-center py-1.5 min-h-0">
-        <div className="border-3 border-teal-500 bg-amber-50 rounded-2xl p-1.5 text-center px-4 shadow-md bg-opacity-90 max-w-[120px] transition-transform duration-300 animate-pulse relative text-slate-800">
-          <span className="text-[7px] uppercase tracking-widest text-teal-600 block font-black">Das Wort:</span>
+        <div className="border-3 border-teal-500 bg-amber-50 rounded-2xl p-1.5 text-center px-4 shadow-md bg-opacity-90 max-w-full transition-transform duration-300 animate-pulse relative text-slate-800">
+          <span className="text-sm uppercase tracking-widest text-teal-600 block font-black">Das Wort:</span>
           <span className="text-sm font-black text-slate-900 leading-none">
             {spinning ? "🎰..." : wordsDatabase[activeWordIdx]?.base}
           </span>
         </div>
 
         {!spinning && (
-          <div className="grid grid-cols-2 gap-1 w-full max-w-[180px] mt-2 scale-95">
+          <div className="grid grid-cols-2 gap-1 w-full max-w-full mt-2 ">
             {choices.map((it, idx) => (
               <button
                 key={idx}
+                data-rhyme-choice={it}
                 onClick={() => handleGuess(it)}
-                className={`py-1 rounded-lg border font-black text-[8px] tracking-wide active:scale-95 transition-all cursor-pointer ${
+                className={`min-h-11 py-1 rounded-lg border font-black text-sm tracking-wide active:scale-95 transition-all cursor-pointer ${
                   currentIsLight 
                     ? 'bg-white border-slate-300 hover:bg-slate-100 text-slate-800' 
                     : 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-white'
@@ -16947,22 +16949,22 @@ Antworte NUR mit dem Gedicht (4 Zeilen getrennt durch Zeilenumbruch, max. 30 Wö
         {!spinning && (
           <div className="w-full mt-2 bg-indigo-50/50 dark:bg-indigo-950/25 border border-indigo-100 dark:border-indigo-900/40 rounded-xl p-1.5 min-h-[35px] flex flex-col justify-center">
             {poem && (
-              <div className="text-center font-mono italic text-[7.5px]/tight text-indigo-900 dark:text-indigo-200 whitespace-pre-line font-medium">
+              <div className="text-center font-mono italic text-sm text-indigo-900 dark:text-indigo-200 whitespace-pre-line font-medium">
                 {poem}
               </div>
             )}
             {aiStatus !== "idle" && aiStatus !== "success" ? (
-              <div role="status" aria-live="polite" className="flex items-center justify-between gap-1 text-[7px] text-indigo-700 dark:text-indigo-300">
+              <div role="status" aria-live="polite" className="flex items-center justify-between gap-1 text-sm text-indigo-700 dark:text-indigo-300">
                 <span>{aiError || getWidgetAiStatusMessage(aiStatus)}</span>
                 {aiStatus !== "loading" && (
-                  <button type="button" onClick={fetchPoem} className="underline font-bold cursor-pointer">Erneut versuchen</button>
+                  <button type="button" onClick={fetchPoem} className="min-h-11 px-2 underline font-bold cursor-pointer">Erneut versuchen</button>
                 )}
               </div>
             ) : !poem ? (
               <button
                 onClick={fetchPoem}
                 disabled={isPoemLoading}
-                className="w-full py-0.5 text-center font-bold text-[7.5px] uppercase text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 flex items-center justify-center gap-1 cursor-pointer"
+                className="min-h-11 w-full py-0.5 text-center font-bold text-sm uppercase text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 flex items-center justify-center gap-1 cursor-pointer"
               >
                 📝 ✨ Eigenes Gedicht mit KI dichten!
               </button>
@@ -16971,7 +16973,7 @@ Antworte NUR mit dem Gedicht (4 Zeilen getrennt durch Zeilenumbruch, max. 30 Wö
         )}
       </div>
 
-      <p className="shrink-0 text-[7px] font-extrabold text-blue-500 text-center truncate mt-0.5">{feedback}</p>
+      <p role="status" className="shrink-0 text-sm font-extrabold text-blue-500 text-center whitespace-normal break-words mt-0.5">{feedback}</p>
     </div>
   );
 };
@@ -18064,6 +18066,7 @@ Gib absolut nichts anderes aus als diese Zeile!`;
           gain.connect(ctx.destination);
           osc.start(ctx.currentTime + idx * 0.08);
           osc.stop(ctx.currentTime + idx * 0.08 + 0.15);
+          if (idx === 3) osc.onended = () => { void ctx.close().catch(() => {}); };
         });
       } else {
         [150, 150].forEach((freq, idx) => {
@@ -18075,13 +18078,14 @@ Gib absolut nichts anderes aus als diese Zeile!`;
           gain.connect(ctx.destination);
           osc.start(ctx.currentTime + idx * 0.1);
           osc.stop(ctx.currentTime + idx * 0.1 + 0.15);
+          if (idx === 1) osc.onended = () => { void ctx.close().catch(() => {}); };
         });
       }
     } catch {}
   };
 
   const handleApplyPunctuation = (mark: '.' | '?' | '!') => {
-    if (!activeSentence) return;
+    if (!activeSentence || !isLocked) return;
     if (activeSentence.missingMark === mark) {
       setIsLocked(false);
       setShowExplanation(true);
@@ -18103,23 +18107,23 @@ Gib absolut nichts anderes aus als diese Zeile!`;
   };
 
   return (
-    <div className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-y-auto overflow-x-hidden">
+    <div data-wordplay-root data-zoo-sentence={activeSentence?.text} data-zoo-streak={streak} data-zoo-locked={isLocked} className="flex flex-col h-full w-full p-2.5 justify-between select-none min-h-0 overflow-hidden gap-2">
       {/* Header */}
       <div className="shrink-0 flex justify-between items-center pb-1 border-b border-slate-100 dark:border-zinc-800">
         <div className="flex flex-col">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'} flex items-center gap-1`}>
+          <span className={`text-sm font-black uppercase tracking-widest ${currentIsLight ? 'text-indigo-600' : 'text-indigo-300'} flex items-center gap-1`}>
             🦁 Satzzeichen-Zoo {customSentence && "✨ KI"}
           </span>
-          <span className="text-[7px] font-mono opacity-80">Hilf Tieren mit Satzzeichen!</span>
+          <span className="text-sm font-mono opacity-80">Hilf Tieren mit Satzzeichen!</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="text-[7px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 dark:bg-zinc-800 text-emerald-700 dark:text-emerald-300">
+          <span className="text-sm font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 dark:bg-zinc-800 text-emerald-700 dark:text-emerald-300">
             Serie: {streak} 🔥
           </span>
           <button
             onClick={fetchAiSentence}
             disabled={isAiLoading}
-            className="px-1.5 py-0.5 rounded bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-black text-[6.5px] uppercase tracking-wider cursor-pointer shadow-xs transition-colors"
+            className="min-h-11 px-1.5 py-0.5 rounded bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-black text-sm uppercase tracking-wider cursor-pointer shadow-xs transition-colors"
           >
             {isAiLoading ? "Lade..." : "✨ KI-Tier"}
           </button>
@@ -18127,19 +18131,19 @@ Gib absolut nichts anderes aus als diese Zeile!`;
       </div>
 
         {aiStatus !== "idle" && aiStatus !== "success" && (
-          <div role="status" aria-live="polite" className="flex items-center justify-between gap-1 text-[7px] text-amber-700 dark:text-amber-300">
+          <div role="status" aria-live="polite" className="flex items-center justify-between gap-1 text-sm text-amber-700 dark:text-amber-300">
             <span>{aiError || getWidgetAiStatusMessage(aiStatus)}</span>
             {aiStatus !== "loading" && (
-              <button type="button" onClick={fetchAiSentence} className="underline font-bold cursor-pointer">Erneut versuchen</button>
+              <button type="button" onClick={fetchAiSentence} className="min-h-11 px-2 underline font-bold cursor-pointer">Erneut versuchen</button>
             )}
           </div>
         )}
 
       {/* Cage & Animal View */}
-      <div className="flex-grow flex flex-col justify-center items-center py-2 bg-slate-50 dark:bg-zinc-900/40 rounded-2xl relative min-h-[140px] border border-slate-100 dark:border-zinc-800 shadow-xs overflow-hidden mt-1.5">
+      <div className="flex-grow flex flex-col justify-center items-center py-2 bg-slate-50 dark:bg-zinc-900/40 rounded-2xl relative min-h-0 border border-slate-100 dark:border-zinc-800 shadow-xs overflow-hidden mt-1.5">
         
         {/* Interactive Cage */}
-        <div className="relative w-16 h-16 bg-amber-500/5 dark:bg-amber-500/5 rounded-2xl flex items-center justify-center border border-amber-500/10 shadow-inner">
+        <div className="relative shrink-0 w-12 h-12 bg-amber-500/5 dark:bg-amber-500/5 rounded-2xl flex items-center justify-center border border-amber-500/10 shadow-inner">
           {/* Cage Bars (Animated with Framer Motion) */}
           <AnimatePresence>
             {isLocked && (
@@ -18166,14 +18170,14 @@ Gib absolut nichts anderes aus als diese Zeile!`;
         </div>
 
         {/* Animal Label */}
-        <span className="text-[8px] font-black uppercase tracking-wider text-slate-400 dark:text-zinc-500 mt-1">
-          {activeSentence?.animal?.split(" ")?.[1] || "Unbekanntes Tier"}
+        <span className="text-sm font-black uppercase tracking-wider text-slate-400 dark:text-zinc-500 mt-1">
+          {activeSentence?.animal?.split(" ").slice(1).join(" ") || "Unbekanntes Tier"}
         </span>
 
         {/* MAXIMUM READABILITY TYPOGRAPHY PANEL */}
-        <div className="mt-2.5 px-4 text-center w-full max-w-[250px]">
-          <div className="relative bg-white dark:bg-zinc-850 p-3 rounded-2xl border-l-4 border-indigo-500 dark:border-indigo-400 shadow-md flex flex-col items-center gap-1">
-            <p className="font-extrabold text-sm sm:text-base leading-snug text-slate-900 dark:text-neutral-50 px-1 font-sans">
+        <div className="mt-2.5 px-4 text-center w-full max-w-full">
+          <div className="relative bg-white dark:bg-zinc-850 p-2 rounded-2xl border-l-4 border-indigo-500 dark:border-indigo-400 shadow-md flex flex-col items-center gap-1">
+            <p className="font-extrabold text-xl leading-snug text-slate-900 dark:text-neutral-50 px-1 font-sans">
               „{activeSentence?.text}
               <span className={`inline-flex items-center justify-center px-1.5 py-0.2 ml-1 font-black rounded-lg transition-all ${
                 isLocked 
@@ -18187,7 +18191,7 @@ Gib absolut nichts anderes aus als diese Zeile!`;
             {/* Audio Read-Aloud Button */}
             <button
               onClick={handleSpeak}
-              className={`mt-1.5 p-1.5 rounded-full cursor-pointer flex items-center justify-center gap-1 transition-all ${
+              className={`min-h-11 min-w-11 mt-1.5 p-1.5 rounded-full cursor-pointer flex items-center justify-center gap-1 transition-all ${
                 isPlayingAudio 
                   ? 'bg-rose-500 text-white animate-pulse' 
                   : 'bg-slate-100 dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 hover:bg-slate-200'
@@ -18195,7 +18199,7 @@ Gib absolut nichts anderes aus als diese Zeile!`;
               title="Satz laut vorlesen lassen"
             >
               <Volume2 className="w-3.5 h-3.5" />
-              <span className="text-[6.5px] uppercase font-black tracking-wide pr-1">Vorlesen</span>
+              <span className="text-sm uppercase font-black tracking-wide pr-1">Vorlesen</span>
             </button>
           </div>
         </div>
@@ -18207,9 +18211,9 @@ Gib absolut nichts anderes aus als diese Zeile!`;
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="mt-2 mx-4 p-2 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900 rounded-xl text-center max-w-[240px]"
+              className="mt-1 mx-4 p-1.5 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900 rounded-xl text-center max-w-full"
             >
-              <p className="text-[8.5px] font-bold text-emerald-700 dark:text-emerald-400 leading-normal">
+              <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400 leading-normal">
                 💡 {activeSentence.explanation}
               </p>
             </motion.div>
@@ -18223,47 +18227,50 @@ Gib absolut nichts anderes aus als diese Zeile!`;
           <motion.button
             whileHover={isLocked ? { scale: 1.05 } : {}}
             whileTap={isLocked ? { scale: 0.95 } : {}}
+            data-zoo-choice
             onClick={() => handleApplyPunctuation('.')}
             disabled={!isLocked}
-            className="flex-1 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm rounded-xl cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed shadow-md transition-colors flex flex-col items-center justify-center"
+            className="min-h-16 flex-1 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm rounded-xl cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed shadow-md transition-colors flex flex-col items-center justify-center"
           >
             <span className="text-base leading-none">.</span>
-            <span className="text-[6.5px] tracking-wider uppercase font-black opacity-90 mt-0.5">Aussage (Punkt)</span>
+            <span className="text-sm tracking-wider uppercase font-black opacity-90 mt-0.5">Aussage (Punkt)</span>
           </motion.button>
 
           <motion.button
             whileHover={isLocked ? { scale: 1.05 } : {}}
             whileTap={isLocked ? { scale: 0.95 } : {}}
+            data-zoo-choice
             onClick={() => handleApplyPunctuation('?')}
             disabled={!isLocked}
-            className="flex-1 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-black text-sm rounded-xl cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed shadow-md transition-colors flex flex-col items-center justify-center"
+            className="min-h-16 flex-1 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-black text-sm rounded-xl cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed shadow-md transition-colors flex flex-col items-center justify-center"
           >
             <span className="text-base leading-none">?</span>
-            <span className="text-[6.5px] tracking-wider uppercase font-black opacity-90 mt-0.5">Frage (?)</span>
+            <span className="text-sm tracking-wider uppercase font-black opacity-90 mt-0.5">Frage (?)</span>
           </motion.button>
 
           <motion.button
             whileHover={isLocked ? { scale: 1.05 } : {}}
             whileTap={isLocked ? { scale: 0.95 } : {}}
+            data-zoo-choice
             onClick={() => handleApplyPunctuation('!')}
             disabled={!isLocked}
-            className="flex-1 py-1.5 bg-rose-500 hover:bg-rose-600 text-white font-black text-sm rounded-xl cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed shadow-md transition-colors flex flex-col items-center justify-center"
+            className="min-h-16 flex-1 py-1.5 bg-rose-500 hover:bg-rose-600 text-white font-black text-sm rounded-xl cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed shadow-md transition-colors flex flex-col items-center justify-center"
           >
             <span className="text-base leading-none">!</span>
-            <span className="text-[6.5px] tracking-wider uppercase font-black opacity-90 mt-0.5">Ausruf (!)</span>
+            <span className="text-sm tracking-wider uppercase font-black opacity-90 mt-0.5">Ausruf (!)</span>
           </motion.button>
         </div>
 
         {/* Footer actions */}
-        <div className="flex justify-between items-center pt-1.5">
-          <p className="text-[7.5px] font-black text-blue-500 dark:text-blue-400 truncate max-w-[150px] animate-pulse uppercase">
+        <div className="flex gap-2 justify-between items-center pt-1.5">
+          <p role="status" className="text-sm font-black text-blue-500 dark:text-blue-400 whitespace-normal break-words flex-1 animate-pulse uppercase">
             {feedback}
           </p>
           <motion.button
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             onClick={rollNewZooSentence}
-            className={`px-2 py-0.5 rounded-lg text-[7px] font-black uppercase tracking-wider shadow-xs flex items-center gap-1 cursor-pointer ${
+            className={`min-h-11 px-2 py-0.5 rounded-lg text-sm font-black uppercase tracking-wider shadow-xs flex items-center gap-1 cursor-pointer ${
               currentIsLight 
                 ? 'bg-white border border-slate-200 text-indigo-600 hover:bg-slate-50' 
                 : 'bg-zinc-850 border border-zinc-700 text-indigo-400 hover:bg-zinc-800'

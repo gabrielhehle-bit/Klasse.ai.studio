@@ -11160,6 +11160,8 @@ ${content}
                                           isFullscreen={
                                             fullscreenWidgetId === widget.id
                                           }
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
@@ -11548,6 +11550,9 @@ ${content}
                                         <AbcorderWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                         />
                                       );
 
