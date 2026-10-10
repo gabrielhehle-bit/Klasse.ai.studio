@@ -1649,6 +1649,8 @@ async function main() {
       await client.send('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',clickCount:1});
       const end={x:Math.max(1,point.x-500),y:Math.max(1,point.y-500)};
       await client.send('Input.dispatchMouseEvent',{type:'mouseMoved',...end,button:'left',buttons:1});
+      // Let the live resize frame apply before releasing the pointer.
+      await waitFor(client,type+' live drag reaches its configured minimum', `(() => {const r=document.querySelector('[data-widget-type=${q(type)}]').getBoundingClientRect();return Math.abs(r.width-${minimumWidth})<2&&Math.abs(r.height-${minimumHeight})<2;})()`);
       await client.send('Input.dispatchMouseEvent',{type:'mouseReleased',...end,button:'left',clickCount:1});
       await waitFor(client,type+' really reaches its configured minimum', `(() => {const r=document.querySelector('[data-widget-type=${q(type)}]').getBoundingClientRect();return Math.abs(r.width-${minimumWidth})<2&&Math.abs(r.height-${minimumHeight})<2;})()`);
     };
