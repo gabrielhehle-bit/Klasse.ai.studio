@@ -5,7 +5,7 @@ Basis: veröffentlichter PR #505, `134a70784367da5b2b455ed8dd5e42a68b7e257e`.
 | Widget | Änderung und Browsernachweis | Mindestfläche |
 | --- | --- | --- |
 | Körper-Entdecker | Native Darstellung aller sieben Organe; Auswahl, Zuordnungsaufgabe, Fehlversuch und korrekte Antwort bleiben beim Wiederöffnen erhalten. | 620×560 |
-| Geographie-Kompass | Instrument und Erklärung passen auch im kleinen Fenster nebeneinander. Richtung, Aufgabe und Rückmeldung bleiben erhalten; falsche/richtige Richtung und nächste Aufgabe. | 420×620 |
+| Geographie-Kompass | Instrument und Erklärung passen auch im kleinen Fenster nebeneinander. Richtung, Aufgabe und Rückmeldung bleiben erhalten; falsche/richtige Richtung und nächste Aufgabe. | 620×560 |
 | Wochentage-Trainer | Native Monats- und Wochentagsauswahl; Übungsaufgabe und Lösung gespeichert. Frei gewählte Tage heißen „Ausgewählt“, „Davor“ und „Danach“, statt das tatsächliche Heute zu behaupten. | 620×560 |
 | Fahrrad-Führerschein | Native Verkehrszeichen, Frage und Antworten; Übungsstand und laufende/abgeschlossene Prüfung gespeichert. Fehlversuch, richtige Antwort, echte fünfteilige Übungsprüfung und Wiederöffnen während/nach Prüfung. | 800×560 |
 | Wasserkreislauf-Puzzle | Native Kreislauf-, Puzzle- und Quizansichten; Reihenfolge, Antworten und Punktestand gespeichert. Pfeile lösen den sichtbaren Weg, fünf Quizfragen, Wiederöffnen nach Puzzle und mitten im Quiz. | 760×560 |

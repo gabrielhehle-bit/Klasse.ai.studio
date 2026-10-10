@@ -63,7 +63,7 @@ test('Geographie-Kompass startet kompakter und kann bei Bedarf vergrößert werd
   const layout = readFileSync("src/components/cockpit/widgetLayout.ts", "utf8");
   assert.match(cockpit, /id: "widget-compass",[\s\S]{0,180}w: 44,[\s\S]{0,80}h: 56/);
   assert.match(widget, /compass: \{ w: 44, h: 56 \}/);
-  assert.match(layout, /compass: \{ minW: 420, minH: 620, prefW: 640, prefH: 640 \}/);
+  assert.match(layout, /compass: \{ minW: 620, minH: 560, prefW: 700, prefH: 560 \}/);
 });
 
 test('Geographie-Kompass-Hilfe erklärt Erkunden, Üben und die jahreszeitliche Sonnenabweichung', () => {

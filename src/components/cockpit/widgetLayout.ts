@@ -97,7 +97,7 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   clockpuzzle: { minW: 280, minH: 220, prefW: 380, prefH: 340 },
   // Geometry and angle tasks need the instrument, controls and feedback visible together.
   geometry: { minW: 360, minH: 460, prefW: 560, prefH: 560 },
-  compass: { minW: 420, minH: 620, prefW: 640, prefH: 640 },
+  compass: { minW: 620, minH: 560, prefW: 700, prefH: 560 },
   angledetective: { minW: 360, minH: 420, prefW: 520, prefH: 480 },
   estimationjar: { minW: 280, minH: 220, prefW: 380, prefH: 340 },
   vocabulary: { minW: 640, minH: 560, prefW: 720, prefH: 560 },
