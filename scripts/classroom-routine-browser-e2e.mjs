@@ -1741,7 +1741,7 @@ async function main() {
       await waitFor(client,type+' correct feedback fits after restore',fits);
       await sleep(400);
       await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-widget-'+type+'.png'));
-      if(type==='mathcards'||type==='mathchain'){
+      if(['mathcards','mathchain','multitrainer'].includes(type)){
         await setInputByLabel(client,'Ergebnis eingeben',String(expected+1));
         await waitFor(client,type+' editing a correct answer clears stale success',`${state}.dataset.mentalMathFeedback==='idle'&&!document.querySelector(${q(root+' [data-mental-math-answer]')})`);
         await auditMenu(type,'Widget schließen');await openAuditWidget(type,search);
@@ -2605,6 +2605,51 @@ async function main() {
     }
     await auditMenu('mathbalancer','Widget schließen');
     console.log('✓ Math block: active mathcards/mathchain studio restore and editable feedback, duel 4:3 -> 4:4 -> true winner and all levels/operations, all pyramid clue patterns/ranges, eight actual balance equations and exact persisted choices.');
+
+    // The catalog's legacy fraction entries use the active shared visualizer.
+    for(const [type,search] of [['fractions','Bruch-Visualisierer · Vergleich'],['fractioncake','Bruch-Kuchen'],['fractiongrid','Bruch-Raster']]){
+      await openAuditWidget(type,search);const root=practiceRoot(type);
+      const before=await evaluate(client,`document.querySelector(${q(root)}).dataset.fractionPrimary`);
+      const increase=await evaluate(client,`Array.from(document.querySelectorAll(${q(root+' button')})).find(b=>b.getAttribute('aria-label')?.endsWith('Zähler erhöhen'))?.getAttribute('aria-label')`);
+      if(!increase)throw Error('Missing fraction numerator control');
+      await clickSelector(client,root+' [aria-label="'+increase+'"]');
+      const changed=await evaluate(client,`document.querySelector(${q(root)}).dataset.fractionPrimary`);
+      if(before===changed)throw Error('Fraction control did not change the actual fraction');
+      await practiceRestore(type,search);
+      await waitFor(client,type+' preserves edited canonical fraction',`document.querySelector(${q(root)}).dataset.fractionPrimary===${q(changed)}`);
+      await auditMenu(type,'Widget schließen');await openAuditWidget(type,search);
+      await waitFor(client,type+' close restores the actual fraction',`document.querySelector(${q(root)}).dataset.fractionPrimary===${q(changed)}`);
+      await practiceScreen(type);await auditMenu(type,'Widget schließen');
+    }
+    await openAuditWidget('moneycalc','Taschengeld-Zähler');const moneyRoot=practiceRoot('moneycalc');
+    await clickSelector(client,moneyRoot+' [aria-label="20 c hinzufügen"]');await clickSelector(client,moneyRoot+' [aria-label="10 c hinzufügen"]');
+    await waitFor(client,'money counts actual coins exactly',`Number(document.querySelector(${q(moneyRoot)}).dataset.moneyTotal)===.3`);
+    await practiceRestore('moneycalc','Taschengeld-Zähler');
+    await waitFor(client,'money count survives reopening',`Number(document.querySelector(${q(moneyRoot)}).dataset.moneyTotal)===.3`);
+    await natureClick(moneyRoot,'Passend zahlen');
+    for(const level of ['Einfach','Mittel','Schwer']){
+    await natureClick(moneyRoot,level);
+    await clickSelector(client,moneyRoot+' [aria-label="1 c hinzufügen"]');await natureClick(moneyRoot,'Betrag prüfen');
+    await waitFor(client,'underpayment is explained '+level,`document.querySelector(${q(moneyRoot)}).textContent.includes('Es fehlen noch')`);
+    await practiceRestore('moneycalc','Taschengeld-Zähler');
+    await clickSelector(client,moneyRoot+' [aria-label="1 c entfernen"]');
+    // All levels have a target at most 100 euros; 100 euros plus one cent is too much.
+    await clickSelector(client,moneyRoot+' [aria-label="100 € hinzufügen"]');await clickSelector(client,moneyRoot+' [aria-label="1 c hinzufügen"]');await natureClick(moneyRoot,'Betrag prüfen');
+    await waitFor(client,'overpayment is explained '+level,`document.querySelector(${q(moneyRoot)}).textContent.includes('zu viel aufgelegt')`);
+    await practiceRestore('moneycalc','Taschengeld-Zähler');
+    await clickSelector(client,moneyRoot+' [aria-label="100 € entfernen"]');await clickSelector(client,moneyRoot+' [aria-label="1 c entfernen"]');
+    await waitFor(client,'removing wrong money returns to zero '+level,`Number(document.querySelector(${q(moneyRoot)}).dataset.moneyTotal)===0`);
+    const cents=Math.round(100*await evaluate(client,`Number(document.querySelector(${q(moneyRoot)}).dataset.moneyTarget)`));
+    let remaining=cents;
+    for(const [value,label]of [[10000,'100 €'],[5000,'50 €'],[2000,'20 €'],[1000,'10 €'],[500,'5 €'],[200,'2 €'],[100,'1 €'],[50,'50 c'],[20,'20 c'],[10,'10 c'],[5,'5 c'],[2,'2 c'],[1,'1 c']]){
+      while(remaining>=value){await clickSelector(client,moneyRoot+' [aria-label="'+label+' hinzufügen"]');remaining-=value;}
+    }
+    await natureClick(moneyRoot,'Betrag prüfen');
+    await waitFor(client,'independently composed money reaches the target',`document.querySelector(${q(moneyRoot)}).textContent.includes('Genau richtig')`);
+    await practiceRestore('moneycalc','Taschengeld-Zähler');
+    await waitFor(client,'money preserves exact target amount and success',`Math.round(100*Number(document.querySelector(${q(moneyRoot)}).dataset.moneyTarget))===${cents}&&Math.round(100*Number(document.querySelector(${q(moneyRoot)}).dataset.moneyTotal))===${cents}&&document.querySelector(${q(moneyRoot)}).textContent.includes('Genau richtig')`);
+    }
+    await practiceScreen('moneycalc');await auditMenu('moneycalc','Widget schließen');
 
     // Class behavior uses the pupil scale: 1 is positive and must be above 5.
     await clickSelector(client, '[aria-label="Weitere Optionen und Layout-Werkzeuge"]');

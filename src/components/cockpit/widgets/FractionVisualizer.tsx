@@ -193,7 +193,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
               type="button"
               onClick={() => onNumChange(f.numerator - 1)}
               disabled={f.numerator <= MIN_NUMERATOR}
-              aria-label="Zähler verringern"
+              aria-label={`${labelPrefix || 'Bruch'}: Zähler verringern`}
               className="w-11 h-11 flex items-center justify-center rounded-lg bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-30 disabled:pointer-events-none transition-colors active:scale-95"
             >
               <Minus className="w-4 h-4" />
@@ -205,7 +205,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
               type="button"
               onClick={() => onNumChange(f.numerator + 1)}
               disabled={f.numerator >= f.denominator}
-              aria-label="Zähler erhöhen"
+              aria-label={`${labelPrefix || 'Bruch'}: Zähler erhöhen`}
               className="w-11 h-11 flex items-center justify-center rounded-lg bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-30 disabled:pointer-events-none transition-colors active:scale-95"
             >
               <Plus className="w-4 h-4" />
@@ -221,7 +221,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
               type="button"
               onClick={() => onDenChange(f.denominator - 1)}
               disabled={f.denominator <= MIN_DENOMINATOR}
-              aria-label="Nenner verringern"
+              aria-label={`${labelPrefix || 'Bruch'}: Nenner verringern`}
               className="w-11 h-11 flex items-center justify-center rounded-lg bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-30 disabled:pointer-events-none transition-colors active:scale-95"
             >
               <Minus className="w-4 h-4" />
@@ -233,7 +233,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
               type="button"
               onClick={() => onDenChange(f.denominator + 1)}
               disabled={f.denominator >= MAX_DENOMINATOR}
-              aria-label="Nenner erhöhen"
+              aria-label={`${labelPrefix || 'Bruch'}: Nenner erhöhen`}
               className="w-11 h-11 flex items-center justify-center rounded-lg bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-30 disabled:pointer-events-none transition-colors active:scale-95"
             >
               <Plus className="w-4 h-4" />
@@ -391,7 +391,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
               key={idx}
               type="button"
               onClick={() => onSelect(p)}
-              className={`min-h-11 px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all ${
+              className={`min-h-11 min-w-11 px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all ${
                 isSelected
                   ? 'bg-accent text-accent-text border-accent shadow-sm'
                   : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-accent hover:bg-accent-soft dark:hover:bg-accent-soft'
@@ -408,6 +408,8 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
   return (
     <div
       ref={containerRef}
+      data-practice-root data-fraction-mode={settings.mode} data-fraction-primary={`${settings.primary.numerator}/${settings.primary.denominator}`} data-fraction-secondary={`${sec.numerator}/${sec.denominator}`}
+      role="region" aria-label="Brüche darstellen und vergleichen"
       className={`min-h-full w-full flex flex-col p-3 sm:p-4 gap-3 select-none overflow-visible ${
         currentIsLight ? 'bg-white text-slate-800' : 'bg-slate-900 text-slate-100'
       }`}
@@ -472,7 +474,7 @@ export const FractionVisualizer: React.FC<FractionVisualizerProps> = ({
                 isFullscreen ? 280 : isLarge ? 220 : 180
               )}
               <div className="text-xs text-slate-500 dark:text-slate-400">
-                Tippe auf Segmente zum Einfärben
+                Tippe bis zum gewünschten Anteil; mit dem Zähler kannst du auch Teile entfernen
               </div>
             </div>
 

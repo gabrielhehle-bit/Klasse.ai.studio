@@ -1,3 +1,4 @@
+import {readWidgetLifecycleState,usePersistedWidgetLifecycleState} from '../../lib/widgetLifecycleState';
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { TableCheckWidget } from './widgets/TableCheckWidget';
 import { FairCallWidget } from './widgets/FairCallWidget';
@@ -84,17 +85,20 @@ export const MultitrainerWidgetContent: React.FC<{ widget: any, currentIsLight: 
 // ========================================================
 // 32. WIDGET: GELDBÖRSE (MoneycalcWidgetContent)
 // ========================================================
-export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boolean, onUpdate?: (updates:any)=>void }> = ({ widget, currentIsLight, onUpdate }) => {
   type MoneyItem = { id: number; value: number; label: string; isBill: boolean; color: string };
-  const [activeTab, setActiveTab] = useState<'count' | 'quiz'>('count');
-  const [total, setTotal] = useState<number>(0);
-  const [addedItems, setAddedItems] = useState<MoneyItem[]>([]);
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
-  const [quizTarget, setQuizTarget] = useState<number>(10);
-  const [feedback, setFeedback] = useState<string>('Lege Münzen und Scheine in die Geldbörse.');
-  const [quizSolved, setQuizSolved] = useState<boolean>(false);
-  const [quizChecked, setQuizChecked] = useState<boolean>(false);
-  const idCounter = useRef(0);
+  const saved = readWidgetLifecycleState(widget,'moneycalc',{activeTab:'count' as 'count'|'quiz',addedItems:[] as MoneyItem[],difficulty:'medium' as 'easy'|'medium'|'hard',quizTarget:10,feedback:'Lege Münzen und Scheine in die Geldbörse.',quizSolved:false,quizChecked:false});
+  const [activeTab,setActiveTab]=useState(saved.activeTab);
+  const [addedItems,setAddedItems]=useState(saved.addedItems);
+  // Derive the amount from the actual money: restoration and rapid taps cannot drift.
+  const total=addedItems.reduce((sum,item)=>sum+Math.round(item.value*100),0)/100;
+  const [difficulty,setDifficulty]=useState(saved.difficulty);
+  const [quizTarget,setQuizTarget]=useState(saved.quizTarget);
+  const [feedback,setFeedback]=useState(saved.feedback);
+  const [quizSolved,setQuizSolved]=useState(saved.quizSolved);
+  const [quizChecked,setQuizChecked]=useState(saved.quizChecked);
+  const idCounter=useRef(Math.max(0,...saved.addedItems.map(item=>item.id)));
+  usePersistedWidgetLifecycleState(widget,onUpdate,'moneycalc',{activeTab,addedItems,difficulty,quizTarget,feedback,quizSolved,quizChecked});
 
   const formatEuro = (value: number) =>
     value.toLocaleString('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -117,7 +121,6 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
   const startNewQuiz = useCallback((diff: 'easy' | 'medium' | 'hard') => {
     const target = createQuizTarget(diff);
     setQuizTarget(target);
-    setTotal(0);
     setAddedItems([]);
     setQuizSolved(false);
     setQuizChecked(false);
@@ -126,7 +129,6 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
 
   const enterCountMode = () => {
     setActiveTab('count');
-    setTotal(0);
     setAddedItems([]);
     setQuizSolved(false);
     setQuizChecked(false);
@@ -148,6 +150,7 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
+      setTimeout(()=>{void ctx.close().catch(()=>{});},300);
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.frequency.setValueAtTime(isBill ? 330 : 660, ctx.currentTime);
@@ -164,8 +167,8 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
     if (quizSolved && activeTab === 'quiz') return;
     idCounter.current += 1;
     setAddedItems((prev) => [...prev, { id: idCounter.current, value: val, label, isBill, color }]);
-    setTotal((current) => Number((current + val).toFixed(2)));
     setQuizChecked(false);
+    setFeedback('Geld ergänzt. Prüfe den neuen Betrag.');
     playMoneySound(isBill);
   };
 
@@ -178,8 +181,8 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
       next.splice(index, 1);
       return next;
     });
-    setTotal((current) => Number(Math.max(0, current - value).toFixed(2)));
     setQuizChecked(false);
+    setFeedback('Geld entfernt. Prüfe den neuen Betrag.');
   };
 
   const groupedItems = useMemo(() => {
@@ -211,7 +214,6 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
   };
 
   const resetMoney = () => {
-    setTotal(0);
     setAddedItems([]);
     setQuizSolved(false);
     setQuizChecked(false);
@@ -242,7 +244,7 @@ export const MoneycalcWidgetContent: React.FC<{ widget: any, currentIsLight: boo
   ];
 
   return (
-    <div className="min-h-full w-full p-3 sm:p-4 flex flex-col gap-3 select-none overflow-visible">
+    <div data-practice-root data-money-target={quizTarget} data-money-total={total} role="region" aria-label="Geld zählen und passend zahlen" className="min-h-full w-full p-3 sm:p-4 flex flex-col gap-3 select-none overflow-visible">
       <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
         <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1" role="tablist" aria-label="Taschengeld-Modus">
           <button

@@ -268,3 +268,13 @@ test('25. Konsolidierung betrifft ausschließlich die 3 Bruch-Widgets', () => {
   const affectedTypes = ['fractions', 'fractioncake', 'fractiongrid'];
   assert.strictEqual(affectedTypes.length, 3);
 });
+
+
+test('Legacy fraction entries restore edited canonical settings rather than remigrating defaults', () => {
+  const edited: FractionVisualizerSettings = {...DEFAULT_FRACTION_SETTINGS,mode:'compare',primary:{numerator:7,denominator:12},secondary:{numerator:3,denominator:8},revealComparison:true,compareRepresentation:'strip'};
+  for(const type of ['fractions','fractioncake','fractiongrid']) {
+    const restored=migrateLegacyFractionWidget(type,{denom:4,userSlices:[true,false,false,false],totalSquares:8,targetNum:3,...edited});
+    assert.deepStrictEqual(restored,edited);
+    assert.strictEqual(getComparisonExplanation(restored.primary,restored.secondary!).symbol,'>');
+  }
+});
