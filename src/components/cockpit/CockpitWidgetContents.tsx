@@ -1,3 +1,4 @@
+export { MathduelWidgetContent } from './MathPracticeWidgets';
 export { KidWeatherWidgetContent, ColormixerWidgetContent, ShadowshapesWidgetContent, ClocksyncWidgetContent } from './LearningPracticeWidgets';
 import { CLASSROOM_RIDDLES } from '../../lib/practiceLearningModel';
 import { createWordgrid, readWordgridSelection } from '../../lib/wordgridGame';
@@ -10822,301 +10823,6 @@ export const SoundquizWidgetContent: React.FC<{ widget: any, currentIsLight: boo
 // ==========================================
 // NEW WIDGET 29: KOPFRECHEN-DUELL (2-Player Local Math Duel)
 // ==========================================
-export const MathduelWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
-  const [operatorFilter, setOperatorFilter] = useState<'mixed' | 'plus' | 'minus' | 'multiply' | 'divide'>('mixed');
-
-  const [eq, setEq] = useState("3 + 4");
-  const [ans, setAns] = useState(7);
-  const [options, setOptions] = useState<number[]>([]);
-  const [score1, setScore1] = useState(0);
-  const [score2, setScore2] = useState(0);
-  const [winner, setWinner] = useState<string | null>(null);
-
-  const generateDuellEq = (diff = difficulty, opF = operatorFilter) => {
-    // Choose which operation to run
-    let op = opF;
-    if (opF === 'mixed') {
-      const ops: Array<'plus' | 'minus' | 'multiply' | 'divide'> = ['plus', 'minus', 'multiply', 'divide'];
-      op = ops[Math.floor(Math.random() * ops.length)];
-    }
-
-    let n1 = 0, n2 = 0, text = "", correct = 0;
-
-    if (diff === 'easy') {
-      if (op === 'plus') {
-        n1 = Math.floor(Math.random() * 9) + 1; // 1 to 9
-        n2 = Math.floor(Math.random() * 9) + 1; // 1 to 9
-        text = `${n1} + ${n2}`;
-        correct = n1 + n2;
-      } else if (op === 'minus') {
-        n1 = Math.floor(Math.random() * 8) + 3; // 3 to 10
-        n2 = Math.floor(Math.random() * (n1 - 1)) + 1; // n2 < n1 to avoid negatives
-        text = `${n1} - ${n2}`;
-        correct = n1 - n2;
-      } else if (op === 'multiply') {
-        n1 = Math.floor(Math.random() * 5) + 1; // 1 to 5
-        n2 = Math.floor(Math.random() * 5) + 1; // 1 to 5
-        text = `${n1} x ${n2}`;
-        correct = n1 * n2;
-      } else { // divide
-        n2 = Math.floor(Math.random() * 4) + 1; // divisor: 1 to 4
-        correct = Math.floor(Math.random() * 4) + 1; // quotient: 1 to 4
-        n1 = correct * n2; // dividend
-        text = `${n1} : ${n2}`;
-      }
-    } else if (diff === 'medium') {
-      if (op === 'plus') {
-        n1 = Math.floor(Math.random() * 45) + 5; // 5 to 50
-        n2 = Math.floor(Math.random() * 45) + 5; // 5 to 50
-        text = `${n1} + ${n2}`;
-        correct = n1 + n2;
-      } else if (op === 'minus') {
-        n1 = Math.floor(Math.random() * 80) + 20; // 20 to 100
-        n2 = Math.floor(Math.random() * (n1 - 5)) + 3; // n2 < n1
-        text = `${n1} - ${n2}`;
-        correct = n1 - n2;
-      } else if (op === 'multiply') {
-        n1 = Math.floor(Math.random() * 8) + 2; // 2 to 9
-        n2 = Math.floor(Math.random() * 8) + 2; // 2 to 9
-        text = `${n1} x ${n2}`;
-        correct = n1 * n2;
-      } else { // divide
-        n2 = Math.floor(Math.random() * 8) + 2; // divisor: 2 to 9
-        correct = Math.floor(Math.random() * 9) + 2; // quotient: 2 to 10
-        n1 = correct * n2;
-        text = `${n1} : ${n2}`;
-      }
-    } else { // hard
-      if (op === 'plus') {
-        n1 = Math.floor(Math.random() * 300) + 50; // 50 to 350
-        n2 = Math.floor(Math.random() * 300) + 50; // 50 to 350
-        text = `${n1} + ${n2}`;
-        correct = n1 + n2;
-      } else if (op === 'minus') {
-        n1 = Math.floor(Math.random() * 600) + 200; // 200 to 800
-        n2 = Math.floor(Math.random() * (n1 - 50)) + 20;
-        text = `${n1} - ${n2}`;
-        correct = n1 - n2;
-      } else if (op === 'multiply') {
-        n1 = Math.floor(Math.random() * 15) + 5; // 5 to 19
-        n2 = Math.floor(Math.random() * 12) + 4; // 4 to 15
-        text = `${n1} x ${n2}`;
-        correct = n1 * n2;
-      } else { // divide
-        n2 = Math.floor(Math.random() * 12) + 3; // divisor: 3 to 14
-        correct = Math.floor(Math.random() * 18) + 5; // quotient: 5 to 22
-        n1 = correct * n2;
-        text = `${n1} : ${n2}`;
-      }
-    }
-
-    setEq(text);
-    setAns(correct);
-
-    const fakes = new Set([correct]);
-    const maxOffset = diff === 'easy' ? 4 : diff === 'medium' ? 12 : 35;
-    while (fakes.size < 3) {
-      const diffOffset = (Math.random() < 0.5 ? 1 : -1) * (Math.floor(Math.random() * maxOffset) + 1);
-      const fakeVal = correct + diffOffset;
-      if (fakeVal > 0) fakes.add(fakeVal);
-    }
-    setOptions(Array.from(fakes).sort(() => Math.random() - 0.5));
-  };
-
-  useEffect(() => {
-    generateDuellEq(difficulty, operatorFilter);
-  }, [difficulty, operatorFilter]);
-
-  const handleTap = (player: 1 | 2, tappedVal: number) => {
-    if (winner) return;
-
-    if (tappedVal === ans) {
-      // Correct!
-      if (player === 1) {
-        const nextScore = score1 + 1;
-        setScore1(nextScore);
-        if (nextScore >= 5) {
-          setWinner("Spieler 1 (Grün) 🌟");
-        }
-      } else {
-        const nextScore = score2 + 1;
-        setScore2(nextScore);
-        if (nextScore >= 5) {
-          setWinner("Spieler 2 (Blau) 🌟");
-        }
-      }
-
-      // Success pitch
-      try {
-        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.frequency.setValueAtTime(659.25, ctx.currentTime);
-        gain.gain.setValueAtTime(0.04, ctx.currentTime);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.155);
-      } catch (e) {}
-
-      if (score1 + 1 < 5 && score2 + 1 < 5) {
-        generateDuellEq(difficulty, operatorFilter);
-      }
-    } else {
-      // Punish with subtraction or a beep
-      try {
-        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.frequency.setValueAtTime(120, ctx.currentTime);
-        gain.gain.setValueAtTime(0.04, ctx.currentTime);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.12);
-      } catch (e) {}
-    }
-  };
-
-  const resetDuell = () => {
-    setScore1(0);
-    setScore2(0);
-    setWinner(null);
-    generateDuellEq(difficulty, operatorFilter);
-  };
-
-  return (
-    <div className="flex-grow flex flex-col justify-between p-2 h-full min-h-0 pointer-events-auto select-none gap-2">
-      {/* Settings control bar */}
-      <div className={`p-1 rounded-xl border shrink-0 flex flex-col gap-1 ${currentIsLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-850/40 border-white/5'}`}>
-        <div className="flex justify-between items-center px-1">
-          <span className={`text-[8px] font-black uppercase tracking-widest ${currentIsLight ? 'text-slate-400' : 'text-slate-500'}`}>
-            ⚔️ Rechen-Duell
-          </span>
-          <button
-            onClick={resetDuell}
-            className={`px-1.5 py-0.5 rounded text-[6px] font-black uppercase cursor-pointer transition-all border ${
-              currentIsLight ? 'bg-white hover:bg-slate-100 border-slate-300 text-slate-700' : 'bg-zinc-850 hover:bg-zinc-850 border-zinc-700 text-neutral-300'
-            }`}
-          >
-            Reset
-          </button>
-        </div>
-
-        {/* Options Row 1: Difficulty */}
-        <div className="flex justify-between items-center text-[7px] font-black px-1">
-          <span className="text-slate-400">Level:</span>
-          <div className="flex gap-0.5">
-            {(['easy', 'medium', 'hard'] as const).map((lvl) => (
-              <button
-                key={lvl}
-                onClick={() => setDifficulty(lvl)}
-                className={`px-1.5 py-0.5 rounded text-[6.5px] font-bold cursor-pointer transition-colors ${
-                  difficulty === lvl
-                    ? 'bg-indigo-500 text-white'
-                    : 'text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                {lvl === 'easy' ? 'Einfach' : lvl === 'medium' ? 'Mittel' : 'Schwer'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Options Row 2: Operator selection */}
-        <div className="flex justify-between items-center text-[7px] font-black px-1">
-          <span className="text-slate-400">Rechnen:</span>
-          <div className="flex gap-0.5">
-            {(['mixed', 'plus', 'minus', 'multiply', 'divide'] as const).map((op) => (
-              <button
-                key={op}
-                onClick={() => setOperatorFilter(op)}
-                className={`px-1 py-0.5 rounded text-[6.5px] font-bold cursor-pointer transition-colors ${
-                  operatorFilter === op
-                    ? 'bg-indigo-500 text-white'
-                    : 'text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                {op === 'mixed' ? '±×÷' : op === 'plus' ? '+' : op === 'minus' ? '-' : op === 'multiply' ? '×' : '÷'}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {winner ? (
-        <div className="flex-grow flex flex-col items-center justify-center text-center p-2 animate-bounce">
-          <span className="text-3xl block">🏆 👑</span>
-          <p className="text-xs font-black uppercase text-amber-500 tracking-tight mt-1">SIEG!</p>
-          <p className="text-[10px] font-extrabold text-indigo-500">{winner}</p>
-          <button
-            onClick={resetDuell}
-            className="mt-2 px-3 py-1 bg-indigo-500 text-white font-bold rounded-lg text-[9px] hover:bg-indigo-600 transition-all cursor-pointer shadow-md"
-          >
-            Nochmal spielen! 🤝
-          </button>
-        </div>
-      ) : (
-        <div className="flex-grow flex items-stretch divide-x divide-slate-300 dark:divide-zinc-700 min-h-0 gap-2">
-          {/* Player 1 Left (Emerald theme) */}
-          <div className="flex-1 flex flex-col justify-between items-center text-center p-1 bg-emerald-500/5 rounded-xl border border-emerald-500/10 min-h-0">
-            <div className="shrink-0">
-              <span className="text-[7.5px] font-black uppercase tracking-wider text-emerald-500">Spieler 1</span>
-              <p className="text-base font-extrabold text-emerald-600 leading-none mt-0.5">{score1} Pt.</p>
-            </div>
-
-            <div className="flex-grow flex flex-col justify-center w-full my-1.5 min-h-0">
-              <p className="text-xs font-bold mb-1 opacity-70">Lösung für:</p>
-              <p className="text-sm font-black text-slate-800 dark:text-white leading-normal underline decoration-emerald-400 decoration-2 mb-1.5">{eq}</p>
-
-              <div className="flex flex-col gap-1 w-full shrink-0">
-                {options.map((opt, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleTap(1, opt)}
-                    className="py-1 rounded bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-[9.5px] cursor-pointer shadow-sm transform hover:scale-102 transition-all leading-none"
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Player 2 Right (Sky theme) */}
-          <div className="flex-1 flex flex-col justify-between items-center text-center p-1 bg-sky-500/5 rounded-xl border border-sky-500/10 min-h-0">
-            <div className="shrink-0">
-              <span className="text-[7.5px] font-black uppercase tracking-wider text-sky-500">Spieler 2</span>
-              <p className="text-base font-extrabold text-sky-600 leading-none mt-0.5">{score2} Pt.</p>
-            </div>
-
-            <div className="flex-grow flex flex-col justify-center w-full my-1.5 min-h-0">
-              <p className="text-xs font-bold mb-1 opacity-70">Lösung für:</p>
-              <p className="text-sm font-black text-slate-800 dark:text-white leading-normal underline decoration-sky-400 decoration-2 mb-1.5">{eq}</p>
-
-              <div className="flex flex-col gap-1 w-full shrink-0">
-                {options.map((opt, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleTap(2, opt)}
-                    className="py-1 rounded bg-sky-500 hover:bg-sky-600 text-white font-extrabold text-[9.5px] cursor-pointer shadow-sm transform hover:scale-102 transition-all leading-none"
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ==========================================
-// NEW WIDGET 30: FORMEN-ENTDECKER (2D Shapes Estimator)
-// ==========================================
 export const ShapepuzzleWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
   const figures = [
     { 
@@ -13597,16 +13303,17 @@ export const ReflexgameWidgetContent: React.FC<{ widget: any, currentIsLight: bo
 // ========================================================
 // 11. WIDGET: MATHE-PYRAMIDE (MathpyramidWidgetContent)
 // ========================================================
-export const MathpyramidWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
+export const MathpyramidWidgetContent: React.FC<{ widget: any, currentIsLight: boolean, onUpdate?: (updates:any)=>void }> = ({ widget,currentIsLight,onUpdate }) => {
+  const saved=readWidgetLifecycleState(widget,'mathpyramid',{level:'medium' as 'easy'|'medium'|'hard',range:100 as 10|20|100|1000,blocks:[15,8,7,5,3,4],given:[false,true,true,false,true,false],userInputs:['','8','7','','3',''],checked:[false,false,false,false,false,false],feedback:'Jeder Stein ist die Summe der zwei Steine darunter.',showHint:false});
   type Difficulty = 'easy' | 'medium' | 'hard';
-  const [level, setLevel] = useState<Difficulty>('medium');
-  const [range, setRange] = useState<10 | 20 | 100 | 1000>(100);
-  const [blocks, setBlocks] = useState<number[]>([15, 8, 7, 5, 3, 4]);
-  const [given, setGiven] = useState<boolean[]>([false, true, true, false, true, false]);
-  const [userInputs, setUserInputs] = useState<string[]>(['', '8', '7', '', '3', '']);
-  const [checked, setChecked] = useState<boolean[]>([false, false, false, false, false, false]);
-  const [feedback, setFeedback] = useState<string>('Jeder Stein ist die Summe der zwei Steine darunter.');
-  const [showHint, setShowHint] = useState(false);
+  const [level, setLevel] = useState<Difficulty>(saved.level);
+  const [range, setRange] = useState<10 | 20 | 100 | 1000>(saved.range);
+  const [blocks, setBlocks] = useState<number[]>(saved.blocks);
+  const [given, setGiven] = useState<boolean[]>(saved.given);
+  const [userInputs, setUserInputs] = useState<string[]>(saved.userInputs);
+  const [checked, setChecked] = useState<boolean[]>(saved.checked);
+  const [feedback, setFeedback] = useState<string>(saved.feedback);
+  const [showHint, setShowHint] = useState(saved.showHint);
 
   const generatePyramid = useCallback((difficulty: Difficulty, r: number) => {
     let b1 = 1;
@@ -13648,15 +13355,14 @@ export const MathpyramidWidgetContent: React.FC<{ widget: any, currentIsLight: b
     setFeedback('Jeder Stein ist die Summe der zwei Steine darunter.');
   }, []);
 
-  useEffect(() => {
-    generatePyramid(level, range);
-  }, [level, range, generatePyramid]);
+  usePersistedWidgetLifecycleState(widget,onUpdate,'mathpyramid',{level,range,blocks,given,userInputs,checked,feedback,showHint});
 
   const playPyramidChime = (success: boolean) => {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
+      setTimeout(()=>{void ctx.close().catch(()=>{});},500);
       const frequencies = success ? [523.25, 659.25, 783.99] : [150];
       frequencies.forEach((freq, index) => {
         const osc = ctx.createOscillator();
@@ -13723,7 +13429,10 @@ export const MathpyramidWidgetContent: React.FC<{ widget: any, currentIsLight: b
     const valueCorrect = Number(userInputs[index]) === blocks[index];
     return (
       <input
+        style={{minHeight:56,height:56}}
         key={index}
+        data-pyramid-index={index}
+        data-given={isGiven}
         type="text"
         inputMode="numeric"
         pattern="[0-9]*"
@@ -13755,14 +13464,14 @@ export const MathpyramidWidgetContent: React.FC<{ widget: any, currentIsLight: b
   };
 
   return (
-    <div className="min-h-full w-full p-3 sm:p-4 flex flex-col gap-3 select-none overflow-visible">
+    <div data-practice-root role="region" aria-label="Mathe-Pyramide üben" className="h-full min-h-0 w-full p-3 flex flex-col gap-2 select-none overflow-hidden">
       <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
         <div className="inline-flex flex-wrap rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1" role="group" aria-label="Schwierigkeitsstufe">
           {(['easy', 'medium', 'hard'] as const).map((difficulty) => (
             <button
               key={difficulty}
               type="button"
-              onClick={() => setLevel(difficulty)}
+              onClick={() => {setLevel(difficulty);generatePyramid(difficulty,range);}}
               className={`min-h-11 px-3 rounded-lg text-xs sm:text-sm font-bold transition-colors ${
                 level === difficulty
                   ? 'bg-accent text-accent-text shadow-sm'
@@ -13779,7 +13488,7 @@ export const MathpyramidWidgetContent: React.FC<{ widget: any, currentIsLight: b
             <button
               key={numberRange}
               type="button"
-              onClick={() => setRange(numberRange)}
+              onClick={() => {setRange(numberRange);generatePyramid(level,numberRange);}}
               className={`min-h-11 px-2.5 rounded-lg text-xs font-bold border transition-colors ${
                 range === numberRange
                   ? 'bg-accent text-accent-text border-accent'
@@ -13812,13 +13521,13 @@ export const MathpyramidWidgetContent: React.FC<{ widget: any, currentIsLight: b
         </span>
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col justify-center items-center gap-3 sm:gap-4 py-2" aria-label="Zahlenpyramide">
+      <div className="flex-1 min-h-0 flex flex-col justify-center items-center gap-2 py-1" aria-label="Zahlenpyramide">
         <div className="flex justify-center">{renderStone(0)}</div>
-        <div className="flex justify-center gap-3 sm:gap-4">
+        <div className="flex justify-center gap-2">
           {renderStone(1)}
           {renderStone(2)}
         </div>
-        <div className="flex justify-center gap-3 sm:gap-4">
+        <div className="flex justify-center gap-2">
           {renderStone(3)}
           {renderStone(4)}
           {renderStone(5)}
@@ -13860,7 +13569,7 @@ export const MathpyramidWidgetContent: React.FC<{ widget: any, currentIsLight: b
       </div>
 
       <p
-        aria-live="polite"
+        role="status" aria-live="polite"
         className={`shrink-0 min-h-11 rounded-xl border px-3 py-2 flex items-center justify-center text-center text-xs sm:text-sm font-semibold ${
           isComplete
             ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-200'
@@ -17071,16 +16780,18 @@ export const SoundmachineWidgetContent: React.FC<CalmSoundsWidgetProps> = (props
 // ========================================================
 // 28. WIDGET: GEWICHTE-BALKENWAAGE (MathbalancerWidgetContent)
 // ========================================================
-export const MathbalancerWidgetContent: React.FC<{ widget: any, currentIsLight: boolean }> = ({ currentIsLight }) => {
-  const [leftWeight, setLeftWeight] = useState<number>(12);
-  const [knownRight, setKnownRight] = useState<number>(5);
-  const [unknownX, setUnknownX] = useState<number>(7);
-  const [userGuess, setUserGuess] = useState<number | null>(null);
-  const [status, setStatus] = useState<'leftHeavier' | 'rightHeavier' | 'balanced'>('leftHeavier');
-  const [feedback, setFeedback] = useState<string>("Bringe die Balkenwaage ins Gleichgewicht.");
-  const [showHint, setShowHint] = useState(false);
+export const MathbalancerWidgetContent: React.FC<{ widget: any, currentIsLight: boolean, onUpdate?: (updates:any)=>void }> = ({ widget,currentIsLight,onUpdate }) => {
+  const saved=readWidgetLifecycleState(widget,'mathbalancer',{leftWeight:12,knownRight:5,unknownX:7,userGuess:null as number|null,status:'leftHeavier' as 'leftHeavier'|'rightHeavier'|'balanced',feedback:'Bringe die Balkenwaage ins Gleichgewicht.',showHint:false,answerChoices:[] as number[]});
+  const [leftWeight, setLeftWeight] = useState<number>(saved.leftWeight);
+  const [knownRight, setKnownRight] = useState<number>(saved.knownRight);
+  const [unknownX, setUnknownX] = useState<number>(saved.unknownX);
+  const [userGuess, setUserGuess] = useState<number | null>(saved.userGuess);
+  const [status, setStatus] = useState<'leftHeavier' | 'rightHeavier' | 'balanced'>(saved.status);
+  const [feedback, setFeedback] = useState<string>(saved.feedback);
+  const [showHint, setShowHint] = useState(saved.showHint);
 
   const answerChoices = useMemo(() => {
+    if(saved.answerChoices.length===8&&new Set(saved.answerChoices).size===8&&saved.answerChoices.includes(unknownX))return saved.answerChoices;
     const pool = Array.from({ length: 18 }, (_, index) => index + 1).filter((value) => value !== unknownX);
     for (let index = pool.length - 1; index > 0; index -= 1) {
       const swapIndex = Math.floor(Math.random() * (index + 1));
@@ -17105,15 +16816,14 @@ export const MathbalancerWidgetContent: React.FC<{ widget: any, currentIsLight: 
     setFeedback(`Links liegen ${leftSum} kg. Rechts liegen ${rightKnown} kg + X kg. Finde X.`);
   }, []);
 
-  useEffect(() => {
-    generateBalanceProblem();
-  }, [generateBalanceProblem]);
+  usePersistedWidgetLifecycleState(widget,onUpdate,'mathbalancer',{leftWeight,knownRight,unknownX,userGuess,status,feedback,showHint,answerChoices});
 
   const speakScaleSound = (success: boolean) => {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
+      setTimeout(()=>{void ctx.close().catch(()=>{});},500);
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       if (success) {
@@ -17153,8 +16863,8 @@ export const MathbalancerWidgetContent: React.FC<{ widget: any, currentIsLight: 
   };
 
   return (
-    <div className="min-h-full w-full p-3 sm:p-4 flex flex-col justify-between gap-3 select-none overflow-visible">
-      <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
+    <div data-practice-root role="region" aria-label="Gewichte-Waage üben" className="min-h-full w-full h-full min-h-0 p-3 flex flex-col justify-between gap-3 select-none overflow-visible">
+      <div data-balance-equation data-left={leftWeight} data-known={knownRight} className="shrink-0 flex flex-wrap items-center justify-between gap-2">
         <div className={`rounded-xl border px-3 py-2 font-mono font-black text-lg sm:text-xl ${
           currentIsLight
             ? 'bg-slate-50 border-slate-200 text-slate-900'
@@ -17203,6 +16913,7 @@ export const MathbalancerWidgetContent: React.FC<{ widget: any, currentIsLight: 
           {answerChoices.map((guess) => (
             <button
               key={guess}
+              data-math-choice={guess}
               type="button"
               onClick={() => handleApplyGuess(guess)}
               aria-pressed={userGuess === guess}
@@ -17245,7 +16956,7 @@ export const MathbalancerWidgetContent: React.FC<{ widget: any, currentIsLight: 
         </div>
 
       <p
-        aria-live="polite"
+        role="status" aria-live="polite"
         className={`shrink-0 min-h-11 flex items-center justify-center rounded-xl px-3 py-2 text-center text-xs sm:text-sm font-bold border ${
           status === 'balanced'
             ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'

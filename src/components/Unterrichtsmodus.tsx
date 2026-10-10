@@ -11159,6 +11159,7 @@ ${content}
                                       return (
                                         <MathduelWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -11298,6 +11299,7 @@ ${content}
                                       return (
                                         <MathpyramidWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -11516,6 +11518,7 @@ ${content}
                                       return (
                                         <MathbalancerWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}
                                         />
                                       );

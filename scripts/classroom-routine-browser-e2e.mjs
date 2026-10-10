@@ -1649,7 +1649,7 @@ async function main() {
 
     // Five-widget math batch: independently calculate displayed tasks, then use the real UI.
     const auditWidgetMinimum = async type => {
-      const minimumSizes={riddle:[700,560],colormixer:[760,560],shadowshapes:[840,560],clocksync:[740,560],kidweather:[760,560],constellation:[720,560],planetarium:[720,560],flagquiz:[700,560],geographyquiz:[700,560],wastebin:[820,560],bodyparts:[620,560],compass:[620,560],weekdays:[620,560],trafficquiz:[800,560],watercycle:[760,560],dictionary:[460,540],patternmaker:[580,520],alphabetsoup:[640,560],morsecode:[620,560],hangman:[640,560],sorting:[420,520],vocabulary:[640,560],spellingdetective:[640,560],wordbuilder:[620,560],scrambler:[620,560],compoundsplit:[620,560],wordchain:[500,520],wordgrid:[640,560],wordscramble:[600,560],secretcode:[440,420],storyemojis:[640,560],abcorder:[640,560],sentencebuilding:[620,560],wordexplorer:[520,540],rhymemachine:[500,540],punctuationzoo:[620,560]};
+      const minimumSizes={mathcards:[640,560],mathchain:[640,560],mathduel:[760,560],mathpyramid:[740,560],mathbalancer:[640,560],riddle:[700,560],colormixer:[760,560],shadowshapes:[840,560],clocksync:[740,560],kidweather:[760,560],constellation:[720,560],planetarium:[720,560],flagquiz:[700,560],geographyquiz:[700,560],wastebin:[820,560],bodyparts:[620,560],compass:[620,560],weekdays:[620,560],trafficquiz:[800,560],watercycle:[760,560],dictionary:[460,540],patternmaker:[580,520],alphabetsoup:[640,560],morsecode:[620,560],hangman:[640,560],sorting:[420,520],vocabulary:[640,560],spellingdetective:[640,560],wordbuilder:[620,560],scrambler:[620,560],compoundsplit:[620,560],wordchain:[500,520],wordgrid:[640,560],wordscramble:[600,560],secretcode:[440,420],storyemojis:[640,560],abcorder:[640,560],sentencebuilding:[620,560],wordexplorer:[520,540],rhymemachine:[500,540],punctuationzoo:[620,560]};
       const [minimumWidth,minimumHeight]=minimumSizes[type]||[460,560];
       await waitFor(client,type+' resize grip is reachable after opening', `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('[data-widget-resize]')?.dataset.widgetResize==='se';})()`);
       const point=await evaluate(client, `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
@@ -1741,6 +1741,14 @@ async function main() {
       await waitFor(client,type+' correct feedback fits after restore',fits);
       await sleep(400);
       await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-widget-'+type+'.png'));
+      if(type==='mathcards'||type==='mathchain'){
+        await setInputByLabel(client,'Ergebnis eingeben',String(expected+1));
+        await waitFor(client,type+' editing a correct answer clears stale success',`${state}.dataset.mentalMathFeedback==='idle'&&!document.querySelector(${q(root+' [data-mental-math-answer]')})`);
+        await auditMenu(type,'Widget schließen');await openAuditWidget(type,search);
+        await waitFor(client,type+' close preserves exact task and unfinished answer',`${task}.dataset.mentalMathQuestion===${q(question)}&&document.querySelector(${q(root+' input')}).value===${q(String(expected+1))}`);
+        await setInputByLabel(client,'Ergebnis eingeben',String(expected));await clickMathText(root,'Prüfen');
+        await waitFor(client,type+' repaired answer is checked again',`${state}.dataset.mentalMathFeedback==='correct'`);
+      }
       await clickMathText(root,'Weiter');
       await waitFor(client,type+' continue clears input feedback and answer',`${state}.dataset.mentalMathFeedback==='idle' && document.querySelector(${q(root+' input')}).value==='' && !document.querySelector(${q(root+' [data-mental-math-answer]')})`);
       // Every alias must also retain settings without changing the current task.
@@ -2545,6 +2553,58 @@ async function main() {
     }
     await setInputByLabel(client,'Eigenes Rätsel-Thema','Mein eigenes Thema');await natureClick(riddlePracticeRoot,'Tipp anzeigen 🔎');await practiceRestore('riddle','Scherz- & Logikrätsel');await auditMenu('riddle','Widget schließen');
     console.log('✓ Content block: five paint recipes, minute carry and actual clock hands, weather temperature/clothing and storm shelter, all fifteen symmetry motifs and three transformations, every local riddle category, native controls and exact restore.');
+
+    // Mathematics content audit: solve actual visible clues, not persisted solutions.
+    const mathEqAnswer=async root=>{const text=await evaluate(client,`document.querySelector(${q(root+' [data-math-equation]')}).textContent`);const m=text.match(/(\d+)\s*([+−×÷])\s*(\d+)/);if(!m)throw Error('Unrecognized duel equation '+text);const a=Number(m[1]),b=Number(m[3]);return m[2]==='+'?a+b:m[2]==='−'?a-b:m[2]==='×'?a*b:a/b;};
+    await openAuditWidget('mathduel','Mathe-Duell');await auditWidgetMinimum('mathduel');
+    const duelRoot=practiceRoot('mathduel');
+    // Reproduce the original 4:3 -> 4:4 dead-end, then finish with the actual winner.
+    for(const player of [0,0,0,0,1,1,1,1,1]){
+      const answer=await mathEqAnswer(duelRoot),target=duelRoot+' [data-team="'+player+'"][data-math-choice="'+answer+'"]';
+      if(player===0&&await evaluate(client,`document.querySelector(${q(duelRoot+' [data-team-score="0"]')}).textContent.includes(': 0 Punkte')`)){
+        const wrong=await evaluate(client,`Array.from(document.querySelectorAll(${q(duelRoot+' [data-team="0"][data-math-choice]')})).map(b=>Number(b.dataset.mathChoice)).find(n=>n!==${answer})`);
+        await clickSelector(client,duelRoot+' [data-team="0"][data-math-choice="'+wrong+'"]');await waitFor(client,'duel wrong answer gives actual feedback',`document.querySelector(${q(duelRoot+' [role="status"]')}).textContent.includes('noch nicht')`);
+      }
+      await clickSelector(client,target);await practiceScreen('mathduel');
+      const winner=await evaluate(client,`document.querySelector(${q(duelRoot+' [role="status"]')}).textContent.includes('gewinnt')`);
+      if(winner)break;
+      await practiceRestore('mathduel','Mathe-Duell');await natureClick(duelRoot,'Nächste Duellaufgabe');
+    }
+    await waitFor(client,'4:3 duel continues through 4:4 to Team 2 winning',`document.querySelector(${q(duelRoot+' [role="status"]')}).textContent.includes('Team 2 gewinnt')`);await practiceRestore('mathduel','Mathe-Duell');
+    for(const level of ['easy','medium','hard'])for(const op of ['+','−','×','÷']){
+      await practiceSelect(duelRoot,'Duell-Schwierigkeit',level);await practiceSelect(duelRoot,'Duell-Rechenart',op);const answer=await mathEqAnswer(duelRoot);
+      if(!Number.isInteger(answer)||answer<0)throw Error('Invalid duel answer');await clickSelector(client,duelRoot+' [data-team="0"][data-math-choice="'+answer+'"]');await waitFor(client,'duel actual operation '+level+' '+op,`document.querySelector(${q(duelRoot+' [data-team-score="0"]')}).textContent.includes(': 1 Punkte')`);await practiceScreen('mathduel');
+    }
+    await auditMenu('mathduel','Widget schließen');
+
+    await openAuditWidget('mathpyramid','Mathe-Pyramide');await auditWidgetMinimum('mathpyramid');const pyramidRoot=practiceRoot('mathpyramid');
+    for(const level of ['Einfach','Mittel','Schwer'])for(const range of [10,20,100,1000]){
+      await natureClick(pyramidRoot,level);await natureClick(pyramidRoot,'ZR '+range);
+      await natureClick(pyramidRoot,'Pyramide prüfen');await waitFor(client,'pyramid missing stones are explained',`document.querySelector(${q(pyramidRoot+' [role="status"]')}).textContent.includes('Es fehlen noch')`);
+      await natureClick(pyramidRoot,'Denk-Tipp');await practiceScreen('mathpyramid');
+      const observed=await evaluate(client,`Array.from(document.querySelectorAll(${q(pyramidRoot+' [data-pyramid-index]')})).map(el=>({index:Number(el.dataset.pyramidIndex),given:el.dataset.given==='true',value:el.value,label:el.getAttribute('aria-label')}))`);
+      const solution=observed.map(v=>v.given?Number(v.value):null),relations=[[0,1,2],[1,3,4],[2,4,5]];
+      for(let pass=0;pass<6;pass++)for(const [top,left,right]of relations){if(solution[top]===null&&solution[left]!==null&&solution[right]!==null)solution[top]=solution[left]+solution[right];if(solution[left]===null&&solution[top]!==null&&solution[right]!==null)solution[left]=solution[top]-solution[right];if(solution[right]===null&&solution[top]!==null&&solution[left]!==null)solution[right]=solution[top]-solution[left];}
+      if(solution.some(n=>n===null||!Number.isInteger(n)||n<0||n>range))throw Error('Pyramid clues are not uniquely solvable in the selected range');
+      const editable=observed.filter(v=>!v.given);for(const v of editable)await setInputByLabel(client,v.label,String(solution[v.index]+1));
+      await natureClick(pyramidRoot,'Pyramide prüfen');await waitFor(client,'pyramid incorrect arithmetic is detected',`document.querySelector(${q(pyramidRoot+' [role="status"]')}).textContent.includes('noch nicht')`);
+      for(const v of editable)await setInputByLabel(client,v.label,String(solution[v.index]));
+      await natureClick(pyramidRoot,'Pyramide prüfen');await waitFor(client,'pyramid solved from independent visible clues',`document.querySelector(${q(pyramidRoot+' [role="status"]')}).textContent.includes('Alles richtig')`);await practiceScreen('mathpyramid');
+      if(range===10)await practiceRestore('mathpyramid','Mathe-Pyramide');
+    }
+    await practiceRestore('mathpyramid','Mathe-Pyramide');await auditMenu('mathpyramid','Widget schließen');
+
+    await openAuditWidget('mathbalancer','Gewichte-Waage');await auditWidgetMinimum('mathbalancer');const balanceRoot=practiceRoot('mathbalancer');
+    for(let i=0;i<8;i++){
+      const weights=await evaluate(client,`({left:Number(document.querySelector(${q(balanceRoot+' [data-balance-equation]')}).dataset.left),known:Number(document.querySelector(${q(balanceRoot+' [data-balance-equation]')}).dataset.known)})`),answer=weights.left-weights.known;
+      const choices=await evaluate(client,`Array.from(document.querySelectorAll(${q(balanceRoot+' [data-math-choice]')})).map(b=>Number(b.dataset.mathChoice))`);if(!choices.includes(answer)||new Set(choices).size!==8)throw Error('Scale correct answer is missing or choices repeat');
+      await clickSelector(client,balanceRoot+' [data-math-choice="'+choices.find(n=>n!==answer)+'"]');await waitFor(client,'wrong scale selection explains imbalance',`/Zu schwer|Noch zu leicht/.test(document.querySelector(${q(balanceRoot+' [role="status"]')}).textContent)`);
+      await natureClick(balanceRoot,'Tipp anzeigen');await practiceScreen('mathbalancer');if(i===0)await practiceRestore('mathbalancer','Gewichte-Waage');
+      await clickSelector(client,balanceRoot+' [data-math-choice="'+answer+'"]');await waitFor(client,'scale solved by independently calculated difference',`document.querySelector(${q(balanceRoot+' [role="status"]')}).textContent.includes('Perfekt ausgewogen')`);await practiceScreen('mathbalancer');
+      if(i===0)await practiceRestore('mathbalancer','Gewichte-Waage');await natureClick(balanceRoot,'Nächste Waage');
+    }
+    await auditMenu('mathbalancer','Widget schließen');
+    console.log('✓ Math block: active mathcards/mathchain studio restore and editable feedback, duel 4:3 -> 4:4 -> true winner and all levels/operations, all pyramid clue patterns/ranges, eight actual balance equations and exact persisted choices.');
 
     // Class behavior uses the pupil scale: 1 is positive and must be above 5.
     await clickSelector(client, '[aria-label="Weitere Optionen und Layout-Werkzeuge"]');
