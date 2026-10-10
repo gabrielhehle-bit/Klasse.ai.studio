@@ -2335,6 +2335,7 @@ async function main() {
     for(const pattern of natureFixture.sky) {
       await waitFor(client,'displayed sky pattern '+pattern.name,`document.querySelector(${q(skyRoot+' h3')}).textContent===${q(pattern.name)}`);
       await discoveryScreen('constellation');
+      await waitFor(client,'star names have readable text contrast',`(() => {const luminance=color=>{const rgb=color.match(/[\\d.]+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=0.04045?v/12.92:((v+0.055)/1.055)**2.4;});return rgb[0]*0.2126+rgb[1]*0.7152+rgb[2]*0.0722;};const labels=Array.from(document.querySelectorAll(${q(skyRoot+' [data-star-name]')}));return labels.length>0&&labels.every(el=>{const style=getComputedStyle(el),a=luminance(style.color),b=luminance(style.backgroundColor);return (Math.max(a,b)+0.05)/(Math.min(a,b)+0.05)>=4.5;});})()`);
       await clickSelector(client,skyRoot+' button[aria-label='+q(pattern.stars[0].name)+']');
       await waitFor(client,'sky discovery selects real star',`document.querySelector(${q(skyRoot+' [role="status"]')}).textContent.includes(${q(pattern.stars[0].name)})`);
       await natureClick(skyRoot,'Verbinden');

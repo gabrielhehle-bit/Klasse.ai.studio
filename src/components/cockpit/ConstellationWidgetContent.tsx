@@ -355,7 +355,7 @@ export const ConstellationWidgetContent: React.FC<ConstellationWidgetContentProp
             >
               ★
               {settings.showStarNames && (
-                <span className="pointer-events-none absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-950/90 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                <span data-star-name className="pointer-events-none absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-accent-soft px-1.5 py-0.5 text-[10px] font-bold text-accent">
                   {star.name}
                 </span>
               )}
