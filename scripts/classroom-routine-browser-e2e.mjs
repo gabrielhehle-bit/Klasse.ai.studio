@@ -2211,7 +2211,7 @@ async function main() {
     for(const width of [360,820,1360]){
       await client.send('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:false});
       await evaluate(client,`document.querySelector('[data-class-chart="behavior"]').scrollIntoView({block:'center'})`);
-      await waitFor(client,'class behavior good above poor at '+width,`(() => {const root=document.querySelector('[data-class-chart="behavior"]'),ticks=Array.from(root.querySelectorAll('.recharts-yAxis .recharts-cartesian-axis-tick-value'));const good=ticks.find(t=>t.textContent==='1'),poor=ticks.find(t=>t.textContent==='5');return good&&poor&&good.getBoundingClientRect().top<poor.getBoundingClientRect().top&&root.textContent.includes('1 = sehr positiv');})()`);
+      await waitFor(client,'class behavior good above poor at '+width,`(() => {const root=document.querySelector('[data-class-chart="behavior"]'),ticks=Array.from(root.querySelectorAll('.recharts-cartesian-axis-tick-value'));const good=ticks.find(t=>t.textContent==='1'),poor=ticks.find(t=>t.textContent==='5');return good&&poor&&good.getBoundingClientRect().top<poor.getBoundingClientRect().top&&root.textContent.includes('1 = sehr positiv');})()`);
       await saveScreenshot(client,SCREENSHOT_PATH.replace('.png','-class-behavior-'+width+'.png'));
     }
     await clickButton(client,'Zur Klassenübersicht',true);

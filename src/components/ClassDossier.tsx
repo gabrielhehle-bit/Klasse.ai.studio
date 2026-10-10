@@ -715,7 +715,7 @@ export default function ClassDossier({ onSelectStudent }: Props) {
                 <LineChart data={timeline} margin={{ top: 8, right: 10, left: -8, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="label" tick={{ fontSize: 10 }} minTickGap={20} />
-                  <YAxis reversed domain={[1, behaviorScaleMax]} ticks={Array.from({ length: behaviorScaleMax }, (_, index) => index + 1)} width={24} tick={{ fontSize: 10 }} />
+                  <YAxis reversed interval={0} domain={[1, behaviorScaleMax]} ticks={Array.from({ length: behaviorScaleMax }, (_, index) => index + 1)} width={24} tick={{ fontSize: 10 }} />
                   <Tooltip formatter={(value: any) => [fmt(Number(value)), 'Verhalten']} />
                   <Line type="monotone" dataKey="behavior" stroke="#059669" strokeWidth={2.5} dot={{ r: 2.5 }} connectNulls />
                 </LineChart>
