@@ -3758,6 +3758,20 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     string | null
   >(null);
 
+  useEffect(() => {
+    const type = cockpitWidgets.find(widget => widget.id === widgetSettingsOpenId)?.type;
+    if (!type || !['bodyparts', 'compass', 'weekdays', 'trafficquiz', 'watercycle'].includes(type)) return;
+    const closeSettings = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setWidgetSettingsOpenId(null);
+      requestAnimationFrame(() => {
+        document.querySelector<HTMLButtonElement>(`[data-widget-type="${type}"] .cockpit-widget-settings-trigger`)?.focus();
+      });
+    };
+    window.addEventListener('keydown', closeSettings);
+    return () => window.removeEventListener('keydown', closeSettings);
+  }, [widgetSettingsOpenId, cockpitWidgets]);
+
   const isCockpitWidget = (id: string) => {
     const cockpitTypes = [
       "clock",
@@ -3791,6 +3805,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       "starsreview",
       "toothbrush",
       "challenge",
+      "bodyparts",
       "compass",
       "weekdays",
       "piggybank",
@@ -4320,6 +4335,23 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
           h: (found.h / area.boardRect.height) * 100,
         };
         usedOverlapFallback = found.usedOverlapFallback;
+      }
+    }
+
+    // Restore these teaching tools inside the currently usable board, including
+    // after zoom changed its measurements. Keep the dock clear of resize grips.
+    if (useOld && ['bodyparts', 'compass', 'weekdays', 'trafficquiz', 'watercycle'].includes(String(type))) {
+      const area = measureCockpitUsableBoardArea();
+      if (area) {
+        const size = getWidgetMinSizeConfig(String(type));
+        const width = Math.max(size.minW, Math.min(area.usableWidthPx, placement.w / 100 * area.boardRect.width));
+        const height = Math.max(size.minH, Math.min(area.usableHeightPx, placement.h / 100 * area.boardRect.height));
+        placement = {
+          x: Math.max(0, Math.min(placement.x / 100 * area.boardRect.width, area.usableWidthPx - width)) / area.boardRect.width * 100,
+          y: Math.max(0, Math.min(placement.y / 100 * area.boardRect.height, area.usableHeightPx - height)) / area.boardRect.height * 100,
+          w: width / area.boardRect.width * 100,
+          h: height / area.boardRect.height * 100,
+        };
       }
     }
 
@@ -10905,6 +10937,9 @@ ${content}
                                         <BodypartsWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 
