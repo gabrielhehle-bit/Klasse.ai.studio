@@ -14,6 +14,7 @@ import { CockpitWidgetConfig } from '../../../types';
 import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
 import {
   normalizeLessonPhases,
+  getPhaseNavigationPage,
   PhaseItem,
   DEFAULT_LESSON_PHASES,
   getActivePhaseIndex,
@@ -89,7 +90,7 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
   }, [widget?.settings?.phases, widget?.settings?.activePhaseId]);
 
 
-  const draft = readWidgetLifecycleState(widget, 'phases', {editingId: null as string | null, editLabel: '', showAddModal: false, newPhaseName: ''});
+  const draft = readWidgetLifecycleState(widget, 'phases', {editingId: null as string | null, editLabel: '', showAddModal: false, newPhaseName: '', phaseNavigation: {scope: '', page: 0}});
   // Editing state
   const [editingId, setEditingId] = useState<string | null>(draft.editingId);
   const [editLabel, setEditLabel] = useState(draft.editLabel);
@@ -98,12 +99,13 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
   const hasExternalSettingsControl = typeof externalShowSettings === 'boolean';
   const isManaging = hasExternalSettingsControl ? externalShowSettings : true;
 
-  usePersistedWidgetLifecycleState(widget, onUpdate, 'phases', {editingId, editLabel, showAddModal, newPhaseName});
-  const [phasePage, setPhasePage] = useState(0);
+  const [phaseNavigation, setPhaseNavigation] = useState(draft.phaseNavigation);
   const pageSize = isManaging ? 1 : 2;
+  const pageScope = `${activeId}:${pageSize}`;
   const pageCount = Math.ceil(phases.length / pageSize);
-  const safePage = Math.min(phasePage, pageCount - 1);
-  useEffect(() => { setPhasePage(Math.floor(getActivePhaseIndex(phases, activeId) / pageSize)); }, [activeId, pageSize]);
+  const safePage = getPhaseNavigationPage(phaseNavigation, pageScope, getActivePhaseIndex(phases, activeId), pageSize, phases.length);
+  const setPhasePage = (page: number) => setPhaseNavigation({scope: pageScope, page});
+  usePersistedWidgetLifecycleState(widget, onUpdate, 'phases', {editingId, editLabel, showAddModal, newPhaseName, phaseNavigation});
 
   // Synchronize state changes to persistence and parent
   const syncPhases = useCallback(

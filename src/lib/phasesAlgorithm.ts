@@ -118,3 +118,11 @@ export function normalizeLessonPhases(raw: unknown): PhaseItem[] {
   }
   return phases.length ? phases : DEFAULT_LESSON_PHASES.map(p => ({...p}));
 }
+
+/** Derive a new phase/settings page synchronously, before any restore snapshot. */
+export function getPhaseNavigationPage(navigation: {scope: string; page: number}, scope: string, activeIndex: number, pageSize: number, total: number): number {
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const candidate = navigation.scope === scope && Number.isInteger(navigation.page)
+    ? navigation.page : Math.floor(activeIndex / pageSize);
+  return Math.max(0, Math.min(candidate, pageCount - 1));
+}

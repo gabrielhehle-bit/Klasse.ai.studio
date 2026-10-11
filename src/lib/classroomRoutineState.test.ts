@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { reconcileFairCallRound, isFairCallRoundComplete } from './classroomRoutineState';
-import { normalizeLessonPhases, addCustomPhase, removePhase } from './phasesAlgorithm';
+import { normalizeLessonPhases, addCustomPhase, removePhase, getPhaseNavigationPage } from './phasesAlgorithm';
 
 const scope = 'class-a:2026-10-11';
 test('same-day fair round retains order/current/pauses across reopening and admits arrivals once', () => {
@@ -39,4 +39,16 @@ test('deleting the active middle/end phase selects its successor/predecessor and
   assert.equal(removePhase(phases,'b','b').newActiveId,'c');
   assert.equal(removePhase(phases,'c','c').newActiveId,'b');
   assert.equal(removePhase([phases[0]],'a','a').newActiveId,'a');
+});
+
+test('closing phase settings derives the active page immediately instead of retaining an obsolete management page', () => {
+  assert.equal(getPhaseNavigationPage({scope:'b:1',page:1},'b:2',1,2,3),0);
+});
+test('a new active phase chooses its own page while a deliberate same-scope page survives remount', () => {
+  assert.equal(getPhaseNavigationPage({scope:'a:2',page:0},'e:2',4,2,5),2);
+  assert.equal(getPhaseNavigationPage({scope:'b:2',page:1},'b:2',1,2,3),1);
+});
+test('restored phase navigation clamps invalid and out-of-range pages', () => {
+  assert.equal(getPhaseNavigationPage({scope:'b:2',page:99},'b:2',1,2,3),1);
+  assert.equal(getPhaseNavigationPage({scope:'b:2',page:NaN},'b:2',1,2,3),0);
 });
