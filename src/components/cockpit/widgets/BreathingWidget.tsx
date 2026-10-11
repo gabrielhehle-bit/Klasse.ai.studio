@@ -1,3 +1,5 @@
+import { readWidgetLifecycleState, usePersistedWidgetLifecycleState } from '../../../lib/widgetLifecycleState';
+import { boundedInteger } from '../../../lib/wellbeingPractice';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Play,
@@ -50,8 +52,14 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
   }, [widget.settings]);
 
   const [isRunning, setIsRunning] = useState<boolean>(false);
-  const [elapsedTotalSeconds, setElapsedTotalSeconds] = useState<number>(0);
-  const [completedCycles, setCompletedCycles] = useState<number>(0);
+  const saved = readWidgetLifecycleState(widget, 'breathing', {elapsed: 0});
+  const [elapsedTotalSeconds, setElapsedTotalSeconds] = useState<number>(() => boundedInteger(saved.elapsed, 0, 0, settings.durationPreset === 'endless' ? 86400 : settings.durationPreset));
+  const cycleLength = settings.rhythm === '4-4' ? 8 : settings.rhythm === '4-2-4' ? 10 : 12;
+  const completedCycles = Math.floor(elapsedTotalSeconds / cycleLength);
+  usePersistedWidgetLifecycleState(widget, onUpdate, 'breathing', {elapsed: elapsedTotalSeconds});
+  const chimeContext = useRef<AudioContext | null>(null);
+  const stopChime = () => { if (chimeContext.current) void chimeContext.current.close().catch(() => {}); chimeContext.current = null; };
+  useEffect(() => () => stopChime(), []);
   const [audioStatus, setAudioStatus] = useState<MediaPlaybackStatus>(
     settings.soundEnabled ? 'ready' : 'muted',
   );
@@ -119,7 +127,8 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
         return false;
       }
 
-      const didPlay = playBreathingChime(phase);
+      stopChime();
+      const didPlay = playBreathingChime(phase, ctx => { chimeContext.current = ctx; });
       if (!didPlay) {
         setAudioStatus('unavailable');
         return false;
@@ -150,33 +159,19 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
     prevPhaseRef.current = currentPhaseState.phase;
   }, [currentPhaseState.phase, isRunning, playBreathingSound, settings.soundEnabled]);
 
-  // Timer-Schleife (1x pro Sekunde)
+  // Measure real elapsed time, without state updates inside another state updater.
   useEffect(() => {
-    let intervalId: any = null;
-    if (isRunning) {
-      intervalId = setInterval(() => {
-        setElapsedTotalSeconds((prev) => {
-          const next = prev + 1;
-          // Zähle Zyklen mit
-          let cycleLen = 12;
-          if (settings.rhythm === '4-4') cycleLen = 8;
-          else if (settings.rhythm === '4-2-4') cycleLen = 10;
-          if (next % cycleLen === 0) {
-            setCompletedCycles((c) => c + 1);
-          }
-
-          // Prüfe, ob Dauer-Preset abgelaufen ist
-          if (settings.durationPreset !== 'endless' && next >= settings.durationPreset) {
-            setIsRunning(false);
-          }
-
-          return next;
-        });
-      }, 1000);
-    }
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
+    if (!isRunning) return;
+    const started = performance.now(), initial = elapsedTotalSeconds;
+    const id = window.setInterval(() => {
+      const elapsed = initial + Math.floor((performance.now() - started) / 1000);
+      const next = settings.durationPreset === 'endless' ? elapsed : Math.min(elapsed, settings.durationPreset);
+      setElapsedTotalSeconds(next);
+      if (settings.durationPreset !== 'endless' && next >= settings.durationPreset) {
+        setIsRunning(false); stopChime();
+      }
+    }, 100);
+    return () => window.clearInterval(id);
   }, [isRunning, settings.durationPreset, settings.rhythm]);
 
   const handleToggleRun = () => {
@@ -187,24 +182,28 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
       }
       setIsRunning(true);
       if (settings.soundEnabled) {
-        playBreathingSound('inhale');
+        playBreathingSound(settings.durationPreset !== 'endless' && elapsedTotalSeconds >= settings.durationPreset ? 'inhale' : currentPhaseState.phase);
       } else {
         setAudioStatus('muted');
       }
     } else {
       setIsRunning(false);
+      stopChime();
       setAudioStatus(settings.soundEnabled ? 'paused' : 'muted');
     }
   };
 
   const handleReset = () => {
+    stopChime();
     setIsRunning(false);
     setElapsedTotalSeconds(0);
-    setCompletedCycles(0);
+
     setAudioStatus(settings.soundEnabled ? 'ready' : 'muted');
   };
 
   const handleSelectPreset = (preset: 30 | 60 | 120 | 'endless') => {
+    setIsRunning(false); stopChime();
+    if (preset !== 'endless') setElapsedTotalSeconds(value => Math.min(value, preset));
     updateSettings({
       ...settings,
       durationPreset: preset,
@@ -212,6 +211,7 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
   };
 
   const handleSelectRhythm = (rhythm: '4-4' | '4-2-4' | '4-4-4') => {
+    handleReset();
     updateSettings({
       ...settings,
       rhythm,
@@ -231,6 +231,7 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
     }
 
     if (!nextSoundEnabled) {
+      stopChime();
       setAudioStatus('muted');
       return;
     }
@@ -306,6 +307,7 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
     <div
       ref={containerRef}
       id={`breathing-widget-${widget.id}`}
+      data-practice-root
       data-breathing-running={isRunning}
       data-breathing-elapsed={elapsedTotalSeconds}
       data-breathing-phase={currentPhaseState.phase}
@@ -480,7 +482,7 @@ export const BreathingWidget: React.FC<BreathingWidgetProps> = ({
             ) : (
               <>
                 <Play size={16} className="fill-current" />
-                <span>{elapsedTotalSeconds > 0 ? 'Fortsetzen' : 'Atempause starten'}</span>
+                <span>{settings.durationPreset !== 'endless' && elapsedTotalSeconds >= settings.durationPreset ? 'Noch einmal' : elapsedTotalSeconds > 0 ? 'Fortsetzen' : 'Atempause starten'}</span>
               </>
             )}
           </button>

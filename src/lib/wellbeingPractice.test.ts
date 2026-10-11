@@ -1,0 +1,8 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {moodCounts,boundedInteger,brushPhase,BRUSH_STEPS} from './wellbeingPractice';
+import {calculateBreathingPhase} from './calmFocusEngine';
+test('mood counts begin empty and invalid stored counts cannot invent votes',()=>{assert.deepEqual(moodCounts(undefined),[0,0,0,0,0]);assert.deepEqual(moodCounts([NaN,-2,3.9,Infinity,'5']),[0,0,3,0,0]);});
+test('brushing dedicates the full two minutes to three tooth surfaces',()=>{assert.equal(BRUSH_STEPS.length,3);for(const [elapsed,index,left,finished] of [[0,0,40,false],[39,0,1,false],[40,1,40,false],[79,1,1,false],[80,2,40,false],[119,2,1,false],[120,2,0,true]] as const){assert.deepEqual(brushPhase(elapsed),{index,remaining:left,finished});}assert.equal(brushPhase(NaN).index,0);assert.equal(brushPhase(999).finished,true);});
+test('hydration counts and volume are finite nonnegative bounded integers',()=>{assert.equal(boundedInteger(NaN,200,100,500),200);assert.equal(boundedInteger(-5,0,0,99),0);assert.equal(boundedInteger(300,0,0,99),99);for(const volume of [100,150,200,250,300,500])assert.ok(Math.abs(3*volume/1000-(volume/1000)*3)<1e-10);});
+test('breathing transitions match all declared cycles and restart at inhale',()=>{for(const [rhythm,hold,cycle] of [['4-4',0,8],['4-2-4',2,10],['4-4-4',4,12]] as const){assert.equal(calculateBreathingPhase(0,rhythm).phase,'inhale');assert.equal(calculateBreathingPhase(4,rhythm).phase,hold?'hold':'exhale');assert.equal(calculateBreathingPhase(4+hold,rhythm).phase,'exhale');assert.equal(calculateBreathingPhase(cycle-1,rhythm).phaseSecondsLeft,1);assert.equal(calculateBreathingPhase(cycle,rhythm).phase,'inhale');}});

@@ -10949,6 +10949,7 @@ ${content}
                                     case "toothbrush":
                                       return (
                                         <ToothbrushWidgetContent
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           widget={widget}
                                           currentIsLight={currentIsLight}
                                         />
@@ -11061,6 +11062,7 @@ ${content}
                                     case "emotions":
                                       return (
                                         <EmotionsWidgetContent
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           widget={widget}
                                           currentIsLight={currentIsLight}
                                         />
@@ -12435,6 +12437,7 @@ ${content}
                                     case "watertracker":
                                       return (
                                         <WatertrackerWidgetContent
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           widget={widget}
                                           currentIsLight={currentIsLight}
                                         />
@@ -12454,6 +12457,7 @@ ${content}
                                     case "moodmeter":
                                       return (
                                         <MoodmeterWidgetContent
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           widget={widget}
                                           currentIsLight={currentIsLight}
                                         />
