@@ -52,3 +52,13 @@ test('restored phase navigation clamps invalid and out-of-range pages', () => {
   assert.equal(getPhaseNavigationPage({scope:'b:2',page:99},'b:2',1,2,3),1);
   assert.equal(getPhaseNavigationPage({scope:'b:2',page:NaN},'b:2',1,2,3),0);
 });
+
+test('a previously called child stays called across absence and return in the same class/day', () => {
+  const before = {roundScope:scope,remainingIds:['b'],calledIds:['a'],currentId:'a'};
+  const absent = reconcileFairCallRound(before,scope,['b'],['a','b']);
+  assert.deepEqual(absent.calledIds,['a']); assert.equal(absent.currentId,'a');
+  const returned = reconcileFairCallRound(absent,scope,['a','b'],['a','b']);
+  assert.deepEqual(returned.remainingIds,['b']); assert.deepEqual(returned.calledIds,['a']);
+  assert.equal(isFairCallRoundComplete(['a'],['b'],['a']),true);
+  assert.deepEqual(reconcileFairCallRound(before,scope,['b'],['b']).calledIds,[]);
+});

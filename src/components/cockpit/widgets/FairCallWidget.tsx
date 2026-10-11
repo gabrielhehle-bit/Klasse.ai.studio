@@ -91,14 +91,15 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
   // Persistierte Einstellungen in widget.settings
   const settings = widget.settings || {};
 
-  const round = useMemo(() => reconcileFairCallRound(settings, scopeKey, presentStudentIds),
-    [settings, scopeKey, presentStudentIds]);
+  const round = useMemo(() => reconcileFairCallRound(settings, scopeKey, presentStudentIds, allStudents.map(student => student.id)),
+    [settings, scopeKey, presentStudentIds, allStudents]);
   const { remainingIds, calledIds, currentId, pausedIds } = round;
   const animationRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const drawLockRef = useRef(false);
   const fingerprint = JSON.stringify(round);
-  const liveRef = useRef({ fingerprint, settings, onUpdate });
-  liveRef.current = { fingerprint, settings, onUpdate };
+  const animationFingerprint = JSON.stringify({round, presentStudentIds});
+  const liveRef = useRef({ fingerprint: animationFingerprint, settings, onUpdate });
+  liveRef.current = { fingerprint: animationFingerprint, settings, onUpdate };
   useEffect(() => {
     if (animationRef.current) clearInterval(animationRef.current);
     animationRef.current = null;
@@ -106,7 +107,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
     setAnimating(false);
     setAnimDisplayName('');
     return () => { if (animationRef.current) clearInterval(animationRef.current); drawLockRef.current = false; };
-  }, [fingerprint]);
+  }, [animationFingerprint]);
 
   // Audio-Option
   const soundEnabled = settings.soundEnabled !== false;
@@ -154,14 +155,14 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
   }, [remainingIds, presentStudentIds, pausedIds]);
 
   const totalInRoundCount = presentStudentIds.length;
-  const calledCount = calledIds.length;
+  const calledCount = calledIds.filter(id => presentStudentIds.includes(id)).length;
   const isRoundComplete = isFairCallRoundComplete(calledIds, remainingIds, presentStudentIds);
 
   // Aktuell ausgewähltes Schülerobjekt
   const currentStudent = useMemo(() => {
     if (!currentId) return null;
-    return allStudents.find((s) => s.id === currentId) || null;
-  }, [currentId, allStudents]);
+    return presentStudents.find((s) => s.id === currentId) || null;
+  }, [currentId, presentStudents]);
 
   // Letzte 3–5 aufgerufene Schüler für den Verlauf
   const recentCalledStudents = useMemo(() => {
@@ -203,7 +204,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
   const handlePickNext = useCallback(() => {
     if (animating || drawLockRef.current || eligibleRemainingIds.length === 0) return;
     drawLockRef.current = true;
-    const drawFingerprint = fingerprint;
+    const drawFingerprint = animationFingerprint;
 
     // Nächstes Kind aus dem gemischten Pool ziehen
     const nextId = eligibleRemainingIds[0];
@@ -255,7 +256,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
       }
     }, 75);
     animationRef.current = interval;
-  }, [fingerprint, scopeKey, animating, eligibleRemainingIds, allStudents, soundEnabled, remainingIds, calledIds, settings, onUpdate]);
+  }, [animationFingerprint, scopeKey, animating, eligibleRemainingIds, allStudents, soundEnabled, remainingIds, calledIds, settings, onUpdate]);
 
   /**
    * Letzte Auswahl zurücknehmen (Undo):
@@ -666,7 +667,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
                     : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
                 }`}
               >
-                Bereits dran ({calledCount})
+                Bereits dran ({calledIds.length})
               </button>
               <button
                 type="button"

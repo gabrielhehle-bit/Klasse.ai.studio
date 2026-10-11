@@ -1,8 +1,9 @@
 /** Reconcile a persisted fair round with today's actual class roster. */
-export function reconcileFairCallRound(raw: Record<string, any>, scopeKey: string, presentIds: string[]) {
+export function reconcileFairCallRound(raw: Record<string, any>, scopeKey: string, presentIds: string[], rosterIds: string[] = presentIds) {
   const present = [...new Set(presentIds)];
+  const roster = new Set(rosterIds);
   const valid = (value: unknown): string[] => Array.isArray(value)
-    ? [...new Set(value.filter((id): id is string => typeof id === 'string' && present.includes(id)))] : [];
+    ? [...new Set(value.filter((id): id is string => typeof id === 'string' && roster.has(id)))] : [];
   const sameScope = !raw.roundScope || raw.roundScope === scopeKey;
   const calledIds = sameScope ? valid(raw.calledIds) : [];
   const pausedIds = sameScope ? valid(raw.pausedIds).filter(id => !calledIds.includes(id)) : [];
@@ -13,5 +14,5 @@ export function reconcileFairCallRound(raw: Record<string, any>, scopeKey: strin
 }
 
 export function isFairCallRoundComplete(calledIds: string[], remainingIds: string[], presentIds: string[]) {
-  return presentIds.length > 0 && remainingIds.length === 0 && presentIds.every(id => calledIds.includes(id));
+  return presentIds.length > 0 && !remainingIds.some(id => presentIds.includes(id)) && presentIds.every(id => calledIds.includes(id));
 }
