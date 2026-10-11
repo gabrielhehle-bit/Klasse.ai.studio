@@ -1,6 +1,12 @@
 import React from 'react';
 import type { CockpitWidgetConfig } from '../../../types';
 import {
+  MUSIC_STUDIO_MODES,
+  mergeMusicStudioSettings,
+  normalizeMusicStudioMode,
+  type MusicStudioMode,
+} from '../../../lib/musicStudioSettings';
+import {
   PianoWidgetContent,
   RhythmWidgetContent,
   TonetrainerWidgetContent,
@@ -9,19 +15,8 @@ import {
 import { SoundsWidget } from './SoundsWidget';
 import { classroomSoundEngine } from '../../../lib/soundsAlgorithm';
 
-export type MusicStudioMode = 'signals' | 'piano' | 'rhythm' | 'tonetrainer' | 'ambient';
-
-export const MUSIC_STUDIO_MODES: ReadonlyArray<{ id: MusicStudioMode; label: string; description: string }> = [
-  { id: 'signals', label: '🔔 Signale', description: 'Klare Unterrichtssignale' },
-  { id: 'piano', label: '🎹 Klavier', description: 'Töne und Tonleiter spielen' },
-  { id: 'rhythm', label: '🥁 Rhythmus', description: 'Takt und Klatschmuster' },
-  { id: 'tonetrainer', label: '🎼 Ton-Trainer', description: 'Melodien und Hören üben' },
-  { id: 'ambient', label: '🌧️ Naturklänge', description: 'Ruhige Klänge für die Arbeitsphase' },
-];
-
-export function normalizeMusicStudioMode(input: unknown): MusicStudioMode {
-  return MUSIC_STUDIO_MODES.find(mode => mode.id === input)?.id || 'signals';
-}
+export { MUSIC_STUDIO_MODES, normalizeMusicStudioMode };
+export type { MusicStudioMode };
 
 interface MusicSoundsStudioProps {
   widget: CockpitWidgetConfig;
@@ -44,7 +39,7 @@ export const MusicSoundsStudio: React.FC<MusicSoundsStudioProps> = ({
   const mode = normalizeMusicStudioMode(widget.settings?.musicStudioMode);
   const volume = Math.min(1, Math.max(0, Number(widget.settings?.volume ?? 0.7) || 0));
   const updateSettings = (updates: Record<string, unknown>) => {
-    onUpdate?.({ settings: { ...(widget.settings || {}), ...updates } });
+    onUpdate?.({ settings: mergeMusicStudioSettings(widget.settings, updates) });
   };
   const changeMode = (nextMode: MusicStudioMode) => {
     if (mode === nextMode) return;
