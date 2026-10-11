@@ -56,7 +56,8 @@ export function addCustomPhase(
   label?: string
 ): { updatedPhases: PhaseItem[]; newId: string } {
   const nextNum = phases.length + 1;
-  const newId = `phase-custom-${Date.now()}`;
+  let newId = `phase-custom-${Date.now()}`;
+  while (phases.some(p => p.id === newId)) newId += "-next";
   const newPhase: PhaseItem = {
     id: newId,
     label: label?.trim() || `Phase ${nextNum}`,
@@ -101,4 +102,19 @@ export function updatePhaseLabel(
   const trimmed = newLabel.trim();
   if (!trimmed) return phases;
   return phases.map((p) => (p.id === id ? { ...p, label: trimmed } : p));
+}
+
+/** Reject malformed restored entries and duplicate IDs before rendering or navigation. */
+export function normalizeLessonPhases(raw: unknown): PhaseItem[] {
+  const seen = new Set<string>();
+  const phases: PhaseItem[] = [];
+  if (Array.isArray(raw)) for (const item of raw) {
+    if (!item || typeof item.id !== 'string' || !item.id.trim() || seen.has(item.id)
+      || typeof item.label !== 'string' || !item.label.trim()) continue;
+    seen.add(item.id);
+    phases.push({ id: item.id, label: item.label.trim().slice(0, 80),
+      subtitle: typeof item.subtitle === 'string' ? item.subtitle.slice(0, 120) : undefined,
+      icon: typeof item.icon === 'string' ? item.icon.slice(0, 16) : undefined });
+  }
+  return phases.length ? phases : DEFAULT_LESSON_PHASES.map(p => ({...p}));
 }

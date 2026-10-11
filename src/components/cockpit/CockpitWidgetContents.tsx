@@ -5918,15 +5918,19 @@ export const DailyquotesWidgetContent: React.FC<{
     [widget?.settings],
   );
   const activeQuote = useMemo(() => getActiveDailyQuote(settings), [settings]);
-  const [editTitle, setEditTitle] = useState(settings.customTitle);
-  const [editText, setEditText] = useState(settings.customText);
+  const draft = readWidgetLifecycleState(widget, 'dailyquotes', {editTitle: settings.customTitle, editText: settings.customText});
+  const [editTitle, setEditTitle] = useState(draft.editTitle);
+  const [editText, setEditText] = useState(draft.editText);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiStatus, setAiStatus] = useState<string>('');
 
-  useEffect(() => {
-    setEditTitle(settings.customTitle);
-    setEditText(settings.customText);
-  }, [settings.customTitle, settings.customText]);
+  usePersistedWidgetLifecycleState(widget, onUpdate, 'dailyquotes', { editTitle, editText });
+  const [settingsPage, setSettingsPage] = useState<'theme' | 'custom' | 'ai'>('theme');
+  const requestRef = useRef(0);
+  const aliveRef = useRef(true);
+  useEffect(() => { aliveRef.current = true; return () => { aliveRef.current = false; requestRef.current++; }; }, []);
+  const invalidateSuggestion = () => { requestRef.current++; setIsAiLoading(false); };
+  useEffect(() => { if (!showSettings) { requestRef.current++; setIsAiLoading(false); } }, [showSettings]);
 
   const persistSettings = useCallback((patch: Partial<DailyQuotesWidgetSettings>) => {
     if (!onUpdate) return;
@@ -5940,6 +5944,7 @@ export const DailyquotesWidgetContent: React.FC<{
   }, [onUpdate, settings, widget?.settings]);
 
   const selectTheme = (theme: DailyQuoteTheme) => {
+    invalidateSuggestion();
     const first = getDailyQuotesForTheme(theme)[0];
     persistSettings({
       theme,
@@ -5950,6 +5955,7 @@ export const DailyquotesWidgetContent: React.FC<{
   };
 
   const rotateQuote = () => {
+    invalidateSuggestion();
     persistSettings({
       currentQuoteId: getNextDailyQuoteId(settings.currentQuoteId, settings.theme),
       useCustom: false,
@@ -5958,6 +5964,7 @@ export const DailyquotesWidgetContent: React.FC<{
   };
 
   const applyCustomMotto = () => {
+    invalidateSuggestion();
     const text = editText.trim();
     if (!text) {
       setAiStatus('Bitte zuerst einen Motto-Satz eingeben.');
@@ -5973,12 +5980,14 @@ export const DailyquotesWidgetContent: React.FC<{
   };
 
   const useCollection = () => {
+    invalidateSuggestion();
     persistSettings({ useCustom: false });
     setAiStatus('Motto-Sammlung ist aktiv.');
   };
 
   const fetchAiQuote = async () => {
     if (isAiLoading) return;
+    const request = ++requestRef.current;
     setIsAiLoading(true);
     setAiStatus('KI-Vorschlag wird erstellt …');
     const themeLabel = DAILY_QUOTE_THEME_LABELS[settings.theme];
@@ -5990,6 +5999,7 @@ Keine Namen, keine persönlichen Daten, keine Leistungsversprechen.
 Antworte exakt als: <Emoji + kurzer Titel mit höchstens 4 Wörtern>;<Motto-Satz mit höchstens 18 Wörtern>
 Kein Markdown und kein weiterer Text.`;
       const response = await askAI('ki-wissen', prompt);
+      if (!aliveRef.current || request !== requestRef.current) return;
       const parsed = parseAiDailyQuote(response);
       if (!parsed) {
         setAiStatus('Der KI-Vorschlag konnte nicht gelesen werden. Die Motto-Sammlung bleibt verfügbar.');
@@ -6004,9 +6014,10 @@ Kein Markdown und kein weiterer Text.`;
       });
       setAiStatus('KI-Vorschlag wird auf der Tafel angezeigt.');
     } catch {
+      if (!aliveRef.current || request !== requestRef.current) return;
       setAiStatus('KI ist gerade nicht verfügbar. Die Motto-Sammlung funktioniert weiterhin offline.');
     } finally {
-      setIsAiLoading(false);
+      if (aliveRef.current && request === requestRef.current) setIsAiLoading(false);
     }
   };
 
@@ -6021,13 +6032,13 @@ Kein Markdown und kein weiterer Text.`;
   return (
     <div
       role="region"
-      aria-label="Morgen-Motto"
+      aria-label="Morgen-Motto" data-practice-root="dailyquotes"
       className={`relative flex h-full min-h-0 w-full flex-col overflow-hidden p-3 select-none ${
         currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-slate-100'
       }`}
     >
       {showSettings && (
-        <div className={`absolute inset-0 z-30 flex min-h-0 flex-col overflow-y-auto p-4 ${
+        <div className={`absolute inset-0 z-30 flex min-h-0 flex-col overflow-hidden p-4 pb-6 ${
           currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-slate-100'
         }`}>
           <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 pb-3 dark:border-white/10">
@@ -6046,7 +6057,10 @@ Kein Markdown und kein weiterer Text.`;
             </button>
           </div>
 
-          <section className="mt-4 shrink-0">
+          <div className="mt-3 grid shrink-0 grid-cols-3 gap-2" role="group" aria-label="Motto-Einstellungsbereiche">
+            {([['theme','Themen'],['custom','Eigenes Motto'],['ai','KI-Vorschlag']] as const).map(([page,label]) => <button type="button" key={page} aria-pressed={settingsPage === page} onClick={() => setSettingsPage(page)} className={settingButtonClass(settingsPage === page)}>{label}</button>)}
+          </div>
+          {settingsPage === 'theme' && <section className="mt-4 shrink-0">
             <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider opacity-55">Thema</p>
             <div className="grid grid-cols-2 gap-1.5">
               {(Object.entries(DAILY_QUOTE_THEME_LABELS) as Array<[DailyQuoteTheme, string]>).map(([theme, label]) => (
@@ -6061,9 +6075,9 @@ Kein Markdown und kein weiterer Text.`;
                 </button>
               ))}
             </div>
-          </section>
+          </section>}
 
-          <section className={`mt-4 shrink-0 rounded-2xl border p-3 ${
+          {settingsPage === 'custom' && <section className={`mt-4 shrink-0 rounded-2xl border p-3 ${
             currentIsLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/5'
           }`}>
             <div className="mb-2">
@@ -6078,7 +6092,7 @@ Kein Markdown und kein weiterer Text.`;
                 type="text"
                 value={editTitle}
                 maxLength={60}
-                onChange={event => setEditTitle(event.target.value)}
+                onChange={event => { invalidateSuggestion(); setEditTitle(event.target.value); }}
                 placeholder="z. B. 🌱 Schritt für Schritt"
                 className={`mt-1 min-h-11 w-full rounded-xl border px-3 text-sm font-semibold outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft ${
                   currentIsLight ? 'border-slate-300 bg-white text-slate-900' : 'border-white/10 bg-zinc-900 text-white'
@@ -6090,7 +6104,7 @@ Kein Markdown und kein weiterer Text.`;
               <textarea
                 value={editText}
                 maxLength={220}
-                onChange={event => setEditText(event.target.value)}
+                onChange={event => { invalidateSuggestion(); setEditText(event.target.value); }}
                 placeholder="Was soll heute gut sichtbar auf der Tafel stehen?"
                 rows={3}
                 className={`mt-1 min-h-20 w-full resize-none rounded-xl border px-3 py-2 text-sm font-medium leading-relaxed outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft ${
@@ -6118,9 +6132,9 @@ Kein Markdown und kein weiterer Text.`;
                 Sammlung verwenden
               </button>
             </div>
-          </section>
+          </section>}
 
-          <section className={`mt-4 shrink-0 rounded-2xl border p-3 ${
+          {settingsPage === 'ai' && <section className={`mt-4 shrink-0 rounded-2xl border p-3 ${
             currentIsLight ? 'border-slate-200 bg-white' : 'border-white/10 bg-zinc-900'
           }`}>
             <div className="flex items-start gap-2">
@@ -6145,7 +6159,7 @@ Kein Markdown und kein weiterer Text.`;
                 {aiStatus}
               </p>
             )}
-          </section>
+          </section>}
         </div>
       )}
 

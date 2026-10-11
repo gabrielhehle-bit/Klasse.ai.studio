@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { CockpitWidgetConfig, Student, AppState } from '../../../types';
 import { useApp } from '../../../context/AppContext';
+import { getTodayIsoDate } from '../../../lib/kidAttendanceAlgorithm';
+import { reconcileFairCallRound, isFairCallRoundComplete } from '../../../lib/classroomRoutineState';
 import { getActiveClassContext } from '../../../lib/activeClassContext';
 import {
   getDisplayStudentName,
@@ -46,6 +48,7 @@ function playDezentDingSound() {
     osc.connect(gain);
     gain.connect(ctx.destination);
 
+    osc.onended = () => { osc.disconnect(); gain.disconnect(); void ctx.close().catch(() => {}); };
     osc.start();
     osc.stop(ctx.currentTime + 0.45);
   } catch {
@@ -67,10 +70,19 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
   const activeClass = getActiveClassContext(app);
   const allStudents = activeClass.students;
 
+  const [dayKey, setDayKey] = useState(getTodayIsoDate);
+  useEffect(() => {
+    const refresh = () => setDayKey(getTodayIsoDate());
+    const timer = setInterval(refresh, 30000);
+    window.addEventListener("focus", refresh);
+    return () => { clearInterval(timer); window.removeEventListener("focus", refresh); };
+  }, []);
+  const scopeKey = `${activeClass.classId || ""}:${dayKey}`;
+
   // Nur anwesende Schüler
   const presentStudents = useMemo(() => {
     return allStudents.filter((s) => !isStudentAbsentToday(s.id, app));
-  }, [allStudents, app]);
+  }, [allStudents, app, dayKey]);
 
   const presentStudentIds = useMemo(() => {
     return presentStudents.map((s) => s.id);
@@ -79,23 +91,22 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
   // Persistierte Einstellungen in widget.settings
   const settings = widget.settings || {};
 
-  // Stabile IDs:
-  // - remainingIds: Kinder, die in dieser Runde noch drankommen
-  // - calledIds: Kinder, die in dieser Runde schon dran waren (Reihenfolge)
-  // - currentId: Das aktuell gezogene Kind
-  // - pausedIds: Kinder, die für DIESE Runde manuell pausiert wurden
-  const remainingIds: string[] = useMemo(() => {
-    return Array.isArray(settings.remainingIds) ? settings.remainingIds : [];
-  }, [settings.remainingIds]);
-
-  const calledIds: string[] = useMemo(() => {
-    return Array.isArray(settings.calledIds) ? settings.calledIds : [];
-  }, [settings.calledIds]);
-
-  const currentId: string | null = settings.currentId || null;
-  const pausedIds: string[] = useMemo(() => {
-    return Array.isArray(settings.pausedIds) ? settings.pausedIds : [];
-  }, [settings.pausedIds]);
+  const round = useMemo(() => reconcileFairCallRound(settings, scopeKey, presentStudentIds),
+    [settings, scopeKey, presentStudentIds]);
+  const { remainingIds, calledIds, currentId, pausedIds } = round;
+  const animationRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const drawLockRef = useRef(false);
+  const fingerprint = JSON.stringify(round);
+  const liveRef = useRef({ fingerprint, settings, onUpdate });
+  liveRef.current = { fingerprint, settings, onUpdate };
+  useEffect(() => {
+    if (animationRef.current) clearInterval(animationRef.current);
+    animationRef.current = null;
+    drawLockRef.current = false;
+    setAnimating(false);
+    setAnimDisplayName('');
+    return () => { if (animationRef.current) clearInterval(animationRef.current); drawLockRef.current = false; };
+  }, [fingerprint]);
 
   // Audio-Option
   const soundEnabled = settings.soundEnabled !== false;
@@ -104,6 +115,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
   const [animating, setAnimating] = useState(false);
   const [animDisplayName, setAnimDisplayName] = useState<string>('');
   const [showRosterModal, setShowRosterModal] = useState(false);
+  const [rosterPage, setRosterPage] = useState(0);
   const [rosterTab, setRosterTab] = useState<'remaining' | 'called' | 'paused'>('remaining');
 
   // Container-Größe für responsives Layout
@@ -124,55 +136,25 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
     return () => observer.disconnect();
   }, []);
 
-  // Automatische Initialisierung beim allerersten Start, falls noch keine Runde existiert
+  // Reconcile class/day changes and arrivals; retain a same-day round on reopening.
   useEffect(() => {
-    if (
-      activeClass.studentCount === 0
-      || !activeClass.permissions.canRead
-      || settings.hasInitialized
-      || remainingIds.length > 0
-      || calledIds.length > 0
-    ) {
-      return;
-    }
-    const initialShuffled = shuffleArray(presentStudentIds);
-    onUpdate({
-      settings: {
-        ...settings,
-        hasInitialized: true,
-        remainingIds: initialShuffled,
-        calledIds: [],
-        currentId: null,
-        pausedIds: [],
-      },
-    });
-  }, [
-    activeClass.studentCount,
-    activeClass.permissions.canRead,
-    settings.hasInitialized,
-    remainingIds.length,
-    calledIds.length,
-    presentStudentIds,
-    onUpdate,
-  ]);
+    if (!activeClass.permissions.canRead || !activeClass.classId) return;
+    const stored = { calledIds: settings.calledIds || [], pausedIds: settings.pausedIds || [],
+      remainingIds: settings.remainingIds || [], currentId: settings.currentId || null, roundScope: settings.roundScope };
+    if (JSON.stringify(stored) === fingerprint) return;
+    const fresh = settings.roundScope !== scopeKey && !settings.calledIds?.length && !settings.remainingIds?.length;
+    onUpdate({ settings: { ...settings, ...round, hasInitialized: true,
+      remainingIds: fresh ? shuffleArray(round.remainingIds) : round.remainingIds } });
+  }, [fingerprint, settings, scopeKey, round, onUpdate, activeClass.classId, activeClass.permissions.canRead]);
 
   // Effektive noch offene Kinder (anwesend, noch im Pool, nicht pausiert)
   const eligibleRemainingIds = useMemo(() => {
     return remainingIds.filter((id) => presentStudentIds.includes(id) && !pausedIds.includes(id));
   }, [remainingIds, presentStudentIds, pausedIds]);
 
-  // Gesamtanzahl der teilnehmenden Kinder in dieser Runde (ohne dauerhaft Abwesende)
-  const totalInRoundCount = useMemo(() => {
-    const activeParticipants = new Set([
-      ...remainingIds.filter((id) => presentStudentIds.includes(id)),
-      ...calledIds.filter((id) => presentStudentIds.includes(id)),
-      ...(currentId && presentStudentIds.includes(currentId) ? [currentId] : []),
-    ]);
-    return Math.max(activeParticipants.size, presentStudents.length);
-  }, [remainingIds, calledIds, currentId, presentStudentIds, presentStudents.length]);
-
+  const totalInRoundCount = presentStudentIds.length;
   const calledCount = calledIds.length;
-  const isRoundComplete = eligibleRemainingIds.length === 0 && (calledCount > 0 || currentId !== null);
+  const isRoundComplete = isFairCallRoundComplete(calledIds, remainingIds, presentStudentIds);
 
   // Aktuell ausgewähltes Schülerobjekt
   const currentStudent = useMemo(() => {
@@ -197,29 +179,35 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
    */
   const handleStartNewRound = useCallback(() => {
     if (presentStudentIds.length === 0) return;
+    if (animationRef.current) clearInterval(animationRef.current);
+    animationRef.current = null; drawLockRef.current = false; setAnimating(false);
     const freshlyShuffled = shuffleArray(presentStudentIds);
     onUpdate({
       settings: {
         ...settings,
+        roundScope: scopeKey,
+        hasInitialized: true,
         remainingIds: freshlyShuffled,
         calledIds: [],
         currentId: null,
         pausedIds: [], // Pausen gelten nur für die Runde
       },
     });
-  }, [presentStudentIds, settings, onUpdate]);
+  }, [presentStudentIds, settings, onUpdate, scopeKey]);
 
   /**
    * Nächstes Kind aufrufen:
    * Kurze Animation (ca. 600ms), dann Name anzeigen und Status aktualisieren.
    */
   const handlePickNext = useCallback(() => {
-    if (animating || eligibleRemainingIds.length === 0) return;
+    if (animating || drawLockRef.current || eligibleRemainingIds.length === 0) return;
+    drawLockRef.current = true;
+    const drawFingerprint = fingerprint;
 
     // Nächstes Kind aus dem gemischten Pool ziehen
     const nextId = eligibleRemainingIds[0];
     const targetStudent = allStudents.find((s) => s.id === nextId);
-    if (!targetStudent) return;
+    if (!targetStudent) { drawLockRef.current = false; return; }
 
     setAnimating(true);
 
@@ -231,6 +219,9 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
     let tick = 0;
     const maxTicks = 8;
     const interval = setInterval(() => {
+      if (liveRef.current.fingerprint !== drawFingerprint) {
+        clearInterval(interval); animationRef.current = null; drawLockRef.current = false; setAnimating(false); return;
+      }
       const randomIdx = Math.floor(Math.random() * poolStudents.length);
       const randomS = poolStudents[randomIdx] || targetStudent;
       setAnimDisplayName(getDisplayStudentName(randomS, allStudents));
@@ -238,6 +229,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
 
       if (tick >= maxTicks) {
         clearInterval(interval);
+        animationRef.current = null;
         setAnimating(false);
         setAnimDisplayName('');
 
@@ -252,7 +244,8 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
 
         onUpdate({
           settings: {
-            ...settings,
+            ...liveRef.current.settings,
+            roundScope: scopeKey,
             remainingIds: nextRemaining,
             calledIds: nextCalled,
             currentId: nextId,
@@ -260,7 +253,8 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
         });
       }
     }, 75);
-  }, [animating, eligibleRemainingIds, allStudents, soundEnabled, remainingIds, calledIds, settings, onUpdate]);
+    animationRef.current = interval;
+  }, [fingerprint, scopeKey, animating, eligibleRemainingIds, allStudents, soundEnabled, remainingIds, calledIds, settings, onUpdate]);
 
   /**
    * Letzte Auswahl zurücknehmen (Undo):
@@ -326,8 +320,8 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
   // Tastaturbedienung (Space/Enter -> Nächstes Kind, Backspace/Z -> Zurück)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Nicht auslösen, wenn ein Textinput aktiv ist
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) {
+      const target = e.target as HTMLElement;
+      if (e.repeat || showRosterModal || !containerRef.current?.contains(target) || target.closest('button, input, textarea, select, [contenteditable]')) {
         return;
       }
       if (e.key === ' ' || e.key === 'Enter') {
@@ -344,7 +338,13 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handlePickNext, handleUndo, isRoundComplete, currentId]);
+  }, [handlePickNext, handleUndo, isRoundComplete, currentId, showRosterModal]);
+
+  const rosterIds = rosterTab === 'remaining' ? eligibleRemainingIds : rosterTab === 'called' ? calledIds : pausedIds;
+  const rosterPages = Math.max(1, Math.ceil(rosterIds.length / 3));
+  const safeRosterPage = Math.min(rosterPage, rosterPages - 1);
+  const pagedRosterIds = rosterIds.slice(safeRosterPage * 3, (safeRosterPage + 1) * 3);
+  useEffect(() => { setRosterPage(0); }, [rosterTab, scopeKey]);
 
   // Responsive Klassifizierung
   const isSmallWidget = containerSize.width < 320 || containerSize.height < 280;
@@ -353,6 +353,8 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
   return (
     <div
       ref={containerRef}
+      data-practice-root="faircall" role="region" aria-label="Fair-Call" tabIndex={0}
+      data-fair-called={calledCount} data-fair-current={currentId || ""} data-fair-remaining={remainingIds.length}
       className={`relative flex flex-col justify-between w-full h-full p-3 sm:p-5 rounded-2xl overflow-hidden select-none transition-colors duration-200 border ${
         currentIsLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-950 border-white/10'
       }`}
@@ -383,7 +385,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
           <button
             type="button"
             onClick={toggleSound}
-            className={`min-h-[36px] min-w-[36px] p-2 rounded-xl border text-xs transition-all cursor-pointer flex items-center justify-center ${
+            className={`min-h-[44px] min-w-[44px] p-2 rounded-xl border text-xs transition-all cursor-pointer flex items-center justify-center ${
               soundEnabled
                 ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400'
                 : 'bg-black/5 dark:bg-white/5 border-transparent text-slate-400'
@@ -399,7 +401,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
             type="button"
             onClick={() => setShowRosterModal(true)}
             disabled={activeClass.studentCount === 0}
-            className={`min-h-[36px] px-2.5 sm:px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
+            className={`min-h-[44px] px-2.5 sm:px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
               currentIsLight
                 ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700 shadow-xs'
                 : 'bg-zinc-900 hover:bg-zinc-800 border-white/10 text-slate-300 shadow-xs'
@@ -521,7 +523,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
                     Wer ist als Nächstes dran?
                   </p>
                   <p className="text-xs font-bold text-slate-400 mt-1">
-                    Klicke unten auf „Nächstes Kind“ oder drücke Leertaste.
+                    {eligibleRemainingIds.length === 0 ? "Alle offenen Kinder sind pausiert oder abwesend. Prüfe die Übersicht." : "Klicke auf „Nächstes Kind“ oder fokussiere dieses Widget und drücke Leertaste."}
                   </p>
                 </div>
               )}
@@ -583,7 +585,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
           <button
             type="button"
             onClick={handlePickNext}
-            disabled={animating || isRoundComplete || activeClass.studentCount === 0}
+            disabled={animating || eligibleRemainingIds.length === 0 || activeClass.studentCount === 0}
             className={`flex-1 min-h-[48px] sm:min-h-[52px] rounded-2xl font-black text-sm sm:text-base uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-98 ${
               isRoundComplete
                 ? 'bg-slate-200 dark:bg-zinc-800 text-slate-400 cursor-not-allowed'
@@ -619,7 +621,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
       {/* ========================================================================= */}
       {showRosterModal && (
         <div className="absolute inset-0 z-20 bg-black/50 backdrop-blur-xs flex flex-col justify-end sm:justify-center p-2 sm:p-4 animate-fade-in">
-          <div className={`w-full max-h-[85%] flex flex-col rounded-3xl shadow-2xl border p-4 sm:p-5 overflow-hidden ${
+          <div role="dialog" aria-modal="true" aria-label="Runden-Übersicht" className={`w-full h-full flex flex-col rounded-3xl shadow-2xl border p-4 sm:p-5 overflow-hidden ${
             currentIsLight ? 'bg-white border-slate-200' : 'bg-zinc-900 border-white/10'
           }`}>
             {/* Modal Header */}
@@ -633,7 +635,8 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
               <button
                 type="button"
                 onClick={() => setShowRosterModal(false)}
-                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 cursor-pointer"
+                aria-label="Runden-Übersicht schließen"
+                className="min-h-11 min-w-11 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 cursor-pointer"
                 title="Schließen"
               >
                 <X size={18} />
@@ -645,7 +648,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
               <button
                 type="button"
                 onClick={() => setRosterTab('remaining')}
-                className={`flex-1 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                className={`flex-1 min-h-11 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                   rosterTab === 'remaining'
                     ? 'bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
                     : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
@@ -656,7 +659,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
               <button
                 type="button"
                 onClick={() => setRosterTab('called')}
-                className={`flex-1 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                className={`flex-1 min-h-11 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                   rosterTab === 'called'
                     ? 'bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
                     : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
@@ -667,7 +670,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
               <button
                 type="button"
                 onClick={() => setRosterTab('paused')}
-                className={`flex-1 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                className={`flex-1 min-h-11 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                   rosterTab === 'paused'
                     ? 'bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
                     : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
@@ -678,10 +681,10 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
             </div>
 
             {/* List Content */}
-            <div className="flex-grow overflow-y-auto no-scrollbar space-y-1.5 pr-1 min-h-[160px]">
+            <div className="flex-grow min-h-0 overflow-hidden space-y-1.5 pr-1">
               {rosterTab === 'remaining' && (
                 eligibleRemainingIds.length > 0 ? (
-                  eligibleRemainingIds.map((id) => {
+                  pagedRosterIds.map((id) => {
                     const student = allStudents.find((s) => s.id === id);
                     if (!student) return null;
                     return (
@@ -695,7 +698,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
                         <button
                           type="button"
                           onClick={() => handleTogglePause(id)}
-                          className="px-2 py-1 text-[11px] font-bold rounded-lg border border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 cursor-pointer"
+                          className="min-h-11 px-2 py-1 text-[11px] font-bold rounded-lg border border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 cursor-pointer"
                           title="Für diese Runde pausieren (z.B. WC, Förderkurs)"
                         >
                           Pausieren
@@ -712,7 +715,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
 
               {rosterTab === 'called' && (
                 calledIds.length > 0 ? (
-                  calledIds.map((id, idx) => {
+                  pagedRosterIds.map((id, idx) => {
                     const student = allStudents.find((s) => s.id === id);
                     if (!student) return null;
                     const isCurrent = id === currentId;
@@ -746,7 +749,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
 
               {rosterTab === 'paused' && (
                 pausedIds.length > 0 ? (
-                  pausedIds.map((id) => {
+                  pagedRosterIds.map((id) => {
                     const student = allStudents.find((s) => s.id === id);
                     if (!student) return null;
                     return (
@@ -760,7 +763,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
                         <button
                           type="button"
                           onClick={() => handleTogglePause(id)}
-                          className="px-2.5 py-1 text-[11px] font-black rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer"
+                          className="min-h-11 px-2.5 py-1 text-[11px] font-black rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer"
                         >
                           Wieder mitmachen
                         </button>
@@ -775,12 +778,17 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
               )}
             </div>
 
+            <div className="flex shrink-0 items-center justify-between gap-2 py-2">
+              <button type="button" aria-label="Vorherige Rundenseite" disabled={safeRosterPage === 0} onClick={() => setRosterPage(safeRosterPage - 1)} className="min-h-11 min-w-11 rounded-xl border">‹</button>
+              <span className="text-xs">Seite {safeRosterPage + 1} / {rosterPages}</span>
+              <button type="button" aria-label="Nächste Rundenseite" disabled={safeRosterPage + 1 >= rosterPages} onClick={() => setRosterPage(safeRosterPage + 1)} className="min-h-11 min-w-11 rounded-xl border">›</button>
+            </div>
             {/* Modal Footer */}
             <div className="pt-3 border-t border-slate-200 dark:border-white/10 shrink-0 flex justify-end">
               <button
                 type="button"
                 onClick={() => setShowRosterModal(false)}
-                className="min-h-[40px] px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-xs font-black uppercase tracking-wider cursor-pointer"
+                className="min-h-[44px] px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-xs font-black uppercase tracking-wider cursor-pointer"
               >
                 Schließen
               </button>

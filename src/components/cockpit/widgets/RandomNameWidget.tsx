@@ -341,7 +341,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
   );
 
   return (
-    <div ref={containerRef}
+    <div ref={containerRef} role="region" aria-label="Zufallsauswahl" data-practice-root="randomname" data-random-drawn={validDrawnIds.length} data-random-current={selectedStudent?.id || ""}
       className={`relative flex h-full w-full min-h-0 flex-col ${compact ? 'gap-1 p-1.5' : 'gap-2 p-2 sm:p-3'} rounded-2xl border ${currentIsLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-white/10 bg-zinc-950 text-white'}`}>
       <div className={`flex shrink-0 items-center justify-between gap-1 ${veryCompact ? 'min-h-9' : ''}`}>
         <div className="min-w-0">
@@ -411,6 +411,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
           </div>
         )}
       </div>
+      {!veryCompact && <p className="shrink-0 text-center text-xs opacity-70">Diese Auswahl gilt für die Sitzung. Schließen startet eine neue Runde.</p>}
       {selector}
     </div>
   );
