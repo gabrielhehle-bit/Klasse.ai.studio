@@ -78,6 +78,16 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
   }, [widget?.settings?.activePhaseId, lessonPhases, initialPhases]);
 
   const [activeId, setActiveId] = useState<string>(initialPhases.some(p => p.id === initialActiveId) ? initialActiveId : initialPhases[0].id);
+  // External restore/sync may change the persisted phases while this widget stays open.
+  useEffect(() => {
+    if (!Array.isArray(widget?.settings?.phases)) return;
+    const restored = normalizeLessonPhases(widget.settings.phases);
+    const restoredActive = restored.some(p => p.id === widget.settings.activePhaseId)
+      ? widget.settings.activePhaseId : restored[0].id;
+    setPhases(prev => JSON.stringify(prev) === JSON.stringify(restored) ? prev : restored);
+    setActiveId(restoredActive);
+  }, [widget?.settings?.phases, widget?.settings?.activePhaseId]);
+
 
   const draft = readWidgetLifecycleState(widget, 'phases', {editingId: null as string | null, editLabel: '', showAddModal: false, newPhaseName: ''});
   // Editing state

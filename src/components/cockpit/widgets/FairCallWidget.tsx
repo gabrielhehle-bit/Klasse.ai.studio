@@ -142,7 +142,8 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
     const stored = { calledIds: settings.calledIds || [], pausedIds: settings.pausedIds || [],
       remainingIds: settings.remainingIds || [], currentId: settings.currentId || null, roundScope: settings.roundScope };
     if (JSON.stringify(stored) === fingerprint) return;
-    const fresh = settings.roundScope !== scopeKey && !settings.calledIds?.length && !settings.remainingIds?.length;
+    const fresh = Boolean(settings.roundScope && settings.roundScope !== scopeKey)
+      || (!settings.roundScope && !settings.calledIds?.length && !settings.remainingIds?.length);
     onUpdate({ settings: { ...settings, ...round, hasInitialized: true,
       remainingIds: fresh ? shuffleArray(round.remainingIds) : round.remainingIds } });
   }, [fingerprint, settings, scopeKey, round, onUpdate, activeClass.classId, activeClass.permissions.canRead]);
@@ -234,7 +235,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
         setAnimDisplayName('');
 
         // Sound abspielen
-        if (soundEnabled) {
+        if (liveRef.current.settings.soundEnabled !== false) {
           playDezentDingSound();
         }
 
