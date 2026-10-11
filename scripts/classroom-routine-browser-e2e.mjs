@@ -2475,7 +2475,14 @@ async function main() {
     await openAuditWidget('image','Tafelbild');await auditWidgetMinimum('image');
     const imageRoot='[data-widget-type="image"] [data-practice-root="image"]';
     const imageDialog=label=>'dialog[open][aria-label='+q(label)+']';
-    const imageClick=async(label,root=imageRoot)=>clickSelector(client,root+' [aria-label='+q(label)+']');
+    const imagePhysicalClick=async expression=>{
+      const point=await evaluate(client,`(()=>{const b=${expression};if(!b)throw new Error('Missing image control');const r=b.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
+      await client.send('Input.dispatchMouseEvent',{type:'mouseMoved',...point});
+      await client.send('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',clickCount:1});
+      await client.send('Input.dispatchMouseEvent',{type:'mouseReleased',...point,button:'left',clickCount:1});
+    };
+    const imageClick=async(label,root=imageRoot)=>imagePhysicalClick(`document.querySelector(${q(root+' [aria-label='+q(label)+']')})`);
+    const imageTextClick=async(text,root=imageRoot)=>imagePhysicalClick(`Array.from(document.querySelectorAll(${q(root+' button')})).find(b=>b.textContent.trim()===${q(text)})`);
     const imageUpload=async path=>{
       const doc=await client.send('DOM.getDocument');
       const {nodeId}=await client.send('DOM.querySelector',{nodeId:doc.root.nodeId,selector:imageRoot+' input[type="file"]'});
@@ -2492,11 +2499,11 @@ async function main() {
     await fs.writeFile(invalidImagePath,'Not an image');await fs.writeFile(corruptImagePath,'Damaged PNG');
     const imageFits=`(()=>{const el=document.querySelector(${q(imageRoot)}),r=el.getBoundingClientRect();return el.scrollWidth<=el.clientWidth+1&&el.scrollHeight<=el.clientHeight+1&&Array.from(el.querySelectorAll('button')).every(b=>{const t=b.getBoundingClientRect();return t.width>=44&&t.height>=44&&t.left>=r.left-1&&t.right<=r.right+1&&t.bottom<=r.bottom+1&&(b.disabled||b.contains(document.elementFromPoint(t.x+t.width/2,t.y+t.height/2)));});})()`;
     await waitFor(client,'empty image upload controls fit at actual minimum',imageFits);
-    await clickMathText(imageRoot,'Web-URL');
+    await imageTextClick('Web-URL');
     await setInputByLabel(client,'HTTPS-Bildadresse','http://example.org/unsafe-image.png');
-    await clickMathText(imageDialog('Tafelbild-Webadresse'),'Übernehmen');
+    await imageTextClick('Übernehmen',imageDialog('Tafelbild-Webadresse'));
     await waitFor(client,'invalid image URL is explained inside its visible modal',`document.querySelector(${q(imageDialog('Tafelbild-Webadresse')+' [role="alert"]')})?.textContent.includes('HTTPS-Bildadresse')&&!document.querySelector(${q(imageRoot+' img')})`);
-    await pressAuditKey('Escape');await waitFor(client,'image address Escape returns focus',`!document.querySelector('dialog[open]')&&document.activeElement.textContent.includes('Web-URL')`);
+    await pressAuditKey('Escape');await waitFor(client,'image address Escape returns focus',`!document.querySelector('dialog[open]')&&document.activeElement.tagName==='BUTTON'&&document.activeElement.textContent.includes('Web-URL')`);
     await imageUpload(imagePath);
     await waitFor(client,'real file selection decodes the landscape PNG',`document.querySelector(${q(imageRoot+' img')})?.naturalWidth===1200&&document.querySelector(${q(imageRoot+' img')})?.naturalHeight===400`);
     for(const degrees of [90,180,270,0]){
@@ -2510,14 +2517,14 @@ async function main() {
     await client.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:stagePoint.x+30,y:stagePoint.y+20,buttons:1,button:'left'});await sleep(150);
     await client.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:stagePoint.x+30,y:stagePoint.y+20,button:'left'});
     await waitFor(client,'real image pointer drag translates in screen coordinates',`document.querySelector(${q(imageRoot+' img')}).style.transform.includes('translate(30px, 20px)')`);
-    await clickMathText(imageRoot,'Beschriften');await setInputByLabel(client,'Bildbeschreibung','Unser Tafelbild: 47 = 40 + 7');
-    await clickMathText(imageDialog('Tafelbild beschriften'),'Speichern');
+    await imageTextClick('Beschriften');await setInputByLabel(client,'Bildbeschreibung','Unser Tafelbild: 47 = 40 + 7');
+    await imageTextClick('Speichern',imageDialog('Tafelbild beschriften'));
     await imageClick('Bild 90° drehen');
     await auditMenu('image','Minimieren');await openAuditWidget('image','Tafelbild');
     await waitFor(client,'image zoom rotation caption and pan survive minimizing',`(()=>{const r=document.querySelector(${q(imageRoot)}),img=r.querySelector('img');return r.dataset.imageScale==='1.5'&&r.dataset.imageRotation==='90'&&img.alt==='Unser Tafelbild: 47 = 40 + 7'&&img.style.transform.includes('translate(30px, 20px)');})()`);
     await auditMenu('image','Widget schließen');await openAuditWidget('image','Tafelbild');
     await waitFor(client,'image and its actual transformations survive complete reopening',`(()=>{const r=document.querySelector(${q(imageRoot)}),img=r.querySelector('img');return img?.naturalWidth===1200&&r.dataset.imageScale==='1.5'&&r.dataset.imageRotation==='90'&&img.alt==='Unser Tafelbild: 47 = 40 + 7'&&img.style.transform.includes('translate(30px, 20px)');})()`);
-    await clickSelector(client,'[data-widget-type="image"] button[aria-label$="Einstellungen öffnen"]');
+    await imagePhysicalClick(`document.querySelector('[data-widget-type="image"] button[aria-label$="Einstellungen öffnen"]')`);
     await waitFor(client,'image settings use the native modal',`Boolean(document.querySelector(${q(imageDialog('Tafelbild einstellen'))}))`);
     await pressAuditKey('Escape');await waitFor(client,'image Escape restores gear focus',`!document.querySelector('dialog[open]')&&document.activeElement.matches('[data-widget-type="image"] button[aria-label$="Einstellungen öffnen"]')`);
     await imageClick('Tafelbild-Vollbild öffnen');await waitFor(client,'image lightbox uses native top layer',`Boolean(document.querySelector(${q(imageDialog('Tafelbild-Vollbild'))}))`);
