@@ -325,3 +325,25 @@ test('Image: 20. Andere Widgets unverändert', async () => {
   const { isAllowedUrl } = await import('./linksAlgorithm');
   assert.equal(isAllowedUrl('https://anton.app'), true);
 });
+
+// A deliberate deletion is authoritative even when an older backup still has `url`.
+test('Image removal survives legacy URL restoration', () => {
+  assert.equal(getCanonicalImageSettings({url:'https://example.org/old.png'}).imageUrl,'https://example.org/old.png');
+  assert.equal(getCanonicalImageSettings({imageUrl:null,url:'https://example.org/old.png'}).imageUrl,null);
+});
+
+test('Damaged image snapshots cannot create invalid CSS transforms', () => {
+  const state=getCanonicalImageSettings({rotation:Infinity,scale:NaN,panX:Infinity,panY:-Infinity});
+  assert.deepEqual([state.rotation,state.scale,state.panX,state.panY],[0,1,0,0]);
+  assert.equal(getCanonicalImageSettings({scale:1,panX:100,panY:20}).panX,0);
+});
+
+test('Landscape and portrait images fit without cropping at every right-angle rotation', async () => {
+  const {getImageFitDimensions}=await import('./imageAlgorithm');
+  for (const [w,h] of [[1200,400],[400,1200]]) for (const rotation of [0,90,180,270]) {
+    const fit=getImageFitDimensions(w,h,580,330,rotation);
+    assert.ok(Math.abs(fit.width/fit.height-w/h)<0.0001);
+    assert.ok((rotation%180 ? fit.height : fit.width)<=580);
+    assert.ok((rotation%180 ? fit.width : fit.height)<=330);
+  }
+});

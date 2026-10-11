@@ -32,7 +32,7 @@ test('Batch 5: gemeinsame Zahnraeder oeffnen echte Einstellungen', () => {
   assert.match(qr, /Link oder Text/);
 
   assert.match(image, /showSettings = false/);
-  assert.match(image, /aria-label="Tafelbild einstellen"/);
+  assert.match(image, /ImageDialog label="Tafelbild einstellen"/);
   assert.match(image, /Anderes Bild wählen|Bild auswählen/);
   assert.match(image, /Materialbibliothek/);
   assert.match(image, /Beschriftung/);

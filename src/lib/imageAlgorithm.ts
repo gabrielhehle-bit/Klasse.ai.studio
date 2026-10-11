@@ -170,7 +170,7 @@ export function isSafeImageUrl(url: string): boolean {
  * Normalisiert Rotationswinkel auf 0, 90, 180 oder 270 Grad
  */
 export function normalizeRotation(deg: number): number {
-  if (typeof deg !== 'number' || isNaN(deg)) return 0;
+  if (!Number.isFinite(deg)) return 0;
   const mod = ((Math.round(deg / 90) * 90) % 360 + 360) % 360;
   return mod;
 }
@@ -186,7 +186,7 @@ export function rotateClockwise(currentDeg: number): number {
  * Begrenzt den Zoom-Faktor sauber
  */
 export function clampZoom(scale: number): number {
-  if (typeof scale !== 'number' || isNaN(scale)) return 1;
+  if (!Number.isFinite(scale)) return 1;
   const clamped = Math.min(MAX_ZOOM_SCALE, Math.max(MIN_ZOOM_SCALE, scale));
   return Math.round(clamped * 100) / 100;
 }
@@ -237,14 +237,14 @@ export function getCanonicalImageSettings(settings?: any): ImageWidgetSettings {
   let imageUrl: string | null = null;
   if (typeof settings.imageUrl === 'string' && isSafeImageUrl(settings.imageUrl)) {
     imageUrl = settings.imageUrl;
-  } else if (typeof settings.url === 'string' && isSafeImageUrl(settings.url)) {
+  } else if (!Object.prototype.hasOwnProperty.call(settings, 'imageUrl') && typeof settings.url === 'string' && isSafeImageUrl(settings.url)) {
     imageUrl = settings.url;
   }
 
   const rotation = normalizeRotation(settings.rotation ?? 0);
   const scale = clampZoom(settings.scale ?? 1);
-  const panX = typeof settings.panX === 'number' && !isNaN(settings.panX) ? settings.panX : 0;
-  const panY = typeof settings.panY === 'number' && !isNaN(settings.panY) ? settings.panY : 0;
+  const panX = Number.isFinite(settings.panX) && scale > 1 ? settings.panX : 0;
+  const panY = Number.isFinite(settings.panY) && scale > 1 ? settings.panY : 0;
   const fit = settings.fit === 'cover' ? 'cover' : 'contain';
   const altText = sanitizeImageAltText(settings.altText || settings.title || '');
   const fileName = sanitizeFileName(settings.fileName);
@@ -263,6 +263,14 @@ export function getCanonicalImageSettings(settings?: any): ImageWidgetSettings {
     fileSizeBytes: typeof settings.fileSizeBytes === 'number' ? settings.fileSizeBytes : undefined,
     lastUpdated: settings.lastUpdated,
   };
+}
+
+/** Fit the complete rotated image before applying deliberate zoom and pan. */
+export function getImageFitDimensions(width: number, height: number, stageWidth: number, stageHeight: number, rotation: number) {
+  if (![width, height, stageWidth, stageHeight].every(value => Number.isFinite(value) && value > 0)) return { width: 0, height: 0 };
+  const sideways = normalizeRotation(rotation) % 180 !== 0;
+  const factor = Math.min(1, stageWidth / (sideways ? height : width), stageHeight / (sideways ? width : height));
+  return { width: width * factor, height: height * factor };
 }
 
 /**
