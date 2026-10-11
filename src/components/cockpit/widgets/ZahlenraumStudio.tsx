@@ -45,6 +45,23 @@ export interface ZahlenraumStudioProps {
   onCloseSettings?: () => void;
 }
 
+// Keep signed integer drafts (including an unfinished minus) separate from saved numbers.
+const SignedIntegerInput: React.FC<Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> & {
+  value: number; onValueChange: (value: number) => void;
+}> = ({ value, onValueChange, ...props }) => {
+  const [draft, setDraft] = useState(String(value));
+  const editing = useRef(false);
+  useEffect(() => { if (!editing.current) setDraft(String(value)); }, [value]);
+  return <input {...props} type="text" inputMode="text" value={draft}
+    onFocus={() => { editing.current = true; }}
+    onBlur={() => { editing.current = false; setDraft(String(value)); }}
+    onChange={event => {
+      const next = event.currentTarget.value;
+      setDraft(next);
+      if (/^-?\d+$/.test(next) && Number.isSafeInteger(Number(next))) onValueChange(Number(next));
+    }} />;
+};
+
 export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
   widget,
   onUpdate,
@@ -84,18 +101,6 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
   const [jumps, setJumps] = useState<ZahlenraumJump[]>(initialSettings.jumps);
   const [newJumpStep, setNewJumpStep] = useState<number>(initialSettings.pendingJumpStep ?? 10);
   const [showCustomRangeInputs, setShowCustomRangeInputs] = useState<boolean>(initialSettings.range === 'custom');
-  const customMinInputRef = useRef<HTMLInputElement>(null);
-  const customMaxInputRef = useRef<HTMLInputElement>(null);
-  const markerInputRef = useRef<HTMLInputElement>(null);
-  const jumpInputRef = useRef<HTMLInputElement>(null);
-  // Number inputs may temporarily contain only a minus sign. Leave the native
-  // editing buffer intact until blur, while external saved values still update.
-  useEffect(() => {
-    for (const [ref, value] of [[customMinInputRef, customMin], [customMaxInputRef, customMax],
-      [markerInputRef, markers[0]?.value ?? 0], [jumpInputRef, newJumpStep]] as const) {
-      if (ref.current && document.activeElement !== ref.current) ref.current.value = String(value);
-    }
-  }, [customMin, customMax, markers, newJumpStep, mode]);
   const settingsRef = useRef(initialSettings);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const applySettings = useCallback((next: ZahlenraumSettings) => {
@@ -631,32 +636,20 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                 <span className="font-semibold text-slate-500">Bereich:</span>
                 <label className="flex items-center gap-1">
                   <span>Min:</span>
-                  <input
+                  <SignedIntegerInput
                     id="zahlenraum-custom-min-input"
-                    ref={customMinInputRef}
-                    type="number"
-                    defaultValue={customMin}
-                    onBlur={e => { e.currentTarget.value = String(customMin); }}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value, 10) || 0;
-                      setCustomMin(val);
-                    }}
+                    value={customMin}
+                    onValueChange={setCustomMin}
                     aria-label="Zahlenstrahl von"
                     className="min-h-11 w-24 px-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent font-mono text-center"
                   />
                 </label>
                 <label className="flex items-center gap-1">
                   <span>Max:</span>
-                  <input
+                  <SignedIntegerInput
                     id="zahlenraum-custom-max-input"
-                    ref={customMaxInputRef}
-                    type="number"
-                    defaultValue={customMax}
-                    onBlur={e => { e.currentTarget.value = String(customMax); }}
-                    onChange={(e) => {
-                      const val = Number(e.target.value);
-                      setCustomMax(val);
-                    }}
+                    value={customMax}
+                    onValueChange={setCustomMax}
                     aria-label="Zahlenstrahl bis"
                     className="min-h-11 w-24 px-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent font-mono text-center"
                   />
@@ -902,19 +895,11 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                 {/* Direkte Zahleingabe für Hauptmarker */}
                 <div className="flex items-center gap-1.5">
                   <span className="text-slate-500">Wert:</span>
-                  <input
+                  <SignedIntegerInput
                     id="zahlenraum-main-marker-input"
-                    ref={markerInputRef}
                     aria-label="Hauptmarker eingeben"
-                    type="number"
-                    defaultValue={markers[0]?.value ?? currentMin}
-                    onBlur={e => { e.currentTarget.value = String(markers[0]?.value ?? currentMin); }}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value, 10);
-                      if (!isNaN(val) && markers[0]) {
-                        handleUpdateMarkerValue(markers[0].id, val);
-                      }
-                    }}
+                    value={markers[0]?.value ?? currentMin}
+                    onValueChange={val => { if (markers[0]) handleUpdateMarkerValue(markers[0].id, val); }}
                     className="min-h-11 w-24 px-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent font-mono text-center font-bold"
                   />
                 </div>
@@ -945,9 +930,8 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                       -{step}
                     </button>
                   ))}
-                  <input ref={jumpInputRef} type="number" aria-label="Eigene Sprungweite" defaultValue={newJumpStep}
-                    onBlur={e => { e.currentTarget.value = String(newJumpStep); }}
-                    onChange={e => persist({pendingJumpStep: Number(e.target.value)})}
+                  <SignedIntegerInput aria-label="Eigene Sprungweite" value={newJumpStep}
+                    onValueChange={val => persist({pendingJumpStep: val})}
                     className="min-h-11 w-16 rounded-lg border bg-transparent px-2 text-center font-mono" />
                   <button type="button" aria-label="Eigenen Rechensprung hinzufügen" className="min-h-11 min-w-11 rounded-lg border disabled:opacity-40"
                     disabled={!Number.isInteger(newJumpStep) || newJumpStep === 0 || jumps.length >= 10 ||
