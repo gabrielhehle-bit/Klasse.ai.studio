@@ -1,3 +1,4 @@
+import { getDrawingOpeningSettings } from './drawingSurfaceState';
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -62,4 +63,22 @@ test("ungültige Werte fallen auf sichere Standardwerte zurück", () => {
   assert.equal(state.activeTool, "pen");
   assert.equal(state.activeColor, "#0f172a");
   assert.equal(state.activeWidthId, "medium");
+});
+
+
+test('first drawing opening starts as a board without losing stored strokes', () => {
+  const strokes = [{id:'one'}];
+  const result = getDrawingOpeningSettings({drawingStrokes:strokes},false);
+  assert.equal(result.isDirectMode,true); assert.equal(result.surfaceMode,'board');
+  assert.equal(result.drawingStrokes,strokes);
+});
+test('drawing reopening preserves window mode and lesson history', () => {
+  const strokes = [{id:'one'}], redo = [{id:'two'}];
+  const result = getDrawingOpeningSettings({isDirectMode:false,surfaceMode:'window',drawingStrokes:strokes,drawingRedoStack:redo,drawingColor:'#dc2626'},true);
+  assert.equal(result.isDirectMode,false); assert.equal(result.surfaceMode,'window');
+  assert.equal(result.drawingStrokes,strokes); assert.equal(result.drawingRedoStack,redo);
+  assert.equal(result.drawingColor,'#dc2626');
+});
+test('drawing reopening retains an explicitly chosen board mode', () => {
+  assert.equal(getDrawingOpeningSettings({isDirectMode:true},true).isDirectMode,true);
 });

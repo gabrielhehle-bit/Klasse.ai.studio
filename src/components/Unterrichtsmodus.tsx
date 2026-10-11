@@ -1,3 +1,4 @@
+import { getDrawingOpeningSettings } from '../lib/drawingSurfaceState';
 import SidebarStarsOverview from './cockpit/SidebarStarsOverview';
 import SaveSyncStatus from './SaveSyncStatus';
 import ClassTeamStatus from './ClassTeamStatus';
@@ -4368,11 +4369,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
         w: placement.w,
         h: placement.h,
         settings: isWhiteboard
-          ? {
-              ...(widget.settings || {}),
-              boardMode: widget.settings?.boardMode || "whiteboard",
-              isDirectMode: true,
-            }
+          ? getDrawingOpeningSettings(widget.settings, Boolean(useOld))
           : type === "kidattendance" && !useOld
             ? { ...(widget.settings || {}), ...checkInPreset }
           : type === "groups" && !useOld

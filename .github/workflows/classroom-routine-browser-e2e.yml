@@ -14,6 +14,7 @@ on:
       - 'src/components/cockpit/widgets/DrawingWidget.tsx'
       - 'src/components/cockpit/ClassMascotWidget.tsx'
       - 'src/lib/classroomQuizSession.ts'
+      - 'src/lib/drawingSurfaceState.ts'
       - 'src/components/cockpit/widgets/PhasesWidget.tsx'
       - 'src/components/cockpit/widgets/TableCheckWidget.tsx'
       - 'src/components/cockpit/widgets/FairCallWidget.tsx'
