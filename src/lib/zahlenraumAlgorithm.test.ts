@@ -218,8 +218,8 @@ test('Zahlenraum: 21. Gamification (Sterne, Score) nicht im Datenmodell', () => 
 // 22. nur ein Picker-Eintrag
 test('Zahlenraum: 22. Mindestmaße im Register definiert', () => {
   assert.ok(WIDGET_MIN_SIZES.zahlenraum);
-  assert.equal(WIDGET_MIN_SIZES.zahlenraum.minW, 300);
-  assert.equal(WIDGET_MIN_SIZES.zahlenraum.minH, 220);
+  assert.equal(WIDGET_MIN_SIZES.zahlenraum.minW, 760);
+  assert.equal(WIDGET_MIN_SIZES.zahlenraum.minH, 560);
 });
 
 // 23. COMPACT
@@ -295,4 +295,36 @@ test('Zahlenraum: Szenario F: Rechensprünge 23 -> +10 -> 33 -> +4 -> 37', () =>
   );
   assert.equal(arc2.midX, 35);
   assert.ok(arc2.isForward);
+});
+
+test('a smaller quantity range clamps both parts of the stored decomposition', () => {
+  const next = migrateLegacyMathWidget('zahlenraum', { ...DEFAULT_ZAHLENRAUM_SETTINGS, range: 10, quantityValue: 47, splitValue: 40 });
+  assert.equal(next.quantityValue, 10);
+  assert.equal(next.splitValue, 10);
+  const dots = getStructuredGridDots(10, next.quantityValue, 'classic', next.splitValue);
+  assert.equal(dots.dots.filter(d => d.colorType === 'primary').length, 10);
+  assert.equal(dots.dots.filter(d => d.colorType === 'secondary').length, 0);
+});
+
+test('damaged saved maths data cannot introduce NaN, null markers or false jump equations', () => {
+  const next = migrateLegacyMathWidget('zahlenraum', {mode:'numberline',range:'custom',customMin:Infinity,customMax:NaN,
+    quantityValue:NaN,splitValue:NaN,markers:[null,{value:NaN},{value:37}],
+    jumps:[null,{from:23,step:10,to:99},{from:23,step:10,to:33}]});
+  assert.equal(next.customMin,0); assert.equal(next.customMax,100);
+  assert.equal(next.quantityValue,17); assert.equal(next.splitValue,undefined);
+  assert.deepEqual(next.markers.map(m=>m.value),[37]);
+  assert.deepEqual(next.jumps.map(j=>[j.from,j.step,j.to]),[[23,10,33]]);
+});
+
+test('legacy line bounds select the actual custom interval, including an upper bound of zero', () => {
+  const legacy = migrateLegacyMathWidget('numberline',{customMin:200,customMax:300,target:245});
+  assert.equal(legacy.range,'custom'); assert.equal(legacy.markers[0].value,245);
+  const negative = migrateLegacyMathWidget('zahlenraum',{...legacy,customMin:-50,customMax:0,markers:[{value:-25}]});
+  assert.equal(negative.customMax,0); assert.equal(getLinePercentage(-25,-50,0),50);
+});
+
+test('a range change removes invisible markers/jumps and leaves a reachable main marker', () => {
+  const next = migrateLegacyMathWidget('zahlenraum',{...DEFAULT_ZAHLENRAUM_SETTINGS,mode:'numberline',range:10,
+    markers:[{value:90}],jumps:[{from:90,step:5,to:95}]});
+  assert.equal(next.markers[0].value,10); assert.equal(next.jumps.length,0);
 });

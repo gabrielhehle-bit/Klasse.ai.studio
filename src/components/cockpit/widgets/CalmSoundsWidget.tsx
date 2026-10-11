@@ -55,6 +55,8 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
   );
   const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
   const [showMixerDetails, setShowMixerDetails] = useState<boolean>(false);
+  const deadlineRef = useRef<number | null>(null);
+  const isBoardMixer = widget.type === 'soundmachine';
 
   // Singleton Audio Engine Ref für diese Widget-Instanz
   const engineRef = useRef<CalmAudioEngine | null>(null);
@@ -84,6 +86,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
       engineRef.current.stop();
     }
     setIsPlaying(false);
+    deadlineRef.current = null;
     setSecondsRemaining(null);
     setAudioStatus('paused');
   }, []);
@@ -110,8 +113,10 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
 
       if (settings.timerMinutes !== 'endless') {
         const totalSecs = (settings.timerMinutes as number) * 60;
+        deadlineRef.current = performance.now() + totalSecs * 1000;
         setSecondsRemaining(totalSecs);
       } else {
+        deadlineRef.current = null;
         setSecondsRemaining(null);
       }
     } catch (error) {
@@ -136,23 +141,15 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
 
   // Timer Countdown-Logik
   useEffect(() => {
-    let intervalId: any = null;
-    if (isPlaying && secondsRemaining !== null) {
-      intervalId = setInterval(() => {
-        setSecondsRemaining((prev) => {
-          if (prev === null) return null;
-          if (prev <= 1) {
-            handleStop();
-            return null;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [isPlaying, secondsRemaining, handleStop]);
+    if (!isPlaying) return;
+    const intervalId = setInterval(() => {
+      if (deadlineRef.current === null) return;
+      const remaining = Math.max(0, Math.ceil((deadlineRef.current - performance.now()) / 1000));
+      if (remaining === 0) handleStop();
+      else setSecondsRemaining(remaining);
+    }, 250);
+    return () => clearInterval(intervalId);
+  }, [isPlaying, handleStop]);
 
   // Toggle Track Aktiv / Inaktiv
   const handleToggleTrack = (trackId: CalmTrackId) => {
@@ -203,8 +200,10 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
     });
     if (isPlaying) {
       if (val === 'endless') {
+        deadlineRef.current = null;
         setSecondsRemaining(null);
       } else {
+        deadlineRef.current = performance.now() + val * 60000;
         setSecondsRemaining(val * 60);
       }
     }
@@ -236,6 +235,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
     <div
       ref={containerRef}
       id={`calmrain-widget-${widget.id}`}
+      data-practice-root={widget.type}
       data-calm-playing={isPlaying}
       data-calm-remaining={secondsRemaining ?? "endless"}
       className={`w-full h-full flex flex-col justify-between select-none overflow-hidden ${
@@ -302,10 +302,10 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
       {/* Primary controls stay reachable while the track mixer scrolls. */}
       <div data-calm-primary className="shrink-0 my-2">
             {/* Hauptsteuerleiste: Start/Stopp & Gesamtlautstärke */}
-            <div className={`p-3 rounded-2xl border flex flex-col items-center justify-between gap-3 ${
+            <div className={`${isBoardMixer ? 'p-2 flex-row gap-2' : 'p-3 flex-col gap-3'} rounded-2xl border flex items-center justify-between ${
               currentIsLight ? 'bg-slate-50 border-slate-200/90' : 'bg-zinc-900/70 border-white/5'
             }`}>
-              <div className="flex items-center gap-3 w-full">
+              <div className={`flex items-center gap-3 ${isBoardMixer ? 'w-1/2' : 'w-full'}`}>
                 <button
                 type="button"
                   id={`calmrain-toggle-btn-${widget.id}`}
@@ -349,7 +349,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
               </div>
 
               {/* Master Volume Slider */}
-              <div className="w-full flex items-center gap-2">
+              <div className={`${isBoardMixer ? 'w-1/2' : 'w-full'} flex items-center gap-2`}>
                 <span className="text-xs font-semibold whitespace-nowrap opacity-80">Master:</span>
                 <input
                   type="range"
@@ -384,7 +384,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
 
       {/* 2. Hauptbereich: Je nach Kategorie COMPACT vs STANDARD/LARGE/FULLSCREEN */}
       <div data-calm-mixer
-        className="flex-grow flex flex-col min-h-0 overflow-y-auto overflow-x-hidden gap-2.5 py-1">
+        className={`flex-grow flex flex-col min-h-0 ${isBoardMixer ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden'} gap-2.5 py-1`}>
         
         {/* COMPACT LAYOUT (280–379 px) */}
         {size.category === 'compact' ? (

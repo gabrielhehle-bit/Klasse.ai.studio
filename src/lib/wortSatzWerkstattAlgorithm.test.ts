@@ -19,6 +19,18 @@ import {
   initializeTaskItems,
 } from './wortSatzWerkstattAlgorithm';
 
+test('a closed workshop restores success only for the actual canonical task order in all three modes', () => {
+  for (const mode of ['word','compound','sentence'] as const) {
+    const state = createInitialWortSatzState(mode);
+    const task = mode === 'word' ? state.wordTasks[0] : mode === 'compound' ? state.compoundTasks[0] : state.sentenceTasks[0];
+    state.currentItems = getCanonicalParts(mode, task); state.isSolved = true;
+    const restored = migrateLegacyWortSatzWidgetSettings('wortsatzwerkstatt', state);
+    assert.equal(restored.isSolved,true); assert.equal(restored.checkFeedback,'correct');
+    const changed = migrateLegacyWortSatzWidgetSettings('wortsatzwerkstatt', {...state,currentItems:state.currentItems.slice().reverse()});
+    assert.equal(changed.isSolved,false); assert.equal(changed.checkFeedback,null);
+  }
+});
+
 test('1. word-Modus: initialisiert standardmäßig mit word-Modus und Wortaufgaben', () => {
   const state = createInitialWortSatzState('word');
   assert.equal(state.mode, 'word');

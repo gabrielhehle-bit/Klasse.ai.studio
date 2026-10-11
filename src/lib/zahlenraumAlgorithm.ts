@@ -45,6 +45,7 @@ export interface ZahlenraumSettings {
   jumps: Array<ZahlenraumJump>;
 
   quantityStyle?: QuantityStyle;
+  pendingJumpStep?: number;
 }
 
 export const PRESET_RANGES: Record<number, { min: number; max: number; label: string }> = {
@@ -102,8 +103,8 @@ export function getStructuredGridDots(
   tensCount: number;
   onesCount: number;
 } {
-  const safeCount = Math.min(range, Math.max(0, Math.floor(filledCount)));
-  const split = typeof splitValue === 'number' ? Math.min(safeCount, Math.max(0, Math.floor(splitValue))) : undefined;
+  const safeCount = Math.min(range, Math.max(0, Math.floor(Number.isFinite(filledCount) ? filledCount : 0)));
+  const split = typeof splitValue === 'number' && Number.isFinite(splitValue) ? Math.min(safeCount, Math.max(0, Math.floor(splitValue))) : undefined;
 
   let rows = 2;
   let cols = 5;
@@ -211,8 +212,8 @@ export interface LineTick {
  * Verhindert min = max, min > max, NaN oder absurde Bereiche.
  */
 export function validateLineRange(min: number, max: number): { min: number; max: number } {
-  let safeMin = isNaN(min) ? 0 : Math.floor(min);
-  let safeMax = isNaN(max) ? 100 : Math.floor(max);
+  let safeMin = Number.isFinite(min) ? Math.floor(min) : 0;
+  let safeMax = Number.isFinite(max) ? Math.floor(max) : 100;
 
   // Begrenzung auf einen sicheren Bildungsbereich [-10000, 10000]
   safeMin = Math.max(-10000, Math.min(9990, safeMin));
@@ -429,7 +430,7 @@ export function migrateLegacyMathWidget(
     base.quantityStyle = 'jaeger'; // Altes Anschauung nutzte die Jäger-Gras-Methode
     if (existingSettings) {
       if (typeof existingSettings.rasterNumber === 'number') {
-        base.quantityValue = Math.min(10, Math.max(0, existingSettings.rasterNumber));
+        base.quantityValue = Math.min(10, Math.max(0, Math.floor(Number.isFinite(existingSettings.rasterNumber) ? existingSettings.rasterNumber : 7)));
       }
       if (typeof existingSettings.style === 'string') {
         base.quantityStyle = existingSettings.style === 'classic' ? 'classic' : 'jaeger';
@@ -443,6 +444,8 @@ export function migrateLegacyMathWidget(
     if (existingSettings) {
       if (typeof existingSettings.customMin === 'number') base.customMin = existingSettings.customMin;
       if (typeof existingSettings.customMax === 'number') base.customMax = existingSettings.customMax;
+      if (Number.isFinite(existingSettings.customMin) && Number.isFinite(existingSettings.customMax) &&
+          (existingSettings.customMin !== 0 || existingSettings.customMax !== 100)) base.range = 'custom';
       if (typeof existingSettings.range === 'number' && [10, 20, 100, 1000].includes(existingSettings.range)) {
         base.range = existingSettings.range;
       }
@@ -452,29 +455,25 @@ export function migrateLegacyMathWidget(
     }
   }
 
-  // Falls bereits ein ZahlenraumSettings-Objekt vorliegt
-  if (existingSettings && (existingSettings.mode === 'quantity' || existingSettings.mode === 'numberline')) {
-    return {
-      ...base,
-      ...existingSettings,
-      // Sicherheitsbereinigung: kein placevalue
-      markers: Array.isArray(existingSettings.markers)
-        ? existingSettings.markers.map((m: any, i: number) => ({
-            id: m.id || `m${i + 1}`,
-            value: typeof m.value === 'number' ? m.value : 0,
-            labelHidden: !!m.labelHidden,
-          }))
-        : base.markers,
-      jumps: Array.isArray(existingSettings.jumps)
-        ? existingSettings.jumps.map((j: any, i: number) => ({
-            id: j.id || `j${i + 1}`,
-            from: typeof j.from === 'number' ? j.from : 0,
-            step: typeof j.step === 'number' ? j.step : (j.to - j.from || 1),
-            to: typeof j.to === 'number' ? j.to : (j.from + (j.step || 1)),
-          }))
-        : base.jumps,
-    };
-  }
-
-  return base;
+  const raw = existingSettings && (existingSettings.mode === 'quantity' || existingSettings.mode === 'numberline')
+    ? existingSettings : base;
+  const mode: ZahlenraumMode = raw.mode === 'numberline' ? 'numberline' : 'quantity';
+  let range: ZahlenraumRange = [10, 20, 100, 1000, 'custom'].includes(raw.range) ? raw.range : base.range;
+  if (mode === 'quantity' && (range === 'custom' || range === 1000)) range = 100;
+  const bounds = validateLineRange(raw.customMin ?? 0, raw.customMax ?? 100);
+  const visible = range === 'custom' ? bounds : PRESET_RANGES[range];
+  const quantityValue = Math.max(0, Math.min(typeof range === 'number' ? range : 100,
+    Number.isFinite(raw.quantityValue) ? Math.floor(raw.quantityValue) : base.quantityValue));
+  const markerCandidates = Array.isArray(raw.markers) ? raw.markers : base.markers;
+  const markers = validateMarkers(markerCandidates.filter((m: any) => m && Number.isFinite(m.value))
+    .map((m: any, i: number) => ({ id: `m${i + 1}`, value: Math.round(m.value), labelHidden: m.labelHidden === true })), visible.min, visible.max);
+  if (!markers.length) markers.push({ id: 'm1', value: Math.max(visible.min, Math.min(visible.max, quantityValue)), labelHidden: false });
+  const jumps = validateJumps((Array.isArray(raw.jumps) ? raw.jumps : []).filter((j: any) =>
+    j && Number.isInteger(j.from) && Number.isInteger(j.to) && Number.isInteger(j.step) && j.step !== 0 && j.from + j.step === j.to)
+    .map((j: ZahlenraumJump, i: number) => ({ id: `j${i + 1}`, from: j.from, to: j.to, step: j.step })), visible.min, visible.max);
+  return { mode, range, quantityValue,
+    splitValue: Number.isFinite(raw.splitValue) ? Math.max(0, Math.min(quantityValue, Math.floor(raw.splitValue))) : undefined,
+    customMin: bounds.min, customMax: bounds.max, markers, jumps,
+    quantityStyle: raw.quantityStyle === 'jaeger' ? 'jaeger' : 'classic',
+    pendingJumpStep: Number.isInteger(raw.pendingJumpStep) && Math.abs(raw.pendingJumpStep) <= 20000 ? raw.pendingJumpStep : 10 };
 }
