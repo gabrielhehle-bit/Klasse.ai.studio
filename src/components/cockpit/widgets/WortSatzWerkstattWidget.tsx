@@ -248,6 +248,7 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
         ...prev,
         currentItems: newItems,
         selectedIndex: newIndex,
+        isSolved: false,
         checkFeedback: null,
       };
       return next;
@@ -268,6 +269,7 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
         ...prev,
         currentItems: newItems,
         selectedIndex: newIndex,
+        isSolved: false,
         checkFeedback: null,
       };
       return next;

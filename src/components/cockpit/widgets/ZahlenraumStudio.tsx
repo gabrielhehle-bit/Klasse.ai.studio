@@ -1,4 +1,5 @@
-import React, { useState, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Grid3X3, 
   MoveRight, 
@@ -44,6 +45,23 @@ export interface ZahlenraumStudioProps {
   onCloseSettings?: () => void;
 }
 
+// Keep signed integer drafts (including an unfinished minus) separate from saved numbers.
+const SignedIntegerInput: React.FC<Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> & {
+  value: number; onValueChange: (value: number) => void;
+}> = ({ value, onValueChange, ...props }) => {
+  const [draft, setDraft] = useState(String(value));
+  const editing = useRef(false);
+  useEffect(() => { if (!editing.current) setDraft(String(value)); }, [value]);
+  return <input {...props} type="text" inputMode="text" value={draft}
+    onFocus={() => { editing.current = true; }}
+    onBlur={() => { editing.current = false; setDraft(String(value)); }}
+    onChange={event => {
+      const next = event.currentTarget.value;
+      setDraft(next);
+      if (/^-?\d+$/.test(next) && Number.isSafeInteger(Number(next))) onValueChange(Number(next));
+    }} />;
+};
+
 export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
   widget,
   onUpdate,
@@ -81,8 +99,29 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
   // Modus B – Zahlenstrahl-State
   const [markers, setMarkers] = useState<ZahlenraumMarker[]>(initialSettings.markers);
   const [jumps, setJumps] = useState<ZahlenraumJump[]>(initialSettings.jumps);
-  const [newJumpStep, setNewJumpStep] = useState<number>(10);
+  const [newJumpStep, setNewJumpStep] = useState<number>(initialSettings.pendingJumpStep ?? 10);
   const [showCustomRangeInputs, setShowCustomRangeInputs] = useState<boolean>(initialSettings.range === 'custom');
+  const settingsRef = useRef(initialSettings);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const applySettings = useCallback((next: ZahlenraumSettings) => {
+    settingsRef.current = next;
+    setMode(next.mode); setRange(next.range); setQuantityValue(next.quantityValue);
+    setQuantityStyle(next.quantityStyle ?? 'classic');
+    setSplitActive(next.splitValue !== undefined); setSplitValue(next.splitValue ?? 0);
+    setCustomMin(next.customMin ?? 0); setCustomMax(next.customMax ?? 100);
+    setMarkers(next.markers); setJumps(next.jumps); setShowCustomRangeInputs(next.range === 'custom');
+    setNewJumpStep(next.pendingJumpStep ?? 10);
+  }, []);
+  useEffect(() => {
+    if (JSON.stringify(initialSettings) !== JSON.stringify(settingsRef.current)) applySettings(initialSettings);
+  }, [initialSettings, applySettings]);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!showSettings || !dialog) return;
+    const trigger = containerRef.current?.closest('[data-widget-type]')?.querySelector<HTMLButtonElement>('.cockpit-widget-settings-trigger');
+    dialog.showModal();
+    return () => { if (dialog.open) dialog.close(); trigger?.focus(); };
+  }, [showSettings]);
 
   // Bereichsgrenzen für Zahlenstrahl ermitteln
   const { min: currentMin, max: currentMax } = useMemo(() => {
@@ -95,29 +134,15 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
 
   // Persistenz
   const persist = useCallback((updates: Partial<ZahlenraumSettings>) => {
-    if (!onUpdate) return;
-    const nextSettings: ZahlenraumSettings = {
-      mode,
-      range,
-      quantityValue,
-      splitValue: splitActive ? splitValue : undefined,
-      customMin,
-      customMax,
-      markers,
-      jumps,
-      quantityStyle,
-      ...updates,
-    };
-    onUpdate({
+    const nextSettings = migrateLegacyMathWidget('zahlenraum', { ...settingsRef.current, ...updates });
+    applySettings(nextSettings);
+    onUpdate?.({
       settings: {
         ...(widget?.settings || {}),
         ...nextSettings,
       },
     });
-  }, [
-    onUpdate, widget?.settings, mode, range, quantityValue, splitActive,
-    splitValue, customMin, customMax, markers, jumps, quantityStyle
-  ]);
+  }, [onUpdate, widget?.settings, applySettings]);
 
   // Modus wechseln
   const handleSelectMode = (newMode: ZahlenraumMode) => {
@@ -252,9 +277,12 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
 
   // Klick auf Zahlenstrahl SVG
   const handleLineClick = (e: React.MouseEvent<SVGSVGElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const computedVal = numberLineValueAtClick(clickX, rect.width, currentMin, currentMax);
+    const matrix = e.currentTarget.getScreenCTM();
+    if (!matrix) return;
+    const point = e.currentTarget.createSVGPoint();
+    point.x = e.clientX; point.y = e.clientY;
+    const clickX = point.matrixTransform(matrix.inverse()).x;
+    const computedVal = numberLineValueAtClick(clickX, 1000, currentMin, currentMax);
     if (computedVal === null) return;
     handleAddOrUpdateMarker(computedVal);
   };
@@ -282,12 +310,21 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
     <div 
       ref={containerRef}
       id="zahlenraum-studio-container"
-      className={`min-h-full w-full flex flex-col select-none overflow-visible font-sans ${
+      data-practice-root={widget?.type ?? 'zahlenraum'}
+      data-zahlenraum-mode={mode} data-zahlenraum-range={range}
+      className={`h-full min-h-0 w-full flex flex-col select-none overflow-hidden font-sans ${
         currentIsLight ? 'bg-slate-50 text-slate-800' : 'bg-slate-900 text-slate-100'
       }`}
     >
       {/* The widget title's gear controls this configuration toolbar. */}
-      {showSettings && <div 
+      {showSettings && createPortal(<dialog ref={dialogRef} aria-label="Zahlenraum einstellen"
+        onCancel={(event) => { event.preventDefault(); onCloseSettings?.(); }}
+        onKeyDown={event => {
+          event.stopPropagation();
+          if (event.key === 'Escape') { event.preventDefault(); onCloseSettings?.(); }
+        }}
+        className="fixed inset-0 m-auto w-[min(700px,calc(100vw-32px))] max-h-[calc(100dvh-32px)] rounded-2xl border border-slate-300 bg-white p-3 text-slate-800 dark:bg-slate-950 dark:text-slate-100 backdrop:bg-black/40">
+      <div
         id="zahlenraum-toolbar"
         role="group" aria-label="Zahlenraum einstellen"
         className={`shrink-0 flex items-center justify-between border-b px-3 py-2 gap-2 flex-wrap ${
@@ -303,6 +340,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
         <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg">
           <button
             id="zahlenraum-mode-quantity-btn"
+            aria-pressed={mode === 'quantity'}
             type="button"
             onClick={() => handleSelectMode('quantity')}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all min-h-11 ${
@@ -316,6 +354,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
           </button>
           <button
             id="zahlenraum-mode-numberline-btn"
+            aria-pressed={mode === 'numberline'}
             type="button"
             onClick={() => handleSelectMode('numberline')}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all min-h-11 ${
@@ -337,6 +376,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
               <button
                 key={r}
                 id={`zahlenraum-range-${r}-btn`}
+                aria-pressed={range === r}
                 type="button"
                 onClick={() => handleSelectRange(r as ZahlenraumRange)}
                 className={`px-2 py-1 text-xs font-medium rounded-md transition-all min-h-11 min-w-[44px] ${
@@ -355,6 +395,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                 <button
                   key={r}
                   id={`zahlenraum-range-${r}-btn`}
+                  aria-pressed={range === r}
                   type="button"
                   onClick={() => handleSelectRange(r as ZahlenraumRange)}
                   className={`px-2 py-1 text-xs font-medium rounded-md transition-all min-h-11 ${
@@ -368,6 +409,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
               ))}
               <button
                 id="zahlenraum-range-custom-btn"
+                aria-pressed={range === 'custom'}
                 type="button"
                 onClick={() => handleSelectRange('custom')}
                 className={`px-2 py-1 text-xs font-medium rounded-md transition-all min-h-11 flex items-center gap-1 ${
@@ -382,17 +424,17 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
             </>
           )}
         </div>
-      </div>}
+      </div></dialog>, document.body)}
 
       {/* Hauptbereich */}
-      <div className={`flex-1 flex flex-col min-h-0 overflow-visible ${isCompact ? 'p-2 gap-2' : isFullscreen ? 'p-4 gap-4' : 'p-3 gap-3'}`}>
+      <div className="flex-1 flex flex-col min-h-0 p-3 gap-2">
         {mode === 'quantity' ? (
           /* =========================================================================
              MODUS A: MENGEN & ZAHLENBILDER
              ========================================================================= */
-          <div className="flex-1 flex flex-col items-center justify-between gap-3">
+          <div className="flex-1 min-h-0 flex flex-col items-center justify-between gap-2">
             {/* Steuerung für Mengenwert & Zerlegung */}
-            <div 
+            <div
               id="zahlenraum-quantity-controls"
               className={`w-full max-w-xl flex items-center justify-between gap-2 p-2 rounded-xl border flex-wrap ${
                 currentIsLight ? 'bg-white border-slate-200' : 'bg-slate-950 border-slate-800'
@@ -418,6 +460,9 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                 >
                   {quantityValue}
                 </span>
+                <input type="number" min={0} max={quantityRange} value={quantityValue}
+                  aria-label="Menge eingeben" onChange={e => updateQuantityValue(Number(e.target.value))}
+                  className="min-h-11 w-20 rounded-lg border border-slate-300 bg-transparent px-2 text-center font-mono" />
 
                 <button
                   id="zahlenraum-quantity-inc-btn"
@@ -436,6 +481,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                 {range === 10 && (
                   <button
                     id="zahlenraum-toggle-style-btn"
+                    aria-pressed={quantityStyle === 'jaeger'}
                     type="button"
                     onClick={() => {
                       const next = quantityStyle === 'classic' ? 'jaeger' : 'classic';
@@ -454,6 +500,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
 
                 <button
                   id="zahlenraum-toggle-split-btn"
+                  aria-pressed={splitActive}
                   type="button"
                   onClick={toggleSplit}
                   className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg border flex items-center gap-1.5 min-h-[44px] transition-all ${
@@ -470,7 +517,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
 
             {/* Zerlegungs-Slider falls aktiv */}
             {splitActive && (
-              <div 
+              <div
                 id="zahlenraum-split-panel"
                 className={`w-full max-w-xl flex items-center justify-between p-2.5 rounded-xl border gap-3 ${
                   currentIsLight ? 'bg-amber-50/70 border-amber-200' : 'bg-amber-950/30 border-amber-800/60'
@@ -481,6 +528,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                 </span>
                 <input
                   id="zahlenraum-split-slider"
+                  aria-label="Ersten Teil der Zerlegung einstellen"
                   type="range"
                   min="0"
                   max={quantityValue}
@@ -490,22 +538,23 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                     setSplitValue(val);
                     persist({ splitValue: val });
                   }}
-                  className="w-48 accent-amber-600"
+                  className="h-11 w-48 accent-amber-600"
                 />
               </div>
             )}
 
             {/* Die visuelle Punktmatrix */}
-            <div 
+            <div
               id="zahlenraum-matrix-wrapper"
-              className={`flex-1 flex flex-col items-center justify-center w-full max-w-3xl p-4 rounded-2xl border transition-all ${
+              className={`flex-1 min-h-0 flex flex-col items-center justify-center w-full max-w-3xl p-2 rounded-2xl border transition-all ${
                 currentIsLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-950 border-slate-800'
               }`}
             >
               {/* Optionales Gras-Band bei Jäger-Stil */}
-              <div 
+              <div
                 id="zahlenraum-grid"
-                className="grid gap-2 items-center justify-center p-2"
+                role="group" aria-label={`${quantityValue} Punkte im ${quantityRange}er-Feld`}
+                className={`grid ${quantityRange === 100 ? 'gap-1' : 'gap-2'} items-center justify-center p-1`}
                 style={{
                   gridTemplateColumns: `repeat(${gridDots.cols}, minmax(0, 1fr))`,
                 }}
@@ -527,19 +576,23 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
 
                   const dotSizeClass = 
                     quantityRange === 10 ? 'w-12 h-12 text-base' :
-                    quantityRange === 20 ? 'w-8 h-8 sm:w-10 sm:h-10 text-sm' :
-                    'w-5 h-5 sm:w-6 sm:h-6 text-[10px]';
+                    quantityRange === 20 ? 'w-11 h-11 text-sm' :
+                    'w-4 h-4 text-[10px]';
+                  const Dot = quantityRange === 100 ? 'span' : 'button';
 
                   return (
-                    <div
+                    <Dot
                       key={dot.index}
                       id={`dot-${dot.index}`}
-                      onClick={() => updateQuantityValue(dot.index)}
-                      className={`cursor-pointer rounded-full flex items-center justify-center font-bold font-mono transition-transform active:scale-90 select-none ${dotSizeClass} ${colMargin} ${rowMargin} ${dotBg}`}
+                      {...(quantityRange === 100 ? { 'aria-hidden': true as const } : {
+                        type: 'button' as const, 'aria-label': `Menge ${dot.index} wählen`, onClick: () => updateQuantityValue(dot.index),
+                      })}
+                      data-grid-filled={dot.isFilled} data-grid-color={dot.colorType}
+                      className={`rounded-full flex items-center justify-center font-bold font-mono select-none ${dotSizeClass} ${colMargin} ${rowMargin} ${dotBg}`}
                       title={`Punkt ${dot.index}`}
                     >
                       {dot.isFilled && quantityRange <= 20 && dot.index}
-                    </div>
+                    </Dot>
                   );
                 })}
               </div>
@@ -559,7 +612,8 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                   key={v}
                   type="button"
                   onClick={() => updateQuantityValue(v)}
-                  className="px-2.5 py-1 text-xs font-semibold rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all min-h-11"
+                  aria-label={`Menge ${v} einstellen`}
+                  className="px-2.5 py-1 text-xs font-semibold rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all min-h-11 min-w-11"
                 >
                   {v}
                 </button>
@@ -570,10 +624,10 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
           /* =========================================================================
              MODUS B: ZAHLENSTRAHL
              ========================================================================= */
-          <div className="flex-1 flex flex-col justify-between gap-3">
+          <div className="flex-1 min-h-0 flex flex-col justify-between gap-2">
             {/* Custom Range Eingabefelder bei eigenem Bereich */}
             {showCustomRangeInputs && (
-              <div 
+              <div
                 id="zahlenraum-custom-range-bar"
                 className={`flex items-center gap-2 p-2 rounded-xl border text-xs flex-wrap ${
                   currentIsLight ? 'bg-white border-slate-200' : 'bg-slate-950 border-slate-800'
@@ -582,45 +636,39 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                 <span className="font-semibold text-slate-500">Bereich:</span>
                 <label className="flex items-center gap-1">
                   <span>Min:</span>
-                  <input
+                  <SignedIntegerInput
                     id="zahlenraum-custom-min-input"
-                    type="number"
                     value={customMin}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value, 10) || 0;
-                      setCustomMin(val);
-                      persist({ customMin: val });
-                    }}
+                    onValueChange={setCustomMin}
+                    aria-label="Zahlenstrahl von"
                     className="min-h-11 w-24 px-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent font-mono text-center"
                   />
                 </label>
                 <label className="flex items-center gap-1">
                   <span>Max:</span>
-                  <input
+                  <SignedIntegerInput
                     id="zahlenraum-custom-max-input"
-                    type="number"
                     value={customMax}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value, 10) || 100;
-                      setCustomMax(val);
-                      persist({ customMax: val });
-                    }}
+                    onValueChange={setCustomMax}
+                    aria-label="Zahlenstrahl bis"
                     className="min-h-11 w-24 px-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent font-mono text-center"
                   />
                 </label>
+                <button type="button" className="min-h-11 rounded-lg border px-3 font-semibold"
+                  onClick={() => persist({customMin, customMax})}>Bereich anwenden</button>
                 <span className="text-slate-400">(z. B. 200–300 oder -50–50)</span>
               </div>
             )}
 
             {/* Zahlenstrahl SVG Visualisierung */}
-            <div 
+            <div
               id="zahlenraum-numberline-canvas"
-              className={`flex-1 min-h-[160px] flex items-center justify-center p-3 rounded-2xl border relative select-none ${
+              className={`flex-1 min-h-[120px] flex items-center justify-center p-3 rounded-2xl border relative select-none ${
                 currentIsLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-950 border-slate-800'
               }`}
             >
               <svg
-                viewBox="0 0 1000 130"
+                viewBox="0 0 1000 200"
                 className="w-full h-full overflow-visible cursor-crosshair"
                 onClick={handleLineClick}
                 preserveAspectRatio="xMidYMid meet"
@@ -639,7 +687,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                 </defs>
 
                 {/* Rechensprünge (Halbbögen mit Beschriftung) */}
-                {jumps.map((jump) => {
+                {jumps.map((jump, index) => {
                   const fromPct = getLinePercentage(jump.from, currentMin, currentMax);
                   const toPct = getLinePercentage(jump.to, currentMin, currentMax);
                   const fromX = 40 + (fromPct / 100) * 920;
@@ -660,18 +708,18 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                       />
                       {/* Badge für Schrittweite */}
                       <rect
-                        x={arc.midX - 16}
-                        y={arc.midY - 14}
-                        width="32"
-                        height="16"
+                        x={arc.midX - Math.max(26, stepSign.length * 7 + 10)}
+                        y={112 + (index % 3) * 28}
+                        width={Math.max(52, stepSign.length * 14 + 20)}
+                        height="26"
                         rx="4"
                         fill="#f59e0b"
                       />
                       <text
                         x={arc.midX}
-                        y={arc.midY - 2}
+                        y={132 + (index % 3) * 28}
                         textAnchor="middle"
-                        fontSize="10"
+                        fontSize="22"
                         fontWeight="bold"
                         fill="#ffffff"
                         fontFamily="monospace"
@@ -721,7 +769,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                           x={x}
                           y={98}
                           textAnchor="middle"
-                          fontSize="11"
+                          fontSize="22"
                           fontWeight={tick.type === 'major' ? '600' : 'normal'}
                           fill={currentIsLight ? '#475569' : '#94a3b8'}
                           fontFamily="monospace"
@@ -762,18 +810,18 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                       />
                       {/* Label-Box oberhalb des Pins */}
                       <rect
-                        x={x - 18}
-                        y="10"
-                        width="36"
-                        height="18"
+                        x={x - Math.max(26, String(marker.value).length * 7 + 10)}
+                        y="0"
+                        width={Math.max(52, String(marker.value).length * 14 + 20)}
+                        height="28"
                         rx="4"
                         fill={isMain ? 'var(--accent)' : '#0ea5e9'}
                       />
                       <text
                         x={x}
-                        y="23"
+                        y="21"
                         textAnchor="middle"
-                        fontSize="10"
+                        fontSize="22"
                         fontWeight="bold"
                         fill="#ffffff"
                         fontFamily="monospace"
@@ -787,19 +835,19 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
             </div>
 
             {/* Steuerung für Marker & Sprünge */}
-            <div 
+            <div
               id="zahlenraum-line-controls"
               className={`w-full flex flex-col gap-2 p-2.5 rounded-xl border text-xs ${
                 currentIsLight ? 'bg-white border-slate-200' : 'bg-slate-950 border-slate-800'
               }`}
             >
               {/* Marker-Leiste */}
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold text-slate-500">Marker:</span>
+              <div className="flex items-start justify-between gap-2">
+                <div className="grid flex-1 grid-cols-3 gap-2">
                   {markers.map((m, idx) => (
-                    <div 
+                    <div
                       key={m.id}
+                      data-number-marker={m.value}
                       className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700"
                     >
                       <span className="font-bold font-mono text-accent">
@@ -810,6 +858,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                         onClick={() => handleToggleMarkerVisibility(m.id)}
                         className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-accent-soft hover:text-accent"
                         title={m.labelHidden ? 'Zahl aufdecken' : 'Zahl verdecken'}
+                        aria-label={`Marker ${idx + 1} ${m.labelHidden ? 'aufdecken' : 'verdecken'}`}
                       >
                         {m.labelHidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
                       </button>
@@ -819,6 +868,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                           onClick={() => handleRemoveMarker(m.id)}
                           className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-rose-50 hover:text-rose-600 text-slate-400 dark:hover:bg-rose-950/30"
                           title="Marker entfernen"
+                          aria-label={`Marker ${idx + 1} entfernen`}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -845,16 +895,11 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                 {/* Direkte Zahleingabe für Hauptmarker */}
                 <div className="flex items-center gap-1.5">
                   <span className="text-slate-500">Wert:</span>
-                  <input
+                  <SignedIntegerInput
                     id="zahlenraum-main-marker-input"
-                    type="number"
+                    aria-label="Hauptmarker eingeben"
                     value={markers[0]?.value ?? currentMin}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value, 10);
-                      if (!isNaN(val) && markers[0]) {
-                        handleUpdateMarkerValue(markers[0].id, val);
-                      }
-                    }}
+                    onValueChange={val => { if (markers[0]) handleUpdateMarkerValue(markers[0].id, val); }}
                     className="min-h-11 w-24 px-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent font-mono text-center font-bold"
                   />
                 </div>
@@ -863,14 +908,13 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
               {/* Sprünge-Leiste */}
               <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 flex-wrap">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="font-semibold text-slate-500">Sprung hinzufügen:</span>
                   {[1, 5, 10, 50, 100].map((step) => (
                     <button
                       key={step}
                       type="button"
                       onClick={() => handleAddJump(step)}
-                      disabled={jumps.length >= 10}
-                      className="px-2 py-1 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800 font-mono font-semibold hover:bg-amber-100 min-h-11"
+                      disabled={jumps.length >= 10 || (jumps.at(-1)?.to ?? markers[0]?.value ?? currentMin) + step > currentMax}
+                      className="px-2 py-1 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800 font-mono font-semibold hover:bg-amber-100 min-h-11 min-w-11 disabled:opacity-40"
                     >
                       +{step}
                     </button>
@@ -880,12 +924,20 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                       key={`neg-${step}`}
                       type="button"
                       onClick={() => handleAddJump(-step)}
-                      disabled={jumps.length >= 10}
-                      className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-mono font-semibold hover:bg-slate-200 min-h-11"
+                      disabled={jumps.length >= 10 || (jumps.at(-1)?.to ?? markers[0]?.value ?? currentMin) - step < currentMin}
+                      className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-mono font-semibold hover:bg-slate-200 min-h-11 min-w-11 disabled:opacity-40"
                     >
                       -{step}
                     </button>
                   ))}
+                  <SignedIntegerInput aria-label="Eigene Sprungweite" value={newJumpStep}
+                    onValueChange={val => persist({pendingJumpStep: val})}
+                    className="min-h-11 w-16 rounded-lg border bg-transparent px-2 text-center font-mono" />
+                  <button type="button" aria-label="Eigenen Rechensprung hinzufügen" className="min-h-11 min-w-11 rounded-lg border disabled:opacity-40"
+                    disabled={!Number.isInteger(newJumpStep) || newJumpStep === 0 || jumps.length >= 10 ||
+                      (jumps.at(-1)?.to ?? markers[0]?.value ?? currentMin) + newJumpStep < currentMin ||
+                      (jumps.at(-1)?.to ?? markers[0]?.value ?? currentMin) + newJumpStep > currentMax}
+                    onClick={() => handleAddJump(newJumpStep)}><Plus className="mx-auto h-4 w-4" /></button>
                 </div>
 
                 {jumps.length > 0 && (
@@ -893,10 +945,11 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                     id="zahlenraum-clear-jumps-btn"
                     type="button"
                     onClick={handleClearJumps}
-                    className="flex items-center gap-1 px-2 py-1 text-slate-500 hover:text-rose-600 transition-all min-h-11"
+                    aria-label="Alle Rechensprünge löschen"
+                    className="flex items-center gap-1 px-2 py-1 text-slate-500 hover:text-rose-600 transition-all min-h-11 min-w-11"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Sprünge löschen ({jumps.length})</span>
+                    <span>Leeren ({jumps.length})</span>
                   </button>
                 )}
               </div>

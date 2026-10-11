@@ -80,7 +80,7 @@ export function sanitizeCalmSettings(raw?: any): CalmSoundSettings {
     return { ...DEFAULT_CALM_SETTINGS };
   }
 
-  const masterVol = typeof raw.masterVolume === 'number'
+  const masterVol = Number.isFinite(raw.masterVolume)
     ? Math.max(0, Math.min(100, Math.round(raw.masterVolume)))
     : DEFAULT_CALM_SETTINGS.masterVolume;
 
@@ -89,11 +89,11 @@ export function sanitizeCalmSettings(raw?: any): CalmSoundSettings {
     : DEFAULT_CALM_SETTINGS.timerMinutes;
 
   const volumes: Record<CalmTrackId, number> = {
-    rain: typeof raw.volumes?.rain === 'number' ? Math.max(0, Math.min(100, raw.volumes.rain)) : 50,
-    wind: typeof raw.volumes?.wind === 'number' ? Math.max(0, Math.min(100, raw.volumes.wind)) : 30,
-    fire: typeof raw.volumes?.fire === 'number' ? Math.max(0, Math.min(100, raw.volumes.fire)) : 25,
-    birds: typeof raw.volumes?.birds === 'number' ? Math.max(0, Math.min(100, raw.volumes.birds)) : 30,
-    stream: typeof raw.volumes?.stream === 'number' ? Math.max(0, Math.min(100, raw.volumes.stream)) : 35,
+    rain: Number.isFinite(raw.volumes?.rain) ? Math.max(0, Math.min(100, raw.volumes.rain)) : 50,
+    wind: Number.isFinite(raw.volumes?.wind) ? Math.max(0, Math.min(100, raw.volumes.wind)) : 30,
+    fire: Number.isFinite(raw.volumes?.fire) ? Math.max(0, Math.min(100, raw.volumes.fire)) : 25,
+    birds: Number.isFinite(raw.volumes?.birds) ? Math.max(0, Math.min(100, raw.volumes.birds)) : 30,
+    stream: Number.isFinite(raw.volumes?.stream) ? Math.max(0, Math.min(100, raw.volumes.stream)) : 35,
   };
 
   const activeTracks: Record<CalmTrackId, boolean> = {
@@ -266,7 +266,13 @@ export function calculateBreathingPhase(
 export class CalmAudioEngine {
   private ctx: AudioContext | null = null;
   private isRunning: boolean = false;
-  private timeouts: any[] = [];
+  private timeouts = new Set<ReturnType<typeof setTimeout>>();
+  private liveSettings: CalmSoundSettings = sanitizeCalmSettings();
+
+  private schedule(callback: () => void, delay: number): void {
+    const id = setTimeout(() => { this.timeouts.delete(id); callback(); }, delay);
+    this.timeouts.add(id);
+  }
 
   // Gains je Spur
   private masterGain: GainNode | null = null;
@@ -312,7 +318,8 @@ export class CalmAudioEngine {
       const ctx = new AudioCtxClass();
       this.ctx = ctx;
       this.isRunning = true;
-      this.timeouts = [];
+      this.timeouts.clear();
+      this.liveSettings = sanitizeCalmSettings(settings);
 
       const now = ctx.currentTime;
 
@@ -358,6 +365,7 @@ export class CalmAudioEngine {
       // Regierungs-Tropfen Taps
       const playRainDrops = () => {
         if (!this.isRunning || !this.ctx) return;
+        const settings = this.liveSettings;
         try {
           if (settings.activeTracks.rain && settings.volumes.rain > 5) {
             const dropOsc = ctx.createOscillator();
@@ -380,8 +388,7 @@ export class CalmAudioEngine {
         } catch {}
 
         const nextTime = 30 + Math.random() * 120;
-        const tId = setTimeout(playRainDrops, nextTime);
-        this.timeouts.push(tId);
+        this.schedule(playRainDrops, nextTime);
       };
       playRainDrops();
 
@@ -447,6 +454,7 @@ export class CalmAudioEngine {
 
       const playWoodCrackles = () => {
         if (!this.isRunning || !this.ctx) return;
+        const settings = this.liveSettings;
         try {
           if (settings.activeTracks.fire && settings.volumes.fire > 5) {
             const t = ctx.currentTime;
@@ -465,8 +473,7 @@ export class CalmAudioEngine {
         } catch {}
 
         const nextTime = 60 + Math.random() * 750;
-        const tId = setTimeout(playWoodCrackles, nextTime);
-        this.timeouts.push(tId);
+        this.schedule(playWoodCrackles, nextTime);
       };
       playWoodCrackles();
 
@@ -479,6 +486,7 @@ export class CalmAudioEngine {
 
       const playBirdChirps = () => {
         if (!this.isRunning || !this.ctx) return;
+        const settings = this.liveSettings;
         try {
           if (settings.activeTracks.birds && settings.volumes.birds > 5) {
             const t = ctx.currentTime;
@@ -528,8 +536,7 @@ export class CalmAudioEngine {
         } catch {}
 
         const nextTime = 3000 + Math.random() * 5000;
-        const tId = setTimeout(playBirdChirps, nextTime);
-        this.timeouts.push(tId);
+        this.schedule(playBirdChirps, nextTime);
       };
       playBirdChirps();
 
@@ -575,6 +582,7 @@ export class CalmAudioEngine {
    * Passt die Lautstärken in Echtzeit an ohne Störgeräusche
    */
   public updateVolumes(settings: CalmSoundSettings): void {
+    this.liveSettings = sanitizeCalmSettings(settings);
     if (!this.isRunning || !this.ctx) return;
     try {
       const now = this.ctx.currentTime;
@@ -612,9 +620,9 @@ export class CalmAudioEngine {
     this.isRunning = false;
 
     // Alle Timeouts aufräumen
-    if (this.timeouts.length > 0) {
+    if (this.timeouts.size > 0) {
       this.timeouts.forEach(clearTimeout);
-      this.timeouts = [];
+      this.timeouts.clear();
     }
 
     // Oscillators stoppen

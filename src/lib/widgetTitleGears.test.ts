@@ -31,7 +31,7 @@ test('Maths 17–19: the gear opens settings rather than resizing the widget or 
     assert.match(board.slice(index, index + 680), /showSettings=\{widgetSettingsOpenId === widget\.id\}/);
     assert.match(board.slice(index, index + 800), /onCloseSettings=\{\(\) => setWidgetSettingsOpenId\(null\)\}/);
   }
-  assert.match(zahlenraum, /\{showSettings && <div[\s\S]*?id="zahlenraum-toolbar"/);
+  assert.match(zahlenraum, /\{showSettings && createPortal\(<dialog[\s\S]*?id="zahlenraum-toolbar"/);
   assert.match(kopfrechnen, /const showSettingsDrawer = showSettings;/);
   assert.match(fractions, /\{showSettings && <div role="group" aria-label="Bruchdarstellung einstellen"/);
 });

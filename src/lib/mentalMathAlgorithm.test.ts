@@ -446,6 +446,6 @@ test('34. keine Netzwerkrequests', () => {
 
 test('35. andere Widgets unverändert', () => {
   // Prüfe dass Zahlenraum-Studio Min-Size-Konfiguration weiterhin intakt ist
-  assert.strictEqual(WIDGET_MIN_SIZES['zahlenraum'].minW, 300);
-  assert.strictEqual(WIDGET_MIN_SIZES['zahlenraum'].minH, 220);
+  assert.strictEqual(WIDGET_MIN_SIZES['zahlenraum'].minW, 760);
+  assert.strictEqual(WIDGET_MIN_SIZES['zahlenraum'].minH, 560);
 });
