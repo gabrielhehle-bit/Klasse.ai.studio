@@ -666,12 +666,14 @@ export class CalmAudioEngine {
 /**
  * Spielt einen optionalen sanften Chime bei Phasenwechsel der Atemübung ab
  */
-export function playBreathingChime(phase: BreathingPhase): boolean {
+export function playBreathingChime(phase: BreathingPhase, onContext?: (ctx: AudioContext) => void): boolean {
   try {
     if (typeof window === 'undefined') return false;
     const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioCtxClass) return false;
+    if (phase === 'rest') return false;
     const ctx = new AudioCtxClass();
+    onContext?.(ctx);
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -707,12 +709,7 @@ export function playBreathingChime(phase: BreathingPhase): boolean {
     osc.start(now);
     osc.stop(now + 2.0);
 
-    // Context nach Abklingen schließen
-    setTimeout(() => {
-      try {
-        if (ctx.state !== 'closed') ctx.close().catch(() => {});
-      } catch {}
-    }, 2200);
+    osc.onended = () => { if (ctx.state !== 'closed') void ctx.close().catch(() => {}); };
   } catch {
     return false;
   }

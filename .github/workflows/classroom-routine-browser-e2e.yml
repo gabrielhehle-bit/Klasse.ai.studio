@@ -12,6 +12,8 @@ on:
       - 'src/components/cockpit/MusicPracticeWidgets.tsx'
       - 'src/components/cockpit/widgets/MusicSoundsStudio.tsx'
       - 'src/lib/musicPractice.ts'
+      - 'src/components/cockpit/WellbeingWidgets.tsx'
+      - 'src/lib/wellbeingPractice.ts'
       - 'src/components/cockpit/widgets/LernwoerterStudioWidget.tsx'
       - 'src/components/cockpit/widgets/WortSatzWerkstattWidget.tsx'
       - 'src/components/cockpit/widgets/StoryEmojisWidget.tsx'

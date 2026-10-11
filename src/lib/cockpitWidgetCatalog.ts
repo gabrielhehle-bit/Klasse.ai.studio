@@ -503,7 +503,7 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                       {
                                         type: "watertracker",
                                         label: "💧 Wasserbedarf-Tracker",
-                                        desc: "Tagesbedarfskontrolle",
+                                        desc: "Trinkmenge protokollieren, ohne pauschales Tagesziel",
                                         category: "mindfulness",
                                       },
                                       {
