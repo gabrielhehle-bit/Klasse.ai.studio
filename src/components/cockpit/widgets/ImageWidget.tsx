@@ -98,6 +98,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
   const [imageUrl, setImageUrl] = useState<string | null>(initialSettings.imageUrl);
   const [altText, setAltText] = useState<string>(initialSettings.altText);
   const [fileName, setFileName] = useState<string | undefined>(initialSettings.fileName);
+  const persistedSource = useRef(initialSettings.imageUrl);
   const [rotation, setRotation] = useState<number>(initialSettings.rotation);
   const [scale, setScale] = useState<number>(initialSettings.scale);
   const [pan, setPan] = useState<{ x: number; y: number }>({
@@ -149,6 +150,11 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
   // Synchronisieren, wenn sich widget.settings von außen ändert
   useEffect(() => {
     const canonical = getCanonicalImageSettings(widget?.settings);
+    if (persistedSource.current !== canonical.imageUrl) {
+      persistedSource.current = canonical.imageUrl;
+      loadVersion.current++;
+      setIsProcessing(false);
+    }
     setImageUrl(canonical.imageUrl);
     setAltText(canonical.altText);
     setFileName(canonical.fileName);
@@ -976,6 +982,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
             <p className="text-[10px] text-slate-400">
               Nur sichere direkte Bildadressen (HTTPS) verwenden.
             </p>
+            {errorMessage && <p role="alert" className="text-sm text-rose-600">{errorMessage}</p>}
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setIsUrlModalOpen(false)}
@@ -1011,6 +1018,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
               </button>
             </div>
             <div className="flex-1 overflow-y-auto space-y-1.5 min-h-[120px]">
+              {errorMessage && <p role="alert" className="text-sm text-rose-600">{errorMessage}</p>}
               {materialsList.map((m: any) => (
                 <button
                   key={m.id}

@@ -2492,6 +2492,11 @@ async function main() {
     await fs.writeFile(invalidImagePath,'Not an image');await fs.writeFile(corruptImagePath,'Damaged PNG');
     const imageFits=`(()=>{const el=document.querySelector(${q(imageRoot)}),r=el.getBoundingClientRect();return el.scrollWidth<=el.clientWidth+1&&el.scrollHeight<=el.clientHeight+1&&Array.from(el.querySelectorAll('button')).every(b=>{const t=b.getBoundingClientRect();return t.width>=44&&t.height>=44&&t.left>=r.left-1&&t.right<=r.right+1&&t.bottom<=r.bottom+1&&(b.disabled||b.contains(document.elementFromPoint(t.x+t.width/2,t.y+t.height/2)));});})()`;
     await waitFor(client,'empty image upload controls fit at actual minimum',imageFits);
+    await clickMathText(imageRoot,'Web-URL');
+    await setInputByLabel(client,'HTTPS-Bildadresse','http://example.org/unsafe-image.png');
+    await clickMathText(imageDialog('Tafelbild-Webadresse'),'Übernehmen');
+    await waitFor(client,'invalid image URL is explained inside its visible modal',`document.querySelector(${q(imageDialog('Tafelbild-Webadresse')+' [role="alert"]')})?.textContent.includes('HTTPS-Bildadresse')&&!document.querySelector(${q(imageRoot+' img')})`);
+    await pressAuditKey('Escape');await waitFor(client,'image address Escape returns focus',`!document.querySelector('dialog[open]')&&document.activeElement.textContent.includes('Web-URL')`);
     await imageUpload(imagePath);
     await waitFor(client,'real file selection decodes the landscape PNG',`document.querySelector(${q(imageRoot+' img')})?.naturalWidth===1200&&document.querySelector(${q(imageRoot+' img')})?.naturalHeight===400`);
     for(const degrees of [90,180,270,0]){
