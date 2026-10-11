@@ -76,7 +76,8 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   dienste: { minW: 640, minH: 560, prefW: 760, prefH: 600 },
   links: { minW: 340, minH: 360, prefW: 460, prefH: 420 },
   qrcode: { minW: 320, minH: 560, prefW: 400, prefH: 600 },
-  image: { minW: 280, minH: 200, prefW: 420, prefH: 340 },
+  // Upload controls, image toolbar and readable preview stay usable together.
+  image: { minW: 460, minH: 420, prefW: 560, prefH: 480 },
   drawing: { minW: 700, minH: 480, prefW: 760, prefH: 520 },
   stopwatch: { minW: 280, minH: 200, prefW: 380, prefH: 300 },
   // All ClassRewardWidget variants need an unscaled title, reached banner,
@@ -96,10 +97,14 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   toothbrush: { minW: 640, minH: 560, prefW: 640, prefH: 560 },
   emotions: { minW: 640, minH: 560, prefW: 640, prefH: 560 },
   breathing: { minW: 360, minH: 500, prefW: 460, prefH: 540 },
-  soundmachine: { minW: 280, minH: 220, prefW: 380, prefH: 320 },
-  zahlenraum: { minW: 300, minH: 220, prefW: 460, prefH: 360 },
-  anschauung: { minW: 300, minH: 220, prefW: 460, prefH: 360 },
-  numberline: { minW: 300, minH: 220, prefW: 460, prefH: 360 },
+  // Legacy Klang-Maschine opens the same focus-sounds surface as calmrain.
+  soundmachine: { minW: 340, minH: 520, prefW: 460, prefH: 540 },
+  // The shared Zahlenraum studio needs its mode/range controls and representation visible together.
+  zahlenraum: { minW: 620, minH: 560, prefW: 720, prefH: 560 },
+  anschauung: { minW: 620, minH: 560, prefW: 720, prefH: 560 },
+  numberline: { minW: 620, minH: 560, prefW: 720, prefH: 560 },
+  // Search, network status, weather representation and temperature should fit without clipping.
+  weather: { minW: 360, minH: 420, prefW: 460, prefH: 460 },
   kopfrechnen: { minW: 460, minH: 560, prefW: 620, prefH: 560 },
   mathcards: { minW: 640, minH: 560, prefW: 680, prefH: 560 },
   multitrainer: { minW: 460, minH: 560, prefW: 620, prefH: 560 },
