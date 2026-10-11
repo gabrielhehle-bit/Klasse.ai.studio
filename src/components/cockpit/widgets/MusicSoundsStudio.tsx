@@ -43,12 +43,15 @@ export const MusicSoundsStudio: React.FC<MusicSoundsStudioProps> = ({
 }) => {
   const mode = normalizeMusicStudioMode(widget.settings?.musicStudioMode);
   const volume = Math.min(1, Math.max(0, Number(widget.settings?.volume ?? 0.7) || 0));
+  const updateSettings = (updates: Record<string, unknown>) => {
+    onUpdate?.({ settings: { ...(widget.settings || {}), ...updates } });
+  };
   const changeMode = (nextMode: MusicStudioMode) => {
     if (mode === nextMode) return;
     classroomSoundEngine.stopAll();
-    onUpdate?.({ settings: { musicStudioMode: nextMode } });
+    updateSettings({ musicStudioMode: nextMode });
   };
-  const changeVolume = (value: number) => onUpdate?.({ settings: { volume: value } });
+  const changeVolume = (value: number) => updateSettings({ volume: value });
 
   return (
     <div className={`flex h-full min-h-0 w-full flex-col gap-2 p-2 ${currentIsLight ? 'text-slate-900' : 'text-slate-100'}`}>
