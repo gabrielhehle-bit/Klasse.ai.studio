@@ -148,7 +148,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: klassio-classroom-routine-browser-${{ matrix.width }}-${{ github.sha }}
+          name: klassio-classroom-routine-browser-${{ matrix.width }}-${{ github.sha }}-${{ github.run_attempt }}
           path: |
             /tmp/klassio-classroom-routine-e2e*.png
             /tmp/klassio-classroom-routine-server.log
