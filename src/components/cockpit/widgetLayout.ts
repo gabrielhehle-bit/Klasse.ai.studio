@@ -37,6 +37,7 @@ export interface WidgetMinSizeConfig {
  */
 export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   mathduel: { minW: 760, minH: 560, prefW: 800, prefH: 560 },
+  aiquiz: { minW: 700, minH: 560, prefW: 760, prefH: 560 },
   riddle: { minW: 700, minH: 560, prefW: 760, prefH: 560 },
   colormixer: { minW: 760, minH: 560, prefW: 800, prefH: 560 },
   shadowshapes: { minW: 840, minH: 560, prefW: 900, prefH: 560 },
@@ -67,8 +68,8 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   dailyquotes: { minW: 640, minH: 560, prefW: 640, prefH: 560 },
   phases: { minW: 460, minH: 560, prefW: 560, prefH: 560 },
   trafficlight: { minW: 280, minH: 300, prefW: 360, prefH: 360 },
-  noisemeter: { minW: 280, minH: 200, prefW: 380, prefH: 280 },
-  noisescales: { minW: 280, minH: 180, prefW: 360, prefH: 260 },
+  noisemeter: { minW: 460, minH: 460, prefW: 520, prefH: 500 },
+  noisescales: { minW: 460, minH: 420, prefW: 520, prefH: 460 },
   sounds: { minW: 840, minH: 560, prefW: 840, prefH: 560 },
   // Header, one readable task, page controls and input must fit at the same time.
   todo: { minW: 340, minH: 360, prefW: 460, prefH: 500 },
@@ -76,7 +77,7 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   links: { minW: 340, minH: 360, prefW: 460, prefH: 420 },
   qrcode: { minW: 320, minH: 560, prefW: 400, prefH: 600 },
   image: { minW: 280, minH: 200, prefW: 420, prefH: 340 },
-  drawing: { minW: 280, minH: 200, prefW: 420, prefH: 340 },
+  drawing: { minW: 700, minH: 480, prefW: 760, prefH: 520 },
   stopwatch: { minW: 280, minH: 200, prefW: 380, prefH: 300 },
   // All ClassRewardWidget variants need an unscaled title, reached banner,
   // visualization and 44px action row, including restored legacy windows.

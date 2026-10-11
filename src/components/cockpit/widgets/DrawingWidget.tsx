@@ -127,39 +127,17 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
     renderAllStrokes(ctx, strokes, w, h, '#ffffff');
   }, [strokes]);
 
-  // Debounced Persistenz in AppState
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const persistDrawingState = useCallback(
-    (patch: DrawingStatePatch = {}) => {
-      if (!onUpdate) return;
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-      saveTimeoutRef.current = setTimeout(() => {
-        onUpdate({
-          settings: {
-            ...widget?.settings,
-            drawingStrokes: patch.strokes ?? strokes,
-            drawingRedoStack: patch.redoStack ?? redoStack,
-            drawingTool: patch.activeTool ?? activeTool,
-            drawingColor: patch.activeColor ?? activeColor,
-            drawingWidthId: patch.activeWidthId ?? activeWidthId,
-            surfaceMode: patch.surfaceMode ?? surfaceMode,
-          },
-        });
-      }, 350);
-    },
-    [
-      onUpdate,
-      widget?.settings,
-      strokes,
-      redoStack,
-      activeTool,
-      activeColor,
-      activeWidthId,
-      surfaceMode,
-    ],
-  );
+  // Commit finished gestures immediately, so closing cannot drop the last edit.
+  const latestDrawingRef = useRef(drawingState);
+  const persistDrawingState = useCallback((patch: DrawingStatePatch = {}) => {
+    const next = { ...latestDrawingRef.current, ...patch };
+    latestDrawingRef.current = next;
+    onUpdate?.({ settings: { ...widget?.settings,
+      drawingStrokes: next.strokes, drawingRedoStack: next.redoStack,
+      drawingTool: next.activeTool, drawingColor: next.activeColor,
+      drawingWidthId: next.activeWidthId, surfaceMode: next.surfaceMode,
+    } });
+  }, [onUpdate, widget?.settings]);
 
   // ResizeObserver für verlustfreie Größenanpassung
   useEffect(() => {
@@ -197,21 +175,13 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
   // Synchronisation bei externen Updates (auch bei Restore/Backup-Migration).
   useEffect(() => {
     const next = normalizeDrawingSurfaceState(widget?.settings);
+    latestDrawingRef.current = next;
     setStrokes(next.strokes);
     setRedoStack(next.redoStack);
     setActiveTool(next.activeTool);
     setActiveColor(next.activeColor);
     setActiveWidthId(next.activeWidthId);
   }, [widget?.settings]);
-
-  // Cleanup bei Unmount
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, []);
 
   // -------------------------------------------------------------
   // POINTER EVENTS: Touch, Maus, Stylus & Palm Rejection
@@ -305,11 +275,9 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
     activeStrokeRef.current = null;
 
     if (finishedStroke && finishedStroke.points.length > 0) {
-      setStrokes((prev) => {
-        const next = [...prev, finishedStroke].slice(-MAX_DRAWING_HISTORY);
-        persistDrawingState({ strokes: next, redoStack: [] });
-        return next;
-      });
+      const next = [...latestDrawingRef.current.strokes, finishedStroke].slice(-MAX_DRAWING_HISTORY);
+      setStrokes(next);
+      persistDrawingState({ strokes: next, redoStack: [] });
       // Nach neuem Zeichnen wird der Redo-Stack zurückgesetzt
       setRedoStack([]);
       // Komplettes Redraw für glatte Bezier-Kurven
@@ -408,6 +376,9 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
   return (
     <div
       ref={containerRef}
+      data-practice-root="drawing"
+      data-drawing-color={activeColor}
+      data-drawing-tool={activeTool}
       id={`widget-drawing-${widget?.id || 'main'}`}
       className="flex-grow flex flex-col h-full w-full relative min-h-0 select-none overflow-hidden bg-slate-50 dark:bg-zinc-900 rounded-b-2xl"
     >
@@ -415,7 +386,7 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
       {/* KERN-TOOLBAR: Responsive für COMPACT, STANDARD, LARGE, FULLSCREEN */}
       {/* -------------------------------------------------------- */}
       <div
-        className="shrink-0 flex items-center justify-between gap-1.5 px-3 py-2 border-b border-slate-200/80 dark:border-white/10 bg-white/95 dark:bg-zinc-850/95 backdrop-blur-sm z-20 overflow-x-auto elegant-scrollbar"
+        className="shrink-0 flex items-center justify-between flex-wrap gap-1.5 px-3 py-2 border-b border-slate-200/80 dark:border-white/10 bg-white/95 dark:bg-zinc-850/95 backdrop-blur-sm z-20"
       >
         {/* LINKS: Werkzeuge (Stift / Radierer) & Farben */}
         <div className="flex items-center gap-1.5 shrink-0">
@@ -446,7 +417,7 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
               selectTool('eraser');
               setShowClearConfirm(false);
             }}
-            className={`flex items-center justify-center rounded-xl transition-all cursor-pointer ${
+            className={`min-h-11 min-w-11 flex items-center justify-center rounded-xl transition-all cursor-pointer ${
               size.isCompact ? 'w-8 h-8' : size.category === 'fullscreen' ? 'w-11 h-11' : 'w-9 h-9'
             } ${
               activeTool === 'eraser'
@@ -469,8 +440,7 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
                   key={c.id}
                   type="button"
                   onClick={() => {
-                    setActiveColor(c.hex);
-                    selectTool('pen');
+                    selectColor(c.hex);
                   }}
                   className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-full transition-all cursor-pointer border ${
                     size.category === 'fullscreen' ? 'w-7 h-7' : 'w-6 h-6'
@@ -527,7 +497,7 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
             type="button"
             disabled={!canUndo}
             onClick={handleUndo}
-            className={`flex items-center justify-center rounded-xl transition-all ${
+            className={`min-h-11 min-w-11 flex items-center justify-center rounded-xl transition-all ${
               size.isCompact ? 'w-8 h-8' : size.category === 'fullscreen' ? 'w-11 h-11' : 'w-8 h-8'
             } ${
               canUndo
@@ -546,7 +516,7 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
               type="button"
               disabled={!canRedo}
               onClick={handleRedo}
-              className={`flex items-center justify-center rounded-xl transition-all ${
+              className={`min-h-11 min-w-11 flex items-center justify-center rounded-xl transition-all ${
                 size.category === 'fullscreen' ? 'w-11 h-11' : 'w-8 h-8'
               } ${
                 canRedo
@@ -566,7 +536,7 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
               <button
                 type="button"
                 onClick={handleClearAll}
-                className="px-2 py-1 text-[10px] font-black uppercase text-rose-600 dark:text-rose-400 hover:bg-rose-500 hover:text-white rounded-lg transition-colors cursor-pointer"
+                className="min-h-11 min-w-11 px-2 py-1 text-[10px] font-black uppercase text-rose-600 dark:text-rose-400 hover:bg-rose-500 hover:text-white rounded-lg transition-colors cursor-pointer"
                 title="Löschen bestätigen"
               >
                 Leeren!
@@ -574,7 +544,7 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
               <button
                 type="button"
                 onClick={() => setShowClearConfirm(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+                className="min-h-11 min-w-11 p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
                 title="Abbrechen"
               >
                 <X size={12} strokeWidth={2.5} />
@@ -585,7 +555,7 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
               type="button"
               disabled={strokes.length === 0}
               onClick={handleClearAll}
-              className={`flex items-center justify-center rounded-xl transition-all ${
+              className={`min-h-11 min-w-11 flex items-center justify-center rounded-xl transition-all ${
                 size.isCompact ? 'w-8 h-8' : size.category === 'fullscreen' ? 'w-11 h-11' : 'w-8 h-8'
               } ${
                 strokes.length > 0
@@ -604,7 +574,7 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
             <button
               type="button"
               onClick={handleOpenInTafel}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-bold tracking-tight transition-all cursor-pointer shadow-xs border ${
+              className={`min-h-11 min-w-11 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-bold tracking-tight transition-all cursor-pointer shadow-xs border ${
                 handoverSuccess
                   ? 'bg-emerald-500 border-emerald-400 text-white'
                   : 'bg-indigo-50 hover:bg-indigo-600 hover:text-white dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300'
@@ -653,8 +623,7 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
                   key={c.id}
                   type="button"
                   onClick={() => {
-                    setActiveColor(c.hex);
-                    selectTool('pen');
+                    selectColor(c.hex);
                     setShowCompactMenu(false);
                   }}
                   className={`min-h-11 min-w-11 rounded-full border cursor-pointer ${
@@ -715,6 +684,7 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
         className="flex-grow relative w-full h-full min-h-0 bg-white cursor-crosshair overflow-hidden touch-none"
       >
         <canvas
+          aria-label="Zeichenfläche"
           ref={canvasRef}
           className="absolute inset-0 w-full h-full touch-none"
           onPointerDown={handlePointerDown}

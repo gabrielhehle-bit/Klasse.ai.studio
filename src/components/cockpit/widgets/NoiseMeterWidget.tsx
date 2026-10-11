@@ -36,7 +36,10 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
   const [permissionState, setPermissionState] = useState<NoisePermissionState>('idle');
   const [volume, setVolume] = useState(0);
 
-  const sensitivity: SensitivityLevel = widget.settings?.sensitivity || DEFAULT_NOISE_SETTINGS.sensitivity;
+  const sensitivity: SensitivityLevel = (['low', 'normal', 'high'].includes(widget.settings?.sensitivity) ? widget.settings.sensitivity : DEFAULT_NOISE_SETTINGS.sensitivity);
+
+  const sensitivityRef = useRef(sensitivity);
+  sensitivityRef.current = sensitivity;
 
   const streamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -88,7 +91,7 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
     analyser.getByteFrequencyData(dataArray);
 
-    const mult = getSensitivityMultiplier(sensitivity);
+    const mult = getSensitivityMultiplier(sensitivityRef.current);
     const raw = calculateRawVolume(dataArray, mult);
     const smoothed = computeSmoothedVolume(lastVolRef.current, raw, 0.35);
     lastVolRef.current = smoothed;
@@ -101,7 +104,7 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
     }
 
     animFrameRef.current = requestAnimationFrame(runAudioLoop);
-  }, [sensitivity]);
+  }, []);
 
   // Start der Mikrofonmessung
   const startMeasurement = async () => {
@@ -197,6 +200,10 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
   return (
     <div
       ref={containerRef}
+      data-practice-root="noisemeter"
+      data-noise-permission={permissionState}
+      data-noise-sensitivity={sensitivity}
+      data-noise-volume={Math.round(volume)}
       className={`w-full h-full flex flex-col justify-between select-none ${size.isCompact ? 'p-1.5' : 'p-3'} overflow-hidden transition-colors ${
         currentIsLight ? 'text-slate-800' : 'text-slate-100'
       }`}
@@ -262,6 +269,7 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
             <p className="text-[10px] text-slate-400 mt-1">
               Bitte den Zugriff im Browser bestätigen.
             </p>
+            <button type="button" onClick={stopMeasurement} className="min-h-11 min-w-11 mt-2 px-3 rounded-xl border">Abbrechen</button>
           </div>
         )}
 

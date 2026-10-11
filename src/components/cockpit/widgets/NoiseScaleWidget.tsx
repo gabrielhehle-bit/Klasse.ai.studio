@@ -47,6 +47,8 @@ export const NoiseScaleWidget: React.FC<NoiseScaleWidgetProps> = ({
   return (
     <div
       ref={containerRef}
+      data-practice-root="noisescales"
+      data-noise-stage={activeScaleId}
       className={`w-full h-full flex flex-col justify-between select-none min-h-0 p-1.5 overflow-hidden transition-colors ${
         currentIsLight ? 'text-slate-800' : 'text-slate-100'
       }`}
@@ -73,7 +75,7 @@ export const NoiseScaleWidget: React.FC<NoiseScaleWidgetProps> = ({
             >
               <span className="text-2xl mb-1">{activeStage.icon}</span>
               <h3 className="text-sm font-black leading-tight">{activeStage.label}</h3>
-              <p className="text-[10px] opacity-80 mt-0.5 max-w-[200px] truncate">
+              <p className="text-[10px] opacity-80 mt-0.5 max-w-[260px]">
                 {activeStage.classroomRule}
               </p>
             </div>
@@ -87,9 +89,11 @@ export const NoiseScaleWidget: React.FC<NoiseScaleWidgetProps> = ({
                     key={s.id}
                     type="button"
                     onClick={() => handleSelectStage(s.id)}
+                    aria-label={`Stufe ${s.level}: ${s.label}`}
+                    aria-pressed={isSelected}
                     className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl border transition-all cursor-pointer min-h-[44px] ${
                       isSelected
-                        ? `${s.activeBg} ${s.accentBorder} shadow-sm scale-105`
+                        ? `${s.activeBg} ${s.accentBorder} shadow-sm`
                         : currentIsLight
                           ? 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
                           : 'bg-zinc-800/80 border-zinc-700 hover:bg-zinc-700 text-zinc-300'
@@ -133,9 +137,11 @@ export const NoiseScaleWidget: React.FC<NoiseScaleWidgetProps> = ({
                     key={s.id}
                     type="button"
                     onClick={() => handleSelectStage(s.id)}
+                    aria-label={`Stufe ${s.level}: ${s.label}`}
+                    aria-pressed={isSelected}
                     className={`p-3 rounded-2xl border text-center transition-all cursor-pointer min-h-[56px] flex flex-col items-center justify-center gap-1 ${
                       isSelected
-                        ? `${s.activeBg} ${s.accentBorder} shadow-md scale-105`
+                        ? `${s.activeBg} ${s.accentBorder} shadow-md`
                         : currentIsLight
                           ? 'bg-white border-slate-200 hover:bg-slate-100 text-slate-700'
                           : 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-zinc-200'
@@ -158,6 +164,8 @@ export const NoiseScaleWidget: React.FC<NoiseScaleWidgetProps> = ({
                   key={s.id}
                   type="button"
                   onClick={() => handleSelectStage(s.id)}
+                    aria-label={`Stufe ${s.level}: ${s.label}`}
+                    aria-pressed={isSelected}
                   className={`w-full min-h-11 p-2 rounded-xl border flex items-center gap-2.5 transition-all cursor-pointer text-left ${
                     isSelected
                       ? `${s.activeBg} ${s.accentBorder} shadow-sm font-bold`
@@ -185,7 +193,7 @@ export const NoiseScaleWidget: React.FC<NoiseScaleWidgetProps> = ({
                         (Stufe {s.level})
                       </span>
                     </div>
-                    <p className="text-[9.5px] opacity-80 truncate leading-tight mt-0.5">
+                    <p className="text-[9.5px] opacity-80 leading-tight mt-0.5">
                       {s.classroomRule}
                     </p>
                   </div>
