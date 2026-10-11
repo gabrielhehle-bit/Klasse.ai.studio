@@ -355,6 +355,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
           <ListFilter size={20}/>{!compact && <span className="ml-1">Kinder wählen</span>}
         </button>
       </div>
+      {!veryCompact && <p className="shrink-0 text-center text-xs opacity-70">Diese Auswahl gilt für die Sitzung. Schließen startet eine neue Runde.</p>}
       <button type="button" onClick={pickPupil}
         disabled={isAnimating || remainingStudents.length === 0}
         className={`flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center ${compact ? 'gap-1 p-1.5' : 'gap-2 p-2'} rounded-2xl border-2 text-center focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed ${currentIsLight ? 'border-accent bg-white' : 'border-accent bg-zinc-900'}`}
@@ -411,7 +412,6 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
           </div>
         )}
       </div>
-      {!veryCompact && <p className="shrink-0 text-center text-xs opacity-70">Diese Auswahl gilt für die Sitzung. Schließen startet eine neue Runde.</p>}
       {selector}
     </div>
   );
