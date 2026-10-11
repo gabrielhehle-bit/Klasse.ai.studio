@@ -314,6 +314,10 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
       {/* The widget title's gear controls this configuration toolbar. */}
       {showSettings && createPortal(<dialog ref={dialogRef} aria-label="Zahlenraum einstellen"
         onCancel={(event) => { event.preventDefault(); onCloseSettings?.(); }}
+        onKeyDown={event => {
+          event.stopPropagation();
+          if (event.key === 'Escape') { event.preventDefault(); onCloseSettings?.(); }
+        }}
         className="fixed inset-0 m-auto w-[min(700px,calc(100vw-32px))] max-h-[calc(100dvh-32px)] rounded-2xl border border-slate-300 bg-white p-3 text-slate-800 dark:bg-slate-950 dark:text-slate-100 backdrop:bg-black/40">
       <div
         id="zahlenraum-toolbar"
