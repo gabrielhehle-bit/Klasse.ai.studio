@@ -14,6 +14,8 @@ geteilte Komponenten sind kein Ersatz für ihre tatsächliche Browserprüfung.
 Zahlenraum-Einstellungen liegen im nativen Dialog mit Escape und Rückkehr zum
 Zahnrad; sie verdrängen die Unterrichtsfläche nicht. Alle drei Zahlenraumtypen
 haben 760×560 Mindestfläche für sechs Marker und vollständige Rechensprünge.
+Vergrößerte Zahlenlabels und drei getrennte Beschriftungszeilen verhindern
+die Überlagerung der aufeinanderfolgenden Sprungwerte.
 Klang-Maschine: 760×560 mit fünf zugleich erreichbaren Quellen. Wortwerkstatt:
 620×560. Keine Punkteskala oder Schülerprofile im Zahlenraum.
 

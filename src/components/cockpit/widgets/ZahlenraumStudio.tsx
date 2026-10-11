@@ -675,7 +675,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
               }`}
             >
               <svg
-                viewBox="0 0 1000 130"
+                viewBox="0 0 1000 200"
                 className="w-full h-full overflow-visible cursor-crosshair"
                 onClick={handleLineClick}
                 preserveAspectRatio="xMidYMid meet"
@@ -694,7 +694,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                 </defs>
 
                 {/* Rechensprünge (Halbbögen mit Beschriftung) */}
-                {jumps.map((jump) => {
+                {jumps.map((jump, index) => {
                   const fromPct = getLinePercentage(jump.from, currentMin, currentMax);
                   const toPct = getLinePercentage(jump.to, currentMin, currentMax);
                   const fromX = 40 + (fromPct / 100) * 920;
@@ -715,18 +715,18 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                       />
                       {/* Badge für Schrittweite */}
                       <rect
-                        x={arc.midX - 16}
-                        y={arc.midY - 14}
-                        width="32"
-                        height="16"
+                        x={arc.midX - Math.max(26, stepSign.length * 7 + 10)}
+                        y={112 + (index % 3) * 28}
+                        width={Math.max(52, stepSign.length * 14 + 20)}
+                        height="26"
                         rx="4"
                         fill="#f59e0b"
                       />
                       <text
                         x={arc.midX}
-                        y={arc.midY - 2}
+                        y={132 + (index % 3) * 28}
                         textAnchor="middle"
-                        fontSize="10"
+                        fontSize="22"
                         fontWeight="bold"
                         fill="#ffffff"
                         fontFamily="monospace"
@@ -776,7 +776,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                           x={x}
                           y={98}
                           textAnchor="middle"
-                          fontSize="11"
+                          fontSize="22"
                           fontWeight={tick.type === 'major' ? '600' : 'normal'}
                           fill={currentIsLight ? '#475569' : '#94a3b8'}
                           fontFamily="monospace"
@@ -817,18 +817,18 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                       />
                       {/* Label-Box oberhalb des Pins */}
                       <rect
-                        x={x - 18}
-                        y="10"
-                        width="36"
-                        height="18"
+                        x={x - Math.max(26, String(marker.value).length * 7 + 10)}
+                        y="0"
+                        width={Math.max(52, String(marker.value).length * 14 + 20)}
+                        height="28"
                         rx="4"
                         fill={isMain ? 'var(--accent)' : '#0ea5e9'}
                       />
                       <text
                         x={x}
-                        y="23"
+                        y="21"
                         textAnchor="middle"
-                        fontSize="10"
+                        fontSize="22"
                         fontWeight="bold"
                         fill="#ffffff"
                         fontFamily="monospace"
