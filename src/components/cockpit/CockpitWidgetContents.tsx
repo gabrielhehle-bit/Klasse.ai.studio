@@ -3211,6 +3211,17 @@ const safeExtractJSON = (text: string) => {
   }
 };
 
+const ClassroomQuizOption: React.FC<{option:string,index:number,selected:number|null,answer:number,loading:boolean,onSelect:()=>void}> = ({option,index,selected,answer,loading,onSelect}) => {
+  const [clipped,setClipped] = useState(false);
+  const label = `Antwort ${'ABCD'[index]}`;
+  return <div className={`min-w-0 rounded-xl border overflow-hidden ${selected !== null && index === answer ? 'bg-emerald-600 text-white' : selected === index ? 'bg-rose-600 text-white' : ''}`}>
+    <WidgetReadableText text={option} title={label} shortLabel={`${label}: ${option}`} className="px-2 py-1 text-sm font-bold"
+      onClippedChange={setClipped} onShortClick={selected === null ? () => {if(!loading)onSelect();} : undefined} />
+    {clipped && <button type="button" aria-label={`${label}: ${option}`} disabled={loading || selected !== null} onClick={onSelect}
+      className="min-h-11 min-w-11 w-full px-2 text-sm font-bold border-t disabled:opacity-50">{'ABCD'[index]} auswählen</button>}
+  </div>;
+};
+
 export const AIQuizWidgetContent: React.FC<{ widget: any, onUpdate?: (updates: any) => void, currentIsLight: boolean }> = ({ widget, onUpdate, currentIsLight }) => {
   const saved = normalizeQuizSession(readWidgetLifecycleState(widget, 'aiquiz', {}), widget?.settings?.classroomQuiz, widget?.settings?.quizDifficulty);
   const [item, setItem] = useState(saved.item);
@@ -3254,7 +3265,7 @@ export const AIQuizWidgetContent: React.FC<{ widget: any, onUpdate?: (updates: a
   };
   const cancel = () => { generation.current++; busy.current = false; setIsLoading(false); };
   const button = 'min-h-11 min-w-11 rounded-xl border px-3 py-2 text-sm font-bold disabled:opacity-50';
-  return <section data-practice-root="aiquiz" aria-label="Lernquiz" className={`flex h-full w-full min-h-0 flex-col gap-3 overflow-hidden p-3 ${currentIsLight ? 'text-slate-800' : 'text-slate-100'}`}>
+  return <section data-practice-root="aiquiz" aria-label="Lernquiz" className={`flex h-full w-full min-h-0 flex-col gap-2 overflow-hidden p-2 ${currentIsLight ? 'text-slate-800' : 'text-slate-100'}`}>
     <header className="flex shrink-0 items-center justify-between gap-2">
       <span className="font-bold">{item.t} · {questionDifficulty}</span>
       <button type="button" className={button} aria-pressed={configuring} onClick={() => setConfiguring(v => !v)}>{configuring ? 'Zur Frage' : 'Thema & Niveau'}</button>
@@ -3266,9 +3277,9 @@ export const AIQuizWidgetContent: React.FC<{ widget: any, onUpdate?: (updates: a
       <label className="flex flex-col gap-1">Eigenes Thema<input aria-label="Eigenes Quiz-Thema" maxLength={80} className={button} value={customTopic} disabled={isLoading} onChange={e => setCustomTopic(e.target.value)} /></label>
       <div role="group" aria-label="Quiz-Niveau" className="grid grid-cols-3 gap-2">{(['Leicht','Mittel','Schwer'] as const).map(level => <button type="button" className={button} disabled={isLoading} aria-pressed={difficulty === level} key={level} onClick={() => setDifficulty(level)}>{level}</button>)}</div>
       <p className="text-sm">Eine KI-Frage bitte vor dem Unterricht fachlich prüfen. Eigene Themen gehen an den bestehenden KI-Dienst.</p>
-    </div> : <div className="flex min-h-0 flex-1 flex-col justify-center gap-3">
+    </div> : <div className="flex min-h-0 flex-1 flex-col justify-center gap-2">
       <h3 className="text-base font-bold leading-snug"><WidgetReadableText text={item.q} title="Quizfrage" /></h3>
-      <div className="grid grid-cols-2 gap-2">{item.o.map((option,i) => <button key={i} type="button" aria-label={`Antwort ${'ABCD'[i]}: ${option}`} className={`${button} break-words text-left ${selected !== null && i === item.a ? 'bg-emerald-600 text-white' : selected === i ? 'bg-rose-600 text-white' : ''}`} disabled={isLoading || selected !== null} onClick={() => setSelected(i)}><span className="mr-2">{'ABCD'[i]}</span>{option}</button>)}</div>
+      <div className="grid grid-cols-2 gap-2">{item.o.map((option,i) => <ClassroomQuizOption key={i} option={option} index={i} selected={selected} answer={item.a} loading={isLoading} onSelect={() => setSelected(i)} />)}</div>
       <p role="status" className="min-h-6 text-center text-sm font-bold">{quizAnswerFeedback(item,selected)}</p>
     </div>}
     <footer className="flex shrink-0 flex-col gap-2">
