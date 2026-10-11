@@ -152,9 +152,9 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
       }
       if (requestGenerationRef.current !== requestGeneration) {
         cleanupMediaStream(stream);
-        streamRef.current = null;
+        if (streamRef.current === stream) streamRef.current = null;
         await ctx.close().catch(() => {});
-        audioContextRef.current = null;
+        if (audioContextRef.current === ctx) audioContextRef.current = null;
         return;
       }
 

@@ -380,8 +380,12 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
       data-drawing-color={activeColor}
       data-drawing-tool={activeTool}
       id={`widget-drawing-${widget?.id || 'main'}`}
-      className="flex-grow flex flex-col h-full w-full relative min-h-0 select-none overflow-hidden bg-slate-50 dark:bg-zinc-900 rounded-b-2xl"
+      className={`flex-grow flex flex-col h-full w-full relative min-h-0 select-none overflow-hidden bg-slate-50 dark:bg-zinc-900 rounded-b-2xl ${widget?.settings?.isDirectMode ? 'pt-11' : ''}`}
     >
+      {showSettings && <div role="region" aria-label="Stiftoptionen" className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 text-sm border-b">
+        <span>Werkzeug, Farbe und Stärke unten auswählen.</span>
+        <button type="button" onClick={onCloseSettings} className="min-h-11 min-w-11 px-3 rounded-xl border">Fertig</button>
+      </div>}
       {/* -------------------------------------------------------- */}
       {/* KERN-TOOLBAR: Responsive für COMPACT, STANDARD, LARGE, FULLSCREEN */}
       {/* -------------------------------------------------------- */}
