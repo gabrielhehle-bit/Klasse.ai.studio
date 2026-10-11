@@ -2,12 +2,13 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 /** Keep teaching controls visible; offer the complete text when the preview overflows. */
-export function WidgetReadableText({ text, title, className = '', onShortClick, shortLabel }: {
+export function WidgetReadableText({ text, title, className = '', onShortClick, shortLabel, onClippedChange }: {
   text: string;
   title: string;
   className?: string;
   onShortClick?: () => void;
   shortLabel?: string;
+  onClippedChange?: (clipped: boolean) => void;
 }) {
   const previewRef = useRef<HTMLSpanElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -23,6 +24,7 @@ export function WidgetReadableText({ text, title, className = '', onShortClick, 
     observer.observe(node);
     return () => observer.disconnect();
   }, [text, className]);
+  useEffect(() => { onClippedChange?.(clipped); }, [clipped, onClippedChange]);
   useEffect(() => { setOpen(false); }, [text]);
   useEffect(() => {
     const dialog = dialogRef.current;

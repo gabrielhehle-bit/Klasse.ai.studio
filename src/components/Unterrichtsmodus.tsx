@@ -1,3 +1,4 @@
+import { getDrawingOpeningSettings } from '../lib/drawingSurfaceState';
 import SidebarStarsOverview from './cockpit/SidebarStarsOverview';
 import SaveSyncStatus from './SaveSyncStatus';
 import ClassTeamStatus from './ClassTeamStatus';
@@ -4168,7 +4169,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       w.id !== id ? w : {
         ...w,
         ...updates,
-        ...(((w.type === "groups" && updates.settings) || (w.type === "wheel" && updates.settings) || (w.type === "sounds" && updates.settings) || (w.type === "stopwatch" && updates.settings) || (w.type === "dictionary" && updates.settings) || (w.type === "piano" && updates.settings) || (w.type === "bodyparts" && updates.settings) || (w.type === "compass" && updates.settings) || (w.type === "weekdays" && updates.settings) || (w.type === "flagquiz" && updates.settings) || (w.type === "trafficquiz" && updates.settings) || (w.type === "watercycle" && updates.settings) || (w.type === "constellation" && updates.settings) || (w.type === "planetarium" && updates.settings) || (w.type === "geometry" && updates.settings) || (w.type === "wordchain" && updates.settings) || (w.type === "wordgrid" && updates.settings) || (w.type === "wordscramble" && updates.settings) || (w.type === "secretcode" && updates.settings) || (w.type === "wordexplorer" && updates.settings) || (w.type === "patternmaker" && updates.settings) || (w.type === "rhymemachine" && updates.settings) || (w.type === "alphabetsoup" && updates.settings) || (w.type === "morsecode" && updates.settings) || (w.type === "punctuationzoo" && updates.settings) || (w.type === "estimationjar" && updates.settings) || (w.type === "angledetective" && updates.settings))
+        ...(((w.type === "drawing" && updates.settings) || (w.type === "aiquiz" && updates.settings) || (w.type === "riddle" && updates.settings) || (w.type === "groups" && updates.settings) || (w.type === "wheel" && updates.settings) || (w.type === "sounds" && updates.settings) || (w.type === "stopwatch" && updates.settings) || (w.type === "dictionary" && updates.settings) || (w.type === "piano" && updates.settings) || (w.type === "bodyparts" && updates.settings) || (w.type === "compass" && updates.settings) || (w.type === "weekdays" && updates.settings) || (w.type === "flagquiz" && updates.settings) || (w.type === "trafficquiz" && updates.settings) || (w.type === "watercycle" && updates.settings) || (w.type === "constellation" && updates.settings) || (w.type === "planetarium" && updates.settings) || (w.type === "geometry" && updates.settings) || (w.type === "wordchain" && updates.settings) || (w.type === "wordgrid" && updates.settings) || (w.type === "wordscramble" && updates.settings) || (w.type === "secretcode" && updates.settings) || (w.type === "wordexplorer" && updates.settings) || (w.type === "patternmaker" && updates.settings) || (w.type === "rhymemachine" && updates.settings) || (w.type === "alphabetsoup" && updates.settings) || (w.type === "morsecode" && updates.settings) || (w.type === "punctuationzoo" && updates.settings) || (w.type === "estimationjar" && updates.settings) || (w.type === "angledetective" && updates.settings))
           ? { settings: { ...(w.settings || {}), ...updates.settings } }
           : {}),
         hasBeenOpened: true,
@@ -4368,11 +4369,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
         w: placement.w,
         h: placement.h,
         settings: isWhiteboard
-          ? {
-              ...(widget.settings || {}),
-              boardMode: widget.settings?.boardMode || "whiteboard",
-              isDirectMode: true,
-            }
+          ? getDrawingOpeningSettings(widget.settings, Boolean(useOld))
           : type === "kidattendance" && !useOld
             ? { ...(widget.settings || {}), ...checkInPreset }
           : type === "groups" && !useOld

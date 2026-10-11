@@ -23,6 +23,8 @@ interface Props {
  */
 export default function ClassMascotWidget({ app }: Props) {
   const state = normalizeClassMascot(app.classMascot);
+  const liveSettingsRef = React.useRef(state);
+  liveSettingsRef.current = state;
   // A deliberate tap triggers a short, local reaction. Never persist tap counters
   // or timers to the class vault / account sync; only teacher-chosen settings sync.
   const [reactionTick, setReactionTick] = React.useState(0);
@@ -79,13 +81,13 @@ export default function ClassMascotWidget({ app }: Props) {
 
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
     analyser.getByteFrequencyData(dataArray);
-    const raw = calculateRawVolume(dataArray, getSensitivityMultiplier(state.liveNoiseSensitivity));
+    const raw = calculateRawVolume(dataArray, getSensitivityMultiplier(liveSettingsRef.current.liveNoiseSensitivity));
     const smoothed = computeSmoothedVolume(noiseLevelRef.current, raw, 0.3);
     noiseLevelRef.current = smoothed;
 
-    const threshold = state.liveNoiseThreshold;
+    const threshold = liveSettingsRef.current.liveNoiseThreshold;
     setCoveringEars(previous => {
-      if (state.quietMode) return false;
+      if (liveSettingsRef.current.quietMode) return false;
       // Hysteresis prevents rapid hand flicker around the selected threshold.
       return previous ? smoothed >= Math.max(0, threshold - 8) : smoothed >= threshold;
     });
@@ -96,7 +98,7 @@ export default function ClassMascotWidget({ app }: Props) {
       setLiveVolume(smoothed);
     }
     noiseAnimationFrameRef.current = requestAnimationFrame(runLiveNoiseLoop);
-  }, [state.liveNoiseSensitivity, state.liveNoiseThreshold, state.quietMode]);
+  }, []);
 
   const startLiveNoise = React.useCallback(async () => {
     if (!state.liveNoiseEnabled || noiseRunningRef.current) return;
@@ -107,6 +109,8 @@ export default function ClassMascotWidget({ app }: Props) {
       setNoisePermission('unavailable');
       return;
     }
+    let pendingStream: MediaStream | null = null;
+    let pendingContext: AudioContext | null = null;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -115,7 +119,8 @@ export default function ClassMascotWidget({ app }: Props) {
           autoGainControl: false,
         },
       });
-      if (noiseRequestGenerationRef.current !== generation || !state.liveNoiseEnabled) {
+      pendingStream = stream;
+      if (noiseRequestGenerationRef.current !== generation || !liveSettingsRef.current.liveNoiseEnabled) {
         cleanupMediaStream(stream);
         return;
       }
@@ -127,6 +132,7 @@ export default function ClassMascotWidget({ app }: Props) {
         return;
       }
       const context = new AudioCtxClass();
+      pendingContext = context;
       if (context.state === 'suspended') await context.resume();
       if (noiseRequestGenerationRef.current !== generation) {
         cleanupMediaStream(stream);
@@ -145,6 +151,8 @@ export default function ClassMascotWidget({ app }: Props) {
       setNoisePermission('active');
       runLiveNoiseLoop();
     } catch (error: any) {
+      if (pendingStream) cleanupMediaStream(pendingStream);
+      if (pendingContext) { try { await pendingContext.close(); } catch {} }
       if (noiseRequestGenerationRef.current !== generation) return;
       setNoisePermission(error?.name === 'NotAllowedError' || error?.name === 'PermissionDeniedError'
         ? 'denied'
@@ -159,7 +167,7 @@ export default function ClassMascotWidget({ app }: Props) {
     }
     void startLiveNoise();
     return stopLiveNoise;
-  }, [app.activeClassId, state.liveNoiseEnabled, state.liveNoiseSensitivity, startLiveNoise, stopLiveNoise]);
+  }, [app.activeClassId, state.liveNoiseEnabled, startLiveNoise, stopLiveNoise]);
 
   const triggerRitual = React.useCallback((event: Event) => {
     const action = (event as CustomEvent<unknown>).detail;
@@ -238,7 +246,7 @@ export default function ClassMascotWidget({ app }: Props) {
           : 'LIVE';
 
   return (
-    <section aria-label="Klassenmaskottchen" className="class-mascot-v1 class-mascot-freestanding pointer-events-none relative flex h-full min-h-0 w-full items-center justify-center overflow-hidden bg-transparent p-0">
+    <section data-practice-root="pet" data-mascot-reaction={reactionActive} aria-label="Klassenmaskottchen" className="class-mascot-v1 class-mascot-freestanding pointer-events-none relative flex h-full min-h-0 w-full items-center justify-center overflow-hidden bg-transparent p-0">
       <button
         type="button"
         aria-label={state.name + (state.quietMode

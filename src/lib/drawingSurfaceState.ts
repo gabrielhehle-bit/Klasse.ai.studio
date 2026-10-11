@@ -93,3 +93,11 @@ export const getDrawingSurfaceActionLabel = (
       return "In Tafelfläche wechseln";
   }
 };
+
+/** Opening a previously used surface preserves the teacher's chosen mode. */
+export function getDrawingOpeningSettings(settings: unknown, hasBeenOpened: boolean): Record<string, unknown> & { isDirectMode: boolean; surfaceMode: 'board' | 'window' } {
+  const stored = isRecord(settings) ? settings : {};
+  const isDirectMode = hasBeenOpened ? stored.isDirectMode === true : true;
+  return { ...stored, boardMode: stored.boardMode || 'whiteboard', isDirectMode,
+    surfaceMode: isDirectMode ? 'board' : 'window' };
+}

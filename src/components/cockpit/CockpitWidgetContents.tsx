@@ -1,3 +1,5 @@
+import { WidgetReadableText } from './WidgetReadableText';
+import { normalizeQuizSession, quizAnswerFeedback, type QuizDifficulty } from '../../lib/classroomQuizSession';
 export { WatertrackerWidgetContent, MoodmeterWidgetContent, ToothbrushWidgetContent, EmotionsWidgetContent } from './WellbeingWidgets';
 export { RhythmWidgetContent, SoundmemoryWidgetContent, GuitartunerWidgetContent } from './MusicPracticeWidgets';
 export { ShapepuzzleWidgetContent, DivrobotWidgetContent } from './GeometryPracticeWidgets';
@@ -3209,288 +3211,82 @@ const safeExtractJSON = (text: string) => {
   }
 };
 
+const ClassroomQuizOption: React.FC<{option:string,index:number,selected:number|null,answer:number,loading:boolean,onSelect:()=>void}> = ({option,index,selected,answer,loading,onSelect}) => {
+  const [clipped,setClipped] = useState(false);
+  const label = `Antwort ${'ABCD'[index]}`;
+  return <div className={`min-w-0 rounded-xl border overflow-hidden ${selected !== null && index === answer ? 'bg-emerald-600 text-white' : selected === index ? 'bg-rose-600 text-white' : ''}`}>
+    <WidgetReadableText text={option} title={label} shortLabel={`${label}: ${option}`} className="px-2 py-1 text-sm font-bold"
+      onClippedChange={setClipped} onShortClick={selected === null ? () => {if(!loading)onSelect();} : undefined} />
+    {clipped && <button type="button" aria-label={`${label}: ${option}`} disabled={loading || selected !== null} onClick={onSelect}
+      className="min-h-11 min-w-11 w-full px-2 text-sm font-bold border-t disabled:opacity-50">{'ABCD'[index]} auswählen</button>}
+  </div>;
+};
+
 export const AIQuizWidgetContent: React.FC<{ widget: any, onUpdate?: (updates: any) => void, currentIsLight: boolean }> = ({ widget, onUpdate, currentIsLight }) => {
-  const storedQuiz = validClassroomQuiz(widget?.settings?.classroomQuiz);
-  const [topic, setTopic] = useState(storedQuiz?.t || "Tiere");
-  const [selectedCategory, setSelectedCategory] = useState("Zufall");
-  const [customTopic, setCustomTopic] = useState("");
-  const [popularTopics, setPopularTopics] = useState<string[]>([
-    "Österreich",
-    "Haustiere",
-    "Saurier",
-    "Weltall",
-    "Multiplikation",
-    "Wald"
-  ]);
-  const [question, setQuestion] = useState(storedQuiz?.q || "Welches Tier ist das größte landlebende Säugetier?");
-  const [options, setOptions] = useState<string[]>(storedQuiz?.o || ["Elefant", "Giraffe", "Nashorn", "Nilpferd"]);
-  const [answer, setAnswer] = useState(storedQuiz?.a ?? 0);
-  const [selected, setSelected] = useState<number | null>(null);
+  const saved = normalizeQuizSession(readWidgetLifecycleState(widget, 'aiquiz', {}), widget?.settings?.classroomQuiz, widget?.settings?.quizDifficulty);
+  const [item, setItem] = useState(saved.item);
+  const [selected, setSelected] = useState<number | null>(saved.selected);
+  const [difficulty, setDifficulty] = useState<QuizDifficulty>(saved.difficulty);
+  const [questionDifficulty, setQuestionDifficulty] = useState<QuizDifficulty>(saved.questionDifficulty);
+  const [category, setCategory] = useState(saved.category);
+  const [customTopic, setCustomTopic] = useState(saved.customTopic);
+  const [configuring, setConfiguring] = useState(saved.configuring);
+  const [notice, setNotice] = useState(saved.notice);
   const [isLoading, setIsLoading] = useState(false);
-  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
-  const [difficulty, setDifficulty] = useState<'Leicht' | 'Mittel' | 'Schwer'>(() =>
-    ['Leicht', 'Mittel', 'Schwer'].includes(widget?.settings?.quizDifficulty)
-      ? widget.settings.quizDifficulty : 'Mittel');
-  const saveQuestion = (candidate: unknown, chosenDifficulty: 'Leicht' | 'Mittel' | 'Schwer') => {
+  const generation = useRef(0), busy = useRef(false);
+  useEffect(() => () => { generation.current++; busy.current = false; }, []);
+  usePersistedWidgetLifecycleState(widget, onUpdate, 'aiquiz', {item,selected,difficulty,questionDifficulty,category,customTopic,configuring,notice});
+  const saveQuestion = (candidate: unknown, chosenDifficulty: QuizDifficulty) => {
     const valid = validClassroomQuiz(candidate);
     if (!valid) return false;
-    setTopic(valid.t);
-    setQuestion(valid.q);
-    setOptions(valid.o);
-    setAnswer(valid.a);
+    setItem(valid); setSelected(null); setQuestionDifficulty(chosenDifficulty); setNotice('');
     if (onUpdate && widget?.id) onUpdate({ settings: {
       ...(widget.settings || {}), classroomQuiz: valid, quizDifficulty: chosenDifficulty,
     } });
     return true;
   };
-
-  const categories = [
-    { id: "Zufall", label: "🎲 Zufall" },
-    { id: "Tiere", label: "🐾 Tiere" },
-    { id: "Weltraum", label: "🚀 Weltall" },
-    { id: "Saurier", label: "🦖 Dinos" },
-    { id: "Mathe", label: "➕ Mathe" },
-    { id: "Sachkunde", label: "🧠 Wissen" },
-  ];
-
-  const generateNew = async (forcedCategory?: string, forcedDifficulty?: 'Leicht' | 'Mittel' | 'Schwer') => {
-    if (isLoading) return;
-    setIsLoading(true);
-    setSelected(null);
-    setFeedbackMessage(null);
-    const catToUse = forcedCategory || selectedCategory;
-    const diffToUse = forcedDifficulty || difficulty;
-
+  const generateNew = async () => {
+    if (busy.current) return;
+    busy.current = true;
+    const request = ++generation.current;
+    const chosenTopic = customTopic.trim() || category;
+    setIsLoading(true); setNotice('');
     try {
-      const categoryPrompt = catToUse === "Zufall"
-        ? "aus einem beliebigen lehrreichen und kindgerechten Sachbereich (Natur, Weltall, Technik, Geschichte, Haustiere, Biologie, Sport)"
-        : `spezifisch aus dem Bereich oder Thema "${catToUse}"`;
-
-      const prompt = `Erstelle eine kurze, kindgerechte und spannende Quizfrage (Multiple Choice, genau 4 Antworten) für Grundschulkinder im Alter von 8-10 Jahren ${categoryPrompt} mit dem Schwierigkeitsgrad "${diffToUse}".
-Gib die Antwort AUSSCHLIESSLICH im puren JSON-Format zurück, ohne umschließende Code-Zäune wie \`\`\`json.
-Strikte JSON-Struktur:
-{"t":"${(catToUse === "Zufall" ? "Mischmasch" : catToUse).substring(0, 16)}", "q":"Hier steht die spannende Frage?", "o":["Antwort A (Falsch)","Antwort B (Richtig/Falsch)","Antwort C (Richtig/Falsch)","Antwort D (Richtig/Falsch)"], "a": IndexDerKorrektenAntwortAlsZahlVon0Bis3}`;
-
+      const prompt = `Erstelle eine kurze kindgerechte Quizfrage für 8-10 Jahre zum Thema ${chosenTopic === 'Zufall' ? 'Natur oder Sachwissen' : chosenTopic}, Niveau ${difficulty}. Genau vier eindeutige Antworten, genau eine richtig. Nur JSON: {"t":"Thema","q":"Frage?","o":["A","B","C","D"],"a":0}.`;
       const response = await askAI('ki-quiz', prompt);
-      if (response) {
-        const data = safeExtractJSON(response.trim());
-        if (!saveQuestion(data, diffToUse)) throw new Error('Ungültige Quizfrage erhalten');
-      }
-    } catch (err) {
-      console.error("AI Quiz generation error:", err);
-      // Nice educational fallback so the widget NEVER completely breaks
-      const fallbackQuestions = [
-        { t: "Natur", q: "Warum verfärben sich Blätter im Herbst bunt?", o: ["Weil sie alt werden", "Weil der Baum Nährstoffe zurückzieht", "Durch den Regen", "Weil Tiere sie anknabbern"], a: 1 },
-        { t: "Weltraum", q: "Welcher Planet ist der Sonne am nächsten?", o: ["Venus", "Erde", "Merkur", "Mars"], a: 2 },
-        { t: "Mathe", q: "Wie viele Minuten hat eine ganze Stunde?", o: ["60 Minuten", "100 Minuten", "50 Minuten", "120 Minuten"], a: 0 }
-      ];
-      const selectedFallback = fallbackQuestions[Math.floor(Math.random() * fallbackQuestions.length)];
-      saveQuestion(selectedFallback, diffToUse);
-    }
-    setIsLoading(false);
-  };
-
-  const handleSelect = (idx: number) => {
-    if (isLoading || selected !== null || idx < 0 || idx >= options.length) return;
-    setSelected(idx);
-    if (idx === answer) {
-      setFeedbackMessage("🎉 Richtig gelöst! Großartig gemacht! 🌟");
-    } else {
-      setFeedbackMessage(`😢 Fast! Die richtige Antwort wäre gewesen: "${options[answer]}"`);
+      if (request !== generation.current) return;
+      if (!response || !saveQuestion(safeExtractJSON(response.trim()), difficulty)) throw new Error('Keine gültige Frage');
+      setConfiguring(false);
+    } catch {
+      if (request === generation.current) setNotice('Keine neue Frage verfügbar. Die bisherige Frage und Antwort bleiben erhalten.');
+    } finally {
+      if (request === generation.current) { busy.current = false; setIsLoading(false); }
     }
   };
-
-  return (
-    <div className="flex-grow flex flex-col items-center justify-between p-3 select-none relative h-full w-full pointer-events-auto min-h-0 overflow-y-auto ki-quiz-container">
-      {/* Category badgess at the top */}
-      <div className="w-full flex flex-col gap-1.5 mb-2.5 shrink-0">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className={`text-[8.5px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full flex items-center gap-1.5 ${currentIsLight ? 'bg-indigo-100 text-indigo-600' : 'bg-indigo-500/20 text-indigo-400'}`}>
-              <Sparkles size={10} className="text-amber-400 animate-pulse" /> KI Quiz: {topic}
-            </span>
-            {/* Colored Difficulty Badge */}
-            <span className={`text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border shadow-xs ${
-              difficulty === 'Leicht'
-                ? 'bg-emerald-100/90 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30'
-                : difficulty === 'Schwer'
-                  ? 'bg-rose-100/90 text-rose-700 border-rose-200 dark:bg-rose-500/20 dark:text-rose-400 dark:border-rose-500/30'
-                  : 'bg-amber-100/90 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30'
-            }`}>
-              {difficulty}
-            </span>
-          </div>
-          <button 
-            disabled={isLoading} 
-            onClick={() => generateNew()} 
-            className={`w-7 h-7 flex items-center justify-center rounded-xl cursor-pointer transition-all active:scale-95 disabled:opacity-50 shadow-sm ${currentIsLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-600' : 'bg-white/10 hover:bg-white/20 text-slate-200'}`}
-            title="Neue Frage generieren"
-          >
-            <RotateCcw size={12} className={isLoading ? "animate-spin text-indigo-400" : ""} />
-          </button>
-        </div>
-
-        {/* Difficulty Selector Row */}
-        <div className="flex items-center gap-1.5 mt-0.5 mb-1 bg-slate-50 dark:bg-zinc-900/40 p-1 rounded-xl border border-slate-200/40 dark:border-white/5">
-          <span className={`text-[8px] font-black uppercase tracking-wider opacity-60 px-1 ${currentIsLight ? 'text-slate-500' : 'text-slate-400'}`}>Niveau:</span>
-          <div className="flex gap-1 bg-slate-100 dark:bg-white/5 p-0.5 rounded-lg border border-slate-200/50 dark:border-white/5 flex-grow">
-            {(['Leicht', 'Mittel', 'Schwer'] as const).map((level) => {
-              const isActive = difficulty === level;
-              const colorClasses = level === 'Leicht' 
-                ? (isActive ? 'bg-emerald-500 text-white shadow-xs font-black' : 'text-slate-500 dark:text-slate-400 hover:text-emerald-500')
-                : level === 'Schwer'
-                  ? (isActive ? 'bg-rose-500 text-white shadow-xs font-black' : 'text-slate-500 dark:text-slate-400 hover:text-rose-500')
-                  : (isActive ? 'bg-amber-500 text-white shadow-xs font-black' : 'text-slate-500 dark:text-slate-400 hover:text-amber-500');
-
-              return (
-                <button
-                  key={level}
-                  disabled={isLoading}
-                  onClick={() => {
-                    setDifficulty(level);
-                    generateNew(undefined, level);
-                  }}
-                  className={`flex-1 text-[8.5px] py-1 rounded-md font-bold transition-all text-center cursor-pointer select-none ${colorClasses}`}
-                >
-                  {level}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Horizontal scroll of categories */}
-        <div className="flex gap-1 overflow-x-auto pb-1 style-scrollbar max-w-full">
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              disabled={isLoading}
-              onClick={() => {
-                setSelectedCategory(cat.id);
-                generateNew(cat.id);
-              }}
-              className={`px-2 py-1 rounded-lg text-[9px] font-bold transition-all whitespace-nowrap cursor-pointer hover:scale-105 active:scale-95 ${
-                selectedCategory === cat.id 
-                  ? "bg-indigo-500 text-white shadow-md font-extrabold" 
-                  : currentIsLight ? "bg-slate-100 hover:bg-slate-200 text-slate-600" : "bg-white/5 hover:bg-white/10 text-slate-300"
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
-          {selectedCategory !== "Zufall" && !categories.some(c => c.id === selectedCategory) && (
-            <span className="px-2 py-1 rounded-lg text-[9px] font-extrabold bg-pink-500 text-white shadow-md whitespace-nowrap animate-pulse">
-              ✨ {selectedCategory}
-            </span>
-          )}
-        </div>
-
-        {/* Custom topic input field */}
-        <div className="flex gap-1 items-center">
-          <input
-            type="text"
-            placeholder="Anderes Thema eingeben... (z.B. Haustiere)"
-            value={customTopic}
-            onChange={(e) => setCustomTopic(e.target.value)}
-            disabled={isLoading}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && customTopic.trim()) {
-                const t = customTopic.trim();
-                setSelectedCategory(t);
-                setPopularTopics(prev => {
-                  const filtered = prev.filter(p => p.toLowerCase() !== t.toLowerCase());
-                  return [t, ...filtered].slice(0, 8);
-                });
-                generateNew(t);
-                setCustomTopic("");
-              }
-            }}
-            className={`flex-grow px-2 py-1 text-[10px] rounded-lg border outline-none transition-all placeholder:opacity-60 font-medium ${
-              currentIsLight 
-                ? 'bg-white border-slate-200 focus:border-indigo-400 text-slate-800 focus:ring-1 focus:ring-indigo-150' 
-                : 'bg-white/5 border-white/10 focus:border-indigo-500 text-slate-200 focus:ring-1 focus:ring-indigo-950/40'
-            }`}
-          />
-          <button
-            onClick={() => {
-              if (customTopic.trim()) {
-                const t = customTopic.trim();
-                setSelectedCategory(t);
-                setPopularTopics(prev => {
-                  const filtered = prev.filter(p => p.toLowerCase() !== t.toLowerCase());
-                  return [t, ...filtered].slice(0, 8);
-                });
-                generateNew(t);
-                setCustomTopic("");
-              }
-            }}
-            disabled={isLoading || !customTopic.trim()}
-            className="p-1 px-2.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 disabled:bg-indigo-500/30 text-white flex items-center justify-center cursor-pointer transition-all active:scale-95 text-[9px] font-black uppercase tracking-wider gap-1 shrink-0"
-            title="Frage zu diesem Thema zaubern"
-          >
-            <Sparkles size={9} /> Erstellen
-          </button>
-        </div>
-      </div>
-
-      <div className="flex-grow flex flex-col items-center justify-center w-full min-h-0 relative mb-2">
-        <h3 className={`text-center font-black text-sm leading-snug mb-3.5 max-w-[95%] drop-shadow-sm px-1.5 ${currentIsLight ? 'text-slate-800' : 'text-slate-100'}`}>
-          {isLoading ? (
-            <span className="flex items-center gap-1 justify-center">
-              <span className="animate-bounce">🔮</span> Die KI zaubert eine Frage...
-            </span>
-          ) : question}
-        </h3>
-
-        <div className="grid grid-cols-2 gap-2.5 w-full">
-          {options.map((opt, i) => {
-            let stateClass = currentIsLight 
-              ? 'bg-white border-slate-200 text-slate-700 shadow-sm hover:border-indigo-400 hover:bg-slate-50' 
-              : 'bg-black/20 border-white/10 text-slate-200 hover:border-indigo-500/50 hover:bg-white/5';
-            
-            if (selected !== null) {
-              if (i === answer) {
-                stateClass = 'bg-emerald-500 border-emerald-500 text-white shadow-[0_4px_12px_rgba(16,185,129,0.3)] font-extrabold scale-[1.02]';
-              } else if (i === selected) {
-                stateClass = 'bg-rose-500 border-rose-500 text-white shadow-[0_4px_12px_rgba(244,63,94,0.3)]';
-              } else {
-                stateClass = currentIsLight 
-                  ? 'bg-slate-50 border-slate-100 text-slate-400 opacity-40' 
-                  : 'bg-black/10 border-transparent text-slate-500 opacity-30';
-              }
-            }
-
-            const optionLabels = ["A", "B", "C", "D"];
-            return (
-              <button
-                key={i}
-                disabled={selected !== null || isLoading}
-                onClick={() => handleSelect(i)}
-                className={`py-3 px-2 rounded-2xl text-[10.5px] font-bold border transition-all active:scale-95 text-center cursor-pointer min-h-[44px] flex items-center justify-center break-words leading-tight ${stateClass}`}
-              >
-                <span className="font-extrabold mr-1 bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded text-[8.5px] tracking-tight">{optionLabels[i]}</span>
-                <span className="truncate">{opt}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {feedbackMessage && (
-        <motion.div 
-          initial={{ opacity: 0, y: 10, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          className={`w-full text-center p-2 rounded-2xl text-[10px] font-extrabold border shadow-inner ${
-            selected === answer 
-              ? currentIsLight ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-emerald-950/40 text-emerald-400 border-emerald-800/50'
-              : currentIsLight ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-rose-950/40 text-rose-400 border-rose-800/50'
-          }`}
-        >
-          {feedbackMessage}
-        </motion.div>
-      )}
-    </div>
-  );
+  const cancel = () => { generation.current++; busy.current = false; setIsLoading(false); };
+  const button = 'min-h-11 min-w-11 rounded-xl border px-3 py-2 text-sm font-bold disabled:opacity-50';
+  return <section data-practice-root="aiquiz" aria-label="Lernquiz" className={`flex h-full w-full min-h-0 flex-col gap-2 overflow-hidden p-2 ${currentIsLight ? 'text-slate-800' : 'text-slate-100'}`}>
+    <header className="flex shrink-0 items-center justify-between gap-2">
+      <span className="font-bold">{item.t} · {questionDifficulty}</span>
+      <button type="button" className={button} aria-pressed={configuring} onClick={() => setConfiguring(v => !v)}>{configuring ? 'Zur Frage' : 'Thema & Niveau'}</button>
+    </header>
+    {configuring ? <div className="flex min-h-0 flex-1 flex-col justify-center gap-3">
+      <label className="flex flex-col gap-1">Themenbereich<select aria-label="Quiz-Themenbereich" className={button} value={category} disabled={isLoading} onChange={e => setCategory(e.target.value)}>
+        {['Zufall','Tiere','Weltraum','Saurier','Mathe','Sachkunde'].map(c => <option key={c}>{c}</option>)}
+      </select></label>
+      <label className="flex flex-col gap-1">Eigenes Thema<input aria-label="Eigenes Quiz-Thema" maxLength={80} className={button} value={customTopic} disabled={isLoading} onChange={e => setCustomTopic(e.target.value)} /></label>
+      <div role="group" aria-label="Quiz-Niveau" className="grid grid-cols-3 gap-2">{(['Leicht','Mittel','Schwer'] as const).map(level => <button type="button" className={button} disabled={isLoading} aria-pressed={difficulty === level} key={level} onClick={() => setDifficulty(level)}>{level}</button>)}</div>
+      <p className="text-sm">Eine KI-Frage bitte vor dem Unterricht fachlich prüfen. Eigene Themen gehen an den bestehenden KI-Dienst.</p>
+    </div> : <div className="flex min-h-0 flex-1 flex-col justify-center gap-2">
+      <h3 className="text-base font-bold leading-snug"><WidgetReadableText text={item.q} title="Quizfrage" /></h3>
+      <div className="grid grid-cols-2 gap-2">{item.o.map((option,i) => <ClassroomQuizOption key={i} option={option} index={i} selected={selected} answer={item.a} loading={isLoading} onSelect={() => setSelected(i)} />)}</div>
+      <p role="status" className="min-h-6 text-center text-sm font-bold">{quizAnswerFeedback(item,selected)}</p>
+    </div>}
+    <footer className="flex shrink-0 flex-col gap-2">
+      {notice && <p role="status" className="text-sm">{notice}</p>}
+      {isLoading ? <div className="flex items-center justify-between gap-2"><span role="status">Neue Frage wird erstellt …</span><button type="button" className={button} onClick={cancel}>Abbrechen</button></div> : <div className="flex gap-2"><button type="button" className={button+' flex-1'} onClick={() => void generateNew()}>Neue KI-Frage</button><button type="button" className={button} disabled={selected === null} onClick={() => setSelected(null)}>Noch einmal lösen</button></div>}
+    </footer>
+  </section>;
 };
 
 /** One visible Quiz & Rätsel entry; older standalone AI-Quiz widgets remain readable. */
