@@ -614,6 +614,7 @@ const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
   "vocabulary",
   "spellingdetective",
   "wordbuilder",
+  "wortsatzwerkstatt",
   "scrambler",
   "compoundsplit",
   "storyemojis",
