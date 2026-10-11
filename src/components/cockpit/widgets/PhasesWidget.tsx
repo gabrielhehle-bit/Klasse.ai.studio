@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -9,9 +9,12 @@ import {
   X,
   Compass,
 } from 'lucide-react';
+import { readWidgetLifecycleState, usePersistedWidgetLifecycleState } from '../../../lib/widgetLifecycleState';
 import { CockpitWidgetConfig } from '../../../types';
 import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
 import {
+  normalizeLessonPhases,
+  getPhaseNavigationPage,
   PhaseItem,
   DEFAULT_LESSON_PHASES,
   getActivePhaseIndex,
@@ -48,7 +51,7 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
   // Initialize phases from widget.settings or lessonPhases or defaults
   const initialPhases: PhaseItem[] = useMemo(() => {
     if (widget?.settings?.phases && Array.isArray(widget.settings.phases) && widget.settings.phases.length > 0) {
-      return widget.settings.phases;
+      return normalizeLessonPhases(widget.settings.phases);
     }
     if (lessonPhases && Array.isArray(lessonPhases) && lessonPhases.length > 0) {
       return lessonPhases.map((p, i) => ({
@@ -75,15 +78,34 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
     return initialPhases[0]?.id || 'p1';
   }, [widget?.settings?.activePhaseId, lessonPhases, initialPhases]);
 
-  const [activeId, setActiveId] = useState<string>(initialActiveId);
+  const [activeId, setActiveId] = useState<string>(initialPhases.some(p => p.id === initialActiveId) ? initialActiveId : initialPhases[0].id);
+  // External restore/sync may change the persisted phases while this widget stays open.
+  useEffect(() => {
+    if (!Array.isArray(widget?.settings?.phases)) return;
+    const restored = normalizeLessonPhases(widget.settings.phases);
+    const restoredActive = restored.some(p => p.id === widget.settings.activePhaseId)
+      ? widget.settings.activePhaseId : restored[0].id;
+    setPhases(prev => JSON.stringify(prev) === JSON.stringify(restored) ? prev : restored);
+    setActiveId(restoredActive);
+  }, [widget?.settings?.phases, widget?.settings?.activePhaseId]);
 
+
+  const draft = readWidgetLifecycleState(widget, 'phases', {editingId: null as string | null, editLabel: '', showAddModal: false, newPhaseName: '', phaseNavigation: {scope: '', page: 0}});
   // Editing state
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editLabel, setEditLabel] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newPhaseName, setNewPhaseName] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(draft.editingId);
+  const [editLabel, setEditLabel] = useState(draft.editLabel);
+  const [showAddModal, setShowAddModal] = useState(draft.showAddModal);
+  const [newPhaseName, setNewPhaseName] = useState(draft.newPhaseName);
   const hasExternalSettingsControl = typeof externalShowSettings === 'boolean';
   const isManaging = hasExternalSettingsControl ? externalShowSettings : true;
+
+  const [phaseNavigation, setPhaseNavigation] = useState(draft.phaseNavigation);
+  const pageSize = isManaging ? 1 : 2;
+  const pageScope = `${activeId}:${pageSize}`;
+  const pageCount = Math.ceil(phases.length / pageSize);
+  const safePage = getPhaseNavigationPage(phaseNavigation, pageScope, getActivePhaseIndex(phases, activeId), pageSize, phases.length);
+  const setPhasePage = (page: number) => setPhaseNavigation({scope: pageScope, page});
+  usePersistedWidgetLifecycleState(widget, onUpdate, 'phases', {editingId, editLabel, showAddModal, newPhaseName, phaseNavigation});
 
   // Synchronize state changes to persistence and parent
   const syncPhases = useCallback(
@@ -106,8 +128,7 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
       if (setLessonPhases) {
         setLessonPhases(
           newPhases.map((p) => ({
-            id: p.id,
-            label: p.label,
+            ...p,
             active: p.id === newActiveId,
           }))
         );
@@ -167,7 +188,7 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
     setEditingId(null);
   };
 
-  const isCompact = size.category === 'compact';
+  const isCompact = size.category === 'compact' && !isManaging;
   const isLarge = size.category === 'large';
   const isFullscreen = size.category === 'fullscreen';
 
@@ -179,6 +200,7 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
   return (
     <div
       ref={containerRef}
+      data-practice-root="phases"
       role="region"
       aria-label={`Unterrichtsphase: ${currentPhase.label}, Phase ${activeIndex + 1} von ${total}`}
       className={`w-full h-full flex flex-col justify-between overflow-hidden select-none p-3 sm:p-4 transition-colors relative ${textColor} ${
@@ -220,20 +242,20 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
 
             {/* Stepper Dots */}
             <div className="flex items-center gap-1.5 mt-3 justify-center">
-              {phases.map((p, idx) => (
+              {phases.slice(Math.max(0, activeIndex - 1), activeIndex + 2).map((p) => (
                 <button
                   key={p.id}
                   type="button"
                   onClick={() => handleSelect(p.id)}
-                  aria-label={`Zu Phase ${idx + 1}: ${p.label} springen`}
-                  className={`h-2 rounded-full transition-all cursor-pointer ${
-                    idx === activeIndex
+                  aria-label={`Zu Phase ${phases.indexOf(p) + 1}: ${p.label} springen`}
+                  className={`min-h-11 min-w-11 rounded-full transition-all cursor-pointer ${
+                    p.id === activeId
                       ? 'w-6 bg-accent'
-                      : idx < activeIndex
+                      : phases.indexOf(p) < activeIndex
                       ? 'w-2 bg-emerald-500'
                       : 'w-2 bg-slate-300 dark:bg-zinc-700'
                   }`}
-                  title={`${idx + 1}. ${p.label}`}
+                  title={`${phases.indexOf(p) + 1}. ${p.label}`}
                 />
               ))}
             </div>
@@ -290,7 +312,7 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
 
       {/* STANDARD / LARGE / FULLSCREEN VIEW */}
       {!isCompact && (
-        <div className="flex flex-col justify-between h-full w-full gap-3">
+        <div className="flex flex-col justify-between flex-1 min-h-0 w-full gap-2">
           {/* Header Row */}
           <div className="flex min-h-11 items-center justify-between shrink-0">
             <span className="rounded-lg bg-accent-soft px-2 py-1 text-xs font-bold text-accent">
@@ -309,8 +331,8 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
           </div>
 
           {/* Active Phase Spotlight */}
-          <div
-            className={`rounded-2xl p-4 border transition-all text-center flex flex-col items-center justify-center shrink-0 ${cardBg} ${borderColor} shadow-xs ${
+          {!isManaging && <div
+            className={`rounded-2xl p-4 border transition-all text-center flex flex-col items-center justify-center min-h-0 ${cardBg} ${borderColor} shadow-xs ${
               isFullscreen ? 'py-8' : ''
             }`}
           >
@@ -333,11 +355,12 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
                 {currentPhase.subtitle}
               </p>
             )}
-          </div>
+          </div>}
 
           {/* Horizontal Stepper Ribbon */}
-          <div className="flex-1 min-h-0 flex items-center overflow-x-auto no-scrollbar py-1 gap-1.5">
-            {phases.map((p, idx) => {
+          <div className="flex-1 min-h-0 flex items-stretch py-1 gap-2">
+            {phases.slice(safePage * pageSize, (safePage + 1) * pageSize).map((p, pageIndex) => {
+              const idx = safePage * pageSize + pageIndex;
               const isActive = idx === activeIndex;
               const isPast = idx < activeIndex;
               const isEditing = editingId === p.id;
@@ -345,7 +368,8 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
               return (
                 <div
                   key={p.id}
-                  className={`flex-1 min-w-[90px] max-w-[170px] h-full min-h-[50px] p-2 rounded-xl border flex flex-col justify-between transition-all relative cursor-pointer ${
+                  role="group" aria-label={`Phase ${idx + 1}: ${p.label}`}
+                  className={`flex-1 min-w-0 min-h-[90px] p-2 rounded-xl border flex flex-col justify-between transition-all relative cursor-pointer ${
                     isActive
                       ? 'bg-accent text-accent-text border-accent shadow-sm'
                       : isPast
@@ -356,7 +380,7 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
                       ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-600'
                       : 'bg-zinc-900 hover:bg-zinc-850 border-zinc-800 text-zinc-400'
                   }`}
-                  onClick={() => !isEditing && handleSelect(p.id)}
+
                 >
                   <div className="flex items-center justify-between w-full">
                     <span
@@ -378,7 +402,7 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
                           type="button"
                           onClick={(e) => handleStartEdit(p, e)}
                           className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-accent-soft hover:text-accent"
-                          title="Bearbeiten"
+                          aria-label={`Phase ${idx + 1} bearbeiten`} title="Bearbeiten"
                         >
                           <Edit2 size={13} />
                         </button>
@@ -387,7 +411,7 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
                             type="button"
                             onClick={(e) => handleDelete(p.id, e)}
                             className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-rose-500/10 hover:text-rose-500"
-                            title="Löschen"
+                            aria-label={`Phase ${idx + 1} löschen`} title="Löschen"
                           >
                             <Trash2 size={13} />
                           </button>
@@ -407,7 +431,8 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
                           if (e.key === 'Escape') setEditingId(null);
                         }}
                         autoFocus
-                        className="w-full text-xs font-bold px-1 py-0.5 rounded bg-white text-slate-900 border border-accent outline-hidden"
+                        aria-label="Phasenname bearbeiten" maxLength={80}
+                        className="min-h-11 min-w-0 w-full text-xs font-bold px-1 py-0.5 rounded bg-white text-slate-900 border border-accent outline-hidden"
                       />
                       <button
                         type="button"
@@ -419,7 +444,7 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
                     </div>
                   ) : (
                     <div className="mt-1">
-                      <div className="text-xs font-bold truncate">{p.label}</div>
+<button type="button" aria-pressed={isActive} onClick={() => handleSelect(p.id)} className="min-h-11 w-full rounded-lg px-2 text-sm font-bold break-words">{p.label}</button>
                     </div>
                   )}
                 </div>
@@ -427,6 +452,11 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
             })}
           </div>
 
+          <div className="flex shrink-0 items-center justify-between gap-2">
+            <button type="button" aria-label="Vorherige Phasenseite" disabled={safePage === 0} onClick={() => setPhasePage(safePage - 1)} className="min-h-11 min-w-11 rounded-xl border px-3 disabled:opacity-30">‹</button>
+            <span className="text-xs">Seite {safePage + 1} / {pageCount}</span>
+            <button type="button" aria-label="Nächste Phasenseite" disabled={safePage + 1 >= pageCount} onClick={() => setPhasePage(safePage + 1)} className="min-h-11 min-w-11 rounded-xl border px-3 disabled:opacity-30">›</button>
+          </div>
           {/* Stepper Bottom Controls */}
           <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-200 dark:border-zinc-800 shrink-0">
             <button
@@ -463,9 +493,10 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
       )}
 
       {/* Add Custom Phase Modal / Popover */}
-      {showAddModal && (
+      {showAddModal && isManaging && (
         <div className="absolute inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-30">
           <div
+            role="dialog" aria-modal="true" aria-label="Neue Unterrichtsphase"
             className={`w-full max-w-sm rounded-2xl p-4 shadow-xl border ${cardBg} ${borderColor}`}
           >
             <div className="flex items-center justify-between mb-3">
@@ -473,19 +504,21 @@ export const PhasesWidget: React.FC<PhasesWidgetProps> = ({
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
+                aria-label="Neue Phase schließen"
+                className="min-w-11 min-h-11 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <X size={16} />
               </button>
             </div>
             <input
               type="text"
+              aria-label="Neue Phase" maxLength={80}
               placeholder="z. B. Stationenlernen, Morgenkreis"
               value={newPhaseName}
               onChange={(e) => setNewPhaseName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+              onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); if (e.key === "Escape") setShowAddModal(false); }}
               autoFocus
-              className="w-full text-xs font-semibold px-3 py-2 rounded-xl border border-slate-300 dark:border-zinc-700 mb-3 outline-accent"
+              className="min-h-11 w-full text-xs font-semibold px-3 py-2 rounded-xl border border-slate-300 dark:border-zinc-700 mb-3 outline-accent"
             />
             <div className="flex gap-2 justify-end">
               <button

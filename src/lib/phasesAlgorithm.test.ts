@@ -108,5 +108,5 @@ test('Phases: 10. FULLSCREEN Responsive Kategorie (>= 800 px oder isFullscreen=t
 
 test('Phases: 11. Kein horizontaler Overflow & Mindestmaße im Register', () => {
   assert.ok(WIDGET_MIN_SIZES.phases);
-  assert.ok(WIDGET_MIN_SIZES.phases.minW <= 280);
+  assert.ok(WIDGET_MIN_SIZES.phases.minW >= 460);
 });
