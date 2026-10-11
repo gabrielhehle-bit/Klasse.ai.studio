@@ -12,7 +12,9 @@ export function normalizeQuizSession(raw: unknown, legacy?: unknown, legacyDiffi
   const selected = validClassroomQuiz(v.item) && Number.isInteger(v.selected) &&
     (v.selected as number) >= 0 && (v.selected as number) <= 3 ? v.selected as number : null;
   const level = v.difficulty ?? legacyDifficulty;
+  const questionLevel = v.questionDifficulty ?? legacyDifficulty;
   return { item, selected, difficulty: (['Leicht','Mittel','Schwer'].includes(String(level)) ? level : 'Mittel') as QuizDifficulty,
+    questionDifficulty: (['Leicht','Mittel','Schwer'].includes(String(questionLevel)) ? questionLevel : 'Mittel') as QuizDifficulty,
     category: typeof v.category === 'string' ? v.category.slice(0,80) : 'Zufall',
     customTopic: typeof v.customTopic === 'string' ? v.customTopic.slice(0,80) : '',
     configuring: v.configuring === true,

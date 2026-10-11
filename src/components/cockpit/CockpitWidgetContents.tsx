@@ -3216,6 +3216,7 @@ export const AIQuizWidgetContent: React.FC<{ widget: any, onUpdate?: (updates: a
   const [item, setItem] = useState(saved.item);
   const [selected, setSelected] = useState<number | null>(saved.selected);
   const [difficulty, setDifficulty] = useState<QuizDifficulty>(saved.difficulty);
+  const [questionDifficulty, setQuestionDifficulty] = useState<QuizDifficulty>(saved.questionDifficulty);
   const [category, setCategory] = useState(saved.category);
   const [customTopic, setCustomTopic] = useState(saved.customTopic);
   const [configuring, setConfiguring] = useState(saved.configuring);
@@ -3223,11 +3224,11 @@ export const AIQuizWidgetContent: React.FC<{ widget: any, onUpdate?: (updates: a
   const [isLoading, setIsLoading] = useState(false);
   const generation = useRef(0), busy = useRef(false);
   useEffect(() => () => { generation.current++; busy.current = false; }, []);
-  usePersistedWidgetLifecycleState(widget, onUpdate, 'aiquiz', {item,selected,difficulty,category,customTopic,configuring,notice});
+  usePersistedWidgetLifecycleState(widget, onUpdate, 'aiquiz', {item,selected,difficulty,questionDifficulty,category,customTopic,configuring,notice});
   const saveQuestion = (candidate: unknown, chosenDifficulty: QuizDifficulty) => {
     const valid = validClassroomQuiz(candidate);
     if (!valid) return false;
-    setItem(valid); setSelected(null); setNotice('');
+    setItem(valid); setSelected(null); setQuestionDifficulty(chosenDifficulty); setNotice('');
     if (onUpdate && widget?.id) onUpdate({ settings: {
       ...(widget.settings || {}), classroomQuiz: valid, quizDifficulty: chosenDifficulty,
     } });
@@ -3255,7 +3256,7 @@ export const AIQuizWidgetContent: React.FC<{ widget: any, onUpdate?: (updates: a
   const button = 'min-h-11 min-w-11 rounded-xl border px-3 py-2 text-sm font-bold disabled:opacity-50';
   return <section data-practice-root="aiquiz" aria-label="Lernquiz" className={`flex h-full w-full min-h-0 flex-col gap-3 overflow-hidden p-3 ${currentIsLight ? 'text-slate-800' : 'text-slate-100'}`}>
     <header className="flex shrink-0 items-center justify-between gap-2">
-      <span className="font-bold">{item.t} · {difficulty}</span>
+      <span className="font-bold">{item.t} · {questionDifficulty}</span>
       <button type="button" className={button} aria-pressed={configuring} onClick={() => setConfiguring(v => !v)}>{configuring ? 'Zur Frage' : 'Thema & Niveau'}</button>
     </header>
     {configuring ? <div className="flex min-h-0 flex-1 flex-col justify-center gap-3">

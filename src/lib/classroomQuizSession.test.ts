@@ -4,6 +4,8 @@ import { DEFAULT_CLASSROOM_QUIZ, normalizeQuizSession, quizAnswerFeedback } from
 
 test('quiz restores the answer with its exact question and retains a topic draft', () => {
   const s = normalizeQuizSession({item:DEFAULT_CLASSROOM_QUIZ,selected:2,customTopic:'Wald',category:'Tiere',difficulty:'Schwer',configuring:true});
+  assert.equal(s.questionDifficulty,'Mittel');
+  assert.equal(s.difficulty,'Schwer');
   assert.equal(s.selected,2); assert.equal(s.customTopic,'Wald'); assert.equal(s.configuring,true);
   assert.equal(quizAnswerFeedback(s.item,s.selected),'Die richtige Antwort ist: Elefant.');
 });
