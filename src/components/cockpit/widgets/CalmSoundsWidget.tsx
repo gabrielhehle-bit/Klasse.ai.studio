@@ -241,7 +241,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
       className={`w-full h-full flex flex-col justify-between select-none overflow-hidden ${
         currentIsLight ? 'text-slate-800' : 'text-slate-100'
       } ${
-        size.category === 'compact'
+        isBoardMixer ? 'p-3 text-sm' : size.category === 'compact'
           ? 'p-2.5 text-xs'
           : size.category === 'large'
           ? 'p-4 text-sm'
@@ -482,7 +482,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                 return (
                   <div
                     key={track.id}
-                    className={`p-2.5 rounded-xl border transition-all flex flex-col justify-between gap-2 ${
+                    className={`${isBoardMixer ? 'p-2 gap-1' : 'p-2.5 gap-2'} rounded-xl border transition-all flex flex-col justify-between ${
                       isActive
                         ? currentIsLight
                           ? 'bg-white border-blue-200 shadow-sm'
@@ -492,41 +492,26 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
                         : 'bg-zinc-900/40 border-white/5 opacity-50'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <button
-                        type="button"
-                        aria-pressed={isActive}
-                        onClick={() => handleToggleTrack(track.id)}
-                        className="flex items-center gap-2 font-bold text-xs cursor-pointer text-left truncate"
-                         style={{ minHeight: `${TOUCH_TARGET_MIN}px` }}
-                        title={isActive ? "Spur deaktivieren" : "Spur aktivieren"}
-                      >
-                        <span className="text-lg">{track.icon}</span>
-                        <div className="truncate">
-                          <span className="block truncate">{track.label}</span>
-                          <span className="block text-[10px] opacity-60 truncate font-normal">
-                            {track.sublabel}
-                          </span>
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        aria-pressed={isActive}
-                        onClick={() => handleToggleTrack(track.id)}
-                        aria-label={`${track.label} ${isActive ? 'deaktivieren' : 'aktivieren'}`}
-                         style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
-                        className={`w-11 h-11 rounded-lg flex items-center justify-center transition-all cursor-pointer shrink-0 border ${
-                          isActive
-                            ? 'bg-accent text-accent-text border-accent'
-                            : currentIsLight
-                            ? 'bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200'
-                            : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:bg-zinc-700'
-                        }`}
-                      >
+                    <button
+                      type="button"
+                      aria-pressed={isActive}
+                      aria-label={`${track.label} ${isActive ? 'deaktivieren' : 'aktivieren'}`}
+                      onClick={() => handleToggleTrack(track.id)}
+                      className="flex w-full min-w-11 min-h-11 items-center justify-between gap-2 text-left cursor-pointer"
+                    >
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="text-lg shrink-0">{track.icon}</span>
+                        <span className="min-w-0">
+                          <span className="block truncate font-bold text-xs">{track.label}</span>
+                          <span className="block truncate text-[10px] opacity-60">{track.sublabel}</span>
+                        </span>
+                      </span>
+                      <span aria-hidden="true" className={`w-8 h-8 shrink-0 rounded-lg flex items-center justify-center border ${
+                        isActive ? 'bg-accent text-accent-text border-accent' : 'bg-slate-100 text-slate-400 border-slate-200 dark:bg-zinc-800 dark:border-zinc-700'
+                      }`}>
                         <Check size={14} className={isActive ? 'opacity-100' : 'opacity-0'} />
-                      </button>
-                    </div>
+                      </span>
+                    </button>
 
                     {/* Spur Lautstärkeregler */}
                     <div className="space-y-1">

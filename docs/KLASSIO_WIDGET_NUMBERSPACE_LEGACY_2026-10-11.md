@@ -16,7 +16,9 @@ Zahnrad; sie verdrängen die Unterrichtsfläche nicht. Alle drei Zahlenraumtypen
 haben 760×560 Mindestfläche für sechs Marker und vollständige Rechensprünge.
 Vergrößerte Zahlenlabels und drei getrennte Beschriftungszeilen verhindern
 die Überlagerung der aufeinanderfolgenden Sprungwerte.
-Klang-Maschine: 760×560 mit fünf zugleich erreichbaren Quellen. Wortwerkstatt:
+Klang-Maschine: 760×560 mit fünf zugleich erreichbaren Quellen und je einer
+vollbreiten 44-Pixel-Schaltfläche. Beide Mixerzeilen müssen ohne angeschnittene
+Inhalte in die Fläche passen. Wortwerkstatt:
 620×560. Keine Punkteskala oder Schülerprofile im Zahlenraum.
 
 Sieben neue Logiktests prüfen beschädigte Daten, beide Teile der Zerlegung,
