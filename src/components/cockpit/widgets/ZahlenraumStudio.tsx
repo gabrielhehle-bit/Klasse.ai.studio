@@ -84,6 +84,18 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
   const [jumps, setJumps] = useState<ZahlenraumJump[]>(initialSettings.jumps);
   const [newJumpStep, setNewJumpStep] = useState<number>(initialSettings.pendingJumpStep ?? 10);
   const [showCustomRangeInputs, setShowCustomRangeInputs] = useState<boolean>(initialSettings.range === 'custom');
+  const customMinInputRef = useRef<HTMLInputElement>(null);
+  const customMaxInputRef = useRef<HTMLInputElement>(null);
+  const markerInputRef = useRef<HTMLInputElement>(null);
+  const jumpInputRef = useRef<HTMLInputElement>(null);
+  // Number inputs may temporarily contain only a minus sign. Leave the native
+  // editing buffer intact until blur, while external saved values still update.
+  useEffect(() => {
+    for (const [ref, value] of [[customMinInputRef, customMin], [customMaxInputRef, customMax],
+      [markerInputRef, markers[0]?.value ?? 0], [jumpInputRef, newJumpStep]] as const) {
+      if (ref.current && document.activeElement !== ref.current) ref.current.value = String(value);
+    }
+  }, [customMin, customMax, markers, newJumpStep, mode]);
   const settingsRef = useRef(initialSettings);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const applySettings = useCallback((next: ZahlenraumSettings) => {
@@ -617,8 +629,10 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                   <span>Min:</span>
                   <input
                     id="zahlenraum-custom-min-input"
+                    ref={customMinInputRef}
                     type="number"
-                    value={customMin}
+                    defaultValue={customMin}
+                    onBlur={e => { e.currentTarget.value = String(customMin); }}
                     onChange={(e) => {
                       const val = parseInt(e.target.value, 10) || 0;
                       setCustomMin(val);
@@ -631,8 +645,10 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                   <span>Max:</span>
                   <input
                     id="zahlenraum-custom-max-input"
+                    ref={customMaxInputRef}
                     type="number"
-                    value={customMax}
+                    defaultValue={customMax}
+                    onBlur={e => { e.currentTarget.value = String(customMax); }}
                     onChange={(e) => {
                       const val = Number(e.target.value);
                       setCustomMax(val);
@@ -884,9 +900,11 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                   <span className="text-slate-500">Wert:</span>
                   <input
                     id="zahlenraum-main-marker-input"
+                    ref={markerInputRef}
                     aria-label="Hauptmarker eingeben"
                     type="number"
-                    value={markers[0]?.value ?? currentMin}
+                    defaultValue={markers[0]?.value ?? currentMin}
+                    onBlur={e => { e.currentTarget.value = String(markers[0]?.value ?? currentMin); }}
                     onChange={(e) => {
                       const val = parseInt(e.target.value, 10);
                       if (!isNaN(val) && markers[0]) {
@@ -923,7 +941,8 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                       -{step}
                     </button>
                   ))}
-                  <input type="number" aria-label="Eigene Sprungweite" value={newJumpStep}
+                  <input ref={jumpInputRef} type="number" aria-label="Eigene Sprungweite" defaultValue={newJumpStep}
+                    onBlur={e => { e.currentTarget.value = String(newJumpStep); }}
                     onChange={e => persist({pendingJumpStep: Number(e.target.value)})}
                     className="min-h-11 w-16 rounded-lg border bg-transparent px-2 text-center font-mono" />
                   <button type="button" aria-label="Eigenen Rechensprung hinzufügen" className="min-h-11 min-w-11 rounded-lg border disabled:opacity-40"

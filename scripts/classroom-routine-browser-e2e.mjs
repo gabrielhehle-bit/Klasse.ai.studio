@@ -2630,7 +2630,7 @@ async function main() {
       await clickSelector(client,root+' [aria-label="'+increase+'"]');
       const changed=await evaluate(client,`document.querySelector(${q(root)}).dataset.fractionPrimary`);
       if(before===changed)throw Error('Fraction control did not change the actual fraction');
-      await practiceRestore(type,label,search);
+      await practiceRestore(type,search);
       await waitFor(client,type+' preserves edited canonical fraction',`document.querySelector(${q(root)}).dataset.fractionPrimary===${q(changed)}`);
       await auditMenu(type,'Widget schließen');await openAuditWidget(type,search);
       await waitFor(client,type+' close restores the actual fraction',`document.querySelector(${q(root)}).dataset.fractionPrimary===${q(changed)}`);
@@ -2911,6 +2911,7 @@ async function main() {
     const musicClosed=async()=>{await sleep(1500);await waitFor(client,'music releases every audio context after closing',`window.__musicContexts.every(ctx=>ctx.state==='closed')`);};
 
     // Three independent catalogue entries share the same maths component.
+    const numbersTypeSigned=async(root,label,value)=>{await clickSelector(client,root+' [aria-label="'+label+'"]');await client.send('Input.dispatchKeyEvent',{type:'keyDown',key:'a',code:'KeyA',modifiers:2});await client.send('Input.dispatchKeyEvent',{type:'keyUp',key:'a',code:'KeyA'});for(const text of value)await client.send('Input.insertText',{text});};
     const numbersGear=async type=>{await clickSelector(client,'[data-widget-type="'+type+'"] .cockpit-widget-settings-trigger');await waitFor(client,type+' native maths configuration opens',`Boolean(document.querySelector('dialog[open][aria-label="Zahlenraum einstellen"]'))`);};
     const numbersChoose=async(type,mode,range)=>{await numbersGear(type);await clickSelector(client,'dialog[open] #zahlenraum-mode-'+mode+'-btn');await clickSelector(client,'dialog[open] #zahlenraum-range-'+range+'-btn');await pressAuditKey('Escape');await waitFor(client,type+' maths dialog restores gear focus',`!document.querySelector('dialog[open]')&&document.activeElement?.matches(${q('[data-widget-type="'+type+'"] .cockpit-widget-settings-trigger')})`);};
     for(const [type,search,label,initialMode] of [['zahlenraum','zahlenraum','Zahlenraum-Studio','quantity'],['anschauung','anschauung','Zahlenraum-Studio','quantity'],['numberline','Zahlenstrahl','Zahlenstrahl','numberline']]){
@@ -2939,8 +2940,8 @@ async function main() {
       for(let n=6;n>1;n--)await clickSelector(client,root+' [aria-label="Marker '+n+' entfernen"]');
       await numbersChoose(type,'numberline','custom');await setInputByLabel(client,'Zahlenstrahl von','200');await setInputByLabel(client,'Zahlenstrahl bis','300');await natureClick(root,'Bereich anwenden');await setInputByLabel(client,'Hauptmarker eingeben','245');await natureClick(root,'+10');
       await waitFor(client,type+' custom range really renders 200 to 300 with marker 245',`document.querySelector(${q(root+' #tick-200 text')}).textContent==='200'&&document.querySelector(${q(root+' #tick-300 text')}).textContent==='300'&&document.querySelector(${q(root+' #marker-pin-m1 text')}).textContent==='245'`);await practiceRestore(type,label,search);
-      await setInputByLabel(client,'Zahlenstrahl von','-50');await setInputByLabel(client,'Zahlenstrahl bis','0');await natureClick(root,'Bereich anwenden');await setInputByLabel(client,'Hauptmarker eingeben','-25');
-      await waitFor(client,type+' negative custom line accepts zero as upper bound',`document.querySelector(${q(root+' #tick-0 text')}).textContent==='0'&&document.querySelector(${q(root+' #marker-pin-m1 text')}).textContent==='-25'&&document.querySelectorAll(${q(root+' g[id^="jump-arc-"]')}).length===0`);await practiceScreen(type);await practiceRestore(type,label,search);await auditMenu(type,'Widget schließen');
+      await numbersTypeSigned(root,'Zahlenstrahl von','-50');await setInputByLabel(client,'Zahlenstrahl bis','0');await natureClick(root,'Bereich anwenden');await numbersTypeSigned(root,'Hauptmarker eingeben','-25');
+      await waitFor(client,type+' negative custom line accepts zero as upper bound',`document.querySelector(${q(root+' #tick-0 text')}).textContent==='0'&&document.querySelector(${q(root+' #marker-pin-m1 text')}).textContent==='-25'&&document.querySelectorAll(${q(root+' g[id^="jump-arc-"]')}).length===0`);await numbersTypeSigned(root,'Eigene Sprungweite','-5');await clickSelector(client,root+' [aria-label="Eigenen Rechensprung hinzufügen"]');await waitFor(client,type+' typed negative custom jump produces the actual minus five arc',`document.querySelector(${q(root+' g[id^="jump-arc-"] text')}).textContent==='-5'`);await practiceScreen(type);await practiceRestore(type,label,search);await auditMenu(type,'Widget schließen');
     }
 
     // The separately selectable ambient legacy entry changes an already running synthesis graph.
