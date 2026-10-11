@@ -541,7 +541,7 @@ export const CalmSoundsWidget: React.FC<CalmSoundsWidgetProps> = ({
       </div>
 
       {/* 3. Footer: Schlummer-Timer Schnellwahl */}
-      <div className={`mt-2 pt-2 border-t shrink-0 flex items-center justify-between gap-2 text-xs ${
+      <div className={`mt-2 pt-2 border-t shrink-0 flex items-center justify-between gap-2 text-xs ${isBoardMixer ? 'pr-12' : ''} ${
         currentIsLight ? 'border-slate-200' : 'border-white/10'
       }`}>
         <div className="flex items-center gap-1.5 opacity-70 text-[11px] font-semibold shrink-0">
