@@ -3526,6 +3526,53 @@ async function main() {
         await evaluate(client, `(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
         await clickButton(client, 'Mitarbeit', true);
         await waitFor(client, 'participation counter survives encrypted reload', `Number(document.querySelector('input[data-quick-entry="mitarbeit"]')?.value || 0) === ${firstParticipation.value} && Boolean(document.querySelector('[data-participation-period-total]'))`);
+        // Temporary text edits must not mutate the saved counter or its journal.
+        const participationField='[data-gradebook] input[aria-label='+q(firstParticipation.label)+']';
+        const participationValue=`Number(document.querySelector(${q(participationField)}).value||0)`;
+        const participationTotal=`Number(document.querySelector('[data-participation-period-total]').textContent.split(' ')[0])`;
+        const selectParticipationPeriod=async period=>{await evaluate(client,`(() => {const s=document.querySelector('[aria-label="Zeitraum der Mitarbeit"]');s.value=${q(period)};s.dispatchEvent(new Event('change',{bubbles:true}));})()`);await waitFor(client,'participation period '+period,`document.querySelector('[aria-label="Zeitraum der Mitarbeit"]').value===${q(period)}`);};
+        const leaveParticipationField=async()=>{await client.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});await client.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});await waitFor(client,'native Tab really leaves participation editor',`document.activeElement!==document.querySelector(${q(participationField)})`);};
+        const baselinePeriods={};
+        for(const period of ['all','week','month','semester']){await selectParticipationPeriod(period);baselinePeriods[period]=await evaluate(client,participationTotal);}
+        await selectParticipationPeriod('all');
+        await numbersTypeSigned('[data-gradebook]',firstParticipation.label,'12');
+        await waitFor(client,'typed whole participation draft leaves saved chart untouched',`${participationValue}===12&&${participationTotal}===${baselinePeriods.all}`);
+        await pressAuditKey('Enter');
+        await waitFor(client,'Enter commits only final participation total and advances one row',`${participationValue}===12&&${participationTotal}===${baselinePeriods.all+12-firstParticipation.value}&&document.activeElement?.dataset.studentIndex==='1'`);
+        await numbersTypeSigned('[data-gradebook]',firstParticipation.label,'3');await pressAuditKey('Escape');
+        await waitFor(client,'Escape discards participation draft without changing original awards',`${participationValue}===12&&${participationTotal}===${baselinePeriods.all+12-firstParticipation.value}`);
+        // Clear using the actual keyboard; an empty field is a draft, never an implicit reset.
+        await numbersTypeSigned('[data-gradebook]',firstParticipation.label,'12');
+        await client.send('Input.dispatchKeyEvent',{type:'keyDown',key:'a',code:'KeyA',modifiers:2,windowsVirtualKeyCode:65,commands:['selectAll']});await client.send('Input.dispatchKeyEvent',{type:'keyUp',key:'a',code:'KeyA',windowsVirtualKeyCode:65});
+        await client.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Backspace',code:'Backspace',windowsVirtualKeyCode:8});await client.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Backspace',code:'Backspace',windowsVirtualKeyCode:8});
+        await waitFor(client,'empty participation draft keeps saved chart and grade',`document.querySelector(${q(participationField)}).value===''&&${participationTotal}===${baselinePeriods.all+12-firstParticipation.value}`);
+        await leaveParticipationField();await waitFor(client,'empty blur restores saved participation total',`${participationValue}===12`);
+        for(const invalid of ['-1','1.5','12abc','9007199254740992']){
+          await numbersTypeSigned('[data-gradebook]',firstParticipation.label,invalid);await pressAuditKey('Enter');
+          await waitFor(client,'invalid participation edit rejected '+invalid,`document.querySelector(${q(participationField)}).getAttribute('aria-invalid')==='true'&&document.activeElement===document.querySelector(${q(participationField)})&&${participationTotal}===${baselinePeriods.all+12-firstParticipation.value}`);
+          await pressAuditKey('Escape');await waitFor(client,'invalid participation draft discarded',`${participationValue}===12&&!document.querySelector(${q(participationField)}).hasAttribute('aria-invalid')`);
+        }
+        await numbersTypeSigned('[data-gradebook]',firstParticipation.label,'15');
+        await waitFor(client,'multi-digit replacement remains a draft until blur',`${participationTotal}===${baselinePeriods.all+12-firstParticipation.value}`);
+        await leaveParticipationField();await waitFor(client,'blur commits final participation difference',`${participationValue}===15&&${participationTotal}===${baselinePeriods.all+15-firstParticipation.value}`);
+        for(const period of ['week','month','semester','all']){await selectParticipationPeriod(period);await waitFor(client,'final participation edit appears in '+period,`${participationTotal}===${baselinePeriods[period]+15-firstParticipation.value}`);}
+        await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-participation-draft.png'));
+        // A context change with an input still focused must not move its draft to another subject.
+        await evaluate(client,`(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Deutsch';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+        await waitFor(client,'German counter available before subject isolation check',`document.querySelector('#gradebook-active-subject').value==='Deutsch'&&Boolean(document.querySelector(${q(participationField)}))`);
+        const germanBefore=await evaluate(client,participationValue);
+        await evaluate(client,`(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+        await waitFor(client,'math counter restored before focused draft',`${participationValue}===15`);await numbersTypeSigned('[data-gradebook]',firstParticipation.label,'19');
+        await evaluate(client,`(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Deutsch';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+        await waitFor(client,'subject switch discards old input instead of changing German',`document.querySelector('#gradebook-active-subject').value==='Deutsch'&&${participationValue}===${germanBefore}`);
+        await evaluate(client,`(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+        await waitFor(client,'uncommitted subject draft did not alter saved math points',`${participationValue}===15`);
+        await numbersTypeSigned('[data-gradebook]',firstParticipation.label,'0');await pressAuditKey('Enter');
+        await waitFor(client,'explicit zero deliberately resets participation counter',`${participationValue}===0`);
+        await reloadAndUnlock(client);await openPage(client,'Notenmappe');
+        await evaluate(client,`(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);await clickButton(client,'Mitarbeit',true);
+        await waitFor(client,'committed zero survives encrypted reload',`${participationValue}===0`);
+        console.log('✓ Participation drafts: native typing, Enter/blur commits, row navigation, empty/Escape cancellation, invalid/unsafe input rejection, all four periods, focused subject isolation and explicit zero survive encrypted reload.');
         console.log('✓ Direct gradebook participation plus/minus updates weekly chart and survives encrypted reload.');
 
       }

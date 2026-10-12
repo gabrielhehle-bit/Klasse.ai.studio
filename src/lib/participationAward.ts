@@ -18,7 +18,7 @@ export function setGradebookParticipationTotal(state: AppState, request: {
   classId: string; sid: string; subject: string; semester: '1' | '2'; total: number;
 }, timestamp = new Date().toISOString()): AppState {
   if (state.activeClassId !== request.classId || !state.schueler.some(student => student.id === request.sid)
-    || !request.subject || !['1', '2'].includes(request.semester) || !Number.isFinite(request.total)
+    || !request.subject || !['1', '2'].includes(request.semester) || !Number.isSafeInteger(request.total)
     || request.total < 0 || !Number.isFinite(new Date(timestamp).getTime())) return state;
   const current = state.mitarbeit?.[request.sid]?.[request.subject]?.[request.semester] || 0;
   const delta = request.total - current;

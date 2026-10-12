@@ -21,6 +21,7 @@ import { CanvasBarChart } from './charts/CanvasBarChart';
 import { DebouncedInput } from './DebouncedInput';
 import BehaviorSettings from './gradebook/BehaviorSettings';
 import ParticipationOverview from './gradebook/ParticipationOverview';
+import ParticipationPointsInput from './gradebook/ParticipationPointsInput';
 import { setGradebookParticipationTotal } from '../lib/participationAward';
 import { AssessmentItemModal } from './gradebook/AssessmentItemModal';
 import { faecherFuerKlasse } from '../lib/sek1Subjects';
@@ -2036,6 +2037,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
       ) : activeView === 'mitarbeit' && !showWeights ? (
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
            <ParticipationOverview key={`${app.activeClassId}:${activeFach}`} app={app} subject={activeFach} />
+           {mitarbeitSettings.mode !== 'manual' && <p className="mb-3 text-xs text-slate-600">Direkte Zahleneingabe: Enter oder Verlassen übernimmt, Escape verwirft. Ein leeres Feld ändert die Punkte nicht; 0 setzt sie zurück.</p>}
            <div className="card !p-0 shadow-lg border border-slate-200 bg-white rounded-2xl overflow-hidden">
               <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/40 flex justify-between items-center">
                  <div className="flex items-center gap-3">
@@ -2129,12 +2131,11 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                           <div className="flex-1 relative z-10">
                                             <div className="flex justify-between items-end mb-2 px-0.5">
                                               <div className="flex items-baseline gap-1.5">
-                                                <input 
-                                                  type="number" 
-                                                  min="0"
-                                                  value={val || ''}
+                                                <ParticipationPointsInput
+                                                  key={`${app.activeClassId}:${activeFach}:${sem}:${s.id}`}
+                                                  value={val}
                                                   aria-label={`Mitarbeitspunkte für ${s.vorname}`}
-                                                  onChange={(e) => setMIVal(s.id, e.target.value === '' ? 0 : parseInt(e.target.value) || 0)}
+                                                  onCommit={(value) => setMIVal(s.id, value)}
                                                   onKeyDown={(event) => handleQuickEntryKey(event, 'mitarbeit', idx)}
                                                   data-quick-entry="mitarbeit"
                                                   data-student-index={idx}
