@@ -3637,13 +3637,23 @@ async function main() {
           if (typ === 'lzk') {
             const idx = Number(col.split('-')[1]);
             const participation = field(0) + ' ~ label input[type="checkbox"]';
+            // The alphabetically second demo pupil has SPF and is excluded by
+            // the preserved default. Explicitly include this real zero-point
+            // participant before expecting a class mean of zero.
+            const zeroAverageChoice = await evaluate(client,`document.querySelector(${q(field(1))}).closest('tr').querySelector('input[aria-label$="im Klassenschnitt mitzählen"]').getAttribute('aria-label')`);
+            const zeroChoice = 'input[aria-label='+q(zeroAverageChoice)+']';
+            if (!await evaluate(client,`document.querySelector(${q(zeroChoice)}).checked`)) await clickSelector(client,zeroChoice);
+            await waitFor(client,'SPF zero-point child can be included without changing own score',`document.querySelector(${q(zeroChoice)}).checked&&document.querySelector(${q(field(1))}).value==='0'`);
             await waitFor(client,'new LZK area survives encrypted reload',`document.querySelector('[data-gradebook]').textContent.includes('Längen')`);
             await clickSelector(client,participation);
-            await waitFor(client,'non-participation preserves zero but disables exempt input',`document.querySelector(${q(field(0))}).disabled&&document.querySelector(${q(field(0))}).value===''&&document.querySelector(${q(field(1))}).value==='0'&&document.querySelector('[data-column-entry-status]').textContent.includes('1 nehmen nicht teil')&&document.querySelector('[data-lzk-class-average="'+${idx}+'"]')?.textContent.trim()==='0.0P'`);
+            await waitFor(client,'non-participation disables exempt input and keeps the other real zero',`document.querySelector(${q(field(0))}).disabled&&document.querySelector(${q(field(0))}).value===''&&document.querySelector(${q(field(1))}).value==='0'`);
+            await waitFor(client,'non-participation is distinct from open assessments',`document.querySelector('[data-column-entry-status]').textContent.includes('1 nehmen nicht teil')`);
+            await waitFor(client,'class mean retains the included SPF zero-point result',`document.querySelector('[data-lzk-class-average="'+${idx}+'"]')?.textContent.trim()==='0.0P'`);
             await reloadAndUnlock(client); await openPage(client,'Notenmappe');
             await evaluate(client,`(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
             await clickSelector(client,'button[aria-label='+q('Bewertungen für '+title+' eintragen')+']');
             await waitFor(client,'LZK exemption survives encrypted reload',`document.querySelector(${q(field(0))})?.disabled`);
+            await waitFor(client,'SPF class-average choice survives encrypted reload',`document.querySelector(${q(zeroChoice)}).checked&&document.querySelector(${q(field(1))}).value==='0'`);
             await clickSelector(client,participation);
             await waitFor(client,'restoring participation recovers saved score',`!document.querySelector(${q(field(0))}).disabled&&document.querySelector(${q(field(0))}).value==='12'`);
             const averageChoice = await evaluate(client,`document.querySelector(${q(field(0))}).closest('tr').querySelector('input[aria-label$="im Klassenschnitt mitzählen"]').getAttribute('aria-label')`);
