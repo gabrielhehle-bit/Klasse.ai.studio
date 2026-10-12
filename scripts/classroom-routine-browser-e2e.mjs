@@ -3680,7 +3680,9 @@ async function main() {
             await waitFor(client,'portfolio uses the same LZK area and own result',`document.body.textContent.includes('E-Portfolio & Timeline')&&Array.from(document.querySelectorAll('[data-lzk-area-results]')).some(section=>section.textContent.includes('Mathematik · Längen')&&section.textContent.includes('12/20 P')&&section.textContent.includes(${q(title)}))`);
             await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-lzk-area-portfolio.png'));
             await openPage(client,'Notenmappe');
+            await waitFor(client,'gradebook is mounted after returning from portfolio',`Boolean(document.querySelector('#gradebook-active-subject'))&&Boolean(document.querySelector('[data-gradebook]'))`);
             await evaluate(client,`(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+            await waitFor(client,'restored LZK column is ready after changing subject',`Boolean(document.querySelector('button[aria-label='+${q(q('Bewertungen für '+title+' eintragen'))}+']'))`);
             await clickSelector(client,'button[aria-label='+q('Bewertungen für '+title+' eintragen')+']');
           }
           await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-quick-'+typ+'.png'));
