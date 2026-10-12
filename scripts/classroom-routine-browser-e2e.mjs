@@ -1676,8 +1676,12 @@ async function main() {
       await waitFor(client,type+' really reaches its configured minimum', `(() => {const r=document.querySelector('[data-widget-type=${q(type)}]').getBoundingClientRect();return Math.abs(r.width-${minimumWidth})<4&&Math.abs(r.height-${minimumHeight})<4;})()`);
     };
     const pressAuditKey = async (key,code=key) => {
-      await client.send('Input.dispatchKeyEvent',{type:'keyDown',key,code});
-      await client.send('Input.dispatchKeyEvent',{type:'keyUp',key,code});
+      // Native dialog cancellation uses Chrome's virtual key code as well as
+      // the DOM key. Without it, React sees Escape but the browser does not
+      // perform its default action or emit the native cancel event.
+      const nativeKey = key === 'Escape' ? { windowsVirtualKeyCode: 27 } : {};
+      await client.send('Input.dispatchKeyEvent',{type:'keyDown',key,code,...nativeKey});
+      await client.send('Input.dispatchKeyEvent',{type:'keyUp',key,code,...nativeKey});
     };
     const clickMathText = async (scope,text) => {
       await evaluate(client, `(() => {const b=Array.from(document.querySelectorAll(${q(scope+' button')})).find(b=>b.textContent.trim()===${q(text)});if(!b)throw new Error('Math control missing: '+${q(text)});b.click();})()`);
