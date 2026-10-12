@@ -3376,7 +3376,24 @@ async function main() {
       await natureClick(toneRoot,label);for(let i=0;i<20;i++){const target=await evaluate(client,`document.querySelector(${q(toneRoot)}).textContent.match(/Ziel: (C₂|[CDEFGAH])/)[1]`);const index=toneLabels.indexOf(target);await clickSelector(client,toneRoot+' [aria-label="Ton '+target+' spielen, Taste '+(index+1)+'"]');if(await evaluate(client,`document.querySelector(${q(toneRoot)}).textContent.includes('Ausschnitt von')`))break;}
       await waitFor(client,'guided melody excerpt finishes '+label,`document.querySelector(${q(toneRoot)}).textContent.includes('Ausschnitt von')`);await sleep(350);await practiceRestore('tonetrainer','Tonleiter-Entdecker');
     }
-    await natureClick(toneRoot,'Freispiel');await musicClear();await evaluate(client,`document.querySelector(${q(toneRoot)}).focus()`);await pressAuditKey('8','Digit8');await waitFor(client,'scoped advertised tone keyboard works',`window.__musicOscillators.some(n=>Math.abs(n.freq-523.25)<0.1)`);await practiceScreen('tonetrainer');await auditMenu('tonetrainer','Widget schließen');await musicClear();await pressAuditKey('1','Digit1');if((await musicFrequencies()).length)throw new Error('Closed tone trainer still handles global keyboard');await musicClosed();
+    await natureClick(toneRoot,'Freispiel');await musicClear();
+    await evaluate(client,`(() => {window.__toneKeyEvents=[];window.__toneKeyObserver=e=>window.__toneKeyEvents.push({key:e.key,trusted:e.isTrusted,repeat:e.repeat,modifiers:!!(e.altKey||e.ctrlKey||e.metaKey),within:!!document.querySelector(${q(toneRoot)})?.contains(e.target)});window.addEventListener('keydown',window.__toneKeyObserver,true);document.querySelector(${q(toneRoot)}).focus();})()`);
+    await waitFor(client,'tone keyboard has focus in ready freeplay',`document.activeElement===document.querySelector(${q(toneRoot)})&&document.querySelector(${q(toneRoot+' [role="tab"][aria-selected="true"]')}).textContent.trim()==='Freispiel'&&!document.querySelector(${q(toneRoot+' [aria-label="Ton C₂ spielen, Taste 8"]')}).disabled`);
+    await client.send('Input.dispatchKeyEvent',{type:'keyDown',key:'8',code:'Digit8',windowsVirtualKeyCode:56,modifiers:0,autoRepeat:false});
+    await client.send('Input.dispatchKeyEvent',{type:'keyUp',key:'8',code:'Digit8',windowsVirtualKeyCode:56,modifiers:0});
+    try {
+      await waitFor(client,'native advertised tone key reaches its own scope',`window.__toneKeyEvents.some(e=>e.trusted&&e.key==='8'&&e.within&&!e.repeat&&!e.modifiers)`);
+      await waitFor(client,'scoped advertised tone keyboard works',`window.__musicOscillators.some(n=>Math.abs(n.freq-523.25)<0.1)`);
+    } catch(error) {
+      throw new Error(String(error)+' · '+JSON.stringify(await evaluate(client,`({events:window.__toneKeyEvents,frequencies:window.__musicOscillators.map(n=>n.freq),focus:document.activeElement?.getAttribute('aria-label'),freeplay:document.querySelector(${q(toneRoot+' [role="tab"][aria-selected="true"]')})?.textContent})`)));
+    }
+    await practiceScreen('tonetrainer');await auditMenu('tonetrainer','Widget schließen');await musicClear();
+    await client.send('Input.dispatchKeyEvent',{type:'keyDown',key:'1',code:'Digit1',windowsVirtualKeyCode:49,modifiers:0,autoRepeat:false});
+    await client.send('Input.dispatchKeyEvent',{type:'keyUp',key:'1',code:'Digit1',windowsVirtualKeyCode:49,modifiers:0});
+    await waitFor(client,'closed tone trainer receives no scoped native keyboard event',`window.__toneKeyEvents.some(e=>e.trusted&&e.key==='1'&&!e.within&&!e.modifiers)`);
+    if((await musicFrequencies()).length)throw new Error('Closed tone trainer still handles global keyboard');
+    await evaluate(client,'window.removeEventListener("keydown",window.__toneKeyObserver,true);delete window.__toneKeyObserver;');await musicClosed();
+
 
     await openAuditWidget('animalvoice','Roboter-Sounds');await auditWidgetMinimum('animalvoice');const robotMusicRoot=practiceRoot('animalvoice');
     await setInputByLabel(client,'Roboter-Tonhöhe','150');await setInputByLabel(client,'Roboter-Resonanz','15');
