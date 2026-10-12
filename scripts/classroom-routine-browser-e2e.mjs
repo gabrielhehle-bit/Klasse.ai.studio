@@ -2446,8 +2446,18 @@ async function main() {
     await waitFor(client,'flag settings usable together',languageFits(flagSettingsRoot));
     const europeSetting=await evaluate(client,`(() => {const button=Array.from(document.querySelectorAll(${q(flagSettingsRoot+' button')})).find(b=>b.textContent.trim().startsWith('Europa'));if(!button)throw Error('Missing Europe filter');button.dataset.natureAction='europe';return ${q(flagSettingsRoot)}+' [data-nature-action="europe"]';})()`);
     await clickSelector(client,europeSetting);
+    await waitFor(client,'flag filter updates before Escape',`document.querySelector(${q(flagRoot)}).textContent.includes('Europa')&&document.querySelector(${q(flagRoot)}).textContent.includes('Noch keine Antwort')`);
+    await evaluate(client,`(() => {window.__flagEscapeEvents=[];window.__flagEscapeObserver=e=>window.__flagEscapeEvents.push({key:e.key,trusted:e.isTrusted,phase:e.eventPhase,target:e.target?.getAttribute?.('aria-label')||e.target?.tagName});window.addEventListener('keydown',window.__flagEscapeObserver,true);document.querySelector(${q(europeSetting)})?.focus();})()`);
     await pressAuditKey('Escape');
-    await waitFor(client,'flag settings close before reopening',`!document.querySelector(${q(flagSettingsRoot)})&&Boolean(document.querySelector('[data-widget-type="flagquiz"] button[aria-label$="Einstellungen öffnen"]'))`);
+    try {
+      await waitFor(client,'flag settings close before reopening',`!document.querySelector(${q(flagSettingsRoot)})&&Boolean(document.querySelector('[data-widget-type="flagquiz"] button[aria-label$="Einstellungen öffnen"]'))`);
+    } catch (error) {
+      await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-flag-escape-failure.png'));
+      const diagnostics=await evaluate(client,`({events:window.__flagEscapeEvents,overlay:!!document.querySelector(${q(flagSettingsRoot)}),buttons:Array.from(document.querySelectorAll('[data-widget-type="flagquiz"] button')).map(b=>({text:b.textContent.trim(),label:b.getAttribute('aria-label'),expanded:b.getAttribute('aria-expanded')})),focus:document.activeElement?.outerHTML,regions:Array.from(document.querySelectorAll(${q(flagRoot)})).map(r=>({label:r.getAttribute('aria-label'),text:r.textContent.slice(0,350)}))})`);
+      throw new Error(String(error)+' · '+JSON.stringify(diagnostics));
+    } finally {
+      await evaluate(client,'window.removeEventListener("keydown",window.__flagEscapeObserver,true);delete window.__flagEscapeObserver;');
+    }
     await waitFor(client,'flag filter actually applies and starts a new round',`document.querySelector(${q(flagRoot)}).textContent.includes('Europa')&&document.querySelector(${q(flagRoot)}).textContent.includes('Noch keine Antwort')`);
     await discoverySettings('flagquiz');await auditMenu('flagquiz','Widget schließen');
 
@@ -3376,7 +3386,24 @@ async function main() {
       await natureClick(toneRoot,label);for(let i=0;i<20;i++){const target=await evaluate(client,`document.querySelector(${q(toneRoot)}).textContent.match(/Ziel: (C₂|[CDEFGAH])/)[1]`);const index=toneLabels.indexOf(target);await clickSelector(client,toneRoot+' [aria-label="Ton '+target+' spielen, Taste '+(index+1)+'"]');if(await evaluate(client,`document.querySelector(${q(toneRoot)}).textContent.includes('Ausschnitt von')`))break;}
       await waitFor(client,'guided melody excerpt finishes '+label,`document.querySelector(${q(toneRoot)}).textContent.includes('Ausschnitt von')`);await sleep(350);await practiceRestore('tonetrainer','Tonleiter-Entdecker');
     }
-    await natureClick(toneRoot,'Freispiel');await musicClear();await evaluate(client,`document.querySelector(${q(toneRoot)}).focus()`);await pressAuditKey('8','Digit8');await waitFor(client,'scoped advertised tone keyboard works',`window.__musicOscillators.some(n=>Math.abs(n.freq-523.25)<0.1)`);await practiceScreen('tonetrainer');await auditMenu('tonetrainer','Widget schließen');await musicClear();await pressAuditKey('1','Digit1');if((await musicFrequencies()).length)throw new Error('Closed tone trainer still handles global keyboard');await musicClosed();
+    await natureClick(toneRoot,'Freispiel');await musicClear();
+    await evaluate(client,`(() => {window.__toneKeyEvents=[];window.__toneKeyObserver=e=>window.__toneKeyEvents.push({key:e.key,trusted:e.isTrusted,repeat:e.repeat,modifiers:!!(e.altKey||e.ctrlKey||e.metaKey),within:!!document.querySelector(${q(toneRoot)})?.contains(e.target)});window.addEventListener('keydown',window.__toneKeyObserver,true);document.querySelector(${q(toneRoot)}).focus();})()`);
+    await waitFor(client,'tone keyboard has focus in ready freeplay',`document.activeElement===document.querySelector(${q(toneRoot)})&&document.querySelector(${q(toneRoot+' [role="tab"][aria-selected="true"]')}).textContent.trim()==='Freispiel'&&!document.querySelector(${q(toneRoot+' [aria-label="Ton C₂ spielen, Taste 8"]')}).disabled`);
+    await client.send('Input.dispatchKeyEvent',{type:'keyDown',key:'8',code:'Digit8',windowsVirtualKeyCode:56,modifiers:0,autoRepeat:false});
+    await client.send('Input.dispatchKeyEvent',{type:'keyUp',key:'8',code:'Digit8',windowsVirtualKeyCode:56,modifiers:0});
+    try {
+      await waitFor(client,'native advertised tone key reaches its own scope',`window.__toneKeyEvents.some(e=>e.trusted&&e.key==='8'&&e.within&&!e.repeat&&!e.modifiers)`);
+      await waitFor(client,'scoped advertised tone keyboard works',`window.__musicOscillators.some(n=>Math.abs(n.freq-523.25)<0.1)`);
+    } catch(error) {
+      throw new Error(String(error)+' · '+JSON.stringify(await evaluate(client,`({events:window.__toneKeyEvents,frequencies:window.__musicOscillators.map(n=>n.freq),focus:document.activeElement?.getAttribute('aria-label'),freeplay:document.querySelector(${q(toneRoot+' [role="tab"][aria-selected="true"]')})?.textContent})`)));
+    }
+    await practiceScreen('tonetrainer');await auditMenu('tonetrainer','Widget schließen');await musicClear();
+    await client.send('Input.dispatchKeyEvent',{type:'keyDown',key:'1',code:'Digit1',windowsVirtualKeyCode:49,modifiers:0,autoRepeat:false});
+    await client.send('Input.dispatchKeyEvent',{type:'keyUp',key:'1',code:'Digit1',windowsVirtualKeyCode:49,modifiers:0});
+    await waitFor(client,'closed tone trainer receives no scoped native keyboard event',`window.__toneKeyEvents.some(e=>e.trusted&&e.key==='1'&&!e.within&&!e.modifiers)`);
+    if((await musicFrequencies()).length)throw new Error('Closed tone trainer still handles global keyboard');
+    await evaluate(client,'window.removeEventListener("keydown",window.__toneKeyObserver,true);delete window.__toneKeyObserver;');await musicClosed();
+
 
     await openAuditWidget('animalvoice','Roboter-Sounds');await auditWidgetMinimum('animalvoice');const robotMusicRoot=practiceRoot('animalvoice');
     await setInputByLabel(client,'Roboter-Tonhöhe','150');await setInputByLabel(client,'Roboter-Resonanz','15');
@@ -3484,11 +3511,12 @@ async function main() {
         await waitFor(client, 'point percentage option available', `Boolean(Array.from(document.querySelectorAll('label')).find(l=>l.textContent.includes('Prozentwerte bei Punkten anzeigen'))?.querySelector('input[type=checkbox]'))`);
         await clickButton(client, 'Speichern', true);
         for(const [typ,points,max] of [['sa','18','24'],['lzk','7','20']]) {
-          await clickSelector(client, `input[data-col="${typ}-0"]`);
-          await evaluate(client, `(() => {const input=document.querySelector('input[data-col="${typ}-0"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,${q(points)});input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));input.blur();})()`);
-          await sleep(650);
+          const inputLabel=await evaluate(client,`document.querySelector('input[data-col="${typ}-0"]').getAttribute('aria-label')`);
+          await numbersTypeSigned('[data-gradebook]',inputLabel,points);
+          await pressAuditKey('Enter');
           const headerSelector=typ==='sa'?'button[aria-label*=\"Schularbeiten 1\"]':'button[aria-label*=\"Lernzielkontrollen 1\"]';
-          await clickSelector(client, headerSelector);
+          await clickSelector(client, headerSelector+'[aria-label*="Spaltenoptionen"]');
+          await waitFor(client, 'assessment column options dialog', `Boolean(document.querySelector('#assessment-item-modal-content'))`);
           await setInputByLabel(client, 'Maximal erreichbare Punkte', max);
           await clickSelector(client, '#btn-save-assessment-modal');
         }
@@ -3574,6 +3602,123 @@ async function main() {
         await waitFor(client,'committed zero survives encrypted reload',`${participationValue}===0`);
         console.log('✓ Participation drafts: native typing, Enter/blur commits, row navigation, empty/Escape cancellation, invalid/unsafe input rejection, all four periods, focused subject isolation and explicit zero survive encrypted reload.');
         console.log('✓ Direct gradebook participation plus/minus updates weekly chart and survives encrypted reload.');
+        for (const [typ, button] of [['lzk', '+ LZK'], ['wp', '+ Wochenplan'], ['sa', '+ Schularbeit']]) {
+          if (typ === 'lzk') await clickButton(client,button,true);
+          else {
+            if (typ === 'sa') await clickButton(client,'Mitarbeit',true);
+            await clickButton(client,'Bewertung hinzufügen',true);
+            await waitFor(client,'whole-class assessment menu from current view',`Boolean(document.querySelector('#gradebook-add-assessment-menu'))`);
+            await clickSelector(client,'#gradebook-add-assessment-menu button[aria-label='+q((typ==='sa'?'Schularbeit':'Wochenplan')+' für die Klasse anlegen')+']');
+          }
+          await waitFor(client,'new '+typ+' metadata dialog',`Boolean(document.querySelector('#assessment-item-modal-content'))`);
+          await waitFor(client,'assessment selection transition closes before metadata entry',`!document.querySelector('#gradebook-add-assessment-menu')`);
+          const title='Schnelleingabe '+typ;
+          await setInputByLabel(client,'Bezeichnung / Titel',title);
+          if (typ === 'lzk') await setInputByLabel(client,'Unterbereich in Mathematik','Längen');
+          await setInputByLabel(client,'Maximal erreichbare Punkte','20');
+          await clickSelector(client,'#btn-save-assessment-modal');
+          await waitFor(client,'assessment dialogs close before native entry',`!document.querySelector('#assessment-item-modal-content')&&!document.querySelector('#gradebook-add-assessment-menu')`);
+          await waitFor(client,'new '+typ+' column focuses first pupil',`document.activeElement?.dataset.col?.startsWith(${q(typ+'-')})&&Boolean(document.querySelector('[data-column-entry-status]'))`);
+          const col=await evaluate(client,`document.activeElement.dataset.col`);
+          const labels=await evaluate(client,`Array.from(document.querySelectorAll('input[data-col='+JSON.stringify(${q(col)})+']')).map(i=>i.getAttribute('aria-label'))`);
+          if(labels.length<2)throw new Error('Quick entry requires two fixture pupils.');
+          const field=i=>'input[aria-label='+q(labels[i])+']';
+          await numbersTypeSigned('[data-gradebook]',labels[0],'12');await pressAuditKey('Enter');
+          await waitFor(client,'native Enter commits '+typ+' without debounce and moves one row',`document.activeElement===document.querySelector(${q(field(1))})&&document.querySelector(${q(field(0))}).closest('td').querySelector('[data-points-percent]')?.textContent.trim()==='60 %'`);
+          await numbersTypeSigned('[data-gradebook]',labels[1],'0');await pressAuditKey('Enter');
+          await waitFor(client,'quick '+typ+' progress counts recorded zero',`document.querySelector('[data-column-entry-status]').textContent.includes('2/')&&document.querySelector(${q(field(1))}).closest('td').querySelector('[data-points-percent]')?.textContent.trim()==='0 %'`);
+          await numbersTypeSigned('[data-gradebook]',labels[0],'21');await pressAuditKey('Enter');
+          await waitFor(client,'invalid '+typ+' keeps focus and saved value',`document.activeElement===document.querySelector(${q(field(0))})&&document.activeElement.getAttribute('aria-invalid')==='true'&&document.querySelector(${q(field(0))}).closest('td').querySelector('[data-points-percent]')?.textContent.trim()==='60 %'`);
+          await pressAuditKey('Escape');await waitFor(client,'Escape restores '+typ+' saved value',`document.querySelector(${q(field(0))}).value==='12'`);
+          await reloadAndUnlock(client);await openPage(client,'Notenmappe');
+          await evaluate(client,`(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+          await clickSelector(client,'button[aria-label='+q('Bewertungen für '+title+' eintragen')+']');
+          await waitFor(client,'quick '+typ+' values and metadata survive encrypted reload',`document.querySelector(${q(field(0))}).value==='12'&&document.querySelector(${q(field(1))}).value==='0'&&document.querySelector('[data-column-entry-status]').textContent.includes(${q(title)})`);
+          if (typ === 'lzk') {
+            const idx = Number(col.split('-')[1]);
+            const participation = field(0) + ' ~ label input[type="checkbox"]';
+            // The alphabetically second demo pupil has SPF and is excluded by
+            // the preserved default. Explicitly include this real zero-point
+            // participant before expecting a class mean of zero.
+            const zeroAverageChoice = await evaluate(client,`document.querySelector(${q(field(1))}).closest('tr').querySelector('input[aria-label$="im Klassenschnitt mitzählen"]').getAttribute('aria-label')`);
+            const zeroChoice = 'input[aria-label='+q(zeroAverageChoice)+']';
+            if (!await evaluate(client,`document.querySelector(${q(zeroChoice)}).checked`)) await clickSelector(client,zeroChoice);
+            await waitFor(client,'SPF zero-point child can be included without changing own score',`document.querySelector(${q(zeroChoice)}).checked&&document.querySelector(${q(field(1))}).value==='0'`);
+            await waitFor(client,'new LZK area survives encrypted reload',`document.querySelector('[data-gradebook]').textContent.includes('Längen')`);
+            await clickSelector(client,participation);
+            await waitFor(client,'non-participation disables exempt input and keeps the other real zero',`document.querySelector(${q(field(0))}).disabled&&document.querySelector(${q(field(0))}).value===''&&document.querySelector(${q(field(1))}).value==='0'`);
+            await waitFor(client,'non-participation is distinct from open assessments',`document.querySelector('[data-column-entry-status]').textContent.includes('1 nehmen nicht teil')`);
+            await waitFor(client,'class mean retains the included SPF zero-point result',`document.querySelector('[data-lzk-class-average="'+${idx}+'"]')?.textContent.trim()==='0.0P'`);
+            await reloadAndUnlock(client); await openPage(client,'Notenmappe');
+            await evaluate(client,`(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+            await clickSelector(client,'button[aria-label='+q('Bewertungen für '+title+' eintragen')+']');
+            await waitFor(client,'LZK exemption survives encrypted reload',`document.querySelector(${q(field(0))})?.disabled`);
+            await waitFor(client,'quick entry starts at the first participating child',`document.activeElement===document.querySelector(${q(field(1))})`);
+            await waitFor(client,'SPF class-average choice survives encrypted reload',`document.querySelector(${q(zeroChoice)}).checked&&document.querySelector(${q(field(1))}).value==='0'`);
+            await clickSelector(client,participation);
+            await waitFor(client,'restoring participation recovers saved score',`!document.querySelector(${q(field(0))}).disabled&&document.querySelector(${q(field(0))}).value==='12'`);
+            const averageChoice = await evaluate(client,`document.querySelector(${q(field(0))}).closest('tr').querySelector('input[aria-label$="im Klassenschnitt mitzählen"]').getAttribute('aria-label')`);
+            await clickSelector(client,'input[aria-label='+q(averageChoice)+']');
+            await waitFor(client,'per-child exclusion affects only class mean',`document.querySelector('[data-lzk-class-average="'+${idx}+'"]')?.textContent.trim()==='0.0P'&&document.querySelector(${q(field(0))}).value==='12'`);
+            await reloadAndUnlock(client); await openPage(client,'Notenmappe');
+            await evaluate(client,`(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+            await waitFor(client,'per-child class-average setting is restored',`document.querySelector('input[aria-label='+${q(q(averageChoice))}+']')?.checked===false`);
+            await clickSelector(client,'input[aria-label='+q(averageChoice)+']');
+            const name = labels[0].split(' für ')[1];
+            await openPupil(client,name.split(' '));
+            const dossierArea = async label => {
+              await waitFor(client,'dossier area controls ready for '+label,`Boolean(document.querySelector('[aria-label="Schülerdossier-Hauptbereiche"]'))`);
+              await evaluate(client,`(() => {const button=Array.from(document.querySelectorAll('[aria-label="Schülerdossier-Hauptbereiche"] button')).find(b=>b.querySelector('span')?.textContent.trim()===${q(label)});if(!button)throw Error('Missing dossier area '+${q(label)});button.click();})()`);
+              await waitFor(client,'dossier area selected: '+label,`document.querySelector('[aria-label="Schülerdossier-Hauptbereiche"] [aria-selected="true"] span')?.textContent.trim()===${q(label)}`);
+            };
+            await dossierArea('Leistungen');
+            await waitFor(client,'dossier groups LZK by subject and area with own result',`Array.from(document.querySelectorAll('[data-lzk-area-results]')).some(section=>section.textContent.includes('Mathematik · Längen')&&section.textContent.includes('12/20 P')&&section.textContent.includes(${q(title)}))`);
+            await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-lzk-area-dossier.png'));
+            await dossierArea('Mehr');
+            await waitFor(client,'dossier portfolio entry ready',`Boolean(document.querySelector('[aria-label="Weitere Dossierbereiche"]'))`);
+            await evaluate(client,`(() => {const button=Array.from(document.querySelectorAll('[aria-label="Weitere Dossierbereiche"] button')).find(b=>b.querySelector('span.block')?.textContent.trim()==='Portfolio');if(!button)throw Error('Missing dossier portfolio entry');button.click();})()`);
+            await waitFor(client,'portfolio uses the same LZK area and own result',`document.body.textContent.includes('E-Portfolio & Timeline')&&Array.from(document.querySelectorAll('[data-lzk-area-results]')).some(section=>section.textContent.includes('Mathematik · Längen')&&section.textContent.includes('12/20 P')&&section.textContent.includes(${q(title)}))`);
+            await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-lzk-area-portfolio.png'));
+            await openPage(client,'Notenmappe');
+            await waitFor(client,'gradebook is mounted after returning from portfolio',`Boolean(document.querySelector('#gradebook-active-subject'))&&Boolean(document.querySelector('[data-gradebook]'))`);
+            await evaluate(client,`(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+            await waitFor(client,'restored LZK column is ready after changing subject',`Boolean(document.querySelector('button[aria-label='+${q(q('Bewertungen für '+title+' eintragen'))}+']'))`);
+            await clickSelector(client,'button[aria-label='+q('Bewertungen für '+title+' eintragen')+']');
+          }
+          await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-quick-'+typ+'.png'));
+          await clickButton(client,'Alle Bewertungen anzeigen',true);
+          await waitFor(client,'quick '+typ+' leaves original assessment values intact',`document.querySelector('input[data-col="sa-0"]').value==='18'&&document.querySelector('input[data-col="lzk-0"]').value==='7'&&!document.querySelector('[data-column-entry-status]')`);
+        }
+        console.log('✓ Quick LZK/WP/SA: native immediate Enter, next visible pupil, invalid input, Escape, recorded zero, metadata and encrypted restoration.');
+        // Manual entry follows the subject scale, including a recorded zero.
+        client.on('Page.javascriptDialogOpening', event => {
+          if (event.type === 'confirm' && (event.message.startsWith('Hinweis: Im Fach') || event.message === 'Mitarbeitbewertung löschen?'))
+            void client.send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {});
+        });
+        await clickButton(client, 'Gewichtung', true);
+        await clickButton(client, 'Manuelle Bewertung', true);
+        await clickButton(client, 'Speichern', true);
+        await clickButton(client, 'Mitarbeit', true);
+        const manualLabel=await evaluate(client, `document.querySelector('input[aria-label^="Manuelle Mitarbeit für"]')?.getAttribute('aria-label')`);
+        if(!manualLabel)throw new Error('Manual points field missing.');
+        const manualField='input[aria-label='+q(manualLabel)+']';
+        const manualRow=`document.querySelector(${q(manualField)}).closest('tr')`;
+        await numbersTypeSigned('[data-gradebook]',manualLabel,'10');
+        await waitFor(client,'manual points show units and configured maximum',`${manualRow}.querySelector('td:last-child').textContent.trim()==='10 Pkt'&&${manualRow}.textContent.includes('/ 20 Pkt')`);
+        await numbersTypeSigned('[data-gradebook]',manualLabel,'0');
+        await waitFor(client,'manual zero remains visible and removable',`${manualRow}.querySelector('td:last-child').textContent.trim()==='0 Pkt'&&Boolean(${manualRow}.querySelector('button[aria-label$=" löschen"]'))`);
+        await reloadAndUnlock(client);await openPage(client,'Notenmappe');
+        await evaluate(client,`(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);await clickButton(client,'Mitarbeit',true);
+        await waitFor(client,'manual zero survives encrypted reload',`document.querySelector(${q(manualField)}).value==='0'&&${manualRow}.querySelector('td:last-child').textContent.trim()==='0 Pkt'`);
+        await clickButton(client,'Gewichtung',true);await clickButton(client,'Prozent');await clickButton(client,'Speichern',true);await clickButton(client,'Mitarbeit',true);
+        await numbersTypeSigned('[data-gradebook]',manualLabel,'50');
+        await waitFor(client,'manual percent shows percentage instead of a grade',`${manualRow}.querySelector('td:last-child').textContent.trim()==='50 %'`);
+        await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-manual-participation.png'));
+        await clickSelector(client,`button[aria-label=${q(manualLabel+' löschen')}]`);
+        await waitFor(client,'manual deletion preserves missing-value distinction',`document.querySelector(${q(manualField)}).value===''&&${manualRow}.querySelector('td:last-child').textContent.trim()==='–'`);
+        await clickButton(client,'Gewichtung',true);await clickButton(client,'Punkte');await clickButton(client,'Fixe Punkte',true);await clickButton(client,'Speichern',true);
+        console.log('✓ Manual participation uses points/percent fields, preserves zero on encrypted reload and clears values explicitly.');
+
 
       }
       console.log('✓ '+page+': responsive controls and mobile tool access at 390/820/1360px.');

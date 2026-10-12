@@ -1625,6 +1625,7 @@ export default function StudentList() {
                     </label>
                   </div>
 
+                  <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 text-sm"><input type="checkbox" aria-label="Im Klassenschnitt mitzählen" checked={editingStudent?.includeInClassAverage ?? !(editingStudent?.spf || editingStudent?.espf)} onChange={e => setEditingStudent({ ...editingStudent, includeInClassAverage: e.target.checked } as any)} />Im Klassenschnitt mitzählen<span className="text-xs text-slate-500">Eigene Ergebnisse bleiben sichtbar.</span></label>
                   <div className="space-y-2 pt-2">
                     <label className="text-[0.5625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-1 block">
                       Förderung in bestimmten Bereichen (Förderbedarf)

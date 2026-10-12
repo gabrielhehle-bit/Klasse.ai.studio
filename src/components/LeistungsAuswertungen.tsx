@@ -1,3 +1,4 @@
+import { getClassLzkAreaSummary } from '../lib/assessmentAreas';
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { getClassPerformanceStats, getSubjectPerformanceAverages } from '../lib/statisticsMetrics';
@@ -13,6 +14,7 @@ export default function LeistungsAuswertungen({
     ...Object.values(app.noten || {}).flatMap(subjectMap => Object.keys(subjectMap || {})),
   ])].filter(Boolean), [app.faecher, app.noten]);
   const chosen = subject === 'alle' ? subjects : [subject];
+  const areaSummary = getClassLzkAreaSummary(app, chosen, semester);
   const summary = getClassPerformanceStats(app, app.schueler, chosen, semester);
   const bySubject = getSubjectPerformanceAverages(app, app.schueler, chosen, semester);
   return <section className="mx-auto max-w-6xl space-y-4 p-3 md:p-6" data-testid="gradebook-auswertungen">
@@ -62,6 +64,7 @@ export default function LeistungsAuswertungen({
         </table></div>
       </section>
     </>}
+    {areaSummary.length > 0 && <section data-class-lzk-areas className="rounded-2xl border border-slate-200 bg-white p-4"><h3 className="text-sm font-bold">Lernzielkontrollen nach Bereichen</h3><p className="mt-1 text-xs text-slate-500">Berücksichtigt die Teilnahme und die Einstellung „Im Klassenschnitt mitzählen“. Punkte werden je Kontrolle in Prozente umgerechnet.</p><div className="overflow-x-auto"><table className="mt-3 w-full text-left text-xs"><thead><tr><th className="p-2">Fach / Bereich</th><th className="p-2">Bewertungen</th><th className="p-2">Mittelwert</th></tr></thead><tbody>{areaSummary.map(row => <tr key={`${row.subject}:${row.area}`}><th className="p-2">{row.subject} · {row.area}</th><td className="p-2">{row.count}</td><td className="p-2">{row.average === null ? '–' : `${row.average.toLocaleString('de-AT', { maximumFractionDigits: 1 })}${row.mode === 'grades' ? ' (Note)' : ' %'}`}</td></tr>)}</tbody></table></div></section>}
     <details className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-700">
       <summary className="cursor-pointer font-bold">Weitere bestehende Statistik- und Spezialwerkzeuge</summary>
       <p className="mt-2">Für seltene Spezialauswertungen bleibt die bisherige Werkzeugansicht vorübergehend zugänglich, bis ihre Funktionen einzeln zugeordnet und geprüft sind.</p>

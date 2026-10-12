@@ -1,3 +1,4 @@
+import LzkAreaResults from './dossier/LzkAreaResults';
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Student, PortfolioEntry } from '../types';
@@ -261,6 +262,7 @@ export default function StudentPortfolio({ schuelerId }: { schuelerId: string })
   return (
     <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200/80 shadow-[0_8px_30px_rgb(0,0,0,0.02)] space-y-8">
       
+      <LzkAreaResults studentId={schuelerId} />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
         <div>
           <div className="flex items-center gap-2">

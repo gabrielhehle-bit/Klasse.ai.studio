@@ -1,3 +1,4 @@
+import { countsInClassAverage } from './classAveragePolicy';
 import type { AppState, Student } from '../types';
 import { berechne, getAssessmentMode } from './GradeUtils';
 
@@ -68,7 +69,7 @@ export function getClassPerformanceStats(
   semester = '1',
 ) {
   const entries = students.flatMap(student =>
-    getStudentPerformanceEntries(app, student.id, subjects, semester)
+    getStudentPerformanceEntries(app, student.id, subjects.filter(subject => countsInClassAverage(app, student, subject)), semester)
   );
   const modes = new Set(entries.map(entry => entry.mode));
   const scale: PerformanceScale =
@@ -155,6 +156,7 @@ export function getSubjectPerformanceAverages(
   return subjects.flatMap(subject => {
     const mode = getAssessmentMode(app, subject);
     const values = students
+      .filter(student => countsInClassAverage(app, student, subject))
       .map(student => berechne(app, student.id, subject, semester))
       .filter((value): value is number => value !== null && Number.isFinite(value));
     if (values.length === 0) return [];

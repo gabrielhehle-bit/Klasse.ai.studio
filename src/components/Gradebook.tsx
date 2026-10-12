@@ -1,3 +1,4 @@
+import { countsInClassAverage } from '../lib/classAveragePolicy';
 import { removeSubjectColumn, updateSubjectColumn } from '../lib/classroomEdits';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -21,6 +22,7 @@ import { CanvasBarChart } from './charts/CanvasBarChart';
 import { DebouncedInput } from './DebouncedInput';
 import BehaviorSettings from './gradebook/BehaviorSettings';
 import ParticipationOverview from './gradebook/ParticipationOverview';
+import AssessmentValueInput from './gradebook/AssessmentValueInput';
 import ParticipationPointsInput from './gradebook/ParticipationPointsInput';
 import { setGradebookParticipationTotal } from '../lib/participationAward';
 import { AssessmentItemModal } from './gradebook/AssessmentItemModal';
@@ -160,10 +162,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
       }
     }
   }, [app.faecher, app.mitarbeit, app.schulart, activeFach]);
-  const [activeView, setActiveView] = useState<'noten' | 'mitarbeit' | 'hue' | 'verhalten'>(() => {
-    const currentSubject = getCurrentSubject(app);
-    return currentSubject ? 'mitarbeit' : 'noten';
-  });
+  const [activeView, setActiveView] = useState<'noten' | 'mitarbeit' | 'hue' | 'verhalten'>('noten');
   const isFachActive = !app.faecher || app.faecher.includes(activeFach) || activeFach === 'Unterricht';
   const availableSubjects = useMemo(() => {
     const subjects = faecherFuerKlasse(app);
@@ -205,7 +204,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
   const [showGradeCalculator, setShowGradeCalculator] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showClassAverage, setShowClassAverage] = useState(true);
-  const [includeSpecialNeedsInStats, setIncludeSpecialNeedsInStats] = useState(false);
+  const includeSpecialNeedsInStats = app.notenMeta?.[activeFach]?.includeSpecialNeedsInStats === true;
+  const setIncludeSpecialNeedsInStats = (value: boolean) => setApp(prev => ({ ...prev, notenMeta: { ...prev.notenMeta, [activeFach]: { ...prev.notenMeta?.[activeFach], includeSpecialNeedsInStats: value } } }));
   const [sortBy, setSortBy] = useState<'name' | 'avg' | 'triage'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [filterMissing, setFilterMissing] = useState(false);
@@ -519,27 +519,21 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
       checkSuspiciousGrade(nd.wp || [], 'Wochenplan', 'wp');
       checkSuspiciousGrade(nd.aufgaben || [], 'Hausübung', 'aufgaben');
 
-      if (mitarbeitSettings.mode === 'manual' && nd.miDirekt !== undefined) {
-        if (nd.miDirekt < 1 || nd.miDirekt > 5) {
+      if (mitarbeitSettings.mode === 'manual' && nd.miDirekt !== undefined && nd.miDirekt !== null) {
+        const maxMiPoints = getMaxPoints(app, activeFach, 'mi', 0);
+        const checked = parseAssessmentInput(String(nd.miDirekt), assessmentMode, maxMiPoints);
+        if (!checked.valid || typeof checked.value !== 'number') {
+          const unit = assessmentMode === 'percent' ? '%' : assessmentMode === 'points' ? 'Pkt' : 'Note';
+          const minimum = assessmentMode === 'grades' ? 1 : 0;
+          const maximum = assessmentMode === 'grades' ? 5 : assessmentMode === 'percent' ? 100 : maxMiPoints;
           list.push({
-            id: `${s.id}-mi-invalid`,
-            studentId: s.id,
-            studentName: `${s.vorname} ${s.nachname}`,
+            id: `${s.id}-mi-invalid`, studentId: s.id, studentName: `${s.vorname} ${s.nachname}`,
             type: 'invalid',
-            message: `Ungültige Mitarbeit-Direktnote (${nd.miDirekt}) bei ${s.vorname}. Erlaubt ist nur 1 bis 5.`,
+            message: `Ungültige Mitarbeitbewertung (${nd.miDirekt}) bei ${s.vorname}. Erlaubt: ${minimum}–${maximum} ${unit}.`,
             fixOptions: [
-              {
-                label: 'Note auf 1 setzen',
-                action: () => setMIDirekt(s.id, '1')
-              },
-              {
-                label: 'Note auf 5 setzen',
-                action: () => setMIDirekt(s.id, '5')
-              },
-              {
-                label: 'Löschen',
-                action: () => setMIDirekt(s.id, '')
-              }
+              { label: `Auf ${minimum} ${unit} setzen`, action: () => setMIDirekt(s.id, String(minimum)) },
+              { label: `Auf ${maximum} ${unit} setzen`, action: () => setMIDirekt(s.id, String(maximum)) },
+              { label: 'Löschen', action: () => setMIDirekt(s.id, '') }
             ]
           });
         }
@@ -684,7 +678,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
         mitarbeitSettings.mode === 'manual' &&
         (nd.miDirekt === undefined || nd.miDirekt === null || (nd.miDirekt as any) === '');
       const isMissing = (cfg.sa && hasMissing(nd.sa || [], cfg.saCount)) ||
-                        (cfg.lzk && hasMissing(nd.lzk || [], colCounts.lzk)) ||
+                        (cfg.lzk && hasMissing((nd.lzk || []).map((value, index) => nd.lzkParticipation?.[index] === false ? 'x' : value), colCounts.lzk)) ||
                         (cfg.wp && hasMissing(nd.wp || [], colCounts.wp)) ||
                         (cfg.obj && hasMissing(nd.aufgaben || [], colCounts.obj)) ||
                         manualMitarbeitMissing;
@@ -749,10 +743,11 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     }));
   };
 
-  const addColumn = (e: React.MouseEvent, typ: 'lzk' | 'wp' | 'obj') => {
+  const addColumn = (e: React.MouseEvent, typ: 'sa' | 'lzk' | 'wp' | 'obj') => {
     e.stopPropagation();
-    const currentCount = colCounts[typ] || 0;
-    const dataKey: 'lzk' | 'wp' | 'aufgaben' = typ === 'obj' ? 'aufgaben' : typ;
+    setActiveView('noten'); setShowWeights(false); setShowGradeCalculator(false);
+    const currentCount = typ === 'sa' ? getFachCfg(app, activeFach).saCount : colCounts[typ] || 0;
+    const dataKey: 'sa' | 'lzk' | 'wp' | 'aufgaben' = typ === 'obj' ? 'aufgaben' : typ;
 
     // Reuse the first genuinely empty visible slot before creating another column.
     let reusableIndex = -1;
@@ -760,11 +755,13 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
       const hasStudentValue = (app.schueler || []).some((student) => {
         const values = app.noten?.[student.id]?.[activeFach]?.[sem]?.[dataKey] || [];
         const value = values[idx];
+        if (typ === 'lzk' && app.noten?.[student.id]?.[activeFach]?.[sem]?.lzkParticipation?.[idx] === false) return true;
         return value !== undefined && value !== null && value !== '';
       });
       const hasMeta =
         !!app.notenMeta?.[activeFach]?.colLabels?.[typ]?.[idx] ||
         !!app.notenMeta?.[activeFach]?.colDates?.[typ]?.[idx] ||
+        !!app.notenMeta?.[activeFach]?.colAreas?.[typ]?.[idx] ||
         app.notenMeta?.[activeFach]?.maxPoints?.[typ]?.[idx] !== undefined;
 
       if (!hasStudentValue && !hasMeta) {
@@ -774,7 +771,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     }
 
     const idx = reusableIndex >= 0 ? reusableIndex : currentCount;
-    setEditingAssessmentModal({ typ, idx, isNew: reusableIndex < 0 });
+    setEditingAssessmentModal({ typ, idx, isNew: true });
   };
 
   const removeColumn = (e: React.MouseEvent, typ: 'lzk' | 'wp' | 'obj') => {
@@ -897,7 +894,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
           return false;
         };
         if (cfg.sa && hasMissing(nd.sa || [], cfg.saCount)) return true;
-        if (cfg.lzk && hasMissing(nd.lzk || [], colCounts.lzk)) return true;
+        if (cfg.lzk && hasMissing((nd.lzk || []).map((value, index) => nd.lzkParticipation?.[index] === false ? 'x' : value), colCounts.lzk)) return true;
         if (cfg.wp && hasMissing(nd.wp || [], colCounts.wp)) return true;
         if (cfg.obj && hasMissing(nd.aufgaben || [], colCounts.obj)) return true;
         if (
@@ -948,13 +945,11 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
 
   const columnAverages = useMemo(() => {
     const results: Record<string, { avg: number | null }> = {};
-    const studentsToConsider = includeSpecialNeedsInStats 
-      ? (app.schueler || [])
-      : (app.schueler || []).filter(s => !s.spf && !s.espf);
+    const studentsToConsider = (app.schueler || []).filter(s => countsInClassAverage(app, s, activeFach));
     
     const calcAvg = (typ: 'sa' | 'lzk' | 'wp' | 'aufgaben', idx: number) => {
       const rawVals = studentsToConsider
-        .map(s => app.noten?.[s.id]?.[activeFach]?.[sem]?.[typ]?.[idx]);
+        .map(s => { const data = app.noten?.[s.id]?.[activeFach]?.[sem]; return typ === 'lzk' && data?.lzkParticipation?.[idx] === false ? null : data?.[typ]?.[idx]; });
       
       const numericVals: number[] = [];
       rawVals.forEach(v => {
@@ -989,9 +984,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
 
   const stats = useMemo(() => {
     const allStudents = (app.schueler || []);
-    const filteredForStats = includeSpecialNeedsInStats 
-      ? allStudents 
-      : allStudents.filter(s => !s.spf && !s.espf);
+    const filteredForStats = allStudents.filter(s => countsInClassAverage(app, s, activeFach));
     
     const allAverages = filteredForStats
       .map(s => berechne(app, s.id, activeFach, sem))
@@ -1405,15 +1398,18 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
   const handleKeyDown = (e: React.KeyboardEvent, sid: string, typ: string, idx: number) => {
     if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.key)) return;
     
-    const inputs = Array.from(document.querySelectorAll('input[data-col]')) as HTMLInputElement[];
+    const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('[data-gradebook] input[data-col]'))
+      .filter(input => input.getClientRects().length > 0 && !input.disabled);
     const currentIndex = inputs.indexOf(e.target as HTMLInputElement);
     if (currentIndex === -1) return;
 
     const dataCol = (e.target as HTMLElement).getAttribute('data-col');
 
     if (e.key === 'ArrowRight') {
+      e.preventDefault();
       inputs[currentIndex + 1]?.focus();
     } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
       inputs[currentIndex - 1]?.focus();
     } else if (e.key === 'ArrowDown' || (e.key === 'Enter' && !e.shiftKey)) {
       e.preventDefault();
@@ -1426,8 +1422,14 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     }
   };
 
-  const updateColMeta = (typ: 'sa'|'lzk'|'wp'|'obj', idx: number, labelVal: string, dateVal: string, maxPointsVal?: number) => {
-    setApp(prev => ({ ...prev, notenMeta: updateSubjectColumn(prev.notenMeta || {}, activeFach, typ, idx, labelVal, dateVal, maxPointsVal) }));
+  useEffect(() => {
+    if (!isolatedCol || editingAssessmentModal || activeView !== 'noten') return;
+    const input = document.querySelector<HTMLInputElement>(`[data-gradebook] input[data-col="${isolatedCol.typ === 'obj' ? 'aufgaben' : isolatedCol.typ}-${isolatedCol.idx}"]:not(:disabled)`);
+    input?.focus(); input?.select();
+  }, [isolatedCol, editingAssessmentModal, activeView]);
+
+  const updateColMeta = (typ: 'sa'|'lzk'|'wp'|'obj', idx: number, labelVal: string, dateVal: string, maxPointsVal?: number, area?: string) => {
+    setApp(prev => ({ ...prev, notenMeta: updateSubjectColumn(prev.notenMeta || {}, activeFach, typ, idx, labelVal, dateVal, maxPointsVal, area) }));
     setEditingColLabel(null);
   };
 
@@ -1452,17 +1454,19 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
           ${hoveredCell && hoveredCell.typ === typ && hoveredCell.idx === i ? 'bg-indigo-100 border-indigo-400 text-indigo-900 shadow-md font-black scale-[1.02] z-40' : ''}`}
         onClick={() => {
           setIsolatedCol({typ, idx: i});
-          // after a small delay focus the first input in this col if we just isolated it
-          setTimeout(() => {
-            const input = document.querySelector(`input[data-col="${typ}-${i}"]`) as HTMLInputElement | null;
-            input?.focus();
-          }, 50);
+          setSortBy('name'); setSortOrder('asc'); setFilterMissing(false);
         }}
       >
         <div className="flex flex-col items-center justify-center min-h-[2.5rem] gap-0.5 cursor-pointer relative z-10 w-full">
+          <button type="button" aria-label={`Bewertungen für ${customLabel || `${defaultName} ${i + 1}`} eintragen`}
+            aria-pressed={isolatedCol?.typ === typ && isolatedCol?.idx === i}
+            className="min-h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">
+            Eintragen
+          </button>
           <span className={`text-[0.6rem] font-black ${customLabel ? 'text-[0.65rem] whitespace-normal leading-tight' : 'opacity-70'} w-full text-wrap leading-tight break-words px-1`} title={customLabel || `${defaultName} ${i+1}`}>
             {customLabel || defaultName} {!customLabel && <span>{i+1}</span>}
           </span>
+          {typ === 'lzk' && <span className="text-xs font-medium">{app.notenMeta?.[activeFach]?.colAreas?.lzk?.[i] || 'Ohne Bereich'}</span>}
           {customDate && (
             <span className="text-[0.5625rem] font-medium opacity-80 mt-0.5">
               {new Date(customDate).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'})}
@@ -1659,10 +1663,15 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                 <span className="text-[0.65rem] font-semibold text-slate-500">Wechseln</span>
               </button>
               
+              <div className="flex flex-wrap items-center gap-2" aria-label="Bewertung für die ganze Klasse anlegen">
+                {cfg.lzk && <button type="button" onClick={event => addColumn(event, 'lzk')} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700">+ LZK</button>}
+                {cfg.wp && <button type="button" aria-label="Wochenplan für die Klasse anlegen" onClick={event => addColumn(event, 'wp')} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700">+ Wochenplan</button>}
+                {cfg.sa && <button type="button" onClick={event => addColumn(event, 'sa')} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700">+ Schularbeit</button>}
+              </div>
               {/* Right: + Bewertung & Mehr Menu */}
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setShowAddAssessmentModal(true)}
+                  onClick={() => { setActiveView('noten'); setShowWeights(false); setShowAddAssessmentModal(true); }}
                   className="min-h-11 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-[0.8125rem] rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
                 >
                   <Plus size={16} strokeWidth={3} />
@@ -2037,8 +2046,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                        <tr className="bg-slate-50/50 text-[0.6875rem] font-black uppercase tracking-wider text-slate-500 border-b border-slate-150">
                           <th className={`${zoomLevel === 'compact' ? 'px-3 py-2 text-[0.6rem]' : zoomLevel === 'large' ? 'px-8 py-5 text-[0.75rem]' : 'px-6 py-4.5 text-[0.6875rem]'} text-left w-12`}>#</th>
                           <th className={`${zoomLevel === 'compact' ? 'px-3 py-2 text-[0.6rem]' : zoomLevel === 'large' ? 'px-8 py-5 text-[0.75rem]' : 'px-6 py-4.5 text-[0.6875rem]'} text-left`}>Schüler:innen</th>
-                          <th className={`${zoomLevel === 'compact' ? 'px-3 py-2 text-[0.6rem]' : zoomLevel === 'large' ? 'px-8 py-5 text-[0.75rem]' : 'px-6 py-4.5 text-[0.6875rem]'} text-center`}>Aktivität ({currentSymbol.label})</th>
-                          <th className={`${zoomLevel === 'compact' ? 'px-3 py-2 text-[0.6rem]' : zoomLevel === 'large' ? 'px-8 py-5 text-[0.75rem]' : 'px-6 py-4.5 text-[0.6875rem]'} text-center w-24`}>Note</th>
+                          <th className={`${zoomLevel === 'compact' ? 'px-3 py-2 text-[0.6rem]' : zoomLevel === 'large' ? 'px-8 py-5 text-[0.75rem]' : 'px-6 py-4.5 text-[0.6875rem]'} text-center`}>{mitarbeitSettings.mode === 'manual' ? 'Manuelle Bewertung' : `Aktivität (${currentSymbol.label})`}</th>
+                          <th className={`${zoomLevel === 'compact' ? 'px-3 py-2 text-[0.6rem]' : zoomLevel === 'large' ? 'px-8 py-5 text-[0.75rem]' : 'px-6 py-4.5 text-[0.6875rem]'} text-center w-24`}>{mitarbeitSettings.mode === 'manual' && assessmentMode !== 'grades' ? 'Bewertung' : 'Note'}</th>
                        </tr>
                     </thead>
                     <tbody>
@@ -2049,7 +2058,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                           const grade = mitarbeitSettings.mode === 'manual' ? currentMIDirekt : calculateMitarbeitNote(val);
 
                           return (
-                             <tr key={s.id} className={`hover:bg-slate-50/80 transition-colors border-b border-slate-100 last:border-0 group ${mitarbeitSettings.mode === 'manual' && !currentMIDirekt ? 'opacity-60 hover:opacity-100' : ''}`}>
+                             <tr key={s.id} className={`hover:bg-slate-50/80 transition-colors border-b border-slate-100 last:border-0 group ${mitarbeitSettings.mode === 'manual' && (currentMIDirekt === undefined || currentMIDirekt === null) ? 'opacity-60 hover:opacity-100' : ''}`}>
                                 <td className={`${zoomLevel === 'compact' ? 'px-3 py-1.5 text-[0.6rem]' : zoomLevel === 'large' ? 'px-8 py-5 text-[0.8125rem]' : 'px-6 py-4.5 text-[0.6875rem]'} font-extrabold text-slate-400`}>{idx + 1}</td>
                                 <td className={`${zoomLevel === 'compact' ? 'px-3 py-1.5' : zoomLevel === 'large' ? 'px-8 py-5' : 'px-6 py-4.5'}`}>
                                    <div className={`${zoomLevel === 'compact' ? 'text-[0.75rem]' : zoomLevel === 'large' ? 'text-[1rem]' : 'text-[0.875rem]'} font-bold text-slate-850`}>{s.nachname} <span className="text-slate-500 font-semibold">{s.vorname}</span></div>
@@ -2058,7 +2067,19 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                    {mitarbeitSettings.mode === 'manual' ? (
                                       <div className="flex justify-center">
                                          <div className={`flex items-center border border-slate-200 shadow-3xs transition-all group-hover:border-slate-300 bg-slate-100/50 ${zoomLevel === 'compact' ? 'gap-1 p-1 rounded-lg' : zoomLevel === 'large' ? 'gap-2.5 p-2 rounded-2xl' : 'gap-1.5 p-1.5 rounded-xl'}`}>
-                                            {[1, 2, 3, 4, 5].map(n => (
+                                            {assessmentMode !== 'grades' ? <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                                              <DebouncedInput
+                                                key={`${app.activeClassId}:${activeFach}:${sem}:${s.id}:${assessmentMode}`}
+                                                aria-label={`Manuelle Mitarbeit für ${s.vorname}`}
+                                                inputMode="decimal" value={currentMIDirekt ?? ''}
+                                                onChange={value => setMIDirekt(s.id, value)}
+                                                onKeyDown={event => handleQuickEntryKey(event, 'mitarbeit', idx)}
+                                                data-quick-entry="mitarbeit" data-student-index={idx}
+                                                className="min-h-11 w-24 rounded-lg border border-slate-200 bg-white px-3 text-center text-sm font-bold"
+                                                placeholder={assessmentMode === 'percent' ? '%' : 'Pkt'}
+                                              />
+                                              <span>{assessmentMode === 'percent' ? '%' : `/ ${getMaxPoints(app, activeFach, 'mi', 0)} Pkt`}</span>
+                                            </label> : [1, 2, 3, 4, 5].map(n => (
                                               <button
                                                 key={n}
                                                 onClick={() => setMIDirekt(s.id, n.toString())}
@@ -2070,13 +2091,14 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                                 {n}
                                               </button>
                                             ))}
-                                            {currentMIDirekt && (
+                                            {currentMIDirekt !== undefined && currentMIDirekt !== null && (
                                               <button 
                                                 onClick={() => {
-                                                  if(confirm('Mitarbeit-Note löschen?')) setMIDirekt(s.id, '');
+                                                  if(confirm('Mitarbeitbewertung löschen?')) setMIDirekt(s.id, '');
                                                 }}
                                                 className={`flex items-center justify-center text-red-300 hover:text-red-500 hover:bg-red-50 transition-colors ${zoomLevel === 'compact' ? 'ml-1 w-6 h-6 rounded-md' : zoomLevel === 'large' ? 'ml-3 w-10 h-10 rounded-xl' : 'ml-2 w-8 h-8 rounded-lg'}`}
                                                 title="Löschen"
+                                                aria-label={`Manuelle Mitarbeit für ${s.vorname} löschen`}
                                               >
                                                 <RotateCcw size={14} />
                                               </button>
@@ -2159,8 +2181,10 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                 )}
                              </td>
                                 <td className={`${zoomLevel === 'compact' ? 'px-3 py-1.5' : zoomLevel === 'large' ? 'px-8 py-5' : 'px-6 py-4'} text-center`}>
-                                   <span className={`nb nb-${grade} ${zoomLevel === 'compact' ? '!scale-75 -my-1' : zoomLevel === 'large' ? '!scale-110 my-1' : ''} shadow-md`}>
-                                      {grade}
+                                   <span className={mitarbeitSettings.mode === 'manual' && assessmentMode !== 'grades'
+                                     ? 'inline-flex min-h-9 items-center whitespace-nowrap rounded-lg bg-slate-100 px-3 text-sm font-bold text-slate-800'
+                                     : `nb nb-${grade} ${zoomLevel === 'compact' ? '!scale-75 -my-1' : zoomLevel === 'large' ? '!scale-110 my-1' : ''} shadow-md`}>
+                                      {grade ?? '–'}{grade !== undefined && grade !== null && mitarbeitSettings.mode === 'manual' && assessmentMode !== 'grades' ? (assessmentMode === 'percent' ? ' %' : ' Pkt') : ''}
                                    </span>
                                 </td>
                              </tr>
@@ -3129,15 +3153,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                        <span className="text-emerald-600 font-extrabold">Statistik</span>
                      </div>
                      <label className="flex items-center gap-3 cursor-pointer group select-none">
-                        <div 
-                          onClick={() => {
-                            setIncludeSpecialNeedsInStats(!includeSpecialNeedsInStats);
-                          }}
-                          className={`w-9 h-5 rounded-full transition-all relative ${includeSpecialNeedsInStats ? 'bg-emerald-600' : 'bg-slate-300'}`}
-                        >
-                           <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all shadow-xs ${includeSpecialNeedsInStats ? 'left-[1.125rem]' : 'left-0.5'}`} />
-                        </div>
-                        <span className="text-[0.6875rem] font-bold text-slate-600 group-hover:text-slate-900 transition-colors">SPF/ESPF einbeziehen</span>
+                        <input type="checkbox" checked={includeSpecialNeedsInStats} onChange={e => setIncludeSpecialNeedsInStats(e.target.checked)} className="h-5 w-5" />
+                        <span className="text-[0.6875rem] font-bold text-slate-600 group-hover:text-slate-900 transition-colors">SPF/ESPF standardmäßig einbeziehen (individuelle Einstellung hat Vorrang)</span>
                      </label>
                    </div>
                    
@@ -3282,7 +3299,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                   onClick={() => setIsolatedCol(null)}
                   className={`px-3 py-2 border rounded-xl text-[0.625rem] font-black uppercase tracking-widest transition-all ${isolatedCol ? 'bg-amber-100 text-amber-800 border-amber-300 animate-pulse' : 'hidden'}`}
                 >
-                  Vollbild beenden
+                  Alle Bewertungen anzeigen
                 </button>
                 <button 
                   onClick={() => setFilterMissing(!filterMissing)}
@@ -3375,9 +3392,21 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                 className="my-8"
               />
             )}
+            {isolatedCol && (() => {
+              const dataKey = isolatedCol.typ === 'obj' ? 'aufgaben' : isolatedCol.typ;
+              const participating = students.filter(student => isolatedCol.typ !== 'lzk' || app.noten?.[student.id]?.[activeFach]?.[sem]?.lzkParticipation?.[isolatedCol.idx] !== false);
+              const recorded = participating.filter(student => {
+                const value = app.noten?.[student.id]?.[activeFach]?.[sem]?.[dataKey]?.[isolatedCol.idx];
+                return value !== null && value !== undefined && value !== '' && !['f', 'x', 'e', '-'].includes(String(value));
+              }).length;
+              return <div data-column-entry-status role="status" className="flex flex-wrap items-center justify-between gap-2 border-y border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <span><strong>{app.notenMeta?.[activeFach]?.colLabels?.[isolatedCol.typ]?.[isolatedCol.idx] || `${isolatedCol.typ.toUpperCase()} ${isolatedCol.idx + 1}`}</strong> · {recorded}/{participating.length} erfasst · {participating.length - recorded} offen · {students.length - participating.length} nehmen nicht teil</span>
+                <span className="text-xs">Enter: nächstes Kind · Shift+Enter: zurück · Escape: Eingabe verwerfen</span>
+              </div>;
+            })()}
             {students.length > 0 && (cfg.sa || cfg.lzk || cfg.wp || cfg.obj || cfg.mi || cfg.hue) && (
               <div className="w-full overflow-x-auto relative no-scrollbar rounded-2xl border border-slate-200 shadow-sm bg-white">
-              <table className="w-full border-separate border-spacing-0 text-[0.875rem] leading-snug table-fixed print:table-auto min-w-[1200px] gradebook-table">
+              <table className={`w-full border-separate border-spacing-0 text-[0.875rem] leading-snug table-fixed print:table-auto gradebook-table ${isolatedCol ? 'min-w-[700px]' : 'min-w-[1200px]'}`}>
                 <thead>
                   <tr className="sticky top-0 z-30 text-[0.6rem] font-bold uppercase tracking-wider text-text-muted text-center print:break-inside-avoid">
                     <th className={`${zoomLevel === 'compact' ? 'px-2.5 py-2 text-[0.55rem] w-[3rem]' : zoomLevel === 'large' ? 'px-5 py-5 text-[0.75rem] w-[5rem]' : 'px-4 py-3.5 text-[0.6rem] w-[4rem]'} text-left border-b-2 border-r border-slate-200 bg-white sticky left-0 z-[50] print:relative print:left-0 shadow-[2px_0_10px_rgba(0,0,0,0.1)]`}>#</th>
@@ -3443,7 +3472,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                     const rawNd = (app.noten?.[s.id]?.[activeFach]?.[sem] || {}) as any;
                     const nd = {
                       sa: rawNd.sa || [],
-                      lzk: rawNd.lzk || [],
+                      lzk: (rawNd.lzk || []).map((value, index) => rawNd.lzkParticipation?.[index] === false ? null : value),
                       wp: rawNd.wp || [],
                       aufgaben: rawNd.aufgaben || [],
                       hue: rawNd.hue || 0,
@@ -3502,6 +3531,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                 <span className={`text-wrap leading-tight break-words text-slate-900 ${dStyle.nameText} leading-normal font-black leading-tight max-w-[8rem] sm:max-w-[10rem]`} title={`${s.nachname} ${s.vorname}`}>{s.nachname}</span>
                                 {s.spf && <span className={`${dStyle.spfBadge} font-black uppercase text-purple-600 bg-purple-100 rounded border border-purple-200 print:bg-slate-200 print:text-black`}>SPF</span>}
                                 {s.espf && <span className={`${dStyle.spfBadge} font-black uppercase text-teal-600 bg-teal-100 rounded border border-teal-200 print:bg-slate-100 print:text-black`}>ESPF</span>}
+                                {<label className="flex items-center gap-1 text-xs font-medium print:hidden"><input type="checkbox" aria-label={`${s.vorname} ${s.nachname} im Klassenschnitt mitzählen`} checked={countsInClassAverage(app, s, activeFach)} onChange={e => setApp(prev => ({ ...prev, schueler: prev.schueler.map(child => child.id === s.id ? { ...child, includeInClassAverage: e.target.checked } : child) }))} />Im Schnitt</label>}
                                 {studentErrors.length > 0 && (
                                   <span 
                                     className="px-1.5 py-0.5 rounded-full bg-amber-100 border border-amber-300 text-amber-800 text-[0.5625rem] font-black inline-flex items-center gap-0.5 animate-pulse cursor-help shrink-0"
@@ -3597,8 +3627,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                     );
                                   })()}
                                   <div className="flex items-center gap-1 w-full relative">
-                                    <DebouncedInput 
-                                      type="text"
+                                    <AssessmentValueInput
+                                      key={`${app.activeClassId}:${activeFach}:${sem}:${s.id}:sa:${idx}:${assessmentMode}:${maxP}`}
+                                      mode={assessmentMode} maxPoints={maxP}
                                       aria-label={`Schularbeit ${idx + 1} für ${s.vorname} ${s.nachname}`}
                                       data-col={`sa-${idx}`}
                                       placeholder={assessmentMode === 'points' ? `/${maxP}` : assessmentMode === 'percent' ? '%' : ''}
@@ -3610,8 +3641,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                       onKeyDown={(e) => handleKeyDown(e, s.id, 'sa', idx)}
                                       className={`w-full mx-auto block text-center ${heatmapMode && isColorableGrade(nd.sa[idx]) ? 'bg-transparent' : 'bg-white/95'} border border-slate-250 hover:border-blue-400 focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none transition-all font-bold ${getGradeColor(nd.sa[idx], true, 'sa', idx).includes('ring-rose') ? '' : getGradeColor(nd.sa[idx], true, 'sa', idx)} ${nd.sa[idx] === 5 && assessmentMode === 'grades' ? 'text-red-650 font-extrabold' : nd.sa[idx] === 'f' ? 'text-slate-400' : 'text-blue-800'} ${zoomLevel === 'compact' ? 'min-w-[2.25rem] py-0.5 text-[0.75rem] rounded-md max-w-[3.25rem]' : zoomLevel === 'large' ? 'min-w-[3.5rem] py-2 text-[0.9375rem] rounded-xl max-w-[4.75rem]' : 'min-w-[2.75rem] py-1 text-[0.8125rem] rounded-lg max-w-[4rem]'}`}
                                       value={nd.sa[idx] !== null && nd.sa[idx] !== undefined ? nd.sa[idx] : ''}
-                                      onChange={(val) => setNote(s.id, 'sa', idx, val)}
-                                      debounceMs={400}
+                                      onCommit={(val) => setNote(s.id, 'sa', idx, val)}
+
                                     />
                                     {isBorderline(nd.sa[idx]) && (
                                       <div className="absolute -top-1.5 -right-0.5 z-10 text-amber-500 bg-white rounded-full shadow-sm border border-amber-200 pointer-events-none" title="Grenzentscheidung / Tendenz (+/-)">
@@ -3662,8 +3693,10 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                       );
                                     })()}
                                     <div className="relative w-full">
-                                      <DebouncedInput 
-                                        type="text"
+                                      <AssessmentValueInput
+                                        key={`${app.activeClassId}:${activeFach}:${sem}:${s.id}:lzk:${idx}:${assessmentMode}:${maxP}`}
+                                      mode={assessmentMode} maxPoints={maxP}
+                                        disabled={rawNd.lzkParticipation?.[idx] === false}
                                         aria-label={`Lernzielkontrolle ${idx + 1} für ${s.vorname} ${s.nachname}`}
                                         data-col={`lzk-${idx}`}
                                         placeholder={assessmentMode === 'points' ? `/${maxP}` : assessmentMode === 'percent' ? '%' : ''}
@@ -3675,9 +3708,10 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                         onKeyDown={(e) => handleKeyDown(e, s.id, 'lzk', idx)}
                                         className={`w-full mx-auto block text-center ${heatmapMode && isColorableGrade(nd.lzk[idx]) ? 'bg-transparent' : 'bg-white/95'} border border-slate-250 hover:border-green-400 focus:border-green-500 focus:bg-white focus:ring-1 focus:ring-green-500 outline-none transition-all font-bold ${getGradeColor(nd.lzk[idx], true, 'lzk', idx).includes('ring-rose') ? '' : getGradeColor(nd.lzk[idx], true, 'lzk', idx)} ${nd.lzk[idx] === 5 && assessmentMode === 'grades' ? 'text-red-650 font-extrabold' : nd.lzk[idx] === 'f' ? 'text-slate-400' : 'text-green-800'} ${zoomLevel === 'compact' ? 'min-w-[2.25rem] py-0.5 text-[0.75rem] rounded-md max-w-[3.25rem]' : zoomLevel === 'large' ? 'min-w-[3.5rem] py-2 text-[0.9375rem] rounded-xl max-w-[4.75rem]' : 'min-w-[2.75rem] py-1 text-[0.8125rem] rounded-lg max-w-[4rem]'}`}
                                         value={nd.lzk[idx] !== null && nd.lzk[idx] !== undefined ? nd.lzk[idx] : ''}
-                                        onChange={(val) => setNote(s.id, 'lzk', idx, val)}
-                                        debounceMs={400}
+                                        onCommit={(val) => setNote(s.id, 'lzk', idx, val)}
+
                                       />
+                                      <label className="flex items-center justify-center gap-1 text-xs text-slate-600 print:hidden"><input type="checkbox" aria-label={`${s.vorname} ${s.nachname} nimmt an LZK ${idx + 1} teil`} checked={rawNd.lzkParticipation?.[idx] !== false} onChange={e => { const participates = e.target.checked; setApp(prev => { const data = prev.noten?.[s.id]?.[activeFach]?.[sem] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] }; return { ...prev, noten: { ...prev.noten, [s.id]: { ...prev.noten?.[s.id], [activeFach]: { ...prev.noten?.[s.id]?.[activeFach], [sem]: { ...data, lzkParticipation: { ...data.lzkParticipation, [idx]: participates } } } } } }; }); }} />{rawNd.lzkParticipation?.[idx] === false ? 'Nimmt nicht teil' : 'Teilnahme'}</label>
                                       {isBorderline(nd.lzk[idx]) && (
                                         <div className="absolute -top-1.5 -right-0.5 z-10 text-amber-500 bg-white rounded-full shadow-sm border border-amber-200 pointer-events-none" title="Grenzentscheidung / Tendenz (+/-)">
                                           <AlertCircle size={10} className="stroke-[3]" />
@@ -3721,8 +3755,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                       );
                                     })()}
                                     <div className="relative w-full">
-                                      <DebouncedInput 
-                                        type="text"
+                                      <AssessmentValueInput
+                                        key={`${app.activeClassId}:${activeFach}:${sem}:${s.id}:wp:${idx}:${assessmentMode}:${maxP}`}
+                                      mode={assessmentMode} maxPoints={maxP}
                                         aria-label={`Wochenplan ${idx + 1} für ${s.vorname} ${s.nachname}`}
                                         data-col={`wp-${idx}`}
                                         placeholder={assessmentMode === 'points' ? `/${maxP}` : assessmentMode === 'percent' ? '%' : ''}
@@ -3734,8 +3769,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                         onKeyDown={(e) => handleKeyDown(e, s.id, 'wp', idx)}
                                         className={`w-full mx-auto block text-center ${heatmapMode && isColorableGrade(nd.wp[idx]) ? 'bg-transparent' : 'bg-white/95'} border border-slate-250 hover:border-purple-400 focus:border-purple-500 focus:bg-white focus:ring-1 focus:ring-purple-500 outline-none transition-all font-bold ${getGradeColor(nd.wp[idx], false, 'wp', idx)} ${nd.wp[idx] === 5 && assessmentMode === 'grades' ? 'text-red-650 font-extrabold' : nd.wp[idx] === 'f' ? 'text-slate-400' : 'text-purple-800'} ${zoomLevel === 'compact' ? 'min-w-[2.25rem] py-0.5 text-[0.75rem] rounded-md max-w-[3.25rem]' : zoomLevel === 'large' ? 'min-w-[3.5rem] py-2 text-[0.9375rem] rounded-xl max-w-[4.75rem]' : 'min-w-[2.75rem] py-1 text-[0.8125rem] rounded-lg max-w-[4rem]'}`}
                                         value={nd.wp[idx] !== null && nd.wp[idx] !== undefined ? nd.wp[idx] : ''}
-                                        onChange={(val) => setNote(s.id, 'wp', idx, val)}
-                                        debounceMs={400}
+                                        onCommit={(val) => setNote(s.id, 'wp', idx, val)}
+
                                       />
                                       {isBorderline(nd.wp[idx]) && (
                                         <div className="absolute -top-1.5 -right-0.5 z-10 text-amber-500 bg-white rounded-full shadow-sm border border-amber-200 pointer-events-none" title="Grenzentscheidung / Tendenz (+/-)">
@@ -3780,8 +3815,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                       );
                                     })()}
                                     <div className="relative w-full">
-                                      <DebouncedInput 
-                                        type="text"
+                                      <AssessmentValueInput
+                                        key={`${app.activeClassId}:${activeFach}:${sem}:${s.id}:aufgaben:${idx}:${assessmentMode}:${maxP}`}
+                                      mode={assessmentMode} maxPoints={maxP}
                                         aria-label={`Aufgabe ${idx + 1} für ${s.vorname} ${s.nachname}`}
                                         data-col={`obj-${idx}`}
                                         placeholder={assessmentMode === 'points' ? `/${maxP}` : assessmentMode === 'percent' ? '%' : ''}
@@ -3793,8 +3829,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                         onKeyDown={(e) => handleKeyDown(e, s.id, 'aufgaben', idx)}
                                         className={`w-full mx-auto block text-center ${heatmapMode && isColorableGrade(nd.aufgaben[idx]) ? 'bg-transparent' : 'bg-white/95'} border border-slate-250 hover:border-amber-400 focus:border-amber-500 focus:bg-white focus:ring-1 focus:ring-amber-500 outline-none transition-all font-bold ${getGradeColor(nd.aufgaben[idx], false, 'obj', idx)} ${nd.aufgaben[idx] === 5 && assessmentMode === 'grades' ? 'text-red-650 font-extrabold' : nd.aufgaben[idx] === 'f' ? 'text-slate-400' : 'text-amber-800'} ${zoomLevel === 'compact' ? 'min-w-[2.25rem] py-0.5 text-[0.75rem] rounded-md max-w-[3.25rem]' : zoomLevel === 'large' ? 'min-w-[3.5rem] py-2 text-[0.9375rem] rounded-xl max-w-[4.75rem]' : 'min-w-[2.75rem] py-1 text-[0.8125rem] rounded-lg max-w-[4rem]'}`}
                                         value={nd.aufgaben[idx] !== null && nd.aufgaben[idx] !== undefined ? nd.aufgaben[idx] : ''}
-                                        onChange={(val) => setNote(s.id, 'aufgaben', idx, val)}
-                                        debounceMs={400}
+                                        onCommit={(val) => setNote(s.id, 'aufgaben', idx, val)}
+
                                       />
                                       {isBorderline(nd.aufgaben[idx]) && (
                                         <div className="absolute -top-1.5 -right-0.5 z-10 text-amber-500 bg-white rounded-full shadow-sm border border-amber-200 pointer-events-none" title="Grenzentscheidung / Tendenz (+/-)">
@@ -3945,7 +3981,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                       {cfg.lzk && (
                         <>
                           {Array.from({length: colCounts.lzk}).map((_, idx) => (
-                            <td key={`flzk-${idx}`} className="px-1 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900 text-white">
+                            <td data-lzk-class-average={idx} key={`flzk-${idx}`} className="px-1 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900 text-white">
                               {columnAverages[`lzk-${idx}`]?.avg !== null && columnAverages[`lzk-${idx}`]?.avg !== undefined 
                                 ? (assessmentMode === 'grades' ? columnAverages[`lzk-${idx}`]!.avg!.toFixed(1) : assessmentMode === 'percent' ? `${columnAverages[`lzk-${idx}`]!.avg!.toFixed(1)}%` : `${columnAverages[`lzk-${idx}`]!.avg!.toFixed(1)}P`) 
                                 : '–'}
@@ -4005,6 +4041,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                   initial={{ scale: 0.95, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.95, opacity: 0 }}
+                  id="gradebook-add-assessment-menu"
                   className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg p-6"
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -4027,25 +4064,21 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
                     <button
-                      onClick={() => {
+                      aria-label="Schularbeit für die Klasse anlegen"
+                      onClick={(event) => {
                         setShowAddAssessmentModal(false);
-                        // Open SA assessment for first student as entry point or add column
-                        if (students.length > 0) {
-                          setSaAssessment({
-                            sid: students[0].id,
-                            name: `${students[0].vorname} ${students[0].nachname}`,
-                            idx: 0,
-                          });
-                        }
+                        addColumn(event, 'sa');
                       }}
-                      className="p-4 rounded-2xl border border-blue-200 bg-blue-50/50 hover:bg-blue-100/60 text-left transition-all hover:scale-[1.02] cursor-pointer group"
+                      disabled={!cfg.sa}
+                      title={!cfg.sa ? 'Für dieses Fach sind keine Schularbeitsspalten aktiv.' : undefined}
+                      className="disabled:opacity-50 disabled:cursor-not-allowed p-4 rounded-2xl border border-blue-200 bg-blue-50/50 hover:bg-blue-100/60 text-left transition-all hover:scale-[1.02] cursor-pointer group"
                     >
                       <div className="text-2xl mb-2">📝</div>
                       <div className="font-black text-blue-900 text-[0.9375rem] mb-1">
                         Schularbeit
                       </div>
                       <div className="text-[0.75rem] text-blue-700 leading-snug">
-                        Detaillierte Korrektur mit Punkten & KI-Vorschlägen
+                        Titel und Höchstpunkte festlegen, dann für alle Kinder eintragen
                       </div>
                     </button>
 
@@ -4054,7 +4087,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                         setShowAddAssessmentModal(false);
                         addColumn(e, 'lzk');
                       }}
-                      className="p-4 rounded-2xl border border-emerald-200 bg-emerald-50/50 hover:bg-emerald-100/60 text-left transition-all hover:scale-[1.02] cursor-pointer group"
+                      disabled={!cfg.lzk}
+                      title={!cfg.lzk ? 'Für dieses Fach sind keine LZK-Spalten aktiv.' : undefined}
+                      className="disabled:opacity-50 disabled:cursor-not-allowed p-4 rounded-2xl border border-emerald-200 bg-emerald-50/50 hover:bg-emerald-100/60 text-left transition-all hover:scale-[1.02] cursor-pointer group"
                     >
                       <div className="text-2xl mb-2">🎯</div>
                       <div className="font-black text-emerald-900 text-[0.9375rem] mb-1">
@@ -4064,6 +4099,13 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                         Kurzüberprüfung oder Lernzielkontrolle eintragen
                       </div>
                     </button>
+
+                    {cfg.wp && <button type="button" aria-label="Wochenplan für die Klasse anlegen" onClick={event => { setShowAddAssessmentModal(false); addColumn(event, 'wp'); }}
+                      className="rounded-2xl border border-purple-200 bg-purple-50/50 p-4 text-left transition-colors hover:bg-purple-100/60">
+                      <div className="mb-2 text-2xl">📋</div>
+                      <div className="mb-1 text-sm font-bold text-purple-900">Wochenplan</div>
+                      <div className="text-xs text-purple-700">Eine Bewertungsspalte für die ganze Klasse anlegen</div>
+                    </button>}
 
                     <button
                       onClick={() => {
@@ -4148,7 +4190,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                     initial={{ scale: 0.95, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.95, opacity: 0 }}
-                    className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg p-6"
+                    id="gradebook-add-assessment-menu"
+                  className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg p-6"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
@@ -4267,7 +4310,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
             <AssessmentItemModal
               isOpen={editingAssessmentModal !== null}
               onClose={() => setEditingAssessmentModal(null)}
-              onSave={(labelVal, dateVal, maxPointsVal) => {
+              onSave={(labelVal, dateVal, maxPointsVal, area) => {
                 if (editingAssessmentModal.isNew) {
                   setApp(prev => {
                     const meta = { ...(prev.notenMeta || {}) };
@@ -4279,6 +4322,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                         ...meta,
                         [activeFach]: {
                           ...subjectMeta,
+                          ...(editingAssessmentModal.typ === 'sa' ? { saCount: Math.max(getFachCfg(prev, activeFach).saCount, editingAssessmentModal.idx + 1) } : {}),
                           colCounts: {
                             ...counts,
                             [editingAssessmentModal.typ]: Math.max(
@@ -4291,7 +4335,12 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                     };
                   });
                 }
-                updateColMeta(editingAssessmentModal.typ, editingAssessmentModal.idx, labelVal, dateVal, maxPointsVal);
+                updateColMeta(editingAssessmentModal.typ, editingAssessmentModal.idx, labelVal, dateVal, maxPointsVal, area);
+                if (editingAssessmentModal.isNew) {
+                  setActiveView('noten'); setShowWeights(false); setFilterMissing(false);
+                  setSortBy('name'); setSortOrder('asc');
+                  setIsolatedCol({ typ: editingAssessmentModal.typ, idx: editingAssessmentModal.idx });
+                }
               }}
               onOpenSchularbeitRaster={() => {
                 if (editingAssessmentModal.typ === 'sa') {
@@ -4305,6 +4354,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
               }}
               typ={editingAssessmentModal.typ}
               idx={editingAssessmentModal.idx}
+              initialArea={app.notenMeta?.[activeFach]?.colAreas?.lzk?.[editingAssessmentModal.idx] || ''}
               initialLabel={app.notenMeta?.[activeFach]?.colLabels?.[editingAssessmentModal.typ]?.[editingAssessmentModal.idx] || ''}
               initialDate={app.notenMeta?.[activeFach]?.colDates?.[editingAssessmentModal.typ]?.[editingAssessmentModal.idx] || ''}
               initialMaxPoints={getMaxPoints(app, activeFach, editingAssessmentModal.typ, editingAssessmentModal.idx)}

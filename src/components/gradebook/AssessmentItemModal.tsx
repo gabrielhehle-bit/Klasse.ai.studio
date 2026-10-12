@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { LERNZIELE_BY_STUFE } from '../LernzielTracker';
 import { formatLocalDateKey } from '../../lib/utils';
 import { 
   X, 
@@ -18,10 +19,11 @@ import {
 interface AssessmentItemModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (label: string, date: string, maxPoints?: number) => void;
+  onSave: (label: string, date: string, maxPoints?: number, area?: string) => void;
   onOpenSchularbeitRaster?: () => void;
   typ: 'sa' | 'lzk' | 'wp' | 'obj';
   idx: number;
+  initialArea?: string;
   initialLabel: string;
   initialDate: string;
   initialMaxPoints: number;
@@ -38,6 +40,7 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
   onOpenSchularbeitRaster,
   typ,
   idx,
+  initialArea = '',
   initialLabel,
   initialDate,
   initialMaxPoints,
@@ -46,17 +49,20 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
   semester,
   isNew = false
 }) => {
+  const [area, setArea] = useState(initialArea);
+  const areas = [...new Set(Object.values(LERNZIELE_BY_STUFE).flatMap(level => (level[subject] || []).map(goal => goal.text.split(':')[0])))];
   const [label, setLabel] = useState(initialLabel);
   const [date, setDate] = useState(initialDate);
   const [maxPoints, setMaxPoints] = useState<number>(initialMaxPoints || (typ === 'sa' ? 40 : typ === 'wp' ? 10 : 20));
 
   useEffect(() => {
     if (isOpen) {
+      setArea(initialArea);
       setLabel(initialLabel);
       setDate(initialDate);
       setMaxPoints(initialMaxPoints || (typ === 'sa' ? 40 : typ === 'wp' ? 10 : 20));
     }
-  }, [isOpen, initialLabel, initialDate, initialMaxPoints, typ]);
+  }, [isOpen, initialLabel, initialDate, initialMaxPoints, initialArea, subject, typ]);
 
   if (!isOpen) return null;
 
@@ -108,7 +114,7 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
     e.preventDefault();
     const finalLabel = label.trim() || currentTypeInfo.defaultName;
     const finalMaxP = assessmentMode === 'points' ? Math.max(1, maxPoints || 20) : undefined;
-    onSave(finalLabel, date, finalMaxP);
+    onSave(finalLabel, date, finalMaxP, typ === 'lzk' ? area.trim() : undefined);
     onClose();
   };
 
@@ -236,6 +242,7 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
               </div>
             </div>
 
+            {typ === 'lzk' && <div className="space-y-2"><label htmlFor="assessment-item-area" className="block text-sm font-bold text-slate-700">Unterbereich in {subject}</label><input id="assessment-item-area" list="assessment-area-options" value={area} maxLength={100} onChange={e => setArea(e.target.value)} placeholder="Bereich auswählen oder eigenen eingeben" className="input-field w-full" /><datalist id="assessment-area-options">{areas.map(name => <option key={name} value={name} />)}</datalist><p className="text-xs text-slate-500">Zum Beispiel Lesen, Rechtschreiben, Operieren oder Größen – auch genauer: Längen. Erscheint automatisch im Schülerdossier und Portfolio.</p></div>}
             {/* Assessment Mode Section */}
             <div className="pt-2">
               {assessmentMode === 'points' && (
