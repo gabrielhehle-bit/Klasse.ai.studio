@@ -2574,7 +2574,8 @@ async function main() {
     await waitFor(client,'damaged material cannot replace working image',`document.querySelector(${q(imageDialog('Tafelbild-Material auswählen')+' [role="alert"]')})?.textContent.includes('bisherige Bild bleibt')&&document.querySelector(${q(imageRoot+' img')})?.alt==='Materialbild 1/2 und 1/4'`);
     await pressAuditKey('Escape');await waitFor(client,'nested material dialog returns focus to surviving gear',`!document.querySelector('dialog[open]')&&document.activeElement.matches('[data-widget-type="image"] button[aria-label$="Einstellungen öffnen"]')`);
     let acceptImageRemote=false;
-    client.on('Page.javascriptDialogOpening',event=>{if(event.type==='confirm'&&event.message.startsWith('Ein externes Bild lädt Daten'))void client.send('Page.handleJavaScriptDialog',{accept:acceptImageRemote}).catch(()=>{});});
+    const imageConfirmations=[];
+    client.on('Page.javascriptDialogOpening',event=>{if(event.type==='confirm'&&event.message.startsWith('Ein externes Bild lädt Daten')){imageConfirmations.push(acceptImageRemote);void client.send('Page.handleJavaScriptDialog',{accept:acceptImageRemote}).catch(()=>{});}});
     const imageNetworkRequests=[],pendingImages=[];
     const imageBodies={landscape:await fs.readFile(imagePath),portrait:await fs.readFile(portraitPath)};
     const fulfillImage=(requestId,body,status=200)=>client.send('Fetch.fulfillRequest',{requestId,responseCode:status,responseHeaders:[{name:'Content-Type',value:'image/png'},{name:'Cache-Control',value:'public, max-age=3600'}],body:body.toString('base64')});
@@ -2584,8 +2585,8 @@ async function main() {
       if(event.request.url.includes('/slow'))pendingImages.push(event.requestId);
       else void fulfillImage(event.requestId,event.request.url.includes('/broken')?Buffer.from('Damaged PNG'):imageBodies.landscape).catch(()=>{});
     });
-    await client.send('Fetch.enable',{patterns:[{urlPattern:'https://klassio-image-fixture.invalid/*',resourceType:'Image',requestStage:'Request'}]});
-    const waitForImageRequest=async()=>{for(let i=0;i<60;i++){if(pendingImages.length)return;await sleep(50);}throw Error('Actual delayed image request never arrived');};
+    await client.send('Fetch.enable',{patterns:[{urlPattern:'https://klassio-image-fixture.invalid/*',requestStage:'Request'}]});
+    const waitForImageRequest=async()=>{for(let i=0;i<60;i++){if(pendingImages.length)return;await sleep(50);}console.error('Image source diagnostics',{requests:imageNetworkRequests,confirmations:imageConfirmations,ui:await evaluate(client,`(()=>{const d=document.querySelector(${q(imageDialog('Tafelbild-Webadresse'))});return {input:d?.querySelector('input')?.value,text:d?.innerText,focus:document.activeElement?.outerHTML};})()`)});throw Error('Actual delayed image request never arrived');};
     try{
       const applyImageAddress=async url=>{await setInputByLabel(client,'HTTPS-Bildadresse',url);await imageTextClick('Übernehmen',imageDialog('Tafelbild-Webadresse'));};
       await imageSourceDialog('Web-URL');await applyImageAddress('https://klassio-image-fixture.invalid/declined.png');
