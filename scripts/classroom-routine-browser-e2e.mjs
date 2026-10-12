@@ -698,6 +698,7 @@ async function main() {
     await clickButton(client, 'Widget hinzufügen');
     await clickButton(client, 'Kernwidgets');
     await waitFor(client, 'regular picker has 24 grouped entries', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length === 24`);
+    await sleep(250);
     await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-widget-catalog.png'));
     await client.send('Emulation.setDeviceMetricsOverride', { width:820, height:900, deviceScaleFactor:1, mobile:false });
     // Below 768px the app deliberately switches from the cockpit to phone quick mode.
