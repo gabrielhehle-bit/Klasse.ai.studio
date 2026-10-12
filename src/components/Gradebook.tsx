@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { logActivity, getAccentTextColor } from '../lib/utils';
-import { getFachCfg, berechne, getAssessmentMode, getMaxPoints, calculateItemPercent, getNotenLabel, isAssessmentValueMissing, hasCalculatedAverage, parseAssessmentInput, parseFinalGradeInput, getHomeworkGradebookSettings, getMirroredAssessmentValue, getShowPointsPercent } from '../lib/GradeUtils';
+import { getFachCfg, berechne, miZuNote, getAssessmentMode, getMaxPoints, calculateItemPercent, getNotenLabel, isAssessmentValueMissing, hasCalculatedAverage, parseAssessmentInput, parseFinalGradeInput, getHomeworkGradebookSettings, getMirroredAssessmentValue, getShowPointsPercent } from '../lib/GradeUtils';
 import { FAECHER_ALLE, NOTE_LABELS, STUNDEN_INFO } from '../constants';
 import { GradeData } from '../types';
 import WeightSettings from './WeightSettings';
@@ -634,39 +634,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
 
   const currentSymbol = symbols[mitarbeitSettings.symbol as keyof typeof symbols] || symbols.plus;
 
-  const calculateMitarbeitNote = (points: number) => {
-    const s = mitarbeitSettings;
-    const students = app.schueler || [];
-    
-    if (s.mode === 'relative' && s.relative_confirmed && app.mitarbeit) {
-      const activeValues = students.map(st => app.mitarbeit?.[st.id]?.[activeFach]?.[sem] || 0);
-      const valuesWithPoints = activeValues.filter(v => v > 0);
-      
-      // Calculate class average from students who actually have points
-      // This prevents the average from being dragged down to 1-2 points by inactive students
-      const sum = activeValues.reduce((a, b) => a + b, 0);
-      const avg = valuesWithPoints.length > 0 ? sum / valuesWithPoints.length : 0;
-      
-      const rel = s.relative_thresholds || { 1: 20, 2: 10, 3: 0, 4: -10 };
-      
-      if (points === 0) return 5; // No participation at all
-      if (avg === 0) return 3;    // Class average is 0, points > 0 gets baseline
-
-      // Relative to class average
-      if (points >= avg * (1 + (rel[1] || 20)/100)) return 1;
-      if (points >= avg * (1 + (rel[2] || 10)/100)) return 2;
-      if (points >= avg * (1 + (rel[3] || 0)/100)) return 3;
-      if (points >= avg * (1 + (rel[4] || -10)/100)) return 4;
-      return 5;
-    }
-
-    const t = s.thresholds || { 1: 13, 2: 10, 3: 7, 4: 4, 5: 0 };
-    if (points >= (t[1] || 13)) return 1;
-    if (points >= (t[2] || 10)) return 2;
-    if (points >= (t[3] || 7)) return 3;
-    if (points >= (t[4] || 4)) return 4;
-    return 5;
-  };
+  const calculateMitarbeitNote = (points: number) =>
+    miZuNote(points, mitarbeitSettings, app.mitarbeit, activeFach, sem, app.schueler);
 
   const colCounts = app.notenMeta?.[activeFach]?.colCounts || { lzk: 4, wp: 4, obj: 4 };
   const [pendingDelete, setPendingDelete] = useState<{typ: 'lzk' | 'wp' | 'obj', label: string} | null>(null);
