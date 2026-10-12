@@ -3574,6 +3574,63 @@ async function main() {
         await waitFor(client,'committed zero survives encrypted reload',`${participationValue}===0`);
         console.log('✓ Participation drafts: native typing, Enter/blur commits, row navigation, empty/Escape cancellation, invalid/unsafe input rejection, all four periods, focused subject isolation and explicit zero survive encrypted reload.');
         console.log('✓ Direct gradebook participation plus/minus updates weekly chart and survives encrypted reload.');
+        for (const [typ, button] of [['lzk', '+ LZK'], ['wp', '+ Wochenplan'], ['sa', '+ Schularbeit']]) {
+          await clickButton(client,button,true);
+          await waitFor(client,'new '+typ+' metadata dialog',`Boolean(document.querySelector('#assessment-item-modal-content'))`);
+          const title='Schnelleingabe '+typ;
+          await setInputByLabel(client,'Bezeichnung / Titel',title);
+          await setInputByLabel(client,'Maximal erreichbare Punkte','20');
+          await clickSelector(client,'#btn-save-assessment-modal');
+          await waitFor(client,'new '+typ+' column focuses first pupil',`document.activeElement?.dataset.col?.startsWith(${q(typ+'-')})&&Boolean(document.querySelector('[data-column-entry-status]'))`);
+          const col=await evaluate(client,`document.activeElement.dataset.col`);
+          const labels=await evaluate(client,`Array.from(document.querySelectorAll('input[data-col='+JSON.stringify(${q(col)})+']')).map(i=>i.getAttribute('aria-label'))`);
+          if(labels.length<2)throw new Error('Quick entry requires two fixture pupils.');
+          const field=i=>'input[aria-label='+q(labels[i])+']';
+          await numbersTypeSigned('[data-gradebook]',labels[0],'12');await pressAuditKey('Enter');
+          await waitFor(client,'native Enter commits '+typ+' without debounce and moves one row',`document.activeElement===document.querySelector(${q(field(1))})&&document.querySelector(${q(field(0))}).closest('td').querySelector('[data-points-percent]')?.textContent.trim()==='60 %'`);
+          await numbersTypeSigned('[data-gradebook]',labels[1],'0');await pressAuditKey('Enter');
+          await waitFor(client,'quick '+typ+' progress counts recorded zero',`document.querySelector('[data-column-entry-status]').textContent.includes('2/')&&document.querySelector(${q(field(1))}).closest('td').querySelector('[data-points-percent]')?.textContent.trim()==='0 %'`);
+          await numbersTypeSigned('[data-gradebook]',labels[0],'21');await pressAuditKey('Enter');
+          await waitFor(client,'invalid '+typ+' keeps focus and saved value',`document.activeElement===document.querySelector(${q(field(0))})&&document.activeElement.getAttribute('aria-invalid')==='true'&&document.querySelector(${q(field(0))}).closest('td').querySelector('[data-points-percent]')?.textContent.trim()==='60 %'`);
+          await pressAuditKey('Escape');await waitFor(client,'Escape restores '+typ+' saved value',`document.querySelector(${q(field(0))}).value==='12'`);
+          await reloadAndUnlock(client);await openPage(client,'Notenmappe');
+          await evaluate(client,`(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+          await clickSelector(client,'button[aria-label='+q('Bewertungen für '+title+' eintragen')+']');
+          await waitFor(client,'quick '+typ+' values and metadata survive encrypted reload',`document.querySelector(${q(field(0))}).value==='12'&&document.querySelector(${q(field(1))}).value==='0'&&document.querySelector('[data-column-entry-status]').textContent.includes(${q(title)})`);
+          await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-quick-'+typ+'.png'));
+          await clickButton(client,'Alle Bewertungen anzeigen',true);
+          await waitFor(client,'quick '+typ+' leaves original assessment values intact',`document.querySelector('input[data-col="sa-0"]').value==='18'&&document.querySelector('input[data-col="lzk-0"]').value==='7'&&!document.querySelector('[data-column-entry-status]')`);
+        }
+        console.log('✓ Quick LZK/WP/SA: native immediate Enter, next visible pupil, invalid input, Escape, recorded zero, metadata and encrypted restoration.');
+        // Manual entry follows the subject scale, including a recorded zero.
+        client.on('Page.javascriptDialogOpening', event => {
+          if (event.type === 'confirm' && (event.message.startsWith('Hinweis: Im Fach') || event.message === 'Mitarbeitbewertung löschen?'))
+            void client.send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {});
+        });
+        await clickButton(client, 'Gewichtung', true);
+        await clickButton(client, 'Manuelle Bewertung', true);
+        await clickButton(client, 'Speichern', true);
+        await clickButton(client, 'Mitarbeit', true);
+        const manualLabel=await evaluate(client, `document.querySelector('input[aria-label^="Manuelle Mitarbeit für"]')?.getAttribute('aria-label')`);
+        if(!manualLabel)throw new Error('Manual points field missing.');
+        const manualField='input[aria-label='+q(manualLabel)+']';
+        const manualRow=`document.querySelector(${q(manualField)}).closest('tr')`;
+        await numbersTypeSigned('[data-gradebook]',manualLabel,'10');
+        await waitFor(client,'manual points show units and configured maximum',`${manualRow}.textContent.includes('10 Pkt')&&${manualRow}.textContent.includes('/ 20 Pkt')`);
+        await numbersTypeSigned('[data-gradebook]',manualLabel,'0');
+        await waitFor(client,'manual zero remains visible and removable',`${manualRow}.textContent.includes('0 Pkt')&&Boolean(${manualRow}.querySelector('button[aria-label$=" löschen"]'))`);
+        await reloadAndUnlock(client);await openPage(client,'Notenmappe');
+        await evaluate(client,`(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);await clickButton(client,'Mitarbeit',true);
+        await waitFor(client,'manual zero survives encrypted reload',`document.querySelector(${q(manualField)}).value==='0'&&${manualRow}.textContent.includes('0 Pkt')`);
+        await clickButton(client,'Gewichtung',true);await clickButton(client,'Prozent');await clickButton(client,'Speichern',true);await clickButton(client,'Mitarbeit',true);
+        await numbersTypeSigned('[data-gradebook]',manualLabel,'50');
+        await waitFor(client,'manual percent shows percentage instead of a grade',`${manualRow}.textContent.includes('50 %')`);
+        await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-manual-participation.png'));
+        await clickSelector(client,`button[aria-label=${q(manualLabel+' löschen')}]`);
+        await waitFor(client,'manual deletion preserves missing-value distinction',`document.querySelector(${q(manualField)}).value===''&&${manualRow}.textContent.includes('–')`);
+        await clickButton(client,'Gewichtung',true);await clickButton(client,'Punkte');await clickButton(client,'Fixe Punkte',true);await clickButton(client,'Speichern',true);
+        console.log('✓ Manual participation uses points/percent fields, preserves zero on encrypted reload and clears values explicitly.');
+
 
       }
       console.log('✓ '+page+': responsive controls and mobile tool access at 390/820/1360px.');

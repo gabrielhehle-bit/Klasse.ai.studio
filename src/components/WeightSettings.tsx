@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { FAECHER_ALLE, DEFAULT_GEWICHTUNG } from '../constants';
-import { getAssessmentMode, getHomeworkGradebookSettings, getNotenLabel, getShowPointsPercent } from '../lib/GradeUtils';
+import { getAssessmentMode, hasSubjectAssessmentEntries, getHomeworkGradebookSettings, getNotenLabel, getShowPointsPercent } from '../lib/GradeUtils';
 import { Save, RotateCcw, AlertTriangle, Zap, BookOpen, Check, Info, FileText, CheckCircle2 } from 'lucide-react';
 
 export default function WeightSettings({ onBack, initialFach }: { onBack: () => void; initialFach?: string }) {
@@ -57,23 +57,7 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
     const currentMode = app.notenMeta?.[fach]?.assessmentMode || 'grades';
     if (currentMode === newMode) return;
 
-    let hasEntries = false;
-    const students = app.schueler || [];
-    for (const s of students) {
-      const sem1 = app.noten?.[s.id]?.[fach]?.['1'];
-      const sem2 = app.noten?.[s.id]?.[fach]?.['2'];
-      const checkSem = (d: any) => {
-        if (!d) return false;
-        return (d.sa?.some((v: any) => v !== null && v !== undefined && v !== '')) ||
-               (d.lzk?.some((v: any) => v !== null && v !== undefined && v !== '')) ||
-               (d.wp?.some((v: any) => v !== null && v !== undefined && v !== '')) ||
-               (d.aufgaben?.some((v: any) => v !== null && v !== undefined && v !== ''));
-      };
-      if (checkSem(sem1) || checkSem(sem2)) {
-        hasEntries = true;
-        break;
-      }
-    }
+    const hasEntries = hasSubjectAssessmentEntries(app, fach);
 
     if (hasEntries) {
       const modeNames = { grades: 'Noten (1–5)', percent: 'Prozent (0–100%)', points: 'Punkte (Pkt/Max)' };
@@ -578,7 +562,7 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
                   onClick={() => setApp(prev => ({ ...prev, mitarbeit_settings: { ...(prev.mitarbeit_settings || {}), mode: 'manual' } }))}
                   className={`px-4 py-1.5 rounded-lg text-[0.625rem] font-black uppercase transition-all ${app.mitarbeit_settings?.mode === 'manual' ? 'bg-white text-amber-900 shadow-sm' : 'text-stone-400'}`}
                 >
-                  Manuelle Note
+                  Manuelle Bewertung
                 </button>
               </div>
             </div>
@@ -590,9 +574,9 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
                     ✍️
                   </div>
                   <div>
-                    <h5 className="text-[0.9375rem] font-black text-amber-950 uppercase tracking-widest leading-tight">Manueller Noteneintrag</h5>
+                    <h5 className="text-[0.9375rem] font-black text-amber-950 uppercase tracking-widest leading-tight">Manuelle Mitarbeitbewertung</h5>
                     <p className="text-[0.75rem] text-amber-800/60 font-medium px-4 mt-1">
-                      In diesem Modus gibst du die Mitarbeit direkt als Note (1-5) in der Tabelle ein.
+                      In diesem Modus gibst du die Mitarbeit direkt in der Bewertungsart des Fachs ein: Note (1–5), Prozent (0–100 %) oder Punkte.
                       Punkte/Symbole werden ignoriert.
                     </p>
                   </div>

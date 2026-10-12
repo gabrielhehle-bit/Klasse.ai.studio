@@ -10,6 +10,17 @@ export function getAssessmentMode(app: AppState, fach: string): AssessmentMode {
   return 'grades';
 }
 
+/** Include manual participation, even zero, before reinterpreting a subject's scale. */
+export function hasSubjectAssessmentEntries(app: AppState, fach: string): boolean {
+  return (app.schueler || []).some(student => ['1', '2'].some(semester => {
+    const data = app.noten?.[student.id]?.[fach]?.[semester];
+    if (!data) return false;
+    const recorded = (value: unknown) => value !== null && value !== undefined && value !== '';
+    return recorded(data.miDirekt) || [data.sa, data.lzk, data.wp, data.aufgaben]
+      .some(values => values?.some(recorded));
+  }));
+}
+
 /** Points are always normalized internally; this controls only the secondary percent display. */
 export function getShowPointsPercent(app: AppState, fach: string): boolean {
   return app.notenMeta?.[fach]?.showPointsPercent !== false;

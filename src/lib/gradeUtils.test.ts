@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getFachCfg, berechne, miZuNote, getAssessmentStorageValue, getHomeworkGradebookSettings, getMirroredAssessmentValue, getShowPointsPercent, isAssessmentValueMissing, hasCalculatedAverage, parseAssessmentInput, parseFinalGradeInput } from './GradeUtils';
+import { getFachCfg, berechne, miZuNote, hasSubjectAssessmentEntries, getAssessmentStorageValue, getHomeworkGradebookSettings, getMirroredAssessmentValue, getShowPointsPercent, isAssessmentValueMissing, hasCalculatedAverage, parseAssessmentInput, parseFinalGradeInput } from './GradeUtils';
 
 function baseApp() {
   return {
@@ -245,4 +245,36 @@ test('relative thresholds preserve explicit zero and default individually missin
   assert.equal(miZuNote(9, settings, counters, 'Deutsch', '1', students), 4);
   assert.equal(miZuNote(0, settings, counters, 'Deutsch', '1', students), 5);
   assert.equal(miZuNote(10, { ...settings, relative_confirmed: false }, counters, 'Deutsch', '1', students), 2);
+});
+
+
+test('manual-only assessment values including zero trigger scale-change protection in either semester', () => {
+  const app = baseApp();
+  app.noten.s1.Deutsch['1'] = { sa: [], lzk: [], wp: [], aufgaben: [] };
+  assert.equal(hasSubjectAssessmentEntries(app, 'Deutsch'), false);
+  app.noten.s1.Deutsch['1'].miDirekt = 0;
+  assert.equal(hasSubjectAssessmentEntries(app, 'Deutsch'), true);
+  app.noten.s1.Deutsch['1'].miDirekt = undefined;
+  app.noten.s1.Deutsch['2'] = { miDirekt: 50 };
+  assert.equal(hasSubjectAssessmentEntries(app, 'Deutsch'), true);
+  assert.equal(hasSubjectAssessmentEntries(app, 'Mathematik'), false);
+  app.schueler = [];
+  assert.equal(hasSubjectAssessmentEntries(app, 'Deutsch'), false);
+});
+
+test('manual participation preserves zero and scale maxima in weighted points and percent totals', () => {
+  const app = baseApp();
+  app.mitarbeit_settings = { mode: 'manual' };
+  app.notenGewichtung.Deutsch = { sa: 0, lzk: 50, wp: 0, obj: 0, mi: 50, hue: 0 };
+  app.notenMeta.Deutsch.maxPoints = { mi: [40], lzk: [20] };
+  for (const mode of ['points', 'percent']) {
+    app.notenMeta.Deutsch.assessmentMode = mode;
+    app.noten.s1.Deutsch['1'].lzk = [mode === 'points' ? 20 : 100];
+    for (const [value, expected] of [[0, 50], [mode === 'points' ? 20 : 50, 75], [mode === 'points' ? 40 : 100, 100]]) {
+      app.noten.s1.Deutsch['1'].miDirekt = value;
+      assert.equal(berechne(app, 's1', 'Deutsch', '1'), expected);
+    }
+    app.noten.s1.Deutsch['1'].miDirekt = undefined;
+    assert.equal(berechne(app, 's1', 'Deutsch', '1'), 100);
+  }
 });
