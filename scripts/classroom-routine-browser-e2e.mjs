@@ -3576,7 +3576,13 @@ async function main() {
         console.log('✓ Participation drafts: native typing, Enter/blur commits, row navigation, empty/Escape cancellation, invalid/unsafe input rejection, all four periods, focused subject isolation and explicit zero survive encrypted reload.');
         console.log('✓ Direct gradebook participation plus/minus updates weekly chart and survives encrypted reload.');
         for (const [typ, button] of [['lzk', '+ LZK'], ['wp', '+ Wochenplan'], ['sa', '+ Schularbeit']]) {
-          await clickButton(client,button,true);
+          if (typ === 'lzk') await clickButton(client,button,true);
+          else {
+            if (typ === 'sa') await clickButton(client,'Mitarbeit',true);
+            await clickButton(client,'Bewertung hinzufügen',true);
+            await waitFor(client,'whole-class assessment menu from current view',`Boolean(document.querySelector('#gradebook-add-assessment-menu'))`);
+            await clickSelector(client,'#gradebook-add-assessment-menu button[aria-label='+q((typ==='sa'?'Schularbeit':'Wochenplan')+' für die Klasse anlegen')+']');
+          }
           await waitFor(client,'new '+typ+' metadata dialog',`Boolean(document.querySelector('#assessment-item-modal-content'))`);
           const title='Schnelleingabe '+typ;
           await setInputByLabel(client,'Bezeichnung / Titel',title);

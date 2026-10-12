@@ -12,7 +12,10 @@ Sie wechseln auch aus dem Mitarbeit-/Hausübungsreiter zuerst in die Notentabell
 und verwenden dann den vorhandenen Metadatendialog (Titel, Datum, Höchstpunkte).
 Vorhandene leere Slots werden wiederverwendet; erfasste 0 und beschriftete Slots
 bleiben belegt. Schularbeiten aktualisieren ihre eigene Spaltenanzahl `saCount`.
-Abbrechen legt keine Spalte an und verändert keine erfassten Werte.
+Abbrechen legt keine Spalte an und verändert keine erfassten Werte. Auch das
+allgemeine Menü Bewertung hinzufügen wechselt vor dem Öffnen zur Notentabelle,
+enthält Wochenpläne und verwendet für neue Schularbeiten denselben schnellen
+Klasseneinstieg statt sofort die Einzelkorrektur zu öffnen.
 
 Nach Speichern öffnet sich die neue Bewertung in der vorhandenen Spaltenansicht.
 Die Reihenfolge wird stabil nach Namen gesetzt und der Unvollständig-Filter

@@ -1664,13 +1664,13 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
               
               <div className="flex flex-wrap items-center gap-2" aria-label="Bewertung für die ganze Klasse anlegen">
                 {cfg.lzk && <button type="button" onClick={event => addColumn(event, 'lzk')} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700">+ LZK</button>}
-                {cfg.wp && <button type="button" onClick={event => addColumn(event, 'wp')} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700">+ Wochenplan</button>}
+                {cfg.wp && <button type="button" aria-label="Wochenplan für die Klasse anlegen" onClick={event => addColumn(event, 'wp')} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700">+ Wochenplan</button>}
                 {cfg.sa && <button type="button" onClick={event => addColumn(event, 'sa')} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700">+ Schularbeit</button>}
               </div>
               {/* Right: + Bewertung & Mehr Menu */}
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setShowAddAssessmentModal(true)}
+                  onClick={() => { setActiveView('noten'); setShowWeights(false); setShowAddAssessmentModal(true); }}
                   className="min-h-11 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-[0.8125rem] rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
                 >
                   <Plus size={16} strokeWidth={3} />
@@ -4043,6 +4043,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                   initial={{ scale: 0.95, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.95, opacity: 0 }}
+                  id="gradebook-add-assessment-menu"
                   className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg p-6"
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -4065,25 +4066,21 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
                     <button
-                      onClick={() => {
+                      aria-label="Schularbeit für die Klasse anlegen"
+                      onClick={(event) => {
                         setShowAddAssessmentModal(false);
-                        // Open SA assessment for first student as entry point or add column
-                        if (students.length > 0) {
-                          setSaAssessment({
-                            sid: students[0].id,
-                            name: `${students[0].vorname} ${students[0].nachname}`,
-                            idx: 0,
-                          });
-                        }
+                        addColumn(event, 'sa');
                       }}
-                      className="p-4 rounded-2xl border border-blue-200 bg-blue-50/50 hover:bg-blue-100/60 text-left transition-all hover:scale-[1.02] cursor-pointer group"
+                      disabled={!cfg.sa}
+                      title={!cfg.sa ? 'Für dieses Fach sind keine Schularbeitsspalten aktiv.' : undefined}
+                      className="disabled:opacity-50 disabled:cursor-not-allowed p-4 rounded-2xl border border-blue-200 bg-blue-50/50 hover:bg-blue-100/60 text-left transition-all hover:scale-[1.02] cursor-pointer group"
                     >
                       <div className="text-2xl mb-2">📝</div>
                       <div className="font-black text-blue-900 text-[0.9375rem] mb-1">
                         Schularbeit
                       </div>
                       <div className="text-[0.75rem] text-blue-700 leading-snug">
-                        Detaillierte Korrektur mit Punkten & KI-Vorschlägen
+                        Titel und Höchstpunkte festlegen, dann für alle Kinder eintragen
                       </div>
                     </button>
 
@@ -4092,7 +4089,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                         setShowAddAssessmentModal(false);
                         addColumn(e, 'lzk');
                       }}
-                      className="p-4 rounded-2xl border border-emerald-200 bg-emerald-50/50 hover:bg-emerald-100/60 text-left transition-all hover:scale-[1.02] cursor-pointer group"
+                      disabled={!cfg.lzk}
+                      title={!cfg.lzk ? 'Für dieses Fach sind keine LZK-Spalten aktiv.' : undefined}
+                      className="disabled:opacity-50 disabled:cursor-not-allowed p-4 rounded-2xl border border-emerald-200 bg-emerald-50/50 hover:bg-emerald-100/60 text-left transition-all hover:scale-[1.02] cursor-pointer group"
                     >
                       <div className="text-2xl mb-2">🎯</div>
                       <div className="font-black text-emerald-900 text-[0.9375rem] mb-1">
@@ -4102,6 +4101,13 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                         Kurzüberprüfung oder Lernzielkontrolle eintragen
                       </div>
                     </button>
+
+                    {cfg.wp && <button type="button" aria-label="Wochenplan für die Klasse anlegen" onClick={event => { setShowAddAssessmentModal(false); addColumn(event, 'wp'); }}
+                      className="rounded-2xl border border-purple-200 bg-purple-50/50 p-4 text-left transition-colors hover:bg-purple-100/60">
+                      <div className="mb-2 text-2xl">📋</div>
+                      <div className="mb-1 text-sm font-bold text-purple-900">Wochenplan</div>
+                      <div className="text-xs text-purple-700">Eine Bewertungsspalte für die ganze Klasse anlegen</div>
+                    </button>}
 
                     <button
                       onClick={() => {
@@ -4186,7 +4192,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                     initial={{ scale: 0.95, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.95, opacity: 0 }}
-                    className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg p-6"
+                    id="gradebook-add-assessment-menu"
+                  className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg p-6"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
