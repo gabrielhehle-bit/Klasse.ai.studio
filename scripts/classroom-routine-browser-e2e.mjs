@@ -2554,6 +2554,7 @@ async function main() {
     await waitFor(client,'removed image remains empty after complete reopening',`!document.querySelector(${q(imageRoot+' img')})&&document.querySelector(${q(imageRoot)}).textContent.includes('Noch kein Bild')`);
     // Add actual material files through the library UI, not through an injected app snapshot.
     await clickSidebar(client,'Materialbibliothek');
+    await waitFor(client,'material library page has finished loading',`document.body.textContent.includes('Meine Materialbibliothek')&&Array.from(document.querySelectorAll('button')).some(b=>b.textContent.includes('Material hinzufügen')&&b.getClientRects().length)`);
     for(const [path,title] of [[imagePath,'Materialbild 1/2 und 1/4'],[corruptImagePath,'Beschädigtes Testbild']]){
       await clickButton(client,'Material hinzufügen');await waitFor(client,'material upload choice',`Array.from(document.querySelectorAll('button')).some(b=>b.textContent.includes('Datei hochladen'))`);await clickButton(client,'Datei hochladen');
       await waitFor(client,'material real file input is ready',`Boolean(document.querySelector('#file-upload'))`);
@@ -2563,7 +2564,7 @@ async function main() {
       await setInputByLabel(client,'Titel *',title);await clickButton(client,'Speichern',true);
       await waitFor(client,'material file saved through real library form',`!document.querySelector('#file-upload')&&document.body.textContent.includes(${q(title)})`);
     }
-    await clickSidebar(client,'Lehrercockpit');await openAuditWidget('image','Tafelbild');await auditWidgetMinimum('image');
+    await clickSidebar(client,'Lehrercockpit');await waitFor(client,'cockpit page restored before image-source audit',`Array.from(document.querySelectorAll('button')).some(b=>b.textContent.includes('Widget hinzufügen')&&b.getClientRects().length)`);await openAuditWidget('image','Tafelbild');await auditWidgetMinimum('image');
     const imageSourceGear=()=>imagePhysicalClick(`document.querySelector('[data-widget-type="image"] button[aria-label$="Einstellungen öffnen"]')`);
     const imageSourceDialog=async label=>{await imageSourceGear();await imageTextClick(label,imageDialog('Tafelbild einstellen'));};
     await imagePhysicalClick(`Array.from(document.querySelectorAll(${q(imageRoot+' button')})).find(b=>b.textContent.includes('Materialbibliothek'))`);
