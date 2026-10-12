@@ -3531,6 +3531,7 @@ async function main() {
         const participationValue=`Number(document.querySelector(${q(participationField)}).value||0)`;
         const participationTotal=`Number(document.querySelector('[data-participation-period-total]').textContent.split(' ')[0])`;
         const selectParticipationPeriod=async period=>{await evaluate(client,`(() => {const s=document.querySelector('[aria-label="Zeitraum der Mitarbeit"]');s.value=${q(period)};s.dispatchEvent(new Event('change',{bubbles:true}));})()`);await waitFor(client,'participation period '+period,`document.querySelector('[aria-label="Zeitraum der Mitarbeit"]').value===${q(period)}`);};
+        const leaveParticipationField=async()=>{await client.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});await client.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});await waitFor(client,'native Tab really leaves participation editor',`document.activeElement!==document.querySelector(${q(participationField)})`);};
         const baselinePeriods={};
         for(const period of ['all','week','month','semester']){await selectParticipationPeriod(period);baselinePeriods[period]=await evaluate(client,participationTotal);}
         await selectParticipationPeriod('all');
@@ -3545,7 +3546,7 @@ async function main() {
         await client.send('Input.dispatchKeyEvent',{type:'keyDown',key:'a',code:'KeyA',modifiers:2,windowsVirtualKeyCode:65,commands:['selectAll']});await client.send('Input.dispatchKeyEvent',{type:'keyUp',key:'a',code:'KeyA',windowsVirtualKeyCode:65});
         await client.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Backspace',code:'Backspace',windowsVirtualKeyCode:8});await client.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Backspace',code:'Backspace',windowsVirtualKeyCode:8});
         await waitFor(client,'empty participation draft keeps saved chart and grade',`document.querySelector(${q(participationField)}).value===''&&${participationTotal}===${baselinePeriods.all+12-firstParticipation.value}`);
-        await clickButton(client,'Mitarbeit',true);await waitFor(client,'empty blur restores saved participation total',`${participationValue}===12`);
+        await leaveParticipationField();await waitFor(client,'empty blur restores saved participation total',`${participationValue}===12`);
         for(const invalid of ['-1','1.5','12abc','9007199254740992']){
           await numbersTypeSigned('[data-gradebook]',firstParticipation.label,invalid);await pressAuditKey('Enter');
           await waitFor(client,'invalid participation edit rejected '+invalid,`document.querySelector(${q(participationField)}).getAttribute('aria-invalid')==='true'&&document.activeElement===document.querySelector(${q(participationField)})&&${participationTotal}===${baselinePeriods.all+12-firstParticipation.value}`);
@@ -3553,7 +3554,7 @@ async function main() {
         }
         await numbersTypeSigned('[data-gradebook]',firstParticipation.label,'15');
         await waitFor(client,'multi-digit replacement remains a draft until blur',`${participationTotal}===${baselinePeriods.all+12-firstParticipation.value}`);
-        await clickButton(client,'Mitarbeit',true);await waitFor(client,'blur commits final participation difference',`${participationValue}===15&&${participationTotal}===${baselinePeriods.all+15-firstParticipation.value}`);
+        await leaveParticipationField();await waitFor(client,'blur commits final participation difference',`${participationValue}===15&&${participationTotal}===${baselinePeriods.all+15-firstParticipation.value}`);
         for(const period of ['week','month','semester','all']){await selectParticipationPeriod(period);await waitFor(client,'final participation edit appears in '+period,`${participationTotal}===${baselinePeriods[period]+15-firstParticipation.value}`);}
         await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-participation-draft.png'));
         // A context change with an input still focused must not move its draft to another subject.
