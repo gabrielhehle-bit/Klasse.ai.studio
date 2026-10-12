@@ -125,7 +125,8 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       process.env.NODE_ENV === 'production' ? `script-src 'self' 'nonce-${cspNonce}'` : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
-      "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://unpkg.com https://*.canva.com",
+      // Deliberately selected HTTPS image addresses use <img>, not API/script access.
+      "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://unpkg.com https://*.canva.com https:",
       "connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com https://photon.komoot.io https://login.microsoftonline.com https://graph.microsoft.com",
       "worker-src 'self' blob:",
       "media-src 'self' blob: data:",

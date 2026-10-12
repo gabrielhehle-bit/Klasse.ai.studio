@@ -166,6 +166,22 @@ export function isSafeImageUrl(url: string): boolean {
   return false;
 }
 
+/** New sources must survive reopening; session-only blob URLs are not material storage. */
+export function isPersistentImageSource(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  if (value.startsWith('data:image/')) return true;
+  try { return new URL(value).protocol === 'https:' && Boolean(new URL(value).hostname); }
+  catch { return false; }
+}
+
+export function getImageMaterials(value: unknown): any[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(item => item && typeof item === 'object' && (
+    item.typ === 'bild' || item.typ === 'tafelbild'
+    || (typeof item.dateiInhalt === 'string' && item.dateiInhalt.startsWith('data:image/'))
+  ));
+}
+
 /**
  * Normalisiert Rotationswinkel auf 0, 90, 180 oder 270 Grad
  */

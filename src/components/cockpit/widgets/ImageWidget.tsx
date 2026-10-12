@@ -24,6 +24,8 @@ import {
   DEFAULT_IMAGE_SETTINGS,
   validateImageFile,
   isSafeImageUrl,
+  isPersistentImageSource,
+  getImageMaterials,
   normalizeRotation,
   rotateClockwise,
   clampZoom,
@@ -39,13 +41,19 @@ import {
   getImageFitDimensions,
 } from '../../../lib/imageAlgorithm';
 
-function ImageDialog({ label, onClose, children }: { label: string; onClose: () => void; children: React.ReactNode }) {
+function ImageDialog({ label, onClose, children, fallbackFocus }: { label: string; onClose: () => void; children: React.ReactNode; fallbackFocus: () => HTMLElement | null }) {
   const ref = useRef<HTMLDialogElement>(null);
+  // Capture before React commits autoFocus inputs inside the new dialog.
+  const openerRef = useRef(document.activeElement as HTMLElement | null);
+  const fallbackRef = useRef(fallbackFocus);
   useEffect(() => {
-    const opener = document.activeElement as HTMLElement | null;
     const dialog = ref.current;
     dialog?.showModal();
-    return () => { dialog?.close(); if (opener?.isConnected) opener.focus(); };
+    return () => {
+      dialog?.close();
+      const target = openerRef.current?.isConnected ? openerRef.current : fallbackRef.current();
+      target?.focus();
+    };
   }, []);
   return createPortal(<dialog ref={ref} aria-label={label}
     onCancel={event => { event.preventDefault(); onClose(); }}
@@ -82,10 +90,12 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
   // Object-URL-Manager zur Vermeidung von Speicherlecks
   const urlManagerRef = useRef<SafeObjectUrlManager>(new SafeObjectUrlManager());
   const loadVersion = useRef(0);
+  const cancelSourceProbe = useRef<(() => void) | null>(null);
   useEffect(() => {
     const manager = urlManagerRef.current;
     return () => {
       loadVersion.current++;
+      cancelSourceProbe.current?.();
       manager.revokeAll();
     };
   }, []);
@@ -153,6 +163,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
     if (persistedSource.current !== canonical.imageUrl) {
       persistedSource.current = canonical.imageUrl;
       loadVersion.current++;
+      cancelSourceProbe.current?.();
       setIsProcessing(false);
     }
     setImageUrl(canonical.imageUrl);
@@ -191,6 +202,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
   // Clientseitiges Verarbeiten und sanftes Downscaling großer Bilder
   const processAndLoadImage = async (file: File) => {
     const version = ++loadVersion.current;
+    cancelSourceProbe.current?.();
     let tempUrl: string | undefined;
     setIsProcessing(true);
     setErrorMessage(null);
@@ -315,83 +327,75 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
     }
   };
 
-  // URL-Übernahme
-  const handleApplyUrl = () => {
-    const trimmed = urlInput.trim();
-    if (!trimmed) {
-      setErrorMessage('Bitte eine Bild-URL eingeben.');
-      return;
+  const dialogFallbackFocus = () => containerRef.current?.closest('[data-widget-type="image"]')
+    ?.querySelector<HTMLElement>('button[aria-label$="Einstellungen öffnen"]') || null;
+
+  const closeSourceDialog = (kind: 'url' | 'material') => {
+    if (cancelSourceProbe.current) {
+      loadVersion.current++; cancelSourceProbe.current(); setIsProcessing(false);
     }
-    if (!isSafeImageUrl(trimmed) || !/^https:\/\//i.test(trimmed)) {
-      setErrorMessage('Bitte eine gültige HTTPS-Bildadresse verwenden. Lokale Bilder kannst du direkt hochladen.');
-      return;
-    }
-    // Opening a remote image makes a request to that server. Do not imply that
-    // externally hosted photographs are processed entirely offline.
-    if (!window.confirm('Ein externes Bild lädt Daten von der angegebenen Website. Verwende keine vertraulichen Schülerfotos oder privaten Dateien. Bildadresse übernehmen?')) return;
-
-    loadVersion.current++;
-    setIsProcessing(false);
-
-    setErrorMessage(null);
-    setImageUrl(trimmed);
-    setFileName('Web-Bild');
-    setRotation(0);
-    setScale(1);
-    setPan({ x: 0, y: 0 });
-    setIsUrlModalOpen(false);
-    setUrlInput('');
-
-    persistSettings({
-      imageUrl: trimmed,
-      fileName: 'Web-Bild',
-      rotation: 0,
-      scale: 1,
-      panX: 0,
-      panY: 0,
-      materialId: undefined,
-      fileSizeBytes: undefined,
-    });
+    if (kind === 'url') setIsUrlModalOpen(false); else setIsMaterialModalOpen(false);
   };
 
-  // Material-Auswahl aus Schulplaner
-  const materialsList = useMemo(() => {
-    return (app?.materialien || []).filter(
-      (m: any) =>
-        m.typ === 'bild' ||
-        m.typ === 'tafelbild' ||
-        (m.dateiInhalt && m.dateiInhalt.startsWith('data:image/'))
-    );
-  }, [app?.materialien]);
-
-  const handleSelectMaterial = (mat: any) => {
-    if (!mat?.dateiInhalt || !isSafeImageUrl(mat.dateiInhalt)) {
-      setErrorMessage('Material enthält kein gültiges Bild.');
-      return;
+  // Decode a candidate before changing the current image or persistent settings.
+  const loadSource = async (source: string, title: string, materialId?: string) => {
+    const version = ++loadVersion.current;
+    cancelSourceProbe.current?.();
+    setIsProcessing(true); setErrorMessage(null);
+    try {
+      const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+        const probe = new Image();
+        const cleanup = () => {
+          clearTimeout(timeout); probe.onload = null; probe.onerror = null;
+          if (cancelSourceProbe.current === cancel) cancelSourceProbe.current = null;
+          probe.src = '';
+        };
+        const cancel = () => { cleanup(); reject(new Error('Quelle gewechselt')); };
+        const timeout = setTimeout(() => { cleanup(); reject(new Error('Zeitüberschreitung')); }, 12_000);
+        cancelSourceProbe.current = cancel;
+        probe.referrerPolicy = 'no-referrer';
+        probe.onload = () => {
+          const dimensions = { width: probe.naturalWidth, height: probe.naturalHeight };
+          cleanup();
+          if (dimensions.width > 0 && dimensions.height > 0) resolve(dimensions);
+          else reject(new Error('Ungültiges Bild'));
+        };
+        probe.onerror = () => { cleanup(); reject(new Error('Ungültiges Bild')); };
+        probe.src = source;
+      });
+      if (version !== loadVersion.current) return;
+      // A material title is not a file path: preserve fractions such as 1/2.
+      const name = sanitizeImageAltText(title) || 'Materialbild', caption = name;
+      setNaturalSize(dimensions); setImageUrl(source); setFileName(name); setAltText(caption);
+      setRotation(0); setScale(1); setPan({ x: 0, y: 0 });
+      setIsMaterialModalOpen(false); setIsUrlModalOpen(false); setUrlInput('');
+      persistSettings({ imageUrl: source, fileName: name, altText: caption,
+        materialId, rotation: 0, scale: 1, panX: 0, panY: 0, fileSizeBytes: undefined });
+    } catch {
+      if (version === loadVersion.current) setErrorMessage('Dieses Bild konnte nicht geladen werden. Das bisherige Bild bleibt erhalten.');
+    } finally {
+      if (version === loadVersion.current) setIsProcessing(false);
     }
-    loadVersion.current++;
-    setIsProcessing(false);
-    setErrorMessage(null);
-    setImageUrl(mat.dateiInhalt);
-    const cleanTitel = sanitizeFileName(mat.titel || 'Materialbild');
-    setFileName(cleanTitel);
-    setAltText(cleanTitel);
-    setRotation(0);
-    setScale(1);
-    setPan({ x: 0, y: 0 });
-    setIsMaterialModalOpen(false);
+  };
 
-    persistSettings({
-      imageUrl: mat.dateiInhalt,
-      fileName: cleanTitel,
-      altText: cleanTitel,
-      materialId: mat.id,
-      rotation: 0,
-      scale: 1,
-      panX: 0,
-      panY: 0,
-      fileSizeBytes: undefined,
-    });
+  const confirmRemoteSource = (source: string) => !/^https:/i.test(source)
+    || window.confirm('Ein externes Bild lädt Daten von der angegebenen Website. Verwende keine vertraulichen Schülerfotos oder privaten Dateien. Bildadresse übernehmen?');
+
+  const handleApplyUrl = () => {
+    const source = urlInput.trim();
+    if (!source) { setErrorMessage('Bitte eine Bild-URL eingeben.'); return; }
+    if (!isPersistentImageSource(source) || !/^https:\/\//i.test(source)) {
+      setErrorMessage('Bitte eine gültige HTTPS-Bildadresse verwenden. Lokale Bilder kannst du direkt hochladen.'); return;
+    }
+    if (confirmRemoteSource(source)) void loadSource(source, 'Web-Bild');
+  };
+
+  const materialsList = useMemo(() => getImageMaterials(app?.materialien), [app?.materialien]);
+  const handleSelectMaterial = (material: any) => {
+    if (!isPersistentImageSource(material?.dateiInhalt)) {
+      setErrorMessage('Material enthält kein gültiges dauerhaft gespeichertes Bild.'); return;
+    }
+    if (confirmRemoteSource(material.dateiInhalt)) void loadSource(material.dateiInhalt, material.titel || 'Materialbild', typeof material.id === 'string' ? material.id : undefined);
   };
 
   // Zoom-Aktionen
@@ -431,6 +435,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
   // Bild entfernen
   const handleRemoveImage = () => {
     loadVersion.current++;
+    cancelSourceProbe.current?.();
     setIsProcessing(false);
     setImageUrl(null);
     setFileName(undefined);
@@ -798,7 +803,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
       )}
 
       {showSettings && (
-        <ImageDialog label="Tafelbild einstellen" onClose={() => onCloseSettings?.()}>
+        <ImageDialog label="Tafelbild einstellen" fallbackFocus={dialogFallbackFocus} onClose={() => onCloseSettings?.()}>
           <div
             className="w-full max-w-lg space-y-4 rounded-2xl border border-slate-200 bg-white p-5 text-slate-900 shadow-2xl dark:border-white/10 dark:bg-zinc-900 dark:text-white"
             onClick={(event) => event.stopPropagation()}
@@ -914,7 +919,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
 
       {/* Alt-Text / Beschriftungs-Dialog */}
       {isAltEditing && (
-        <ImageDialog label="Tafelbild beschriften" onClose={() => setIsAltEditing(false)}>
+        <ImageDialog label="Tafelbild beschriften" fallbackFocus={dialogFallbackFocus} onClose={() => setIsAltEditing(false)}>
           <div className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-xl border border-slate-200 dark:border-white/10 space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-bold text-slate-800 dark:text-zinc-100">
@@ -958,14 +963,14 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
 
       {/* URL Eingabe Modal */}
       {isUrlModalOpen && (
-        <ImageDialog label="Tafelbild-Webadresse" onClose={() => setIsUrlModalOpen(false)}>
+        <ImageDialog label="Tafelbild-Webadresse" fallbackFocus={dialogFallbackFocus} onClose={() => closeSourceDialog('url')}>
           <div className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-xl border border-slate-200 dark:border-white/10 space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-bold text-slate-800 dark:text-zinc-100">
                 Bild über Web-Adresse einfügen
               </h4>
               <button
-                onClick={() => setIsUrlModalOpen(false)}
+                onClick={() => closeSourceDialog('url')}
                 aria-label="Bildadressdialog schließen"
                 className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
               >
@@ -983,10 +988,11 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
             <p className="text-[10px] text-slate-400">
               Nur sichere direkte Bildadressen (HTTPS) verwenden.
             </p>
+            {isProcessing && <p role="status" className="text-sm">Bild wird geprüft …</p>}
             {errorMessage && <p role="alert" className="text-sm text-rose-600">{errorMessage}</p>}
             <div className="flex justify-end gap-2">
               <button
-                onClick={() => setIsUrlModalOpen(false)}
+                onClick={() => closeSourceDialog('url')}
                 className="min-h-11 min-w-11 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-zinc-400 hover:bg-black/5 dark:hover:bg-white/5"
               >
                 Abbrechen
@@ -1004,14 +1010,14 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
 
       {/* Materialbibliothek Modal */}
       {isMaterialModalOpen && (
-        <ImageDialog label="Tafelbild-Material auswählen" onClose={() => setIsMaterialModalOpen(false)}>
+        <ImageDialog label="Tafelbild-Material auswählen" fallbackFocus={dialogFallbackFocus} onClose={() => closeSourceDialog('material')}>
           <div className="w-full max-w-sm max-h-[85%] bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-xl border border-slate-200 dark:border-white/10 flex flex-col gap-3">
             <div className="flex items-center justify-between shrink-0">
               <h4 className="text-xs font-bold text-slate-800 dark:text-zinc-100">
                 Aus Materialbibliothek wählen
               </h4>
               <button
-                onClick={() => setIsMaterialModalOpen(false)}
+                onClick={() => closeSourceDialog('material')}
                 aria-label="Materialdialog schließen"
                 className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
               >
@@ -1019,15 +1025,16 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
               </button>
             </div>
             <div className="flex-1 overflow-y-auto space-y-1.5 min-h-[120px]">
-              {errorMessage && <p role="alert" className="text-sm text-rose-600">{errorMessage}</p>}
-              {materialsList.map((m: any) => (
+              {isProcessing && <p role="status" className="text-sm">Bild wird geprüft …</p>}
+            {errorMessage && <p role="alert" className="text-sm text-rose-600">{errorMessage}</p>}
+              {materialsList.map((m: any, index: number) => (
                 <button
-                  key={m.id}
+                  key={typeof m.id === 'string' ? m.id : index}
                   onClick={() => handleSelectMaterial(m)}
                   className="min-h-11 w-full text-left p-2 rounded-xl hover:bg-accent-soft border border-slate-200 dark:border-white/5 text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors"
                 >
                   <FolderOpen size={14} className="text-accent shrink-0" />
-                  <span className="truncate">{m.titel || 'Unbenanntes Material'}</span>
+                  <span className="truncate">{sanitizeImageAltText(m.titel) || 'Unbenanntes Material'}</span>
                 </button>
               ))}
             </div>
@@ -1037,7 +1044,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
 
       {/* VOLLBILD / LIGHTBOX MODAL (1-Klick Vollbild auf Smartboard) */}
       {isLightboxOpen && imageUrl && (
-        <ImageDialog label="Tafelbild-Vollbild" onClose={() => setIsLightboxOpen(false)}>
+        <ImageDialog label="Tafelbild-Vollbild" fallbackFocus={dialogFallbackFocus} onClose={() => setIsLightboxOpen(false)}>
         <div className="fixed inset-0 z-100 bg-black/90 backdrop-blur-md flex flex-col items-center justify-between p-4 sm:p-6 select-none animate-fadeIn">
           {/* Schwebende obere Leiste mit minimalen Controls */}
           <div className="w-full shrink-0 flex flex-wrap gap-2 items-center justify-between z-30 pointer-events-auto">
