@@ -129,12 +129,21 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
 
   // Pan-Interaktion via Pointer
   const [isPanning, setIsPanning] = useState(false);
-  const panStartRef = useRef<{ startX: number; startY: number; initPanX: number; initPanY: number }>({
-    startX: 0,
-    startY: 0,
-    initPanX: 0,
-    initPanY: 0,
-  });
+  const panGestureRef = useRef<{
+    pointerId: number; target: HTMLDivElement;
+    startX: number; startY: number; initPanX: number; initPanY: number;
+    pan: { x: number; y: number };
+  } | null>(null);
+  const stopPan = useCallback((updateView = true) => {
+    const gesture = panGestureRef.current;
+    panGestureRef.current = null;
+    if (updateView) setIsPanning(false);
+    if (gesture) {
+      try { gesture.target.releasePointerCapture(gesture.pointerId); } catch {}
+    }
+    return gesture?.pan;
+  }, []);
+  useEffect(() => () => { stopPan(false); }, [stopPan]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageStageRef = useRef<HTMLDivElement>(null);
@@ -160,6 +169,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
   // Synchronisieren, wenn sich widget.settings von außen ändert
   useEffect(() => {
     const canonical = getCanonicalImageSettings(widget?.settings);
+    stopPan();
     if (persistedSource.current !== canonical.imageUrl) {
       persistedSource.current = canonical.imageUrl;
       loadVersion.current++;
@@ -172,7 +182,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
     setRotation(canonical.rotation);
     setScale(canonical.scale);
     setPan({ x: canonical.panX, y: canonical.panY });
-  }, [widget?.settings]);
+  }, [widget?.settings, stopPan]);
 
   // Persistenz-Helfer
   const persistSettings = useCallback(
@@ -400,6 +410,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
 
   // Zoom-Aktionen
   const handleZoomIn = () => {
+    stopPan();
     const next = zoomIn(scale);
     setScale(next);
     const boundedPan = clampPan(pan.x, pan.y, next, size.width, size.height);
@@ -408,6 +419,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
   };
 
   const handleZoomOut = () => {
+    stopPan();
     const next = zoomOut(scale);
     setScale(next);
     const boundedPan = clampPan(pan.x, pan.y, next, size.width, size.height);
@@ -416,17 +428,20 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
   };
 
   const handleResetZoom = () => {
+    stopPan();
     setScale(1);
     setPan({ x: 0, y: 0 });
     persistSettings({ scale: 1, panX: 0, panY: 0 });
   };
   const handleResetView = () => {
+    stopPan();
     setRotation(0); setScale(1); setPan({ x: 0, y: 0 });
     persistSettings({ rotation: 0, scale: 1, panX: 0, panY: 0 });
   };
 
   // Rotation
   const handleRotate = () => {
+    stopPan();
     const next = rotateClockwise(rotation);
     setRotation(next);
     persistSettings({ rotation: next });
@@ -434,6 +449,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
 
   // Bild entfernen
   const handleRemoveImage = () => {
+    stopPan();
     loadVersion.current++;
     cancelSourceProbe.current?.();
     setIsProcessing(false);
@@ -458,38 +474,44 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
     });
   };
 
-  // Pointer Pan Handler (nur aktiv wenn scale > 1)
+  // One contact owns the pan gesture, including its latest uncommitted position.
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (scale <= 1) return;
-    setIsPanning(true);
-    panStartRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      initPanX: pan.x,
-      initPanY: pan.y,
+    if (scale <= 1 || panGestureRef.current || e.button !== 0) return;
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { return; }
+    e.preventDefault();
+    panGestureRef.current = {
+      pointerId: e.pointerId, target: e.currentTarget,
+      startX: e.clientX, startY: e.clientY, initPanX: pan.x, initPanY: pan.y,
+      pan: { ...pan },
     };
-    e.currentTarget.setPointerCapture(e.pointerId);
+    setIsPanning(true);
   };
 
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isPanning || scale <= 1) return;
-    const dx = e.clientX - panStartRef.current.startX;
-    const dy = e.clientY - panStartRef.current.startY;
-    const newX = panStartRef.current.initPanX + dx;
-    const newY = panStartRef.current.initPanY + dy;
-    const bounded = clampPan(newX, newY, scale, size.width, size.height);
-    setPan({ x: bounded.panX, y: bounded.panY });
+  const movePan = (e: React.PointerEvent<HTMLDivElement>) => {
+    const gesture = panGestureRef.current;
+    if (!gesture || gesture.pointerId !== e.pointerId || gesture.target !== e.currentTarget || scale <= 1) return;
+    const bounded = clampPan(
+      gesture.initPanX + e.clientX - gesture.startX,
+      gesture.initPanY + e.clientY - gesture.startY,
+      scale, size.width, size.height,
+    );
+    gesture.pan = { x: bounded.panX, y: bounded.panY };
+    setPan(gesture.pan);
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isPanning) return;
-    setIsPanning(false);
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {
-      // Ignoriere Browser-Handling
-    }
-    persistSettings({ panX: pan.x, panY: pan.y });
+    const gesture = panGestureRef.current;
+    if (!gesture || gesture.pointerId !== e.pointerId || gesture.target !== e.currentTarget) return;
+    // Cancel/lost-capture coordinates are not a new user movement.
+    if (e.type === 'pointerup') movePan(e);
+    const finalPan = stopPan();
+    if (finalPan) persistSettings({ panX: finalPan.x, panY: finalPan.y });
+  };
+
+  const changeLightbox = (open: boolean) => {
+    const finalPan = stopPan();
+    if (finalPan) persistSettings({ panX: finalPan.x, panY: finalPan.y });
+    setIsLightboxOpen(open);
   };
 
   // Alt-Text Speichern
@@ -567,7 +589,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
           <div
             ref={imageStageRef}
             data-image-stage
-            className={`relative flex-1 w-full h-full flex items-center justify-center overflow-hidden min-h-0 ${
+            className={`relative flex-1 w-full h-full flex items-center justify-center overflow-hidden min-h-0 touch-none ${
               scale > 1
                 ? isPanning
                   ? 'cursor-grabbing'
@@ -575,9 +597,10 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                 : 'cursor-default'
             } bg-slate-100/50 dark:bg-black/30`}
             onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
+            onPointerMove={movePan}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
+            onLostPointerCapture={handlePointerUp}
           >
             {/* Bildanzeige */}
             <img
@@ -640,7 +663,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                   </button>
 
                   <button
-                    onClick={() => setIsLightboxOpen(true)}
+                    onClick={() => changeLightbox(true)}
                     className="p-2 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-bold flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs"
                     style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
                     aria-label="Tafelbild-Vollbild öffnen" title="Vollbild öffnen"
@@ -706,7 +729,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                   {/* Vollbild (Sehr wichtig für Smartboard!) */}
                   <button
                     type="button"
-                    onClick={() => setIsLightboxOpen(true)}
+                    onClick={() => changeLightbox(true)}
                     className="px-2.5 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-xs"
                     style={{ minHeight: TOUCH_TARGET_MIN }}
                     aria-label="Tafelbild-Vollbild öffnen" title="Vollbild anzeigen (Smartboard)"
@@ -1044,7 +1067,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
 
       {/* VOLLBILD / LIGHTBOX MODAL (1-Klick Vollbild auf Smartboard) */}
       {isLightboxOpen && imageUrl && (
-        <ImageDialog label="Tafelbild-Vollbild" fallbackFocus={dialogFallbackFocus} onClose={() => setIsLightboxOpen(false)}>
+        <ImageDialog label="Tafelbild-Vollbild" fallbackFocus={dialogFallbackFocus} onClose={() => changeLightbox(false)}>
         <div className="fixed inset-0 z-100 bg-black/90 backdrop-blur-md flex flex-col items-center justify-between p-4 sm:p-6 select-none animate-fadeIn">
           {/* Schwebende obere Leiste mit minimalen Controls */}
           <div className="w-full shrink-0 flex flex-wrap gap-2 items-center justify-between z-30 pointer-events-auto">
@@ -1094,7 +1117,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
               <div className="w-[1px] h-5 bg-white/20 my-auto" />
 
               <button
-                onClick={() => setIsLightboxOpen(false)}
+                onClick={() => changeLightbox(false)}
                 className="p-2 rounded-xl bg-white/20 hover:bg-rose-600 text-white transition-all cursor-pointer"
                 style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
                 aria-label="Tafelbild-Vollbild schließen" title="Vollbild schließen"
@@ -1108,7 +1131,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
           <div
             ref={lightboxStageRef}
             data-image-stage
-            className={`relative flex-1 min-h-0 w-full flex items-center justify-center overflow-hidden my-2 ${
+            className={`relative flex-1 min-h-0 w-full flex items-center justify-center overflow-hidden my-2 touch-none ${
               scale > 1
                 ? isPanning
                   ? 'cursor-grabbing'
@@ -1116,9 +1139,10 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                 : 'cursor-default'
             }`}
             onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
+            onPointerMove={movePan}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
+            onLostPointerCapture={handlePointerUp}
           >
             <img
               src={imageUrl}
