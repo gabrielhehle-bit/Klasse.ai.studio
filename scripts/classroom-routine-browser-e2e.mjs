@@ -3170,6 +3170,54 @@ async function main() {
     await practiceRestore('drawing','Zeichenfeld');await waitFor(client,'reopened canvas paints its actual saved red stroke',`(${drawingPixelsExpression})>=50`);
     await clickSelector(client,drawingRoot+' [aria-label="Rückgängig"]');await practiceRestore('drawing','Zeichenfeld');await clickSelector(client,drawingRoot+' [aria-label="Wiederholen"]');
     await waitFor(client,'restored redo history returns stroke',`document.querySelector(${q(drawingRoot)}).textContent.includes('1 Strich')`);
+    await clickSelector(client,drawingRoot+' [aria-label="Alles leeren"]');await natureClick(drawingRoot,'Leeren!');await practiceRestore('drawing','Zeichenfeld');
+    // Native CDP contacts exercise ownership; no synthetic DOM pointer events or saved-state injection.
+    const drawingPoint=await evaluate(client,`(() => {const r=document.querySelector(${q(drawingRoot+' canvas')}).getBoundingClientRect();return {x:r.x+90,y:r.y+90};})()`);
+    const drawingCountExpression=`document.querySelector(${q(drawingRoot)}).querySelector('canvas').parentElement.parentElement.textContent`;
+    const assertDrawingCount=async(count,label)=>waitFor(client,label,`${drawingCountExpression}.includes(${q(String(count)+' Strich')})`);
+    const drawingMouse=async(type,x,y,pointerType='mouse',button='left',buttons=1)=>client.send('Input.dispatchMouseEvent',{type,x,y,pointerType,button,buttons,clickCount:1});
+    await drawingMouse('mousePressed',drawingPoint.x,drawingPoint.y,'pen');
+    await drawingMouse('mouseMoved',drawingPoint.x+100,drawingPoint.y,'pen');
+    await drawingMouse('mouseReleased',drawingPoint.x+100,drawingPoint.y,'pen','left',0);
+    await assertDrawingCount(1,'native pen stroke commits once');
+    const finger={x:drawingPoint.x,y:drawingPoint.y+40,id:11};
+    await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[finger]});
+    await client.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...finger,x:finger.x+100}]});
+    await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    await assertDrawingCount(2,'finger drawing works immediately after pen release');
+    const first={x:drawingPoint.x,y:drawingPoint.y+80,id:21},second={x:drawingPoint.x+180,y:drawingPoint.y+120,id:22};
+    await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[first]});
+    await client.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...first,x:first.x+30}]});
+    await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...first,x:first.x+30},second]});
+    await client.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...first,x:first.x+60},{...second,x:second.x+30}]});
+    await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[{...first,x:first.x+60}]});
+    await assertDrawingCount(2,'second finger release cannot finish the first finger stroke');
+    await client.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...first,x:first.x+100}]});
+    await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    await assertDrawingCount(3,'first contact survives a second finger and commits once');
+    await practiceRestore('drawing','Zeichenfeld');
+    await drawingMouse('mousePressed',drawingPoint.x,drawingPoint.y,'mouse','right',2);
+    await drawingMouse('mouseReleased',drawingPoint.x+30,drawingPoint.y,'mouse','right',0);
+    await assertDrawingCount(3,'right mouse button cannot create a drawing stroke');
+    await pressAuditKey('Escape');
+    // Force genuine capture loss while the physical contact remains down.
+    await evaluate(client,`document.querySelector(${q(drawingRoot+' canvas')}).addEventListener('gotpointercapture',e=>window.__drawingCapture=e.pointerId,{once:true})`);
+    await drawingMouse('mousePressed',drawingPoint.x,drawingPoint.y);
+    await drawingMouse('mouseMoved',drawingPoint.x+60,drawingPoint.y);
+    await waitFor(client,'native capture has been acquired',`Number.isInteger(window.__drawingCapture)`);
+    await evaluate(client,`document.querySelector(${q(drawingRoot+' canvas')}).releasePointerCapture(window.__drawingCapture)`);
+    await drawingMouse('mouseMoved',drawingPoint.x+80,drawingPoint.y);
+    await assertDrawingCount(4,'capture loss preserves the partial stroke and ends ownership');
+    await drawingMouse('mouseReleased',drawingPoint.x+80,drawingPoint.y,'mouse','left',0);
+    await assertDrawingCount(4,'release after capture loss does not duplicate the stroke');
+    const cancelled={x:drawingPoint.x,y:drawingPoint.y+160,id:31};
+    await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[cancelled]});
+    await client.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...cancelled,x:cancelled.x+60}]});
+    await client.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});
+    await assertDrawingCount(5,'touch cancellation preserves the partial stroke once');
+    await drawStroke();await assertDrawingCount(6,'drawing remains usable after touch cancellation');
+    await practiceRestore('drawing','Zeichenfeld');
+    await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-widget-drawing-pointers.png'));
     await clickSelector(client,drawingRoot+' [aria-label="Alles leeren"]');await natureClick(drawingRoot,'Leeren!');await practiceRestore('drawing','Zeichenfeld');await auditMenu('drawing','Widget schließen');
 
     // Keep real AudioContexts/MediaStream tracks; feed deterministic analyser samples.
