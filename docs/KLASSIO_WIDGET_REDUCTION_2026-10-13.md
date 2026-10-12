@@ -19,6 +19,8 @@ fachliche Zusammenführung ihrer Funktionen oder gespeicherten Einstellungen.
 - Weitere Widgets: bewusster separater Zugriff auf alle 112 bisherigen
   Einträge und deren genaue Suche. Eine Suche innerhalb dieses Bereichs
   bleibt dort; normale Suche wechselt zu den Kernwidgets.
+- Die Schülerliste bleibt während der Auswahl unsichtbar, ohne ihre Breite
+  oder Einstellung zu ändern. Sie verdeckt dadurch keine Tablet-Bedienelemente.
 - Favoriten und zuletzt verwendete Widgets behalten ihre gespeicherten Typen.
   Layouts, Vorlagen, Backups, Renderer und Widgetdaten werden nicht konvertiert
   oder gelöscht.
@@ -33,7 +35,8 @@ erhaltenen 112er-Bestand. Screenshots werden für Laptop und die jeweilige
 unterstützte Tabletansicht bei 820 Pixeln erstellt. Unter 768 Pixeln wechselt
 die App bewusst vom Cockpit in den Handy-Schnellmodus. Die einzelnen Widgetprüfungen öffnen
 bewusst den separaten Bestand, damit ihre genauen gespeicherten Typen weiter
-geprüft werden.
+geprüft werden. Der Timer-Restore-Vergleich prüft die angezeigte Zeit,
+Weiter-/Pause-Aktion und Tonstatus unabhängig von seinen responsiven Textlabels.
 
 ## Offen: fachliche Zusammenführung
 

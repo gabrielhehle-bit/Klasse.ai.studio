@@ -704,6 +704,11 @@ async function main() {
     // Below 768px the app deliberately switches from the cockpit to phone quick mode.
     await sleep(250);
     await waitFor(client, 'regular picker fits the supported tablet viewport', `(() => {const dialog=document.querySelector('[role=dialog][aria-label="Widget-Bibliothek"]');if(!dialog)return false;const rect=dialog.getBoundingClientRect();return rect.left>=-1 && rect.right<=innerWidth+1 && rect.top>=0 && rect.bottom<=innerHeight+1 && document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length===24;})()`);
+    await waitFor(client, 'tablet picker controls are unobstructed', `(() => {
+      const dialog=document.querySelector('[role=dialog][aria-label="Widget-Bibliothek"]'),content=dialog.querySelector('main').getBoundingClientRect();
+      const actions=Array.from(dialog.querySelectorAll('[data-widget-card-action="primary"], [data-widget-library-action]')).filter(button=>{const r=button.getBoundingClientRect(),y=r.top+r.height/2;return r.width>0 && y>=content.top && y<=content.bottom || button.hasAttribute('data-widget-library-action');});
+      return actions.length>=3 && actions.every(button=>{const r=button.getBoundingClientRect(),top=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return top===button || button.contains(top);});
+    })()`);
     await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-widget-catalog-compact.png'));
     await client.send('Emulation.setDeviceMetricsOverride', { width:1366, height:768, deviceScaleFactor:1, mobile:false });
     await sleep(250);
@@ -1240,14 +1245,18 @@ async function main() {
         await clickButton(client,'Start',true);await clickButton(client,'Pause',true);
         await waitFor(client,'paused timer before restore',`document.querySelector('[data-widget-type="timer"]').textContent.includes('Weiter')`);
       }
-      const stateBefore = await evaluate(client, `document.querySelector('[data-widget-type=${q(type)}] [data-widget-content]').textContent`);
+      const restoreStateExpression = type === 'timer'
+        ? `(() => {const root=document.querySelector('[data-widget-type="timer"] [data-widget-content]');return JSON.stringify({time:[...new Set(root.textContent.match(/[0-9]{2}:[0-9]{2}(?::[0-9]{2})?/g))],action:['Start','Pause','Weiter','Nochmals'].filter(action=>Array.from(root.querySelectorAll('button')).some(button=>button.textContent.trim()===action)),muted:Boolean(root.querySelector('button svg.lucide-volume-x'))});})()`
+        : `document.querySelector('[data-widget-type=${q(type)}] [data-widget-content]').textContent`;
+      const stateBefore = await evaluate(client, restoreStateExpression);
       await auditMenu(type,'Minimieren');
       await openAuditWidget(type,search,label);
       if(type !== 'timeline') {
         // Restoring a hidden widget triggers ResizeObserver and its responsive layout.
-        // Require the complete original content after layout settles, not on the first frame.
+        // Timer layouts have different labels: compare its displayed time, action and sound state.
+        // Other static widgets still require their complete original content after layout settles.
         await waitFor(client, type + ' restores its complete state after resize',
-          `document.querySelector('[data-widget-type=${q(type)}] [data-widget-content]').textContent === ${q(stateBefore)}`);
+          `(${restoreStateExpression}) === ${q(stateBefore)}`);
       }
       await auditMenu(type,'Widget schließen');
     }
