@@ -28,9 +28,12 @@ prüft weiterhin tatsächliche rote Canvas-Pixel und Undo/Redo.
 
 Lokal bestanden: TypeScript, alle 2.424 Logiktests, Produktionsbuild und
 JavaScript-Syntaxprüfung des erweiterten Browserlaufs. Der neue Branch
-`fix/drawing-pointer-ownership` ist lokal vorbereitet. Der Upload wurde durch
-die automatische Freigabeprüfung blockiert; die neuen Browserfälle sind deshalb
-noch nicht ausgeführt. Vor Merge müssen sämtliche CI-Prüfungen einschließlich
+`fix/drawing-pointer-ownership` ist in PR #522 hochgeladen. Der erste
+Browserlauf bestätigte Stift → Finger, scheiterte jedoch am Testprotokoll:
+Die partielle Touch-End-Nachricht hatte den ersten statt den zweiten Kontakt
+freigegeben. Die korrigierte Nachricht nennt den freizugebenden zweiten Kontakt.
+Zusätzliche vertrauenswürdige Pointerevent-Aufzeichnungen bestätigen die
+tatsächlichen separaten Down-IDs und die zweite Up-ID im Browser. Vor Merge müssen sämtliche CI-Prüfungen einschließlich
 beider vollständiger Browserläufe grün sein. Anschließend exakten Release und
 `/api/health` bestätigen und im PR dokumentieren.
 

@@ -3185,12 +3185,14 @@ async function main() {
     await client.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...finger,x:finger.x+100}]});
     await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
     await assertDrawingCount(2,'finger drawing works immediately after pen release');
+    await evaluate(client,`(() => {const canvas=document.querySelector(${q(drawingRoot+' canvas')});window.__drawingContacts=[];for(const type of ['pointerdown','pointerup','pointercancel'])canvas.addEventListener(type,e=>window.__drawingContacts.push({type,id:e.pointerId,trusted:e.isTrusted}),{capture:true});})()`);
     const first={x:drawingPoint.x,y:drawingPoint.y+80,id:21},second={x:drawingPoint.x+180,y:drawingPoint.y+120,id:22};
     await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[first]});
     await client.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...first,x:first.x+30}]});
     await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...first,x:first.x+30},second]});
     await client.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...first,x:first.x+60},{...second,x:second.x+30}]});
-    await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[{...first,x:first.x+60}]});
+    await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[{...second,x:second.x+30}]});
+    await waitFor(client,'native secondary release actually belongs to the second contact',`(() => {const a=window.__drawingContacts,down=a.filter(e=>e.type==='pointerdown'),up=a.filter(e=>e.type==='pointerup');return down.length===2&&down[0].id!==down[1].id&&up.length===1&&up[0].id===down[1].id&&a.every(e=>e.trusted);})()`);
     await assertDrawingCount(2,'second finger release cannot finish the first finger stroke');
     await client.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...first,x:first.x+100}]});
     await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
