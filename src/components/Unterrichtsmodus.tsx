@@ -9608,7 +9608,7 @@ ${content}
                                       const regularGroups = getRegularCockpitGroups(activeWidgetCategory, query);
                                       return (
                                         <>
-                                          <div className="col-span-full rounded-2xl border border-accent/20 bg-accent-soft px-4 py-3">
+                                          <div className="col-span-full rounded-2xl border border-accent/20 bg-accent-soft px-4 py-3" role={query ? "status" : undefined}>
                                             <p className="text-sm font-black text-slate-900">{query ? `${regularGroups.length} Treffer` : `${regularGroups.length} Kernwidgets`}</p>
                                             <p className="mt-0.5 text-xs text-slate-600">
                                               Die wichtigsten Unterrichtswerkzeuge. Verwandte Varianten findest du im jeweiligen Eintrag.

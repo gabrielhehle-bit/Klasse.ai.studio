@@ -325,8 +325,8 @@ async function verifyRandomPickerInRealBrowser(client) {
   await sleep(150);
 
   await setInputByLabel(client, 'Widget suchen', 'Zufallsauswahl');
-  await waitFor(client, 'global widget search status',
-    String.raw`(() => {const status=[...document.querySelectorAll('[role="status"]')].find(el=>el.textContent.includes('Suche in allen Widgets'));const all=[...document.querySelectorAll('.klassio-widget-library-sidebar button')].find(b=>b.textContent.includes('Alle Widgets'));return !!status&&status.textContent.includes('Zufallsauswahl')&&!!all&&String(all.className).includes('bg-accent');})()`);
+  await waitFor(client, 'grouped widget search selects one relevant core entry',
+    String.raw`(() => {const status=document.querySelector('.klassio-widget-library-content [role="status"]');const core=[...document.querySelectorAll('.klassio-widget-library-sidebar button')].find(b=>b.textContent.includes('Kernwidgets'));return !!status&&status.textContent.includes('1 Treffer')&&document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length===1&&!!document.querySelector('[data-testid="cockpit-core-group-randomname"]')&&!!core&&String(core.className).includes('bg-accent');})()`);
   await waitFor(client, 'random widget catalogue entry',
     String.raw`Boolean(document.querySelector('button[aria-label="Zufallsauswahl öffnen"]:not(:disabled)'))`);
   const addedRandomWidget = await evaluate(client,
