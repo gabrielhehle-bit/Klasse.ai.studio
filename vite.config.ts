@@ -42,7 +42,10 @@ export default defineConfig(({mode}) => {
               }
             },
             {
-              urlPattern: ({ request }) => ['style', 'script', 'font', 'image'].includes(request.destination),
+              // External lesson images must use normal browser/provider caching,
+              // not opaque responses in the app's shared offline asset cache.
+              urlPattern: ({ request, sameOrigin }) => ['style', 'script', 'font', 'image'].includes(request.destination)
+                && (request.destination !== 'image' || sameOrigin),
               handler: 'StaleWhileRevalidate',
               options: {
                 cacheName: 'assets'

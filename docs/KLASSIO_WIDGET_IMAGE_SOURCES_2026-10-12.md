@@ -22,6 +22,9 @@ zusätzliche Quellen- und Dialogfälle beim Tafelbild.
 - Die Produktions-CSP erlaubte bisher nur einige Bild-CDNs und blockierte
   sonstige HTTPS-Adressen trotz vorhandener Web-URL-Funktion. `img-src` erlaubt
   jetzt HTTPS-Bilder; Script-, API-, Objekt- und Frame-Regeln werden nicht erweitert.
+- Externe Bilder laufen direkt über den Browser statt über den gemeinsamen
+  PWA-Asset-Cache mit opaken Fremdantworten. Lokale App-Bilder bleiben offline
+  cachefähig; Cache-/Update-Header des externen Anbieters gelten weiterhin.
 - Dialogauslöser wird vor `autoFocus` erfasst. Verschwindet ein innerer
   Auslöser beim Wechsel aus Einstellungen, kehrt der Fokus zum vorhandenen
   Widget-Zahnrad zurück. Escape in Beschriftung verwirft den Entwurf.
