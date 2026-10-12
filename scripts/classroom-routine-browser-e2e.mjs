@@ -2523,6 +2523,8 @@ async function main() {
     await waitFor(client,'real image pointer drag translates in screen coordinates',`document.querySelector(${q(imageRoot+' img')}).style.transform.includes('translate(30px, 20px)')`);
     await imageTextClick('Beschriften');await setInputByLabel(client,'Bildbeschreibung','Unser Tafelbild: 47 = 40 + 7');
     await imageTextClick('Speichern',imageDialog('Tafelbild beschriften'));
+    await imageTextClick('Beschriften');await setInputByLabel(client,'Bildbeschreibung','Dieser Entwurf wird verworfen');await pressAuditKey('Escape');
+    await waitFor(client,'caption Escape restores its real opener and preserves saved caption',`!document.querySelector('dialog[open]')&&document.activeElement.textContent.trim()==='Beschriften'&&document.querySelector(${q(imageRoot+' img')}).alt==='Unser Tafelbild: 47 = 40 + 7'`);
     await imageClick('Bild 90° drehen');
     await auditMenu('image','Minimieren');await openAuditWidget('image','Tafelbild');
     await waitFor(client,'image zoom rotation caption and pan survive minimizing',`(()=>{const r=document.querySelector(${q(imageRoot)}),img=r.querySelector('img');return r.dataset.imageScale==='1.5'&&r.dataset.imageRotation==='90'&&img.alt==='Unser Tafelbild: 47 = 40 + 7'&&img.style.transform.includes('translate(30px, 20px)');})()`);
@@ -2550,6 +2552,62 @@ async function main() {
     await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-widget-image.png'));
     await imageClick('Bild entfernen');await auditMenu('image','Widget schließen');await openAuditWidget('image','Tafelbild');
     await waitFor(client,'removed image remains empty after complete reopening',`!document.querySelector(${q(imageRoot+' img')})&&document.querySelector(${q(imageRoot)}).textContent.includes('Noch kein Bild')`);
+    // Add actual material files through the library UI, not through an injected app snapshot.
+    await clickSidebar(client,'Materialbibliothek');
+    for(const [path,title] of [[imagePath,'Materialbild 1/2 und 1/4'],[corruptImagePath,'Beschädigtes Testbild']]){
+      await clickButton(client,'Material hinzufügen');await waitFor(client,'material upload choice',`Array.from(document.querySelectorAll('button')).some(b=>b.textContent.includes('Datei hochladen'))`);await clickButton(client,'Datei hochladen');
+      await waitFor(client,'material real file input is ready',`Boolean(document.querySelector('#file-upload'))`);
+      const doc=await client.send('DOM.getDocument'),{nodeId}=await client.send('DOM.querySelector',{nodeId:doc.root.nodeId,selector:'#file-upload'});
+      await client.send('DOM.setFileInputFiles',{nodeId,files:[path]});
+      await waitFor(client,'material file was actually read',`document.body.textContent.includes(${q(path.split('/').pop())})`);
+      await setInputByLabel(client,'Titel *',title);await clickButton(client,'Speichern',true);
+      await waitFor(client,'material file saved through real library form',`!document.querySelector('#file-upload')&&document.body.textContent.includes(${q(title)})`);
+    }
+    await clickSidebar(client,'Lehrercockpit');await openAuditWidget('image','Tafelbild');await auditWidgetMinimum('image');
+    const imageSourceGear=()=>imagePhysicalClick(`document.querySelector('[data-widget-type="image"] button[aria-label$="Einstellungen öffnen"]')`);
+    const imageSourceDialog=async label=>{await imageSourceGear();await imageTextClick(label,imageDialog('Tafelbild einstellen'));};
+    await imagePhysicalClick(`Array.from(document.querySelectorAll(${q(imageRoot+' button')})).find(b=>b.textContent.includes('Materialbibliothek'))`);
+    await imageTextClick('Materialbild 1/2 und 1/4',imageDialog('Tafelbild-Material auswählen'));
+    await waitFor(client,'actual material PNG decoded and caption committed',`document.querySelector(${q(imageRoot+' img')})?.naturalWidth===1200&&document.querySelector(${q(imageRoot+' img')})?.alt==='Materialbild 1/2 und 1/4'&&!document.querySelector('dialog[open]')`);
+    await imageSourceDialog('Materialbibliothek');await imageTextClick('Beschädigtes Testbild',imageDialog('Tafelbild-Material auswählen'));
+    await waitFor(client,'damaged material cannot replace working image',`document.querySelector(${q(imageDialog('Tafelbild-Material auswählen')+' [role="alert"]')})?.textContent.includes('bisherige Bild bleibt')&&document.querySelector(${q(imageRoot+' img')})?.alt==='Materialbild 1/2 und 1/4'`);
+    await pressAuditKey('Escape');await waitFor(client,'nested material dialog returns focus to surviving gear',`!document.querySelector('dialog[open]')&&document.activeElement.matches('[data-widget-type="image"] button[aria-label$="Einstellungen öffnen"]')`);
+    let acceptImageRemote=false;
+    client.on('Page.javascriptDialogOpening',event=>{if(event.type==='confirm'&&event.message.startsWith('Ein externes Bild lädt Daten'))void client.send('Page.handleJavaScriptDialog',{accept:acceptImageRemote}).catch(()=>{});});
+    const imageNetworkRequests=[],pendingImages=[];
+    const imageBodies={landscape:await fs.readFile(imagePath),portrait:await fs.readFile(portraitPath)};
+    const fulfillImage=(requestId,body,status=200)=>client.send('Fetch.fulfillRequest',{requestId,responseCode:status,responseHeaders:[{name:'Content-Type',value:'image/png'},{name:'Cache-Control',value:'public, max-age=3600'}],body:body.toString('base64')});
+    client.on('Fetch.requestPaused',event=>{
+      if(!event.request.url.startsWith('https://klassio-image-fixture.invalid/'))return;
+      imageNetworkRequests.push(event.request.url);
+      if(event.request.url.includes('/slow'))pendingImages.push(event.requestId);
+      else void fulfillImage(event.requestId,event.request.url.includes('/broken')?Buffer.from('Damaged PNG'):imageBodies.landscape).catch(()=>{});
+    });
+    await client.send('Fetch.enable',{patterns:[{urlPattern:'https://klassio-image-fixture.invalid/*',resourceType:'Image',requestStage:'Request'}]});
+    const waitForImageRequest=async()=>{for(let i=0;i<60;i++){if(pendingImages.length)return;await sleep(50);}throw Error('Actual delayed image request never arrived');};
+    try{
+      const applyImageAddress=async url=>{await setInputByLabel(client,'HTTPS-Bildadresse',url);await imageTextClick('Übernehmen',imageDialog('Tafelbild-Webadresse'));};
+      await imageSourceDialog('Web-URL');await applyImageAddress('https://klassio-image-fixture.invalid/declined.png');
+      await waitFor(client,'declined remote address keeps current image and editable dialog',`Boolean(document.querySelector(${q(imageDialog('Tafelbild-Webadresse'))}))&&document.querySelector(${q(imageRoot+' img')}).alt==='Materialbild 1/2 und 1/4'`);
+      if(imageNetworkRequests.length)throw Error('Declined external image was still requested');
+      acceptImageRemote=true;await applyImageAddress('https://klassio-image-fixture.invalid/broken.png');
+      await waitFor(client,'unreadable HTTPS image leaves material intact',`document.querySelector(${q(imageDialog('Tafelbild-Webadresse')+' [role="alert"]')})?.textContent.includes('bisherige Bild bleibt')&&document.querySelector(${q(imageRoot+' img')}).alt==='Materialbild 1/2 und 1/4'`);
+      await applyImageAddress('https://klassio-image-fixture.invalid/slow-cancel.png');await waitForImageRequest();await waitFor(client,'actual slow image request paused',`Boolean(document.querySelector(${q(imageDialog('Tafelbild-Webadresse')+' [role="status"]')}))`);
+      await waitFor(client,'slow image is held by actual browser',`document.querySelector(${q(imageDialog('Tafelbild-Webadresse')+' [role="status"]')})?.textContent.includes('geprüft')`);
+      await pressAuditKey('Escape');
+      for(const id of pendingImages.splice(0))await fulfillImage(id,imageBodies.portrait).catch(()=>{});
+      await sleep(250);if(await evaluate(client,`document.querySelector(${q(imageRoot+' img')}).alt`)!=='Materialbild 1/2 und 1/4')throw Error('Cancelled address replaced previous image');
+      await imageSourceDialog('Web-URL');await applyImageAddress('https://klassio-image-fixture.invalid/slow-old.png');await waitForImageRequest();await waitFor(client,'source inspection is visibly pending',`Boolean(document.querySelector(${q(imageDialog('Tafelbild-Webadresse')+' [role="status"]')}))`);
+      await applyImageAddress('https://klassio-image-fixture.invalid/landscape.png');
+      await waitFor(client,'new valid HTTPS source replaces only after decoding with its own caption',`!document.querySelector('dialog[open]')&&document.querySelector(${q(imageRoot+' img')})?.naturalWidth===1200&&document.querySelector(${q(imageRoot+' img')})?.alt==='Web-Bild'`);
+      for(const id of pendingImages.splice(0))await fulfillImage(id,imageBodies.portrait).catch(()=>{});
+      await sleep(250);if(await evaluate(client,`document.querySelector(${q(imageRoot+' img')}).naturalWidth`)!==1200)throw Error('Old remote source replaced newer image');
+      await imageClick('Bild 90° drehen');await imageClick('Bild vergrößern');
+      for(const action of ['Minimieren','Widget schließen']){await auditMenu('image',action);await openAuditWidget('image','Tafelbild');await waitFor(client,'actual HTTPS image transforms survive '+action,`document.querySelector(${q(imageRoot+' img')})?.naturalWidth===1200&&document.querySelector(${q(imageRoot)}).dataset.imageRotation==='90'&&document.querySelector(${q(imageRoot)}).dataset.imageScale==='1.25'&&document.querySelector(${q(imageRoot+' img')}).alt==='Web-Bild'`);}
+      await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-widget-image-sources.png'));
+      await imageClick('Bild entfernen');
+      console.log('✓ Image sources: real library PNG selection, damaged material preservation, caption Escape/focus, nested dialog fallback, declined URL makes no request, broken/slow/cancelled HTTPS preservation, latest source wins and web transforms survive full reopening.');
+    }finally{await client.send('Fetch.disable');}
     // Finish the isolation boundary: a reopened empty image window must not
     // cover the toolbar of the later board-sized drawing test.
     await auditMenu('image','Widget schließen');
