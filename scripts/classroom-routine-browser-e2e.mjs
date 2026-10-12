@@ -2447,8 +2447,17 @@ async function main() {
     const europeSetting=await evaluate(client,`(() => {const button=Array.from(document.querySelectorAll(${q(flagSettingsRoot+' button')})).find(b=>b.textContent.trim().startsWith('Europa'));if(!button)throw Error('Missing Europe filter');button.dataset.natureAction='europe';return ${q(flagSettingsRoot)}+' [data-nature-action="europe"]';})()`);
     await clickSelector(client,europeSetting);
     await waitFor(client,'flag filter updates before Escape',`document.querySelector(${q(flagRoot)}).textContent.includes('Europa')&&document.querySelector(${q(flagRoot)}).textContent.includes('Noch keine Antwort')`);
+    await evaluate(client,`(() => {window.__flagEscapeEvents=[];window.__flagEscapeObserver=e=>window.__flagEscapeEvents.push({key:e.key,trusted:e.isTrusted,phase:e.eventPhase,target:e.target?.getAttribute?.('aria-label')||e.target?.tagName});window.addEventListener('keydown',window.__flagEscapeObserver,true);document.querySelector(${q(europeSetting)})?.focus();})()`);
     await pressAuditKey('Escape');
-    await waitFor(client,'flag settings close before reopening',`!document.querySelector(${q(flagSettingsRoot)})&&Boolean(document.querySelector('[data-widget-type="flagquiz"] button[aria-label$="Einstellungen öffnen"]'))`);
+    try {
+      await waitFor(client,'flag settings close before reopening',`!document.querySelector(${q(flagSettingsRoot)})&&Boolean(document.querySelector('[data-widget-type="flagquiz"] button[aria-label$="Einstellungen öffnen"]'))`);
+    } catch (error) {
+      await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-flag-escape-failure.png'));
+      const diagnostics=await evaluate(client,`({events:window.__flagEscapeEvents,overlay:!!document.querySelector(${q(flagSettingsRoot)}),buttons:Array.from(document.querySelectorAll('[data-widget-type="flagquiz"] button')).map(b=>({text:b.textContent.trim(),label:b.getAttribute('aria-label'),expanded:b.getAttribute('aria-expanded')})),focus:document.activeElement?.outerHTML,regions:Array.from(document.querySelectorAll(${q(flagRoot)})).map(r=>({label:r.getAttribute('aria-label'),text:r.textContent.slice(0,350)}))})`);
+      throw new Error(String(error)+' · '+JSON.stringify(diagnostics));
+    } finally {
+      await evaluate(client,'window.removeEventListener("keydown",window.__flagEscapeObserver,true);delete window.__flagEscapeObserver;');
+    }
     await waitFor(client,'flag filter actually applies and starts a new round',`document.querySelector(${q(flagRoot)}).textContent.includes('Europa')&&document.querySelector(${q(flagRoot)}).textContent.includes('Noch keine Antwort')`);
     await discoverySettings('flagquiz');await auditMenu('flagquiz','Widget schließen');
 
