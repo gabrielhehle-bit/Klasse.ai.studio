@@ -37,6 +37,7 @@ export interface WidgetMinSizeConfig {
  */
 export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   mathduel: { minW: 760, minH: 560, prefW: 800, prefH: 560 },
+  weather: { minW: 460, minH: 480, prefW: 500, prefH: 520 },
   aiquiz: { minW: 700, minH: 560, prefW: 760, prefH: 560 },
   riddle: { minW: 700, minH: 560, prefW: 760, prefH: 560 },
   colormixer: { minW: 760, minH: 560, prefW: 800, prefH: 560 },
