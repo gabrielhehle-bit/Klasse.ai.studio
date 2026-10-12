@@ -410,19 +410,19 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
 
   // Zoom-Aktionen
   const handleZoomIn = () => {
-    stopPan();
+    const currentPan = stopPan() || pan;
     const next = zoomIn(scale);
     setScale(next);
-    const boundedPan = clampPan(pan.x, pan.y, next, size.width, size.height);
+    const boundedPan = clampPan(currentPan.x, currentPan.y, next, size.width, size.height);
     setPan({ x: boundedPan.panX, y: boundedPan.panY });
     persistSettings({ scale: next, panX: boundedPan.panX, panY: boundedPan.panY });
   };
 
   const handleZoomOut = () => {
-    stopPan();
+    const currentPan = stopPan() || pan;
     const next = zoomOut(scale);
     setScale(next);
-    const boundedPan = clampPan(pan.x, pan.y, next, size.width, size.height);
+    const boundedPan = clampPan(currentPan.x, currentPan.y, next, size.width, size.height);
     setPan({ x: boundedPan.panX, y: boundedPan.panY });
     persistSettings({ scale: next, panX: boundedPan.panX, panY: boundedPan.panY });
   };
@@ -441,10 +441,11 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
 
   // Rotation
   const handleRotate = () => {
-    stopPan();
+    const currentPan = stopPan() || pan;
     const next = rotateClockwise(rotation);
     setRotation(next);
-    persistSettings({ rotation: next });
+    setPan(currentPan);
+    persistSettings({ rotation: next, panX: currentPan.x, panY: currentPan.y });
   };
 
   // Bild entfernen
