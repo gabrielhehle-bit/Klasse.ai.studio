@@ -3623,18 +3623,18 @@ async function main() {
         const manualField='input[aria-label='+q(manualLabel)+']';
         const manualRow=`document.querySelector(${q(manualField)}).closest('tr')`;
         await numbersTypeSigned('[data-gradebook]',manualLabel,'10');
-        await waitFor(client,'manual points show units and configured maximum',`${manualRow}.textContent.includes('10 Pkt')&&${manualRow}.textContent.includes('/ 20 Pkt')`);
+        await waitFor(client,'manual points show units and configured maximum',`${manualRow}.querySelector('td:last-child').textContent.trim()==='10 Pkt'&&${manualRow}.textContent.includes('/ 20 Pkt')`);
         await numbersTypeSigned('[data-gradebook]',manualLabel,'0');
-        await waitFor(client,'manual zero remains visible and removable',`${manualRow}.textContent.includes('0 Pkt')&&Boolean(${manualRow}.querySelector('button[aria-label$=" löschen"]'))`);
+        await waitFor(client,'manual zero remains visible and removable',`${manualRow}.querySelector('td:last-child').textContent.trim()==='0 Pkt'&&Boolean(${manualRow}.querySelector('button[aria-label$=" löschen"]'))`);
         await reloadAndUnlock(client);await openPage(client,'Notenmappe');
         await evaluate(client,`(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);await clickButton(client,'Mitarbeit',true);
-        await waitFor(client,'manual zero survives encrypted reload',`document.querySelector(${q(manualField)}).value==='0'&&${manualRow}.textContent.includes('0 Pkt')`);
+        await waitFor(client,'manual zero survives encrypted reload',`document.querySelector(${q(manualField)}).value==='0'&&${manualRow}.querySelector('td:last-child').textContent.trim()==='0 Pkt'`);
         await clickButton(client,'Gewichtung',true);await clickButton(client,'Prozent');await clickButton(client,'Speichern',true);await clickButton(client,'Mitarbeit',true);
         await numbersTypeSigned('[data-gradebook]',manualLabel,'50');
-        await waitFor(client,'manual percent shows percentage instead of a grade',`${manualRow}.textContent.includes('50 %')`);
+        await waitFor(client,'manual percent shows percentage instead of a grade',`${manualRow}.querySelector('td:last-child').textContent.trim()==='50 %'`);
         await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-manual-participation.png'));
         await clickSelector(client,`button[aria-label=${q(manualLabel+' löschen')}]`);
-        await waitFor(client,'manual deletion preserves missing-value distinction',`document.querySelector(${q(manualField)}).value===''&&${manualRow}.textContent.includes('–')`);
+        await waitFor(client,'manual deletion preserves missing-value distinction',`document.querySelector(${q(manualField)}).value===''&&${manualRow}.querySelector('td:last-child').textContent.trim()==='–'`);
         await clickButton(client,'Gewichtung',true);await clickButton(client,'Punkte');await clickButton(client,'Fixe Punkte',true);await clickButton(client,'Speichern',true);
         console.log('✓ Manual participation uses points/percent fields, preserves zero on encrypted reload and clears values explicitly.');
 
