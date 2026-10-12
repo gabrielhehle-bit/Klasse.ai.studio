@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { getImageMaterials, isPersistentImageSource } from './imageAlgorithm';
 test('material image picker tolerates damaged and old library records without a render crash', () => {
   assert.deepEqual(getImageMaterials(null), []);
@@ -12,4 +13,14 @@ test('new image sources accept persistent image data and HTTPS, reject ephemeral
   assert.equal(isPersistentImageSource('data:image/png;base64,fixture'), true);
   assert.equal(isPersistentImageSource('https://example.org/image.png'), true);
   for (const value of [null, 12, '', 'https://', 'http://example.org/x.png', 'blob:session-only', 'file:///x', 'data:text/html,x', 'javascript:alert(1)']) assert.equal(isPersistentImageSource(value), false);
+});
+test('deliberate HTTPS image addresses can load under production CSP without opening script or API policy', () => {
+  const server = readFileSync(new URL('../../server.ts', import.meta.url), 'utf8');
+  const image = server.split('\n').find(line => line.includes('"img-src'))!;
+  const connect = server.split('\n').find(line => line.includes('"connect-src'))!;
+  assert.match(image, /\shttps:(?=\s|")/);
+  assert.doesNotMatch(image, /\shttp:(?=\s|")/);
+  assert.doesNotMatch(connect, /\shttps:(?=\s|")/);
+  assert.match(server, /script-src 'self' 'nonce-/);
+  assert.match(server, /object-src 'none'/);
 });

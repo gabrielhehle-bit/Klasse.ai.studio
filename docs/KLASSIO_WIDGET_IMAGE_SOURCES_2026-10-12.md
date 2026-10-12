@@ -18,7 +18,10 @@ zusätzliche Quellen- und Dialogfälle beim Tafelbild.
 - Beschriftungen von Materialien sind Titel, keine Dateipfade: `1/2 und 1/4`
   bleibt erhalten. Web-Bilder bekommen ihre eigene Beschriftung statt der alten.
 - Materiallisten tolerieren beschädigte Altbestände. Titel werden als Text
-  normalisiert, fehlende IDs erhalten einen stabilen Render-Fallback.
+  normalisiert, fehlende IDs erhalten einen Render-Fallback.
+- Die Produktions-CSP erlaubte bisher nur einige Bild-CDNs und blockierte
+  sonstige HTTPS-Adressen trotz vorhandener Web-URL-Funktion. `img-src` erlaubt
+  jetzt HTTPS-Bilder; Script-, API-, Objekt- und Frame-Regeln werden nicht erweitert.
 - Dialogauslöser wird vor `autoFocus` erfasst. Verschwindet ein innerer
   Auslöser beim Wechsel aus Einstellungen, kehrt der Fokus zum vorhandenen
   Widget-Zahnrad zurück. Escape in Beschriftung verwirft den Entwurf.
@@ -38,8 +41,8 @@ verspätete Antwort und vollständige Wiederöffnung mit Zoom/Drehung folgen.
 Nur synthetische Bilder und die reservierte `.invalid`-Testdomain; keine
 echten Schülerbilder oder externe Live-Requests in der Prüfung.
 
-Zwei neue Logiktests: beschädigte/alte Materiallisten und dauerhafte gegenüber
-ungültigen/ephemeren Bildquellen. TypeScript, Build, vollständige Tests,
+Drei neue Logiktests: beschädigte/alte Materiallisten, dauerhafte gegenüber
+ungültigen/ephemeren Bildquellen und der begrenzte Bild-CSP-Vertrag. TypeScript, Build, vollständige Tests,
 endgültige Browsermatrix und genaue Live-Version sind vor Abschluss zu bestätigen.
 
 Echte Touch-/Stift-/Audiohardware sowie weitere Konfigurationen und die übrige
