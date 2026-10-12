@@ -20,11 +20,11 @@ test('Canva image is shown on the board itself and paper patterns never cover it
   assert.equal(getCockpitPaperStyle('lined', 'https://untrusted.test').backgroundSize, '100% 32px');
 });
 
-test('20 primary widget entries expose legacy widget variants without deleting original renderers', () => {
+test('24 primary widget entries expose legacy widget variants without deleting original renderers', () => {
   const source = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
   assert.match(source, /useState<string>\("core"\)/);
-  assert.match(source, /PLANNED_COCKPIT_WIDGETS\.map\(\(group\)/);
-  assert.match(source, /label: "▦ Alle Widgets"/);
+  assert.match(source, /regularGroups\.map\(\(group\)/);
+  assert.match(source, /label: "▦ Weitere Widgets"/);
   assert.match(source, /label: "🕘 Zuletzt verwendet"/);
   assert.match(source, /group\.sources/);
   assert.match(source, /handleOpenWidgetInCockpitLayout\(variant\.type/);

@@ -5,10 +5,11 @@ import { readFileSync } from 'node:fs';
 const cockpit = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
 const css = readFileSync('src/index.css', 'utf8');
 
-test('Widget-Bibliothek: Suche ist global und Kategorieauswahl beendet die Suche eindeutig', () => {
-  assert.match(cockpit, /if \(nextSearch\.trim\(\)\) setActiveWidgetCategory\("categories"\)/);
+test('Widget-Bibliothek: Suche bündelt Kernwidgets und erhält die bewusste Spezialauswahl', () => {
+  assert.match(cockpit, /if \(nextSearch\.trim\(\) && activeWidgetCategory !== "legacy"\) setActiveWidgetCategory\("core"\)/);
   assert.match(cockpit, /setActiveWidgetCategory\(cat\.id\);\s*if \(widgetSearch\) setWidgetSearch\(""\)/);
-  assert.match(cockpit, /Suche in allen Widgets: „\{widgetSearch\.trim\(\)\}“/);
+  assert.match(cockpit, /getRegularCockpitGroups\(activeWidgetCategory, query\)/);
+  assert.match(cockpit, /activeWidgetCategory === "legacy" \? "weiteren Widgets"/);
   assert.match(cockpit, /\{filteredList\.length\} Treffer/);
 });
 

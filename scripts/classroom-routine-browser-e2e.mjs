@@ -694,8 +694,30 @@ async function main() {
     await waitFor(client, 'reset also corrects subject participation in the gradebook', bookPointsExpression + ' === ' + initialBookPoints);
     await clickSidebar(client, 'Lehrercockpit');
     await client.send('Emulation.setDeviceMetricsOverride', { width:1366, height:768, deviceScaleFactor:1, mobile:false });
+    // The normal picker stays small; exact legacy names remain available separately.
+    await clickButton(client, 'Widget hinzufügen');
+    await clickButton(client, 'Kernwidgets');
+    await waitFor(client, 'regular picker has 24 grouped entries', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length === 24`);
+    await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-widget-catalog.png'));
+    await client.send('Emulation.setDeviceMetricsOverride', { width:WIDTH, height:900, deviceScaleFactor:1, mobile:false });
+    await waitFor(client, 'regular picker fits the classroom viewport', `(() => {const dialog=document.querySelector('[role=dialog][aria-label="Widget-Bibliothek"]');if(!dialog)return false;const rect=dialog.getBoundingClientRect();return rect.left>=-1 && rect.right<=innerWidth+1 && rect.top>=0 && rect.bottom<=innerHeight+1;})()`);
+    await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-widget-catalog-compact.png'));
+    await client.send('Emulation.setDeviceMetricsOverride', { width:1366, height:768, deviceScaleFactor:1, mobile:false });
+    await setInputByLabel(client, 'Widget suchen', 'Bruch');
+    await waitFor(client, 'fraction search shows one group', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length === 1 && Boolean(document.querySelector('[data-testid="cockpit-core-group-fractionvisualizer"]'))`);
+    await evaluate(client, `document.querySelector('button[aria-label="Varianten von Brüche anzeigen"]').click()`);
+    await waitFor(client, 'fraction variants are available inside their group', `Array.from(document.querySelectorAll('[data-testid="cockpit-core-group-fractionvisualizer"] button')).some(button => button.textContent.includes('Bruch-Kuchen'))`);
+    await setInputByLabel(client, 'Widget suchen', 'Zahnputz');
+    await waitFor(client, 'special topic stays outside regular search', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length === 0 && document.body.innerText.includes('Kein Kernwidget gefunden')`);
+    await clickButton(client, 'Weitere Widgets');
+    await setInputByLabel(client, 'Widget suchen', 'Zahnputz');
+    await waitFor(client, 'special topic remains accessible', `Boolean(document.querySelector('button[aria-label="Zahnputz-Station öffnen"]'))`);
+    await evaluate(client, `document.querySelector('button[aria-label="Widgetsuche leeren"]').click()`);
+    await waitFor(client, 'all historical picker entries remain available', `document.querySelectorAll('[role=dialog][aria-label="Widget-Bibliothek"] [data-widget-card-action="primary"]').length === 112`);
+    await evaluate(client, `document.querySelector('button[aria-label="Widget-Bibliothek schließen"]').click()`);
     const openAuditWidget = async (type, search, label) => {
       await clickButton(client, 'Widget hinzufügen');
+      await clickButton(client, 'Weitere Widgets');
       await waitFor(client, 'widget audit search field', `Boolean(document.querySelector('input[aria-label="Widget suchen"]'))`);
       await setInputByLabel(client, 'Widget suchen', search);
       await waitFor(client, 'widget audit search result: ' + search, `Array.from(document.querySelectorAll('[role=dialog][aria-label="Widget-Bibliothek"] button[data-widget-card-action="primary"]')).some(b=>b.getAttribute('aria-label').startsWith(${q(label || search)}))`);
