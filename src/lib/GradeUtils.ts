@@ -384,7 +384,8 @@ export function miZuNote(striche: number, settings: any, allMitarbeit?: any, fac
 export function berechne(app: AppState, sid: string, fach: string, sem: string): number | null {
   const isFachConfigured = !app.faecher || app.faecher.includes(fach) || fach === 'Unterricht';
   const hasNotenmappe = app.fachConfig?.[fach]?.unterrichtet !== false;
-  const nd = app.noten?.[sid]?.[fach]?.[sem] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
+  const rawNd = app.noten?.[sid]?.[fach]?.[sem] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
+  const nd = { ...rawNd, lzk: (rawNd.lzk || []).map((value, index) => rawNd.lzkParticipation?.[index] === false ? null : value) };
 
   if (!isFachConfigured || !hasNotenmappe) {
     if (nd.endnote) {

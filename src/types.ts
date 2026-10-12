@@ -439,6 +439,8 @@ export interface Student {
   staatsbuergerschaft: string;
   religion: string;
   besuchsjahr: string;
+  /** Explicit class-statistics setting; own results remain available. */
+  includeInClassAverage?: boolean;
   espf: boolean;
   spf: boolean;
   erstsprache: string;
@@ -843,11 +845,15 @@ export interface SubjectNotenMeta {
   };
   colCounts?: { lzk: number; wp: number; obj: number };
   colLabels?: { sa?: Record<number, string>; lzk?: Record<number, string>; wp?: Record<number, string>; obj?: Record<number, string> };
+  colAreas?: { lzk?: Record<number, string> };
+  includeSpecialNeedsInStats?: boolean;
   colDates?: { sa?: Record<number, string>; lzk?: Record<number, string>; wp?: Record<number, string>; obj?: Record<number, string> };
   [key: string]: any;
 }
 
 export interface GradeData {
+  /** false means exempt from this LZK, preserving any previously saved result. */
+  lzkParticipation?: Record<number, boolean>;
   sa: (number | string | null)[];
   lzk: (number | string | null)[];
   wp: (number | string | null)[];

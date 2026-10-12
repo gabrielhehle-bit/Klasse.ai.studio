@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { berechne, getNotenLabel, getFachCfg, getShowPointsPercent, getMaxPoints } from '../../lib/GradeUtils';
 import { FAECHER_ALLE } from '../../constants';
+import LzkAreaResults from './LzkAreaResults';
 import DossierAssessmentChart from './DossierAssessmentChart';
 import { getDossierAssessmentChart } from '../../lib/dossierAssessmentChart';
 import { getStudentSubjectParticipationSummary, type SubjectParticipationSummary } from '../../lib/studentParticipation';
@@ -110,6 +111,7 @@ export default function DossierLeistungen({
       if (!Array.isArray(rawList)) return;
 
       rawList.forEach((entry: any, idx: number) => {
+        if (cat.key === 'lzk' && (nd as import('../../types').GradeData).lzkParticipation?.[idx] === false) return;
         if (entry === null || entry === undefined || entry === '') return;
 
         const defaultLabel = meta.colLabels?.[cat.key]?.[idx] || `${cat.label} ${idx + 1}`;
@@ -491,6 +493,7 @@ export default function DossierLeistungen({
           </details>
         </section>
 
+        <LzkAreaResults studentId={student.id} subject={s.fach} semester={semester} />
         <DossierAssessmentChart items={s.items} mode={s.mode} />
 
         <details data-dossier-performance-everyday className="rounded-2xl border border-slate-200 bg-white">
@@ -798,6 +801,7 @@ export default function DossierLeistungen({
   const completedTaskCount = childWeeklyFeedback.filter(record => record.done).length;
   return (
     <div className="space-y-6">
+      <LzkAreaResults studentId={student.id} semester={semester} />
       {/* Header Area (No cross-subject overall grade! Strictly forbidden by Req 3) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>

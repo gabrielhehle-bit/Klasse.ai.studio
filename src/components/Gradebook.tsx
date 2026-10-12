@@ -1,3 +1,4 @@
+import { countsInClassAverage } from '../lib/classAveragePolicy';
 import { removeSubjectColumn, updateSubjectColumn } from '../lib/classroomEdits';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -203,7 +204,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
   const [showGradeCalculator, setShowGradeCalculator] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showClassAverage, setShowClassAverage] = useState(true);
-  const [includeSpecialNeedsInStats, setIncludeSpecialNeedsInStats] = useState(false);
+  const includeSpecialNeedsInStats = app.notenMeta?.[activeFach]?.includeSpecialNeedsInStats === true;
+  const setIncludeSpecialNeedsInStats = (value: boolean) => setApp(prev => ({ ...prev, notenMeta: { ...prev.notenMeta, [activeFach]: { ...prev.notenMeta?.[activeFach], includeSpecialNeedsInStats: value } } }));
   const [sortBy, setSortBy] = useState<'name' | 'avg' | 'triage'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [filterMissing, setFilterMissing] = useState(false);
@@ -676,7 +678,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
         mitarbeitSettings.mode === 'manual' &&
         (nd.miDirekt === undefined || nd.miDirekt === null || (nd.miDirekt as any) === '');
       const isMissing = (cfg.sa && hasMissing(nd.sa || [], cfg.saCount)) ||
-                        (cfg.lzk && hasMissing(nd.lzk || [], colCounts.lzk)) ||
+                        (cfg.lzk && hasMissing((nd.lzk || []).map((value, index) => nd.lzkParticipation?.[index] === false ? 'x' : value), colCounts.lzk)) ||
                         (cfg.wp && hasMissing(nd.wp || [], colCounts.wp)) ||
                         (cfg.obj && hasMissing(nd.aufgaben || [], colCounts.obj)) ||
                         manualMitarbeitMissing;
@@ -753,11 +755,13 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
       const hasStudentValue = (app.schueler || []).some((student) => {
         const values = app.noten?.[student.id]?.[activeFach]?.[sem]?.[dataKey] || [];
         const value = values[idx];
+        if (typ === 'lzk' && app.noten?.[student.id]?.[activeFach]?.[sem]?.lzkParticipation?.[idx] === false) return true;
         return value !== undefined && value !== null && value !== '';
       });
       const hasMeta =
         !!app.notenMeta?.[activeFach]?.colLabels?.[typ]?.[idx] ||
         !!app.notenMeta?.[activeFach]?.colDates?.[typ]?.[idx] ||
+        !!app.notenMeta?.[activeFach]?.colAreas?.[typ]?.[idx] ||
         app.notenMeta?.[activeFach]?.maxPoints?.[typ]?.[idx] !== undefined;
 
       if (!hasStudentValue && !hasMeta) {
@@ -890,7 +894,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
           return false;
         };
         if (cfg.sa && hasMissing(nd.sa || [], cfg.saCount)) return true;
-        if (cfg.lzk && hasMissing(nd.lzk || [], colCounts.lzk)) return true;
+        if (cfg.lzk && hasMissing((nd.lzk || []).map((value, index) => nd.lzkParticipation?.[index] === false ? 'x' : value), colCounts.lzk)) return true;
         if (cfg.wp && hasMissing(nd.wp || [], colCounts.wp)) return true;
         if (cfg.obj && hasMissing(nd.aufgaben || [], colCounts.obj)) return true;
         if (
@@ -941,13 +945,11 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
 
   const columnAverages = useMemo(() => {
     const results: Record<string, { avg: number | null }> = {};
-    const studentsToConsider = includeSpecialNeedsInStats 
-      ? (app.schueler || [])
-      : (app.schueler || []).filter(s => !s.spf && !s.espf);
+    const studentsToConsider = (app.schueler || []).filter(s => countsInClassAverage(app, s, activeFach));
     
     const calcAvg = (typ: 'sa' | 'lzk' | 'wp' | 'aufgaben', idx: number) => {
       const rawVals = studentsToConsider
-        .map(s => app.noten?.[s.id]?.[activeFach]?.[sem]?.[typ]?.[idx]);
+        .map(s => { const data = app.noten?.[s.id]?.[activeFach]?.[sem]; return typ === 'lzk' && data?.lzkParticipation?.[idx] === false ? null : data?.[typ]?.[idx]; });
       
       const numericVals: number[] = [];
       rawVals.forEach(v => {
@@ -982,9 +984,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
 
   const stats = useMemo(() => {
     const allStudents = (app.schueler || []);
-    const filteredForStats = includeSpecialNeedsInStats 
-      ? allStudents 
-      : allStudents.filter(s => !s.spf && !s.espf);
+    const filteredForStats = allStudents.filter(s => countsInClassAverage(app, s, activeFach));
     
     const allAverages = filteredForStats
       .map(s => berechne(app, s.id, activeFach, sem))
@@ -1428,8 +1428,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     input?.focus(); input?.select();
   }, [isolatedCol, editingAssessmentModal, activeView]);
 
-  const updateColMeta = (typ: 'sa'|'lzk'|'wp'|'obj', idx: number, labelVal: string, dateVal: string, maxPointsVal?: number) => {
-    setApp(prev => ({ ...prev, notenMeta: updateSubjectColumn(prev.notenMeta || {}, activeFach, typ, idx, labelVal, dateVal, maxPointsVal) }));
+  const updateColMeta = (typ: 'sa'|'lzk'|'wp'|'obj', idx: number, labelVal: string, dateVal: string, maxPointsVal?: number, area?: string) => {
+    setApp(prev => ({ ...prev, notenMeta: updateSubjectColumn(prev.notenMeta || {}, activeFach, typ, idx, labelVal, dateVal, maxPointsVal, area) }));
     setEditingColLabel(null);
   };
 
@@ -1466,6 +1466,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
           <span className={`text-[0.6rem] font-black ${customLabel ? 'text-[0.65rem] whitespace-normal leading-tight' : 'opacity-70'} w-full text-wrap leading-tight break-words px-1`} title={customLabel || `${defaultName} ${i+1}`}>
             {customLabel || defaultName} {!customLabel && <span>{i+1}</span>}
           </span>
+          {typ === 'lzk' && <span className="text-xs font-medium">{app.notenMeta?.[activeFach]?.colAreas?.lzk?.[i] || 'Ohne Bereich'}</span>}
           {customDate && (
             <span className="text-[0.5625rem] font-medium opacity-80 mt-0.5">
               {new Date(customDate).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'})}
@@ -3152,15 +3153,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                        <span className="text-emerald-600 font-extrabold">Statistik</span>
                      </div>
                      <label className="flex items-center gap-3 cursor-pointer group select-none">
-                        <div 
-                          onClick={() => {
-                            setIncludeSpecialNeedsInStats(!includeSpecialNeedsInStats);
-                          }}
-                          className={`w-9 h-5 rounded-full transition-all relative ${includeSpecialNeedsInStats ? 'bg-emerald-600' : 'bg-slate-300'}`}
-                        >
-                           <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all shadow-xs ${includeSpecialNeedsInStats ? 'left-[1.125rem]' : 'left-0.5'}`} />
-                        </div>
-                        <span className="text-[0.6875rem] font-bold text-slate-600 group-hover:text-slate-900 transition-colors">SPF/ESPF einbeziehen</span>
+                        <input type="checkbox" checked={includeSpecialNeedsInStats} onChange={e => setIncludeSpecialNeedsInStats(e.target.checked)} className="h-5 w-5" />
+                        <span className="text-[0.6875rem] font-bold text-slate-600 group-hover:text-slate-900 transition-colors">SPF/ESPF standardmäßig einbeziehen (individuelle Einstellung hat Vorrang)</span>
                      </label>
                    </div>
                    
@@ -3400,12 +3394,13 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
             )}
             {isolatedCol && (() => {
               const dataKey = isolatedCol.typ === 'obj' ? 'aufgaben' : isolatedCol.typ;
-              const recorded = students.filter(student => {
+              const participating = students.filter(student => isolatedCol.typ !== 'lzk' || app.noten?.[student.id]?.[activeFach]?.[sem]?.lzkParticipation?.[isolatedCol.idx] !== false);
+              const recorded = participating.filter(student => {
                 const value = app.noten?.[student.id]?.[activeFach]?.[sem]?.[dataKey]?.[isolatedCol.idx];
-                return value !== null && value !== undefined && value !== '';
+                return value !== null && value !== undefined && value !== '' && !['f', 'x', 'e', '-'].includes(String(value));
               }).length;
               return <div data-column-entry-status role="status" className="flex flex-wrap items-center justify-between gap-2 border-y border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                <span><strong>{app.notenMeta?.[activeFach]?.colLabels?.[isolatedCol.typ]?.[isolatedCol.idx] || `${isolatedCol.typ.toUpperCase()} ${isolatedCol.idx + 1}`}</strong> · {recorded}/{students.length} erfasst · {students.length - recorded} offen</span>
+                <span><strong>{app.notenMeta?.[activeFach]?.colLabels?.[isolatedCol.typ]?.[isolatedCol.idx] || `${isolatedCol.typ.toUpperCase()} ${isolatedCol.idx + 1}`}</strong> · {recorded}/{participating.length} erfasst · {participating.length - recorded} offen · {students.length - participating.length} nehmen nicht teil</span>
                 <span className="text-xs">Enter: nächstes Kind · Shift+Enter: zurück · Escape: Eingabe verwerfen</span>
               </div>;
             })()}
@@ -3477,7 +3472,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                     const rawNd = (app.noten?.[s.id]?.[activeFach]?.[sem] || {}) as any;
                     const nd = {
                       sa: rawNd.sa || [],
-                      lzk: rawNd.lzk || [],
+                      lzk: (rawNd.lzk || []).map((value, index) => rawNd.lzkParticipation?.[index] === false ? null : value),
                       wp: rawNd.wp || [],
                       aufgaben: rawNd.aufgaben || [],
                       hue: rawNd.hue || 0,
@@ -3536,6 +3531,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                 <span className={`text-wrap leading-tight break-words text-slate-900 ${dStyle.nameText} leading-normal font-black leading-tight max-w-[8rem] sm:max-w-[10rem]`} title={`${s.nachname} ${s.vorname}`}>{s.nachname}</span>
                                 {s.spf && <span className={`${dStyle.spfBadge} font-black uppercase text-purple-600 bg-purple-100 rounded border border-purple-200 print:bg-slate-200 print:text-black`}>SPF</span>}
                                 {s.espf && <span className={`${dStyle.spfBadge} font-black uppercase text-teal-600 bg-teal-100 rounded border border-teal-200 print:bg-slate-100 print:text-black`}>ESPF</span>}
+                                {<label className="flex items-center gap-1 text-xs font-medium print:hidden"><input type="checkbox" aria-label={`${s.vorname} ${s.nachname} im Klassenschnitt mitzählen`} checked={countsInClassAverage(app, s, activeFach)} onChange={e => setApp(prev => ({ ...prev, schueler: prev.schueler.map(child => child.id === s.id ? { ...child, includeInClassAverage: e.target.checked } : child) }))} />Im Schnitt</label>}
                                 {studentErrors.length > 0 && (
                                   <span 
                                     className="px-1.5 py-0.5 rounded-full bg-amber-100 border border-amber-300 text-amber-800 text-[0.5625rem] font-black inline-flex items-center gap-0.5 animate-pulse cursor-help shrink-0"
@@ -3700,6 +3696,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                       <AssessmentValueInput
                                         key={`${app.activeClassId}:${activeFach}:${sem}:${s.id}:lzk:${idx}:${assessmentMode}:${maxP}`}
                                       mode={assessmentMode} maxPoints={maxP}
+                                        disabled={rawNd.lzkParticipation?.[idx] === false}
                                         aria-label={`Lernzielkontrolle ${idx + 1} für ${s.vorname} ${s.nachname}`}
                                         data-col={`lzk-${idx}`}
                                         placeholder={assessmentMode === 'points' ? `/${maxP}` : assessmentMode === 'percent' ? '%' : ''}
@@ -3714,6 +3711,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                         onCommit={(val) => setNote(s.id, 'lzk', idx, val)}
 
                                       />
+                                      <label className="flex items-center justify-center gap-1 text-xs text-slate-600 print:hidden"><input type="checkbox" aria-label={`${s.vorname} ${s.nachname} nimmt an LZK ${idx + 1} teil`} checked={rawNd.lzkParticipation?.[idx] !== false} onChange={e => { const participates = e.target.checked; setApp(prev => { const data = prev.noten?.[s.id]?.[activeFach]?.[sem] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] }; return { ...prev, noten: { ...prev.noten, [s.id]: { ...prev.noten?.[s.id], [activeFach]: { ...prev.noten?.[s.id]?.[activeFach], [sem]: { ...data, lzkParticipation: { ...data.lzkParticipation, [idx]: participates } } } } } }; }); }} />{rawNd.lzkParticipation?.[idx] === false ? 'Nimmt nicht teil' : 'Teilnahme'}</label>
                                       {isBorderline(nd.lzk[idx]) && (
                                         <div className="absolute -top-1.5 -right-0.5 z-10 text-amber-500 bg-white rounded-full shadow-sm border border-amber-200 pointer-events-none" title="Grenzentscheidung / Tendenz (+/-)">
                                           <AlertCircle size={10} className="stroke-[3]" />
@@ -3983,7 +3981,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                       {cfg.lzk && (
                         <>
                           {Array.from({length: colCounts.lzk}).map((_, idx) => (
-                            <td key={`flzk-${idx}`} className="px-1 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900 text-white">
+                            <td data-lzk-class-average={idx} key={`flzk-${idx}`} className="px-1 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900 text-white">
                               {columnAverages[`lzk-${idx}`]?.avg !== null && columnAverages[`lzk-${idx}`]?.avg !== undefined 
                                 ? (assessmentMode === 'grades' ? columnAverages[`lzk-${idx}`]!.avg!.toFixed(1) : assessmentMode === 'percent' ? `${columnAverages[`lzk-${idx}`]!.avg!.toFixed(1)}%` : `${columnAverages[`lzk-${idx}`]!.avg!.toFixed(1)}P`) 
                                 : '–'}
@@ -4312,7 +4310,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
             <AssessmentItemModal
               isOpen={editingAssessmentModal !== null}
               onClose={() => setEditingAssessmentModal(null)}
-              onSave={(labelVal, dateVal, maxPointsVal) => {
+              onSave={(labelVal, dateVal, maxPointsVal, area) => {
                 if (editingAssessmentModal.isNew) {
                   setApp(prev => {
                     const meta = { ...(prev.notenMeta || {}) };
@@ -4337,7 +4335,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                     };
                   });
                 }
-                updateColMeta(editingAssessmentModal.typ, editingAssessmentModal.idx, labelVal, dateVal, maxPointsVal);
+                updateColMeta(editingAssessmentModal.typ, editingAssessmentModal.idx, labelVal, dateVal, maxPointsVal, area);
                 if (editingAssessmentModal.isNew) {
                   setActiveView('noten'); setShowWeights(false); setFilterMissing(false);
                   setSortBy('name'); setSortOrder('asc');
@@ -4356,6 +4354,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
               }}
               typ={editingAssessmentModal.typ}
               idx={editingAssessmentModal.idx}
+              initialArea={app.notenMeta?.[activeFach]?.colAreas?.lzk?.[editingAssessmentModal.idx] || ''}
               initialLabel={app.notenMeta?.[activeFach]?.colLabels?.[editingAssessmentModal.typ]?.[editingAssessmentModal.idx] || ''}
               initialDate={app.notenMeta?.[activeFach]?.colDates?.[editingAssessmentModal.typ]?.[editingAssessmentModal.idx] || ''}
               initialMaxPoints={getMaxPoints(app, activeFach, editingAssessmentModal.typ, editingAssessmentModal.idx)}

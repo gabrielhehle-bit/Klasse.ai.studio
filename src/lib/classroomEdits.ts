@@ -13,13 +13,14 @@ export function completeMissingAttendance(attendance: AppState['anwesenheit'], s
   return result;
 }
 
-export function updateSubjectColumn(meta: AppState['notenMeta'], subject: string, type: 'sa' | 'lzk' | 'wp' | 'obj', index: number, label: string, date: string, maxPoints?: number): AppState['notenMeta'] {
+export function updateSubjectColumn(meta: AppState['notenMeta'], subject: string, type: 'sa' | 'lzk' | 'wp' | 'obj', index: number, label: string, date: string, maxPoints?: number, area?: string): AppState['notenMeta'] {
   const current = meta[subject] || {};
   const dates = { ...current.colDates?.[type] };
   if (date) dates[index] = date; else delete dates[index];
   const points = { ...current.maxPoints?.[type] };
   if (maxPoints !== undefined && Number.isFinite(maxPoints) && maxPoints > 0) points[index] = maxPoints;
   return { ...meta, [subject]: { ...current,
+    ...(area !== undefined && type === 'lzk' ? { colAreas: { ...current.colAreas, lzk: { ...current.colAreas?.lzk, [index]: area.trim() } } } : {}),
     colLabels: { ...current.colLabels, [type]: { ...current.colLabels?.[type], [index]: label } },
     colDates: { ...current.colDates, [type]: dates },
     maxPoints: { ...current.maxPoints, [type]: points },
@@ -49,10 +50,12 @@ export function removeSubjectColumn(
       const semData = subjectData?.[semester];
       if (!semData) continue;
       const values = Array.isArray((semData as any)[dataKey]) ? (semData as any)[dataKey] : [];
-      if (values.length <= safeCount) continue;
+      const hasRemovedParticipation = type === 'lzk' && Object.keys((semData as any).lzkParticipation || {}).some(key => Number(key) >= safeCount);
+      if (values.length <= safeCount && !hasRemovedParticipation) continue;
       nextSubjectData[semester] = {
         ...semData,
         [dataKey]: values.slice(0, safeCount),
+        ...(type === 'lzk' && (semData as any).lzkParticipation ? { lzkParticipation: Object.fromEntries(Object.entries((semData as any).lzkParticipation).filter(([key]) => Number(key) < safeCount)) } : {}),
       };
       subjectChanged = true;
     }
@@ -79,6 +82,7 @@ export function removeSubjectColumn(
   const nextSubjectMeta = {
     ...current,
     colCounts: counts,
+    colAreas: { ...current.colAreas, [type]: trimIndexedRecord(current.colAreas?.[type]) },
     colLabels: {
       ...(current.colLabels || {}),
       [type]: trimIndexedRecord(current.colLabels?.[type]),
