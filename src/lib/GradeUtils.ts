@@ -346,13 +346,19 @@ export function miZuNote(striche: number, settings: any, allMitarbeit?: any, fac
   
   if (s.mode === 'relative' && s.relative_confirmed && allMitarbeit && fach && sem && students) {
     const activeValues = students.map(st => allMitarbeit?.[st.id]?.[fach]?.[sem] || 0);
-    const avg = activeValues.length > 0 ? activeValues.reduce((a: number, b: number) => a + b, 0) / activeValues.length : 0;
-    const rel = s.relative_thresholds || { 1: 20, 2: 10, 3: 0, 4: -10 };
-    
-    if (striche >= avg * (1 + rel[1]/100)) return 1;
-    if (striche >= avg * (1 + rel[2]/100)) return 2;
-    if (striche >= avg * (1 + rel[3]/100)) return 3;
-    if (striche >= avg * (1 + rel[4]/100)) return 4;
+    // Match the gradebook's established relative policy: only children with
+    // points contribute to the baseline; no participation never earns a 1.
+    const valuesWithPoints = activeValues.filter((value: number) => value > 0);
+    const avg = valuesWithPoints.length > 0
+      ? valuesWithPoints.reduce((a: number, b: number) => a + b, 0) / valuesWithPoints.length : 0;
+    const rel = s.relative_thresholds || {};
+    if (striche === 0) return 5;
+    if (avg === 0) return 3;
+
+    if (striche >= avg * (1 + (rel[1] ?? 20)/100)) return 1;
+    if (striche >= avg * (1 + (rel[2] ?? 10)/100)) return 2;
+    if (striche >= avg * (1 + (rel[3] ?? 0)/100)) return 3;
+    if (striche >= avg * (1 + (rel[4] ?? -10)/100)) return 4;
     return 5;
   }
 

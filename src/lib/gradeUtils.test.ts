@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getFachCfg, berechne, getAssessmentStorageValue, getHomeworkGradebookSettings, getMirroredAssessmentValue, getShowPointsPercent, isAssessmentValueMissing, hasCalculatedAverage, parseAssessmentInput, parseFinalGradeInput } from './GradeUtils';
+import { getFachCfg, berechne, miZuNote, getAssessmentStorageValue, getHomeworkGradebookSettings, getMirroredAssessmentValue, getShowPointsPercent, isAssessmentValueMissing, hasCalculatedAverage, parseAssessmentInput, parseFinalGradeInput } from './GradeUtils';
 
 function baseApp() {
   return {
@@ -211,4 +211,38 @@ test('points percent visibility defaults to on and can be disabled per subject',
 
   app.notenMeta.Deutsch.showPointsPercent = true;
   assert.equal(getShowPointsPercent(app, 'Deutsch'), true);
+});
+
+
+test('relative participation uses the same active-pupil baseline in row and weighted total', () => {
+  const app = baseApp();
+  app.schueler = [{ id: 's1' }, { id: 's2' }, { id: 's3' }];
+  app.mitarbeit = { s1: { Deutsch: { '1': 10 } }, s2: { Deutsch: { '1': 10 } }, s3: { Deutsch: { '1': 0 } } };
+  app.mitarbeit_settings = { mode: 'relative', relative_confirmed: true };
+  app.notenGewichtung.Deutsch = { sa: 0, lzk: 0, wp: 0, obj: 0, mi: 100, hue: 0 };
+  assert.equal(miZuNote(10, app.mitarbeit_settings, app.mitarbeit, 'Deutsch', '1', app.schueler), 3);
+  assert.equal(berechne(app, 's1', 'Deutsch', '1'), 3);
+  assert.equal(berechne(app, 's3', 'Deutsch', '1'), 5);
+  app.notenMeta.Deutsch.assessmentMode = 'percent';
+  assert.equal(berechne(app, 's1', 'Deutsch', '1'), 60);
+  assert.equal(berechne(app, 's3', 'Deutsch', '1'), 20);
+});
+
+test('relative participation distinguishes a saved zero from an absent counter', () => {
+  const app = baseApp();
+  app.mitarbeit_settings = { mode: 'relative', relative_confirmed: true };
+  app.notenGewichtung.Deutsch = { sa: 0, lzk: 0, wp: 0, obj: 0, mi: 100, hue: 0 };
+  assert.equal(berechne(app, 's1', 'Deutsch', '1'), null);
+  app.mitarbeit = { s1: { Deutsch: { '1': 0 } } };
+  assert.equal(berechne(app, 's1', 'Deutsch', '1'), 5);
+});
+
+test('relative thresholds preserve explicit zero and default individually missing entries', () => {
+  const students = [{ id: 'a' }, { id: 'b' }];
+  const counters = { a: { Deutsch: { '1': 10, '2': 100 }, Mathematik: { '1': 500 } }, b: { Deutsch: { '1': 10 } }, outsider: { Deutsch: { '1': 1000 } } };
+  const settings = { mode: 'relative', relative_confirmed: true, relative_thresholds: { 1: 0 } };
+  assert.equal(miZuNote(10, settings, counters, 'Deutsch', '1', students), 1);
+  assert.equal(miZuNote(9, settings, counters, 'Deutsch', '1', students), 4);
+  assert.equal(miZuNote(0, settings, counters, 'Deutsch', '1', students), 5);
+  assert.equal(miZuNote(10, { ...settings, relative_confirmed: false }, counters, 'Deutsch', '1', students), 2);
 });
