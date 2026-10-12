@@ -3484,9 +3484,9 @@ async function main() {
         await waitFor(client, 'point percentage option available', `Boolean(Array.from(document.querySelectorAll('label')).find(l=>l.textContent.includes('Prozentwerte bei Punkten anzeigen'))?.querySelector('input[type=checkbox]'))`);
         await clickButton(client, 'Speichern', true);
         for(const [typ,points,max] of [['sa','18','24'],['lzk','7','20']]) {
-          await clickSelector(client, `input[data-col="${typ}-0"]`);
-          await evaluate(client, `(() => {const input=document.querySelector('input[data-col="${typ}-0"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,${q(points)});input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));input.blur();})()`);
-          await sleep(650);
+          const inputLabel=await evaluate(client,`document.querySelector('input[data-col="${typ}-0"]').getAttribute('aria-label')`);
+          await numbersTypeSigned('[data-gradebook]',inputLabel,points);
+          await pressAuditKey('Enter');
           const headerSelector=typ==='sa'?'button[aria-label*=\"Schularbeiten 1\"]':'button[aria-label*=\"Lernzielkontrollen 1\"]';
           await clickSelector(client, headerSelector+'[aria-label*="Spaltenoptionen"]');
           await waitFor(client, 'assessment column options dialog', `Boolean(document.querySelector('#assessment-item-modal-content'))`);
