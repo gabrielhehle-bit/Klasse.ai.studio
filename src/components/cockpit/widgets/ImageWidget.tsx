@@ -598,8 +598,9 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
           </div>
 
           {/* Steuerelemente / Toolbar (F-UI Responsive: COMPACT vs STANDARD vs LARGE) */}
+          {/* Leave the frame's 44px bottom-right resize target free. */}
           <div data-image-toolbar
-            className="shrink-0 flex flex-wrap items-center justify-between gap-2 p-2 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-md border-t border-slate-200/80 dark:border-white/10 z-20">
+            className="shrink-0 flex flex-wrap items-center justify-between gap-2 p-2 pr-12 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-md border-t border-slate-200/80 dark:border-white/10 z-20">
             {/* Linke Seite: Bildinfo & Alt-Text */}
             <div className="flex items-center gap-1.5 min-w-0 flex-1">
               <span className="text-[11px] font-bold truncate text-slate-700 dark:text-zinc-300">
