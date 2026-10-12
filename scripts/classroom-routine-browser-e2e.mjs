@@ -699,10 +699,13 @@ async function main() {
     await clickButton(client, 'Kernwidgets');
     await waitFor(client, 'regular picker has 24 grouped entries', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length === 24`);
     await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-widget-catalog.png'));
-    await client.send('Emulation.setDeviceMetricsOverride', { width:WIDTH, height:900, deviceScaleFactor:1, mobile:false });
-    await waitFor(client, 'regular picker fits the classroom viewport', `(() => {const dialog=document.querySelector('[role=dialog][aria-label="Widget-Bibliothek"]');if(!dialog)return false;const rect=dialog.getBoundingClientRect();return rect.left>=-1 && rect.right<=innerWidth+1 && rect.top>=0 && rect.bottom<=innerHeight+1;})()`);
+    await client.send('Emulation.setDeviceMetricsOverride', { width:820, height:900, deviceScaleFactor:1, mobile:false });
+    // Below 768px the app deliberately switches from the cockpit to phone quick mode.
+    await sleep(250);
+    await waitFor(client, 'regular picker fits the supported tablet viewport', `(() => {const dialog=document.querySelector('[role=dialog][aria-label="Widget-Bibliothek"]');if(!dialog)return false;const rect=dialog.getBoundingClientRect();return rect.left>=-1 && rect.right<=innerWidth+1 && rect.top>=0 && rect.bottom<=innerHeight+1 && document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length===24;})()`);
     await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-widget-catalog-compact.png'));
     await client.send('Emulation.setDeviceMetricsOverride', { width:1366, height:768, deviceScaleFactor:1, mobile:false });
+    await sleep(250);
     await setInputByLabel(client, 'Widget suchen', 'Bruch');
     await waitFor(client, 'fraction search shows one group', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length === 1 && Boolean(document.querySelector('[data-testid="cockpit-core-group-fractionvisualizer"]'))`);
     await evaluate(client, `document.querySelector('button[aria-label="Varianten von Brüche anzeigen"]').click()`);

@@ -30,7 +30,8 @@ Variantensuche und die vollständige Aufteilung in reguläre Kategorien.
 Die bestehende Browserroutine prüft zusätzlich den 24er-Picker, einen einzelnen
 Bruchtreffer samt Varianten, getrennte Suche eines Spezialthemas und den
 erhaltenen 112er-Bestand. Screenshots werden für Laptop und die jeweilige
-360-/820-Pixel-Matrixbreite erstellt. Die einzelnen Widgetprüfungen öffnen
+unterstützte Tabletansicht bei 820 Pixeln erstellt. Unter 768 Pixeln wechselt
+die App bewusst vom Cockpit in den Handy-Schnellmodus. Die einzelnen Widgetprüfungen öffnen
 bewusst den separaten Bestand, damit ihre genauen gespeicherten Typen weiter
 geprüft werden.
 
