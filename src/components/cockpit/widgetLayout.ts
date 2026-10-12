@@ -76,7 +76,7 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   dienste: { minW: 640, minH: 560, prefW: 760, prefH: 600 },
   links: { minW: 340, minH: 360, prefW: 460, prefH: 420 },
   qrcode: { minW: 320, minH: 560, prefW: 400, prefH: 600 },
-  image: { minW: 280, minH: 200, prefW: 420, prefH: 340 },
+  image: { minW: 620, minH: 480, prefW: 680, prefH: 520 },
   drawing: { minW: 700, minH: 480, prefW: 760, prefH: 520 },
   stopwatch: { minW: 280, minH: 200, prefW: 380, prefH: 300 },
   // All ClassRewardWidget variants need an unscaled title, reached banner,

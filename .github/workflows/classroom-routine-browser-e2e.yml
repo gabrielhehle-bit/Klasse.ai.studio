@@ -9,6 +9,8 @@ on:
       - 'src/components/PresenceBehaviorStats.tsx'
       - 'src/components/cockpit/WidgetReadableText.tsx'
       - 'src/components/cockpit/widgetLayout.ts'
+      - 'src/components/cockpit/widgets/ImageWidget.tsx'
+      - 'src/lib/imageAlgorithm.ts'
       - 'src/components/cockpit/widgets/ZahlenraumStudio.tsx'
       - 'src/lib/zahlenraumAlgorithm.ts'
       - 'src/lib/wortSatzWerkstattAlgorithm.ts'

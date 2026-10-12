@@ -252,5 +252,5 @@ test('F19 Drawing: 22. Andere Widgets unverändert', () => {
   assert.equal(WIDGET_MIN_SIZES.groups.minW, 300);
   assert.equal(WIDGET_MIN_SIZES.kidattendance.minW, 280);
   assert.equal(WIDGET_MIN_SIZES.qrcode.minW, 320);
-  assert.equal(WIDGET_MIN_SIZES.image.minW, 280);
+  assert.equal(WIDGET_MIN_SIZES.image.minW, 620);
 });

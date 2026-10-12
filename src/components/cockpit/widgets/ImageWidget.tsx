@@ -36,7 +36,24 @@ import {
   sanitizeImageAltText,
   SafeObjectUrlManager,
   MAX_IMAGE_DIMENSION,
+  getImageFitDimensions,
 } from '../../../lib/imageAlgorithm';
+
+function ImageDialog({ label, onClose, children }: { label: string; onClose: () => void; children: React.ReactNode }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    const dialog = ref.current;
+    dialog?.showModal();
+    return () => { dialog?.close(); if (opener?.isConnected) opener.focus(); };
+  }, []);
+  return createPortal(<dialog ref={ref} aria-label={label}
+    onCancel={event => { event.preventDefault(); onClose(); }}
+    onClick={event => { if (event.target === event.currentTarget) onClose(); }}
+    className="fixed inset-0 m-0 h-[100dvh] max-h-none w-screen max-w-none border-0 bg-black/45 p-4 text-slate-900 backdrop-blur-sm open:flex items-center justify-center">
+    {children}
+  </dialog>, document.body);
+}
 
 export interface ImageWidgetProps {
   widget?: any;
@@ -64,9 +81,11 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
 
   // Object-URL-Manager zur Vermeidung von Speicherlecks
   const urlManagerRef = useRef<SafeObjectUrlManager>(new SafeObjectUrlManager());
+  const loadVersion = useRef(0);
   useEffect(() => {
     const manager = urlManagerRef.current;
     return () => {
+      loadVersion.current++;
       manager.revokeAll();
     };
   }, []);
@@ -79,6 +98,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
   const [imageUrl, setImageUrl] = useState<string | null>(initialSettings.imageUrl);
   const [altText, setAltText] = useState<string>(initialSettings.altText);
   const [fileName, setFileName] = useState<string | undefined>(initialSettings.fileName);
+  const persistedSource = useRef(initialSettings.imageUrl);
   const [rotation, setRotation] = useState<number>(initialSettings.rotation);
   const [scale, setScale] = useState<number>(initialSettings.scale);
   const [pan, setPan] = useState<{ x: number; y: number }>({
@@ -107,10 +127,34 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageStageRef = useRef<HTMLDivElement>(null);
+  const lightboxStageRef = useRef<HTMLDivElement>(null);
+  const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
+  const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
+  useEffect(() => {
+    const stage = isLightboxOpen ? lightboxStageRef.current : imageStageRef.current;
+    if (!stage) return;
+    const update = () => setStageSize({ width: stage.clientWidth, height: stage.clientHeight });
+    const observer = new ResizeObserver(update);
+    observer.observe(stage); update();
+    return () => observer.disconnect();
+  }, [imageUrl, isLightboxOpen]);
+  const fitted = getImageFitDimensions(naturalSize.width, naturalSize.height, stageSize.width, stageSize.height, rotation);
+  const imageStyle = { width: fitted.width || undefined, height: fitted.height || undefined,
+    maxWidth: 'none', maxHeight: 'none', flexShrink: 0,
+    transform: `translate(${pan.x}px, ${pan.y}px) rotate(${rotation}deg) scale(${scale})` };
+  const onImageLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
+    setNaturalSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight });
+  };
 
   // Synchronisieren, wenn sich widget.settings von außen ändert
   useEffect(() => {
     const canonical = getCanonicalImageSettings(widget?.settings);
+    if (persistedSource.current !== canonical.imageUrl) {
+      persistedSource.current = canonical.imageUrl;
+      loadVersion.current++;
+      setIsProcessing(false);
+    }
     setImageUrl(canonical.imageUrl);
     setAltText(canonical.altText);
     setFileName(canonical.fileName);
@@ -146,6 +190,8 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
 
   // Clientseitiges Verarbeiten und sanftes Downscaling großer Bilder
   const processAndLoadImage = async (file: File) => {
+    const version = ++loadVersion.current;
+    let tempUrl: string | undefined;
     setIsProcessing(true);
     setErrorMessage(null);
 
@@ -158,13 +204,13 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
 
     try {
       // 1. Temporäre URL für Bilddimensionen erzeugen
-      const tempUrl = urlManagerRef.current.create(file);
+      tempUrl = urlManagerRef.current.create(file);
 
       const img = new Image();
       await new Promise<void>((resolve, reject) => {
         img.onload = () => resolve();
         img.onerror = () => reject(new Error('Bild konnte nicht geladen werden.'));
-        img.src = tempUrl;
+        img.src = tempUrl!;
       });
 
       const origW = img.naturalWidth || img.width;
@@ -194,8 +240,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
         finalDataUrl = await readFileAsDataUrl(file);
       }
 
-      // Temporäre URL freigeben
-      urlManagerRef.current.revoke(tempUrl);
+      if (version !== loadVersion.current) return;
 
       const cleanName = validation.sanitizedName || 'Bild';
       const cleanAlt = sanitizeImageAltText(cleanName.replace(/\.[^.]+$/, ''));
@@ -216,11 +261,13 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
         panX: 0,
         panY: 0,
         fileSizeBytes: file.size,
+        materialId: undefined,
       });
     } catch (err: any) {
-      setErrorMessage('Das Bild konnte nicht verarbeitet werden. Bitte prüfe das Format.');
+      if (version === loadVersion.current) setErrorMessage('Das Bild konnte nicht verarbeitet werden. Bitte prüfe das Format.');
     } finally {
-      setIsProcessing(false);
+      if (tempUrl) urlManagerRef.current.revoke(tempUrl);
+      if (version === loadVersion.current) setIsProcessing(false);
     }
   };
 
@@ -283,6 +330,9 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
     // externally hosted photographs are processed entirely offline.
     if (!window.confirm('Ein externes Bild lädt Daten von der angegebenen Website. Verwende keine vertraulichen Schülerfotos oder privaten Dateien. Bildadresse übernehmen?')) return;
 
+    loadVersion.current++;
+    setIsProcessing(false);
+
     setErrorMessage(null);
     setImageUrl(trimmed);
     setFileName('Web-Bild');
@@ -299,6 +349,8 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
       scale: 1,
       panX: 0,
       panY: 0,
+      materialId: undefined,
+      fileSizeBytes: undefined,
     });
   };
 
@@ -317,6 +369,9 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
       setErrorMessage('Material enthält kein gültiges Bild.');
       return;
     }
+    loadVersion.current++;
+    setIsProcessing(false);
+    setErrorMessage(null);
     setImageUrl(mat.dateiInhalt);
     const cleanTitel = sanitizeFileName(mat.titel || 'Materialbild');
     setFileName(cleanTitel);
@@ -335,6 +390,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
       scale: 1,
       panX: 0,
       panY: 0,
+      fileSizeBytes: undefined,
     });
   };
 
@@ -360,6 +416,10 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
     setPan({ x: 0, y: 0 });
     persistSettings({ scale: 1, panX: 0, panY: 0 });
   };
+  const handleResetView = () => {
+    setRotation(0); setScale(1); setPan({ x: 0, y: 0 });
+    persistSettings({ rotation: 0, scale: 1, panX: 0, panY: 0 });
+  };
 
   // Rotation
   const handleRotate = () => {
@@ -370,6 +430,8 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
 
   // Bild entfernen
   const handleRemoveImage = () => {
+    loadVersion.current++;
+    setIsProcessing(false);
     setImageUrl(null);
     setFileName(undefined);
     setAltText('');
@@ -386,6 +448,8 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
       scale: 1,
       panX: 0,
       panY: 0,
+      materialId: undefined,
+      fileSizeBytes: undefined,
     });
   };
 
@@ -438,6 +502,9 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
   return (
     <div
       ref={containerRef}
+      data-practice-root="image"
+      data-image-rotation={rotation}
+      data-image-scale={scale}
       id={`image-widget-${widget?.id || 'main'}`}
       className={`relative flex flex-col h-full w-full select-none overflow-hidden rounded-2xl transition-colors ${
         currentIsLight
@@ -452,6 +519,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
       <input
         ref={fileInputRef}
         type="file"
+        aria-label="Tafelbild-Datei auswählen"
         accept="image/png,image/jpeg,image/webp,image/gif"
         onChange={handleFileChange}
         className="hidden"
@@ -472,10 +540,10 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
 
       {/* Fehlermeldung */}
       {errorMessage && (
-        <div className="absolute top-2 inset-x-2 z-30 flex items-center justify-between gap-2 p-2 bg-rose-50 dark:bg-rose-950/90 border border-rose-200 dark:border-rose-800 rounded-xl shadow-md text-rose-700 dark:text-rose-300 text-xs">
+        <div role="alert" className="absolute top-2 inset-x-2 z-30 flex items-center justify-between gap-2 p-2 bg-rose-50 dark:bg-rose-950/90 border border-rose-200 dark:border-rose-800 rounded-xl shadow-md text-rose-700 dark:text-rose-300 text-xs">
           <div className="flex items-center gap-1.5 min-w-0">
             <AlertCircle size={16} className="shrink-0 text-rose-500" />
-            <span className="truncate font-medium text-[11px]">{errorMessage}</span>
+            <span className="font-medium text-xs">{errorMessage}</span>
           </div>
           <button
             onClick={() => setErrorMessage(null)}
@@ -492,6 +560,8 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
         <div className="relative flex-1 flex flex-col w-full h-full min-h-0 overflow-hidden">
           {/* Haupt-Bildbühne (object-fit: contain, kein horizontaler Overflow) */}
           <div
+            ref={imageStageRef}
+            data-image-stage
             className={`relative flex-1 w-full h-full flex items-center justify-center overflow-hidden min-h-0 ${
               scale > 1
                 ? isPanning
@@ -509,9 +579,8 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
               src={imageUrl}
               alt={altText || fileName || 'Unterrichtsbild'}
               className="max-w-full max-h-full object-contain pointer-events-none transition-transform duration-100 ease-out"
-              style={{
-                transform: `rotate(${rotation}deg) scale(${scale}) translate(${pan.x / scale}px, ${pan.y / scale}px)`,
-              }}
+              style={imageStyle}
+              onLoad={onImageLoad}
               onError={() => {
                 setErrorMessage('Bild konnte nicht geladen werden oder ist beschädigt.');
               }}
@@ -529,9 +598,11 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
           </div>
 
           {/* Steuerelemente / Toolbar (F-UI Responsive: COMPACT vs STANDARD vs LARGE) */}
-          <div className="shrink-0 flex items-center justify-between gap-1 p-2 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-md border-t border-slate-200/80 dark:border-white/10 z-20">
+          {/* Leave the frame's 44px bottom-right resize target free. */}
+          <div data-image-toolbar
+            className="shrink-0 flex flex-wrap items-center justify-between gap-2 p-2 pr-12 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-md border-t border-slate-200/80 dark:border-white/10 z-20">
             {/* Linke Seite: Bildinfo & Alt-Text */}
-            <div className="flex items-center gap-1.5 min-w-0 max-w-[45%]">
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
               <span className="text-[11px] font-bold truncate text-slate-700 dark:text-zinc-300">
                 {altText || fileName || 'Bild'}
               </span>
@@ -541,7 +612,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                     setTempAlt(altText);
                     setIsAltEditing(true);
                   }}
-                  className="text-[9px] text-slate-400 hover:text-accent font-semibold cursor-pointer shrink-0"
+                  className="min-h-11 min-w-11 px-2 text-xs text-slate-500 hover:text-accent font-semibold cursor-pointer shrink-0"
                   title="Bildbeschreibung bearbeiten"
                 >
                   Beschriften
@@ -558,7 +629,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                     onClick={handleRotate}
                     className="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-slate-600 dark:text-zinc-300 font-bold flex items-center justify-center transition-all cursor-pointer active:scale-95"
                     style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
-                    title="90° Drehen"
+                    aria-label="Bild 90° drehen" title="90° Drehen"
                   >
                     <RotateCw size={16} />
                   </button>
@@ -567,7 +638,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                     onClick={() => setIsLightboxOpen(true)}
                     className="p-2 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-bold flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs"
                     style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
-                    title="Vollbild öffnen"
+                    aria-label="Tafelbild-Vollbild öffnen" title="Vollbild öffnen"
                   >
                     <Maximize2 size={16} />
                   </button>
@@ -591,7 +662,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                       onClick={handleZoomOut}
                       disabled={scale <= 0.5}
                       className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-white/60 dark:hover:bg-zinc-700/60 text-slate-700 dark:text-zinc-200 disabled:opacity-30 transition-all cursor-pointer"
-                      title="Verkleinern"
+                      aria-label="Bild verkleinern" title="Verkleinern"
                     >
                       <ZoomOut size={14} />
                     </button>
@@ -599,8 +670,8 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                     <button
                       type="button"
                       onClick={handleResetZoom}
-                      className="px-1.5 py-0.5 text-[10px] font-black tabular-nums text-slate-700 dark:text-zinc-200 hover:bg-white/60 dark:hover:bg-zinc-700/60 rounded transition-all cursor-pointer"
-                      title="Zoom zurücksetzen (100%)"
+                      className="min-h-11 min-w-11 px-1.5 text-xs font-black tabular-nums text-slate-700 dark:text-zinc-200 hover:bg-white/60 dark:hover:bg-zinc-700/60 rounded transition-all cursor-pointer"
+                      aria-label="Bildzoom zurücksetzen" title="Zoom zurücksetzen (100%)"
                     >
                       {Math.round(scale * 100)}%
                     </button>
@@ -610,7 +681,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                       onClick={handleZoomIn}
                       disabled={scale >= 3.5}
                       className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-white/60 dark:hover:bg-zinc-700/60 text-slate-700 dark:text-zinc-200 disabled:opacity-30 transition-all cursor-pointer"
-                      title="Vergrößern"
+                      aria-label="Bild vergrößern" title="Vergrößern"
                     >
                       <ZoomIn size={14} />
                     </button>
@@ -622,7 +693,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                     onClick={handleRotate}
                     className="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-slate-600 dark:text-zinc-300 font-bold transition-all cursor-pointer active:scale-95"
                     style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
-                    title="90° im Uhrzeigersinn drehen"
+                    aria-label="Bild 90° drehen" title="90° im Uhrzeigersinn drehen"
                   >
                     <RotateCw size={15} />
                   </button>
@@ -633,7 +704,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                     onClick={() => setIsLightboxOpen(true)}
                     className="px-2.5 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-xs"
                     style={{ minHeight: TOUCH_TARGET_MIN }}
-                    title="Vollbild anzeigen (Smartboard)"
+                    aria-label="Tafelbild-Vollbild öffnen" title="Vollbild anzeigen (Smartboard)"
                   >
                     <Maximize2 size={14} />
                     <span className="hidden sm:inline">Vollbild</span>
@@ -656,7 +727,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                     onClick={handleRemoveImage}
                     className="p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-500 transition-all cursor-pointer active:scale-95"
                     style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
-                    title="Bild entfernen"
+                    aria-label="Bild entfernen" title="Bild entfernen"
                   >
                     <Trash2 size={15} />
                   </button>
@@ -706,7 +777,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsMaterialModalOpen(true)}
-                  className="text-[10px] font-bold text-accent hover:text-accent flex items-center gap-1 cursor-pointer py-1 px-2 rounded-lg hover:bg-accent-soft"
+                  className="min-h-11 min-w-11 text-xs font-bold text-accent hover:text-accent flex items-center gap-1 cursor-pointer py-1 px-2 rounded-lg hover:bg-accent-soft"
                 >
                   <FolderOpen size={12} />
                   <span>Materialbibliothek ({materialsList.length})</span>
@@ -716,7 +787,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
               <button
                 type="button"
                 onClick={() => setIsUrlModalOpen(true)}
-                className="text-[10px] font-bold text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 flex items-center gap-1 cursor-pointer py-1 px-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5"
+                className="min-h-11 min-w-11 text-xs font-bold text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 flex items-center gap-1 cursor-pointer py-1 px-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5"
               >
                 <Link size={12} />
                 <span>Web-URL</span>
@@ -726,14 +797,8 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
         </div>
       )}
 
-      {showSettings && createPortal(
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Tafelbild einstellen"
-          className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm"
-          onClick={() => onCloseSettings?.()}
-        >
+      {showSettings && (
+        <ImageDialog label="Tafelbild einstellen" onClose={() => onCloseSettings?.()}>
           <div
             className="w-full max-w-lg space-y-4 rounded-2xl border border-slate-200 bg-white p-5 text-slate-900 shadow-2xl dark:border-white/10 dark:bg-zinc-900 dark:text-white"
             onClick={(event) => event.stopPropagation()}
@@ -821,7 +886,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={handleResetZoom}
+                  onClick={handleResetView}
                   className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 px-3 text-xs font-bold hover:bg-slate-100 dark:border-white/15 dark:hover:bg-white/10"
                 >
                   <RotateCcw size={15} />
@@ -844,13 +909,12 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
               </button>
             </div>
           </div>
-        </div>,
-        document.body,
+        </ImageDialog>
       )}
 
       {/* Alt-Text / Beschriftungs-Dialog */}
       {isAltEditing && (
-        <div className="absolute inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <ImageDialog label="Tafelbild beschriften" onClose={() => setIsAltEditing(false)}>
           <div className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-xl border border-slate-200 dark:border-white/10 space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-bold text-slate-800 dark:text-zinc-100">
@@ -858,6 +922,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
               </h4>
               <button
                 onClick={() => setIsAltEditing(false)}
+                aria-label="Beschriftungsdialog schließen"
                 className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
               >
                 <X size={16} />
@@ -868,31 +933,32 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
               value={tempAlt}
               onChange={(e) => setTempAlt(e.target.value)}
               placeholder="z. B. Skelett des Menschen S. 42"
-              maxLength={120}
-              className="w-full p-2 text-xs rounded-xl border border-slate-300 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 outline-none focus:border-accent"
+              aria-label="Bildbeschreibung"
+              maxLength={150}
+              className="min-h-11 w-full p-2 text-sm rounded-xl border border-slate-300 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 outline-none focus:border-accent"
               autoFocus
             />
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setIsAltEditing(false)}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-zinc-400 hover:bg-black/5 dark:hover:bg-white/5"
+                className="min-h-11 min-w-11 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-zinc-400 hover:bg-black/5 dark:hover:bg-white/5"
               >
                 Abbrechen
               </button>
               <button
                 onClick={handleSaveAlt}
-                className="px-3 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-xs font-bold"
+                className="min-h-11 min-w-11 px-3 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-xs font-bold"
               >
                 Speichern
               </button>
             </div>
           </div>
-        </div>
+        </ImageDialog>
       )}
 
       {/* URL Eingabe Modal */}
       {isUrlModalOpen && (
-        <div className="absolute inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <ImageDialog label="Tafelbild-Webadresse" onClose={() => setIsUrlModalOpen(false)}>
           <div className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-xl border border-slate-200 dark:border-white/10 space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-bold text-slate-800 dark:text-zinc-100">
@@ -900,42 +966,45 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
               </h4>
               <button
                 onClick={() => setIsUrlModalOpen(false)}
+                aria-label="Bildadressdialog schließen"
                 className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
               >
                 <X size={16} />
               </button>
             </div>
             <input
+              aria-label="HTTPS-Bildadresse"
               type="url"
               value={urlInput}
               onChange={(e) => setUrlInput(e.target.value)}
               placeholder="https://schule.at/beispiel.jpg"
-              className="w-full p-2 text-xs rounded-xl border border-slate-300 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 outline-none focus:border-accent"
+              className="min-h-11 w-full p-2 text-sm rounded-xl border border-slate-300 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 outline-none focus:border-accent"
             />
             <p className="text-[10px] text-slate-400">
               Nur sichere direkte Bildadressen (HTTPS) verwenden.
             </p>
+            {errorMessage && <p role="alert" className="text-sm text-rose-600">{errorMessage}</p>}
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setIsUrlModalOpen(false)}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-zinc-400 hover:bg-black/5 dark:hover:bg-white/5"
+                className="min-h-11 min-w-11 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-zinc-400 hover:bg-black/5 dark:hover:bg-white/5"
               >
                 Abbrechen
               </button>
               <button
                 onClick={handleApplyUrl}
-                className="px-3 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-xs font-bold"
+                className="min-h-11 min-w-11 px-3 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-xs font-bold"
               >
                 Übernehmen
               </button>
             </div>
           </div>
-        </div>
+        </ImageDialog>
       )}
 
       {/* Materialbibliothek Modal */}
       {isMaterialModalOpen && (
-        <div className="absolute inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <ImageDialog label="Tafelbild-Material auswählen" onClose={() => setIsMaterialModalOpen(false)}>
           <div className="w-full max-w-sm max-h-[85%] bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-xl border border-slate-200 dark:border-white/10 flex flex-col gap-3">
             <div className="flex items-center justify-between shrink-0">
               <h4 className="text-xs font-bold text-slate-800 dark:text-zinc-100">
@@ -943,17 +1012,19 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
               </h4>
               <button
                 onClick={() => setIsMaterialModalOpen(false)}
+                aria-label="Materialdialog schließen"
                 className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
               >
                 <X size={16} />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto space-y-1.5 min-h-[120px]">
+              {errorMessage && <p role="alert" className="text-sm text-rose-600">{errorMessage}</p>}
               {materialsList.map((m: any) => (
                 <button
                   key={m.id}
                   onClick={() => handleSelectMaterial(m)}
-                  className="w-full text-left p-2 rounded-xl hover:bg-accent-soft border border-slate-200 dark:border-white/5 text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors"
+                  className="min-h-11 w-full text-left p-2 rounded-xl hover:bg-accent-soft border border-slate-200 dark:border-white/5 text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors"
                 >
                   <FolderOpen size={14} className="text-accent shrink-0" />
                   <span className="truncate">{m.titel || 'Unbenanntes Material'}</span>
@@ -961,14 +1032,15 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
               ))}
             </div>
           </div>
-        </div>
+        </ImageDialog>
       )}
 
       {/* VOLLBILD / LIGHTBOX MODAL (1-Klick Vollbild auf Smartboard) */}
       {isLightboxOpen && imageUrl && (
+        <ImageDialog label="Tafelbild-Vollbild" onClose={() => setIsLightboxOpen(false)}>
         <div className="fixed inset-0 z-100 bg-black/90 backdrop-blur-md flex flex-col items-center justify-between p-4 sm:p-6 select-none animate-fadeIn">
           {/* Schwebende obere Leiste mit minimalen Controls */}
-          <div className="w-full flex items-center justify-between z-30 pointer-events-auto">
+          <div className="w-full shrink-0 flex flex-wrap gap-2 items-center justify-between z-30 pointer-events-auto">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/10 text-white backdrop-blur-md border border-white/10">
               <span className="text-xs font-bold truncate max-w-[300px]">
                 {altText || fileName || 'Vollbild'}
@@ -979,16 +1051,16 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
               <button
                 onClick={handleZoomOut}
                 disabled={scale <= 0.5}
-                className="p-2 rounded-xl hover:bg-white/20 text-white transition-all cursor-pointer"
-                title="Verkleinern"
+                className="min-h-11 min-w-11 p-2 rounded-xl hover:bg-white/20 text-white transition-all cursor-pointer"
+                aria-label="Bild verkleinern" title="Verkleinern"
               >
                 <ZoomOut size={18} />
               </button>
 
               <button
                 onClick={handleResetZoom}
-                className="px-2 py-1 text-xs font-bold tabular-nums text-white hover:bg-white/20 rounded-lg transition-all cursor-pointer"
-                title="100% Reset"
+                className="min-h-11 min-w-11 px-2 py-1 text-xs font-bold tabular-nums text-white hover:bg-white/20 rounded-lg transition-all cursor-pointer"
+                aria-label="Bildzoom zurücksetzen" title="100% Reset"
               >
                 {Math.round(scale * 100)}%
               </button>
@@ -996,8 +1068,8 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
               <button
                 onClick={handleZoomIn}
                 disabled={scale >= 3.5}
-                className="p-2 rounded-xl hover:bg-white/20 text-white transition-all cursor-pointer"
-                title="Vergrößern"
+                className="min-h-11 min-w-11 p-2 rounded-xl hover:bg-white/20 text-white transition-all cursor-pointer"
+                aria-label="Bild vergrößern" title="Vergrößern"
               >
                 <ZoomIn size={18} />
               </button>
@@ -1006,8 +1078,8 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
 
               <button
                 onClick={handleRotate}
-                className="p-2 rounded-xl hover:bg-white/20 text-white transition-all cursor-pointer"
-                title="90° Drehen"
+                className="min-h-11 min-w-11 p-2 rounded-xl hover:bg-white/20 text-white transition-all cursor-pointer"
+                aria-label="Bild 90° drehen" title="90° Drehen"
               >
                 <RotateCw size={18} />
               </button>
@@ -1018,7 +1090,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
                 onClick={() => setIsLightboxOpen(false)}
                 className="p-2 rounded-xl bg-white/20 hover:bg-rose-600 text-white transition-all cursor-pointer"
                 style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
-                title="Vollbild schließen"
+                aria-label="Tafelbild-Vollbild schließen" title="Vollbild schließen"
               >
                 <X size={20} />
               </button>
@@ -1027,7 +1099,9 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
 
           {/* Vollbild-Bühne */}
           <div
-            className={`relative flex-1 w-full h-full flex items-center justify-center overflow-hidden my-2 ${
+            ref={lightboxStageRef}
+            data-image-stage
+            className={`relative flex-1 min-h-0 w-full flex items-center justify-center overflow-hidden my-2 ${
               scale > 1
                 ? isPanning
                   ? 'cursor-grabbing'
@@ -1043,9 +1117,8 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
               src={imageUrl}
               alt={altText || fileName || 'Vollbildanzeige'}
               className="max-w-full max-h-full object-contain pointer-events-none transition-transform duration-100 ease-out"
-              style={{
-                transform: `rotate(${rotation}deg) scale(${scale}) translate(${pan.x / scale}px, ${pan.y / scale}px)`,
-              }}
+              style={imageStyle}
+              onLoad={onImageLoad}
               referrerPolicy="no-referrer"
             />
           </div>
@@ -1055,6 +1128,7 @@ export const ImageWidget: React.FC<ImageWidgetProps> = ({
             Smartboard-Ansicht {/^https?:\/\//i.test(imageUrl) ? '• Externes Bild wird vom angegebenen Server geladen' : '• Lokal bereitgestelltes Bild'}
           </div>
         </div>
+        </ImageDialog>
       )}
     </div>
   );
