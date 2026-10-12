@@ -2610,6 +2610,71 @@ async function main() {
       await imageClick('Bild entfernen');
       console.log('✓ Image sources: real library PNG selection, damaged material preservation, caption Escape/focus, nested dialog fallback, declined URL makes no request, broken/slow/cancelled HTTPS preservation, latest source wins and web transforms survive full reopening.');
     }finally{await client.send('Fetch.disable');}
+    // Real native input on both image stages; no injected widget settings.
+    await imageUpload(imagePath);
+    await waitFor(client,'local image ready for contact tests',`document.querySelector(${q(imageRoot+' img')})?.naturalWidth===1200`);
+    const panMouse=(type,p,typeName='mouse',button='left',buttons=1)=>client.send('Input.dispatchMouseEvent',{type,...p,pointerType:typeName,button,buttons,clickCount:1});
+    const panPosition=(root,x,y)=>`document.querySelector(${q(root+' img')}).style.transform.includes(${q('translate('+x+'px, '+y+'px)')})`;
+    const verifyPanContacts=async(root,label)=>{
+      await imageClick('Bildzoom zurücksetzen',root);await imageClick('Bild vergrößern',root);await imageClick('Bild vergrößern',root);
+      await waitFor(client,label+' zoom ready for direct manipulation',`document.querySelector(${q(imageRoot)}).dataset.imageScale==='1.5'&&getComputedStyle(document.querySelector(${q(root+' [data-image-stage]')})).touchAction==='none'`);
+      const point=await evaluate(client,`(() => {const r=document.querySelector(${q(root+' [data-image-stage]')}).getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
+      await panMouse('mousePressed',point,'pen');await panMouse('mouseMoved',{x:point.x+20,y:point.y+10},'pen');await panMouse('mouseReleased',{x:point.x+20,y:point.y+10},'pen','left',0);
+      await waitFor(client,label+' native pen pan uses screen coordinates',panPosition(root,20,10));
+      const finger={...point,id:41};
+      await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[finger]});await client.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...finger,x:finger.x+10,y:finger.y+15}]});await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+      await waitFor(client,label+' finger pan works after pen release',panPosition(root,30,25));
+      await evaluate(client,`(() => {const s=document.querySelector(${q(root+' [data-image-stage]')});window.__panContacts=[];for(const type of ['pointerdown','pointerup'])s.addEventListener(type,e=>window.__panContacts.push({type,id:e.pointerId,trusted:e.isTrusted}),{capture:true});})()`);
+      const first={...point,id:51},second={x:point.x+60,y:point.y+50,id:52};
+      await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[first]});
+      await client.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...first,x:first.x+15,y:first.y+10}]});
+      await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...first,x:first.x+15,y:first.y+10},second]});
+      await client.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...first,x:first.x+15,y:first.y+10},{...second,x:second.x+30,y:second.y+20}]});
+      await waitFor(client,label+' moving a second finger cannot move the image',panPosition(root,45,35));
+      // The Chromium backend's partial end lists the contact to release.
+      await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[{...second,x:second.x+30,y:second.y+20}]});
+      await waitFor(client,label+' second contact really releases first',`(() => {const a=window.__panContacts,d=a.filter(e=>e.type==='pointerdown'),u=a.filter(e=>e.type==='pointerup');return d.length===2&&d[0].id!==d[1].id&&u.length===1&&u[0].id===d[1].id&&a.every(e=>e.trusted);})()`);
+      await client.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...first,x:first.x+20,y:first.y+15}]});await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+      await waitFor(client,label+' first finger retains ownership after secondary release',panPosition(root,50,40));
+      await evaluate(client,`document.querySelector(${q(root+' [data-image-stage]')}).addEventListener('gotpointercapture',e=>window.__panCapture=e.pointerId,{once:true});delete window.__panCapture`);
+      await panMouse('mousePressed',point);await panMouse('mouseMoved',{x:point.x+10,y:point.y+5});
+      await waitFor(client,label+' real pointer capture acquired',`Number.isInteger(window.__panCapture)`);
+      await evaluate(client,`document.querySelector(${q(root+' [data-image-stage]')}).releasePointerCapture(window.__panCapture)`);
+      await panMouse('mouseMoved',{x:point.x+30,y:point.y+20});await panMouse('mouseReleased',{x:point.x+30,y:point.y+20},'mouse','left',0);
+      await waitFor(client,label+' capture loss saves last position and rejects later movement',panPosition(root,60,45));
+      const cancelled={...point,id:61};
+      await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[cancelled]});await client.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...cancelled,x:cancelled.x+10,y:cancelled.y+10}]});await client.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});
+      await waitFor(client,label+' cancelled contact keeps its last genuine position',panPosition(root,70,55));
+      await panMouse('mousePressed',point);await panMouse('mouseReleased',{x:point.x+5,y:point.y+5},'mouse','left',0);
+      await waitFor(client,label+' immediate release commits its final coordinates',panPosition(root,75,60));
+      await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-widget-image-pan-'+label+'.png'));
+    };
+    await verifyPanContacts(imageRoot,'window');
+    // Right-button motion must not become a pan; dismiss its native menu before continuing.
+    const noPanPoint=await evaluate(client,`(() => {const r=document.querySelector(${q(imageRoot+' [data-image-stage]')}).getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
+    await panMouse('mousePressed',noPanPoint,'mouse','right',2);await panMouse('mouseMoved',{x:noPanPoint.x+20,y:noPanPoint.y+20},'mouse','right',2);await panMouse('mouseReleased',{x:noPanPoint.x+20,y:noPanPoint.y+20},'mouse','right',0);await pressAuditKey('Escape');
+    await waitFor(client,'right mouse button does not shift the image',panPosition(imageRoot,75,60));
+    for(const action of ['Minimieren','Widget schließen']){await auditMenu('image',action);await openAuditWidget('image','Tafelbild');await waitFor(client,'native panned image restores exact coordinates after '+action,panPosition(imageRoot,75,60));}
+    await imageClick('Tafelbild-Vollbild öffnen');const panLightbox=imageDialog('Tafelbild-Vollbild');
+    await verifyPanContacts(panLightbox,'lightbox');
+    const heldPoint=await evaluate(client,`(() => {const r=document.querySelector(${q(panLightbox+' [data-image-stage]')}).getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2,id:71};})()`);
+    await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[heldPoint]});await client.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...heldPoint,x:heldPoint.x+10,y:heldPoint.y+5}]});
+    await waitFor(client,'lightbox held gesture reaches last visible position',panPosition(panLightbox,85,65));await pressAuditKey('Escape');await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    await waitFor(client,'closing lightbox commits held gesture to window',`!document.querySelector('dialog[open]')&&(${panPosition(imageRoot,85,65)})`);
+    await auditMenu('image','Widget schließen');await openAuditWidget('image','Tafelbild');await waitFor(client,'held lightbox position survives complete widget reopening',panPosition(imageRoot,85,65));
+    const replacedPoint=await evaluate(client,`(() => {const r=document.querySelector(${q(imageRoot+' [data-image-stage]')}).getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2,id:81};})()`);
+    await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[replacedPoint]});await client.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...replacedPoint,x:replacedPoint.x+5,y:replacedPoint.y+5}]});
+    await imageClick('Bild vergrößern');await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    await waitFor(client,'zoom during held contact preserves latest pan and ends old ownership',`document.querySelector(${q(imageRoot)}).dataset.imageScale==='1.75'&&(${panPosition(imageRoot,90,70)})`);
+    await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[replacedPoint]});await client.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...replacedPoint,x:replacedPoint.x+5,y:replacedPoint.y+5}]});
+    await imageClick('Bild 90° drehen');await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    await waitFor(client,'rotation during held contact preserves latest pan and ignores late release',`document.querySelector(${q(imageRoot)}).dataset.imageRotation==='90'&&(${panPosition(imageRoot,95,75)})`);
+    await auditMenu('image','Widget schließen');await openAuditWidget('image','Tafelbild');await waitFor(client,'held-contact transformations survive complete reopen',`document.querySelector(${q(imageRoot)}).dataset.imageScale==='1.75'&&document.querySelector(${q(imageRoot)}).dataset.imageRotation==='90'&&(${panPosition(imageRoot,95,75)})`);
+    await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[replacedPoint]});await client.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...replacedPoint,x:replacedPoint.x+5,y:replacedPoint.y+5}]});
+    await imageUpload(portraitPath);await waitFor(client,'new local source invalidates old active pan',`document.querySelector(${q(imageRoot+' img')})?.naturalWidth===400&&document.querySelector(${q(imageRoot)}).dataset.imageScale==='1'&&(${panPosition(imageRoot,0,0)})`);await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    await auditMenu('image','Widget schließen');await openAuditWidget('image','Tafelbild');await waitFor(client,'late contact release cannot overwrite replacement image position',`document.querySelector(${q(imageRoot+' img')})?.naturalWidth===400&&(${panPosition(imageRoot,0,0)})`);
+    await imageClick('Bild entfernen');
+    console.log('✓ Image contact boundaries: native pen/finger/multiple contacts, secondary release IDs, capture loss, cancellation, final release coordinates, right button, both stages, held lightbox close and replacement source; exact pan restoration without saved-state injection.');
     // Finish the isolation boundary: a reopened empty image window must not
     // cover the toolbar of the later board-sized drawing test.
     await auditMenu('image','Widget schließen');
