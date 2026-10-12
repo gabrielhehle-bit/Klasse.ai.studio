@@ -3584,10 +3584,12 @@ async function main() {
             await clickSelector(client,'#gradebook-add-assessment-menu button[aria-label='+q((typ==='sa'?'Schularbeit':'Wochenplan')+' für die Klasse anlegen')+']');
           }
           await waitFor(client,'new '+typ+' metadata dialog',`Boolean(document.querySelector('#assessment-item-modal-content'))`);
+          await waitFor(client,'assessment selection transition closes before metadata entry',`!document.querySelector('#gradebook-add-assessment-menu')`);
           const title='Schnelleingabe '+typ;
           await setInputByLabel(client,'Bezeichnung / Titel',title);
           await setInputByLabel(client,'Maximal erreichbare Punkte','20');
           await clickSelector(client,'#btn-save-assessment-modal');
+          await waitFor(client,'assessment dialogs close before native entry',`!document.querySelector('#assessment-item-modal-content')&&!document.querySelector('#gradebook-add-assessment-menu')`);
           await waitFor(client,'new '+typ+' column focuses first pupil',`document.activeElement?.dataset.col?.startsWith(${q(typ+'-')})&&Boolean(document.querySelector('[data-column-entry-status]'))`);
           const col=await evaluate(client,`document.activeElement.dataset.col`);
           const labels=await evaluate(client,`Array.from(document.querySelectorAll('input[data-col='+JSON.stringify(${q(col)})+']')).map(i=>i.getAttribute('aria-label'))`);
