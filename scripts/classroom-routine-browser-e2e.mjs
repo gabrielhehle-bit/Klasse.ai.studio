@@ -3165,9 +3165,9 @@ async function main() {
     await waitFor(client,'drawing colour commits before close',`document.querySelector(${q(drawingRoot)}).dataset.drawingColor==='#dc2626'`);
     const drawStroke=async()=>{const r=await evaluate(client,`(() => {const r=document.querySelector(${q(drawingRoot+' canvas')}).getBoundingClientRect();return {x:r.x+70,y:r.y+70};})()`);await client.send('Input.dispatchMouseEvent',{type:'mousePressed',...r,button:'left',clickCount:1});await client.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:r.x+120,y:r.y+60,buttons:1,button:'left'});await client.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:r.x+120,y:r.y+60,button:'left',clickCount:1});};
     await drawStroke();await waitFor(client,'real pointer stroke stored',`document.querySelector(${q(drawingRoot)}).textContent.includes('1 Strich')`);
-    const drawingPixels=()=>evaluate(client,`(() => {const c=document.querySelector(${q(drawingRoot+' canvas')}),data=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let red=0;for(let i=0;i<data.length;i+=4)if(data[i]>100&&data[i]>data[i+1]*1.5&&data[i]>data[i+2]*1.5)red++;return red;})()`);
-    if(await drawingPixels()<50)throw Error('Real canvas stroke did not use the selected red colour');
-    await practiceRestore('drawing','Zeichenfeld');if(await drawingPixels()<50)throw Error('Reopened canvas lost the actual red stroke');
+    const drawingPixelsExpression=`(() => {const c=document.querySelector(${q(drawingRoot+' canvas')}),data=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let red=0;for(let i=0;i<data.length;i+=4)if(data[i]>100&&data[i]>data[i+1]*1.5&&data[i]>data[i+2]*1.5)red++;return red;})()`;
+    await waitFor(client,'real canvas paints the selected red stroke',`(${drawingPixelsExpression})>=50`);
+    await practiceRestore('drawing','Zeichenfeld');await waitFor(client,'reopened canvas paints its actual saved red stroke',`(${drawingPixelsExpression})>=50`);
     await clickSelector(client,drawingRoot+' [aria-label="Rückgängig"]');await practiceRestore('drawing','Zeichenfeld');await clickSelector(client,drawingRoot+' [aria-label="Wiederholen"]');
     await waitFor(client,'restored redo history returns stroke',`document.querySelector(${q(drawingRoot)}).textContent.includes('1 Strich')`);
     await clickSelector(client,drawingRoot+' [aria-label="Alles leeren"]');await natureClick(drawingRoot,'Leeren!');await practiceRestore('drawing','Zeichenfeld');await auditMenu('drawing','Widget schließen');
