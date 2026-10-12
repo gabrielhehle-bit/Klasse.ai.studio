@@ -3653,6 +3653,7 @@ async function main() {
             await evaluate(client,`(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
             await clickSelector(client,'button[aria-label='+q('Bewertungen für '+title+' eintragen')+']');
             await waitFor(client,'LZK exemption survives encrypted reload',`document.querySelector(${q(field(0))})?.disabled`);
+            await waitFor(client,'quick entry starts at the first participating child',`document.activeElement===document.querySelector(${q(field(1))})`);
             await waitFor(client,'SPF class-average choice survives encrypted reload',`document.querySelector(${q(zeroChoice)}).checked&&document.querySelector(${q(field(1))}).value==='0'`);
             await clickSelector(client,participation);
             await waitFor(client,'restoring participation recovers saved score',`!document.querySelector(${q(field(0))}).disabled&&document.querySelector(${q(field(0))}).value==='12'`);

@@ -1424,7 +1424,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
 
   useEffect(() => {
     if (!isolatedCol || editingAssessmentModal || activeView !== 'noten') return;
-    const input = document.querySelector<HTMLInputElement>(`[data-gradebook] input[data-col="${isolatedCol.typ === 'obj' ? 'aufgaben' : isolatedCol.typ}-${isolatedCol.idx}"]`);
+    const input = document.querySelector<HTMLInputElement>(`[data-gradebook] input[data-col="${isolatedCol.typ === 'obj' ? 'aufgaben' : isolatedCol.typ}-${isolatedCol.idx}"]:not(:disabled)`);
     input?.focus(); input?.select();
   }, [isolatedCol, editingAssessmentModal, activeView]);
 
