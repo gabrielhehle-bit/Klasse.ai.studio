@@ -21,7 +21,7 @@ relative Mitarbeitberechnung und manuelle Punkt-/Prozentskalen bleiben erhalten.
   Der bisherige Notenmappenstandard (SPF/ESPF nicht einbeziehen) bleibt bestehen,
   solange keine individuelle Einstellung oder Fachausnahme gesetzt wird.
 - Dieselbe Kinderregel gilt für Spaltenmittel, Notenmappenstatistik,
-  Leistungs-Auswertungen, fachbezogene Klassenmetriken und LZK-Bereichsmittel.
+  Leistungs-Auswertungen, Klassendossier, Notenverlauf und LZK-Bereichsmittel.
   Kinder bleiben in der Klasse; eigene Bewertungen bleiben im Dossier sichtbar.
 - Jede LZK bietet je Kind Teilnahme/nimmt nicht teil. Nichtteilnahme nimmt die
   Kontrolle aus persönlicher Berechnung, Klassenschnitt und Bereichsauswertung.

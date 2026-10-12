@@ -90,6 +90,7 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
     (['sa','lzk','wp','aufgaben'] as const).forEach(category=>{
       const list=Array.isArray(nd[category])?nd[category]:[];
       list.forEach((raw:any,idx:number)=>{
+        if(category==='lzk'&&nd.lzkParticipation?.[idx]===false){order++;return;}
         if(raw===null||raw===undefined||raw===''||['e','f','x','-'].includes(String(raw).toLowerCase())){order++;return;}
         assessmentCount++;
         const primitive=typeof raw==='object'?(mode==='points'?(raw.score??raw.punkte??raw.grade):(mode==='percent'?(raw.percent??raw.grade):(raw.grade??raw.originalGrade??raw.numericGrade??raw.val??raw.note))):raw;

@@ -1,3 +1,4 @@
+import { countsInClassAverage } from '../lib/classAveragePolicy';
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Student } from '../types';
@@ -153,7 +154,8 @@ export default function NotenverlaufChart({ schuelerId, initialFach, compact = f
     }> = [];
 
     periods.forEach(sem => {
-      const nd = app.noten?.[student.id]?.[selectedFach]?.[sem] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
+      const rawNd = app.noten?.[student.id]?.[selectedFach]?.[sem] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
+      const nd = { ...rawNd, lzk: (rawNd.lzk || []).map((value, index) => rawNd.lzkParticipation?.[index] === false ? null : value) };
       
       const maxLen = Math.max(
         nd.sa?.length || 0,
@@ -252,7 +254,7 @@ export default function NotenverlaufChart({ schuelerId, initialFach, compact = f
     // Sort all collected grades by their calculated timestamp
     chronologicalGrades.sort((a, b) => a.timestamp - b.timestamp);
 
-    const classStudents = app.classes?.find((c: any) => c.id === app.activeClassId)?.schueler || app.schueler || [];
+    const classStudents = (app.schueler || []).filter(child => countsInClassAverage(app, child, selectedFach));
 
     const filteredGrades = selectedCategory === 'all'
       ? chronologicalGrades
@@ -305,7 +307,7 @@ export default function NotenverlaufChart({ schuelerId, initialFach, compact = f
       // Compute weighted average for all students in the class at this milestone
       const studentAverages: number[] = [];
       const saCount = accumulatedSa.length;
-      const lzkCount = accumulatedLzk.length;
+      const lzkCount = filteredGrades.slice(0, idx + 1).filter(item => item.type === 'lzk' && item.semester === g.semester).reduce((count, item) => Math.max(count, Number(item.id.split('-').at(-1)) + 1), 0);
       const wpCount = accumulatedWp.length;
       const objCount = accumulatedAfg.length;
 
@@ -314,7 +316,7 @@ export default function NotenverlaufChart({ schuelerId, initialFach, compact = f
         
         // slice the corresponding grades
         const csSa = (csNdSem.sa || []).slice(0, saCount);
-        const csLzk = (csNdSem.lzk || []).slice(0, lzkCount);
+        const csLzk = (csNdSem.lzk || []).slice(0, lzkCount).map((value: any, index: number) => csNdSem.lzkParticipation?.[index] === false ? null : value);
         const csWp = (csNdSem.wp || []).slice(0, wpCount);
         const csObj = (csNdSem.aufgaben || []).slice(0, objCount);
 

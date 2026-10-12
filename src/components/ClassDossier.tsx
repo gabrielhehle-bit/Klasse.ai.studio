@@ -1,3 +1,4 @@
+import { countsInClassAverage } from '../lib/classAveragePolicy';
 import React, { useMemo, useState } from 'react';
 import {
   Activity,
@@ -269,6 +270,7 @@ function subjectAssessmentValues(app: any, studentId: string, subject: string, r
     (['sa', 'lzk', 'wp', 'aufgaben'] as const).forEach(category => {
       const list = Array.isArray(data[category]) ? data[category] : [];
       list.forEach((raw: any, index: number) => {
+        if (category === 'lzk' && data.lzkParticipation?.[index] === false) return;
         const date = parseIso(String(meta.colDates?.[category]?.[index] || ''));
         if (!within(date, range)) return;
         if (raw === null || raw === undefined || raw === '' || ['e', 'f', 'x', '-'].includes(String(raw).toLocaleLowerCase('de-AT'))) return;
@@ -368,10 +370,10 @@ export default function ClassDossier({ onSelectStudent }: Props) {
       within(timestampDate(log.timestamp), targetRange)
     );
     const gradeValues = students.flatMap(student =>
-      subjects.flatMap(subject => subjectAssessmentValues(anyApp, student.id, subject, targetRange).gradeValues)
+      subjects.filter(subject => countsInClassAverage(app, student, subject)).flatMap(subject => subjectAssessmentValues(anyApp, student.id, subject, targetRange).gradeValues)
     );
     const scoreValues = students.flatMap(student =>
-      subjects.flatMap(subject => subjectAssessmentValues(anyApp, student.id, subject, targetRange).scores)
+      subjects.filter(subject => countsInClassAverage(app, student, subject)).flatMap(subject => subjectAssessmentValues(anyApp, student.id, subject, targetRange).scores)
     );
     const positiveBehavior = behaviorValues.filter(value => value <= 2).length;
 
@@ -401,7 +403,7 @@ export default function ClassDossier({ onSelectStudent }: Props) {
   );
 
   const subjectPerformance = useMemo(() => subjects.map(subject => {
-    const all = students.map(student => subjectAssessmentValues(anyApp, student.id, subject, range));
+    const all = students.filter(student => countsInClassAverage(app, student, subject)).map(student => subjectAssessmentValues(anyApp, student.id, subject, range));
     const grades = all.flatMap(value => value.gradeValues);
     const scores = all.flatMap(value => value.scores);
     const averageGrade = mean(grades);
