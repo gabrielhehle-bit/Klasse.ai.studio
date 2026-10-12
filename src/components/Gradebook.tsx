@@ -743,6 +743,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
 
   const addColumn = (e: React.MouseEvent, typ: 'sa' | 'lzk' | 'wp' | 'obj') => {
     e.stopPropagation();
+    setActiveView('noten'); setShowWeights(false); setShowGradeCalculator(false);
     const currentCount = typ === 'sa' ? getFachCfg(app, activeFach).saCount : colCounts[typ] || 0;
     const dataKey: 'sa' | 'lzk' | 'wp' | 'aufgaben' = typ === 'obj' ? 'aufgaben' : typ;
 

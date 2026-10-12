@@ -8,7 +8,8 @@ manuellen Skalenblock (`dcd63b4b`) samt dessen Dokumentation und Browserfällen.
 
 Die Notentabelle ist der Einstieg. Direkte Schaltflächen + LZK, + Wochenplan
 und + Schularbeit sind für die bereits aktivierten Bewertungskategorien sichtbar.
-Sie verwenden den vorhandenen Metadatendialog (Titel, Datum, Höchstpunkte).
+Sie wechseln auch aus dem Mitarbeit-/Hausübungsreiter zuerst in die Notentabelle
+und verwenden dann den vorhandenen Metadatendialog (Titel, Datum, Höchstpunkte).
 Vorhandene leere Slots werden wiederverwendet; erfasste 0 und beschriftete Slots
 bleiben belegt. Schularbeiten aktualisieren ihre eigene Spaltenanzahl `saCount`.
 Abbrechen legt keine Spalte an und verändert keine erfassten Werte.
