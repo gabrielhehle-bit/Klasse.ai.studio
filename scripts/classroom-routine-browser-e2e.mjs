@@ -3664,9 +3664,20 @@ async function main() {
             await waitFor(client,'per-child class-average setting is restored',`document.querySelector('input[aria-label='+${q(q(averageChoice))}+']')?.checked===false`);
             await clickSelector(client,'input[aria-label='+q(averageChoice)+']');
             const name = labels[0].split(' für ')[1];
-            await openPupil(client,name.split(' ')); await clickButton(client,'Leistungen',true);
+            await openPupil(client,name.split(' '));
+            const dossierArea = async label => {
+              await waitFor(client,'dossier area controls ready for '+label,`Boolean(document.querySelector('[aria-label="Schülerdossier-Hauptbereiche"]'))`);
+              await evaluate(client,`(() => {const button=Array.from(document.querySelectorAll('[aria-label="Schülerdossier-Hauptbereiche"] button')).find(b=>b.querySelector('span')?.textContent.trim()===${q(label)});if(!button)throw Error('Missing dossier area '+${q(label)});button.click();})()`);
+              await waitFor(client,'dossier area selected: '+label,`document.querySelector('[aria-label="Schülerdossier-Hauptbereiche"] [aria-selected="true"] span')?.textContent.trim()===${q(label)}`);
+            };
+            await dossierArea('Leistungen');
             await waitFor(client,'dossier groups LZK by subject and area with own result',`Array.from(document.querySelectorAll('[data-lzk-area-results]')).some(section=>section.textContent.includes('Mathematik · Längen')&&section.textContent.includes('12/20 P')&&section.textContent.includes(${q(title)}))`);
             await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-lzk-area-dossier.png'));
+            await dossierArea('Mehr');
+            await waitFor(client,'dossier portfolio entry ready',`Boolean(document.querySelector('[aria-label="Weitere Dossierbereiche"]'))`);
+            await evaluate(client,`(() => {const button=Array.from(document.querySelectorAll('[aria-label="Weitere Dossierbereiche"] button')).find(b=>b.querySelector('span.block')?.textContent.trim()==='Portfolio');if(!button)throw Error('Missing dossier portfolio entry');button.click();})()`);
+            await waitFor(client,'portfolio uses the same LZK area and own result',`document.body.textContent.includes('E-Portfolio & Timeline')&&Array.from(document.querySelectorAll('[data-lzk-area-results]')).some(section=>section.textContent.includes('Mathematik · Längen')&&section.textContent.includes('12/20 P')&&section.textContent.includes(${q(title)}))`);
+            await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-lzk-area-portfolio.png'));
             await openPage(client,'Notenmappe');
             await evaluate(client,`(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
             await clickSelector(client,'button[aria-label='+q('Bewertungen für '+title+' eintragen')+']');
