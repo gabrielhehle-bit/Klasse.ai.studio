@@ -102,7 +102,6 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
   const isDrawingRef = useRef<boolean>(false);
   const activeStrokeRef = useRef<DrawingStroke | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
-  const activePointerTypeRef = useRef<string | null>(null);
   const lastDimensionsRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
 
   // Aktuelle Stiftbreite
@@ -187,10 +186,9 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
   // POINTER EVENTS: Touch, Maus, Stylus & Palm Rejection
   // -------------------------------------------------------------
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    // Falls Stylus genutzt wird, ignorieren wir gleichzeitige Touch-Ereignisse (Palm Rejection)
-    if (activePointerTypeRef.current === 'pen' && e.pointerType === 'touch') {
-      return;
-    }
+    // One contact owns a stroke until it ends. A palm/second finger must not
+    // replace it, and pen use must not permanently disable later finger input.
+    if (activePointerIdRef.current !== null || e.button !== 0) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -204,7 +202,6 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
 
     isDrawingRef.current = true;
     activePointerIdRef.current = e.pointerId;
-    activePointerTypeRef.current = e.pointerType;
 
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -263,9 +260,6 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
 
     isDrawingRef.current = false;
     activePointerIdRef.current = null;
-    if (activePointerTypeRef.current !== 'pen') {
-      activePointerTypeRef.current = null;
-    }
 
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
@@ -695,6 +689,7 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
           onPointerMove={handlePointerMove}
           onPointerUp={finishDrawing}
           onPointerCancel={finishDrawing}
+          onLostPointerCapture={finishDrawing}
         />
 
         {/* Dezenter Indikator im leeren Zustand */}
