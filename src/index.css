@@ -2400,6 +2400,12 @@ html body .cockpit-free-mascot .mascot-widget-resize {
     gap: 4px !important;
   }
 }
+/* The traffic tools keep their action row above the frame's 44px resize grip.
+ * Compact root padding must not reclaim this interaction space. */
+.cockpit-widget-container[data-widget-type="trafficlight"]
+  .cockpit-widget-content > [data-traffic-tools] {
+  padding-bottom: 48px !important;
+}
 /* Height matters as well as width: a short widget on a wide board is compact.
  * Do not force font-size on timers, numerals or user-formatted text. Only long
  * word-wrapping labels compress; 12px is the minimum and the original text
