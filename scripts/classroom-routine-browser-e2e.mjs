@@ -3267,7 +3267,6 @@ async function main() {
       await clockStudioChoose('words');
     }
     await reloadAndUnlock(client);await clickSidebar(client,'Lehrercockpit');
-    await openAuditWidget('clockpuzzle','Uhren-Lern-Trainer');
     await waitFor(client,'clock-learning selected exercise and time survive encrypted reload',`document.querySelector(${q(clockStudioRoot)}).dataset.clockLearningTool==='words'&&document.querySelector(${q(clockStudioRoot)}).textContent.includes('23:55')`);
     await clockStudioChoose('spoken');await waitFor(client,'clock-learning spoken task survives encrypted reload',`document.querySelector(${q(clockPuzzleRoot)}).innerText===${q(clockSpokenSnapshot)}`);
     await clockStudioChoose('trainer');await waitFor(client,'clock-learning trainer task survives encrypted reload',`document.querySelector(${q(clockPuzzleRoot)}).innerText===${q(clockTrainerSnapshot)}`);
