@@ -20,3 +20,5 @@ Der Live-Pegel startet ausschließlich über Messung starten. Wechsel aus der Li
 - 2.457 Tests auf dem Stand von PR #533 mit Wiener Zeitzone erfolgreich.
 - Die Browserprüfungen zum Werterhalt der Notenmappe und Vollbild bleiben im Unterrichtslauf enthalten.
 - Änderungen betreffen nur das gemeinsame Lautstärke-/Arbeitsampel-Widget, dessen Katalog/Größen und die zugehörigen Prüfungen.
+
+Auch der bisherige einzelne Lautstärkemesser beendet aktive und noch ausstehende Mikrofonfreigaben beim Minimieren. Wiederherstellen startet keine Messung. Die Browserroutine deckt beide Fälle separat für gespeicherte Einzelwidgets ab.

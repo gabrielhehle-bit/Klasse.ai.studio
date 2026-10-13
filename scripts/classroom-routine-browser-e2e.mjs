@@ -3553,6 +3553,22 @@ async function main() {
     await trafficControlsFit();await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-traffic-tools-settings.png'));await natureClick(lampToolsRoot,'Fertig');
     await trafficView('Arbeitsampel');await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-traffic-tools-lamp.png'));await auditMenu('trafficlight','Widget schließen');
     console.log('✓ Canonical traffic tools: persisted views and voice rule, header sensitivity, explicit microphone start, track cleanup on view exit/minimize and late permission, complete close/reopen.');
+    const legacyMeterBefore=await evaluate(client,'({requests:window.__toolsAudio.requests,stopped:window.__toolsAudio.stopped})');
+    await evaluate(client,"window.__toolsAudio.mode='active'");
+    await openAuditWidget('noisemeter','Lautstärkemesser');
+    await natureClick(meterRoot,'Messung starten');
+    await waitFor(client,'legacy meter starts explicitly before minimizing',`document.querySelector(${q(meterRoot)}).dataset.noisePermission==='active'`);
+    await auditMenu('noisemeter','Minimieren');
+    await waitFor(client,'legacy minimized meter releases microphone track',`window.__toolsAudio.stopped===${legacyMeterBefore.stopped+1}`);
+    await openAuditWidget('noisemeter','Lautstärkemesser');
+    await waitFor(client,'legacy meter restore never restarts microphone',`document.querySelector(${q(meterRoot)}).dataset.noisePermission==='idle'&&window.__toolsAudio.requests===${legacyMeterBefore.requests+1}`);
+    await evaluate(client,"window.__toolsAudio.mode='pending'");await natureClick(meterRoot,'Messung starten');
+    await auditMenu('noisemeter','Minimieren');await evaluate(client,'window.__toolsAudio.resolve()');
+    await waitFor(client,'legacy minimizing also releases late permission',`window.__toolsAudio.stopped===${legacyMeterBefore.stopped+2}`);
+    await openAuditWidget('noisemeter','Lautstärkemesser');
+    await waitFor(client,'legacy restored pending meter stays idle',`document.querySelector(${q(meterRoot)}).dataset.noisePermission==='idle'`);
+    await auditMenu('noisemeter','Widget schließen');
+    console.log('✓ Legacy saved noise meter releases active and pending microphone access when minimized and stays idle on restore.');
     await evaluate(client,`(() => {const f=window.__toolsAudio;navigator.mediaDevices.getUserMedia=f.getUserMedia;window.AudioContext=f.Base;for(const c of f.producers)c.close();delete window.__toolsAudio;})()`);
 
     // Verify both actual catalog entries; a shared renderer is not entry coverage.

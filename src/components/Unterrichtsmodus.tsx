@@ -12188,6 +12188,7 @@ ${content}
                                     case "noisemeter":
                                       return (
                                         <NoiseMeterWidgetContent
+                                          isMinimized={isMinimized}
                                           widget={widget}
                                           onUpdate={(updates) =>
                                             handleUpdateWidgetPos(
