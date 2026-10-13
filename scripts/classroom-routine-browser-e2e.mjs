@@ -698,6 +698,11 @@ async function main() {
     await clickButton(client, 'Widget hinzufügen');
     await clickButton(client, 'Kernwidgets');
     await waitFor(client, 'regular picker has 24 grouped entries', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length === 24`);
+    await waitFor(client, 'student-list resize grip is removed while choosing widgets', `!document.querySelector('[aria-label="Breite der Schülerliste ändern"]')`);
+    await evaluate(client, `document.querySelector('button[aria-label="Widget-Voreinstellungen öffnen"]').click()`);
+    await waitFor(client, 'widget settings have an opaque background even with a translucent accent', `(() => {const panel=document.querySelector('#cockpit-widget-settings');if(!panel||getComputedStyle(panel).display==='none')return false;panel.style.setProperty('--accent-soft','rgba(0, 180, 255, 0.12)');const color=getComputedStyle(panel).backgroundColor;return color==='rgb(255, 255, 255)' && !document.querySelector('[aria-label="Breite der Schülerliste ändern"]');})()`);
+    await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-widget-settings-opaque.png'));
+    await evaluate(client, `document.querySelector('button[aria-label="Widget-Voreinstellungen schließen"]').click()`);
     await sleep(250);
     await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-widget-catalog.png'));
     await client.send('Emulation.setDeviceMetricsOverride', { width:820, height:900, deviceScaleFactor:1, mobile:false });
@@ -724,6 +729,7 @@ async function main() {
     await evaluate(client, `document.querySelector('button[aria-label="Widgetsuche leeren"]').click()`);
     await waitFor(client, 'all historical picker entries remain available', `document.querySelectorAll('[role=dialog][aria-label="Widget-Bibliothek"] [data-widget-card-action="primary"]').length === 112`);
     await evaluate(client, `document.querySelector('button[aria-label="Widget-Bibliothek schließen"]').click()`);
+    await waitFor(client, 'student-list resize grip returns after closing the picker', `Boolean(document.querySelector('[aria-label="Breite der Schülerliste ändern"]'))`);
     const openAuditWidget = async (type, search, label) => {
       await clickButton(client, 'Widget hinzufügen');
       await clickButton(client, 'Weitere Widgets');

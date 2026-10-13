@@ -9117,7 +9117,7 @@ ${content}
                                     className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-lg font-bold text-slate-700 hover:bg-slate-100">✕</button>
                                 </header>
                                 <section id="cockpit-widget-settings"
-                                  className={`${isWidgetConfigurationOpen ? "flex" : "hidden"} absolute inset-x-3 bottom-3 top-[5.25rem] z-[1200] flex-col overflow-hidden rounded-2xl border border-accent bg-accent-soft p-3 text-slate-900 shadow-2xl`}
+                                  className={`${isWidgetConfigurationOpen ? "flex" : "hidden"} absolute inset-x-3 bottom-3 top-[5.25rem] z-[1200] flex-col overflow-hidden rounded-2xl border border-accent bg-white p-3 text-slate-900 shadow-2xl`}
                                   aria-label="Widget-Einstellungen im Menü Widget hinzufügen">
                                   <div className="flex shrink-0 items-center justify-between gap-2 rounded-xl bg-white px-3">
                                     <div>
@@ -12691,7 +12691,7 @@ ${content}
                       }}
                       className="klassio-student-sidebar flex flex-col rounded-2xl border border-slate-200 bg-white text-slate-900 overflow-hidden min-h-0 relative shrink-0 dim-in-focus group/sidebar"
                     >
-                      {sidebarMode === "expanded" && (
+                      {sidebarMode === "expanded" && !isAddWidgetMenuOpen && !isWidgetConfigurationOpen && !widgetSettingsOpenId && !openSettingsId && (
                         <div role="separator" tabIndex={0} aria-orientation="vertical"
                           aria-label="Breite der Schülerliste ändern" aria-valuemin={300} aria-valuemax={620}
                           aria-valuenow={sidebarResizePreview ?? sidebarPreferredWidth}
@@ -13083,9 +13083,9 @@ ${content}
                               animate={{ opacity: 1, scale: 1, y: 0 }}
                               exit={{ opacity: 0, scale: 0.95, y: -10 }}
                               onPointerDown={(e) => e.stopPropagation()}
-                              className="widget-settings-panel absolute top-10 left-0 right-0 z-[100] backdrop-blur-xl border rounded-xl p-4 shadow-2xl transition-colors duration-700 overflow-auto resize"
+                              className="widget-settings-panel absolute top-10 left-0 right-0 z-[100] border rounded-xl p-4 shadow-2xl transition-colors duration-700 overflow-auto resize"
                               style={{
-                                backgroundColor: `${currentTheme.colors.surface}f9`,
+                                backgroundColor: currentIsLight ? "#ffffff" : "#18181b",
                                 borderColor: currentTheme.colors.border,
                               }}
                             >
@@ -17411,7 +17411,7 @@ ${content}
             exit={{ opacity: 0, x: 100 }}
             className="fixed top-32 right-12 bottom-12 w-96 rounded-[3.5rem] shadow-2xl shadow-black p-10 z-[250] border flex flex-col transition-colors duration-700 backdrop-blur-2xl"
             style={{
-              backgroundColor: `${currentTheme.colors.surface}f9`,
+              backgroundColor: currentIsLight ? "#ffffff" : "#18181b",
               borderColor: currentTheme.colors.border,
             }}
           >
