@@ -3693,7 +3693,7 @@ async function main() {
           if(!available) throw new Error('Gradebook mobile tools missing.');
           await client.send('Input.dispatchKeyEvent', {type:'keyDown', key:'Escape', code:'Escape'});
           await client.send('Input.dispatchKeyEvent', {type:'keyUp', key:'Escape', code:'Escape'});
-          await sleep(200);
+          await waitFor(client, 'gradebook tool menu fully closes before layout measurement', `!document.querySelector('#gradebook-tools-menu')`);
         }
         const layout = await evaluate(client, `(() => {const node=document.querySelector('${selector}');return {overflow:document.documentElement.scrollWidth>innerWidth+3,heading:node.querySelector('h1')?.textContent.trim(),smallTargets:Array.from(node.querySelectorAll('${key === 'gradebook' ? '[data-gradebook-header] button, [data-gradebook-actions] button' : 'section button'}')).filter(b=>b.getBoundingClientRect().width>0&&b.getBoundingClientRect().height<43).map(b=>b.textContent.trim())};})()`);
         if(layout.overflow || !layout.heading || layout.smallTargets.length) throw new Error(page+' layout at '+width+': '+JSON.stringify(layout));
