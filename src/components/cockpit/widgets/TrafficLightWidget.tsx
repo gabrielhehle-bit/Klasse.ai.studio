@@ -189,13 +189,13 @@ export const TrafficLightWidget: React.FC<TrafficLightWidgetProps> = ({
           {label}
         </button>)}
       </nav>
-      {showSettings && <section aria-label="Lautstärke-Einstellungen" className="mb-2 shrink-0 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-2 text-xs">
+      {showSettings && <section aria-label="Lautstärke-Einstellungen" className={`mb-2 shrink-0 rounded-xl border p-2 text-xs ${cardBg} ${borderColor} ${textColor}`}>
         <p className="mb-1 font-semibold">Mikrofon-Empfindlichkeit für den Live-Pegel</p>
         <div className="flex flex-wrap gap-1">
           {(['low', 'normal', 'high'] as const).map(level => <button type="button" key={level}
             aria-pressed={meterSettings.sensitivity === level}
             onClick={() => updateMeter({ settings: { sensitivity: level } })}
-            className={`min-h-11 rounded-lg border px-2 ${meterSettings.sensitivity === level ? 'bg-accent text-accent-text border-accent' : 'border-slate-300 dark:border-zinc-600'}`}>
+            className={`min-h-11 rounded-lg border px-2 ${meterSettings.sensitivity === level ? 'bg-accent text-accent-text border-accent' : borderColor}`}>
             {level === 'low' ? 'Niedrig' : level === 'normal' ? 'Normal' : 'Hoch'}
           </button>)}
           <button type="button" onClick={onCloseSettings} className="ml-auto min-h-11 rounded-lg border px-2">Fertig</button>
