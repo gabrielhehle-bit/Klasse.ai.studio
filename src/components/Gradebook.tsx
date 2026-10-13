@@ -1614,9 +1614,23 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
         </p>
       )}
       <style dangerouslySetInnerHTML={{ __html: `
-        [data-zoom]:has([data-gradebook-fullscreen="true"]) {
+        :has([data-gradebook-fullscreen="true"]) {
           transform: none !important;
           zoom: 1 !important;
+          filter: none !important;
+          backdrop-filter: none !important;
+          perspective: none !important;
+          contain: none !important;
+          will-change: auto !important;
+        }
+        [data-gradebook-fullscreen="true"] {
+          position: fixed !important;
+          inset: 0 !important;
+          margin: 0 !important;
+          width: 100vw !important;
+          height: 100dvh !important;
+          max-width: none !important;
+          max-height: none !important;
         }
         [data-gradebook-fullscreen="true"] [data-gradebook-header] {
           position: sticky; top: 0; z-index: 70;
@@ -1624,6 +1638,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
         @media print {
           [data-gradebook-fullscreen="true"] {
             position: static !important; overflow: visible !important; padding: 0 !important;
+            width: 100% !important; height: auto !important;
           }
           @page {
             size: A4 landscape !important;
