@@ -1,6 +1,7 @@
 import React from 'react';
 import { CockpitWidgetConfig } from '../../types';
 import { TimerWidget } from './widgets/TimerWidget';
+import { TimeToolsStudio } from './widgets/TimeToolsStudio';
 
 export interface TimerWidgetContentProps {
   widget: CockpitWidgetConfig;
@@ -12,7 +13,7 @@ export interface TimerWidgetContentProps {
 }
 
 export const TimerWidgetContent: React.FC<TimerWidgetContentProps> = (props) => {
-  return <TimerWidget {...props} />;
+  return <TimeToolsStudio {...props} />;
 };
 
 export { TimerWidget };

@@ -1266,6 +1266,50 @@ async function main() {
       }
       await auditMenu(type,'Widget schließen');
     }
+    // The regular time entry is one working tool, with independent state per mode.
+    await clickButton(client, 'Widget hinzufügen');
+    await clickButton(client, 'Kernwidgets');
+    await setInputByLabel(client, 'Widget suchen', 'Stoppuhr');
+    await waitFor(client, 'time search opens one integrated entry', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length===1 && !document.querySelector('[data-testid="cockpit-core-group-timer"] [data-widget-card-action="variants"]')`);
+    await clickSelector(client, '[data-testid="cockpit-core-group-timer"] [data-widget-card-action="primary"]');
+    const timeRoot = '[data-widget-type="timer"]';
+    const timePanel = mode => `${timeRoot} [data-time-tool-panel="${mode}"]`;
+    const selectTimeTool = async mode => {
+      await clickSelector(client, `${timeRoot} [data-time-tool-mode="${mode}"]`);
+      await waitFor(client, 'time tool selected: '+mode, `document.querySelector('${timeRoot} [data-time-tool-mode="${mode}"]')?.getAttribute('aria-pressed')==='true' && document.querySelector('${timePanel(mode)}')?.getClientRects().length>0`);
+    };
+    await selectTimeTool('timer');
+    await evaluate(client, `document.querySelector('${timePanel('timer')} button[title="Zurücksetzen"]').click()`);
+    await evaluate(client, `Array.from(document.querySelectorAll('${timePanel('timer')} button')).find(b=>b.textContent.trim()==='Start').click()`);
+    const countdownBefore = await evaluate(client, `document.querySelector('${timePanel('timer')}').textContent.match(/[0-9]{2}:[0-9]{2}/)?.[0]`);
+    await selectTimeTool('stopwatch');
+    await clickSelector(client, `${timePanel('stopwatch')} [data-stopwatch-action="start"]`);
+    await selectTimeTool('clock');
+    await waitFor(client, 'clock is functional within the time tool', `Boolean(document.querySelector('${timePanel('clock')} [aria-label^="Uhrzeit "]'))`);
+    await clickSelector(client, `${timeRoot} button[aria-label$="Einstellungen öffnen"]`);
+    await waitFor(client, 'active clock settings open through the shared gear', `Boolean(document.querySelector('${timePanel('clock')} [aria-label="Uhr-Einstellungen"]'))`);
+    await waitFor(client, 'clock settings are opaque', `getComputedStyle(document.querySelector('${timePanel('clock')} [aria-label="Uhr-Einstellungen"]')).backgroundColor==='rgb(255, 255, 255)'`);
+    await clickSelector(client, `${timePanel('clock')} [aria-label="Einstellungen schließen"]`);
+    await sleep(1200);
+    await selectTimeTool('timer');
+    await waitFor(client, 'countdown continues across tool changes', `document.querySelector('${timePanel('timer')}').textContent.includes('Pause') && document.querySelector('${timePanel('timer')}').textContent.match(/[0-9]{2}:[0-9]{2}/)?.[0] !== ${q(countdownBefore)}`);
+    await evaluate(client, `Array.from(document.querySelectorAll('${timePanel('timer')} button')).find(b=>b.textContent.trim()==='Pause').click()`);
+    await selectTimeTool('stopwatch');
+    await clickSelector(client, `${timePanel('stopwatch')} [data-stopwatch-action="stop"]`);
+    await waitFor(client, 'stopwatch also continues and pauses independently', `document.querySelector('${timePanel('stopwatch')}').textContent.includes('Weiter')`);
+    for (const [width,height] of [[1366,768],[820,900]]) {
+      await client.send('Emulation.setDeviceMetricsOverride', {width,height,deviceScaleFactor:1,mobile:false});
+      await sleep(250);
+      await waitFor(client, 'time mode controls fit at '+width, `(() => {const buttons=Array.from(document.querySelectorAll('${timeRoot} [data-time-tool-mode]'));return buttons.length===3 && buttons.every(button=>{const r=button.getBoundingClientRect(),top=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return r.height>=44 && r.width>=44 && (top===button || button.contains(top));});})()`);
+      await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-time-tools-'+width+'.png'));
+    }
+    await client.send('Emulation.setDeviceMetricsOverride', {width:1366,height:768,deviceScaleFactor:1,mobile:false});
+    await sleep(250);
+    await auditMenu('timer', 'Minimieren');
+    await openAuditWidget('timer', 'Timer', 'Timer');
+    await waitFor(client, 'selected time mode and paused stopwatch survive minimize', `document.querySelector('${timeRoot} [data-time-tool-mode="stopwatch"]')?.getAttribute('aria-pressed')==='true' && document.querySelector('${timePanel('stopwatch')}').textContent.includes('Weiter')`);
+    await selectTimeTool('timer');
+    await auditMenu('timer', 'Widget schließen');
     for(const [type,search] of [['stopwatch','Stoppuhr'],['trafficlight','Status-Ampel'],['todo','Aufgaben-Checkliste'],['links','Materialien & Links']]) {
       await openAuditWidget(type,search);
       const root = `[data-widget-type="${type}"] [data-widget-content]`;

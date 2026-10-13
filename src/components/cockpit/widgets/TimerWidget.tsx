@@ -441,7 +441,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
           ? currentIsLight ? 'bg-amber-50/90 border border-amber-200' : 'bg-amber-950/20 border border-amber-500/20'
           : isLastMinute
             ? currentIsLight ? 'bg-amber-50/40' : 'bg-amber-950/10'
-            : currentIsLight ? 'bg-white' : 'bg-zinc-900/95'
+            : currentIsLight ? 'bg-white' : 'bg-zinc-900'
       }`}
     >
       {/* ========================================================================= */}
@@ -1093,7 +1093,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             className={`absolute inset-2 z-40 p-3 rounded-2xl border shadow-2xl flex flex-col justify-between overflow-y-auto ${
-              currentIsLight ? 'bg-white/98 border-slate-200 text-slate-800' : 'bg-zinc-900/98 border-white/15 text-white'
+              currentIsLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-zinc-900 border-white/15 text-white'
             }`}
           >
             <div className="flex items-center justify-between border-b pb-2 border-slate-200 dark:border-white/10">
@@ -1173,7 +1173,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             className={`absolute inset-2 z-50 p-4 rounded-2xl border shadow-2xl flex flex-col justify-between overflow-y-auto ${
-              currentIsLight ? 'bg-white/98 border-slate-200 text-slate-800' : 'bg-zinc-900/98 border-white/15 text-white'
+              currentIsLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-zinc-900 border-white/15 text-white'
             }`}
           >
             <div>
@@ -1256,7 +1256,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             className={`absolute inset-2 z-50 p-4 rounded-2xl border shadow-2xl flex flex-col justify-between overflow-y-auto ${
-              currentIsLight ? 'bg-white/98 border-slate-200 text-slate-800' : 'bg-zinc-900/98 border-white/15 text-white'
+              currentIsLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-zinc-900 border-white/15 text-white'
             }`}
           >
             <div className="space-y-4">

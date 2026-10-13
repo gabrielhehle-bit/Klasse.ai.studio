@@ -268,7 +268,7 @@ export const StopwatchWidget: React.FC<StopwatchWidgetProps> = ({
       }
 
       // Prüfen ob Widget oder Kind fokussiert ist oder Cursor im Container weilt
-      if (!containerRef.current) return;
+      if (!containerRef.current || !containerRef.current.getClientRects().length) return;
       const isFocusedInside =
         containerRef.current.contains(document.activeElement) ||
         containerRef.current.matches(':hover');

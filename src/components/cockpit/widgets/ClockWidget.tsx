@@ -325,10 +325,10 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
         <div
           role="dialog"
           aria-label="Uhr-Einstellungen"
-          className={`absolute inset-x-2 bottom-2 top-14 rounded-2xl border p-4 shadow-xl z-30 flex flex-col justify-between backdrop-blur-md animate-in fade-in zoom-in-95 duration-150 ${
+          className={`absolute inset-x-2 bottom-2 top-14 rounded-2xl border p-4 shadow-xl z-30 flex flex-col justify-between overflow-y-auto animate-in fade-in zoom-in-95 duration-150 ${
             currentIsLight
-              ? 'bg-white/95 border-slate-200 text-slate-800'
-              : 'bg-zinc-900/95 border-zinc-700 text-zinc-100'
+              ? 'bg-white border-slate-200 text-slate-800'
+              : 'bg-zinc-900 border-zinc-700 text-zinc-100'
           }`}
         >
           <div className="flex items-center justify-between border-b pb-2 border-slate-200 dark:border-zinc-800">

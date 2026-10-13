@@ -58,7 +58,7 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   alphabetsoup: { minW: 640, minH: 560, prefW: 700, prefH: 560 },
   morsecode: { minW: 620, minH: 560, prefW: 700, prefH: 560 },
   hangman: { minW: 640, minH: 560, prefW: 700, prefH: 560 },
-  timer: { minW: 280, minH: 220, prefW: 380, prefH: 340 },
+  timer: { minW: 280, minH: 300, prefW: 380, prefH: 400 },
   groups: { minW: 300, minH: 240, prefW: 460, prefH: 420 },
   kidattendance: { minW: 280, minH: 220, prefW: 480, prefH: 420 },
   classweeklyplan: { minW: 480, minH: 360, prefW: 960, prefH: 720 },
