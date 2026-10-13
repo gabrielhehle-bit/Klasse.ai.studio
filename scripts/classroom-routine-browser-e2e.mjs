@@ -3266,7 +3266,10 @@ async function main() {
       await clockStudioChoose('spoken');await waitFor(client,'spoken answer survives '+action,`document.querySelector(${q(clockPuzzleRoot)}).innerText===${q(clockSpokenSnapshot)}`);
       await clockStudioChoose('words');
     }
-    await reloadAndUnlock(client);await clickSidebar(client,'Lehrercockpit');
+    await reloadAndUnlock(client);
+    await client.send('Emulation.setDeviceMetricsOverride',{width:1366,height:768,deviceScaleFactor:1,mobile:false});
+    await clickSidebar(client,'Lehrercockpit');
+    await waitFor(client,'restored clock-learning frame has settled inside the viewport',`(() => {const el=document.querySelector('[data-widget-type="clockpuzzle"]');if(!el)return false;const r=el.getBoundingClientRect();return innerWidth===1366&&innerHeight===768&&r.left>=0&&r.right<=innerWidth+1&&r.top>=0&&r.bottom<=innerHeight+1;})()`);
     await waitFor(client,'clock-learning selected exercise and time survive encrypted reload',`document.querySelector(${q(clockStudioRoot)}).dataset.clockLearningTool==='words'&&document.querySelector(${q(clockStudioRoot)}).textContent.includes('23:55')`);
     await clockStudioChoose('spoken');await waitFor(client,'clock-learning spoken task survives encrypted reload',`document.querySelector(${q(clockPuzzleRoot)}).innerText===${q(clockSpokenSnapshot)}`);
     await clockStudioChoose('trainer');await waitFor(client,'clock-learning trainer task survives encrypted reload',`document.querySelector(${q(clockPuzzleRoot)}).innerText===${q(clockTrainerSnapshot)}`);
