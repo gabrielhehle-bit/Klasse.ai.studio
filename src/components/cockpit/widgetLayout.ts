@@ -83,7 +83,7 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   stopwatch: { minW: 280, minH: 200, prefW: 380, prefH: 300 },
   // All ClassRewardWidget variants need an unscaled title, reached banner,
   // visualization and 44px action row, including restored legacy windows.
-  klassenglas: { minW: 300, minH: 320, prefW: 380, prefH: 340 },
+  klassenglas: { minW: 300, minH: 380, prefW: 380, prefH: 420 },
   thermometer: { minW: 300, minH: 320, prefW: 380, prefH: 340 },
   classtarget: { minW: 300, minH: 320, prefW: 380, prefH: 340 },
   piggybank: { minW: 300, minH: 320, prefW: 380, prefH: 340 },

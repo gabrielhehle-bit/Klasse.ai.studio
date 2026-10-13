@@ -1581,6 +1581,50 @@ async function main() {
       await waitFor(client, type+' confirmed reset clears only count', `(${goalState})?.count===0 && (${goalState})?.goal===3 && (${goalState})?.style===${q(style)} && document.querySelector('${goalRoot}').textContent.includes('Gemeinsames Testziel')`);
       await auditMenu(type, 'Widget schließen');
     }
+    // One class goal, three direct visualizations; display changes never reset progress.
+    await clickButton(client, 'Widget hinzufügen');
+    await clickButton(client, 'Kernwidgets');
+    await setInputByLabel(client, 'Widget suchen', 'Ziel-Thermometer');
+    await waitFor(client, 'goal variants are one integrated entry', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length===1 && !document.querySelector('[data-testid="cockpit-core-group-klassenglas"] [data-widget-card-action="variants"]')`);
+    await clickSelector(client, '[data-testid="cockpit-core-group-klassenglas"] [data-widget-card-action="primary"]');
+    const integratedGoal = '[data-widget-type="klassenglas"] #class-reward-widget-root';
+    const integratedGoalState = `(() => {const r=document.querySelector('${integratedGoal}');return r&&{count:Number(r.dataset.classGoalCount),goal:Number(r.dataset.classGoalGoal),style:r.dataset.classGoalStyle};})()`;
+    await clickSelector(client, integratedGoal+' #reward-add-btn');
+    await waitFor(client, 'integrated goal begins with shared progress', `(${integratedGoalState})?.count===1 && (${integratedGoalState})?.goal===3`);
+    const checkGoalControls = async label => {
+      await sleep(250);
+      await waitFor(client, label+' goal controls are touch friendly and unobstructed', `(() => {
+        const root=document.querySelector('${integratedGoal}'),r=root.getBoundingClientRect();
+        const buttons=Array.from(root.querySelectorAll('[data-class-goal-mode],#reward-add-btn,#reward-correction-btn,#reward-reset-btn'));
+        return buttons.length===6 && buttons.every(button=>{const b=button.getBoundingClientRect(),top=document.elementFromPoint(b.left+b.width/2,b.top+b.height/2);return b.width>=44 && b.height>=44 && b.left>=r.left-1 && b.right<=r.right+1 && b.bottom<=r.bottom+1 && [[b.left+6,b.top+6],[b.right-6,b.top+6],[b.left+6,b.bottom-6],[b.right-6,b.bottom-6],[b.left+b.width/2,b.top+b.height/2]].every(([x,y])=>{const hit=document.elementFromPoint(x,y);return hit===button || button.contains(hit);});});
+      })()`);
+    };
+    for (const style of ['jar','barometer','thermometer']) {
+      await clickSelector(client, integratedGoal+' [data-class-goal-mode="'+style+'"]');
+      await waitFor(client, 'direct '+style+' keeps the shared goal and progress', `(${integratedGoalState})?.style===${q(style)} && (${integratedGoalState})?.count===1 && (${integratedGoalState})?.goal===3 && document.querySelector('${integratedGoal}').textContent.includes('Gemeinsames Testziel')`);
+      await checkGoalControls(style);
+      await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-class-goal-'+style+'.png'));
+    }
+    await auditMenu('klassenglas','Minimieren');
+    await openAuditWidget('klassenglas','Klassenziel');
+    await waitFor(client, 'goal visualization and progress survive minimize', `(${integratedGoalState})?.style==='thermometer' && (${integratedGoalState})?.count===1`);
+    await client.send('Emulation.setDeviceMetricsOverride', {width:820,height:900,deviceScaleFactor:1,mobile:false});
+    await checkGoalControls('tablet');
+    await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-class-goal-tablet.png'));
+    await client.send('Emulation.setDeviceMetricsOverride', {width:1366,height:768,deviceScaleFactor:1,mobile:false});
+    await sleep(250);
+    await clickSelector(client, integratedGoal+' [data-class-goal-mode="barometer"]');
+    await clickSelector(client, integratedGoal+' #reward-add-btn');
+    await clickSelector(client, integratedGoal+' #reward-add-btn');
+    await waitFor(client, 'integrated display reaches the same shared goal', `(${integratedGoalState})?.count===3 && Boolean(document.querySelector('${integratedGoal} [data-class-goal-banner]'))`);
+    await checkGoalControls('reached goal');
+    await clickSelector(client, integratedGoal+' #reward-reset-btn');
+    await clickButton(client, 'Ja, leeren', true);
+    await waitFor(client, 'integrated reset keeps target and display', `(${integratedGoalState})?.count===0 && (${integratedGoalState})?.goal===3 && (${integratedGoalState})?.style==='barometer'`);
+    await auditMenu('klassenglas','Widget schließen');
+    await openAuditWidget('klassenglas','Klassenziel');
+    await waitFor(client, 'saved display survives closing and reopening', `(${integratedGoalState})?.count===0 && (${integratedGoalState})?.goal===3 && (${integratedGoalState})?.style==='barometer'`);
+    await auditMenu('klassenglas','Widget schließen');
     console.log('✓ Scoreboard/class goals: real points, correction, tied winners, new round cancellation/confirmation, step restore; all four goal variants validate settings, reach/reset goal and restore progress.');
     await openAuditWidget('breathing', 'Atempause');
     const breath = '[data-widget-type="breathing"]';
@@ -2534,6 +2578,12 @@ async function main() {
     const europeSetting=await evaluate(client,`(() => {const button=Array.from(document.querySelectorAll(${q(flagSettingsRoot+' button')})).find(b=>b.textContent.trim().startsWith('Europa'));if(!button)throw Error('Missing Europe filter');button.dataset.natureAction='europe';return ${q(flagSettingsRoot)}+' [data-nature-action="europe"]';})()`);
     await clickSelector(client,europeSetting);
     await waitFor(client,'flag filter updates before Escape',`document.querySelector(${q(flagRoot)}).textContent.includes('Europa')&&document.querySelector(${q(flagRoot)}).textContent.includes('Noch keine Antwort')`);
+    // Several native filter edits must not detach the global Escape handler.
+    const africaSetting=await evaluate(client,`(() => {const button=Array.from(document.querySelectorAll(${q(flagSettingsRoot+' button')})).find(b=>b.textContent.trim().startsWith('Afrika'));button.dataset.natureAction='africa';return ${q(flagSettingsRoot)}+' [data-nature-action="africa"]';})()`);
+    await clickSelector(client,africaSetting);
+    await waitFor(client,'flag Africa filter is selected',`document.querySelector(${q(africaSetting)})?.getAttribute('aria-pressed')==='true'`);
+    await clickSelector(client,europeSetting);
+    await waitFor(client,'flag Europe filter is restored',`document.querySelector(${q(europeSetting)})?.getAttribute('aria-pressed')==='true'`);
     await evaluate(client,`(() => {window.__flagEscapeEvents=[];window.__flagEscapeObserver=e=>window.__flagEscapeEvents.push({key:e.key,trusted:e.isTrusted,phase:e.eventPhase,target:e.target?.getAttribute?.('aria-label')||e.target?.tagName});window.addEventListener('keydown',window.__flagEscapeObserver,true);document.querySelector(${q(europeSetting)})?.focus();})()`);
     await pressAuditKey('Escape');
     try {
