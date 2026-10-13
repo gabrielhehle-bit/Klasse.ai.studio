@@ -3246,7 +3246,7 @@ async function main() {
     await clockStudioFits();
     const clockSpokenSnapshot=await evaluate(client,`document.querySelector(${q(clockPuzzleRoot)}).innerText`);
     await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-clock-learning-spoken.png'));
-    await clockStudioChoose('words');await routineGear('clockpuzzle');
+    await clockStudioChoose('words');await clickSelector(client,'[data-widget-type="clockpuzzle"] button[aria-label$="Einstellungen öffnen"]');
     await natureClick(clockStudioRoot,'💡 Üben');
     await setInputByLabel(client,'Stunde','23');await setInputByLabel(client,'Minute','55');
     await clockStudioFits();
@@ -3269,7 +3269,7 @@ async function main() {
     await waitFor(client,'clock-learning selected exercise and time survive encrypted reload',`document.querySelector(${q(clockStudioRoot)}).dataset.clockLearningTool==='words'&&document.querySelector(${q(clockStudioRoot)}).textContent.includes('23:55')`);
     await clockStudioChoose('spoken');await waitFor(client,'clock-learning spoken task survives encrypted reload',`document.querySelector(${q(clockPuzzleRoot)}).innerText===${q(clockSpokenSnapshot)}`);
     await clockStudioChoose('trainer');await waitFor(client,'clock-learning trainer task survives encrypted reload',`document.querySelector(${q(clockPuzzleRoot)}).innerText===${q(clockTrainerSnapshot)}`);
-    await routineGear('clockpuzzle');await clockStudioFits();
+    await clickSelector(client,'[data-widget-type="clockpuzzle"] button[aria-label$="Einstellungen öffnen"]');await clockStudioFits();
     await natureClick(clockStudioRoot,'Fertig');await clockStudioFits();
     await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-clock-learning-trainer.png'));
     await auditMenu('clockpuzzle','Widget schließen');
