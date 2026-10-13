@@ -3273,6 +3273,16 @@ async function main() {
     await clickSelector(client,'[data-widget-type="clockpuzzle"] button[aria-label$="Einstellungen öffnen"]');await clockStudioFits();
     await natureClick(clockStudioRoot,'Fertig');await clockStudioFits();
     await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-clock-learning-trainer.png'));
+    const clockSidebarWasOpen=await evaluate(client,`Boolean(document.querySelector('[aria-label="Schülerliste schließen"]'))`);
+    if(clockSidebarWasOpen)await clickSelector(client,'[aria-label="Schülerliste schließen"]');
+    await client.send('Emulation.setDeviceMetricsOverride',{width:820,height:900,deviceScaleFactor:1,mobile:false});await sleep(250);
+    await waitFor(client,'clock-learning window fits tablet viewport',`(() => {const r=document.querySelector('[data-widget-type="clockpuzzle"]').getBoundingClientRect();return r.left>=0&&r.right<=innerWidth+1&&r.top>=0&&r.bottom<=innerHeight+1;})()`);
+    for(const tool of ['trainer','spoken','words'])await clockStudioChoose(tool);
+    await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-clock-learning-tablet.png'));
+    await clockStudioChoose('trainer');
+    await client.send('Emulation.setDeviceMetricsOverride',{width:1366,height:768,deviceScaleFactor:1,mobile:false});await sleep(250);
+    if(clockSidebarWasOpen)await clickSelector(client,'[aria-label="Schülerliste einblenden"]');
+
     await auditMenu('clockpuzzle','Widget schließen');
     console.log('✓ Clock learning: three real tools, independent solved states and word-time settings, native hit targets, opaque settings, minimize/close/reopen and encrypted reload.');
     console.log('✓ Interaction/clock: six missions, Caesar wrap and ten-code safe, six balanced mysteries with physical beam direction/removal, reaction false start/keyboard/result, all clock levels and both modes; native controls and exact close/remount.');
