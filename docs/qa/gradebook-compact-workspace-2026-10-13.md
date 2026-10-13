@@ -33,3 +33,9 @@ Spaltennamen ersetzen wiederholte Eintragen-Schaltflächen. Teilnahme und Klasse
 
 - Nichtteilnahme ohne vorherigen Punktewert wird nicht mehr als fehlender Eintrag behandelt; ein zusätzlicher Test deckt leere und sparse Ergebnislisten sowie echte 0 Punkte ab.
 - Die responsive Layoutprüfung besteht in echtem Chrome bei 390, 820 und 1360 Pixeln. Der Menütest wartet auf das Ende der Schließanimation und nutzt eindeutige Menüselektoren. Native Zahleneingabe wartet auf ein tatsächlich frei erreichbares Eingabefeld.
+
+## Sichtprüfung und Handy-Korrektur
+
+Die Screenshots beider erfolgreichen Chrome-Läufe zum Commit a73701ef wurden nachgeladen. Die Sichtprüfung der Notenmappe bei 390, 820 und 1360 Pixeln und der LZK-Schnelleingabe zeigt auf großen Ansichten die kompakte Tabelle und echte 0 Punkte. Bei 390 Pixeln verbrauchten Nummer und fixierter Name jedoch fast die gesamte Tabellenbreite.
+
+Unter 640 Pixeln erhalten Nummer und Name deshalb zusammen 10rem Breite; der Namensversatz bleibt passend zur Nummernspalte. Diese Bildschirmregel gilt auch für den Tabellenfuß und verändert den Druck nicht. Ein zusätzlicher Chrome-Prüfpunkt verlangt bei 390 Pixeln höchstens 180 Pixel für beide fixierten Spalten. TypeScript, Build und Browser-Skriptsyntax bestehen lokal. Die erneute Chrome-Ausführung und Sichtprüfung der korrigierten Handyansicht stehen noch aus.

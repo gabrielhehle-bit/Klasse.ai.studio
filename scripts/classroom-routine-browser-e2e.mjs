@@ -3697,6 +3697,10 @@ async function main() {
         }
         const layout = await evaluate(client, `(() => {const node=document.querySelector('${selector}');return {overflow:document.documentElement.scrollWidth>innerWidth+3,heading:node.querySelector('h1')?.textContent.trim(),smallTargets:Array.from(node.querySelectorAll('${key === 'gradebook' ? '[data-gradebook-header] button, [data-gradebook-actions] button' : 'section button'}')).filter(b=>b.getBoundingClientRect().width>0&&b.getBoundingClientRect().height<43).map(b=>b.textContent.trim())};})()`);
         if(layout.overflow || !layout.heading || layout.smallTargets.length) throw new Error(page+' layout at '+width+': '+JSON.stringify(layout));
+        if (key === 'gradebook' && width === 390) {
+          const pinnedWidth = await evaluate(client, `(() => {const cells=document.querySelector('.gradebook-table thead tr')?.children;return cells ? cells[0].getBoundingClientRect().width+cells[1].getBoundingClientRect().width : 0;})()`);
+          if (!pinnedWidth || pinnedWidth > 180) throw new Error('Mobile gradebook pinned columns obscure editable scores: '+pinnedWidth);
+        }
         await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-'+key+'-'+width+'.png'));
       }
       if(key === 'gradebook') {
