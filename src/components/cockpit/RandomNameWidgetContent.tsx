@@ -1,26 +1,30 @@
 import React from 'react';
 import { AppState, CockpitWidgetConfig } from '../../types';
-import { RandomNameWidget } from './widgets/RandomNameWidget';
+import { RandomSelectionStudio } from './widgets/RandomSelectionStudio';
 
 export interface RandomNameWidgetProps {
   widget: CockpitWidgetConfig;
   app: AppState;
   currentIsLight: boolean;
   onUpdate?: (updates: Partial<CockpitWidgetConfig>) => void;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
 }
 
 export const RandomNameWidgetContent: React.FC<RandomNameWidgetProps> = ({
   widget,
   app,
   currentIsLight,
-  onUpdate,
+  onUpdate, showSettings, onCloseSettings,
 }) => {
   return (
-    <RandomNameWidget
+    <RandomSelectionStudio
       widget={widget}
       app={app}
       currentIsLight={currentIsLight}
       onUpdate={onUpdate}
+      showSettings={showSettings}
+      onCloseSettings={onCloseSettings}
     />
   );
 };

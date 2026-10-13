@@ -18,6 +18,7 @@ export interface WheelWidgetProps {
   onUpdate: (updates: Partial<CockpitWidgetConfig>) => void;
   app?: AppState;
   currentIsLight: boolean;
+  onBusyChange?: (busy: boolean) => void;
   showSettings?: boolean;
   onCloseSettings?: () => void;
 }
@@ -155,6 +156,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
   onUpdate,
   app: propApp,
   currentIsLight,
+  onBusyChange,
   showSettings: externalShowSettings,
   onCloseSettings,
 }) => {
@@ -210,6 +212,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
 
   // Dreh-Status & Physik
   const [isSpinning, setIsSpinning] = useState(false);
+  useEffect(() => { onBusyChange?.(isSpinning); }, [isSpinning, onBusyChange]);
   const spinningRef = useRef(false);
   const [rotationAngle, setRotationAngle] = useState(0);
   const [winner, setWinner] = useState<string | null>(null);
@@ -696,7 +699,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
       {/* ========================================================================= */}
       {showConfigModal && (
         <div className="absolute inset-0 z-30 bg-black/60 backdrop-blur-xs flex flex-col justify-end sm:justify-center p-2 sm:p-4">
-          <div
+          <div role="dialog" aria-label="Glücksrad-Einstellungen"
             className={`w-full max-h-[90%] flex flex-col rounded-3xl shadow-2xl border p-4 sm:p-5 overflow-hidden ${
               currentIsLight ? 'bg-white border-slate-200' : 'bg-zinc-900 border-white/10'
             }`}
