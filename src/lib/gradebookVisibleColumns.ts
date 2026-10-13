@@ -19,3 +19,11 @@ export function visibleAssessmentIndices(options: {
     })),
   );
 }
+
+export function hasMissingVisibleAssessment(values: unknown[], indices: number[], participation?: Record<number, boolean>): boolean {
+  return indices.some(index => {
+    if (participation?.[index] === false) return false;
+    const value = values[index];
+    return value === undefined || value === null || value === '' || value === 'e' || value === 'f' || value === '-';
+  });
+}

@@ -1,4 +1,4 @@
-import { visibleAssessmentIndices } from '../lib/gradebookVisibleColumns';
+import { visibleAssessmentIndices, hasMissingVisibleAssessment } from '../lib/gradebookVisibleColumns';
 import { countsInClassAverage } from '../lib/classAveragePolicy';
 import { removeSubjectColumn, updateSubjectColumn } from '../lib/classroomEdits';
 
@@ -697,18 +697,13 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
 
     app.schueler.forEach(s => {
       const nd: Partial<GradeData> = app.noten?.[s.id]?.[activeFach]?.[sem] || {};
-      const hasMissing = (arr: any[], indices: number[]) => {
-        for (const i of indices) {
-          if (arr[i] === undefined || arr[i] === null || arr[i] === '' || arr[i] === 'e' || arr[i] === 'f' || arr[i] === '-') return true;
-        }
-        return false;
-      };
+      const hasMissing = hasMissingVisibleAssessment;
       const manualMitarbeitMissing =
         assessmentFilter === 'all' && cfg.mi &&
         mitarbeitSettings.mode === 'manual' &&
         (nd.miDirekt === undefined || nd.miDirekt === null || (nd.miDirekt as any) === '');
       const isMissing = (cfg.sa && hasMissing(nd.sa || [], visibleColumns.sa)) ||
-                        (cfg.lzk && hasMissing((nd.lzk || []).map((value, index) => nd.lzkParticipation?.[index] === false ? 'x' : value), visibleColumns.lzk)) ||
+                        (cfg.lzk && hasMissing(nd.lzk || [], visibleColumns.lzk, nd.lzkParticipation)) ||
                         (cfg.wp && hasMissing(nd.wp || [], visibleColumns.wp)) ||
                         (cfg.obj && hasMissing(nd.aufgaben || [], visibleColumns.obj)) ||
                         manualMitarbeitMissing;
@@ -916,14 +911,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
       list = list.filter(s => {
         const nd: Partial<GradeData> = app?.noten?.[s.id]?.[activeFach]?.[sem] || {};
         // check if any of the required columns is empty or 'e' or 'f'
-        const hasMissing = (arr: any[], indices: number[]) => {
-          for (const i of indices) {
-            if (arr[i] === undefined || arr[i] === null || arr[i] === '' || arr[i] === 'e' || arr[i] === 'f' || arr[i] === '-') return true;
-          }
-          return false;
-        };
+        const hasMissing = hasMissingVisibleAssessment;
         if (cfg.sa && hasMissing(nd.sa || [], visibleColumns.sa)) return true;
-        if (cfg.lzk && hasMissing((nd.lzk || []).map((value, index) => nd.lzkParticipation?.[index] === false ? 'x' : value), visibleColumns.lzk)) return true;
+        if (cfg.lzk && hasMissing(nd.lzk || [], visibleColumns.lzk, nd.lzkParticipation)) return true;
         if (cfg.wp && hasMissing(nd.wp || [], visibleColumns.wp)) return true;
         if (cfg.obj && hasMissing(nd.aufgaben || [], visibleColumns.obj)) return true;
         if (

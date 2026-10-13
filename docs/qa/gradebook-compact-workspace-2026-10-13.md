@@ -12,7 +12,7 @@ Spaltennamen ersetzen wiederholte Eintragen-Schaltflächen. Teilnahme und Klasse
 
 ## Prüfung
 
-- 2.452 Tests erfolgreich mit TZ=Europe/Vienna, einschließlich fünf neuer Regressionstests zur Spaltensichtbarkeit.
+- 2.453 Tests erfolgreich mit TZ=Europe/Vienna, einschließlich sechs neuer Regressionstests zur Spaltensichtbarkeit.
 - TypeScript und Produktionsbuild erfolgreich.
 - Der erste UTC-Testlauf enthielt einen bestehenden Zeitzonenfehler in starsReview.test.ts. Der vollständige Lauf in Europe/Vienna besteht.
 - Keine Browser-/Touchprüfung in dieser Sitzung: die für diese Umgebung vorgesehene Browsersteuerung ist nicht verfügbar. Vor einer Freigabe müssen kleine und große Ansichten, Zellmenüs, Filter, neue Bewertungen und Tastatureingabe visuell geprüft werden.
@@ -30,3 +30,6 @@ Spaltennamen ersetzen wiederholte Eintragen-Schaltflächen. Teilnahme und Klasse
 - Die erste Commit-Version bestand Feature Validation, Schulprüfung, Teamteaching und Security in GitHub. Diese Läufe ersetzen keine gezielte visuelle Prüfung der neuen Notenmappenansicht.
 
 - Der vorhandene Browserablauf wurde an das Werkzeugmenü, den einzigen Anlegen-Button und aufklappbare Teilnahme-/Schnittoptionen angepasst. Ergänzte Laufzeitprüfungen kontrollieren den LZK-Filter vor einem neuen Wochenplan sowie gleich viele sichtbare Spalten in Kopf, Zeile und Fuß der Einzeleingabe. Skriptsyntax lokal geprüft; Browserausführung erfolgt über GitHub.
+
+- Nichtteilnahme ohne vorherigen Punktewert wird nicht mehr als fehlender Eintrag behandelt; ein zusätzlicher Test deckt leere und sparse Ergebnislisten sowie echte 0 Punkte ab.
+- Die responsive Layoutprüfung besteht in echtem Chrome bei 390, 820 und 1360 Pixeln. Der Menütest wartet auf das Ende der Schließanimation und nutzt eindeutige Menüselektoren. Native Zahleneingabe wartet auf ein tatsächlich frei erreichbares Eingabefeld.

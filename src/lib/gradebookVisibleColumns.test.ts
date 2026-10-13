@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { visibleAssessmentIndices } from './gradebookVisibleColumns';
+import { visibleAssessmentIndices, hasMissingVisibleAssessment } from './gradebookVisibleColumns';
 
 test('compact view hides unconfigured placeholders without renumbering recorded columns', () => {
   const values = [null, 0, '', 5];
@@ -31,4 +31,11 @@ test('other semester values and nonparticipation survive empty current-semester 
   assert.deepEqual(visibleAssessmentIndices({ count: 4, expanded: false,
     records: [{ values: [] }, { values: [null, null, 0], participation: { 3: false } }],
   }), [2, 3]);
+});
+
+test('nonparticipation before any score is entered is complete while other open scores remain missing', () => {
+  assert.equal(hasMissingVisibleAssessment([], [3], { 3: false }), false);
+  assert.equal(hasMissingVisibleAssessment([], [2, 3], { 3: false }), true);
+  assert.equal(hasMissingVisibleAssessment([0], [0]), false);
+  assert.equal(hasMissingVisibleAssessment([], []), false);
 });
