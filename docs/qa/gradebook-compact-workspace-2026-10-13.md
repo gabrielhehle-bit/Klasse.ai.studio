@@ -12,11 +12,19 @@ Spaltennamen ersetzen wiederholte Eintragen-Schaltflächen. Teilnahme und Klasse
 
 ## Prüfung
 
-- 2.450 Tests erfolgreich mit TZ=Europe/Vienna, einschließlich drei neuer Regressionstests zur Spaltensichtbarkeit.
-- TypeScript und Produktionsbuild werden vor dem Upload geprüft.
+- 2.452 Tests erfolgreich mit TZ=Europe/Vienna, einschließlich fünf neuer Regressionstests zur Spaltensichtbarkeit.
+- TypeScript und Produktionsbuild erfolgreich.
 - Der erste UTC-Testlauf enthielt einen bestehenden Zeitzonenfehler in starsReview.test.ts. Der vollständige Lauf in Europe/Vienna besteht.
 - Keine Browser-/Touchprüfung in dieser Sitzung: die für diese Umgebung vorgesehene Browsersteuerung ist nicht verfügbar. Vor einer Freigabe müssen kleine und große Ansichten, Zellmenüs, Filter, neue Bewertungen und Tastatureingabe visuell geprüft werden.
 
 ## Noch zu prüfen
 
 17 Kinder ohne Bewertungen; vorhandene LZK mit 0 Punkten; ausgeschlossene Teilnahme und Wiederaufnahme; SPF/ESPF-Ausnahmen; Filterwechsel; leere Spalten zwischen belegten Spalten; neue Bewertung ohne Eintrag; Scrollen; Druckansicht.
+
+## Nachprüfung
+
+- Einzelspaltenansicht: Tabellenkopf, Eingabezeilen und Klassenschnitt verwenden nun dieselbe Auswahl. Zusätzliche Fußzellen und Abstandsspalten bleiben ausgeblendet.
+- Zelloptionen liegen im normalen Tabellenfluss; beim Öffnen wächst die Zeile, statt dass Optionen am Scrollcontainer abgeschnitten werden.
+- Die fixierte Namenszelle des Tabellenfußes berücksichtigt die eingestellte Tabellengröße.
+- Eine neu angelegte Bewertung setzt den Kategorie-Filter zurück, damit beispielsweise ein neuer Wochenplan aus dem LZK-Filter erreichbar bleibt. „Alle Bewertungen anzeigen“ setzt ebenfalls beide Filter zurück.
+- Die erste Commit-Version bestand Feature Validation, Schulprüfung, Teamteaching und Security in GitHub. Diese Läufe ersetzen keine gezielte visuelle Prüfung der neuen Notenmappenansicht.

@@ -643,7 +643,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
   const visibleColumns = Object.fromEntries((['sa', 'lzk', 'wp', 'obj'] as const).map(typ => {
     const meta = app.notenMeta?.[activeFach];
     const dataKey = typ === 'obj' ? 'aufgaben' : typ;
-    return [typ, assessmentFilter !== 'all' && assessmentFilter !== typ ? [] : visibleAssessmentIndices({
+    return [typ, visibleAssessmentIndices({
+      visible: (assessmentFilter === 'all' || assessmentFilter === typ) && (!isolatedCol || isolatedCol.typ === typ),
+      focusedIndex: isolatedCol?.typ === typ ? isolatedCol.idx : undefined,
       count: typ === 'sa' ? getFachCfg(app, activeFach).saCount : colCounts[typ],
       expanded: !simpleDashboardMode,
       labels: meta?.colLabels?.[typ], dates: meta?.colDates?.[typ],
@@ -706,7 +708,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     });
 
     return count;
-  }, [app, activeFach, sem, colCounts, mitarbeitSettings.mode, simpleDashboardMode, assessmentFilter]);
+  }, [app, activeFach, sem, colCounts, mitarbeitSettings.mode, simpleDashboardMode, assessmentFilter, isolatedCol]);
 
   const hasAnyAssessment = useMemo(() => {
     return (app.schueler || []).some((student) => {
@@ -958,7 +960,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
       }
       return 0;
     });
-  }, [app.schueler, app.noten, activeFach, sem, sortBy, sortOrder, filterMissing, cfg, colCounts, assessmentMode, activeView, mitarbeitSettings.mode, simpleDashboardMode, assessmentFilter]);
+  }, [app.schueler, app.noten, activeFach, sem, sortBy, sortOrder, filterMissing, cfg, colCounts, assessmentMode, activeView, mitarbeitSettings.mode, simpleDashboardMode, assessmentFilter, isolatedCol]);
 
   const columnAverages = useMemo(() => {
     const results: Record<string, { avg: number | null }> = {};
@@ -3255,7 +3257,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <button 
-                  onClick={() => setIsolatedCol(null)}
+                  onClick={() => { setAssessmentFilter('all'); setIsolatedCol(null); setFilterMissing(false); }}
                   className={`px-3 py-2 border rounded-xl text-[0.625rem] font-black uppercase tracking-widest transition-all ${isolatedCol ? 'bg-amber-100 text-amber-800 border-amber-300 animate-pulse' : 'hidden'}`}
                 >
                   Alle Bewertungen anzeigen
@@ -3493,7 +3495,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                 {s.espf && <span className={`${dStyle.spfBadge} font-black uppercase text-teal-600 bg-teal-100 rounded border border-teal-200 print:bg-slate-100 print:text-black`}>ESPF</span>}
                                 <details className="relative text-xs font-medium print:hidden">
                                   <summary className="cursor-pointer text-slate-500" aria-label={`${s.vorname} ${s.nachname}: Klassenschnitt einstellen`}>{countsInClassAverage(app, s, activeFach) ? '⋯' : 'Ohne Schnitt'}</summary>
-                                  <div className="absolute left-0 top-full z-[60] min-w-48 rounded-lg border border-slate-200 bg-white p-3 shadow-lg"><label className="flex items-center gap-1 text-xs font-medium print:hidden"><input type="checkbox" aria-label={`${s.vorname} ${s.nachname} im Klassenschnitt mitzählen`} checked={countsInClassAverage(app, s, activeFach)} onChange={e => setApp(prev => ({ ...prev, schueler: prev.schueler.map(child => child.id === s.id ? { ...child, includeInClassAverage: e.target.checked } : child) }))} />Im Schnitt</label></div>
+                                  <div className="mt-1 rounded-lg border border-slate-200 bg-white p-2 text-slate-700"><label className="flex items-center gap-1 text-xs font-medium print:hidden"><input type="checkbox" aria-label={`${s.vorname} ${s.nachname} im Klassenschnitt mitzählen`} checked={countsInClassAverage(app, s, activeFach)} onChange={e => setApp(prev => ({ ...prev, schueler: prev.schueler.map(child => child.id === s.id ? { ...child, includeInClassAverage: e.target.checked } : child) }))} />Im Schnitt</label></div>
                                 </details>
                                 {studentErrors.length > 0 && (
                                   <span 
@@ -3674,9 +3676,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                         onCommit={(val) => setNote(s.id, 'lzk', idx, val)}
 
                                       />
-                                      <details className="absolute right-0 top-0 text-xs print:hidden">
+                                      <details className="mt-1 text-xs print:hidden">
                                         <summary className="cursor-pointer rounded bg-white px-1 text-slate-500" aria-label={`${s.vorname} ${s.nachname}: Teilnahme an LZK ${idx + 1} einstellen`}>{rawNd.lzkParticipation?.[idx] === false ? 'n. t.' : '⋯'}</summary>
-                                        <div className="absolute right-0 top-full z-[60] min-w-48 rounded-lg border border-slate-200 bg-white p-3 shadow-lg"><label className="flex items-center justify-center gap-1 text-xs text-slate-600 print:hidden"><input type="checkbox" aria-label={`${s.vorname} ${s.nachname} nimmt an LZK ${idx + 1} teil`} checked={rawNd.lzkParticipation?.[idx] !== false} onChange={e => { const participates = e.target.checked; setApp(prev => { const data = prev.noten?.[s.id]?.[activeFach]?.[sem] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] }; return { ...prev, noten: { ...prev.noten, [s.id]: { ...prev.noten?.[s.id], [activeFach]: { ...prev.noten?.[s.id]?.[activeFach], [sem]: { ...data, lzkParticipation: { ...data.lzkParticipation, [idx]: participates } } } } } }; }); }} />{rawNd.lzkParticipation?.[idx] === false ? 'Nimmt nicht teil' : 'Teilnahme'}</label></div>
+                                        <div className="mt-1 rounded-lg border border-slate-200 bg-white p-2 text-slate-700"><label className="flex items-center justify-center gap-1 text-xs text-slate-600 whitespace-normal print:hidden"><input type="checkbox" aria-label={`${s.vorname} ${s.nachname} nimmt an LZK ${idx + 1} teil`} checked={rawNd.lzkParticipation?.[idx] !== false} onChange={e => { const participates = e.target.checked; setApp(prev => { const data = prev.noten?.[s.id]?.[activeFach]?.[sem] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] }; return { ...prev, noten: { ...prev.noten, [s.id]: { ...prev.noten?.[s.id], [activeFach]: { ...prev.noten?.[s.id]?.[activeFach], [sem]: { ...data, lzkParticipation: { ...data.lzkParticipation, [idx]: participates } } } } } }; }); }} />{rawNd.lzkParticipation?.[idx] === false ? 'Nimmt nicht teil' : 'Teilnahme'}</label></div>
                                       </details>
                                       {isBorderline(nd.lzk[idx]) && (
                                         <div className="absolute -top-1.5 -right-0.5 z-10 text-amber-500 bg-white rounded-full shadow-sm border border-amber-200 pointer-events-none" title="Grenzentscheidung / Tendenz (+/-)">
@@ -3933,7 +3935,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                   <tfoot className="sticky bottom-0 z-30 shadow-[0_-4px_10px_-2px_rgba(0,0,0,0.3)]">
                     <tr className="bg-neutral-900 font-black text-[0.75rem] leading-tight text-neutral-400 text-center uppercase tracking-widest border-t-2 border-neutral-800 print:break-inside-avoid">
                       <td className="px-4 py-4 border-t px-2 border-neutral-700 border-r border-r-neutral-800 sticky left-0 z-40 bg-neutral-900 print:relative print:left-0 shadow-[2px_0_5px_rgba(0,0,0,0.2)]">∑</td>
-                      <td className="px-5 py-4 text-left border-t border-neutral-700 border-r border-r-neutral-800 sticky left-[4rem] z-40 bg-neutral-900 print:relative print:left-0 uppercase text-white shadow-[2px_0_5px_rgba(0,0,0,0.2)]">∅ Klasse</td>
+                      <td className={`${dStyle.tdName} py-4 text-left border-t border-neutral-700 border-r border-r-neutral-800 sticky z-40 bg-neutral-900 print:relative print:left-0 uppercase text-white shadow-[2px_0_5px_rgba(0,0,0,0.2)]`}>∅ Klasse</td>
                       <td className="px-2 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-800 text-white border-x-2">
                         {hasCalculatedAverage(stats?.avg) ? (assessmentMode === 'grades' ? stats!.avg.toFixed(2) : `${stats!.avg.toFixed(1)}%`) : '–'}
                       </td>
@@ -3953,7 +3955,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                 : '–'}
                             </td>
                           ))}
-                          <td className={`w-12 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900/50 print:hidden ${simpleDashboardMode ? 'hidden' : ''}`}></td>
+                          <td className={`w-12 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900/50 print:hidden ${isolatedCol || simpleDashboardMode ? 'hidden' : ''}`}></td>
                         </>
                       )}
                       {cfg.wp && (
@@ -3965,7 +3967,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                 : '–'}
                             </td>
                           ))}
-                          <td className={`w-12 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900/50 print:hidden ${simpleDashboardMode ? 'hidden' : ''}`}></td>
+                          <td className={`w-12 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900/50 print:hidden ${isolatedCol || simpleDashboardMode ? 'hidden' : ''}`}></td>
                         </>
                       )}
                       {cfg.obj && (
@@ -3977,12 +3979,12 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                 : '–'}
                             </td>
                           ))}
-                          <td className={`w-12 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900/50 print:hidden ${simpleDashboardMode ? 'hidden' : ''}`}></td>
+                          <td className={`w-12 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900/50 print:hidden ${isolatedCol || simpleDashboardMode ? 'hidden' : ''}`}></td>
                         </>
                       )}
-                      {cfg.mi && assessmentFilter === 'all' && <td className="px-1 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900 text-white"></td>}
-                      {cfg.hue && assessmentFilter === 'all' && <td className="px-1 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900 text-white"></td>}
-                      <td className="px-4 py-3 border-t border-neutral-700 border-neutral-800 bg-neutral-900 shadow-inner">
+                      {cfg.mi && !isolatedCol && assessmentFilter === 'all' && <td className="px-1 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900 text-white"></td>}
+                      {cfg.hue && !isolatedCol && assessmentFilter === 'all' && <td className="px-1 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900 text-white"></td>}
+                      <td className={`px-4 py-3 border-t border-neutral-700 border-neutral-800 bg-neutral-900 shadow-inner ${isolatedCol ? 'hidden' : ''}`}>
                          <span className="nb nb-primary !scale-75 opacity-20">Ø</span>
                       </td>
                     </tr>
@@ -4304,6 +4306,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                 updateColMeta(editingAssessmentModal.typ, editingAssessmentModal.idx, labelVal, dateVal, maxPointsVal, area);
                 if (editingAssessmentModal.isNew) {
                   setActiveView('noten'); setShowWeights(false); setFilterMissing(false);
+                  setAssessmentFilter('all');
                   setSortBy('name'); setSortOrder('asc');
                   setIsolatedCol({ typ: editingAssessmentModal.typ, idx: editingAssessmentModal.idx });
                 }
