@@ -593,6 +593,7 @@ export type CockpitWidgetLibraryId = CockpitWidgetLibraryItem["type"];
  * beside the catalog so the classroom surface does not maintain a second UX map.
  */
 const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
+  "clockpuzzle",
   "trafficlight",
   "clock",
   "stopwatch",

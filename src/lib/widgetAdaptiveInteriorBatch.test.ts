@@ -10,9 +10,9 @@ const timer = read('TimerWidget');
 const frame = readFileSync('src/components/cockpit/CockpitWidget.tsx', 'utf8');
 const viewport = readFileSync('src/lib/widgetViewport.ts', 'utf8');
 
-test('All 20 selected cockpit widgets are still served by the measured and scroll-reachable frame', () => {
-  assert.equal(PLANNED_COCKPIT_WIDGETS.length, 20);
-  assert.equal(new Set(PLANNED_COCKPIT_WIDGETS.map(w => w.id)).size, 20);
+test('All selected cockpit widgets are still served by the measured and scroll-reachable frame', () => {
+  assert.equal(PLANNED_COCKPIT_WIDGETS.length, 21);
+  assert.equal(new Set(PLANNED_COCKPIT_WIDGETS.map(w => w.id)).size, 21);
   assert.match(frame, /ref=\{contentViewportRef\}/);
   assert.match(frame, /data-widget-content=\{widget\.type\}/);
   assert.match(frame, /overflow: WIDGET_VIEWPORT_OVERFLOW/);

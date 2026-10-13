@@ -697,7 +697,7 @@ async function main() {
     // The normal picker stays small; exact legacy names remain available separately.
     await clickButton(client, 'Widget hinzufügen');
     await clickButton(client, 'Kernwidgets');
-    await waitFor(client, 'regular picker has 24 grouped entries', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length === 24`);
+    await waitFor(client, 'regular picker has 25 grouped entries', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length === 25`);
     await waitFor(client, 'student-list resize grip is removed while choosing widgets', `!document.querySelector('[aria-label="Breite der Schülerliste ändern"]')`);
     await sleep(250);
     await evaluate(client, `document.querySelector('button[aria-label="Widget-Voreinstellungen öffnen"]').click()`);
@@ -708,7 +708,7 @@ async function main() {
     await client.send('Emulation.setDeviceMetricsOverride', { width:820, height:900, deviceScaleFactor:1, mobile:false });
     // Below 768px the app deliberately switches from the cockpit to phone quick mode.
     await sleep(250);
-    await waitFor(client, 'regular picker fits the supported tablet viewport', `(() => {const dialog=document.querySelector('[role=dialog][aria-label="Widget-Bibliothek"]');if(!dialog)return false;const rect=dialog.getBoundingClientRect();return rect.left>=-1 && rect.right<=innerWidth+1 && rect.top>=0 && rect.bottom<=innerHeight+1 && document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length===24;})()`);
+    await waitFor(client, 'regular picker fits the supported tablet viewport', `(() => {const dialog=document.querySelector('[role=dialog][aria-label="Widget-Bibliothek"]');if(!dialog)return false;const rect=dialog.getBoundingClientRect();return rect.left>=-1 && rect.right<=innerWidth+1 && rect.top>=0 && rect.bottom<=innerHeight+1 && document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length===25;})()`);
     await waitFor(client, 'tablet picker controls are unobstructed', `(() => {
       const dialog=document.querySelector('[role=dialog][aria-label="Widget-Bibliothek"]'),content=dialog.querySelector('main').getBoundingClientRect();
       const actions=Array.from(dialog.querySelectorAll('[data-widget-card-action="primary"], [data-widget-library-action]')).filter(button=>{const r=button.getBoundingClientRect(),y=r.top+r.height/2;return r.width>0 && y>=content.top && y<=content.bottom || button.hasAttribute('data-widget-library-action');});
@@ -3220,7 +3220,74 @@ async function main() {
       await practiceRestore('clockpuzzle','Uhren-Lern-Trainer');await clickSelector(client,clockPuzzleRoot+' [aria-label="Stundenzeiger vor"]');
       await waitFor(client,'editing clears stale success',`!document.querySelector(${q(clockPuzzleRoot)}).textContent.includes('Richtig eingestellt.')`);await natureClick(clockPuzzleRoot,'Uhr ablesen');
     }
-    await practiceScreen('clockpuzzle');await auditMenu('clockpuzzle','Widget schließen');
+    await practiceScreen('clockpuzzle');
+    // One regular clock-learning entry; every tool retains its own existing snapshot.
+    const clockStudioRoot='[data-widget-type="clockpuzzle"] [data-clock-learning-studio]';
+    const clockStudioFits=async()=>{
+      const result=await evaluate(client,`(() => {const root=document.querySelector(${q(clockStudioRoot)}),outer=root.getBoundingClientRect(),dialog=root.querySelector('[role="dialog"]')||root.querySelector('[data-clock-learning-panel="words"] [class*="absolute inset-0"]'),scope=dialog||root;return Array.from(scope.querySelectorAll('button')).filter(b=>b.getClientRects().length).map(b=>{const r=b.getBoundingClientRect(),points=[[r.left+8,r.top+8],[r.right-8,r.top+8],[r.left+8,r.bottom-8],[r.right-8,r.bottom-8],[r.left+r.width/2,r.top+r.height/2]],hits=points.map(([x,y])=>document.elementFromPoint(x,y));return {label:b.getAttribute('aria-label')||b.textContent.trim(),width:r.width,height:r.height,bottom:r.bottom,rootBottom:outer.bottom,cover:hits.map(h=>h?.getAttribute('aria-label')||h?.tagName),ok:r.width>=43&&r.height>=43&&r.top>=outer.top&&r.bottom<=outer.bottom+1&&(b.disabled||hits.every(hit=>hit===b||b.contains(hit)))};}).filter(r=>!r.ok);})()`);
+      if(result.length)throw Error('Clock-learning controls clipped, overlapped or too small: '+JSON.stringify(result));
+    };
+    const clockStudioChoose=async tool=>{
+      await clockStudioFits();
+      await clickSelector(client,clockStudioRoot+' [data-clock-learning-mode="'+tool+'"]');
+      await waitFor(client,'clock learning shows '+tool,`document.querySelector(${q(clockStudioRoot)}).dataset.clockLearningTool===${q(tool)}`);
+      await clockStudioFits();
+    };
+    const clockSavedAnswer=await readPuzzleClock();await natureClick(clockPuzzleRoot,clockSavedAnswer.text+' Uhr');
+    await waitFor(client,'trainer has a checked answer before tool switching',`document.querySelector(${q(clockPuzzleRoot)}).textContent.includes('Richtig –')`);
+    const clockTrainerSnapshot=await evaluate(client,`document.querySelector(${q(clockPuzzleRoot)}).innerText`);
+    const clockTrainerHands=await readPuzzleClock();
+    await clockStudioChoose('spoken');
+    await clickSelector(client,clockPuzzleRoot+' [aria-label="3 Uhr einstellen"]');
+    await clickSelector(client,clockPuzzleRoot+' [aria-label="0 Minuten einstellen"]');
+    await natureClick(clockPuzzleRoot,'Nächste Uhr');
+    await clickSelector(client,clockPuzzleRoot+' [aria-label="4 Uhr einstellen"]');
+    await clickSelector(client,clockPuzzleRoot+' [aria-label="30 Minuten einstellen"]');
+    await natureClick(clockPuzzleRoot,'Digitalhilfe zeigen');
+    await waitFor(client,'spoken half five really uses 4:30 and correct hands',`(() => {const r=document.querySelector(${q(clockPuzzleRoot)});return r.textContent.includes('Richtig eingestellt!')&&r.textContent.includes('Ziel: 04:30')&&r.querySelector('[data-clock-hand="hour"]').getAttribute('transform')==='rotate(135 50 50)'&&r.querySelector('[data-clock-hand="minute"]').getAttribute('transform')==='rotate(180 50 50)';})()`);
+    await clockStudioFits();
+    const clockSpokenSnapshot=await evaluate(client,`document.querySelector(${q(clockPuzzleRoot)}).innerText`);
+    await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-clock-learning-spoken.png'));
+    await clockStudioChoose('words');await clickSelector(client,'[data-widget-type="clockpuzzle"] button[aria-label$="Einstellungen öffnen"]');
+    await natureClick(clockStudioRoot,'💡 Üben');
+    await setInputByLabel(client,'Stunde','23');await setInputByLabel(client,'Minute','55');
+    await clockStudioFits();
+    await waitFor(client,'combined word settings stay opaque',`(() => {const p=document.querySelector(${q(clockStudioRoot+' [data-clock-learning-panel="words"] [class*="absolute inset-0"]')});return p&&getComputedStyle(p).backgroundColor==='rgb(255, 255, 255)';})()`);
+    await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-clock-learning-settings.png'));
+    await natureClick(clockStudioRoot,'Fertig');
+    await waitFor(client,'combined word clock shows midnight boundary correctly',`document.querySelector(${q(clockStudioRoot)}).textContent.includes('23:55')&&document.querySelector(${q(clockStudioRoot)}).textContent.includes('Fünf vor 12')`);
+    await clockStudioFits();await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-clock-learning-words.png'));
+    for(const action of ['Minimieren','Widget schließen']){
+      await auditMenu('clockpuzzle',action);await openAuditWidget('clockpuzzle','Uhren-Lern-Trainer');
+      await waitFor(client,'selected word exercise survives '+action,`document.querySelector(${q(clockStudioRoot)}).dataset.clockLearningTool==='words'&&document.querySelector(${q(clockStudioRoot)}).textContent.includes('23:55')`);
+      await clockStudioChoose('trainer');
+      await waitFor(client,'trainer answer survives '+action,`document.querySelector(${q(clockPuzzleRoot)}).innerText===${q(clockTrainerSnapshot)}`);
+      if(JSON.stringify(await readPuzzleClock())!==JSON.stringify(clockTrainerHands))throw Error('Clock-learning switch changes saved trainer hands');
+      await clockStudioChoose('spoken');await waitFor(client,'spoken answer survives '+action,`document.querySelector(${q(clockPuzzleRoot)}).innerText===${q(clockSpokenSnapshot)}`);
+      await clockStudioChoose('words');
+    }
+    await reloadAndUnlock(client);
+    await client.send('Emulation.setDeviceMetricsOverride',{width:1366,height:768,deviceScaleFactor:1,mobile:false});
+    await clickSidebar(client,'Lehrercockpit');
+    await waitFor(client,'restored clock-learning frame has settled inside the viewport',`(() => {const el=document.querySelector('[data-widget-type="clockpuzzle"]');if(!el)return false;const r=el.getBoundingClientRect();return innerWidth===1366&&innerHeight===768&&r.left>=0&&r.right<=innerWidth+1&&r.top>=0&&r.bottom<=innerHeight+1;})()`);
+    await waitFor(client,'clock-learning selected exercise and time survive encrypted reload',`document.querySelector(${q(clockStudioRoot)}).dataset.clockLearningTool==='words'&&document.querySelector(${q(clockStudioRoot)}).textContent.includes('23:55')`);
+    await clockStudioChoose('spoken');await waitFor(client,'clock-learning spoken task survives encrypted reload',`document.querySelector(${q(clockPuzzleRoot)}).innerText===${q(clockSpokenSnapshot)}`);
+    await clockStudioChoose('trainer');await waitFor(client,'clock-learning trainer task survives encrypted reload',`document.querySelector(${q(clockPuzzleRoot)}).innerText===${q(clockTrainerSnapshot)}`);
+    await clickSelector(client,'[data-widget-type="clockpuzzle"] button[aria-label$="Einstellungen öffnen"]');await clockStudioFits();
+    await natureClick(clockStudioRoot,'Fertig');await clockStudioFits();
+    await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-clock-learning-trainer.png'));
+    const clockSidebarWasOpen=await evaluate(client,`Boolean(document.querySelector('[aria-label="Schülerliste schließen"]'))`);
+    if(clockSidebarWasOpen)await clickSelector(client,'[aria-label="Schülerliste schließen"]');
+    await client.send('Emulation.setDeviceMetricsOverride',{width:820,height:900,deviceScaleFactor:1,mobile:false});await sleep(250);
+    await waitFor(client,'clock-learning window fits tablet viewport',`(() => {const r=document.querySelector('[data-widget-type="clockpuzzle"]').getBoundingClientRect();return r.left>=0&&r.right<=innerWidth+1&&r.top>=0&&r.bottom<=innerHeight+1;})()`);
+    for(const tool of ['trainer','spoken','words'])await clockStudioChoose(tool);
+    await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-clock-learning-tablet.png'));
+    await clockStudioChoose('trainer');
+    await client.send('Emulation.setDeviceMetricsOverride',{width:1366,height:768,deviceScaleFactor:1,mobile:false});await sleep(250);
+    if(clockSidebarWasOpen)await clickSelector(client,'[aria-label="Schülerliste einblenden"]');
+
+    await auditMenu('clockpuzzle','Widget schließen');
+    console.log('✓ Clock learning: three real tools, independent solved states and word-time settings, native hit targets, opaque settings, minimize/close/reopen and encrypted reload.');
     console.log('✓ Interaction/clock: six missions, Caesar wrap and ten-code safe, six balanced mysteries with physical beam direction/removal, reaction false start/keyboard/result, all clock levels and both modes; native controls and exact close/remount.');
 
     // Wellbeing: actual votes, measured quantities and full tooth-surface timer.

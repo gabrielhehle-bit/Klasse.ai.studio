@@ -1,3 +1,4 @@
+import { ClockLearningStudio } from "./cockpit/widgets/ClockLearningStudio";
 import { getDrawingOpeningSettings } from '../lib/drawingSurfaceState';
 import SidebarStarsOverview from './cockpit/SidebarStarsOverview';
 import SaveSyncStatus from './SaveSyncStatus';
@@ -4172,7 +4173,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       w.id !== id ? w : {
         ...w,
         ...updates,
-        ...(((w.type === "weather" && updates.settings) || (w.type === "zahlenraum" && updates.settings) || (w.type === "anschauung" && updates.settings) || (w.type === "numberline" && updates.settings) || (w.type === "wortsatzwerkstatt" && updates.settings) || (w.type === "soundmachine" && updates.settings) || (w.type === "drawing" && updates.settings) || (w.type === "aiquiz" && updates.settings) || (w.type === "riddle" && updates.settings) || (w.type === "groups" && updates.settings) || (w.type === "wheel" && updates.settings) || (w.type === "sounds" && updates.settings) || (w.type === "klassenglas" && updates.settings) || (w.type === "randomname" && updates.settings) || (w.type === "timer" && updates.settings) || (w.type === "trafficlight" && updates.settings) || (w.type === "stopwatch" && updates.settings) || (w.type === "dictionary" && updates.settings) || (w.type === "piano" && updates.settings) || (w.type === "bodyparts" && updates.settings) || (w.type === "compass" && updates.settings) || (w.type === "weekdays" && updates.settings) || (w.type === "flagquiz" && updates.settings) || (w.type === "trafficquiz" && updates.settings) || (w.type === "watercycle" && updates.settings) || (w.type === "constellation" && updates.settings) || (w.type === "planetarium" && updates.settings) || (w.type === "geometry" && updates.settings) || (w.type === "wordchain" && updates.settings) || (w.type === "wordgrid" && updates.settings) || (w.type === "wordscramble" && updates.settings) || (w.type === "secretcode" && updates.settings) || (w.type === "wordexplorer" && updates.settings) || (w.type === "patternmaker" && updates.settings) || (w.type === "rhymemachine" && updates.settings) || (w.type === "alphabetsoup" && updates.settings) || (w.type === "morsecode" && updates.settings) || (w.type === "punctuationzoo" && updates.settings) || (w.type === "estimationjar" && updates.settings) || (w.type === "angledetective" && updates.settings))
+        ...(((w.type === "weather" && updates.settings) || (w.type === "zahlenraum" && updates.settings) || (w.type === "anschauung" && updates.settings) || (w.type === "numberline" && updates.settings) || (w.type === "wortsatzwerkstatt" && updates.settings) || (w.type === "soundmachine" && updates.settings) || (w.type === "drawing" && updates.settings) || (w.type === "aiquiz" && updates.settings) || (w.type === "riddle" && updates.settings) || (w.type === "groups" && updates.settings) || (w.type === "wheel" && updates.settings) || (w.type === "sounds" && updates.settings) || (w.type === "klassenglas" && updates.settings) || (w.type === "randomname" && updates.settings) || (w.type === "timer" && updates.settings) || (w.type === "clockpuzzle" && updates.settings) || (w.type === "trafficlight" && updates.settings) || (w.type === "stopwatch" && updates.settings) || (w.type === "dictionary" && updates.settings) || (w.type === "piano" && updates.settings) || (w.type === "bodyparts" && updates.settings) || (w.type === "compass" && updates.settings) || (w.type === "weekdays" && updates.settings) || (w.type === "flagquiz" && updates.settings) || (w.type === "trafficquiz" && updates.settings) || (w.type === "watercycle" && updates.settings) || (w.type === "constellation" && updates.settings) || (w.type === "planetarium" && updates.settings) || (w.type === "geometry" && updates.settings) || (w.type === "wordchain" && updates.settings) || (w.type === "wordgrid" && updates.settings) || (w.type === "wordscramble" && updates.settings) || (w.type === "secretcode" && updates.settings) || (w.type === "wordexplorer" && updates.settings) || (w.type === "patternmaker" && updates.settings) || (w.type === "rhymemachine" && updates.settings) || (w.type === "alphabetsoup" && updates.settings) || (w.type === "morsecode" && updates.settings) || (w.type === "punctuationzoo" && updates.settings) || (w.type === "estimationjar" && updates.settings) || (w.type === "angledetective" && updates.settings))
           ? { settings: { ...(w.settings || {}), ...updates.settings } }
           : {}),
         hasBeenOpened: true,
@@ -4345,7 +4346,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
 
     // Restore these teaching tools inside the currently usable board, including
     // after zoom changed its measurements. Keep the dock clear of resize grips.
-    if (useOld && ['randomname', 'rhythm', 'soundmemory', 'guitartuner', 'tonetrainer', 'animalvoice', 'challenge', 'secretagent', 'weightscale', 'reflexgame', 'clockpuzzle', 'geometry', 'shapepuzzle', 'angledetective', 'estimationjar', 'divrobot', 'bodyparts', 'compass', 'weekdays', 'trafficquiz', 'watercycle', 'constellation', 'planetarium', 'flagquiz', 'geographyquiz', 'wastebin'].includes(String(type))) {
+    if (useOld && ['riddle', 'randomname', 'rhythm', 'soundmemory', 'guitartuner', 'tonetrainer', 'animalvoice', 'challenge', 'secretagent', 'weightscale', 'reflexgame', 'clockpuzzle', 'geometry', 'shapepuzzle', 'angledetective', 'estimationjar', 'divrobot', 'bodyparts', 'compass', 'weekdays', 'trafficquiz', 'watercycle', 'constellation', 'planetarium', 'flagquiz', 'geographyquiz', 'wastebin'].includes(String(type))) {
       const area = measureCockpitUsableBoardArea();
       if (area) {
         const size = getWidgetMinSizeConfig(String(type));
@@ -9629,7 +9630,7 @@ ${content}
                                             const primaryType = primary?.type || String(group.id);
                                             const primaryLabel = primary?.label || `🧩 ${group.label}`;
                                             const icon = primaryLabel.split(" ")[0] || "🧩";
-                                            const description = group.id === "trafficlight" ? "Arbeitsampel, Lautstärkevorgabe und Live-Pegel in einem Widget" : group.id === "klassenglas" ? "Ein Klassenziel als Glas, Zielring oder Thermometer" : group.id === "randomname" ? "Namen ziehen, Glücksrad und faire Aufrufe in einem Widget" : group.id === "timer" ? "Timer, Stoppuhr und Uhrzeit in einem Widget" : primary?.desc || (variants.length > 1
+                                            const description = group.id === "clockpuzzle" ? "Uhr ablesen, Zeitaufträge und Wort-Uhr in einem Lernwidget" : group.id === "trafficlight" ? "Arbeitsampel, Lautstärkevorgabe und Live-Pegel in einem Widget" : group.id === "klassenglas" ? "Ein Klassenziel als Glas, Zielring oder Thermometer" : group.id === "randomname" ? "Namen ziehen, Glücksrad und faire Aufrufe in einem Widget" : group.id === "timer" ? "Timer, Stoppuhr und Uhrzeit in einem Widget" : primary?.desc || (variants.length > 1
                                               ? `${variants.length} Varianten für den Unterricht`
                                               : "Unterrichts-Widget");
                                             const expanded = expandedCoreWidget === group.id;
@@ -9681,7 +9682,7 @@ ${content}
                                                     {isPinned ? <Check size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
                                                     <span>Leiste</span>
                                                   </button>
-                                                  {variants.length > 1 && !["timer", "randomname", "klassenglas", "trafficlight"].includes(group.id) && (
+                                                  {variants.length > 1 && !["timer", "randomname", "klassenglas", "trafficlight", "clockpuzzle"].includes(group.id) && (
                                                     <button type="button" data-widget-card-action="variants"
                                                       onClick={() => setExpandedCoreWidget(expanded ? null : group.id)}
                                                       aria-label={`Varianten von ${group.label} ${expanded ? "schließen" : "anzeigen"}`}
@@ -9705,7 +9706,7 @@ ${content}
                                                     <span>{isMinimized ? "Wiederherstellen" : isActive ? "Anzeigen" : "Öffnen"}</span>
                                                   </button>
                                                 </div>
-                                                {variants.length > 1 && !["timer", "randomname", "klassenglas", "trafficlight"].includes(group.id) && expanded && (
+                                                {variants.length > 1 && !["timer", "randomname", "klassenglas", "trafficlight", "clockpuzzle"].includes(group.id) && expanded && (
                                                   <div className="w-full border-t border-slate-100 pt-2">
                                                     <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Varianten</p>
                                                     <div className="flex flex-wrap gap-1.5">
@@ -11447,7 +11448,9 @@ ${content}
 
                                     case "clockpuzzle":
                                       return (
-                                        <ClockpuzzleWidgetContent
+                                        <ClockLearningStudio
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                           widget={widget}
                                           onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}

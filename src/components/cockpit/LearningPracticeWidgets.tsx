@@ -37,9 +37,8 @@ export const ClocksyncWidgetContent:React.FC<PracticeProps>=props=>{
  const [s,set]=useLessonState(props,'clocksync',{task:0,hour:12,minute:0,hint:false});
  const task=CLOCK_TASKS[s.task%CLOCK_TASKS.length],angles=clockAngles(s.hour,s.minute),matched=s.hour===task.hour&&s.minute===task.minute;
  const change=(delta:number)=>set(p=>({...p,...shiftClock(p.hour,p.minute,delta)}));
- return <LessonFrame label="Uhrzeit üben">
-  <p className="shrink-0 text-xs font-bold">Aufgabe {s.task+1} von {CLOCK_TASKS.length} · rote Stunde, blaue Minute</p>
-  <h3 className="shrink-0 text-xl font-black">{task.text}</h3>
+ return <div role="region" aria-label="Uhrzeit üben" data-practice-root className="flex h-full min-h-0 w-full flex-col gap-1.5 overflow-hidden p-2 text-sm">
+  <div className="flex shrink-0 items-center justify-between gap-3"><h3 className="text-lg font-black">{task.text}</h3><p className="text-xs font-bold">Aufgabe {s.task+1} von {CLOCK_TASKS.length}<br/>Rote Stunde · blaue Minute</p></div>
   <div className="grid min-h-0 flex-1 grid-cols-[240px_minmax(0,1fr)] items-center gap-3">
    <div className="relative mx-auto h-[240px] w-[240px] rounded-full border-2 bg-white text-slate-900">
     <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100" aria-label="Analoge Uhr"><line data-clock-hand="hour" x1="50" y1="50" x2="50" y2="30" stroke="#dc2626" strokeWidth="3" strokeLinecap="round" transform={'rotate('+angles.hour+' 50 50)'}/><line data-clock-hand="minute" x1="50" y1="50" x2="50" y2="20" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" transform={'rotate('+angles.minute+' 50 50)'}/><circle cx="50" cy="50" r="2" fill="#0f172a"/></svg>
@@ -48,10 +47,9 @@ export const ClocksyncWidgetContent:React.FC<PracticeProps>=props=>{
    <div className="grid min-w-0 grid-cols-3 gap-2" role="group" aria-label="Minuten einstellen">{Array.from({length:12},(_,i)=>i*5).map(minute=><button key={minute} className={lessonButton+(minute===s.minute?' bg-accent-soft text-accent':'')} aria-label={minute+' Minuten einstellen'} aria-pressed={minute===s.minute} onClick={()=>set(p=>({...p,minute}))}>{String(minute).padStart(2,'0')}</button>)}</div>
   </div>
   <div className="grid shrink-0 grid-cols-4 gap-2">{[[-60,'Stunde −1'],[60,'Stunde +1'],[-5,'Minute −5'],[5,'Minute +5']].map(([delta,label])=><button className={lessonButton} key={label} onClick={()=>change(Number(delta))}>{label}</button>)}</div>
-  <p role="status" className="shrink-0 rounded-xl border bg-accent-soft p-2 font-bold">{matched?'Richtig eingestellt!':'Wähle die Stunde am Zifferblatt und die Minuten rechts.'}</p>
-  <div className="grid shrink-0 grid-cols-2 gap-2"><button className={lessonButton} onClick={()=>set(p=>({...p,hint:!p.hint}))}>{s.hint?'Digitalhilfe ausblenden':'Digitalhilfe zeigen'}</button><button className={primary} disabled={!matched} onClick={()=>set(p=>({...p,task:(p.task+1)%CLOCK_TASKS.length,hour:12,minute:0,hint:false}))}>Nächste Uhr</button></div>
-  {s.hint&&<p className="shrink-0 text-center font-mono font-bold">Eingestellt: {String(s.hour).padStart(2,'0')}:{String(s.minute).padStart(2,'0')} · Ziel: {String(task.hour).padStart(2,'0')}:{String(task.minute).padStart(2,'0')}</p>}
- </LessonFrame>;
+  <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2">
+  <p role="status" className="min-h-11 rounded-xl border bg-accent-soft p-2 text-xs font-bold">{matched?'Richtig eingestellt!':'Wähle die Stunde am Zifferblatt und die Minuten rechts.'}{s.hint&&<span className="mt-1 block font-mono">Eingestellt: {String(s.hour).padStart(2,'0')}:{String(s.minute).padStart(2,'0')} · Ziel: {String(task.hour).padStart(2,'0')}:{String(task.minute).padStart(2,'0')}</span>}</p><button className={lessonButton} onClick={()=>set(p=>({...p,hint:!p.hint}))}>{s.hint?'Digitalhilfe ausblenden':'Digitalhilfe zeigen'}</button><button className={primary} disabled={!matched} onClick={()=>set(p=>({...p,task:(p.task+1)%CLOCK_TASKS.length,hour:12,minute:0,hint:false}))}>Nächste Uhr</button></div>
+ </div>;
 };
 
 export const KidWeatherWidgetContent:React.FC<PracticeProps>=props=>{

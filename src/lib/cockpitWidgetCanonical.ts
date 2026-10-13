@@ -110,6 +110,11 @@ const CANONICAL_METADATA: Record<PlannedCockpitWidgetId, CanonicalMetadata> = {
     category: "math",
     description: "Brüche sichtbar legen und vergleichen.",
   },
+  clockpuzzle: {
+    displayName: "Uhrlernen",
+    category: "math",
+    description: "Analoge Uhrzeiten ablesen, einstellen und in Worten üben.",
+  },
   sounds: {
     displayName: "Musik & Klänge",
     category: "media",
