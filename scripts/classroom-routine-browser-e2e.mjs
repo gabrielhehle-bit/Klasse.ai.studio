@@ -3256,6 +3256,13 @@ async function main() {
       await clickSelector(client, `${selectionRoot} [data-random-selection-mode="${mode}"]`);
       await waitFor(client, 'selection mode selected: '+mode, `document.querySelector('${selectionRoot} [data-random-selection-mode="${mode}"]')?.getAttribute('aria-pressed')==='true' && document.querySelector('${selectionPanel(mode)}')?.getClientRects().length>0`);
     };
+    const assertSelectionControls = async (mode, label) => {
+      await sleep(250);
+      await waitFor(client, label+' controls are reachable above the dock', `(() => {
+        const buttons=Array.from(document.querySelectorAll('${selectionPanel(mode)} button')).filter(button=>button.getClientRects().length);
+        return buttons.length>=3 && buttons.every(button=>{const r=button.getBoundingClientRect(),top=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return r.left>=0 && r.right<=innerWidth+1 && r.top>=0 && r.bottom<=innerHeight+1 && (top===button || button.contains(top));});
+      })()`);
+    };
     await selectRandomMode('names');
     await natureClick(selectionPanel('names'), 'Kind auswählen');
     await waitFor(client, 'studio name selection commits', `document.querySelector('${selectionPanel('names')} [data-practice-root]').dataset.randomDrawn==='1'`);
@@ -3271,6 +3278,7 @@ async function main() {
     await selectRandomMode('fair');
     await clickSelector(client, `${selectionPanel('fair')} [aria-label="Nächstes Kind aufrufen"]`);
     await waitFor(client, 'studio fair round commits once', `document.querySelector('${selectionPanel('fair')} [data-practice-root]').dataset.fairCalled==='1'`);
+    await assertSelectionControls('fair', 'Fair round');
     const studioFair = await evaluate(client, `document.querySelector('${selectionPanel('fair')} [data-practice-root]').dataset.fairCurrent`);
     await clickSelector(client, `${selectionRoot} button[aria-label$="Einstellungen öffnen"]`);
     await waitFor(client, 'fair gear shows opaque active settings', `getComputedStyle(document.querySelector('[aria-label="Faire-Runde-Einstellungen"]')).backgroundColor==='rgb(255, 255, 255)'`);
@@ -3285,12 +3293,14 @@ async function main() {
     await openAuditWidget('randomname', 'Zufallsauswahl');
     await waitFor(client, 'selected mode and fair round survive minimize', `document.querySelector('${selectionRoot} [data-random-selection-mode="fair"]')?.getAttribute('aria-pressed')==='true' && document.querySelector('${selectionPanel('fair')} [data-practice-root]').dataset.fairCurrent===${q(studioFair)}`);
     await selectRandomMode('names');
+    await assertSelectionControls('names', 'Name draw');
     await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-random-studio-names.png'));
     const selectionSidebarWasOpen = await evaluate(client, `Boolean(document.querySelector('[aria-label="Schülerliste schließen"]'))`);
     if (selectionSidebarWasOpen) await clickSelector(client, '[aria-label="Schülerliste schließen"]');
     await client.send('Emulation.setDeviceMetricsOverride', {width:820,height:900,deviceScaleFactor:1,mobile:false});
     await sleep(250);
     await waitFor(client, 'random mode controls fit tablet', `Array.from(document.querySelectorAll('${selectionRoot} [data-random-selection-mode]')).every(button=>{const r=button.getBoundingClientRect(),top=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return r.height>=44 && r.width>=44 && (top===button || button.contains(top));})`);
+    await assertSelectionControls('names', 'Tablet name draw');
     await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-random-studio-tablet.png'));
     await client.send('Emulation.setDeviceMetricsOverride', {width:1366,height:768,deviceScaleFactor:1,mobile:false});
     await sleep(250);

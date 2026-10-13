@@ -7,3 +7,5 @@ Bereits besuchte Varianten bleiben montiert. Ziehung, Teilnehmerauswahl und Rad-
 Das Kopf-Zahnrad öffnet für Namen die bestehenden zentralen Voreinstellungen, für das Glücksrad dessen Editor und für Faire Runde eine deckende Signalton-Konfiguration. Eigene Begriffe, Zahlen und anwesende Kinder bleiben im Rad nutzbar. Faire Runde unterstützt weiterhin Rücknahme und Pausieren einzelner Kinder.
 
 Der erweiterte Chrome-Unterrichtslauf zieht tatsächlich Namen, dreht das Rad und ruft fair ein Kind auf. Er prüft die Wechsel-Sperre, alle drei Ergebnisse nach Moduswechseln, Einstellungen des aktiven Modus und die Wiederherstellung der Fairen Runde nach Minimieren. Bestehende Prüfungen der Einzelwidgets bleiben erhalten. Separate Tests prüfen die Isolation der gespeicherten Einstellungen.
+
+Große und wiederhergestellte Zufallsauswahl-Fenster werden in die nutzbare Tafel eingepasst, einschließlich Freiraum für die untere Widget-Leiste. Die Faire Runde nutzt die Profil-Akzentfarbe.

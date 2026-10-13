@@ -392,7 +392,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
             onClick={toggleSound}
             className={`min-h-[44px] min-w-[44px] p-2 rounded-xl border text-xs transition-all cursor-pointer flex items-center justify-center ${
               soundEnabled
-                ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400'
+                ? 'bg-accent-soft0/10 border-accent/25 text-accent dark:text-accent'
                 : 'bg-black/5 dark:bg-white/5 border-transparent text-slate-400'
             }`}
             title={soundEnabled ? 'Ton ausschalten' : 'Ton einschalten'}
@@ -416,7 +416,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
           >
             <ListFilter size={14} />
             <span className="hidden sm:inline">Übersicht</span>
-            <span className="text-[10px] bg-indigo-600 text-white font-black px-1.5 py-0.2 rounded-full">
+            <span className="text-[10px] bg-accent text-white font-black px-1.5 py-0.2 rounded-full">
               {eligibleRemainingIds.length}
             </span>
           </button>
@@ -462,7 +462,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
               type="button"
               onClick={handleStartNewRound}
             disabled={activeClass.studentCount === 0}
-              className="mt-4 min-h-[48px] px-5 sm:px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2 shadow-lg transition-all cursor-pointer active:scale-95"
+              className="mt-4 min-h-[48px] px-5 sm:px-6 rounded-2xl bg-accent hover:bg-accent-hover text-white font-black text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2 shadow-lg transition-all cursor-pointer active:scale-95"
             >
               <RotateCcw size={16} />
               <span>Neue Runde starten</span>
@@ -475,11 +475,11 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
             <div
               className={`w-full flex flex-col items-center justify-center text-center p-4 sm:p-7 rounded-3xl border-2 transition-all duration-300 shadow-sm ${
                 animating
-                  ? 'bg-indigo-50/80 dark:bg-indigo-950/20 border-indigo-300 dark:border-indigo-700/50 scale-[1.02]'
+                  ? 'bg-accent-soft/80 dark:bg-accent-soft border-accent/25 dark:border-accent/25 scale-[1.02]'
                   : currentStudent
                     ? currentIsLight
-                      ? 'bg-white border-indigo-200 text-slate-900'
-                      : 'bg-zinc-900 border-indigo-500/30 text-white'
+                      ? 'bg-white border-accent/25 text-slate-900'
+                      : 'bg-zinc-900 border-accent/25 text-white'
                     : currentIsLight
                       ? 'bg-white/60 border-slate-200/80 text-slate-400'
                       : 'bg-zinc-900/40 border-white/5 text-slate-500'
@@ -491,14 +491,14 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
                   <span className="text-3xl sm:text-5xl animate-bounce block mb-1">
                     🙋
                   </span>
-                  <span className="text-xl sm:text-4xl md:text-5xl font-black tracking-tight text-indigo-600 dark:text-indigo-400">
+                  <span className="text-xl sm:text-4xl md:text-5xl font-black tracking-tight text-accent dark:text-accent">
                     {animDisplayName || 'Mischen...'}
                   </span>
                 </div>
               ) : currentStudent ? (
                 /* Aufgerufenes Kind */
                 <div className="py-1 sm:py-3 w-full">
-                  <span className="text-xs sm:text-sm font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 block mb-1">
+                  <span className="text-xs sm:text-sm font-black uppercase tracking-widest text-accent dark:text-accent block mb-1">
                     Jetzt dran:
                   </span>
                   <h2
@@ -561,7 +561,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
         {/* Progress Bar */}
         <div className="w-full bg-slate-200 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
           <div
-            className="bg-indigo-600 h-full transition-all duration-300 rounded-full"
+            className="bg-accent h-full transition-all duration-300 rounded-full"
             style={{
               width: `${totalInRoundCount > 0 ? (calledCount / totalInRoundCount) * 100 : 0}%`,
             }}
@@ -594,7 +594,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
             className={`flex-1 min-h-[48px] sm:min-h-[52px] rounded-2xl font-black text-sm sm:text-base uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-98 ${
               isRoundComplete
                 ? 'bg-slate-200 dark:bg-zinc-800 text-slate-400 cursor-not-allowed'
-                : 'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer shadow-indigo-600/20'
+                : 'bg-accent hover:bg-accent-hover text-white cursor-pointer shadow-accent/20'
             }`}
             aria-label="Nächstes Kind aufrufen"
           >
@@ -632,7 +632,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10 shrink-0">
               <div className="flex items-center gap-2">
-                <Users size={18} className="text-indigo-600" />
+                <Users size={18} className="text-accent" />
                 <span className="text-sm font-black uppercase tracking-wider text-slate-800 dark:text-white">
                   Runden-Übersicht
                 </span>
@@ -655,7 +655,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
                 onClick={() => setRosterTab('remaining')}
                 className={`flex-1 min-h-11 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                   rosterTab === 'remaining'
-                    ? 'bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                    ? 'bg-white dark:bg-zinc-900 text-accent dark:text-accent shadow-xs'
                     : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
                 }`}
               >
@@ -666,7 +666,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
                 onClick={() => setRosterTab('called')}
                 className={`flex-1 min-h-11 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                   rosterTab === 'called'
-                    ? 'bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                    ? 'bg-white dark:bg-zinc-900 text-accent dark:text-accent shadow-xs'
                     : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
                 }`}
               >
@@ -677,7 +677,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
                 onClick={() => setRosterTab('paused')}
                 className={`flex-1 min-h-11 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                   rosterTab === 'paused'
-                    ? 'bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                    ? 'bg-white dark:bg-zinc-900 text-accent dark:text-accent shadow-xs'
                     : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
                 }`}
               >
@@ -729,7 +729,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
                         key={id}
                         className={`flex items-center justify-between p-2.5 rounded-xl border text-xs font-bold ${
                           isCurrent
-                            ? 'bg-indigo-50 dark:bg-indigo-950/30 border-indigo-300 dark:border-indigo-700 text-indigo-900 dark:text-indigo-200'
+                            ? 'bg-accent-soft dark:bg-accent-soft border-accent/25 dark:border-accent/25 text-accent dark:text-accent'
                             : currentIsLight ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-zinc-800/60 border-white/5 text-slate-300'
                         }`}
                       >
@@ -738,7 +738,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
                           <span>{getDisplayStudentName(student, allStudents)}</span>
                         </div>
                         {isCurrent && (
-                          <span className="text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] font-black uppercase text-accent dark:text-accent bg-accent-soft0/10 px-2 py-0.5 rounded-full">
                             Aktuell
                           </span>
                         )}
@@ -768,7 +768,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
                         <button
                           type="button"
                           onClick={() => handleTogglePause(id)}
-                          className="min-h-11 px-2.5 py-1 text-[11px] font-black rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer"
+                          className="min-h-11 px-2.5 py-1 text-[11px] font-black rounded-lg bg-accent text-white hover:bg-accent-hover cursor-pointer"
                         >
                           Wieder mitmachen
                         </button>

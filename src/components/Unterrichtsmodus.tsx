@@ -4269,7 +4269,6 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       : { w: 100, h: 100 };
 
     const isMaxWidget =
-      (type === "randomname" && randomPreset.startSize === "large") ||
       type === "wheel" ||
       (type === "classweeklyplan" && weeklyPreset.startSize === "large");
     const isWhiteboard = type === "drawing";
@@ -4344,7 +4343,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
 
     // Restore these teaching tools inside the currently usable board, including
     // after zoom changed its measurements. Keep the dock clear of resize grips.
-    if (useOld && ['rhythm', 'soundmemory', 'guitartuner', 'tonetrainer', 'animalvoice', 'challenge', 'secretagent', 'weightscale', 'reflexgame', 'clockpuzzle', 'geometry', 'shapepuzzle', 'angledetective', 'estimationjar', 'divrobot', 'bodyparts', 'compass', 'weekdays', 'trafficquiz', 'watercycle', 'constellation', 'planetarium', 'flagquiz', 'geographyquiz', 'wastebin'].includes(String(type))) {
+    if (useOld && ['randomname', 'rhythm', 'soundmemory', 'guitartuner', 'tonetrainer', 'animalvoice', 'challenge', 'secretagent', 'weightscale', 'reflexgame', 'clockpuzzle', 'geometry', 'shapepuzzle', 'angledetective', 'estimationjar', 'divrobot', 'bodyparts', 'compass', 'weekdays', 'trafficquiz', 'watercycle', 'constellation', 'planetarium', 'flagquiz', 'geographyquiz', 'wastebin'].includes(String(type))) {
       const area = measureCockpitUsableBoardArea();
       if (area) {
         const size = getWidgetMinSizeConfig(String(type));
