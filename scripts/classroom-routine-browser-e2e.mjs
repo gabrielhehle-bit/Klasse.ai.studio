@@ -699,11 +699,11 @@ async function main() {
     await clickButton(client, 'Kernwidgets');
     await waitFor(client, 'regular picker has 24 grouped entries', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length === 24`);
     await waitFor(client, 'student-list resize grip is removed while choosing widgets', `!document.querySelector('[aria-label="Breite der Schülerliste ändern"]')`);
+    await sleep(250);
     await evaluate(client, `document.querySelector('button[aria-label="Widget-Voreinstellungen öffnen"]').click()`);
     await waitFor(client, 'widget settings have an opaque background even with a translucent accent', `(() => {const panel=document.querySelector('#cockpit-widget-settings');if(!panel||getComputedStyle(panel).display==='none')return false;panel.style.setProperty('--accent-soft','rgba(0, 180, 255, 0.12)');const color=getComputedStyle(panel).backgroundColor;return color==='rgb(255, 255, 255)' && !document.querySelector('[aria-label="Breite der Schülerliste ändern"]');})()`);
     await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-widget-settings-opaque.png'));
     await evaluate(client, `document.querySelector('button[aria-label="Widget-Voreinstellungen schließen"]').click()`);
-    await sleep(250);
     await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-widget-catalog.png'));
     await client.send('Emulation.setDeviceMetricsOverride', { width:820, height:900, deviceScaleFactor:1, mobile:false });
     // Below 768px the app deliberately switches from the cockpit to phone quick mode.
