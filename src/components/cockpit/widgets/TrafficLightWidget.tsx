@@ -171,7 +171,7 @@ export const TrafficLightWidget: React.FC<TrafficLightWidgetProps> = ({
       data-traffic-view={view}
       role="region"
       aria-label={`Arbeitsmodus: ${activeMode.label}`}
-      className={`w-full h-full flex flex-col justify-between overflow-hidden select-none ${isCompact ? 'p-1.5' : 'p-3 sm:p-4'} pb-12 transition-colors relative ${textColor} ${
+      className={`w-full h-full flex flex-col justify-between overflow-hidden select-none ${isCompact ? 'p-1.5' : 'p-3 sm:p-4'} pb-12 sm:pb-12 transition-colors relative ${textColor} ${
         currentIsLight ? 'bg-white' : 'bg-zinc-900'
       }`}
     >
