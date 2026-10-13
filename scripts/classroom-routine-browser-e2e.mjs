@@ -3687,9 +3687,9 @@ async function main() {
         await client.send('Emulation.setDeviceMetricsOverride', {width,height:1000,deviceScaleFactor:1,mobile:false});
         await sleep(350);
         if(key === 'gradebook' && width === 390) {
-          await evaluate(client, `Array.from(document.querySelectorAll('[data-gradebook-actions] button')).find(b=>b.textContent.trim()==='Mehr').click()`);
+          await evaluate(client, `Array.from(document.querySelectorAll('[data-gradebook-header] button')).find(b=>b.textContent.trim()==='Mehr').click()`);
           await sleep(200);
-          const available = await evaluate(client, `['Notenrechner','Gewichtung','Auswertungen','Leistungsfeedback'].every(label=>Array.from(document.querySelectorAll('[data-gradebook-actions] button')).some(b=>b.textContent.trim().endsWith(label)&&b.getBoundingClientRect().width>0))`);
+          const available = await evaluate(client, `['Notenrechner','Gewichtung','Auswertungen','Leistungsfeedback'].every(label=>Array.from(document.querySelectorAll('[data-gradebook-header] button')).some(b=>b.textContent.trim().endsWith(label)&&b.getBoundingClientRect().width>0))`);
           if(!available) throw new Error('Gradebook mobile tools missing.');
           await client.send('Input.dispatchKeyEvent', {type:'keyDown', key:'Escape', code:'Escape'});
           await client.send('Input.dispatchKeyEvent', {type:'keyUp', key:'Escape', code:'Escape'});
@@ -3700,13 +3700,25 @@ async function main() {
         await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-'+key+'-'+width+'.png'));
       }
       if(key === 'gradebook') {
+        const openGradebookTool = async label => {
+          await clickButton(client, 'Mehr', true);
+          await waitFor(client, 'gradebook tool available: '+label, `Array.from(document.querySelectorAll('[data-gradebook-header] button')).some(b=>b.textContent.trim()===${q(label)}&&b.getBoundingClientRect().width>0)`);
+          await clickButton(client, label, true);
+        };
+        const clickGradebookOption = async selector => {
+          if (!await evaluate(client, `document.querySelector(${q(selector)})?.closest('details')?.open`)) {
+            await clickSelector(client, 'details:has('+selector+') > summary');
+          }
+          await clickSelector(client, selector);
+        };
         await client.send('Emulation.setDeviceMetricsOverride', {width:1360,height:1000,deviceScaleFactor:1,mobile:false});
-        await evaluate(client, `Array.from(document.querySelectorAll('[data-gradebook-header] button')).find(b=>b.textContent.trim()==='Notenübersicht').click()`);
+        await openGradebookTool('Notenübersicht');
         await waitFor(client, 'embedded grade overview', `Array.from(document.querySelectorAll('button')).some(b=>b.textContent.trim()==='Zur Notenmappe')`);
         await clickButton(client,'Zur Notenmappe');
         await waitFor(client, 'back to gradebook subject', `Boolean(document.querySelector('#gradebook-active-subject'))`);
+        await openGradebookTool('Erweiterte Ansicht');
         await evaluate(client, `(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
-        await clickButton(client, 'Gewichtung', true);
+        await openGradebookTool('Gewichtung');
         await clickButton(client, 'Punkte');
         await waitFor(client, 'point percentage option available', `Boolean(Array.from(document.querySelectorAll('label')).find(l=>l.textContent.includes('Prozentwerte bei Punkten anzeigen'))?.querySelector('input[type=checkbox]'))`);
         await clickButton(client, 'Speichern', true);
@@ -3723,7 +3735,7 @@ async function main() {
         const percentageFor=typ=>`document.querySelector('input[data-col="${typ}-0"]')?.closest('td')?.querySelector('[data-points-percent]')?.textContent.trim()`;
         await waitFor(client, 'SA and LZK calculate against their own maximum', percentageFor('sa')+` === '75 %' && `+percentageFor('lzk')+` === '35 %'`);
         await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-points-percent.png'));
-        await clickButton(client, 'Gewichtung', true);
+        await openGradebookTool('Gewichtung');
         await evaluate(client, `Array.from(document.querySelectorAll('label')).find(l=>l.textContent.includes('Prozentwerte bei Punkten anzeigen')).querySelector('input').click()`);
         await clickButton(client, 'Speichern', true);
         await waitFor(client, 'percentage labels can be hidden', `!document.querySelector('[data-points-percent]')`);
@@ -3733,7 +3745,7 @@ async function main() {
         await waitFor(client, 'gradebook after reload', `Boolean(document.querySelector('#gradebook-active-subject'))`);
         await evaluate(client, `(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
         await waitFor(client, 'hidden percentage preference persisted', `document.querySelector('input[data-col="sa-0"]')?.value === '18' && !document.querySelector('[data-points-percent]')`);
-        await clickButton(client, 'Gewichtung', true);
+        await openGradebookTool('Gewichtung');
         await evaluate(client, `Array.from(document.querySelectorAll('label')).find(l=>l.textContent.includes('Prozentwerte bei Punkten anzeigen')).querySelector('input').click()`);
         await clickButton(client, 'Speichern', true);
         await waitFor(client, 'percentages return without reentering points', percentageFor('sa')+` === '75 %' && `+percentageFor('lzk')+` === '35 %'`);
@@ -3802,14 +3814,16 @@ async function main() {
         await waitFor(client,'committed zero survives encrypted reload',`${participationValue}===0`);
         console.log('✓ Participation drafts: native typing, Enter/blur commits, row navigation, empty/Escape cancellation, invalid/unsafe input rejection, all four periods, focused subject isolation and explicit zero survive encrypted reload.');
         console.log('✓ Direct gradebook participation plus/minus updates weekly chart and survives encrypted reload.');
-        for (const [typ, button] of [['lzk', '+ LZK'], ['wp', '+ Wochenplan'], ['sa', '+ Schularbeit']]) {
-          if (typ === 'lzk') await clickButton(client,button,true);
-          else {
-            if (typ === 'sa') await clickButton(client,'Mitarbeit',true);
-            await clickButton(client,'Bewertung hinzufügen',true);
-            await waitFor(client,'whole-class assessment menu from current view',`Boolean(document.querySelector('#gradebook-add-assessment-menu'))`);
-            await clickSelector(client,'#gradebook-add-assessment-menu button[aria-label='+q((typ==='sa'?'Schularbeit':'Wochenplan')+' für die Klasse anlegen')+']');
+        for (const typ of ['lzk', 'wp', 'sa']) {
+          if (typ === 'wp') {
+            await clickButton(client, 'LZK', true);
+            await waitFor(client, 'LZK filter hides other assessment categories', `(() => {const fields=Array.from(document.querySelectorAll('[data-gradebook] input[data-col]')).filter(i=>i.getBoundingClientRect().width>0&&/^(sa|lzk|wp|aufgaben)-/.test(i.dataset.col));return fields.length>0&&fields.every(i=>i.dataset.col.startsWith('lzk-'));})()`);
           }
+          if (typ === 'sa') await clickButton(client,'Mitarbeit',true);
+          await clickButton(client,'Bewertung hinzufügen',true);
+          await waitFor(client,'whole-class assessment menu from current view',`Boolean(document.querySelector('#gradebook-add-assessment-menu'))`);
+          const creationLabel = typ === 'lzk' ? 'Lernzielkontrolle für die Klasse anlegen' : (typ === 'sa' ? 'Schularbeit' : 'Wochenplan')+' für die Klasse anlegen';
+          await clickSelector(client,'#gradebook-add-assessment-menu button[aria-label='+q(creationLabel)+']');
           await waitFor(client,'new '+typ+' metadata dialog',`Boolean(document.querySelector('#assessment-item-modal-content'))`);
           await waitFor(client,'assessment selection transition closes before metadata entry',`!document.querySelector('#gradebook-add-assessment-menu')`);
           const title='Schnelleingabe '+typ;
@@ -3820,6 +3834,9 @@ async function main() {
           await waitFor(client,'assessment dialogs close before native entry',`!document.querySelector('#assessment-item-modal-content')&&!document.querySelector('#gradebook-add-assessment-menu')`);
           await waitFor(client,'new '+typ+' column focuses first pupil',`document.activeElement?.dataset.col?.startsWith(${q(typ+'-')})&&Boolean(document.querySelector('[data-column-entry-status]'))`);
           const col=await evaluate(client,`document.activeElement.dataset.col`);
+          const focusedColumns = await evaluate(client, `(() => {const table=document.querySelector('.gradebook-table');const visibleCells=row=>Array.from(row?.children||[]).filter(cell=>cell.getBoundingClientRect().width>0).length;return {header:visibleCells(table?.tHead?.rows[0]),body:visibleCells(table?.tBodies[0]?.rows[0]),footer:visibleCells(table?.tFoot?.rows[0])};})()`);
+          if(focusedColumns.header!==focusedColumns.body||focusedColumns.header!==focusedColumns.footer)throw new Error('Focused assessment columns do not align: '+JSON.stringify(focusedColumns));
+
           const labels=await evaluate(client,`Array.from(document.querySelectorAll('input[data-col='+JSON.stringify(${q(col)})+']')).map(i=>i.getAttribute('aria-label'))`);
           if(labels.length<2)throw new Error('Quick entry requires two fixture pupils.');
           const field=i=>'input[aria-label='+q(labels[i])+']';
@@ -3836,16 +3853,16 @@ async function main() {
           await waitFor(client,'quick '+typ+' values and metadata survive encrypted reload',`document.querySelector(${q(field(0))}).value==='12'&&document.querySelector(${q(field(1))}).value==='0'&&document.querySelector('[data-column-entry-status]').textContent.includes(${q(title)})`);
           if (typ === 'lzk') {
             const idx = Number(col.split('-')[1]);
-            const participation = field(0) + ' ~ label input[type="checkbox"]';
+            const participation = field(0) + ' ~ details input[type="checkbox"]';
             // The alphabetically second demo pupil has SPF and is excluded by
             // the preserved default. Explicitly include this real zero-point
             // participant before expecting a class mean of zero.
             const zeroAverageChoice = await evaluate(client,`document.querySelector(${q(field(1))}).closest('tr').querySelector('input[aria-label$="im Klassenschnitt mitzählen"]').getAttribute('aria-label')`);
             const zeroChoice = 'input[aria-label='+q(zeroAverageChoice)+']';
-            if (!await evaluate(client,`document.querySelector(${q(zeroChoice)}).checked`)) await clickSelector(client,zeroChoice);
+            if (!await evaluate(client,`document.querySelector(${q(zeroChoice)}).checked`)) await clickGradebookOption(zeroChoice);
             await waitFor(client,'SPF zero-point child can be included without changing own score',`document.querySelector(${q(zeroChoice)}).checked&&document.querySelector(${q(field(1))}).value==='0'`);
             await waitFor(client,'new LZK area survives encrypted reload',`document.querySelector('[data-gradebook]').textContent.includes('Längen')`);
-            await clickSelector(client,participation);
+            await clickGradebookOption(participation);
             await waitFor(client,'non-participation disables exempt input and keeps the other real zero',`document.querySelector(${q(field(0))}).disabled&&document.querySelector(${q(field(0))}).value===''&&document.querySelector(${q(field(1))}).value==='0'`);
             await waitFor(client,'non-participation is distinct from open assessments',`document.querySelector('[data-column-entry-status]').textContent.includes('1 nehmen nicht teil')`);
             await waitFor(client,'class mean retains the included SPF zero-point result',`document.querySelector('[data-lzk-class-average="'+${idx}+'"]')?.textContent.trim()==='0.0P'`);
@@ -3855,15 +3872,15 @@ async function main() {
             await waitFor(client,'LZK exemption survives encrypted reload',`document.querySelector(${q(field(0))})?.disabled`);
             await waitFor(client,'quick entry starts at the first participating child',`document.activeElement===document.querySelector(${q(field(1))})`);
             await waitFor(client,'SPF class-average choice survives encrypted reload',`document.querySelector(${q(zeroChoice)}).checked&&document.querySelector(${q(field(1))}).value==='0'`);
-            await clickSelector(client,participation);
+            await clickGradebookOption(participation);
             await waitFor(client,'restoring participation recovers saved score',`!document.querySelector(${q(field(0))}).disabled&&document.querySelector(${q(field(0))}).value==='12'`);
             const averageChoice = await evaluate(client,`document.querySelector(${q(field(0))}).closest('tr').querySelector('input[aria-label$="im Klassenschnitt mitzählen"]').getAttribute('aria-label')`);
-            await clickSelector(client,'input[aria-label='+q(averageChoice)+']');
+            await clickGradebookOption('input[aria-label='+q(averageChoice)+']');
             await waitFor(client,'per-child exclusion affects only class mean',`document.querySelector('[data-lzk-class-average="'+${idx}+'"]')?.textContent.trim()==='0.0P'&&document.querySelector(${q(field(0))}).value==='12'`);
             await reloadAndUnlock(client); await openPage(client,'Notenmappe');
             await evaluate(client,`(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
             await waitFor(client,'per-child class-average setting is restored',`document.querySelector('input[aria-label='+${q(q(averageChoice))}+']')?.checked===false`);
-            await clickSelector(client,'input[aria-label='+q(averageChoice)+']');
+            await clickGradebookOption('input[aria-label='+q(averageChoice)+']');
             const name = labels[0].split(' für ')[1];
             await openPupil(client,name.split(' '));
             const dossierArea = async label => {
@@ -3895,7 +3912,7 @@ async function main() {
           if (event.type === 'confirm' && (event.message.startsWith('Hinweis: Im Fach') || event.message === 'Mitarbeitbewertung löschen?'))
             void client.send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {});
         });
-        await clickButton(client, 'Gewichtung', true);
+        await openGradebookTool('Gewichtung');
         await clickButton(client, 'Manuelle Bewertung', true);
         await clickButton(client, 'Speichern', true);
         await clickButton(client, 'Mitarbeit', true);

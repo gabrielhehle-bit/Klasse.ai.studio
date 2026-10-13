@@ -28,3 +28,5 @@ Spaltennamen ersetzen wiederholte Eintragen-Schaltflächen. Teilnahme und Klasse
 - Die fixierte Namenszelle des Tabellenfußes berücksichtigt die eingestellte Tabellengröße.
 - Eine neu angelegte Bewertung setzt den Kategorie-Filter zurück, damit beispielsweise ein neuer Wochenplan aus dem LZK-Filter erreichbar bleibt. „Alle Bewertungen anzeigen“ setzt ebenfalls beide Filter zurück.
 - Die erste Commit-Version bestand Feature Validation, Schulprüfung, Teamteaching und Security in GitHub. Diese Läufe ersetzen keine gezielte visuelle Prüfung der neuen Notenmappenansicht.
+
+- Der vorhandene Browserablauf wurde an das Werkzeugmenü, den einzigen Anlegen-Button und aufklappbare Teilnahme-/Schnittoptionen angepasst. Ergänzte Laufzeitprüfungen kontrollieren den LZK-Filter vor einem neuen Wochenplan sowie gleich viele sichtbare Spalten in Kopf, Zeile und Fuß der Einzeleingabe. Skriptsyntax lokal geprüft; Browserausführung erfolgt über GitHub.

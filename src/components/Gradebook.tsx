@@ -233,6 +233,16 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
   const [simpleDashboardMode, setSimpleDashboardMode] = useState<boolean>(true);
   const [assessmentFilter, setAssessmentFilter] = useState<'all' | 'lzk' | 'wp' | 'sa' | 'obj'>('all');
   const [showMoreMenu, setShowMoreMenu] = useState<boolean>(false);
+  useEffect(() => {
+    if (!showMoreMenu) return;
+    const closeToolsOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.stopPropagation();
+      setShowMoreMenu(false);
+    };
+    document.addEventListener('keydown', closeToolsOnEscape, true);
+    return () => document.removeEventListener('keydown', closeToolsOnEscape, true);
+  }, [showMoreMenu]);
   const [showAddAssessmentModal, setShowAddAssessmentModal] = useState<boolean>(false);
   const [selectedGradeExplanationStudent, setSelectedGradeExplanationStudent] = useState<any | null>(null);
 
@@ -1615,6 +1625,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                 <div className="relative">
                   <button
                     onClick={() => setShowMoreMenu(!showMoreMenu)}
+                    aria-expanded={showMoreMenu}
+                    aria-controls="gradebook-tools-menu"
                     className="min-h-11 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[0.8125rem] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200/60"
                   >
                     <span>Mehr</span>
@@ -1629,6 +1641,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                           onClick={() => setShowMoreMenu(false)}
                         />
                         <motion.div
+                          id="gradebook-tools-menu"
                           initial={{ opacity: 0, scale: 0.95, y: -5 }}
                           animate={{ opacity: 1, scale: 1, y: 0 }}
                           exit={{ opacity: 0, scale: 0.95, y: -5 }}
@@ -1639,7 +1652,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                               setShowGradeCalculator(true);
                               setShowMoreMenu(false);
                             }}
-                            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                            className="min-h-11 w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
                           >
                             <span>🧮</span>
                             <span>Notenrechner</span>
@@ -1650,7 +1663,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                               setShowWeights(true);
                               setShowMoreMenu(false);
                             }}
-                            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                            className="min-h-11 w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
                           >
                             <span>⚖️</span>
                             <span>Gewichtung</span>
@@ -1661,7 +1674,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                               setShowStats(!showStats);
                               setShowMoreMenu(false);
                             }}
-                            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                            className="min-h-11 w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
                           >
                             <span>📊</span>
                             <span>{showStats ? 'Statistik ausblenden' : 'Statistik & Notenspiegel'}</span>
@@ -1672,7 +1685,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                               setHeatmapMode(!heatmapMode);
                               setShowMoreMenu(false);
                             }}
-                            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                            className="min-h-11 w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
                           >
                             <span>🌡️</span>
                             <span>Heatmap: {heatmapMode ? 'AN' : 'AUS'}</span>
@@ -1683,7 +1696,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                               handleExport();
                               setShowMoreMenu(false);
                             }}
-                            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                            className="min-h-11 w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
                           >
                             <span>🖨️</span>
                             <span>Export / Drucken</span>
@@ -1709,7 +1722,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                               <button
                                 key={lvl}
                                 onClick={() => changeZoomLevel(lvl)}
-                                className={`flex-1 py-1 text-[0.625rem] font-bold rounded-lg transition-all ${
+                                className={`min-h-11 flex-1 py-1 text-[0.625rem] font-bold rounded-lg transition-all ${
                                   zoomLevel === lvl ? 'bg-white shadow-xs text-slate-900' : 'text-slate-500'
                                 }`}
                               >
@@ -4051,6 +4064,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                     </button>
 
                     <button
+                      aria-label="Lernzielkontrolle für die Klasse anlegen"
                       onClick={(e) => {
                         setShowAddAssessmentModal(false);
                         addColumn(e, 'lzk');
