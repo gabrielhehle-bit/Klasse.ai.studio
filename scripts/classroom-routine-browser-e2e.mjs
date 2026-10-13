@@ -3233,6 +3233,8 @@ async function main() {
       await waitFor(client,'clock learning shows '+tool,`document.querySelector(${q(clockStudioRoot)}).dataset.clockLearningTool===${q(tool)}`);
       await clockStudioFits();
     };
+    const clockSavedAnswer=await readPuzzleClock();await natureClick(clockPuzzleRoot,clockSavedAnswer.text+' Uhr');
+    await waitFor(client,'trainer has a checked answer before tool switching',`document.querySelector(${q(clockPuzzleRoot)}).textContent.includes('Richtig –')`);
     const clockTrainerSnapshot=await evaluate(client,`document.querySelector(${q(clockPuzzleRoot)}).innerText`);
     const clockTrainerHands=await readPuzzleClock();
     await clockStudioChoose('spoken');

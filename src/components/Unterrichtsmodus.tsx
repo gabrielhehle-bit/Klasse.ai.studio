@@ -4346,7 +4346,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
 
     // Restore these teaching tools inside the currently usable board, including
     // after zoom changed its measurements. Keep the dock clear of resize grips.
-    if (useOld && ['randomname', 'rhythm', 'soundmemory', 'guitartuner', 'tonetrainer', 'animalvoice', 'challenge', 'secretagent', 'weightscale', 'reflexgame', 'clockpuzzle', 'geometry', 'shapepuzzle', 'angledetective', 'estimationjar', 'divrobot', 'bodyparts', 'compass', 'weekdays', 'trafficquiz', 'watercycle', 'constellation', 'planetarium', 'flagquiz', 'geographyquiz', 'wastebin'].includes(String(type))) {
+    if (useOld && ['riddle', 'randomname', 'rhythm', 'soundmemory', 'guitartuner', 'tonetrainer', 'animalvoice', 'challenge', 'secretagent', 'weightscale', 'reflexgame', 'clockpuzzle', 'geometry', 'shapepuzzle', 'angledetective', 'estimationjar', 'divrobot', 'bodyparts', 'compass', 'weekdays', 'trafficquiz', 'watercycle', 'constellation', 'planetarium', 'flagquiz', 'geographyquiz', 'wastebin'].includes(String(type))) {
       const area = measureCockpitUsableBoardArea();
       if (area) {
         const size = getWidgetMinSizeConfig(String(type));
