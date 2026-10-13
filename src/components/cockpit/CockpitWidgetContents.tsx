@@ -11174,25 +11174,23 @@ export const TonetrainerWidgetContent: React.FC<{ widget: any, currentIsLight: b
     }
   };
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      if(!rootRef.current?.contains(target) || !rootRef.current.getClientRects().length || event.altKey || event.ctrlKey || event.metaKey) return;
-      if (target?.closest('input, select, textarea, [contenteditable="true"]')) return;
-      const noteIndex = notes.findIndex((note) => note.key === event.key);
-      if (noteIndex >= 0 && !event.repeat) {
-        event.preventDefault();
-        handleTap(noteIndex);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  });
+  // React binds this scoped handler with the rendered controls. A freshly
+  // restored or switched lesson cannot miss a key while a global effect rebinds.
+  const handleToneKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement | null;
+    if (!rootRef.current?.contains(target) || !rootRef.current.getClientRects().length || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (target?.closest('input, select, textarea, [contenteditable="true"]')) return;
+    const noteIndex = notes.findIndex((note) => note.key === event.key);
+    if (noteIndex >= 0 && !event.repeat) {
+      event.preventDefault();
+      handleTap(noteIndex);
+    }
+  };
 
   const barHeights = [120, 114, 108, 102, 96, 90, 84, 78];
 
   return (
-    <div ref={rootRef} data-practice-root tabIndex={0} aria-label="Tonleiter-Entdecker" className="min-h-full w-full h-full p-2 flex flex-col gap-2 select-none overflow-hidden">
+    <div ref={rootRef} data-practice-root tabIndex={0} onKeyDown={handleToneKeyDown} aria-label="Tonleiter-Entdecker" className="min-h-full w-full h-full p-2 flex flex-col gap-2 select-none overflow-hidden">
       <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
         <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1" role="tablist" aria-label="Tontrainer-Modus">
           {([

@@ -21,6 +21,10 @@ fachliche Zusammenführung ihrer Funktionen oder gespeicherten Einstellungen.
   bleibt dort; normale Suche wechselt zu den Kernwidgets.
 - Die Schülerliste bleibt während der Auswahl unsichtbar, ohne ihre Breite
   oder Einstellung zu ändern. Sie verdeckt dadurch keine Tablet-Bedienelemente.
+- Tontrainer: Tastaturereignisse sind direkt am fokussierten Widget angebunden,
+  statt einen globalen Listener bei jeder Änderung neu zu installieren. Die
+  native Tastaturprüfung bleibt bestehen; Formulare und Modifikatortasten werden
+  weiterhin ausgenommen.
 - Favoriten und zuletzt verwendete Widgets behalten ihre gespeicherten Typen.
   Layouts, Vorlagen, Backups, Renderer und Widgetdaten werden nicht konvertiert
   oder gelöscht.
