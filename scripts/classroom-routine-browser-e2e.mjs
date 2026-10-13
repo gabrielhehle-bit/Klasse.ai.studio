@@ -1282,6 +1282,7 @@ async function main() {
     await evaluate(client, `document.querySelector('${timePanel('timer')} button[title="Zurücksetzen"]').click()`);
     await evaluate(client, `Array.from(document.querySelectorAll('${timePanel('timer')} button')).find(b=>b.textContent.trim()==='Start').click()`);
     const countdownBefore = await evaluate(client, `document.querySelector('${timePanel('timer')}').textContent.match(/[0-9]{2}:[0-9]{2}/)?.[0]`);
+    if (!countdownBefore) throw new Error('Running countdown has no readable time.');
     await selectTimeTool('stopwatch');
     await clickSelector(client, `${timePanel('stopwatch')} [data-stopwatch-action="start"]`);
     await selectTimeTool('clock');
@@ -1295,6 +1296,7 @@ async function main() {
     await waitFor(client, 'countdown continues across tool changes', `document.querySelector('${timePanel('timer')}').textContent.includes('Pause') && document.querySelector('${timePanel('timer')}').textContent.match(/[0-9]{2}:[0-9]{2}/)?.[0] !== ${q(countdownBefore)}`);
     await evaluate(client, `Array.from(document.querySelectorAll('${timePanel('timer')} button')).find(b=>b.textContent.trim()==='Pause').click()`);
     await selectTimeTool('stopwatch');
+    await waitFor(client, 'hidden stopwatch elapsed time advances', `Array.from(document.querySelectorAll('${timePanel('stopwatch')} .tabular-nums')).some(span=>/^[0-9]{2}:[0-9]{2}$/.test(span.textContent.trim()) && span.textContent.trim()!=='00:00')`);
     await clickSelector(client, `${timePanel('stopwatch')} [data-stopwatch-action="stop"]`);
     await waitFor(client, 'stopwatch also continues and pauses independently', `document.querySelector('${timePanel('stopwatch')}').textContent.includes('Weiter')`);
     for (const [width,height] of [[1366,768],[820,900]]) {
@@ -1315,9 +1317,9 @@ async function main() {
       const root = `[data-widget-type="${type}"] [data-widget-content]`;
       const taskStateExpression = `JSON.stringify(Array.from(document.querySelectorAll('${root} button[aria-pressed][aria-label^="Aufgabe "]')).map(b=>[b.getAttribute('aria-label'),b.getAttribute('aria-pressed')]))`;
       if(type === 'stopwatch') {
-        await evaluate(client, `document.querySelector('[data-stopwatch-action="start"]').click()`);
+        await evaluate(client, `document.querySelector('${root} [data-stopwatch-action="start"]').click()`);
         await sleep(350);
-        await evaluate(client, `document.querySelector('[data-stopwatch-action="stop"]').click()`);
+        await evaluate(client, `document.querySelector('${root} [data-stopwatch-action="stop"]').click()`);
         await waitFor(client,'stopwatch paused',`document.querySelector('${root}').textContent.includes('Weiter')`);
       }
       if(type === 'trafficlight') {
