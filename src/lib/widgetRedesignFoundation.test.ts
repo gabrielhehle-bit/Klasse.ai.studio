@@ -11,7 +11,7 @@ const homework = read('HomeworkWidget');
 const stars = read('StarsReviewWidget');
 
 test('Every current and legacy widget uses the same measured and theme-safe cockpit frame', () => {
-  assert.equal(PLANNED_COCKPIT_WIDGETS.length, 20);
+  assert.equal(PLANNED_COCKPIT_WIDGETS.length, 21);
   assert.match(frame, /data-widget-ux="v3"/);
   assert.match(frame, /data-widget-title=\{displayLabel\}/);
   assert.match(frame, /data-widget-density=\{viewportDensity\}/);

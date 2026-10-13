@@ -1,3 +1,4 @@
+import { spokenClockTime } from "../../lib/clockLearningSettings";
 import { WidgetReadableText } from './WidgetReadableText';
 import { normalizeQuizSession, quizAnswerFeedback, type QuizDifficulty } from '../../lib/classroomQuizSession';
 export { WatertrackerWidgetContent, MoodmeterWidgetContent, ToothbrushWidgetContent, EmotionsWidgetContent } from './WellbeingWidgets';
@@ -5044,29 +5045,7 @@ export const WordclockWidgetContent: React.FC<{
   const activeHour = lernModus ? lernHour : currentTime.getHours();
   const activeMin = lernModus ? lernMin : currentTime.getMinutes();
 
-  const getGermanSpokenTime = (h: number, m: number): string => {
-    const formattedHour = h > 12 ? h - 12 : h === 0 ? 12 : h;
-    const nextHour = (formattedHour % 12) + 1;
-
-    if (m === 0) return `Punkt ${formattedHour} Uhr`;
-    if (m === 5) return `Fünf nach ${formattedHour}`;
-    if (m === 10) return `Zehn nach ${formattedHour}`;
-    if (m === 15) return `Viertel nach ${formattedHour}`;
-    if (m === 20) return `Zehn vor halb ${nextHour}`;
-    if (m === 25) return `Fünf vor halb ${nextHour}`;
-    if (m === 30) return `Halb ${nextHour}`;
-    if (m === 35) return `Fünf nach halb ${nextHour}`;
-    if (m === 40) return `Zehn nach halb ${nextHour}`;
-    if (m === 45) return `Viertel vor ${nextHour}`;
-    if (m === 50) return `Zehn vor ${nextHour}`;
-    if (m === 55) return `Fünf vor ${nextHour}`;
-
-    const roundedMin = Math.round(m / 5) * 5;
-    if (roundedMin === 60) return `Punkt ${nextHour} Uhr`;
-    return getGermanSpokenTime(h, roundedMin) + " (ungefähr)";
-  };
-
-  const spokenText = getGermanSpokenTime(activeHour, activeMin);
+  const spokenText = spokenClockTime(activeHour, activeMin);
 
   return (
     <div className="relative flex-grow flex flex-col justify-between p-2 h-full min-h-0 pointer-events-auto select-none gap-2">
@@ -5111,7 +5090,7 @@ export const WordclockWidgetContent: React.FC<{
               </label>
               <label className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 px-3 dark:border-white/10">
                 <span className="w-16 text-xs font-black">Minute</span>
-                <input type="range" min="0" max="59" step="5" value={lernMin}
+                <input type="range" min="0" max="59" step="1" value={lernMin}
                   onChange={(e) => changeMinute(Number(e.target.value))}
                   className="min-w-0 flex-1 text-accent accent-current" />
                 <span className="w-7 text-right font-mono text-sm font-black text-accent">{lernMin}</span>
@@ -13175,7 +13154,7 @@ export const ClockpuzzleWidgetContent: React.FC<{ widget: any, currentIsLight: b
     : checked && studentClock.h === targetClock.h && studentClock.m === targetClock.m;
 
   return (
-    <div data-practice-root className="h-full w-full p-2 flex flex-col gap-2 select-none overflow-hidden">
+    <div data-practice-root className="h-full w-full p-2 flex flex-col gap-1.5 select-none overflow-hidden">
       <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
         <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1" role="tablist" aria-label="Uhrentrainer-Modus">
           <button
@@ -13306,9 +13285,9 @@ export const ClockpuzzleWidgetContent: React.FC<{ widget: any, currentIsLight: b
           </div>
         ) : (
           <div className="w-full max-w-xs flex flex-col gap-2">
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3 text-center">
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-2 text-center">
               <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Deine Uhr</div>
-              <div className="mt-1 text-3xl font-black tabular-nums text-accent">{formatTime(studentClock)}</div>
+              <div className="mt-1 text-2xl font-black tabular-nums text-accent">{formatTime(studentClock)}</div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <button type="button" onClick={() => changeStudentHour(-1)} className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-700 font-bold hover:border-accent" aria-label="Stundenzeiger zurück">− Stunde</button>
@@ -13323,7 +13302,7 @@ export const ClockpuzzleWidgetContent: React.FC<{ widget: any, currentIsLight: b
         )}
       </div>
 
-      <div className="shrink-0 flex justify-center">
+      <div className="shrink-0 flex items-center gap-2">
         <button
           type="button"
           onClick={() => rollNewTime(mode)}
@@ -13331,11 +13310,10 @@ export const ClockpuzzleWidgetContent: React.FC<{ widget: any, currentIsLight: b
         >
           Neue Uhrzeit
         </button>
-      </div>
 
       <p
         aria-live="polite"
-        className={`shrink-0 min-h-11 rounded-xl border px-3 py-2 flex items-center justify-center text-center text-xs sm:text-sm font-semibold ${
+        className={`min-w-0 flex-1 min-h-11 rounded-xl border px-3 py-2 flex items-center justify-center text-center text-xs sm:text-sm font-semibold ${
           isCorrect
             ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-200'
             : checked
@@ -13345,6 +13323,7 @@ export const ClockpuzzleWidgetContent: React.FC<{ widget: any, currentIsLight: b
       >
         {feedback}
       </p>
+      </div>
     </div>
   );
 };

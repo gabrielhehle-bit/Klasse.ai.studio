@@ -174,6 +174,11 @@ export const PLANNED_COCKPIT_WIDGETS = [
     ]
   },
   {
+    "id": "clockpuzzle",
+    "label": "Uhrlernen",
+    "sources": ["clockpuzzle", "clocksync", "wordclock"]
+  },
+  {
     "id": "sounds",
     "label": "Musik & Klänge",
     "sources": [

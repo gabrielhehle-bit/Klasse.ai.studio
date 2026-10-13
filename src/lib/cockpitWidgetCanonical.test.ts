@@ -45,5 +45,5 @@ test("keeps canonical type counts separate from legacy entry counts", () => {
     entryCount: 5,
     aliasCount: 2,
   });
-  assert.equal(getCockpitWidgetCanonicalCatalog().length, 20);
+  assert.equal(getCockpitWidgetCanonicalCatalog().length, 21);
 });

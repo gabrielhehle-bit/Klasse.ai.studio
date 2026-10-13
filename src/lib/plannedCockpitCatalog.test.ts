@@ -12,9 +12,9 @@ const layoutEnd = source.indexOf('const DEFAULT_WORKSPACE_PROFILES', layoutStart
 const defaultTypes = [...source.slice(layoutStart, layoutEnd).matchAll(/type:\s*"([^"]+)"/g)]
   .map(match => match[1]);
 
-test('Cockpit-Zielkatalog: genau 20 unterschiedliche, bestehende Einstiegstypen', () => {
-  assert.equal(PLANNED_COCKPIT_WIDGETS.length, 20);
-  assert.equal(new Set(PLANNED_COCKPIT_WIDGETS.map(widget => widget.id)).size, 20);
+test('Cockpit-Zielkatalog: genau 21 unterschiedliche, bestehende Einstiegstypen', () => {
+  assert.equal(PLANNED_COCKPIT_WIDGETS.length, 21);
+  assert.equal(new Set(PLANNED_COCKPIT_WIDGETS.map(widget => widget.id)).size, 21);
   for (const widget of PLANNED_COCKPIT_WIDGETS) {
     assert.ok(defaultTypes.includes(widget.id), `Unbekannter Einstiegstyp: ${widget.id}`);
     assert.ok(widget.label.trim());

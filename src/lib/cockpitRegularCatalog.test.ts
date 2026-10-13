@@ -3,9 +3,9 @@ import test from 'node:test';
 import { COCKPIT_REGULAR_WIDGETS, getRegularCockpitGroups } from './cockpitRegularCatalog';
 import { COCKPIT_WIDGET_LIBRARY_ITEMS } from './cockpitWidgetCatalog';
 
-test('regular selection has 24 unique, available entries while retaining every legacy entry', () => {
-  assert.equal(COCKPIT_REGULAR_WIDGETS.length, 24);
-  assert.equal(new Set(COCKPIT_REGULAR_WIDGETS.map(group => group.id)).size, 24);
+test('regular selection has 25 unique, available entries while retaining every legacy entry', () => {
+  assert.equal(COCKPIT_REGULAR_WIDGETS.length, 25);
+  assert.equal(new Set(COCKPIT_REGULAR_WIDGETS.map(group => group.id)).size, 25);
   assert.equal(COCKPIT_WIDGET_LIBRARY_ITEMS.length, 112);
   for (const group of COCKPIT_REGULAR_WIDGETS) {
     assert.ok(COCKPIT_WIDGET_LIBRARY_ITEMS.some(item => item.type === group.id));
@@ -31,8 +31,8 @@ test('search groups old names without opening or converting saved variants', () 
 test('regular categories partition the same selection and global search crosses categories', () => {
   const categories = [...new Set(COCKPIT_WIDGET_LIBRARY_ITEMS.map(item => item.category))];
   const ids = categories.flatMap(category => getRegularCockpitGroups(category).map(group => group.id));
-  assert.equal(ids.length, 24);
-  assert.equal(new Set(ids).size, 24);
+  assert.equal(ids.length, 25);
+  assert.equal(new Set(ids).size, 25);
   assert.deepEqual(getRegularCockpitGroups('mathe', 'Hausübungen').map(group => group.id), ['homework']);
-  assert.equal(getRegularCockpitGroups('core', '   ').length, 24);
+  assert.equal(getRegularCockpitGroups('core', '   ').length, 25);
 });
