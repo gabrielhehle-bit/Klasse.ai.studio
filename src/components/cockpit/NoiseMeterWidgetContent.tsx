@@ -6,6 +6,7 @@ export interface NoiseMeterWidgetContentProps {
   onUpdate?: (updates: any) => void;
   currentIsLight: boolean;
   isFullscreen?: boolean;
+  isMinimized?: boolean;
   showSettings?: boolean;
   onCloseSettings?: () => void;
 }

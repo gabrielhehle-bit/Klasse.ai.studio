@@ -19,6 +19,7 @@ interface NoiseMeterWidgetProps {
   isFullscreen?: boolean;
   showSettings?: boolean;
   onCloseSettings?: () => void;
+  isMinimized?: boolean;
 }
 
 export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
@@ -28,6 +29,7 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
   isFullscreen = false,
   showSettings = false,
   onCloseSettings,
+  isMinimized = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef, { isFullscreen, defaultCategory: 'standard' });
@@ -83,6 +85,10 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
     };
   }, [stopMeasurement]);
 
+  useEffect(() => {
+    if (isMinimized) stopMeasurement();
+  }, [isMinimized, stopMeasurement]);
+
   // Audio-Loop mit gedrosseltem React-Update (~15 FPS) zur Performance-Schonung
   const runAudioLoop = useCallback(() => {
     if (!isActiveRef.current || !analyserRef.current) return;
@@ -108,7 +114,7 @@ export const NoiseMeterWidget: React.FC<NoiseMeterWidgetProps> = ({
 
   // Start der Mikrofonmessung
   const startMeasurement = async () => {
-    if (isActiveRef.current || startInFlightRef.current) return;
+    if (isMinimized || isActiveRef.current || startInFlightRef.current) return;
     startInFlightRef.current = true;
     const requestGeneration = ++requestGenerationRef.current;
     setPermissionState('requesting');

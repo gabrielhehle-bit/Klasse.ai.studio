@@ -87,3 +87,9 @@ export function validateNeutrality(modeId: TrafficLightModeId): boolean {
   const validIds: TrafficLightModeId[] = ['zuhören', 'leise', 'austausch', 'pause'];
   return validIds.includes(modeId);
 }
+
+export type TrafficLightView = 'ampel' | 'vorgabe' | 'pegel';
+
+export function normalizeTrafficLightView(value: unknown): TrafficLightView {
+  return value === 'vorgabe' || value === 'pegel' ? value : 'ampel';
+}

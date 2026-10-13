@@ -1780,7 +1780,7 @@ async function main() {
 
     // Five-widget math batch: independently calculate displayed tasks, then use the real UI.
     const auditWidgetMinimum = async type => {
-      if(['breathing','weather','image','zahlenraum','anschauung','numberline','wortsatzwerkstatt','soundmachine','drawing','noisemeter','noisescales','aiquiz','phases','dailyquotes','tischcheck','faircall','watertracker','moodmeter','toothbrush','emotions','sounds','rhythm','soundmemory','guitartuner','tonetrainer','animalvoice','challenge','secretagent','weightscale','reflexgame','clockpuzzle','geometry','angledetective','estimationjar','shapepuzzle','divrobot','fractions','fractioncake','fractiongrid','moneycalc'].includes(type)){
+      if(['trafficlight','breathing','weather','image','zahlenraum','anschauung','numberline','wortsatzwerkstatt','soundmachine','drawing','noisemeter','noisescales','aiquiz','phases','dailyquotes','tischcheck','faircall','watertracker','moodmeter','toothbrush','emotions','sounds','rhythm','soundmemory','guitartuner','tonetrainer','animalvoice','challenge','secretagent','weightscale','reflexgame','clockpuzzle','geometry','angledetective','estimationjar','shapepuzzle','divrobot','fractions','fractioncake','fractiongrid','moneycalc'].includes(type)){
         // Earlier routines may leave a restored window at the lower board edge.
         // Use the real size preset and drag header before testing the visible grip.
         await auditMenu(type,'Größe');await clickButton(client,'Passend',true);
@@ -1793,7 +1793,7 @@ async function main() {
         await client.send('Input.dispatchMouseEvent',{type:'mouseReleased',...end,button:'left',clickCount:1});
         await waitFor(client,type+' real header drag settles before resize',`!document.querySelector('[data-widget-type=${q(type)}]').hasAttribute('data-widget-interacting')`);
       }
-      const minimumSizes={breathing:[360,500],weather:[460,480],image:[620,480],zahlenraum:[760,560],anschauung:[760,560],numberline:[760,560],wortsatzwerkstatt:[620,560],soundmachine:[760,560],drawing:[700,480],noisemeter:[460,460],noisescales:[460,420],aiquiz:[700,560],phases:[460,560],dailyquotes:[640,560],tischcheck:[640,560],faircall:[640,560],watertracker:[640,560],moodmeter:[640,560],toothbrush:[640,560],emotions:[640,560],sounds:[840,560],rhythm:[760,560],soundmemory:[760,560],guitartuner:[760,560],tonetrainer:[840,560],animalvoice:[760,560],challenge:[460,560],secretagent:[760,560],weightscale:[740,560],reflexgame:[640,560],clockpuzzle:[760,560],geometry:[760,560],angledetective:[740,560],estimationjar:[760,560],shapepuzzle:[640,560],divrobot:[760,560],fractions:[640,560],fractioncake:[640,560],fractiongrid:[640,560],moneycalc:[760,560],mathcards:[640,560],mathchain:[640,560],mathduel:[760,560],mathpyramid:[740,560],mathbalancer:[640,560],riddle:[700,560],colormixer:[760,560],shadowshapes:[840,560],clocksync:[740,560],kidweather:[760,560],constellation:[720,560],planetarium:[720,560],flagquiz:[700,560],geographyquiz:[700,560],wastebin:[820,560],bodyparts:[620,560],compass:[620,560],weekdays:[620,560],trafficquiz:[800,560],watercycle:[760,560],dictionary:[460,540],patternmaker:[580,520],alphabetsoup:[640,560],morsecode:[620,560],hangman:[640,560],sorting:[420,520],vocabulary:[640,560],spellingdetective:[640,560],wordbuilder:[620,560],scrambler:[620,560],compoundsplit:[620,560],wordchain:[500,520],wordgrid:[640,560],wordscramble:[600,560],secretcode:[440,420],storyemojis:[640,560],abcorder:[640,560],sentencebuilding:[620,560],wordexplorer:[520,540],rhymemachine:[500,540],punctuationzoo:[620,560]};
+      const minimumSizes={trafficlight:[460,560],breathing:[360,500],weather:[460,480],image:[620,480],zahlenraum:[760,560],anschauung:[760,560],numberline:[760,560],wortsatzwerkstatt:[620,560],soundmachine:[760,560],drawing:[700,480],noisemeter:[460,460],noisescales:[460,420],aiquiz:[700,560],phases:[460,560],dailyquotes:[640,560],tischcheck:[640,560],faircall:[640,560],watertracker:[640,560],moodmeter:[640,560],toothbrush:[640,560],emotions:[640,560],sounds:[840,560],rhythm:[760,560],soundmemory:[760,560],guitartuner:[760,560],tonetrainer:[840,560],animalvoice:[760,560],challenge:[460,560],secretagent:[760,560],weightscale:[740,560],reflexgame:[640,560],clockpuzzle:[760,560],geometry:[760,560],angledetective:[740,560],estimationjar:[760,560],shapepuzzle:[640,560],divrobot:[760,560],fractions:[640,560],fractioncake:[640,560],fractiongrid:[640,560],moneycalc:[760,560],mathcards:[640,560],mathchain:[640,560],mathduel:[760,560],mathpyramid:[740,560],mathbalancer:[640,560],riddle:[700,560],colormixer:[760,560],shadowshapes:[840,560],clocksync:[740,560],kidweather:[760,560],constellation:[720,560],planetarium:[720,560],flagquiz:[700,560],geographyquiz:[700,560],wastebin:[820,560],bodyparts:[620,560],compass:[620,560],weekdays:[620,560],trafficquiz:[800,560],watercycle:[760,560],dictionary:[460,540],patternmaker:[580,520],alphabetsoup:[640,560],morsecode:[620,560],hangman:[640,560],sorting:[420,520],vocabulary:[640,560],spellingdetective:[640,560],wordbuilder:[620,560],scrambler:[620,560],compoundsplit:[620,560],wordchain:[500,520],wordgrid:[640,560],wordscramble:[600,560],secretcode:[440,420],storyemojis:[640,560],abcorder:[640,560],sentencebuilding:[620,560],wordexplorer:[520,540],rhymemachine:[500,540],punctuationzoo:[620,560]};
       const [minimumWidth,minimumHeight]=minimumSizes[type]||[460,560];
       await waitFor(client,type+' resize grip is reachable after opening', `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('[data-widget-resize]')?.dataset.widgetResize==='se';})()`);
       const point=await evaluate(client, `(() => {const h=document.querySelector('[data-widget-type=${q(type)}] [data-widget-resize="se"]'),r=h.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
@@ -3510,6 +3510,66 @@ async function main() {
     await evaluate(client,"window.__toolsAudio.mode='resume'");await natureClick(meterRoot,'Messung starten');await waitFor(client,'audio start awaits its own resume',`typeof window.__toolsAudio.resumeResolve==='function'`);await natureClick(meterRoot,'Abbrechen');
     await evaluate(client,"window.__toolsAudio.mode='active'");await natureClick(meterRoot,'Messung starten');await waitFor(client,'new measurement starts while old resume is pending',`document.querySelector(${q(meterRoot)}).dataset.noisePermission==='active'`);await evaluate(client,'window.__toolsAudio.resumeResolve()');await sleep(250);
     await waitFor(client,'late old resume cannot remove current measurement',`document.querySelector(${q(meterRoot)}).dataset.noisePermission==='active'&&window.__toolsAudio.stopped===3`);await auditMenu('noisemeter','Widget schließen');await waitFor(client,'close still releases new stream after old resume',`window.__toolsAudio.stopped===4`);
+    // The canonical entry owns all three views and stops microphone use on exit.
+    await openAuditWidget('trafficlight','Lautstärke & Arbeitsampel','Status-Ampel');
+    await auditWidgetMinimum('trafficlight');
+    const lampToolsRoot='[data-widget-type="trafficlight"] [data-traffic-tools]';
+    const integratedMeter=lampToolsRoot+' [data-practice-root="noisemeter"]';
+    const trafficControlsFit=async()=>{
+      const result=await evaluate(client,`(() => {const root=document.querySelector(${q(lampToolsRoot)}),outer=root.getBoundingClientRect();return Array.from(root.querySelectorAll('button')).filter(b=>b.getClientRects().length).map(b=>{const r=b.getBoundingClientRect(),points=[[r.left+6,r.top+6],[r.right-6,r.top+6],[r.left+6,r.bottom-6],[r.right-6,r.bottom-6],[r.left+r.width/2,r.top+r.height/2]];return {label:b.getAttribute('aria-label')||b.textContent.trim(),ok:r.width>=43&&r.height>=43&&r.top>=outer.top&&r.bottom<=outer.bottom+1&&points.every(([x,y])=>{const hit=document.elementFromPoint(x,y);return hit===b||b.contains(hit);})};}).filter(r=>!r.ok);})()`);
+      if(result.length)throw Error('Traffic tools controls clipped, overlapped or too small: '+JSON.stringify(result));
+    };
+    const trafficView=async label=>{
+      await trafficControlsFit();
+      const point=await evaluate(client,`(() => {const b=Array.from(document.querySelectorAll(${q(lampToolsRoot+' nav button')})).find(b=>b.textContent.trim()===${q(label)}),r=b.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2};})()`);
+      await client.send('Input.dispatchMouseEvent',{type:'mouseMoved',...point});
+      await client.send('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',clickCount:1});
+      await client.send('Input.dispatchMouseEvent',{type:'mouseReleased',...point,button:'left',clickCount:1});await sleep(100);
+      await trafficControlsFit();
+    };
+    await trafficView('Lautstärke');
+    await clickSelector(client,lampToolsRoot+' [aria-label="Stufe 2: Partnerlautstärke"]');
+    await trafficView('Arbeitsampel');
+    await trafficView('Lautstärke');
+    await waitFor(client,'voice rule survives view switches',`document.querySelector(${q(lampToolsRoot+' [data-practice-root="noisescales"]')}).dataset.noiseStage==='partner'`);
+    await trafficView('Live-Pegel');
+    await waitFor(client,'integrated meter stays idle on entry',`document.querySelector(${q(integratedMeter)}).dataset.noisePermission==='idle'&&window.__toolsAudio.requests===5`);
+    await routineGear('trafficlight');await natureClick(lampToolsRoot,'Hoch');await natureClick(lampToolsRoot,'Fertig');
+    await natureClick(integratedMeter,'Messung starten');
+    await waitFor(client,'integrated meter starts explicitly with persisted sensitivity',`document.querySelector(${q(integratedMeter)}).dataset.noisePermission==='active'&&document.querySelector(${q(integratedMeter)}).dataset.noiseSensitivity==='high'`);
+    await trafficView('Arbeitsampel');await waitFor(client,'leaving live view stops its track',`window.__toolsAudio.stopped===5`);
+    await trafficView('Live-Pegel');await waitFor(client,'returning never restarts microphone',`document.querySelector(${q(integratedMeter)}).dataset.noisePermission==='idle'&&window.__toolsAudio.requests===6`);
+    await natureClick(integratedMeter,'Messung starten');await auditMenu('trafficlight','Minimieren');
+    await waitFor(client,'minimize stops integrated microphone',`window.__toolsAudio.stopped===6`);
+    await openAuditWidget('trafficlight','Lautstärke & Arbeitsampel','Status-Ampel');
+    await waitFor(client,'restored live view stays idle',`document.querySelector(${q(lampToolsRoot)}).dataset.trafficView==='pegel'&&document.querySelector(${q(integratedMeter)}).dataset.noisePermission==='idle'`);
+    await evaluate(client,"window.__toolsAudio.mode='pending'");await natureClick(integratedMeter,'Messung starten');await trafficView('Lautstärke');await evaluate(client,'window.__toolsAudio.resolve()');
+    await waitFor(client,'view exit releases late microphone permission',`window.__toolsAudio.stopped===7&&!document.querySelector(${q(integratedMeter)})`);
+    await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-traffic-tools-scale.png'));
+    await auditMenu('trafficlight','Widget schließen');await openAuditWidget('trafficlight','Lautstärke & Arbeitsampel','Status-Ampel');
+    await waitFor(client,'complete reopening restores selected view and rule',`document.querySelector(${q(lampToolsRoot)}).dataset.trafficView==='vorgabe'&&document.querySelector(${q(lampToolsRoot+' [data-practice-root="noisescales"]')}).dataset.noiseStage==='partner'`);
+    await trafficView('Live-Pegel');await routineGear('trafficlight');
+    await waitFor(client,'sensitivity survives complete reopening',`document.querySelector(${q(integratedMeter)}).dataset.noiseSensitivity==='high'`);
+    await waitFor(client,'noise settings remain opaque with readable explanation',`(() => {const panel=document.querySelector(${q(lampToolsRoot+' [aria-label="Lautstärke-Einstellungen"]')}),text=panel.querySelector('p'),ctx=document.createElement('canvas').getContext('2d');const pixel=color=>{ctx.clearRect(0,0,1,1);ctx.fillStyle=color;ctx.fillRect(0,0,1,1);return Array.from(ctx.getImageData(0,0,1,1).data);};const lum=p=>p.slice(0,3).map(v=>{v/=255;return v<=0.04045?v/12.92:((v+0.055)/1.055)**2.4;}).reduce((sum,v,i)=>sum+v*[0.2126,0.7152,0.0722][i],0);const bg=pixel(getComputedStyle(panel).backgroundColor),a=lum(bg),b=lum(pixel(getComputedStyle(text).color));return bg[3]===255&&(Math.max(a,b)+0.05)/(Math.min(a,b)+0.05)>=4.5;})()`);
+    await trafficControlsFit();await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-traffic-tools-settings.png'));await natureClick(lampToolsRoot,'Fertig');
+    await trafficView('Arbeitsampel');await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-traffic-tools-lamp.png'));await auditMenu('trafficlight','Widget schließen');
+    console.log('✓ Canonical traffic tools: persisted views and voice rule, header sensitivity, explicit microphone start, track cleanup on view exit/minimize and late permission, complete close/reopen.');
+    const legacyMeterBefore=await evaluate(client,'({requests:window.__toolsAudio.requests,stopped:window.__toolsAudio.stopped})');
+    await evaluate(client,"window.__toolsAudio.mode='active'");
+    await openAuditWidget('noisemeter','Lautstärkemesser');
+    await natureClick(meterRoot,'Messung starten');
+    await waitFor(client,'legacy meter starts explicitly before minimizing',`document.querySelector(${q(meterRoot)}).dataset.noisePermission==='active'`);
+    await auditMenu('noisemeter','Minimieren');
+    await waitFor(client,'legacy minimized meter releases microphone track',`window.__toolsAudio.stopped===${legacyMeterBefore.stopped+1}`);
+    await openAuditWidget('noisemeter','Lautstärkemesser');
+    await waitFor(client,'legacy meter restore never restarts microphone',`document.querySelector(${q(meterRoot)}).dataset.noisePermission==='idle'&&window.__toolsAudio.requests===${legacyMeterBefore.requests+1}`);
+    await evaluate(client,"window.__toolsAudio.mode='pending'");await natureClick(meterRoot,'Messung starten');
+    await auditMenu('noisemeter','Minimieren');await evaluate(client,'window.__toolsAudio.resolve()');
+    await waitFor(client,'legacy minimizing also releases late permission',`window.__toolsAudio.stopped===${legacyMeterBefore.stopped+2}`);
+    await openAuditWidget('noisemeter','Lautstärkemesser');
+    await waitFor(client,'legacy restored pending meter stays idle',`document.querySelector(${q(meterRoot)}).dataset.noisePermission==='idle'`);
+    await auditMenu('noisemeter','Widget schließen');
+    console.log('✓ Legacy saved noise meter releases active and pending microphone access when minimized and stays idle on restore.');
     await evaluate(client,`(() => {const f=window.__toolsAudio;navigator.mediaDevices.getUserMedia=f.getUserMedia;window.AudioContext=f.Base;for(const c of f.producers)c.close();delete window.__toolsAudio;})()`);
 
     // Verify both actual catalog entries; a shared renderer is not entry coverage.

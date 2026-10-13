@@ -6,6 +6,7 @@ import {
   getTrafficLightMode,
   migrateLegacyAmpelStatus,
   validateNeutrality,
+  normalizeTrafficLightView,
 } from './trafficlightAlgorithm';
 import {
   WIDGET_MIN_SIZES,
@@ -97,5 +98,11 @@ test('Trafficlight: 10. FULLSCREEN Responsive Kategorie (>= 800 px oder isFullsc
 
 test('Trafficlight: 11. Kein horizontaler Overflow & Mindestmaße im Register', () => {
   assert.ok(WIDGET_MIN_SIZES.trafficlight);
-  assert.ok(WIDGET_MIN_SIZES.trafficlight.minW <= 280);
+  assert.equal(WIDGET_MIN_SIZES.trafficlight.minW, 460);
+  assert.equal(WIDGET_MIN_SIZES.trafficlight.minH, 560);
+});
+
+ test('Trafficlight: restored views accept only supported modes', () => {
+  for (const view of ['ampel', 'vorgabe', 'pegel']) assert.equal(normalizeTrafficLightView(view), view);
+  for (const value of [undefined, null, '', 'invalid', {}, 1]) assert.equal(normalizeTrafficLightView(value), 'ampel');
 });
