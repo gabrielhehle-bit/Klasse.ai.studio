@@ -3707,7 +3707,9 @@ async function main() {
         };
         const clickGradebookOption = async selector => {
           if (!await evaluate(client, `document.querySelector(${q(selector)})?.closest('details')?.open`)) {
-            await clickSelector(client, 'details:has('+selector+') > summary');
+            const summaryLabel = await evaluate(client, `document.querySelector(${q(selector)})?.closest('details')?.querySelector('summary')?.getAttribute('aria-label')`);
+            if (!summaryLabel) throw new Error('Gradebook option summary missing: '+selector);
+            await clickSelector(client, 'summary[aria-label='+q(summaryLabel)+']');
           }
           await clickSelector(client, selector);
         };
