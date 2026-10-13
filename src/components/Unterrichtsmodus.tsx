@@ -17411,7 +17411,7 @@ ${content}
             exit={{ opacity: 0, x: 100 }}
             className="fixed top-32 right-12 bottom-12 w-96 rounded-[3.5rem] shadow-2xl shadow-black p-10 z-[250] border flex flex-col transition-colors duration-700 backdrop-blur-2xl"
             style={{
-              backgroundColor: currentIsLight ? "#ffffff" : "#18181b",
+              backgroundColor: `${currentTheme.colors.surface}f9`,
               borderColor: currentTheme.colors.border,
             }}
           >
