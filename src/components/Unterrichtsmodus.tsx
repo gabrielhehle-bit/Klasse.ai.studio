@@ -3760,8 +3760,9 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     string | null
   >(null);
 
+  const settingsWidgetType = cockpitWidgets.find(widget => widget.id === widgetSettingsOpenId)?.type;
   useEffect(() => {
-    const type = cockpitWidgets.find(widget => widget.id === widgetSettingsOpenId)?.type;
+    const type = settingsWidgetType;
     if (!type || !['bodyparts', 'compass', 'weekdays', 'trafficquiz', 'watercycle', 'constellation', 'planetarium', 'flagquiz', 'geographyquiz', 'wastebin'].includes(type)) return;
     const closeSettings = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
@@ -3770,9 +3771,10 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
         document.querySelector<HTMLButtonElement>(`[data-widget-type="${type}"] .cockpit-widget-settings-trigger`)?.focus();
       });
     };
-    window.addEventListener('keydown', closeSettings);
-    return () => window.removeEventListener('keydown', closeSettings);
-  }, [widgetSettingsOpenId, cockpitWidgets]);
+    // Keep Escape installed while filters update; capture it before child controls.
+    window.addEventListener('keydown', closeSettings, true);
+    return () => window.removeEventListener('keydown', closeSettings, true);
+  }, [widgetSettingsOpenId, settingsWidgetType]);
 
   const isCockpitWidget = (id: string) => {
     const cockpitTypes = [

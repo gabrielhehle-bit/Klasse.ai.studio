@@ -2578,6 +2578,12 @@ async function main() {
     const europeSetting=await evaluate(client,`(() => {const button=Array.from(document.querySelectorAll(${q(flagSettingsRoot+' button')})).find(b=>b.textContent.trim().startsWith('Europa'));if(!button)throw Error('Missing Europe filter');button.dataset.natureAction='europe';return ${q(flagSettingsRoot)}+' [data-nature-action="europe"]';})()`);
     await clickSelector(client,europeSetting);
     await waitFor(client,'flag filter updates before Escape',`document.querySelector(${q(flagRoot)}).textContent.includes('Europa')&&document.querySelector(${q(flagRoot)}).textContent.includes('Noch keine Antwort')`);
+    // Several native filter edits must not detach the global Escape handler.
+    const africaSetting=await evaluate(client,`(() => {const button=Array.from(document.querySelectorAll(${q(flagSettingsRoot+' button')})).find(b=>b.textContent.trim().startsWith('Afrika'));button.dataset.natureAction='africa';return ${q(flagSettingsRoot)}+' [data-nature-action="africa"]';})()`);
+    await clickSelector(client,africaSetting);
+    await waitFor(client,'flag Africa filter is selected',`document.querySelector(${q(africaSetting)})?.getAttribute('aria-pressed')==='true'`);
+    await clickSelector(client,europeSetting);
+    await waitFor(client,'flag Europe filter is restored',`document.querySelector(${q(europeSetting)})?.getAttribute('aria-pressed')==='true'`);
     await evaluate(client,`(() => {window.__flagEscapeEvents=[];window.__flagEscapeObserver=e=>window.__flagEscapeEvents.push({key:e.key,trusted:e.isTrusted,phase:e.eventPhase,target:e.target?.getAttribute?.('aria-label')||e.target?.tagName});window.addEventListener('keydown',window.__flagEscapeObserver,true);document.querySelector(${q(europeSetting)})?.focus();})()`);
     await pressAuditKey('Escape');
     try {

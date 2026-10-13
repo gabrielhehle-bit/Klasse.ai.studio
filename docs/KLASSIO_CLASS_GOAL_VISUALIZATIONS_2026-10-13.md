@@ -7,3 +7,5 @@ Bestehende Klassenglas-, Ziel-Thermometer-, Klassen-Ziel- und Sparschwein-Widget
 Browserprüfung: alle bisherigen Einzelvarianten, reale gemeinsame Fortschrittsänderungen, Darstellungswechsel ohne Verlust von Ziel/Belohnung/Zähler, Minimieren, Schließen/Wiederöffnen, Zielerreichung und bestätigtes Zurücksetzen. Native Trefferprüfung kontrolliert alle sechs Bedienelemente auf Laptop und Tablet. Screenshots dokumentieren jede Darstellung und die Tablet-Ansicht. Separate Tests prüfen die Reihenfolge gültiger Voreinstellungen und sichere Fallbacks für alte Backups.
 
 Zurücksetzen sitzt in der Ziel-Titelzeile. Die untere Aktionszeile reserviert Platz für den Größen-Ziehgriff, damit er keine Zielaktion überdeckt.
+
+Die Escape-Behandlung für Geografie-/Sachunterrichts-Einstellungen bleibt während Filteränderungen installiert und wird vor Kind-Bedienelementen abgefangen. Der Flaggenquiz-Lauf prüft dazu mehrere echte Kontinentwechsel vor Escape und die Rückgabe des Fokus an das Zahnrad.
