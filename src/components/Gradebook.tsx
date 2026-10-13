@@ -15,7 +15,7 @@ import LeistungsAuswertungen from './LeistungsAuswertungen';
 import VerbalAssessment from './VerbalAssessment';
 import GradeCalculatorModal from './GradeCalculatorModal';
 import SchularbeitAssessment from './SchularbeitAssessment';
-import { Calculator, Settings, AlertCircle, Plus, Minus, Filter, Sparkles, ChevronDown, User, FileText, BarChart2, Info, ArrowUpRight, Download, RotateCcw, Trash2, Printer, MessageSquare, Brain, TrendingUp, Check } from 'lucide-react';
+import { Calculator, Settings, AlertCircle, Plus, Minus, Filter, Sparkles, ChevronDown, User, FileText, BarChart2, Info, ArrowUpRight, Download, RotateCcw, Trash2, Printer, MessageSquare, Brain, TrendingUp, Check, Maximize, Minimize } from 'lucide-react';
 import { EmptyState } from './EmptyState';
 import { NotenverlaufModal } from './NotenverlaufChart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -233,6 +233,42 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
   const [simpleDashboardMode, setSimpleDashboardMode] = useState<boolean>(true);
   const [assessmentFilter, setAssessmentFilter] = useState<'all' | 'lzk' | 'wp' | 'sa' | 'obj'>('all');
   const [showMoreMenu, setShowMoreMenu] = useState<boolean>(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const ownsBrowserFullscreen = useRef(false);
+  const toggleFullscreen = async () => {
+    if (isFullscreen) {
+      setIsFullscreen(false);
+      if (ownsBrowserFullscreen.current && document.fullscreenElement) {
+        await document.exitFullscreen().catch(() => {});
+      }
+      ownsBrowserFullscreen.current = false;
+      return;
+    }
+    setIsFullscreen(true);
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+      try {
+        await document.documentElement.requestFullscreen();
+        ownsBrowserFullscreen.current = true;
+      } catch { /* The workspace still fills the window when browser fullscreen is unavailable. */ }
+    }
+  };
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (ownsBrowserFullscreen.current && !document.fullscreenElement) {
+        ownsBrowserFullscreen.current = false;
+        setIsFullscreen(false);
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      if (ownsBrowserFullscreen.current && document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    };
+  }, []);
+  useEffect(() => {
+    if (isFullscreen && (showFeedback || showOverview)) void toggleFullscreen();
+  }, [showFeedback, showOverview]);
+
   useEffect(() => {
     if (!showMoreMenu) return;
     const closeToolsOnEscape = (event: KeyboardEvent) => {
@@ -647,7 +683,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
   const calculateMitarbeitNote = (points: number) =>
     miZuNote(points, mitarbeitSettings, app.mitarbeit, activeFach, sem, app.schueler);
 
-  const colCounts = app.notenMeta?.[activeFach]?.colCounts || { lzk: 4, wp: 4, obj: 4 };
+  const colCounts = { lzk: 4, wp: 4, obj: 4, ...app.notenMeta?.[activeFach]?.colCounts };
   useEffect(() => { setAssessmentFilter('all'); setIsolatedCol(null); setFilterMissing(false); }, [activeFach, app.activeClassId]);
 
   const visibleColumns = Object.fromEntries((['sa', 'lzk', 'wp', 'obj'] as const).map(typ => {
@@ -657,7 +693,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
       visible: (assessmentFilter === 'all' || assessmentFilter === typ) && (!isolatedCol || isolatedCol.typ === typ),
       focusedIndex: isolatedCol?.typ === typ ? isolatedCol.idx : undefined,
       count: typ === 'sa' ? getFachCfg(app, activeFach).saCount : colCounts[typ],
-      expanded: !simpleDashboardMode,
+      expanded: !simpleDashboardMode || assessmentFilter === typ,
       labels: meta?.colLabels?.[typ], dates: meta?.colDates?.[typ],
       areas: meta?.colAreas?.[typ], maxPoints: meta?.maxPoints?.[typ],
       records: app.schueler.flatMap(child => (['1', '2'] as const).map(period => ({
@@ -667,6 +703,22 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     })];
   })) as Record<'sa' | 'lzk' | 'wp' | 'obj', number[]>;
   const [pendingDelete, setPendingDelete] = useState<{typ: 'lzk' | 'wp' | 'obj', label: string} | null>(null);
+
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const exitOnEscape = (event: KeyboardEvent) => {
+      // Inputs and open dialogs retain their own Escape behavior.
+      if (event.key === 'Escape' && !event.defaultPrevented && !showMoreMenu && !showAddAssessmentModal && !editingAssessmentModal &&
+        !showWeights && !showStats && !showGradeCalculator && !pendingDelete && !(event.target instanceof HTMLInputElement)) void toggleFullscreen();
+    };
+    document.addEventListener('keydown', exitOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', exitOnEscape);
+    };
+  }, [isFullscreen, showMoreMenu, showAddAssessmentModal, editingAssessmentModal, showWeights, showStats, showGradeCalculator, pendingDelete]);
 
   useEffect(() => {
     // Offene Notenmappe-Dialoge oder Schülerbezüge dürfen nie in die nächste Klasse mitwandern.
@@ -771,17 +823,28 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
   const addColumn = (e: React.MouseEvent, typ: 'sa' | 'lzk' | 'wp' | 'obj') => {
     e.stopPropagation();
     setActiveView('noten'); setShowWeights(false); setShowGradeCalculator(false);
-    const currentCount = typ === 'sa' ? getFachCfg(app, activeFach).saCount : colCounts[typ] || 0;
     const dataKey: 'sa' | 'lzk' | 'wp' | 'aufgaben' = typ === 'obj' ? 'aufgaben' : typ;
+    const meta = app.notenMeta?.[activeFach];
+    const currentCount = visibleAssessmentIndices({
+      count: typ === 'sa' ? getFachCfg(app, activeFach).saCount : colCounts[typ],
+      expanded: true, labels: meta?.colLabels?.[typ], dates: meta?.colDates?.[typ],
+      areas: meta?.colAreas?.[typ], maxPoints: meta?.maxPoints?.[typ],
+      records: app.schueler.flatMap(student => (['1', '2'] as const).map(period => ({
+        values: app.noten?.[student.id]?.[activeFach]?.[period]?.[dataKey],
+        participation: typ === 'lzk' ? app.noten?.[student.id]?.[activeFach]?.[period]?.lzkParticipation : undefined,
+      }))),
+    }).length;
 
     // Reuse the first genuinely empty visible slot before creating another column.
     let reusableIndex = -1;
     for (let idx = 0; idx < currentCount; idx++) {
       const hasStudentValue = (app.schueler || []).some((student) => {
-        const values = app.noten?.[student.id]?.[activeFach]?.[sem]?.[dataKey] || [];
-        const value = values[idx];
-        if (typ === 'lzk' && app.noten?.[student.id]?.[activeFach]?.[sem]?.lzkParticipation?.[idx] === false) return true;
-        return value !== undefined && value !== null && value !== '';
+        return (['1', '2'] as const).some(period => {
+          const record = app.noten?.[student.id]?.[activeFach]?.[period];
+          const value = record?.[dataKey]?.[idx];
+          return (typ === 'lzk' && record?.lzkParticipation?.[idx] === false) ||
+            (value !== undefined && value !== null && value !== '');
+        });
       });
       const hasMeta =
         !!app.notenMeta?.[activeFach]?.colLabels?.[typ]?.[idx] ||
@@ -1544,14 +1607,24 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
   }
 
   return (
-    <div data-gradebook className="min-w-0 space-y-3 pb-20">
+    <div data-gradebook data-gradebook-fullscreen={isFullscreen} className={`min-w-0 space-y-3 pb-20 ${isFullscreen ? 'fixed inset-0 z-[9000] overflow-auto bg-white p-3 sm:p-5' : ''}`}>
       {istSekundarstufe(app.schulart) && (
         <p role="note" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 print:hidden">
           Die Notenmappe dokumentiert deine Bewertungen. Die schulartspezifische amtliche Beurteilung – insbesondere die Leistungsniveaus der Mittelschule – wird hier noch nicht automatisch abgebildet. Prüfe Zeugnisnoten unabhängig davon.
         </p>
       )}
       <style dangerouslySetInnerHTML={{ __html: `
+        [data-zoom]:has([data-gradebook-fullscreen="true"]) {
+          transform: none !important;
+          zoom: 1 !important;
+        }
+        [data-gradebook-fullscreen="true"] [data-gradebook-header] {
+          position: sticky; top: 0; z-index: 70;
+        }
         @media print {
+          [data-gradebook-fullscreen="true"] {
+            position: static !important; overflow: visible !important; padding: 0 !important;
+          }
           @page {
             size: A4 landscape !important;
             margin: 10mm !important;
@@ -1604,6 +1677,12 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
 
               {/* Right: + Bewertung & Mehr Menu */}
               <div className="flex items-center gap-2">
+                <button type="button" onClick={() => void toggleFullscreen()} aria-pressed={isFullscreen}
+                  aria-label={isFullscreen ? 'Vollbild beenden' : 'Notenmappe im Vollbild öffnen'}
+                  className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 flex items-center gap-2">
+                  {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+                  <span>{isFullscreen ? 'Vollbild beenden' : 'Vollbild'}</span>
+                </button>
                 <button
                   onClick={() => { setActiveView('noten'); setShowWeights(false); setShowAddAssessmentModal(true); }}
                   className="min-h-11 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-[0.8125rem] rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
@@ -3357,7 +3436,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
               />
             )}
             {activeView === 'noten' && <div className="flex flex-wrap gap-1 border-b border-slate-100 px-3 py-2" aria-label="Bewertungen filtern">
-              {([{ id: 'all', label: 'Alle Bewertungen' }, ...(cfg.lzk ? [{ id: 'lzk', label: 'LZK' }] : []), ...(cfg.wp ? [{ id: 'wp', label: 'Wochenpläne' }] : []), ...(cfg.sa ? [{ id: 'sa', label: 'Schularbeiten' }] : []), ...(cfg.obj ? [{ id: 'obj', label: cfg.objLabel || 'Sonstige' }] : [])] as { id: typeof assessmentFilter; label: string }[]).map(filter => <button key={filter.id} type="button" aria-pressed={assessmentFilter === filter.id} onClick={() => { setAssessmentFilter(filter.id); setIsolatedCol(null); setFilterMissing(false); }} className={`min-h-9 rounded-lg px-3 text-sm font-medium ${assessmentFilter === filter.id ? 'bg-emerald-50 text-emerald-800' : 'text-slate-500 hover:bg-slate-50'}`}>{filter.label}</button>)}
+              {([{ id: 'all', label: 'Alle Bewertungen' }, ...(cfg.lzk ? [{ id: 'lzk', label: 'LZK' }] : []), ...(cfg.wp ? [{ id: 'wp', label: 'Wochenpläne' }] : []), ...(cfg.sa ? [{ id: 'sa', label: 'Schularbeiten' }] : []), ...(cfg.obj ? [{ id: 'obj', label: cfg.objLabel || 'Sonstige' }] : [])] as { id: typeof assessmentFilter; label: string }[]).map(filter => <button key={filter.id} type="button" aria-pressed={!isolatedCol && assessmentFilter === filter.id} onClick={() => { setAssessmentFilter(filter.id); setIsolatedCol(null); setFilterMissing(false); }} className={`min-h-9 rounded-lg px-3 text-sm font-medium ${!isolatedCol && assessmentFilter === filter.id ? 'bg-emerald-50 text-emerald-800' : 'text-slate-500 hover:bg-slate-50'}`}>{filter.label}</button>)}
             </div>}
             {simpleDashboardMode && !isolatedCol && <p className="px-4 py-2 text-xs text-slate-500">
               {Object.values(visibleColumns).every(indices => indices.length === 0)
@@ -3372,6 +3451,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                 return value !== null && value !== undefined && value !== '' && !['f', 'x', 'e', '-'].includes(String(value));
               }).length;
               return <div data-column-entry-status role="status" className="flex flex-wrap items-center justify-between gap-2 border-y border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <button type="button" onClick={() => { setIsolatedCol(null); setAssessmentFilter('all'); setFilterMissing(false); }}
+                  className="min-h-10 rounded-lg border border-emerald-200 bg-white px-3 py-2 font-semibold text-emerald-800">Zur Gesamtübersicht</button>
+                <span className="font-semibold">Einzeleingabe – nur diese Bewertung</span>
                 <span><strong>{app.notenMeta?.[activeFach]?.colLabels?.[isolatedCol.typ]?.[isolatedCol.idx] || `${isolatedCol.typ.toUpperCase()} ${isolatedCol.idx + 1}`}</strong> · {recorded}/{participating.length} erfasst · {participating.length - recorded} offen · {students.length - participating.length} nehmen nicht teil</span>
                 <span className="text-xs">Enter: nächstes Kind · Shift+Enter: zurück · Escape: Eingabe verwerfen</span>
               </div>;

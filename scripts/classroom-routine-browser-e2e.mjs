@@ -3841,6 +3841,15 @@ async function main() {
           await waitFor(client,'assessment dialogs close before native entry',`!document.querySelector('#assessment-item-modal-content')&&!document.querySelector('#gradebook-add-assessment-menu')`);
           await waitFor(client,'new '+typ+' column focuses first pupil',`document.activeElement?.dataset.col?.startsWith(${q(typ+'-')})&&Boolean(document.querySelector('[data-column-entry-status]'))`);
           const col=await evaluate(client,`document.activeElement.dataset.col`);
+          await waitFor(client,'focused entry explicitly explains the hidden categories',`document.querySelector('[data-column-entry-status]').textContent.includes('Einzeleingabe')&&document.querySelector('[aria-label="Bewertungen filtern"] button[aria-pressed="true"]')===null`);
+          await clickButton(client,'Zur Gesamtübersicht',true);
+          await waitFor(client,'overview restores both LZK and weekly plan slots',`!document.querySelector('[data-column-entry-status]')&&Boolean(document.querySelector('[aria-label="Bewertungen filtern"] button[aria-pressed="true"]'))`);
+          const beforeFullscreen = await evaluate(client,`JSON.stringify(Array.from(document.querySelectorAll('[data-gradebook] input[data-col]')).map(input=>[input.getAttribute('aria-label'),input.value]))`);
+          await clickSelector(client,'button[aria-label="Notenmappe im Vollbild öffnen"]');
+          await waitFor(client,'fullscreen workspace covers the viewport',`(() => {const r=document.querySelector('[data-gradebook-fullscreen="true"]')?.getBoundingClientRect();return r&&Math.abs(r.left)<2&&Math.abs(r.top)<2&&Math.abs(r.width-innerWidth)<2&&Math.abs(r.height-innerHeight)<2;})()`);
+          await clickSelector(client,'button[aria-label="Vollbild beenden"]');
+          await waitFor(client,'exiting fullscreen preserves assessment input values',`document.querySelector('[data-gradebook-fullscreen="false"]')&&JSON.stringify(Array.from(document.querySelectorAll('[data-gradebook] input[data-col]')).map(input=>[input.getAttribute('aria-label'),input.value]))===${q(beforeFullscreen)}`);
+          await clickSelector(client,'button[aria-label='+q('Bewertungen für '+title+' eintragen')+']');
           const focusedColumns = await evaluate(client, `(() => {const table=document.querySelector('.gradebook-table');const visibleCells=row=>Array.from(row?.children||[]).filter(cell=>cell.getBoundingClientRect().width>0).length;return {header:visibleCells(table?.tHead?.rows[0]),body:visibleCells(table?.tBodies[0]?.rows[0]),footer:visibleCells(table?.tFoot?.rows[0])};})()`);
           if(focusedColumns.header!==focusedColumns.body||focusedColumns.header!==focusedColumns.footer)throw new Error('Focused assessment columns do not align: '+JSON.stringify(focusedColumns));
 

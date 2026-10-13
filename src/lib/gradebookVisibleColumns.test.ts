@@ -39,3 +39,35 @@ test('nonparticipation before any score is entered is complete while other open 
   assert.equal(hasMissingVisibleAssessment([0], [0]), false);
   assert.equal(hasMissingVisibleAssessment([], []), false);
 });
+
+test('saved Deutsch assessments beyond stale or missing counts stay visible at their original slots', () => {
+  assert.deepEqual(visibleAssessmentIndices({ count: 1, expanded: false,
+    records: [{ values: [null, 1, null, 2] }], labels: { 6: 'Lesen' },
+  }), [1, 3, 6]);
+  assert.deepEqual(visibleAssessmentIndices({ expanded: false,
+    records: [{ values: [null, 0, 3] }],
+  }), [1, 2]);
+});
+
+test('an empty targeted category exposes entry slots and focusing preserves an outlying index', () => {
+  assert.deepEqual(visibleAssessmentIndices({ count: 2, expanded: true, records: [] }), [0, 1]);
+  assert.deepEqual(visibleAssessmentIndices({ count: 1, focusedIndex: 5, labels: { 5: 'Wochenplan' }, expanded: false, records: [] }), [5]);
+});
+
+test('switching filters and focused entry never mutates existing teacher grades or metadata', () => {
+  const first = Object.freeze([1, null, 0, 'e', 2]);
+  const second = Object.freeze([null, 3, null, 'f']);
+  const labels = Object.freeze({ 0: 'Deutsch LZK', 4: 'Lesen' });
+  const participation = Object.freeze({ 4: false });
+  const snapshot = JSON.stringify({ first, second, labels, participation });
+  const options = { count: 1, labels, records: [
+    { values: first as unknown as unknown[], participation },
+    { values: second as unknown as unknown[] },
+  ] };
+  for (const expanded of [false, true]) {
+    assert.deepEqual(visibleAssessmentIndices({ ...options, expanded }), [0, 1, 2, 3, 4]);
+    assert.deepEqual(visibleAssessmentIndices({ ...options, expanded, focusedIndex: 2 }), [2]);
+    assert.deepEqual(visibleAssessmentIndices({ ...options, expanded, visible: false }), []);
+  }
+  assert.equal(JSON.stringify({ first, second, labels, participation }), snapshot);
+});
