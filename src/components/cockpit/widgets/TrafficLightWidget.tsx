@@ -8,6 +8,8 @@ import {
   TrafficLightModeId,
   getTrafficLightMode,
   migrateLegacyAmpelStatus,
+  normalizeTrafficLightView,
+  TrafficLightView,
 } from '../../../lib/trafficlightAlgorithm';
 
 export interface TrafficLightWidgetProps {
@@ -16,6 +18,9 @@ export interface TrafficLightWidgetProps {
   app?: any;
   setApp?: (fn: any) => void;
   currentIsLight?: boolean;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
+  isMinimized?: boolean;
 }
 
 export const TrafficLightWidget: React.FC<TrafficLightWidgetProps> = ({
@@ -24,6 +29,9 @@ export const TrafficLightWidget: React.FC<TrafficLightWidgetProps> = ({
   app,
   setApp,
   currentIsLight = true,
+  showSettings = false,
+  onCloseSettings,
+  isMinimized = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef);
@@ -35,9 +43,15 @@ export const TrafficLightWidget: React.FC<TrafficLightWidgetProps> = ({
     if (app?.ampel_status) return migrateLegacyAmpelStatus(app.ampel_status);
     return migrateLegacyAmpelStatus(widget?.settings?.activeModeId);
   }, [widget?.settings?.activeModeId, app?.ampel_status]);
-  // The selected view is local UI state. Microphone access is NEVER started
-  // when the widget mounts or simply switches views.
-  const [view, setView] = useState<'ampel' | 'vorgabe' | 'pegel'>('ampel');
+  // Restoring the selected view never starts a microphone. Leaving it or
+  // minimizing unmounts the meter, including pending permission requests.
+  const [localView, setLocalView] = useState<TrafficLightView>('ampel');
+  const view = widget ? normalizeTrafficLightView(widget.settings?.trafficLightView) : localView;
+  const selectView = (next: TrafficLightView) => {
+    onCloseSettings?.();
+    setLocalView(next);
+    onUpdate?.({ settings: { ...widget?.settings, trafficLightView: next } });
+  };
 
   const activeMode = useMemo(
     () => getTrafficLightMode(activeModeId),
@@ -153,10 +167,12 @@ export const TrafficLightWidget: React.FC<TrafficLightWidgetProps> = ({
   return (
     <div
       ref={containerRef}
+      data-traffic-tools
+      data-traffic-view={view}
       role="region"
       aria-label={`Arbeitsmodus: ${activeMode.label}`}
-      className={`w-full h-full flex flex-col justify-between overflow-hidden select-none ${isCompact ? 'p-1.5' : 'p-3 sm:p-4'} transition-colors relative ${textColor} ${
-        currentIsLight ? 'bg-slate-50/70' : 'bg-zinc-950/70'
+      className={`w-full h-full flex flex-col justify-between overflow-hidden select-none ${isCompact ? 'p-1.5' : 'p-3 sm:p-4'} pb-12 transition-colors relative ${textColor} ${
+        currentIsLight ? 'bg-white' : 'bg-zinc-900'
       }`}
     >
       <nav aria-label="Lautstärke und Arbeitsampel" className={`${isCompact ? 'mb-1' : 'mb-2'} grid shrink-0 grid-cols-3 gap-1`}>
@@ -166,18 +182,30 @@ export const TrafficLightWidget: React.FC<TrafficLightWidgetProps> = ({
           ['pegel', 'Live-Pegel'],
         ] as const).map(([key, label]) => <button type="button" key={key}
           aria-pressed={view === key} title={label}
-          onClick={() => setView(key)}
+          onClick={() => selectView(key)}
           className={`min-h-11 min-w-0 rounded-xl border px-1 py-1 text-[10px] font-bold sm:text-xs ${view === key
             ? 'border-accent bg-accent-soft text-accent'
             : currentIsLight ? 'border-slate-200 bg-white text-slate-700' : 'border-zinc-700 bg-zinc-900 text-zinc-200'}`}>
           {label}
         </button>)}
       </nav>
+      {showSettings && <section aria-label="Lautstärke-Einstellungen" className="mb-2 shrink-0 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-2 text-xs">
+        <p className="mb-1 font-semibold">Mikrofon-Empfindlichkeit für den Live-Pegel</p>
+        <div className="flex flex-wrap gap-1">
+          {(['low', 'normal', 'high'] as const).map(level => <button type="button" key={level}
+            aria-pressed={meterSettings.sensitivity === level}
+            onClick={() => updateMeter({ settings: { sensitivity: level } })}
+            className={`min-h-11 rounded-lg border px-2 ${meterSettings.sensitivity === level ? 'bg-accent text-accent-text border-accent' : 'border-slate-300 dark:border-zinc-600'}`}>
+            {level === 'low' ? 'Niedrig' : level === 'normal' ? 'Normal' : 'Hoch'}
+          </button>)}
+          <button type="button" onClick={onCloseSettings} className="ml-auto min-h-11 rounded-lg border px-2">Fertig</button>
+        </div>
+      </section>}
       {view === 'vorgabe' && <div className="min-h-0 flex-1">
         <NoiseScaleWidget widget={{ ...(widget || {}), settings: scaleSettings }}
           onUpdate={updateScale} currentIsLight={currentIsLight} />
       </div>}
-      {view === 'pegel' && <div className="min-h-0 flex-1">
+      {view === 'pegel' && !isMinimized && <div className="min-h-0 flex-1">
         <NoiseMeterWidget widget={{ ...(widget || {}), settings: meterSettings }}
           onUpdate={updateMeter} currentIsLight={currentIsLight} />
       </div>}
