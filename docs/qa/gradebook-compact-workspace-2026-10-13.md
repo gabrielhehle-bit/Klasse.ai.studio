@@ -1,0 +1,41 @@
+# Kompakte Notenmappe – 13.10.2026
+
+## Ergebnis
+
+Eine Kopfzeile enthält Fachwahl, Schuljahr, Bewertung hinzufügen und das Werkzeugmenü. Notenrechner, Notenübersicht, Auswertungen, Feedback, Gewichtungen und Ansichtseinstellungen bleiben im Menü erreichbar. Die bestehende Schuljahresdarstellung bleibt erhalten.
+
+Die kompakte Tabelle zeigt nur Spalten mit Bezeichnung, Datum, Bereich, Höchstpunkten, gespeicherten Werten oder expliziter Nichtteilnahme. Gespeicherte Slot-Indizes und sämtliche Bewertungsdaten bleiben unverändert; insbesondere 0 Punkte bleiben sichtbar. Auch vorhandene Daten im zweiten Semester verhindern das Ausblenden. Die erweiterte Ansicht stellt die bisherigen Platzhalter wieder her.
+
+LZK, Wochenpläne, Schularbeiten und sonstige Leistungen lassen sich gezielt filtern. Kopf, Zeilen und Klassenschnitt verwenden dieselben Spaltenindizes. Unvollständige Bewertungen beziehen sich auf die sichtbaren Spalten. Direkte Zelleneingabe sowie Enter, Shift+Enter und Escape bleiben bestehen.
+
+Spaltennamen ersetzen wiederholte Eintragen-Schaltflächen. Teilnahme und Klassenschnitt-Ausnahme werden über aufklappbare Zell-/Namensoptionen bearbeitet. Nichtteilnahme wird als n. t., Ausschluss aus dem Schnitt als Ohne Schnitt angezeigt. SPF/ESPF-Badges bleiben sichtbar; die Teilnahme- und Durchschnittsberechnung wurde nicht verändert.
+
+## Prüfung
+
+- 2.453 Tests erfolgreich mit TZ=Europe/Vienna, einschließlich sechs neuer Regressionstests zur Spaltensichtbarkeit.
+- TypeScript und Produktionsbuild erfolgreich.
+- Der erste UTC-Testlauf enthielt einen bestehenden Zeitzonenfehler in starsReview.test.ts. Der vollständige Lauf in Europe/Vienna besteht.
+- Keine Browser-/Touchprüfung in dieser Sitzung: die für diese Umgebung vorgesehene Browsersteuerung ist nicht verfügbar. Vor einer Freigabe müssen kleine und große Ansichten, Zellmenüs, Filter, neue Bewertungen und Tastatureingabe visuell geprüft werden.
+
+## Noch zu prüfen
+
+17 Kinder ohne Bewertungen; vorhandene LZK mit 0 Punkten; ausgeschlossene Teilnahme und Wiederaufnahme; SPF/ESPF-Ausnahmen; Filterwechsel; leere Spalten zwischen belegten Spalten; neue Bewertung ohne Eintrag; Scrollen; Druckansicht.
+
+## Nachprüfung
+
+- Einzelspaltenansicht: Tabellenkopf, Eingabezeilen und Klassenschnitt verwenden nun dieselbe Auswahl. Zusätzliche Fußzellen und Abstandsspalten bleiben ausgeblendet.
+- Zelloptionen liegen im normalen Tabellenfluss; beim Öffnen wächst die Zeile, statt dass Optionen am Scrollcontainer abgeschnitten werden.
+- Die fixierte Namenszelle des Tabellenfußes berücksichtigt die eingestellte Tabellengröße.
+- Eine neu angelegte Bewertung setzt den Kategorie-Filter zurück, damit beispielsweise ein neuer Wochenplan aus dem LZK-Filter erreichbar bleibt. „Alle Bewertungen anzeigen“ setzt ebenfalls beide Filter zurück.
+- Die erste Commit-Version bestand Feature Validation, Schulprüfung, Teamteaching und Security in GitHub. Diese Läufe ersetzen keine gezielte visuelle Prüfung der neuen Notenmappenansicht.
+
+- Der vorhandene Browserablauf wurde an das Werkzeugmenü, den einzigen Anlegen-Button und aufklappbare Teilnahme-/Schnittoptionen angepasst. Ergänzte Laufzeitprüfungen kontrollieren den LZK-Filter vor einem neuen Wochenplan sowie gleich viele sichtbare Spalten in Kopf, Zeile und Fuß der Einzeleingabe. Skriptsyntax lokal geprüft; Browserausführung erfolgt über GitHub.
+
+- Nichtteilnahme ohne vorherigen Punktewert wird nicht mehr als fehlender Eintrag behandelt; ein zusätzlicher Test deckt leere und sparse Ergebnislisten sowie echte 0 Punkte ab.
+- Die responsive Layoutprüfung besteht in echtem Chrome bei 390, 820 und 1360 Pixeln. Der Menütest wartet auf das Ende der Schließanimation und nutzt eindeutige Menüselektoren. Native Zahleneingabe wartet auf ein tatsächlich frei erreichbares Eingabefeld.
+
+## Sichtprüfung und Handy-Korrektur
+
+Die Screenshots beider erfolgreichen Chrome-Läufe zum Commit a73701ef wurden nachgeladen. Die Sichtprüfung der Notenmappe bei 390, 820 und 1360 Pixeln und der LZK-Schnelleingabe zeigt auf großen Ansichten die kompakte Tabelle und echte 0 Punkte. Bei 390 Pixeln verbrauchten Nummer und fixierter Name jedoch fast die gesamte Tabellenbreite.
+
+Unter 640 Pixeln erhalten Nummer und Name deshalb zusammen 10rem Breite; der Namensversatz bleibt passend zur Nummernspalte. Diese Bildschirmregel gilt auch für den Tabellenfuß und verändert den Druck nicht. Ein zusätzlicher Chrome-Prüfpunkt verlangt bei 390 Pixeln höchstens 180 Pixel für beide fixierten Spalten. TypeScript, Build und Browser-Skriptsyntax bestehen lokal. Die erneute Chrome-Ausführung und Sichtprüfung der korrigierten Handyansicht stehen noch aus.

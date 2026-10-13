@@ -2799,6 +2799,22 @@ html body [data-style] .klassio-widget-library .klassio-widget-primary.bg-succes
   min-height: 44px;
 }
 
+/* Leave room for editable scores beside the pinned student name on phones. */
+@media screen and (max-width: 639px) {
+  [data-gradebook] .gradebook-table tr > :first-child {
+    width: 2rem;
+    padding-left: 0.375rem;
+    padding-right: 0.375rem;
+  }
+  [data-gradebook] .gradebook-table tr > :nth-child(2) {
+    left: 2rem;
+    width: 8rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    overflow-wrap: anywhere;
+  }
+}
+
 /* Waste categories retain white labels on their dark semantic surfaces, including answered buttons. */
 html body [data-style] .cockpit-widget-content [data-wastebin-choice]:not([data-wastebin-choice="gelb"]),
 html body [data-style] .cockpit-widget-content [data-wastebin-choice]:not([data-wastebin-choice="gelb"]) span {
