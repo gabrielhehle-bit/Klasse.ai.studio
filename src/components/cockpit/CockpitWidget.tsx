@@ -487,7 +487,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
 
   const legacyDisplayLabel = getCockpitWidgetDisplayLabel(widget.type);
   const canonicalEntry = getCockpitWidgetCatalogEntry(widget.type);
-  const displayLabel = canonicalEntry?.aliasOf
+  const displayLabel = canonicalEntry?.aliasOf || widget.type === "clockpuzzle"
     ? getCockpitWidgetCanonicalDisplayLabel(widget.type)
     : legacyDisplayLabel;
 

@@ -708,7 +708,7 @@ async function main() {
     await client.send('Emulation.setDeviceMetricsOverride', { width:820, height:900, deviceScaleFactor:1, mobile:false });
     // Below 768px the app deliberately switches from the cockpit to phone quick mode.
     await sleep(250);
-    await waitFor(client, 'regular picker fits the supported tablet viewport', `(() => {const dialog=document.querySelector('[role=dialog][aria-label="Widget-Bibliothek"]');if(!dialog)return false;const rect=dialog.getBoundingClientRect();return rect.left>=-1 && rect.right<=innerWidth+1 && rect.top>=0 && rect.bottom<=innerHeight+1 && document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length===24;})()`);
+    await waitFor(client, 'regular picker fits the supported tablet viewport', `(() => {const dialog=document.querySelector('[role=dialog][aria-label="Widget-Bibliothek"]');if(!dialog)return false;const rect=dialog.getBoundingClientRect();return rect.left>=-1 && rect.right<=innerWidth+1 && rect.top>=0 && rect.bottom<=innerHeight+1 && document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length===25;})()`);
     await waitFor(client, 'tablet picker controls are unobstructed', `(() => {
       const dialog=document.querySelector('[role=dialog][aria-label="Widget-Bibliothek"]'),content=dialog.querySelector('main').getBoundingClientRect();
       const actions=Array.from(dialog.querySelectorAll('[data-widget-card-action="primary"], [data-widget-library-action]')).filter(button=>{const r=button.getBoundingClientRect(),y=r.top+r.height/2;return r.width>0 && y>=content.top && y<=content.bottom || button.hasAttribute('data-widget-library-action');});
