@@ -221,6 +221,7 @@ import ClassroomWeeklyPlanWidget from "./cockpit/widgets/ClassroomWeeklyPlanWidg
 import HomeworkWidget from "./cockpit/widgets/HomeworkWidget";
 import StarsReviewWidget from "./cockpit/widgets/StarsReviewWidget";
 import { getCheckInMode, getCheckInPreferences } from "../lib/checkInWidgetMode";
+import { normalizeRandomSelectionMode } from "../lib/randomSelectionSettings";
 import { getRandomNameWidgetPreferences } from "../lib/randomNameWidgetModel";
 import { getGroupWidgetPreferences, applyGroupWidgetPreference, type GroupWidgetPreferences } from "../lib/groupWidgetPreferences";
 import { getClassroomWeeklyWidgetPreferences } from "../lib/classroomWeeklyWidgetPreferences";
@@ -4169,7 +4170,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       w.id !== id ? w : {
         ...w,
         ...updates,
-        ...(((w.type === "weather" && updates.settings) || (w.type === "zahlenraum" && updates.settings) || (w.type === "anschauung" && updates.settings) || (w.type === "numberline" && updates.settings) || (w.type === "wortsatzwerkstatt" && updates.settings) || (w.type === "soundmachine" && updates.settings) || (w.type === "drawing" && updates.settings) || (w.type === "aiquiz" && updates.settings) || (w.type === "riddle" && updates.settings) || (w.type === "groups" && updates.settings) || (w.type === "wheel" && updates.settings) || (w.type === "sounds" && updates.settings) || (w.type === "timer" && updates.settings) || (w.type === "stopwatch" && updates.settings) || (w.type === "dictionary" && updates.settings) || (w.type === "piano" && updates.settings) || (w.type === "bodyparts" && updates.settings) || (w.type === "compass" && updates.settings) || (w.type === "weekdays" && updates.settings) || (w.type === "flagquiz" && updates.settings) || (w.type === "trafficquiz" && updates.settings) || (w.type === "watercycle" && updates.settings) || (w.type === "constellation" && updates.settings) || (w.type === "planetarium" && updates.settings) || (w.type === "geometry" && updates.settings) || (w.type === "wordchain" && updates.settings) || (w.type === "wordgrid" && updates.settings) || (w.type === "wordscramble" && updates.settings) || (w.type === "secretcode" && updates.settings) || (w.type === "wordexplorer" && updates.settings) || (w.type === "patternmaker" && updates.settings) || (w.type === "rhymemachine" && updates.settings) || (w.type === "alphabetsoup" && updates.settings) || (w.type === "morsecode" && updates.settings) || (w.type === "punctuationzoo" && updates.settings) || (w.type === "estimationjar" && updates.settings) || (w.type === "angledetective" && updates.settings))
+        ...(((w.type === "weather" && updates.settings) || (w.type === "zahlenraum" && updates.settings) || (w.type === "anschauung" && updates.settings) || (w.type === "numberline" && updates.settings) || (w.type === "wortsatzwerkstatt" && updates.settings) || (w.type === "soundmachine" && updates.settings) || (w.type === "drawing" && updates.settings) || (w.type === "aiquiz" && updates.settings) || (w.type === "riddle" && updates.settings) || (w.type === "groups" && updates.settings) || (w.type === "wheel" && updates.settings) || (w.type === "sounds" && updates.settings) || (w.type === "randomname" && updates.settings) || (w.type === "timer" && updates.settings) || (w.type === "stopwatch" && updates.settings) || (w.type === "dictionary" && updates.settings) || (w.type === "piano" && updates.settings) || (w.type === "bodyparts" && updates.settings) || (w.type === "compass" && updates.settings) || (w.type === "weekdays" && updates.settings) || (w.type === "flagquiz" && updates.settings) || (w.type === "trafficquiz" && updates.settings) || (w.type === "watercycle" && updates.settings) || (w.type === "constellation" && updates.settings) || (w.type === "planetarium" && updates.settings) || (w.type === "geometry" && updates.settings) || (w.type === "wordchain" && updates.settings) || (w.type === "wordgrid" && updates.settings) || (w.type === "wordscramble" && updates.settings) || (w.type === "secretcode" && updates.settings) || (w.type === "wordexplorer" && updates.settings) || (w.type === "patternmaker" && updates.settings) || (w.type === "rhymemachine" && updates.settings) || (w.type === "alphabetsoup" && updates.settings) || (w.type === "morsecode" && updates.settings) || (w.type === "punctuationzoo" && updates.settings) || (w.type === "estimationjar" && updates.settings) || (w.type === "angledetective" && updates.settings))
           ? { settings: { ...(w.settings || {}), ...updates.settings } }
           : {}),
         hasBeenOpened: true,
@@ -9627,7 +9628,7 @@ ${content}
                                             const primaryType = primary?.type || String(group.id);
                                             const primaryLabel = primary?.label || `🧩 ${group.label}`;
                                             const icon = primaryLabel.split(" ")[0] || "🧩";
-                                            const description = group.id === "timer" ? "Timer, Stoppuhr und Uhrzeit in einem Widget" : primary?.desc || (variants.length > 1
+                                            const description = group.id === "randomname" ? "Namen ziehen, Glücksrad und faire Aufrufe in einem Widget" : group.id === "timer" ? "Timer, Stoppuhr und Uhrzeit in einem Widget" : primary?.desc || (variants.length > 1
                                               ? `${variants.length} Varianten für den Unterricht`
                                               : "Unterrichts-Widget");
                                             const expanded = expandedCoreWidget === group.id;
@@ -9679,7 +9680,7 @@ ${content}
                                                     {isPinned ? <Check size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
                                                     <span>Leiste</span>
                                                   </button>
-                                                  {variants.length > 1 && group.id !== "timer" && (
+                                                  {variants.length > 1 && !["timer", "randomname"].includes(group.id) && (
                                                     <button type="button" data-widget-card-action="variants"
                                                       onClick={() => setExpandedCoreWidget(expanded ? null : group.id)}
                                                       aria-label={`Varianten von ${group.label} ${expanded ? "schließen" : "anzeigen"}`}
@@ -9703,7 +9704,7 @@ ${content}
                                                     <span>{isMinimized ? "Wiederherstellen" : isActive ? "Anzeigen" : "Öffnen"}</span>
                                                   </button>
                                                 </div>
-                                                {variants.length > 1 && group.id !== "timer" && expanded && (
+                                                {variants.length > 1 && !["timer", "randomname"].includes(group.id) && expanded && (
                                                   <div className="w-full border-t border-slate-100 pt-2">
                                                     <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Varianten</p>
                                                     <div className="flex flex-wrap gap-1.5">
@@ -10756,7 +10757,8 @@ ${content}
                                     setIsMascotSettingsOpen(open => !open);
                                     return;
                                   }
-                                  if (isCentralInteractionWidgetSettings(String(widget.type))) {
+                                  if (isCentralInteractionWidgetSettings(String(widget.type)) &&
+                                    !(widget.type === "randomname" && normalizeRandomSelectionMode(widget.settings?.randomSelectionMode) !== "names")) {
                                     setWidgetSettingsOpenId(null);
                                     toggleCentralInteractionWidgetSettings(String(widget.type));
                                     return;
@@ -11710,6 +11712,9 @@ ${content}
                                           widget={widget}
                                           app={app}
                                           currentIsLight={currentIsLight}
+                                          onUpdate={updates => handleUpdateWidgetPos(widget.id, updates)}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                         />
                                       );
 

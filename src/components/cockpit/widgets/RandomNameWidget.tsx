@@ -16,6 +16,7 @@ export interface RandomNameWidgetProps {
   onUpdate?: (updates: Partial<CockpitWidgetConfig>) => void;
   app?: AppState;
   currentIsLight: boolean;
+  onBusyChange?: (busy: boolean) => void;
 }
 
 type NamedPupil = { id: string; vorname?: string; nachname?: string; name?: string };
@@ -61,7 +62,7 @@ function playDezentPopSound() {
 /** A lesson action, not a second widget-settings panel. The temporary pupil
  * inclusion list is intentionally kept only in memory and never exported. */
 export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
-  widget, app: propApp, currentIsLight,
+  widget, app: propApp, currentIsLight, onBusyChange,
 }) => {
   const context = useApp();
   const app = propApp || context?.app;
@@ -110,6 +111,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
   const [selectedScope, setSelectedScope] = useState(scopeKey);
   const lastPickedIdRef = useRef<string | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
+  useEffect(() => { onBusyChange?.(isAnimating); }, [isAnimating, onBusyChange]);
   const [animatingName, setAnimatingName] = useState('');
   const animationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [showPupilSelector, setShowPupilSelector] = useState(false);

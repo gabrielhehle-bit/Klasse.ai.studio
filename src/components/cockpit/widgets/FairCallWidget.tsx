@@ -24,6 +24,7 @@ export interface FairCallWidgetProps {
   onUpdate: (updates: Partial<CockpitWidgetConfig>) => void;
   app?: AppState;
   currentIsLight: boolean;
+  onBusyChange?: (busy: boolean) => void;
 }
 
 /**
@@ -61,6 +62,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
   onUpdate,
   app: propApp,
   currentIsLight,
+  onBusyChange,
 }) => {
   const context = useApp();
   const app = propApp || context?.app;
@@ -114,6 +116,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
 
   // Lokale Zustände für Animation & Overlays
   const [animating, setAnimating] = useState(false);
+  useEffect(() => { onBusyChange?.(animating); }, [animating, onBusyChange]);
   const [animDisplayName, setAnimDisplayName] = useState<string>('');
   const [showRosterModal, setShowRosterModal] = useState(false);
   const [rosterPage, setRosterPage] = useState(0);
