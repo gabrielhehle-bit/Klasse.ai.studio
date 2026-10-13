@@ -22,3 +22,9 @@ Der Live-Pegel startet ausschließlich über Messung starten. Wechsel aus der Li
 - Änderungen betreffen nur das gemeinsame Lautstärke-/Arbeitsampel-Widget, dessen Katalog/Größen und die zugehörigen Prüfungen.
 
 Auch der bisherige einzelne Lautstärkemesser beendet aktive und noch ausstehende Mikrofonfreigaben beim Minimieren. Wiederherstellen startet keine Messung. Die Browserroutine deckt beide Fälle separat für gespeicherte Einzelwidgets ab.
+
+## Fortsetzung: freie Pause-Schaltfläche
+
+Die Chrome-Läufe des Commits `c3f1c52cc5cea03566a4f8d8c33dc401911bd4b7` fanden bei der Mindestgröße eine überlagerte Pause-Schaltfläche. Die allgemeine Containerregel für schmale Widgets reduzierte das gesamte Root-Padding auf 6 px mit `!important`, einschließlich des reservierten unteren Abstands. `pb-12 sm:pb-12` konnte diese Regel nicht überstimmen.
+
+Eine auf das Arbeitsampel-Widget begrenzte CSS-Regel erhält jetzt 48 px Abstand am unteren Rand, auch bei kompakter Containerbreite. Die bestehende Chrome-Prüfung kontrolliert weiterhin alle vier Ecken und die Mitte jeder Schaltfläche mit `elementFromPoint`, zusätzlich zu Mindestgröße und Sichtbarkeit. Mikrofon- und Notenmappenprüfungen bleiben enthalten.
