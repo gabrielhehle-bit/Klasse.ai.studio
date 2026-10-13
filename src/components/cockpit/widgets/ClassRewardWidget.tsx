@@ -279,9 +279,20 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
       )}
       {/* Shared widget frame owns the canonical title and settings gear. */}
       <div className="shrink-0 flex min-h-11 items-center justify-between gap-2 border-b border-black/5 px-3 py-1 dark:border-white/5">
-        <p className="min-w-0 truncate text-[10px] font-bold text-slate-500 dark:text-slate-400">
+        <p className="min-w-0 flex-1 truncate text-[10px] font-bold text-slate-500 dark:text-slate-400">
           {rewardTitle}
         </p>
+        {/* Reset / Leeren Dialog Trigger */}
+        <button
+          type="button"
+          id="reward-reset-btn"
+          aria-label="Klassenziel leeren"
+          onClick={() => setIsConfirmingReset(true)}
+          className="w-11 h-11 rounded-xl border border-slate-200 dark:border-white/10 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors shrink-0"
+          title="Klassenziel leeren / neu starten"
+        >
+          <RotateCcw size={15} />
+        </button>
         {!hasExternalSettingsControl && (
           <button
             type="button"
@@ -435,7 +446,7 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
       </div>
 
       {/* FOOTER / AKTIONEN (MINDESTENS 44px TOUCH-TARGET) */}
-      <div className="shrink-0 p-2 border-t border-black/5 dark:border-white/5 flex items-center justify-between gap-2 bg-black/[0.02] dark:bg-white/[0.02]">
+      <div className="shrink-0 p-2 pr-14 border-t border-black/5 dark:border-white/5 flex items-center justify-between gap-2 bg-black/[0.02] dark:bg-white/[0.02]">
         {/* Korrektur-Button (-1) */}
         <button
           type="button"
@@ -453,23 +464,14 @@ export const ClassRewardWidget: React.FC<ClassRewardWidgetProps> = ({
           type="button"
           id="reward-add-btn"
           onClick={handleAdd}
-          className={`flex-1 ${roomyReward ? 'h-14 text-lg' : 'h-11 text-sm'} px-4 rounded-xl bg-accent hover:bg-accent-hover active:scale-98 text-accent-text font-black flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer`}
+          className={`min-w-11 flex-1 ${roomyReward ? 'h-14 text-lg' : 'h-11 text-sm'} px-4 rounded-xl bg-accent hover:bg-accent-hover active:scale-98 text-accent-text font-black flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer`}
           title={`+1 ${symbol} hinzufügen`}
         >
           <Sparkles size={16} className="shrink-0" />
           <span>+1 {symbol}</span>
         </button>
 
-        {/* Reset / Leeren Dialog Trigger */}
-        <button
-          type="button"
-          id="reward-reset-btn"
-          onClick={() => setIsConfirmingReset(true)}
-          className="w-11 h-11 rounded-xl border border-slate-200 dark:border-white/10 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors shrink-0"
-          title="Klassenziel leeren / neu starten"
-        >
-          <RotateCcw size={15} />
-        </button>
+
       </div>
 
       {/* MODAL / SETTINGS DRAWER */}

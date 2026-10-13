@@ -1596,7 +1596,7 @@ async function main() {
       await waitFor(client, label+' goal controls are touch friendly and unobstructed', `(() => {
         const root=document.querySelector('${integratedGoal}'),r=root.getBoundingClientRect();
         const buttons=Array.from(root.querySelectorAll('[data-class-goal-mode],#reward-add-btn,#reward-correction-btn,#reward-reset-btn'));
-        return buttons.length===6 && buttons.every(button=>{const b=button.getBoundingClientRect(),top=document.elementFromPoint(b.left+b.width/2,b.top+b.height/2);return b.width>=44 && b.height>=44 && b.left>=r.left-1 && b.right<=r.right+1 && b.bottom<=r.bottom+1 && (top===button || button.contains(top));});
+        return buttons.length===6 && buttons.every(button=>{const b=button.getBoundingClientRect(),top=document.elementFromPoint(b.left+b.width/2,b.top+b.height/2);return b.width>=44 && b.height>=44 && b.left>=r.left-1 && b.right<=r.right+1 && b.bottom<=r.bottom+1 && [[b.left+6,b.top+6],[b.right-6,b.top+6],[b.left+6,b.bottom-6],[b.right-6,b.bottom-6],[b.left+b.width/2,b.top+b.height/2]].every(([x,y])=>{const hit=document.elementFromPoint(x,y);return hit===button || button.contains(hit);});});
       })()`);
     };
     for (const style of ['jar','barometer','thermometer']) {
