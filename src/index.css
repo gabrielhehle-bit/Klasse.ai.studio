@@ -2672,6 +2672,10 @@ html body [data-style] .klassio-widget-library .klassio-widget-primary.bg-succes
   opacity: 0.2;
   pointer-events: none;
 }
+.klassio-cockpit-shell[data-widget-library-open="true"] .klassio-student-sidebar {
+  visibility: hidden;
+  pointer-events: none;
+}
 @media (max-width: 760px) {
   .klassio-widget-library {
     grid-template-columns: minmax(0, 1fr);

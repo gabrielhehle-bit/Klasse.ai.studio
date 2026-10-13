@@ -29,7 +29,8 @@ test('Ton-Trainer trennt Freispiel, Nachspielen und Liedlernen klar', () => {
 test('Ton-Trainer unterstützt Tastatur 1 bis 8', () => {
   assert.match(widget, /key: '1'/);
   assert.match(widget, /key: '8'/);
-  assert.match(widget, /window\.addEventListener\('keydown'/);
+  assert.match(widget, /onKeyDown=\{handleToneKeyDown\}/);
+  assert.doesNotMatch(widget, /window\.addEventListener\('keydown'/);
 });
 
 test('Ton-Trainer nutzt große Klangstäbe, Touchflächen und KLASSIO-Akzent', () => {

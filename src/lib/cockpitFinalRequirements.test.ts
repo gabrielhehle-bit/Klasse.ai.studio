@@ -25,9 +25,9 @@ test("Cockpit: freie Unterrichtsfläche bleibt weiß und ohne Startkarte", () =>
 test("Cockpit: Widgetbibliothek hält Kernwidgets und Alt-Layouts erreichbar", () => {
   assert.match(teachingSurface, /useState<string>\("core"\)/);
   assert.match(teachingSurface, /\{ id: "core", label: "🧩 Kernwidgets" \}/);
-  assert.match(teachingSurface, /\{ id: "categories", label: "▦ Alle Widgets" \}/);
+  assert.match(teachingSurface, /\{ id: "legacy", label: "▦ Weitere Widgets" \}/);
   assert.match(teachingSurface, /\{ id: "recent", label: "🕘 Zuletzt verwendet" \}/);
-  assert.match(teachingSurface, /PLANNED_COCKPIT_WIDGETS\.map\(\(group\)/);
+  assert.match(teachingSurface, /regularGroups\.map\(\(group\)/);
   assert.match(teachingSurface, /aria-label="Widget-Bibliothek"/);
   assert.match(teachingSurface, /placeholder="Widget suchen … z\. B\. Timer, Gruppen, Brüche"/);
   assert.doesNotMatch(teachingSurface, /Wähle oben eine Kategorie/);

@@ -23,7 +23,7 @@ test('favorites and recent appear before subject/category navigation', () => {
   const favorites = sidebar.indexOf('⭐ Favoriten');
   const recent = sidebar.indexOf('🕘 Zuletzt verwendet');
   const core = sidebar.indexOf('🧩 Kernwidgets');
-  const all = sidebar.indexOf('▦ Alle Widgets');
+  const all = sidebar.indexOf('▦ Weitere Widgets');
   assert.ok(favorites >= 0 && recent > favorites && core > recent && all > core);
   assert.match(surface, /activeWidgetCategory === "recent"/);
   assert.match(surface, /recentWidgetTypes\.includes\(item\.type\)/);

@@ -216,7 +216,7 @@ import { CockpitVorlagenModal } from "./cockpit/CockpitVorlagenModal";
 import { BoardTextEditor } from "./cockpit/BoardTextEditor";
 import { BoardInk, type BoardInkHandle, type InkItem } from "./cockpit/BoardInk";
 import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
-import { PLANNED_COCKPIT_WIDGETS } from "./cockpit/plannedCockpitCatalog";
+import { COCKPIT_REGULAR_WIDGETS, getRegularCockpitGroups } from "../lib/cockpitRegularCatalog";
 import ClassroomWeeklyPlanWidget from "./cockpit/widgets/ClassroomWeeklyPlanWidget";
 import HomeworkWidget from "./cockpit/widgets/HomeworkWidget";
 import StarsReviewWidget from "./cockpit/widgets/StarsReviewWidget";
@@ -9084,7 +9084,7 @@ ${content}
                                       onChange={(e) => {
                                         const nextSearch = e.target.value;
                                         setWidgetSearch(nextSearch);
-                                        if (nextSearch.trim()) setActiveWidgetCategory("categories");
+                                        if (nextSearch.trim() && activeWidgetCategory !== "legacy") setActiveWidgetCategory("core");
                                       }}
                                       autoFocus
                                       className={`min-h-11 w-full rounded-xl border px-4 pr-14 text-sm font-semibold outline-none transition-all placeholder:text-slate-400 ${
@@ -9485,7 +9485,6 @@ ${content}
                                     { id: "favorites", label: "⭐ Favoriten" },
                                     { id: "recent", label: "🕘 Zuletzt verwendet" },
                                     { id: "core", label: "🧩 Kernwidgets" },
-                                    { id: "categories", label: "▦ Alle Widgets" },
                                     { id: "struct", label: "🗂️ Ablauf & Organisation" },
                                     { id: "interactivity", label: "👥 Klasse & Interaktion" },
                                     { id: "mathe", label: "🔢 Mathematik" },
@@ -9493,13 +9492,14 @@ ${content}
                                     { id: "sachunterricht", label: "🌍 Sachunterricht" },
                                     { id: "tools", label: "🛠️ Werkzeuge" },
                                     { id: "mindfulness", label: "🍃 Spiele & Fokus" },
-                                  ].map((cat) => {
+                                    { id: "legacy", label: "▦ Weitere Widgets" },
+                                  ].filter(cat => ["favorites", "recent", "core", "legacy"].includes(cat.id) || getRegularCockpitGroups(cat.id).length > 0).map((cat) => {
                                     const allAvailableWidgets = COCKPIT_WIDGET_LIBRARY_ITEMS;
 
                                     let count = 0;
                                     if (cat.id === "core") {
-                                      count = PLANNED_COCKPIT_WIDGETS.length;
-                                    } else if (cat.id === "categories") {
+                                      count = COCKPIT_REGULAR_WIDGETS.length;
+                                    } else if (cat.id === "legacy") {
                                       count = allAvailableWidgets.length;
                                     } else if (cat.id === "recent") {
                                       count = recentWidgetTypes.length;
@@ -9510,9 +9510,7 @@ ${content}
                                         ] || []
                                       ).length;
                                     } else {
-                                      count = allAvailableWidgets.filter(
-                                        (item) => item.category === cat.id,
-                                      ).length;
+                                      count = getRegularCockpitGroups(cat.id).length;
                                     }
 
                                     return (
@@ -9606,16 +9604,22 @@ ${content}
                                     const query = widgetSearch
                                       .toLowerCase()
                                       .trim();
-                                    if (activeWidgetCategory === "core" && !query) {
+                                    if (activeWidgetCategory !== "legacy" && (Boolean(query) || !["favorites", "recent"].includes(activeWidgetCategory))) {
+                                      const regularGroups = getRegularCockpitGroups(activeWidgetCategory, query);
                                       return (
                                         <>
-                                          <div className="col-span-full rounded-2xl border border-accent/20 bg-accent-soft px-4 py-3">
-                                            <p className="text-sm font-black text-slate-900">20 Kernwidgets</p>
+                                          <div className="col-span-full rounded-2xl border border-accent/20 bg-accent-soft px-4 py-3" role={query ? "status" : undefined}>
+                                            <p className="text-sm font-black text-slate-900">{query ? `${regularGroups.length} Treffer` : `${regularGroups.length} Kernwidgets`}</p>
                                             <p className="mt-0.5 text-xs text-slate-600">
-                                              Die wichtigsten Unterrichtswerkzeuge. Varianten bleiben über den kleinen Pfeil erreichbar.
+                                              Die wichtigsten Unterrichtswerkzeuge. Verwandte Varianten findest du im jeweiligen Eintrag.
                                             </p>
                                           </div>
-                                          {PLANNED_COCKPIT_WIDGETS.map((group) => {
+                                          {regularGroups.length === 0 && (
+                                            <div className="col-span-full rounded-xl border border-slate-200 p-4 text-sm text-slate-600" role="status">
+                                              Kein Kernwidget gefunden. Unter „Weitere Widgets“ kannst du auch Spezialwerkzeuge durchsuchen.
+                                            </div>
+                                          )}
+                                          {regularGroups.map((group) => {
                                             const variants = group.sources
                                               .map((type) => allAvailableWidgets.find((item) => item.type === type))
                                               .filter((item): item is (typeof allAvailableWidgets)[number] => Boolean(item));
@@ -9703,7 +9707,7 @@ ${content}
                                                   <div className="w-full border-t border-slate-100 pt-2">
                                                     <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Varianten</p>
                                                     <div className="flex flex-wrap gap-1.5">
-                                                      {variants.map((variant) => (
+                                                      {variants.filter(variant => variant.type !== primaryType && variant.label !== primaryLabel).map((variant) => (
                                                         <button type="button" key={variant.type}
                                                           onClick={() => {
                                                             handleOpenWidgetInCockpitLayout(variant.type as CockpitWidgetConfig["type"]);
@@ -9730,7 +9734,7 @@ ${content}
                                         }
 
                                         let matchesCategory = false;
-                                        if (activeWidgetCategory === "categories") {
+                                        if (activeWidgetCategory === "legacy") {
                                           matchesCategory = true;
                                         } else if (activeWidgetCategory === "recent") {
                                           matchesCategory = recentWidgetTypes.includes(item.type);
@@ -9801,14 +9805,19 @@ ${content}
                                     }
 
                                     const renderedFoldersHeader =
-                                      activeWidgetCategory === "favorites" ? favoriteFolderPicker : null;
+                                      activeWidgetCategory === "favorites" ? favoriteFolderPicker : activeWidgetCategory === "legacy" ? (
+                                        <div className="col-span-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                                          <p className="text-sm font-bold text-slate-900">Weitere Widgets</p>
+                                          <p className="mt-1 text-xs text-slate-600">Spezialwerkzeuge und bisherige Varianten. Deine gespeicherten Tafeln und Einstellungen bleiben erhalten.</p>
+                                        </div>
+                                      ) : null;
 
                                     return (
                                       <>
                                         {renderedFoldersHeader}
                                         {query && (
                                           <div className="col-span-full flex min-h-11 items-center justify-between gap-3 rounded-xl border border-accent/20 bg-accent-soft px-3 py-2 text-xs text-slate-700" role="status">
-                                            <span className="min-w-0 truncate font-semibold">Suche in allen Widgets: „{widgetSearch.trim()}“</span>
+                                            <span className="min-w-0 truncate font-semibold">Suche in {activeWidgetCategory === "legacy" ? "weiteren Widgets" : "deinen Widgets"}: „{widgetSearch.trim()}“</span>
                                             <span className="shrink-0 rounded-full bg-white px-2 py-1 font-black text-accent">{filteredList.length} Treffer</span>
                                           </div>
                                         )}
