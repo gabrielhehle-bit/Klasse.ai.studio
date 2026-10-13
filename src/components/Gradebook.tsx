@@ -1,3 +1,4 @@
+import { visibleAssessmentIndices } from '../lib/gradebookVisibleColumns';
 import { countsInClassAverage } from '../lib/classAveragePolicy';
 import { removeSubjectColumn, updateSubjectColumn } from '../lib/classroomEdits';
 
@@ -33,6 +34,10 @@ const StudentRowWrapper = React.memo(({ s, i, avg, nd, miRaw, isItemSelected, is
   return renderRow();
 }, (prev, next) => {
   return prev.s === next.s &&
+         prev.simpleDashboardMode === next.simpleDashboardMode &&
+         prev.assessmentFilter === next.assessmentFilter &&
+         JSON.stringify(prev.visibleColumns) === JSON.stringify(next.visibleColumns) &&
+         JSON.stringify(prev.rawParticipation) === JSON.stringify(next.rawParticipation) &&
          prev.i === next.i &&
          prev.avg === next.avg &&
          prev.miRaw === next.miRaw &&
@@ -226,6 +231,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
   const [heatmapMode, setHeatmapMode] = useState(false);
   const [confirmedWarnings, setConfirmedWarnings] = useState<Record<string, boolean>>({});
   const [simpleDashboardMode, setSimpleDashboardMode] = useState<boolean>(true);
+  const [assessmentFilter, setAssessmentFilter] = useState<'all' | 'lzk' | 'wp' | 'sa' | 'obj'>('all');
   const [showMoreMenu, setShowMoreMenu] = useState<boolean>(false);
   const [showAddAssessmentModal, setShowAddAssessmentModal] = useState<boolean>(false);
   const [selectedGradeExplanationStudent, setSelectedGradeExplanationStudent] = useState<any | null>(null);
@@ -632,6 +638,22 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     miZuNote(points, mitarbeitSettings, app.mitarbeit, activeFach, sem, app.schueler);
 
   const colCounts = app.notenMeta?.[activeFach]?.colCounts || { lzk: 4, wp: 4, obj: 4 };
+  useEffect(() => { setAssessmentFilter('all'); setIsolatedCol(null); setFilterMissing(false); }, [activeFach, app.activeClassId]);
+
+  const visibleColumns = Object.fromEntries((['sa', 'lzk', 'wp', 'obj'] as const).map(typ => {
+    const meta = app.notenMeta?.[activeFach];
+    const dataKey = typ === 'obj' ? 'aufgaben' : typ;
+    return [typ, assessmentFilter !== 'all' && assessmentFilter !== typ ? [] : visibleAssessmentIndices({
+      count: typ === 'sa' ? getFachCfg(app, activeFach).saCount : colCounts[typ],
+      expanded: !simpleDashboardMode,
+      labels: meta?.colLabels?.[typ], dates: meta?.colDates?.[typ],
+      areas: meta?.colAreas?.[typ], maxPoints: meta?.maxPoints?.[typ],
+      records: app.schueler.flatMap(child => (['1', '2'] as const).map(period => ({
+        values: app.noten?.[child.id]?.[activeFach]?.[period]?.[dataKey],
+        participation: typ === 'lzk' ? app.noten?.[child.id]?.[activeFach]?.[period]?.lzkParticipation : undefined,
+      }))),
+    })];
+  })) as Record<'sa' | 'lzk' | 'wp' | 'obj', number[]>;
   const [pendingDelete, setPendingDelete] = useState<{typ: 'lzk' | 'wp' | 'obj', label: string} | null>(null);
 
   useEffect(() => {
@@ -662,25 +684,21 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     const cfg = getFachCfg(app, activeFach);
 
     app.schueler.forEach(s => {
-      const nd = app.noten?.[s.id]?.[activeFach]?.[sem];
-      if (!nd) {
-        count++;
-        return;
-      }
-      const hasMissing = (arr: any[], limit: number) => {
-        for (let i = 0; i < limit; i++) {
+      const nd: Partial<GradeData> = app.noten?.[s.id]?.[activeFach]?.[sem] || {};
+      const hasMissing = (arr: any[], indices: number[]) => {
+        for (const i of indices) {
           if (arr[i] === undefined || arr[i] === null || arr[i] === '' || arr[i] === 'e' || arr[i] === 'f' || arr[i] === '-') return true;
         }
         return false;
       };
       const manualMitarbeitMissing =
-        cfg.mi &&
+        assessmentFilter === 'all' && cfg.mi &&
         mitarbeitSettings.mode === 'manual' &&
         (nd.miDirekt === undefined || nd.miDirekt === null || (nd.miDirekt as any) === '');
-      const isMissing = (cfg.sa && hasMissing(nd.sa || [], cfg.saCount)) ||
-                        (cfg.lzk && hasMissing((nd.lzk || []).map((value, index) => nd.lzkParticipation?.[index] === false ? 'x' : value), colCounts.lzk)) ||
-                        (cfg.wp && hasMissing(nd.wp || [], colCounts.wp)) ||
-                        (cfg.obj && hasMissing(nd.aufgaben || [], colCounts.obj)) ||
+      const isMissing = (cfg.sa && hasMissing(nd.sa || [], visibleColumns.sa)) ||
+                        (cfg.lzk && hasMissing((nd.lzk || []).map((value, index) => nd.lzkParticipation?.[index] === false ? 'x' : value), visibleColumns.lzk)) ||
+                        (cfg.wp && hasMissing(nd.wp || [], visibleColumns.wp)) ||
+                        (cfg.obj && hasMissing(nd.aufgaben || [], visibleColumns.obj)) ||
                         manualMitarbeitMissing;
       if (isMissing) {
         count++;
@@ -688,7 +706,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     });
 
     return count;
-  }, [app, activeFach, sem, colCounts, mitarbeitSettings.mode]);
+  }, [app, activeFach, sem, colCounts, mitarbeitSettings.mode, simpleDashboardMode, assessmentFilter]);
 
   const hasAnyAssessment = useMemo(() => {
     return (app.schueler || []).some((student) => {
@@ -884,21 +902,20 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     // the fast Mitarbeit/Hausübung views.
     if (filterMissing && activeView === 'noten') {
       list = list.filter(s => {
-        const nd = app?.noten?.[s.id]?.[activeFach]?.[sem];
-        if (!nd) return true; // entirely missing
+        const nd: Partial<GradeData> = app?.noten?.[s.id]?.[activeFach]?.[sem] || {};
         // check if any of the required columns is empty or 'e' or 'f'
-        const hasMissing = (arr: any[], count: number) => {
-          for (let i = 0; i < count; i++) {
+        const hasMissing = (arr: any[], indices: number[]) => {
+          for (const i of indices) {
             if (arr[i] === undefined || arr[i] === null || arr[i] === '' || arr[i] === 'e' || arr[i] === 'f' || arr[i] === '-') return true;
           }
           return false;
         };
-        if (cfg.sa && hasMissing(nd.sa || [], cfg.saCount)) return true;
-        if (cfg.lzk && hasMissing((nd.lzk || []).map((value, index) => nd.lzkParticipation?.[index] === false ? 'x' : value), colCounts.lzk)) return true;
-        if (cfg.wp && hasMissing(nd.wp || [], colCounts.wp)) return true;
-        if (cfg.obj && hasMissing(nd.aufgaben || [], colCounts.obj)) return true;
+        if (cfg.sa && hasMissing(nd.sa || [], visibleColumns.sa)) return true;
+        if (cfg.lzk && hasMissing((nd.lzk || []).map((value, index) => nd.lzkParticipation?.[index] === false ? 'x' : value), visibleColumns.lzk)) return true;
+        if (cfg.wp && hasMissing(nd.wp || [], visibleColumns.wp)) return true;
+        if (cfg.obj && hasMissing(nd.aufgaben || [], visibleColumns.obj)) return true;
         if (
-          cfg.mi &&
+          assessmentFilter === 'all' && cfg.mi &&
           mitarbeitSettings.mode === 'manual' &&
           (nd.miDirekt === undefined || nd.miDirekt === null || (nd.miDirekt as any) === '')
         ) return true;
@@ -941,7 +958,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
       }
       return 0;
     });
-  }, [app.schueler, app.noten, activeFach, sem, sortBy, sortOrder, filterMissing, cfg, colCounts, assessmentMode, activeView, mitarbeitSettings.mode]);
+  }, [app.schueler, app.noten, activeFach, sem, sortBy, sortOrder, filterMissing, cfg, colCounts, assessmentMode, activeView, mitarbeitSettings.mode, simpleDashboardMode, assessmentFilter]);
 
   const columnAverages = useMemo(() => {
     const results: Record<string, { avg: number | null }> = {};
@@ -1447,8 +1464,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
         key={`h${typ}-${i}`} 
         onMouseEnter={() => setHoveredCell({sid: '', typ, idx: i})}
         onMouseLeave={() => setHoveredCell(null)}
-        className={`px-1 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-[5.5rem] border-b-2 border-r transition-all group/col relative isolate
-          ${baseColorClass} 
+        className={`px-1 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-[8rem] border-b-2 border-r transition-all group/col relative isolate
+          ${simpleDashboardMode ? 'bg-slate-50 text-slate-700 border-slate-200' : baseColorClass}
           ${isFirst && !isolatedCol ? `border-l-2 border-l-${baseColorClass.match(/bg-([a-z]+)-/)?.[1] || 'slate'}-600` : ''} 
           ${isolatedCol ? 'min-w-[12rem] bg-amber-50 border-amber-200' : ''}
           ${hoveredCell && hoveredCell.typ === typ && hoveredCell.idx === i ? 'bg-indigo-100 border-indigo-400 text-indigo-900 shadow-md font-black scale-[1.02] z-40' : ''}`}
@@ -1460,13 +1477,10 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
         <div className="flex flex-col items-center justify-center min-h-[2.5rem] gap-0.5 cursor-pointer relative z-10 w-full">
           <button type="button" aria-label={`Bewertungen für ${customLabel || `${defaultName} ${i + 1}`} eintragen`}
             aria-pressed={isolatedCol?.typ === typ && isolatedCol?.idx === i}
-            className="min-h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">
-            Eintragen
+            className="min-h-9 w-full px-2 text-sm font-semibold normal-case leading-tight text-slate-800 hover:text-emerald-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600">
+            {customLabel || `${defaultName} ${i + 1}`}
           </button>
-          <span className={`text-[0.6rem] font-black ${customLabel ? 'text-[0.65rem] whitespace-normal leading-tight' : 'opacity-70'} w-full text-wrap leading-tight break-words px-1`} title={customLabel || `${defaultName} ${i+1}`}>
-            {customLabel || defaultName} {!customLabel && <span>{i+1}</span>}
-          </span>
-          {typ === 'lzk' && <span className="text-xs font-medium">{app.notenMeta?.[activeFach]?.colAreas?.lzk?.[i] || 'Ohne Bereich'}</span>}
+          {typ === 'lzk' && app.notenMeta?.[activeFach]?.colAreas?.lzk?.[i] && <span className="text-xs font-medium normal-case text-slate-500">{app.notenMeta[activeFach].colAreas.lzk[i]}</span>}
           {customDate && (
             <span className="text-[0.5625rem] font-medium opacity-80 mt-0.5">
               {new Date(customDate).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'})}
@@ -1583,91 +1597,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
               {availableSubjects.length === 0 && <option value="">Bitte zuerst im Klassen-Setup Fächer anlegen</option>}
               {availableSubjects.map(fach => <option key={fach} value={fach}>{fach}</option>)}
             </select>
-            <button type="button" aria-label="Neues Fach hinzufügen" title="Fach hinzufügen · Klassen-Setup öffnen"
-              onClick={() => setApp(prev => ({ ...prev, setupInitialStepMode: 'Fächer', currentPage: 'setup' }))}
-              className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800">
-              <Plus size={18} aria-hidden="true" /> Fach hinzufügen
-            </button>
             <span className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">Ganzes Schuljahr</span>
           </div>}
-          {activeView !== 'verhalten' && (
-            <div className="flex flex-wrap items-center gap-2">
-              <button type="button" onClick={() => { setShowGradeCalculator(!showGradeCalculator); setShowWeights(false); }}
-                aria-pressed={showGradeCalculator}
-                className="hidden min-h-11 sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
-                <Calculator size={15} /> Notenrechner
-              </button>
-              <button type="button" onClick={() => {
-                setShowOverview(true);
-                setShowGradeCalculator(false);
-                setShowWeights(false);
-                setShowMoreMenu(false);
-              }}
-                className="min-h-11 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
-                <BarChart2 size={15} /> Notenübersicht
-              </button>
-              <button type="button" onClick={() => {
-                setShowDetailedAnalysis(true);
-                setShowFeedback(false); setShowOverview(false); setShowWeights(false);
-                setShowMoreMenu(false); setShowGradeCalculator(false);
-              }} className="hidden min-h-11 sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
-                <BarChart2 size={15} /> Auswertungen
-              </button>
-              <button type="button" onClick={() => {
-                setShowFeedback(true);
-                setShowOverview(false);
-                setShowGradeCalculator(false);
-                setShowWeights(false);
-                setShowMoreMenu(false);
-              }} className="hidden min-h-11 sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
-                <MessageSquare size={15} /> Leistungsfeedback
-              </button>
-              <button type="button" onClick={() => { setShowWeights(!showWeights); setShowGradeCalculator(false); }}
-                aria-pressed={showWeights}
-                className={`hidden min-h-11 sm:inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold ${showWeights ? 'border-emerald-700 bg-emerald-700 text-white' : 'border-slate-200 text-slate-700 hover:bg-slate-50'}`}>
-                <Settings size={15} /> Gewichtung
-              </button>
-            </div>
-          )}
-        </div>
-        {activeView !== 'verhalten' && app.schueler.length > 0 && !showWeights && (
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 pt-2 text-xs text-slate-600" aria-label="Bewertungsstatus">
-            <span className="font-semibold">{gradebookDataStatus.assessmentEntries} Einträge</span>
-            <span>{gradebookDataStatus.studentsWithEntries}/{gradebookDataStatus.totalStudents} Kinder mit Daten</span>
-            <span>{gradebookDataStatus.calculatedStudents}/{gradebookDataStatus.totalStudents} Schnitt berechenbar</span>
-            <span>{hasAnyAssessment ? `${missingCount} unvollständig` : 'Noch nicht begonnen'}</span>
-          </div>
-        )}
-      </header>
 
-      {app.schueler.length === 0 ? (
-        <div className="py-12">
-          <EmptyState 
-            icon="👥"
-            title="Keine Schüler:innen"
-            description="Lege zuerst Schüler:innen in der Schülerliste an, um Noten verwalten zu können."
-            actionLabel="Zur Schülerliste"
-            onAction={() => setPage('schueler')}
-          />
-        </div>
-      ) : (
-        <div className="contents">
-          {/* Streamlined Top Control Bar */}
-          <div data-gradebook-actions className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 no-print mb-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <button type="button" aria-pressed={simpleDashboardMode}
-                onClick={() => setSimpleDashboardMode(prev => !prev)}
-                title="Nur die Darstellung vereinfachen – alle Noten und Berechnungen bleiben identisch"
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100">
-                {simpleDashboardMode ? 'Einfache Ansicht' : 'Erweiterte Ansicht'}
-                <span className="text-[0.65rem] font-semibold text-slate-500">Wechseln</span>
-              </button>
-              
-              <div className="flex flex-wrap items-center gap-2" aria-label="Bewertung für die ganze Klasse anlegen">
-                {cfg.lzk && <button type="button" onClick={event => addColumn(event, 'lzk')} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700">+ LZK</button>}
-                {cfg.wp && <button type="button" aria-label="Wochenplan für die Klasse anlegen" onClick={event => addColumn(event, 'wp')} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700">+ Wochenplan</button>}
-                {cfg.sa && <button type="button" onClick={event => addColumn(event, 'sa')} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700">+ Schularbeit</button>}
-              </div>
               {/* Right: + Bewertung & Mehr Menu */}
               <div className="flex items-center gap-2">
                 <button
@@ -1698,7 +1630,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                           initial={{ opacity: 0, scale: 0.95, y: -5 }}
                           animate={{ opacity: 1, scale: 1, y: 0 }}
                           exit={{ opacity: 0, scale: 0.95, y: -5 }}
-                          className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 flex flex-col gap-1 text-[0.8125rem]"
+                          className="absolute right-0 top-full mt-2 max-h-[65vh] overflow-y-auto w-56 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 flex flex-col gap-1 text-[0.8125rem]"
                         >
                           <button
                             onClick={() => {
@@ -1758,10 +1690,13 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                           <button type="button" onClick={() => {
                             setShowDetailedAnalysis(true); setShowFeedback(false); setShowOverview(false); setShowWeights(false);
                             setShowMoreMenu(false); setShowGradeCalculator(false);
-                          }} className="min-h-11 w-full rounded-xl px-3 py-2.5 text-left text-slate-700 hover:bg-slate-50 sm:hidden">Auswertungen</button>
+                          }} className="min-h-11 w-full rounded-xl px-3 py-2.5 text-left text-slate-700 hover:bg-slate-50"> Auswertungen</button>
                           <button type="button" onClick={() => {
                             setShowFeedback(true); setShowOverview(false); setShowGradeCalculator(false); setShowWeights(false); setShowMoreMenu(false);
-                          }} className="min-h-11 w-full rounded-xl px-3 py-2.5 text-left text-slate-700 hover:bg-slate-50 sm:hidden">Leistungsfeedback</button>
+                          }} className="min-h-11 w-full rounded-xl px-3 py-2.5 text-left text-slate-700 hover:bg-slate-50"> Leistungsfeedback</button>
+                          <button type="button" onClick={() => { setShowOverview(true); setShowMoreMenu(false); }} className="min-h-11 w-full rounded-xl px-3 py-2.5 text-left text-slate-700 hover:bg-slate-50"> Notenübersicht</button>
+                          <button type="button" onClick={() => { setSimpleDashboardMode(prev => !prev); setShowMoreMenu(false); }} className="min-h-11 w-full rounded-xl px-3 py-2.5 text-left text-slate-700 hover:bg-slate-50">{simpleDashboardMode ? 'Erweiterte Ansicht' : 'Kompakte Ansicht'}</button>
+                          <button type="button" onClick={() => setApp(prev => ({ ...prev, setupInitialStepMode: 'Fächer', currentPage: 'setup' }))} className="min-h-11 w-full rounded-xl px-3 py-2.5 text-left text-slate-700 hover:bg-slate-50">Fach hinzufügen</button>
                           <div className="my-1 border-t border-slate-100" />
 
                           <div className="px-3 py-1 text-[0.625rem] font-black uppercase text-slate-400 tracking-wider">
@@ -1786,8 +1721,32 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                   </AnimatePresence>
                 </div>
               </div>
-            </div>
 
+        </div>
+        {activeView !== 'verhalten' && app.schueler.length > 0 && !showWeights && (
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 pt-2 text-xs text-slate-600" aria-label="Bewertungsstatus">
+            <span className="font-semibold">{gradebookDataStatus.assessmentEntries} Einträge</span>
+            <span>{gradebookDataStatus.studentsWithEntries}/{gradebookDataStatus.totalStudents} Kinder mit Daten</span>
+            <span>{gradebookDataStatus.calculatedStudents}/{gradebookDataStatus.totalStudents} Schnitt berechenbar</span>
+            <span>{hasAnyAssessment ? `${missingCount} unvollständig` : 'Noch nicht begonnen'}</span>
+          </div>
+        )}
+      </header>
+
+      {app.schueler.length === 0 ? (
+        <div className="py-12">
+          <EmptyState
+            icon="👥"
+            title="Keine Schüler:innen"
+            description="Lege zuerst Schüler:innen in der Schülerliste an, um Noten verwalten zu können."
+            actionLabel="Zur Schülerliste"
+            onAction={() => setPage('schueler')}
+          />
+        </div>
+      ) : (
+        <div className="contents">
+          {/* Streamlined Top Control Bar */}
+          <div data-gradebook-actions className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-1 no-print">
             {/* Main View Tabs */}
             <div data-performance-view aria-label="Bewertungsbereich wählen" className="relative z-10 flex w-full overflow-x-auto rounded-xl border border-slate-200/50 bg-slate-100 p-1">
               {(isFachActive
@@ -3275,8 +3234,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
           )}
 
           <div className="card !p-0 shadow-md border border-slate-200 bg-white rounded-2xl overflow-hidden print:shadow-none print:border print:border-gray-300">
-            <div className="px-6 py-4.5 border-b border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-4 flex-wrap">
+            <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-4">
+              <div className={`${simpleDashboardMode ? 'hidden' : 'flex'} items-center gap-4 flex-wrap`}>
                 <h3 className="text-[1.125rem] font-black text-slate-900 tracking-tight flex items-center gap-2">
                   <span>📊</span>
                   <span>{activeFach}</span>
@@ -3392,6 +3351,14 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                 className="my-8"
               />
             )}
+            {activeView === 'noten' && <div className="flex flex-wrap gap-1 border-b border-slate-100 px-3 py-2" aria-label="Bewertungen filtern">
+              {([{ id: 'all', label: 'Alle Bewertungen' }, ...(cfg.lzk ? [{ id: 'lzk', label: 'LZK' }] : []), ...(cfg.wp ? [{ id: 'wp', label: 'Wochenpläne' }] : []), ...(cfg.sa ? [{ id: 'sa', label: 'Schularbeiten' }] : []), ...(cfg.obj ? [{ id: 'obj', label: cfg.objLabel || 'Sonstige' }] : [])] as { id: typeof assessmentFilter; label: string }[]).map(filter => <button key={filter.id} type="button" aria-pressed={assessmentFilter === filter.id} onClick={() => { setAssessmentFilter(filter.id); setIsolatedCol(null); setFilterMissing(false); }} className={`min-h-9 rounded-lg px-3 text-sm font-medium ${assessmentFilter === filter.id ? 'bg-emerald-50 text-emerald-800' : 'text-slate-500 hover:bg-slate-50'}`}>{filter.label}</button>)}
+            </div>}
+            {simpleDashboardMode && !isolatedCol && <p className="px-4 py-2 text-xs text-slate-500">
+              {Object.values(visibleColumns).every(indices => indices.length === 0)
+                ? 'Noch keine Bewertungen angelegt. Starte mit „Bewertung hinzufügen“.'
+                : 'Wert direkt eintragen · Enter: nächstes Kind · Spaltenname: ganze Klasse eintragen'}
+            </p>}
             {isolatedCol && (() => {
               const dataKey = isolatedCol.typ === 'obj' ? 'aufgaben' : isolatedCol.typ;
               const participating = students.filter(student => isolatedCol.typ !== 'lzk' || app.noten?.[student.id]?.[activeFach]?.[sem]?.lzkParticipation?.[isolatedCol.idx] !== false);
@@ -3406,7 +3373,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
             })()}
             {students.length > 0 && (cfg.sa || cfg.lzk || cfg.wp || cfg.obj || cfg.mi || cfg.hue) && (
               <div className="w-full overflow-x-auto relative no-scrollbar rounded-2xl border border-slate-200 shadow-sm bg-white">
-              <table className={`w-full border-separate border-spacing-0 text-[0.875rem] leading-snug table-fixed print:table-auto gradebook-table ${isolatedCol ? 'min-w-[700px]' : 'min-w-[1200px]'}`}>
+              <table className={`w-full border-separate border-spacing-0 text-[0.875rem] leading-snug table-fixed print:table-auto gradebook-table ${isolatedCol ? 'min-w-[600px]' : simpleDashboardMode ? 'min-w-[650px]' : 'min-w-[1200px]'}`}>
                 <thead>
                   <tr className="sticky top-0 z-30 text-[0.6rem] font-bold uppercase tracking-wider text-text-muted text-center print:break-inside-avoid">
                     <th className={`${zoomLevel === 'compact' ? 'px-2.5 py-2 text-[0.55rem] w-[3rem]' : zoomLevel === 'large' ? 'px-5 py-5 text-[0.75rem] w-[5rem]' : 'px-4 py-3.5 text-[0.6rem] w-[4rem]'} text-left border-b-2 border-r border-slate-200 bg-white sticky left-0 z-[50] print:relative print:left-0 shadow-[2px_0_10px_rgba(0,0,0,0.1)]`}>#</th>
@@ -3425,13 +3392,13 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                         Name {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
                       </button>
                     </th>
-                    <th className={`px-2 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-20 border-b-2 border-r border-border bg-surface shadow-sm`}>∅</th>
-                    {cfg.sa && Array.from({length: cfg.saCount}).map((_, i) => renderColHeader('sa', i, 'bg-blue-50 text-blue-800 border-blue-200/50', i === 0, getNotenLabel(app, activeFach, 'sa', 'SA')))}
+                    <th className={`px-2 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-20 border-b-2 border-r border-border bg-surface shadow-sm`} title="Berechneter Stand aus den gewichteten Bewertungen">Stand</th>
+                    {cfg.sa && visibleColumns.sa.map((i) => renderColHeader('sa', i, 'bg-blue-50 text-blue-800 border-blue-200/50', i === 0, getNotenLabel(app, activeFach, 'sa', 'SA')))}
                     
                     {cfg.lzk && (
                       <>
-                        {Array.from({length: colCounts.lzk}).map((_, i) => renderColHeader('lzk', i, 'bg-green-50 text-green-800 border-green-200/50', i === 0, getNotenLabel(app, activeFach, 'lzk', 'LZK')))}
-                        <th className={`px-1 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-12 bg-green-50/40 border-b-2 border-r border-green-200/50 print:hidden ${isolatedCol ? 'hidden' : ''}`}>
+                        {visibleColumns.lzk.map((i) => renderColHeader('lzk', i, 'bg-green-50 text-green-800 border-green-200/50', i === 0, getNotenLabel(app, activeFach, 'lzk', 'LZK')))}
+                        <th className={`px-1 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-12 bg-green-50/40 border-b-2 border-r border-green-200/50 print:hidden ${isolatedCol || simpleDashboardMode ? 'hidden' : ''}`}>
                           <div className="flex flex-col gap-1 items-center justify-center">
                             <button onClick={(e) => addColumn(e, 'lzk')} title={`${getNotenLabel(app, activeFach, 'lzk', 'LZK')} hinzufügen`} className="text-green-600 hover:scale-125 transition-all"><Plus size={10} strokeWidth={4} /></button>
                             <button onClick={(e) => removeColumn(e, 'lzk')} title={`${getNotenLabel(app, activeFach, 'lzk', 'LZK')} entfernen`} className="text-red-500 hover:scale-125 transition-all"><Minus size={10} strokeWidth={4} /></button>
@@ -3441,8 +3408,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                     )}
                     {cfg.wp && (
                       <>
-                        {Array.from({length: colCounts.wp}).map((_, i) => renderColHeader('wp', i, 'bg-purple-50 text-purple-800 border-purple-200/50', i === 0, getNotenLabel(app, activeFach, 'wp', 'WOPL')))}
-                        <th className={`px-1 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-12 bg-purple-50/40 border-b-2 border-r border-purple-200/50 print:hidden ${isolatedCol ? 'hidden' : ''}`}>
+                        {visibleColumns.wp.map((i) => renderColHeader('wp', i, 'bg-purple-50 text-purple-800 border-purple-200/50', i === 0, getNotenLabel(app, activeFach, 'wp', 'WOPL')))}
+                        <th className={`px-1 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-12 bg-purple-50/40 border-b-2 border-r border-purple-200/50 print:hidden ${isolatedCol || simpleDashboardMode ? 'hidden' : ''}`}>
                            <div className="flex flex-col gap-1 items-center justify-center">
                             <button onClick={(e) => addColumn(e, 'wp')} title={`${getNotenLabel(app, activeFach, 'wp', 'WOPL')} hinzufügen`} className="text-purple-600 hover:scale-125 transition-all"><Plus size={10} strokeWidth={4} /></button>
                             <button onClick={(e) => removeColumn(e, 'wp')} title={`${getNotenLabel(app, activeFach, 'wp', 'WOPL')} entfernen`} className="text-red-500 hover:scale-125 transition-all"><Minus size={10} strokeWidth={4} /></button>
@@ -3452,8 +3419,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                     )}
                     {cfg.obj && (
                       <>
-                        {Array.from({length: colCounts.obj}).map((_, i) => renderColHeader('obj', i, 'bg-amber-50 text-amber-800 border-amber-200/50', i === 0, getNotenLabel(app, activeFach, 'obj', 'OBJ')))}
-                        <th className={`px-1 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-12 bg-amber-50/40 border-b-2 border-r border-amber-200/50 print:hidden ${isolatedCol ? 'hidden' : ''}`}>
+                        {visibleColumns.obj.map((i) => renderColHeader('obj', i, 'bg-amber-50 text-amber-800 border-amber-200/50', i === 0, getNotenLabel(app, activeFach, 'obj', 'OBJ')))}
+                        <th className={`px-1 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-12 bg-amber-50/40 border-b-2 border-r border-amber-200/50 print:hidden ${isolatedCol || simpleDashboardMode ? 'hidden' : ''}`}>
                            <div className="flex flex-col gap-1 items-center justify-center">
                             <button onClick={(e) => addColumn(e, 'obj')} title={`${getNotenLabel(app, activeFach, 'obj', 'Objekt')} hinzufügen`} className="text-amber-600 hover:scale-125 transition-all"><Plus size={10} strokeWidth={4} /></button>
                             <button onClick={(e) => removeColumn(e, 'obj')} title={`${getNotenLabel(app, activeFach, 'obj', 'Objekt')} entfernen`} className="text-red-500 hover:scale-125 transition-all"><Minus size={10} strokeWidth={4} /></button>
@@ -3461,9 +3428,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                         </th>
                       </>
                     )}
-                    {cfg.mi && <th className={`px-1 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-20 bg-orange-50/80 text-orange-800 border-b-2 border-r border-orange-200/50 border-l-2 border-l-orange-600 ${isolatedCol ? 'hidden' : ''}`}>{getShortName(getNotenLabel(app, activeFach, 'mi', 'MI'), 'MI')}</th>}
-                    {cfg.hue && <th className={`px-1 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-20 bg-rose-50/80 text-rose-800 border-b-2 border-r border-rose-200/50 border-l-2 border-l-rose-600 ${isolatedCol ? 'hidden' : ''}`}>HÜ</th>}
-                    <th className={`px-4 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} text-center w-24 border-b-2 border-border/80 bg-surface ${isolatedCol ? 'hidden' : ''}`}>Ende</th>
+                    {cfg.mi && assessmentFilter === 'all' && <th className={`px-1 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-20 bg-orange-50/80 text-orange-800 border-b-2 border-r border-orange-200/50 border-l-2 border-l-orange-600 ${isolatedCol ? 'hidden' : ''}`}>{getShortName(getNotenLabel(app, activeFach, 'mi', 'MI'), 'MI')}</th>}
+                    {cfg.hue && assessmentFilter === 'all' && <th className={`px-1 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-20 bg-rose-50/80 text-rose-800 border-b-2 border-r border-rose-200/50 border-l-2 border-l-rose-600 ${isolatedCol ? 'hidden' : ''}`}>HÜ</th>}
+                    <th className={`px-4 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} text-center w-24 border-b-2 border-border/80 bg-surface ${isolatedCol ? 'hidden' : ''}`}>Zeugnisnote</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -3489,11 +3456,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                       ? 'bg-emerald-50' 
                       : isRowHovered 
                         ? 'bg-indigo-50/30'
-                        : s.spf 
-                          ? 'bg-purple-50/60' 
-                          : s.espf 
-                            ? 'bg-teal-50/60' 
-                            : i % 2 === 0 
+                        : i % 2 === 0
                               ? 'bg-white' 
                               : 'bg-slate-50/50';
 
@@ -3501,11 +3464,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                       ? 'bg-emerald-100' 
                       : isRowHovered 
                         ? 'bg-indigo-50/60'
-                        : s.spf 
-                          ? 'bg-[#fcf8ff]' // Solid extremely light violet
-                          : s.espf 
-                            ? 'bg-[#f5fffe]' // Solid extremely light teal
-                            : i % 2 === 0 
+                        : i % 2 === 0
                               ? 'bg-white' 
                               : 'bg-slate-50';
 
@@ -3518,6 +3477,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                         s={s} i={i} avg={avg} nd={nd} miRaw={miRaw}
                         isItemSelected={isItemSelected} isRowHovered={isRowHovered} studentErrors={studentErrors}
                         activeFach={activeFach} sem={sem} cfg={cfg} colCounts={colCounts}
+                        simpleDashboardMode={simpleDashboardMode} assessmentFilter={assessmentFilter} visibleColumns={visibleColumns} rawParticipation={rawNd.lzkParticipation}
                         isolatedCol={isolatedCol} heatmapMode={heatmapMode} mitarbeitSettings={mitarbeitSettings}
                         currentSymbol={currentSymbol} relativeMiDivisor={relativeMiDivisor} studentsCount={students.length}
                         assessmentMode={assessmentMode} showPointsPercent={showPointsPercent} maxPointsMeta={app.notenMeta?.[activeFach]?.maxPoints}
@@ -3531,7 +3491,10 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                 <span className={`text-wrap leading-tight break-words text-slate-900 ${dStyle.nameText} leading-normal font-black leading-tight max-w-[8rem] sm:max-w-[10rem]`} title={`${s.nachname} ${s.vorname}`}>{s.nachname}</span>
                                 {s.spf && <span className={`${dStyle.spfBadge} font-black uppercase text-purple-600 bg-purple-100 rounded border border-purple-200 print:bg-slate-200 print:text-black`}>SPF</span>}
                                 {s.espf && <span className={`${dStyle.spfBadge} font-black uppercase text-teal-600 bg-teal-100 rounded border border-teal-200 print:bg-slate-100 print:text-black`}>ESPF</span>}
-                                {<label className="flex items-center gap-1 text-xs font-medium print:hidden"><input type="checkbox" aria-label={`${s.vorname} ${s.nachname} im Klassenschnitt mitzählen`} checked={countsInClassAverage(app, s, activeFach)} onChange={e => setApp(prev => ({ ...prev, schueler: prev.schueler.map(child => child.id === s.id ? { ...child, includeInClassAverage: e.target.checked } : child) }))} />Im Schnitt</label>}
+                                <details className="relative text-xs font-medium print:hidden">
+                                  <summary className="cursor-pointer text-slate-500" aria-label={`${s.vorname} ${s.nachname}: Klassenschnitt einstellen`}>{countsInClassAverage(app, s, activeFach) ? '⋯' : 'Ohne Schnitt'}</summary>
+                                  <div className="absolute left-0 top-full z-[60] min-w-48 rounded-lg border border-slate-200 bg-white p-3 shadow-lg"><label className="flex items-center gap-1 text-xs font-medium print:hidden"><input type="checkbox" aria-label={`${s.vorname} ${s.nachname} im Klassenschnitt mitzählen`} checked={countsInClassAverage(app, s, activeFach)} onChange={e => setApp(prev => ({ ...prev, schueler: prev.schueler.map(child => child.id === s.id ? { ...child, includeInClassAverage: e.target.checked } : child) }))} />Im Schnitt</label></div>
+                                </details>
                                 {studentErrors.length > 0 && (
                                   <span 
                                     className="px-1.5 py-0.5 rounded-full bg-amber-100 border border-amber-300 text-amber-800 text-[0.5625rem] font-black inline-flex items-center gap-0.5 animate-pulse cursor-help shrink-0"
@@ -3604,7 +3567,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                             </div>
                           )}
                         </td>
-                        {cfg.sa && Array.from({length: cfg.saCount}).map((_, idx) => {
+                        {cfg.sa && visibleColumns.sa.map((idx) => {
                           const maxP = getMaxPoints(app, activeFach, 'sa', idx);
                           const itemPct = calculateItemPercent(nd.sa[idx], assessmentMode, maxP);
                           return (
@@ -3670,7 +3633,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                         })}
                         {cfg.lzk && (
                           <>
-                            {Array.from({length: colCounts.lzk}).map((_, idx) => {
+                            {visibleColumns.lzk.map((idx) => {
                               const maxP = getMaxPoints(app, activeFach, 'lzk', idx);
                               const itemPct = calculateItemPercent(nd.lzk[idx], assessmentMode, maxP);
                               return (
@@ -3711,7 +3674,10 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                         onCommit={(val) => setNote(s.id, 'lzk', idx, val)}
 
                                       />
-                                      <label className="flex items-center justify-center gap-1 text-xs text-slate-600 print:hidden"><input type="checkbox" aria-label={`${s.vorname} ${s.nachname} nimmt an LZK ${idx + 1} teil`} checked={rawNd.lzkParticipation?.[idx] !== false} onChange={e => { const participates = e.target.checked; setApp(prev => { const data = prev.noten?.[s.id]?.[activeFach]?.[sem] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] }; return { ...prev, noten: { ...prev.noten, [s.id]: { ...prev.noten?.[s.id], [activeFach]: { ...prev.noten?.[s.id]?.[activeFach], [sem]: { ...data, lzkParticipation: { ...data.lzkParticipation, [idx]: participates } } } } } }; }); }} />{rawNd.lzkParticipation?.[idx] === false ? 'Nimmt nicht teil' : 'Teilnahme'}</label>
+                                      <details className="absolute right-0 top-0 text-xs print:hidden">
+                                        <summary className="cursor-pointer rounded bg-white px-1 text-slate-500" aria-label={`${s.vorname} ${s.nachname}: Teilnahme an LZK ${idx + 1} einstellen`}>{rawNd.lzkParticipation?.[idx] === false ? 'n. t.' : '⋯'}</summary>
+                                        <div className="absolute right-0 top-full z-[60] min-w-48 rounded-lg border border-slate-200 bg-white p-3 shadow-lg"><label className="flex items-center justify-center gap-1 text-xs text-slate-600 print:hidden"><input type="checkbox" aria-label={`${s.vorname} ${s.nachname} nimmt an LZK ${idx + 1} teil`} checked={rawNd.lzkParticipation?.[idx] !== false} onChange={e => { const participates = e.target.checked; setApp(prev => { const data = prev.noten?.[s.id]?.[activeFach]?.[sem] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] }; return { ...prev, noten: { ...prev.noten, [s.id]: { ...prev.noten?.[s.id], [activeFach]: { ...prev.noten?.[s.id]?.[activeFach], [sem]: { ...data, lzkParticipation: { ...data.lzkParticipation, [idx]: participates } } } } } }; }); }} />{rawNd.lzkParticipation?.[idx] === false ? 'Nimmt nicht teil' : 'Teilnahme'}</label></div>
+                                      </details>
                                       {isBorderline(nd.lzk[idx]) && (
                                         <div className="absolute -top-1.5 -right-0.5 z-10 text-amber-500 bg-white rounded-full shadow-sm border border-amber-200 pointer-events-none" title="Grenzentscheidung / Tendenz (+/-)">
                                           <AlertCircle size={10} className="stroke-[3]" />
@@ -3727,12 +3693,12 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                 </td>
                               );
                             })}
-                            <td className={`w-12 border-b border-r border-border/30 bg-green-50/10 print:hidden ${isolatedCol ? 'hidden' : ''}`}></td>
+                            <td className={`w-12 border-b border-r border-border/30 bg-green-50/10 print:hidden ${isolatedCol || simpleDashboardMode ? 'hidden' : ''}`}></td>
                           </>
                         )}
                         {cfg.wp && (
                           <>
-                            {Array.from({length: colCounts.wp}).map((_, idx) => {
+                            {visibleColumns.wp.map((idx) => {
                               const maxP = getMaxPoints(app, activeFach, 'wp', idx);
                               const itemPct = calculateItemPercent(nd.wp[idx], assessmentMode, maxP);
                               return (
@@ -3787,12 +3753,12 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                 </td>
                               );
                             })}
-                            <td className={`w-12 border-b border-r border-border/30 bg-purple-50/10 print:hidden ${isolatedCol ? 'hidden' : ''}`}></td>
+                            <td className={`w-12 border-b border-r border-border/30 bg-purple-50/10 print:hidden ${isolatedCol || simpleDashboardMode ? 'hidden' : ''}`}></td>
                           </>
                         )}
                         {cfg.obj && (
                           <>
-                            {Array.from({length: colCounts.obj}).map((_, idx) => {
+                            {visibleColumns.obj.map((idx) => {
                               const maxP = getMaxPoints(app, activeFach, 'obj', idx);
                               const itemPct = calculateItemPercent(nd.aufgaben[idx], assessmentMode, maxP);
                               return (
@@ -3847,10 +3813,10 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                 </td>
                               );
                             })}
-                            <td className={`w-12 border-b border-r border-border/30 bg-amber-50/10 print:hidden ${isolatedCol ? 'hidden' : ''}`}></td>
+                            <td className={`w-12 border-b border-r border-border/30 bg-amber-50/10 print:hidden ${isolatedCol || simpleDashboardMode ? 'hidden' : ''}`}></td>
                           </>
                         )}
-                        {cfg.mi && (
+                        {cfg.mi && assessmentFilter === 'all' && (
                           <td 
                             onMouseEnter={() => setHoveredCell({sid: s.id, typ: 'mi', idx: 0})}
                             onMouseLeave={() => setHoveredCell(null)}
@@ -3887,7 +3853,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                              )}
                           </td>
                         )}
-                        {cfg.hue && (
+                        {cfg.hue && assessmentFilter === 'all' && (
                           <td 
                             onMouseEnter={() => setHoveredCell({sid: s.id, typ: 'hue', idx: 0})}
                             onMouseLeave={() => setHoveredCell(null)}
@@ -3971,7 +3937,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                       <td className="px-2 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-800 text-white border-x-2">
                         {hasCalculatedAverage(stats?.avg) ? (assessmentMode === 'grades' ? stats!.avg.toFixed(2) : `${stats!.avg.toFixed(1)}%`) : '–'}
                       </td>
-                      {cfg.sa && Array.from({length: cfg.saCount}).map((_, idx) => (
+                      {cfg.sa && visibleColumns.sa.map((idx) => (
                         <td key={`fsa-${idx}`} className="px-1 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900 text-white">
                           {columnAverages[`sa-${idx}`]?.avg !== null && columnAverages[`sa-${idx}`]?.avg !== undefined 
                             ? (assessmentMode === 'grades' ? columnAverages[`sa-${idx}`]!.avg!.toFixed(1) : assessmentMode === 'percent' ? `${columnAverages[`sa-${idx}`]!.avg!.toFixed(1)}%` : `${columnAverages[`sa-${idx}`]!.avg!.toFixed(1)}P`) 
@@ -3980,42 +3946,42 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                       ))}
                       {cfg.lzk && (
                         <>
-                          {Array.from({length: colCounts.lzk}).map((_, idx) => (
+                          {visibleColumns.lzk.map((idx) => (
                             <td data-lzk-class-average={idx} key={`flzk-${idx}`} className="px-1 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900 text-white">
                               {columnAverages[`lzk-${idx}`]?.avg !== null && columnAverages[`lzk-${idx}`]?.avg !== undefined 
                                 ? (assessmentMode === 'grades' ? columnAverages[`lzk-${idx}`]!.avg!.toFixed(1) : assessmentMode === 'percent' ? `${columnAverages[`lzk-${idx}`]!.avg!.toFixed(1)}%` : `${columnAverages[`lzk-${idx}`]!.avg!.toFixed(1)}P`) 
                                 : '–'}
                             </td>
                           ))}
-                          <td className="w-12 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900/50 print:hidden"></td>
+                          <td className={`w-12 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900/50 print:hidden ${simpleDashboardMode ? 'hidden' : ''}`}></td>
                         </>
                       )}
                       {cfg.wp && (
                         <>
-                          {Array.from({length: colCounts.wp}).map((_, idx) => (
+                          {visibleColumns.wp.map((idx) => (
                             <td key={`fwp-${idx}`} className="px-1 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900 text-white">
                               {columnAverages[`wp-${idx}`]?.avg !== null && columnAverages[`wp-${idx}`]?.avg !== undefined 
                                 ? (assessmentMode === 'grades' ? columnAverages[`wp-${idx}`]!.avg!.toFixed(1) : assessmentMode === 'percent' ? `${columnAverages[`wp-${idx}`]!.avg!.toFixed(1)}%` : `${columnAverages[`wp-${idx}`]!.avg!.toFixed(1)}P`) 
                                 : '–'}
                             </td>
                           ))}
-                          <td className="w-12 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900/50 print:hidden"></td>
+                          <td className={`w-12 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900/50 print:hidden ${simpleDashboardMode ? 'hidden' : ''}`}></td>
                         </>
                       )}
                       {cfg.obj && (
                         <>
-                          {Array.from({length: colCounts.obj}).map((_, idx) => (
+                          {visibleColumns.obj.map((idx) => (
                             <td key={`fobj-${idx}`} className="px-1 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900 text-white">
                               {columnAverages[`obj-${idx}`]?.avg !== null && columnAverages[`obj-${idx}`]?.avg !== undefined 
                                 ? (assessmentMode === 'grades' ? columnAverages[`obj-${idx}`]!.avg!.toFixed(1) : assessmentMode === 'percent' ? `${columnAverages[`obj-${idx}`]!.avg!.toFixed(1)}%` : `${columnAverages[`obj-${idx}`]!.avg!.toFixed(1)}P`) 
                                 : '–'}
                             </td>
                           ))}
-                          <td className="w-12 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900/50 print:hidden"></td>
+                          <td className={`w-12 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900/50 print:hidden ${simpleDashboardMode ? 'hidden' : ''}`}></td>
                         </>
                       )}
-                      {cfg.mi && <td className="px-1 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900 text-white"></td>}
-                      {cfg.hue && <td className="px-1 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900 text-white"></td>}
+                      {cfg.mi && assessmentFilter === 'all' && <td className="px-1 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900 text-white"></td>}
+                      {cfg.hue && assessmentFilter === 'all' && <td className="px-1 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900 text-white"></td>}
                       <td className="px-4 py-3 border-t border-neutral-700 border-neutral-800 bg-neutral-900 shadow-inner">
                          <span className="nb nb-primary !scale-75 opacity-20">Ø</span>
                       </td>
