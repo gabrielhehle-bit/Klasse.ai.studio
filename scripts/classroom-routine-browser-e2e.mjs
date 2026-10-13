@@ -3701,9 +3701,9 @@ async function main() {
       }
       if(key === 'gradebook') {
         const openGradebookTool = async label => {
-          await clickButton(client, 'Mehr', true);
-          await waitFor(client, 'gradebook tool available: '+label, `Array.from(document.querySelectorAll('[data-gradebook-header] button')).some(b=>b.textContent.trim()===${q(label)}&&b.getBoundingClientRect().width>0)`);
-          await clickButton(client, label, true);
+          await clickSelector(client, '[data-gradebook-header] button[aria-controls="gradebook-tools-menu"]');
+          await waitFor(client, 'gradebook tool available: '+label, `Array.from(document.querySelectorAll('#gradebook-tools-menu button')).some(b=>b.textContent.trim().endsWith(${q(label)})&&b.getBoundingClientRect().width>0)`);
+          await evaluate(client, `Array.from(document.querySelectorAll('#gradebook-tools-menu button')).find(b=>b.textContent.trim().endsWith(${q(label)})).click()`);
         };
         const clickGradebookOption = async selector => {
           if (!await evaluate(client, `document.querySelector(${q(selector)})?.closest('details')?.open`)) {
