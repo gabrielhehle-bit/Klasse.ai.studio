@@ -1,3 +1,14 @@
+import type { RewardVisualizationStyle } from './classRewardAlgorithm';
+
+/** Ignore corrupt backup preferences while retaining valid legacy defaults. */
+export function resolveClassGoalStyle(widgetStyle: unknown, appStyle: unknown, widgetType?: string): RewardVisualizationStyle {
+  const valid = (value: unknown): value is RewardVisualizationStyle =>
+    value === 'jar' || value === 'thermometer' || value === 'barometer';
+  if (valid(widgetStyle)) return widgetStyle;
+  if (valid(appStyle)) return appStyle;
+  return widgetType === 'thermometer' ? 'thermometer' : widgetType === 'classtarget' ? 'barometer' : 'jar';
+}
+
 /** Only a deliberate, valid target changes the existing class-wide goal. */
 export function validateClassGoalInput(value: unknown): { goal: number; error: '' } | { goal: null; error: string } {
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > 1000)

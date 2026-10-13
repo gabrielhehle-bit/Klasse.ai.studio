@@ -49,6 +49,7 @@ on:
       - 'src/components/cockpit/widgets/CalmSoundsWidget.tsx'
       - 'src/components/cockpit/widgets/ScoreboardWidget.tsx'
       - 'src/components/cockpit/widgets/ClassRewardWidget.tsx'
+      - 'src/lib/classGoalWidgetModel.ts'
       - 'src/components/cockpit/widgets/ClockWidget.tsx'
       - 'src/components/cockpit/widgets/TimeToolsStudio.tsx'
       - 'src/components/cockpit/widgets/TimerWidget.tsx'
