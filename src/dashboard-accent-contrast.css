@@ -1,0 +1,35 @@
+/*
+ * Dashboard customizer contrast guard.
+ * The personal accent remains unchanged in KLASSIO. Only accent signals shown
+ * on this deliberately dark editing surface receive a lighter presentation
+ * color so black and other very dark accents stay visible.
+ */
+.klassio-dashboard-customizer {
+  --klassio-accent-on-dark: color-mix(in srgb, var(--accent) 38%, white 62%);
+}
+
+.klassio-dashboard-customizer .text-accent {
+  color: var(--klassio-accent-on-dark) !important;
+}
+
+.klassio-dashboard-customizer .border-accent {
+  border-color: var(--klassio-accent-on-dark) !important;
+}
+
+.klassio-dashboard-customizer [class*="ring-accent"] {
+  --tw-ring-color: color-mix(in srgb, var(--klassio-accent-on-dark) 48%, transparent) !important;
+}
+
+.klassio-dashboard-customizer [class*="bg-accent/"] {
+  background-color: color-mix(in srgb, var(--klassio-accent-on-dark) 20%, transparent) !important;
+}
+
+/* Keep solid accent buttons truly in the selected accent, but outline them on
+   the dark surface so a black button does not disappear into the panel. */
+.klassio-dashboard-customizer .bg-accent {
+  box-shadow: 0 0 0 1px var(--klassio-accent-on-dark), 0 10px 24px rgb(0 0 0 / 0.22);
+}
+
+.klassio-dashboard-customizer .bg-accent:hover {
+  box-shadow: 0 0 0 1px var(--klassio-accent-on-dark), 0 12px 28px rgb(0 0 0 / 0.28);
+}
