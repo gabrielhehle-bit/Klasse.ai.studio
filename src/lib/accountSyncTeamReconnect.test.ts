@@ -54,8 +54,10 @@ test('Konto-Sync: neuer Laptop rekonstruiert lokalen Team-Metadatensatz aus dem 
 });
 
 test('Konto-Sync: vorhandener echter Teamstand bleibt vor einer älteren Konto-Kopie geschützt', () => {
+  // This unit test deliberately leaves the class inactive. Active-class projection
+  // is covered by the existing app-state tests; here we isolate the account merge
+  // rule itself and avoid depending on a complete UI root-state fixture.
   const remote = {
-    activeClassId: 'class-1',
     boardSettings: {},
     classes: [{
       id: 'class-1',
@@ -65,7 +67,6 @@ test('Konto-Sync: vorhandener echter Teamstand bleibt vor einer älteren Konto-K
     }],
   } as any;
   const local = {
-    activeClassId: 'class-1',
     boardSettings: {},
     classes: [{
       id: 'class-1',
