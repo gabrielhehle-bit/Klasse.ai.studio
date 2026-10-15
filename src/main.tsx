@@ -9,6 +9,7 @@ import './planning-dialog.css';
 import './weekly-plan-ux.css';
 import './dashboard-accent-contrast.css';
 import './dashboardTopbarEnhancements';
+import './studentFormStepGuard';
 
 const smartphoneQuickMode = window.matchMedia('(max-width: 767px) and (pointer: coarse)');
 if (smartphoneQuickMode.matches) {
