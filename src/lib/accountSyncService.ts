@@ -202,6 +202,31 @@ export function hasSharedClassAccountDrift(remote: AppState, local: AppState): b
   return false;
 }
 
+/**
+ * Account snapshots deliberately strip device-local Teamteaching revision/key metadata,
+ * but keep the opaque shared workspace id. A second laptop must turn that pointer back
+ * into a local placeholder so AppContext's existing Teamteaching pull can hydrate the
+ * authoritative shared class. Without this bridge, the second laptop permanently looked
+ * like a normal local class and never started Teamteaching sync at all.
+ */
+export function reconnectSharedClassPointer(room: ClassRoom): ClassRoom {
+  if (room.teamTeaching) return room;
+  const sharedClassId = room.teamTeachingSharedClassId;
+  if (!sharedClassId) return room;
+  return {
+    ...room,
+    teamTeaching: {
+      sharedClassId,
+      // Read-only until the first authoritative pull returns the actual role/revision.
+      // This prevents a freshly restored laptop from ever uploading stale account data.
+      role: 'viewer',
+      revision: 0,
+      syncStatus: 'idle',
+      syncMessage: 'Teamklasse wird auf diesem Gerät mit dem gemeinsamen Stand verbunden.',
+    },
+  };
+}
+
 export function mergeAccountSyncState(remote: AppState, local: AppState): AppState {
   const localSharedRooms = new Map<string, ClassRoom>(
     (local.classes || [])
@@ -213,7 +238,8 @@ export function mergeAccountSyncState(remote: AppState, local: AppState): AppSta
     // Retain the FULL class, not just its device-local team metadata. Otherwise
     // a delayed personal-account refresh can silently replace a colleague's
     // newer weekly plan with an older copy and then publish that stale copy.
-    return localSharedRooms.get(room.id) || accountRoom;
+    const protectedLocal = localSharedRooms.get(room.id);
+    return protectedLocal || reconnectSharedClassPointer(accountRoom as ClassRoom);
   });
   for (const [id, room] of localSharedRooms) {
     if (!classes.some(candidate => candidate.id === id)) classes.push(room);
