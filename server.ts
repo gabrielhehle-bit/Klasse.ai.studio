@@ -22,6 +22,7 @@ import { createEncryptedAttachmentStore, AttachmentStorageError } from "./src/se
 import { createAccountSyncStore } from "./src/server/accountSyncStore.ts";
 import { createAiUsageStore, type AiUsageSnapshot } from "./src/server/aiUsageStore.ts";
 import { AccessSessionStore } from './src/server/accessSessionStore.ts';
+import { isAllowedApiOrigin } from './src/server/apiOrigin.ts';
 import { INITIAL_VERIFIED_AUSTRIAN_SCHOOLS } from "./src/data/austrianSchoolRegistry.seed.ts";
 
 // Fix: In tsx environments, global __dirname is injected as "." which breaks ESM packages
@@ -152,7 +153,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     // Production TLS may terminate at a reverse proxy. Never infer the public
     // origin from an untrusted forwarded-proto header or the internal HTTP socket.
     const requestOrigin = (process.env.NODE_ENV === 'production' ? 'https' : req.protocol) + '://' + req.get('host');
-    if ((origin && origin !== (configuredOrigin || requestOrigin)) || fetchSite === 'cross-site') {
+    if ((origin && !isAllowedApiOrigin(origin, configuredOrigin || requestOrigin)) || fetchSite === 'cross-site') {
       return res.status(403).json({ error: 'Anfrage von einer nicht erlaubten Website abgewiesen.' });
     }
     next();
@@ -167,7 +168,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     const appUrl = process.env.APP_URL;
     if (origin) {
       let isAllowed = false;
-      if (appUrl && (origin === appUrl || origin === appUrl.replace(/\/$/, ''))) {
+      if (appUrl && isAllowedApiOrigin(origin, appUrl)) {
         isAllowed = true;
       } else if (process.env.NODE_ENV !== 'production' && (origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('.run.app'))) {
         isAllowed = true;
