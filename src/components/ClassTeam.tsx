@@ -68,6 +68,7 @@ export default function ClassTeam() {
   const [needsSchoolLogin, setNeedsSchoolLogin] = React.useState(false);
   const [teamUserId, setTeamUserId] = React.useState('');
   const [teamDeviceId, setTeamDeviceId] = React.useState('');
+  const [awaitingDeviceApprovalFor, setAwaitingDeviceApprovalFor] = React.useState<string | null>(null);
   const [history, setHistory] = React.useState<SharedClassHistoryVersion[]>([]);
   const [historyBusy, setHistoryBusy] = React.useState(false);
   const [changesPreview, setChangesPreview] = React.useState<{
@@ -93,6 +94,16 @@ export default function ClassTeam() {
   const reconnectableTeam = knownTeamReference
     ? shared.find(item => item.id === knownTeamReference)
     : undefined;
+
+  React.useEffect(() => {
+    if (ownDeviceRequest && activeSharedId) {
+      setAwaitingDeviceApprovalFor(activeSharedId);
+    } else if (activeSharedId && awaitingDeviceApprovalFor === activeSharedId && deviceAuthorization === 'authorized') {
+      setAwaitingDeviceApprovalFor(null);
+      setError(null);
+      setNotice('Dein Gerät ist jetzt freigegeben. Deine lokalen Änderungen bleiben erhalten. Falls ein Team-Konflikt angezeigt wird, wähle „Änderungen zusammenführen“.');
+    }
+  }, [ownDeviceRequest, activeSharedId, awaitingDeviceApprovalFor, deviceAuthorization]);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -161,6 +172,7 @@ export default function ClassTeam() {
     setError(null);
     try {
       const request = await requestTeamTeachingDeviceAccess(sharedClassId);
+      setAwaitingDeviceApprovalFor(sharedClassId);
       setNotice('Freigabe angefordert. Bitte deine Teamkollegin oder deinen Teamkollegen um Bestätigung bitten. Prüfcode: ' + request.verificationCode);
       await load();
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Freigabe konnte nicht angefordert werden.'); }
