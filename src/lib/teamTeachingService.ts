@@ -182,7 +182,8 @@ async function classKeyForDetail(
   if (!wrapped) {
     throw new Error(
       'Dieses Gerät wurde für die geteilte Klasse noch nicht freigegeben. ' +
-      'Eine bereits berechtigte Lehrperson muss dieses Gerät im Klassenteam hinzufügen.'
+      'Öffne die Teamklasse in einem bereits freigegebenen Browser der Klassenbesitzerin oder des Klassenbesitzers. ' +
+      'Dort im Klassenteam unter Lehrpersonen bei deinem Konto auf „Geräte“ klicken. Deine lokalen Änderungen bleiben erhalten.'
     );
   }
   const classKey = await unwrapClassKey(wrapped, device.privateKey);
