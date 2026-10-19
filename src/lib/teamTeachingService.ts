@@ -59,6 +59,13 @@ export interface SharedClassSummary {
   contentUpdatedBy?: string;
   myRole: TeamTeachingRole;
   members: TeamTeachingMemberInfo[];
+  deviceAccessRequests?: TeamDeviceAccessRequest[];
+}
+
+export interface TeamDeviceAccessRequest {
+  id: string; userId: string; displayName: string; deviceId: string;
+  fingerprint: string; publicKeyJwk: JsonWebKey;
+  createdAt: string; expiresAt: string; verificationCode: string;
 }
 
 export interface SharedClassHistoryVersion {
@@ -182,8 +189,7 @@ async function classKeyForDetail(
   if (!wrapped) {
     throw new Error(
       'Dieses Gerät wurde für die geteilte Klasse noch nicht freigegeben. ' +
-      'Öffne die Teamklasse in einem bereits freigegebenen Browser der Klassenbesitzerin oder des Klassenbesitzers. ' +
-      'Dort im Klassenteam unter Lehrpersonen bei deinem Konto auf „Geräte“ klicken. Deine lokalen Änderungen bleiben erhalten.'
+      'Klicke im Klassenteam auf „Freigabe anfordern“. Eine bereits berechtigte Teamlehrperson kann dein Gerät dann bestätigen. Deine lokalen Änderungen bleiben erhalten.'
     );
   }
   const classKey = await unwrapClassKey(wrapped, device.privateKey);
@@ -365,6 +371,29 @@ export async function refreshTeamTeachingMemberDevices(
     },
   ).then(readJson<{ class: SharedClassSummary }>);
   return data.class;
+}
+
+export async function requestTeamTeachingDeviceAccess(sharedClassId: string): Promise<TeamDeviceAccessRequest> {
+  const { device } = await ensureRegisteredTeamTeachingDevice();
+  const data = await fetch('/api/teamteaching/classes/' + encodeURIComponent(sharedClassId) + '/device-access-requests', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId: device.deviceId }),
+  }).then(readJson<{ request: TeamDeviceAccessRequest }>);
+  return data.request;
+}
+
+export async function approveTeamTeachingDeviceAccess(sharedClassId: string, requestId: string): Promise<void> {
+  const { device } = await ensureRegisteredTeamTeachingDevice();
+  const detail = await getSharedClassDetail(sharedClassId);
+  const request = detail.deviceAccessRequests?.find(item => item.id === requestId);
+  if (!request || Date.parse(request.expiresAt) <= Date.now()) throw new Error('Die Geräteanfrage ist nicht mehr aktuell. Bitte erneut anfordern.');
+  if (detail.myRole === 'viewer') throw new Error('Nur bearbeitende Teamlehrpersonen können Geräteanfragen bestätigen.');
+  const key = await classKeyForDetail(detail, device);
+  const wrappedKey = await wrapClassKeyForPublicKey(key, request.publicKeyJwk);
+  await fetch('/api/teamteaching/classes/' + encodeURIComponent(sharedClassId) + '/device-access-requests/'
+    + encodeURIComponent(request.id) + '/approve', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ approvingDeviceId: device.deviceId, wrappedKey }),
+  }).then(readJson);
 }
 
 export async function updateTeamTeachingMemberRole(

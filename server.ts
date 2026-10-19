@@ -1580,6 +1580,8 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       contentUpdatedAt: record.contentUpdatedAt || (record.revision === 1 ? record.createdAt : undefined),
       contentUpdatedBy: record.contentUpdatedBy || (record.revision === 1 ? record.ownerUserId : undefined),
       myRole: currentMember.role,
+      deviceAccessRequests: (record.deviceAccessRequests || []).filter(request => Date.parse(request.expiresAt) > Date.now()
+        && record.members.some(member => member.userId === request.userId)),
       members: record.members.map(member => ({
         userId: member.userId,
         displayName: member.displayName,
@@ -1597,6 +1599,9 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   ) => {
     const code = error instanceof Error ? error.message : '';
     if (code === 'INVALID_DEVICE_KEY') return res.status(400).json({ code, error: 'Ungültiger Geräteschlüssel.' });
+    if (code === 'DEVICE_APPROVAL_REQUIRED') return res.status(403).json({ code, error: 'Die Freigabe muss auf einem bereits berechtigten Gerät einer bearbeitenden Teamlehrperson bestätigt werden.' });
+    if (code === 'DEVICE_REQUEST_EXPIRED' || code === 'DEVICE_KEY_CHANGED') return res.status(409).json({ code, error: 'Diese Geräteanfrage ist abgelaufen oder der Schlüssel wurde geändert. Bitte die Freigabe auf dem betroffenen Gerät erneut anfordern.' });
+    if (code === 'TOO_MANY_DEVICE_REQUESTS') return res.status(429).json({ code, error: 'Zu viele offene Geräteanfragen für diese Klasse. Bitte eine bestehende Anfrage bestätigen oder später erneut versuchen.' });
     if (code === 'INVALID_SHARED_CLASS' || code === 'INVALID_WRAPPED_KEYS') return res.status(400).json({ code, error: 'Ungültige verschlüsselte Klassendaten.' });
     if (code === 'NO_OWNER_DEVICE_KEY' || code === 'MEMBER_DEVICE_REQUIRED') return res.status(409).json({ code, error: 'Für diese Lehrperson ist noch kein freigegebener Teamteaching-Geräteschlüssel vorhanden.' });
     if (code === 'INVALID_ROLE' || code === 'INVALID_MEMBER') return res.status(400).json({ code, error: 'Ungültige Teamrolle oder Lehrperson.' });
@@ -1786,6 +1791,22 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     } catch (error) {
       await handleTeamTeachingError(res, error, identity, req.params.classId);
     }
+  });
+
+  app.post('/api/teamteaching/classes/:classId/device-access-requests', requireTeacherIdentity, async (req, res) => {
+    try {
+      const request = await classCollaborationStore.requestDeviceAccess(getTeacherIdentity(req), req.params.classId, req.body?.deviceId);
+      res.status(201).json({ request });
+    } catch (error) { await handleTeamTeachingError(res, error); }
+  });
+
+  app.post('/api/teamteaching/classes/:classId/device-access-requests/:requestId/approve', requireTeacherIdentity, async (req, res) => {
+    const identity = getTeacherIdentity(req);
+    try {
+      const record = await classCollaborationStore.approveDeviceAccess(identity, req.params.classId,
+        req.params.requestId, req.body?.approvingDeviceId, req.body?.wrappedKey);
+      res.json({ class: teamClassSummary(record, identity) });
+    } catch (error) { await handleTeamTeachingError(res, error); }
   });
 
   app.put('/api/teamteaching/classes/:classId/members/:userId/keys', requireTeacherIdentity, async (req, res) => {
