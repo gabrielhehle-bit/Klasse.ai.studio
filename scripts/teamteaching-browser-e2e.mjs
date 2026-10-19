@@ -313,6 +313,7 @@ async function main() {
     console.log('✓ Lehrkraft A: class encrypted and shared');
 
     await loginWithSchoolMail(berta, EMAIL_B, VAULT_B);
+    const bertaFirstLoginAt = Date.now();
     // A second teacher must also complete the one-time school/class setup
     // before opening classroom tools; their shared class is added afterwards.
     await createClassInUi(berta, 'Berta eigene Klasse 1B');
@@ -391,6 +392,10 @@ async function main() {
     await evaluate(berta, 'fetch("/api/access/logout",{method:"POST"}).then(r=>{if(!r.ok)throw new Error("Logout failed");return true;})');
     await waitFor(berta, 'expired team session offers inline re-login',
       'document.body?.innerText.includes("Deine Anmeldung ist abgelaufen") && Boolean(document.querySelector("input[type=email]"))', 20000);
+    // The same email cannot request another code within 60 seconds. Keep the
+    // production throttle intact and also verify the inline form stays mounted.
+    const codeCooldownRemaining = 61_000 - (Date.now() - bertaFirstLoginAt);
+    if (codeCooldownRemaining > 0) await sleep(codeCooldownRemaining);
     await fs.rm(SMTP_CODES, { force: true });
     await setInputByLabel(berta, 'vorname.nachname@schule.at', EMAIL_B);
     await clickButton(berta, 'Anmeldecode per E-Mail senden');
