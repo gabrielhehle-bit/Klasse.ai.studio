@@ -9,6 +9,7 @@ export interface TeamTeachingDeviceIdentity extends TeamTeachingKeyPair {
 }
 
 const memoryFallback = new Map<string, TeamTeachingDeviceIdentity>();
+const pendingDevices = new Map<string, Promise<TeamTeachingDeviceIdentity>>();
 let storage: LocalForage | null = null;
 
 function getStorage(): LocalForage | null {
@@ -46,20 +47,24 @@ function randomDeviceId(): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
-export async function ensureTeamTeachingDevice(userId: string): Promise<TeamTeachingDeviceIdentity> {
+async function loadOrCreateDevice(userId: string): Promise<TeamTeachingDeviceIdentity> {
   const key = recordKey(userId);
+  const cached = memoryFallback.get(key);
+  if (cached) return cached;
   const indexed = getStorage();
 
   if (indexed) {
     try {
       const existing = await indexed.getItem<TeamTeachingDeviceIdentity>(key);
-      if (isDeviceIdentity(existing, userId)) return existing;
+      if (isDeviceIdentity(existing, userId)) {
+        memoryFallback.set(key, existing);
+        return existing;
+      }
     } catch {
-      // A corrupt/unreadable device record is replaced below.
+      // A transient read failure must never overwrite a possibly existing
+      // non-exportable private key with a new, unauthorized identity.
+      throw new Error('Der gespeicherte Team-Geräteschlüssel konnte nicht gelesen werden. Bitte erneut versuchen; vorhandene Schlüssel wurden nicht ersetzt.');
     }
-  } else {
-    const existing = memoryFallback.get(key);
-    if (existing) return existing;
   }
 
   const pair = await generateTeamTeachingKeyPair();
@@ -71,6 +76,8 @@ export async function ensureTeamTeachingDevice(userId: string): Promise<TeamTeac
     privateKey: pair.privateKey,
     createdAt: new Date().toISOString(),
   };
+  // Keep one identity even if IndexedDB is present but its write fails.
+  memoryFallback.set(key, created);
 
   if (indexed) {
     try {
@@ -80,11 +87,31 @@ export async function ensureTeamTeachingDevice(userId: string): Promise<TeamTeac
       // Keep the current session usable even when IndexedDB is unavailable.
     }
   }
-  memoryFallback.set(key, created);
   return created;
 }
 
+export async function ensureTeamTeachingDevice(userId: string): Promise<TeamTeachingDeviceIdentity> {
+  const existing = pendingDevices.get(userId);
+  if (existing) return existing;
+  // App startup, the status badge and the device bridge can all request a key
+  // before RSA generation finishes. They must never create competing identities.
+  // Web Locks also serialize first-time generation across tabs of this origin.
+  const pending = (async () => {
+    if (typeof navigator !== 'undefined' && navigator.locks) {
+      return navigator.locks.request('klassio-team-device:' + userId, () => loadOrCreateDevice(userId));
+    }
+    return loadOrCreateDevice(userId);
+  })();
+  pendingDevices.set(userId, pending);
+  try {
+    return await pending;
+  } finally {
+    if (pendingDevices.get(userId) === pending) pendingDevices.delete(userId);
+  }
+}
+
 export async function deleteTeamTeachingDevice(userId: string): Promise<void> {
+  await pendingDevices.get(userId)?.catch(() => undefined);
   const key = recordKey(userId);
   memoryFallback.delete(key);
   const indexed = getStorage();
@@ -94,6 +121,7 @@ export async function deleteTeamTeachingDevice(userId: string): Promise<void> {
 }
 
 export async function clearTeamTeachingDeviceStore(): Promise<void> {
+  await Promise.allSettled(pendingDevices.values());
   memoryFallback.clear();
   const indexed = getStorage();
   if (indexed) {
@@ -102,6 +130,7 @@ export async function clearTeamTeachingDeviceStore(): Promise<void> {
 }
 
 export function __resetTeamTeachingDeviceForTesting(): void {
+  pendingDevices.clear();
   memoryFallback.clear();
   storage = null;
 }
