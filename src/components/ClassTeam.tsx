@@ -28,6 +28,7 @@ import { mergeTeamClassRevisions } from '../lib/teamTeachingMerge';
 import type { ClassRoom } from '../types';
 import ClassTeamStatus from './ClassTeamStatus';
 import EmailAccountLogin from './EmailAccountLogin';
+import { ACCOUNT_SESSION_CHANGED_EVENT } from '../lib/accountSyncService';
 
 function replaceOrAddRoom(prev: any, room: ClassRoom) {
   const current = syncActiveClass(prev);
@@ -98,8 +99,10 @@ export default function ClassTeam() {
       setNeedsSchoolLogin(false);
     } catch (cause: any) {
       const schoolLoginRequired = cause?.status === 403;
-      setNeedsSchoolLogin(schoolLoginRequired);
-      setError(schoolLoginRequired
+      setNeedsSchoolLogin(cause?.status === 401 || schoolLoginRequired);
+      setError(cause?.status === 401
+        ? 'Deine Anmeldung ist abgelaufen. Melde dich hier mit deiner bisherigen Schulmail erneut an. Deine lokale Klasse bleibt erhalten.'
+        : schoolLoginRequired
         ? 'Für Teamteaching brauchst du eine Anmeldung mit einer verifizierten Schulmail.'
         : cause instanceof Error ? cause.message : 'Klassenteam konnte nicht geladen werden.');
     } finally {
@@ -108,17 +111,22 @@ export default function ClassTeam() {
   }, []);
 
   React.useEffect(() => { void load(); }, [load]);
+  React.useEffect(() => {
+    const reload = () => { void load(); };
+    window.addEventListener(ACCOUNT_SESSION_CHANGED_EVENT, reload);
+    return () => window.removeEventListener(ACCOUNT_SESSION_CHANGED_EVENT, reload);
+  }, [load]);
   // Update the visible content revision even while the colleague works on another device.
   React.useEffect(() => {
-    if (!activeSharedId) return;
+    if (!activeSharedId || needsSchoolLogin) return;
     const refresh = window.setInterval(() => {
       if (document.visibilityState !== 'visible') return;
-      void listSharedClasses().then(setShared).catch(() => {
-        // The live team sync badge still reports authentication / connectivity failures.
+      void listSharedClasses().then(setShared).catch((cause) => {
+        if (cause?.status === 401 || cause?.status === 403) void load();
       });
     }, 10000);
     return () => window.clearInterval(refresh);
-  }, [activeSharedId]);
+  }, [activeSharedId, needsSchoolLogin, load]);
 
   const enableSharing = async () => {
     if (!activeRoom) return;
@@ -586,13 +594,7 @@ export default function ClassTeam() {
 
       {error && <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm font-semibold text-rose-700">{error}</div>}
       {needsSchoolLogin && (
-        <EmailAccountLogin
-          onSuccess={() => {
-            setError(null);
-            setNeedsSchoolLogin(false);
-            void load();
-          }}
-        />
+        <EmailAccountLogin />
       )}
       {notice && <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm font-semibold">{notice}</div>}
 

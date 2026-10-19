@@ -93,10 +93,13 @@ test('Fresh device retains the team link without copying another device\'s keys,
   const newDevice = syncActiveClass(mergeAccountSyncState(encryptedAccount,
     { ...initialAppState, classes: [], activeClassId: '' } as any));
   assert.equal(newDevice.classes[0].teamTeachingSharedClassId, 'shared-1');
-  assert.equal(newDevice.classes[0].teamTeaching, undefined);
+  assert.equal(newDevice.classes[0].teamTeaching?.sharedClassId, 'shared-1');
+  assert.equal(newDevice.classes[0].teamTeaching?.role, 'viewer');
+  assert.equal(newDevice.classes[0].teamTeaching?.revision, 0);
+  assert.equal(newDevice.classes[0].teamTeaching?.lastSyncedHash, undefined);
   assert.equal(newDevice.wochenplanung[39].Montag[0].thema, 'Neu im Team geplant');
-  // The new device has a link but cannot decrypt the live shared class until
-  // its own public device key has been explicitly approved.
+  // The placeholder starts the authoritative pull, with no write permission or
+  // acknowledgement copied from the other device. Its own key still needs approval.
 });
 
 test('Team link is absent from the E2E-encrypted shared-class contents and does not trigger phantom edits', async () => {
