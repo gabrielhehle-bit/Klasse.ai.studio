@@ -16,6 +16,8 @@ import {
   pushSharedClass,
   removeTeamTeachingMember,
   refreshTeamTeachingMemberDevices,
+  requestTeamTeachingDeviceAccess,
+  approveTeamTeachingDeviceAccess,
   updateTeamTeachingMemberRole,
   type SharedClassSummary,
   type SharedClassHistoryVersion,
@@ -29,6 +31,9 @@ import type { ClassRoom } from '../types';
 import ClassTeamStatus from './ClassTeamStatus';
 import EmailAccountLogin from './EmailAccountLogin';
 import { ACCOUNT_SESSION_CHANGED_EVENT } from '../lib/accountSyncService';
+import { useTeamDeviceAuthorization } from '../hooks/useTeamDeviceAuthorization';
+
+const TEAM_CONNECTION_ERROR = 'Die Verbindung zum Klassenteam ist gerade unterbrochen. Sie wird automatisch erneut geprüft.';
 
 function replaceOrAddRoom(prev: any, room: ClassRoom) {
   const current = syncActiveClass(prev);
@@ -61,6 +66,8 @@ export default function ClassTeam() {
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
   const [needsSchoolLogin, setNeedsSchoolLogin] = React.useState(false);
+  const [teamUserId, setTeamUserId] = React.useState('');
+  const [teamDeviceId, setTeamDeviceId] = React.useState('');
   const [history, setHistory] = React.useState<SharedClassHistoryVersion[]>([]);
   const [historyBusy, setHistoryBusy] = React.useState(false);
   const [changesPreview, setChangesPreview] = React.useState<{
@@ -78,6 +85,10 @@ export default function ClassTeam() {
   const activeRoom = synced.classes?.find(room => room.id === synced.activeClassId);
   const activeSharedId = activeRoom?.teamTeaching?.sharedClassId;
   const activeSummary = shared.find(item => item.id === activeSharedId);
+  const deviceAuthorization = useTeamDeviceAuthorization(activeSharedId);
+  const ownDeviceRequest = activeSummary?.deviceAccessRequests?.find(request => request.userId === teamUserId && request.deviceId === teamDeviceId);
+  const deviceRequestsToApprove = shared.filter(room => room.myRole !== 'viewer').flatMap(room =>
+    (room.deviceAccessRequests || []).filter(request => request.userId !== teamUserId).map(request => ({ room, request })));
   const knownTeamReference = activeRoom?.teamTeachingSharedClassId;
   const reconnectableTeam = knownTeamReference
     ? shared.find(item => item.id === knownTeamReference)
@@ -87,7 +98,7 @@ export default function ClassTeam() {
     setLoading(true);
     setError(null);
     try {
-      await ensureRegisteredTeamTeachingDevice();
+      const session = await ensureRegisteredTeamTeachingDevice();
       const [classes, users, allSchoolUsers] = await Promise.all([
         listSharedClasses(),
         listTeamTeachingColleagues(),
@@ -96,6 +107,8 @@ export default function ClassTeam() {
       setShared(classes);
       setColleagues(users);
       setSchoolUsers(allSchoolUsers);
+      setTeamUserId(session.me.user.userId);
+      setTeamDeviceId(session.device.deviceId);
       setNeedsSchoolLogin(false);
     } catch (cause: any) {
       const schoolLoginRequired = cause?.status === 403;
@@ -104,6 +117,7 @@ export default function ClassTeam() {
         ? 'Deine Anmeldung ist abgelaufen. Melde dich hier mit deiner bisherigen Schulmail erneut an. Deine lokale Klasse bleibt erhalten.'
         : schoolLoginRequired
         ? 'Für Teamteaching brauchst du eine Anmeldung mit einer verifizierten Schulmail.'
+        : cause instanceof TypeError ? TEAM_CONNECTION_ERROR
         : cause instanceof Error ? cause.message : 'Klassenteam konnte nicht geladen werden.');
     } finally {
       setLoading(false);
@@ -116,17 +130,54 @@ export default function ClassTeam() {
     window.addEventListener(ACCOUNT_SESSION_CHANGED_EVENT, reload);
     return () => window.removeEventListener(ACCOUNT_SESSION_CHANGED_EVENT, reload);
   }, [load]);
+  React.useEffect(() => {
+    const reconnect = () => { if (!needsSchoolLogin) void load(); };
+    window.addEventListener('online', reconnect);
+    window.addEventListener('focus', reconnect);
+    return () => {
+      window.removeEventListener('online', reconnect);
+      window.removeEventListener('focus', reconnect);
+    };
+  }, [load, needsSchoolLogin]);
   // Update the visible content revision even while the colleague works on another device.
   React.useEffect(() => {
-    if (!activeSharedId || needsSchoolLogin) return;
+    if (needsSchoolLogin) return;
     const refresh = window.setInterval(() => {
       if (document.visibilityState !== 'visible') return;
-      void listSharedClasses().then(setShared).catch((cause) => {
+      void listSharedClasses().then(classes => {
+        setShared(classes);
+        setError(previous => previous === TEAM_CONNECTION_ERROR ? null : previous);
+      }).catch((cause) => {
         if (cause?.status === 401 || cause?.status === 403) void load();
+        else if (cause instanceof TypeError) setError(TEAM_CONNECTION_ERROR);
       });
     }, 10000);
     return () => window.clearInterval(refresh);
   }, [activeSharedId, needsSchoolLogin, load]);
+
+  const requestDeviceAccess = async (sharedClassId = activeSharedId) => {
+    if (!sharedClassId) return;
+    setBusy('request-device');
+    setError(null);
+    try {
+      const request = await requestTeamTeachingDeviceAccess(sharedClassId);
+      setNotice('Freigabe angefordert. Bitte deine Teamkollegin oder deinen Teamkollegen um Bestätigung bitten. Prüfcode: ' + request.verificationCode);
+      await load();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Freigabe konnte nicht angefordert werden.'); }
+    finally { setBusy(null); }
+  };
+
+  const approveDeviceAccess = async (sharedClassId: string, requestId: string, name: string, code: string) => {
+    if (!window.confirm('Gerät für ' + name + ' freigeben? Bitte den Prüfcode ' + code + ' mit der anfragenden Lehrperson abgleichen. Die Klassenrolle bleibt unverändert.')) return;
+    setBusy('approve-device:' + requestId);
+    setError(null);
+    try {
+      await approveTeamTeachingDeviceAccess(sharedClassId, requestId);
+      setNotice('Das angefragte Gerät für ' + name + ' ist freigegeben.');
+      await load();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Das Gerät konnte nicht freigegeben werden.'); }
+    finally { setBusy(null); }
+  };
 
   const enableSharing = async () => {
     if (!activeRoom) return;
@@ -175,7 +226,7 @@ export default function ClassTeam() {
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Die geteilte Klasse konnte nicht geöffnet werden.';
       setError(message.includes('noch nicht freigegeben')
-        ? 'Dieses Gerät ist noch nicht für die geteilte Klasse freigegeben. Bitte die Klassenbesitzerin oder den Klassenbesitzer auf einem bereits berechtigten Gerät im Klassenteam → Lehrpersonen → „Geräte“ die neuen Geräteschlüssel freigeben lassen. Danach hier erneut „Teamklasse verbinden“ wählen.'
+        ? 'Dieses Gerät braucht noch eine Freigabe. Klicke unten bei der geteilten Klasse auf „Freigabe anfordern“. Eine bereits berechtigte Teamlehrperson kann dein Gerät bestätigen.'
         : message);
     } finally {
       setBusy(null);
@@ -593,10 +644,27 @@ export default function ClassTeam() {
       </header>
 
       {error && <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm font-semibold text-rose-700">{error}</div>}
+      {error === TEAM_CONNECTION_ERROR && <button type="button" onClick={() => void load()} className="rounded-xl border border-[var(--border)] px-4 py-2 font-bold">Verbindung erneut prüfen</button>}
       {needsSchoolLogin && (
         <EmailAccountLogin />
       )}
       {notice && <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm font-semibold">{notice}</div>}
+
+      {deviceRequestsToApprove.length > 0 && <section className="rounded-2xl border border-[var(--accent)] bg-[var(--surface)] p-5 space-y-3" aria-label="Geräteanfragen im Klassenteam">
+        <h2 className="font-black">Ein Teamgerät braucht deine Bestätigung</h2>
+        {deviceRequestsToApprove.map(({ room, request }) => <div key={request.id} className="rounded-xl bg-[var(--surface2)] p-4">
+          <p className="font-bold">{request.displayName} · {room.classLabel}</p>
+          <p className="mt-1 text-sm">Möchte diese bestehende Teamklasse auf einem Gerät öffnen. Prüfcode: <strong>{request.verificationCode}</strong></p>
+          <button type="button" disabled={Boolean(busy)} onClick={() => void approveDeviceAccess(room.id, request.id, request.displayName, request.verificationCode)} className="mt-3 rounded-xl bg-[var(--accent)] px-4 py-2 font-black text-white disabled:opacity-50">Gerät freigeben</button>
+        </div>)}
+      </section>}
+
+      {activeSharedId && deviceAuthorization === 'unauthorized' && <section className="rounded-2xl border border-amber-400 bg-amber-50 p-5 text-slate-900" aria-label="Freigabe für dieses Gerät">
+        <h2 className="font-black">Dieses Gerät braucht noch eine Freigabe</h2>
+        {ownDeviceRequest ? <p className="mt-2 text-sm">Deine Anfrage ist gesendet. Bitte eine Teamlehrperson, im Klassenteam auf „Gerät freigeben“ zu klicken. Dein Prüfcode: <strong>{ownDeviceRequest.verificationCode}</strong></p>
+          : <><p className="mt-2 text-sm">Bitte eine Teamlehrperson, die diese Klasse noch öffnen kann, dein Gerät zu bestätigen. Deine vorhandenen Einträge bleiben erhalten.</p>
+            <button type="button" disabled={Boolean(busy)} onClick={() => void requestDeviceAccess()} className="mt-3 rounded-xl bg-[var(--accent)] px-4 py-2 font-black text-white disabled:opacity-50">Freigabe anfordern</button></>}
+      </section>}
 
       <section className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -815,7 +883,10 @@ export default function ClassTeam() {
             <div key={summary.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--surface2)] p-3">
               <div><div className="font-bold">{summary.classLabel}</div><div className="text-xs text-[var(--text3)]">{summary.members.length} Lehrperson(en) · Revision {summary.revision}</div></div>
               {!synced.classes?.some(room => room.teamTeaching?.sharedClassId === summary.id) && (
-                <button onClick={() => void adopt(summary)} disabled={Boolean(busy)} className="rounded-lg bg-[var(--accent)] px-3 py-2 text-xs font-black text-white">Auf diesem Gerät öffnen</button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button onClick={() => void adopt(summary)} disabled={Boolean(busy)} className="rounded-lg bg-[var(--accent)] px-3 py-2 text-xs font-black text-white">Auf diesem Gerät öffnen</button>
+                  <button onClick={() => void requestDeviceAccess(summary.id)} disabled={Boolean(busy)} className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-bold">Freigabe anfordern</button>
+                </div>
               )}
             </div>
           ))}

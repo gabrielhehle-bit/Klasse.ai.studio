@@ -297,6 +297,23 @@ async function openClassTeam(client) {
   await waitFor(client, 'class team workspace', 'document.body?.innerText.includes("Eine Klasse gemeinsam führen")', 30000);
 }
 
+async function reloadExistingTeamVault(client, password) {
+  await evaluate(client, 'window.__klassioBeforeTeamReload = true');
+  client.allowTeamTestReload = true;
+  await client.send('Page.reload', { ignoreCache: true });
+  await waitFor(client, 'new document after team browser reload',
+    'document.readyState === "complete" && window.__klassioBeforeTeamReload !== true', 45000);
+  client.allowTeamTestReload = false;
+  await waitFor(client, 'team class or vault unlock after reload',
+    'document.body?.innerText.includes("E2E 1A") || document.body?.innerText.includes("Tresor entsperren") || document.body?.innerText.includes("Daten laden & KLASSIO öffnen")', 45000);
+  if (await evaluate(client, 'Boolean(document.querySelector("input[placeholder=\\"Passwort eingeben\\"]"))')) {
+    await setInputByLabel(client, 'Passwort eingeben', password);
+    const fromAccount = await evaluate(client, 'document.body?.innerText.includes("Daten laden & KLASSIO öffnen")');
+    await clickButton(client, fromAccount ? 'Daten laden & KLASSIO öffnen' : 'Tresor entsperren');
+  }
+  await waitFor(client, 'same shared class restored', 'document.body?.innerText.includes("E2E 1A")', 45000);
+}
+
 async function main() {
   await fs.rm(SMTP_CODES, { force: true }).catch(() => {});
 
@@ -308,6 +325,9 @@ async function main() {
     client.on('Page.javascriptDialogOpening', params => {
       if (params.type === 'beforeunload' && client.allowTeamTestReload) {
         console.log('✓ ' + client.name + ': acknowledging reload dialog for saved synthetic fixture');
+        void client.send('Page.handleJavaScriptDialog', { accept: true });
+      }
+      if (params.type === 'confirm' && client.deviceApprovalCode && params.message.includes('Prüfcode ' + client.deviceApprovalCode)) {
         void client.send('Page.handleJavaScriptDialog', { accept: true });
       }
     });
@@ -442,20 +462,7 @@ async function main() {
       const before = await evaluate(client, deviceIds);
       if (!before.length) throw new Error(client.name + ': no persisted team device identity');
       console.log('✓ ' + client.name + ': persisted team identity read before reload');
-      await evaluate(client, 'window.__klassioBeforeTeamReload = true');
-      client.allowTeamTestReload = true;
-      await client.send('Page.reload', { ignoreCache: true });
-      await waitFor(client, 'new document after team browser reload',
-        'document.readyState === "complete" && window.__klassioBeforeTeamReload !== true', 45000);
-      client.allowTeamTestReload = false;
-      await waitFor(client, 'team class or vault unlock after reload',
-        'document.body?.innerText.includes("E2E 1A") || document.body?.innerText.includes("Tresor entsperren") || document.body?.innerText.includes("Daten laden & KLASSIO öffnen")', 45000);
-      if (await evaluate(client, 'Boolean(document.querySelector("input[placeholder=\\"Passwort eingeben\\"]"))')) {
-        await setInputByLabel(client, 'Passwort eingeben', password);
-        const fromAccount = await evaluate(client, 'document.body?.innerText.includes("Daten laden & KLASSIO öffnen")');
-        await clickButton(client, fromAccount ? 'Daten laden & KLASSIO öffnen' : 'Tresor entsperren');
-      }
-      await waitFor(client, 'same shared class restored', 'document.body?.innerText.includes("E2E 1A")', 45000);
+      await reloadExistingTeamVault(client, password);
       await openClassTeam(client);
       const after = await evaluate(client, deviceIds);
       if (JSON.stringify(after) !== JSON.stringify(before)) throw new Error(client.name + ': team device identity changed across reload');
@@ -467,6 +474,36 @@ async function main() {
         'document.body?.innerText.includes(' + q(recoveredTopic) + ')');
     }
     console.log('✓ Both teacher browsers keep the same persisted device identity and decrypt the latest team class after reload');
+
+    // Synthetic production regression: the owner loses ONLY the browser's RSA
+    // identity. Vault/class data remain present; the editor still has the team key.
+    await waitFor(anna, 'owner account saved before synthetic key loss',
+      'Boolean(document.querySelector("header[data-account-sync-status=synced]"))', 45000);
+    await evaluate(anna, 'new Promise((resolve,reject)=>{const req=indexedDB.open("Klassio_TeamTeaching");req.onerror=()=>reject(req.error);req.onsuccess=()=>{const db=req.result;const tx=db.transaction("device_keys","readwrite");tx.objectStore("device_keys").clear();tx.oncomplete=()=>{db.close();resolve(true);};tx.onerror=()=>{db.close();reject(tx.error);};};})');
+    await reloadExistingTeamVault(anna, VAULT_A);
+    await openClassTeam(anna);
+    await waitFor(anna, 'owner can request missing device access',
+      'Array.from(document.querySelectorAll("button")).some(b=>b.textContent.trim()==="Freigabe anfordern")', 30000);
+    await clickButton(anna, 'Freigabe anfordern', true);
+    await waitFor(anna, 'owner device request is pending', 'document.body?.innerText.includes("Deine Anfrage ist gesendet")');
+    const pending = await evaluate(anna, 'fetch("/api/teamteaching/classes",{cache:"no-store"}).then(r=>r.json()).then(d=>d.classes.flatMap(c=>c.deviceAccessRequests||[])[0])');
+    if (!pending?.verificationCode) throw new Error('No pending owner device request was persisted');
+    await openClassTeam(berta);
+    await waitFor(berta, 'existing editor sees exact owner request code',
+      'document.body?.innerText.includes(' + q(pending.verificationCode) + ') && document.body?.innerText.includes("Ein Teamgerät braucht deine Bestätigung")', 30000);
+    berta.deviceApprovalCode = pending.verificationCode;
+    await clickButton(berta, 'Gerät freigeben', true);
+    berta.deviceApprovalCode = null;
+    await waitFor(berta, 'editor approval confirmed', 'document.body?.innerText.includes("ist freigegeben")');
+    await waitFor(anna, 'owner device resumes decrypted team sync after editor approval',
+      'Boolean(document.querySelector("[data-team-sync-status=synced]"))', 30000);
+    await clickSidebar(anna, 'Wochenplan');
+    await waitFor(anna, 'latest editor lesson survives owner key recovery',
+      'document.body?.innerText.includes(' + q(recoveredTopic) + ')');
+    const rolesAfterRecovery = await evaluate(anna,
+      'fetch("/api/teamteaching/classes",{cache:"no-store"}).then(r=>r.json()).then(d=>d.classes.find(c=>c.classLabel==="E2E 1A")).then(c=>({myRole:c.myRole,editors:c.members.filter(m=>m.role==="editor").length,pending:c.deviceAccessRequests.length}))');
+    if (rolesAfterRecovery.myRole !== 'owner' || rolesAfterRecovery.editors !== 1 || rolesAfterRecovery.pending !== 0) throw new Error('Owner recovery changed roles or left a reusable request');
+    console.log('✓ Lost owner key recovered through explicit request and existing editor confirmation; roles and latest team lesson preserved');
 
     const teamFileHasCiphertext = await fs.readFile('/tmp/klassio-e2e-data/teamteaching.json', 'utf8');
     if (!teamFileHasCiphertext.includes('"ciphertext"')) throw new Error('Server teamteaching store has no encrypted snapshot.');

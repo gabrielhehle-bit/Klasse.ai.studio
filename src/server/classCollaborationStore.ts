@@ -37,6 +37,19 @@ export interface SharedClassRecord {
   /** Content timestamps do not change when a colleague or device is added. */
   contentUpdatedAt?: string;
   contentUpdatedBy?: string;
+  deviceAccessRequests?: TeamDeviceAccessRequest[];
+}
+
+export interface TeamDeviceAccessRequest {
+  id: string;
+  userId: string;
+  displayName: string;
+  deviceId: string;
+  fingerprint: string;
+  publicKeyJwk: Record<string, unknown>;
+  createdAt: string;
+  expiresAt: string;
+  verificationCode: string;
 }
 
 export interface SharedClassHistoryEntry {
@@ -392,6 +405,62 @@ export class ClassCollaborationStore {
     });
   }
 
+  async requestDeviceAccess(identity: TeacherIdentity, classId: string, deviceId: unknown): Promise<TeamDeviceAccessRequest> {
+    if (!isDeviceId(deviceId)) throw new Error('INVALID_DEVICE_KEY');
+    return this.mutate(data => {
+      const record = (data.classes[identity.schoolId] || []).find(item => item.id === classId);
+      if (!record) throw new Error('CLASS_NOT_FOUND');
+      const member = record.members.find(item => item.userId === identity.userId);
+      if (!member) throw new Error('FORBIDDEN');
+      const device = data.devices[identity.schoolId]?.[identity.userId]?.find(item => item.deviceId === deviceId);
+      if (!device) throw new Error('INVALID_DEVICE_KEY');
+      const now = Date.now();
+      const pending = (record.deviceAccessRequests || []).filter(item => Date.parse(item.expiresAt) > now
+        && record.members.some(member => member.userId === item.userId));
+      const existing = pending.find(item => item.userId === identity.userId && item.deviceId === deviceId
+        && item.fingerprint === device.fingerprint);
+      if (existing) return structuredClone(existing);
+      if (pending.length >= 20) throw new Error('TOO_MANY_DEVICE_REQUESTS');
+      const request: TeamDeviceAccessRequest = {
+        id: crypto.randomUUID(), userId: identity.userId, displayName: member.displayName,
+        deviceId, fingerprint: device.fingerprint, publicKeyJwk: { ...device.publicKeyJwk },
+        createdAt: new Date(now).toISOString(), expiresAt: new Date(now + 24 * 60 * 60 * 1000).toISOString(),
+        verificationCode: crypto.randomInt(100000, 1000000).toString(),
+      };
+      record.deviceAccessRequests = [...pending.filter(item => item.userId !== identity.userId || item.deviceId !== deviceId), request];
+      return structuredClone(request);
+    });
+  }
+
+  async approveDeviceAccess(identity: TeacherIdentity, classId: string, requestId: string,
+    approvingDeviceId: unknown, wrappedKey: unknown): Promise<SharedClassRecord> {
+    if (!isDeviceId(approvingDeviceId) || !isWrappedKey(wrappedKey)) throw new Error('INVALID_WRAPPED_KEYS');
+    return this.mutate(data => {
+      const record = (data.classes[identity.schoolId] || []).find(item => item.id === classId);
+      if (!record) throw new Error('CLASS_NOT_FOUND');
+      const approver = record.members.find(item => item.userId === identity.userId);
+      if (!approver) throw new Error('FORBIDDEN');
+      if (approver.role === 'viewer') throw new Error('READ_ONLY');
+      const approvingDevice = data.devices[identity.schoolId]?.[identity.userId]?.find(item => item.deviceId === approvingDeviceId);
+      if (!approvingDevice || !approver.wrappedKeys[approvingDeviceId]) throw new Error('DEVICE_APPROVAL_REQUIRED');
+      const request = record.deviceAccessRequests?.find(item => item.id === requestId);
+      if (!request || Date.parse(request.expiresAt) <= Date.now()) throw new Error('DEVICE_REQUEST_EXPIRED');
+      const member = record.members.find(item => item.userId === request.userId);
+      if (!member) throw new Error('MEMBER_NOT_FOUND');
+      const device = data.devices[identity.schoolId]?.[request.userId]?.find(item => item.deviceId === request.deviceId);
+      if (!device || device.fingerprint !== request.fingerprint
+        || publicKeyFingerprint(request.publicKeyJwk) !== request.fingerprint) throw new Error('DEVICE_KEY_CHANGED');
+      if (identity.userId === request.userId && approvingDeviceId === request.deviceId) throw new Error('DEVICE_APPROVAL_REQUIRED');
+      // Grant only the requesting existing member's exact registered device.
+      // Existing keys, roles, class contents and revision remain unchanged.
+      member.wrappedKeys = { ...member.wrappedKeys, [request.deviceId]: wrappedKey };
+      record.deviceAccessRequests = record.deviceAccessRequests!.filter(item => item.id !== requestId);
+      record.updatedAt = new Date().toISOString();
+      record.updatedBy = identity.userId;
+      return cloneRecord(record);
+    });
+  }
+
   async updateMemberKeys(
     identity: TeacherIdentity,
     classId: string,
@@ -461,6 +530,7 @@ export class ClassCollaborationStore {
       const index = record.members.findIndex(member => member.userId === userId);
       if (index < 0) throw new Error('MEMBER_NOT_FOUND');
       record.members.splice(index, 1);
+      record.deviceAccessRequests = (record.deviceAccessRequests || []).filter(request => request.userId !== userId);
       record.updatedAt = new Date().toISOString();
       record.updatedBy = identity.userId;
       return cloneRecord(record);
