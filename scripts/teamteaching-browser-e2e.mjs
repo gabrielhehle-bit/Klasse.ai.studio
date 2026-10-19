@@ -61,7 +61,14 @@ class CdpClient {
     if (!this.ws) throw new Error(this.name + ': CDP client is not connected.');
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
+      const timeout = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error(this.name + ': Chrome request timed out: ' + method));
+      }, 30000);
+      this.pending.set(id, {
+        resolve: result => { clearTimeout(timeout); resolve(result); },
+        reject: error => { clearTimeout(timeout); reject(error); },
+      });
       this.ws.send(JSON.stringify({ id, method, params }));
     });
   }
@@ -298,6 +305,12 @@ async function main() {
   const uncaught = [];
 
   for (const client of [anna, berta]) {
+    client.on('Page.javascriptDialogOpening', params => {
+      if (params.type === 'beforeunload' && client.allowTeamTestReload) {
+        console.log('✓ ' + client.name + ': acknowledging reload dialog for saved synthetic fixture');
+        void client.send('Page.handleJavaScriptDialog', { accept: true });
+      }
+    });
     client.on('Runtime.exceptionThrown', params => {
       const details = params.exceptionDetails || {};
       uncaught.push(client.name + ': ' + (details.exception?.description || details.text || 'Unknown browser exception'));
@@ -421,16 +434,20 @@ async function main() {
       'document.body?.innerText.includes(' + q(recoveredTopic) + ')', 18000);
     console.log('✓ Team sync resumes after re-login: new editor lesson reaches owner automatically');
 
-    const deviceIds = 'new Promise((resolve,reject)=>{const req=indexedDB.open("Klassio_TeamTeaching");req.onerror=()=>reject(req.error);req.onsuccess=()=>{const db=req.result;const read=db.transaction("device_keys","readonly").objectStore("device_keys").getAll();read.onerror=()=>{db.close();reject(read.error);};read.onsuccess=()=>{db.close();resolve(read.result.map(d=>d.deviceId).sort());};};})';
+    const deviceIds = 'new Promise((resolve,reject)=>{const req=indexedDB.open("Klassio_TeamTeaching");req.onerror=()=>reject(req.error);req.onblocked=()=>reject(new Error("Team device database blocked"));req.onsuccess=()=>{const db=req.result;try{const read=db.transaction("device_keys","readonly").objectStore("device_keys").getAll();read.onerror=()=>{db.close();reject(read.error);};read.onsuccess=()=>{db.close();resolve(read.result.filter(d=>d&&typeof d.deviceId==="string").map(d=>d.deviceId).sort());};}catch(e){db.close();reject(e);}};})';
     for (const [client, password] of [[anna, VAULT_A], [berta, VAULT_B]]) {
+      console.log('✓ Starting persisted device reload check: ' + client.name);
       await waitFor(client, 'local team state durably saved before reload',
         'Boolean(document.querySelector("header[data-account-sync-status=synced]"))', 45000);
       const before = await evaluate(client, deviceIds);
       if (!before.length) throw new Error(client.name + ': no persisted team device identity');
+      console.log('✓ ' + client.name + ': persisted team identity read before reload');
       await evaluate(client, 'window.__klassioBeforeTeamReload = true');
+      client.allowTeamTestReload = true;
       await client.send('Page.reload', { ignoreCache: true });
       await waitFor(client, 'new document after team browser reload',
         'document.readyState === "complete" && window.__klassioBeforeTeamReload !== true', 45000);
+      client.allowTeamTestReload = false;
       await waitFor(client, 'team class or vault unlock after reload',
         'document.body?.innerText.includes("E2E 1A") || document.body?.innerText.includes("Tresor entsperren") || document.body?.innerText.includes("Daten laden & KLASSIO öffnen")', 45000);
       if (await evaluate(client, 'Boolean(document.querySelector("input[placeholder=\\"Passwort eingeben\\"]"))')) {
