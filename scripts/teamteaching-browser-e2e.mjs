@@ -409,6 +409,18 @@ async function main() {
       'document.body?.innerText.includes(' + q(weeklyTopic) + ')');
     console.log('✓ Expired session: inline school-mail login reconnects existing team without losing weekly planning');
 
+    const recoveredTopic = 'E2E Teamänderung nach erneuter Anmeldung';
+    const recoveryCellOpened = await evaluate(berta,
+      '(() => { for(const svg of document.querySelectorAll("svg.lucide-plus")) { let el=svg.parentElement; while(el && el!==document.body) { if(String(el.className||"").includes("group/cell") && String(el.className||"").includes("min-h-[5.3125rem]")) { el.click(); return true; } el=el.parentElement; } } return false; })()');
+    if (!recoveryCellOpened) throw new Error('Could not open a weekly cell after team session recovery.');
+    await waitFor(berta, 'weekly lesson edit after re-login', 'document.body?.innerText.includes("Einheit planen")');
+    await setInputByLabel(berta, 'Was wird gelernt?', recoveredTopic);
+    await clickButton(berta, 'Einheit speichern');
+    await clickSidebar(anna, 'Wochenplan');
+    await waitFor(anna, 'teacher A receives new teacher B lesson after session recovery',
+      'document.body?.innerText.includes(' + q(recoveredTopic) + ')', 18000);
+    console.log('✓ Team sync resumes after re-login: new editor lesson reaches owner automatically');
+
     const teamFileHasCiphertext = await fs.readFile('/tmp/klassio-e2e-data/teamteaching.json', 'utf8');
     if (!teamFileHasCiphertext.includes('"ciphertext"')) throw new Error('Server teamteaching store has no encrypted snapshot.');
     if (teamFileHasCiphertext.includes('"schueler"') || teamFileHasCiphertext.includes('"noten"')) {
