@@ -9,6 +9,7 @@ import {
   wrapClassKeyForPublicKey,
 } from './teamTeachingCrypto';
 import { ensureTeamTeachingDevice, type TeamTeachingDeviceIdentity } from './teamTeachingDevice';
+import { ACCOUNT_SESSION_CHANGED_EVENT } from './accountSyncService';
 
 export type TeamTeachingRole = 'owner' | 'editor' | 'viewer';
 
@@ -79,10 +80,12 @@ type ReadJsonError = Error & { status?: number; code?: string; currentRevision?:
 
 const keyCache = new Map<string, CryptoKey>();
 let registeredSession: { me: TeamTeachingMe; device: TeamTeachingDeviceIdentity } | null = null;
+let sessionGeneration = 0;
 
 async function readJson<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (response.status === 401 || response.status === 403) clearTeamTeachingKeyCache();
     const error = new Error(data?.error || 'Teamteaching-Anfrage fehlgeschlagen.') as ReadJsonError;
     error.status = response.status;
     error.code = data?.code;
@@ -101,6 +104,7 @@ export async function ensureRegisteredTeamTeachingDevice(): Promise<{
   device: TeamTeachingDeviceIdentity;
 }> {
   if (registeredSession) return registeredSession;
+  const generation = sessionGeneration;
 
   const me = await getTeamTeachingMe();
   const device = await ensureTeamTeachingDevice(me.user.userId);
@@ -113,6 +117,7 @@ export async function ensureRegisteredTeamTeachingDevice(): Promise<{
     }),
   }).then(readJson);
 
+  if (generation !== sessionGeneration) throw new Error('Anmeldung wurde geändert. Teamverbindung wird erneut geprüft.');
   registeredSession = { me, device };
   return registeredSession;
 }
@@ -395,6 +400,12 @@ export async function deleteSharedClass(sharedClassId: string): Promise<void> {
 }
 
 export function clearTeamTeachingKeyCache(): void {
+  sessionGeneration += 1;
   keyCache.clear();
   registeredSession = null;
+}
+
+// Login/account changes must never reuse another account's cached device or class keys.
+if (typeof window !== 'undefined') {
+  window.addEventListener(ACCOUNT_SESSION_CHANGED_EVENT, clearTeamTeachingKeyCache);
 }

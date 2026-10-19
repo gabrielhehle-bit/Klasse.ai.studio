@@ -313,6 +313,7 @@ async function main() {
     console.log('✓ Lehrkraft A: class encrypted and shared');
 
     await loginWithSchoolMail(berta, EMAIL_B, VAULT_B);
+    const bertaFirstLoginAt = Date.now();
     // A second teacher must also complete the one-time school/class setup
     // before opening classroom tools; their shared class is added afterwards.
     await createClassInUi(berta, 'Berta eigene Klasse 1B');
@@ -384,6 +385,41 @@ async function main() {
     await clickButton(anna, 'Neueste Version laden');
     await waitFor(anna, 'owner pulls second teacher revision', 'document.body?.innerText.includes("Neuester verschlüsselter Stand wurde geladen")', 30000);
     console.log('✓ Lehrkraft A: pulled newest encrypted revision');
+
+    // Reproduce the reported dead end: local profile/class is still visible,
+    // but the server session is gone. Re-login must be possible in Klassenteam.
+    await openClassTeam(berta);
+    await evaluate(berta, 'fetch("/api/access/logout",{method:"POST"}).then(r=>{if(!r.ok)throw new Error("Logout failed");return true;})');
+    await waitFor(berta, 'expired team session offers inline re-login',
+      'document.body?.innerText.includes("Deine Anmeldung ist abgelaufen") && Boolean(document.querySelector("input[type=email]"))', 20000);
+    // The same email cannot request another code within 60 seconds. Keep the
+    // production throttle intact and also verify the inline form stays mounted.
+    const codeCooldownRemaining = 61_000 - (Date.now() - bertaFirstLoginAt);
+    if (codeCooldownRemaining > 0) await sleep(codeCooldownRemaining);
+    await fs.rm(SMTP_CODES, { force: true });
+    await setInputByLabel(berta, 'vorname.nachname@schule.at', EMAIL_B);
+    await clickButton(berta, 'Anmeldecode per E-Mail senden');
+    await waitFor(berta, 'inline email code field', 'Boolean(document.querySelector("input[autocomplete=one-time-code]"))');
+    await setInputByLabel(berta, '000000', await waitForMailCode(EMAIL_B));
+    await clickButton(berta, 'Anmelden & Sync starten');
+    await waitFor(berta, 'same shared class reconnects after re-login',
+      '!document.querySelector("input[type=email]") && document.body?.innerText.includes("Rolle: editor") && /Gemeinsamer Teamstand: Version \\d+/.test(document.body?.innerText||"")', 30000);
+    await clickSidebar(berta, 'Wochenplan');
+    await waitFor(berta, 'weekly lesson retained after session recovery',
+      'document.body?.innerText.includes(' + q(weeklyTopic) + ')');
+    console.log('✓ Expired session: inline school-mail login reconnects existing team without losing weekly planning');
+
+    const recoveredTopic = 'E2E Teamänderung nach erneuter Anmeldung';
+    const recoveryCellOpened = await evaluate(berta,
+      '(() => { for(const svg of document.querySelectorAll("svg.lucide-plus")) { let el=svg.parentElement; while(el && el!==document.body) { if(String(el.className||"").includes("group/cell") && String(el.className||"").includes("min-h-[5.3125rem]")) { el.click(); return true; } el=el.parentElement; } } return false; })()');
+    if (!recoveryCellOpened) throw new Error('Could not open a weekly cell after team session recovery.');
+    await waitFor(berta, 'weekly lesson edit after re-login', 'document.body?.innerText.includes("Einheit planen")');
+    await setInputByLabel(berta, 'Was wird gelernt?', recoveredTopic);
+    await clickButton(berta, 'Einheit speichern');
+    await clickSidebar(anna, 'Wochenplan');
+    await waitFor(anna, 'teacher A receives new teacher B lesson after session recovery',
+      'document.body?.innerText.includes(' + q(recoveredTopic) + ')', 18000);
+    console.log('✓ Team sync resumes after re-login: new editor lesson reaches owner automatically');
 
     const teamFileHasCiphertext = await fs.readFile('/tmp/klassio-e2e-data/teamteaching.json', 'utf8');
     if (!teamFileHasCiphertext.includes('"ciphertext"')) throw new Error('Server teamteaching store has no encrypted snapshot.');
