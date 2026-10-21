@@ -9109,8 +9109,9 @@ ${content}
                                     onClick={() => setIsWidgetConfigurationOpen(true)}
                                     aria-label="Widget-Voreinstellungen öffnen"
                                     title="Widget-Voreinstellungen"
-                                    className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100">
+                                    className="flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-700 hover:bg-slate-100">
                                     <Settings size={18} aria-hidden="true" />
+                                    <span className="hidden text-xs font-bold md:inline">Widget-Einstellungen</span>
                                   </button>
                                   <button type="button"
                                     data-widget-library-action="close"
@@ -9131,6 +9132,19 @@ ${content}
                                       aria-label="Widget-Voreinstellungen schließen"
                                       className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-lg">✕</button>
                                   </div>
+                                  <button
+                                    type="button"
+                                    data-widget-settings-action="change-mascot"
+                                    onClick={() => {
+                                      setIsWidgetConfigurationOpen(false);
+                                      setIsAddWidgetMenuOpen(false);
+                                      setIsMascotSettingsOpen(true);
+                                    }}
+                                    className="mt-3 flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-accent bg-accent-soft px-3 text-sm font-bold text-accent hover:bg-accent/10"
+                                  >
+                                    <span aria-hidden="true">🐾</span>
+                                    Klassenmaskottchen ändern
+                                  </button>
                                   {isWidgetConfigurationOpen && (
                                     <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1" role="group" aria-label="Einstellungen für ein Widget auswählen">
                                       <label className="block text-sm font-semibold">
@@ -9147,7 +9161,7 @@ ${content}
                                         </select>
                                       </label>
                                       {selectedWidgetConfiguration === "participation" && <ParticipationSettingsPanel app={app} setApp={setApp} />}
-                                      {selectedWidgetConfiguration === "pet" && <div className="space-y-3"><p className="text-sm">Maskottchen, Name und Reaktionen für diese Klasse einstellen.</p><button type="button" className="min-h-11 rounded-xl bg-accent px-4 text-sm font-bold text-accent-text" onClick={() => { setIsAddWidgetMenuOpen(false); setIsMascotSettingsOpen(true); }}>Klassenmaskottchen wechseln und einstellen</button><ParticipationSettingsPanel app={app} setApp={setApp} /></div>}
+                                      {selectedWidgetConfiguration === "pet" && <div className="space-y-3"><p className="text-sm">Maskottchen, Name und Reaktionen für diese Klasse einstellen.</p><button type="button" className="min-h-11 rounded-xl bg-accent px-4 text-sm font-bold text-accent-text" onClick={() => { setIsWidgetConfigurationOpen(false); setIsAddWidgetMenuOpen(false); setIsMascotSettingsOpen(true); }}>Klassenmaskottchen wechseln und einstellen</button></div>}
                                       {(() => {
                                         if (selectedWidgetConfiguration === "participation" || selectedWidgetConfiguration === "pet") return null;
                                         const configured = cockpitWidgets.find(widget => widget.type === selectedWidgetConfiguration)
