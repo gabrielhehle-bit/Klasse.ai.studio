@@ -65,7 +65,7 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                         <X size={20} />
                     </button>
                 </header>
-                <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain p-4 sm:p-5">
+                <div className="min-h-0 flex flex-1 flex-col gap-5 overflow-y-auto overscroll-contain p-4 sm:p-5">
                     <section aria-label="Geräteübergreifender Maskottchen-Sync" className="space-y-2 rounded-2xl border p-4"
                         style={{ borderColor: currentTheme.colors.border, backgroundColor: currentTheme.colors.surface }}>
                         <div className="flex items-center gap-2 text-sm font-black" style={{ color: currentTheme.colors.textPrimary }}>
@@ -256,7 +256,7 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                         </div>
                     </section>
                     {/* Keep configuration off the whiteboard: the mascot itself has no visible controls. */}
-                    <section className="space-y-3 p-4 rounded-2xl border" aria-label="Klassenmaskottchen auswählen"
+                    <section className="order-first space-y-3 rounded-2xl border p-4" aria-label="Klassenmaskottchen auswählen"
                         style={{ borderColor: currentTheme.colors.border, backgroundColor: currentTheme.colors.surface }}>
                         <div>
                             <h3 className="text-xs font-black" style={{ color: currentTheme.colors.textPrimary }}>
