@@ -24,3 +24,15 @@ export function dienstPageWindow(total: number, width: number, height: number, p
 }
 
 export { localDienstDate } from './diensteAlgorithm';
+
+
+/**
+ * Columns in the read-only duty overview depend on the measured widget width,
+ * never on how many services a teacher added. Otherwise a ninth duty could
+ * turn a readable two-column board into three unreadably narrow columns.
+ */
+export function getDienstOverviewColumns(width: number): 1 | 2 | 3 {
+  if (!Number.isFinite(width) || width < 550) return 1;
+  if (width < 900) return 2;
+  return 3;
+}
