@@ -28,11 +28,11 @@ export { localDienstDate } from './diensteAlgorithm';
 
 /**
  * Preserve the no-scroll nine-duty Smartboard view when there is room for
- * three legible columns (at least 640px). Never force three columns merely
+ * three legible columns (at least 600px of measured inner width). Never force three columns merely
  * because the class added another duty on a narrower teaching surface.
  */
 export function getDienstOverviewColumns(width: number, dutyCount: number): 1 | 2 | 3 {
   if (!Number.isFinite(width) || width < 550) return 1;
-  if (width >= 900 || (width >= 640 && dutyCount > 8)) return 3;
+  if (width >= 900 || (width >= 600 && dutyCount > 8)) return 3;
   return 2;
 }
