@@ -119,11 +119,11 @@ export default function GradeOverview({ embedded = false, onBack }: { embedded?:
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-surface/50 border-b border-border text-[0.625rem] font-bold uppercase tracking-widest text-text-muted">
-                <th className="px-4 py-4 text-left border-r border-border/30 sticky left-0 bg-surface z-10 w-[180px]">Name</th>
+                <th scope="col" className="px-4 py-4 text-left border-r border-border/30 sticky left-0 bg-surface z-10 w-[180px]">Name</th>
                 {activeFaecher.map(f => {
                   const hasNotenmappe = app.fachConfig?.[f]?.unterrichtet !== false;
                   return (
-                    <th key={f} className={`px-2 py-4 text-center border-r border-border/30 min-w-[75px] uppercase font-bold text-[0.5625rem] ${!hasNotenmappe ? 'text-amber-800 bg-amber-50/40' : 'text-slate-700'}`}>
+                    <th scope="col" key={f} className={`px-2 py-4 text-center border-r border-border/30 min-w-[75px] uppercase font-bold text-[0.5625rem] ${!hasNotenmappe ? 'text-amber-800 bg-amber-50/40' : 'text-slate-700'}`}>
                       <div>{f}</div>
                       {selectedSemester !== 'combined' && (
                         <div className="text-[0.45rem] uppercase font-black text-slate-400/80 tracking-wider mt-0.5">
@@ -134,7 +134,7 @@ export default function GradeOverview({ embedded = false, onBack }: { embedded?:
                     </th>
                   );
                 })}
-                <th className="px-4 py-4 text-center bg-amber-500/10 text-amber-900 border-l border-border/30">ø</th>
+                <th scope="col" aria-label="Notendurchschnitt" className="px-4 py-4 text-center bg-amber-500/10 text-amber-900 border-l border-border/30">ø</th>
               </tr>
             </thead>
             <tbody>
@@ -166,9 +166,9 @@ export default function GradeOverview({ embedded = false, onBack }: { embedded?:
                 
                 return (
                   <tr key={s.id} className="border-b border-border/50 hover:bg-surface2/20 transition-colors">
-                    <td className="px-4 py-3 text-[0.75rem] font-medium text-text-primary sticky left-0 bg-white group-hover:bg-surface2/20 border-r border-border/30 z-10">
+                    <th scope="row" className="px-4 py-3 text-[0.75rem] font-medium text-text-primary sticky left-0 bg-white group-hover:bg-surface2/20 border-r border-border/30 z-10">
                       {s.nachname} <span className="text-text-secondary font-normal">{s.vorname}</span>
-                    </td>
+                    </th>
                     {activeFaecher.map(f => {
                       const hasNotenmappe = app.fachConfig?.[f]?.unterrichtet !== false;
                       const currentSem = selectedSemester === 'combined' ? '1' : selectedSemester;
@@ -187,6 +187,7 @@ export default function GradeOverview({ embedded = false, onBack }: { embedded?:
                           {isEditMode ? (
                             <div className="flex items-center justify-center">
                               <select
+                                aria-label={`${s.vorname} ${s.nachname} – ${f}: Zeugnisnote für das ganze Schuljahr`}
                                 value={nd.endnote || ""}
                                 onChange={(e) => {
                                   const val = e.target.value;
@@ -253,7 +254,7 @@ export default function GradeOverview({ embedded = false, onBack }: { embedded?:
                       );
                     })}
                     <td className="px-4 py-3 text-center font-bold text-[0.8125rem] bg-amber-500/5">
-                      {count > 0 ? (sum / count).toFixed(1) : '–'}
+                      {count > 0 ? (sum / count).toFixed(1).replace('.', ',') : '–'}
                     </td>
                   </tr>
                 );
