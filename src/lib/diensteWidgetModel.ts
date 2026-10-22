@@ -27,12 +27,12 @@ export { localDienstDate } from './diensteAlgorithm';
 
 
 /**
- * Columns in the read-only duty overview depend on the measured widget width,
- * never on how many services a teacher added. Otherwise a ninth duty could
- * turn a readable two-column board into three unreadably narrow columns.
+ * Preserve the no-scroll nine-duty Smartboard view when there is room for
+ * three legible columns (at least 640px). Never force three columns merely
+ * because the class added another duty on a narrower teaching surface.
  */
-export function getDienstOverviewColumns(width: number): 1 | 2 | 3 {
+export function getDienstOverviewColumns(width: number, dutyCount: number): 1 | 2 | 3 {
   if (!Number.isFinite(width) || width < 550) return 1;
-  if (width < 900) return 2;
-  return 3;
+  if (width >= 900 || (width >= 640 && dutyCount > 8)) return 3;
+  return 2;
 }
