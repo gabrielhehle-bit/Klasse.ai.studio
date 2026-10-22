@@ -8,18 +8,20 @@ import { generateStudentGroups } from './groupsAlgorithm';
 const duties = readFileSync('src/components/cockpit/widgets/DiensteWidget.tsx', 'utf8');
 const groups = readFileSync('src/components/cockpit/widgets/GroupsWidget.tsx', 'utf8');
 
-test('Dienste: many tasks never force unreadable narrow overview columns', () => {
-  for (const [width, expected] of [
-    [0, 1], [320, 1], [390, 1], [549, 1],
-    [550, 2], [640, 2], [820, 2], [899, 2],
-    [900, 3], [1280, 3],
+test('Dienste: nine tasks fit Smartboards but cannot crush genuinely narrow columns', () => {
+  for (const [width, count, expected] of [
+    [0, 9, 1], [320, 9, 1], [390, 9, 1], [549, 9, 1],
+    [550, 9, 2], [639, 9, 2], [640, 8, 2], [640, 9, 3],
+    [820, 8, 2], [820, 9, 3], [899, 9, 3],
+    [900, 8, 3], [1280, 4, 3],
   ] as const) {
-    assert.equal(getDienstOverviewColumns(width), expected, 'widget width ' + width);
+    assert.equal(getDienstOverviewColumns(width, count), expected,
+      'widget width ' + width + ' with ' + count + ' duties');
   }
-  assert.equal(getDienstOverviewColumns(Number.NaN), 1);
-  assert.equal(getDienstOverviewColumns(Infinity), 1);
-  assert.match(duties, /columnCount: getDienstOverviewColumns\(size\.width\)/);
-  assert.doesNotMatch(duties, /dienste\.length > 8 \? 3 : 2/);
+  assert.equal(getDienstOverviewColumns(Number.NaN, 9), 1);
+  assert.equal(getDienstOverviewColumns(Infinity, 9), 1);
+  assert.match(duties, /columnCount: getDienstOverviewColumns\(size\.width, dienste\.length\)/);
+  assert.doesNotMatch(duties, /size\.width >= 900 \|\| dienste\.length > 8 \? 3 : 2/);
   assert.match(duties, /dienste\.map\(dienst =>/);
   assert.match(duties, /data-dienst-overview=\{dienst\.id\}/);
 });
