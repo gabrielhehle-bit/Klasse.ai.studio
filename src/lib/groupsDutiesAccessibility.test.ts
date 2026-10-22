@@ -11,7 +11,7 @@ const groups = readFileSync('src/components/cockpit/widgets/GroupsWidget.tsx', '
 test('Dienste: nine tasks fit Smartboards but cannot crush genuinely narrow columns', () => {
   for (const [width, count, expected] of [
     [0, 9, 1], [320, 9, 1], [390, 9, 1], [549, 9, 1],
-    [550, 9, 2], [639, 9, 2], [640, 8, 2], [640, 9, 3],
+    [550, 9, 2], [599, 9, 2], [600, 8, 2], [600, 9, 3], [640, 9, 3],
     [820, 8, 2], [820, 9, 3], [899, 9, 3],
     [900, 8, 3], [1280, 4, 3],
   ] as const) {
