@@ -42,8 +42,12 @@ test('Dossier: adding a new assessment cannot overwrite another child or the sec
     label: 'LZK neu', date: '2026-10-22', note: 'neues Thema', score: '16', maxScore: '20',
   });
   assert.deepEqual(next.noten.b, original.noten.b, 'other pupil remains identical');
-  assert.deepEqual(next.noten.a.Deutsch['1'].lzk, [10, null, null, 16]);
-  assert.deepEqual(next.notenMeta.Deutsch.colLabels.lzk.slice(0, 4), ['LZK 1', 'LZK 2', undefined, 'LZK neu']);
+  assert.equal(next.noten.a.Deutsch['1'].lzk.length, 4);
+  assert.equal(next.noten.a.Deutsch['1'].lzk[0], 10);
+  assert.equal(next.noten.a.Deutsch['1'].lzk[1], undefined);
+  assert.equal(next.noten.a.Deutsch['1'].lzk[2], undefined);
+  assert.equal(next.noten.a.Deutsch['1'].lzk[3], 16);
+  assert.deepEqual([...next.notenMeta.Deutsch.colLabels.lzk.slice(0, 4)], ['LZK 1', 'LZK 2', undefined, 'LZK neu']);
   assert.equal(next.notenMeta.Deutsch.colDates.lzk[3], '2026-10-22');
   assert.equal(next.notenMeta.Deutsch.colNotes.lzk[3], 'neues Thema');
   assert.equal(JSON.stringify(original), snapshot, 'no mutation of existing grades or metadata');
@@ -77,6 +81,9 @@ test('Dossier: Aufgaben and gradebook use the canonical obj metadata while retai
 
 test('Dossier: moving an old task clears both metadata aliases but not other values', () => {
   const original = fixture();
+  // In this move scenario the destination column 2 is genuinely free.
+  original.noten.b.Deutsch['2'].lzk = [];
+  original.notenMeta.Deutsch.maxPoints.lzk = [20, 20];
   original.notenMeta.Deutsch.colLabels.aufgaben = ['Alter Auftrag'];
   original.notenMeta.Deutsch.colDates.aufgaben = ['2026-10-01'];
   original.notenMeta.Deutsch.colNotes.aufgaben = ['Alt'];
