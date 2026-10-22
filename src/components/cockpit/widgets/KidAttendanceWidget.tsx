@@ -581,7 +581,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           <p className={`truncate font-semibold leading-tight ${compactControls ? 'text-[10px]' : 'mt-0.5 text-xs'}`}
             aria-live="polite">
             {compactControls
-              ? summary.isComplete ? `${summary.total}/${summary.total} da · vollständig` : `${summary.present}/${summary.total} da · ${summary.open} offen`
+              ? summary.isComplete ? `${summary.present}/${summary.total} da · vollständig` : `${summary.present}/${summary.total} da · ${summary.open} offen`
               : summary.isComplete
                 ? `Alle ${summary.total} Kinder erfasst`
                 : `${summary.present} von ${summary.total} da · ${summary.open} noch offen`}
