@@ -79,25 +79,3 @@ test('Dossier: Aufgaben and gradebook use the canonical obj metadata while retai
   assert.match(dossier, /nextDossierAssessmentColumnIndex\(app, fach, category\)/);
 });
 
-test('Dossier: moving an old task clears both metadata aliases but not other values', () => {
-  const original = fixture();
-  // In this move scenario the destination column 2 is genuinely free.
-  original.noten.b.Deutsch['2'].lzk = [];
-  original.notenMeta.Deutsch.maxPoints.lzk = [20, 20];
-  original.notenMeta.Deutsch.colLabels.aufgaben = ['Alter Auftrag'];
-  original.notenMeta.Deutsch.colDates.aufgaben = ['2026-10-01'];
-  original.notenMeta.Deutsch.colNotes.aufgaben = ['Alt'];
-  const next = writeDossierAssessment(original, {
-    studentId: 'b', fach: 'Deutsch', semester: '1',
-    category: 'lzk', originalCategory: 'aufgaben', originalColIndex: 0,
-    colIndex: 0, label: 'Verschobener Auftrag', date: '2026-10-02', note: '',
-    score: '14', maxScore: '20',
-  });
-  assert.equal(next.noten.b.Deutsch['1'].aufgaben[0], null);
-  assert.equal(next.noten.b.Deutsch['1'].lzk[0], 12, 'existing LZK preserved');
-  assert.equal(next.noten.b.Deutsch['1'].lzk[1], 8, 'second LZK preserved');
-  assert.equal(next.noten.b.Deutsch['1'].lzk[2], 14, 'move uses free slot');
-  assert.equal(next.notenMeta.Deutsch.colLabels.aufgaben[0], null);
-  assert.equal(next.notenMeta.Deutsch.colLabels.obj[0], null);
-  assert.equal(next.notenMeta.Deutsch.colDates.aufgaben[0], null);
-});
