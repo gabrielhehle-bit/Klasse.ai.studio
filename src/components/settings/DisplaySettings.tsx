@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { AESTHETIC_THEMES } from '../../constants';
+import { MASCOT_OPTIONS, normalizeClassMascot, selectClassMascot } from '../../lib/classMascot';
+import ClassMascotArtwork from '../cockpit/ClassMascotArtwork';
 
 interface DisplaySettingsProps {
   app: any;
@@ -27,9 +29,47 @@ export default function DisplaySettings({
   einfachModus
 }: DisplaySettingsProps) {
   const currentZoom = app.settings?.zoomLevel || 'standard';
+  const mascot = normalizeClassMascot(app.classMascot);
 
   return (
     <div className="space-y-8">
+      {/* Phone quick mode intentionally hides the cockpit. Offer its mascot picker here
+          without changing the class-scoped mascot data model or desktop controls. */}
+      <section className="md:hidden rounded-3xl border border-stone-200 bg-white p-4 shadow-sm" aria-label="Klassenmaskottchen am Handy ändern" data-mobile-mascot-settings>
+        <div className="mb-4">
+          <h2 className="text-base font-black text-slate-900">Klassenmaskottchen ändern</h2>
+          <p className="mt-1 text-xs leading-relaxed text-slate-600">
+            Wähle die Figur für deine aktuelle Klasse. Am Tablet oder Laptop findest du weitere Einstellungen im Lehrercockpit.
+          </p>
+        </div>
+        {!app.activeClassId && <p className="mb-3 text-sm font-semibold text-amber-800">Bitte zuerst eine Klasse auswählen.</p>}
+        <div className="grid grid-cols-2 gap-3" role="group" aria-label="Klassenmaskottchen auswählen">
+          {MASCOT_OPTIONS.map(option => {
+            const selected = mascot.kind === option.kind;
+            return (
+              <button
+                key={option.kind}
+                type="button"
+                disabled={!app.activeClassId}
+                aria-label={option.label + ' auswählen'}
+                aria-pressed={selected}
+                onClick={() => setApp((prev: any) => ({
+                  ...prev,
+                  classMascot: selectClassMascot(normalizeClassMascot(prev.classMascot), option.kind),
+                }))}
+                className={`flex min-h-36 flex-col items-center justify-center gap-2 rounded-2xl border-2 p-2 text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:opacity-40 ${selected ? 'border-teal-600 bg-teal-50' : 'border-slate-200 bg-white'}`}
+              >
+                <span className="block h-20 w-20" aria-hidden="true">
+                  <ClassMascotArtwork kind={option.kind} mood="happy" name={option.name} animationEnabled={false} season={mascot.season} />
+                </span>
+                <span className="text-xs font-black text-slate-900">{option.label}</span>
+                {selected && <span className="text-xs font-semibold text-teal-700">✓ Ausgewählt</span>}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
       {/* Theme Selection */}
       <div className="bg-white rounded-[2.5rem] border border-stone-200/80 p-6 md:p-8 space-y-6 shadow-sm">
         <div className="flex items-center gap-3 border-b border-stone-150 pb-4">

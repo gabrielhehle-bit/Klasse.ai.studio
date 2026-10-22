@@ -316,7 +316,48 @@ async function main() {
     const topButtons = result.topbarVisible.filter(x => !x.label.includes('Navigation'));
     if (topButtons.some(x => x.r && x.r.right > 363)) throw new Error('Phone toolbar action is clipped.');
     await saveScreenshot(client);
-    console.log('KLASSIO mobile attendance synthetic browser layout passed.');
+
+    // The phone intentionally omits the teaching cockpit. Verify that the
+    // mascot is nonetheless configurable from the mobile More sheet.
+    await evaluate(client, `document.querySelector('#klassio-mobile-quick-mode .kqm-nav-button[data-kind="more"]')?.click()`);
+    await waitFor(client, 'phone More menu contains a mascot shortcut',
+      `Array.from(document.querySelectorAll('#klassio-mobile-quick-mode .kqm-sheet[data-sheet="more"] .kqm-action')).some(button=>button.querySelector('strong')?.textContent==='Klassenmaskottchen')`);
+    await evaluate(client, `Array.from(document.querySelectorAll('#klassio-mobile-quick-mode .kqm-sheet[data-sheet="more"] .kqm-action')).find(button=>button.querySelector('strong')?.textContent==='Klassenmaskottchen')?.click()`);
+    await waitFor(client, 'phone opens the real class mascot picker in display settings',
+      `Boolean(document.querySelector('[data-mobile-mascot-settings] button[aria-label="Katze Mimi auswählen"]'))`, 30000);
+
+    const mobileMascotGeometry = await evaluate(client, `(() => {
+      const panel = document.querySelector('[data-mobile-mascot-settings]');
+      const rect = panel.getBoundingClientRect();
+      const buttons = Array.from(panel.querySelectorAll('button'));
+      return {
+        width: innerWidth,
+        documentWidth: document.documentElement.scrollWidth,
+        panelLeft: rect.left, panelRight: rect.right,
+        options: buttons.length,
+        touchTargets: buttons.every(button => {
+          const box = button.getBoundingClientRect();
+          return box.width >= 44 && box.height >= 44 && box.left >= 0 && box.right <= innerWidth + 1;
+        }),
+      };
+    })()`);
+    if (mobileMascotGeometry.documentWidth > 364 || mobileMascotGeometry.panelLeft < 0 ||
+        mobileMascotGeometry.panelRight > 361 || mobileMascotGeometry.options !== 4 ||
+        !mobileMascotGeometry.touchTargets) {
+      throw new Error('Phone mascot picker overflows or has unreachable controls: ' + JSON.stringify(mobileMascotGeometry));
+    }
+    await evaluate(client, `document.querySelector('[data-mobile-mascot-settings] button[aria-label="Katze Mimi auswählen"]').click()`);
+    await waitFor(client, 'Mimi is selected in the phone settings',
+      `document.querySelector('[data-mobile-mascot-settings] button[aria-label="Katze Mimi auswählen"]')?.getAttribute('aria-pressed')==='true'`);
+    await evaluate(client, `document.querySelector('#klassio-mobile-quick-mode .kqm-nav-button[data-kind="today"]').click()`);
+    await waitFor(client, 'phone can leave mascot settings', `!document.querySelector('[data-mobile-mascot-settings]')`);
+    await evaluate(client, `document.querySelector('#klassio-mobile-quick-mode .kqm-nav-button[data-kind="more"]').click()`);
+    await evaluate(client, `Array.from(document.querySelectorAll('#klassio-mobile-quick-mode .kqm-sheet[data-sheet="more"] .kqm-action')).find(button=>button.querySelector('strong')?.textContent==='Klassenmaskottchen').click()`);
+    await waitFor(client, 'Mimi selection survives leaving and returning',
+      `document.querySelector('[data-mobile-mascot-settings] button[aria-label="Katze Mimi auswählen"]')?.getAttribute('aria-pressed')==='true'`);
+    await saveScreenshot(client);
+    console.log('KLASSIO mobile attendance and mascot settings browser paths passed.');
+
   } finally { client.close(); }
 }
 
