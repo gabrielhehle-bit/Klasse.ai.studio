@@ -1680,6 +1680,11 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                 const fach = event.target.value;
                 setActiveFach(fach);
                 setShowWeights(false);
+                // Column indices and assessment filters belong to the previous subject.
+                // Reset only the view, never the saved assessment data.
+                setIsolatedCol(null);
+                setAssessmentFilter('all');
+                setFilterMissing(false);
                 if (activeView === 'hue' && !['deutsch', 'mathematik', 'sachunterricht', 'mathe'].some(name => fach.toLowerCase().includes(name))) {
                   setActiveView('noten');
                 }
