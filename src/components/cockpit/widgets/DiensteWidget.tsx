@@ -598,7 +598,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
             </button>
           </div>
         ) : !editView ? (
-          <div data-dienste-overview style={{ columnCount: getDienstOverviewColumns(size.width), columnGap: 12 }}>
+          <div data-dienste-overview style={{ columnCount: getDienstOverviewColumns(size.width, dienste.length), columnGap: 12 }}>
             {dienste.map(dienst => {
               const assignees = getEffectiveDienstAssignees(dienst, isAbsent);
               return <button type="button" key={dienst.id} data-dienst-overview={dienst.id}
