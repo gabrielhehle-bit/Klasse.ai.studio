@@ -187,13 +187,9 @@ export function writeDossierAssessment(state: AppState, request: DossierAssessme
   const colNotes = { ...(subjectMeta.colNotes || {}) };
 
   if (isCategoryMove) {
-    // An older dossier stored task metadata as 'aufgaben'; the gradebook
-    // reads the canonical 'obj'. Clear both aliases only when moving categories.
-    for (const sourceKey of new Set([originalCategory, metaCategory(originalCategory)])) {
-      cloneMetaList(colLabels, sourceKey)[originalColIndex] = null;
-      cloneMetaList(colDates, sourceKey)[originalColIndex] = null;
-      cloneMetaList(colNotes, sourceKey)[originalColIndex] = null;
-    }
+    cloneMetaList(colLabels, originalCategory)[originalColIndex] = null;
+    cloneMetaList(colDates, originalCategory)[originalColIndex] = null;
+    cloneMetaList(colNotes, originalCategory)[originalColIndex] = null;
   }
 
   const destinationMetaKey = metaCategory(request.category);
