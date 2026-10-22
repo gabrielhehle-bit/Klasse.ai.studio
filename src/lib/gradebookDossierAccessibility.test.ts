@@ -33,3 +33,16 @@ test('Schülerdossier: accessible phone student navigation and menu', () => {
   assert.match(dossier, /exportSchuelerPDF\(student\.id, app\)/);
   assert.match(dossier, /activePrintTemplate: 'schuelerprofil'/);
 });
+
+test('Notenmappe keeps student note and trend actions visible to touch and keyboard', () => {
+  const actionsStart = gradebook.indexOf('onClick={() => setSelectedTrendStudentId(s.id)}');
+  const actionsEnd = gradebook.indexOf('<td className=', actionsStart);
+  assert.ok(actionsStart > 0 && actionsEnd > actionsStart);
+  const studentActions = gradebook.slice(actionsStart, actionsEnd);
+  assert.match(studentActions, /aria-label=\{`Notenverlauf für \$\{s\.vorname\} \$\{s\.nachname\} anzeigen`\}/);
+  assert.match(studentActions, /aria-label=\{`\$\{nd\.freitext \? 'Notiz bearbeiten' : 'Notiz hinzufügen'\} für \$\{s\.vorname\} \$\{s\.nachname\}`\}/);
+  assert.equal((studentActions.match(/min-h-11 min-w-11/g) || []).length, 2);
+  assert.equal((studentActions.match(/focus-visible:outline-offset-2/g) || []).length, 2);
+  assert.doesNotMatch(studentActions, /opacity-0|group-hover:opacity-100/);
+  assert.match(studentActions, /prompt\('Notiz für ' \+ s\.vorname, nd\.freitext \|\| ''\)/);
+});

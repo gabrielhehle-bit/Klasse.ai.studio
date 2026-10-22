@@ -3595,7 +3595,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                         <td className={`${dStyle.tdNum} text-left font-bold border-b border-r border-slate-200 sticky left-0 z-[40] print:relative print:left-0 transition-colors shadow-[4px_0_10px_rgba(0,0,0,0.08)] ${stickyBgClass} ${isItemSelected ? 'text-emerald-800' : 'text-slate-400'}`}>{i+1}</td>
                         <td className={`${dStyle.tdName} text-left border-b border-r border-slate-200 font-semibold sticky z-[40] print:relative print:left-0 transition-colors shadow-[4px_0_10px_rgba(0,0,0,0.08)] ${stickyBgClass}`}>
                           <div className="flex items-center justify-between">
-                            <div className="flex flex-col pr-4 max-w-[12rem]">
+                            <div className="flex min-w-0 flex-col pr-1 sm:pr-4 max-w-[12rem]">
                               <div className="flex items-center gap-2">
                                 <span className={`text-wrap leading-tight break-words text-slate-900 ${dStyle.nameText} leading-normal font-black leading-tight max-w-[8rem] sm:max-w-[10rem]`} title={`${s.nachname} ${s.vorname}`}>{s.nachname}</span>
                                 {s.spf && <span className={`${dStyle.spfBadge} font-black uppercase text-purple-600 bg-purple-100 rounded border border-purple-200 print:bg-slate-200 print:text-black`}>SPF</span>}
@@ -3617,13 +3617,17 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                               <button
+                                type="button"
                                 onClick={() => setSelectedTrendStudentId(s.id)}
-                                className={`${dStyle.actionBtn} hover:bg-amber-100 hover:text-amber-750 transition-all text-slate-450 group-hover:opacity-100 opacity-0 flex items-center justify-center shrink-0 cursor-pointer`}
+                                aria-label={`Notenverlauf für ${s.vorname} ${s.nachname} anzeigen`}
+                                className={`${dStyle.actionBtn} min-h-11 min-w-11 rounded-lg hover:bg-amber-100 hover:text-amber-750 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 transition-colors text-slate-600 flex items-center justify-center shrink-0 cursor-pointer print:hidden`}
                                 title="Notenverlauf visualisieren"
                               >
                                 <TrendingUp size={dStyle.actionIcon} />
                               </button>
-                              <button 
+                              <button
+                                type="button"
+                                aria-label={`${nd.freitext ? 'Notiz bearbeiten' : 'Notiz hinzufügen'} für ${s.vorname} ${s.nachname}`}
                                 onClick={() => {
                                   const note = prompt('Notiz für ' + s.vorname, nd.freitext || '');
                                   if (note !== null) {
@@ -3645,7 +3649,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                     }));
                                   }
                                 }}
-                                className={`${dStyle.actionBtn} hover:bg-surface2 transition-all ${nd.freitext ? 'text-primary bg-primary/10' : 'text-text-muted opacity-0 group-hover:opacity-100 flex items-center justify-center shrink-0 cursor-pointer'}`}
+                                className={`${dStyle.actionBtn} min-h-11 min-w-11 rounded-lg hover:bg-surface2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 transition-colors flex items-center justify-center shrink-0 cursor-pointer print:hidden ${nd.freitext ? 'text-primary bg-primary/10' : 'text-slate-600'}`}
                                 title={nd.freitext || 'Notiz hinzufügen'}
                               >
                                 <MessageSquare size={dStyle.actionIcon} />
