@@ -26,7 +26,7 @@ import {
   CockpitStudent,
 } from '../studentSelectionUtils';
 import { getKW } from '../../../lib/utils';
-import { readClassDienste, dienstPageWindow } from '../../../lib/diensteWidgetModel';
+import { readClassDienste, dienstPageWindow, getDienstOverviewColumns } from '../../../lib/diensteWidgetModel';
 import {
   initializeDefaultDienste,
   addDienst,
@@ -598,7 +598,7 @@ export const DiensteWidget: React.FC<DiensteWidgetProps> = ({
             </button>
           </div>
         ) : !editView ? (
-          <div data-dienste-overview style={{ columnCount: size.width >= 900 || dienste.length > 8 ? 3 : 2, columnGap: 12 }}>
+          <div data-dienste-overview style={{ columnCount: getDienstOverviewColumns(size.width, dienste.length), columnGap: 12 }}>
             {dienste.map(dienst => {
               const assignees = getEffectiveDienstAssignees(dienst, isAbsent);
               return <button type="button" key={dienst.id} data-dienst-overview={dienst.id}
