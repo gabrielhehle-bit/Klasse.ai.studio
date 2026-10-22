@@ -14,7 +14,7 @@ import DossierAssessmentChart from './DossierAssessmentChart';
 import { getDossierAssessmentChart } from '../../lib/dossierAssessmentChart';
 import { getStudentSubjectParticipationSummary, type SubjectParticipationSummary } from '../../lib/studentParticipation';
 import { getStudentHomeworkSummary, type StudentHomeworkSummary } from '../../lib/studentHomework';
-import { clearDossierAssessmentForStudent, writeDossierAssessment } from '../../lib/dossierAssessmentWrite';
+import { clearDossierAssessmentForStudent, writeDossierAssessment, nextDossierAssessmentColumnIndex } from '../../lib/dossierAssessmentWrite';
 
 interface DossierLeistungenProps {
   initialSubject?: string;
@@ -114,8 +114,11 @@ export default function DossierLeistungen({
         if (cat.key === 'lzk' && (nd as import('../../types').GradeData).lzkParticipation?.[idx] === false) return;
         if (entry === null || entry === undefined || entry === '') return;
 
-        const defaultLabel = meta.colLabels?.[cat.key]?.[idx] || `${cat.label} ${idx + 1}`;
-        const defaultDate = meta.colDates?.[cat.key]?.[idx] || '';
+        // The gradebook stores the 'aufgaben' category under metadata key 'obj'.
+        // Legacy dossier metadata is a read-only fallback.
+        const metaKey = cat.key === 'aufgaben' ? 'obj' : cat.key;
+        const defaultLabel = meta.colLabels?.[metaKey]?.[idx] || meta.colLabels?.[cat.key]?.[idx] || `${cat.label} ${idx + 1}`;
+        const defaultDate = meta.colDates?.[metaKey]?.[idx] || meta.colDates?.[cat.key]?.[idx] || '';
         const maxScore = getMaxPoints(app, fach, cat.key, idx);
 
         if (typeof entry === 'object') {
@@ -134,7 +137,7 @@ export default function DossierLeistungen({
             score,
             maxScore: maxP,
             percent: pct,
-            note: entry.note || entry.kommentar || meta.colNotes?.[cat.key]?.[idx] || '',
+            note: entry.note || entry.kommentar || meta.colNotes?.[cat.key === 'aufgaben' ? 'obj' : cat.key]?.[idx] || meta.colNotes?.[cat.key]?.[idx] || '',
             mode,
             colIndex: idx
           });
@@ -161,7 +164,7 @@ export default function DossierLeistungen({
             score,
             maxScore: mode === 'points' ? maxScore : undefined,
             percent: pct,
-            note: meta.colNotes?.[cat.key]?.[idx] || '',
+            note: meta.colNotes?.[cat.key === 'aufgaben' ? 'obj' : cat.key]?.[idx] || meta.colNotes?.[cat.key]?.[idx] || '',
             mode,
             colIndex: idx
           });
@@ -360,9 +363,7 @@ export default function DossierLeistungen({
 
   // Open add modal
   const handleOpenAddModal = (fach: string, category: 'sa' | 'lzk' | 'wp' | 'aufgaben' = 'sa') => {
-    const nd = app.noten?.[student.id]?.[fach]?.[semester] || {};
-    const existingList = Array.isArray(nd[category]) ? nd[category] : [];
-    const nextIndex = existingList.length;
+    const nextIndex = nextDossierAssessmentColumnIndex(app, fach, category);
 
     setEditingItem({
       fach,
