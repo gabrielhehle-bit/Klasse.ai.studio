@@ -353,7 +353,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
             <button
               type="button"
               onClick={onBack}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition ${app.dossierFocusMode?'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700':'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}
+              className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border transition ${app.dossierFocusMode?'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700':'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}
               title="Zur Schülerauswahl"
             >
               <ArrowLeft size={15} />
@@ -380,16 +380,17 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
             onClick={() => switchStudent(previousStudent?.id)}
             disabled={!previousStudent}
             aria-label={previousStudent ? `Vorheriges Kind: ${previousStudent.vorname} ${previousStudent.nachname}` : 'Kein vorheriges Kind'}
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition disabled:cursor-not-allowed disabled:opacity-30 ${app.dossierFocusMode?'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700':'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+            className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border transition disabled:cursor-not-allowed disabled:opacity-30 ${app.dossierFocusMode?'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700':'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
           >
             <ArrowLeft size={14} />
           </button>
           <div className="relative min-w-0 flex-1 sm:w-60 sm:flex-none">
             <select
               id="student-switcher"
+              aria-label="Kind im Schülerdossier auswählen"
               value={student.id}
               onChange={(e) => onStudentChange && onStudentChange(e.target.value)}
-              className={`min-h-10 w-full appearance-none rounded-xl border px-3 py-2 pr-8 text-xs font-black outline-none transition focus:ring-2 focus:ring-indigo-400 ${app.dossierFocusMode?'border-slate-700 bg-slate-800 text-white':'border-slate-200 bg-slate-50 text-slate-800'}`}
+              className={`min-h-11 w-full appearance-none rounded-xl border px-3 py-2 pr-8 text-xs font-black outline-none transition focus:ring-2 focus:ring-indigo-400 ${app.dossierFocusMode?'border-slate-700 bg-slate-800 text-white':'border-slate-200 bg-slate-50 text-slate-800'}`}
               disabled={!onStudentChange}
             >
               {app.schueler.map((s) => <option key={s.id} value={s.id}>{s.vorname} {s.nachname}</option>)}
@@ -402,12 +403,12 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
             onClick={() => switchStudent(nextStudent?.id)}
             disabled={!nextStudent}
             aria-label={nextStudent ? `Nächstes Kind: ${nextStudent.vorname} ${nextStudent.nachname}` : 'Kein nächstes Kind'}
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition disabled:cursor-not-allowed disabled:opacity-30 ${app.dossierFocusMode?'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700':'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+            className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border transition disabled:cursor-not-allowed disabled:opacity-30 ${app.dossierFocusMode?'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700':'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
           >
             <ChevronRight size={14} />
           </button>
           <details className="relative shrink-0">
-            <summary className={`cursor-pointer list-none rounded-xl border px-2.5 py-2 text-xs font-semibold ${app.dossierFocusMode?'border-slate-700 bg-slate-800 text-slate-300':'border-slate-200 text-slate-600'}`}>•••</summary>
+            <summary aria-label="Dossieraktionen öffnen" title="Dossieraktionen öffnen" className={`flex min-h-11 items-center justify-center cursor-pointer list-none rounded-xl border px-2.5 py-2 text-xs font-semibold ${app.dossierFocusMode?'border-slate-700 bg-slate-800 text-slate-300':'border-slate-200 text-slate-600'}`}>•••</summary>
             <div className="absolute right-0 top-full z-40 mt-2 w-52 rounded-xl border border-slate-200 bg-white p-2 text-slate-800 shadow-lg">
               <button type="button" onClick={() => exportSchuelerPDF(student.id, app)} className="block w-full rounded-lg p-2 text-left text-xs hover:bg-slate-50">Dossier (PDF)</button>
               <button type="button" onClick={() => setPresentationModeActive(true)} className="block w-full rounded-lg p-2 text-left text-xs hover:bg-slate-50">KEL für Eltern</button>
@@ -489,7 +490,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
                 ].map((item) => {
                   const isTabActive = activeTab === item.id;
                   const TabIcon = item.icon;
-                  return <button key={item.id} type="button" onClick={() => setActiveTab(item.id as DossierTab)} className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[0.68rem] font-bold transition ${isTabActive?'bg-indigo-600 text-white':'text-slate-400 hover:bg-slate-800/50 hover:text-white'}`}><TabIcon size={12}/><span>{item.label}</span></button>;
+                  return <button key={item.id} type="button" role="tab" aria-selected={isTabActive} onClick={() => setActiveTab(item.id as DossierTab)} className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[0.68rem] font-bold transition ${isTabActive?'bg-indigo-600 text-white':'text-slate-400 hover:bg-slate-800/50 hover:text-white'}`}><TabIcon size={12}/><span>{item.label}</span></button>;
                 })}
               </div>
             </div>

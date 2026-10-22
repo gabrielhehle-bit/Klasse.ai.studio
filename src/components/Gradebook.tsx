@@ -1,5 +1,6 @@
 import { visibleAssessmentIndices, hasMissingVisibleAssessment } from '../lib/gradebookVisibleColumns';
 import { countsInClassAverage } from '../lib/classAveragePolicy';
+import { getPositiveBehaviorRate } from '../lib/gradebookBehaviorRate';
 import { removeSubjectColumn, updateSubjectColumn } from '../lib/classroomEdits';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -2863,7 +2864,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                               const sIndex = stages.findIndex(st => st.id === log.iconId);
                               return sIndex === 0 || sIndex === 1; // Super and Gut indicators
                            }).length;
-                           const positivePct = totalCount > 0 ? Math.round((positiveLogsCount / totalCount) * 100) : 100;
+                           const positivePct = getPositiveBehaviorRate(positiveLogsCount, totalCount);
 
                            // Negative feedback indicators
                            const negativeLogsCount = studentLogs.filter(log => {
@@ -2959,7 +2960,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                            }
 
                            // Default companion badge
-                           if (badges.length === 0) {
+                           if (badges.length === 0 && totalCount > 0) {
                               badges.push({
                                  text: 'Teamplayer',
                                  details: 'Verhält sich kooperativ und leistet einen wertvollen Teil zum Klassenklima.',
@@ -3046,15 +3047,15 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                  {/* Positive Feedback Percentage */}
                                  <td className="px-4 py-4 text-center">
                                     <div className="flex flex-col items-center">
-                                       <span className={`text-[0.75rem] leading-tight font-black tabular-nums ${positivePct >= 80 ? 'text-emerald-600' : positivePct >= 50 ? 'text-indigo-600' : 'text-slate-500'}`}>
-                                          {positivePct}%
+                                       <span aria-label={positivePct === null ? 'Keine Verhaltensmeldungen vorhanden' : `${positivePct} Prozent positive Verhaltensmeldungen`} className={`text-[0.75rem] leading-tight font-black tabular-nums ${positivePct === null ? 'text-slate-400' : positivePct >= 80 ? 'text-emerald-600' : positivePct >= 50 ? 'text-indigo-600' : 'text-slate-500'}`}>
+                                          {positivePct === null ? '—' : `${positivePct}%`}
                                        </span>
-                                       <div className="w-12 h-1 bg-slate-100 rounded-full  mt-1">
-                                          <div 
+                                       {positivePct !== null && <div className="w-12 h-1 bg-slate-100 rounded-full mt-1" aria-hidden="true">
+                                          <div
                                             className={`h-full rounded-full ${positivePct >= 80 ? 'bg-emerald-500' : positivePct >= 50 ? 'bg-indigo-500' : 'bg-slate-400'}`}
                                             style={{ width: `${positivePct}%` }}
                                           />
-                                       </div>
+                                       </div>}
                                     </div>
                                  </td>
 
@@ -3076,6 +3077,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                  {/* Badges Issued */}
                                  <td className="px-4 py-4">
                                     <div className="flex flex-wrap gap-1.5 justify-end">
+                                       {badges.length === 0 && <span className="text-[0.625rem] font-semibold text-slate-400">Keine Auszeichnung</span>}
                                        {badges.map((b, bIdx) => (
                                           <span
                                             key={bIdx}
