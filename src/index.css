@@ -2621,6 +2621,9 @@ html body [data-style] .klassio-cockpit-shell .klassio-student-sidebar .text-sla
 /* Widget library: one clear modal layer with fixed search/header, category rail
    and a scrollable card area. The teaching dock recedes while the library is active. */
 .klassio-widget-library {
+  /* Explicit border-box prevents the mobile modal's padding and border extending past the viewport. */
+  box-sizing: border-box;
+  min-width: 0;
   left: 50%;
   transform: translateX(-50%);
   display: grid;
@@ -2690,6 +2693,7 @@ html body [data-style] .klassio-widget-library .klassio-widget-primary.bg-succes
     right: 0.25rem !important;
     transform: none !important;
     width: auto !important;
+    max-width: calc(100vw - 0.5rem) !important;
     top: 4.25rem !important;
     bottom: 4.25rem !important;
     height: auto !important;
@@ -2700,6 +2704,14 @@ html body [data-style] .klassio-widget-library .klassio-widget-primary.bg-succes
     grid-column: 1;
     grid-row: 1;
     flex-wrap: wrap;
+  }
+  /* The nested settings view uses the available phone height, rather than
+     inheriting the desktop header offset and losing a full row of controls. */
+  .klassio-widget-library #cockpit-widget-settings {
+    top: 0.5rem;
+    right: 0.5rem;
+    bottom: 0.5rem;
+    left: 0.5rem;
   }
   .klassio-widget-library-heading {
     flex: 1 1 auto;
