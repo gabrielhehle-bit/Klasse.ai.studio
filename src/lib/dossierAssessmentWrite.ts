@@ -30,6 +30,31 @@ export interface DossierAssessmentClearRequest {
 
 const metaCategory = (category: DossierAssessmentCategory) => category === 'aufgaben' ? 'obj' : category;
 
+/** Shared column metadata and students' grades in both semesters reserve indices.
+ * Never allocate a new dossier entry inside another pupil's class-wide column.
+ * Ordinary gradebook placeholder counts do not reserve real column indices.
+ */
+export function nextDossierAssessmentColumnIndex(state: AppState, fach: string, category: DossierAssessmentCategory): number {
+  const meta = (state.notenMeta?.[fach] || {}) as Record<string, any>;
+  const aliases = category === 'aufgaben' ? ['obj', 'aufgaben'] : [category];
+  const end = (value: unknown): number => {
+    if (Array.isArray(value)) return value.length;
+    if (!value || typeof value !== 'object') return 0;
+    return Object.keys(value).reduce((max, key) => {
+      const index = Number(key);
+      return Number.isInteger(index) && index >= 0 ? Math.max(max, index + 1) : max;
+    }, 0);
+  };
+  const metadataEnds = ['colLabels', 'colDates', 'colNotes', 'colAreas', 'maxPoints']
+    .flatMap(field => aliases.map(key => end(meta[field]?.[key])));
+  const gradeEnds = (state.schueler || []).flatMap(student =>
+    (['1', '2'] as const).map(semester =>
+      end((state.noten?.[student.id]?.[fach]?.[semester] as Record<string, any> | undefined)?.[category])
+    )
+  );
+  return Math.max(0, ...metadataEnds, ...gradeEnds);
+}
+
 function assessmentInputForMode(request: DossierAssessmentWriteRequest, mode: AssessmentMode) {
   if (mode === 'points') return request.score ?? '';
   if (mode === 'percent') return request.percent ?? '';
@@ -167,9 +192,10 @@ export function writeDossierAssessment(state: AppState, request: DossierAssessme
     cloneMetaList(colNotes, originalCategory)[originalColIndex] = null;
   }
 
-  cloneMetaList(colLabels, request.category)[destinationIndex] = request.label.trim();
-  cloneMetaList(colDates, request.category)[destinationIndex] = request.date;
-  cloneMetaList(colNotes, request.category)[destinationIndex] = request.note.trim();
+  const destinationMetaKey = metaCategory(request.category);
+  cloneMetaList(colLabels, destinationMetaKey)[destinationIndex] = request.label.trim();
+  cloneMetaList(colDates, destinationMetaKey)[destinationIndex] = request.date;
+  cloneMetaList(colNotes, destinationMetaKey)[destinationIndex] = request.note.trim();
   subjectMeta.colLabels = colLabels;
   subjectMeta.colDates = colDates;
   subjectMeta.colNotes = colNotes;
