@@ -380,12 +380,24 @@ function openSheet(name: 'entry' | 'more') {
   }
 }
 
-function createAction(label: string, hint: string, pageId: string, afterNavigate?: () => void): HTMLButtonElement {
+function createAction(label: string, hint: string, pageId: string, afterNavigate?: () => void, settingsCategory?: 'display'): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'kqm-action';
   button.innerHTML = `<strong>${label}</strong><span>${hint}</span>`;
-  button.addEventListener('click', () => navigate(pageId, afterNavigate));
+  button.addEventListener('click', () => {
+    if (!settingsCategory) {
+      navigate(pageId, afterNavigate);
+      return;
+    }
+    // Set this BEFORE the settings component mounts and signal again after
+    // navigation to cover both a fresh mount and an already-open settings page.
+    try { window.sessionStorage.setItem('klassio-settings-category', settingsCategory); } catch {}
+    navigate(pageId, () => {
+      window.dispatchEvent(new CustomEvent('klassio-open-settings-category', { detail: settingsCategory }));
+      afterNavigate?.();
+    });
+  });
   return button;
 }
 
@@ -417,7 +429,8 @@ function buildSheet(name: 'entry' | 'more'): HTMLElement {
       createAction('Notenmappe', 'Leistungen und Mitarbeit nachsehen', 'noten'),
       createAction('Schülerdossier', 'Kompakter Überblick pro Kind', 'dossier'),
       createAction('Klassenliste', 'Kinder suchen und Stammdaten ansehen', 'schueler'),
-      createAction('Einstellungen', 'Nur wenn du wirklich etwas ändern musst', 'settings'),
+      createAction('Klassenmaskottchen', 'Figur für diese Klasse auswählen', 'settings', undefined, 'display'),
+      createAction('Einstellungen', 'Weitere Einstellungen verwalten', 'settings'),
     );
   }
 
@@ -426,7 +439,7 @@ function buildSheet(name: 'entry' | 'more'): HTMLElement {
   if (name === 'more') {
     const note = document.createElement('div');
     note.className = 'kqm-note';
-    note.textContent = 'Lehrercockpit, Tafel, Widget-Dock und große Auswertungen sind am Smartphone bewusst ausgeblendet. Dafür Tablet oder Laptop verwenden.';
+    note.textContent = 'Lehrercockpit, Tafel und Widget-Dock sind am Smartphone ausgeblendet. Das Klassenmaskottchen kannst du hier unter Mehr ändern; weitere Unterrichtswerkzeuge brauchen Tablet oder Laptop.';
     sheet.appendChild(note);
   }
 
