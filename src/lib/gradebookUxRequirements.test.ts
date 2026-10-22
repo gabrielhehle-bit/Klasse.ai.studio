@@ -51,3 +51,13 @@ test('points mode can show or hide the calculated percent consistently across gr
   assert.match(dossierLeistungen, /showPointsPercent && mode === 'points' && item\.percent !== undefined/);
   assert.match(dossierLeistungen, /getShowPointsPercent\(app, s\.fach\).*s\.latestItem\.percent\.toLocaleString\('de-AT', \{ maximumFractionDigits: 1 \}\)/s);
 });
+
+test('subject switch clears previous assessment focus and missing filter without touching saved grades', () => {
+  const subjectPicker = gradebook.split('<select id="gradebook-active-subject"')[1]?.split('className="min-h-11')[0];
+  assert.ok(subjectPicker, 'subject selector is present');
+  assert.match(subjectPicker, /setActiveFach\(fach\)/);
+  assert.match(subjectPicker, /setIsolatedCol\(null\)/);
+  assert.match(subjectPicker, /setAssessmentFilter\('all'\)/);
+  assert.match(subjectPicker, /setFilterMissing\(false\)/);
+  assert.doesNotMatch(subjectPicker, /setApp\(/);
+});
