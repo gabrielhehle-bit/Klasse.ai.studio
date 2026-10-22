@@ -46,15 +46,15 @@ test('Widget-Bibliothek: mobile Kopfzeile gibt der Suche eine eigene Zeile', () 
 
 
 test('Widget-Bibliothek: Handy-Modaldialog bleibt vollständig in der sichtbaren Breite', () => {
-  assert.match(css, /\\.klassio-widget-library \\{[\\s\\S]*?box-sizing: border-box;/);
-  assert.match(css, /@media \\(max-width: 760px\\)[\\s\\S]*?\\.klassio-widget-library \\{[\\s\\S]*?max-width: calc\\(100vw - 0\\.5rem\\) !important;/);
-  assert.match(css, /\\.klassio-widget-library #cockpit-widget-settings \\{[\\s\\S]*?top: 0\\.5rem;[\\s\\S]*?bottom: 0\\.5rem;/);
+  assert.match(css, /\.klassio-widget-library \{[\s\S]*?box-sizing: border-box;/);
+  assert.match(css, /@media \(max-width: 760px\)[\s\S]*?\.klassio-widget-library \{[\s\S]*?max-width: calc\(100vw - 0\.5rem\) !important;/);
+  assert.match(css, /\.klassio-widget-library #cockpit-widget-settings \{[\s\S]*?top: 0\.5rem;[\s\S]*?bottom: 0\.5rem;/);
 });
 
 test('Widget-Bibliothek: Einstellungen sind auf kleinen Handys beschriftet', () => {
-  assert.match(cockpit, /<span className="sm:hidden">Widgets<\\/span>/);
-  assert.match(cockpit, /<span className="text-xs font-bold sm:hidden">Einstellungen<\\/span>/);
-  assert.match(cockpit, /<span className="hidden text-xs font-bold md:inline">Widget-Einstellungen<\\/span>/);
+  assert.match(cockpit, /<span className="sm:hidden">Widgets<\/span>/);
+  assert.match(cockpit, /<span className="text-xs font-bold sm:hidden">Einstellungen<\/span>/);
+  assert.match(cockpit, /<span className="hidden text-xs font-bold md:inline">Widget-Einstellungen<\/span>/);
   assert.match(cockpit, /data-widget-library-action="settings"/);
   assert.match(cockpit, /data-widget-settings-action="change-mascot"/);
 });
