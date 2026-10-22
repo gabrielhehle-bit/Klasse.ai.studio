@@ -3427,11 +3427,17 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                   <span className="text-[0.625rem] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">
                     Klassenschnitt <span className={showClassAverage ? 'text-emerald-600' : 'text-slate-400'}>{showClassAverage ? 'anzeigen' : 'ausblenden'}</span>
                   </span>
-                  <button 
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={showClassAverage}
+                    aria-label="Klassenschnitt anzeigen"
                     onClick={() => setShowClassAverage(!showClassAverage)}
-                    className={`w-8 h-4 shrink-0 rounded-full transition-all relative ${showClassAverage ? 'bg-neutral-800' : 'bg-slate-300'}`}
+                    className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
                   >
-                    <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${showClassAverage ? 'left-[1.1rem]' : 'left-0.5'}`} />
+                    <span aria-hidden="true" className={`relative block h-4 w-8 rounded-full transition-colors ${showClassAverage ? 'bg-neutral-800' : 'bg-slate-300'}`}>
+                      <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all ${showClassAverage ? 'left-[1.1rem]' : 'left-0.5'}`} />
+                    </span>
                   </button>
                 </div>
                 </>}

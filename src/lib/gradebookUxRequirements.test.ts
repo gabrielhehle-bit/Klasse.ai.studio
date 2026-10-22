@@ -61,3 +61,18 @@ test('subject switch clears previous assessment focus and missing filter without
   assert.match(subjectPicker, /setFilterMissing\(false\)/);
   assert.doesNotMatch(subjectPicker, /setApp\(/);
 });
+
+
+test('class average visibility switch stays touch-sized and announces its state', () => {
+  const start = gradebook.indexOf('aria-label="Klassenschnitt anzeigen"');
+  const end = gradebook.indexOf('</button>', start);
+  assert.ok(start > 0 && end > start);
+  const control = gradebook.slice(gradebook.lastIndexOf('<button', start), end);
+  assert.match(control, /role="switch"/);
+  assert.match(control, /aria-checked=\{showClassAverage\}/);
+  assert.match(control, /min-h-11 min-w-11/);
+  assert.match(control, /focus-visible:outline-offset-2/);
+  assert.match(control, /onClick=\{\(\) => setShowClassAverage\(!showClassAverage\)\}/);
+  assert.match(control, /aria-hidden="true"/);
+  assert.doesNotMatch(control, /setApp\(/);
+});
