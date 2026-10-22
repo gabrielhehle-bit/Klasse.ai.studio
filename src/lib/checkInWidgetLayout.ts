@@ -77,9 +77,9 @@ export function getCheckInPageLayout(
  */
 export function getCheckInCardBadgeLayout(cardWidth: number, cardHeight: number) {
   const iconOnly = !Number.isFinite(cardWidth) || !Number.isFinite(cardHeight)
-    || cardWidth < 260 || cardHeight < 70;
+    || cardWidth < 300 || cardHeight < 70;
   return {
     iconOnly,
-    namePaddingClass: iconOnly ? 'pr-10' : 'pr-28',
+    namePaddingClass: iconOnly ? 'pr-10' : 'pr-36',
   } as const;
 }
