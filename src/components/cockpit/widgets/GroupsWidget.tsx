@@ -835,7 +835,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                 >
                   {/* Gruppen Header */}
                   <div className={`${compactGroupWidget ? 'px-2 py-1' : 'px-2.5 py-1.5 sm:px-3 sm:py-2'} flex items-center justify-between shrink-0 ${palette.headerBg}`}>
-                    <div className="flex items-center gap-1.5 truncate">
+                    <div className="flex min-w-0 flex-1 items-center gap-1.5">
                       {group.symbol && <span className="text-sm">{group.symbol}</span>}
                       <h4 title={group.name} className={`${roomyGroupCards ? 'text-base sm:text-lg' : 'text-xs sm:text-sm'} min-w-0 font-black tracking-wide break-words [overflow-wrap:anywhere]`}>
                         {group.name}{segment.parts > 1 ? ` · ${segment.part}/${segment.parts}` : ''}
