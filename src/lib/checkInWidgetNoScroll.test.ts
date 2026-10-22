@@ -64,13 +64,13 @@ test('Check-in expands into non-scrolling pages on a small 340px screen', () => 
 
 
 test('Ich bin da: narrow cards keep the full name separate from the visual status chip', () => {
-  for (const width of [112, 145, 155, 190, 220, 259]) {
+  for (const width of [112, 145, 155, 190, 220, 259, 299]) {
     const card = getCheckInCardBadgeLayout(width, 64);
     assert.equal(card.iconOnly, true, 'Status label would cover a child name at ' + width + 'px');
     assert.equal(card.namePaddingClass, 'pr-10');
   }
-  assert.deepEqual(getCheckInCardBadgeLayout(260, 70), {
-    iconOnly: false, namePaddingClass: 'pr-28',
+  assert.deepEqual(getCheckInCardBadgeLayout(300, 70), {
+    iconOnly: false, namePaddingClass: 'pr-36',
   });
   assert.equal(getCheckInCardBadgeLayout(480, 45).iconOnly, true,
     'Flat cards must reserve height and avoid a large label');
