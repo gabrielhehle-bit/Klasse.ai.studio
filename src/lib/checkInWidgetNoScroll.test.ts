@@ -81,3 +81,10 @@ test('Ich bin da: narrow cards keep the full name separate from the visual statu
   assert.match(source, /!\s*badgeLayout\.iconOnly && <span className="whitespace-nowrap"/);
   assert.match(source, /aria-label=\{\`\$\{displayName\}: \$\{canTapMood \? 'Befinden auswählen' : statusLabel\}\`\}/);
 });
+
+
+test('Ich bin da: a completed roll call never mistakes absent children for present children', () => {
+  assert.ok(source.includes('summary.isComplete ? `${summary.present}/${summary.total} da · vollständig`'));
+  assert.ok(!source.includes('summary.isComplete ? `${summary.total}/${summary.total} da · vollständig`'));
+  assert.ok(source.includes('`${summary.present} von ${summary.total} da · ${summary.open} noch offen`'));
+});
