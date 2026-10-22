@@ -54,3 +54,12 @@ test('AltGr, inputs, repeated keys and modal overlays cannot accidentally open f
   assert.match(globalActions, /document\.querySelector\('\[role="dialog"\]\[aria-modal="true"\]'\)/);
   assert.match(globalActions, /else if \(key === 'c'\)/);
 });
+
+test('overview has contextual labels for manual grade inputs and semantic table headers', () => {
+  assert.ok(overview.includes('<th scope="row"'));
+  assert.ok((overview.match(/<th scope="col"/g) || []).length >= 3);
+  assert.ok(overview.includes('aria-label="Notendurchschnitt"'));
+  assert.ok(overview.includes('aria-label={`${s.vorname} ${s.nachname} – ${f}: Zeugnisnote für das ganze Schuljahr`}'));
+  assert.ok(overview.includes("(sum / count).toFixed(1).replace('.', ',')"));
+  assert.match(overview, /getOverviewNote\(app, s\.id, f, selectedSemester\)/);
+});
