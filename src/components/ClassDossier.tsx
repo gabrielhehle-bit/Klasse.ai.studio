@@ -1,4 +1,5 @@
 import { countsInClassAverage } from '../lib/classAveragePolicy';
+import { behaviorChartCoordinate } from '../lib/classBehaviorChart';
 import React, { useMemo, useState } from 'react';
 import {
   Activity,
@@ -453,9 +454,10 @@ export default function ClassDossier({ onSelectStudent }: Props) {
         attendance: metrics.attendanceRate,
         mood: metrics.moodAverage,
         behavior: metrics.behaviorAverage,
+        behaviorPlot: behaviorChartCoordinate(metrics.behaviorAverage, behaviorScaleMax),
       };
     });
-  }, [range.from.getTime(), range.to.getTime(), calculateRangeMetrics]);
+  }, [range.from.getTime(), range.to.getTime(), calculateRangeMetrics, behaviorScaleMax]);
 
   const genderData = useMemo(
     () => distribution(students, student => getStudentGenderLabel(student.geschlecht)),
@@ -709,7 +711,7 @@ export default function ClassDossier({ onSelectStudent }: Props) {
               <Activity size={17} className="text-emerald-600" />
               Verhalten
             </h2>
-            <p className="mt-1 text-xs text-[var(--text3)]">1 = sehr positiv · {behaviorScaleMax} = Unterstützungsbedarf · gut oben</p>
+            <p className="mt-1 text-xs text-[var(--text3)]">1 = sehr positiv (oben) · {behaviorScaleMax} = Unterstützungsbedarf (unten)</p>
           </div>
           <div className="mt-3 h-48">
             {timeline.some(item => item.behavior !== null) ? (
@@ -717,9 +719,9 @@ export default function ClassDossier({ onSelectStudent }: Props) {
                 <LineChart data={timeline} margin={{ top: 8, right: 10, left: -8, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="label" tick={{ fontSize: 10 }} minTickGap={20} />
-                  <YAxis reversed interval={0} domain={[1, behaviorScaleMax]} ticks={Array.from({ length: behaviorScaleMax }, (_, index) => index + 1)} width={24} tick={{ fontSize: 10 }} />
-                  <Tooltip formatter={(value: any) => [fmt(Number(value)), 'Verhalten']} />
-                  <Line type="monotone" dataKey="behavior" stroke="#059669" strokeWidth={2.5} dot={{ r: 2.5 }} connectNulls />
+                  <YAxis type="number" interval={0} allowDecimals={false} domain={[1, behaviorScaleMax]} ticks={Array.from({ length: behaviorScaleMax }, (_, index) => index + 1)} tickFormatter={value => String(behaviorChartCoordinate(Number(value), behaviorScaleMax))} width={24} tick={{ fontSize: 10 }} />
+                  <Tooltip formatter={(value: any) => [fmt(behaviorChartCoordinate(Number(value), behaviorScaleMax)), 'Verhalten']} />
+                  <Line type="monotone" dataKey="behaviorPlot" stroke="#059669" strokeWidth={2.5} dot={{ r: 2.5 }} connectNulls />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
