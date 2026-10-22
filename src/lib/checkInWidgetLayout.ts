@@ -68,3 +68,18 @@ export function getCheckInPageLayout(
   const canRender = usableW >= minCardWidth && usableH >= minCardHeight;
   return { columns, rows, pageSize, pageCount, currentPage, start: currentPage * pageSize, canRender };
 }
+
+/**
+ * The status chip overlays the upper-right corner of a student card. In small
+ * tiles even "Abwesend" or "Befinden" would cover the pupil's name. Show the
+ * status icon only until there is enough room for both a full name and label.
+ * The outer student button always retains its complete accessible status.
+ */
+export function getCheckInCardBadgeLayout(cardWidth: number, cardHeight: number) {
+  const iconOnly = !Number.isFinite(cardWidth) || !Number.isFinite(cardHeight)
+    || cardWidth < 300 || cardHeight < 70;
+  return {
+    iconOnly,
+    namePaddingClass: iconOnly ? 'pr-10' : 'pr-36',
+  } as const;
+}

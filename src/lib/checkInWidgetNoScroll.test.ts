@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { getStudentGridLayout } from './studentWidgetGrid';
-import { CHECK_IN_GRID_OPTIONS, getAdaptiveCheckInOptions, getCheckInPageLayout, shouldShowCheckInSummary } from './checkInWidgetLayout';
+import { CHECK_IN_GRID_OPTIONS, getAdaptiveCheckInOptions, getCheckInPageLayout, shouldShowCheckInSummary, getCheckInCardBadgeLayout } from './checkInWidgetLayout';
 
 const source = readFileSync('src/components/cockpit/widgets/KidAttendanceWidget.tsx', 'utf8');
 
@@ -60,4 +60,31 @@ test('Check-in expands into non-scrolling pages on a small 340px screen', () => 
   assert.match(source, /aria-label="Schülerseiten"/);
   assert.match(source, /aria-label="Vorherige Schülerseite"/);
   assert.match(source, /aria-label="Nächste Schülerseite"/);
+});
+
+
+test('Ich bin da: narrow cards keep the full name separate from the visual status chip', () => {
+  for (const width of [112, 145, 155, 190, 220, 259, 299]) {
+    const card = getCheckInCardBadgeLayout(width, 64);
+    assert.equal(card.iconOnly, true, 'Status label would cover a child name at ' + width + 'px');
+    assert.equal(card.namePaddingClass, 'pr-10');
+  }
+  assert.deepEqual(getCheckInCardBadgeLayout(300, 70), {
+    iconOnly: false, namePaddingClass: 'pr-36',
+  });
+  assert.equal(getCheckInCardBadgeLayout(480, 45).iconOnly, true,
+    'Flat cards must reserve height and avoid a large label');
+  assert.equal(getCheckInCardBadgeLayout(NaN, 70).iconOnly, true);
+  assert.match(source, /getCheckInCardBadgeLayout\(cardWidth, cardHeight\)/);
+  assert.match(source, /badgeLayout\.namePaddingClass/);
+  assert.match(source, /data-status-view=\{badgeLayout\.iconOnly \? 'icon' : 'label'\}/);
+  assert.match(source, /!\s*badgeLayout\.iconOnly && <span className="whitespace-nowrap"/);
+  assert.match(source, /aria-label=\{\`\$\{displayName\}: \$\{canTapMood \? 'Befinden auswählen' : statusLabel\}\`\}/);
+});
+
+
+test('Ich bin da: a completed roll call never mistakes absent children for present children', () => {
+  assert.ok(source.includes('summary.isComplete ? `${summary.present}/${summary.total} da · vollständig`'));
+  assert.ok(!source.includes('summary.isComplete ? `${summary.total}/${summary.total} da · vollständig`'));
+  assert.ok(source.includes('`${summary.present} von ${summary.total} da · ${summary.open} noch offen`'));
 });
