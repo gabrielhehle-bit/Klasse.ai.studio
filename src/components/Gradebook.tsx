@@ -1542,24 +1542,24 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
       >
         <div className="flex flex-col items-center justify-center min-h-[2.5rem] gap-0.5 cursor-pointer relative z-10 w-full">
           <div className="flex w-full items-center gap-1">
-          <button type="button" aria-label={`Bewertungen für ${customLabel || `${defaultName} ${i + 1}`} eintragen`}
-            aria-pressed={isolatedCol?.typ === typ && isolatedCol?.idx === i}
-            className="min-h-11 min-w-0 flex-1 px-1 text-sm font-semibold normal-case leading-tight text-slate-800 hover:text-emerald-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600">
-            {customLabel || `${defaultName} ${i + 1}`}
-          </button>
-          <button 
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditingAssessmentModal({ typ, idx: i, isNew: false });
-              setIsolatedCol(null);
-            }}
-            aria-label={`${customLabel || defaultName} ${i + 1}: Spaltenoptionen (Bezeichnung, Datum, Höchstpunkte)`}
-            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-base font-black text-slate-700 shadow-xs transition-colors hover:border-indigo-300 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 print:hidden"
-            title="Spaltenoptionen: Bezeichnung, Datum und Höchstpunkte bearbeiten"
-          >
-            <span aria-hidden="true">⋯</span>
-          </button>
+            <button type="button" aria-label={`Bewertungen für ${customLabel || `${defaultName} ${i + 1}`} eintragen`}
+              aria-pressed={isolatedCol?.typ === typ && isolatedCol?.idx === i}
+              className="min-h-11 min-w-0 flex-1 px-1 text-sm font-semibold normal-case leading-tight text-slate-800 hover:text-emerald-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600">
+              {customLabel || `${defaultName} ${i + 1}`}
+            </button>
+            <button 
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingAssessmentModal({ typ, idx: i, isNew: false });
+                setIsolatedCol(null);
+              }}
+              aria-label={`${customLabel || defaultName} ${i + 1}: Spaltenoptionen (Bezeichnung, Datum, Höchstpunkte)`}
+              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-base font-black text-slate-700 shadow-xs transition-colors hover:border-indigo-300 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 print:hidden"
+              title="Spaltenoptionen: Bezeichnung, Datum und Höchstpunkte bearbeiten"
+            >
+              <span aria-hidden="true">⋯</span>
+            </button>
           </div>
           {typ === 'lzk' && app.notenMeta?.[activeFach]?.colAreas?.lzk?.[i] && <span className="text-xs font-medium normal-case text-slate-500">{app.notenMeta[activeFach].colAreas.lzk[i]}</span>}
           {customDate && (
@@ -1577,8 +1577,6 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
               0–100%
             </span>
           )}
-          
-
         </div>
       </th>
     );
