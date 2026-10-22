@@ -30,7 +30,7 @@ import {
 } from '../../../lib/kidAttendanceAlgorithm';
 import { KID_MOOD_SCALE, getMoodMeta } from '../../../lib/moodTypes';
 import { getStudentGridLayout } from '../../../lib/studentWidgetGrid';
-import { getAdaptiveCheckInOptions, getCheckInPageLayout, shouldShowCheckInSummary } from '../../../lib/checkInWidgetLayout';
+import { getAdaptiveCheckInOptions, getCheckInPageLayout, shouldShowCheckInSummary, getCheckInCardBadgeLayout } from '../../../lib/checkInWidgetLayout';
 import { getCheckInMode } from '../../../lib/checkInWidgetMode';
 import PresenceBehaviorStats from '../../PresenceBehaviorStats';
 
@@ -379,6 +379,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     const microCard = cardWidth < 122 || cardHeight < 47;
     const roomyCard = cardWidth >= 200 && cardHeight >= 68;
     const heroCard = cardWidth >= 240 && cardHeight >= 84;
+    const badgeLayout = getCheckInCardBadgeLayout(cardWidth, cardHeight);
     const { status, isPreExistingAbsent, delayMinutes } = getStudentAttendanceStatus(student.id, app, todayStr);
     const isJustCheckedIn = recentlyTappedId === student.id;
     const isSelected = selectedStudentId === student.id;
@@ -437,7 +438,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
         } ${isSelected ? 'ring-4 ring-accent/35 border-accent' : ''} ${isJustCheckedIn ? 'ring-4 ring-emerald-300/80 shadow-lg' : ''} ${cardClasses}`}
       >
         {/* Linke Seite: Avatar-Initiale + Name */}
-        <div className={`flex w-full min-w-0 items-start pr-16 ${compactCard ? 'gap-1.5' : 'gap-2.5'} flex-1`}>
+        <div className={`flex w-full min-w-0 items-start ${badgeLayout.namePaddingClass} ${compactCard ? 'gap-1.5' : 'gap-2.5'} flex-1`}>
           {!compactCard && <div
             className={`${heroCard ? 'w-12 h-12 text-base' : roomyCard ? 'w-10 h-10 text-sm' : 'w-8 h-8 text-xs'} rounded-xl flex items-center justify-center font-black shrink-0 ${
               status === 'present'
@@ -473,6 +474,8 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
         {/* Rechte Seite: Ruhiger Status-Badge */}
         <div
           data-attendance-status={status}
+          data-status-view={badgeLayout.iconOnly ? 'icon' : 'label'}
+          aria-hidden="true"
           title={`Status: ${canTapMood ? 'Befinden auswählen' : statusLabel}`}
           className={`absolute right-1.5 top-1.5 shrink-0 flex items-center ${compactCard ? 'gap-1 px-1.5 py-1' : heroCard ? 'gap-2 px-3 py-2' : roomyCard ? 'gap-1.5 px-2.5 py-1.5' : 'gap-1.5 px-2 py-1'} rounded-lg ${heroCard || roomyCard ? 'text-sm' : 'text-xs'} font-black tabular-nums border ${
             status === 'present'
@@ -489,7 +492,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           }`}
         >
           {statusIcon}
-          <span className="whitespace-nowrap">{canTapMood ? 'Befinden' : statusLabel}</span>
+          {!badgeLayout.iconOnly && <span className="whitespace-nowrap">{canTapMood ? 'Befinden' : statusLabel}</span>}
         </div>
       </button>
     );
