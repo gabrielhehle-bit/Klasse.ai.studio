@@ -166,7 +166,7 @@ export default function GradeOverview({ embedded = false, onBack }: { embedded?:
                 
                 return (
                   <tr key={s.id} className="border-b border-border/50 hover:bg-surface2/20 transition-colors">
-                    <th scope="row" className="px-4 py-3 text-[0.75rem] font-medium text-text-primary sticky left-0 bg-white group-hover:bg-surface2/20 border-r border-border/30 z-10">
+                    <th scope="row" className="px-4 py-3 text-left text-[0.75rem] font-medium text-text-primary sticky left-0 bg-white group-hover:bg-surface2/20 border-r border-border/30 z-10">
                       {s.nachname} <span className="text-text-secondary font-normal">{s.vorname}</span>
                     </th>
                     {activeFaecher.map(f => {
