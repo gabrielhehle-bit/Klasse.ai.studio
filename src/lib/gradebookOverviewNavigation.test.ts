@@ -59,7 +59,7 @@ test('overview has contextual labels for manual grade inputs and semantic table 
   assert.ok(overview.includes('<th scope="row"'));
   assert.ok((overview.match(/<th scope="col"/g) || []).length >= 3);
   assert.ok(overview.includes('aria-label="Notendurchschnitt"'));
-  assert.ok(overview.includes('aria-label={\`undefined undefined – [object Object]: Zeugnisnote für das ganze Schuljahr\`}'));
+  assert.ok(overview.includes('aria-label={`${s.vorname} ${s.nachname} – ${f}: Zeugnisnote für das ganze Schuljahr`}'));
   assert.ok(overview.includes("(sum / count).toFixed(1).replace('.', ',')"));
   assert.match(overview, /getOverviewNote\(app, s\.id, f, selectedSemester\)/);
 });
