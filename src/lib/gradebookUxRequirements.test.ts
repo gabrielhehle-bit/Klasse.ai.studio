@@ -67,7 +67,7 @@ test('class average visibility switch stays touch-sized and announces its state'
   const start = gradebook.indexOf('aria-label="Klassenschnitt anzeigen"');
   const end = gradebook.indexOf('</button>', start);
   assert.ok(start > 0 && end > start);
-  const control = gradebook.slice(start - 100, end);
+  const control = gradebook.slice(gradebook.lastIndexOf('<button', start), end);
   assert.match(control, /role="switch"/);
   assert.match(control, /aria-checked=\{showClassAverage\}/);
   assert.match(control, /min-h-11 min-w-11/);
