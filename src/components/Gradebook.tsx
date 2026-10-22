@@ -1,5 +1,6 @@
 import { visibleAssessmentIndices, hasMissingVisibleAssessment } from '../lib/gradebookVisibleColumns';
 import { countsInClassAverage } from '../lib/classAveragePolicy';
+import { getPositiveBehaviorRate } from '../lib/gradebookBehaviorRate';
 import { removeSubjectColumn, updateSubjectColumn } from '../lib/classroomEdits';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -2863,7 +2864,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                               const sIndex = stages.findIndex(st => st.id === log.iconId);
                               return sIndex === 0 || sIndex === 1; // Super and Gut indicators
                            }).length;
-                           const positivePct = totalCount > 0 ? Math.round((positiveLogsCount / totalCount) * 100) : null;
+                           const positivePct = getPositiveBehaviorRate(positiveLogsCount, totalCount);
 
                            // Negative feedback indicators
                            const negativeLogsCount = studentLogs.filter(log => {
