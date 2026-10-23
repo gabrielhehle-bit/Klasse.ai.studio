@@ -363,7 +363,7 @@ async function main() {
     await waitFor(berta, 'shared class invitation appears in first-run setup', 'document.querySelector("[data-testid=first-run-team-join]")?.textContent.includes("E2E 1A")', 30000);
     await clickButton(berta, 'Klasse öffnen');
     await waitFor(berta, 'first-run join exits setup after class has been adopted',
-      'Boolean(document.querySelector("nav button[data-menu-id=\\"klasse\\"]")) && !document.querySelector("[data-testid=first-run-team-join]")', 30000);
+      '!document.querySelector("[data-testid=first-run-team-join]") && document.body?.innerText.includes("E2E 1A")', 30000);
     await openClassTeam(berta);
     await waitFor(berta, 'shared class decrypted locally', 'document.body?.innerText.includes("Aktuelle Klasse: E2E 1A") && document.body?.innerText.includes("Rolle: editor")', 30000);
     console.log('✓ Lehrkraft B: shared class decrypted locally');
