@@ -46,3 +46,25 @@ test('Notenmappe keeps student note and trend actions visible to touch and keybo
   assert.doesNotMatch(studentActions, /opacity-0|group-hover:opacity-100/);
   assert.match(studentActions, /prompt\('Notiz für ' \+ s\.vorname, nd\.freitext \|\| ''\)/);
 });
+
+test('new assessment chooser traps keyboard focus, closes on Escape and returns to its trigger', () => {
+  const start = gradebook.indexOf('{/* Modal for + Bewertung */}');
+  const end = gradebook.indexOf('{/* Modal for Zeugnisnote Explanation */}', start);
+  assert.ok(start > 0 && end > start);
+  const chooser = gradebook.slice(start, end);
+  assert.match(gradebook, /id="gradebook-add-assessment-trigger"/);
+  assert.match(gradebook, /aria-haspopup="dialog"/);
+  assert.match(chooser, /role="dialog"/);
+  assert.match(chooser, /aria-modal="true"/);
+  assert.match(chooser, /aria-labelledby="gradebook-add-assessment-title"/);
+  assert.match(chooser, /aria-describedby="gradebook-add-assessment-description"/);
+  assert.match(chooser, /autoFocus/);
+  assert.match(chooser, /min-h-11 min-w-11/);
+  assert.match(chooser, /onKeyDown=\{\(event\) => \{/);
+  assert.match(chooser, /event\.key === 'Escape'/);
+  assert.match(chooser, /event\.key !== 'Tab'/);
+  assert.match(chooser, /last\.focus\(\)/);
+  assert.match(chooser, /first\.focus\(\)/);
+  assert.match(gradebook, /document\.getElementById\('gradebook-add-assessment-trigger'\)\?\.focus\(\)/);
+  assert.match(chooser, /closeAddAssessmentDialog\(\)/);
+});
