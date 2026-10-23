@@ -134,18 +134,28 @@ export default function EmailAccountLogin({ compact = false, onSuccess }: EmailA
     );
   }
 
-  if (status.identity) {
+  // A verified school identity and an authenticated personal e-mail account are
+  // separate cookies. Only the latter permits encrypted cross-device sync.
+  if (status.authenticated && status.account?.email) {
     return (
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5">
         <div className="flex items-start gap-3">
           <CheckCircle2 size={20} className="mt-0.5 shrink-0 text-emerald-700" />
           <div>
-            <div className="text-sm font-black text-emerald-950">Mit Schulmail angemeldet</div>
-            <div className="mt-1 text-sm font-semibold text-emerald-900">{status.account?.email}</div>
-            <div className="mt-1 flex items-center gap-1.5 text-xs font-bold text-emerald-700">
-              <School size={13} />
-              {status.identity.schoolName || status.identity.schoolDomain}
+            <div className="text-sm font-black text-emerald-950">
+              {status.identity ? 'Mit Schulmail angemeldet' : 'Mit E-Mail-Konto angemeldet'}
             </div>
+            <div className="mt-1 text-sm font-semibold text-emerald-900">{status.account.email}</div>
+            {status.identity && (
+              <div className="mt-1 flex items-center gap-1.5 text-xs font-bold text-emerald-700">
+                <School size={13} />
+                {status.identity.schoolName || status.identity.schoolDomain}
+              </div>
+            )}
+            <p className="mt-2 text-xs font-semibold text-emerald-800">
+              Die E-Mail-Sitzung ist aktiv. Ob deine neuesten Daten wirklich am Server liegen,
+              zeigt die separate Konto-Synchronisierungsprüfung.
+            </p>
           </div>
         </div>
       </div>
@@ -184,6 +194,14 @@ export default function EmailAccountLogin({ compact = false, onSuccess }: EmailA
           </p>
         </div>
       </div>
+
+      {status.identity && !status.account?.email && (
+        <p role="alert" className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-bold text-amber-950">
+          Eine Schulidentität ist vorhanden, aber kein persönliches E-Mail-Konto angemeldet.
+          Ohne E-Mail-Konto werden deine Notizen nicht mit anderen Geräten synchronisiert.
+          Melde dich unten mit derselben E-Mail-Adresse wie auf deinem anderen Gerät an.
+        </p>
+      )}
 
       {step === 'email' ? (
         <form onSubmit={requestCode} className="space-y-3">
