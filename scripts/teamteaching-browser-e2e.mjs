@@ -359,9 +359,10 @@ async function main() {
     await waitFor(anna, 'second teacher added', 'document.body?.innerText.includes("wurde als Teamlehrkraft hinzugefügt") || document.body?.innerText.includes("2 Lehrperson")', 30000);
     console.log('✓ Lehrkraft A: second teacher added as editor');
 
+    await clickButton(berta, 'Einladungen aktualisieren');
+    await waitFor(berta, 'shared class invitation appears in first-run setup', 'document.querySelector("[data-testid=first-run-team-join]")?.textContent.includes("E2E 1A")', 30000);
+    await clickButton(berta, 'Klasse öffnen');
     await openClassTeam(berta);
-    await waitFor(berta, 'shared class listed', 'document.body?.innerText.includes("E2E 1A")', 30000);
-    await clickButton(berta, 'Auf diesem Gerät öffnen');
     await waitFor(berta, 'shared class decrypted locally', 'document.body?.innerText.includes("Aktuelle Klasse: E2E 1A") && document.body?.innerText.includes("Rolle: editor")', 30000);
     console.log('✓ Lehrkraft B: shared class decrypted locally');
 
