@@ -145,7 +145,7 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
                   {isNew ? `${currentTypeInfo.singular} erstellen` : `${currentTypeInfo.singular} bearbeiten`}
                 </h3>
                 <p className="text-xs font-semibold text-slate-500 mt-0.5">
-                  Fach: <span className="font-bold text-slate-800">{subject}</span> · <span className="font-bold text-slate-800">{semester}. Semester</span>
+                  Fach: <span className="font-bold text-slate-800">{subject}</span> · <span className="font-bold text-slate-800">{semester === '1' ? 'Ganzes Schuljahr' : `${semester}. Semester`}</span>
                 </p>
               </div>
             </div>
@@ -414,7 +414,7 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
                 className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black shadow-md shadow-indigo-600/20 hover:shadow-lg transition-all flex items-center gap-2"
               >
                 <CheckCircle2 size={16} />
-                {isNew ? 'Leistungsobjekt anlegen' : 'Änderungen speichern'}
+                {isNew ? `${currentTypeInfo.singular} anlegen` : 'Änderungen speichern'}
               </button>
             </div>
           </form>

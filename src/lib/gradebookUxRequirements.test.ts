@@ -91,3 +91,15 @@ test('gradebook assessment header keeps title and settings as separate touch-siz
   assert.doesNotMatch(header, /absolute -top-1 -right-1/);
   assert.doesNotMatch(header, /setApp\(/);
 });
+
+test('assessment form uses the school-year period and a category-specific save action', () => {
+  const modal = readFileSync('src/components/gradebook/AssessmentItemModal.tsx', 'utf8');
+  assert.match(gradebook, /const sem: '1' \| '2' = '1';/);
+  assert.match(gradebook, /<AssessmentItemModal/);
+  assert.match(gradebook, /semester=\{sem\}/);
+  assert.match(modal, /semester === '1' \? 'Ganzes Schuljahr'/);
+  assert.doesNotMatch(modal, />\{semester\}\. Semester</);
+  assert.match(modal, /isNew \? `\$\{currentTypeInfo\.singular\} anlegen` : 'Änderungen speichern'/);
+  assert.match(modal, /const finalLabel = label\.trim\(\) \|\| currentTypeInfo\.defaultName/);
+  assert.match(modal, /onSave\(finalLabel, date, finalMaxP, typ === 'lzk' \? area\.trim\(\) : undefined\)/);
+});
