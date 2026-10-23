@@ -1762,7 +1762,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       const record = await authorizedRecord();
       if (!record || closed) return;
       // Revision supplied by a listener can be older than the current committed version.
-      if (!res.write(`data: ${JSON.stringify({ revision: Math.max(revision, record.revision) })}\\n\\n`)) close();
+      if (!res.write(`data: ${JSON.stringify({ revision: Math.max(revision, record.revision) })}\n\n`)) close();
     };
     try {
       const initial = await classCollaborationStore.getClass(identity, classId);
@@ -1780,7 +1780,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       heartbeat = setInterval(async () => {
         const authorized = await authorizedRecord();
         if (!authorized || closed) return;
-        if (!res.write(': heartbeat\\n\\n')) close();
+        if (!res.write(': heartbeat\n\n')) close();
       }, 15_000);
     } catch (error: any) {
       unsubscribe();
