@@ -13,7 +13,7 @@ const originalTitles = [
 
 test('Redesign preserves exactly the nine known cards, their names and their positions', () => {
   const ids = [...overview.matchAll(/id: '(\w+)' as SettingsCategory/g)].map(m => m[1]);
-  const labels = [...overview.matchAll(/title: '([^']+)'/g)].map(m => m[1]);
+  const labels = [...overview.matchAll(/\btitle: '([^']+)'/g)].map(m => m[1]);
   assert.deepEqual(ids, originalOrder);
   assert.deepEqual(labels, originalTitles);
   assert.match(overview, /grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3/);
