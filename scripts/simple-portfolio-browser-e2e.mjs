@@ -175,7 +175,10 @@ async function clickSidebar(client, label) {
       'Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").replace(/\\s+/g," ").trim().startsWith("Mehr"))'
     );
     if (hasMore) {
-      await clickButton(client, 'Mehr');
+      const openedSidebarMore = await evaluate(client,
+        '(() => {const button=Array.from(document.querySelectorAll("nav button")).find(b=>String(b.getAttribute("aria-label")||"").includes("weitere Bereiche anzeigen"));' +
+        'if(!button)return false;if(button.getAttribute("aria-expanded")!=="true")button.click();return true;})()');
+      if (!openedSidebarMore) throw new Error('Sidebar More control not found.');
       try {
         await waitFor(client, 'expanded sidebar destination ' + label,
           'Array.from(document.querySelectorAll("nav button")).some(button=>{' +
