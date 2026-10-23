@@ -113,19 +113,6 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
     return found ? found.width : DRAWING_WIDTHS[1].width;
   }, [activeTool, activeWidthId]);
 
-  // Canvas komplett neu zeichnen
-  const redrawCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const { w, h } = lastDimensionsRef.current;
-    if (w <= 0 || h <= 0) return;
-
-    renderAllStrokes(ctx, strokes, w, h, '#ffffff');
-  }, [strokes]);
-
   // Commit finished gestures immediately, so closing cannot drop the last edit.
   const latestDrawingRef = useRef(drawingState);
   const persistDrawingState = useCallback((patch: DrawingStatePatch = {}) => {
@@ -274,8 +261,9 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
       persistDrawingState({ strokes: next, redoStack: [] });
       // Nach neuem Zeichnen wird der Redo-Stack zurückgesetzt
       setRedoStack([]);
-      // Komplettes Redraw für glatte Bezier-Kurven
-      setTimeout(redrawCanvas, 0);
+      // The strokes effect repaints from the committed state. Scheduling a
+      // redrawCanvas closure here can repaint the *previous* (empty) strokes
+      // after React has already rendered this finished gesture.
     }
   };
 
