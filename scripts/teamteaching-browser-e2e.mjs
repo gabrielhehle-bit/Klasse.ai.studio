@@ -347,8 +347,8 @@ async function main() {
 
     await loginWithSchoolMail(berta, EMAIL_B, VAULT_B);
     const bertaFirstLoginAt = Date.now();
-    // A second teacher must also complete the one-time school/class setup
-    // before opening classroom tools; their shared class is added afterwards.
+    // The invited teacher stays in first-run setup until the owner shares a real
+    // class. No synthetic empty classroom or duplicate class is created.
     await waitFor(berta, 'invited teacher registration without creating a duplicate class', 'document.querySelector("[data-testid=first-run-team-join]")?.textContent.includes("Einladungen aktualisieren") && !document.querySelector("[data-testid=first-run-team-join]")?.textContent.includes("Einladungen werden geprüft")', 30000);
     console.log('✓ Lehrkraft B: separate school-mail login, first setup and vault/device identity ready');
 
