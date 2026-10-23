@@ -46,3 +46,21 @@ test('Regelmäßige unabhängige Sicherungen bleiben auch bei funktionierendem K
   assert.ok(backupUtils.includes('if (app.settings?.disableBackupReminders) return false'));
   assert.ok(!backupUtils.includes('if (isAccountSyncHealthy()) return false'));
 });
+
+test('Schulidentität allein ist kein persönlicher Konto-Sync; Prüfen darf nichts überschreiben', () => {
+  const login = readFileSync('src/components/EmailAccountLogin.tsx', 'utf8');
+  const check = readFileSync('src/components/AccountSyncReadOnlyCheck.tsx', 'utf8');
+  const settings = readFileSync('src/components/settings/AccountSettings.tsx', 'utf8');
+  assert.match(login, /status\.authenticated && status\.account\?\.email/);
+  assert.match(login, /status\.identity && !status\.account\?\.email/);
+  assert.match(login, /Eine Schulidentität ist vorhanden, aber kein persönliches E-Mail-Konto angemeldet/);
+  assert.match(login, /Mit E-Mail-Konto angemeldet/);
+  assert.match(settings, /<AccountSyncReadOnlyCheck \/>/);
+  assert.match(check, /Serverstand prüfen \(nur lesen\)/);
+  assert.match(check, /fetchAccountSyncSnapshot\(\)/);
+  assert.match(check, /decryptAccountSyncSnapshot\(remote, key\)/);
+  assert.match(check, /appStateFingerprint\(remoteState\) === after/);
+  assert.match(check, /remote\.vaultRecord\.id !== vault\.id/);
+  assert.match(check, /Keine aktive persönliche E-Mail-Anmeldung/);
+  assert.doesNotMatch(check, /setApp\(|pushAccountSyncSnapshot|restoreEncryptedAppState|method: 'PUT'|resolveAccountSyncConflict/);
+});
