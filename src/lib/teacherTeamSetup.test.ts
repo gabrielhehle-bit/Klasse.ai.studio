@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { getTeacherTeamNextAction, getTeacherTeamStepNumber, type TeacherTeamSetupState } from './teacherTeamSetup';
 
 function team(overrides: Partial<TeacherTeamSetupState> = {}): TeacherTeamSetupState {
@@ -37,4 +38,18 @@ test('Owner adds a teacher, while changes and conflicts require checking', () =>
   assert.equal(getTeacherTeamStepNumber('request-device'), 1);
   assert.equal(getTeacherTeamStepNumber('add-colleague'), 2);
   assert.equal(getTeacherTeamStepNumber('ready'), 3);
+});
+
+test('Teacher setup surface links to the existing secure class sharing actions', () => {
+  const source = readFileSync('src/components/ClassTeam.tsx', 'utf8');
+  assert.match(source, /data-testid="team-setup-guide"/);
+  assert.match(source, /getTeacherTeamNextAction/);
+  assert.match(source, /teamSyncPresentation\(activeRoom\)/);
+  assert.match(source, /case 'activate': void enableSharing\(\)/);
+  assert.match(source, /case 'request-device': void requestDeviceAccess\(\)/);
+  assert.match(source, /case 'ready': void showLatestChanges\(\)/);
+  assert.match(source, /id="team-teacher-search"/);
+  assert.match(source, /requestTeamTeachingDeviceAccess\(summary\.id\)/);
+  assert.match(source, /Versionsgeschichte/);
+  assert.match(source, /Änderungen zusammenführen/);
 });
