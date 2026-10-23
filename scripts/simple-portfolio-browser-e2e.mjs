@@ -176,7 +176,12 @@ async function clickSidebar(client, label) {
     );
     if (hasMore) {
       await clickButton(client, 'Mehr');
-      await sleep(250);
+      await waitFor(client, 'expanded sidebar destination ' + label,
+        'Array.from(document.querySelectorAll("nav button")).some(button=>{' +
+        'const text=String(button.textContent||"").replace(/\\s+/g," ").trim();' +
+        'const style=getComputedStyle(button);const rect=button.getBoundingClientRect();' +
+        'return text===' + q(label) + '&&style.visibility!=="hidden"&&style.display!=="none"&&rect.width>0&&rect.height>0;})',
+        10000);
     }
   }
   await clickButton(client, label, true);
