@@ -33,6 +33,7 @@ const CORE_MODULE_IDS = new Set([
   'planung',
   'leistungen',
   'cockpit',
+  'lehrerzimmer',
 ]);
 
 const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: SidebarProps) => {
