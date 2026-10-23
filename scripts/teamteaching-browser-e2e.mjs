@@ -349,7 +349,7 @@ async function main() {
     const bertaFirstLoginAt = Date.now();
     // A second teacher must also complete the one-time school/class setup
     // before opening classroom tools; their shared class is added afterwards.
-    await createClassInUi(berta, 'Berta eigene Klasse 1B');
+    await waitFor(berta, 'invited teacher registration without creating a duplicate class', 'document.querySelector("[data-testid=first-run-team-join]")?.textContent.includes("Einladungen aktualisieren") && !document.querySelector("[data-testid=first-run-team-join]")?.textContent.includes("Einladungen werden geprüft")', 30000);
     console.log('✓ Lehrkraft B: separate school-mail login, first setup and vault/device identity ready');
 
     // Remount A's team page so the newly registered colleague/device appears.
