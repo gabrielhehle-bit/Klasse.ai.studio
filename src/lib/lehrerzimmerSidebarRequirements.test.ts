@@ -19,3 +19,11 @@ test('Schulidentität wird serverseitig bestätigt und bei Kontoänderung neu ge
   assert.match(hook, /ACCOUNT_SESSION_CHANGED_EVENT/);
   assert.match(hook, /setVerified\(false\)/);
 });
+
+test('Lehrerzimmer ist ein dauerhaft sichtbarer Kernbereich, ohne die Schulmail-Prüfung abzuschalten', () => {
+  const core = sidebar.match(/const CORE_MODULE_IDS = new Set\(\[([\s\S]*?)\]\);/);
+  assert.ok(core, 'Standardbereiche müssen auffindbar sein');
+  assert.match(core[1], /'cockpit',\s*'lehrerzimmer'/);
+  assert.match(sidebar, /CORE_MODULE_IDS\.has\(item\.id\) \|\| sidebarPinned\.includes\(item\.id\)/);
+  assert.match(sidebar, /item\.id !== 'lehrerzimmer' \|\| hasVerifiedSchoolIdentity/);
+});

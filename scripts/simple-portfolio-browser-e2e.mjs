@@ -175,11 +175,28 @@ async function clickSidebar(client, label) {
       'Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").replace(/\\s+/g," ").trim().startsWith("Mehr"))'
     );
     if (hasMore) {
-      await clickButton(client, 'Mehr');
-      await sleep(250);
+      const openedSidebarMore = await evaluate(client,
+        '(() => {const button=Array.from(document.querySelectorAll("nav button")).find(b=>String(b.getAttribute("aria-label")||"").includes("weitere Bereiche anzeigen"));' +
+        'if(!button)return false;if(button.getAttribute("aria-expanded")!=="true")button.click();return true;})()');
+      if (!openedSidebarMore) throw new Error('Sidebar More control not found.');
+      try {
+        await waitFor(client, 'expanded sidebar destination ' + label,
+          'Array.from(document.querySelectorAll("nav button")).some(button=>{' +
+          'const text=String(button.textContent||"").replace(/\\s+/g," ").trim();' +
+          'return text===' + q(label) + ';})',
+          10000);
+      } catch (err) {
+        const debug = await evaluate(client,
+          '({navButtons:Array.from(document.querySelectorAll("nav button")).map(b=>({id:b.dataset.menuId||"",text:b.textContent.trim().slice(0,80)})),isPortfolioPresent:!!document.querySelector("[data-menu-id=portfolio]"),sectionText:document.querySelector("nav")?.textContent?.slice(0,1200)})');
+        console.error('PORTFOLIO_SIDEBAR_DIAGNOSTIC', JSON.stringify(debug));
+        throw err;
+      }
     }
   }
-  await clickButton(client, label, true);
+  const destination = await evaluate(client,
+    '(() => {const button=Array.from(document.querySelectorAll("nav button[data-menu-id]")).find(b=>String(b.textContent||"").replace(/\\s+/g," ").trim()===' + q(label) + ');' +
+    'if(!button)return false;button.scrollIntoView({block:"center"});button.click();return true;})()');
+  if (!destination) throw new Error('Sidebar destination not found: ' + label);
   await waitFor(client, 'sidebar page ' + label,
     'Array.from(document.querySelectorAll("button[aria-current=page]")).some(current=>String(current.textContent||"").replace(/\\s+/g," ").trim()===' + q(label) + ')'
   );

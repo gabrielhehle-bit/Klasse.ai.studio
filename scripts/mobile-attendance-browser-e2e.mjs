@@ -323,8 +323,23 @@ async function main() {
     await waitFor(client, 'phone More menu contains a mascot shortcut',
       `Array.from(document.querySelectorAll('#klassio-mobile-quick-mode .kqm-sheet[data-sheet="more"] .kqm-action')).some(button=>button.querySelector('strong')?.textContent==='Klassenmaskottchen')`);
     await evaluate(client, `Array.from(document.querySelectorAll('#klassio-mobile-quick-mode .kqm-sheet[data-sheet="more"] .kqm-action')).find(button=>button.querySelector('strong')?.textContent==='Klassenmaskottchen')?.click()`);
-    await waitFor(client, 'phone opens the real class mascot picker in display settings',
-      `Boolean(document.querySelector('[data-mobile-mascot-settings] button[aria-label="Katze Mimi auswählen"]'))`, 30000);
+    try {
+      await waitFor(client, 'phone opens the real class mascot picker in display settings',
+        `Boolean(document.querySelector('[data-mobile-mascot-settings] button[aria-label="Katze Mimi auswählen"]'))`, 30000);
+    } catch (error) {
+      const debug = await evaluate(client, `({
+        path:location.pathname,
+        title:document.title,
+        headings:Array.from(document.querySelectorAll('h1,h2,h3')).map(x=>x.textContent?.trim()).slice(0,16),
+        mobileSettings:!!document.querySelector('[data-mobile-mascot-settings]'),
+        helpSettings:!!document.querySelector('button[aria-label="Einfachmodus umschalten"]'),
+        activeNav:Array.from(document.querySelectorAll('[data-menu-id][aria-current="page"]')).map(x=>x.dataset.menuId),
+        storedCategory:sessionStorage.getItem('klassio-settings-category'),
+        currentCategory:sessionStorage.getItem('klassio-current-settings-category')
+      })`);
+      console.error('MOBILE_MASCOT_ROUTE_DIAGNOSTIC', JSON.stringify(debug));
+      throw error;
+    }
 
     const mobileMascotGeometry = await evaluate(client, `(() => {
       const panel = document.querySelector('[data-mobile-mascot-settings]');
