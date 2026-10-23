@@ -19,3 +19,12 @@ test('Schulidentität wird serverseitig bestätigt und bei Kontoänderung neu ge
   assert.match(hook, /ACCOUNT_SESSION_CHANGED_EVENT/);
   assert.match(hook, /setVerified\(false\)/);
 });
+
+test('Lehrerzimmer ist als Standard-Arbeitsbereich neben dem Lehrercockpit sichtbar', () => {
+  const core = sidebar.match(/const CORE_MODULE_IDS = new Set\(\[([\s\S]*?)\]\);/);
+  assert.ok(core, 'Die Liste der dauerhaft sichtbaren Hauptbereiche muss existieren');
+  assert.match(core[1], /'cockpit',\s*'lehrerzimmer'/);
+  assert.match(sidebar, /CORE_MODULE_IDS\.has\(item\.id\) \|\| sidebarPinned\.includes\(item\.id\)/);
+  assert.match(sidebar, /item\.id !== 'lehrerzimmer' \|\| hasVerifiedSchoolIdentity/);
+  assert.match(sidebar, /<span[^>]*>Arbeitsbereich<\/span>|Arbeitsbereich/);
+});
