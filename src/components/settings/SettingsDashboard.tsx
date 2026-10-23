@@ -1,19 +1,9 @@
 import React from 'react';
-import { 
-  Sliders, 
-  Palette, 
-  LayoutGrid, 
-  Smartphone, 
-  Download, 
-  Shield,
-  Heart,
-  ChevronRight,
-  Info,
-  Mail,
-  HelpCircle,
+import {
+  Sliders, Palette, LayoutGrid, Smartphone, Download,
+  Shield, Heart, ChevronRight, Mail, HelpCircle,
 } from 'lucide-react';
-import { motion } from 'motion/react';
-import { SettingsCategory } from './SettingsHeader';
+import type { SettingsCategory } from './SettingsHeader';
 
 interface SettingsDashboardProps {
   onSelectCategory: (category: SettingsCategory) => void;
@@ -22,163 +12,95 @@ interface SettingsDashboardProps {
   hasDemoData: boolean;
 }
 
+type SettingEntry = {
+  id: SettingsCategory;
+  title: string;
+  description: string;
+  icon: typeof Sliders;
+  status?: string;
+};
+
 export default function SettingsDashboard({
-  onSelectCategory,
-  disabledModulesCount,
-  hasActiveSync,
-  hasDemoData
+  onSelectCategory, disabledModulesCount, hasActiveSync, hasDemoData,
 }: SettingsDashboardProps) {
-  const TILES = [
-    {
-      id: 'help' as SettingsCategory,
-      title: 'Hilfe & Anleitungen',
-      subtitle: 'Alle Seiten und Unterrichtswerkzeuge erklärt',
-      desc: 'Suche nach einem KLASSIO-Bereich oder Widget und lies Schritt für Schritt, was du damit machen kannst.',
-      icon: HelpCircle,
-      badge: 'Anleitungen',
-      color: 'bg-indigo-500/10 text-indigo-600 border-indigo-200'
-    },
-    {
-      id: 'account' as SettingsCategory,
-      title: 'Konto & Schulmail',
-      subtitle: 'E-Mail-Anmeldung und Schulidentität',
-      desc: 'Melde dich mit deiner E-Mail an. Eine verifizierte Schulmail schaltet Klassenteam und Lehrerzimmer frei.',
-      icon: Mail,
-      badge: 'Login & Teamteaching',
-      color: 'bg-indigo-500/10 text-indigo-600 border-indigo-200'
-    },
-    {
-      id: 'general' as SettingsCategory,
-      title: 'Allgemein',
-      subtitle: 'Schuljahr, Bundesland & Fach-Farben',
-      desc: 'Konfiguriere das aktuelle Schuljahr, Ferientage deines Bundeslands, Fach-Farben und die Klassenglas-Ziele.',
-      icon: Sliders,
-      badge: 'Basis-Einstellungen',
-      color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200'
-    },
-    {
-      id: 'display' as SettingsCategory,
-      title: 'Darstellung',
-      subtitle: 'Design, Schriftgröße & Cockpit',
-      desc: 'Passe Farbschema, Schriftgröße und die Darstellung auf Laptop oder Smartboard an. Das Lehrercockpit bleibt eine weiße Smartboard-Fläche mit Widgets.',
-      icon: Palette,
-      badge: 'Design & Anzeige',
-      color: 'bg-amber-500/10 text-amber-600 border-amber-200'
-    },
-    {
-      id: 'modules' as SettingsCategory,
-      title: 'Module & Bereiche',
-      subtitle: 'Sichtbare Bereiche verwalten',
-      desc: 'Blende Bereiche wie Kasse, Sitzplan oder Diagnostik ein oder aus, um die App noch übersichtlicher zu halten.',
-      icon: LayoutGrid,
-      badge: disabledModulesCount > 0 ? `${disabledModulesCount} ausgeblendet` : 'Alle aktiv',
-      badgeColor: disabledModulesCount > 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600',
-      color: 'bg-indigo-500/10 text-indigo-600 border-indigo-200'
-    },
-    {
-      id: 'sync' as SettingsCategory,
-      title: 'Synchronisierung',
-      subtitle: 'Smartboard & Smartphone-Kopplung',
-      desc: 'Steuere deine Klassio drahtlos vom Smartphone aus oder erstelle eine Live-Verbindung zum Smartboard.',
-      icon: Smartphone,
-      badge: hasActiveSync ? 'Kopplung aktiv' : 'Live-Sync',
-      badgeColor: hasActiveSync ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600',
-      color: 'bg-teal-500/10 text-teal-600 border-teal-200'
-    },
-    {
-      id: 'backup' as SettingsCategory,
-      title: 'Daten & Backup',
-      subtitle: 'Sicherung, Import & App-Installation',
-      desc: 'Exportiere eine Sicherungsdatei deiner Schülerdaten & Notizen, lade Backups oder installiere die App auf deinem Gerät.',
-      icon: Download,
-      badge: 'Sicherheit & Import',
-      color: 'bg-blue-500/10 text-blue-600 border-blue-200'
-    },
-    {
-      id: 'support' as SettingsCategory,
-      title: 'Unterstützung',
-      subtitle: 'Freiwillige Beiträge & Dankesliste',
-      desc: 'Unterstütze den laufenden Serverbetrieb freiwillig und sieh, wer mit Zustimmung auf der Dankesliste steht.',
-      icon: Heart,
-      badge: 'Klassio bleibt frei',
-      color: 'bg-rose-500/10 text-rose-600 border-rose-200'
-    },
-    {
-      id: 'advanced' as SettingsCategory,
-      title: 'Erweitert & Sicherheit',
-      subtitle: 'Datenschutz & Gefahrenbereich',
-      desc: 'Verwalte die Schülernamen-Anonymisierung für KI, führe System-Checks durch oder versetze die App in den Werkszustand.',
-      icon: Shield,
-      badge: hasDemoData ? 'Beispieldaten vorhanden' : 'Datenschutz & Pflege',
-      badgeColor: hasDemoData ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600',
-      color: 'bg-purple-500/10 text-purple-600 border-purple-200'
-    }
+  const entries: SettingEntry[] = [
+    { id: 'general', title: 'Allgemein', description: 'Schuljahr, Ferientage, Fächer und Klassenglas.', icon: Sliders },
+    { id: 'display', title: 'Darstellung', description: 'Schrift, Kontrast, Arbeitsflächen und Smartboard.', icon: Palette },
+    { id: 'modules', title: 'Module & Bereiche', description: 'Entscheide, welche Werkzeuge du sehen möchtest.', icon: LayoutGrid,
+      status: disabledModulesCount > 0 ? `${disabledModulesCount} ausgeblendet` : undefined },
+    { id: 'account', title: 'Konto & Schulmail', description: 'Deine Anmeldung, Schulzugehörigkeit und Geräte.', icon: Mail },
+    { id: 'sync', title: 'Smartboard & Kopplung', description: 'Smartphone und Smartboard miteinander verbinden.', icon: Smartphone,
+      status: hasActiveSync ? 'Kopplung aktiv' : undefined },
+    { id: 'backup', title: 'Daten & Backup', description: 'Verschlüsselte Sicherungen, Wiederherstellung und Installation.', icon: Download },
+    { id: 'help', title: 'Hilfe & Anleitungen', description: 'Antworten und Schritt-für-Schritt-Hilfe zu KLASSIO.', icon: HelpCircle },
+    { id: 'support', title: 'Unterstützung', description: 'Freiwillige Beiträge für den laufenden Betrieb.', icon: Heart },
+    { id: 'advanced', title: 'Erweitert & Sicherheit', description: 'Datenschutz, Diagnose und geschützte Löschfunktionen.', icon: Shield,
+      status: hasDemoData ? 'Beispieldaten vorhanden' : undefined },
+  ];
+
+  const sections: Array<{ label: string; detail: string; ids: SettingsCategory[] }> = [
+    { label: 'Arbeitsplatz', detail: 'So arbeitest du mit KLASSIO.',
+      ids: ['general', 'display', 'modules'] },
+    { label: 'Verbindungen & Daten', detail: 'Zugang und Datenstand im Blick.',
+      ids: ['account', 'sync', 'backup'] },
+    { label: 'Wissenswertes', detail: 'Unterstützung und Verwaltung.',
+      ids: ['help', 'support', 'advanced'] },
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Intro Banner */}
-      <div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-[2rem] p-6 md:p-8 shadow-xl shadow-emerald-900/10 relative overflow-hidden">
-        <div className="relative z-10 max-w-2xl space-y-2">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/15 backdrop-blur-md rounded-full text-xs font-black uppercase tracking-wider text-emerald-100">
-            <Info size={14} />
-            Übersichtliche Verwaltung
-          </div>
-          <h2 className="text-xl md:text-2xl font-black tracking-tight font-sans">
-            Möchtest du Anpassungen an deiner Klassio vornehmen?
-          </h2>
-          <p className="text-sm text-emerald-100 font-medium leading-relaxed">
-            Wähle unten den passenden Bereich aus. Änderungen werden im lokalen App-Datenstand gespeichert. Löschfunktionen sind getrennt im Gefahrenbereich abgesichert.
-          </p>
-        </div>
-
-        {/* Decorative circle */}
-        <div className="absolute -right-12 -bottom-12 w-64 h-64 rounded-full bg-white/5 pointer-events-none blur-2xl" />
+    <div className="mx-auto w-full max-w-5xl pb-8 text-[var(--text)]" data-testid="klassio-editorial-settings">
+      <div className="max-w-2xl pb-8 pt-1 sm:pb-10">
+        <p className="mb-3 text-xs font-semibold tracking-[0.1em] text-[var(--accent-ink,var(--accent))]">
+          KLASSIO / Verwaltung
+        </p>
+        <h2 className="text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">
+          Dein Unterricht. Deine Einstellungen.
+        </h2>
+        <p className="mt-3 text-sm leading-relaxed text-[var(--text2)] sm:text-base">
+          Hier passt du deinen Arbeitsplatz an. Änderungen werden im lokalen App-Datenstand gespeichert.
+          Löschfunktionen sind getrennt im Gefahrenbereich abgesichert.
+        </p>
       </div>
 
-      {/* Settings tiles */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {TILES.map((tile, idx) => {
-          const Icon = tile.icon;
-          return (
-            <motion.button
-              key={tile.id}
-              onClick={() => onSelectCategory(tile.id)}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.05 }}
-              className="bg-white hover:bg-slate-50/80 rounded-[2rem] border border-stone-200/80 p-6 text-left transition-all cursor-pointer group flex flex-col justify-between gap-6 shadow-sm hover:shadow-md hover:border-emerald-300 relative overflow-hidden"
-            >
-              <div className="space-y-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${tile.color} transition-transform group-hover:scale-105`}>
-                    <Icon size={22} />
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-[0.625rem] font-black uppercase tracking-wider ${tile.badgeColor || 'bg-slate-100 text-slate-600'}`}>
-                    {tile.badge}
-                  </span>
-                </div>
-
-                <div className="space-y-1">
-                  <h3 className="text-base font-black text-slate-900 group-hover:text-emerald-700 transition-colors">
-                    {tile.title}
-                  </h3>
-                  <p className="text-xs font-bold text-slate-500">
-                    {tile.subtitle}
-                  </p>
-                  <p className="text-xs text-slate-400 font-medium leading-relaxed pt-1">
-                    {tile.desc}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-stone-100 text-xs font-black uppercase tracking-wider text-slate-600 group-hover:text-emerald-600">
-                <span>Bereich öffnen</span>
-                <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
-              </div>
-            </motion.button>
-          );
-        })}
+      <div className="border-t border-[var(--border)]">
+        {sections.map(section => (
+          <section key={section.label}
+            className="grid gap-4 border-b border-[var(--border)] py-7 sm:grid-cols-[minmax(150px,0.85fr)_minmax(0,2fr)] sm:gap-10 sm:py-9"
+            aria-label={section.label}>
+            <div className="sm:pt-1">
+              <h3 className="text-base font-semibold tracking-tight text-[var(--text)]">{section.label}</h3>
+              <p className="mt-1 text-sm leading-relaxed text-[var(--text3)]">{section.detail}</p>
+            </div>
+            <div className="divide-y divide-[var(--border)]">
+              {section.ids.map(id => {
+                const entry = entries.find(item => item.id === id);
+                if (!entry) return null;
+                const Icon = entry.icon;
+                return (
+                  <button key={entry.id} type="button" onClick={() => onSelectCategory(entry.id)}
+                    className="group flex min-h-[76px] w-full items-start gap-4 py-4 text-left transition-colors first:pt-1 hover:text-[var(--accent-ink,var(--accent))] focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring,var(--accent))] sm:gap-5"
+                    aria-label={entry.title}>
+                    <Icon size={19} strokeWidth={1.75} aria-hidden="true"
+                      className="mt-1 shrink-0 text-[var(--text3)] transition-colors group-hover:text-[var(--accent-ink,var(--accent))]" />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                        <span className="text-[0.9375rem] font-semibold leading-6 text-[var(--text)] group-hover:text-[var(--accent-ink,var(--accent))]">
+                          {entry.title}
+                        </span>
+                        {entry.status && (
+                          <span className="text-xs font-medium text-[var(--text2)]">{entry.status}</span>
+                        )}
+                      </span>
+                      <span className="mt-0.5 block text-sm leading-relaxed text-[var(--text2)]">{entry.description}</span>
+                    </span>
+                    <ChevronRight size={18} strokeWidth={1.6} aria-hidden="true"
+                      className="mt-1 shrink-0 text-[var(--text3)] transition-transform group-hover:translate-x-0.5" />
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ))}
       </div>
     </div>
   );
