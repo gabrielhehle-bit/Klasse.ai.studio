@@ -68,6 +68,7 @@ export default function ClassTeam() {
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
   const [needsSchoolLogin, setNeedsSchoolLogin] = React.useState(false);
+  const [colleagueQuery, setColleagueQuery] = React.useState('');
   const [teamUserId, setTeamUserId] = React.useState('');
   const [teamDeviceId, setTeamDeviceId] = React.useState('');
   const [awaitingDeviceApprovalFor, setAwaitingDeviceApprovalFor] = React.useState<string | null>(null);
@@ -239,9 +240,21 @@ export default function ClassTeam() {
       await load();
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Die geteilte Klasse konnte nicht geöffnet werden.';
-      setError(message.includes('noch nicht freigegeben')
-        ? 'Dieses Gerät braucht noch eine Freigabe. Klicke unten bei der geteilten Klasse auf „Freigabe anfordern“. Eine bereits berechtigte Teamlehrperson kann dein Gerät bestätigen.'
-        : message);
+      if (message.includes('noch nicht freigegeben')) {
+        // A teacher who is already a class member can request this device's
+        // key when trying to open the class. No pupil data is transferred.
+        try {
+          const request = await requestTeamTeachingDeviceAccess(summary.id);
+          setAwaitingDeviceApprovalFor(summary.id);
+          setNotice('Gerätefreigabe angefordert. Bitte eine berechtigte Teamlehrperson um Bestätigung bitten. Prüfcode: ' + request.verificationCode);
+          await load();
+        } catch (requestError) {
+          setError(requestError instanceof Error ? requestError.message
+            : 'Dieses Gerät muss durch eine berechtigte Teamlehrperson freigegeben werden.');
+        }
+      } else {
+        setError(message);
+      }
     } finally {
       setBusy(null);
     }
@@ -641,6 +654,11 @@ export default function ClassTeam() {
 
   const memberIds = new Set(activeSummary?.members.map(member => member.userId) || []);
   const available = colleagues.filter(colleague => !memberIds.has(colleague.userId));
+  const searchedColleagues = available.filter(colleague =>
+    (colleague.displayName + ' ' + colleague.handle).toLocaleLowerCase('de-AT')
+      .includes(colleagueQuery.trim().toLocaleLowerCase('de-AT')))
+    .sort((a, b) => Number(b.devices.length > 0) - Number(a.devices.length > 0)
+      || a.displayName.localeCompare(b.displayName, 'de-AT'));
   const teamSyncStatus = teamSyncPresentation(activeRoom)?.status;
   const nextAction = getTeacherTeamNextAction({
     needsSchoolLogin,
@@ -953,8 +971,20 @@ export default function ClassTeam() {
               {available.length === 0 ? (
                 <p className="mt-2 text-sm text-[var(--text2)]">Keine weitere KLASSIO-Lehrperson dieser Schule verfügbar.</p>
               ) : (
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {available.map(colleague => (
+                <div className="mt-3 space-y-3">
+                  <label htmlFor="team-teacher-search" className="block text-xs font-bold text-[var(--text2)]">
+                    Lehrperson suchen
+                  </label>
+                  <input id="team-teacher-search" type="search" value={colleagueQuery}
+                    onChange={event => setColleagueQuery(event.target.value)}
+                    placeholder="Name oder Kürzel eingeben"
+                    className="min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--text)]"
+                  />
+                  {searchedColleagues.length === 0 && (
+                    <p className="text-sm text-[var(--text2)]">Keine passende Lehrperson gefunden. Suche ändern oder Kollegium aktualisieren.</p>
+                  )}
+                  <div className="grid gap-2 sm:grid-cols-2">
+                  {searchedColleagues.map(colleague => (
                     <button
                       key={colleague.userId}
                       onClick={() => void addMember(colleague)}
@@ -973,6 +1003,7 @@ export default function ClassTeam() {
                       <UserPlus size={17} />
                     </button>
                   ))}
+                  </div>
                 </div>
               )}
             </div>
