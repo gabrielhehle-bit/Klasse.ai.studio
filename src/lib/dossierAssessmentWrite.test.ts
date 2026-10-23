@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { initialAppState } from './appState';
 import { calculateItemPercent, getMaxPoints } from './GradeUtils';
 import { writeDossierAssessment } from './dossierAssessmentWrite';
+import { updateSubjectColumn } from './classroomEdits';
 
 const base = (mode: 'grades' | 'percent' | 'points') => ({
   ...initialAppState,
@@ -146,4 +147,37 @@ test('Ungültige Dossier-Eingaben überschreiben keinen bestehenden Notenwert', 
     label: 'LZK 1', date: '2026-10-02', note: '', score: '99', maxScore: '20',
   });
   assert.equal(next, source);
+});
+
+test('Dossier bearbeitet LZK-Metadaten der Notenmappe als nummerierte Objekte ohne Datenverlust', () => {
+  const source = base('points');
+  source.schueler.push({ id: 'student-2', vorname: 'Bea', nachname: 'Test' });
+  source.noten = {
+    'student-1': { Deutsch: { '1': { sa: [], lzk: [7, 4], wp: [], aufgaben: [], hue: 0 } } },
+    'student-2': { Deutsch: { '1': { sa: [], lzk: [8, 9], wp: [], aufgaben: [], hue: 0 } } },
+  };
+  source.notenMeta = updateSubjectColumn({ Deutsch: {
+    assessmentMode: 'points',
+    colLabels: { lzk: { 1: 'Schreiben' } },
+    colDates: { lzk: { 1: '2026-10-10' } },
+    colNotes: { lzk: { 0: 'Alte Notiz', 1: 'Notiz B' } },
+    colAreas: { lzk: { 0: 'Lesen', 1: 'Schreiben' } },
+    maxPoints: { lzk: { 0: 10, 1: 20 } },
+  } } as any, 'Deutsch', 'lzk', 0, 'Lesen 1', '2026-10-16', 10, 'Lesen');
+  const original = JSON.stringify(source);
+  const next = writeDossierAssessment(source, {
+    studentId: 'student-1', fach: 'Deutsch', semester: '1', category: 'lzk', colIndex: 0,
+    label: 'Lesen 2', date: '2026-10-20', note: 'Neuer Text', score: '9', maxScore: '10',
+  });
+  assert.equal(next.noten['student-1'].Deutsch['1'].lzk[0], 9);
+  assert.deepEqual(next.noten['student-2'], source.noten['student-2']);
+  assert.equal(next.notenMeta.Deutsch.colLabels.lzk[0], 'Lesen 2');
+  assert.equal(next.notenMeta.Deutsch.colLabels.lzk[1], 'Schreiben');
+  assert.equal(next.notenMeta.Deutsch.colDates.lzk[0], '2026-10-20');
+  assert.equal(next.notenMeta.Deutsch.colDates.lzk[1], '2026-10-10');
+  assert.equal(next.notenMeta.Deutsch.colNotes.lzk[0], 'Neuer Text');
+  assert.equal(next.notenMeta.Deutsch.colNotes.lzk[1], 'Notiz B');
+  assert.equal(next.notenMeta.Deutsch.maxPoints.lzk[1], 20);
+  assert.equal(next.notenMeta.Deutsch.colAreas.lzk[0], 'Lesen');
+  assert.equal(JSON.stringify(source), original);
 });
