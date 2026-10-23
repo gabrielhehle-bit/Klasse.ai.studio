@@ -4,6 +4,8 @@ export type TeacherTeamNextAction =
   | 'activate'
   | 'reconnect'
   | 'request-device'
+  | 'checking-device'
+  | 'check-connection'
   | 'await-device'
   | 'add-colleague'
   | 'colleague-first-login'
@@ -17,6 +19,8 @@ export interface TeacherTeamSetupState {
   hasSharedClassReference: boolean;
   hasConnectedTeam: boolean;
   deviceAuthorized: boolean;
+  deviceChecking: boolean;
+  serverSummaryLoaded: boolean;
   deviceRequestPending: boolean;
   teamRole?: 'owner' | 'editor' | 'viewer';
   teamMemberCount?: number;
@@ -33,6 +37,8 @@ export function getTeacherTeamNextAction(state: TeacherTeamSetupState): TeacherT
   if (state.needsSchoolLogin) return 'sign-in';
   if (!state.hasActiveClass) return 'choose-class';
   if (!state.hasConnectedTeam) return state.hasSharedClassReference ? 'reconnect' : 'activate';
+  if (state.deviceChecking) return 'checking-device';
+  if (!state.serverSummaryLoaded) return 'check-connection';
   if (!state.deviceAuthorized) return state.deviceRequestPending ? 'await-device' : 'request-device';
   if (state.teamHasConflict) return 'resolve-conflict';
   if (state.teamRole === 'owner' && state.teamMemberCount !== undefined && state.teamMemberCount < 2) {
@@ -44,7 +50,7 @@ export function getTeacherTeamNextAction(state: TeacherTeamSetupState): TeacherT
 }
 
 export function getTeacherTeamStepNumber(action: TeacherTeamNextAction): 1 | 2 | 3 {
-  if (['sign-in', 'choose-class', 'activate', 'reconnect', 'request-device', 'await-device'].includes(action)) return 1;
+  if (['sign-in', 'choose-class', 'activate', 'reconnect', 'request-device', 'await-device', 'checking-device', 'check-connection'].includes(action)) return 1;
   if (['add-colleague', 'colleague-first-login'].includes(action)) return 2;
   return 3;
 }
