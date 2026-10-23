@@ -1,4 +1,5 @@
 import { clearOnboardingCompleted } from '../lib/onboardingState';
+import FirstRunTeamJoin from './FirstRunTeamJoin';
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import LZString from 'lz-string';
@@ -931,6 +932,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                    <p className="text-[0.875rem] font-black text-emerald-600 tracking-widest uppercase mb-4">Gabriel Intelligent Classroom</p>
                    <p className="text-slate-500 font-medium max-w-lg mx-auto">Wähle später Schulart und deine Aufgabe in der Klasse. Volksschulklassen und Fachunterricht in der Unterstufe werden unterschiedlich eingerichtet. Alternativ kannst du ein Backup wiederherstellen.</p>
                  </div>
+
+                 {isFirstSetup && <FirstRunTeamJoin onJoined={onComplete} />}
 
                  <div className="mx-auto grid grid-cols-1 sm:grid-cols-2 gap-3 px-6 max-w-xl">
                    <button
