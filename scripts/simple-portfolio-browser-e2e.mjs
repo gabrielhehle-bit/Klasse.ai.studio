@@ -176,12 +176,19 @@ async function clickSidebar(client, label) {
     );
     if (hasMore) {
       await clickButton(client, 'Mehr');
-      await waitFor(client, 'expanded sidebar destination ' + label,
-        'Array.from(document.querySelectorAll("nav button")).some(button=>{' +
-        'const text=String(button.textContent||"").replace(/\\s+/g," ").trim();' +
-        'const style=getComputedStyle(button);const rect=button.getBoundingClientRect();' +
-        'return text===' + q(label) + '&&style.visibility!=="hidden"&&style.display!=="none"&&rect.width>0&&rect.height>0;})',
-        10000);
+      try {
+        await waitFor(client, 'expanded sidebar destination ' + label,
+          'Array.from(document.querySelectorAll("nav button")).some(button=>{' +
+          'const text=String(button.textContent||"").replace(/\\s+/g," ").trim();' +
+          'const style=getComputedStyle(button);const rect=button.getBoundingClientRect();' +
+          'return text===' + q(label) + '&&style.visibility!=="hidden"&&style.display!=="none"&&rect.width>0&&rect.height>0;})',
+          10000);
+      } catch (err) {
+        const debug = await evaluate(client,
+          '({navButtons:Array.from(document.querySelectorAll("nav button")).map(b=>({id:b.dataset.menuId||"",text:b.textContent.trim().slice(0,80)})),isPortfolioPresent:!!document.querySelector("[data-menu-id=portfolio]"),sectionText:document.querySelector("nav")?.textContent?.slice(0,1200)})');
+        console.error('PORTFOLIO_SIDEBAR_DIAGNOSTIC', JSON.stringify(debug));
+        throw err;
+      }
     }
   }
   await clickButton(client, label, true);
