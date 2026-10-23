@@ -648,7 +648,7 @@ export default function ClassTeam() {
     hasSharedClassReference: Boolean(knownTeamReference),
     hasConnectedTeam: Boolean(activeSharedId),
     deviceAuthorized: deviceAuthorization === 'authorized',
-    deviceChecking: deviceAuthorization === 'checking',
+    deviceChecking: deviceAuthorization === 'checking' || deviceAuthorization === 'unknown',
     serverSummaryLoaded: Boolean(activeSummary),
     deviceRequestPending: Boolean(ownDeviceRequest),
     teamRole: activeRoom?.teamTeaching?.role,
