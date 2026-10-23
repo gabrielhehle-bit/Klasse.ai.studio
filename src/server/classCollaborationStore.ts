@@ -134,6 +134,41 @@ export class ClassCollaborationStore {
   private readonly filePath: string;
   private readonly historyRoot: string;
   private writeQueue: Promise<unknown> = Promise.resolve();
+  // In-memory, class-scoped revision hints; never publish classroom ciphertext or names.
+  private readonly liveListeners = new Map<string, Set<(revision: number) => void>>();
+
+  subscribeClass(classId: string, listener: (revision: number) => void): () => void {
+    if (!/^[a-f0-9-]{36}$/.test(classId)) throw new Error('INVALID_SHARED_CLASS');
+    let listeners = this.liveListeners.get(classId);
+    if (!listeners) {
+      listeners = new Set();
+      this.liveListeners.set(classId, listeners);
+    }
+    if (listeners.size >= 12) throw new Error('TOO_MANY_LIVE_CONNECTIONS');
+    listeners.add(listener);
+    return () => {
+      listeners!.delete(listener);
+      if (!listeners!.size) this.liveListeners.delete(classId);
+    };
+  }
+
+  private classChangeMarkers(data: StoreData): Map<string, string> {
+    return new Map(Object.values(data.classes).flatMap(records => records.map(record => [
+      record.id,
+      JSON.stringify({
+        revision: record.revision,
+        updatedAt: record.updatedAt,
+        members: record.members.map(member => [member.userId, member.role, Object.keys(member.wrappedKeys).sort()]),
+        requests: (record.deviceAccessRequests || []).map(request => request.id),
+      }),
+    ] as const)));
+  }
+
+  private notifyClass(classId: string, revision: number): void {
+    for (const listener of this.liveListeners.get(classId) || []) {
+      try { listener(revision); } catch { /* disconnected clients cannot roll back a committed write */ }
+    }
+  }
 
   constructor(dataDir: string) {
     this.filePath = path.join(dataDir, 'teamteaching.json');
@@ -232,8 +267,20 @@ export class ClassCollaborationStore {
   private mutate<T>(fn: (data: StoreData) => T | Promise<T>): Promise<T> {
     const task = this.writeQueue.then(async () => {
       const data = await this.read();
+      const previous = this.classChangeMarkers(data);
       const result = await fn(data);
+      // Notify only after the encrypted changes are durably committed.
       await this.write(data);
+      const latest = this.classChangeMarkers(data);
+      for (const [classId, marker] of latest) {
+        if (previous.get(classId) !== marker) {
+          const record = Object.values(data.classes).flat().find(item => item.id === classId);
+          if (record) this.notifyClass(classId, record.revision);
+        }
+      }
+      for (const classId of previous.keys()) {
+        if (!latest.has(classId)) this.notifyClass(classId, 0);
+      }
       return result;
     });
     this.writeQueue = task.then(() => undefined, () => undefined);
