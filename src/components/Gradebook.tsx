@@ -281,6 +281,10 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     return () => document.removeEventListener('keydown', closeToolsOnEscape, true);
   }, [showMoreMenu]);
   const [showAddAssessmentModal, setShowAddAssessmentModal] = useState<boolean>(false);
+  const closeAddAssessmentDialog = () => {
+    setShowAddAssessmentModal(false);
+    document.getElementById('gradebook-add-assessment-trigger')?.focus();
+  };
   const [selectedGradeExplanationStudent, setSelectedGradeExplanationStudent] = useState<any | null>(null);
 
   const [zoomLevel, setZoomLevel] = useState<'compact' | 'standard' | 'large'>(() => {
@@ -1706,6 +1710,10 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                   <span>{isFullscreen ? 'Vollbild beenden' : 'Vollbild'}</span>
                 </button>
                 <button
+                  id="gradebook-add-assessment-trigger"
+                  type="button"
+                  aria-haspopup="dialog"
+                  aria-expanded={showAddAssessmentModal}
                   onClick={() => { setActiveView('noten'); setShowWeights(false); setShowAddAssessmentModal(true); }}
                   className="min-h-11 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-[0.8125rem] rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
                 >
@@ -4121,30 +4129,56 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs"
-                onClick={() => setShowAddAssessmentModal(false)}
+                onClick={closeAddAssessmentDialog}
               >
                 <motion.div
                   initial={{ scale: 0.95, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.95, opacity: 0 }}
                   id="gradebook-add-assessment-menu"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="gradebook-add-assessment-title"
+                  aria-describedby="gradebook-add-assessment-description"
                   className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg p-6"
                   onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      closeAddAssessmentDialog();
+                      return;
+                    }
+                    if (event.key !== 'Tab') return;
+                    const controls = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));
+                    if (controls.length === 0) return;
+                    const first = controls[0], last = controls[controls.length - 1];
+                    if (event.shiftKey && document.activeElement === first) {
+                      event.preventDefault();
+                      last.focus();
+                    } else if (!event.shiftKey && document.activeElement === last) {
+                      event.preventDefault();
+                      first.focus();
+                    }
+                  }}
                 >
                   <div className="flex justify-between items-center mb-5 pb-3 border-b border-slate-100">
                     <div>
-                      <h3 className="font-black text-[1.125rem] text-slate-900">
+                      <h3 id="gradebook-add-assessment-title" className="font-black text-[1.125rem] text-slate-900">
                         Neue Bewertung für {activeFach}
                       </h3>
-                      <p className="text-[0.75rem] text-slate-500 font-bold">
+                      <p id="gradebook-add-assessment-description" className="text-[0.75rem] text-slate-500 font-bold">
                         Wähle die Art der Leistung, die du erfassen möchtest:
                       </p>
                     </div>
                     <button
-                      onClick={() => setShowAddAssessmentModal(false)}
-                      className="text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full cursor-pointer"
+                      type="button"
+                      autoFocus
+                      aria-label="Dialog Neue Bewertung schließen"
+                      onClick={closeAddAssessmentDialog}
+                      className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
                     >
-                      ✕
+                      <span aria-hidden="true">✕</span>
                     </button>
                   </div>
 
