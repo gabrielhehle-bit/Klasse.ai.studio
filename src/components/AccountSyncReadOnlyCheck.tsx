@@ -91,7 +91,7 @@ export default function AccountSyncReadOnlyCheck() {
       <h4 className="font-bold">Schul-Laptop und Zuhause: Datenstand vergleichen</h4>
       <p className="mt-1 text-slate-600">
         Diese Prüfung liest deinen verschlüsselten Kontostand und vergleicht ihn nur auf diesem Gerät.
-        Es wird nichts hochgeladen, geladen, überschrieben oder geändert.
+        Es werden keine Daten in deinen Arbeitsstand übernommen, überschrieben oder hochgeladen.
       </p>
       <button type="button" onClick={() => void check()} disabled={busy}
         className="mt-3 min-h-11 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 font-bold text-slate-900 disabled:opacity-60">
