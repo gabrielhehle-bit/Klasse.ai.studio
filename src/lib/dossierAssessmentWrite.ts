@@ -71,8 +71,16 @@ function firstAvailableAssessmentIndex(list: unknown[]) {
 }
 
 function cloneMetaList(container: Record<string, any>, key: string) {
-  container[key] = [...(container[key] || [])];
-  return container[key] as any[];
+  const existing = container[key];
+  // Gradebook creates numeric-keyed metadata objects; older dossier entries
+  // use arrays. Preserve either representation when editing shared columns.
+  // Spreading an object into an array would throw and prevent saving grades.
+  container[key] = Array.isArray(existing)
+    ? [...existing]
+    : existing && typeof existing === 'object'
+      ? { ...existing }
+      : {};
+  return container[key] as Record<number, any>;
 }
 
 /**
