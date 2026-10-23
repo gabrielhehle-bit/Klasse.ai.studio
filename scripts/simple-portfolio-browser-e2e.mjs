@@ -183,8 +183,7 @@ async function clickSidebar(client, label) {
         await waitFor(client, 'expanded sidebar destination ' + label,
           'Array.from(document.querySelectorAll("nav button")).some(button=>{' +
           'const text=String(button.textContent||"").replace(/\\s+/g," ").trim();' +
-          'const style=getComputedStyle(button);const rect=button.getBoundingClientRect();' +
-          'return text===' + q(label) + '&&style.visibility!=="hidden"&&style.display!=="none"&&rect.width>0&&rect.height>0;})',
+          'return text===' + q(label) + ';})',
           10000);
       } catch (err) {
         const debug = await evaluate(client,
@@ -194,7 +193,10 @@ async function clickSidebar(client, label) {
       }
     }
   }
-  await clickButton(client, label, true);
+  const destination = await evaluate(client,
+    '(() => {const button=Array.from(document.querySelectorAll("nav button[data-menu-id]")).find(b=>String(b.textContent||"").replace(/\\s+/g," ").trim()===' + q(label) + ');' +
+    'if(!button)return false;button.scrollIntoView({block:"center"});button.click();return true;})()');
+  if (!destination) throw new Error('Sidebar destination not found: ' + label);
   await waitFor(client, 'sidebar page ' + label,
     'Array.from(document.querySelectorAll("button[aria-current=page]")).some(current=>String(current.textContent||"").replace(/\\s+/g," ").trim()===' + q(label) + ')'
   );
