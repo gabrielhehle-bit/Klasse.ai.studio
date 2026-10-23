@@ -341,7 +341,7 @@ async function main() {
     await loginWithSchoolMail(anna, EMAIL_A, VAULT_A);
     await createClassInUi(anna, 'E2E 1A');
     await openClassTeam(anna);
-    await clickButton(anna, 'Gemeinsame Klasse aktivieren');
+    await clickButton(anna, 'Diese Klasse gemeinsam nutzen');
     await waitFor(anna, 'encrypted shared class active', 'document.body?.innerText.includes("Teamteaching aktiv")', 30000);
     console.log('✓ Lehrkraft A: class encrypted and shared');
 
