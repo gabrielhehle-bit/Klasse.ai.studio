@@ -46,12 +46,12 @@ export default function SettingsHeader({
   return (
     <div className="space-y-6">
       {/* Top Bar with Title and Einfachmodus Switch */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/90 backdrop-blur-md p-6 rounded-[2rem] border border-stone-200/80 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[var(--surface)] py-5 border-b border-[var(--border)]">
         <div className="flex items-center gap-4">
           {activeCategory !== 'overview' && (
             <button
               onClick={() => setActiveCategory('overview')}
-              className="p-2.5 rounded-2xl bg-stone-100 hover:bg-stone-200 text-slate-700 transition-all cursor-pointer flex items-center justify-center shrink-0 active:scale-95"
+              className="min-h-11 min-w-11 rounded-lg bg-[var(--surface2)] hover:bg-[var(--surface3)] text-[var(--text2)] transition-colors cursor-pointer flex items-center justify-center shrink-0"
               title="Zurück zur Übersicht"
               aria-label="Zurück zur Übersicht"
             >
@@ -61,7 +61,7 @@ export default function SettingsHeader({
 
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight font-sans">
+              <h1 className="text-xl md:text-2xl font-semibold text-[var(--text)] tracking-tight font-sans">
                 {activeCategory === 'overview' && 'Einstellungen'}
                 {activeCategory === 'account' && 'Konto & Schulmail'}
                 {activeCategory === 'general' && 'Allgemeine Einstellungen'}
@@ -73,24 +73,24 @@ export default function SettingsHeader({
                 {activeCategory === 'advanced' && 'Erweitert & Sicherheit'}
                 {activeCategory === 'help' && 'Hilfe & Anleitungen'}
               </h1>
-              <span className="px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[0.625rem] font-bold uppercase tracking-wider">
+              <span className="px-2 py-0.5 rounded-md bg-[var(--surface2)] text-[var(--text2)] text-xs font-medium">
                 {einfachModus ? 'Einfachmodus' : 'Alle Optionen'}
               </span>
             </div>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
+            <p className="text-sm text-[var(--text2)] mt-0.5">
               Was möchtest du in Klassio anpassen?
             </p>
           </div>
         </div>
 
         {/* Einfachmodus Toggle Switch */}
-        <div className="flex items-center gap-3 bg-stone-50 p-2.5 rounded-2xl border border-stone-200/80 shrink-0">
+        <div className="flex items-center gap-3 px-2.5 py-2 rounded-lg border border-[var(--border)] shrink-0">
           <div className="flex flex-col">
-            <span className="text-[0.6875rem] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1">
-              <Sparkles size={12} className={einfachModus ? "text-amber-500 fill-amber-500" : "text-slate-400"} />
+            <span className="text-xs font-semibold text-[var(--text)] flex items-center gap-1">
+              <Sparkles size={12} className={einfachModus ? "text-[var(--accent)]" : "text-slate-400"} />
               Einfachmodus
             </span>
-            <span className="text-[0.5625rem] text-slate-500 font-medium">
+            <span className="text-xs text-[var(--text2)]">
               {einfachModus ? 'Nur wesentliche Optionen' : 'Alle Details sichtbar'}
             </span>
           </div>
@@ -101,8 +101,8 @@ export default function SettingsHeader({
             aria-checked={einfachModus}
             aria-label="Einfachmodus umschalten"
             onClick={() => setEinfachModus(!einfachModus)}
-            className={`relative w-12 h-6 rounded-full transition-colors duration-300 flex items-center px-0.5 cursor-pointer shrink-0 ${
-              einfachModus ? 'bg-amber-500' : 'bg-slate-300'
+            className={`relative w-12 h-6 rounded-full transition-colors duration-150 flex items-center px-0.5 cursor-pointer shrink-0 ${
+              einfachModus ? 'bg-[var(--accent)]' : 'bg-[var(--border2)]'
             }`}
           >
             <motion.div
@@ -116,13 +116,13 @@ export default function SettingsHeader({
       </div>
 
       {/* Pill Navigation */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+      <div className="flex items-center gap-2 overflow-x-auto border-b border-[var(--border)] pb-1 no-scrollbar">
         <button
           onClick={() => setActiveCategory('overview')}
-          className={`px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+          className={`px-4 py-2.5 rounded-md text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer flex items-center gap-2 ${
             activeCategory === 'overview'
-              ? 'bg-slate-900 text-white shadow-md'
-              : 'bg-white hover:bg-stone-50 text-slate-600 border border-stone-200/80'
+              ? 'bg-[var(--surface2)] text-[var(--text)] border border-[var(--border2)]'
+              : 'hover:bg-[var(--surface2)] text-[var(--text2)] border border-transparent'
           }`}
         >
           <span>Übersicht</span>
@@ -136,10 +136,10 @@ export default function SettingsHeader({
             <button
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
-              className={`px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+              className={`px-4 py-2.5 rounded-md text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer flex items-center gap-2 ${
                 isActive
-                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                  : 'bg-white hover:bg-stone-50 text-slate-600 border border-stone-200/80'
+                  ? 'bg-[var(--surface2)] text-[var(--text)] border border-[var(--border2)]'
+                  : 'hover:bg-[var(--surface2)] text-[var(--text2)] border border-transparent'
               }`}
             >
               <Icon size={14} />

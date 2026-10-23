@@ -1,19 +1,9 @@
 import React from 'react';
-import { 
-  Sliders, 
-  Palette, 
-  LayoutGrid, 
-  Smartphone, 
-  Download, 
-  Shield,
-  Heart,
-  ChevronRight,
-  Info,
-  Mail,
-  HelpCircle,
+import {
+  Sliders, Palette, LayoutGrid, Smartphone, Download, Shield, Heart,
+  ChevronRight, Mail, HelpCircle,
 } from 'lucide-react';
-import { motion } from 'motion/react';
-import { SettingsCategory } from './SettingsHeader';
+import type { SettingsCategory } from './SettingsHeader';
 
 interface SettingsDashboardProps {
   onSelectCategory: (category: SettingsCategory) => void;
@@ -23,11 +13,10 @@ interface SettingsDashboardProps {
 }
 
 export default function SettingsDashboard({
-  onSelectCategory,
-  disabledModulesCount,
-  hasActiveSync,
-  hasDemoData
+  onSelectCategory, disabledModulesCount, hasActiveSync, hasDemoData,
 }: SettingsDashboardProps) {
+  // Keep the existing order, names and destinations so experienced teachers
+  // find each tool in precisely the same place as before the visual facelift.
   const TILES = [
     {
       id: 'help' as SettingsCategory,
@@ -35,8 +24,6 @@ export default function SettingsDashboard({
       subtitle: 'Alle Seiten und Unterrichtswerkzeuge erklärt',
       desc: 'Suche nach einem KLASSIO-Bereich oder Widget und lies Schritt für Schritt, was du damit machen kannst.',
       icon: HelpCircle,
-      badge: 'Anleitungen',
-      color: 'bg-indigo-500/10 text-indigo-600 border-indigo-200'
     },
     {
       id: 'account' as SettingsCategory,
@@ -44,8 +31,6 @@ export default function SettingsDashboard({
       subtitle: 'E-Mail-Anmeldung und Schulidentität',
       desc: 'Melde dich mit deiner E-Mail an. Eine verifizierte Schulmail schaltet Klassenteam und Lehrerzimmer frei.',
       icon: Mail,
-      badge: 'Login & Teamteaching',
-      color: 'bg-indigo-500/10 text-indigo-600 border-indigo-200'
     },
     {
       id: 'general' as SettingsCategory,
@@ -53,8 +38,6 @@ export default function SettingsDashboard({
       subtitle: 'Schuljahr, Bundesland & Fach-Farben',
       desc: 'Konfiguriere das aktuelle Schuljahr, Ferientage deines Bundeslands, Fach-Farben und die Klassenglas-Ziele.',
       icon: Sliders,
-      badge: 'Basis-Einstellungen',
-      color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200'
     },
     {
       id: 'display' as SettingsCategory,
@@ -62,8 +45,6 @@ export default function SettingsDashboard({
       subtitle: 'Design, Schriftgröße & Cockpit',
       desc: 'Passe Farbschema, Schriftgröße und die Darstellung auf Laptop oder Smartboard an. Das Lehrercockpit bleibt eine weiße Smartboard-Fläche mit Widgets.',
       icon: Palette,
-      badge: 'Design & Anzeige',
-      color: 'bg-amber-500/10 text-amber-600 border-amber-200'
     },
     {
       id: 'modules' as SettingsCategory,
@@ -71,9 +52,7 @@ export default function SettingsDashboard({
       subtitle: 'Sichtbare Bereiche verwalten',
       desc: 'Blende Bereiche wie Kasse, Sitzplan oder Diagnostik ein oder aus, um die App noch übersichtlicher zu halten.',
       icon: LayoutGrid,
-      badge: disabledModulesCount > 0 ? `${disabledModulesCount} ausgeblendet` : 'Alle aktiv',
-      badgeColor: disabledModulesCount > 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600',
-      color: 'bg-indigo-500/10 text-indigo-600 border-indigo-200'
+      status: disabledModulesCount > 0 ? `${disabledModulesCount} ausgeblendet` : 'Alle aktiv',
     },
     {
       id: 'sync' as SettingsCategory,
@@ -81,9 +60,7 @@ export default function SettingsDashboard({
       subtitle: 'Smartboard & Smartphone-Kopplung',
       desc: 'Steuere deine Klassio drahtlos vom Smartphone aus oder erstelle eine Live-Verbindung zum Smartboard.',
       icon: Smartphone,
-      badge: hasActiveSync ? 'Kopplung aktiv' : 'Live-Sync',
-      badgeColor: hasActiveSync ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600',
-      color: 'bg-teal-500/10 text-teal-600 border-teal-200'
+      status: hasActiveSync ? 'Kopplung aktiv' : 'Live-Sync',
     },
     {
       id: 'backup' as SettingsCategory,
@@ -91,8 +68,6 @@ export default function SettingsDashboard({
       subtitle: 'Sicherung, Import & App-Installation',
       desc: 'Exportiere eine Sicherungsdatei deiner Schülerdaten & Notizen, lade Backups oder installiere die App auf deinem Gerät.',
       icon: Download,
-      badge: 'Sicherheit & Import',
-      color: 'bg-blue-500/10 text-blue-600 border-blue-200'
     },
     {
       id: 'support' as SettingsCategory,
@@ -100,8 +75,6 @@ export default function SettingsDashboard({
       subtitle: 'Freiwillige Beiträge & Dankesliste',
       desc: 'Unterstütze den laufenden Serverbetrieb freiwillig und sieh, wer mit Zustimmung auf der Dankesliste steht.',
       icon: Heart,
-      badge: 'Klassio bleibt frei',
-      color: 'bg-rose-500/10 text-rose-600 border-rose-200'
     },
     {
       id: 'advanced' as SettingsCategory,
@@ -109,74 +82,47 @@ export default function SettingsDashboard({
       subtitle: 'Datenschutz & Gefahrenbereich',
       desc: 'Verwalte die Schülernamen-Anonymisierung für KI, führe System-Checks durch oder versetze die App in den Werkszustand.',
       icon: Shield,
-      badge: hasDemoData ? 'Beispieldaten vorhanden' : 'Datenschutz & Pflege',
-      badgeColor: hasDemoData ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600',
-      color: 'bg-purple-500/10 text-purple-600 border-purple-200'
-    }
+      status: hasDemoData ? 'Beispieldaten vorhanden' : undefined,
+    },
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Intro Banner */}
-      <div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-[2rem] p-6 md:p-8 shadow-xl shadow-emerald-900/10 relative overflow-hidden">
-        <div className="relative z-10 max-w-2xl space-y-2">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/15 backdrop-blur-md rounded-full text-xs font-black uppercase tracking-wider text-emerald-100">
-            <Info size={14} />
-            Übersichtliche Verwaltung
-          </div>
-          <h2 className="text-xl md:text-2xl font-black tracking-tight font-sans">
-            Möchtest du Anpassungen an deiner Klassio vornehmen?
-          </h2>
-          <p className="text-sm text-emerald-100 font-medium leading-relaxed">
-            Wähle unten den passenden Bereich aus. Änderungen werden im lokalen App-Datenstand gespeichert. Löschfunktionen sind getrennt im Gefahrenbereich abgesichert.
-          </p>
-        </div>
+    <div className="space-y-5" data-testid="klassio-editorial-settings">
+      <header className="border-b border-[var(--border)] pb-5">
+        <p className="text-xs font-medium tracking-wide text-[var(--accent-ink,var(--accent))]">DEIN KLASSIO</p>
+        <h2 className="mt-2 text-xl font-semibold tracking-tight text-[var(--text)] sm:text-2xl">
+          Einstellungen im Überblick
+        </h2>
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[var(--text2)]">
+          Alle Bereiche sind am gewohnten Platz. Änderungen werden im lokalen App-Datenstand gespeichert.
+          Löschfunktionen sind getrennt im Gefahrenbereich abgesichert.
+        </p>
+      </header>
 
-        {/* Decorative circle */}
-        <div className="absolute -right-12 -bottom-12 w-64 h-64 rounded-full bg-white/5 pointer-events-none blur-2xl" />
-      </div>
-
-      {/* Settings tiles */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {TILES.map((tile, idx) => {
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+        aria-label="Einstellungsbereiche">
+        {TILES.map(tile => {
           const Icon = tile.icon;
           return (
-            <motion.button
-              key={tile.id}
-              onClick={() => onSelectCategory(tile.id)}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.05 }}
-              className="bg-white hover:bg-slate-50/80 rounded-[2rem] border border-stone-200/80 p-6 text-left transition-all cursor-pointer group flex flex-col justify-between gap-6 shadow-sm hover:shadow-md hover:border-emerald-300 relative overflow-hidden"
-            >
-              <div className="space-y-4">
+            <button key={tile.id} type="button" onClick={() => onSelectCategory(tile.id)}
+              className="group flex min-h-[175px] flex-col justify-between rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 text-left transition-colors hover:border-[var(--accent)] hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring,var(--accent))]"
+              data-settings-destination={tile.id}>
+              <div>
                 <div className="flex items-center justify-between gap-3">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${tile.color} transition-transform group-hover:scale-105`}>
-                    <Icon size={22} />
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-[0.625rem] font-black uppercase tracking-wider ${tile.badgeColor || 'bg-slate-100 text-slate-600'}`}>
-                    {tile.badge}
-                  </span>
+                  <Icon size={19} strokeWidth={1.75} className="text-[var(--text2)]" aria-hidden="true" />
+                  {'status' in tile && tile.status && (
+                    <span className="text-xs font-medium text-[var(--text2)]">{tile.status}</span>
+                  )}
                 </div>
-
-                <div className="space-y-1">
-                  <h3 className="text-base font-black text-slate-900 group-hover:text-emerald-700 transition-colors">
-                    {tile.title}
-                  </h3>
-                  <p className="text-xs font-bold text-slate-500">
-                    {tile.subtitle}
-                  </p>
-                  <p className="text-xs text-slate-400 font-medium leading-relaxed pt-1">
-                    {tile.desc}
-                  </p>
-                </div>
+                <h3 className="mt-4 text-base font-semibold tracking-tight text-[var(--text)]">{tile.title}</h3>
+                <p className="mt-1 text-xs font-medium text-[var(--text2)]">{tile.subtitle}</p>
+                <p className="mt-2 text-sm leading-relaxed text-[var(--text3)]">{tile.desc}</p>
               </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-stone-100 text-xs font-black uppercase tracking-wider text-slate-600 group-hover:text-emerald-600">
+              <div className="mt-5 flex items-center justify-between border-t border-[var(--border)] pt-3 text-xs font-semibold text-[var(--text2)]">
                 <span>Bereich öffnen</span>
-                <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                <ChevronRight size={17} strokeWidth={1.6} aria-hidden="true" className="transition-transform group-hover:translate-x-0.5" />
               </div>
-            </motion.button>
+            </button>
           );
         })}
       </div>
