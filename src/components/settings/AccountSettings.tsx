@@ -1,4 +1,5 @@
 import AccountServerLoadButton from '../AccountServerLoadButton';
+import AccountSyncReadOnlyCheck from '../AccountSyncReadOnlyCheck';
 import React from 'react';
 import { AlertTriangle, CheckCircle2, Cloud, Copy, Database, Eye, EyeOff, KeyRound, Loader2, Mail, RefreshCw, Users } from 'lucide-react';
 import EmailAccountLogin from '../EmailAccountLogin';
@@ -214,6 +215,7 @@ export default function AccountSettings() {
             )}
           </div>
 
+          <AccountSyncReadOnlyCheck />
           <div className="mt-3"><AccountServerLoadButton /></div>
 
           {accountSyncStatus === 'conflict' && accountSyncConflictResolvable && (
