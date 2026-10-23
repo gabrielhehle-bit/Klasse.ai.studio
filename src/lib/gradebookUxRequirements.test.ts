@@ -76,3 +76,18 @@ test('class average visibility switch stays touch-sized and announces its state'
   assert.match(control, /aria-hidden="true"/);
   assert.doesNotMatch(control, /setApp\(/);
 });
+
+test('gradebook assessment header keeps title and settings as separate touch-sized actions', () => {
+  const start = gradebook.indexOf('const renderColHeader = ');
+  const end = gradebook.indexOf('if (showDetailedAnalysis)', start);
+  assert.ok(start > 0 && end > start);
+  const header = gradebook.slice(start, end);
+  assert.match(header, /className="flex w-full items-center gap-1"/);
+  assert.match(header, /min-h-11 min-w-0 flex-1/);
+  assert.ok(header.includes('aria-label={`${customLabel || defaultName} ${i + 1}: Spaltenoptionen (Bezeichnung, Datum, Höchstpunkte)`}'));
+  assert.match(header, /min-h-11 min-w-11 shrink-0/);
+  assert.match(header, /e\.stopPropagation\(\)/);
+  assert.match(header, /setEditingAssessmentModal\(\{ typ, idx: i, isNew: false \}\)/);
+  assert.doesNotMatch(header, /absolute -top-1 -right-1/);
+  assert.doesNotMatch(header, /setApp\(/);
+});

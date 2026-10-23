@@ -1,5 +1,6 @@
 import { getDrawingOpeningSettings } from './drawingSurfaceState';
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import {
   getDrawingSurfaceActionLabel,
@@ -81,4 +82,16 @@ test('drawing reopening preserves window mode and lesson history', () => {
 });
 test('drawing reopening retains an explicitly chosen board mode', () => {
   assert.equal(getDrawingOpeningSettings({isDirectMode:true},true).isDirectMode,true);
+});
+
+
+test("committed drawing strokes are not overwritten by a stale scheduled canvas redraw", () => {
+  const widget = readFileSync("src/components/cockpit/widgets/DrawingWidget.tsx", "utf8");
+  const finishDrawing = widget.split("const finishDrawing = ")[1]?.split("const selectTool = ")[0];
+  assert.ok(finishDrawing, "finish handler exists");
+  assert.match(finishDrawing, /setStrokes\(next\)/);
+  assert.match(finishDrawing, /persistDrawingState\(\{ strokes: next, redoStack: \[\] \}\)/);
+  assert.doesNotMatch(finishDrawing, /setTimeout\s*\(/);
+  assert.match(widget, /renderAllStrokes\(ctx, strokes, w, h, '#ffffff'\)/);
+  assert.match(widget, /\}, \[strokes\]\)/);
 });
