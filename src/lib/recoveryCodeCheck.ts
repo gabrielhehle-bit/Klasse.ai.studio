@@ -3,6 +3,7 @@
  * verschlüsselten E-Mail-Kontostand. Der Code bleibt ausschließlich im Browser:
  * HTTP sendet ihn weder als Body noch als Query-Parameter.
  */
+import type { AppState } from '../types';
 import { assertRestorableAppState } from './backupRestore';
 import { hasEstablishedClassroom } from './appStateContinuity';
 import { decryptAccountSyncSnapshot, fetchAccountSyncSnapshot } from './accountSyncService';
@@ -38,5 +39,5 @@ export async function verifyRecoveryCodeReadOnly(recoveryCode: string): Promise<
     throw new Error('Der Code öffnet den Tresorschlüssel, aber der verschlüsselte Kontostand konnte nicht vollständig gelesen werden. Bitte keine Daten zurücksetzen.');
   }
 
-  return { hasEstablishedClassroom: hasEstablishedClassroom(data) };
+  return { hasEstablishedClassroom: hasEstablishedClassroom(data as unknown as AppState) };
 }
