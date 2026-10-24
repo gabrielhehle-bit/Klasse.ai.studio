@@ -9,6 +9,7 @@ import { useApp } from '../../context/AppContext';
 import { activatePreparedRecoveryEmail, prepareRecoveryEmail, type PreparedRecoveryEmail } from '../../lib/emailRecoveryService';
 import { clearActiveVaultSession } from '../../lib/vaultStorage';
 import { notifyAccountSessionChanged } from '../../lib/accountSyncService';
+import { verifyRecoveryCodeReadOnly } from '../../lib/recoveryCodeCheck';
 
 export default function AccountSettings() {
   const [refreshKey, setRefreshKey] = React.useState(0);
@@ -64,6 +65,34 @@ export default function AccountSettings() {
   const [recoverySaved, setRecoverySaved] = React.useState(false);
   const [recoveryError, setRecoveryError] = React.useState<string | null>(null);
   const [recoverySuccess, setRecoverySuccess] = React.useState<string | null>(null);
+  const [codeToVerify, setCodeToVerify] = React.useState('');
+  const [verifyingCode, setVerifyingCode] = React.useState(false);
+  const [verifyResult, setVerifyResult] = React.useState<{ valid: boolean; message: string } | null>(null);
+
+  const checkExistingRecoveryCode = async () => {
+    if (verifyingCode || !codeToVerify.trim() || !signedInEmail || !isVaultUnlocked) return;
+    setVerifyingCode(true);
+    setVerifyResult(null);
+    try {
+      // Dieser Test liest nur den verschlüsselten Serverstand und entschlüsselt
+      // ihn im Browser. Keine Änderung am Passwort, Tresor oder Konto-Stand.
+      const result = await verifyRecoveryCodeReadOnly(codeToVerify.trim());
+      setVerifyResult({
+        valid: true,
+        message: result.hasEstablishedClassroom
+          ? 'Code bestätigt: Er entschlüsselt den aktuellen Konto-Stand samt vorhandener Klasse. Es wurde nichts verändert.'
+          : 'Code bestätigt: Er entschlüsselt den Konto-Stand. Darin wurde aber keine vollständig eingerichtete Klasse gefunden.',
+      });
+    } catch (cause) {
+      setVerifyResult({
+        valid: false,
+        message: cause instanceof Error ? cause.message : 'Der Code konnte nicht geprüft werden. Es wurde nichts verändert.',
+      });
+    } finally {
+      setCodeToVerify(''); // Code nicht länger als nötig im Eingabefeld halten
+      setVerifyingCode(false);
+    }
+  };
 
   const retrySync = async () => {
     if (retryingSync) return;
@@ -280,6 +309,40 @@ export default function AccountSettings() {
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold leading-relaxed text-amber-900">
           Wichtig: Der bisherige Wiederherstellungscode bleibt gültig, bis du den neuen Code unten ausdrücklich aktivierst. Danach wird der alte Code ungültig. Jede Person mit Zugriff auf die E-Mail mit dem neuen Code kann deinen Datentresor wiederherstellen.
         </div>
+
+        {isVaultUnlocked && signedInEmail && (
+          <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4" data-testid="read-only-recovery-check">
+            <h4 className="text-sm font-black text-slate-900">Vorhandenen Wiederherstellungscode prüfen</h4>
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">
+              Teste den bisherigen Code, ohne dich abzumelden oder etwas zu ändern. Der Code bleibt in deinem Browser und wird nicht an den Server gesendet.
+            </p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <input
+                type="password"
+                aria-label="Vorhandenen Wiederherstellungscode"
+                placeholder="8 Viererblöcke"
+                autoComplete="off"
+                spellCheck={false}
+                value={codeToVerify}
+                onChange={event => { setCodeToVerify(event.target.value); setVerifyResult(null); }}
+                className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2.5 font-mono text-sm text-slate-900"
+              />
+              <button
+                type="button"
+                onClick={() => void checkExistingRecoveryCode()}
+                disabled={verifyingCode || !codeToVerify.trim()}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-xs font-black text-slate-900 disabled:opacity-50"
+              >
+                {verifyingCode ? 'Wird geprüft …' : 'Code prüfen (nur lesen)'}
+              </button>
+            </div>
+            {verifyResult && (
+              <p role="status" className={`mt-3 text-xs font-semibold leading-relaxed ${verifyResult.valid ? 'text-emerald-800' : 'text-rose-700'}`}>
+                {verifyResult.message}
+              </p>
+            )}
+          </div>
+        )}
 
         {!isVaultUnlocked ? (
           <p className="mt-4 text-xs font-bold text-slate-500">Entsperre zuerst deinen Datentresor.</p>
