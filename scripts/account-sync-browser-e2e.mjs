@@ -413,6 +413,30 @@ async function loginExistingVault(client, startedFirstLoginAt, recoveryCode) {
   await clickButton(client, 'Anmelden & Daten laden');
   await waitFor(client, 'existing encrypted cloud vault detected before setup',
     'document.body?.innerText.includes("Deine Daten sind da.") && document.body?.innerText.includes("Tresor-Passwort")', 30000);
+  // A teacher must be able to back out of BOTH locked-vault entry modes
+  // without wiping local storage or the account's encrypted cloud snapshot.
+  await waitFor(client, 'return to login visible at vault password',
+    'Boolean(document.querySelector("[data-testid=vault-return-to-login]"))', 10000);
+  await clickButton(client, 'Tresor-Passwort vergessen? Wiederherstellungscode verwenden');
+  await waitFor(client, 'return to login still visible in recovery mode',
+    'Boolean(document.querySelector("[data-testid=vault-return-to-login]")) && document.body?.innerText.includes("Der Code besteht aus acht Viererblöcken.")', 10000);
+  await clickButton(client, 'Zurück zur Anmeldung / E-Mail ändern');
+  await waitFor(client, 'return to email login after vault cancel',
+    'location.pathname==="/login" && Boolean(document.querySelector("input[type=email]"))', 30000);
+  await waitFor(client, 'only current email session revoked',
+    'fetch("/api/access/status",{cache:"no-store"}).then(r=>r.json()).then(j=>j.authenticated===false)', 10000);
+  // E-mail login attempts are rate-limited per account; do not mistake the
+  // documented cooldown for broken recovery or accidentally test stale codes.
+  await sleep(65_000);
+  await fs.rm(SMTP_CODES, { force: true }).catch(() => {});
+  await setInputByLabel(client, 'E-Mail', SYNC_EMAIL);
+  await clickButton(client, 'Anmeldecode senden');
+  await waitFor(client, 'login available again after returning from vault',
+    'document.body?.innerText.toLowerCase().includes("6-stelliger anmeldecode")', 20000);
+  await setInputByLabel(client, '6-stelliger Anmeldecode', await waitForMailCode(SYNC_EMAIL));
+  await clickButton(client, 'Anmelden & Daten laden');
+  await waitFor(client, 'original encrypted vault available after returning to login',
+    'document.body?.innerText.includes("Tresor-Passwort") && document.body?.innerText.includes("Tresor entsperren")', 30000);
   // Unlike the old two-device test, prove recovery works from scratch,
   // without the old device's password or local IndexedDB contents.
   await clickButton(client, 'Tresor-Passwort vergessen? Wiederherstellungscode verwenden');
