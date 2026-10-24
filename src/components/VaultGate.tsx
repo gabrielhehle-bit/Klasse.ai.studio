@@ -76,6 +76,7 @@ export default function VaultGate({ children }: VaultGateProps) {
   const [recoveryCodeInput, setRecoveryCodeInput] = useState('');
   const [trustThisDevice, setTrustThisDevice] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [returningToLogin, setReturningToLogin] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [shake, setShake] = useState(false);
   const [checkingTimedOut, setCheckingTimedOut] = useState(false);
@@ -412,6 +413,32 @@ export default function VaultGate({ children }: VaultGateProps) {
       triggerShake();
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  // Return to the E-Mail sign-in without changing any encrypted records, local
+  // emergency copies or cloud snapshots. Revoke only the current login cookie.
+  const handleReturnToLogin = async () => {
+    if (isProcessing || returningToLogin) return;
+    setReturningToLogin(true);
+    setErrorMessage(null);
+    try {
+      const response = await fetch('/api/access/logout', {
+        method: 'POST',
+        credentials: 'same-origin',
+      });
+      if (!response.ok) {
+        throw new Error('Abmelden fehlgeschlagen.');
+      }
+      clearActiveVaultSession();
+      // A full reload is intentional: AccessGuard must re-read the revoked
+      // session cookie instead of reopening this locked vault in memory.
+      window.location.replace('/login');
+    } catch {
+      setErrorMessage(
+        'Zurück zur Anmeldung ist gerade nicht möglich. Bitte Internetverbindung prüfen und erneut versuchen. Deine verschlüsselten Daten bleiben erhalten.'
+      );
+      setReturningToLogin(false);
     }
   };
 
@@ -804,6 +831,24 @@ export default function VaultGate({ children }: VaultGateProps) {
               </button>
             </div>
           </form>
+        )}
+        {/* Always offer a way back after e-mail authentication, whether the
+            teacher selected a password or recovery code. */}
+        {gateState === 'locked' && (
+          <div className="mt-5 pt-4 border-t border-[var(--border)] text-center">
+            <button
+              type="button"
+              onClick={() => void handleReturnToLogin()}
+              disabled={isProcessing || returningToLogin}
+              data-testid="vault-return-to-login"
+              className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-muted)] disabled:opacity-50"
+            >
+              {returningToLogin ? 'Zur Anmeldung wechseln …' : '← Zurück zur Anmeldung / E-Mail ändern'}
+            </button>
+            <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-muted)]">
+              Meldet nur dieses Gerät ab. Deine Klassen, Backups und verschlüsselten Daten bleiben gespeichert.
+            </p>
+          </div>
         )}
 
         {/* Footer-Info */}
