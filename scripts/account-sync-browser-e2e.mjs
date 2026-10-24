@@ -242,11 +242,17 @@ async function finishVaultSetup(client, password) {
   await setInputByLabel(client, 'Passwort bestätigen', password);
   await clickButton(client, 'Weiter zum Wiederherstellungscode');
   await waitFor(client, 'recovery code screen', 'document.body?.innerText.toLowerCase().includes("dein einmaliger wiederherstellungscode")', 30000);
+  // Capture only the synthetic recovery code generated for this isolated E2E vault.
+  // Never print it or use a real user vault/code.
+  const recoveryCode = await evaluate(client,
+    'Array.from(document.querySelectorAll("div")).map(el=>String(el.textContent||"").trim()).find(s=>/^[0-9A-F]{4}(?:-[0-9A-F]{4}){7}$/.test(s)) || null');
+  if (!recoveryCode) throw new Error(client.name + ': no usable recovery code was shown at vault setup.');
   await clickCheckboxNearText(client, 'Ich habe den Wiederherstellungscode sicher notiert');
   await clickButton(client, 'Einrichtung abschließen');
   await waitFor(client, 'first-run setup before dashboard', 'document.body?.innerText.includes("Willkommen bei Klassio!")', 30000);
   const prematureTour = await evaluate(client, 'Boolean(document.getElementById("klassio-first-run-title")) || Array.from(document.querySelectorAll("h3")).some(el=>el.textContent==="Dashboard")');
   if (prematureTour) throw new Error(client.name + ': welcome tour appeared before setup was completed.');
+  return recoveryCode;
 }
 
 async function loginWithMail(client, email, password) {
@@ -258,7 +264,7 @@ async function loginWithMail(client, email, password) {
   const code = await waitForMailCode(email);
   await setInputByLabel(client, '6-stelliger Anmeldecode', code);
   await clickButton(client, 'Anmelden & Daten laden');
-  await finishVaultSetup(client, password);
+  return await finishVaultSetup(client, password);
 }
 
 async function createClassInUi(client, className) {
@@ -394,7 +400,7 @@ async function checkClassNote(client, note) {
   await waitFor(client, 'synced class note is present', 'document.body?.innerText.includes(' + q(note) + ')', 45000);
 }
 
-async function loginExistingVault(client, startedFirstLoginAt) {
+async function loginExistingVault(client, startedFirstLoginAt, recoveryCode) {
   const remainingWait = 61500 - (Date.now() - startedFirstLoginAt);
   if (remainingWait > 0) await sleep(remainingWait);
   await fs.rm(SMTP_CODES, { force: true }).catch(() => {});
@@ -407,9 +413,22 @@ async function loginExistingVault(client, startedFirstLoginAt) {
   await clickButton(client, 'Anmelden & Daten laden');
   await waitFor(client, 'existing encrypted cloud vault detected before setup',
     'document.body?.innerText.includes("Deine Daten sind da.") && document.body?.innerText.includes("Tresor-Passwort")', 30000);
-  await setInputByLabel(client, 'Passwort eingeben', TEACHER_VAULT);
-  await clickButton(client, 'Daten laden & KLASSIO öffnen');
-  await waitFor(client, 'school PC opens the same class',
+  // Unlike the old two-device test, prove recovery works from scratch,
+  // without the old device's password or local IndexedDB contents.
+  await clickButton(client, 'Tresor-Passwort vergessen? Wiederherstellungscode verwenden');
+  await waitFor(client, 'recovery code form visible',
+    'document.body?.innerText.includes("Der Code besteht aus acht Viererblöcken.")', 10000);
+  await setInputByLabel(client, 'Wiederherstellungscode', '0000-0000-0000-0000-0000-0000-0000-0000');
+  await clickButton(client, 'Mit Code entsperren');
+  await waitFor(client, 'wrong recovery code rejected without opening class',
+    'document.body?.innerText.includes("Dieser Wiederherstellungscode passt nicht zum geladenen Datentresor.")', 15000);
+  if (await evaluate(client, 'document.body?.innerText.includes("Sync Testklasse A")')) {
+    throw new Error(client.name + ': wrong recovery code exposed classroom data.');
+  }
+  await setInputByLabel(client, 'Wiederherstellungscode', recoveryCode);
+  await clickButton(client, 'Mit Code entsperren');
+  await waitFor(client, 'school PC opens the same class via recovery code',
+
     'document.body?.innerText.includes("Sync Testklasse A") && Array.from(document.querySelectorAll("button")).some(b=>b.textContent.trim()==="Heute")', 45000);
 }
 
@@ -430,7 +449,7 @@ async function main() {
   });
   try {
     const loginStarted = Date.now();
-    await loginWithMail(home, SYNC_EMAIL, TEACHER_VAULT);
+    const recoveryCode = await loginWithMail(home, SYNC_EMAIL, TEACHER_VAULT);
     // Keep only an encrypted SYNTHETIC empty first-run snapshot to recreate
     // the real-world bug of an old mobile browser holding a blank local state.
     // No real teacher or student data enters this browser test.
@@ -456,12 +475,12 @@ async function main() {
       'fetch("/api/account-sync",{cache:"no-store"}).then(r=>r.json()).then(j=>({revision:j.snapshot?.revision,encrypted:!!j.snapshot?.encryptedState?.ciphertext}))');
     if (!cloudA.encrypted || cloudA.revision < 2) throw new Error('Home account server did not acknowledge the encrypted plan and note: ' + JSON.stringify(cloudA));
 
-    await loginExistingVault(school, loginStarted);
+    await loginExistingVault(school, loginStarted, recoveryCode);
     await openWeeklyAndCheck(school, TOPIC);
     await checkDailyHomework(school, HUE_HOME);
     await checkClassNote(school, NOTE_HOME);
     await waitForCloud(school);
-    console.log('✓ Real Chrome: home weekly plan and class note appeared on freshly signed-in school PC.');
+    console.log('✓ Real Chrome: incorrect recovery code rejected; correct code restored the original class, weekly plan, homework and note on a fresh school PC.');
     for (const client of [home, school]) {
       await waitFor(client, 'authenticated live connection active',
         'document.querySelector("[data-account-live-status=live]") !== null', 30000);
