@@ -13,6 +13,7 @@ import {
   loadVaultRecord,
   setActiveVaultSession,
   getActiveVaultKey,
+  clearActiveVaultSession,
 } from '../lib/vaultStorage';
 import {
   rememberTrustedDevice,
@@ -358,13 +359,18 @@ export default function VaultGate({ children }: VaultGateProps) {
     }
 
     setIsProcessing(true);
+    let codeAccepted = false;
     try {
       const record = await loadVaultRecord();
       if (!record) {
         throw new Error('Kein gespeicherter Datentresor gefunden.');
       }
 
+      // Schlüsselprüfung und Datenladen sind zwei unterschiedliche Schritte:
+      // Ein gültiger Code darf bei einem Netzwerk-/Sync-Fehler nicht als falsch
+      // gemeldet werden. Das ist wichtig beim Wiederherstellen auf neuen Geräten.
       let vaultKey = await unlockVaultWithRecoveryCode(record, recoveryCodeInput.trim(), trustThisDevice);
+      codeAccepted = true;
       if (trustThisDevice) {
         try {
           vaultKey = await rememberTrustedDevice(record, vaultKey);
@@ -378,14 +384,31 @@ export default function VaultGate({ children }: VaultGateProps) {
 
       const success = await unlockAppVault(vaultKey);
       if (!success) {
-        throw new Error('Die lokalen Daten konnten nicht entschlüsselt werden.');
+        throw new Error('Der verschlüsselte Klassenstand konnte nicht geladen werden.');
       }
 
       setGateState('unlocked');
       showToast('Tresor mit Wiederherstellungscode entsperrt.', 'success');
     } catch (err: any) {
       console.warn('Recovery fehlgeschlagen:', err);
-      setErrorMessage('Ungültiger Wiederherstellungscode oder Authentifizierungsfehler.');
+      if (codeAccepted) {
+        // Kein halb entsperrter Zustand, wenn die Daten nicht geladen werden konnten.
+        clearActiveVaultSession();
+        setErrorMessage(
+          'Dein Wiederherstellungscode wurde akzeptiert, aber die verschlüsselten Klassendaten konnten nicht geladen werden. ' +
+          'Bitte Internetverbindung und Anmeldung mit derselben E-Mail-Adresse prüfen und erneut versuchen. ' +
+          'Zur Sicherheit wurden keine Daten überschrieben.'
+        );
+      } else if (err?.message === 'Kein gespeicherter Datentresor gefunden.') {
+        setErrorMessage(
+          'Auf diesem Gerät wurde kein Datentresor gefunden. Bitte zuerst mit deinem bestehenden KLASSIO-E-Mail-Konto anmelden, damit der verschlüsselte Tresor geladen wird. Keinen neuen Tresor anlegen.'
+        );
+      } else {
+        setErrorMessage(
+          'Dieser Wiederherstellungscode passt nicht zum geladenen Datentresor. ' +
+          'Prüfe alle acht Viererblöcke, das richtige E-Mail-Konto und ob inzwischen ein neuer Code aktiviert wurde.'
+        );
+      }
       triggerShake();
     } finally {
       setIsProcessing(false);
@@ -727,13 +750,15 @@ export default function VaultGate({ children }: VaultGateProps) {
                 Wiederherstellungscode
               </label>
               <p className="mb-2 text-[11px] leading-relaxed text-[var(--text-muted)]">
-                Falls du den Code per E-Mail gesichert hast, suche in deinem Postfach nach „KLASSIO – Wiederherstellungscode“.
+                Der Code besteht aus acht Viererblöcken. Falls du ihn per E-Mail gesichert hast, suche nach „KLASSIO – Wiederherstellungscode“.
               </p>
               <input
                 type="text"
                 value={recoveryCodeInput}
                 onChange={(e) => setRecoveryCodeInput(e.target.value)}
-                placeholder="XXXX-XXXX-XXXX-XXXX-XXXX"
+                placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"
+                autoComplete="off"
+                spellCheck={false}
                 autoFocus
                 required
                 className="w-full bg-[var(--surface-subtle,var(--surface))] border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm font-mono text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
