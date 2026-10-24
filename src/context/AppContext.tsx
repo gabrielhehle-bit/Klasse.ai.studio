@@ -1185,12 +1185,50 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     };
 
+    // Receive only committed revision hints; the existing encrypted, conflict-guarded
+    // syncOnce remains the sole reader/writer. Polling stays as a fallback.
+    let teamEvents: EventSource | null = null;
+    const connectTeamEvents = () => {
+      teamEvents?.close();
+      teamEvents = null;
+      if (!active || !navigator.onLine || typeof EventSource === 'undefined') return;
+      const source = new EventSource(
+        '/api/teamteaching/classes/' + encodeURIComponent(activeTeamSharedId) + '/events',
+      );
+      teamEvents = source;
+      source.onmessage = event => {
+        if (!active || teamEvents !== source) return;
+        let revision: unknown;
+        try { revision = JSON.parse(event.data)?.revision; } catch { return; }
+        if (!Number.isSafeInteger(revision) || (revision as number) < 0) return;
+        const room = currentAppRef.current.classes?.find(
+          item => item.id === currentAppRef.current.activeClassId
+            && item.teamTeaching?.sharedClassId === activeTeamSharedId,
+        );
+        if (!room?.teamTeaching) return;
+        if (revision === 0 || (revision as number) > room.teamTeaching.revision) {
+          void syncOnce();
+        }
+      };
+      // EventSource reconnects automatically. No authorization or student data
+      // is ever included in the event; periodic pulls cover unsupported proxies.
+    };
+    const reconnectWhenOnline = () => { connectTeamEvents(); void syncOnce(); };
+    const refreshWhenFocused = () => { if (document.visibilityState === 'visible') void syncOnce(); };
+    connectTeamEvents();
     const startup = window.setTimeout(() => void syncOnce(), 650);
     const interval = window.setInterval(() => void syncOnce(), 2500);
+    window.addEventListener('online', reconnectWhenOnline);
+    window.addEventListener('focus', refreshWhenFocused);
+    document.addEventListener('visibilitychange', refreshWhenFocused);
     return () => {
       active = false;
+      teamEvents?.close();
       window.clearTimeout(startup);
       window.clearInterval(interval);
+      window.removeEventListener('online', reconnectWhenOnline);
+      window.removeEventListener('focus', refreshWhenFocused);
+      document.removeEventListener('visibilitychange', refreshWhenFocused);
     };
   }, [activeTeamSharedId, isLoaded, isVaultUnlocked, setApp]);
 

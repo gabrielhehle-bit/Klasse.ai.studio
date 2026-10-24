@@ -1726,6 +1726,72 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     }
   });
 
+  // Teamteaching live hints only carry a class revision, never pupil data or ciphertext.
+  // Authorize both the initial SSE handshake and every subsequent notification.
+  app.get('/api/teamteaching/classes/:classId/events', requireTeacherIdentity, async (req, res) => {
+    const identity = getTeacherIdentity(req);
+    const classId = req.params.classId;
+    let unsubscribe = () => {};
+    let heartbeat: ReturnType<typeof setInterval> | undefined;
+    let closed = false;
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      unsubscribe();
+      if (heartbeat) clearInterval(heartbeat);
+      res.end();
+    };
+    const activeSession = () => {
+      const cookies = parseCookies(req);
+      const school = verifyIdentityToken(cookies.klassio_email_identity);
+      const account = verifyAccountToken(cookies.klassio_email_account);
+      return Boolean(verifyAccessToken(cookies.lehrerapp_access_token)
+        && ((school?.userId === identity.userId && school?.schoolId === identity.schoolId)
+          || account?.email === identity.email));
+    };
+    const authorizedRecord = async () => {
+      if (!activeSession()) { close(); return null; }
+      try {
+        return await classCollaborationStore.getClass(identity, classId);
+      } catch {
+        close(); // Membership revoked or class deleted; do not disclose further revisions.
+        return null;
+      }
+    };
+    const send = async (revision: number) => {
+      const record = await authorizedRecord();
+      if (!record || closed) return;
+      // Revision supplied by a listener can be older than the current committed version.
+      if (!res.write(`data: ${JSON.stringify({ revision: Math.max(revision, record.revision) })}\n\n`)) close();
+    };
+    try {
+      const initial = await classCollaborationStore.getClass(identity, classId);
+      if (!activeSession()) return res.status(401).json({ error: 'Anmeldung abgelaufen.' });
+      unsubscribe = classCollaborationStore.subscribeClass(classId, revision => { void send(revision); });
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('X-Accel-Buffering', 'no');
+      res.flushHeaders();
+      res.on('close', close);
+      // Subscribe before reading again to avoid losing a change during connection setup.
+      const current = await authorizedRecord();
+      if (!current || closed) return;
+      await send(Math.max(initial.revision, current.revision));
+      heartbeat = setInterval(async () => {
+        const authorized = await authorizedRecord();
+        if (!authorized || closed) return;
+        if (!res.write(': heartbeat\n\n')) close();
+      }, 15_000);
+    } catch (error: any) {
+      unsubscribe();
+      if (res.headersSent) { close(); return; }
+      if (error?.message === 'TOO_MANY_LIVE_CONNECTIONS') {
+        return res.status(429).json({ code: 'TOO_MANY_LIVE_CONNECTIONS' });
+      }
+      await handleTeamTeachingError(res, error, identity, classId);
+    }
+  });
+
   // History contains ciphertext only. A current team member must authorize every request.
   app.get('/api/teamteaching/classes/:classId/history', requireTeacherIdentity, async (req, res) => {
     const identity = getTeacherIdentity(req);
