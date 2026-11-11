@@ -1780,6 +1780,9 @@ export default function SeatingPlan() {
     )
   );
   const selectedSeatStudent = students.find(student => student.id === selectedSeatStudentId);
+  const deskObjects = sitzplan_objekte.filter(object =>
+    ['rectangle', 'square', 'triangle'].includes(object.type)
+  );
   const latestRoomRef = useRef({ placedStudents, sitzplan_schueler, sitzplan_objekte });
   latestRoomRef.current = { placedStudents, sitzplan_schueler, sitzplan_objekte };
 
@@ -1867,6 +1870,24 @@ export default function SeatingPlan() {
     const canvasW = Math.max(1200, (planRef.current?.clientWidth || 0) / zoom, seatRight + 30, furnitureRight + 30);
     const canvasH = Math.max(800, (planRef.current?.clientHeight || 0) / zoom, seatBottom + 30, furnitureBottom + 30);
     return { canvasW, canvasH };
+  };
+
+  const findDeskSeatForStudent = (studentId: string, desk: any) => {
+    // Exclude the moving child's current seat, never any other student's place.
+    const occupied = Object.fromEntries(
+      Object.entries(sitzplan_schueler).filter(([id]) => id !== studentId)
+    );
+    return findFreeDeskSeatPosition(occupied, [desk]);
+  };
+
+  const placeStudentAtSelectedDesk = (studentId: string, deskId: string) => {
+    if (!editMode || !sitzplan_schueler[studentId]) return;
+    const desk = deskObjects.find(object => object.id === deskId);
+    if (!desk || getStudentsOnTable(desk, sitzplan_schueler).includes(studentId)) return;
+    const vacantSeat = findDeskSeatForStudent(studentId, desk);
+    if (!vacantSeat) return;
+    updatePosition(studentId, vacantSeat.x, vacantSeat.y);
+    setSelectedSeatStudentId(null);
   };
 
   const moveIndividualSeatToDesk = (id: string) => {
@@ -3169,7 +3190,7 @@ export default function SeatingPlan() {
               <div data-seating-selected-student className="space-y-2 rounded-xl border border-indigo-200 bg-indigo-50 p-2.5">
                 <p className="text-[0.65rem] font-extrabold uppercase tracking-wider text-indigo-700">Ausgewählt</p>
                 <p className="truncate text-sm font-black text-slate-900">{selectedSeatStudent.vorname} {selectedSeatStudent.nachname}</p>
-                <p className="text-xs text-indigo-900">Jetzt ein anderes Kind anklicken zum Tauschen.</p>
+                <p className="text-xs text-indigo-900">Ein zweites Kind anklicken zum Tauschen oder unten einen Tisch auswählen.</p>
                 <div className="flex flex-wrap gap-1.5">
                   <button type="button" onClick={() => setSelectedSeatStudentId(null)} className="min-h-9 rounded-lg border border-indigo-200 bg-white px-2 text-xs font-bold text-indigo-800">Abbrechen</button>
                   <button type="button" onClick={() => removeStudent(selectedSeatStudent.id)} className="min-h-9 rounded-lg border border-amber-200 bg-white px-2 text-xs font-bold text-amber-900">Platz freigeben</button>
@@ -3187,6 +3208,39 @@ export default function SeatingPlan() {
                   </button>
                 )) : <p className="rounded-lg bg-emerald-50 px-2.5 py-2 text-xs font-semibold text-emerald-800">Alle Kinder platziert</p>}
             </div>
+            {deskObjects.length > 0 && (
+              <details data-seating-table-groups className="rounded-xl border border-slate-200 bg-slate-50/70 p-2.5">
+                <summary className="cursor-pointer text-xs font-extrabold text-slate-800">
+                  Tische ansehen ({deskObjects.length})
+                </summary>
+                <div className="mt-2 space-y-1.5">
+                  {deskObjects.map((desk, index) => {
+                    const occupants = getStudentsOnTable(desk, sitzplan_schueler);
+                    const selectedAlreadyHere = !!selectedSeatStudentId && occupants.includes(selectedSeatStudentId);
+                    const vacancy = selectedSeatStudentId && !selectedAlreadyHere
+                      ? findDeskSeatForStudent(selectedSeatStudentId, desk) : null;
+                    return (
+                      <div key={desk.id} className="flex min-w-0 items-center gap-2 rounded-lg border border-slate-200 bg-white p-1.5">
+                        <button type="button" className="min-w-0 flex-1 rounded-md px-1 text-left hover:bg-slate-50"
+                          onClick={() => setSelectedObjId(desk.id)}
+                          aria-label={`${desk.label || `Tisch ${index + 1}`} im Raum auswählen`}>
+                          <span className="block truncate text-xs font-bold text-slate-800">{desk.label || `Tisch ${index + 1}`}</span>
+                          <span className="block text-[0.65rem] text-slate-500">{occupants.length} {occupants.length === 1 ? 'Kind' : 'Kinder'} am Tisch</span>
+                        </button>
+                        {selectedSeatStudentId && (
+                          <button type="button" disabled={!vacancy}
+                            onClick={() => placeStudentAtSelectedDesk(selectedSeatStudentId, desk.id)}
+                            title={selectedAlreadyHere ? 'Das Kind sitzt bereits an diesem Tisch' : vacancy ? 'Kind an den freien Platz dieses Tisches setzen' : 'Kein freier Platz für dieses Kind verfügbar'}
+                            className="min-h-9 shrink-0 rounded-md bg-indigo-50 px-2 text-[0.65rem] font-bold text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">
+                            {selectedAlreadyHere ? 'Sitzt hier' : 'Hierhin'}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </details>
+            )}
             {freeStandingStudents.length > 0 && (
               <div className="space-y-1.5 border-t border-slate-100 pt-3" data-seating-individual-seats>
                 <h4 className="text-xs font-extrabold text-slate-700">Einzel- / freie Plätze ({freeStandingStudents.length})</h4>
@@ -3502,6 +3556,27 @@ export default function SeatingPlan() {
                   <button onClick={(e) => { e.stopPropagation(); updateObject(obj.id, { w: Math.max(40, obj.w - 20) }); }} className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 rounded-lg" title="Schmälern"><Minimize2 size={14} className="rotate-90" /></button>
                   <button onClick={(e) => { e.stopPropagation(); duplicateObject(obj.id); }} className="p-1.5 text-indigo-500 hover:bg-indigo-50 rounded-lg" title="Duplizieren"><Copy size={14} /></button>
                   <button onClick={(e) => { e.stopPropagation(); removeObject(obj.id); }} className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg" title="Löschen"><Trash2 size={14} /></button>
+                </div>
+              )}
+              {editMode && selectedObjId === obj.id && ['rectangle', 'square', 'triangle'].includes(obj.type) && (
+                <div data-seating-desk-inspector
+                  onClick={(event) => event.stopPropagation()}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  className={`absolute ${obj.y < 60 ? '-top-24' : 'top-[calc(100%+8px)]'} left-1/2 z-[90] flex min-w-36 -translate-x-1/2 flex-col items-center gap-1 rounded-xl border border-slate-200 bg-white p-2 text-center shadow-lg`}>
+                  <span className="whitespace-nowrap text-[0.7rem] font-bold text-slate-700">
+                    {getStudentsOnTable(obj, sitzplan_schueler).length} Kinder an diesem Tisch
+                  </span>
+                  {selectedSeatStudent && !getStudentsOnTable(obj, sitzplan_schueler).includes(selectedSeatStudent.id) && (
+                    <button type="button"
+                      disabled={!findDeskSeatForStudent(selectedSeatStudent.id, obj)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        placeStudentAtSelectedDesk(selectedSeatStudent.id, obj.id);
+                      }}
+                      className="min-h-9 whitespace-nowrap rounded-lg bg-indigo-50 px-2 text-xs font-bold text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">
+                      {findDeskSeatForStudent(selectedSeatStudent.id, obj) ? `${selectedSeatStudent.vorname} hierhin` : 'Kein freier Platz'}
+                    </button>
+                  )}
                 </div>
               )}
             </motion.div>
