@@ -10,6 +10,7 @@ import {
 import { berechne, getNotenLabel, getFachCfg, getShowPointsPercent, getMaxPoints } from '../../lib/GradeUtils';
 import { FAECHER_ALLE } from '../../constants';
 import LzkAreaResults from './LzkAreaResults';
+import AssessmentDomainDonuts from './AssessmentDomainDonuts';
 import DossierAssessmentChart from './DossierAssessmentChart';
 import { getDossierAssessmentChart } from '../../lib/dossierAssessmentChart';
 import { getStudentSubjectParticipationSummary, type SubjectParticipationSummary } from '../../lib/studentParticipation';
@@ -494,6 +495,7 @@ export default function DossierLeistungen({
           </details>
         </section>
 
+        <AssessmentDomainDonuts studentId={student.id} subject={s.fach} semester={semester} />
         <LzkAreaResults studentId={student.id} subject={s.fach} semester={semester} />
         <DossierAssessmentChart items={s.items} mode={s.mode} />
 
