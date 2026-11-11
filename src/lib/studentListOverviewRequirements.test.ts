@@ -9,7 +9,8 @@ const studentMap = readFileSync('src/components/StudentMap.tsx', 'utf8');
 test('Klassenliste: OpenStreetMap-Wohnortansicht bleibt ein eigenständiger Reiter', () => {
   assert.match(studentList, /setViewMode\('map'\)/);
   assert.match(studentList, /viewMode === 'map'/);
-  assert.match(studentList, /<StudentMap students=\{filteredStudents\} \/>/);
+  assert.match(studentList, /<StudentMap students=\{filteredStudents\} onOpenStudent=\{setSelectedFolderStudent\} \/>/);
+  assert.match(studentMap, /onOpenStudent\(student.id\)/);
   assert.match(studentMap, /leaflet|react-leaflet/);
 });
 
