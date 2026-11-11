@@ -1,13 +1,13 @@
 import { visibleAssessmentIndices, hasMissingVisibleAssessment } from '../lib/gradebookVisibleColumns';
 import { countsInClassAverage } from '../lib/classAveragePolicy';
 import { getPositiveBehaviorRate } from '../lib/gradebookBehaviorRate';
-import { removeSubjectColumn, updateSubjectColumn } from '../lib/classroomEdits';
+import { getSubjectColumnRemovalBlockReason, removeSubjectColumn, updateSubjectColumn } from '../lib/classroomEdits';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { logActivity, getAccentTextColor } from '../lib/utils';
-import { getFachCfg, berechne, miZuNote, getAssessmentMode, getMaxPoints, calculateItemPercent, getNotenLabel, isAssessmentValueMissing, hasCalculatedAverage, parseAssessmentInput, parseFinalGradeInput, getHomeworkGradebookSettings, getMirroredAssessmentValue, getShowPointsPercent } from '../lib/GradeUtils';
+import { getFachCfg, berechne, miZuNote, getAssessmentMode, getMaxPoints, calculateItemPercent, getNotenLabel, isAssessmentValueMissing, hasCalculatedAverage, hasSubjectAssessmentEntries, parseAssessmentInput, parseFinalGradeInput, getHomeworkGradebookSettings, getMirroredAssessmentValue, getShowPointsPercent } from '../lib/GradeUtils';
 import { FAECHER_ALLE, NOTE_LABELS, STUNDEN_INFO } from '../constants';
 import { GradeData } from '../types';
 import WeightSettings from './WeightSettings';
@@ -877,9 +877,18 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     setPendingDelete({ typ, label });
   };
 
+  const pendingDeleteBlockReason = pendingDelete
+    ? getSubjectColumnRemovalBlockReason(app.noten, app.notenMeta, activeFach, pendingDelete.typ, (colCounts[pendingDelete.typ] ?? 4) - 1)
+    : null;
+
   const confirmDelete = () => {
     if (!pendingDelete) return;
     const { typ } = pendingDelete;
+    if (getSubjectColumnRemovalBlockReason(app.noten, app.notenMeta, activeFach, typ, (colCounts[typ] ?? 4) - 1)) {
+      window.alert('Diese Spalte enthält gespeicherte Bewertungen, Teilnahmeangaben oder Spalteninformationen. Sie bleibt aus Sicherheitsgründen erhalten.');
+      setPendingDelete(null);
+      return;
+    }
 
     setApp(prev => {
       const currentCount = prev.notenMeta?.[activeFach]?.colCounts?.[typ] ?? 4;
@@ -911,30 +920,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     const currentMode = app.notenMeta?.[fach]?.assessmentMode || 'grades';
     if (currentMode === newMode) return;
 
-    let hasEntries = false;
-    const studentList = app.schueler || [];
-    for (const s of studentList) {
-      const sem1 = app.noten?.[s.id]?.[fach]?.['1'];
-      const sem2 = app.noten?.[s.id]?.[fach]?.['2'];
-      const checkSem = (d: any) => {
-        if (!d) return false;
-        return (d.sa?.some((v: any) => v !== null && v !== undefined && v !== '')) ||
-               (d.lzk?.some((v: any) => v !== null && v !== undefined && v !== '')) ||
-               (d.wp?.some((v: any) => v !== null && v !== undefined && v !== '')) ||
-               (d.aufgaben?.some((v: any) => v !== null && v !== undefined && v !== ''));
-      };
-      if (checkSem(sem1) || checkSem(sem2)) {
-        hasEntries = true;
-        break;
-      }
-    }
-
-    if (hasEntries) {
-      const modeNames = { grades: 'Noten (1–5)', percent: 'Prozent (0–100%)', points: 'Punkte (Pkt/Max)' };
-      const confirmMsg = `Hinweis: Im Fach "${fach}" sind bereits Leistungsdaten erfasst.\n\nEin Wechsel der Bewertungsart verändert die Interpretation und Anzeige der Werte (${modeNames[newMode]}).\n\nMöchtest du die Bewertungsart für "${fach}" wirklich umstellen?`;
-      if (!window.confirm(confirmMsg)) {
-        return;
-      }
+    if (hasSubjectAssessmentEntries(app, fach)) {
+      window.alert('Die Bewertungsart bleibt unverändert: Bereits gespeicherte Werte dürfen nicht anders interpretiert werden. Für eine Umstellung braucht es eine sichere Datenmigration.');
+      return;
     }
 
     setApp(prev => {
@@ -1685,6 +1673,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
         .gradebook-scroll-area::-webkit-scrollbar-thumb { background: #9baea7; border: 2px solid #edf2ef; border-radius: 8px; }
         .gradebook-scroll-area thead { position: sticky; top: 0; z-index: 55; }
         .gradebook-table--dense tbody td { padding-top: 0.25rem !important; padding-bottom: 0.25rem !important; }
+        @media (pointer: fine) and (min-width: 768px) {
+          .gradebook-table--dense [data-gradebook-row-actions] button { min-height: 2rem !important; min-width: 2rem !important; }
+        }
         @media print {
           .gradebook-scroll-area { max-height: none !important; overflow: visible !important; scrollbar-width: none; }
           .gradebook-scroll-area thead { position: static; }
@@ -3238,8 +3229,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                   <h3 className="text-[1.125rem] leading-normal font-bold">Spalte entfernen</h3>
                 </div>
                 <p className="text-text-secondary mb-6 text-[0.875rem] leading-snug">
-                  Möchtest du wirklich die letzte Spalte (<span className="font-bold text-text-primary">{pendingDelete.label}</span>) entfernen? 
-                  Bereits eingegebene Noten in dieser Spalte gehen verloren.
+                  {pendingDeleteBlockReason
+                    ? <>Diese Spalte enthält {pendingDeleteBlockReason === 'grades' ? 'gespeicherte Bewertungen oder Teilnahmeinformationen' : 'gespeicherte Spalteninformationen'}. Sie kann nicht gelöscht werden. Alle Einträge bleiben erhalten.</>
+                    : <>Möchtest du die letzte unbenutzte Spalte (<span className="font-bold text-text-primary">{pendingDelete.label}</span>) entfernen? Gespeicherte Bewertungen werden nicht gelöscht.</>}
                 </p>
                 <div className="flex gap-3 justify-end">
                   <button 
@@ -3250,9 +3242,10 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                   </button>
                   <button 
                     onClick={confirmDelete}
-                    className="btn bg-red-600 text-white hover:bg-red-700"
+                    disabled={Boolean(pendingDeleteBlockReason)}
+                    className="btn bg-red-600 text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Jetzt entfernen
+                    Leere Spalte entfernen
                   </button>
                 </div>
               </div>
@@ -3696,7 +3689,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                               </div>
                               <span className={`text-slate-500 font-bold ${dStyle.firstNameText} leading-tight text-wrap leading-tight break-words max-w-[8rem] sm:max-w-[10rem]`} title={`${s.nachname} ${s.vorname}`}>{s.vorname}</span>
                             </div>
-                            <div className="flex items-center gap-1 shrink-0">
+                            <div data-gradebook-row-actions className="flex items-center gap-1 shrink-0">
                               <button
                                 type="button"
                                 onClick={() => setSelectedTrendStudentId(s.id)}
