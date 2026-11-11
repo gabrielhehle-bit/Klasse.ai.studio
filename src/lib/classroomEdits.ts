@@ -13,13 +13,17 @@ export function completeMissingAttendance(attendance: AppState['anwesenheit'], s
   return result;
 }
 
-export function updateSubjectColumn(meta: AppState['notenMeta'], subject: string, type: 'sa' | 'lzk' | 'wp' | 'obj', index: number, label: string, date: string, maxPoints?: number, area?: string): AppState['notenMeta'] {
+export function updateSubjectColumn(meta: AppState['notenMeta'], subject: string, type: 'sa' | 'lzk' | 'wp' | 'obj', index: number, label: string, date: string, maxPoints?: number, area?: string, mode?: 'grades' | 'percent' | 'points'): AppState['notenMeta'] {
   const current = meta[subject] || {};
   const dates = { ...current.colDates?.[type] };
   if (date) dates[index] = date; else delete dates[index];
   const points = { ...current.maxPoints?.[type] };
   if (maxPoints !== undefined && Number.isFinite(maxPoints) && maxPoints > 0) points[index] = maxPoints;
   return { ...meta, [subject]: { ...current,
+    ...(mode ? { itemModes: {
+      ...(current.itemModes || {}),
+      [type]: { ...(current.itemModes?.[type] || {}), [index]: mode },
+    } } : {}),
     ...(area !== undefined && type === 'lzk' ? { colAreas: { ...current.colAreas, lzk: { ...current.colAreas?.lzk, [index]: area.trim() } } } : {}),
     colLabels: { ...current.colLabels, [type]: { ...current.colLabels?.[type], [index]: label } },
     colDates: { ...current.colDates, [type]: dates },
@@ -64,6 +68,7 @@ export function getSubjectColumnRemovalBlockReason(
     subjectMeta.colDates?.[type],
     subjectMeta.colAreas?.[type],
     subjectMeta.maxPoints?.[type],
+    subjectMeta.itemModes?.[type],
   ];
   if (records.some(record => Object.entries(record || {})
     .some(([index, value]) => Number(index) >= cutoff && isSaved(value)))) {
@@ -143,6 +148,10 @@ export function removeSubjectColumn(
     maxPoints: {
       ...(current.maxPoints || {}),
       [type]: trimIndexedRecord(current.maxPoints?.[type] as any),
+    },
+    itemModes: {
+      ...(current.itemModes || {}),
+      [type]: trimIndexedRecord(current.itemModes?.[type] as any),
     },
   };
 
