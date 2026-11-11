@@ -43,6 +43,7 @@ type StudentPeriodRow = {
   id: string;
   name: string;
   attendance: number | null;
+  attendanceRecorded: number;
   mood: number | null;
   participation: number;
   grade: number | null;
@@ -318,6 +319,8 @@ export default function ClassDossier({ onSelectStudent }: Props) {
   const [period, setPeriod] = useState<PeriodKey>('month');
   const [customFrom, setCustomFrom] = useState(() => iso(addDays(new Date(), -29)));
   const [customTo, setCustomTo] = useState(() => iso(new Date()));
+  const [studentSearch, setStudentSearch] = useState('');
+  const [studentFilter, setStudentFilter] = useState<'all' | 'withAttendance' | 'withoutAttendance'>('all');
 
   const behaviorScaleMax = Math.max(5, anyApp.behavior_stages?.length || DEFAULT_BEHAVIOR_STAGES.length);
   const students = useMemo(() => [...(app.schueler || [])], [app.schueler]);
@@ -347,6 +350,7 @@ export default function ClassDossier({ onSelectStudent }: Props) {
         id: student.id,
         name: `${student.vorname} ${student.nachname}`.trim(),
         attendance: attendance.recorded ? (attendance.present / attendance.recorded) * 100 : null,
+        attendanceRecorded: attendance.recorded,
         mood: mood.average,
         participation: participation.total,
         grade: mean(grades),
@@ -381,6 +385,7 @@ export default function ClassDossier({ onSelectStudent }: Props) {
     return {
       studentRows,
       attendanceTotals,
+      attendanceChildren: studentRows.filter(row => row.attendanceRecorded > 0).length,
       attendanceRate: attendanceTotals.recorded ? (attendanceTotals.present / attendanceTotals.recorded) * 100 : null,
       moodAverage: mean(moodValues),
       moodCount: moodValues.length,
@@ -459,6 +464,10 @@ export default function ClassDossier({ onSelectStudent }: Props) {
     });
   }, [range.from.getTime(), range.to.getTime(), calculateRangeMetrics, behaviorScaleMax]);
 
+  const observedAttendance = timeline.filter(item => item.attendance !== null);
+  const observedMood = timeline.filter(item => item.mood !== null);
+  const observedBehavior = timeline.filter(item => item.behavior !== null);
+
   const genderData = useMemo(
     () => distribution(students, student => getStudentGenderLabel(student.geschlecht)),
     [students]
@@ -476,19 +485,24 @@ export default function ClassDossier({ onSelectStudent }: Props) {
 
   const insights = useMemo(() => {
     const items: string[] = [];
-    if (current.attendanceRate !== null && previous.attendanceRate !== null) {
+    if (current.attendanceTotals.recorded > 0 && current.attendanceChildren < students.length) {
+      items.push(`Anwesenheit nur bei ${current.attendanceChildren} von ${students.length} Kindern dokumentiert. Die Quote berücksichtigt ausschließlich erfasste Einheiten.`);
+    }
+    if (current.attendanceRate !== null && previous.attendanceRate !== null &&
+      current.attendanceChildren >= Math.ceil(students.length * 0.75) &&
+      previous.attendanceChildren >= Math.ceil(students.length * 0.75)) {
       const delta = current.attendanceRate - previous.attendanceRate;
       if (Math.abs(delta) >= 1) {
         items.push(`Anwesenheit ${delta > 0 ? 'steigt' : 'sinkt'} gegenüber dem vorherigen Zeitraum um ${fmt(Math.abs(delta))} Prozentpunkte.`);
       }
     }
-    if (current.moodAverage !== null && previous.moodAverage !== null) {
+    if (current.moodAverage !== null && previous.moodAverage !== null && current.moodCount >= 5 && previous.moodCount >= 5) {
       const delta = current.moodAverage - previous.moodAverage;
       if (Math.abs(delta) >= 0.15) {
-        items.push(`Befinden ${delta > 0 ? 'entwickelt sich positiver' : 'liegt niedriger'} als im vorherigen Zeitraum (${delta > 0 ? '+' : ''}${fmt(delta)}).`);
+        items.push(`Befinden: Der erfasste Durchschnitt hat sich gegenüber dem vorherigen Zeitraum um ${delta > 0 ? '+' : ''}${fmt(delta)} Skalenpunkte verändert (${current.moodCount} Rückmeldungen).`);
       }
     }
-    if (current.behaviorAverage !== null && previous.behaviorAverage !== null) {
+    if (current.behaviorAverage !== null && previous.behaviorAverage !== null && current.behaviorCount >= 5 && previous.behaviorCount >= 5) {
       const delta = current.behaviorAverage - previous.behaviorAverage;
       if (Math.abs(delta) >= 0.15) {
         items.push(`Verhalten ${delta < 0 ? 'entwickelt sich positiver' : 'zeigt mehr Unterstützungsbedarf'} als im vorherigen Zeitraum (${delta > 0 ? '+' : ''}${fmt(delta)}).`);
@@ -526,7 +540,7 @@ export default function ClassDossier({ onSelectStudent }: Props) {
     {
       label: 'Anwesenheit',
       value: current.attendanceRate === null ? '—' : `${fmt(current.attendanceRate, 0)} %`,
-      sub: `${current.attendanceTotals.excused} entsch. · ${current.attendanceTotals.unexcused} unentsch.`,
+      sub: `${current.attendanceChildren}/${students.length} Kinder · ${current.attendanceTotals.recorded} erfasste Einheiten`,
       icon: <CalendarDays size={18} />,
     },
     {
@@ -557,7 +571,15 @@ export default function ClassDossier({ onSelectStudent }: Props) {
     },
   ];
 
-  const sortedRows = [...current.studentRows].sort((a, b) => a.name.localeCompare(b.name, 'de-AT'));
+  const namesById = new Map(students.map(student => [student.id, `${student.nachname} ${student.vorname}`]));
+  const sortedRows = [...current.studentRows].sort((a, b) =>
+    String(namesById.get(a.id) || a.name).localeCompare(String(namesById.get(b.id) || b.name), 'de-AT'));
+  const visibleRows = sortedRows.filter(row => {
+    const matchesSearch = row.name.toLocaleLowerCase('de-AT').includes(studentSearch.trim().toLocaleLowerCase('de-AT'));
+    const matchesFilter = studentFilter === 'all' ||
+      (studentFilter === 'withAttendance' ? row.attendanceRecorded > 0 : row.attendanceRecorded === 0);
+    return matchesSearch && matchesFilter;
+  });
 
   return (
     <div data-class-dossier className="space-y-4">
@@ -635,6 +657,11 @@ export default function ClassDossier({ onSelectStudent }: Props) {
         ))}
       </section>
 
+      <p data-attendance-coverage-note className="-mt-2 rounded-xl border border-teal-100 bg-teal-50/70 px-3 py-2 text-xs text-teal-900">
+        <strong>Anwesenheitsquote:</strong> Nur erfasste Einheiten zählen. Nicht dokumentierte Tage oder Stunden gelten weder als anwesend noch als fehlend.
+        {current.attendanceChildren < students.length && current.attendanceTotals.recorded > 0 && <span className="font-semibold"> Für {students.length - current.attendanceChildren} Kinder fehlen im ausgewählten Zeitraum Anwesenheitseinträge.</span>}
+      </p>
+
       <section data-class-insights data-klassio-area className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
         <div className="flex flex-wrap items-center gap-2">
           <Sparkles size={17} className="text-indigo-600" />
@@ -659,8 +686,8 @@ export default function ClassDossier({ onSelectStudent }: Props) {
             </h2>
             <p className="mt-1 text-xs text-[var(--text3)]">Anteil anwesender erfasster Einheiten</p>
           </div>
-          <div className="mt-3 h-48">
-            {timeline.some(item => item.attendance !== null) ? (
+          <div className={`${observedAttendance.length >= 3 ? 'mt-3 h-44' : 'mt-3'}`}>
+            {observedAttendance.length >= 3 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={timeline} margin={{ top: 8, right: 10, left: -8, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -671,9 +698,10 @@ export default function ClassDossier({ onSelectStudent }: Props) {
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <p className="flex h-full items-center justify-center text-center text-xs font-semibold text-[var(--text3)]">
-                Noch keine Anwesenheitsdaten im Zeitraum.
-              </p>
+              <div data-class-sparse-chart="attendance" className="rounded-xl bg-[var(--surface2)] px-3 py-3 text-xs text-[var(--text2)]">
+                <p className="font-bold">{observedAttendance.length === 0 ? 'Noch keine Anwesenheitsdaten im Zeitraum.' : `Nur ${observedAttendance.length} erfasste Zeitabschnitte – für einen Trend sind mindestens 3 nötig.`}</p>
+                {observedAttendance.length > 0 && <p className="mt-1">Letzter Messpunkt: {observedAttendance[observedAttendance.length - 1].label} · {fmt(Number(observedAttendance[observedAttendance.length - 1].attendance),0)} %</p>}
+              </div>
             )}
           </div>
         </article>
@@ -686,8 +714,8 @@ export default function ClassDossier({ onSelectStudent }: Props) {
             </h2>
             <p className="mt-1 text-xs text-[var(--text3)]">Rückmeldungen aus „Ich bin da“</p>
           </div>
-          <div className="mt-3 h-48">
-            {timeline.some(item => item.mood !== null) ? (
+          <div className={`${observedMood.length >= 3 ? 'mt-3 h-44' : 'mt-3'}`}>
+            {observedMood.length >= 3 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={timeline} margin={{ top: 8, right: 10, left: -8, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -698,9 +726,10 @@ export default function ClassDossier({ onSelectStudent }: Props) {
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <p className="flex h-full items-center justify-center text-center text-xs font-semibold text-[var(--text3)]">
-                Noch keine Befindens-Rückmeldungen im Zeitraum.
-              </p>
+              <div data-class-sparse-chart="mood" className="rounded-xl bg-[var(--surface2)] px-3 py-3 text-xs text-[var(--text2)]">
+                <p className="font-bold">{observedMood.length === 0 ? 'Noch keine Befindens-Rückmeldungen im Zeitraum.' : `Nur ${observedMood.length} erfasste Zeitabschnitte – für einen Trend sind mindestens 3 nötig.`}</p>
+                {observedMood.length > 0 && <p className="mt-1">Letzter Messpunkt: {observedMood[observedMood.length - 1].label} · {fmt(Number(observedMood[observedMood.length - 1].mood),1)} / 5</p>}
+              </div>
             )}
           </div>
         </article>
@@ -713,8 +742,8 @@ export default function ClassDossier({ onSelectStudent }: Props) {
             </h2>
             <p className="mt-1 text-xs text-[var(--text3)]">1 = sehr positiv (oben) · {behaviorScaleMax} = Unterstützungsbedarf (unten)</p>
           </div>
-          <div className="mt-3 h-48">
-            {timeline.some(item => item.behavior !== null) ? (
+          <div className={`${observedBehavior.length >= 3 ? 'mt-3 h-44' : 'mt-3'}`}>
+            {observedBehavior.length >= 3 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={timeline} margin={{ top: 8, right: 10, left: -8, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -725,9 +754,10 @@ export default function ClassDossier({ onSelectStudent }: Props) {
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <p className="flex h-full items-center justify-center text-center text-xs font-semibold text-[var(--text3)]">
-                Noch keine Verhaltenseinträge im Zeitraum.
-              </p>
+              <div data-class-sparse-chart="behavior" className="rounded-xl bg-[var(--surface2)] px-3 py-3 text-xs text-[var(--text2)]">
+                <p className="font-bold">{observedBehavior.length === 0 ? 'Noch keine Verhaltenseinträge im Zeitraum.' : `Nur ${observedBehavior.length} erfasste Zeitabschnitte – für einen Trend sind mindestens 3 nötig.`}</p>
+                {observedBehavior.length > 0 && <p className="mt-1">Letzter Messpunkt: {observedBehavior[observedBehavior.length - 1].label} · {fmt(Number(observedBehavior[observedBehavior.length - 1].behavior),1)} / ${behaviorScaleMax}</p>}
+              </div>
             )}
           </div>
         </article>
@@ -796,7 +826,9 @@ export default function ClassDossier({ onSelectStudent }: Props) {
         </article>
       </section>
 
-      <section className="grid gap-3 xl:grid-cols-2" aria-label="Klassenstruktur">
+      <details data-class-structure-details className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 sm:p-4">
+        <summary className="cursor-pointer text-sm font-black text-[var(--text)]">Klassenstruktur und Religion anzeigen <span className="ml-2 text-xs font-medium text-[var(--text3)]">Stammdaten der ganzen Klasse</span></summary>
+      <section className="mt-3 grid gap-3 xl:grid-cols-2" aria-label="Klassenstruktur">
         <article data-class-chart="gender" className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
           <div>
             <h2 className="flex items-center gap-2 text-sm font-black text-[var(--text)]">
@@ -854,6 +886,8 @@ export default function ClassDossier({ onSelectStudent }: Props) {
         </article>
       </section>
 
+      </details>
+
       <section data-class-student-table className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
@@ -869,6 +903,21 @@ export default function ClassDossier({ onSelectStudent }: Props) {
             Keine vertraulichen Notiztexte in dieser Übersicht
           </span>
         </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2" aria-label="Kinder suchen und filtern">
+          <input type="search" value={studentSearch} onChange={event => setStudentSearch(event.target.value)}
+            placeholder="Kind suchen …" aria-label="Kinder im Klassendossier suchen"
+            className="min-h-10 min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--text)] sm:max-w-xs"/>
+          <div className="flex flex-wrap gap-1" role="group" aria-label="Anwesenheitsdaten filtern">
+            {([
+              ['all','Alle'],
+              ['withAttendance','Mit Anwesenheitseintrag'],
+              ['withoutAttendance','Ohne Anwesenheitseintrag'],
+            ] as const).map(([key,label])=><button key={key} type="button" aria-pressed={studentFilter===key}
+              onClick={()=>setStudentFilter(key)}
+              className={`min-h-10 rounded-lg border px-2.5 py-2 text-xs font-semibold ${studentFilter===key?'border-indigo-300 bg-indigo-50 text-indigo-800':'border-[var(--border)] text-[var(--text2)] hover:bg-[var(--surface2)]'}`}>{label}</button>)}
+          </div>
+          <span className="text-xs font-medium text-[var(--text3)]">{visibleRows.length} von {students.length} Kindern</span>
+        </div>
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[860px] border-separate border-spacing-0 text-left text-xs">
             <thead>
@@ -883,11 +932,11 @@ export default function ClassDossier({ onSelectStudent }: Props) {
               </tr>
             </thead>
             <tbody>
-              {sortedRows.map(row => (
+              {visibleRows.map(row => (
                 <tr key={row.id} className="group hover:bg-[var(--accent-soft)]/25">
                   <td className="border-b border-[var(--border)]/70 px-3 py-2.5 font-black text-[var(--text)]">{row.name}</td>
                   <td className="border-b border-[var(--border)]/70 px-3 py-2.5 font-semibold text-[var(--text2)]">
-                    {row.attendance === null ? '—' : `${fmt(row.attendance, 0)} %`}
+                    {row.attendance === null ? 'Nicht erfasst' : <><span>{fmt(row.attendance, 0)} %</span><span className="block text-[0.62rem] font-normal text-[var(--text3)]">{row.attendanceRecorded} {row.attendanceRecorded === 1 ? 'Einheit' : 'Einheiten'}</span></>}
                   </td>
                   <td className="border-b border-[var(--border)]/70 px-3 py-2.5 font-semibold text-[var(--text2)]">
                     {row.mood === null ? '—' : `${fmt(row.mood)} / 5`}
@@ -914,6 +963,7 @@ export default function ClassDossier({ onSelectStudent }: Props) {
                   </td>
                 </tr>
               ))}
+              {!visibleRows.length && <tr><td colSpan={7} className="px-3 py-6 text-center text-xs font-semibold text-[var(--text3)]">Keine Kinder zu dieser Suche oder diesem Filter gefunden.</td></tr>}
             </tbody>
           </table>
         </div>
