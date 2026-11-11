@@ -61,7 +61,7 @@ test('Bearbeiten eines alten Objekt-Eintrags migriert die Zelle zurück ins Note
   assert.equal(calculateItemPercent(next.noten['student-1'].Deutsch['1'].lzk[0], 'points', getMaxPoints(next, 'Deutsch', 'lzk', 0)), 75);
 });
 
-test('Kategorie-Wechsel verschiebt den Nachweis in einen freien Zielplatz statt zu kopieren oder zu überschreiben', () => {
+test('Kategorie-Wechsel reserviert eine eigene Klassenspalte und überschreibt keine anderen Bewertungen', () => {
   const source = base('points');
   source.noten = {
     'student-1': {
@@ -104,15 +104,15 @@ test('Kategorie-Wechsel verschiebt den Nachweis in einen freien Zielplatz statt 
 
   const semesterData = next.noten['student-1'].Deutsch['1'];
   assert.equal(semesterData.lzk[0], null);
-  assert.deepEqual(semesterData.sa, [10, 18, 27]);
+  assert.deepEqual(semesterData.sa, [10, null, 27, 18]);
   assert.equal(next.notenMeta.Deutsch.colLabels.lzk[0], null);
   assert.equal(next.notenMeta.Deutsch.colDates.lzk[0], null);
   assert.equal(next.notenMeta.Deutsch.colNotes.lzk[0], null);
-  assert.equal(next.notenMeta.Deutsch.colLabels.sa[1], 'Schularbeit verschoben');
-  assert.equal(next.notenMeta.Deutsch.colDates.sa[1], '2026-10-03');
-  assert.equal(next.notenMeta.Deutsch.colNotes.sa[1], 'bleibt erhalten');
+  assert.equal(next.notenMeta.Deutsch.colLabels.sa[3], 'Schularbeit verschoben');
+  assert.equal(next.notenMeta.Deutsch.colDates.sa[3], '2026-10-03');
+  assert.equal(next.notenMeta.Deutsch.colNotes.sa[3], 'bleibt erhalten');
   assert.equal(next.notenMeta.Deutsch.maxPoints.lzk[0], null);
-  assert.equal(next.notenMeta.Deutsch.maxPoints.sa[1], 20);
+  assert.equal(next.notenMeta.Deutsch.maxPoints.sa[3], 20);
 });
 
 test('Ungültiger Kategorie-Wechsel verändert weder Quelle noch Ziel', () => {
@@ -146,4 +146,63 @@ test('Ungültige Dossier-Eingaben überschreiben keinen bestehenden Notenwert', 
     label: 'LZK 1', date: '2026-10-02', note: '', score: '99', maxScore: '20',
   });
   assert.equal(next, source);
+});
+
+test('dossier edits points and areas without changing the inherited subject grading scale', () => {
+  const source = base('grades');
+  source.noten = { 'student-1': { Deutsch: { '1': {
+    sa: [], lzk: [10], wp: [], aufgaben: [], hue: 0, hueAnm: [],
+  } } } };
+  source.notenMeta = { Deutsch: {
+    assessmentMode: 'grades', itemModes: { lzk: { 0: 'points' } },
+    maxPoints: { lzk: { 0: 20 } }, colAreas: { lzk: { 0: 'Lesen' } },
+  } };
+  const original = structuredClone(source);
+  const next = writeDossierAssessment(source, {
+    studentId: 'student-1', fach: 'Deutsch', semester: '1',
+    category: 'lzk', colIndex: 0, label: 'Lesetest', date: '',
+    note: '', score: '12', maxScore: '20', mode: 'points', area: 'Lesen',
+  });
+  assert.equal(next.noten['student-1'].Deutsch['1'].lzk[0], 12);
+  assert.equal(next.notenMeta.Deutsch.itemModes.lzk[0], 'points');
+  assert.equal(next.notenMeta.Deutsch.assessmentMode, 'grades');
+  assert.equal(next.notenMeta.Deutsch.colAreas.lzk[0], 'Lesen');
+  assert.deepEqual(source, original, 'original shared gradebook state stays immutable');
+  const rescale = writeDossierAssessment(next, {
+    studentId: 'student-1', fach: 'Deutsch', semester: '1',
+    category: 'lzk', colIndex: 0, label: 'Lesetest', date: '',
+    note: '', score: '12', maxScore: '30', mode: 'points', area: 'Lesen',
+  });
+  assert.equal(rescale, next, 'changing max points for saved scores must use guarded gradebook editor');
+});
+
+test('moving a shared assessment preserves the other pupil and the source column metadata', () => {
+  const source = base('grades');
+  source.schueler = [...source.schueler, { id: 'student-2', vorname: 'Nina' }];
+  source.noten = {
+    'student-1': { Deutsch: { '1': { sa: [], lzk: [2], wp: [], aufgaben: [] } } },
+    'student-2': { Deutsch: { '2': { sa: [], lzk: [3], wp: [], aufgaben: [] } } },
+  };
+  source.notenMeta = { Deutsch: {
+    assessmentMode: 'grades',
+    colLabels: { lzk: { 0: 'Lesetest' } },
+    colAreas: { lzk: { 0: 'Lesen' } },
+    itemModes: { lzk: { 0: 'grades' } },
+  } };
+  const before = structuredClone(source);
+  const next = writeDossierAssessment(source, {
+    studentId: 'student-1', fach: 'Deutsch', semester: '1',
+    originalCategory: 'lzk', originalColIndex: 0,
+    category: 'wp', colIndex: 0,
+    label: 'Individuelle Wochenplanleistung', date: '',
+    note: '', grade: '2', mode: 'grades', area: 'Lesen',
+  });
+  assert.equal(next.noten['student-2'].Deutsch['2'].lzk[0], 3);
+  assert.equal(next.notenMeta.Deutsch.colLabels.lzk[0], 'Lesetest');
+  assert.equal(next.notenMeta.Deutsch.colAreas.lzk[0], 'Lesen');
+  assert.equal(next.notenMeta.Deutsch.itemModes.lzk[0], 'grades');
+  assert.equal(next.noten['student-1'].Deutsch['1'].lzk[0], null);
+  assert.equal(next.noten['student-1'].Deutsch['1'].wp[0], 2);
+  assert.equal(next.notenMeta.Deutsch.colAreas.wp[0], 'Lesen');
+  assert.deepEqual(source, before);
 });
