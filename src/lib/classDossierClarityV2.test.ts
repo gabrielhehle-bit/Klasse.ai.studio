@@ -8,7 +8,7 @@ test('Klassendossier 2.0 zeigt Anwesenheit ausschließlich als Quote erfasster E
   assert.match(dossier, /attendanceRecorded: attendance\.recorded/);
   assert.match(dossier, /attendanceChildren: studentRows\.filter\(row => row\.attendanceRecorded > 0\)\.length/);
   assert.match(dossier, /attendance\.recorded \? \(attendance\.present \/ attendance\.recorded\) \* 100 : null/);
-  assert.match(dossier, /current\.attendanceChildren\/\$\{students\.length\} Kinder/);
+  assert.ok(dossier.includes('sub: `${current.attendanceChildren}/${students.length} Kinder'));
   assert.match(dossier, /Nur erfasste Einheiten zählen/);
   assert.match(dossier, /Nicht dokumentierte Tage oder Stunden gelten weder als anwesend noch als fehlend/);
   assert.match(dossier, /row\.attendance === null \? 'Nicht erfasst'/);
