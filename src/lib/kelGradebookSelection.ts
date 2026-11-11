@@ -1,5 +1,5 @@
 import type { AppState, AssessmentMode } from '../types';
-import { getAssessmentItemMode, getMaxPoints, isAssessmentValueMissing } from './GradeUtils';
+import { getAssessmentItemMode, isAssessmentValueMissing } from './GradeUtils';
 
 export type KelAssessmentType = 'sa' | 'lzk' | 'wp' | 'aufgaben';
 export interface KelSelectedAssessment {
@@ -85,7 +85,7 @@ export function getKelGradebookAssessments(
           ? customTitle.trim() : label + ' ' + (index + 1);
         const rawDate = meta?.colDates?.[metaKey]?.[index];
         const datum = typeof rawDate === 'string' ? rawDate : '';
-        const maxPoints = getMaxPoints(app, fach, metaKey, index);
+        const maxPoints = meta?.maxPoints?.[metaKey]?.[index];
         const area = meta?.colAreas?.[metaKey]?.[index]?.trim() || '';
         const ergebnis = resultText(raw as number | string, mode, maxPoints);
         const digest = assessmentFingerprint(JSON.stringify([cleanRaw, titel, datum, maxPoints ?? null, mode, area]));
