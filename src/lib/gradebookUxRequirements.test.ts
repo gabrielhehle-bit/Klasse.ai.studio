@@ -34,7 +34,7 @@ test('weight settings focus selected subject but continue to validate and save a
   assert.match(weights, /showAllFaecher \? activeFaecher : activeFaecher\.filter/);
   assert.match(weights, /Alle Fächer vergleichen/);
   assert.match(weights, /const invalidFaecher = dirtySubjects\.filter\(f => calculateSum\(f\) !== 100\)/);
-  assert.match(weights, /notenGewichtung: localWeights/);
+  assert.match(weights, /Object.fromEntries\(dirtySubjects.map\(fach => \[fach, localWeights\[fach\]\]\)\)/);
   assert.match(weights, /weight-participation-settings/);
   assert.match(weights, /weight-homework-settings/);
   assert.match(gradebook, /Hausübungsbewertung aktiv, jedoch mit 0 % eigenem Anteil/);
