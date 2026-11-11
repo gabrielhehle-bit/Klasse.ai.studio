@@ -488,11 +488,11 @@ async function main() {
         Array.from(h.querySelectorAll('h1')).some(t => t.textContent.trim() === 'Anwesenheit'));
       const rows = Array.from(document.querySelectorAll('button')).filter(b =>
         b.getAttribute('aria-label')?.includes('Fehlstunden'));
-      const firstStudent = rows[0]?.closest('div.p-2\\\\.5');
+      const firstStudent = rows[0]?.closest('[data-attendance-student]');
       const summary = mainHeader?.nextElementSibling;
       const headerActions = Array.from(mainHeader?.querySelectorAll('button') || []);
-      const presentButton = headerActions.find(b => b.title?.includes('Nur offene Stunden'));
-      const confirm = headerActions.find(b => b.textContent.includes('Tag bestätigen') || b.textContent.includes('Tag geprüft'));
+      const filterButton = headerActions.find(b => b.textContent.includes('Nur offene zeigen') || b.textContent.includes('Alle Kinder anzeigen'));
+      const confirm = headerActions.find(b => b.textContent.includes('Offene als anwesend bestätigen') || b.textContent.includes('Alle erfasst'));
       const more = headerActions.find(b => b.textContent.includes('Mehr') || b.querySelector('svg.lucide-ellipsis'));
       const topbarButtons = Array.from(topbar?.querySelectorAll('button') || []).filter(visible);
       const rect = el => { const r=el?.getBoundingClientRect(); return r ? { x:r.x,right:r.right,width:r.width,height:r.height } : null; };
@@ -502,18 +502,18 @@ async function main() {
         header: rect(mainHeader),
         rowCount: rows.length,
         row: rect(firstStudent),
-        present: rect(presentButton), confirm: rect(confirm),
+        filter: rect(filterButton), confirm: rect(confirm),
         topbarVisible: topbarButtons.map(b => ({ label: b.getAttribute('aria-label') || b.title || '', r:rect(b) })),
-        hasMobilePreset: !!mainHeader?.querySelector('label input[type=checkbox]'),
+        hasOpenFilter: !!mainHeader?.querySelector('button[aria-pressed]'),
         summary: summary?.textContent?.slice(0,90),
       };
     })()`);
     console.log('Synthetic 360px phone layout metrics:', JSON.stringify(result));
     if (result.phone !== WIDTH || result.docWidth > WIDTH + 5) throw new Error('Phone layout overflows the viewport.');
     if (!result.header || result.header.width > WIDTH || result.header.height > 260) throw new Error('Attendance header is oversized on the phone.');
-    if (!result.rowCount || !result.hasMobilePreset) throw new Error('Student actions or default-presence toggle are missing.');
-    if (!result.present || !result.confirm || result.present.height < 40 || result.confirm.height < 40) {
-      throw new Error('Phone attendance primary actions are not accessible touch targets.');
+    if (!result.rowCount || !result.hasOpenFilter) throw new Error('Student actions or open-only filter are missing.');
+    if (!result.filter || !result.confirm || result.filter.height < 40 || result.confirm.height < 40) {
+      throw new Error('Phone attendance filter and confirmation are not accessible touch targets.');
     }
     const topButtons = result.topbarVisible.filter(x => !x.label.includes('Navigation'));
     if (topButtons.some(x => x.r && x.r.right > WIDTH + 3)) throw new Error('Phone toolbar action is clipped.');
@@ -3798,7 +3798,7 @@ async function main() {
     for (const width of [360, 820, 1360]) {
       await client.send('Emulation.setDeviceMetricsOverride', {width, height:1000, deviceScaleFactor:1, mobile:false});
       await sleep(350);
-      const layout = await evaluate(client, `(() => {const hub=document.querySelector('[data-dashboard-overview]');const header=hub.querySelector('header');return {overflow:document.documentElement.scrollWidth>innerWidth+3,heading:hub.querySelector('h1').textContent.trim(),hasDayLabel:/Heute|Morgen|Vorschau/.test(header.textContent),smallTarget:Array.from(header.querySelectorAll('button')).some(button=>button.getBoundingClientRect().height<44)};})()`);
+      const layout = await evaluate(client, `(() => {const hub=document.querySelector('[data-dashboard-overview]');const header=hub.querySelector('header');return {overflow:document.documentElement.scrollWidth>innerWidth+3,heading:hub.querySelector('h1').textContent.trim(),hasDayLabel:/Heute|Morgen|Vorschau/.test(header.textContent),smallTarget:Array.from(header.querySelectorAll('button')).filter(button=>button.getBoundingClientRect().width>0 && getComputedStyle(button).display!=='none').some(button=>button.getBoundingClientRect().height<44)};})()`);
       if(layout.overflow || layout.smallTarget || !layout.heading || !layout.hasDayLabel) throw new Error('Daily overview layout failed at '+width+': '+JSON.stringify(layout));
       await saveScreenshot(client);
     }
