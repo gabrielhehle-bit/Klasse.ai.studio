@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { completeMissingAttendance, removeSubjectColumn, updateSubjectColumn } from './classroomEdits';
+import { completeMissingAttendance, getSubjectColumnRemovalBlockReason, removeSubjectColumn, updateSubjectColumn } from './classroomEdits';
 
 test('completion preserves absences, excused hours and other dates while filling missing hours', () => {
   const before = { a: { today: { 1: 'u', 2: 'e' }, yesterday: { 1: 'u' } }, b: { today: { 1: 'a' } }, outsider: { today: { 1: 'u' } } };
@@ -44,38 +44,48 @@ test('new subject metadata does not reuse another subject and invalid points pre
 });
 
 
-test('removing a subject column trims both semesters and its metadata without touching other subjects', () => {
+test('removal is blocked when either historic period contains grades, including 0 and absence codes', () => {
   const noten: any = {
-    s1: {
-      Deutsch: {
-        '1': { lzk: [1, 2, 3, 4], wp: [], aufgaben: [], sa: [], hue: 0, hueAnm: [] },
-        '2': { lzk: [2, 3, 4, 5], wp: [], aufgaben: [], sa: [], hue: 0, hueAnm: [] },
-      },
-      Mathematik: {
-        '1': { lzk: [5, 4, 3, 2], wp: [], aufgaben: [], sa: [], hue: 0, hueAnm: [] },
-      },
-    },
+    s1: { Deutsch: {
+      '1': { lzk: [1, 2, 3, 0], wp: [], aufgaben: [] },
+      '2': { lzk: [1, 2, 3, 'e'], wp: [], aufgaben: [] },
+    }, Mathematik: { '1': { lzk: [5, 4, 3, 2] } } },
   };
-  const meta: any = {
-    Deutsch: {
-      colCounts: { lzk: 4, wp: 4, obj: 4 },
-      colLabels: { lzk: { 0: 'A', 1: 'B', 2: 'C', 3: 'D' } },
-      colDates: { lzk: { 3: '2026-09-14' } },
-      maxPoints: { lzk: { 0: 10, 1: 10, 2: 10, 3: 20 } },
-    },
-    Mathematik: { colCounts: { lzk: 4, wp: 4, obj: 4 } },
-  };
-
-  const before = structuredClone({ noten, meta });
+  const meta: any = { Deutsch: { colCounts: { lzk: 4 }, colLabels: { lzk: { 3: 'Geometrie' } } } };
+  const snapshot = structuredClone({ noten, meta });
+  assert.equal(getSubjectColumnRemovalBlockReason(noten, meta, 'Deutsch', 'lzk', 3), 'grades');
   const result = removeSubjectColumn(noten, meta, 'Deutsch', 'lzk', 3);
+  assert.deepEqual(result.noten, noten);
+  assert.deepEqual(result.notenMeta, meta);
+  assert.deepEqual({ noten, meta }, snapshot);
+});
 
+test('nonparticipation and metadata are protected even when all numeric cells are empty', () => {
+  const meta: any = { Deutsch: { colCounts: { lzk: 4 }, maxPoints: { lzk: { 3: 20 } } } };
+  const noten: any = { s1: { Deutsch: { '2': { lzk: [], lzkParticipation: { 3: false } } } } };
+  assert.equal(getSubjectColumnRemovalBlockReason(noten, meta, 'Deutsch', 'lzk', 3), 'grades');
+  assert.equal(getSubjectColumnRemovalBlockReason({}, meta, 'Deutsch', 'lzk', 3), 'metadata');
+  const other: any = { Deutsch: { colCounts: { wp: 4 }, colDates: { wp: { 3: '2026-10-01' } } } };
+  assert.equal(getSubjectColumnRemovalBlockReason({}, other, 'Deutsch', 'wp', 3), 'metadata');
+});
+
+test('truly empty trailing columns can still be removed without modifying saved grades in other slots or subjects', () => {
+  const noten: any = { s1: {
+    Deutsch: { '1': { lzk: [1, 2, 3, null], wp: [], aufgaben: [] },
+      '2': { lzk: [1, 2, 3, undefined], wp: [] } },
+    Mathematik: { '1': { lzk: [4, 3, 2, 1] } },
+  } };
+  const meta: any = {
+    Deutsch: { colCounts: { lzk: 4, wp: 4, obj: 4 },
+      colLabels: { lzk: { 0: 'A' } }, maxPoints: { lzk: { 0: 10 } } },
+    Mathematik: { colCounts: { lzk: 4 } },
+  };
+  const before = structuredClone({ noten, meta });
+  assert.equal(getSubjectColumnRemovalBlockReason(noten, meta, 'Deutsch', 'lzk', 3), null);
+  const result = removeSubjectColumn(noten, meta, 'Deutsch', 'lzk', 3);
   assert.deepEqual(result.noten.s1.Deutsch['1'].lzk, [1, 2, 3]);
-  assert.deepEqual(result.noten.s1.Deutsch['2'].lzk, [2, 3, 4]);
   assert.deepEqual(result.noten.s1.Mathematik, before.noten.s1.Mathematik);
   assert.equal(result.notenMeta.Deutsch.colCounts.lzk, 3);
-  assert.equal(result.notenMeta.Deutsch.colLabels.lzk[3], undefined);
-  assert.equal(result.notenMeta.Deutsch.colDates.lzk[3], undefined);
-  assert.equal(result.notenMeta.Deutsch.maxPoints.lzk[3], undefined);
   assert.deepEqual(result.notenMeta.Mathematik, before.meta.Mathematik);
   assert.deepEqual({ noten, meta }, before);
 });
