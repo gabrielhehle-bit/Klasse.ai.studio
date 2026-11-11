@@ -1590,7 +1590,10 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
               <span aria-hidden="true">⋯</span>
             </button>
           </div>
-          {typ === 'lzk' && app.notenMeta?.[activeFach]?.colAreas?.lzk?.[i] && <span className="text-xs font-medium normal-case text-slate-500">{app.notenMeta[activeFach].colAreas.lzk[i]}</span>}
+          {app.notenMeta?.[activeFach]?.colAreas?.[typ]?.[i] &&
+            <span className="max-w-[7rem] text-center text-xs font-medium normal-case text-slate-500">
+              {app.notenMeta[activeFach].colAreas[typ][i]}
+            </span>}
           {customDate && (
             <span className="text-[0.5625rem] font-medium opacity-80 mt-0.5">
               {new Date(customDate).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'})}
@@ -4598,7 +4601,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
               }}
               typ={editingAssessmentModal.typ}
               idx={editingAssessmentModal.idx}
-              initialArea={app.notenMeta?.[activeFach]?.colAreas?.lzk?.[editingAssessmentModal.idx] || ''}
+              initialArea={app.notenMeta?.[activeFach]?.colAreas?.[editingAssessmentModal.typ]?.[editingAssessmentModal.idx] || ''}
               initialLabel={app.notenMeta?.[activeFach]?.colLabels?.[editingAssessmentModal.typ]?.[editingAssessmentModal.idx] || ''}
               initialDate={app.notenMeta?.[activeFach]?.colDates?.[editingAssessmentModal.typ]?.[editingAssessmentModal.idx] || ''}
               initialMaxPoints={getMaxPoints(app, activeFach, editingAssessmentModal.typ, editingAssessmentModal.idx)}
