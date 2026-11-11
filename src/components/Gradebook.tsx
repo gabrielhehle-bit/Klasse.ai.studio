@@ -53,6 +53,7 @@ const StudentRowWrapper = React.memo(({ s, i, avg, nd, miRaw, isItemSelected, is
          prev.assessmentMode === next.assessmentMode &&
          prev.showPointsPercent === next.showPointsPercent &&
          JSON.stringify(prev.maxPointsMeta) === JSON.stringify(next.maxPointsMeta) &&
+         JSON.stringify(prev.itemModesMeta) === JSON.stringify(next.itemModesMeta) &&
          prev.mitarbeitSettings === next.mitarbeitSettings &&
          prev.currentSymbol === next.currentSymbol &&
          prev.relativeMiDivisor === next.relativeMiDivisor &&
@@ -3684,7 +3685,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                         simpleDashboardMode={simpleDashboardMode} assessmentFilter={assessmentFilter} visibleColumns={visibleColumns} rawParticipation={rawNd.lzkParticipation}
                         isolatedCol={isolatedCol} heatmapMode={heatmapMode} mitarbeitSettings={mitarbeitSettings}
                         currentSymbol={currentSymbol} relativeMiDivisor={relativeMiDivisor} studentsCount={students.length}
-                        assessmentMode={assessmentMode} showPointsPercent={showPointsPercent} maxPointsMeta={app.notenMeta?.[activeFach]?.maxPoints}
+                        assessmentMode={assessmentMode} showPointsPercent={showPointsPercent} maxPointsMeta={app.notenMeta?.[activeFach]?.maxPoints} itemModesMeta={app.notenMeta?.[activeFach]?.itemModes}
                         renderRow={() => (
                           <tr key={s.id} className={`group transition-colors ${rowBgClass} print:break-inside-avoid relative`}>
                         <td className={`${dStyle.tdNum} text-left font-bold border-b border-r border-slate-200 sticky left-0 z-[40] print:relative print:left-0 transition-colors shadow-[4px_0_10px_rgba(0,0,0,0.08)] ${stickyBgClass} ${isItemSelected ? 'text-emerald-800' : 'text-slate-400'}`}>{i+1}</td>
