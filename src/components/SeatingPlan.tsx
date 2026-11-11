@@ -3134,6 +3134,61 @@ export default function SeatingPlan() {
       )}
 
       {/* Main Canvas Area */}
+      {/* Editor sidebar is outside the scaled room, so it never hides desks. */}
+      <div className="flex min-h-0 flex-col gap-3 lg:flex-row" data-seating-workspace>
+        {editMode && !presentationMode && (
+          <aside data-seating-edit-dock className="w-full shrink-0 space-y-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:w-56" aria-label="Sitzplätze bearbeiten">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-extrabold text-slate-900">Sitzplätze</h3>
+              <span className="text-[0.65rem] font-bold text-slate-500">{placedStudents.length}/{students.length}</span>
+            </div>
+            <p className="text-xs leading-snug text-slate-600">Zwei Kinder anklicken, um ihre Plätze zu tauschen. Ziehen bleibt möglich.</p>
+            {selectedSeatStudent && sitzplan_schueler[selectedSeatStudent.id] && (
+              <div data-seating-selected-student className="space-y-2 rounded-xl border border-indigo-200 bg-indigo-50 p-2.5">
+                <p className="text-[0.65rem] font-extrabold uppercase tracking-wider text-indigo-700">Ausgewählt</p>
+                <p className="truncate text-sm font-black text-slate-900">{selectedSeatStudent.vorname} {selectedSeatStudent.nachname}</p>
+                <p className="text-xs text-indigo-900">Jetzt ein anderes Kind anklicken zum Tauschen.</p>
+                <div className="flex flex-wrap gap-1.5">
+                  <button type="button" onClick={() => setSelectedSeatStudentId(null)} className="min-h-9 rounded-lg border border-indigo-200 bg-white px-2 text-xs font-bold text-indigo-800">Abbrechen</button>
+                  <button type="button" onClick={() => removeStudent(selectedSeatStudent.id)} className="min-h-9 rounded-lg border border-amber-200 bg-white px-2 text-xs font-bold text-amber-900">Platz freigeben</button>
+                </div>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <h4 className="text-xs font-extrabold text-slate-700">Noch nicht platziert: {unplacedStudents.length}</h4>
+              {unplacedStudents.length > 0
+                ? unplacedStudents.map(student => (
+                  <button key={student.id} type="button" onClick={() => placeUnplacedStudent(student.id)}
+                    title={`${student.vorname} am nächsten freien Tischplatz platzieren`}
+                    className="flex min-h-10 w-full items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-2 text-left text-xs font-bold text-slate-900 hover:bg-amber-100">
+                    <span className="truncate">{student.vorname} {student.nachname}</span><Plus size={15} className="shrink-0"/>
+                  </button>
+                )) : <p className="rounded-lg bg-emerald-50 px-2.5 py-2 text-xs font-semibold text-emerald-800">Alle Kinder platziert</p>}
+            </div>
+            {freeStandingStudents.length > 0 && (
+              <div className="space-y-1.5 border-t border-slate-100 pt-3" data-seating-individual-seats>
+                <h4 className="text-xs font-extrabold text-slate-700">Einzel- / freie Plätze ({freeStandingStudents.length})</h4>
+                <p className="text-[0.7rem] leading-snug text-slate-500">Diese Kinder sind platziert, aber keinem Tisch zugeordnet.</p>
+                {freeStandingStudents.map(student => (
+                  <button key={student.id} type="button" onClick={() => setSelectedSeatStudentId(student.id)}
+                    className="flex min-h-9 w-full items-center justify-between gap-2 rounded-lg border border-slate-200 px-2 text-left text-xs font-semibold text-slate-800 hover:border-indigo-300 hover:bg-indigo-50">
+                    <span className="truncate">{student.vorname} {student.nachname}</span><ChevronRight size={14} />
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+              <button type="button" onClick={() => addObject('rectangle')}
+                className="inline-flex min-h-10 flex-1 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-2 text-xs font-bold text-slate-800 hover:bg-slate-100">
+                <Plus size={14}/> Tisch
+              </button>
+              <button type="button" onClick={handleUndo} disabled={history.length === 0}
+                className="inline-flex min-h-10 flex-1 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40">
+                <Undo size={14}/> Zurück
+              </button>
+            </div>
+          </aside>
+        )}
         <div 
           ref={planRef}
           className="flex-1 relative overflow-hidden bg-slate-50 border border-slate-200 rounded-2xl shadow-sm canvas-area min-h-[31.25rem]"
@@ -4105,6 +4160,7 @@ export default function SeatingPlan() {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
       </div>
 
       {/* Footer Info */}
