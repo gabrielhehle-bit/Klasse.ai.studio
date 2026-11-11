@@ -1680,9 +1680,37 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
         .gradebook-scroll-area::-webkit-scrollbar-track { background: #edf2ef; border-radius: 8px; }
         .gradebook-scroll-area::-webkit-scrollbar-thumb { background: #9baea7; border: 2px solid #edf2ef; border-radius: 8px; }
         .gradebook-scroll-area thead { position: sticky; top: 0; z-index: 55; }
-        .gradebook-table--dense tbody td { padding-top: 0.25rem !important; padding-bottom: 0.25rem !important; }
+        .gradebook-table--dense tbody td { padding-top: 0.125rem !important; padding-bottom: 0.125rem !important; }
+        .gradebook-table--dense tbody tr { height: 2.6rem; }
+        .gradebook-table--dense input[data-col] {
+          min-height: 2rem; min-width: 2.8rem; max-width: 5rem;
+          border: 1px solid #b7c9c1; border-radius: 0.5rem;
+          background-color: rgba(255,255,255,0.96);
+          box-shadow: 0 1px 2px rgba(15,23,42,0.045);
+          font-size: 0.8125rem;
+        }
+        .gradebook-table--dense input[data-col]:hover { border-color: #059669; }
+        .gradebook-table--dense input[data-col]:focus {
+          outline: 2px solid #059669; outline-offset: 1px;
+          background: #fff; box-shadow: 0 0 0 3px rgba(5,150,105,0.1);
+        }
+        @media (hover: hover) and (pointer: fine) and (min-width: 768px) {
+          .gradebook-table--dense [data-gradebook-row-actions] {
+            position: absolute; top: 50%; right: 0.25rem;
+            transform: translateY(-50%); z-index: 5;
+            border-radius: 0.5rem; background: rgba(255,255,255,0.97);
+            box-shadow: 0 1px 3px rgba(15,23,42,0.08);
+            opacity: 0; pointer-events: none;
+            transition: opacity 120ms ease;
+          }
+          .gradebook-table--dense tbody tr:hover [data-gradebook-row-actions],
+          .gradebook-table--dense tbody tr:focus-within [data-gradebook-row-actions] {
+            opacity: 1; pointer-events: auto;
+          }
+        }
         @media (pointer: fine) and (min-width: 768px) {
-          .gradebook-table--dense [data-gradebook-row-actions] button { min-height: 2rem !important; min-width: 2rem !important; }
+          .gradebook-table--dense [data-gradebook-row-actions] button,
+          .gradebook-table--dense [data-gradebook-row-actions] summary { min-height: 2rem !important; min-width: 2rem !important; }
         }
         @media print {
           .gradebook-scroll-area { max-height: none !important; overflow: visible !important; scrollbar-width: none; }
@@ -3734,28 +3762,35 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                           <tr key={s.id} className={`group transition-colors ${rowBgClass} print:break-inside-avoid relative`}>
                         <td className={`${dStyle.tdNum} text-left font-bold border-b border-r border-slate-200 sticky left-0 z-[40] print:relative print:left-0 transition-colors shadow-[4px_0_10px_rgba(0,0,0,0.08)] ${stickyBgClass} ${isItemSelected ? 'text-emerald-800' : 'text-slate-400'}`}>{i+1}</td>
                         <td className={`${dStyle.tdName} text-left border-b border-r border-slate-200 font-semibold sticky z-[40] print:relative print:left-0 transition-colors shadow-[4px_0_10px_rgba(0,0,0,0.08)] ${stickyBgClass}`}>
-                          <div className="flex items-center justify-between">
-                            <div className="flex min-w-0 flex-col pr-1 sm:pr-4 max-w-[12rem]">
-                              <div className="flex items-center gap-2">
-                                <span className={`text-wrap leading-tight break-words text-slate-900 ${dStyle.nameText} leading-normal font-black leading-tight max-w-[8rem] sm:max-w-[10rem]`} title={`${s.nachname} ${s.vorname}`}>{s.nachname}</span>
-                                {s.spf && <span className={`${dStyle.spfBadge} font-black uppercase text-purple-600 bg-purple-100 rounded border border-purple-200 print:bg-slate-200 print:text-black`}>SPF</span>}
-                                {s.espf && <span className={`${dStyle.spfBadge} font-black uppercase text-teal-600 bg-teal-100 rounded border border-teal-200 print:bg-slate-100 print:text-black`}>ESPF</span>}
-                                <details className="relative text-xs font-medium print:hidden">
-                                  <summary className="cursor-pointer text-slate-500" aria-label={`${s.vorname} ${s.nachname}: Klassenschnitt einstellen`}>{countsInClassAverage(app, s, activeFach) ? '⋯' : 'Ohne Schnitt'}</summary>
-                                  <div className="mt-1 rounded-lg border border-slate-200 bg-white p-2 text-slate-700"><label className="flex items-center gap-1 text-xs font-medium print:hidden"><input type="checkbox" aria-label={`${s.vorname} ${s.nachname} im Klassenschnitt mitzählen`} checked={countsInClassAverage(app, s, activeFach)} onChange={e => setApp(prev => ({ ...prev, schueler: prev.schueler.map(child => child.id === s.id ? { ...child, includeInClassAverage: e.target.checked } : child) }))} />Im Schnitt</label></div>
-                                </details>
-                                {studentErrors.length > 0 && (
-                                  <span 
-                                    className="px-1.5 py-0.5 rounded-full bg-amber-100 border border-amber-300 text-amber-800 text-[0.5625rem] font-black inline-flex items-center gap-0.5 animate-pulse cursor-help shrink-0"
-                                    title={studentErrors.map(e => e.message).join('\n')}
-                                  >
-                                    <AlertCircle size={8} /> {studentErrors.length}
-                                  </span>
-                                )}
-                              </div>
-                              <span className={`text-slate-500 font-bold ${dStyle.firstNameText} leading-tight text-wrap leading-tight break-words max-w-[8rem] sm:max-w-[10rem]`} title={`${s.nachname} ${s.vorname}`}>{s.vorname}</span>
+                          <div className="relative flex min-h-9 items-center justify-between gap-1.5">
+                            <div className="flex min-w-0 flex-1 items-center gap-1.5 pr-1 sm:pr-2">
+                              <span className={`min-w-0 truncate whitespace-nowrap text-slate-900 ${dStyle.nameText} font-bold`}
+                                title={`${s.nachname} ${s.vorname}`}>{s.nachname} {s.vorname}</span>
+                              {s.spf && <span className={`${dStyle.spfBadge} shrink-0 font-bold uppercase text-purple-700 bg-purple-100 rounded border border-purple-200 print:bg-slate-200 print:text-black`}>SPF</span>}
+                              {s.espf && <span className={`${dStyle.spfBadge} shrink-0 font-bold uppercase text-teal-700 bg-teal-100 rounded border border-teal-200 print:bg-slate-100 print:text-black`}>ESPF</span>}
+                              {studentErrors.length > 0 && (
+                                <span className="shrink-0 inline-flex items-center gap-0.5 rounded-full border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[0.5625rem] font-bold text-amber-900"
+                                  title={studentErrors.map(e => e.message).join('\n')}>
+                                  <AlertCircle size={9} /> {studentErrors.length}
+                                </span>
+                              )}
                             </div>
-                            <div data-gradebook-row-actions className="flex items-center gap-1 shrink-0">
+                            <div data-gradebook-row-actions className="flex shrink-0 items-center gap-0.5">
+                              <details className="relative text-xs font-medium print:hidden">
+                                <summary className="flex min-h-9 min-w-9 cursor-pointer list-none items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 [&::-webkit-details-marker]:hidden"
+                                  aria-label={`${s.vorname} ${s.nachname}: Klassenschnitt einstellen`}
+                                  title="Klassenschnitt für dieses Kind einstellen">
+                                  {countsInClassAverage(app, s, activeFach) ? '⋯' : '∅'}
+                                </summary>
+                                <div className="absolute right-0 top-full z-[70] mt-1 w-36 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+                                  <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+                                    <input type="checkbox" aria-label={`${s.vorname} ${s.nachname} im Klassenschnitt mitzählen`}
+                                      checked={countsInClassAverage(app, s, activeFach)}
+                                      onChange={e => setApp(prev => ({ ...prev, schueler: prev.schueler.map(child => child.id === s.id ? { ...child, includeInClassAverage: e.target.checked } : child) }))} />
+                                    Im Schnitt
+                                  </label>
+                                </div>
+                              </details>
                               <button
                                 type="button"
                                 onClick={() => setSelectedTrendStudentId(s.id)}
