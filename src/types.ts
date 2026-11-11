@@ -847,7 +847,7 @@ export interface SubjectNotenMeta {
   };
   colCounts?: { lzk: number; wp: number; obj: number };
   colLabels?: { sa?: Record<number, string>; lzk?: Record<number, string>; wp?: Record<number, string>; obj?: Record<number, string> };
-  colAreas?: { lzk?: Record<number, string> };
+  colAreas?: Partial<Record<'sa' | 'lzk' | 'wp' | 'obj', Record<number, string>>>;
   includeSpecialNeedsInStats?: boolean;
   colDates?: { sa?: Record<number, string>; lzk?: Record<number, string>; wp?: Record<number, string>; obj?: Record<number, string> };
   [key: string]: any;
