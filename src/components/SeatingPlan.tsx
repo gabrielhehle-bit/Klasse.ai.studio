@@ -3191,12 +3191,26 @@ export default function SeatingPlan() {
               <div className="space-y-1.5 border-t border-slate-100 pt-3" data-seating-individual-seats>
                 <h4 className="text-xs font-extrabold text-slate-700">Einzel- / freie Plätze ({freeStandingStudents.length})</h4>
                 <p className="text-[0.7rem] leading-snug text-slate-500">Diese Kinder sind platziert, aber keinem Tisch zugeordnet.</p>
-                {freeStandingStudents.map(student => (
-                  <button key={student.id} type="button" onClick={() => setSelectedSeatStudentId(student.id)}
-                    className="flex min-h-9 w-full items-center justify-between gap-2 rounded-lg border border-slate-200 px-2 text-left text-xs font-semibold text-slate-800 hover:border-indigo-300 hover:bg-indigo-50">
-                    <span className="truncate">{student.vorname} {student.nachname}</span><ChevronRight size={14} />
-                  </button>
-                ))}
+                {freeStandingStudents.map(student => {
+                  const availableDesk = findFreeDeskSeatPosition(
+                    Object.fromEntries(Object.entries(sitzplan_schueler).filter(([id]) => id !== student.id)),
+                    sitzplan_objekte
+                  );
+                  return <div key={student.id} className="flex min-w-0 items-center gap-1 rounded-lg border border-slate-200 p-1">
+                    <button type="button" onClick={() => setSelectedSeatStudentId(student.id)}
+                      aria-label={`${student.vorname} zum Platztausch auswählen`}
+                      className="flex min-h-9 min-w-0 flex-1 items-center justify-between gap-1 rounded-md px-1.5 text-left text-xs font-semibold text-slate-800 hover:bg-indigo-50">
+                      <span className="truncate">{student.vorname} {student.nachname}</span><ChevronRight size={14} className="shrink-0"/>
+                    </button>
+                    <button type="button" onClick={() => moveIndividualSeatToDesk(student.id)}
+                      disabled={!availableDesk}
+                      title={availableDesk ? 'Ohne andere Kinder zu verschieben an einen freien Tisch setzen' : 'Kein freier Tischplatz verfügbar'}
+                      aria-label={`${student.vorname} an freien Tisch setzen`}
+                      className="min-h-9 shrink-0 rounded-md bg-indigo-50 px-2 text-[0.65rem] font-bold text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">
+                      An Tisch
+                    </button>
+                  </div>;
+                })}
               </div>
             )}
             <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
