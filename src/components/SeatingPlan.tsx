@@ -3558,6 +3558,27 @@ export default function SeatingPlan() {
                   <button onClick={(e) => { e.stopPropagation(); removeObject(obj.id); }} className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg" title="Löschen"><Trash2 size={14} /></button>
                 </div>
               )}
+              {editMode && selectedObjId === obj.id && ['rectangle', 'square', 'triangle'].includes(obj.type) && (
+                <div data-seating-desk-inspector
+                  onClick={(event) => event.stopPropagation()}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  className={`absolute ${obj.y < 60 ? '-top-24' : 'top-[calc(100%+8px)]'} left-1/2 z-[90] flex min-w-36 -translate-x-1/2 flex-col items-center gap-1 rounded-xl border border-slate-200 bg-white p-2 text-center shadow-lg`}>
+                  <span className="whitespace-nowrap text-[0.7rem] font-bold text-slate-700">
+                    {getStudentsOnTable(obj, sitzplan_schueler).length} Kinder an diesem Tisch
+                  </span>
+                  {selectedSeatStudent && !getStudentsOnTable(obj, sitzplan_schueler).includes(selectedSeatStudent.id) && (
+                    <button type="button"
+                      disabled={!findDeskSeatForStudent(selectedSeatStudent.id, obj)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        placeStudentAtSelectedDesk(selectedSeatStudent.id, obj.id);
+                      }}
+                      className="min-h-9 whitespace-nowrap rounded-lg bg-indigo-50 px-2 text-xs font-bold text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">
+                      {findDeskSeatForStudent(selectedSeatStudent.id, obj) ? `${selectedSeatStudent.vorname} hierhin` : 'Kein freier Platz'}
+                    </button>
+                  )}
+                </div>
+              )}
             </motion.div>
           ))}
 
