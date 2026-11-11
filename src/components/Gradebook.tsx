@@ -4516,8 +4516,23 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
             <AssessmentItemModal
               isOpen={editingAssessmentModal !== null}
               onClose={() => setEditingAssessmentModal(null)}
-              onSave={(labelVal, dateVal, maxPointsVal, area) => {
-                if (assessmentMode === 'points' && !editingAssessmentModal.isNew && maxPointsVal !== undefined) {
+              onSave={(labelVal, dateVal, maxPointsVal, area, selectedMode) => {
+                const { typ, idx, isNew } = editingAssessmentModal;
+                const previousMode = getAssessmentItemMode(app, activeFach, typ, idx);
+                const nextMode = selectedMode || previousMode;
+                const dataKey = typ === 'obj' ? 'aufgaben' : typ;
+                const savedCells = Object.values(app.noten || {}).flatMap(studentGrades =>
+                  (['1', '2'] as const).map(period =>
+                    studentGrades?.[activeFach]?.[period]?.[dataKey]?.[idx],
+                  ),
+                );
+                if (!isNew && previousMode !== nextMode && savedCells.some(value =>
+                  value !== undefined && value !== null && value !== ''
+                )) {
+                  window.alert('Diese Bewertung enthält bereits gespeicherte Ergebnisse. Die Eingabeart darf erst nach einer ausdrücklichen und überprüften Umrechnung geändert werden.');
+                  return false;
+                }
+                if (nextMode === 'points' && previousMode === 'points' && !isNew && maxPointsVal !== undefined) {
                   const previousMax = getMaxPoints(app, activeFach, editingAssessmentModal.typ, editingAssessmentModal.idx);
                   if (previousMax !== maxPointsVal) {
                     const dataKey = editingAssessmentModal.typ === 'obj' ? 'aufgaben' : editingAssessmentModal.typ;
@@ -4561,7 +4576,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                     };
                   });
                 }
-                updateColMeta(editingAssessmentModal.typ, editingAssessmentModal.idx, labelVal, dateVal, maxPointsVal, area);
+                updateColMeta(editingAssessmentModal.typ, editingAssessmentModal.idx, labelVal, dateVal, maxPointsVal, area, nextMode);
                 if (editingAssessmentModal.isNew) {
                   setActiveView('noten'); setShowWeights(false); setFilterMissing(false);
                   setAssessmentFilter('all');
@@ -4586,7 +4601,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
               initialLabel={app.notenMeta?.[activeFach]?.colLabels?.[editingAssessmentModal.typ]?.[editingAssessmentModal.idx] || ''}
               initialDate={app.notenMeta?.[activeFach]?.colDates?.[editingAssessmentModal.typ]?.[editingAssessmentModal.idx] || ''}
               initialMaxPoints={getMaxPoints(app, activeFach, editingAssessmentModal.typ, editingAssessmentModal.idx)}
-              assessmentMode={assessmentMode}
+              assessmentMode={getAssessmentItemMode(app, activeFach, editingAssessmentModal.typ, editingAssessmentModal.idx)}
               subject={activeFach}
               semester={sem}
               isNew={editingAssessmentModal.isNew}
