@@ -15,7 +15,7 @@ import { createSeatingLayout, resolveSeatingLayout, sameSeatingArrangement } fro
 import SeatingPlanAnalysis from './SeatingPlanAnalysis';
 import { areSeatingNeighbors, classifySeatPositions, findSeatingRuleViolations, sanitizeSeatingRules, sameSeat } from '../lib/seatingPlanRules';
 import { getLocalDateKey, getSeatingPlanAbsentStudents, isStudentAbsentOnDate, orderStudentsByComplementaryLevels } from '../lib/seatingPlanData';
-import { findNextFreeSeatPosition } from '../lib/seatingPlanPlacement';
+import { findNextFreeSeatPosition, findFreeDeskSeatPosition } from '../lib/seatingPlanPlacement';
 
 const isBirthdayToday = (geburtstagStr: string | undefined | null) => {
   if (!geburtstagStr) return false;
@@ -1431,6 +1431,7 @@ export default function SeatingPlan() {
   const [showSeatingComparison, setShowSeatingComparison] = useState(false);
   const [refitSavedLayoutSignal, setRefitSavedLayoutSignal] = useState(0);
   const [editMode, setEditMode] = useState(false);
+  const [showSeatDock, setShowSeatDock] = useState(false);
   const [selectedSeatStudentId, setSelectedSeatStudentId] = useState<string | null>(null);
   const lastSeatDragAtRef = useRef(0);
   const [presentationMode, setPresentationMode] = useState(false);
@@ -1485,6 +1486,7 @@ export default function SeatingPlan() {
     }
     setSelectedObjId(null);
     setSelectedSeatStudentId(null);
+    setShowSeatDock(false);
     setShowPrivateDetails(false);
     setShowMoreTools(false);
     setSelectedSavedLayoutId(app.sitzplanDefaultLayoutId || '');
@@ -1839,6 +1841,7 @@ export default function SeatingPlan() {
     setPreviewState({ active: false, previousSitzplan: null, violatedRules: [], history: [], historyIndex: -1 });
     setEditMode(false);
     setSelectedSeatStudentId(null);
+    setShowSeatDock(false);
     setShowGenerator(false);
     setShowPresetsMenu(false);
     setShowMoreTools(false);
@@ -1864,6 +1867,17 @@ export default function SeatingPlan() {
     const canvasW = Math.max(1200, (planRef.current?.clientWidth || 0) / zoom, seatRight + 30, furnitureRight + 30);
     const canvasH = Math.max(800, (planRef.current?.clientHeight || 0) / zoom, seatBottom + 30, furnitureBottom + 30);
     return { canvasW, canvasH };
+  };
+
+  const moveIndividualSeatToDesk = (id: string) => {
+    if (!editMode || !sitzplan_schueler[id]) return;
+    const remainingPositions = Object.fromEntries(
+      Object.entries(sitzplan_schueler).filter(([studentId]) => studentId !== id)
+    );
+    const deskSeat = findFreeDeskSeatPosition(remainingPositions, sitzplan_objekte);
+    if (!deskSeat) return;
+    updatePosition(id, deskSeat.x, deskSeat.y);
+    setSelectedSeatStudentId(null);
   };
 
   const placeUnplacedStudent = (id: string) => {
@@ -2816,18 +2830,18 @@ export default function SeatingPlan() {
 
       {/* Toolbar */}
       {!presentationMode && (
-        <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-3 bg-white/95 backdrop-blur-xl p-3 rounded-2xl border border-slate-200 shadow-sm no-print print:hidden relative z-[150]">
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2" aria-label="Sitzplan-Status">
-            <span className="rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-900">{placedStudents.length} von {students.length} Kindern platziert</span>
+        <div className="flex flex-col gap-2 bg-white/95 backdrop-blur-xl p-2.5 rounded-2xl border border-slate-200 shadow-sm no-print print:hidden relative z-[150]" data-seating-toolbar>
+          <div className="flex w-full min-w-0 flex-wrap items-center gap-2" aria-label="Sitzplan-Status">
+            <span className="whitespace-nowrap rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-900">{placedStudents.length}/{students.length} Kinder platziert</span>
             {unplacedStudents.length > 0 && <span className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-800">{unplacedStudents.length} noch offen</span>}
-            {editMode && <span className="text-xs text-slate-600">Kind anklicken, dann Tauschpartner anklicken – oder ziehen.</span>}
+            {editMode && <span className="text-xs text-slate-600">{selectedSeatStudent ? `${selectedSeatStudent.vorname} ausgewählt · zweites Kind anklicken` : 'Zwei Kinder anklicken zum Tauschen · oder ziehen'}</span>}
             {outOfBoundsStudents.length > 0 && <button type="button" onClick={handleBringOutOfBoundsToRoom}
               className="min-h-9 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100">
               {outOfBoundsStudents.length} außerhalb (Zurückholen)
             </button>}
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap justify-center lg:justify-end flex-1 lg:flex-none min-w-0 max-w-full">
+          <div className="flex w-full flex-wrap items-center justify-start gap-2">
             {/* Mode Switcher */}
             <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200" aria-label="Sitzplan-Modus">
               <button 
@@ -2839,7 +2853,7 @@ export default function SeatingPlan() {
                 <Eye size={14} /> Alltag
               </button>
               <button 
-                onClick={() => { autoFitAllowed.current = false; setEditMode(true); setPresentationMode(false); }}
+                onClick={() => { autoFitAllowed.current = false; setEditMode(true); setShowSeatDock(unplacedStudents.length > 0); setPresentationMode(false); }}
                 aria-pressed={editMode}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[0.6875rem] font-bold uppercase tracking-wider transition-all ${(editMode) ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
                 title="Sitzplan bearbeiten, Möbel verschieben, Schüler neu platzieren"
@@ -2847,6 +2861,13 @@ export default function SeatingPlan() {
                 <Move size={14} /> Planen
               </button>
             </div>
+
+            {editMode && <button type="button" data-seating-dock-toggle
+              aria-expanded={showSeatDock} aria-controls="seating-edit-dock"
+              onClick={() => { setShowSeatDock(open => !open); setRefitSavedLayoutSignal(value => value + 1); }}
+              className={`inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-xl border px-3 py-2 text-xs font-bold ${showSeatDock ? 'border-indigo-300 bg-indigo-50 text-indigo-800' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-50'}`}>
+              <Users size={15}/> Sitzplätze {unplacedStudents.length > 0 ? `(${unplacedStudents.length} offen)` : ''}
+            </button>}
 
             <button
               type="button"
@@ -3070,11 +3091,11 @@ export default function SeatingPlan() {
 
       {/* Named layouts – only the planning view may replace working seat positions. */}
       {editMode && !presentationMode && (
-        <section className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm print:hidden"
+        <section className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm print:hidden"
           aria-label="Gespeicherte Sitzordnungen">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-extrabold text-slate-800">Gespeicherte Sitzordnungen</span>
-            <select value={selectedSavedLayoutId}
+            {savedLayouts.length > 0 && <select value={selectedSavedLayoutId}
               aria-label="Gespeicherte Sitzordnung auswählen"
               onChange={event => { setSelectedSavedLayoutId(event.target.value); setShowSeatingComparison(false); }}
               className="min-w-48 max-w-full flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-semibold text-slate-800">
@@ -3084,7 +3105,8 @@ export default function SeatingPlan() {
                   {layout.name}{layout.id === app.sitzplanDefaultLayoutId ? ' ★ Standard' : ''}
                 </option>
               ))}
-            </select>
+            </select>}
+            {savedLayouts.length === 0 && <span className="flex-1 text-xs text-slate-500">Noch keine gespeicherten Varianten</span>}
             <button type="button" onClick={saveCurrentArrangement}
               className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700">
               + Aktuelle speichern
@@ -3116,9 +3138,9 @@ export default function SeatingPlan() {
               </>
             )}
           </div>
-          <p className="mt-1 text-[0.6875rem] text-slate-500">
-            Das Laden ersetzt den aktuellen Raum erst nach Bestätigung. Gespeicherte Varianten bleiben beim Klassenwechsel und im verschlüsselten Backup erhalten.
-          </p>
+          {savedLayouts.length > 0 && <p className="mt-1 text-[0.6875rem] text-slate-500">
+            Laden ersetzt die aktuelle Sitzordnung erst nach Bestätigung; Varianten bleiben im verschlüsselten Backup erhalten.
+          </p>}
           {showSeatingComparison && selectedSavedLayout && (
             <div className="mt-3 grid grid-cols-1 gap-3 rounded-xl bg-slate-50 p-2 sm:grid-cols-2"
               aria-label="Aktuelle und gespeicherte Sitzordnung vergleichen">
@@ -3135,9 +3157,9 @@ export default function SeatingPlan() {
 
       {/* Main Canvas Area */}
       {/* Editor sidebar is outside the scaled room, so it never hides desks. */}
-      <div className="flex min-h-0 flex-col gap-3 lg:flex-row" data-seating-workspace>
-        {editMode && !presentationMode && (
-          <aside data-seating-edit-dock className="w-full shrink-0 space-y-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:w-56" aria-label="Sitzplätze bearbeiten">
+      <div className="flex min-h-0 min-w-0 flex-col gap-3 lg:flex-row" data-seating-workspace>
+        {editMode && !presentationMode && showSeatDock && (
+          <aside id="seating-edit-dock" data-seating-edit-dock className="w-full shrink-0 space-y-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:w-56" aria-label="Sitzplätze bearbeiten">
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-sm font-extrabold text-slate-900">Sitzplätze</h3>
               <span className="text-[0.65rem] font-bold text-slate-500">{placedStudents.length}/{students.length}</span>
@@ -3169,12 +3191,26 @@ export default function SeatingPlan() {
               <div className="space-y-1.5 border-t border-slate-100 pt-3" data-seating-individual-seats>
                 <h4 className="text-xs font-extrabold text-slate-700">Einzel- / freie Plätze ({freeStandingStudents.length})</h4>
                 <p className="text-[0.7rem] leading-snug text-slate-500">Diese Kinder sind platziert, aber keinem Tisch zugeordnet.</p>
-                {freeStandingStudents.map(student => (
-                  <button key={student.id} type="button" onClick={() => setSelectedSeatStudentId(student.id)}
-                    className="flex min-h-9 w-full items-center justify-between gap-2 rounded-lg border border-slate-200 px-2 text-left text-xs font-semibold text-slate-800 hover:border-indigo-300 hover:bg-indigo-50">
-                    <span className="truncate">{student.vorname} {student.nachname}</span><ChevronRight size={14} />
-                  </button>
-                ))}
+                {freeStandingStudents.map(student => {
+                  const availableDesk = findFreeDeskSeatPosition(
+                    Object.fromEntries(Object.entries(sitzplan_schueler).filter(([id]) => id !== student.id)),
+                    sitzplan_objekte
+                  );
+                  return <div key={student.id} className="flex min-w-0 items-center gap-1 rounded-lg border border-slate-200 p-1">
+                    <button type="button" onClick={() => setSelectedSeatStudentId(student.id)}
+                      aria-label={`${student.vorname} zum Platztausch auswählen`}
+                      className="flex min-h-9 min-w-0 flex-1 items-center justify-between gap-1 rounded-md px-1.5 text-left text-xs font-semibold text-slate-800 hover:bg-indigo-50">
+                      <span className="truncate">{student.vorname} {student.nachname}</span><ChevronRight size={14} className="shrink-0"/>
+                    </button>
+                    <button type="button" onClick={() => moveIndividualSeatToDesk(student.id)}
+                      disabled={!availableDesk}
+                      title={availableDesk ? 'Ohne andere Kinder zu verschieben an einen freien Tisch setzen' : 'Kein freier Tischplatz verfügbar'}
+                      aria-label={`${student.vorname} an freien Tisch setzen`}
+                      className="min-h-9 shrink-0 rounded-md bg-indigo-50 px-2 text-[0.65rem] font-bold text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">
+                      An Tisch
+                    </button>
+                  </div>;
+                })}
               </div>
             )}
             <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
@@ -3191,7 +3227,7 @@ export default function SeatingPlan() {
         )}
         <div 
           ref={planRef}
-          className="flex-1 relative overflow-hidden bg-slate-50 border border-slate-200 rounded-2xl shadow-sm canvas-area min-h-[31.25rem]"
+          className="min-w-0 flex-1 relative overflow-hidden bg-slate-50 border border-slate-200 rounded-2xl shadow-sm canvas-area min-h-[31.25rem]"
           onClick={() => setSelectedObjId(null)}
         >
         <div className="absolute inset-0 grid-dots opacity-40 pointer-events-none" />
