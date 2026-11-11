@@ -19,7 +19,7 @@ import {
 interface AssessmentItemModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (label: string, date: string, maxPoints?: number, area?: string) => boolean | void;
+  onSave: (label: string, date: string, maxPoints?: number, area?: string, mode?: 'grades' | 'percent' | 'points') => boolean | void;
   onOpenSchularbeitRaster?: () => void;
   typ: 'sa' | 'lzk' | 'wp' | 'obj';
   idx: number;
@@ -52,17 +52,19 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
   const [area, setArea] = useState(initialArea);
   const areas = [...new Set(Object.values(LERNZIELE_BY_STUFE).flatMap(level => (level[subject] || []).map(goal => goal.text.split(':')[0])))];
   const [label, setLabel] = useState(initialLabel);
+  const [entryMode, setEntryMode] = useState<'grades' | 'percent' | 'points'>(assessmentMode);
   const [date, setDate] = useState(initialDate);
   const [maxPoints, setMaxPoints] = useState<number>(initialMaxPoints || (typ === 'sa' ? 40 : typ === 'wp' ? 10 : 20));
 
   useEffect(() => {
     if (isOpen) {
       setArea(initialArea);
+      setEntryMode(assessmentMode);
       setLabel(initialLabel);
       setDate(initialDate);
       setMaxPoints(initialMaxPoints || (typ === 'sa' ? 40 : typ === 'wp' ? 10 : 20));
     }
-  }, [isOpen, initialLabel, initialDate, initialMaxPoints, initialArea, subject, typ]);
+  }, [isOpen, initialLabel, initialDate, initialMaxPoints, initialArea, subject, typ, assessmentMode]);
 
   if (!isOpen) return null;
 
@@ -113,8 +115,8 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const finalLabel = label.trim() || currentTypeInfo.defaultName;
-    const finalMaxP = assessmentMode === 'points' ? Math.max(1, maxPoints || 20) : undefined;
-    const saved = onSave(finalLabel, date, finalMaxP, typ === 'lzk' ? area.trim() : undefined);
+    const finalMaxP = entryMode === 'points' ? Math.max(1, maxPoints || 20) : undefined;
+    const saved = onSave(finalLabel, date, finalMaxP, typ === 'lzk' ? area.trim() : undefined, entryMode);
     // Keep the editor open when changing a points scale would invalidate existing results.
     if (saved !== false) onClose();
   };
@@ -244,9 +246,27 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
             </div>
 
             {typ === 'lzk' && <div className="space-y-2"><label htmlFor="assessment-item-area" className="block text-sm font-bold text-slate-700">Unterbereich in {subject}</label><input id="assessment-item-area" list="assessment-area-options" value={area} maxLength={100} onChange={e => setArea(e.target.value)} placeholder="Bereich auswählen oder eigenen eingeben" className="input-field w-full" /><datalist id="assessment-area-options">{areas.map(name => <option key={name} value={name} />)}</datalist><p className="text-xs text-slate-500">Zum Beispiel Lesen, Rechtschreiben, Operieren oder Größen – auch genauer: Längen. Erscheint automatisch im Schülerdossier und Portfolio.</p></div>}
+            {/* Each assessment can use a different entry scale. Legacy columns retain their original scale. */}
+            <fieldset className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <legend className="px-1 text-sm font-bold text-slate-800">Eingabeart dieser Bewertung</legend>
+              <div className="grid grid-cols-3 gap-2">
+                {([{ key: 'grades', text: 'Note 1–5' }, { key: 'points', text: 'Punkte' }, { key: 'percent', text: 'Prozent' }] as const)
+                  .map(option => (
+                    <label key={option.key} className={`flex cursor-pointer items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs font-semibold ${entryMode === option.key ? 'border-emerald-500 bg-emerald-50 text-emerald-900' : 'border-slate-200 bg-white text-slate-700'}`}>
+                      <input type="radio" name="assessment-item-mode" value={option.key}
+                        checked={entryMode === option.key} onChange={() => setEntryMode(option.key)}
+                        className="accent-emerald-700" />
+                      {option.text}
+                    </label>
+                  ))}
+              </div>
+              <p className="text-xs text-slate-600">
+                Die Eingabeart gilt nur für diese Spalte. Bereits gespeicherte Ergebnisse können nicht ohne sichere Umrechnung auf eine andere Skala wechseln.
+              </p>
+            </fieldset>
             {/* Assessment Mode Section */}
             <div className="pt-2">
-              {assessmentMode === 'points' && (
+              {entryMode === 'points' && (
                 <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-5 space-y-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2">
@@ -308,7 +328,7 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
                 </div>
               )}
 
-              {assessmentMode === 'percent' && (
+              {entryMode === 'percent' && (
                 <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-5 space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2">
@@ -338,7 +358,7 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
                 </div>
               )}
 
-              {assessmentMode === 'grades' && (
+              {entryMode === 'grades' && (
                 <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-5 space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2">
@@ -388,8 +408,8 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
                   type="button"
                   onClick={() => {
                     const finalLabel = label.trim() || currentTypeInfo.defaultName;
-                    const finalMaxP = assessmentMode === 'points' ? Math.max(1, maxPoints || 40) : undefined;
-                    if (onSave(finalLabel, date, finalMaxP) !== false) onOpenSchularbeitRaster();
+                    const finalMaxP = entryMode === 'points' ? Math.max(1, maxPoints || 40) : undefined;
+                    if (onSave(finalLabel, date, finalMaxP, typ === 'lzk' ? area.trim() : undefined, entryMode) !== false) onOpenSchularbeitRaster();
                   }}
                   className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shrink-0 shadow-sm transition-all"
                 >
