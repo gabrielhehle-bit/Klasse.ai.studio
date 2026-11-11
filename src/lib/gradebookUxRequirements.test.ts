@@ -33,7 +33,7 @@ test('weight settings focus selected subject but continue to validate and save a
   assert.match(weights, /initialFach\?: string/);
   assert.match(weights, /showAllFaecher \? activeFaecher : activeFaecher\.filter/);
   assert.match(weights, /Alle Fächer vergleichen/);
-  assert.match(weights, /const invalidFaecher = activeFaecher\.filter\(f => calculateSum\(f\) !== 100\)/);
+  assert.match(weights, /const invalidFaecher = dirtySubjects\.filter\(f => calculateSum\(f\) !== 100\)/);
   assert.match(weights, /notenGewichtung: localWeights/);
   assert.match(weights, /weight-participation-settings/);
   assert.match(weights, /weight-homework-settings/);
