@@ -4513,9 +4513,13 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                   const previousMax = getMaxPoints(app, activeFach, editingAssessmentModal.typ, editingAssessmentModal.idx);
                   if (previousMax !== maxPointsVal) {
                     const dataKey = editingAssessmentModal.typ === 'obj' ? 'aufgaben' : editingAssessmentModal.typ;
-                    const savedPoints = app.schueler.flatMap(student => (['1', '2'] as const).map(period =>
-                      app.noten?.[student.id]?.[activeFach]?.[period]?.[dataKey]?.[editingAssessmentModal.idx],
-                    )).filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+                    const savedPoints = Object.keys(app.noten || {}).flatMap(studentId =>
+                      (['1', '2'] as const).map(period =>
+                        app.noten?.[studentId]?.[activeFach]?.[period]?.[dataKey]?.[editingAssessmentModal.idx],
+                      )
+                    ).filter(value => typeof value === 'number' && Number.isFinite(value) ||
+                      typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))
+                    ).map(value => Number(value));
                     if (savedPoints.some(value => value > maxPointsVal)) {
                       window.alert(`Maximalpunkte nicht geändert: Es gibt gespeicherte Ergebnisse über ${maxPointsVal} Punkten. Bestehende Punktwerte bleiben erhalten.`);
                       return false;
