@@ -24,7 +24,7 @@ export function updateSubjectColumn(meta: AppState['notenMeta'], subject: string
       ...(current.itemModes || {}),
       [type]: { ...(current.itemModes?.[type] || {}), [index]: mode },
     } } : {}),
-    ...(area !== undefined && type === 'lzk' ? { colAreas: { ...current.colAreas, lzk: { ...current.colAreas?.lzk, [index]: area.trim() } } } : {}),
+    ...(area !== undefined ? { colAreas: { ...current.colAreas, [type]: { ...current.colAreas?.[type], [index]: area.trim() } } } : {}),
     colLabels: { ...current.colLabels, [type]: { ...current.colLabels?.[type], [index]: label } },
     colDates: { ...current.colDates, [type]: dates },
     maxPoints: { ...current.maxPoints, [type]: points },
