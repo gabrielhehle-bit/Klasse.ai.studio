@@ -3423,7 +3423,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
             </motion.div>
           )}
 
-          <div className="card !p-0 shadow-md border border-slate-200 bg-white rounded-2xl overflow-hidden print:shadow-none print:border print:border-gray-300">
+          <div className="card !p-0 shadow-sm border border-slate-200 bg-white rounded-2xl overflow-visible print:shadow-none print:border print:border-gray-300">
             <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-4">
               <div className={`${simpleDashboardMode ? 'hidden' : 'flex'} items-center gap-4 flex-wrap`}>
                 <h3 className="text-[1.125rem] font-black text-slate-900 tracking-tight flex items-center gap-2">
@@ -3548,7 +3548,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
               />
             )}
             {activeView === 'noten' && (
-              <div data-gradebook-compact-toolbar className="border-b border-slate-200 bg-white px-2.5 py-2 print:hidden">
+              <div data-gradebook-compact-toolbar className="relative z-[80] border-b border-slate-200 bg-white px-2.5 py-2 print:hidden">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                   <div data-gradebook-assessment-filters className="flex min-w-0 items-center gap-1 overflow-x-auto" aria-label="Bewertungen filtern">
                     {([{ id: 'all', label: 'Alle' }, ...(cfg.lzk ? [{ id: 'lzk', label: 'LZK' }] : []),
@@ -3649,7 +3649,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
               <div ref={gradebookScrollRef} onScroll={updateGradebookScrollEdges}
                 data-gradebook-scroll-container role="region" tabIndex={0}
                 aria-label="Notentabelle – horizontal und vertikal scrollbar" aria-describedby="gradebook-keyboard-hint"
-                className="gradebook-scroll-area w-full max-h-[72dvh] overflow-auto relative rounded-b-2xl border border-slate-200 shadow-sm bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600 print:max-h-none print:overflow-visible">
+                className="gradebook-scroll-area w-full max-h-[72dvh] overflow-auto relative rounded-b-2xl border border-t-0 border-slate-200 shadow-sm bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600 print:max-h-none print:overflow-visible">
               <table className={`w-full border-separate border-spacing-0 text-[0.875rem] leading-snug table-fixed print:table-auto gradebook-table ${denseGradebookRows ? 'gradebook-table--dense' : ''} ${isolatedCol ? 'min-w-[600px]' : simpleDashboardMode ? 'min-w-[650px]' : 'min-w-[1200px]'}`}>
                 <thead>
                   <tr className="sticky top-0 z-30 text-[0.6rem] font-bold uppercase tracking-wider text-text-muted text-center print:break-inside-avoid">
