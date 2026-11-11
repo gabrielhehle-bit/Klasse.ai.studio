@@ -618,13 +618,13 @@ export default function DossierLeistungen({
 
                           <div className="sm:text-right">
                             <div className="text-sm font-black text-slate-900">
-                              {mode === 'grades'
+                              {item.mode === 'grades'
                                 ? `Note ${item.rawGrade}`
-                                : mode === 'points'
+                                : item.mode === 'points'
                                 ? `${item.score ?? '-'} / ${item.maxScore ?? '-'} Pkt.`
                                 : `${item.percent ?? '-'} %`}
                             </div>
-                            {showPointsPercent && mode === 'points' && item.percent !== undefined && (
+                            {showPointsPercent && item.mode === 'points' && item.percent !== undefined && (
                               <div className="text-[0.68rem] font-semibold text-slate-500">
                                 {item.percent.toLocaleString('de-AT', { maximumFractionDigits: 1 })} %
                               </div>
@@ -968,9 +968,9 @@ export default function DossierLeistungen({
                         {s.latestItem.label} ({s.latestItem.date || 'Ohne Datum'})
                       </span>
                       <span className="font-bold shrink-0">
-                        {s.mode === 'grades' 
+                        {s.latestItem.mode === 'grades' 
                           ? `Note ${s.latestItem.rawGrade}` 
-                          : s.mode === 'points' 
+                          : s.latestItem.mode === 'points' 
                           ? `${s.latestItem.score}/${s.latestItem.maxScore} Pkt.${getShowPointsPercent(app, s.fach) && s.latestItem.percent !== undefined ? ` · ${s.latestItem.percent.toLocaleString('de-AT', { maximumFractionDigits: 1 })} %` : ''}` 
                           : `${s.latestItem.percent}%`}
                       </span>
