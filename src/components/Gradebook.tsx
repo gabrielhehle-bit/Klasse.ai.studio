@@ -1642,7 +1642,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
   }
 
   return (
-    <div data-gradebook data-gradebook-fullscreen={isFullscreen} className={`min-w-0 space-y-3 pb-20 ${isFullscreen ? 'fixed inset-0 z-[9000] overflow-auto bg-white p-3 sm:p-5' : ''}`}>
+    <div data-gradebook data-gradebook-fullscreen={isFullscreen} className={`min-w-0 space-y-2 pb-6 ${isFullscreen ? 'fixed inset-0 z-[9000] overflow-auto bg-white p-2 sm:p-3' : ''}`}>
       {istSekundarstufe(app.schulart) && (
         <p role="note" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 print:hidden">
           Die Notenmappe dokumentiert deine Bewertungen. Die schulartspezifische amtliche Beurteilung – insbesondere die Leistungsniveaus der Mittelschule – wird hier noch nicht automatisch abgebildet. Prüfe Zeugnisnoten unabhängig davon.
@@ -1720,9 +1720,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
       `}} />
 
       {/* One subject selector and a compact overview; assessment data and calculation remain unchanged. */}
-      <header data-gradebook-header className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm print:hidden" aria-label="Notenmappe – Fach und Werkzeuge">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {activeView === 'verhalten' ? <div><h1 className="text-lg font-semibold text-slate-900">Notenmappe</h1><p className="mt-0.5 text-xs text-slate-500">Verhalten · Klassenübersicht</p></div> : <div className="flex min-w-0 flex-wrap items-center gap-3">
+      <header data-gradebook-header className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm print:hidden" aria-label="Notenmappe – Fach und Werkzeuge">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {activeView === 'verhalten' ? <div><h1 className="text-lg font-semibold text-slate-900">Notenmappe</h1><p className="mt-0.5 text-xs text-slate-500">Verhalten · Klassenübersicht</p></div> : <div className="flex min-w-0 flex-wrap items-center gap-2.5">
             <div><h1 className="text-lg font-semibold text-slate-900">Notenmappe</h1><p className="mt-0.5 text-xs text-slate-500">{app.klassenbezeichnung || 'Deine Klasse'}</p></div>
             <label className="sr-only" htmlFor="gradebook-active-subject">Schulfach auswählen</label>
             <select id="gradebook-active-subject" value={activeFach}
@@ -1743,7 +1743,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
               {availableSubjects.length === 0 && <option value="">Bitte zuerst im Klassen-Setup Fächer anlegen</option>}
               {availableSubjects.map(fach => <option key={fach} value={fach}>{fach}</option>)}
             </select>
-            <span className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">Ganzes Schuljahr</span>
+            <span className="rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-800">Ganzes Schuljahr</span>
           </div>}
 
               {/* Right: + Bewertung & Mehr Menu */}
@@ -1883,11 +1883,11 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
 
         </div>
         {activeView !== 'verhalten' && app.schueler.length > 0 && !showWeights && (
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 pt-2 text-xs text-slate-600" aria-label="Bewertungsstatus">
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 border-t border-slate-100 pt-1.5 text-[0.6875rem] text-slate-600" aria-label="Bewertungsstatus">
             <span className="font-semibold">{gradebookDataStatus.assessmentEntries} Einträge</span>
             <span>{gradebookDataStatus.studentsWithEntries}/{gradebookDataStatus.totalStudents} Kinder mit Daten</span>
-            <span>{gradebookDataStatus.calculatedStudents}/{gradebookDataStatus.totalStudents} Schnitt berechenbar</span>
-            <span>{hasAnyAssessment ? `${missingCount} unvollständig` : 'Noch nicht begonnen'}</span>
+            <span>{gradebookDataStatus.calculatedStudents}/{gradebookDataStatus.totalStudents} vorläufige Stände</span>
+            <span>{hasAnyAssessment ? `${missingCount} unvollständig` : gradebookDataStatus.calculatedStudents > 0 ? 'Stand auch aus Mitarbeit/HÜ möglich' : 'Noch keine Bewertungen'}</span>
           </div>
         )}
       </header>
@@ -1905,9 +1905,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
       ) : (
         <div className="contents">
           {/* Streamlined Top Control Bar */}
-          <div data-gradebook-actions className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-1 no-print">
+          <div data-gradebook-actions className="flex flex-col gap-1 rounded-xl border border-slate-200 bg-white p-1 no-print">
             {/* Main View Tabs */}
-            <div data-performance-view aria-label="Bewertungsbereich wählen" className="relative z-10 flex w-full overflow-x-auto rounded-xl border border-slate-200/50 bg-slate-100 p-1">
+            <div data-performance-view aria-label="Bewertungsbereich wählen" className="relative z-10 flex w-full overflow-x-auto rounded-lg bg-slate-100/80 p-0.5">
               {(isFachActive
                 ? [
                     { id: 'noten', label: 'Leistungen' },
@@ -1927,7 +1927,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                     key={tab.id}
                     aria-pressed={isSel}
                     onClick={() => setActiveView(tab.id as any)}
-                    className={`relative min-h-11 shrink-0 whitespace-nowrap px-4 py-2 rounded-lg text-[0.8125rem] font-bold tracking-tight transition-all flex items-center justify-center gap-2 flex-1 cursor-pointer select-none leading-none z-10 ${
+                    className={`relative min-h-10 shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-[0.8125rem] font-bold tracking-tight transition-all flex items-center justify-center gap-2 flex-1 cursor-pointer select-none leading-none z-10 ${
                       isSel ? 'text-slate-950 font-extrabold' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
