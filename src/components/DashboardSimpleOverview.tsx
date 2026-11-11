@@ -91,11 +91,11 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
           <button type="button" onClick={() => p.onNavigate('profil')}
             title="Mein Profil öffnen" aria-label="Profil auf dem Dashboard öffnen"
-            className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]">
+            className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] lg:hidden">
             <TeacherAvatar app={app} size="sm" />
           </button>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-[var(--text2)]">{p.klasseLabel || 'Deine Klasse'}</p>
+            <p className="text-sm font-medium text-[var(--text2)] lg:sr-only">{p.klasseLabel || 'Deine Klasse'}</p>
             <h1 className="mt-0.5 text-xl font-semibold tracking-tight sm:text-2xl">{p.greeting}</h1>
             <p className="mt-0.5 text-sm text-[var(--text2)]"><span className="font-semibold text-[var(--text)]">{dayLabel}</span> · {p.dateLabel}</p>
           </div>
@@ -280,71 +280,63 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
             </button>
           )}
 
-          <button
-            type="button"
-            disabled={isPreview}
-            onClick={() => p.onNavigate(p.totalStudents ? 'anwesenheit' : 'schueler')}
-            className={`min-h-12 w-full rounded-lg border px-3 py-2 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
-              !isPreview && p.attendanceRequired && !p.attendanceRecorded && p.totalStudents > 0
+          {primaryTarget === 'anwesenheit' && !isPreview ? (
+            <div data-dashboard-attendance-status role="status" aria-label={`Anwesenheit ${dayLabel}: ${attendanceValue}`}
+              className="min-h-12 rounded-lg border border-amber-500 bg-[var(--surface2)] px-3 py-2 text-left ring-1 ring-amber-400/30">
+              <span className="flex items-center gap-2 text-xs font-semibold text-[var(--text3)]">
+                <Users size={15} />
+                Anwesenheit · {dayLabel}
+              </span>
+              <strong className="mt-1 block text-sm text-[var(--text)]">{attendanceValue}</strong>
+              {!p.privacyMode && p.attendanceRecorded && p.absentCount > 0 && (
+                <span className="mt-1 block text-xs text-[var(--text2)]">{p.absentCount} abwesend</span>
+              )}
+            </div>
+          ) : (
+            <button type="button" disabled={isPreview}
+              onClick={() => p.onNavigate(p.totalStudents ? 'anwesenheit' : 'schueler')}
+              className={`min-h-12 w-full rounded-lg border px-3 py-2 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${!isPreview && p.attendanceRequired && !p.attendanceRecorded && p.totalStudents > 0
                 ? 'border-amber-500 bg-[var(--surface2)] ring-1 ring-amber-400/30'
-                : 'border-[var(--border)] bg-[var(--surface2)] hover:bg-[var(--surface)]'
-            }`}
-          >
-            <span className="flex items-center gap-2 text-xs font-semibold text-[var(--text3)]">
-              <Users size={15} />
-              Anwesenheit · {dayLabel}
-            </span>
-            <strong className="mt-1.5 block text-sm text-[var(--text)]">{attendanceValue}</strong>
-            {!p.privacyMode && p.attendanceRecorded && p.absentCount > 0 && (
-              <span className="mt-1 block text-xs text-[var(--text2)]">{p.absentCount} abwesend</span>
-            )}
-          </button>
+                : 'border-[var(--border)] bg-[var(--surface2)] hover:bg-[var(--surface)]'}`}>
+              <span className="flex items-center gap-2 text-xs font-semibold text-[var(--text3)]">
+                <Users size={15} />
+                Anwesenheit · {dayLabel}
+              </span>
+              <strong className="mt-1 block text-sm text-[var(--text)]">{attendanceValue}</strong>
+              {!p.privacyMode && p.attendanceRecorded && p.absentCount > 0 && (
+                <span className="mt-1 block text-xs text-[var(--text2)]">{p.absentCount} abwesend</span>
+              )}
+            </button>
+          )}
         </section>
       </div>
 
-      <section aria-label="Schnellzugriff" className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-        <div className="mb-3">
-          <h2 className="text-base font-semibold">Schnellzugriff</h2>
-        </div>
-
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <button
-            type="button"
-            onClick={() => p.onNavigate('wochenplanung')}
-            className="flex min-h-12 items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-left text-sm font-semibold transition-colors hover:border-[var(--accent)] hover:bg-[var(--surface)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-          >
-            <CalendarDays size={19} className="text-[var(--accent)]" />
+      <section aria-label="Schnellzugriff" data-dashboard-quick-actions
+        className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
+        <h2 className="mr-1 shrink-0 text-xs font-semibold text-[var(--text2)]">Schnellzugriff</h2>
+        <div className="flex flex-1 flex-wrap items-center gap-2">
+          <button type="button" onClick={() => p.onNavigate('wochenplanung')}
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-3 text-sm font-semibold text-[var(--text)] transition-colors hover:border-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
+            <CalendarDays size={17} className="text-[var(--accent)]" />
             Wochenplan
           </button>
-          <button
-            type="button"
-            onClick={() => p.onNavigate('verhalten')}
-            className="flex min-h-12 items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-left text-sm font-semibold transition-colors hover:border-[var(--accent)] hover:bg-[var(--surface)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-          >
-            <StickyNote size={19} className="text-[var(--accent)]" />
+          <button type="button" onClick={() => p.onNavigate('verhalten')}
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-3 text-sm font-semibold text-[var(--text)] transition-colors hover:border-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
+            <StickyNote size={17} className="text-[var(--accent)]" />
             Notizen
           </button>
-          <button
-            type="button"
-            onClick={() => p.onNavigate('orga')}
-            className="flex min-h-12 items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-left text-sm font-semibold transition-colors hover:border-[var(--accent)] hover:bg-[var(--surface)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-          >
-            <Wallet size={19} className="text-[var(--accent)]" />
+          <button type="button" onClick={() => p.onNavigate('orga')}
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-3 text-sm font-semibold text-[var(--text)] transition-colors hover:border-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
+            <Wallet size={17} className="text-[var(--accent)]" />
             Organisation
+          </button>
+          <button type="button" onClick={p.onSimpleModeToggle}
+            className="ml-auto inline-flex min-h-11 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text2)] transition-colors hover:border-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
+            <Grid size={17} />
+            Weitere Übersichten & Widgets
           </button>
         </div>
       </section>
-
-      <footer className="flex justify-center">
-        <button
-          type="button"
-          className={button + ' flex items-center gap-2'}
-          onClick={p.onSimpleModeToggle}
-        >
-          <Grid size={17} />
-          Weitere Übersichten & Widgets
-        </button>
-      </footer>
     </section>
   );
 }
