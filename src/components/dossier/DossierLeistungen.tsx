@@ -7,7 +7,7 @@ import {
   Target, Stethoscope, HeartHandshake, Calendar, FileText, CheckCircle2,
   AlertCircle, Plus, Edit2, Trash2, X, Check, Save, Layers, Clock, TrendingUp, Star
 } from 'lucide-react';
-import { berechne, getNotenLabel, getFachCfg, getShowPointsPercent, getMaxPoints } from '../../lib/GradeUtils';
+import { berechne, getNotenLabel, getFachCfg, getShowPointsPercent, getMaxPoints, getAssessmentItemMode } from '../../lib/GradeUtils';
 import { FAECHER_ALLE } from '../../constants';
 import LzkAreaResults from './LzkAreaResults';
 import AssessmentDomainDonuts from './AssessmentDomainDonuts';
@@ -121,6 +121,7 @@ export default function DossierLeistungen({
         const defaultLabel = meta.colLabels?.[metaKey]?.[idx] || meta.colLabels?.[cat.key]?.[idx] || `${cat.label} ${idx + 1}`;
         const defaultDate = meta.colDates?.[metaKey]?.[idx] || meta.colDates?.[cat.key]?.[idx] || '';
         const maxScore = getMaxPoints(app, fach, cat.key, idx);
+        const itemMode = getAssessmentItemMode(app, fach, cat.key, idx);
 
         if (typeof entry === 'object') {
           const rawVal = entry.grade ?? entry.originalGrade ?? entry.numericGrade ?? entry.val ?? entry.note;
@@ -139,7 +140,7 @@ export default function DossierLeistungen({
             maxScore: maxP,
             percent: pct,
             note: entry.note || entry.kommentar || meta.colNotes?.[cat.key === 'aufgaben' ? 'obj' : cat.key]?.[idx] || meta.colNotes?.[cat.key]?.[idx] || '',
-            mode,
+            mode: itemMode,
             colIndex: idx
           });
         } else {
@@ -148,9 +149,9 @@ export default function DossierLeistungen({
           let pct: number | undefined = undefined;
           let score: number | undefined = undefined;
 
-          if (mode === 'percent') {
+          if (itemMode === 'percent') {
             pct = !isNaN(numVal) ? numVal : undefined;
-          } else if (mode === 'points') {
+          } else if (itemMode === 'points') {
             score = !isNaN(numVal) ? numVal : undefined;
             pct = score !== undefined && maxScore > 0 ? (score / maxScore) * 100 : undefined;
           }
@@ -163,10 +164,10 @@ export default function DossierLeistungen({
             date: defaultDate,
             rawGrade: entry,
             score,
-            maxScore: mode === 'points' ? maxScore : undefined,
+            maxScore: itemMode === 'points' ? maxScore : undefined,
             percent: pct,
             note: meta.colNotes?.[cat.key === 'aufgaben' ? 'obj' : cat.key]?.[idx] || meta.colNotes?.[cat.key]?.[idx] || '',
-            mode,
+            mode: itemMode,
             colIndex: idx
           });
         }
@@ -184,6 +185,7 @@ export default function DossierLeistungen({
 
   // Requirement 6: Methodically clean trend calculation
   const calculateMethodologicalTrend = (items: AssessmentItem[], mode: 'grades' | 'percent' | 'points') => {
+    if (items.some(item => item.mode !== mode)) return { direction: 'none' as const, label: null };
     const chartRows = getDossierAssessmentChart(items, mode).rows;
     if (chartRows.length < 2) return { direction: 'none' as const, label: null };
     if (mode === 'grades') {
@@ -497,7 +499,13 @@ export default function DossierLeistungen({
 
         <AssessmentDomainDonuts studentId={student.id} subject={s.fach} semester={semester} />
         <LzkAreaResults studentId={student.id} subject={s.fach} semester={semester} />
-        <DossierAssessmentChart items={s.items} mode={s.mode} />
+        {s.items.some(item => item.mode !== s.mode)
+          ? <p data-dossier-mixed-assessment-scales className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-900">
+              Gemischte Noten-, Punkte- und Prozentbewertungen: Ein einfacher Verlauf
+              würde unvergleichbare Rohwerte vermischen. Die Teilbereich-Kreise verwenden
+              ausdrücklich gekennzeichnete, normalisierte Prozentwerte.
+            </p>
+          : <DossierAssessmentChart items={s.items} mode={s.mode} />}
 
         <details data-dossier-performance-everyday className="rounded-2xl border border-slate-200 bg-white">
           <summary className="cursor-pointer px-4 py-3 text-sm font-black text-slate-800">Mitarbeit & Hausübungen im Detail</summary>
