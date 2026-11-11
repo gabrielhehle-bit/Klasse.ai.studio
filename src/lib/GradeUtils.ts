@@ -12,8 +12,10 @@ export function getAssessmentMode(app: AppState, fach: string): AssessmentMode {
 
 /** Include manual participation, even zero, before reinterpreting a subject's scale. */
 export function hasSubjectAssessmentEntries(app: AppState, fach: string): boolean {
-  return (app.schueler || []).some(student => ['1', '2'].some(semester => {
-    const data = app.noten?.[student.id]?.[fach]?.[semester];
+  // Include archived/removed pupils that still have stored grades, not only
+  // the currently visible roster. An old mark must never change scale silently.
+  return Object.values(app.noten || {}).some(studentGrades => ['1', '2'].some(semester => {
+    const data = studentGrades?.[fach]?.[semester];
     if (!data) return false;
     const recorded = (value: unknown) => value !== null && value !== undefined && value !== '';
     return recorded(data.miDirekt) || [data.sa, data.lzk, data.wp, data.aufgaben]
