@@ -3777,7 +3777,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                         </td>
                         {cfg.sa && visibleColumns.sa.map((idx) => {
                           const maxP = getMaxPoints(app, activeFach, 'sa', idx);
-                          const itemPct = calculateItemPercent(nd.sa[idx], assessmentMode, maxP);
+                          const itemMode = getAssessmentItemMode(app, activeFach, 'sa', idx);
+                           const itemPct = calculateItemPercent(nd.sa[idx], itemMode, maxP);
                           return (
                             <td key={`sa-${idx}`} 
                               onMouseEnter={() => setHoveredCell({sid: s.id, typ: 'sa', idx})}
@@ -3799,23 +3800,23 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                   })()}
                                   <div className="flex items-center gap-1 w-full relative">
                                     <AssessmentValueInput
-                                      key={`${app.activeClassId}:${activeFach}:${sem}:${s.id}:sa:${idx}:${assessmentMode}:${maxP}`}
-                                      mode={assessmentMode} maxPoints={maxP}
+                                      key={`${app.activeClassId}:${activeFach}:${sem}:${s.id}:sa:${idx}:${itemMode}:${maxP}`}
+                                      mode={itemMode} maxPoints={maxP}
                                       aria-label={`Schularbeit ${idx + 1} für ${s.vorname} ${s.nachname}`}
                                       data-col={`sa-${idx}`}
-                                      placeholder={assessmentMode === 'points' ? `/${maxP}` : assessmentMode === 'percent' ? '%' : ''}
+                                      placeholder={itemMode === 'points' ? `/${maxP}` : itemMode === 'percent' ? '%' : ''}
                                       onFocus={(e) => {
                                         e.target.select();
                                         setFocusedCell({sid: s.id, typ: 'sa', idx});
                                       }}
                                       onBlur={() => setFocusedCell(null)}
                                       onKeyDown={(e) => handleKeyDown(e, s.id, 'sa', idx)}
-                                      className={`w-full mx-auto block text-center ${heatmapMode && isColorableGrade(nd.sa[idx]) ? 'bg-transparent' : 'bg-white/95'} border border-slate-250 hover:border-blue-400 focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none transition-all font-bold ${getGradeColor(nd.sa[idx], true, 'sa', idx).includes('ring-rose') ? '' : getGradeColor(nd.sa[idx], true, 'sa', idx)} ${nd.sa[idx] === 5 && assessmentMode === 'grades' ? 'text-red-650 font-extrabold' : nd.sa[idx] === 'f' ? 'text-slate-400' : 'text-blue-800'} ${zoomLevel === 'compact' ? 'min-w-[2.25rem] py-0.5 text-[0.75rem] rounded-md max-w-[3.25rem]' : zoomLevel === 'large' ? 'min-w-[3.5rem] py-2 text-[0.9375rem] rounded-xl max-w-[4.75rem]' : 'min-w-[2.75rem] py-1 text-[0.8125rem] rounded-lg max-w-[4rem]'}`}
+                                      className={`w-full mx-auto block text-center ${heatmapMode && isColorableGrade(nd.sa[idx]) ? 'bg-transparent' : 'bg-white/95'} border border-slate-250 hover:border-blue-400 focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none transition-all font-bold ${getGradeColor(nd.sa[idx], true, 'sa', idx).includes('ring-rose') ? '' : getGradeColor(nd.sa[idx], true, 'sa', idx)} ${nd.sa[idx] === 5 && itemMode === 'grades' ? 'text-red-650 font-extrabold' : nd.sa[idx] === 'f' ? 'text-slate-400' : 'text-blue-800'} ${zoomLevel === 'compact' ? 'min-w-[2.25rem] py-0.5 text-[0.75rem] rounded-md max-w-[3.25rem]' : zoomLevel === 'large' ? 'min-w-[3.5rem] py-2 text-[0.9375rem] rounded-xl max-w-[4.75rem]' : 'min-w-[2.75rem] py-1 text-[0.8125rem] rounded-lg max-w-[4rem]'}`}
                                       value={nd.sa[idx] !== null && nd.sa[idx] !== undefined ? nd.sa[idx] : ''}
                                       onCommit={(val) => setNote(s.id, 'sa', idx, val)}
 
                                     />
-                                    {isBorderline(nd.sa[idx]) && (
+                                    {itemMode === 'grades' && isBorderline(nd.sa[idx]) && (
                                       <div className="absolute -top-1.5 -right-0.5 z-10 text-amber-500 bg-white rounded-full shadow-sm border border-amber-200 pointer-events-none" title="Grenzentscheidung / Tendenz (+/-)">
                                         <AlertCircle size={10} className="stroke-[3]" />
                                       </div>
@@ -3830,7 +3831,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                       </button>
                                     )}
                                   </div>
-                                  {showPointsPercent && assessmentMode === 'points' && itemPct !== null && (
+                                  {showPointsPercent && itemMode === 'points' && itemPct !== null && (
                                     <span data-points-percent className="text-[0.6875rem] font-semibold text-slate-600 leading-tight" title={`${nd.sa[idx]} von ${maxP} Punkten`}>
                                       {itemPct.toLocaleString('de-AT', { maximumFractionDigits: 1 })} %
                                     </span>
@@ -3843,7 +3844,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                           <>
                             {visibleColumns.lzk.map((idx) => {
                               const maxP = getMaxPoints(app, activeFach, 'lzk', idx);
-                              const itemPct = calculateItemPercent(nd.lzk[idx], assessmentMode, maxP);
+                              const itemMode = getAssessmentItemMode(app, activeFach, 'lzk', idx);
+                           const itemPct = calculateItemPercent(nd.lzk[idx], itemMode, maxP);
                               return (
                                 <td key={`lzk-${idx}`} 
                                   onMouseEnter={() => setHoveredCell({sid: s.id, typ: 'lzk', idx})}
@@ -3865,12 +3867,12 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                     })()}
                                     <div className="relative w-full">
                                       <AssessmentValueInput
-                                        key={`${app.activeClassId}:${activeFach}:${sem}:${s.id}:lzk:${idx}:${assessmentMode}:${maxP}`}
-                                      mode={assessmentMode} maxPoints={maxP}
+                                        key={`${app.activeClassId}:${activeFach}:${sem}:${s.id}:lzk:${idx}:${itemMode}:${maxP}`}
+                                      mode={itemMode} maxPoints={maxP}
                                         disabled={rawNd.lzkParticipation?.[idx] === false}
                                         aria-label={`Lernzielkontrolle ${idx + 1} für ${s.vorname} ${s.nachname}`}
                                         data-col={`lzk-${idx}`}
-                                        placeholder={assessmentMode === 'points' ? `/${maxP}` : assessmentMode === 'percent' ? '%' : ''}
+                                        placeholder={itemMode === 'points' ? `/${maxP}` : itemMode === 'percent' ? '%' : ''}
                                         onFocus={(e) => {
                                           e.target.select();
                                           setFocusedCell({sid: s.id, typ: 'lzk', idx});
@@ -3886,13 +3888,13 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                         <summary className="cursor-pointer rounded bg-white px-1 text-slate-500" aria-label={`${s.vorname} ${s.nachname}: Teilnahme an LZK ${idx + 1} einstellen`}>{rawNd.lzkParticipation?.[idx] === false ? 'n. t.' : '⋯'}</summary>
                                         <div className="mt-1 rounded-lg border border-slate-200 bg-white p-2 text-slate-700"><label className="flex items-center justify-center gap-1 text-xs text-slate-600 whitespace-normal print:hidden"><input type="checkbox" aria-label={`${s.vorname} ${s.nachname} nimmt an LZK ${idx + 1} teil`} checked={rawNd.lzkParticipation?.[idx] !== false} onChange={e => { const participates = e.target.checked; setApp(prev => { const data = prev.noten?.[s.id]?.[activeFach]?.[sem] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] }; return { ...prev, noten: { ...prev.noten, [s.id]: { ...prev.noten?.[s.id], [activeFach]: { ...prev.noten?.[s.id]?.[activeFach], [sem]: { ...data, lzkParticipation: { ...data.lzkParticipation, [idx]: participates } } } } } }; }); }} />{rawNd.lzkParticipation?.[idx] === false ? 'Nimmt nicht teil' : 'Teilnahme'}</label></div>
                                       </details>
-                                      {isBorderline(nd.lzk[idx]) && (
+                                      {itemMode === 'grades' && isBorderline(nd.lzk[idx]) && (
                                         <div className="absolute -top-1.5 -right-0.5 z-10 text-amber-500 bg-white rounded-full shadow-sm border border-amber-200 pointer-events-none" title="Grenzentscheidung / Tendenz (+/-)">
                                           <AlertCircle size={10} className="stroke-[3]" />
                                         </div>
                                       )}
                                     </div>
-                                    {showPointsPercent && assessmentMode === 'points' && itemPct !== null && (
+                                    {showPointsPercent && itemMode === 'points' && itemPct !== null && (
                                       <span data-points-percent className="text-[0.6875rem] font-semibold text-slate-600 leading-tight" title={`${nd.lzk[idx]} von ${maxP} Punkten`}>
                                         {itemPct.toLocaleString('de-AT', { maximumFractionDigits: 1 })} %
                                       </span>
@@ -3908,7 +3910,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                           <>
                             {visibleColumns.wp.map((idx) => {
                               const maxP = getMaxPoints(app, activeFach, 'wp', idx);
-                              const itemPct = calculateItemPercent(nd.wp[idx], assessmentMode, maxP);
+                              const itemMode = getAssessmentItemMode(app, activeFach, 'wp', idx);
+                           const itemPct = calculateItemPercent(nd.wp[idx], itemMode, maxP);
                               return (
                                 <td key={`wp-${idx}`} 
                                   onMouseEnter={() => setHoveredCell({sid: s.id, typ: 'wp', idx})}
@@ -3930,11 +3933,11 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                     })()}
                                     <div className="relative w-full">
                                       <AssessmentValueInput
-                                        key={`${app.activeClassId}:${activeFach}:${sem}:${s.id}:wp:${idx}:${assessmentMode}:${maxP}`}
-                                      mode={assessmentMode} maxPoints={maxP}
+                                        key={`${app.activeClassId}:${activeFach}:${sem}:${s.id}:wp:${idx}:${itemMode}:${maxP}`}
+                                      mode={itemMode} maxPoints={maxP}
                                         aria-label={`Wochenplan ${idx + 1} für ${s.vorname} ${s.nachname}`}
                                         data-col={`wp-${idx}`}
-                                        placeholder={assessmentMode === 'points' ? `/${maxP}` : assessmentMode === 'percent' ? '%' : ''}
+                                        placeholder={itemMode === 'points' ? `/${maxP}` : itemMode === 'percent' ? '%' : ''}
                                         onFocus={(e) => {
                                           e.target.select();
                                           setFocusedCell({sid: s.id, typ: 'wp', idx});
@@ -3946,13 +3949,13 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                         onCommit={(val) => setNote(s.id, 'wp', idx, val)}
 
                                       />
-                                      {isBorderline(nd.wp[idx]) && (
+                                      {itemMode === 'grades' && isBorderline(nd.wp[idx]) && (
                                         <div className="absolute -top-1.5 -right-0.5 z-10 text-amber-500 bg-white rounded-full shadow-sm border border-amber-200 pointer-events-none" title="Grenzentscheidung / Tendenz (+/-)">
                                           <AlertCircle size={10} className="stroke-[3]" />
                                         </div>
                                       )}
                                     </div>
-                                    {showPointsPercent && assessmentMode === 'points' && itemPct !== null && (
+                                    {showPointsPercent && itemMode === 'points' && itemPct !== null && (
                                       <span data-points-percent className="text-[0.6875rem] font-semibold text-slate-600 leading-tight" title={`${nd.wp[idx]} von ${maxP} Punkten`}>
                                         {itemPct.toLocaleString('de-AT', { maximumFractionDigits: 1 })} %
                                       </span>
@@ -3968,7 +3971,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                           <>
                             {visibleColumns.obj.map((idx) => {
                               const maxP = getMaxPoints(app, activeFach, 'obj', idx);
-                              const itemPct = calculateItemPercent(nd.aufgaben[idx], assessmentMode, maxP);
+                              const itemMode = getAssessmentItemMode(app, activeFach, 'obj', idx);
+                           const itemPct = calculateItemPercent(nd.aufgaben[idx], itemMode, maxP);
                               return (
                                 <td key={`obj-${idx}`} 
                                   onMouseEnter={() => setHoveredCell({sid: s.id, typ: 'aufgaben', idx})}
@@ -3990,11 +3994,11 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                     })()}
                                     <div className="relative w-full">
                                       <AssessmentValueInput
-                                        key={`${app.activeClassId}:${activeFach}:${sem}:${s.id}:aufgaben:${idx}:${assessmentMode}:${maxP}`}
-                                      mode={assessmentMode} maxPoints={maxP}
+                                        key={`${app.activeClassId}:${activeFach}:${sem}:${s.id}:aufgaben:${idx}:${itemMode}:${maxP}`}
+                                      mode={itemMode} maxPoints={maxP}
                                         aria-label={`Aufgabe ${idx + 1} für ${s.vorname} ${s.nachname}`}
                                         data-col={`obj-${idx}`}
-                                        placeholder={assessmentMode === 'points' ? `/${maxP}` : assessmentMode === 'percent' ? '%' : ''}
+                                        placeholder={itemMode === 'points' ? `/${maxP}` : itemMode === 'percent' ? '%' : ''}
                                         onFocus={(e) => {
                                           e.target.select();
                                           setFocusedCell({sid: s.id, typ: 'aufgaben', idx});
@@ -4006,13 +4010,13 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                         onCommit={(val) => setNote(s.id, 'aufgaben', idx, val)}
 
                                       />
-                                      {isBorderline(nd.aufgaben[idx]) && (
+                                      {itemMode === 'grades' && isBorderline(nd.aufgaben[idx]) && (
                                         <div className="absolute -top-1.5 -right-0.5 z-10 text-amber-500 bg-white rounded-full shadow-sm border border-amber-200 pointer-events-none" title="Grenzentscheidung / Tendenz (+/-)">
                                           <AlertCircle size={10} className="stroke-[3]" />
                                         </div>
                                       )}
                                     </div>
-                                    {showPointsPercent && assessmentMode === 'points' && itemPct !== null && (
+                                    {showPointsPercent && itemMode === 'points' && itemPct !== null && (
                                       <span data-points-percent className="text-[0.6875rem] font-semibold text-slate-600 leading-tight" title={`${nd.aufgaben[idx]} von ${maxP} Punkten`}>
                                         {itemPct.toLocaleString('de-AT', { maximumFractionDigits: 1 })} %
                                       </span>
