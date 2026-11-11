@@ -15,6 +15,7 @@ import { createSeatingLayout, resolveSeatingLayout, sameSeatingArrangement } fro
 import SeatingPlanAnalysis from './SeatingPlanAnalysis';
 import { areSeatingNeighbors, classifySeatPositions, findSeatingRuleViolations, sanitizeSeatingRules, sameSeat } from '../lib/seatingPlanRules';
 import { getLocalDateKey, getSeatingPlanAbsentStudents, isStudentAbsentOnDate, orderStudentsByComplementaryLevels } from '../lib/seatingPlanData';
+import { findNextFreeSeatPosition } from '../lib/seatingPlanPlacement';
 
 const isBirthdayToday = (geburtstagStr: string | undefined | null) => {
   if (!geburtstagStr) return false;
@@ -148,6 +149,7 @@ const StudentCard = React.memo(({
   hasSperrViolation,
   hasWunschMatch,
   isSwapTarget,
+  isSelectedForSwap,
   isDragging,
   showEmojis,
   isHighlighted,
@@ -283,25 +285,25 @@ const StudentCard = React.memo(({
       onMouseLeave={onMouseLeave}
       onClick={onClick}
       onKeyDown={(event: React.KeyboardEvent<HTMLDivElement>) => {
-        if (!editMode && (event.key === 'Enter' || event.key === ' ')) {
+        if ((editMode || showPrivateDetails) && (event.key === 'Enter' || event.key === ' ')) {
           event.preventDefault();
           onClick(event);
         }
       }}
-      role={!editMode && showPrivateDetails ? 'button' : undefined}
-      tabIndex={!editMode && showPrivateDetails ? 0 : -1}
-      aria-pressed={!editMode && showPrivateDetails ? Boolean(isPinned) : undefined}
+      role={editMode || showPrivateDetails ? 'button' : undefined}
+      tabIndex={editMode || showPrivateDetails ? 0 : -1}
+      aria-pressed={editMode ? Boolean(isSelectedForSwap) : showPrivateDetails ? Boolean(isPinned) : undefined}
       aria-label={`${s.vorname} ${showPrivateDetails ? s.nachname || '' : ''}${showPrivateDetails && isAbsent ? ', heute abwesend' : ''}. ${editMode ? 'Sitzplatz verschieben' : showPrivateDetails ? (isPinned ? 'Details geöffnet' : 'Details öffnen') : 'Sitzplatz'}`}
       className={`absolute w-[112px] h-[72px] rounded-2xl border flex flex-col justify-between p-1.5 shrink-0 group student-card transform-gpu contrast-container transition-[background-color,border-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 ${editMode ? 'cursor-grab active:cursor-grabbing' : showPrivateDetails ? 'cursor-pointer hover:shadow-md' : 'cursor-default'} ${showPrivateDetails && isAbsent ? 'opacity-55 grayscale' : ''} ${isDimmed ? 'opacity-15 pointer-events-none scale-95 saturate-50' : ''}`}
       style={{ 
         backgroundColor: bgColor,
-        borderColor: isHighlighted
+        borderColor: isSelectedForSwap || isHighlighted
           ? '#4f46e5'
           : (isSwapTarget
             ? '#6366f1'
             : (relationHighlight === 'sperr' ? '#ef4444' : (relationHighlight === 'wunsch' ? '#10b981' : (isWinner ? '#f59e0b' : borderColor)))),
-        boxShadow: isHighlighted
-          ? '0 0 25px rgba(79, 70, 229, 0.95), 0 0 0 2px #4f46e5'
+        boxShadow: isSelectedForSwap ? '0 0 0 3px #4f46e5, 0 8px 20px rgba(79,70,229,0.25)'
+          : isHighlighted ? '0 0 25px rgba(79, 70, 229, 0.95), 0 0 0 2px #4f46e5'
           : (isSwapTarget
             ? '0 0 25px rgba(99, 102, 241, 0.75), ring-4 ring-indigo-105'
             : (relationHighlight === 'sperr' 
@@ -313,7 +315,7 @@ const StudentCard = React.memo(({
                   : (hasSperrViolation 
                     ? '0 0 10px rgba(239, 68, 68, 0.3)' 
                     : (editMode ? '0 4px 12px -2px rgb(0 0 0 / 0.12)' : '0 2px 4px -1px rgb(0 0 0 / 0.06)')))))),
-        zIndex: isHighlighted ? 400 : (isSwapTarget ? 300 : (relationHighlight ? 150 : (isWinner || isHovered ? 200 : 10)))
+        zIndex: isSelectedForSwap || isHighlighted ? 400 : (isSwapTarget ? 300 : (relationHighlight ? 150 : (isWinner || isHovered ? 200 : 10)))
       }}
     >
         {showPrivateDetails && isHovered && !editMode && !isDragging && (
@@ -1429,6 +1431,8 @@ export default function SeatingPlan() {
   const [showSeatingComparison, setShowSeatingComparison] = useState(false);
   const [refitSavedLayoutSignal, setRefitSavedLayoutSignal] = useState(0);
   const [editMode, setEditMode] = useState(false);
+  const [selectedSeatStudentId, setSelectedSeatStudentId] = useState<string | null>(null);
+  const lastSeatDragAtRef = useRef(0);
   const [presentationMode, setPresentationMode] = useState(false);
 
   React.useEffect(() => {
@@ -1480,6 +1484,7 @@ export default function SeatingPlan() {
       lottoIntervalRef.current = null;
     }
     setSelectedObjId(null);
+    setSelectedSeatStudentId(null);
     setShowPrivateDetails(false);
     setShowMoreTools(false);
     setSelectedSavedLayoutId(app.sitzplanDefaultLayoutId || '');
@@ -1765,6 +1770,14 @@ export default function SeatingPlan() {
   const unplacedStudents = students.filter(s => !sitzplan_schueler[s.id]);
   const placedStudents = students.filter(s => sitzplan_schueler[s.id]);
   const isPlanEmpty = placedStudents.length === 0 && (app.sitzplan_objekte || []).length === 0;
+  // A free-standing card is a valid individual seat, not an unplaced child.
+  const freeStandingStudents = placedStudents.filter(student =>
+    !sitzplan_objekte.some(object =>
+      ['rectangle', 'square', 'triangle'].includes(object.type) &&
+      getStudentsOnTable(object, sitzplan_schueler).includes(student.id)
+    )
+  );
+  const selectedSeatStudent = students.find(student => student.id === selectedSeatStudentId);
   const latestRoomRef = useRef({ placedStudents, sitzplan_schueler, sitzplan_objekte });
   latestRoomRef.current = { placedStudents, sitzplan_schueler, sitzplan_objekte };
 
@@ -1825,6 +1838,7 @@ export default function SeatingPlan() {
     }
     setPreviewState({ active: false, previousSitzplan: null, violatedRules: [], history: [], historyIndex: -1 });
     setEditMode(false);
+    setSelectedSeatStudentId(null);
     setShowGenerator(false);
     setShowPresetsMenu(false);
     setShowMoreTools(false);
@@ -1850,6 +1864,13 @@ export default function SeatingPlan() {
     const canvasW = Math.max(1200, (planRef.current?.clientWidth || 0) / zoom, seatRight + 30, furnitureRight + 30);
     const canvasH = Math.max(800, (planRef.current?.clientHeight || 0) / zoom, seatBottom + 30, furnitureBottom + 30);
     return { canvasW, canvasH };
+  };
+
+  const placeUnplacedStudent = (id: string) => {
+    if (!editMode || sitzplan_schueler[id]) return;
+    const target = findNextFreeSeatPosition(sitzplan_schueler, sitzplan_objekte);
+    updatePosition(id, target.x, target.y);
+    setSelectedSeatStudentId(null);
   };
 
   const updatePosition = (id: string, x: number, y: number) => {
@@ -1918,6 +1939,7 @@ export default function SeatingPlan() {
   };
 
   const removeStudent = (id: string) => {
+    setSelectedSeatStudentId(null);
     pushState();
     setApp(prev => {
       const newPlan = { ...prev.sitzplan_schueler };
@@ -1927,10 +1949,11 @@ export default function SeatingPlan() {
   };
 
   const handleSwap = (id1: string, id2: string) => {
-    pushState();
     const s_plan = app.sitzplan_schueler || {};
     const pos1 = s_plan[id1];
     const pos2 = s_plan[id2];
+    if (!pos1 || !pos2 || id1 === id2) return;
+    pushState();
     setApp(prev => ({
       ...prev,
       sitzplan_schueler: {
@@ -1939,6 +1962,18 @@ export default function SeatingPlan() {
         [id2]: pos1
       }
     }));
+  };
+
+  // Click two seats to swap, or select the same child again to cancel.
+  // Drag-and-drop remains available for precise positioning.
+  const handleSeatSelection = (studentId: string) => {
+    if (!editMode || Date.now() - lastSeatDragAtRef.current < 450) return;
+    if (!selectedSeatStudentId || selectedSeatStudentId === studentId) {
+      setSelectedSeatStudentId(selectedSeatStudentId === studentId ? null : studentId);
+      return;
+    }
+    handleSwap(selectedSeatStudentId, studentId);
+    setSelectedSeatStudentId(null);
   };
 
   // Helper to optimize student layout by respecting Wunschpartner (+score) and Sperrpartner (-score) rules
