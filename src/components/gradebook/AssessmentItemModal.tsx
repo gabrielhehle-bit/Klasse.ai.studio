@@ -409,7 +409,7 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
                   onClick={() => {
                     const finalLabel = label.trim() || currentTypeInfo.defaultName;
                     const finalMaxP = entryMode === 'points' ? Math.max(1, maxPoints || 40) : undefined;
-                    if (onSave(finalLabel, date, finalMaxP, typ === 'lzk' ? area.trim() : undefined, entryMode) !== false) onOpenSchularbeitRaster();
+                    if (onSave(finalLabel, date, finalMaxP, undefined, entryMode) !== false) onOpenSchularbeitRaster();
                   }}
                   className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shrink-0 shadow-sm transition-all"
                 >
