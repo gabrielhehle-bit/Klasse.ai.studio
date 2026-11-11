@@ -208,9 +208,8 @@ function attendanceForStudent(app: any, studentId: string, range: Range): Attend
       result.recorded += detailedAbsence;
       if (detail?.notiz === 'Unentschuldigt') result.unexcused += detailedAbsence;
       else result.excused += detailedAbsence;
-    } else if (recordedForDay === 0 && detail && detailedAbsence === 0) {
-      result.recorded += 1;
     }
+    // A note without an attendance status or absence hours is not a recorded unit.
   });
 
   return result;
