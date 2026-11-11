@@ -4368,10 +4368,10 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                     >
                       <div className="text-2xl mb-2">📌</div>
                       <div className="font-black text-purple-900 text-[0.9375rem] mb-1">
-                        Sonstige Leistung
+                        Sonstige Leistung / bewertete HÜ
                       </div>
                       <div className="text-[0.75rem] text-purple-700 leading-snug">
-                        Referat, Projekt, Präsentation oder andere Leistung
+                        Eine bewertete Hausübung, Aufgabe oder ein Projekt mit Teilbereich wie Lesen oder Rechnen erfassen
                       </div>
                     </button>
                   </div>
