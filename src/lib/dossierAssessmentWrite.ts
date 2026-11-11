@@ -1,5 +1,5 @@
 import type { AppState, AssessmentMode } from '../types';
-import { getAssessmentMode, getMaxPoints, parseAssessmentInput } from './GradeUtils';
+import { getAssessmentItemMode, getMaxPoints, parseAssessmentInput } from './GradeUtils';
 
 export type DossierAssessmentCategory = 'sa' | 'lzk' | 'wp' | 'aufgaben';
 
@@ -18,6 +18,8 @@ export interface DossierAssessmentWriteRequest {
   score?: string;
   maxScore?: string;
   percent?: string;
+  area?: string;
+  mode?: AssessmentMode;
 }
 
 export interface DossierAssessmentClearRequest {
@@ -71,7 +73,8 @@ function firstAvailableAssessmentIndex(list: unknown[]) {
 }
 
 function cloneMetaList(container: Record<string, any>, key: string) {
-  container[key] = [...(container[key] || [])];
+  const existing = container[key] || [];
+  container[key] = Array.isArray(existing) ? [...existing] : Object.assign([], existing);
   return container[key] as any[];
 }
 
@@ -147,16 +150,32 @@ export function writeDossierAssessment(state: AppState, request: DossierAssessme
 
   const isCategoryMove = originalCategory !== request.category;
   const existingTargetList = Array.isArray(semesterData[request.category]) ? [...semesterData[request.category]] : [];
+  // A class-wide column can contain marks of other pupils, even when this
+  // child's target slot is empty. Moving a test must create a new class slot.
   const destinationIndex = isCategoryMove
-    ? firstAvailableAssessmentIndex(existingTargetList)
+    ? nextDossierAssessmentColumnIndex(state, request.fach, request.category)
     : request.colIndex;
 
-  const mode = getAssessmentMode(state, request.fach);
+  const originalMode = getAssessmentItemMode(state, request.fach, originalCategory, originalColIndex);
+  const mode = request.mode || originalMode;
+  const existingOriginalValue = Array.isArray(semesterData[originalCategory])
+    ? semesterData[originalCategory][originalColIndex] : undefined;
+  if (existingOriginalValue !== undefined && existingOriginalValue !== null && existingOriginalValue !== '' &&
+      mode !== originalMode) return state;
   const currentMax = isCategoryMove
     ? getMaxPoints(state, request.fach, originalCategory, originalColIndex)
     : getMaxPoints(state, request.fach, request.category, destinationIndex);
   const requestedMax = Number(String(request.maxScore ?? '').replace(',', '.'));
   const maxPoints = mode === 'points' && Number.isFinite(requestedMax) && requestedMax > 0 ? requestedMax : currentMax;
+  // The dossier does not silently change a shared points denominator.
+  if (!isCategoryMove && mode === 'points' && maxPoints !== currentMax) {
+    const anySaved = Object.values(state.noten || {}).some(child =>
+      (['1', '2'] as const).some(period => {
+        const value = child?.[request.fach]?.[period]?.[request.category]?.[destinationIndex];
+        return value !== undefined && value !== null && value !== '';
+      }));
+    if (anySaved) return state;
+  }
   const parsed = parseAssessmentInput(assessmentInputForMode(request, mode), mode, maxPoints);
   if (!parsed.valid) return state;
 
@@ -186,10 +205,16 @@ export function writeDossierAssessment(state: AppState, request: DossierAssessme
   const colDates = { ...(subjectMeta.colDates || {}) };
   const colNotes = { ...(subjectMeta.colNotes || {}) };
 
-  if (isCategoryMove) {
-    cloneMetaList(colLabels, originalCategory)[originalColIndex] = null;
-    cloneMetaList(colDates, originalCategory)[originalColIndex] = null;
-    cloneMetaList(colNotes, originalCategory)[originalColIndex] = null;
+  const sourceNeededByAnotherRecord = isCategoryMove && Object.entries(state.noten || {}).some(([id, grades]) =>
+    (['1', '2'] as const).some(period => {
+      if (id === request.studentId && period === request.semester) return false;
+      const value = grades?.[request.fach]?.[period]?.[originalCategory]?.[originalColIndex];
+      return value !== undefined && value !== null && value !== '';
+    }));
+  if (isCategoryMove && !sourceNeededByAnotherRecord) {
+    cloneMetaList(colLabels, metaCategory(originalCategory))[originalColIndex] = null;
+    cloneMetaList(colDates, metaCategory(originalCategory))[originalColIndex] = null;
+    cloneMetaList(colNotes, metaCategory(originalCategory))[originalColIndex] = null;
   }
 
   const destinationMetaKey = metaCategory(request.category);
@@ -202,7 +227,7 @@ export function writeDossierAssessment(state: AppState, request: DossierAssessme
 
   const hasMaxPointsMeta = Boolean(subjectMeta.maxPoints);
   const maxPointsMeta = { ...(subjectMeta.maxPoints || {}) };
-  if (isCategoryMove && (mode === 'points' || hasMaxPointsMeta)) {
+  if (isCategoryMove && !sourceNeededByAnotherRecord && (mode === 'points' || hasMaxPointsMeta)) {
     const sourceKey = metaCategory(originalCategory);
     cloneMetaList(maxPointsMeta, sourceKey)[originalColIndex] = null;
   }
@@ -212,6 +237,19 @@ export function writeDossierAssessment(state: AppState, request: DossierAssessme
   }
   if (mode === 'points' || hasMaxPointsMeta) {
     subjectMeta.maxPoints = maxPointsMeta;
+  }
+
+  const areaKey = metaCategory(request.category);
+  const itemModes = { ...(subjectMeta.itemModes || {}) };
+  const currentItemModes = { ...(itemModes[areaKey] || {}) };
+  currentItemModes[destinationIndex] = mode;
+  itemModes[areaKey] = currentItemModes;
+  subjectMeta.itemModes = itemModes;
+
+  if (request.area !== undefined) {
+    const colAreas = { ...(subjectMeta.colAreas || {}) };
+    colAreas[areaKey] = { ...(colAreas[areaKey] || {}), [destinationIndex]: request.area.trim() };
+    subjectMeta.colAreas = colAreas;
   }
 
   return {
