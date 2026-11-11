@@ -259,7 +259,7 @@ test('manual-only assessment values including zero trigger scale-change protecti
   assert.equal(hasSubjectAssessmentEntries(app, 'Deutsch'), true);
   assert.equal(hasSubjectAssessmentEntries(app, 'Mathematik'), false);
   app.schueler = [];
-  assert.equal(hasSubjectAssessmentEntries(app, 'Deutsch'), false);
+  assert.equal(hasSubjectAssessmentEntries(app, 'Deutsch'), true, 'archived pupils must retain scale protection');
 });
 
 test('manual participation preserves zero and scale maxima in weighted points and percent totals', () => {
