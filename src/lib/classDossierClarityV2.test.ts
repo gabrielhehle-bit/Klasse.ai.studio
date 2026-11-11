@@ -12,6 +12,8 @@ test('Klassendossier 2.0 zeigt Anwesenheit ausschließlich als Quote erfasster E
   assert.match(dossier, /Nur erfasste Einheiten zählen/);
   assert.match(dossier, /Nicht dokumentierte Tage oder Stunden gelten weder als anwesend noch als fehlend/);
   assert.match(dossier, /row\.attendance === null \? 'Nicht erfasst'/);
+  assert.doesNotMatch(dossier, /recordedForDay/);
+  assert.match(dossier, /A note without an attendance status or absence hours is not a recorded unit/);
 });
 
 test('Trendhinweise benötigen ausreichende Datenbasis und werten Befindensskalen nicht vorschnell', () => {
