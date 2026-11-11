@@ -19,7 +19,9 @@ test('Trendhinweise benötigen ausreichende Datenbasis und werten Befindensskale
   assert.match(dossier, /previous\.attendanceChildren >= Math\.ceil\(students\.length \* 0\.75\)/);
   assert.match(dossier, /current\.moodCount >= 5 && previous\.moodCount >= 5/);
   assert.match(dossier, /current\.behaviorCount >= 5 && previous\.behaviorCount >= 5/);
-  assert.match(dossier, /Befinden: Der erfasste Durchschnitt hat sich/);
+  assert.match(dossier, /Befinden \$\{delta < 0 \? 'verbessert sich' : 'zeigt mehr Unterstützungsbedarf'\}/);
+  assert.match(dossier, /<YAxis reversed domain=\{\[1, 5\]\}/);
+  assert.match(dossier, /1 = sehr gut \(oben\), 5 = schlecht \(unten\)/);
 });
 
 test('Dünne Verlaufsdaten erzeugen keine suggestive Trendlinie', () => {
