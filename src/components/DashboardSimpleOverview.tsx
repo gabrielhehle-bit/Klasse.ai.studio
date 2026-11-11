@@ -155,14 +155,14 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0 flex-1 grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-2 sm:grid-cols-[6rem_minmax(0,1fr)] sm:gap-x-3">
-                        <p className="py-0.5 text-xs font-medium text-slate-500">
+                        <p className="py-0.5 text-xs font-medium text-[var(--text3)]">
                           {lesson.zeit || `${lesson.hourNum ?? index + 1}. Stunde`}
                         </p>
-                        <p className="break-words text-sm font-semibold text-slate-900">
+                        <p className="break-words text-sm font-semibold text-[var(--text)]">
                           {lesson.fach || 'Unterricht'}
                         </p>
                         {lesson.thema && (
-                          <p className="col-start-2 mt-1 break-words text-sm text-slate-600">
+                          <p className="col-start-2 mt-1 break-words text-sm text-[var(--text2)]">
                             {p.privacyMode ? 'Thema verborgen' : lesson.thema}
                           </p>
                         )}
@@ -179,8 +179,8 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
             </ol>
           ) : (
             <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface2)] p-4">
-              <p className="text-sm font-medium text-slate-700">Für diesen Tag ist noch kein Unterricht eingetragen.</p>
-              <p className="mt-1 text-sm text-slate-500">Du kannst den Tag direkt im Wochenplan ergänzen.</p>
+              <p className="text-sm font-medium text-[var(--text2)]">Für diesen Tag ist noch kein Unterricht eingetragen.</p>
+              <p className="mt-1 text-sm text-[var(--text3)]">Du kannst den Tag direkt im Wochenplan ergänzen.</p>
             </div>
           )}
 
@@ -208,8 +208,8 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
             {visibleTodayItems.length > 0 && (
               <div>
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-800">{isPreview ? 'Für diesen Tag' : 'Heute wichtig'}</p>
-                  <span className="text-xs font-medium text-slate-500">{todayItems.length} Hinweise</span>
+                  <p className="text-sm font-semibold text-[var(--text)]">{isPreview ? 'Für diesen Tag' : 'Heute wichtig'}</p>
+                  <span className="text-xs font-medium text-[var(--text3)]">{todayItems.length} Hinweise</span>
                 </div>
                 <ul className="space-y-2">
                   {visibleTodayItems.map(item => (
@@ -221,10 +221,10 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
                       >
                         {item.category && (
                           <span className={item.type === 'birthday'
-                            ? 'mb-1 block text-xs font-semibold text-amber-800'
+                            ? 'mb-1 block text-xs font-semibold text-amber-600'
                             : item.urgent
-                              ? 'mb-1 block text-xs font-semibold text-rose-700'
-                              : 'mb-1 block text-xs font-semibold text-slate-500'}>
+                              ? 'mb-1 block text-xs font-semibold text-rose-600'
+                              : 'mb-1 block text-xs font-semibold text-[var(--text3)]'}>
                             {item.category}
                           </span>
                         )}
@@ -239,8 +239,8 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
             {visiblePersonalItems.length > 0 && (
               <div>
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-800">Meine offenen Aufgaben</p>
-                  <span className="text-xs font-medium text-slate-500">
+                  <p className="text-sm font-semibold text-[var(--text)]">Meine offenen Aufgaben</p>
+                  <span className="text-xs font-medium text-[var(--text3)]">
                     {p.openTasksCount} {p.openTasksCount === 1 ? 'Aufgabe' : 'Aufgaben'} · {p.openCollectionsCount} {p.openCollectionsCount === 1 ? 'Sammlung' : 'Sammlungen'}
                   </span>
                 </div>
@@ -252,7 +252,7 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
                         className="min-h-12 w-full rounded-lg border border-[var(--border)] bg-[var(--surface2)] p-3 text-left text-sm leading-relaxed transition-colors hover:border-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                         onClick={() => p.onNavigate(item.linkPage || 'verhalten')}
                       >
-                        {item.category && <span className="mb-1 block text-xs font-semibold text-slate-500">{item.category}</span>}
+                        {item.category && <span className="mb-1 block text-xs font-semibold text-[var(--text3)]">{item.category}</span>}
                         {p.privacyMode ? 'Privater Eintrag – zum Öffnen auswählen' : item.text}
                       </button>
                     </li>
@@ -286,17 +286,17 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
             onClick={() => p.onNavigate(p.totalStudents ? 'anwesenheit' : 'schueler')}
             className={`min-h-12 w-full rounded-lg border px-3 py-2 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
               !isPreview && p.attendanceRequired && !p.attendanceRecorded && p.totalStudents > 0
-                ? 'border-amber-200 bg-amber-50'
+                ? 'border-amber-500 bg-[var(--surface2)] ring-1 ring-amber-400/30'
                 : 'border-[var(--border)] bg-[var(--surface2)] hover:bg-[var(--surface)]'
             }`}
           >
-            <span className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+            <span className="flex items-center gap-2 text-xs font-semibold text-[var(--text3)]">
               <Users size={15} />
               Anwesenheit · {dayLabel}
             </span>
-            <strong className="mt-1.5 block text-sm text-slate-900">{attendanceValue}</strong>
+            <strong className="mt-1.5 block text-sm text-[var(--text)]">{attendanceValue}</strong>
             {!p.privacyMode && p.attendanceRecorded && p.absentCount > 0 && (
-              <span className="mt-1 block text-xs text-slate-600">{p.absentCount} abwesend</span>
+              <span className="mt-1 block text-xs text-[var(--text2)]">{p.absentCount} abwesend</span>
             )}
           </button>
         </section>
