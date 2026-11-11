@@ -2817,58 +2817,21 @@ export default function SeatingPlan() {
       {/* Toolbar */}
       {!presentationMode && (
         <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-3 bg-white/95 backdrop-blur-xl p-3 rounded-2xl border border-slate-200 shadow-sm no-print print:hidden relative z-[150]">
-          <div className="flex items-center gap-3 overflow-x-auto pb-1 max-w-full custom-scrollbar flex-1">
-             <span className="text-[0.625rem] font-black uppercase text-slate-400 tracking-wider shrink-0">
-               {isPlanEmpty ? 'Sitzplan-Status:' : 'Noch nicht platziert:'}
-             </span>
-             {isPlanEmpty ? (
-               <span className="px-3 py-1.5 rounded-xl border border-indigo-100 bg-indigo-50 text-[0.75rem] font-extrabold text-indigo-700 whitespace-nowrap">
-                 Noch nicht eingerichtet · {students.length} {students.length === 1 ? 'Kind' : 'Kinder'}
-               </span>
-             ) : (
-             <div className="flex gap-2">
-              {unplacedStudents.map(s => (
-                 <button
-                  key={s.id}
-                  onClick={() => {
-                    const occupied = Object.values(app.sitzplan_schueler || {}) as { x: number; y: number }[];
-                    let nextX = 100;
-                    let nextY = 250;
-                    while (occupied.some(p => Math.abs(p.x - nextX) < 120 && Math.abs(p.y - nextY) < 75)) {
-                      nextX += 130;
-                      if (nextX > 900) {
-                        nextX = 100;
-                        nextY += 80;
-                      }
-                    }
-                    updatePosition(s.id, nextX, nextY);
-                  }}
-                  className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-[0.75rem] font-bold hover:border-accent hover:text-accent transition-all shadow-sm whitespace-nowrap flex items-center gap-1.5 active:scale-95"
-                >
-                  <UserPlus size={12} />
-                  {s.vorname}
-                 </button>
-               ))}
-             </div>
-             )}
-             {unplacedStudents.length === 0 && <span className="text-[0.6875rem] text-slate-300 italic">Alle platziert</span>}
-             {outOfBoundsStudents.length > 0 && (
-               <button
-                 onClick={handleBringOutOfBoundsToRoom}
-                 className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-xl text-[0.6875rem] font-extrabold flex items-center gap-1 shadow-xs transition-all cursor-pointer shrink-0 animate-pulse"
-                 title="Verlorene / unauffindbare Kinder sofort wieder in den Raum holen"
-               >
-                 <Locate size={12} className="text-amber-600" />
-                 {outOfBoundsStudents.length} außerhalb (Zurückholen)
-               </button>
-             )}
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2" aria-label="Sitzplan-Status">
+            <span className="rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-900">{placedStudents.length} von {students.length} Kindern platziert</span>
+            {unplacedStudents.length > 0 && <span className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-800">{unplacedStudents.length} noch offen</span>}
+            {editMode && <span className="text-xs text-slate-600">Kind anklicken, dann Tauschpartner anklicken – oder ziehen.</span>}
+            {outOfBoundsStudents.length > 0 && <button type="button" onClick={handleBringOutOfBoundsToRoom}
+              className="min-h-9 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100">
+              {outOfBoundsStudents.length} außerhalb (Zurückholen)
+            </button>}
           </div>
 
           <div className="flex items-center gap-2 flex-wrap justify-center lg:justify-end flex-1 lg:flex-none min-w-0 max-w-full">
             {/* Mode Switcher */}
             <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200" aria-label="Sitzplan-Modus">
               <button 
-                onClick={() => { setEditMode(false); setPresentationMode(false); setSelectedObjId(null); }}
+                onClick={() => { setEditMode(false); setSelectedSeatStudentId(null); setPresentationMode(false); setSelectedObjId(null); }}
                 aria-pressed={!editMode}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[0.6875rem] font-bold uppercase tracking-wider transition-all ${(!editMode) ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
                 title="Alltägliche Ansicht des Sitzplans"
@@ -3639,6 +3602,7 @@ export default function SeatingPlan() {
                 hasWunschMatch={showPrivateDetails && hasWunschMatch}
                 isSwapTarget={isSwapTarget}
                 isDragging={activeDrag?.id === s.id}
+                isSelectedForSwap={editMode && selectedSeatStudentId === s.id}
                 showEmojis={showEmojis}
                 showPrivateDetails={showPrivateDetails}
                 isHighlighted={highlightedStudentIds ? highlightedStudentIds.includes(s.id) : false}
@@ -3672,6 +3636,8 @@ export default function SeatingPlan() {
 
                   const distance = Math.sqrt(info.offset.x * info.offset.x + info.offset.y * info.offset.y);
                   if (distance < 5) return;
+                  lastSeatDragAtRef.current = Date.now();
+                  setSelectedSeatStudentId(null);
 
                   const dragPos = app.sitzplan_schueler[s.id] || { x: 0, y: 0 };
                   let finalX = dragPos.x + info.offset.x / zoom;
@@ -3695,7 +3661,10 @@ export default function SeatingPlan() {
                   else updatePosition(s.id, finalX, finalY);
                 }}
                 onClick={(e: any) => {
-                  if (!editMode && showPrivateDetails) {
+                  if (editMode) {
+                    e.stopPropagation();
+                    handleSeatSelection(s.id);
+                  } else if (showPrivateDetails) {
                     e.stopPropagation();
                     setPinnedStudentId(pinnedStudentId === s.id ? null : s.id);
                   }
@@ -4147,7 +4116,7 @@ export default function SeatingPlan() {
               <span>{editMode ? 'Bearbeitungs-Modus aktiv' : 'Ansichts-Modus: Bewegen gesperrt'}</span>
             </div>
             {!editMode && <span>{showPrivateDetails ? 'Kind auswählen für Details' : 'Neutrale Ansicht: nur Namen und Sitzplätze'}</span>}
-            {editMode && <span>Tausche: Kinder aufeinander ziehen</span>}
+            {editMode && <span>Tauschen: zwei Kinder anklicken oder aufeinander ziehen</span>}
           </div>
           <div className="flex items-center gap-4">
              {overlayFilter !== 'standard' && (
