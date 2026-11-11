@@ -278,3 +278,24 @@ test('manual participation preserves zero and scale maxima in weighted points an
     assert.equal(berechne(app, 's1', 'Deutsch', '1'), 100);
   }
 });
+
+test('explicit 0% object weight stays 0% even for creative subjects', () => {
+  const app = baseApp();
+  app.faecher = ['Bildnerische Erziehung'];
+  app.notenGewichtung['Bildnerische Erziehung'] = {
+    sa: 0, lzk: 0, wp: 0, obj: 0, mi: 100, hue: 0,
+  };
+  const cfg = getFachCfg(app, 'Bildnerische Erziehung');
+  assert.equal(cfg.obj, true, 'recording artworks remains possible');
+  assert.equal(cfg.g.obj, 0, 'an explicit 0 must never acquire a hidden 60% weight');
+  assert.equal(cfg.g.mi, 1);
+});
+
+test('creative subject defaults keep standard weights when no override exists', () => {
+  const app = baseApp();
+  app.faecher = ['Bildnerische Erziehung'];
+  delete app.notenGewichtung['Bildnerische Erziehung'];
+  const cfg = getFachCfg(app, 'Bildnerische Erziehung');
+  assert.equal(cfg.g.obj, 0.6);
+  assert.equal(cfg.g.mi, 0.4);
+});
