@@ -25,16 +25,29 @@ export function getAssessmentItemMode(
  * This linear scale is a provisional mathematical equivalence, not an official
  * Austrian grading key or an automatically finalised certificate mark.
  */
+/** Interpret historic grade tendencies without rewriting their stored text. */
+function normalizedLegacyGrade(value: number | string | null | undefined): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const text = String(value).trim().replace(',', '.');
+  const tendency = text.match(/^([1-5])([+-])$/);
+  if (tendency) {
+    return Math.max(1, Math.min(5, Number(tendency[1]) + (tendency[2] === '+' ? -0.25 : 0.25)));
+  }
+  const range = text.match(/^([1-5])-([1-5])$/);
+  if (range) return (Number(range[1]) + Number(range[2])) / 2;
+  if (!/^(?:[1-5](?:\.\d+)?)$/.test(text)) return null;
+  const raw = Number(text);
+  return Number.isFinite(raw) && raw >= 1 && raw <= 5 ? raw : null;
+}
+
 export function getNormalizedAssessmentPercent(
   value: number | string | null | undefined,
   mode: AssessmentMode,
   maxPoints: number,
 ): number | null {
   if (mode !== 'grades') return calculateItemPercent(value, mode, maxPoints);
-  if (value === null || value === undefined || value === '') return null;
-  const raw = typeof value === 'number' ? value : Number.parseFloat(String(value).replace(',', '.'));
-  if (!Number.isFinite(raw) || raw < 1 || raw > 5) return null;
-  return Math.max(0, Math.min(100, (6 - raw) * 20));
+  const raw = normalizedLegacyGrade(value);
+  return raw === null ? null : Math.max(0, Math.min(100, (6 - raw) * 20));
 }
 
 export function getMixedAssessmentGrade(
@@ -42,11 +55,7 @@ export function getMixedAssessmentGrade(
   mode: AssessmentMode,
   maxPoints: number,
 ): number | null {
-  if (mode === 'grades') {
-    if (typeof value === 'number') return value >= 1 && value <= 5 ? value : null;
-    const raw = Number.parseFloat(String(value ?? '').replace(',', '.'));
-    return Number.isFinite(raw) && raw >= 1 && raw <= 5 ? raw : null;
-  }
+  if (mode === 'grades') return normalizedLegacyGrade(value);
   const percent = getNormalizedAssessmentPercent(value, mode, maxPoints);
   return percent === null ? null : Math.max(1, Math.min(5, 6 - percent / 20));
 }
