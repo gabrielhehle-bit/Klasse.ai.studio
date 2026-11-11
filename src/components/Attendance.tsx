@@ -78,6 +78,7 @@ export default function Attendance() {
 
   // UI States
   const [viewMode, setViewMode] = useState<"compact" | "hourly">("compact");
+  const [showOnlyOpen, setShowOnlyOpen] = useState(false);
   const [showMehrMenu, setShowMehrMenu] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [statsPeriod, setStatsPeriod] = useState<AttendancePeriod>('year');
@@ -117,6 +118,7 @@ export default function Attendance() {
   useEffect(() => {
     // Anwesenheitsbezogene UI-Zustände dürfen niemals in die nächste Klasse mitwandern.
     setRecentChanges([]);
+    setShowOnlyOpen(false);
     setStatsPeriod('year');
     setStatsStart('');
     setStatsEnd('');
@@ -335,6 +337,13 @@ export default function Attendance() {
   const sortedStudents = [...app.schueler].sort((a, b) =>
     a.nachname.localeCompare(b.nachname, "de")
   );
+
+  // Filter only the visible rows; attendance records remain untouched.
+  const visibleStudents = showOnlyOpen
+    ? sortedStudents.filter(student => activeHours.some(hour => !app.anwesenheit[student.id]?.[selectedDate]?.[hour]))
+    : sortedStudents;
+
+  useEffect(() => { setShowOnlyOpen(false); }, [selectedDate]);
 
   // Validation Rules
   interface ValidationError {
@@ -918,7 +927,7 @@ export default function Attendance() {
       {/* ========================================================= */}
       {/* 3. SIMPLIFIED HEADER SECTION                             */}
       {/* ========================================================= */}
-      <header className="min-w-0 bg-white rounded-2xl p-3 sm:p-5 shadow-sm border border-slate-200/80 print:hidden flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 md:gap-4">
+      <header className="min-w-0 bg-white rounded-2xl p-3 sm:p-4 shadow-sm border border-slate-200/80 print:hidden flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
         {/* Title, Date & Class */}
         <div className="flex w-full min-w-0 items-center gap-2 sm:gap-3 md:w-auto">
           <button
@@ -972,32 +981,24 @@ export default function Attendance() {
         </div>
 
         {/* Main Header Actions */}
-        <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-2 md:flex md:w-auto md:flex-wrap md:justify-end">
-          <label className="col-span-3 inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold md:col-auto text-slate-700" title="Nur Vorauswahl für den aktuellen Schultag. Vorhandene Fehlzeiten bleiben erhalten.">
-            <input type="checkbox" checked={!!app.settings?.defaultAttendancePresent} onChange={event => setApp(prev => ({ ...prev, settings: { ...prev.settings, defaultAttendancePresent: event.target.checked } }))} />
-            Standardmäßig anwesend
-          </label>
-          {/* Quick "Alle anwesend" Action */}
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
           <button
-            onClick={() => setAllStudents("a", true)}
-            disabled={isFree || sortedStudents.length === 0 || activeHours.length === 0}
-            className={`min-h-11 min-w-0 px-2 sm:px-3.5 py-2.5 rounded-xl text-[0.75rem] font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer border ${
-              isFree || sortedStudents.length === 0
-                ? "opacity-40 grayscale cursor-not-allowed bg-slate-50 text-slate-400 border-slate-200"
-                : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border-emerald-200/80 active:scale-95 shadow-xs"
+            type="button"
+            onClick={() => setShowOnlyOpen(previous => !previous)}
+            aria-pressed={showOnlyOpen}
+            className={`min-h-10 rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${
+              showOnlyOpen ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
             }`}
-            title="Nur offene Stunden als anwesend markieren"
           >
-            <UserCheck size={16} className="text-emerald-600" />
-            <span className="sm:hidden">Offene anwesend</span><span className="hidden sm:inline">Nur offene anwesend</span>
+            {showOnlyOpen ? "Alle Kinder anzeigen" : `Nur offene zeigen (${dayStats.untracked})`}
           </button>
 
-          {tentativePresent && dayStats.untracked > 0 && <span className="order-last col-span-3 text-xs text-amber-700 md:order-none" role="status">Anwesend ist nur vorausgewählt – bitte täglich bestätigen.</span>}
+          {tentativePresent && dayStats.untracked > 0 && <span className="order-last w-full text-xs text-amber-700 lg:order-none lg:w-auto" role="status">Anwesend ist nur vorausgewählt – bitte täglich bestätigen.</span>}
 
           {/* Primary Action "Abschließen" */}
           <button
             onClick={handleCompleteCheck}
-            disabled={isFree || sortedStudents.length === 0 || activeHours.length === 0}
+            disabled={isFree || sortedStudents.length === 0 || activeHours.length === 0 || isChecked}
             className={`min-h-11 min-w-0 px-2 sm:px-4 py-2.5 rounded-xl text-[0.75rem] font-black flex items-center justify-center gap-1.5 sm:gap-2 transition-all cursor-pointer active:scale-95 shadow-sm ${
               isChecked
                 ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/10"
@@ -1005,11 +1006,11 @@ export default function Attendance() {
             }`}
           >
             <CheckCircle2 size={16} />
-            <span className="sm:hidden">{isChecked ? "Tag geprüft" : "Tag bestätigen"}</span><span className="hidden sm:inline">{isChecked ? "Vollständig erfasst" : "Offene Einträge als anwesend bestätigen"}</span>
+            <span>{isChecked ? "Alle erfasst" : "Offene als anwesend bestätigen"}</span>
           </button>
 
           {/* "Mehr" Dropdown Menu */}
-          <div className="relative col-start-3 row-start-2 md:col-auto md:row-auto" ref={mehrMenuRef}>
+          <div className="relative" ref={mehrMenuRef}>
             <button
               onClick={() => setShowMehrMenu(!showMehrMenu)}
               className="min-h-11 min-w-11 px-2 sm:px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-700 text-[0.75rem] font-bold flex items-center gap-1.5 transition-all cursor-pointer border border-slate-200/60"
@@ -1033,6 +1034,11 @@ export default function Attendance() {
                     Anzeige & Ansicht
                   </div>
 
+                  <label className="flex cursor-pointer items-center gap-2 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50" title="Nur Vorauswahl für den heutigen Schultag; vorhandene Fehlzeiten bleiben erhalten.">
+                    <input type="checkbox" checked={!!app.settings?.defaultAttendancePresent}
+                      onChange={event => setApp(prev => ({ ...prev, settings: { ...prev.settings, defaultAttendancePresent: event.target.checked } }))} />
+                    Standardmäßig anwesend vorauswählen
+                  </label>
                   <button
                     onClick={() => {
                       setViewMode(viewMode === "compact" ? "hourly" : "compact");
@@ -1163,7 +1169,8 @@ export default function Attendance() {
               </span>
             ) : dayStats.untracked > 0 ? (
               <button
-                onClick={() => setAllStudents("a", true)}
+                onClick={() => setShowOnlyOpen(true)}
+                title="Offene Kinder anzeigen, ohne Einträge zu verändern"
                 className="text-amber-800 font-bold text-[0.75rem] flex items-center gap-1 hover:underline cursor-pointer bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200"
               >
                 <AlertCircle size={13} className="text-amber-600" />
@@ -1268,6 +1275,12 @@ export default function Attendance() {
         /* 5. SIMPLIFIED MAIN STUDENT LIST (COMPACT & HOURLY)        */
         /* ========================================================= */
         <div className="min-w-0 bg-white rounded-2xl shadow-xs border border-slate-200/80 print:hidden overflow-hidden">
+          {showOnlyOpen && visibleStudents.length === 0 && sortedStudents.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+              <span>Keine offenen Anwesenheitseinträge mehr für diesen Tag.</span>
+              <button type="button" onClick={() => setShowOnlyOpen(false)} className="rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-xs font-bold hover:bg-emerald-50">Alle Kinder anzeigen</button>
+            </div>
+          )}
           {viewMode === "compact" ? (
             /* COMPACT SINGLE-SCREEN VIEW (DEFAULT) */
             <div className="divide-y divide-slate-100">
@@ -1279,7 +1292,7 @@ export default function Attendance() {
                 </div>
               )}
 
-              {sortedStudents.map((s, idx) => {
+              {visibleStudents.map((s, idx) => {
                 const storedStatus = app.anwesenheit[s.id]?.[selectedDate] || {};
                 const statusData = tentativePresent
                   ? Object.fromEntries(activeHours.map(hour => [hour, storedStatus[hour] || 'a']))
@@ -1313,7 +1326,7 @@ export default function Attendance() {
                   <div
                     key={s.id}
                     data-attendance-student={s.id}
-                    className={`p-2.5 sm:px-4 sm:py-3.5 flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 transition-colors ${
+                    className={`px-3 py-2 sm:px-4 sm:py-2 flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-between gap-2 sm:gap-2.5 transition-colors ${
                       isAbsent
                         ? isUnexcused
                           ? "bg-rose-50/25 hover:bg-rose-50/40"
@@ -1341,7 +1354,7 @@ export default function Attendance() {
                         {s.nachname.charAt(0)}
                       </div>
 
-                      <div className="flex flex-col min-w-0">
+                      <div className="flex flex-col min-w-0 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
                         <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
                           <button
                             onClick={() => setAbsencesModalSid(s.id)}
@@ -1365,7 +1378,7 @@ export default function Attendance() {
                           )}
                         </div>
 
-                        <div className="mt-1"><AttendanceMoodField studentId={s.id} name={`${s.vorname} ${s.nachname}`} date={selectedDate} /></div>
+                        <div className="mt-1 shrink-0 sm:mt-0"><AttendanceMoodField studentId={s.id} name={`${s.vorname} ${s.nachname}`} date={selectedDate} /></div>
                         {/* Note / Reason Pill / Fehlstunden if present */}
                         {(details?.notiz || details?.verspaetung || studentFehlstunden > 0) && (
                           <div className="flex items-center gap-1.5 flex-wrap mt-0.5 text-[0.6875rem]">
@@ -1621,7 +1634,7 @@ export default function Attendance() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {sortedStudents.map((s, idx) => {
+                  {visibleStudents.map((s, idx) => {
                     const storedStatus = app.anwesenheit[s.id]?.[selectedDate] || {};
                     const statusData = tentativePresent
                       ? Object.fromEntries(activeHours.map(hour => [hour, storedStatus[hour] || 'a']))
