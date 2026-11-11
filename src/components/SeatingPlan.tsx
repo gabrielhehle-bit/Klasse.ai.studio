@@ -15,6 +15,7 @@ import { createSeatingLayout, resolveSeatingLayout, sameSeatingArrangement } fro
 import SeatingPlanAnalysis from './SeatingPlanAnalysis';
 import { areSeatingNeighbors, classifySeatPositions, findSeatingRuleViolations, sanitizeSeatingRules, sameSeat } from '../lib/seatingPlanRules';
 import { getLocalDateKey, getSeatingPlanAbsentStudents, isStudentAbsentOnDate, orderStudentsByComplementaryLevels } from '../lib/seatingPlanData';
+import { findNextFreeSeatPosition } from '../lib/seatingPlanPlacement';
 
 const isBirthdayToday = (geburtstagStr: string | undefined | null) => {
   if (!geburtstagStr) return false;
@@ -148,6 +149,7 @@ const StudentCard = React.memo(({
   hasSperrViolation,
   hasWunschMatch,
   isSwapTarget,
+  isSelectedForSwap,
   isDragging,
   showEmojis,
   isHighlighted,
@@ -283,25 +285,25 @@ const StudentCard = React.memo(({
       onMouseLeave={onMouseLeave}
       onClick={onClick}
       onKeyDown={(event: React.KeyboardEvent<HTMLDivElement>) => {
-        if (!editMode && (event.key === 'Enter' || event.key === ' ')) {
+        if ((editMode || showPrivateDetails) && (event.key === 'Enter' || event.key === ' ')) {
           event.preventDefault();
           onClick(event);
         }
       }}
-      role={!editMode && showPrivateDetails ? 'button' : undefined}
-      tabIndex={!editMode && showPrivateDetails ? 0 : -1}
-      aria-pressed={!editMode && showPrivateDetails ? Boolean(isPinned) : undefined}
+      role={editMode || showPrivateDetails ? 'button' : undefined}
+      tabIndex={editMode || showPrivateDetails ? 0 : -1}
+      aria-pressed={editMode ? Boolean(isSelectedForSwap) : showPrivateDetails ? Boolean(isPinned) : undefined}
       aria-label={`${s.vorname} ${showPrivateDetails ? s.nachname || '' : ''}${showPrivateDetails && isAbsent ? ', heute abwesend' : ''}. ${editMode ? 'Sitzplatz verschieben' : showPrivateDetails ? (isPinned ? 'Details geöffnet' : 'Details öffnen') : 'Sitzplatz'}`}
       className={`absolute w-[112px] h-[72px] rounded-2xl border flex flex-col justify-between p-1.5 shrink-0 group student-card transform-gpu contrast-container transition-[background-color,border-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 ${editMode ? 'cursor-grab active:cursor-grabbing' : showPrivateDetails ? 'cursor-pointer hover:shadow-md' : 'cursor-default'} ${showPrivateDetails && isAbsent ? 'opacity-55 grayscale' : ''} ${isDimmed ? 'opacity-15 pointer-events-none scale-95 saturate-50' : ''}`}
       style={{ 
         backgroundColor: bgColor,
-        borderColor: isHighlighted
+        borderColor: isSelectedForSwap || isHighlighted
           ? '#4f46e5'
           : (isSwapTarget
             ? '#6366f1'
             : (relationHighlight === 'sperr' ? '#ef4444' : (relationHighlight === 'wunsch' ? '#10b981' : (isWinner ? '#f59e0b' : borderColor)))),
-        boxShadow: isHighlighted
-          ? '0 0 25px rgba(79, 70, 229, 0.95), 0 0 0 2px #4f46e5'
+        boxShadow: isSelectedForSwap ? '0 0 0 3px #4f46e5, 0 8px 20px rgba(79,70,229,0.25)'
+          : isHighlighted ? '0 0 25px rgba(79, 70, 229, 0.95), 0 0 0 2px #4f46e5'
           : (isSwapTarget
             ? '0 0 25px rgba(99, 102, 241, 0.75), ring-4 ring-indigo-105'
             : (relationHighlight === 'sperr' 
@@ -313,7 +315,7 @@ const StudentCard = React.memo(({
                   : (hasSperrViolation 
                     ? '0 0 10px rgba(239, 68, 68, 0.3)' 
                     : (editMode ? '0 4px 12px -2px rgb(0 0 0 / 0.12)' : '0 2px 4px -1px rgb(0 0 0 / 0.06)')))))),
-        zIndex: isHighlighted ? 400 : (isSwapTarget ? 300 : (relationHighlight ? 150 : (isWinner || isHovered ? 200 : 10)))
+        zIndex: isSelectedForSwap || isHighlighted ? 400 : (isSwapTarget ? 300 : (relationHighlight ? 150 : (isWinner || isHovered ? 200 : 10)))
       }}
     >
         {showPrivateDetails && isHovered && !editMode && !isDragging && (
@@ -1429,6 +1431,8 @@ export default function SeatingPlan() {
   const [showSeatingComparison, setShowSeatingComparison] = useState(false);
   const [refitSavedLayoutSignal, setRefitSavedLayoutSignal] = useState(0);
   const [editMode, setEditMode] = useState(false);
+  const [selectedSeatStudentId, setSelectedSeatStudentId] = useState<string | null>(null);
+  const lastSeatDragAtRef = useRef(0);
   const [presentationMode, setPresentationMode] = useState(false);
 
   React.useEffect(() => {
@@ -1480,6 +1484,7 @@ export default function SeatingPlan() {
       lottoIntervalRef.current = null;
     }
     setSelectedObjId(null);
+    setSelectedSeatStudentId(null);
     setShowPrivateDetails(false);
     setShowMoreTools(false);
     setSelectedSavedLayoutId(app.sitzplanDefaultLayoutId || '');
@@ -1765,6 +1770,14 @@ export default function SeatingPlan() {
   const unplacedStudents = students.filter(s => !sitzplan_schueler[s.id]);
   const placedStudents = students.filter(s => sitzplan_schueler[s.id]);
   const isPlanEmpty = placedStudents.length === 0 && (app.sitzplan_objekte || []).length === 0;
+  // A free-standing card is a valid individual seat, not an unplaced child.
+  const freeStandingStudents = placedStudents.filter(student =>
+    !sitzplan_objekte.some(object =>
+      ['rectangle', 'square', 'triangle'].includes(object.type) &&
+      getStudentsOnTable(object, sitzplan_schueler).includes(student.id)
+    )
+  );
+  const selectedSeatStudent = students.find(student => student.id === selectedSeatStudentId);
   const latestRoomRef = useRef({ placedStudents, sitzplan_schueler, sitzplan_objekte });
   latestRoomRef.current = { placedStudents, sitzplan_schueler, sitzplan_objekte };
 
@@ -1825,6 +1838,7 @@ export default function SeatingPlan() {
     }
     setPreviewState({ active: false, previousSitzplan: null, violatedRules: [], history: [], historyIndex: -1 });
     setEditMode(false);
+    setSelectedSeatStudentId(null);
     setShowGenerator(false);
     setShowPresetsMenu(false);
     setShowMoreTools(false);
@@ -1850,6 +1864,13 @@ export default function SeatingPlan() {
     const canvasW = Math.max(1200, (planRef.current?.clientWidth || 0) / zoom, seatRight + 30, furnitureRight + 30);
     const canvasH = Math.max(800, (planRef.current?.clientHeight || 0) / zoom, seatBottom + 30, furnitureBottom + 30);
     return { canvasW, canvasH };
+  };
+
+  const placeUnplacedStudent = (id: string) => {
+    if (!editMode || sitzplan_schueler[id]) return;
+    const target = findNextFreeSeatPosition(sitzplan_schueler, sitzplan_objekte);
+    updatePosition(id, target.x, target.y);
+    setSelectedSeatStudentId(null);
   };
 
   const updatePosition = (id: string, x: number, y: number) => {
@@ -1918,6 +1939,7 @@ export default function SeatingPlan() {
   };
 
   const removeStudent = (id: string) => {
+    setSelectedSeatStudentId(null);
     pushState();
     setApp(prev => {
       const newPlan = { ...prev.sitzplan_schueler };
@@ -1927,10 +1949,11 @@ export default function SeatingPlan() {
   };
 
   const handleSwap = (id1: string, id2: string) => {
-    pushState();
     const s_plan = app.sitzplan_schueler || {};
     const pos1 = s_plan[id1];
     const pos2 = s_plan[id2];
+    if (!pos1 || !pos2 || id1 === id2) return;
+    pushState();
     setApp(prev => ({
       ...prev,
       sitzplan_schueler: {
@@ -1939,6 +1962,18 @@ export default function SeatingPlan() {
         [id2]: pos1
       }
     }));
+  };
+
+  // Click two seats to swap, or select the same child again to cancel.
+  // Drag-and-drop remains available for precise positioning.
+  const handleSeatSelection = (studentId: string) => {
+    if (!editMode || Date.now() - lastSeatDragAtRef.current < 450) return;
+    if (!selectedSeatStudentId || selectedSeatStudentId === studentId) {
+      setSelectedSeatStudentId(selectedSeatStudentId === studentId ? null : studentId);
+      return;
+    }
+    handleSwap(selectedSeatStudentId, studentId);
+    setSelectedSeatStudentId(null);
   };
 
   // Helper to optimize student layout by respecting Wunschpartner (+score) and Sperrpartner (-score) rules
@@ -2782,58 +2817,21 @@ export default function SeatingPlan() {
       {/* Toolbar */}
       {!presentationMode && (
         <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-3 bg-white/95 backdrop-blur-xl p-3 rounded-2xl border border-slate-200 shadow-sm no-print print:hidden relative z-[150]">
-          <div className="flex items-center gap-3 overflow-x-auto pb-1 max-w-full custom-scrollbar flex-1">
-             <span className="text-[0.625rem] font-black uppercase text-slate-400 tracking-wider shrink-0">
-               {isPlanEmpty ? 'Sitzplan-Status:' : 'Noch nicht platziert:'}
-             </span>
-             {isPlanEmpty ? (
-               <span className="px-3 py-1.5 rounded-xl border border-indigo-100 bg-indigo-50 text-[0.75rem] font-extrabold text-indigo-700 whitespace-nowrap">
-                 Noch nicht eingerichtet · {students.length} {students.length === 1 ? 'Kind' : 'Kinder'}
-               </span>
-             ) : (
-             <div className="flex gap-2">
-              {unplacedStudents.map(s => (
-                 <button
-                  key={s.id}
-                  onClick={() => {
-                    const occupied = Object.values(app.sitzplan_schueler || {}) as { x: number; y: number }[];
-                    let nextX = 100;
-                    let nextY = 250;
-                    while (occupied.some(p => Math.abs(p.x - nextX) < 120 && Math.abs(p.y - nextY) < 75)) {
-                      nextX += 130;
-                      if (nextX > 900) {
-                        nextX = 100;
-                        nextY += 80;
-                      }
-                    }
-                    updatePosition(s.id, nextX, nextY);
-                  }}
-                  className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-[0.75rem] font-bold hover:border-accent hover:text-accent transition-all shadow-sm whitespace-nowrap flex items-center gap-1.5 active:scale-95"
-                >
-                  <UserPlus size={12} />
-                  {s.vorname}
-                 </button>
-               ))}
-             </div>
-             )}
-             {unplacedStudents.length === 0 && <span className="text-[0.6875rem] text-slate-300 italic">Alle platziert</span>}
-             {outOfBoundsStudents.length > 0 && (
-               <button
-                 onClick={handleBringOutOfBoundsToRoom}
-                 className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-xl text-[0.6875rem] font-extrabold flex items-center gap-1 shadow-xs transition-all cursor-pointer shrink-0 animate-pulse"
-                 title="Verlorene / unauffindbare Kinder sofort wieder in den Raum holen"
-               >
-                 <Locate size={12} className="text-amber-600" />
-                 {outOfBoundsStudents.length} außerhalb (Zurückholen)
-               </button>
-             )}
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2" aria-label="Sitzplan-Status">
+            <span className="rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-900">{placedStudents.length} von {students.length} Kindern platziert</span>
+            {unplacedStudents.length > 0 && <span className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-800">{unplacedStudents.length} noch offen</span>}
+            {editMode && <span className="text-xs text-slate-600">Kind anklicken, dann Tauschpartner anklicken – oder ziehen.</span>}
+            {outOfBoundsStudents.length > 0 && <button type="button" onClick={handleBringOutOfBoundsToRoom}
+              className="min-h-9 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100">
+              {outOfBoundsStudents.length} außerhalb (Zurückholen)
+            </button>}
           </div>
 
           <div className="flex items-center gap-2 flex-wrap justify-center lg:justify-end flex-1 lg:flex-none min-w-0 max-w-full">
             {/* Mode Switcher */}
             <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200" aria-label="Sitzplan-Modus">
               <button 
-                onClick={() => { setEditMode(false); setPresentationMode(false); setSelectedObjId(null); }}
+                onClick={() => { setEditMode(false); setSelectedSeatStudentId(null); setPresentationMode(false); setSelectedObjId(null); }}
                 aria-pressed={!editMode}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[0.6875rem] font-bold uppercase tracking-wider transition-all ${(!editMode) ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
                 title="Alltägliche Ansicht des Sitzplans"
@@ -3136,6 +3134,61 @@ export default function SeatingPlan() {
       )}
 
       {/* Main Canvas Area */}
+      {/* Editor sidebar is outside the scaled room, so it never hides desks. */}
+      <div className="flex min-h-0 flex-col gap-3 lg:flex-row" data-seating-workspace>
+        {editMode && !presentationMode && (
+          <aside data-seating-edit-dock className="w-full shrink-0 space-y-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:w-56" aria-label="Sitzplätze bearbeiten">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-extrabold text-slate-900">Sitzplätze</h3>
+              <span className="text-[0.65rem] font-bold text-slate-500">{placedStudents.length}/{students.length}</span>
+            </div>
+            <p className="text-xs leading-snug text-slate-600">Zwei Kinder anklicken, um ihre Plätze zu tauschen. Ziehen bleibt möglich.</p>
+            {selectedSeatStudent && sitzplan_schueler[selectedSeatStudent.id] && (
+              <div data-seating-selected-student className="space-y-2 rounded-xl border border-indigo-200 bg-indigo-50 p-2.5">
+                <p className="text-[0.65rem] font-extrabold uppercase tracking-wider text-indigo-700">Ausgewählt</p>
+                <p className="truncate text-sm font-black text-slate-900">{selectedSeatStudent.vorname} {selectedSeatStudent.nachname}</p>
+                <p className="text-xs text-indigo-900">Jetzt ein anderes Kind anklicken zum Tauschen.</p>
+                <div className="flex flex-wrap gap-1.5">
+                  <button type="button" onClick={() => setSelectedSeatStudentId(null)} className="min-h-9 rounded-lg border border-indigo-200 bg-white px-2 text-xs font-bold text-indigo-800">Abbrechen</button>
+                  <button type="button" onClick={() => removeStudent(selectedSeatStudent.id)} className="min-h-9 rounded-lg border border-amber-200 bg-white px-2 text-xs font-bold text-amber-900">Platz freigeben</button>
+                </div>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <h4 className="text-xs font-extrabold text-slate-700">Noch nicht platziert: {unplacedStudents.length}</h4>
+              {unplacedStudents.length > 0
+                ? unplacedStudents.map(student => (
+                  <button key={student.id} type="button" onClick={() => placeUnplacedStudent(student.id)}
+                    title={`${student.vorname} am nächsten freien Tischplatz platzieren`}
+                    className="flex min-h-10 w-full items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-2 text-left text-xs font-bold text-slate-900 hover:bg-amber-100">
+                    <span className="truncate">{student.vorname} {student.nachname}</span><Plus size={15} className="shrink-0"/>
+                  </button>
+                )) : <p className="rounded-lg bg-emerald-50 px-2.5 py-2 text-xs font-semibold text-emerald-800">Alle Kinder platziert</p>}
+            </div>
+            {freeStandingStudents.length > 0 && (
+              <div className="space-y-1.5 border-t border-slate-100 pt-3" data-seating-individual-seats>
+                <h4 className="text-xs font-extrabold text-slate-700">Einzel- / freie Plätze ({freeStandingStudents.length})</h4>
+                <p className="text-[0.7rem] leading-snug text-slate-500">Diese Kinder sind platziert, aber keinem Tisch zugeordnet.</p>
+                {freeStandingStudents.map(student => (
+                  <button key={student.id} type="button" onClick={() => setSelectedSeatStudentId(student.id)}
+                    className="flex min-h-9 w-full items-center justify-between gap-2 rounded-lg border border-slate-200 px-2 text-left text-xs font-semibold text-slate-800 hover:border-indigo-300 hover:bg-indigo-50">
+                    <span className="truncate">{student.vorname} {student.nachname}</span><ChevronRight size={14} />
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+              <button type="button" onClick={() => addObject('rectangle')}
+                className="inline-flex min-h-10 flex-1 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-2 text-xs font-bold text-slate-800 hover:bg-slate-100">
+                <Plus size={14}/> Tisch
+              </button>
+              <button type="button" onClick={handleUndo} disabled={history.length === 0}
+                className="inline-flex min-h-10 flex-1 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40">
+                <Undo size={14}/> Zurück
+              </button>
+            </div>
+          </aside>
+        )}
         <div 
           ref={planRef}
           className="flex-1 relative overflow-hidden bg-slate-50 border border-slate-200 rounded-2xl shadow-sm canvas-area min-h-[31.25rem]"
@@ -3604,6 +3657,7 @@ export default function SeatingPlan() {
                 hasWunschMatch={showPrivateDetails && hasWunschMatch}
                 isSwapTarget={isSwapTarget}
                 isDragging={activeDrag?.id === s.id}
+                isSelectedForSwap={editMode && selectedSeatStudentId === s.id}
                 showEmojis={showEmojis}
                 showPrivateDetails={showPrivateDetails}
                 isHighlighted={highlightedStudentIds ? highlightedStudentIds.includes(s.id) : false}
@@ -3637,6 +3691,8 @@ export default function SeatingPlan() {
 
                   const distance = Math.sqrt(info.offset.x * info.offset.x + info.offset.y * info.offset.y);
                   if (distance < 5) return;
+                  lastSeatDragAtRef.current = Date.now();
+                  setSelectedSeatStudentId(null);
 
                   const dragPos = app.sitzplan_schueler[s.id] || { x: 0, y: 0 };
                   let finalX = dragPos.x + info.offset.x / zoom;
@@ -3660,7 +3716,10 @@ export default function SeatingPlan() {
                   else updatePosition(s.id, finalX, finalY);
                 }}
                 onClick={(e: any) => {
-                  if (!editMode && showPrivateDetails) {
+                  if (editMode) {
+                    e.stopPropagation();
+                    handleSeatSelection(s.id);
+                  } else if (showPrivateDetails) {
                     e.stopPropagation();
                     setPinnedStudentId(pinnedStudentId === s.id ? null : s.id);
                   }
@@ -4102,6 +4161,7 @@ export default function SeatingPlan() {
           )}
         </AnimatePresence>
       </div>
+      </div>
 
       {/* Footer Info */}
       {!presentationMode && (
@@ -4112,7 +4172,7 @@ export default function SeatingPlan() {
               <span>{editMode ? 'Bearbeitungs-Modus aktiv' : 'Ansichts-Modus: Bewegen gesperrt'}</span>
             </div>
             {!editMode && <span>{showPrivateDetails ? 'Kind auswählen für Details' : 'Neutrale Ansicht: nur Namen und Sitzplätze'}</span>}
-            {editMode && <span>Tausche: Kinder aufeinander ziehen</span>}
+            {editMode && <span>Tauschen: zwei Kinder anklicken oder aufeinander ziehen</span>}
           </div>
           <div className="flex items-center gap-4">
              {overlayFilter !== 'standard' && (
