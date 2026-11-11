@@ -10,6 +10,47 @@ export function getAssessmentMode(app: AppState, fach: string): AssessmentMode {
   return 'grades';
 }
 
+/** Per-column mode is optional. Missing metadata preserves every existing subject-scale record. */
+export function getAssessmentItemMode(
+  app: AppState, fach: string, typ: string, idx: number,
+): AssessmentMode {
+  const key = typ === 'aufgaben' ? 'obj' : typ;
+  const custom = app.notenMeta?.[fach]?.itemModes?.[key]?.[idx];
+  return custom === 'points' || custom === 'percent' || custom === 'grades'
+    ? custom : getAssessmentMode(app, fach);
+}
+
+/** Mixed-entry bridge only: 1=100%, 2=75%, 3=50%, 4=25%, 5=0%.
+ * Existing all-grade/all-percent averages retain their original calculation.
+ * This linear scale is a provisional mathematical equivalence, not an official
+ * Austrian grading key or an automatically finalised certificate mark.
+ */
+export function getNormalizedAssessmentPercent(
+  value: number | string | null | undefined,
+  mode: AssessmentMode,
+  maxPoints: number,
+): number | null {
+  if (mode !== 'grades') return calculateItemPercent(value, mode, maxPoints);
+  if (value === null || value === undefined || value === '') return null;
+  const raw = typeof value === 'number' ? value : Number.parseFloat(String(value).replace(',', '.'));
+  if (!Number.isFinite(raw) || raw < 1 || raw > 5) return null;
+  return Math.max(0, Math.min(100, (5 - raw) * 25));
+}
+
+export function getMixedAssessmentGrade(
+  value: number | string | null | undefined,
+  mode: AssessmentMode,
+  maxPoints: number,
+): number | null {
+  if (mode === 'grades') {
+    if (typeof value === 'number') return value >= 1 && value <= 5 ? value : null;
+    const raw = Number.parseFloat(String(value ?? '').replace(',', '.'));
+    return Number.isFinite(raw) && raw >= 1 && raw <= 5 ? raw : null;
+  }
+  const percent = getNormalizedAssessmentPercent(value, mode, maxPoints);
+  return percent === null ? null : 5 - 4 * percent / 100;
+}
+
 /** Include manual participation, even zero, before reinterpreting a subject's scale. */
 export function hasSubjectAssessmentEntries(app: AppState, fach: string): boolean {
   // Include archived/removed pupils that still have stored grades, not only
@@ -432,7 +473,7 @@ export function berechne(app: AppState, sid: string, fach: string, sem: string):
       const validItems = (arr || [])
         .map((val, idx) => {
           const maxP = getMaxPoints(app, fach, typ, idx);
-          return calculateItemPercent(val, assessmentMode, maxP);
+          return getNormalizedAssessmentPercent(val, getAssessmentItemMode(app, fach, typ, idx), maxP);
         })
         .filter((v): v is number => v !== null && !isNaN(v));
 
@@ -509,7 +550,18 @@ export function berechne(app: AppState, sid: string, fach: string, sem: string):
     return miNote !== null ? Math.round(miNote * 100) / 100 : null;
   }
 
-  function avg(arr: (number | string | null)[]) {
+  function avg(arr: (number | string | null)[], typ: 'sa' | 'lzk' | 'wp' | 'obj') {
+    const hasMixedItems = (arr || []).some((_value, idx) =>
+      getAssessmentItemMode(app, fach, typ, idx) !== 'grades'
+    );
+    if (hasMixedItems) {
+      const values = (arr || []).map((value, idx) =>
+        getMixedAssessmentGrade(
+          value, getAssessmentItemMode(app, fach, typ, idx), getMaxPoints(app, fach, typ, idx)
+        )
+      ).filter((value): value is number => value !== null);
+      return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+    }
     const vals = (arr || []).map(x => {
       if (typeof x === 'number') return x;
       if (typeof x === 'string') {
@@ -525,10 +577,10 @@ export function berechne(app: AppState, sid: string, fach: string, sem: string):
     return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
   }
 
-  const saAvg = (cfg.sa) ? avg(nd.sa) : null;
-  const lzkAvg = (cfg.lzk) ? avg(nd.lzk) : null;
-  const wpAvg = (cfg.wp) ? avg(nd.wp) : null;
-  const objAvg = (cfg.obj) ? avg(nd.aufgaben) : null;
+  const saAvg = (cfg.sa) ? avg(nd.sa, 'sa') : null;
+  const lzkAvg = (cfg.lzk) ? avg(nd.lzk, 'lzk') : null;
+  const wpAvg = (cfg.wp) ? avg(nd.wp, 'wp') : null;
+  const objAvg = (cfg.obj) ? avg(nd.aufgaben, 'obj') : null;
   const miAvg = (cfg.g.mi > 0) ? miNote : null;
 
   const bereiche = [
