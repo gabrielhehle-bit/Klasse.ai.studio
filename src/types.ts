@@ -830,6 +830,8 @@ export type AssessmentMode = 'grades' | 'percent' | 'points';
 export interface SubjectNotenMeta {
   saCount?: number;
   assessmentMode?: AssessmentMode;
+  /** Optional mode for each individual assessment; absence means the original subject mode. */
+  itemModes?: Partial<Record<'sa' | 'lzk' | 'wp' | 'obj', Record<number, AssessmentMode>>>;
   /** In Punkte-Modus Prozentwert zusätzlich anzeigen. Fehlender Wert bedeutet aus Kompatibilitätsgründen: anzeigen. */
   showPointsPercent?: boolean;
   /** Subject-specific homework handling. Legacy global settings are only migration fallbacks. */
