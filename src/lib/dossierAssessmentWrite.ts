@@ -47,11 +47,11 @@ export function nextDossierAssessmentColumnIndex(state: AppState, fach: string, 
       return Number.isInteger(index) && index >= 0 ? Math.max(max, index + 1) : max;
     }, 0);
   };
-  const metadataEnds = ['colLabels', 'colDates', 'colNotes', 'colAreas', 'maxPoints']
+  const metadataEnds = ['colLabels', 'colDates', 'colNotes', 'colAreas', 'maxPoints', 'itemModes']
     .flatMap(field => aliases.map(key => end(meta[field]?.[key])));
-  const gradeEnds = (state.schueler || []).flatMap(student =>
+  const gradeEnds = Object.values(state.noten || {}).flatMap(studentGrades =>
     (['1', '2'] as const).map(semester =>
-      end((state.noten?.[student.id]?.[fach]?.[semester] as Record<string, any> | undefined)?.[category])
+      end((studentGrades?.[fach]?.[semester] as Record<string, any> | undefined)?.[category])
     )
   );
   return Math.max(0, ...metadataEnds, ...gradeEnds);
@@ -65,11 +65,6 @@ function assessmentInputForMode(request: DossierAssessmentWriteRequest, mode: As
 
 function isEmptyAssessmentCell(value: unknown) {
   return value === null || value === undefined || value === '';
-}
-
-function firstAvailableAssessmentIndex(list: unknown[]) {
-  const reusableIndex = list.findIndex(isEmptyAssessmentCell);
-  return reusableIndex >= 0 ? reusableIndex : list.length;
 }
 
 function cloneMetaList(container: Record<string, any>, key: string) {
@@ -149,7 +144,6 @@ export function writeDossierAssessment(state: AppState, request: DossierAssessme
   };
 
   const isCategoryMove = originalCategory !== request.category;
-  const existingTargetList = Array.isArray(semesterData[request.category]) ? [...semesterData[request.category]] : [];
   // A class-wide column can contain marks of other pupils, even when this
   // child's target slot is empty. Moving a test must create a new class slot.
   const destinationIndex = isCategoryMove
