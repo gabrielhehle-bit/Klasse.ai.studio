@@ -20,7 +20,7 @@ export function getAssessmentItemMode(
     ? custom : getAssessmentMode(app, fach);
 }
 
-/** Mixed-entry bridge only: 1=100%, 2=75%, 3=50%, 4=25%, 5=0%.
+/** Mixed-entry bridge only: 1=100%, 2=80%, 3=60%, 4=40%, 5=20%.
  * Existing all-grade/all-percent averages retain their original calculation.
  * This linear scale is a provisional mathematical equivalence, not an official
  * Austrian grading key or an automatically finalised certificate mark.
@@ -34,7 +34,7 @@ export function getNormalizedAssessmentPercent(
   if (value === null || value === undefined || value === '') return null;
   const raw = typeof value === 'number' ? value : Number.parseFloat(String(value).replace(',', '.'));
   if (!Number.isFinite(raw) || raw < 1 || raw > 5) return null;
-  return Math.max(0, Math.min(100, (5 - raw) * 25));
+  return Math.max(0, Math.min(100, (6 - raw) * 20));
 }
 
 export function getMixedAssessmentGrade(
@@ -48,7 +48,7 @@ export function getMixedAssessmentGrade(
     return Number.isFinite(raw) && raw >= 1 && raw <= 5 ? raw : null;
   }
   const percent = getNormalizedAssessmentPercent(value, mode, maxPoints);
-  return percent === null ? null : 5 - 4 * percent / 100;
+  return percent === null ? null : Math.max(1, Math.min(5, 6 - percent / 20));
 }
 
 /** Include manual participation, even zero, before reinterpreting a subject's scale. */
