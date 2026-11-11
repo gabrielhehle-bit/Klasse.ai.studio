@@ -8,6 +8,9 @@ import { Save, RotateCcw, AlertTriangle, Zap, BookOpen, Check, Info, FileText, C
 export default function WeightSettings({ onBack, initialFach }: { onBack: () => void; initialFach?: string }) {
   const { app, setApp } = useApp();
   const [localWeights, setLocalWeights] = useState({ ...app.notenGewichtung });
+  // Track only changed subjects. Saving a weight draft must never overwrite
+  // another subject's more recent settings or any stored assessment data.
+  const [dirtySubjects, setDirtySubjects] = useState<string[]>([]);
   const [selectedFach, setSelectedFach] = useState(() => initialFach || app.faecher?.[0] || 'Deutsch');
   const [showAllFaecher, setShowAllFaecher] = useState(false);
   const [hueSettingsFach, setHueSettingsFach] = useState(() => initialFach || app.faecher?.[0] || 'Deutsch');
@@ -15,6 +18,7 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
   useEffect(() => {
     // Falls die Klasse während dieser Ansicht wechselt, niemals alte Entwürfe in die neue Klasse speichern.
     setLocalWeights({ ...app.notenGewichtung });
+    setDirtySubjects([]);
     setSelectedFach(initialFach || app.faecher?.[0] || 'Deutsch');
     setHueSettingsFach(initialFach || app.faecher?.[0] || 'Deutsch');
     setShowAllFaecher(false);
@@ -33,7 +37,8 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
     }
     const current = { ...getWeight(fach) };
     current[field] = value;
-    setLocalWeights({ ...localWeights, [fach]: current });
+    setLocalWeights(prev => ({ ...prev, [fach]: current }));
+    setDirtySubjects(prev => prev.includes(fach) ? prev : [...prev, fach]);
   };
 
   const updateSACount = (fach: string, count: number) => {
@@ -57,14 +62,9 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
     const currentMode = app.notenMeta?.[fach]?.assessmentMode || 'grades';
     if (currentMode === newMode) return;
 
-    const hasEntries = hasSubjectAssessmentEntries(app, fach);
-
-    if (hasEntries) {
-      const modeNames = { grades: 'Noten (1–5)', percent: 'Prozent (0–100%)', points: 'Punkte (Pkt/Max)' };
-      const confirmMsg = `Hinweis: Im Fach "${fach}" sind bereits Leistungsdaten erfasst.\n\nEin Wechsel der Bewertungsart verändert die Interpretation der Werte (${modeNames[newMode]}).\n\nMöchtest du die Bewertungsart für "${fach}" wirklich umstellen?`;
-      if (!window.confirm(confirmMsg)) {
-        return;
-      }
+    if (hasSubjectAssessmentEntries(app, fach)) {
+      window.alert(`Für "${fach}" sind bereits Noten, Punkte oder Mitarbeitwerte gespeichert. Die Bewertungsart bleibt unverändert, damit aus einer Note 2 nicht versehentlich 2 Punkte werden. Eine spätere Umstellung benötigt eine ausdrückliche Datenmigration.`);
+      return;
     }
 
     setApp(prev => {
@@ -120,15 +120,22 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
   };
 
   const handleSaveAll = () => {
-    const invalidFaecher = activeFaecher.filter(f => calculateSum(f) !== 100);
-
+    // Only edited subjects need validation: other subjects may intentionally
+    // retain older settings. Never replace the complete weight map.
+    const invalidFaecher = dirtySubjects.filter(f => calculateSum(f) !== 100);
     if (invalidFaecher.length > 0) {
-      alert(`Folgende Fächer haben keine 100%: ${invalidFaecher.join(', ')}`);
+      alert(`Folgende geänderte Fächer haben keine 100%: ${invalidFaecher.join(', ')}`);
       return;
     }
-
-    setApp(prev => ({ ...prev, notenGewichtung: localWeights }));
-    alert('Gewichtungen erfolgreich gespeichert!');
+    if (dirtySubjects.length > 0) {
+      setApp(prev => ({
+        ...prev,
+        notenGewichtung: {
+          ...(prev.notenGewichtung || {}),
+          ...Object.fromEntries(dirtySubjects.map(fach => [fach, localWeights[fach]])),
+        },
+      }));
+    }
     onBack();
   };
 
@@ -164,7 +171,8 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
       newWeightsForFach[field.key] = baseShare + extra;
     });
 
-    setLocalWeights({ ...localWeights, [fach]: newWeightsForFach });
+    setLocalWeights(prev => ({ ...prev, [fach]: newWeightsForFach }));
+    setDirtySubjects(prev => prev.includes(fach) ? prev : [...prev, fach]);
   };
 
   const resetAllWeights = () => {
@@ -173,7 +181,8 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
       activeFaecher.forEach(fach => {
         resetObj[fach] = { ...(DEFAULT_GEWICHTUNG[fach] || DEFAULT_GEWICHTUNG['Deutsch']) };
       });
-      setLocalWeights(resetObj);
+      setLocalWeights(prev => ({ ...prev, ...resetObj }));
+      setDirtySubjects(prev => [...new Set([...prev, ...activeFaecher])]);
     }
   };
 
@@ -381,6 +390,13 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
                   </button>
                 </div>
               </div>
+
+              {hasSubjectAssessmentEntries(app, fach) && (
+                <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
+                  Bestehende Bewertungen sind geschützt. Ein Wechsel der Bewertungsart
+                  benötigt eine sichere Datenmigration, statt alte Zahlen anders zu interpretieren.
+                </p>
+              )}
 
               {currentMode === 'points' && (
                 <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50/60 p-3">
@@ -793,6 +809,14 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
             </button>
           </div>
 
+          {homeworkSettings.mode === 'grade' && homeworkSettings.percentDeduction > 0 &&
+            homeworkSettings.participationDeduction > 0 && (getWeight(effectiveHueFach).hue || 0) > 0 &&
+            (getWeight(effectiveHueFach).mi || 0) > 0 && app.mitarbeit_settings?.mode !== 'manual' && (
+            <p role="note" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+              Achtung: Vergessene Hausübungen können hier doppelt wirken: im eigenen HÜ-Anteil und als Abzug bei der Mitarbeit.
+              Wenn du nur eine Auswirkung möchtest, setze den Mitarbeitsabzug auf 0.
+            </p>
+          )}
           {/* Configurable Deductions */}
           {homeworkSettings.mode !== 'document' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">

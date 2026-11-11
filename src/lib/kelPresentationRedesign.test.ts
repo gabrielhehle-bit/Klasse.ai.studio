@@ -32,7 +32,7 @@ test('attendance and diagnostics are opt-in instead of default presentation slid
 test('learning slide respects assessment mode and does not invent a cross-subject average', () => {
   assert.match(source, /getAssessmentMode\(app, fach\)/);
   assert.match(source, /mode === 'grades'/);
-  assert.match(source, /berechneter Prozentstand/);
+  assert.match(source, /Kreisdiagramme zeigen nur dokumentierte Teilbereiche/);
   assert.doesNotMatch(source, /Durchschnittsnote|Gesamtnote|gesamtSchnitt/);
 });
 

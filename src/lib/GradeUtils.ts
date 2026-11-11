@@ -10,10 +10,62 @@ export function getAssessmentMode(app: AppState, fach: string): AssessmentMode {
   return 'grades';
 }
 
+/** Per-column mode is optional. Missing metadata preserves every existing subject-scale record. */
+export function getAssessmentItemMode(
+  app: AppState, fach: string, typ: string, idx: number,
+): AssessmentMode {
+  const key = typ === 'aufgaben' ? 'obj' : typ;
+  const custom = app.notenMeta?.[fach]?.itemModes?.[key]?.[idx];
+  return custom === 'points' || custom === 'percent' || custom === 'grades'
+    ? custom : getAssessmentMode(app, fach);
+}
+
+/** Mixed-entry bridge only: 1=100%, 2=80%, 3=60%, 4=40%, 5=20%.
+ * Existing all-grade/all-percent averages retain their original calculation.
+ * This linear scale is a provisional mathematical equivalence, not an official
+ * Austrian grading key or an automatically finalised certificate mark.
+ */
+/** Interpret historic grade tendencies without rewriting their stored text. */
+function normalizedLegacyGrade(value: number | string | null | undefined): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const text = String(value).trim().replace(',', '.');
+  const tendency = text.match(/^([1-5])([+-])$/);
+  if (tendency) {
+    return Math.max(1, Math.min(5, Number(tendency[1]) + (tendency[2] === '+' ? -0.25 : 0.25)));
+  }
+  const range = text.match(/^([1-5])-([1-5])$/);
+  if (range) return (Number(range[1]) + Number(range[2])) / 2;
+  if (!/^(?:[1-5](?:\.\d+)?)$/.test(text)) return null;
+  const raw = Number(text);
+  return Number.isFinite(raw) && raw >= 1 && raw <= 5 ? raw : null;
+}
+
+export function getNormalizedAssessmentPercent(
+  value: number | string | null | undefined,
+  mode: AssessmentMode,
+  maxPoints: number,
+): number | null {
+  if (mode !== 'grades') return calculateItemPercent(value, mode, maxPoints);
+  const raw = normalizedLegacyGrade(value);
+  return raw === null ? null : Math.max(0, Math.min(100, (6 - raw) * 20));
+}
+
+export function getMixedAssessmentGrade(
+  value: number | string | null | undefined,
+  mode: AssessmentMode,
+  maxPoints: number,
+): number | null {
+  if (mode === 'grades') return normalizedLegacyGrade(value);
+  const percent = getNormalizedAssessmentPercent(value, mode, maxPoints);
+  return percent === null ? null : Math.max(1, Math.min(5, 6 - percent / 20));
+}
+
 /** Include manual participation, even zero, before reinterpreting a subject's scale. */
 export function hasSubjectAssessmentEntries(app: AppState, fach: string): boolean {
-  return (app.schueler || []).some(student => ['1', '2'].some(semester => {
-    const data = app.noten?.[student.id]?.[fach]?.[semester];
+  // Include archived/removed pupils that still have stored grades, not only
+  // the currently visible roster. An old mark must never change scale silently.
+  return Object.values(app.noten || {}).some(studentGrades => ['1', '2'].some(semester => {
+    const data = studentGrades?.[fach]?.[semester];
     if (!data) return false;
     const recorded = (value: unknown) => value !== null && value !== undefined && value !== '';
     return recorded(data.miDirekt) || [data.sa, data.lzk, data.wp, data.aufgaben]
@@ -345,9 +397,12 @@ export function getFachCfg(app: AppState, fach: string) {
     },
   };
 
-  // Nebenfächer fallback
-  if (base.obj && cfg.g.obj === 0) cfg.g.obj = 0.6;
-  if (base.obj && cfg.g.mi === 0) cfg.g.mi = 0.4;
+  // Legacy fallback only for subjects without teacher-defined weights.
+  // An explicit 0% must never be overwritten: that would silently change grades.
+  if (base.obj && !app.notenGewichtung?.[fach]) {
+    if (cfg.g.obj === 0) cfg.g.obj = 0.6;
+    if (cfg.g.mi === 0) cfg.g.mi = 0.4;
+  }
   
   return cfg;
 }
@@ -427,7 +482,7 @@ export function berechne(app: AppState, sid: string, fach: string, sem: string):
       const validItems = (arr || [])
         .map((val, idx) => {
           const maxP = getMaxPoints(app, fach, typ, idx);
-          return calculateItemPercent(val, assessmentMode, maxP);
+          return getNormalizedAssessmentPercent(val, getAssessmentItemMode(app, fach, typ, idx), maxP);
         })
         .filter((v): v is number => v !== null && !isNaN(v));
 
@@ -504,7 +559,18 @@ export function berechne(app: AppState, sid: string, fach: string, sem: string):
     return miNote !== null ? Math.round(miNote * 100) / 100 : null;
   }
 
-  function avg(arr: (number | string | null)[]) {
+  function avg(arr: (number | string | null)[], typ: 'sa' | 'lzk' | 'wp' | 'obj') {
+    const hasMixedItems = (arr || []).some((_value, idx) =>
+      getAssessmentItemMode(app, fach, typ, idx) !== 'grades'
+    );
+    if (hasMixedItems) {
+      const values = (arr || []).map((value, idx) =>
+        getMixedAssessmentGrade(
+          value, getAssessmentItemMode(app, fach, typ, idx), getMaxPoints(app, fach, typ, idx)
+        )
+      ).filter((value): value is number => value !== null);
+      return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+    }
     const vals = (arr || []).map(x => {
       if (typeof x === 'number') return x;
       if (typeof x === 'string') {
@@ -520,10 +586,10 @@ export function berechne(app: AppState, sid: string, fach: string, sem: string):
     return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
   }
 
-  const saAvg = (cfg.sa) ? avg(nd.sa) : null;
-  const lzkAvg = (cfg.lzk) ? avg(nd.lzk) : null;
-  const wpAvg = (cfg.wp) ? avg(nd.wp) : null;
-  const objAvg = (cfg.obj) ? avg(nd.aufgaben) : null;
+  const saAvg = (cfg.sa) ? avg(nd.sa, 'sa') : null;
+  const lzkAvg = (cfg.lzk) ? avg(nd.lzk, 'lzk') : null;
+  const wpAvg = (cfg.wp) ? avg(nd.wp, 'wp') : null;
+  const objAvg = (cfg.obj) ? avg(nd.aufgaben, 'obj') : null;
   const miAvg = (cfg.g.mi > 0) ? miNote : null;
 
   const bereiche = [

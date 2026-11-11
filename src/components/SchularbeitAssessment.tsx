@@ -22,7 +22,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { useApp } from "../context/AppContext";
 import { logActivity } from "../lib/utils";
-import { getAssessmentMode, getAssessmentStorageValue, getMaxPoints } from "../lib/GradeUtils";
+import { getAssessmentItemMode, getAssessmentStorageValue, getMaxPoints } from "../lib/GradeUtils";
 import SchularbeitClassStats from "./SchularbeitClassStats";
 import SchularbeitClassTable from "./SchularbeitClassTable";
 
@@ -1041,7 +1041,7 @@ export default function SchularbeitAssessment({
     // Bestehende Schüler aktualisieren; den Standard speichern wir danach in den Klassen-Zustand.
     const newAssessments = { ...(app.saAssessments || {}) };
     const notenState = { ...(app.noten || {}) };
-    const assessmentMode = getAssessmentMode(app, subject);
+    const assessmentMode = getAssessmentItemMode(app, subject, 'sa', saIndex);
     const configuredMaxPoints = getMaxPoints(app, subject, 'sa', saIndex) || 40;
     let changedCount = 0;
 
@@ -1438,7 +1438,7 @@ export default function SchularbeitAssessment({
 
   const saveAssessmentDataForStudent = (targetSid: string, targetName: string) => {
     setApp((prev) => {
-      const mode = getAssessmentMode(prev, subject);
+      const mode = getAssessmentItemMode(prev, subject, 'sa', saIndex);
       const configuredMaxPoints = getMaxPoints(prev, subject, 'sa', saIndex) || 40;
       const parsedGrammar = typeof grammarAchievedPoints === 'string' 
         ? parseFloat(grammarAchievedPoints.replace(',', '.')) || 0 

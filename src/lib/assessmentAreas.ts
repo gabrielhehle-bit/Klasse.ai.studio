@@ -1,5 +1,5 @@
 import type { AppState } from '../types';
-import { calculateItemPercent, getAssessmentMode, getMaxPoints, parseAssessmentInput } from './GradeUtils';
+import { getAssessmentItemMode, getMixedAssessmentGrade, getNormalizedAssessmentPercent, getAssessmentMode, getMaxPoints, parseAssessmentInput } from './GradeUtils';
 import { countsInClassAverage } from './classAveragePolicy';
 
 export function getLzkAreaRows(app: AppState, studentId: string, subject?: string, semester = '1') {
@@ -11,14 +11,20 @@ export function getLzkAreaRows(app: AppState, studentId: string, subject?: strin
       if (typeof area !== 'string' || !area.trim()) return [];
       const index = Number(key);
       const max = getMaxPoints(app, fach, 'lzk', index);
+      const itemMode = getAssessmentItemMode(app, fach, 'lzk', index);
       const raw = data?.lzk?.[index];
       const participates = data?.lzkParticipation?.[index] !== false;
-      const parsed = parseAssessmentInput(String(raw ?? ''), mode, max);
+      const parsed = parseAssessmentInput(String(raw ?? ''), itemMode, max);
       const numeric = parsed.valid && typeof parsed.value === 'number' ? parsed.value :
-        parsed.valid && mode === 'grades' && typeof parsed.value === 'string' && /^[1-5][+-]$/.test(parsed.value) ? Number(parsed.value[0]) : null;
-      const value = participates && numeric !== null ? (mode === 'grades' ? numeric : calculateItemPercent(numeric, mode, max)) : null;
-      return [{ fach, area: area.trim(), index, label: meta.colLabels?.lzk?.[index] || `LZK ${index + 1}`, date: meta.colDates?.lzk?.[index] || '', mode, value,
-        display: !participates ? 'Nicht teilgenommen' : numeric === null ? 'Noch nicht bewertet' : mode === 'points' ? `${numeric}/${max} P · ${value?.toLocaleString('de-AT', { maximumFractionDigits: 1 })} %` : mode === 'percent' ? `${numeric} %` : `Note ${raw}` }];
+        parsed.valid && itemMode === 'grades' && typeof parsed.value === 'string' && /^[1-5][+-]$/.test(parsed.value) ? Number(parsed.value[0]) : null;
+      const value = participates && numeric !== null
+        ? (mode === 'grades'
+          ? getMixedAssessmentGrade(numeric, itemMode, max)
+          : getNormalizedAssessmentPercent(numeric, itemMode, max))
+        : null;
+      const itemPercent = numeric === null ? null : getNormalizedAssessmentPercent(numeric, itemMode, max);
+      return [{ fach, area: area.trim(), index, label: meta.colLabels?.lzk?.[index] || `LZK ${index + 1}`, date: meta.colDates?.lzk?.[index] || '', mode: itemMode, value,
+        display: !participates ? 'Nicht teilgenommen' : numeric === null ? 'Noch nicht bewertet' : itemMode === 'points' ? `${numeric}/${max} P · ${itemPercent?.toLocaleString('de-AT', { maximumFractionDigits: 1 })} %` : itemMode === 'percent' ? `${numeric} %` : `Note ${raw}` }];
     });
   });
 }

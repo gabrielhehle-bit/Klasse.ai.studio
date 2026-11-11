@@ -10,6 +10,7 @@ import { useApp } from '../context/AppContext';
 import { exportSchuelerPDF } from '../lib/exportService';
 import { getAssessmentMode } from '../lib/GradeUtils';
 import { getKelGradebookAssessments, pickKelAssessments } from '../lib/kelGradebookSelection';
+import AssessmentDomainDonuts from './dossier/AssessmentDomainDonuts';
 import { getStudentAttendanceSummary } from '../lib/studentMetrics';
 
 interface KELPresentationProps {
@@ -716,7 +717,16 @@ export default function KELPresentation({
           <p className="mt-2 text-xs font-semibold text-slate-500">{item.evidence ? `${item.evidence} dokumentierte Leistungsnachweise` : 'Gesamtstand aus der Notenmappe'}{item.hasParticipation ? ' · Mitarbeit dokumentiert' : ''}</p>
         </div>)}
       </div>
-      <p className="mt-5 text-center text-xs font-semibold text-slate-500">Keine Rangliste und kein Klassenvergleich. Punktebewertungen werden als berechneter Prozentstand gezeigt.</p>
+      <div className="mt-4 grid w-full grid-cols-1 gap-3 lg:grid-cols-2" data-kel-selected-assessment-domains>
+        {chosenLearningSubjects.map(item => (
+          <AssessmentDomainDonuts key={item.fach} studentId={student.id} subject={item.fach}
+            semester={sem === '2' ? '2' : '1'} compact hideWhenEmpty />
+        ))}
+      </div>
+      <p className="mt-5 text-center text-xs font-semibold text-slate-500">
+        Keine Rangliste und kein Klassenvergleich. Kreisdiagramme zeigen nur dokumentierte Teilbereiche
+        der ausdrücklich ausgewählten Fächer und keine vollständige Kompetenzdiagnose.
+      </p>
     </SlideShell>;
 
     if (currentSlide.type === 'individualGrades') return <SlideShell title={currentSlide.title} subtitle={currentSlide.subtitle}>
@@ -724,7 +734,8 @@ export default function KELPresentation({
         {chosenAssessments.map(item => <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm">
           <p className="text-xs font-black uppercase tracking-wider text-slate-500">{item.fach}{item.datum ? ' · ' + item.datum : ''}</p>
           <h3 className="mt-2 text-base font-bold text-slate-900">{item.titel}</h3>
-          <p className="mt-2 text-2xl font-black text-slate-950">{item.ergebnis}</p>
+          {item.area && <p className="mt-1 text-xs font-semibold text-emerald-700">Teilbereich: {item.area}</p>}
+           <p className="mt-2 text-2xl font-black text-slate-950">{item.ergebnis}</p>
         </article>)}
       </div>
     </SlideShell>;
@@ -896,7 +907,7 @@ export default function KELPresentation({
                       <input type="checkbox" className="mt-0.5" checked={selectedAssessmentIds.includes(item.id)}
                         onChange={() => toggleAssessment(item.id)} />
                       <span className="min-w-0">
-                        <span className="block font-black text-slate-900">{item.titel}</span>
+                        <span className="block font-black text-slate-900">{item.titel}{item.area ? ' · ' + item.area : ''}</span>
                         <span className="mt-1 block">{item.ergebnis}{item.datum ? ' · ' + item.datum : ''}</span>
                       </span>
                     </label>

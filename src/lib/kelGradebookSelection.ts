@@ -1,5 +1,5 @@
 import type { AppState, AssessmentMode } from '../types';
-import { getAssessmentMode, isAssessmentValueMissing } from './GradeUtils';
+import { getAssessmentItemMode, isAssessmentValueMissing } from './GradeUtils';
 
 export type KelAssessmentType = 'sa' | 'lzk' | 'wp' | 'aufgaben';
 export interface KelSelectedAssessment {
@@ -12,6 +12,7 @@ export interface KelSelectedAssessment {
   datum: string;
   ergebnis: string;
   mode: AssessmentMode;
+  area?: string;
 }
 
 const ASSESSMENT_TYPES: { key: KelAssessmentType; label: string; metaKey: string }[] = [
@@ -61,16 +62,18 @@ export function getKelGradebookAssessments(
   for (const fach of uniqueSubjects) {
     const record = studentData[fach]?.[semester];
     if (!record) continue;
-    const mode = getAssessmentMode(app, fach);
     const meta = app.notenMeta?.[fach];
     for (const { key, label, metaKey } of ASSESSMENT_TYPES) {
       const entries = record[key];
       if (!Array.isArray(entries)) continue;
       entries.forEach((raw: number | string | null, index: number) => {
+        // Keep the historic value but never present an exempted LZK as an assessed result.
+        if (key === 'lzk' && record.lzkParticipation?.[index] === false) return;
         if (isAssessmentValueMissing(raw) || raw === null || typeof raw === 'undefined') return;
         if (typeof raw === 'number' && !Number.isFinite(raw)) return;
         if (typeof raw !== 'number' && typeof raw !== 'string') return;
         const cleanRaw = String(raw).trim();
+        const mode = getAssessmentItemMode(app, fach, metaKey, index);
         // Missing markers (f/e/x/–), free text and malformed values are NOT marks.
         const validValue = mode === 'grades'
           ? /^(?:[1-5][+-]|[1-5](?:[.,]\d+)?)$/.test(cleanRaw)
@@ -85,10 +88,11 @@ export function getKelGradebookAssessments(
         const rawDate = meta?.colDates?.[metaKey]?.[index];
         const datum = typeof rawDate === 'string' ? rawDate : '';
         const maxPoints = meta?.maxPoints?.[metaKey]?.[index];
+        const area = meta?.colAreas?.[metaKey]?.[index]?.trim() || '';
         const ergebnis = resultText(raw as number | string, mode, maxPoints);
-        const digest = assessmentFingerprint(JSON.stringify([cleanRaw, titel, datum, maxPoints ?? null, mode]));
+        const digest = assessmentFingerprint(JSON.stringify([cleanRaw, titel, datum, maxPoints ?? null, mode, area]));
         const id = JSON.stringify([semester, fach, key, index, digest]);
-        items.push({ id, fach, typ: key, index, semester, titel, datum, ergebnis, mode });
+        items.push({ id, fach, typ: key, index, semester, titel, datum, ergebnis, mode, area });
       });
     }
   }

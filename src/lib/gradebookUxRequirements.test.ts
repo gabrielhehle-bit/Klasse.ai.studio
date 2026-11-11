@@ -33,8 +33,8 @@ test('weight settings focus selected subject but continue to validate and save a
   assert.match(weights, /initialFach\?: string/);
   assert.match(weights, /showAllFaecher \? activeFaecher : activeFaecher\.filter/);
   assert.match(weights, /Alle Fächer vergleichen/);
-  assert.match(weights, /const invalidFaecher = activeFaecher\.filter\(f => calculateSum\(f\) !== 100\)/);
-  assert.match(weights, /notenGewichtung: localWeights/);
+  assert.match(weights, /const invalidFaecher = dirtySubjects\.filter\(f => calculateSum\(f\) !== 100\)/);
+  assert.match(weights, /Object.fromEntries\(dirtySubjects.map\(fach => \[fach, localWeights\[fach\]\]\)\)/);
   assert.match(weights, /weight-participation-settings/);
   assert.match(weights, /weight-homework-settings/);
   assert.match(gradebook, /Hausübungsbewertung aktiv, jedoch mit 0 % eigenem Anteil/);
@@ -45,10 +45,10 @@ test('points mode can show or hide the calculated percent consistently across gr
   assert.match(weights, /Prozentwerte bei Punkten anzeigen/);
   assert.match(weights, /showPointsPercent: event\.target\.checked/);
   assert.match(gradebook, /const showPointsPercent = getShowPointsPercent\(app, activeFach\)/);
-  assert.match(gradebook, /showPointsPercent && assessmentMode === 'points' && itemPct !== null/);
+  assert.match(gradebook, /showPointsPercent && itemMode === 'points' && itemPct !== null/);
   assert.match(dossierLeistungen, /const showPointsPercent = getShowPointsPercent\(app, s\.fach\)/);
   assert.match(dossierLeistungen, /const maxScore = getMaxPoints\(app, fach, cat\.key, idx\)/);
-  assert.match(dossierLeistungen, /showPointsPercent && mode === 'points' && item\.percent !== undefined/);
+  assert.match(dossierLeistungen, /showPointsPercent && item\.mode === 'points' && item\.percent !== undefined/);
   assert.match(dossierLeistungen, /getShowPointsPercent\(app, s\.fach\).*s\.latestItem\.percent\.toLocaleString\('de-AT', \{ maximumFractionDigits: 1 \}\)/s);
 });
 
@@ -101,5 +101,5 @@ test('assessment form uses the school-year period and a category-specific save a
   assert.doesNotMatch(modal, />\{semester\}\. Semester</);
   assert.match(modal, /isNew \? `\$\{currentTypeInfo\.singular\} anlegen` : 'Änderungen speichern'/);
   assert.match(modal, /const finalLabel = label\.trim\(\) \|\| currentTypeInfo\.defaultName/);
-  assert.match(modal, /onSave\(finalLabel, date, finalMaxP, typ === 'lzk' \? area\.trim\(\) : undefined\)/);
+  assert.match(modal, /onSave\(finalLabel, date, finalMaxP, area\.trim\(\), entryMode\)/);
 });

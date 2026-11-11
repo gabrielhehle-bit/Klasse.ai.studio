@@ -7,9 +7,10 @@ import {
   Target, Stethoscope, HeartHandshake, Calendar, FileText, CheckCircle2,
   AlertCircle, Plus, Edit2, Trash2, X, Check, Save, Layers, Clock, TrendingUp, Star
 } from 'lucide-react';
-import { berechne, getNotenLabel, getFachCfg, getShowPointsPercent, getMaxPoints } from '../../lib/GradeUtils';
+import { berechne, getNotenLabel, getFachCfg, getShowPointsPercent, getMaxPoints, getAssessmentMode, getAssessmentItemMode } from '../../lib/GradeUtils';
 import { FAECHER_ALLE } from '../../constants';
 import LzkAreaResults from './LzkAreaResults';
+import AssessmentDomainDonuts from './AssessmentDomainDonuts';
 import DossierAssessmentChart from './DossierAssessmentChart';
 import { getDossierAssessmentChart } from '../../lib/dossierAssessmentChart';
 import { getStudentSubjectParticipationSummary, type SubjectParticipationSummary } from '../../lib/studentParticipation';
@@ -36,6 +37,7 @@ export interface AssessmentItem {
   percent?: number;
   note?: string;
   mode: 'grades' | 'percent' | 'points';
+  area?: string;
   colIndex?: number;
 }
 
@@ -85,6 +87,8 @@ export default function DossierLeistungen({
     maxScore: string;
     percent: string;
     note: string;
+    area: string;
+    entryMode: 'grades' | 'percent' | 'points';
   } | null>(null);
 
   // Active subjects in the class
@@ -120,6 +124,7 @@ export default function DossierLeistungen({
         const defaultLabel = meta.colLabels?.[metaKey]?.[idx] || meta.colLabels?.[cat.key]?.[idx] || `${cat.label} ${idx + 1}`;
         const defaultDate = meta.colDates?.[metaKey]?.[idx] || meta.colDates?.[cat.key]?.[idx] || '';
         const maxScore = getMaxPoints(app, fach, cat.key, idx);
+        const itemMode = getAssessmentItemMode(app, fach, cat.key, idx);
 
         if (typeof entry === 'object') {
           const rawVal = entry.grade ?? entry.originalGrade ?? entry.numericGrade ?? entry.val ?? entry.note;
@@ -138,7 +143,8 @@ export default function DossierLeistungen({
             maxScore: maxP,
             percent: pct,
             note: entry.note || entry.kommentar || meta.colNotes?.[cat.key === 'aufgaben' ? 'obj' : cat.key]?.[idx] || meta.colNotes?.[cat.key]?.[idx] || '',
-            mode,
+            mode: itemMode,
+            area: meta.colAreas?.[metaKey]?.[idx] || '',
             colIndex: idx
           });
         } else {
@@ -147,9 +153,9 @@ export default function DossierLeistungen({
           let pct: number | undefined = undefined;
           let score: number | undefined = undefined;
 
-          if (mode === 'percent') {
+          if (itemMode === 'percent') {
             pct = !isNaN(numVal) ? numVal : undefined;
-          } else if (mode === 'points') {
+          } else if (itemMode === 'points') {
             score = !isNaN(numVal) ? numVal : undefined;
             pct = score !== undefined && maxScore > 0 ? (score / maxScore) * 100 : undefined;
           }
@@ -162,10 +168,11 @@ export default function DossierLeistungen({
             date: defaultDate,
             rawGrade: entry,
             score,
-            maxScore: mode === 'points' ? maxScore : undefined,
+            maxScore: itemMode === 'points' ? maxScore : undefined,
             percent: pct,
             note: meta.colNotes?.[cat.key === 'aufgaben' ? 'obj' : cat.key]?.[idx] || meta.colNotes?.[cat.key]?.[idx] || '',
-            mode,
+            mode: itemMode,
+            area: meta.colAreas?.[metaKey]?.[idx] || '',
             colIndex: idx
           });
         }
@@ -183,6 +190,7 @@ export default function DossierLeistungen({
 
   // Requirement 6: Methodically clean trend calculation
   const calculateMethodologicalTrend = (items: AssessmentItem[], mode: 'grades' | 'percent' | 'points') => {
+    if (items.some(item => item.mode !== mode)) return { direction: 'none' as const, label: null };
     const chartRows = getDossierAssessmentChart(items, mode).rows;
     if (chartRows.length < 2) return { direction: 'none' as const, label: null };
     if (mode === 'grades') {
@@ -326,7 +334,7 @@ export default function DossierLeistungen({
   const handleSaveAssessment = () => {
     if (!editingItem) return;
 
-    const { fach, category, colIndex, originalCategory, originalColIndex, label, date, grade, score, maxScore, percent, note } = editingItem;
+    const { fach, category, colIndex, originalCategory, originalColIndex, label, date, grade, score, maxScore, percent, note, area, entryMode } = editingItem;
     setApp(prev => writeDossierAssessment(prev, {
       studentId: student.id,
       fach,
@@ -342,6 +350,8 @@ export default function DossierLeistungen({
       maxScore,
       percent,
       note,
+      area,
+      mode: entryMode,
     }));
 
     setIsModalOpen(false);
@@ -375,7 +385,9 @@ export default function DossierLeistungen({
       score: '25',
       maxScore: '30',
       percent: '80',
-      note: ''
+      note: '',
+      area: '',
+      entryMode: getAssessmentMode(app, fach),
     });
     setIsModalOpen(true);
   };
@@ -394,7 +406,9 @@ export default function DossierLeistungen({
       score: String(item.score ?? ''),
       maxScore: String(item.maxScore ?? '30'),
       percent: String(item.percent ?? ''),
-      note: item.note || ''
+      note: item.note || '',
+      area: item.area || '',
+      entryMode: item.mode,
     });
     setIsModalOpen(true);
   };
@@ -494,8 +508,15 @@ export default function DossierLeistungen({
           </details>
         </section>
 
+        <AssessmentDomainDonuts studentId={student.id} subject={s.fach} semester={semester} />
         <LzkAreaResults studentId={student.id} subject={s.fach} semester={semester} />
-        <DossierAssessmentChart items={s.items} mode={s.mode} />
+        {s.items.some(item => item.mode !== s.mode)
+          ? <p data-dossier-mixed-assessment-scales className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-900">
+              Gemischte Noten-, Punkte- und Prozentbewertungen: Ein einfacher Verlauf
+              würde unvergleichbare Rohwerte vermischen. Die Teilbereich-Kreise verwenden
+              ausdrücklich gekennzeichnete, normalisierte Prozentwerte.
+            </p>
+          : <DossierAssessmentChart items={s.items} mode={s.mode} />}
 
         <details data-dossier-performance-everyday className="rounded-2xl border border-slate-200 bg-white">
           <summary className="cursor-pointer px-4 py-3 text-sm font-black text-slate-800">Mitarbeit & Hausübungen im Detail</summary>
@@ -597,13 +618,13 @@ export default function DossierLeistungen({
 
                           <div className="sm:text-right">
                             <div className="text-sm font-black text-slate-900">
-                              {mode === 'grades'
+                              {item.mode === 'grades'
                                 ? `Note ${item.rawGrade}`
-                                : mode === 'points'
+                                : item.mode === 'points'
                                 ? `${item.score ?? '-'} / ${item.maxScore ?? '-'} Pkt.`
                                 : `${item.percent ?? '-'} %`}
                             </div>
-                            {showPointsPercent && mode === 'points' && item.percent !== undefined && (
+                            {showPointsPercent && item.mode === 'points' && item.percent !== undefined && (
                               <div className="text-[0.68rem] font-semibold text-slate-500">
                                 {item.percent.toLocaleString('de-AT', { maximumFractionDigits: 1 })} %
                               </div>
@@ -687,6 +708,19 @@ export default function DossierLeistungen({
                 </div>
 
                 <div>
+                  <label htmlFor="dossier-assessment-subarea" className="block text-[0.625rem] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                    Lernbereich (optional)
+                  </label>
+                  <input id="dossier-assessment-subarea" type="text"
+                    value={editingItem.area} maxLength={100}
+                    onChange={event => setEditingItem({ ...editingItem, area: event.target.value })}
+                    placeholder="z. B. Lesen, Rechtschreibung, Sachrechnen"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold" />
+                  <p className="mt-1 text-[0.65rem] text-slate-500">
+                    Wird auch für die Kreisdiagramme und KEL-Auswertung verwendet.
+                  </p>
+                </div>
+                <div>
                   <label className="block text-[0.625rem] font-bold uppercase tracking-wider text-slate-500 mb-1">
                     Datum
                   </label>
@@ -698,7 +732,8 @@ export default function DossierLeistungen({
                   />
                 </div>
 
-                {mode === 'grades' ? (
+                <p className="rounded-lg bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600">Eingabeart aus der Notenmappe: {editingItem.entryMode === 'grades' ? 'Note' : editingItem.entryMode === 'points' ? 'Punkte' : 'Prozent'}</p>
+                {editingItem.entryMode === 'grades' ? (
                   <div>
                     <label className="block text-[0.625rem] font-bold uppercase tracking-wider text-slate-500 mb-1">
                       Note (1 bis 5)
@@ -715,7 +750,7 @@ export default function DossierLeistungen({
                       <option value="5">5 - Nicht genügend</option>
                     </select>
                   </div>
-                ) : mode === 'points' ? (
+                ) : editingItem.entryMode === 'points' ? (
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-[0.625rem] font-bold uppercase tracking-wider text-slate-500 mb-1">
@@ -933,9 +968,9 @@ export default function DossierLeistungen({
                         {s.latestItem.label} ({s.latestItem.date || 'Ohne Datum'})
                       </span>
                       <span className="font-bold shrink-0">
-                        {s.mode === 'grades' 
+                        {s.latestItem.mode === 'grades' 
                           ? `Note ${s.latestItem.rawGrade}` 
-                          : s.mode === 'points' 
+                          : s.latestItem.mode === 'points' 
                           ? `${s.latestItem.score}/${s.latestItem.maxScore} Pkt.${getShowPointsPercent(app, s.fach) && s.latestItem.percent !== undefined ? ` · ${s.latestItem.percent.toLocaleString('de-AT', { maximumFractionDigits: 1 })} %` : ''}` 
                           : `${s.latestItem.percent}%`}
                       </span>

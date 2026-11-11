@@ -51,14 +51,15 @@ test('non-participation excludes saved marks from personal and class results wit
   restored.noten.a.Deutsch['1'].lzkParticipation = { 0: true, 1: true };
   assert.equal(berechne(restored, 'a', 'Deutsch', '1'), 50);
 });
-test('classification edits preserve grades and other columns; removed columns cannot resurrect stale areas', () => {
+test('classification edits preserve grades; populated or classified columns cannot be trimmed', () => {
   const app = fixture(); const old = JSON.stringify(app);
   const meta = updateSubjectColumn(app.notenMeta, 'Deutsch', 'lzk', 0, 'Neuer Titel', '', 10, '  Leseverständnis  ');
   assert.equal(meta.Deutsch.colAreas.lzk[0], 'Leseverständnis');
   assert.equal(meta.Deutsch.colAreas.lzk[1], 'Lesen');
   assert.equal(JSON.stringify(app), old);
   const removed = removeSubjectColumn(app.noten, meta, 'Deutsch', 'lzk', 1);
-  assert.equal(removed.notenMeta.Deutsch.colAreas.lzk[2], undefined);
+  assert.equal(removed.notenMeta.Deutsch.colAreas.lzk[2], 'Rechtschreiben');
+  assert.deepEqual(removed.noten, app.noten);
   assert.equal(updateSubjectColumn(meta, 'Deutsch', 'lzk', 0, '', '', undefined, '').Deutsch.colAreas.lzk[0], '');
 });
 test('grades and percentages stay in their own subject scales and missing classification is not guessed', () => {
@@ -74,10 +75,10 @@ test('grades and percentages stay in their own subject scales and missing classi
   assert.deepEqual(getLzkAreaRows(app, 'a'), []);
 });
 
-test('removing an empty LZK clears its exemption and never changes a retained column', () => {
+test('a non-participation exemption is protected even when its LZK has no score', () => {
   const app = fixture(); app.noten.a.Deutsch['1'].lzk = [];
   app.noten.a.Deutsch['1'].lzkParticipation = { 0: false, 2: false };
   const next = removeSubjectColumn(app.noten, app.notenMeta, 'Deutsch', 'lzk', 1);
-  assert.deepEqual(next.noten.a.Deutsch['1'].lzkParticipation, { 0: false });
+  assert.deepEqual(next.noten.a.Deutsch['1'].lzkParticipation, { 0: false, 2: false });
   assert.deepEqual(app.noten.a.Deutsch['1'].lzkParticipation, { 0: false, 2: false });
 });
