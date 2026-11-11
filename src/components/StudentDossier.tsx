@@ -602,6 +602,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
                     onSubjectSelect={fach => { setOverviewSubject(fach); setActiveTab('leistungen'); }}
                     semester={sem as '1' | '2'}
                     onQuickEntry={openOverviewQuickEntry}
+                    onPrepareKel={() => setPresentationModeActive(true)}
                   />
                 )}
                 {activeTab === 'mehr' && (
