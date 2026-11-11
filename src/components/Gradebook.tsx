@@ -7,7 +7,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { logActivity, getAccentTextColor } from '../lib/utils';
-import { getFachCfg, berechne, miZuNote, getAssessmentMode, getMaxPoints, calculateItemPercent, getNotenLabel, isAssessmentValueMissing, hasCalculatedAverage, hasSubjectAssessmentEntries, parseAssessmentInput, parseFinalGradeInput, getHomeworkGradebookSettings, getMirroredAssessmentValue, getShowPointsPercent } from '../lib/GradeUtils';
+import { getFachCfg, berechne, miZuNote, getAssessmentMode, getAssessmentItemMode, getMaxPoints, calculateItemPercent, getNotenLabel, isAssessmentValueMissing, hasCalculatedAverage, hasSubjectAssessmentEntries, parseAssessmentInput, parseFinalGradeInput, getHomeworkGradebookSettings, getMirroredAssessmentValue, getShowPointsPercent } from '../lib/GradeUtils';
 import { FAECHER_ALLE, NOTE_LABELS, STUNDEN_INFO } from '../constants';
 import { GradeData } from '../types';
 import WeightSettings from './WeightSettings';
@@ -473,8 +473,6 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     const list: GradeValidationError[] = [];
     const studentList = app.schueler || [];
     if (studentList.length === 0) return list;
-    const mode = getAssessmentMode(app, activeFach);
-
     studentList.forEach(s => {
       const nd = app.noten?.[s.id]?.[activeFach]?.[sem] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
       const avg = berechne(app, s.id, activeFach, sem);
@@ -482,6 +480,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
       const checkSuspiciousGrade = (grades: (number | string | null)[], typeLabel: string, typ: 'sa' | 'lzk' | 'wp' | 'aufgaben') => {
         if (!Array.isArray(grades)) return;
         grades.forEach((g, idx) => {
+          const mode = getAssessmentItemMode(app, activeFach, typ, idx);
           if (mode === 'grades') {
             if (g === 5 && avg && avg <= 2.2) {
               list.push({
@@ -859,7 +858,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
         !!app.notenMeta?.[activeFach]?.colLabels?.[typ]?.[idx] ||
         !!app.notenMeta?.[activeFach]?.colDates?.[typ]?.[idx] ||
         !!app.notenMeta?.[activeFach]?.colAreas?.[typ]?.[idx] ||
-        app.notenMeta?.[activeFach]?.maxPoints?.[typ]?.[idx] !== undefined;
+        app.notenMeta?.[activeFach]?.maxPoints?.[typ]?.[idx] !== undefined ||
+        app.notenMeta?.[activeFach]?.itemModes?.[typ]?.[idx] !== undefined;
 
       if (!hasStudentValue && !hasMeta) {
         reusableIndex = idx;
@@ -1167,9 +1167,11 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     if (rawVal === 'f' || rawVal === 'x' || rawVal === '-') return 'bg-slate-50 text-slate-400 opacity-60';
     if (!heatmapMode) return '';
     
-    if (assessmentMode === 'percent' || assessmentMode === 'points') {
+    const itemMode = typ !== undefined && idx !== undefined
+      ? getAssessmentItemMode(app, activeFach, typ, idx) : assessmentMode;
+    if (itemMode === 'percent' || itemMode === 'points') {
       const maxP = typ !== undefined && idx !== undefined ? getMaxPoints(app, activeFach, typ, idx) : 100;
-      const p = calculateItemPercent(rawVal, assessmentMode, maxP);
+      const p = calculateItemPercent(rawVal, itemMode, maxP);
       if (p === null) return '';
       if (p >= 87.5) return '!bg-green-300/40 text-green-900 border-green-300';
       if (p >= 75) return '!bg-blue-300/40 text-blue-900 border-blue-300';
@@ -1200,7 +1202,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
   };
 
   const setNote = (sid: string, typ: 'sa' | 'lzk' | 'wp' | 'aufgaben', idx: number, val: string) => {
-    const mode = getAssessmentMode(app, activeFach);
+    const mode = getAssessmentItemMode(app, activeFach, typ, idx);
     const maxP = getMaxPoints(app, activeFach, typ, idx);
     const parsedInput = parseAssessmentInput(val, mode, maxP);
     if (!parsedInput.valid) return;
@@ -1224,8 +1226,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
       newNoten[sid] = { ...sidData, [activeFach]: updatedFachData };
 
       if (shouldSync) {
-        const sourceMode = getAssessmentMode(prev, activeFach);
-        const targetMode = getAssessmentMode(prev, targetFach);
+        const sourceMode = getAssessmentItemMode(prev, activeFach, typ, idx);
+        const targetMode = getAssessmentItemMode(prev, targetFach, typ, idx);
         const sourceMax = getMaxPoints(prev, activeFach, typ, idx);
         const targetMax = getMaxPoints(prev, targetFach, typ, idx);
         const mirrored = getMirroredAssessmentValue(
@@ -1507,8 +1509,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     input?.focus(); input?.select();
   }, [isolatedCol, editingAssessmentModal, activeView]);
 
-  const updateColMeta = (typ: 'sa'|'lzk'|'wp'|'obj', idx: number, labelVal: string, dateVal: string, maxPointsVal?: number, area?: string) => {
-    setApp(prev => ({ ...prev, notenMeta: updateSubjectColumn(prev.notenMeta || {}, activeFach, typ, idx, labelVal, dateVal, maxPointsVal, area) }));
+  const updateColMeta = (typ: 'sa'|'lzk'|'wp'|'obj', idx: number, labelVal: string, dateVal: string, maxPointsVal?: number, area?: string, itemMode?: 'grades' | 'percent' | 'points') => {
+    setApp(prev => ({ ...prev, notenMeta: updateSubjectColumn(prev.notenMeta || {}, activeFach, typ, idx, labelVal, dateVal, maxPointsVal, area, itemMode) }));
     setEditingColLabel(null);
   };
 
@@ -1549,7 +1551,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     const customLabel = app.notenMeta?.[activeFach]?.colLabels?.[typ]?.[i];
     const customDate = app.notenMeta?.[activeFach]?.colDates?.[typ]?.[i];
     const maxP = getMaxPoints(app, activeFach, typ, i);
-    
+    const itemMode = getAssessmentItemMode(app, activeFach, typ, i);
+
     return (
       <th 
         key={`h${typ}-${i}`} 
@@ -1592,12 +1595,13 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
               {new Date(customDate).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'})}
             </span>
           )}
-          {assessmentMode === 'points' && (
+          {itemMode === 'grades' && <span className="text-[0.5625rem] font-semibold text-slate-500">Note 1–5</span>}
+          {itemMode === 'points' && (
             <span className="inline-block text-[0.5625rem] font-black bg-amber-100/90 text-amber-900 px-1.5 py-0.2 rounded-full border border-amber-300 shadow-3xs" title={`Maximale Punktzahl: ${maxP}`}>
               Max: {maxP}P
             </span>
           )}
-          {assessmentMode === 'percent' && (
+          {itemMode === 'percent' && (
             <span className="inline-block text-[0.5625rem] font-bold bg-blue-100/80 text-blue-900 px-1.5 py-0.2 rounded-full border border-blue-200">
               0–100%
             </span>
