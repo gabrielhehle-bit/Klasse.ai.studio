@@ -809,6 +809,14 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
             </button>
           </div>
 
+          {homeworkSettings.mode === 'grade' && homeworkSettings.percentDeduction > 0 &&
+            homeworkSettings.participationDeduction > 0 && (getWeight(effectiveHueFach).hue || 0) > 0 &&
+            (getWeight(effectiveHueFach).mi || 0) > 0 && app.mitarbeit_settings?.mode !== 'manual' && (
+            <p role="note" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+              Achtung: Vergessene Hausübungen können hier doppelt wirken: im eigenen HÜ-Anteil und als Abzug bei der Mitarbeit.
+              Wenn du nur eine Auswirkung möchtest, setze den Mitarbeitsabzug auf 0.
+            </p>
+          )}
           {/* Configurable Deductions */}
           {homeworkSettings.mode !== 'document' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
