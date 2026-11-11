@@ -499,7 +499,7 @@ export default function ClassDossier({ onSelectStudent }: Props) {
     if (current.moodAverage !== null && previous.moodAverage !== null && current.moodCount >= 5 && previous.moodCount >= 5) {
       const delta = current.moodAverage - previous.moodAverage;
       if (Math.abs(delta) >= 0.15) {
-        items.push(`Befinden: Der erfasste Durchschnitt hat sich gegenüber dem vorherigen Zeitraum um ${delta > 0 ? '+' : ''}${fmt(delta)} Skalenpunkte verändert (${current.moodCount} Rückmeldungen).`);
+        items.push(`Befinden ${delta < 0 ? 'verbessert sich' : 'zeigt mehr Unterstützungsbedarf'} gegenüber dem vorherigen Zeitraum um ${fmt(Math.abs(delta))} Skalenpunkte (${current.moodCount} Rückmeldungen; 1 = sehr gut).`);
       }
     }
     if (current.behaviorAverage !== null && previous.behaviorAverage !== null && current.behaviorCount >= 5 && previous.behaviorCount >= 5) {
@@ -712,7 +712,7 @@ export default function ClassDossier({ onSelectStudent }: Props) {
               <Smile size={17} className="text-amber-600" />
               Befinden
             </h2>
-            <p className="mt-1 text-xs text-[var(--text3)]">Rückmeldungen aus „Ich bin da“</p>
+            <p className="mt-1 text-xs text-[var(--text3)]">Rückmeldungen aus „Ich bin da“ · 1 = sehr gut (oben), 5 = schlecht (unten)</p>
           </div>
           <div className={`${observedMood.length >= 3 ? 'mt-3 h-44' : 'mt-3'}`}>
             {observedMood.length >= 3 ? (
@@ -720,7 +720,7 @@ export default function ClassDossier({ onSelectStudent }: Props) {
                 <LineChart data={timeline} margin={{ top: 8, right: 10, left: -8, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="label" tick={{ fontSize: 10 }} minTickGap={20} />
-                  <YAxis domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} width={24} tick={{ fontSize: 10 }} />
+                  <YAxis reversed domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} width={24} tick={{ fontSize: 10 }} />
                   <Tooltip formatter={(value: any) => [fmt(Number(value)), 'Befinden']} />
                   <Line type="monotone" dataKey="mood" stroke="#d97706" strokeWidth={2.5} dot={{ r: 2.5 }} connectNulls />
                 </LineChart>
