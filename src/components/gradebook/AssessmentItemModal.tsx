@@ -19,7 +19,7 @@ import {
 interface AssessmentItemModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (label: string, date: string, maxPoints?: number, area?: string) => void;
+  onSave: (label: string, date: string, maxPoints?: number, area?: string) => boolean | void;
   onOpenSchularbeitRaster?: () => void;
   typ: 'sa' | 'lzk' | 'wp' | 'obj';
   idx: number;
@@ -114,8 +114,9 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
     e.preventDefault();
     const finalLabel = label.trim() || currentTypeInfo.defaultName;
     const finalMaxP = assessmentMode === 'points' ? Math.max(1, maxPoints || 20) : undefined;
-    onSave(finalLabel, date, finalMaxP, typ === 'lzk' ? area.trim() : undefined);
-    onClose();
+    const saved = onSave(finalLabel, date, finalMaxP, typ === 'lzk' ? area.trim() : undefined);
+    // Keep the editor open when changing a points scale would invalidate existing results.
+    if (saved !== false) onClose();
   };
 
   return (
@@ -388,8 +389,7 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
                   onClick={() => {
                     const finalLabel = label.trim() || currentTypeInfo.defaultName;
                     const finalMaxP = assessmentMode === 'points' ? Math.max(1, maxPoints || 40) : undefined;
-                    onSave(finalLabel, date, finalMaxP);
-                    onOpenSchularbeitRaster();
+                    if (onSave(finalLabel, date, finalMaxP) !== false) onOpenSchularbeitRaster();
                   }}
                   className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shrink-0 shadow-sm transition-all"
                 >
