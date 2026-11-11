@@ -183,22 +183,18 @@ function attendanceForStudent(app: any, studentId: string, range: Range): Attend
       .filter(Boolean);
     const detail = details[day];
 
-    let recordedForDay = 0;
     let absentForDay = 0;
     values.forEach(value => {
       if (['a', 'da', 'v', 'anwesend', 'present'].includes(value)) {
         result.present += 1;
         result.recorded += 1;
-        recordedForDay += 1;
       } else if (value === 'e') {
         result.excused += 1;
         result.recorded += 1;
-        recordedForDay += 1;
         absentForDay += 1;
       } else if (value === 'u') {
         result.unexcused += 1;
         result.recorded += 1;
-        recordedForDay += 1;
         absentForDay += 1;
       }
     });
