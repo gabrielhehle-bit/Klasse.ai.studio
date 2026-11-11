@@ -42,6 +42,9 @@ Zusätzliche Seiten aus dem Menü (Klassenkasse, Elternfotos, Lehrmittel, Wir-Ge
 - Weniger dekorative Effekte; ruhige KLASSIO-Oberflächen, geringere Abstände, klare Handlungsaufforderung.
 - Keine Änderung an Terminlogik, Anwesenheitsprüfung, persönlichen Aufgaben, Datenschutz-Anzeige oder `onNavigate`-Zielen.
 - Mobile Unterrichtszeile nutzt schmalere Zeitspalte und umbruchfähige Fächer/Themen.
+- Screenshot-Review 11.11.2026: kein doppelter klickbarer Anwesenheitsaufruf, wenn dieser bereits als Hauptaktion gezeigt wird; Status bleibt sichtbar.
+- Schnellzugriff (Wochenplan, Notizen, Organisation) und Wechsel zur Widget-Ansicht in **einer** kompakten Leiste statt zwei weit auseinanderliegenden Blöcken.
+- Profilavatar und Klassenbezeichnung auf großen Bildschirmen nicht doppelt zur permanenten linken Seitenleiste anzeigen; mobile Navigation bleibt zugänglich.
 - Bestehenden PR #562 als Designreferenz verwenden, **nicht** ungeprüft in den aktuellen Hauptzweig mergen.
 - Erfolgreiche Prüfungen erforderlich, bevor Veröffentlichungsstatus „live“ genannt wird.
 
@@ -50,6 +53,6 @@ Zusätzliche Seiten aus dem Menü (Klassenkasse, Elternfotos, Lehrmittel, Wir-Ge
 | Datum | Bereich | Änderung | Nachweis |
 | --- | --- | --- | --- |
 | 2026-11-11 | Notenmappe | Kompaktere Tabellenführung und sichtbare Noten-/Punkteeingabe | PR #567, Produktionslauf 43035359828 erfolgreich |
-| 2026-11-11 | Heute | Ruhige kompakte Oberfläche und mobile Lesbarkeit auf aktuellem `main` vorbereitet | Aktueller UX-Pull-Request; Prüfergebnis ergänzen |
+| 2026-11-11 | Heute | Ruhige kompakte Oberfläche, mobile Lesbarkeit und konkrete Screenshot-Korrekturen (Status vs. Aktion, platzsparende Links, Profil-Dopplung) | PR #568; Prüfergebnis ergänzen |
 
 **Kein separater Datenspeicher oder neues KLASSIO-Projekt.** Dies ist der Fortschrittsplan im bestehenden Repository.
