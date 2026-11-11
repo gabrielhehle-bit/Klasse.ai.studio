@@ -28,6 +28,50 @@ export function updateSubjectColumn(meta: AppState['notenMeta'], subject: string
 }
 
 
+/**
+ * Guard against silently discarding archived grades when reducing the column
+ * count. Treat 0 points, absence codes, participation flags and metadata as
+ * recorded information; inspect both historic school-year buckets.
+ */
+export function getSubjectColumnRemovalBlockReason(
+  noten: AppState['noten'],
+  meta: AppState['notenMeta'],
+  subject: string,
+  type: 'lzk' | 'wp' | 'obj',
+  newCount: number,
+): 'grades' | 'metadata' | null {
+  const cutoff = Math.max(0, Math.floor(newCount));
+  const dataKey = type === 'obj' ? 'aufgaben' : type;
+  const isSaved = (value: unknown) => value !== undefined && value !== null && value !== '';
+  for (const studentData of Object.values(noten || {})) {
+    const subjectData = studentData?.[subject];
+    for (const semester of ['1', '2'] as const) {
+      const record = subjectData?.[semester];
+      if (!record) continue;
+      const values = (record as any)[dataKey];
+      if (Array.isArray(values) && values.some((value, index) => index >= cutoff && isSaved(value))) {
+        return 'grades';
+      }
+      if (type === 'lzk' && Object.entries((record as any).lzkParticipation || {})
+        .some(([index, value]) => Number(index) >= cutoff && isSaved(value))) {
+        return 'grades';
+      }
+    }
+  }
+  const subjectMeta: any = meta?.[subject] || {};
+  const records = [
+    subjectMeta.colLabels?.[type],
+    subjectMeta.colDates?.[type],
+    subjectMeta.colAreas?.[type],
+    subjectMeta.maxPoints?.[type],
+  ];
+  if (records.some(record => Object.entries(record || {})
+    .some(([index, value]) => Number(index) >= cutoff && isSaved(value)))) {
+    return 'metadata';
+  }
+  return null;
+}
+
 export function removeSubjectColumn(
   noten: AppState['noten'],
   meta: AppState['notenMeta'],
@@ -36,6 +80,11 @@ export function removeSubjectColumn(
   newCount: number,
 ): { noten: AppState['noten']; notenMeta: AppState['notenMeta'] } {
   const safeCount = Math.max(0, Math.floor(newCount));
+  // Hard fail-closed guard: even a caller that skipped the UI confirmation
+  // must not delete any saved assessment value or configured column.
+  if (getSubjectColumnRemovalBlockReason(noten, meta, subject, type, safeCount)) {
+    return { noten, notenMeta: meta };
+  }
   const dataKey: 'lzk' | 'wp' | 'aufgaben' = type === 'obj' ? 'aufgaben' : type;
 
   const nextNoten: AppState['noten'] = { ...(noten || {}) };
