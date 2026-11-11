@@ -7,7 +7,7 @@ import {
   Target, Stethoscope, HeartHandshake, Calendar, FileText, CheckCircle2,
   AlertCircle, Plus, Edit2, Trash2, X, Check, Save, Layers, Clock, TrendingUp, Star
 } from 'lucide-react';
-import { berechne, getNotenLabel, getFachCfg, getShowPointsPercent, getMaxPoints, getAssessmentItemMode } from '../../lib/GradeUtils';
+import { berechne, getNotenLabel, getFachCfg, getShowPointsPercent, getMaxPoints, getAssessmentMode, getAssessmentItemMode } from '../../lib/GradeUtils';
 import { FAECHER_ALLE } from '../../constants';
 import LzkAreaResults from './LzkAreaResults';
 import AssessmentDomainDonuts from './AssessmentDomainDonuts';
@@ -37,6 +37,7 @@ export interface AssessmentItem {
   percent?: number;
   note?: string;
   mode: 'grades' | 'percent' | 'points';
+  area?: string;
   colIndex?: number;
 }
 
@@ -86,6 +87,8 @@ export default function DossierLeistungen({
     maxScore: string;
     percent: string;
     note: string;
+    area: string;
+    entryMode: 'grades' | 'percent' | 'points';
   } | null>(null);
 
   // Active subjects in the class
@@ -141,6 +144,7 @@ export default function DossierLeistungen({
             percent: pct,
             note: entry.note || entry.kommentar || meta.colNotes?.[cat.key === 'aufgaben' ? 'obj' : cat.key]?.[idx] || meta.colNotes?.[cat.key]?.[idx] || '',
             mode: itemMode,
+            area: meta.colAreas?.[metaKey]?.[idx] || '',
             colIndex: idx
           });
         } else {
@@ -168,6 +172,7 @@ export default function DossierLeistungen({
             percent: pct,
             note: meta.colNotes?.[cat.key === 'aufgaben' ? 'obj' : cat.key]?.[idx] || meta.colNotes?.[cat.key]?.[idx] || '',
             mode: itemMode,
+            area: meta.colAreas?.[metaKey]?.[idx] || '',
             colIndex: idx
           });
         }
@@ -329,7 +334,7 @@ export default function DossierLeistungen({
   const handleSaveAssessment = () => {
     if (!editingItem) return;
 
-    const { fach, category, colIndex, originalCategory, originalColIndex, label, date, grade, score, maxScore, percent, note } = editingItem;
+    const { fach, category, colIndex, originalCategory, originalColIndex, label, date, grade, score, maxScore, percent, note, area, entryMode } = editingItem;
     setApp(prev => writeDossierAssessment(prev, {
       studentId: student.id,
       fach,
@@ -345,6 +350,8 @@ export default function DossierLeistungen({
       maxScore,
       percent,
       note,
+      area,
+      mode: entryMode,
     }));
 
     setIsModalOpen(false);
@@ -378,7 +385,9 @@ export default function DossierLeistungen({
       score: '25',
       maxScore: '30',
       percent: '80',
-      note: ''
+      note: '',
+      area: '',
+      entryMode: getAssessmentMode(app, fach),
     });
     setIsModalOpen(true);
   };
@@ -397,7 +406,9 @@ export default function DossierLeistungen({
       score: String(item.score ?? ''),
       maxScore: String(item.maxScore ?? '30'),
       percent: String(item.percent ?? ''),
-      note: item.note || ''
+      note: item.note || '',
+      area: item.area || '',
+      entryMode: item.mode,
     });
     setIsModalOpen(true);
   };
@@ -697,6 +708,19 @@ export default function DossierLeistungen({
                 </div>
 
                 <div>
+                  <label htmlFor="dossier-assessment-subarea" className="block text-[0.625rem] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                    Lernbereich (optional)
+                  </label>
+                  <input id="dossier-assessment-subarea" type="text"
+                    value={editingItem.area} maxLength={100}
+                    onChange={event => setEditingItem({ ...editingItem, area: event.target.value })}
+                    placeholder="z. B. Lesen, Rechtschreibung, Sachrechnen"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold" />
+                  <p className="mt-1 text-[0.65rem] text-slate-500">
+                    Wird auch für die Kreisdiagramme und KEL-Auswertung verwendet.
+                  </p>
+                </div>
+                <div>
                   <label className="block text-[0.625rem] font-bold uppercase tracking-wider text-slate-500 mb-1">
                     Datum
                   </label>
@@ -708,7 +732,8 @@ export default function DossierLeistungen({
                   />
                 </div>
 
-                {mode === 'grades' ? (
+                <p className="rounded-lg bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600">Eingabeart aus der Notenmappe: {editingItem.entryMode === 'grades' ? 'Note' : editingItem.entryMode === 'points' ? 'Punkte' : 'Prozent'}</p>
+                {editingItem.entryMode === 'grades' ? (
                   <div>
                     <label className="block text-[0.625rem] font-bold uppercase tracking-wider text-slate-500 mb-1">
                       Note (1 bis 5)
@@ -725,7 +750,7 @@ export default function DossierLeistungen({
                       <option value="5">5 - Nicht genügend</option>
                     </select>
                   </div>
-                ) : mode === 'points' ? (
+                ) : editingItem.entryMode === 'points' ? (
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-[0.625rem] font-bold uppercase tracking-wider text-slate-500 mb-1">
