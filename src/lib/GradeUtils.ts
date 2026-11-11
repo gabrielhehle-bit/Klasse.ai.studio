@@ -345,9 +345,12 @@ export function getFachCfg(app: AppState, fach: string) {
     },
   };
 
-  // Nebenfächer fallback
-  if (base.obj && cfg.g.obj === 0) cfg.g.obj = 0.6;
-  if (base.obj && cfg.g.mi === 0) cfg.g.mi = 0.4;
+  // Legacy fallback only for subjects without teacher-defined weights.
+  // An explicit 0% must never be overwritten: that would silently change grades.
+  if (base.obj && !app.notenGewichtung?.[fach]) {
+    if (cfg.g.obj === 0) cfg.g.obj = 0.6;
+    if (cfg.g.mi === 0) cfg.g.mi = 0.4;
+  }
   
   return cfg;
 }
