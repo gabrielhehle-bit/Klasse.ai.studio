@@ -3511,7 +3511,24 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                 className="my-8"
               />
             )}
-            {activeView === 'noten' && <div className="flex flex-wrap gap-1 border-b border-slate-100 px-3 py-2" aria-label="Bewertungen filtern">
+            {activeView === 'noten' && (
+               <div data-gradebook-grading-summary className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-slate-100 bg-slate-50/70 px-3 py-2.5 text-xs print:hidden">
+                 <span className="font-semibold text-slate-800">
+                   Bewertungsart: {assessmentMode === 'grades' ? 'Noten (1–5)' : assessmentMode === 'points' ? 'Punkte / Maximum' : 'Prozent (0–100 %)'}
+                 </span>
+                 {([{ active: cfg.sa, label: 'SA', weight: cfg.g.sa }, { active: cfg.lzk, label: 'LZK', weight: cfg.g.lzk },
+                   { active: cfg.wp, label: 'Wochenplan', weight: cfg.g.wp }, { active: cfg.obj, label: 'Sonstige', weight: cfg.g.obj },
+                   { active: cfg.mi, label: 'Mitarbeit', weight: cfg.g.mi }, { active: cfg.hue, label: 'HÜ', weight: cfg.g.hue }] as const)
+                   .filter(item => item.active && item.weight > 0)
+                   .map(item => <span key={item.label} className="rounded-md border border-slate-200 bg-white px-2 py-1 font-medium text-slate-700">{item.label} {Math.round(item.weight * 100)} %</span>)}
+                 <button type="button" onClick={() => { setShowWeights(true); setShowMoreMenu(false); }}
+                   className="min-h-10 rounded-lg border border-emerald-300 bg-emerald-50 px-3 font-semibold text-emerald-900 hover:bg-emerald-100">
+                   Gewichtung &amp; Punkte einstellen
+                 </button>
+                 <span className="text-slate-500">Nur Kategorien mit vorhandenen Bewertungen fließen derzeit in den berechneten Stand ein.</span>
+               </div>
+             )}
+             {activeView === 'noten' && <div className="flex flex-wrap gap-1 border-b border-slate-100 px-3 py-2" aria-label="Bewertungen filtern">
               {([{ id: 'all', label: 'Alle Bewertungen' }, ...(cfg.lzk ? [{ id: 'lzk', label: 'LZK' }] : []), ...(cfg.wp ? [{ id: 'wp', label: 'Wochenpläne' }] : []), ...(cfg.sa ? [{ id: 'sa', label: 'Schularbeiten' }] : []), ...(cfg.obj ? [{ id: 'obj', label: cfg.objLabel || 'Sonstige' }] : [])] as { id: typeof assessmentFilter; label: string }[]).map(filter => <button key={filter.id} type="button" aria-pressed={!isolatedCol && assessmentFilter === filter.id} onClick={() => { setAssessmentFilter(filter.id); setIsolatedCol(null); setFilterMissing(false); }} className={`min-h-9 rounded-lg px-3 text-sm font-medium ${!isolatedCol && assessmentFilter === filter.id ? 'bg-emerald-50 text-emerald-800' : 'text-slate-500 hover:bg-slate-50'}`}>{filter.label}</button>)}
             </div>}
             {simpleDashboardMode && !isolatedCol && <p className="px-4 py-2 text-xs text-slate-500">
@@ -4492,6 +4509,22 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
               isOpen={editingAssessmentModal !== null}
               onClose={() => setEditingAssessmentModal(null)}
               onSave={(labelVal, dateVal, maxPointsVal, area) => {
+                if (assessmentMode === 'points' && !editingAssessmentModal.isNew && maxPointsVal !== undefined) {
+                  const previousMax = getMaxPoints(app, activeFach, editingAssessmentModal.typ, editingAssessmentModal.idx);
+                  if (previousMax !== maxPointsVal) {
+                    const dataKey = editingAssessmentModal.typ === 'obj' ? 'aufgaben' : editingAssessmentModal.typ;
+                    const savedPoints = app.schueler.flatMap(student => (['1', '2'] as const).map(period =>
+                      app.noten?.[student.id]?.[activeFach]?.[period]?.[dataKey]?.[editingAssessmentModal.idx],
+                    )).filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+                    if (savedPoints.some(value => value > maxPointsVal)) {
+                      window.alert(`Maximalpunkte nicht geändert: Es gibt gespeicherte Ergebnisse über ${maxPointsVal} Punkten. Bestehende Punktwerte bleiben erhalten.`);
+                      return false;
+                    }
+                    if (savedPoints.length > 0 && !window.confirm(
+                      `Für diese Bewertung sind bereits ${savedPoints.length} Punkte-Einträge gespeichert.\n\nDie Punkte bleiben unverändert, aber bei ${previousMax} → ${maxPointsVal} Maximalpunkten ändern sich die Prozentwerte und möglicherweise die Gesamtschnitte.\n\nÄnderung trotzdem übernehmen?`
+                    )) return false;
+                  }
+                }
                 if (editingAssessmentModal.isNew) {
                   setApp(prev => {
                     const meta = { ...(prev.notenMeta || {}) };
@@ -4523,6 +4556,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                   setSortBy('name'); setSortOrder('asc');
                   setIsolatedCol({ typ: editingAssessmentModal.typ, idx: editingAssessmentModal.idx });
                 }
+                return true;
               }}
               onOpenSchularbeitRaster={() => {
                 if (editingAssessmentModal.typ === 'sa') {
