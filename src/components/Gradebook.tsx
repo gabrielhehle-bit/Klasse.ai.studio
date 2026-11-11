@@ -232,6 +232,10 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
   const [heatmapMode, setHeatmapMode] = useState(false);
   const [confirmedWarnings, setConfirmedWarnings] = useState<Record<string, boolean>>({});
   const [simpleDashboardMode, setSimpleDashboardMode] = useState<boolean>(true);
+  // Compact rows are a local display preference only; no assessment data changes.
+  const [denseGradebookRows, setDenseGradebookRows] = useState(true);
+  const gradebookScrollRef = useRef<HTMLDivElement | null>(null);
+  const [gradebookScrollEdges, setGradebookScrollEdges] = useState({ left: false, right: false });
   const [assessmentFilter, setAssessmentFilter] = useState<'all' | 'lzk' | 'wp' | 'sa' | 'obj'>('all');
   const [showMoreMenu, setShowMoreMenu] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -1520,6 +1524,35 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     setEditingColLabel(null);
   };
 
+  // Keep vertical and horizontal navigation in the same scroll area, while
+  // preserving the sticky student names, column headers, and class-average row.
+  const updateGradebookScrollEdges = () => {
+    const element = gradebookScrollRef.current;
+    if (!element) return;
+    const left = element.scrollLeft > 2;
+    const right = element.scrollLeft + element.clientWidth < element.scrollWidth - 2;
+    setGradebookScrollEdges(prev =>
+      prev.left === left && prev.right === right ? prev : { left, right }
+    );
+  };
+  const scrollGradebookHorizontally = (direction: -1 | 1) => {
+    const element = gradebookScrollRef.current;
+    if (!element) return;
+    element.scrollBy({ left: direction * Math.max(240, Math.round(element.clientWidth * 0.65)), behavior: 'smooth' });
+  };
+  useEffect(() => {
+    if (activeView !== 'noten') return;
+    const element = gradebookScrollRef.current;
+    if (!element) return;
+    updateGradebookScrollEdges();
+    const observer = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(updateGradebookScrollEdges) : null;
+    observer?.observe(element);
+    const table = element.querySelector('table');
+    if (table) observer?.observe(table);
+    return () => observer?.disconnect();
+  }, [activeView, activeFach, assessmentFilter, isolatedCol, simpleDashboardMode, zoomLevel, students.length]);
+
   const renderColHeader = (typ: 'sa'|'lzk'|'wp'|'obj', i: number, baseColorClass: string, isFirst: boolean, defaultName: string) => {
     if (isolatedCol && (isolatedCol.typ !== typ || isolatedCol.idx !== i)) {
       return null; // hide if another column is isolated
@@ -1641,7 +1674,20 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
         [data-gradebook-fullscreen="true"] [data-gradebook-header] {
           position: sticky; top: 0; z-index: 70;
         }
+        .gradebook-scroll-area {
+          scrollbar-width: auto;
+          scrollbar-color: #9baea7 #edf2ef;
+          scrollbar-gutter: stable;
+          overscroll-behavior: contain;
+        }
+        .gradebook-scroll-area::-webkit-scrollbar { width: 11px; height: 12px; }
+        .gradebook-scroll-area::-webkit-scrollbar-track { background: #edf2ef; border-radius: 8px; }
+        .gradebook-scroll-area::-webkit-scrollbar-thumb { background: #9baea7; border: 2px solid #edf2ef; border-radius: 8px; }
+        .gradebook-scroll-area thead { position: sticky; top: 0; z-index: 55; }
+        .gradebook-table--dense tbody td { padding-top: 0.25rem !important; padding-bottom: 0.25rem !important; }
         @media print {
+          .gradebook-scroll-area { max-height: none !important; overflow: visible !important; scrollbar-width: none; }
+          .gradebook-scroll-area thead { position: static; }
           [data-gradebook-fullscreen="true"] {
             position: static !important; overflow: visible !important; padding: 0 !important;
             width: 100% !important; height: auto !important;
@@ -3496,8 +3542,28 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
               </div>;
             })()}
             {students.length > 0 && (cfg.sa || cfg.lzk || cfg.wp || cfg.obj || cfg.mi || cfg.hue) && (
-              <div className="w-full overflow-x-auto relative no-scrollbar rounded-2xl border border-slate-200 shadow-sm bg-white">
-              <table className={`w-full border-separate border-spacing-0 text-[0.875rem] leading-snug table-fixed print:table-auto gradebook-table ${isolatedCol ? 'min-w-[600px]' : simpleDashboardMode ? 'min-w-[650px]' : 'min-w-[1200px]'}`}>
+              <>
+              <div data-gradebook-scroll-controls className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/80 px-3 py-2 print:hidden">
+                <span className="text-xs font-medium text-slate-600">Tabelle scrollen · Namen und Überschriften bleiben sichtbar</span>
+                <div className="flex items-center gap-2">
+                  <button type="button" aria-pressed={denseGradebookRows}
+                    onClick={() => setDenseGradebookRows(value => !value)}
+                    className={`min-h-10 rounded-lg border px-3 text-xs font-semibold ${denseGradebookRows ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-slate-300 bg-white text-slate-700'}`}>
+                    {denseGradebookRows ? 'Enge Zeilen' : 'Normale Zeilen'}
+                  </button>
+                  <button type="button" aria-label="Notentabelle nach links scrollen"
+                    disabled={!gradebookScrollEdges.left} onClick={() => scrollGradebookHorizontally(-1)}
+                    className="min-h-10 min-w-10 rounded-lg border border-slate-300 bg-white px-2 font-semibold text-slate-800 disabled:opacity-30">←</button>
+                  <button type="button" aria-label="Notentabelle nach rechts scrollen"
+                    disabled={!gradebookScrollEdges.right} onClick={() => scrollGradebookHorizontally(1)}
+                    className="min-h-10 min-w-10 rounded-lg border border-slate-300 bg-white px-2 font-semibold text-slate-800 disabled:opacity-30">→</button>
+                </div>
+              </div>
+              <div ref={gradebookScrollRef} onScroll={updateGradebookScrollEdges}
+                data-gradebook-scroll-container role="region" tabIndex={0}
+                aria-label="Notentabelle – horizontal und vertikal scrollbar"
+                className="gradebook-scroll-area w-full max-h-[72dvh] overflow-auto relative rounded-b-2xl border border-slate-200 shadow-sm bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600 print:max-h-none print:overflow-visible">
+              <table className={`w-full border-separate border-spacing-0 text-[0.875rem] leading-snug table-fixed print:table-auto gradebook-table ${denseGradebookRows ? 'gradebook-table--dense' : ''} ${isolatedCol ? 'min-w-[600px]' : simpleDashboardMode ? 'min-w-[650px]' : 'min-w-[1200px]'}`}>
                 <thead>
                   <tr className="sticky top-0 z-30 text-[0.6rem] font-bold uppercase tracking-wider text-text-muted text-center print:break-inside-avoid">
                     <th className={`${zoomLevel === 'compact' ? 'px-2.5 py-2 text-[0.55rem] w-[3rem]' : zoomLevel === 'large' ? 'px-5 py-5 text-[0.75rem] w-[5rem]' : 'px-4 py-3.5 text-[0.6rem] w-[4rem]'} text-left border-b-2 border-r border-slate-200 bg-white sticky left-0 z-[50] print:relative print:left-0 shadow-[2px_0_10px_rgba(0,0,0,0.1)]`}>#</th>
@@ -4118,6 +4184,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                 )}
               </table>
             </div>
+            </>
           )}
           </div>
 
