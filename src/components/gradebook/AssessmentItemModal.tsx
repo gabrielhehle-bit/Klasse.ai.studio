@@ -50,7 +50,15 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
   isNew = false
 }) => {
   const [area, setArea] = useState(initialArea);
-  const areas = [...new Set(Object.values(LERNZIELE_BY_STUFE).flatMap(level => (level[subject] || []).map(goal => goal.text.split(':')[0])))];
+  const fachName = subject.toLocaleLowerCase('de-AT');
+  const presets = fachName.includes('deutsch')
+    ? ['Lesen', 'Rechtschreibung', 'Texte schreiben', 'Sprachbetrachtung', 'Sprechen und Zuhören']
+    : (fachName.includes('mathematik') || fachName.includes('mathe'))
+      ? ['Zahlen und Operationen', 'Rechnen', 'Größen und Messen', 'Raum und Form', 'Sachrechnen']
+      : [];
+  const areas = [...new Set([...presets, ...Object.values(LERNZIELE_BY_STUFE).flatMap(level =>
+    (level[subject] || []).map(goal => goal.text.split(':')[0].trim())
+  ).filter(Boolean)])];
   const [label, setLabel] = useState(initialLabel);
   const [entryMode, setEntryMode] = useState<'grades' | 'percent' | 'points'>(assessmentMode);
   const [date, setDate] = useState(initialDate);
@@ -116,7 +124,7 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
     e.preventDefault();
     const finalLabel = label.trim() || currentTypeInfo.defaultName;
     const finalMaxP = entryMode === 'points' ? Math.max(1, maxPoints || 20) : undefined;
-    const saved = onSave(finalLabel, date, finalMaxP, typ === 'lzk' ? area.trim() : undefined, entryMode);
+    const saved = onSave(finalLabel, date, finalMaxP, area.trim(), entryMode);
     // Keep the editor open when changing a points scale would invalidate existing results.
     if (saved !== false) onClose();
   };
@@ -245,7 +253,21 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
               </div>
             </div>
 
-            {typ === 'lzk' && <div className="space-y-2"><label htmlFor="assessment-item-area" className="block text-sm font-bold text-slate-700">Unterbereich in {subject}</label><input id="assessment-item-area" list="assessment-area-options" value={area} maxLength={100} onChange={e => setArea(e.target.value)} placeholder="Bereich auswählen oder eigenen eingeben" className="input-field w-full" /><datalist id="assessment-area-options">{areas.map(name => <option key={name} value={name} />)}</datalist><p className="text-xs text-slate-500">Zum Beispiel Lesen, Rechtschreiben, Operieren oder Größen – auch genauer: Längen. Erscheint automatisch im Schülerdossier und Portfolio.</p></div>}
+            <div className="space-y-2">
+              <label htmlFor="assessment-item-area" className="block text-sm font-bold text-slate-700">Teilbereich in {subject} (optional)</label>
+              <input id="assessment-item-area" list="assessment-area-options" value={area}
+                maxLength={100} onChange={e => setArea(e.target.value)}
+                placeholder={presets[0] || 'Lernbereich auswählen oder eingeben'} className="input-field w-full" />
+              <datalist id="assessment-area-options">{areas.map(name => <option key={name} value={name} />)}</datalist>
+              {presets.length > 0 && <div className="flex flex-wrap gap-1.5" aria-label="Teilbereiche auswählen">
+                {presets.map(name => <button key={name} type="button" onClick={() => setArea(name)}
+                  aria-pressed={area === name}
+                  className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${area === name ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}>
+                  {name}
+                </button>)}
+              </div>}
+              <p className="text-xs text-slate-500">Gilt für diese LZK, Schularbeit, diesen Wochenplan oder eine bewertete Aufgabe/HÜ. Die Anzahl vergessener Hausübungen wird weiterhin nur dokumentiert, nicht als Lernleistung interpretiert.</p>
+            </div>
             {/* Each assessment can use a different entry scale. Legacy columns retain their original scale. */}
             <fieldset className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
               <legend className="px-1 text-sm font-bold text-slate-800">Eingabeart dieser Bewertung</legend>
@@ -409,7 +431,7 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
                   onClick={() => {
                     const finalLabel = label.trim() || currentTypeInfo.defaultName;
                     const finalMaxP = entryMode === 'points' ? Math.max(1, maxPoints || 40) : undefined;
-                    if (onSave(finalLabel, date, finalMaxP, undefined, entryMode) !== false) onOpenSchularbeitRaster();
+                    if (onSave(finalLabel, date, finalMaxP, area.trim(), entryMode) !== false) onOpenSchularbeitRaster();
                   }}
                   className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shrink-0 shadow-sm transition-all"
                 >
