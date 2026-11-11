@@ -11,7 +11,7 @@ const dossier = readFileSync('src/lib/dossierObservationStats.ts', 'utf8');
 test('Klassenliste druckt ausschließlich über das Druckzentrum', () => {
   assert.doesNotMatch(list, /<span>Liste drucken<\/span>/);
   assert.match(list, /setViewMode\('map'\)/);
-  assert.match(list, /<StudentMap students=\{filteredStudents\} \/>/);
+  assert.match(list, /<StudentMap students=\{filteredStudents\} onOpenStudent=\{setSelectedFolderStudent\} \/>/);
 });
 
 test('Karte meldet anstatt weißer Fläche Geocoder- oder Kartenkachelfehler und erlaubt Wiederholen', () => {

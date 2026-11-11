@@ -72,6 +72,7 @@ function MapClickHandler({
 
 interface StudentMapProps {
   students: Student[];
+  onOpenStudent?: (studentId: string) => void;
 }
 
 function hasManualPosition(student: Student): student is Student & {
@@ -89,13 +90,13 @@ function hasManualPosition(student: Student): student is Student & {
   );
 }
 
-export default function StudentMap({ students }: StudentMapProps) {
+export default function StudentMap({ students, onOpenStudent }: StudentMapProps) {
   const { app } = useApp();
   // A class switch must discard an unfinished placement, including reused pupil IDs.
-  return <ClassStudentMap key={app.activeClassId || 'no-class'} students={students} />;
+  return <ClassStudentMap key={app.activeClassId || 'no-class'} students={students} onOpenStudent={onOpenStudent} />;
 }
 
-function ClassStudentMap({ students }: StudentMapProps) {
+function ClassStudentMap({ students, onOpenStudent }: StudentMapProps) {
   const { app, updateStudent } = useApp();
   const [tilesUnavailable, setTilesUnavailable] = useState(false);
   const [schoolLocationUnavailable, setSchoolLocationUnavailable] = useState(false);
@@ -238,7 +239,7 @@ function ClassStudentMap({ students }: StudentMapProps) {
 
       <div className={`w-full rounded-2xl border border-slate-200 relative z-0 overflow-hidden ${placingStudentId ? 'cursor-crosshair' : ''}`} style={{ height: '500px' }}>
         <MapErrorBoundary>
-          <MapContainer center={fallbackCenter} zoom={fallbackZoom} style={{ height: '100%', width: '100%', cursor: placingStudentId ? 'crosshair' : undefined }}>
+          <MapContainer key={retry} center={fallbackCenter} zoom={fallbackZoom} style={{ height: '100%', width: '100%', cursor: placingStudentId ? 'crosshair' : undefined }}>
             <MapViewportUpdater positions={manualPositions} fallbackCenter={fallbackCenter} fallbackZoom={fallbackZoom} isPlacing={Boolean(placingStudentId)} />
             <MapClickHandler enabled={Boolean(placingStudentId)} onSelect={saveManualPosition} />
             <TileLayer
@@ -261,6 +262,12 @@ function ClassStudentMap({ students }: StudentMapProps) {
                     <div className="text-slate-500 text-[0.75rem] leading-tight font-medium mb-3">
                       Manuell gesetzte Kartenposition
                     </div>
+                    {onOpenStudent && (
+                      <button type="button" onClick={() => onOpenStudent(student.id)}
+                        className="mb-2 w-full rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white">
+                        Schülerdossier öffnen
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setPlacingStudentId(student.id)}
@@ -272,15 +279,16 @@ function ClassStudentMap({ students }: StudentMapProps) {
                 </Popup>
               </Marker>
             ))}
-            {positionedStudents.length === 0 && !placingStudentId && (
-              <div className="pointer-events-none absolute inset-x-0 top-1/2 z-[400] flex -translate-y-1/2 justify-center px-4">
-                <div className="rounded-xl bg-white/95 px-4 py-3 text-center text-sm font-semibold text-slate-600 shadow-lg ring-1 ring-slate-200">
-                  Noch keine Pins gesetzt. Wähle unten einen Schüler aus.
-                </div>
-              </div>
-            )}
+
           </MapContainer>
         </MapErrorBoundary>
+        {positionedStudents.length === 0 && !placingStudentId && (
+          <div className="pointer-events-none absolute inset-x-0 top-1/2 z-[400] flex -translate-y-1/2 justify-center px-4">
+            <div className="rounded-xl bg-white/95 px-4 py-3 text-center text-sm font-semibold text-slate-600 shadow-lg ring-1 ring-slate-200">
+              Noch keine Pins gesetzt. Wähle unten einen Schüler aus.
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4 sm:p-5">

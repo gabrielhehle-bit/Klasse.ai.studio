@@ -289,14 +289,14 @@ export default function StudentList() {
         </div>
       ) : (
         <>
-          <div className={`${isCompact ? "space-y-4" : isLarge ? "space-y-8" : "space-y-6"} print:hidden`}>
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm px-3 py-2.5 sm:px-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-700">
+          <div className={`${isCompact ? "space-y-2" : isLarge ? "space-y-4" : "space-y-3"} print:hidden`}>
+          <div className="rounded-xl border border-slate-200 bg-white shadow-sm px-3 py-2 sm:px-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-slate-700">
             <span className="font-extrabold text-slate-900">{schueler.length} Kinder</span>
             <span>{maleCount} Jungen · {femaleCount} Mädchen{diverseCount ? ` · ${diverseCount} divers` : ''}{unknownGenderCount ? ` · ${unknownGenderCount} offen` : ''}</span>
             <span>DaZ {dazCount} · SPF {spfCount} · ESPF {espfCount}</span>
             <button type="button" aria-expanded={showClassStatistics} aria-controls="klassio-class-statistics"
               onClick={() => setShowClassStatistics(open => !open)}
-              className="ml-auto rounded-lg border border-indigo-200 px-3 py-1.5 text-indigo-700 font-bold hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600">
+              className="ml-auto rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-slate-700 font-bold hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600">
               {showClassStatistics ? 'Statistik ausblenden' : 'Klassenstatistik anzeigen'}
             </button>
           </div>
@@ -304,7 +304,7 @@ export default function StudentList() {
         </div>
 
         <div className={`flex flex-col gap-3 bg-white border border-slate-200 shadow-sm print:hidden ${
-          isCompact ? 'p-2 sm:p-3 rounded-xl' : isLarge ? 'p-4 sm:p-6 rounded-2xl' : 'p-3 sm:p-4 rounded-2xl'
+          isCompact ? 'p-2 rounded-xl' : isLarge ? 'p-4 rounded-2xl' : 'p-2.5 sm:p-3 rounded-xl'
         }`}>
           {/* Top row: Title and Add button */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2.5 sm:gap-3 w-full">
@@ -385,7 +385,7 @@ export default function StudentList() {
           <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center">
             <div className="flex flex-1 gap-2">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 animate-pulse" size={14} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                 <DebouncedInput 
                   className={`w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[0.8125rem] leading-tight font-medium focus:outline-none focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all placeholder:text-slate-500 ${
                     isCompact ? 'text-[0.7rem] py-1 pl-7 pr-7' : isLarge ? 'text-[0.825rem] py-2 pl-9 pr-9' : ''
@@ -467,7 +467,7 @@ export default function StudentList() {
                 } ${viewMode === 'list' ? 'bg-white text-slate-900 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
             >
                 <div className="flex gap-0.5"><div className="w-1.5 h-1.5 bg-current rounded-sm" /><div className="w-1.5 h-1.5 bg-current rounded-sm" /></div>
-                <span className="hidden sm:inline">Liste</span>
+                <span>Liste</span>
             </button>
             <button 
                 onClick={() => setViewMode('grid')}
@@ -480,7 +480,7 @@ export default function StudentList() {
                 } ${viewMode === 'grid' ? 'bg-white text-slate-900 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
             >
                 <div className="grid grid-cols-2 gap-0.5"><div className="w-1 h-1 bg-current rounded-sm" /><div className="w-1 h-1 bg-current rounded-sm" /><div className="w-1 h-1 bg-current rounded-sm" /><div className="w-1 h-1 bg-current rounded-sm" /></div>
-                <span className="hidden sm:inline">Kacheln</span>
+                <span>Kacheln</span>
             </button>
             <button 
                 onClick={() => setViewMode('map')}
@@ -493,7 +493,7 @@ export default function StudentList() {
                 } ${viewMode === 'map' ? 'bg-white text-slate-900 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
             >
                 <Map size={isCompact ? 9 : isLarge ? 14 : 11} />
-                <span className="hidden sm:inline">Karte</span>
+                <span>Karte</span>
             </button>
           </div>
         </div>
@@ -1070,7 +1070,7 @@ export default function StudentList() {
             <span className="text-[0.6875rem] font-black uppercase tracking-widest text-slate-450 animate-pulse">Karte wird geladen...</span>
           </div>
         }>
-          <StudentMap students={filteredStudents} />
+          <StudentMap students={filteredStudents} onOpenStudent={setSelectedFolderStudent} />
         </React.Suspense>
       ) : (
         <div className={`grid print:hidden ${
