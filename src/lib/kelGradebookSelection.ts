@@ -67,6 +67,8 @@ export function getKelGradebookAssessments(
       const entries = record[key];
       if (!Array.isArray(entries)) continue;
       entries.forEach((raw: number | string | null, index: number) => {
+        // Keep the historic value but never present an exempted LZK as an assessed result.
+        if (key === 'lzk' && record.lzkParticipation?.[index] === false) return;
         if (isAssessmentValueMissing(raw) || raw === null || typeof raw === 'undefined') return;
         if (typeof raw === 'number' && !Number.isFinite(raw)) return;
         if (typeof raw !== 'number' && typeof raw !== 'string') return;
