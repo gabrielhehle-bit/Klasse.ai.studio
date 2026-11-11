@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Activity, ArrowRight, BarChart3, CalendarDays, Clock, Smile, Plus, Star } from 'lucide-react';
+import { Activity, ArrowRight, BarChart3, CalendarDays, Clock, Smile, Plus, Star, Presentation, ChevronDown, ChevronUp } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { Student } from '../../types';
 import { useApp } from '../../context/AppContext';
@@ -11,6 +11,8 @@ import { getMoodMeta } from '../../lib/moodTypes';
 import { behaviorLogDay } from '../../lib/dailyBehaviorEntries';
 import { getStudentSubjectParticipationSummary } from '../../lib/studentParticipation';
 import { getStudentHomeworkSummary } from '../../lib/studentHomework';
+import AssessmentDomainDonuts from './AssessmentDomainDonuts';
+import { getStudentAssessmentDomainPerformance } from '../../lib/assessmentDomainPerformance';
 
 interface Props {
   student: Student;
@@ -18,6 +20,7 @@ interface Props {
   onTabChange: (tab:any)=>void;
   onSubjectSelect?: (fach:string)=>void;
   onQuickEntry?: (type:'note'|'strength'|'parent'|'goal')=>void;
+  onPrepareKel?: ()=>void;
 }
 
 type AttendanceHeatStatus = 'present'|'excused'|'unexcused'|'empty'|'weekend';
@@ -45,9 +48,11 @@ const noteDisplayMeta=(note:any)=>{
   return {label:'Beobachtung', badge:'bg-slate-50 text-slate-700 border-slate-200'};
 };
 
-export default function DossierUebersicht({student,semester,onTabChange,onSubjectSelect,onQuickEntry}:Props) {
+export default function DossierUebersicht({student,semester,onTabChange,onSubjectSelect,onQuickEntry,onPrepareKel}:Props) {
   const {app}=useApp();
   const [period,setPeriod]=useState<'recent'|'year'>('recent');
+  const [showAllSubjects,setShowAllSubjects]=useState(false);
+  const [selectedAttendanceDay,setSelectedAttendanceDay]=useState<string|null>(null);
   const trendStats=useMemo(()=>getDossierOverviewStats(app,student.id,period),[app,student.id,period]);
   const yearStats=useMemo(()=>getDossierOverviewStats(app,student.id,'year'),[app,student.id]);
   const subjects=faecherFuerKlasse(app).filter(f=>!app.faecher?.length||app.faecher.includes(f));
@@ -113,6 +118,15 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
 
   const assessedSubjects=subjectCards.filter(card=>card.avg!==null||card.hasFinal).length;
   const totalAssessments=subjectCards.reduce((sum,cardData)=>sum+cardData.assessmentCount,0);
+  const prioritySubjectCards=subjectCards.filter(cardData=>
+    /^(Deutsch|Mathematik|Sachunterricht)$/.test(cardData.fach) || cardData.assessmentCount>0 ||
+    cardData.avg!==null || cardData.hasFinal || cardData.participation.hasData || cardData.homework.tracked
+  );
+  const visibleSubjectCards=showAllSubjects?subjectCards:
+    (prioritySubjectCards.length?prioritySubjectCards:subjectCards.slice(0,3));
+  const hiddenSubjectCount=subjectCards.length-visibleSubjectCards.length;
+  const assessedCoreDomains=subjects.filter(fach=>['Deutsch','Mathematik'].includes(fach) &&
+    getStudentAssessmentDomainPerformance(app,student.id,fach,semester).length>0);
   const homeworkCoreText=trackedHomeworkSubjects===0?'HÜ noch nicht erfasst':missingHomework>0?`${missingHomework} fehlende HÜ`:'keine fehlenden HÜ';
 
   const participationPeriod=useMemo(
@@ -150,6 +164,9 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
     });
   },[app.anwesenheit,app.anwesenheitDetail,student.id,trendStats.start,trendStats.today]);
 
+  const selectedDay=attendanceHeatmap.find(day=>day.key===selectedAttendanceDay);
+  const calendarPad=attendanceHeatmap.length
+    ? (new Date(attendanceHeatmap[0].key+'T12:00:00').getDay()+6)%7 : 0;
   const attendanceTone:Record<AttendanceHeatStatus,string>={
     present:'bg-teal-500',
     excused:'bg-amber-300',
@@ -167,7 +184,13 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
           <p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-slate-400">Auf einen Blick</p>
           <h2 className="mt-0.5 text-lg font-black text-slate-900">Wie läuft es gerade?</h2>
         </div>
-        <span className="text-[0.68rem] font-semibold text-slate-500">Ganzes Schuljahr · Details per Klick</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[0.68rem] font-semibold text-slate-500">Ganzes Schuljahr · Details per Klick</span>
+          {onPrepareKel && <button type="button" onClick={onPrepareKel} data-dossier-kel-entry
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-800 hover:bg-indigo-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600">
+            <Presentation size={15}/> KEL-Gespräch vorbereiten <ArrowRight size={14}/>
+          </button>}
+        </div>
       </div>
       <div aria-label="Kernüberblick" className="grid grid-cols-2 gap-2 xl:grid-cols-4">
         <button data-dossier-summary-card data-klassio-interactive type="button" onClick={()=>onTabChange('beobachtungen_verlauf')} className="rounded-xl border border-teal-100 bg-white p-3 text-left transition hover:border-teal-200">
@@ -232,9 +255,28 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
             <div><h3 className="flex items-center gap-2 text-sm font-bold text-slate-900"><CalendarDays size={17} className="text-teal-600"/>Anwesenheit</h3><p className="mt-1 text-[0.68rem] text-slate-500">Kalender statt weiterer Balken</p></div>
             <span className="max-w-[9rem] rounded-full bg-teal-50 px-2.5 py-1 text-right text-[0.68rem] font-bold text-teal-800">{todayStatus}</span>
           </div>
-          <div className="mt-4 grid max-h-48 gap-1 overflow-y-auto" data-attendance-heatmap data-period-start={trendStats.start} data-period-end={trendStats.today} role="group" tabIndex={0} aria-label="Anwesenheitskalender">
-            {attendanceHeatmap.map(day=><span key={day.key} data-attendance-day data-date={day.key} title={`${day.label}: ${day.status==='present'?'anwesend':day.status==='excused'?'entschuldigt':day.status==='unexcused'?'unentschuldigt':day.status==='weekend'?'Wochenende':'nicht erfasst'}`} aria-label={`${day.label}: ${day.status}`} className={`${attendanceTone[day.status]} block`}/>)}
+          <div data-attendance-heatmap data-period-start={trendStats.start} data-period-end={trendStats.today} className="mt-3 space-y-1.5" aria-label="Anwesenheitskalender">
+            <div className="grid grid-cols-7 gap-1 text-center text-[0.65rem] font-semibold text-slate-500" aria-hidden="true">
+              {['Mo','Di','Mi','Do','Fr','Sa','So'].map(day=><span key={day}>{day}</span>)}
+            </div>
+            <div className="grid max-h-52 grid-cols-7 gap-1 overflow-y-auto pr-1" role="group" aria-label="Anwesenheit nach Kalendertagen">
+              {Array.from({length:calendarPad},(_,index)=><span key={`padding-${index}`} aria-hidden="true"/>)}
+              {attendanceHeatmap.map(day=><button key={day.key} type="button"
+                data-attendance-day data-date={day.key} aria-pressed={selectedAttendanceDay===day.key}
+                aria-label={`${day.label}: ${day.status==='present'?'anwesend':day.status==='excused'?'entschuldigt':day.status==='unexcused'?'unentschuldigt':day.status==='weekend'?'Wochenende':'nicht erfasst'}`}
+                title={`${day.label}: ${day.status==='present'?'anwesend':day.status==='excused'?'entschuldigt':day.status==='unexcused'?'unentschuldigt':day.status==='weekend'?'Wochenende':'nicht erfasst'}`}
+                onClick={()=>setSelectedAttendanceDay(day.key)}
+                className={`${attendanceTone[day.status]} flex min-h-8 items-center justify-center rounded-md border border-transparent text-[0.68rem] font-bold
+                  ${day.status==='present'||day.status==='unexcused'?'text-white':'text-slate-700'}
+                  focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-indigo-600
+                  ${selectedAttendanceDay===day.key?'ring-2 ring-indigo-600 ring-offset-1':''}`}>
+                {Number(day.key.slice(-2))}
+              </button>)}
+            </div>
           </div>
+          <p aria-live="polite" className="mt-2 min-h-8 rounded-lg bg-slate-50 px-3 py-2 text-[0.7rem] font-medium text-slate-700">
+            {selectedDay ? `${selectedDay.label}: ${selectedDay.status==='present'?'als anwesend erfasst':selectedDay.status==='excused'?'entschuldigte Fehlzeit':selectedDay.status==='unexcused'?'unentschuldigte Fehlzeit':selectedDay.status==='weekend'?'Wochenende':'noch kein Anwesenheitseintrag'}` : 'Tag auswählen, um den erfassten Status zu sehen.'}
+          </p>
           <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[0.62rem] font-semibold text-slate-500"><span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-teal-500"/>anwesend</span><span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-amber-300"/>entschuldigt</span><span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-rose-500"/>unentschuldigt</span></div>
           <p className="mt-2 text-[0.65rem] text-slate-500">{trendStats.excused} entschuldigt · {trendStats.unexcused} unentschuldigt</p>
         </section>
@@ -244,14 +286,26 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
 
     <section className={card} aria-label="Notenstand aller Fächer" data-dossier-subject-grid data-klassio-area>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div><h2 className="flex items-center gap-2 text-base font-black text-slate-900"><BarChart3 size={18} className="text-indigo-600"/>Alle Fächer auf einen Blick</h2><p className="mt-1 text-xs text-slate-500">Bewertung, Trend, Mitarbeit und Hausübungen direkt pro Fach.</p></div>
-        <button type="button" onClick={()=>onTabChange('leistungen')} className="rounded-lg px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-50">Alle Bewertungen <ArrowRight size={14} className="inline"/></button>
+        <div><h2 className="flex items-center gap-2 text-base font-black text-slate-900"><BarChart3 size={18} className="text-indigo-600"/>Alle Fächer auf einen Blick</h2><p className="mt-1 text-xs text-slate-500">Bewertung, Trend, Mitarbeit und Hausübungen direkt pro Fach. Ohne Nachweis keine Bewertung.</p></div>
+        <div className="flex flex-wrap gap-2">
+          {hiddenSubjectCount>0 && <button type="button" onClick={()=>setShowAllSubjects(true)} aria-expanded={showAllSubjects} data-show-empty-subjects
+            className="inline-flex min-h-10 items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100">
+            {hiddenSubjectCount} weitere Fächer <ChevronDown size={14}/>
+          </button>}
+          {showAllSubjects && <button type="button" onClick={()=>setShowAllSubjects(false)} className="inline-flex min-h-10 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">Leere Fächer reduzieren <ChevronUp size={14}/></button>}
+          <button type="button" onClick={()=>onTabChange('leistungen')} className="inline-flex min-h-10 items-center gap-1 rounded-lg px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-50">Alle Bewertungen <ArrowRight size={14}/></button>
+        </div>
       </div>
       <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-        {subjectCards.map(cardData=>{
+        {visibleSubjectCards.map(cardData=>{
           const points=cardData.trendValues.length>1?cardData.trendValues.map((value,index,all)=>`${(index/(all.length-1))*100},${27-(Math.max(0,Math.min(100,value))*0.22)}`).join(' '):'';
           const participationText=cardData.participation.hasData?`${cardData.participation.total} ★ Mitarbeit`:'Mitarbeit —';
           const homeworkText=!cardData.homework.tracked?'HÜ —':cardData.homework.missing===0?'HÜ ✓':`${cardData.homework.missing} fehlende HÜ`;
+          const noEvidence=cardData.assessmentCount===0 && cardData.avg===null && !cardData.hasFinal && !cardData.participation.hasData && !cardData.homework.tracked;
+          if(noEvidence) return <button key={cardData.fach} type="button" onClick={()=>openSubject(cardData.fach)}
+            className="flex min-h-16 items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-3 text-left transition hover:border-indigo-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500">
+            <span className="min-w-0"><strong className="block truncate text-sm font-bold text-slate-800">{cardData.fach}</strong><span className="mt-0.5 block text-[0.68rem] text-slate-500">Noch keine Bewertung oder Mitarbeit erfasst</span></span><ArrowRight size={16} className="shrink-0 text-slate-400"/>
+          </button>;
           return <button key={cardData.fach} type="button" onClick={()=>openSubject(cardData.fach)} className="group rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-indigo-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0"><span className="block truncate text-sm font-black text-slate-900">{cardData.fach}</span><span className="mt-0.5 block text-[0.62rem] font-semibold text-slate-400">{cardData.mode==='grades'?'Noten 1–5':cardData.mode==='percent'?'Prozent':'Punkte'}</span></div>
@@ -269,6 +323,11 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
       </div>
       {!subjects.length&&<p className="text-sm text-slate-500">Noch keine Fächer ausgewählt.</p>}
     </section>
+
+    {assessedCoreDomains.length>0 && <section data-dossier-core-domains className="space-y-3" aria-label="Dokumentierte Lernteilbereiche">
+      <div className="flex flex-wrap items-end justify-between gap-2"><div><h2 className="text-base font-black text-slate-900">Lernteilbereiche mit Nachweisen</h2><p className="mt-1 text-xs text-slate-500">Nur tatsächlich dokumentierte Leistungen in Deutsch und Mathematik – keine pauschale Kompetenzbewertung.</p></div><button type="button" onClick={()=>onTabChange('leistungen')} className="min-h-10 rounded-lg px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-50">Details öffnen <ArrowRight size={14} className="inline"/></button></div>
+      <div className="grid gap-3 xl:grid-cols-2">{assessedCoreDomains.map(fach=><AssessmentDomainDonuts key={fach} studentId={student.id} subject={fach} semester={semester} compact hideWhenEmpty />)}</div>
+    </section>}
 
     <section className={card} aria-label="Aktuelle Notizen" data-klassio-area>
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
