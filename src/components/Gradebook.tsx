@@ -1260,7 +1260,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     const student = app.schueler.find(s => s.id === sid);
     if (student && validated !== null) {
       logActivity(setApp, `Note/Status für ${student.vorname} ${student.nachname} in ${activeFach} erfasst`, 'note', sid);
-      if (validated === 1 || validated === 2) {
+      if (mode === 'grades' && (validated === 1 || validated === 2)) {
         try {
           window.dispatchEvent(new CustomEvent('classpet-joy', {
             detail: { 
@@ -3519,7 +3519,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
             {activeView === 'noten' && (
                <div data-gradebook-grading-summary className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-slate-100 bg-slate-50/70 px-3 py-2.5 text-xs print:hidden">
                  <span className="font-semibold text-slate-800">
-                   Bewertungsart: {assessmentMode === 'grades' ? 'Noten (1–5)' : assessmentMode === 'points' ? 'Punkte / Maximum' : 'Prozent (0–100 %)'}
+                   Fach-Grundmodus: {assessmentMode === 'grades' ? 'Noten (1–5)' : assessmentMode === 'points' ? 'Punkte / Maximum' : 'Prozent (0–100 %)'}
                  </span>
                  {([{ active: cfg.sa, label: 'SA', weight: cfg.g.sa }, { active: cfg.lzk, label: 'LZK', weight: cfg.g.lzk },
                    { active: cfg.wp, label: 'Wochenplan', weight: cfg.g.wp }, { active: cfg.obj, label: 'Sonstige', weight: cfg.g.obj },
@@ -3530,7 +3530,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                    className="min-h-10 rounded-lg border border-emerald-300 bg-emerald-50 px-3 font-semibold text-emerald-900 hover:bg-emerald-100">
                    Gewichtung &amp; Punkte einstellen
                  </button>
-                 <span className="text-slate-500">Nur Kategorien mit vorhandenen Bewertungen fließen derzeit in den berechneten Stand ein.</span>
+                 <span className="text-slate-500">Nur Kategorien mit vorhandenen Bewertungen fließen derzeit in den berechneten Stand ein. Punkte und Prozent werden im Noten-Grundmodus rechnerisch über 1 = 100 %, 2 = 80 %, 3 = 60 %, 4 = 40 %, 5 = 20 % zugeordnet; das ist kein amtlicher Notenschlüssel.</span>
                </div>
              )}
              {activeView === 'noten' && <div className="flex flex-wrap gap-1 border-b border-slate-100 px-3 py-2" aria-label="Bewertungen filtern">
