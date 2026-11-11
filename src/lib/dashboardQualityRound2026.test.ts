@@ -42,3 +42,27 @@ test('time column is readable on narrow screens, primary actions remain touch-si
   assert.match(today, /disabled=\{isPreview\}/);
   assert.match(today, /focus-visible:outline/);
 });
+
+test('screenshot review: avoids duplicated attendance call to action', () => {
+  assert.match(today, /primaryTarget === 'anwesenheit' && !isPreview/);
+  assert.match(today, /data-dashboard-attendance-status role="status"/);
+  assert.match(today, /Anwesenheit \$\{dayLabel\}: \$\{attendanceValue\}/);
+  assert.match(today, /onClick=\{\(\) => p\.onNavigate\(p\.totalStudents \? 'anwesenheit' : 'schueler'\)\}/);
+});
+
+test('screenshot review: condenses actions, keeps widget and quick-link navigation', () => {
+  assert.match(today, /data-dashboard-quick-actions/);
+  assert.match(today, /aria-label="Schnellzugriff"/);
+  assert.match(today, /onClick=\{p\.onSimpleModeToggle\}/);
+  for (const path of ['wochenplanung', 'verhalten', 'orga']) {
+    assert.ok(today.includes(`p.onNavigate('${path}')`));
+  }
+  assert.doesNotMatch(today, /<footer className="flex justify-center">/);
+});
+
+test('screenshot review: mobile profile remains, desktop avoids duplicate sidebar avatar', () => {
+  assert.match(today, /onClick=\{\(\) => p\.onNavigate\('profil'\)\}/);
+  assert.match(today, /focus-visible:ring-\[var\(--accent\)\] lg:hidden/);
+  assert.match(today, /\{p\.klasseLabel \|\| 'Deine Klasse'\}/);
+  assert.match(today, /lg:sr-only/);
+});
