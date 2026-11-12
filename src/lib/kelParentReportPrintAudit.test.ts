@@ -39,3 +39,28 @@ test('behavior bars use SVG so the global printed div height reset cannot collap
   assert.match(sheet, /<rect x="0" y="0" width=\{row.count \/ behaviorTotal \* 100\}/);
   assert.doesNotMatch(sheet, /className="mt-0\.5 h-1\.5 overflow-hidden/);
 });
+
+test('KEL printing hides every generic PrintHeader and preserves its own heading', () => {
+  assert.match(print, /print-center-kel-parent-active/);
+  assert.match(print, /print-center-kel-parent-active \.global-print-header \{/);
+  assert.match(print, /print-center-kel-parent-active \[data-kel-report-head\] \{/);
+  assert.match(print, /data-kel-parent-print-sheet=\{activeTemplate === 'kel_elternblatt' \? true : undefined\}/);
+  assert.match(sheet, /<div data-kel-report-head/);
+  assert.match(sheet, /Lern- &amp; Entwicklungsübersicht/);
+});
+
+test('Chrome print preview retains the KEL report until afterprint', () => {
+  assert.match(print, /const isParentSheet = activeTemplate === 'kel_elternblatt'/);
+  assert.match(print, /window.addEventListener\('afterprint', closeParentPrint, \{ once: true \}\)/);
+  assert.match(print, /if \(!isParentSheet\) \{\s*setTimeout\(\(\) => setPrintModeActive\(false\), 500\)/);
+  assert.match(print, /document.body.classList.toggle\('print-center-kel-parent-active', printModeActive && activeTemplate === 'kel_elternblatt'\)/);
+});
+
+test('KEL charts and odd card count remain readable in the print preview', () => {
+  assert.match(print, /\[data-kel-summary-grid\] > section:last-child:nth-child\(odd\)/);
+  assert.match(print, /\[data-kel-behavior-bar\] \{/);
+  assert.match(print, /\[data-kel-mood-selected="true"\] \{/);
+  assert.match(sheet, /data-kel-summary-grid/);
+  assert.match(sheet, /data-kel-mood-selected=/);
+  assert.match(sheet, /\{row.total === 1 \? 'Punkt' : 'Punkte'\}/);
+});
