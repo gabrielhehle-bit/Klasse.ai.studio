@@ -19,3 +19,10 @@ test('synthetic browser test explicitly handles ONLY the expected native gradebo
   assert.match(browserScript, /client.approveExpectedGradebookMaxPoints = false;\s*\}\s*\}\s*if \(client.approvedGradebookMaxPointsCount === 0\)/);
   assert.doesNotMatch(browserScript, /window.confirm\s*=/);
 });
+
+test('long browser test uses the current assessment area field label', () => {
+  const modal = readFileSync('src/components/gradebook/AssessmentItemModal.tsx', 'utf8');
+  assert.match(modal, /Teilbereich in \{subject\} \(optional\)/);
+  assert.match(browserScript, /setInputByLabel\(client,'Teilbereich in Mathematik','Längen'\)/);
+  assert.doesNotMatch(browserScript, /setInputByLabel\(client,'Unterbereich in Mathematik'/);
+});
