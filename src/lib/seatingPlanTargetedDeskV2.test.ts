@@ -28,9 +28,9 @@ test('Sitzplan: Tischliste zeigt tatsächliche Belegung, Zielzuweisung ist eine 
 
 test('Sitzplan: Tischklick bietet direkten Belegungsüberblick und optionales Umsetzen', () => {
   assert.match(plan, /data-seating-desk-inspector/);
-  assert.match(plan, /getStudentsOnTable\(obj, sitzplan_schueler\)\.length/);
-  assert.match(plan, /disabled=\{!findDeskSeatForStudent\(selectedSeatStudent\.id, obj\)\}/);
-  assert.match(plan, /placeStudentAtSelectedDesk\(selectedSeatStudent\.id, obj\.id\)/);
+  assert.match(plan, /getStudentsOnTable\(selectedObj, sitzplan_schueler\)\.length/);
+  assert.match(plan, /disabled=\{!findDeskSeatForStudent\(selectedSeatStudent\.id, selectedObj\)\}/);
+  assert.match(plan, /placeStudentAtSelectedDesk\(selectedSeatStudent\.id, selectedObj\.id\)/);
 });
 
 test('Sitzplan: Schüler wird nur bei vorhandenem freien Ziel und nur auf ausdrücklichen Klick umgesetzt', () => {
