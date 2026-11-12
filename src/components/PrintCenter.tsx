@@ -45,6 +45,8 @@ import {
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import PrintHeader from './PrintHeader';
+import KELParentReport, { type KELParentReportOptions } from './KELParentReport';
+import { getStudentNotes } from '../lib/studentMetrics';
 import { exportSchuelerPDF } from '../lib/exportService';
 import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, sortYearlySubjects, getSchulstartKW, getSemester, getCurrentSchuljahr, formatLocalDateKey } from '../lib/utils';
 import { getFachCfg, berechne, getNotenLabel, getAssessmentMode } from '../lib/GradeUtils';
@@ -167,7 +169,7 @@ export default function PrintCenter() {
 
   // 1. Core Printing State
   const [activeTemplate, setActiveTemplate] = useState<
-    'schuelerliste' | 'checkliste' | 'zeugnis_noten' | 'wochenplan' | 'schueler_wochenplan' | 'materialabholung' | 'klassenbuch' | 'jahresplanung' | 'kel' | 'stundenplan' | 'schuelerprofil' | 'kel_presentation' | 'sitzplan' | 'uebergabemappe' | 'eltern_diagnostik' | 'pdf_export' | 'lob_druckkarte' | 'fehlstunden' | 'smart_tools' | 'kassenuebersicht'
+    'schuelerliste' | 'checkliste' | 'zeugnis_noten' | 'wochenplan' | 'schueler_wochenplan' | 'materialabholung' | 'klassenbuch' | 'jahresplanung' | 'kel' | 'kel_elternblatt' | 'stundenplan' | 'schuelerprofil' | 'kel_presentation' | 'sitzplan' | 'uebergabemappe' | 'eltern_diagnostik' | 'pdf_export' | 'lob_druckkarte' | 'fehlstunden' | 'smart_tools' | 'kassenuebersicht'
   >('schuelerliste');
   
   const [printModeActive, setPrintModeActive] = useState(false);
@@ -191,6 +193,7 @@ export default function PrintCenter() {
     { id: 'jahresplanung', icon: FileText, label: 'Jahresplan', desc: 'Syllabus & Kompetenzen', cat: 'planung', taskCat: 'planung', badge: 'Syllabus', keywords: 'jahresplan syllabus monate ziele kompetenzen' },
 
     { id: 'kel', icon: Award, label: 'KEL-Gespräch', desc: 'Entwicklungsdossier & Zieldialog', cat: 'eltern', taskCat: 'schueler', badge: 'Dossier', keywords: 'kel gespräch eltern entwicklung ziele vereinbarung' },
+    { id: 'kel_elternblatt', icon: Heart, label: 'KEL-Elternblatt', desc: 'Befinden, Verhalten, Mitarbeit, Lernen und Gesprächsnotizen', cat: 'eltern', taskCat: 'schueler', badge: 'A4 Eltern', keywords: 'elternblatt kel gespräch entwicklung befinden verhalten mitarbeit lernbereiche notizen drucken' },
     { id: 'kel_presentation', icon: Sparkles, label: 'KEL-Präsentation', desc: 'Visuelle Bento-Karten', cat: 'eltern', taskCat: 'schueler', badge: 'Bento-Visual', keywords: 'kel bento präsentation visual stärken' },
     { id: 'eltern_diagnostik', icon: Stethoscope, label: 'Elternbericht', desc: 'Förderdiagnostik & Feedback', cat: 'eltern', taskCat: 'schueler', badge: 'Diagnostik', keywords: 'eltern bericht diagnostik förderung test ergebnis' },
     { id: 'schuelerprofil', icon: User, label: 'Schülerdossier', desc: 'Stammdaten, Noten & Profil', cat: 'eltern', taskCat: 'schueler', badge: 'Einzelblatt', keywords: 'schüler profil stammdaten notarzt eltern handy' },
@@ -331,6 +334,30 @@ export default function PrintCenter() {
   const [jpShowHolidays, setJpShowHolidays] = useState(true);
   const [jpShowPins, setJpShowPins] = useState(true);
   const [jpShowProgressBars, setJpShowProgressBars] = useState(true);
+
+  // Parent-friendly, read-only KEL sheet. Notes are NEVER selected automatically.
+  const [elternblattSelectedStudentId, setElternblattSelectedStudentId] = useState<string>(students[0]?.id || '');
+  const [elternblattPeriod, setElternblattPeriod] = useState<'recent' | 'year'>('year');
+  const [elternblattShowMood, setElternblattShowMood] = useState(true);
+  const [elternblattShowBehavior, setElternblattShowBehavior] = useState(true);
+  const [elternblattShowParticipation, setElternblattShowParticipation] = useState(true);
+  const [elternblattShowLearning, setElternblattShowLearning] = useState(true);
+  const [elternblattShowNotes, setElternblattShowNotes] = useState(false);
+  const [elternblattShowSignatures, setElternblattShowSignatures] = useState(true);
+  const [elternblattSubjects, setElternblattSubjects] = useState<string[]>(['Deutsch', 'Mathematik']);
+  const [elternblattSharedNoteIds, setElternblattSharedNoteIds] = useState<string[]>([]);
+  const elternblattNotes = getStudentNotes(app, elternblattSelectedStudentId)
+    .filter((note: any) => typeof note.id === 'string' && note.id && typeof note.inhalt === 'string' && note.inhalt.trim());
+  const elternblattOptions: KELParentReportOptions = {
+    period: elternblattPeriod, showMood: elternblattShowMood, showBehavior: elternblattShowBehavior,
+    showParticipation: elternblattShowParticipation, showLearning: elternblattShowLearning,
+    showNotes: elternblattShowNotes, showSignatures: elternblattShowSignatures,
+    subjects: elternblattSubjects, sharedNoteIds: elternblattSharedNoteIds,
+  };
+
+  useEffect(() => {
+    if (activeTemplate === 'kel_elternblatt') setPrintTheme('slate');
+  }, [activeTemplate]);
 
   // F. KEL-Gespräche / Dossier Options
   const [kelStudentMode, setKelStudentMode] = useState<'single' | 'all'>('single');
@@ -613,6 +640,8 @@ export default function PrintCenter() {
       const belongsToActiveClass = students.some((student) => student.id === app.activePrintStudentId);
       if (belongsToActiveClass) {
         setKelSelectedStudentId(app.activePrintStudentId);
+        setElternblattSelectedStudentId(app.activePrintStudentId);
+        setElternblattSharedNoteIds([]);
         setProfSelectedStudentId(app.activePrintStudentId);
         setDiagSelectedStudentId(app.activePrintStudentId);
         setKpSelectedStudentId(app.activePrintStudentId);
@@ -627,6 +656,8 @@ export default function PrintCenter() {
   useEffect(() => {
     const firstStudentId = students[0]?.id || '';
     setKelSelectedStudentId(firstStudentId);
+    setElternblattSelectedStudentId(app.activePrintStudentId && students.some(st => st.id === app.activePrintStudentId) ? app.activePrintStudentId : firstStudentId);
+    setElternblattSharedNoteIds([]);
     setProfSelectedStudentId(firstStudentId);
     setDiagSelectedStudentId(firstStudentId);
     setKpSelectedStudentId(firstStudentId);
@@ -2650,6 +2681,81 @@ export default function PrintCenter() {
                 </div>
               )}
 
+              {/* KEL ELTERNBLATT CONTROLS */}
+              {activeTemplate === 'kel_elternblatt' && (
+                <div className="space-y-3" data-kel-parent-report-controls>
+                  <div>
+                    <label htmlFor="kel-parent-student" className="mb-1 block text-[0.6875rem] font-bold text-slate-600">Kind</label>
+                    <select id="kel-parent-student" value={elternblattSelectedStudentId}
+                      onChange={event => { setElternblattSelectedStudentId(event.target.value); setElternblattSharedNoteIds([]); }}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs">
+                      {students.map(st => <option key={st.id} value={st.id}>{st.nachname} {st.vorname}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="kel-parent-period" className="mb-1 block text-[0.6875rem] font-bold text-slate-600">Zeitraum für Befinden &amp; Verhalten</label>
+                    <select id="kel-parent-period" value={elternblattPeriod}
+                      onChange={event => setElternblattPeriod(event.target.value as 'recent' | 'year')}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs">
+                      <option value="year">Bisheriges Schuljahr</option>
+                      <option value="recent">Letzte 6 Wochen</option>
+                    </select>
+                  </div>
+                  <fieldset className="space-y-2 rounded-xl bg-slate-50 p-3">
+                    <legend className="text-[0.6875rem] font-black text-slate-700">Inhalte anzeigen</legend>
+                    {([
+                      ['Befinden', elternblattShowMood, setElternblattShowMood],
+                      ['Verhalten & Sozialverhalten', elternblattShowBehavior, setElternblattShowBehavior],
+                      ['Mitarbeit', elternblattShowParticipation, setElternblattShowParticipation],
+                      ['Lernbereiche', elternblattShowLearning, setElternblattShowLearning],
+                      ['Unterschriften', elternblattShowSignatures, setElternblattShowSignatures],
+                    ] as const).map(([label, checked, setter]) => (
+                      <label key={label} className="flex items-center gap-2 text-xs text-slate-700">
+                        <input type="checkbox" checked={checked} onChange={event => setter(event.target.checked)} />
+                        {label}
+                      </label>
+                    ))}
+                  </fieldset>
+                  <fieldset className="space-y-1 rounded-xl border border-slate-200 p-3">
+                    <legend className="text-[0.6875rem] font-black text-slate-700">Fächer</legend>
+                    {['Deutsch', 'Mathematik', 'Sachunterricht'].map(fach => (
+                      <label key={fach} className="flex items-center gap-2 py-1 text-xs text-slate-700">
+                        <input type="checkbox" checked={elternblattSubjects.includes(fach)}
+                          onChange={event => setElternblattSubjects(prev => event.target.checked
+                            ? [...prev, fach] : prev.filter(item => item !== fach))} />
+                        {fach}
+                      </label>
+                    ))}
+                  </fieldset>
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <label className="flex items-start gap-2 text-xs font-bold text-amber-950">
+                      <input type="checkbox" checked={elternblattShowNotes}
+                        onChange={event => { setElternblattShowNotes(event.target.checked); if (!event.target.checked) setElternblattSharedNoteIds([]); }} />
+                      Ausgewählte Dossiernotizen für Eltern freigeben
+                    </label>
+                    <p className="mt-1 text-[0.6875rem] leading-relaxed text-amber-900">
+                      Standardmäßig bleiben alle internen Notizen verborgen. Nur einzeln angehakte Einträge erscheinen im Ausdruck.
+                    </p>
+                    {elternblattShowNotes && (
+                      <div className="mt-2 max-h-52 space-y-1.5 overflow-y-auto">
+                        {elternblattNotes.length === 0 && <p className="text-xs text-slate-600">Keine auswählbaren Notizen vorhanden.</p>}
+                        {elternblattNotes.map((note: any) => (
+                          <label key={note.id} className="flex items-start gap-2 rounded-lg bg-white p-2 text-xs text-slate-700">
+                            <input type="checkbox" checked={elternblattSharedNoteIds.includes(note.id)}
+                              onChange={event => setElternblattSharedNoteIds(previous =>
+                                event.target.checked ? [...previous, note.id] : previous.filter(id => id !== note.id))} />
+                            <span className="break-words">{String(note.inhalt).slice(0, 155)}
+                              <span className="block text-[0.625rem] text-slate-500">{note.kategorie || 'Notiz'}</span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-[0.6875rem] text-slate-500">A4 Hochformat · Direkt im Browser drucken oder als PDF speichern. Bei langen freigegebenen Notizen kann eine zweite Seite entstehen.</p>
+                </div>
+              )}
+
               {/* F. KEL CONTROLS */}
               {activeTemplate === 'kel' && (
                 <div className="space-y-4">
@@ -4069,7 +4175,7 @@ export default function PrintCenter() {
                     className={`kl-print-sheet bg-white font-sans text-black select-none shrink-0 single-sheet-preview ${getFontSizeClass()}`}
                   >
                     {/* 1. Dynamic Print Header */}
-                    {showMainHeader && activeTemplate !== 'klassenbuch' && activeTemplate !== 'schueler_wochenplan' && activeTemplate !== 'materialabholung' && (
+                    {showMainHeader && activeTemplate !== 'kel_elternblatt' && activeTemplate !== 'klassenbuch' && activeTemplate !== 'schueler_wochenplan' && activeTemplate !== 'materialabholung' && (
                       <PrintHeader title={customHeaderTitle || undefined} />
                     )}
 
@@ -4137,7 +4243,7 @@ export default function PrintCenter() {
                   style={activeTemplate === 'klassenbuch' || activeTemplate === 'schueler_wochenplan'
                     ? undefined : { padding: `${printMargin}mm` }}
                 >
-                  {showMainHeader && activeTemplate !== 'klassenbuch' && activeTemplate !== 'schueler_wochenplan' && activeTemplate !== 'materialabholung'
+                  {showMainHeader && activeTemplate !== 'kel_elternblatt' && activeTemplate !== 'klassenbuch' && activeTemplate !== 'schueler_wochenplan' && activeTemplate !== 'materialabholung'
                     && <PrintHeader title={customHeaderTitle || undefined} />}
                   {renderPreviewTemplate()}
                 </div>
@@ -5878,6 +5984,14 @@ export default function PrintCenter() {
             )}
           </div>
         );
+      }
+
+      // Parent-safe, print-ready KEL summary. No raw dossier notes without opt-in.
+      case 'kel_elternblatt': {
+        const targetSt = students.find(st => st.id === elternblattSelectedStudentId) || students[0];
+        return targetSt
+          ? <KELParentReport studentId={targetSt.id} options={elternblattOptions}/>
+          : <p className="text-sm text-slate-500">Keine Kinder in dieser Klasse vorhanden.</p>;
       }
 
       // F. KEL PORTFOLIO DOSSIER (Single mode)
