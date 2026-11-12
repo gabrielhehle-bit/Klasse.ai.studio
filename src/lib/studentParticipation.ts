@@ -50,3 +50,17 @@ export function getStudentSubjectParticipationSummary(
     hasData: total > 0 || entries.length > 0,
   };
 }
+
+/** Both saved semester totals, without summing the activity journal a second time. */
+export function getStudentSubjectYearParticipationSummary(
+  app: Pick<AppState, 'mitarbeit' | 'mitarbeitLogs'>,
+  studentId: string,
+  subject: string,
+): Pick<SubjectParticipationSummary, 'total' | 'hasData'> {
+  const first = getStudentSubjectParticipationSummary(app, studentId, subject, '1');
+  const second = getStudentSubjectParticipationSummary(app, studentId, subject, '2');
+  return {
+    total: first.total + second.total,
+    hasData: first.hasData || second.hasData,
+  };
+}
