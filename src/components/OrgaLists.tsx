@@ -160,17 +160,14 @@ export default function OrgaLists() {
   const archivedSammlungen = kasse.sammlungen.filter(s => s.abgeschlossen);
 
   // Count open collections with unpaid balance
-  const openSammlungenCount = activeSammlungen.filter(s => {
-    return students.some(st => (s.betraege?.[st.id] || 0) < s.betrag);
-  }).length;
+  const openSammlungenCount = activeSammlungen.filter(s =>
+    summarizeCollectionPayments(s, students.map(st => st.id)).outstanding > 0
+  ).length;
 
   // Total open money remaining across active collections
-  const totalOpenDebtSum = activeSammlungen.reduce((sum, s) => {
-    return sum + students.reduce((stSum, st) => {
-      const paid = s.betraege?.[st.id] || 0;
-      return stSum + Math.max(0, s.betrag - paid);
-    }, 0);
-  }, 0);
+  const totalOpenDebtSum = activeSammlungen.reduce((sum, collection) =>
+    sum + summarizeCollectionPayments(collection, students.map(st => st.id)).outstanding, 0
+  );
 
   // Students with open payments
   const studentsWithOpenPayments = students.filter(st => {
@@ -678,14 +675,14 @@ export default function OrgaLists() {
             {/* 2. SCHÜLER MIT OFFENEN ZAHLUNGEN */}
             <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-3xs space-y-1">
               <div className="flex items-center justify-between text-slate-400">
-                <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-500">Noch nicht bezahlt</span>
+                <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-500">Kinder mit Restbetrag</span>
                 <Clock size={16} className="text-amber-500" />
               </div>
               <div className="text-[1.5rem] font-black text-slate-900 leading-tight">
                 {studentsWithOpenPayments.length} <span className="text-[0.8125rem] font-bold text-slate-400">Kinder</span>
               </div>
               <p className="text-[0.6875rem] font-semibold text-slate-500">
-                von insgesamt {students.length} Schülern
+                bei {activeSammlungen.length} aktiven Sammlungen
               </p>
             </div>
 
@@ -696,10 +693,10 @@ export default function OrgaLists() {
                 <AlertCircle size={16} className="text-sky-500" />
               </div>
               <div className="text-[1.5rem] font-black text-slate-900 leading-tight">
-                {activeSammlungen.filter(s => s.faelligkeit).length + activeChecklisten.length} <span className="text-[0.8125rem] font-bold text-slate-400">Posten</span>
+                {thisWeekCount} <span className="text-[0.8125rem] font-bold text-slate-400">fällig</span>
               </div>
-              <p className="text-[0.6875rem] font-semibold text-slate-500 truncate">
-                Fälligkeiten & Rückläufe
+              <p className="text-[0.6875rem] font-semibold text-slate-500">
+                {overdueCount > 0 ? `${overdueCount} zusätzlich überfällig` : 'Nur diese Kalenderwoche'}
               </p>
             </div>
 
@@ -712,7 +709,8 @@ export default function OrgaLists() {
               <div className="text-[1.5rem] font-black text-slate-900 leading-tight font-mono">
                 {formatEuro(kasse.kontostand)}
               </div>
-              <button 
+              <p className="text-[0.6875rem] text-slate-500">Gebuchtes Geld, ohne offene Forderungen</p>
+              <button
                 onClick={() => setActiveTab('kassenbuch')} 
                 className="text-[0.6875rem] font-bold text-indigo-600 hover:underline inline-flex items-center gap-1"
               >
@@ -768,13 +766,11 @@ export default function OrgaLists() {
               ) : (
                 <div className="space-y-3">
                   {activeSammlungen.map(s => {
-                    const paidCount = students.filter(st => (s.status[st.id] || 'offen') === 'bezahlt').length;
-                    const openCount = students.length - paidCount;
+                    const summary = summarizeCollectionPayments(s, students.map(st => st.id));
+                    const paidCount = summary.fullyPaid;
+                    const openCount = summary.outstandingChildren;
                     const isFullyPaid = openCount === 0 && students.length > 0;
-                    const openSumForThis = students.reduce((sum, st) => {
-                      const paid = s.betraege?.[st.id] || 0;
-                      return sum + Math.max(0, s.betrag - paid);
-                    }, 0);
+                    const openSumForThis = summary.outstanding;
 
                     return (
                       <div
@@ -817,7 +813,8 @@ export default function OrgaLists() {
                         <div className="space-y-1.5">
                           <div className="flex items-center justify-between text-[0.6875rem] font-bold">
                             <span className="text-slate-600">
-                              <strong className="text-slate-900">{paidCount}</strong> von {students.length} bezahlt
+                              <strong className="text-slate-900">{paidCount}</strong> von {students.length} vollständig bezahlt
+                              {summary.partlyPaid > 0 && <span className="ml-1 text-amber-700">· {summary.partlyPaid} teilweise</span>}
                             </span>
                             {openCount > 0 ? (
                               <span className="text-amber-600 font-extrabold">
@@ -828,22 +825,22 @@ export default function OrgaLists() {
                             )}
                           </div>
 
-                          <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden flex">
-                            <div 
-                              className="bg-emerald-500 h-full transition-all"
-                              style={{ width: `${students.length > 0 ? (paidCount / students.length) * 100 : 0}%` }}
-                            />
+                          <div role="progressbar" aria-label={`Eingegangene Zahlungen für ${s.titel}`}
+                            aria-valuenow={Math.round(summary.percentCollected)} aria-valuemin={0} aria-valuemax={100}
+                            className="w-full bg-slate-100 rounded-full h-2 overflow-hidden flex">
+                            <div className="bg-emerald-500 h-full transition-all"
+                              style={{ width: `${summary.percentCollected}%` }} />
                           </div>
+                          <p className="text-[0.6875rem] font-semibold text-slate-500">
+                            {formatEuro(summary.collected)} von {formatEuro(summary.expected)} eingegangen
+                          </p>
                         </div>
 
                         {/* CARD BOTTOM ACTION BAR */}
                         <div className="pt-1 flex items-center justify-between text-[0.6875rem]">
-                          <button
-                            onClick={() => markAllPaidForSammlung(s.id)}
-                            className="text-slate-500 hover:text-emerald-600 font-semibold flex items-center gap-1"
-                          >
-                            <CheckCircle2 size={13} /> Alle als bezahlt markieren
-                          </button>
+                          <span className="font-medium text-slate-500">
+                            Zahlungen pro Kind unter „Öffnen“ erfassen
+                          </span>
 
                           <button
                             onClick={() => toggleArchiveSammlung(s.id)}
@@ -983,7 +980,7 @@ export default function OrgaLists() {
                   onClick={() => markAllPaidForSammlung(currentSammlung.id)}
                   className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold text-[0.75rem] flex items-center gap-1.5 transition-all"
                 >
-                  <CheckCircle2 size={15} /> Alle bezahlt
+                  <CheckCircle2 size={15} /> Alle Zahlungen buchen
                 </button>
 
                 <button
@@ -1017,13 +1014,13 @@ export default function OrgaLists() {
                   onClick={() => setStudentFilter('open')}
                   className={`px-3 py-1 rounded-lg text-[0.75rem] font-bold transition-all ${studentFilter === 'open' ? 'bg-white text-amber-700 shadow-3xs' : 'text-slate-600 hover:text-slate-900'}`}
                 >
-                  Nur Offen ({students.filter(st => (currentSammlung.status[st.id] || 'offen') !== 'bezahlt').length})
+                  Noch offen ({students.filter(st => getCollectionPaymentStatus(currentSammlung.betraege?.[st.id] || 0, currentSammlung.betrag) !== 'bezahlt').length})
                 </button>
                 <button
                   onClick={() => setStudentFilter('paid')}
                   className={`px-3 py-1 rounded-lg text-[0.75rem] font-bold transition-all ${studentFilter === 'paid' ? 'bg-white text-emerald-700 shadow-3xs' : 'text-slate-600 hover:text-slate-900'}`}
                 >
-                  Nur Bezahlt ({students.filter(st => (currentSammlung.status[st.id] || 'offen') === 'bezahlt').length})
+                  Bezahlt ({students.filter(st => getCollectionPaymentStatus(currentSammlung.betraege?.[st.id] || 0, currentSammlung.betrag) === 'bezahlt').length})
                 </button>
               </div>
 
@@ -1049,13 +1046,13 @@ export default function OrgaLists() {
               {students
                 .filter(st => {
                   const matchesSearch = `${st.vorname} ${st.nachname}`.toLowerCase().includes(studentSearch.toLowerCase());
-                  const stStatus = currentSammlung.status[st.id] || 'offen';
+                  const stStatus = getCollectionPaymentStatus(currentSammlung.betraege?.[st.id] || 0, currentSammlung.betrag);
                   if (studentFilter === 'open') return matchesSearch && stStatus !== 'bezahlt';
                   if (studentFilter === 'paid') return matchesSearch && stStatus === 'bezahlt';
                   return matchesSearch;
                 })
                 .map((st, index) => {
-                  const status = currentSammlung.status[st.id] || 'offen';
+                  const status = getCollectionPaymentStatus(currentSammlung.betraege?.[st.id] || 0, currentSammlung.betrag);
                   const paidAmount = currentSammlung.betraege?.[st.id] || 0;
                   const isPaid = status === 'bezahlt';
                   const isPartial = status === 'teilweise';
