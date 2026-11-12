@@ -103,8 +103,19 @@ async function createClient() {
   client.on('Page.frameNavigated', event => {
     if (!event.frame?.parentId) client.navigationCount += 1;
   });
+  // Synthetic E2E may explicitly approve only the known gradebook warning.
+  // Production continues to require a real teacher's confirmation.
+  client.approveExpectedGradebookMaxPoints = false;
+  client.approvedGradebookMaxPointsCount = 0;
   client.on('Page.javascriptDialogOpening', event => {
-    if (event.type === 'alert' && event.message === 'Gewichtungen erfolgreich gespeichert!') {
+    if (event.type === 'confirm' && event.message.startsWith('Für diese Bewertung sind bereits ') &&
+        event.message.includes('Maximalpunkten ändern sich die Prozentwerte')) {
+      const approve = client.approveExpectedGradebookMaxPoints === true;
+      client.approveExpectedGradebookMaxPoints = false;
+      if (approve) client.approvedGradebookMaxPointsCount += 1;
+      console.log('Gradebook max-points safety prompt:', approve ? 'approved explicitly by synthetic test' : 'rejected');
+      void client.send('Page.handleJavaScriptDialog', { accept: approve }).catch(() => {});
+    } else if (event.type === 'alert' && event.message === 'Gewichtungen erfolgreich gespeichert!') {
       void client.send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {});
     } else if (event.type === 'beforeunload') {
       // Keep the page open while its encrypted write finishes, then retry reload.
@@ -3890,7 +3901,17 @@ async function main() {
           await clickSelector(client, headerSelector+'[aria-label*="Spaltenoptionen"]');
           await waitFor(client, 'assessment column options dialog', `Boolean(document.querySelector('#assessment-item-modal-content'))`);
           await setInputByLabel(client, 'Maximal erreichbare Punkte', max);
-          await clickSelector(client, '#btn-save-assessment-modal');
+          // This test deliberately changes a shared denominator with existing
+          // points. Handle the native confirm via CDP, not window.confirm mocking.
+          client.approveExpectedGradebookMaxPoints = true;
+          try {
+            await clickSelector(client, '#btn-save-assessment-modal');
+          } finally {
+            client.approveExpectedGradebookMaxPoints = false;
+          }
+        }
+        if (client.approvedGradebookMaxPointsCount === 0) {
+          throw new Error('Expected gradebook warning was never shown before changing saved point denominators.');
         }
         const percentageFor=typ=>`document.querySelector('input[data-col="${typ}-0"]')?.closest('td')?.querySelector('[data-points-percent]')?.textContent.trim()`;
         await waitFor(client, 'SA and LZK calculate against their own maximum', percentageFor('sa')+` === '75 %' && `+percentageFor('lzk')+` === '35 %'`);
