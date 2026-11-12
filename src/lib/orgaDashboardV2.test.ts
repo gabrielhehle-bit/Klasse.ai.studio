@@ -62,6 +62,14 @@ test('Kasse & Orga: verlässliche Fachinformation statt irreführender Vollbezah
   assert.doesNotMatch(source,/const paidCount = students\.filter\(st => \(s\.status\[st\.id\]/);
 });
 
+test('Kasse & Orga: einzelne Zahlung ist klar beschriftet und Rückbuchung wird bestätigt',()=>{
+  assert.match(source,/Rest \{formatEuro\(currentSammlung\.betrag - paidAmount\)\} buchen/);
+  assert.match(source,/erhalten buchen<\/span>/);
+  assert.match(source,/Bezahlt · Korrigieren/);
+  assert.match(source,/Zahlung von \$\{formatEuro\(amountBefore\)\}/);
+  assert.match(source,/Gegenbuchungseintrag erstellt/);
+});
+
 test('Kasse & Orga: Sammelbuchung ist bewusst und betragsgenau zu bestätigen',()=>{
   assert.match(source,/if \(summary\.outstandingChildren === 0\) return/);
   assert.match(source,/window\.confirm\(/);
