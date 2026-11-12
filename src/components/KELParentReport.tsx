@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { getDossierOverviewStats } from '../lib/dossierOverviewStats';
 import { getStudentNotes } from '../lib/studentMetrics';
-import { getStudentSubjectParticipationSummary } from '../lib/studentParticipation';
+import { getStudentSubjectYearParticipationSummary } from '../lib/studentParticipation';
 import { getStudentAssessmentDomainPerformance } from '../lib/assessmentDomainPerformance';
 
 export interface KELParentReportOptions {
@@ -85,15 +85,10 @@ export default function KELParentReport({
   })).filter(row => row.count > 0);
   const behaviorTotal = behaviorRows.reduce((sum, row) => sum + row.count, 0);
 
-  const participation = options.subjects.map(subject => {
-    const first = getStudentSubjectParticipationSummary(app, studentId, subject, '1');
-    const second = getStudentSubjectParticipationSummary(app, studentId, subject, '2');
-    return {
-      subject,
-      total: first.total + second.total,
-      hasData: first.hasData || second.hasData,
-    };
-  }).filter(row => row.hasData);
+  const participation = options.subjects.map(subject => ({
+    subject,
+    ...getStudentSubjectYearParticipationSummary(app, studentId, subject),
+  })).filter(row => row.hasData);
 
   const learning = options.subjects.map(subject => ({
     subject,
