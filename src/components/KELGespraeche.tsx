@@ -129,7 +129,7 @@ const KELGespraeche: React.FC = () => {
   const [isPrintMode, setIsPrintMode] = useState<'child' | 'protocol' | null>(null);
   const [filterStudentId, setFilterStudentId] = useState<string>('all');
 
-  const [kelTab, setKelTab] = useState<'protokolle' | 'analyse'>('protokolle');
+  const [kelTab, setKelTab] = useState<'protokolle' | 'analyse'>('analyse');
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [analyseChartType, setAnalyseChartType] = useState<'column' | 'bar' | 'pie' | 'line'>('column');
   const [notesFilterCategory, setNotesFilterCategory] = useState<string>('all');
@@ -1621,13 +1621,19 @@ const KELGespraeche: React.FC = () => {
                     </div>
                   </div>
 
-                  <button 
-                    onClick={() => setViewingMeeting(m)}
-                    className="w-full py-4 bg-slate-50 group-hover:bg-rose-500 text-slate-400 group-hover:text-white rounded-2xl text-[0.625rem] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
-                  >
-                    Details ansehen
-                    <ChevronRight size={14} />
-                  </button>
+                  <div className="space-y-2">
+                    <button type="button"
+                      onClick={() => { setSelectedStudentId(m.schuelerId); setKelTab('analyse'); }}
+                      className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-indigo-50 px-3 text-xs font-bold text-indigo-800 hover:bg-indigo-100">
+                      <BookOpen size={15}/> Schülerdossier & KEL
+                      <ChevronRight size={14}/>
+                    </button>
+                    <button type="button"
+                      onClick={() => setViewingMeeting(m)}
+                      className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                      Protokoll ansehen <ChevronRight size={14}/>
+                    </button>
+                  </div>
                 </motion.div>
               ))}
             </div>
