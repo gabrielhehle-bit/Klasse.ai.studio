@@ -27,7 +27,7 @@ test('preview does not claim one page when approved long notes can wrap to anoth
 });
 
 test('private note choices are not carried to another child or another print template', () => {
-  assert.match(print, /setElternblattSelectedStudentId\(event\.target\.value\); setElternblattShowNotes\(false\); setElternblattSharedNoteIds\(\[\]\)/);
+  assert.match(print, /setElternblattSelectedStudentId\(event\.target\.value\);\s*setElternblattShowNotes\(false\);\s*setElternblattSharedNoteIds\(\[\]\)/);
   assert.match(print, /if \(activeTemplate === 'kel_elternblatt'\)/);
   assert.match(print, /A previous print session must never carry parent-approved private notes/);
   assert.match(print, /setElternblattShowNotes\(false\);\s*setElternblattSharedNoteIds\(\[\]\);/);
