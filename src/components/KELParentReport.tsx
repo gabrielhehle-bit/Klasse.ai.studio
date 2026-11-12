@@ -4,6 +4,7 @@ import { getDossierOverviewStats } from '../lib/dossierOverviewStats';
 import { getStudentNotes } from '../lib/studentMetrics';
 import { getStudentSubjectYearParticipationSummary } from '../lib/studentParticipation';
 import { getStudentAssessmentDomainPerformance } from '../lib/assessmentDomainPerformance';
+import { summarizeKelMood, summarizeKelBehavior } from '../lib/kelParentReportMetrics';
 
 export interface KELParentReportOptions {
   period: 'recent' | 'year';
@@ -70,20 +71,13 @@ export default function KELParentReport({
   const goalLines = splitPrintLines(options.goalsText);
   const agreementLines = splitPrintLines(options.agreementsText);
 
-  const moodSamples = stats.weeks.reduce((count, week) => count + week.moodCount, 0);
-  const moodSum = stats.weeks.reduce((sum, week) =>
-    sum + (typeof week.mood === 'number' && Number.isFinite(week.mood) ? week.mood * week.moodCount : 0), 0);
-  const moodAverage = moodSamples > 0 ? moodSum / moodSamples : null;
-  const moodLabels = ['sehr gut', 'gut', 'okay', 'nicht so gut', 'schlecht'];
-  const roundedMood = moodAverage === null ? null : Math.max(1, Math.min(5, Math.round(moodAverage)));
-
-  const behaviorRows = stats.stages.map((stage: any) => ({
-    id: String(stage.id),
-    label: tidy(stage.label) || 'Beobachtung',
-    count: stats.logs.filter(log => log.iconId === stage.id).length,
-    color: typeof stage.color === 'string' ? stage.color : '#64748b',
-  })).filter(row => row.count > 0);
-  const behaviorTotal = behaviorRows.reduce((sum, row) => sum + row.count, 0);
+  // Period-scoped source values, not reconstructed from weekly averages.
+  const mood = summarizeKelMood(app.schuelerStimmung?.[studentId], stats.start, stats.today);
+  const moodLabels = ['Sehr gut', 'Gut', 'Okay', 'Nicht so gut', 'Schlecht'];
+  const moodColors = ['#047857', '#2563eb', '#64748b', '#d97706', '#be123c'];
+  const behavior = summarizeKelBehavior(stats.logs, stats.stages);
+  const behaviorRows = behavior.rows;
+  const behaviorTotal = behavior.total;
 
   const participation = options.subjects.map(subject => ({
     subject,
@@ -118,50 +112,67 @@ export default function KELParentReport({
 
       <div data-kel-summary-grid className="grid grid-cols-2 gap-2.5">
         {options.showMood && (
-          <Section title="Befinden" detail={moodSamples + ' Rückmeldungen'}>
-            {moodAverage === null ? (
+          <Section title="Befinden" detail={mood.total + ' Rückmeldungen'}>
+            {mood.average === null ? (
               <p className="text-[12px] text-slate-500">Noch keine Befindens-Rückmeldungen im Zeitraum.</p>
             ) : (
-              <>
-                <div className="flex items-center gap-1.5" role="img"
-                  aria-label={'Befinden: gerundeter Mittelwert ' + fmt(moodAverage) + ' auf einer Skala von 1 (sehr gut) bis 5 (schlecht)'}>
-                  {moodLabels.map((label, index) => (
-                    <span key={label} aria-hidden="true" data-kel-mood-selected={index + 1 === roundedMood ? "true" : "false"} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[12px] font-black"
-                      style={index + 1 === roundedMood
-                        ? { backgroundColor: '#cdece6', borderColor: '#0f766e', color: '#115e59' }
-                        : { backgroundColor: '#f8fafc', borderColor: '#cbd5e1', color: '#94a3b8' }}>
-                      {index + 1}
-                    </span>
-                  ))}
-                </div>
-                <p className="mt-1.5 text-[14px] font-semibold text-slate-700">
-                  Durchschnitt {fmt(moodAverage)} / 5 · {moodLabels[roundedMood! - 1]}
+              <div data-kel-mood-distribution className="space-y-1.5">
+                <p className="text-[12px] font-bold leading-snug text-slate-800">
+                  {mood.positiveCount} von {mood.total} Einschätzungen waren gut oder sehr gut ({Math.round(mood.positiveCount / mood.total * 100)} %).
                 </p>
-                <p className="text-[11px] text-slate-500">1 = sehr gut, 5 = schlecht · Selbsteinschätzungen, kein Urteil</p>
-              </>
+                {moodLabels.map((label, index) => (
+                  <div key={label} data-kel-mood-row>
+                    <div className="flex justify-between gap-2 text-[11px] leading-tight text-slate-700">
+                      <span>{index + 1} · {label}</span>
+                      <span className="whitespace-nowrap font-bold tabular-nums">{mood.counts[index]} · {mood.percentages[index]} %</span>
+                    </div>
+                    <svg data-kel-mood-bar role="img"
+                      aria-label={label + ': ' + mood.counts[index] + ' von ' + mood.total + ', ' + mood.percentages[index] + ' Prozent'}
+                      viewBox="0 0 100 7" preserveAspectRatio="none" className="mt-0.5 block h-[7px] w-full">
+                      <rect x="0" y="0" width="100" height="7" rx="2" fill="#e2e8f0" />
+                      <rect x="0" y="0" width={mood.counts[index] / mood.total * 100} height="7" rx="2" fill={moodColors[index]} />
+                    </svg>
+                  </div>
+                ))}
+                <p className="pt-1 text-[11px] leading-snug text-slate-600">
+                  Durchschnitt {fmt(mood.average)} / 5
+                  {mood.mostFrequent ? ' · häufigste Antwort: ' + moodLabels[mood.mostFrequent - 1] : ''}
+                </p>
+                <p className="text-[11px] leading-snug text-slate-500">
+                  Selbsteinschätzung des Kindes · 1 = sehr gut, 5 = schlecht · keine Diagnose
+                </p>
+              </div>
             )}
           </Section>
         )}
 
         {options.showBehavior && (
-          <Section title="Verhalten &amp; Sozialverhalten" detail={behaviorTotal + ' Einträge'}>
+          <Section title="Verhalten &amp; Sozialverhalten" detail={behaviorTotal + ' Tageswerte'}>
             {behaviorTotal === 0 ? (
               <p className="text-[12px] text-slate-500">Keine dokumentierten Verhaltensereignisse im Zeitraum.</p>
             ) : (
-              <div className="space-y-1.5">
-                {behaviorRows.slice(0, 5).map(row => (
-                  <div key={row.id}>
-                    <div className="flex justify-between gap-2 text-[11px] text-slate-700">
-                      <span className="truncate">{row.label}</span><strong>{row.count}</strong>
+              <div data-kel-behavior-distribution className="space-y-2">
+                <p className="text-[12px] font-bold leading-snug text-slate-800">
+                  {behavior.leading
+                    ? 'Am häufigsten dokumentiert: ' + behavior.leading.label + ' (' + behavior.leading.count + ' von ' + behaviorTotal + ').'
+                    : behaviorTotal + ' dokumentierte Tageswerte'}
+                </p>
+                {behaviorRows.map(row => (
+                  <div key={row.id} data-kel-behavior-row>
+                    <div className="flex justify-between gap-2 text-[11px] leading-tight text-slate-700">
+                      <span className="break-words">{row.label}</span>
+                      <span className="whitespace-nowrap font-bold tabular-nums">{row.count} · {row.percent} %</span>
                     </div>
-                    <svg data-kel-behavior-bar role="img" aria-label={row.label + ': ' + row.count + ' von ' + behaviorTotal + ' Verhaltensbeobachtungen'}
-                      viewBox="0 0 100 6" preserveAspectRatio="none" className="mt-0.5 block h-[6px] w-full">
-                      <rect x="0" y="0" width="100" height="6" rx="3" fill="#e2e8f0" />
-                      <rect x="0" y="0" width={row.count / behaviorTotal * 100} height="6" rx="3" fill={row.color} />
+                    <svg data-kel-behavior-bar role="img" aria-label={row.label + ': ' + row.count + ' von ' + behaviorTotal + ' Verhaltensbeobachtungen, ' + row.percent + ' Prozent'}
+                      viewBox="0 0 100 7" preserveAspectRatio="none" className="mt-0.5 block h-[7px] w-full">
+                      <rect x="0" y="0" width="100" height="7" rx="2" fill="#e2e8f0" />
+                      <rect x="0" y="0" width={row.count / behaviorTotal * 100} height="7" rx="2" fill={row.color} />
                     </svg>
                   </div>
                 ))}
-                <p className="text-[11px] text-slate-500">Häufigkeit dokumentierter Einträge, keine Persönlichkeitsnote</p>
+                <p className="text-[11px] leading-snug text-slate-500">
+                  Anteil an dokumentierten Tageswerten, nicht an allen Schultagen · keine Persönlichkeitsnote
+                </p>
               </div>
             )}
           </Section>
@@ -251,10 +262,22 @@ export default function KELParentReport({
       </div>
 
       {options.showSignatures && (
-        <div className="mt-5 grid grid-cols-2 gap-8 text-[11px] text-slate-600">
-          <div className="border-t border-slate-400 pt-1">Erziehungsberechtigte</div>
-          <div className="border-t border-slate-400 pt-1">Lehrperson</div>
-        </div>
+        <section data-kel-signatures className="mt-3 break-inside-avoid">
+          <h3 className="mb-1.5 text-[12px] font-black uppercase tracking-wide text-slate-800">Bestätigung des Gesprächs</h3>
+          <div className="grid grid-cols-2 gap-3">
+            {['Erziehungsberechtigte', 'Lehrperson'].map(label => (
+              <div key={label} data-kel-signature-field className="rounded-lg border border-slate-300 px-3 pt-2 pb-1">
+                <p className="text-[12px] font-semibold text-slate-800">{label}</p>
+                <div data-kel-signature-space aria-hidden="true" className="min-h-[29mm] border-b border-slate-400" />
+                <p className="pt-1 text-[11px] text-slate-500">Unterschrift</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 flex items-end gap-3 text-[11px] text-slate-700">
+            <span>Ort / Datum</span>
+            <div className="h-4 flex-1 border-b border-slate-400" />
+          </div>
+        </section>
       )}
       <p className="mt-3 text-[11px] text-slate-500">
         Persönliche Beobachtungen werden nur nach ausdrücklicher Auswahl übernommen. Ohne Daten keine geschätzten Bewertungen.
