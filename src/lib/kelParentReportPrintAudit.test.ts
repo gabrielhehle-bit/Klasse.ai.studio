@@ -34,8 +34,8 @@ test('private note choices are not carried to another child or another print tem
 });
 
 test('behavior bars use SVG so the global printed div height reset cannot collapse them', () => {
-  assert.match(print, /body\\.print-center-active \\.print-center-overlay div,/);
+  assert.match(print, /body\.print-center-active \.print-center-overlay div,/);
   assert.match(sheet, /<svg data-kel-behavior-bar/);
-  assert.match(sheet, /<rect x="0" y="0" width=\\{row.count \/ behaviorTotal \\* 100\\}/);
-  assert.doesNotMatch(sheet, /className="mt-0\\.5 h-1\\.5 overflow-hidden/);
+  assert.match(sheet, /<rect x="0" y="0" width=\{row.count \/ behaviorTotal \* 100\}/);
+  assert.doesNotMatch(sheet, /className="mt-0\.5 h-1\.5 overflow-hidden/);
 });
