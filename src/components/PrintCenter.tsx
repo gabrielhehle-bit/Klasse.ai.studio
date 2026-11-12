@@ -652,6 +652,8 @@ export default function PrintCenter() {
   useEffect(() => {
     const firstStudentId = students[0]?.id || '';
     setKelSelectedStudentId(firstStudentId);
+    setElternblattSelectedStudentId(firstStudentId);
+    setElternblattSharedNoteIds([]);
     setProfSelectedStudentId(firstStudentId);
     setDiagSelectedStudentId(firstStudentId);
     setKpSelectedStudentId(firstStudentId);
@@ -2687,7 +2689,7 @@ export default function PrintCenter() {
                     </select>
                   </div>
                   <div>
-                    <label htmlFor="kel-parent-period" className="mb-1 block text-[0.6875rem] font-bold text-slate-600">Auswertungszeitraum</label>
+                    <label htmlFor="kel-parent-period" className="mb-1 block text-[0.6875rem] font-bold text-slate-600">Zeitraum für Befinden &amp; Verhalten</label>
                     <select id="kel-parent-period" value={elternblattPeriod}
                       onChange={event => setElternblattPeriod(event.target.value as 'recent' | 'year')}
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs">
