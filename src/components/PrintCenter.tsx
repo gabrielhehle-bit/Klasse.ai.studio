@@ -2891,7 +2891,7 @@ export default function PrintCenter() {
                       </div>
                     )}
                   </div>
-                  <p className="text-[0.6875rem] text-slate-500">A4 Hochformat · Direkt im Browser drucken oder als PDF speichern. Bei langen freigegebenen Notizen kann eine zweite Seite entstehen.</p>
+                  <p className="text-[0.6875rem] text-slate-500">A4 Hochformat · Direkt im Browser drucken oder als PDF speichern. Bei vielen Lernbereichen oder ausführlichen Notizen kann eine zweite Seite entstehen. Die Unterschriften bleiben zusammen.</p>
                 </div>
               )}
 
