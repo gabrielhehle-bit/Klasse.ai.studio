@@ -1089,22 +1089,33 @@ export default function PrintCenter() {
             width: 100% !important;
             margin: 0 !important;
           }
-          body.print-center-active.print-center-kel-parent-active [data-kel-parent-report] section {
+          body.print-center-active.print-center-kel-parent-active [data-kel-parent-report] section:not([data-kel-signatures]) {
             border-color: #cbd5e1 !important;
             border-width: 0.75pt !important;
           }
           body.print-center-active.print-center-kel-parent-active [data-kel-summary-grid] > section:last-child:nth-child(odd) {
             grid-column: 1 / -1 !important;
           }
+          body.print-center-active.print-center-kel-parent-active [data-kel-mood-bar],
           body.print-center-active.print-center-kel-parent-active [data-kel-behavior-bar] {
             width: 100% !important;
-            height: 6px !important;
-            min-height: 6px !important;
+            height: 7px !important;
+            min-height: 7px !important;
+            display: block !important;
           }
-          body.print-center-active.print-center-kel-parent-active [data-kel-mood-selected="true"] {
-            background-color: #d1fae5 !important;
-            border: 2px solid #0f766e !important;
-            color: #134e4a !important;
+          body.print-center-active.print-center-kel-parent-active [data-kel-signatures] {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+            border: 0 !important;
+            margin-top: 5mm !important;
+          }
+          body.print-center-active.print-center-kel-parent-active [data-kel-signature-space] {
+            min-height: 29mm !important;
+            height: 29mm !important;
+            display: block !important;
+          }
+          body.print-center-active.print-center-kel-parent-active [data-kel-signature-field] {
+            border: 0.75pt solid #cbd5e1 !important;
           }
           body.print-center-active .print-center-overlay div,
           body.print-center-active .print-center-overlay table,
