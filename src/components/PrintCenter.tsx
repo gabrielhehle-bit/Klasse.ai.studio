@@ -1131,8 +1131,8 @@ export default function PrintCenter() {
           body.print-center-active.print-center-kel-parent-active [data-kel-mood-bar],
           body.print-center-active.print-center-kel-parent-active [data-kel-behavior-bar] {
             width: 100% !important;
-            height: 7px !important;
-            min-height: 7px !important;
+            height: 10px !important;
+            min-height: 10px !important;
             display: block !important;
           }
           body.print-center-active.print-center-kel-parent-active [data-kel-signatures] {
