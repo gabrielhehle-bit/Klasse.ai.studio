@@ -1822,6 +1822,14 @@ export default function SeatingPlan() {
     return () => cancelAnimationFrame(frame);
   }, [refitSavedLayoutSignal]);
 
+  // The external furniture panel changes available canvas width. Refit the
+  // viewport on open/close, but never move a student or a piece of furniture.
+  React.useEffect(() => {
+    if (!editMode) return;
+    const frame = requestAnimationFrame(() => setRefitSavedLayoutSignal(value => value + 1));
+    return () => cancelAnimationFrame(frame);
+  }, [selectedObjId]);
+
   const updateViewZoom = (next: number) => {
     const viewport = planRef.current;
     const clamped = Math.max(0.1, Math.min(1.5, next));
@@ -2884,8 +2892,16 @@ export default function SeatingPlan() {
             </div>
 
             {editMode && <button type="button" data-seating-dock-toggle
-              aria-expanded={showSeatDock} aria-controls="seating-edit-dock"
-              onClick={() => { setShowSeatDock(open => !open); setRefitSavedLayoutSignal(value => value + 1); }}
+              aria-expanded={showSeatDock && !selectedObjId} aria-controls="seating-edit-dock"
+              onClick={() => {
+                if (selectedObjId) {
+                  setSelectedObjId(null);
+                  setShowSeatDock(true);
+                } else {
+                  setShowSeatDock(open => !open);
+                }
+                setRefitSavedLayoutSignal(value => value + 1);
+              }}
               className={`inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-xl border px-3 py-2 text-xs font-bold ${showSeatDock ? 'border-indigo-300 bg-indigo-50 text-indigo-800' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-50'}`}>
               <Users size={15}/> Sitzplätze {unplacedStudents.length > 0 ? `(${unplacedStudents.length} offen)` : ''}
             </button>}
@@ -3179,7 +3195,7 @@ export default function SeatingPlan() {
       {/* Main Canvas Area */}
       {/* Editor sidebar is outside the scaled room, so it never hides desks. */}
       <div className="flex min-h-0 min-w-0 flex-col gap-3 lg:flex-row" data-seating-workspace>
-        {editMode && !presentationMode && showSeatDock && (
+        {editMode && !presentationMode && showSeatDock && !selectedObjId && (
           <aside id="seating-edit-dock" data-seating-edit-dock className="w-full shrink-0 space-y-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:w-56" aria-label="Sitzplätze bearbeiten">
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-sm font-extrabold text-slate-900">Sitzplätze</h3>
@@ -3279,6 +3295,270 @@ export default function SeatingPlan() {
             </div>
           </aside>
         )}
+        {/* Möbel-Einstellungen outside the scaled classroom, never over student desks */}
+        <AnimatePresence>
+          {editMode && !presentationMode && selectedObjId && (() => {
+            const selectedObj = app.sitzplan_objekte?.find((o: any) => o.id === selectedObjId);
+            if (!selectedObj) return null;
+            return (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                data-seating-furniture-panel className="w-full max-h-[32rem] min-h-0 shrink-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-3 shadow-sm no-print print:hidden flex flex-col gap-3 text-[0.75rem] lg:w-64"
+                onClick={(e) => e.stopPropagation()} // Prevent deselecting
+              >
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-1">
+                  <div className="flex items-center gap-1.5 text-indigo-600">
+                    <Sliders size={16} />
+                    <span className="font-extrabold uppercase tracking-wide">Möbel-Inspektor</span>
+                  </div>
+                  <button 
+                    aria-label="Möbel-Einstellungen schließen"
+                    onClick={() => setSelectedObjId(null)}
+                    className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {['rectangle', 'square', 'triangle'].includes(selectedObj.type) && (
+                  <div data-seating-desk-inspector className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-extrabold text-slate-800">Dieser Tisch</span>
+                      <span className="rounded-md bg-white px-2 py-1 text-[0.65rem] font-bold text-slate-600">
+                        {getStudentsOnTable(selectedObj, sitzplan_schueler).length} Kinder
+                      </span>
+                    </div>
+                    {getStudentsOnTable(selectedObj, sitzplan_schueler).length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {getStudentsOnTable(selectedObj, sitzplan_schueler).map(studentId => {
+                          const child = students.find(student => student.id === studentId);
+                          return child ? <span key={studentId} className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[0.68rem] font-semibold text-slate-700">{child.vorname}</span> : null;
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-[0.68rem] text-slate-500">Dieser Tisch ist leer. Andere Tische bleiben unverändert.</p>
+                    )}
+                    {selectedSeatStudent && !getStudentsOnTable(selectedObj, sitzplan_schueler).includes(selectedSeatStudent.id) && (
+                      <button type="button"
+                        disabled={!findDeskSeatForStudent(selectedSeatStudent.id, selectedObj)}
+                        onClick={() => placeStudentAtSelectedDesk(selectedSeatStudent.id, selectedObj.id)}
+                        className="min-h-10 w-full rounded-lg bg-indigo-50 px-2 text-xs font-bold text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500">
+                        {findDeskSeatForStudent(selectedSeatStudent.id, selectedObj) ? `${selectedSeatStudent.vorname} hierhin setzen` : 'Kein freier Platz'}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Name / Label */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider">Beschriftung</label>
+                  <input
+                    type="text"
+                    value={selectedObj.label || ''}
+                    placeholder={
+                      selectedObj.type === 'teacher_desk' ? 'Lehrerpult' :
+                      selectedObj.type === 'blackboard' ? 'Tafel' :
+                      selectedObj.type === 'door' ? 'Tür' :
+                      selectedObj.type === 'window' ? 'Fenster' : 'Tisch'
+                    }
+                    onChange={(e) => updateObject(selectedObj.id, { label: e.target.value })}
+                    className="w-full px-2.5 py-1.5 border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none font-bold text-slate-700 placeholder:text-slate-300 text-[0.75rem] transition-all bg-slate-50/50"
+                  />
+                </div>
+
+                {/* Dimensions (Width / Height) with Ranges */}
+                <div className="flex flex-col gap-3">
+                  {/* Breite (Width) */}
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider">Breite</label>
+                      <span className="font-mono text-[0.6875rem] font-bold text-slate-650 bg-slate-100 px-1.5 py-0.5 rounded">{selectedObj.w}px</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => updateObject(selectedObj.id, { w: Math.max(20, selectedObj.w - 5) })}
+                        className="w-6 h-6 flex items-center justify-center text-xs font-black bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-500 active:scale-90 transition-all select-none"
+                        title="-5px"
+                      >
+                        -
+                      </button>
+                      <input 
+                        type="range"
+                        min="20"
+                        max="400"
+                        step="5"
+                        value={selectedObj.w}
+                        onChange={(e) => updateObject(selectedObj.id, { w: parseInt(e.target.value) })}
+                        className="flex-1 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 outline-none"
+                      />
+                      <button 
+                        onClick={() => updateObject(selectedObj.id, { w: Math.min(600, selectedObj.w + 5) })}
+                        className="w-6 h-6 flex items-center justify-center text-xs font-black bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-500 active:scale-90 transition-all select-none"
+                        title="+5px"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Höhe (Height) */}
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider">Höhe</label>
+                      <span className="font-mono text-[0.6875rem] font-bold text-slate-650 bg-slate-100 px-1.5 py-0.5 rounded">{selectedObj.h}px</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => updateObject(selectedObj.id, { h: Math.max(5, selectedObj.h - 5) })}
+                        className="w-6 h-6 flex items-center justify-center text-xs font-black bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-500 active:scale-90 transition-all select-none"
+                        title="-5px"
+                      >
+                        -
+                      </button>
+                      <input 
+                        type="range"
+                        min="5"
+                        max="300"
+                        step="5"
+                        value={selectedObj.h}
+                        onChange={(e) => updateObject(selectedObj.id, { h: parseInt(e.target.value) })}
+                        className="flex-1 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 outline-none"
+                      />
+                      <button 
+                        onClick={() => updateObject(selectedObj.id, { h: Math.min(400, selectedObj.h + 5) })}
+                        className="w-6 h-6 flex items-center justify-center text-xs font-black bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-500 active:scale-90 transition-all select-none"
+                        title="+5px"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Rotation / Ausrichtung */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider">Drehung & Ausrichtung</label>
+                    <span className="font-mono text-[0.6875rem] font-bold text-slate-650 bg-slate-100 px-1.5 py-0.5 rounded">{(selectedObj.rotation || 0)}°</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => updateObject(selectedObj.id, { rotation: ((selectedObj.rotation || 0) - 5 + 360) % 360 })}
+                      className="w-6 h-6 flex items-center justify-center text-xs font-black bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-500 active:scale-90 transition-all select-none"
+                      title="-5°"
+                    >
+                      -
+                    </button>
+                    <input 
+                      type="range"
+                      min="0"
+                      max="359"
+                      step="1"
+                      value={selectedObj.rotation || 0}
+                      onChange={(e) => updateObject(selectedObj.id, { rotation: parseInt(e.target.value) })}
+                      className="flex-1 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 outline-none"
+                    />
+                    <button 
+                      onClick={() => updateObject(selectedObj.id, { rotation: ((selectedObj.rotation || 0) + 5) % 360 })}
+                      className="w-6 h-6 flex items-center justify-center text-xs font-black bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-500 active:scale-90 transition-all select-none"
+                      title="+5°"
+                    >
+                      +
+                    </button>
+                  </div>
+                  {/* Preset rotation buttons */}
+                  <div className="grid grid-cols-4 gap-1 mt-1">
+                    {[0, 90, 180, 270].map(angle => (
+                      <button
+                        key={angle}
+                        onClick={() => updateObject(selectedObj.id, { rotation: angle })}
+                        className={`py-1 text-[0.625rem] font-bold rounded-lg border transition-all ${
+                          (selectedObj.rotation || 0) === angle 
+                            ? 'bg-indigo-50 border-indigo-200 text-indigo-650 shadow-xs' 
+                            : 'bg-white border-slate-150 text-slate-500 hover:bg-slate-50'
+                        }`}
+                      >
+                        {angle}°
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Color presets */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                    <Paintbrush size={11} /> Farbe
+                  </label>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {[
+                      { hex: '', label: 'Standard', class: 'bg-white border-slate-300' },
+                      { hex: '#e8f5e9', label: 'Grün', class: 'bg-[#e8f5e9] border-emerald-300' },
+                      { hex: '#e3f2fd', label: 'Blau', class: 'bg-[#e3f2fd] border-sky-300' },
+                      { hex: '#fffde7', label: 'Gelb', class: 'bg-[#fffde7] border-yellow-300' },
+                      { hex: '#ffebee', label: 'Rot', class: 'bg-[#ffebee] border-rose-300' },
+                      { hex: '#f3e5f5', label: 'Lila', class: 'bg-[#f3e5f5] border-purple-300' },
+                      { hex: '#fff3e0', label: 'Orange', class: 'bg-[#fff3e0] border-orange-300' },
+                    ].map(preset => (
+                      <button
+                        key={preset.label}
+                        onClick={() => updateObject(selectedObj.id, { color: preset.hex })}
+                        className={`w-5 h-5 rounded-full border-2 transition-transform ${preset.class} ${
+                          (selectedObj.color || '') === preset.hex ? 'scale-125 shadow-md border-indigo-500 ring-2 ring-indigo-100' : 'hover:scale-110'
+                        }`}
+                        title={preset.label}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Layer order (Bring to Front / Send to Back) */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                    <Layers size={11} /> Ebene
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => bringToFront(selectedObj.id)}
+                      className="py-1 px-2 text-[0.625rem] font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors flex items-center justify-center gap-1"
+                      title="Ganz nach vorne bringen"
+                    >
+                      Nach vorne
+                    </button>
+                    <button
+                      onClick={() => sendToBack(selectedObj.id)}
+                      className="py-1 px-2 text-[0.625rem] font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors flex items-center justify-center gap-1"
+                      title="Ganz nach hinten senden"
+                    >
+                      Nach hinten
+                    </button>
+                  </div>
+                </div>
+
+                {/* Actions: Duplicate / Delete */}
+                <div className="flex items-center gap-2 mt-2 border-t border-slate-100 pt-3">
+                  <button
+                    onClick={() => duplicateObject(selectedObj.id)}
+                    className="flex-1 py-1.5 px-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-100 rounded-xl font-bold transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <Copy size={13} />
+                    Duplizieren
+                  </button>
+                  <button
+                    onClick={() => removeObject(selectedObj.id)}
+                    className="py-1.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 rounded-xl font-bold transition-colors flex items-center justify-center gap-1.5"
+                    title="Möbelstück löschen"
+                  >
+                    <Trash2 size={13} />
+                    Löschen
+                  </button>
+                </div>
+              </motion.div>
+            );
+          })()}
+        </AnimatePresence>
+
         <div 
           ref={planRef}
           className="min-w-0 flex-1 relative overflow-hidden bg-slate-50 border border-slate-200 rounded-2xl shadow-sm canvas-area min-h-[31.25rem]"
@@ -3519,7 +3799,7 @@ export default function SeatingPlan() {
                   }
                 }}
               >
-                {editMode && ['rectangle', 'square', 'triangle', 'teacher_desk', 'blackboard'].includes(obj.type) ? (
+                {editMode && !selectedObjId && ['rectangle', 'square', 'triangle', 'teacher_desk', 'blackboard'].includes(obj.type) ? (
                   <input
                     type="text"
                     value={obj.label || ''}
@@ -3549,36 +3829,6 @@ export default function SeatingPlan() {
                 )}
               </div>
 
-              {editMode && selectedObjId === obj.id && (
-                <div className={`absolute ${obj.y < 60 ? 'top-[calc(100%+8px)]' : '-top-14'} left-1/2 -translate-x-1/2 flex items-center gap-1 bg-white shadow-xl rounded-2xl p-1.5 border border-slate-200 z-50`}>
-                  <button onClick={(e) => { e.stopPropagation(); updateObject(obj.id, { rotation: ((obj.rotation || 0) + 45) % 360 }); }} className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 rounded-lg" title="Rotieren"><RefreshCw size={14} /></button>
-                  <button onClick={(e) => { e.stopPropagation(); updateObject(obj.id, { w: obj.w + 20 }); }} className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 rounded-lg" title="Verbreitern"><Maximize2 size={14} className="rotate-90" /></button>
-                  <button onClick={(e) => { e.stopPropagation(); updateObject(obj.id, { w: Math.max(40, obj.w - 20) }); }} className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 rounded-lg" title="Schmälern"><Minimize2 size={14} className="rotate-90" /></button>
-                  <button onClick={(e) => { e.stopPropagation(); duplicateObject(obj.id); }} className="p-1.5 text-indigo-500 hover:bg-indigo-50 rounded-lg" title="Duplizieren"><Copy size={14} /></button>
-                  <button onClick={(e) => { e.stopPropagation(); removeObject(obj.id); }} className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg" title="Löschen"><Trash2 size={14} /></button>
-                </div>
-              )}
-              {editMode && selectedObjId === obj.id && ['rectangle', 'square', 'triangle'].includes(obj.type) && (
-                <div data-seating-desk-inspector
-                  onClick={(event) => event.stopPropagation()}
-                  onPointerDown={(event) => event.stopPropagation()}
-                  className={`absolute ${obj.y < 60 ? '-top-24' : 'top-[calc(100%+8px)]'} left-1/2 z-[90] flex min-w-36 -translate-x-1/2 flex-col items-center gap-1 rounded-xl border border-slate-200 bg-white p-2 text-center shadow-lg`}>
-                  <span className="whitespace-nowrap text-[0.7rem] font-bold text-slate-700">
-                    {getStudentsOnTable(obj, sitzplan_schueler).length} Kinder an diesem Tisch
-                  </span>
-                  {selectedSeatStudent && !getStudentsOnTable(obj, sitzplan_schueler).includes(selectedSeatStudent.id) && (
-                    <button type="button"
-                      disabled={!findDeskSeatForStudent(selectedSeatStudent.id, obj)}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        placeStudentAtSelectedDesk(selectedSeatStudent.id, obj.id);
-                      }}
-                      className="min-h-9 whitespace-nowrap rounded-lg bg-indigo-50 px-2 text-xs font-bold text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">
-                      {findDeskSeatForStudent(selectedSeatStudent.id, obj) ? `${selectedSeatStudent.vorname} hierhin` : 'Kein freier Platz'}
-                    </button>
-                  )}
-                </div>
-              )}
             </motion.div>
           ))}
 
@@ -3875,240 +4125,6 @@ export default function SeatingPlan() {
               <button onClick={handleReset} className="p-3 bg-rose-50 text-rose-600 rounded-xl border border-rose-100 hover:bg-rose-100 transition-all shadow-sm" title="Zurücksetzen"><RotateCcw size={20} /></button>
             </motion.div>
           )}
-        </AnimatePresence>
-
-        {/* Möbel-Inspektor (Left side panel, visible when object selected in Edit Mode) */}
-        <AnimatePresence>
-          {editMode && selectedObjId && (() => {
-            const selectedObj = app.sitzplan_objekte?.find((o: any) => o.id === selectedObjId);
-            if (!selectedObj) return null;
-            return (
-              <motion.div
-                initial={{ x: -100, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: -100, opacity: 0 }}
-                className="absolute left-6 top-1/2 -translate-y-1/2 w-64 p-4 bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-slate-200 no-print print:hidden flex flex-col gap-3.5 z-[150] text-[0.75rem]"
-                onClick={(e) => e.stopPropagation()} // Prevent deselecting
-              >
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-1">
-                  <div className="flex items-center gap-1.5 text-indigo-600">
-                    <Sliders size={16} />
-                    <span className="font-extrabold uppercase tracking-wide">Möbel-Inspektor</span>
-                  </div>
-                  <button 
-                    onClick={() => setSelectedObjId(null)}
-                    className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 transition-colors"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                {/* Name / Label */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider">Beschriftung</label>
-                  <input
-                    type="text"
-                    value={selectedObj.label || ''}
-                    placeholder={
-                      selectedObj.type === 'teacher_desk' ? 'Lehrerpult' :
-                      selectedObj.type === 'blackboard' ? 'Tafel' :
-                      selectedObj.type === 'door' ? 'Tür' :
-                      selectedObj.type === 'window' ? 'Fenster' : 'Tisch'
-                    }
-                    onChange={(e) => updateObject(selectedObj.id, { label: e.target.value })}
-                    className="w-full px-2.5 py-1.5 border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none font-bold text-slate-700 placeholder:text-slate-300 text-[0.75rem] transition-all bg-slate-50/50"
-                  />
-                </div>
-
-                {/* Dimensions (Width / Height) with Ranges */}
-                <div className="flex flex-col gap-3">
-                  {/* Breite (Width) */}
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider">Breite</label>
-                      <span className="font-mono text-[0.6875rem] font-bold text-slate-650 bg-slate-100 px-1.5 py-0.5 rounded">{selectedObj.w}px</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => updateObject(selectedObj.id, { w: Math.max(20, selectedObj.w - 5) })}
-                        className="w-6 h-6 flex items-center justify-center text-xs font-black bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-500 active:scale-90 transition-all select-none"
-                        title="-5px"
-                      >
-                        -
-                      </button>
-                      <input 
-                        type="range"
-                        min="20"
-                        max="400"
-                        step="5"
-                        value={selectedObj.w}
-                        onChange={(e) => updateObject(selectedObj.id, { w: parseInt(e.target.value) })}
-                        className="flex-1 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 outline-none"
-                      />
-                      <button 
-                        onClick={() => updateObject(selectedObj.id, { w: Math.min(600, selectedObj.w + 5) })}
-                        className="w-6 h-6 flex items-center justify-center text-xs font-black bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-500 active:scale-90 transition-all select-none"
-                        title="+5px"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Höhe (Height) */}
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider">Höhe</label>
-                      <span className="font-mono text-[0.6875rem] font-bold text-slate-650 bg-slate-100 px-1.5 py-0.5 rounded">{selectedObj.h}px</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => updateObject(selectedObj.id, { h: Math.max(5, selectedObj.h - 5) })}
-                        className="w-6 h-6 flex items-center justify-center text-xs font-black bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-500 active:scale-90 transition-all select-none"
-                        title="-5px"
-                      >
-                        -
-                      </button>
-                      <input 
-                        type="range"
-                        min="5"
-                        max="300"
-                        step="5"
-                        value={selectedObj.h}
-                        onChange={(e) => updateObject(selectedObj.id, { h: parseInt(e.target.value) })}
-                        className="flex-1 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 outline-none"
-                      />
-                      <button 
-                        onClick={() => updateObject(selectedObj.id, { h: Math.min(400, selectedObj.h + 5) })}
-                        className="w-6 h-6 flex items-center justify-center text-xs font-black bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-500 active:scale-90 transition-all select-none"
-                        title="+5px"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Rotation / Ausrichtung */}
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider">Drehung & Ausrichtung</label>
-                    <span className="font-mono text-[0.6875rem] font-bold text-slate-650 bg-slate-100 px-1.5 py-0.5 rounded">{(selectedObj.rotation || 0)}°</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => updateObject(selectedObj.id, { rotation: ((selectedObj.rotation || 0) - 5 + 360) % 360 })}
-                      className="w-6 h-6 flex items-center justify-center text-xs font-black bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-500 active:scale-90 transition-all select-none"
-                      title="-5°"
-                    >
-                      -
-                    </button>
-                    <input 
-                      type="range"
-                      min="0"
-                      max="359"
-                      step="1"
-                      value={selectedObj.rotation || 0}
-                      onChange={(e) => updateObject(selectedObj.id, { rotation: parseInt(e.target.value) })}
-                      className="flex-1 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 outline-none"
-                    />
-                    <button 
-                      onClick={() => updateObject(selectedObj.id, { rotation: ((selectedObj.rotation || 0) + 5) % 360 })}
-                      className="w-6 h-6 flex items-center justify-center text-xs font-black bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-500 active:scale-90 transition-all select-none"
-                      title="+5°"
-                    >
-                      +
-                    </button>
-                  </div>
-                  {/* Preset rotation buttons */}
-                  <div className="grid grid-cols-4 gap-1 mt-1">
-                    {[0, 90, 180, 270].map(angle => (
-                      <button
-                        key={angle}
-                        onClick={() => updateObject(selectedObj.id, { rotation: angle })}
-                        className={`py-1 text-[0.625rem] font-bold rounded-lg border transition-all ${
-                          (selectedObj.rotation || 0) === angle 
-                            ? 'bg-indigo-50 border-indigo-200 text-indigo-650 shadow-xs' 
-                            : 'bg-white border-slate-150 text-slate-500 hover:bg-slate-50'
-                        }`}
-                      >
-                        {angle}°
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Color presets */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                    <Paintbrush size={11} /> Farbe
-                  </label>
-                  <div className="flex gap-1.5 flex-wrap">
-                    {[
-                      { hex: '', label: 'Standard', class: 'bg-white border-slate-300' },
-                      { hex: '#e8f5e9', label: 'Grün', class: 'bg-[#e8f5e9] border-emerald-300' },
-                      { hex: '#e3f2fd', label: 'Blau', class: 'bg-[#e3f2fd] border-sky-300' },
-                      { hex: '#fffde7', label: 'Gelb', class: 'bg-[#fffde7] border-yellow-300' },
-                      { hex: '#ffebee', label: 'Rot', class: 'bg-[#ffebee] border-rose-300' },
-                      { hex: '#f3e5f5', label: 'Lila', class: 'bg-[#f3e5f5] border-purple-300' },
-                      { hex: '#fff3e0', label: 'Orange', class: 'bg-[#fff3e0] border-orange-300' },
-                    ].map(preset => (
-                      <button
-                        key={preset.label}
-                        onClick={() => updateObject(selectedObj.id, { color: preset.hex })}
-                        className={`w-5 h-5 rounded-full border-2 transition-transform ${preset.class} ${
-                          (selectedObj.color || '') === preset.hex ? 'scale-125 shadow-md border-indigo-500 ring-2 ring-indigo-100' : 'hover:scale-110'
-                        }`}
-                        title={preset.label}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Layer order (Bring to Front / Send to Back) */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                    <Layers size={11} /> Ebene
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => bringToFront(selectedObj.id)}
-                      className="py-1 px-2 text-[0.625rem] font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors flex items-center justify-center gap-1"
-                      title="Ganz nach vorne bringen"
-                    >
-                      Nach vorne
-                    </button>
-                    <button
-                      onClick={() => sendToBack(selectedObj.id)}
-                      className="py-1 px-2 text-[0.625rem] font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors flex items-center justify-center gap-1"
-                      title="Ganz nach hinten senden"
-                    >
-                      Nach hinten
-                    </button>
-                  </div>
-                </div>
-
-                {/* Actions: Duplicate / Delete */}
-                <div className="flex items-center gap-2 mt-2 border-t border-slate-100 pt-3">
-                  <button
-                    onClick={() => duplicateObject(selectedObj.id)}
-                    className="flex-1 py-1.5 px-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-100 rounded-xl font-bold transition-colors flex items-center justify-center gap-1.5"
-                  >
-                    <Copy size={13} />
-                    Duplizieren
-                  </button>
-                  <button
-                    onClick={() => removeObject(selectedObj.id)}
-                    className="py-1.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 rounded-xl font-bold transition-colors flex items-center justify-center gap-1.5"
-                    title="Möbelstück löschen"
-                  >
-                    <Trash2 size={13} />
-                    Löschen
-                  </button>
-                </div>
-              </motion.div>
-            );
-          })()}
         </AnimatePresence>
 
         {/* Empty State */}
