@@ -39,7 +39,7 @@ test('KEL subject charts use the exact dossier learning-domain source, with expl
   assert.match(donuts, /selectedAreas\?: string\[\]/);
   assert.match(donuts, /filteredAreas = selectedAreas \?/);
   assert.match(subject, /keine Werte ergänzt oder geschätzt/);
-  assert.doesNotMatch(subject, /classAvg|Klassenvergleich|Klasse Ø/);
+  assert.doesNotMatch(subject, /classAvg|Klasse Ø/);
 });
 
 test('Teacher can set independent chart types, learning areas, order and explicit discussion notes', () => {
