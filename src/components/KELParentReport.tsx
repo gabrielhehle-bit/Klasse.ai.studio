@@ -5,6 +5,7 @@ import { getStudentNotes } from '../lib/studentMetrics';
 import { getStudentSubjectYearParticipationSummary } from '../lib/studentParticipation';
 import { getStudentAssessmentDomainPerformance } from '../lib/assessmentDomainPerformance';
 import { summarizeKelMood, summarizeKelBehavior } from '../lib/kelParentReportMetrics';
+import { selectKelParentLearningAreas } from '../lib/kelParentAreaSelection';
 
 export interface KELParentReportOptions {
   period: 'recent' | 'year';
@@ -15,6 +16,7 @@ export interface KELParentReportOptions {
   showNotes: boolean;
   showSignatures: boolean;
   subjects: string[];
+  subjectAreas?: Record<string, string[]>;
   sharedNoteIds: string[];
   strengthsText: string;
   goalsText: string;
@@ -84,10 +86,17 @@ export default function KELParentReport({
     ...getStudentSubjectYearParticipationSummary(app, studentId, subject),
   })).filter(row => row.hasData);
 
-  const learning = options.subjects.map(subject => ({
-    subject,
-    rows: getStudentAssessmentDomainPerformance(app, studentId, subject, 'both'),
-  }));
+  const learning = options.subjects.map(subject => {
+    const documented = getStudentAssessmentDomainPerformance(app, studentId, subject, 'both');
+    const selected = options.subjectAreas?.[subject];
+    return {
+      subject,
+      documentedCount: documented.length,
+      rows: selectKelParentLearningAreas(documented, selected),
+    };
+  });
+  const intentionallyHiddenAreas = learning.some(row => row.documentedCount > 0) &&
+    learning.every(row => row.rows.length === 0);
   const rangeTitle = options.period === 'recent' ? 'Letzte 6 Wochen' : 'Bisheriges Schuljahr';
 
   if (!student) return <p>Kein Kind aus der aktiven Klasse ausgewählt.</p>;
@@ -211,14 +220,18 @@ export default function KELParentReport({
         )}
 
         {options.showLearning && (
-          <Section title="Lernen" detail="Beide Semester">
+          <Section title="Lernen" detail="Ganzes Schuljahr">
             {learning.every(subject => subject.rows.length === 0) ? (
-              <p className="text-[12px] text-slate-500">Noch keine auswertbaren Lernbereiche mit zugeordneten Bewertungen.</p>
+              <p className="text-[12px] text-slate-500">
+                {intentionallyHiddenAreas
+                  ? 'Für diesen Ausdruck wurden keine dokumentierten Lernbereiche ausgewählt.'
+                  : 'Noch keine auswertbaren Lernbereiche mit zugeordneten Bewertungen.'}
+              </p>
             ) : (
               <div className="space-y-2">
                 {learning.map(subject => subject.rows.length > 0 && (
                   <div key={subject.subject}>
-                    <p className="mb-1 text-[11px] font-extrabold text-slate-700">{subject.subject}{subject.rows.length > 4 && <span className="ml-1 font-normal text-slate-500">(4 von {subject.rows.length} Bereichen – weitere im Dossier)</span>}</p>
+                    <p className="mb-1 text-[11px] font-extrabold text-slate-700">{subject.subject}{subject.documentedCount > subject.rows.length && <span className="ml-1 font-normal text-slate-500">({subject.rows.length} von {subject.documentedCount} Bereichen ausgewählt)</span>}</p>
                     <div className="grid grid-cols-2 gap-1.5">
                       {subject.rows.slice(0, 4).map((row, index) => {
                         const percentage = Math.min(100, Math.max(0, row.percent));
