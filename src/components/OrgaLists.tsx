@@ -871,45 +871,71 @@ export default function OrgaLists() {
                 </button>
               </div>
 
-              {activeChecklisten.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-6 text-center space-y-2">
-                  <p className="text-[0.8125rem] font-bold text-slate-600">Keine offenen Ausflüge oder Checklisten</p>
-                  <p className="text-[0.6875rem] text-slate-400">Erstellen Sie Rücklaufzettel oder Aufgaben für die Klasse.</p>
+              {thisWeekCount === 0 && overdueCount === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-5 text-center space-y-2" data-orga-week-empty>
+                  <p className="text-[0.8125rem] font-bold text-slate-700">Diese Woche ist nichts fällig</p>
+                  <p className="text-[0.6875rem] text-slate-500">Nur tatsächlich datierte Termine werden hier gezählt. Weitere Checklisten bleiben unten erreichbar.</p>
                 </div>
               ) : (
-                <div className="space-y-2.5">
-                  {activeChecklisten.map(c => {
+                <div className="space-y-2.5" data-orga-week-items>
+                  {overdueCount > 0 && (
+                    <p className="text-[0.6875rem] font-bold text-rose-700">{overdueCount} überfällig – bitte prüfen</p>
+                  )}
+                  {[...overdueCollections, ...dueThisWeekCollections].map(collection => {
+                    const summary = summarizeCollectionPayments(collection, students.map(st => st.id));
+                    const overdue = getOrgaDueGroup(collection.faelligkeit, todayOrgaKey) === 'overdue';
                     return (
-                      <div
-                        key={c.id}
-                        className="bg-white rounded-2xl border border-slate-200/80 p-3.5 shadow-3xs flex items-center justify-between gap-3 hover:border-sky-200 transition-all"
-                      >
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-2">
-                            <Backpack size={15} className="text-sky-500" />
-                            <h3 className="text-[0.8125rem] font-bold text-slate-900">{c.titel}</h3>
-                          </div>
-                          {c.datum && (
-                            <p className="text-[0.6875rem] font-semibold text-slate-400">
-                              Termin: {formatOrgaDate(c.datum)}
-                            </p>
-                          )}
+                      <div key={collection.id} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-3" data-orga-week-collection>
+                        <div className="min-w-0">
+                          <p className="truncate text-[0.8125rem] font-bold text-slate-900">{collection.titel}</p>
+                          <p className={`text-[0.6875rem] font-semibold ${overdue ? 'text-rose-700' : 'text-slate-500'}`}>
+                            {overdue ? 'Überfällig' : 'Diese Woche'}: {formatOrgaDate(collection.faelligkeit)} · {summary.outstandingChildren} Kinder, {formatEuro(summary.outstanding)} offen
+                          </p>
                         </div>
-
-                        <button
-                          onClick={() => {
-                            setSelectedChecklisteId(c.id);
-                            setActiveTab('checklisten');
-                          }}
-                          className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[0.75rem] transition-all"
-                        >
-                          Ansehen
-                        </button>
+                        <button type="button" onClick={() => { setSelectedSammlungId(collection.id); setActiveTab('sammlung-detail'); }}
+                          className="min-h-10 shrink-0 rounded-xl bg-indigo-50 px-3 text-xs font-bold text-indigo-700 hover:bg-indigo-100">Zahlungen</button>
+                      </div>
+                    );
+                  })}
+                  {[...overdueChecklisten, ...dueThisWeekChecklisten].map(checkliste => {
+                    const overdue = getOrgaDueGroup(checkliste.datum, todayOrgaKey) === 'overdue';
+                    return (
+                      <div key={checkliste.id} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-3" data-orga-week-checklist>
+                        <div className="min-w-0">
+                          <p className="truncate text-[0.8125rem] font-bold text-slate-900">{checkliste.titel}</p>
+                          <p className={`text-[0.6875rem] font-semibold ${overdue ? 'text-rose-700' : 'text-slate-500'}`}>
+                            {overdue ? 'Überfällig' : 'Termin'}: {formatOrgaDate(checkliste.datum)}
+                          </p>
+                        </div>
+                        <button type="button" onClick={() => { setSelectedChecklisteId(checkliste.id); setActiveTab('checklisten'); }}
+                          className="min-h-10 shrink-0 rounded-xl bg-slate-100 px-3 text-xs font-bold text-slate-700 hover:bg-slate-200">Ansehen</button>
                       </div>
                     );
                   })}
                 </div>
               )}
+
+              {otherChecklisten.length > 0 && (
+                <details data-orga-other-checklists className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+                  <summary className="cursor-pointer text-xs font-bold text-slate-700">
+                    Weitere Checklisten & Ausflüge ({otherChecklisten.length})
+                  </summary>
+                  <div className="mt-2 space-y-1.5">
+                    {otherChecklisten.map(checkliste => (
+                      <button key={checkliste.id} type="button"
+                        onClick={() => { setSelectedChecklisteId(checkliste.id); setActiveTab('checklisten'); }}
+                        className="flex min-h-10 w-full items-center justify-between gap-2 rounded-lg bg-slate-50 px-2.5 py-2 text-left text-xs hover:bg-slate-100">
+                        <span className="min-w-0 truncate font-semibold text-slate-700">{checkliste.titel}</span>
+                        <span className="shrink-0 text-[0.65rem] text-slate-500">{checkliste.datum ? formatOrgaDate(checkliste.datum) : 'Ohne Termin'}</span>
+                      </button>
+                    ))}
+                  </div>
+                </details>
+              )}
+              <button type="button" onClick={() => setActiveTab('checklisten')}
+                className="min-h-10 rounded-lg px-2 text-xs font-bold text-sky-700 hover:bg-sky-50">
+                Alle Ausflüge & Checklisten öffnen <ArrowRight size={13} className="ml-1 inline" />
+              </button>
 
               {/* QUICK LINKS TO TOOLS */}
               <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/60 space-y-2">
