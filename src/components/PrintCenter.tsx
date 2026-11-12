@@ -4185,7 +4185,7 @@ export default function PrintCenter() {
                     </div>
                     
                     {/* Simulated Footer */}
-                    {activeTemplate !== 'schueler_wochenplan' && <div className="mt-8 pt-4 border-t border-slate-200/80 flex justify-between items-center text-[0.5625rem] text-slate-400 font-bold uppercase tracking-widest leading-none">
+                    {activeTemplate !== 'schueler_wochenplan' && activeTemplate !== 'kel_elternblatt' && <div className="mt-8 pt-4 border-t border-slate-200/80 flex justify-between items-center text-[0.5625rem] text-slate-400 font-bold uppercase tracking-widest leading-none">
                       <span>Dokument gedruckt im Schul-Druckzentrum</span>
                       <span>Seite 1 / 1</span>
                     </div>}
