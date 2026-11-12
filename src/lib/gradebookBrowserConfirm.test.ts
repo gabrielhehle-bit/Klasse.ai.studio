@@ -26,3 +26,14 @@ test('long browser test uses the current assessment area field label', () => {
   assert.match(browserScript, /setInputByLabel\(client,'Teilbereich in Mathematik','Längen'\)/);
   assert.doesNotMatch(browserScript, /setInputByLabel\(client,'Unterbereich in Mathematik'/);
 });
+
+test('existing assessments are never silently converted between points and percent', () => {
+  const weight = readFileSync('src/components/WeightSettings.tsx', 'utf8');
+  assert.match(weight, /if \(hasSubjectAssessmentEntries\(app, fach\)\)/);
+  assert.match(weight, /Die Bewertungsart bleibt unverändert/);
+  assert.match(browserScript, /client.approveExpectedProtectedModeAlert = true/);
+  assert.match(browserScript, /event.message.includes\('Die Bewertungsart bleibt unverändert'\)/);
+  assert.match(browserScript, /client.protectedModeAlertCount !== previousRejectedModes \+ 1/);
+  assert.match(browserScript, /protected assessment mode remains points and the saved zero survives/);
+  assert.doesNotMatch(browserScript, /manual percent shows percentage instead of a grade/);
+});
