@@ -206,3 +206,41 @@ test('moving a shared assessment preserves the other pupil and the source column
   assert.equal(next.notenMeta.Deutsch.colAreas.wp[0], 'Lesen');
   assert.deepEqual(source, before);
 });
+
+
+test('Schülerdossier erhält numerisch verschlüsselte Metadaten-Objekte und fremde LZK', () => {
+  const source = base('points');
+  source.schueler.push({ id: 'student-2', vorname: 'Bea', nachname: 'Test' });
+  source.noten = {
+    'student-1': { Deutsch: { '1': { sa: [], lzk: [7, 4], wp: [], aufgaben: [], hue: 0 } } },
+    'student-2': { Deutsch: { '1': { sa: [], lzk: [8, 9], wp: [], aufgaben: [], hue: 0 } } },
+  };
+  source.notenMeta = { Deutsch: {
+    assessmentMode: 'points',
+    colLabels: { lzk: { 0: 'Lesen', 1: 'Schreiben' } },
+    colDates: { lzk: { 0: '2026-10-10', 1: '2026-10-11' } },
+    colNotes: { lzk: { 0: 'Vorher', 1: 'Notiz B' } },
+    colAreas: { lzk: { 0: 'Lesen', 1: 'Rechtschreiben' } },
+    maxPoints: { lzk: { 0: 10, 1: 20 } },
+  } };
+  const before = structuredClone(source);
+  const next = writeDossierAssessment(source, {
+    studentId: 'student-1', fach: 'Deutsch', semester: '1',
+    category: 'lzk', colIndex: 0, label: 'Lesen 2', date: '2026-10-20',
+    note: 'Neuer Text', score: '9', maxScore: '10', area: 'Lesen',
+  });
+
+  assert.equal(next.noten['student-1'].Deutsch['1'].lzk[0], 9);
+  assert.deepEqual(next.noten['student-2'], source.noten['student-2']);
+  assert.deepEqual(next.noten['student-1'].Deutsch['1'].lzk.slice(1), [4]);
+  assert.equal(next.notenMeta.Deutsch.colLabels.lzk[0], 'Lesen 2');
+  assert.equal(next.notenMeta.Deutsch.colLabels.lzk[1], 'Schreiben');
+  assert.equal(next.notenMeta.Deutsch.colDates.lzk[1], '2026-10-11');
+  assert.equal(next.notenMeta.Deutsch.colNotes.lzk[1], 'Notiz B');
+  assert.equal(next.notenMeta.Deutsch.colAreas.lzk[1], 'Rechtschreiben');
+  assert.equal(next.notenMeta.Deutsch.maxPoints.lzk[1], 20);
+  for (const key of ['colLabels', 'colDates', 'colNotes', 'maxPoints']) {
+    assert.equal(Array.isArray(next.notenMeta.Deutsch[key].lzk), false, key + ' must remain a numeric-keyed object');
+  }
+  assert.deepEqual(source, before);
+});
