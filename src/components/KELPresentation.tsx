@@ -478,7 +478,17 @@ export default function KELPresentation({
     ];
     if (visible.strengths && strengths.length) list.push({ id: 'strengths', type: 'strengths', title: t.strengths });
     if (visible.voices && (childVoice.length || parentVoice || teacherVoice.length)) list.push({ id: 'voices', type: 'voices', title: t.voices });
-    if (visible.learning && chosenLearningSubjects.length) list.push({ id: 'learning', type: 'learning', title: t.learning, subtitle: 'Nur eigene dokumentierte Lernstände – kein Klassenvergleich' });
+    if (visible.learning && chosenLearningSubjects.length) {
+      list.push({ id: 'learning', type: 'learning', title: t.learning, subtitle: 'Die Fachübersicht aus demselben Schülerdossier' });
+      if (visible.subjectPages) {
+        for (const subject of chosenLearningSubjects) {
+          list.push({
+            id: 'subject-' + subject.fach, type: 'subject', subject: subject.fach,
+            title: subject.fach, subtitle: 'Meine Lernbereiche · Nachweise · Gesprächsnotizen',
+          });
+        }
+      }
+    }
     if (visible.individualGrades && chosenAssessments.length) list.push({ id: 'individualGrades', type: 'individualGrades', title: 'Meine ausgewählten Arbeiten', subtitle: 'Nur einzeln freigegebene Bewertungen aus der Notenmappe' });
     if (visible.assessment && kelAreas.length) list.push({ id: 'assessment', type: 'assessment', title: t.assessment });
     if (visible.portfolio && selectedPortfolio.length) list.push({ id: 'portfolio', type: 'portfolio', title: t.portfolio });
@@ -487,7 +497,7 @@ export default function KELPresentation({
     if (visible.goals) list.push({ id: 'goals', type: 'goals', title: t.goals, subtitle: 'Gemeinsam konkret und überprüfbar vereinbaren' });
     if (visible.closing) list.push({ id: 'closing', type: 'closing', title: t.closing });
     return list;
-  }, [student.vorname, student.nachname, t, visible, strengths.length, childVoice.length, parentVoice, teacherVoice.length, chosenLearningSubjects.length, chosenAssessments.length, kelAreas.length, selectedPortfolio.length, attendance.hasData, ikmRecord]);
+  }, [student.vorname, student.nachname, t, visible, strengths.length, childVoice.length, parentVoice, teacherVoice.length, chosenLearningSubjects.length, chosenLearningSubjects, chosenAssessments.length, kelAreas.length, selectedPortfolio.length, attendance.hasData, ikmRecord]);
 
   useEffect(() => {
     if (slideIndex >= slides.length) setSlideIndex(Math.max(0, slides.length - 1));
@@ -611,6 +621,40 @@ export default function KELPresentation({
           addBullets(slide, rows, 0.95, 1.55, 11.5, 5.0);
           continue;
         }
+        if (slideData.type === 'subject' && slideData.subject) {
+          const subject = chosenLearningSubjects.find(entry => entry.fach === slideData.subject);
+          if (!subject) continue;
+          const allDomains = getStudentAssessmentDomainPerformance(app, student.id, subject.fach, sem === '2' ? '2' : '1');
+          const chosenDomains = Object.prototype.hasOwnProperty.call(subjectAreaSelection, subject.fach)
+            ? allDomains.filter(area => subjectAreaSelection[subject.fach].includes(area.area))
+            : allDomains;
+          const safeNote = subjectNoteVisible[subject.fach] ? (subjectNotes[subject.fach] || '').trim() : '';
+          slide.addText(`Fachstand: ${subject.label} · ${subject.evidence} dokumentierte Nachweise`,
+            { x: 0.8, y: 1.4, w: 11.8, h: 0.4, fontSize: 14, bold: true, color: colors.ink, margin: 0 });
+          if (chosenDomains.length) {
+            const domains = chosenDomains.slice(0, 7);
+            slide.addChart(pptx.ChartType.bar, [{
+              name: 'Bewertete Lernbereiche',
+              labels: domains.map(area => area.area),
+              values: domains.map(area => area.percent),
+            }], {
+              x: 0.9, y: 1.95, w: 11.3, h: safeNote ? 3.0 : 4.6,
+              showLegend: false, showValue: true,
+              showTitle: true, title: 'Lernbereiche – bewertete Nachweise in %',
+              valAxisMinVal: 0, valAxisMaxVal: 100,
+              catAxisLabelFontSize: 10,
+            });
+          } else {
+            slide.addText('Noch keine auswertbaren Lernbereiche dokumentiert.',
+              { x: 1.0, y: 2.4, w: 11, h: 0.6, fontSize: 16, color: colors.muted, margin: 0 });
+          }
+          if (safeNote) {
+            slide.addText('Gesprächsnotiz: ' + safeNote.slice(0, 1000),
+              { x: 0.9, y: 5.2, w: 11.3, h: 1.35, fontSize: 13, color: colors.ink,
+                margin: 0.16, fit: 'shrink', fill: { color: 'FFFBEB' }, line: { color: 'FDE68A', pt: 1 } });
+          }
+          continue;
+        }
         if (slideData.type === 'individualGrades') {
           const rows = chosenAssessments.map(item =>
             `${item.fach} · ${item.titel}${item.datum ? ' · ' + item.datum : ''}: ${item.ergebnis}`);
@@ -693,6 +737,7 @@ export default function KELPresentation({
     { key: 'strengths', label: 'Stärken', help: 'Dokumentierte Stärken und Badges', available: strengths.length > 0 },
     { key: 'voices', label: 'Sichtweisen', help: 'Aussagen von Kind, Eltern und Lehrperson aus dem KEL-Protokoll', available: Boolean(childVoice.length || parentVoice || teacherVoice.length) },
     { key: 'learning', label: 'Lernstand', help: 'Nur die unten ausdrücklich ausgewählten Fächer', available: learningSubjects.length > 0 },
+    { key: 'subjectPages', label: 'Einzelfolien je Fach', help: 'Je ausgewähltem Fach Lernbereichsdiagramme und freigegebene Gesprächsnotizen', available: chosenLearningSubjects.length > 0 },
     { key: 'individualGrades', label: 'Einzelne Bewertungen', help: 'Nur die unten einzeln ausgewählten Leistungsnachweise', available: availableAssessments.length > 0 },
     { key: 'assessment', label: 'Selbst- & Fremdeinschätzung', help: 'Nur ausdrücklich erfasste KEL-Einschätzungen', available: kelAreas.length > 0 },
     { key: 'portfolio', label: 'Portfolio', help: 'Nur Einträge, die ausdrücklich „für KEL“ markiert sind', available: selectedPortfolio.length > 0 },
@@ -773,6 +818,22 @@ export default function KELPresentation({
         der ausdrücklich ausgewählten Fächer und keine vollständige Kompetenzdiagnose.
       </p>
     </SlideShell>;
+
+    if (currentSlide.type === 'subject') {
+      const subject = chosenLearningSubjects.find(entry => entry.fach === currentSlide.subject);
+      if (!subject) return null;
+      return <SlideShell title={`Mein Lernen in ${subject.fach}`} subtitle="Wir schauen gemeinsam auf dokumentierte Nachweise und nächste Schritte.">
+        <KELSubjectPage
+          studentId={student.id} fach={subject.fach}
+          semester={sem === '2' ? '2' : '1'}
+          selectedAreas={subjectAreaSelection[subject.fach]}
+          chartType={subjectChartTypes[subject.fach] || 'donuts'}
+          subjectLabel={subject.label} evidenceCount={subject.evidence}
+          note={subjectNotes[subject.fach]}
+          showNote={Boolean(subjectNoteVisible[subject.fach])}
+        />
+      </SlideShell>;
+    }
 
     if (currentSlide.type === 'individualGrades') return <SlideShell title={currentSlide.title} subtitle={currentSlide.subtitle}>
       <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
