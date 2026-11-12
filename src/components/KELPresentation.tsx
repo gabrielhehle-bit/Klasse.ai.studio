@@ -11,6 +11,8 @@ import { exportSchuelerPDF } from '../lib/exportService';
 import { getAssessmentMode } from '../lib/GradeUtils';
 import { getKelGradebookAssessments, pickKelAssessments } from '../lib/kelGradebookSelection';
 import AssessmentDomainDonuts from './dossier/AssessmentDomainDonuts';
+import KELSubjectPage, { type KelSubjectChartType } from './KELSubjectPage';
+import { getStudentAssessmentDomainPerformance } from '../lib/assessmentDomainPerformance';
 import { getStudentAttendanceSummary } from '../lib/studentMetrics';
 
 interface KELPresentationProps {
@@ -30,6 +32,7 @@ type SlideType =
   | 'strengths'
   | 'voices'
   | 'learning'
+  | 'subject'
   | 'individualGrades'
   | 'assessment'
   | 'portfolio'
@@ -43,12 +46,14 @@ type Slide = {
   type: SlideType;
   title: string;
   subtitle?: string;
+  subject?: string;
 };
 
 type VisibleConfig = {
   strengths: boolean;
   voices: boolean;
   learning: boolean;
+  subjectPages: boolean;
   individualGrades: boolean;
   assessment: boolean;
   portfolio: boolean;
@@ -62,6 +67,7 @@ const DEFAULT_CONFIG: VisibleConfig = {
   strengths: true,
   voices: true,
   learning: false,
+  subjectPages: true,
   individualGrades: false,
   assessment: true,
   portfolio: true,
@@ -234,6 +240,10 @@ export default function KELPresentation({
     Array.isArray(matchingSavedPlan?.selectedSubjects) ? matchingSavedPlan.selectedSubjects : []);
   const [selectedAssessmentIds, setSelectedAssessmentIds] = useState<string[]>(() =>
     Array.isArray(matchingSavedPlan?.selectedAssessmentIds) ? matchingSavedPlan.selectedAssessmentIds : []);
+  const [subjectNotes, setSubjectNotes] = useState<Record<string,string>>(() => ({ ...(matchingSavedPlan?.subjectNotes || {}) }));
+  const [subjectNoteVisible, setSubjectNoteVisible] = useState<Record<string,boolean>>(() => ({ ...(matchingSavedPlan?.subjectNoteVisible || {}) }));
+  const [subjectAreaSelection, setSubjectAreaSelection] = useState<Record<string,string[]>>(() => ({ ...(matchingSavedPlan?.subjectAreaSelection || {}) }));
+  const [subjectChartTypes, setSubjectChartTypes] = useState<Record<string,KelSubjectChartType>>(() => ({ ...(matchingSavedPlan?.subjectChartTypes || {}) }));
   const [selectionSaved, setSelectionSaved] = useState(Boolean(matchingSavedPlan));
   const selectionScope = JSON.stringify([app.activeClassId, student.id, app.schuljahr, sem]);
   const scopeRef = useRef(selectionScope);
@@ -244,6 +254,10 @@ export default function KELPresentation({
     setVisible({ ...DEFAULT_CONFIG, ...(matchingSavedPlan?.visible || {}) });
     setSelectedSubjects(Array.isArray(matchingSavedPlan?.selectedSubjects) ? matchingSavedPlan.selectedSubjects : []);
     setSelectedAssessmentIds(Array.isArray(matchingSavedPlan?.selectedAssessmentIds) ? matchingSavedPlan.selectedAssessmentIds : []);
+    setSubjectNotes({ ...(matchingSavedPlan?.subjectNotes || {}) });
+    setSubjectNoteVisible({ ...(matchingSavedPlan?.subjectNoteVisible || {}) });
+    setSubjectAreaSelection({ ...(matchingSavedPlan?.subjectAreaSelection || {}) });
+    setSubjectChartTypes({ ...(matchingSavedPlan?.subjectChartTypes || {}) });
     setSelectionSaved(Boolean(matchingSavedPlan));
     setView('prepare');
     setSlideIndex(0);
@@ -326,15 +340,14 @@ export default function KELPresentation({
       ].filter((item: any) => item !== null && item !== undefined && item !== '').length;
       const hasParticipation = app.mitarbeit?.[student.id]?.[fach]?.[sem] !== undefined || record?.miDirekt !== undefined;
       const hasData = value !== null || evidence > 0 || hasParticipation;
-      if (!hasData) return [];
       const mode = getAssessmentMode(app, fach);
       const label = value === null
         ? 'noch keine Gesamtbewertung'
         : mode === 'grades'
           ? `Note ${Number(value).toLocaleString('de-AT', { maximumFractionDigits: 2 })}`
           : `${Number(value).toLocaleString('de-AT', { maximumFractionDigits: 1 })} %`;
-      return [{ fach, value, mode, label, evidence, hasParticipation }];
-    }).slice(0, 8);
+      return [{ fach, value, mode, label, evidence, hasParticipation, hasData }];
+    });
   }, [activeFaecher, app, berechne, sem, student.id]);
 
   // Read-only material from the REAL Notenmappe, limited to this child and semester.
@@ -344,13 +357,37 @@ export default function KELPresentation({
       : [],
     [app, student.id, sem, activeFaecher]);
   const chosenLearningSubjects = scopeMatches
-    ? learningSubjects.filter(entry => selectedSubjects.includes(entry.fach)) : [];
+    ? selectedSubjects.flatMap(fach => {
+        const subject = learningSubjects.find(entry => entry.fach === fach);
+        return subject ? [subject] : [];
+      }) : [];
   const chosenAssessments = scopeMatches
     ? pickKelAssessments(availableAssessments, selectedAssessmentIds) : [];
   const toggleSubject = (fach: string) => {
     setSelectedSubjects(previous => previous.includes(fach)
       ? previous.filter(item => item !== fach) : [...previous, fach]);
     setVisible(previous => ({ ...previous, learning: true }));
+    setSelectionSaved(false);
+  };
+  const changeSubjectOrder = (fach: string, delta: -1 | 1) => {
+    setSelectedSubjects(previous => {
+      const current = previous.indexOf(fach);
+      const target = current + delta;
+      if (current < 0 || target < 0 || target >= previous.length) return previous;
+      const next = [...previous];
+      [next[current], next[target]] = [next[target], next[current]];
+      return next;
+    });
+    setSelectionSaved(false);
+  };
+  const toggleSubjectArea = (fach: string, area: string, available: string[]) => {
+    setSubjectAreaSelection(previous => {
+      const current = previous[fach] ?? available;
+      const next = current.includes(area)
+        ? current.filter(value => value !== area)
+        : [...current, area];
+      return { ...previous, [fach]: next };
+    });
     setSelectionSaved(false);
   };
   const toggleAssessment = (id: string) => {
@@ -366,6 +403,14 @@ export default function KELPresentation({
       visible: { ...visible },
       selectedSubjects: chosenLearningSubjects.map(item => item.fach),
       selectedAssessmentIds: chosenAssessments.map(item => item.id),
+      subjectNotes: Object.fromEntries(chosenLearningSubjects
+        .filter(item => Boolean(subjectNotes[item.fach]?.trim()))
+        .map(item => [item.fach, subjectNotes[item.fach].trim()])),
+      subjectNoteVisible: Object.fromEntries(chosenLearningSubjects.map(item => [item.fach, Boolean(subjectNoteVisible[item.fach])])),
+      subjectAreaSelection: Object.fromEntries(chosenLearningSubjects
+        .filter(item => Object.prototype.hasOwnProperty.call(subjectAreaSelection, item.fach))
+        .map(item => [item.fach, subjectAreaSelection[item.fach]])),
+      subjectChartTypes: Object.fromEntries(chosenLearningSubjects.map(item => [item.fach, subjectChartTypes[item.fach] || 'donuts'])),
       updatedAt: new Date().toISOString(),
     };
     setApp(previous => {
