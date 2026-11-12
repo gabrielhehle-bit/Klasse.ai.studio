@@ -17,7 +17,7 @@ test('the student dossier opens the shared parent sheet using the current child 
 test('private observation notes stay closed by default and require explicit per-note selection', () => {
   assert.match(printCenter, /const \[elternblattShowNotes, setElternblattShowNotes\] = useState\(false\)/);
   assert.match(printCenter, /const \[elternblattSharedNoteIds, setElternblattSharedNoteIds\] = useState<string\[\]>\(\[\]\)/);
-  assert.match(printCenter, /setElternblattSelectedStudentId\(event.target.value\); setElternblattShowNotes\(false\); setElternblattSharedNoteIds\(\[\]\)/);
+  assert.match(printCenter, /setElternblattSelectedStudentId\(event.target.value\);\s*setElternblattShowNotes\(false\);\s*setElternblattSharedNoteIds\(\[\]\)/);
   assert.match(printCenter, /Ausgewählte Dossiernotizen für Eltern freigeben/);
   assert.match(printCenter, /checked=\{elternblattSharedNoteIds.includes\(note.id\)\}/);
   assert.match(report, /options.showNotes\s*\?\s*notes.filter\(/);
@@ -27,8 +27,8 @@ test('private observation notes stay closed by default and require explicit per-
 
 test('charts rely on real stored child data, not fabricated assessment scores', () => {
   assert.match(report, /getDossierOverviewStats\(app, studentId, options.period\)/);
-  assert.match(report, /getStudentSubjectParticipationSummary\(app, studentId, subject, '1'\)/);
-  assert.match(report, /getStudentAssessmentDomainPerformance\(app, studentId, subject, '1'\)/);
+  assert.match(report, /getStudentSubjectYearParticipationSummary\(app, studentId, subject\)/);
+  assert.match(report, /getStudentAssessmentDomainPerformance\(app, studentId, subject, 'both'\)/);
   assert.match(report, /moodSamples > 0 \? moodSum \/ moodSamples : null/);
   assert.match(report, /row.assessments/);
   assert.match(report, /Keine dokumentierten Verhaltensereignisse/);
@@ -42,4 +42,20 @@ test('A4 sheet is a dedicated Print Center template without an additional school
   assert.match(report, /Lern- &amp; Entwicklungsübersicht/);
   assert.match(report, /Gesprächsnotizen &amp; Vereinbarungen/);
   assert.match(report, /Unterschriften|Erziehungsberechtigte/);
+});
+
+test('KEL parent-facing feedback is typed explicitly and never saved as a child record', () => {
+  for (const field of ['elternblattStrengthsText', 'elternblattGoalsText', 'elternblattAgreementsText']) {
+    assert.match(printCenter, new RegExp('const \\[' + field + ', set'));
+    assert.match(printCenter, new RegExp('value=\\{' + field + '\\}'));
+  }
+  assert.match(printCenter, /data-kel-parent-editor-controls/);
+  assert.match(printCenter, /strengthsText: elternblattStrengthsText/);
+  assert.match(printCenter, /goalsText: elternblattGoalsText/);
+  assert.match(printCenter, /agreementsText: elternblattAgreementsText/);
+  assert.match(report, /strengthLines\.map/);
+  assert.match(report, /goalLines\.map/);
+  assert.match(report, /agreementLines\.map/);
+  assert.doesNotMatch(report, /setApp\(/);
+  assert.match(printCenter, /setElternblattStrengthsText\(''\);\s*setElternblattGoalsText\(''\);\s*setElternblattAgreementsText\(''\)/);
 });

@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { getDossierOverviewStats } from '../lib/dossierOverviewStats';
 import { getStudentNotes } from '../lib/studentMetrics';
-import { getStudentSubjectParticipationSummary } from '../lib/studentParticipation';
+import { getStudentSubjectYearParticipationSummary } from '../lib/studentParticipation';
 import { getStudentAssessmentDomainPerformance } from '../lib/assessmentDomainPerformance';
 
 export interface KELParentReportOptions {
@@ -15,6 +15,9 @@ export interface KELParentReportOptions {
   showSignatures: boolean;
   subjects: string[];
   sharedNoteIds: string[];
+  strengthsText: string;
+  goalsText: string;
+  agreementsText: string;
 }
 
 const COLORS = ['#0d9488', '#4f46e5', '#c67e4c', '#7c3aed'];
@@ -60,6 +63,12 @@ export default function KELParentReport({
   const strengths = approvedNotes.filter((note: any) => note.art === 'positiv' || note.kategorie === 'Erfolg');
   const nextSteps = approvedNotes.filter((note: any) => note.art === 'beobachten');
   const otherNotes = approvedNotes.filter((note: any) => !strengths.includes(note) && !nextSteps.includes(note));
+  // These parent-facing lines are written explicitly for this print session.
+  // They never modify private pupil observations or become permanent records.
+  const splitPrintLines = (text: string) => text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  const strengthLines = splitPrintLines(options.strengthsText);
+  const goalLines = splitPrintLines(options.goalsText);
+  const agreementLines = splitPrintLines(options.agreementsText);
 
   const moodSamples = stats.weeks.reduce((count, week) => count + week.moodCount, 0);
   const moodSum = stats.weeks.reduce((sum, week) =>
@@ -78,12 +87,12 @@ export default function KELParentReport({
 
   const participation = options.subjects.map(subject => ({
     subject,
-    ...getStudentSubjectParticipationSummary(app, studentId, subject, '1'),
+    ...getStudentSubjectYearParticipationSummary(app, studentId, subject),
   })).filter(row => row.hasData);
 
   const learning = options.subjects.map(subject => ({
     subject,
-    rows: getStudentAssessmentDomainPerformance(app, studentId, subject, '1'),
+    rows: getStudentAssessmentDomainPerformance(app, studentId, subject, 'both'),
   }));
   const rangeTitle = options.period === 'recent' ? 'Letzte 6 Wochen' : 'Bisheriges Schuljahr';
 
@@ -177,7 +186,7 @@ export default function KELParentReport({
         )}
 
         {options.showLearning && (
-          <Section title="Lernen" detail="Bewertete Teilbereiche">
+          <Section title="Lernen" detail="Beide Semester">
             {learning.every(subject => subject.rows.length === 0) ? (
               <p className="text-[12px] text-slate-500">Noch keine auswertbaren Lernbereiche mit zugeordneten Bewertungen.</p>
             ) : (
@@ -220,19 +229,20 @@ export default function KELParentReport({
 
       <div className="mt-2.5 grid grid-cols-2 gap-2.5">
         <Section title="Das gelingt schon gut">
-          {strengths.length
-            ? strengths.map((note: any) => <EmptyLine key={note.id}>{tidy(note.inhalt)}</EmptyLine>)
-            : <><EmptyLine> </EmptyLine><EmptyLine> </EmptyLine></>}
+          {strengthLines.map((line, index) => <EmptyLine key={'typed-strength-' + index}>{line}</EmptyLine>)}
+          {strengths.map((note: any) => <EmptyLine key={note.id}>{tidy(note.inhalt)}</EmptyLine>)}
+          {strengthLines.length === 0 && strengths.length === 0 && <><EmptyLine> </EmptyLine><EmptyLine> </EmptyLine></>}
         </Section>
         <Section title="Daran arbeiten wir weiter">
-          {nextSteps.length
-            ? nextSteps.map((note: any) => <EmptyLine key={note.id}>{tidy(note.inhalt)}</EmptyLine>)
-            : <><EmptyLine> </EmptyLine><EmptyLine> </EmptyLine></>}
+          {goalLines.map((line, index) => <EmptyLine key={'typed-goal-' + index}>{line}</EmptyLine>)}
+          {nextSteps.map((note: any) => <EmptyLine key={note.id}>{tidy(note.inhalt)}</EmptyLine>)}
+          {goalLines.length === 0 && nextSteps.length === 0 && <><EmptyLine> </EmptyLine><EmptyLine> </EmptyLine></>}
         </Section>
       </div>
 
       <div className="mt-2.5">
         <Section title="Gesprächsnotizen &amp; Vereinbarungen" detail="Platz zum Ergänzen">
+          {agreementLines.map((line, index) => <EmptyLine key={'typed-agreement-' + index}>{line}</EmptyLine>)}
           {otherNotes.map((note: any) => (
             <p key={note.id} className="mb-1.5 whitespace-pre-wrap break-words text-[12px] text-slate-700">{tidy(note.inhalt)}</p>
           ))}

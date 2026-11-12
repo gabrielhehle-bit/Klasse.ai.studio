@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getStudentSubjectParticipationSummary } from './studentParticipation';
+import { getStudentSubjectParticipationSummary, getStudentSubjectYearParticipationSummary } from './studentParticipation';
 
 test('Fachmitarbeit: aktueller Notenmappe-Stand und Journal werden gemeinsam gelesen', () => {
   const app: any = {
@@ -57,4 +57,32 @@ test('Fachmitarbeit: Verlauf zeigt höchstens die fünf neuesten Einträge', () 
   assert.equal(summary.recent.length, 5);
   assert.equal(summary.recent[0].id, '6');
   assert.equal(summary.recent[4].id, '2');
+});
+
+test('KEL yearly participation combines both stored semesters without double-counting logs', () => {
+  const app: any = {
+    mitarbeit: {
+      s1: {
+        Deutsch: { '1': 3, '2': 5 },
+        Mathematik: { '1': 0, '2': 2 },
+      },
+    },
+    mitarbeitLogs: [
+      { id: 'only-log', sid: 's1', fach: 'Deutsch', points: 2, timestamp: '2027-03-03T08:00:00Z', kind: 'subject' },
+    ],
+  };
+  const snapshot = structuredClone(app);
+  assert.deepEqual(getStudentSubjectYearParticipationSummary(app, 's1', 'Deutsch'), { total: 8, hasData: true });
+  assert.deepEqual(getStudentSubjectYearParticipationSummary(app, 's1', 'Mathematik'), { total: 2, hasData: true });
+  assert.deepEqual(getStudentSubjectYearParticipationSummary(app, 's1', 'Sachunterricht'), { total: 0, hasData: false });
+  assert.deepEqual(app, snapshot, 'printing does not change saved subject points or journals');
+});
+
+test('KEL yearly participation stays truthful when semester values are negative or invalid', () => {
+  const app: any = {
+    mitarbeit: { s1: { Deutsch: { '1': -4, '2': 'invalid' }, Mathematik: { '1': 1, '2': 0 } } },
+    mitarbeitLogs: [],
+  };
+  assert.deepEqual(getStudentSubjectYearParticipationSummary(app, 's1', 'Deutsch'), { total: 0, hasData: false });
+  assert.deepEqual(getStudentSubjectYearParticipationSummary(app, 's1', 'Mathematik'), { total: 1, hasData: true });
 });

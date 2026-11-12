@@ -346,6 +346,9 @@ export default function PrintCenter() {
   const [elternblattShowSignatures, setElternblattShowSignatures] = useState(true);
   const [elternblattSubjects, setElternblattSubjects] = useState<string[]>(['Deutsch', 'Mathematik']);
   const [elternblattSharedNoteIds, setElternblattSharedNoteIds] = useState<string[]>([]);
+  const [elternblattStrengthsText, setElternblattStrengthsText] = useState('');
+  const [elternblattGoalsText, setElternblattGoalsText] = useState('');
+  const [elternblattAgreementsText, setElternblattAgreementsText] = useState('');
   const elternblattNotes = getStudentNotes(app, elternblattSelectedStudentId)
     .filter((note: any) => typeof note.id === 'string' && note.id && typeof note.inhalt === 'string' && note.inhalt.trim());
   const elternblattOptions: KELParentReportOptions = {
@@ -353,6 +356,9 @@ export default function PrintCenter() {
     showParticipation: elternblattShowParticipation, showLearning: elternblattShowLearning,
     showNotes: elternblattShowNotes, showSignatures: elternblattShowSignatures,
     subjects: elternblattSubjects, sharedNoteIds: elternblattSharedNoteIds,
+    strengthsText: elternblattStrengthsText,
+    goalsText: elternblattGoalsText,
+    agreementsText: elternblattAgreementsText,
   };
 
   useEffect(() => {
@@ -363,6 +369,9 @@ export default function PrintCenter() {
       // into a newly selected document or a later KEL print session.
       setElternblattShowNotes(false);
       setElternblattSharedNoteIds([]);
+      setElternblattStrengthsText('');
+      setElternblattGoalsText('');
+      setElternblattAgreementsText('');
     }
   }, [activeTemplate]);
 
@@ -648,7 +657,11 @@ export default function PrintCenter() {
       if (belongsToActiveClass) {
         setKelSelectedStudentId(app.activePrintStudentId);
         setElternblattSelectedStudentId(app.activePrintStudentId);
+        setElternblattShowNotes(false);
         setElternblattSharedNoteIds([]);
+        setElternblattStrengthsText('');
+        setElternblattGoalsText('');
+        setElternblattAgreementsText('');
         setProfSelectedStudentId(app.activePrintStudentId);
         setDiagSelectedStudentId(app.activePrintStudentId);
         setKpSelectedStudentId(app.activePrintStudentId);
@@ -665,6 +678,10 @@ export default function PrintCenter() {
     setKelSelectedStudentId(firstStudentId);
     setElternblattSelectedStudentId(app.activePrintStudentId && students.some(st => st.id === app.activePrintStudentId) ? app.activePrintStudentId : firstStudentId);
     setElternblattSharedNoteIds([]);
+    setElternblattShowNotes(false);
+    setElternblattStrengthsText('');
+    setElternblattGoalsText('');
+    setElternblattAgreementsText('');
     setProfSelectedStudentId(firstStudentId);
     setDiagSelectedStudentId(firstStudentId);
     setKpSelectedStudentId(firstStudentId);
@@ -2761,7 +2778,14 @@ export default function PrintCenter() {
                   <div>
                     <label htmlFor="kel-parent-student" className="mb-1 block text-[0.6875rem] font-bold text-slate-600">Kind</label>
                     <select id="kel-parent-student" value={elternblattSelectedStudentId}
-                      onChange={event => { setElternblattSelectedStudentId(event.target.value); setElternblattShowNotes(false); setElternblattSharedNoteIds([]); }}
+                      onChange={event => {
+                        setElternblattSelectedStudentId(event.target.value);
+                        setElternblattShowNotes(false);
+                        setElternblattSharedNoteIds([]);
+                        setElternblattStrengthsText('');
+                        setElternblattGoalsText('');
+                        setElternblattAgreementsText('');
+                      }}
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs">
                       {students.map(st => <option key={st.id} value={st.id}>{st.nachname} {st.vorname}</option>)}
                     </select>
@@ -2801,6 +2825,36 @@ export default function PrintCenter() {
                       </label>
                     ))}
                   </fieldset>
+                  <div data-kel-parent-editor-controls className="space-y-3 rounded-xl border border-teal-200 bg-teal-50/70 p-3">
+                    <div>
+                      <h4 className="text-xs font-black text-teal-950">Persönliche Rückmeldung für die Eltern</h4>
+                      <p className="mt-1 text-[0.6875rem] leading-relaxed text-teal-900">
+                        Nur für diese Druckvorschau. Kein Speichern in den Schülerakten, keine automatische Übernahme interner Notizen.
+                        Je Zeile ein Gedanke; bei Bedarf bleibt unten Platz zum handschriftlichen Ergänzen.
+                      </p>
+                    </div>
+                    <label htmlFor="kel-parent-strengths" className="block text-xs font-semibold text-slate-700">
+                      Das gelingt schon gut
+                      <textarea id="kel-parent-strengths" rows={3} maxLength={600}
+                        value={elternblattStrengthsText} onChange={event => setElternblattStrengthsText(event.target.value)}
+                        placeholder="z. B. arbeitet freundlich mit anderen\nliest motiviert und ausdauernd"
+                        className="mt-1 w-full resize-y rounded-lg border border-teal-200 bg-white p-2 text-xs font-normal leading-relaxed text-slate-900" />
+                    </label>
+                    <label htmlFor="kel-parent-goals" className="block text-xs font-semibold text-slate-700">
+                      Daran arbeiten wir weiter
+                      <textarea id="kel-parent-goals" rows={3} maxLength={600}
+                        value={elternblattGoalsText} onChange={event => setElternblattGoalsText(event.target.value)}
+                        placeholder="z. B. Aufgaben selbstständiger beginnen\nsorgfältig kontrollieren"
+                        className="mt-1 w-full resize-y rounded-lg border border-teal-200 bg-white p-2 text-xs font-normal leading-relaxed text-slate-900" />
+                    </label>
+                    <label htmlFor="kel-parent-agreements" className="block text-xs font-semibold text-slate-700">
+                      Gesprächsnotizen &amp; Vereinbarungen
+                      <textarea id="kel-parent-agreements" rows={3} maxLength={800}
+                        value={elternblattAgreementsText} onChange={event => setElternblattAgreementsText(event.target.value)}
+                        placeholder="Gemeinsam vereinbarte nächste Schritte …"
+                        className="mt-1 w-full resize-y rounded-lg border border-teal-200 bg-white p-2 text-xs font-normal leading-relaxed text-slate-900" />
+                    </label>
+                  </div>
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
                     <label className="flex items-start gap-2 text-xs font-bold text-amber-950">
                       <input type="checkbox" checked={elternblattShowNotes}
