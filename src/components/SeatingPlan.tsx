@@ -1822,6 +1822,14 @@ export default function SeatingPlan() {
     return () => cancelAnimationFrame(frame);
   }, [refitSavedLayoutSignal]);
 
+  // The external furniture panel changes available canvas width. Refit the
+  // viewport on open/close, but never move a student or a piece of furniture.
+  React.useEffect(() => {
+    if (!editMode) return;
+    const frame = requestAnimationFrame(() => setRefitSavedLayoutSignal(value => value + 1));
+    return () => cancelAnimationFrame(frame);
+  }, [selectedObjId]);
+
   const updateViewZoom = (next: number) => {
     const viewport = planRef.current;
     const clamped = Math.max(0.1, Math.min(1.5, next));
@@ -2884,8 +2892,16 @@ export default function SeatingPlan() {
             </div>
 
             {editMode && <button type="button" data-seating-dock-toggle
-              aria-expanded={showSeatDock} aria-controls="seating-edit-dock"
-              onClick={() => { setShowSeatDock(open => !open); setRefitSavedLayoutSignal(value => value + 1); }}
+              aria-expanded={showSeatDock && !selectedObjId} aria-controls="seating-edit-dock"
+              onClick={() => {
+                if (selectedObjId) {
+                  setSelectedObjId(null);
+                  setShowSeatDock(true);
+                } else {
+                  setShowSeatDock(open => !open);
+                }
+                setRefitSavedLayoutSignal(value => value + 1);
+              }}
               className={`inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-xl border px-3 py-2 text-xs font-bold ${showSeatDock ? 'border-indigo-300 bg-indigo-50 text-indigo-800' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-50'}`}>
               <Users size={15}/> Sitzplätze {unplacedStudents.length > 0 ? `(${unplacedStudents.length} offen)` : ''}
             </button>}
@@ -3281,7 +3297,7 @@ export default function SeatingPlan() {
         )}
         {/* Möbel-Einstellungen outside the scaled classroom, never over student desks */}
         <AnimatePresence>
-          {editMode && selectedObjId && (() => {
+          {editMode && !presentationMode && selectedObjId && (() => {
             const selectedObj = app.sitzplan_objekte?.find((o: any) => o.id === selectedObjId);
             if (!selectedObj) return null;
             return (
