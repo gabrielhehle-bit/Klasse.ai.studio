@@ -355,6 +355,10 @@ export default function PrintCenter() {
     subjects: elternblattSubjects, sharedNoteIds: elternblattSharedNoteIds,
   };
 
+  useEffect(() => {
+    if (activeTemplate === 'kel_elternblatt') setPrintTheme('slate');
+  }, [activeTemplate]);
+
   // F. KEL-Gespräche / Dossier Options
   const [kelStudentMode, setKelStudentMode] = useState<'single' | 'all'>('single');
   const [kelSelectedStudentId, setKelSelectedStudentId] = useState<string>(students[0]?.id || '');
@@ -652,7 +656,7 @@ export default function PrintCenter() {
   useEffect(() => {
     const firstStudentId = students[0]?.id || '';
     setKelSelectedStudentId(firstStudentId);
-    setElternblattSelectedStudentId(firstStudentId);
+    setElternblattSelectedStudentId(app.activePrintStudentId && students.some(st => st.id === app.activePrintStudentId) ? app.activePrintStudentId : firstStudentId);
     setElternblattSharedNoteIds([]);
     setProfSelectedStudentId(firstStudentId);
     setDiagSelectedStudentId(firstStudentId);
