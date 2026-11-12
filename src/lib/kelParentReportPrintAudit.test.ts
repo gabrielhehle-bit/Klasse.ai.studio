@@ -36,7 +36,11 @@ test('private note choices are not carried to another child or another print tem
 test('behavior bars use SVG so the global printed div height reset cannot collapse them', () => {
   assert.match(print, /body\.print-center-active \.print-center-overlay div,/);
   assert.match(sheet, /<svg data-kel-behavior-bar/);
-  assert.match(sheet, /<rect x="0" y="0" width=\{row.count \/ behaviorTotal \* 100\}/);
+  assert.match(sheet, /width=\{row.count \/ behaviorTotal \* 100\}/);
+  assert.match(sheet, /behaviorRows\.slice\(0, index\)\.reduce\(\(sum, entry\) => sum \+ entry\.count, 0\) \/ behaviorTotal \* 100/);
+  assert.match(sheet, /mood\.counts\.slice\(0, index\)\.reduce\(\(sum, n\) => sum \+ n, 0\) \/ mood\.total \* 100/);
+  assert.match(sheet, /data-kel-mood-row/);
+  assert.match(sheet, /data-kel-behavior-row/);
   assert.doesNotMatch(sheet, /className="mt-0\.5 h-1\.5 overflow-hidden/);
 });
 
@@ -63,4 +67,12 @@ test('KEL charts and odd card count remain readable in the print preview', () =>
   assert.match(sheet, /data-kel-summary-grid/);
   assert.match(sheet, /data-kel-mood-distribution/);
   assert.match(sheet, /\{row.total === 1 \? 'Punkt' : 'Punkte'\}/);
+});
+
+test('the printed parent sheet uses calm editorial labels rather than a private-notes warning', () => {
+  assert.match(sheet, /Gesprächsgrundlage sind die dokumentierten Rückmeldungen/);
+  assert.doesNotMatch(sheet, /Persönliche Beobachtungen werden nur nach ausdrücklicher Auswahl übernommen/);
+  assert.match(sheet, /border-\[#d8e3e5\]/);
+  assert.match(sheet, /data-kel-mood-bar/);
+  assert.match(sheet, /data-kel-behavior-bar/);
 });
