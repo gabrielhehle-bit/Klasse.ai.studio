@@ -71,5 +71,9 @@ export function summarizeKelBehavior(
     id: '_others', label: 'Weitere Kategorien', count: otherCount,
     percent: Math.round(otherCount / total * 100), color: '#64748b',
   });
-  return { total, rows: visible, leading: percentages[0] || null };
+  // If several categories tie, a single one must not be described as the winner.
+  const leading = percentages[0] && (percentages[1]?.count ?? -1) < percentages[0].count
+    ? percentages[0]
+    : null;
+  return { total, rows: visible, leading };
 }
