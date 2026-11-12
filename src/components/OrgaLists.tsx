@@ -195,6 +195,12 @@ export default function OrgaLists() {
 
   // Handle 1-click toggle payment
   const toggleStudentPayment = (sid: string, sammlungId: string) => {
+    const collectionBefore = kasse.sammlungen.find(item => item.id === sammlungId);
+    if (!collectionBefore) return;
+    const amountBefore = collectionBefore.betraege?.[sid] || 0;
+    if (amountBefore >= collectionBefore.betrag && !window.confirm(
+      `Zahlung von ${formatEuro(amountBefore)} für „${collectionBefore.titel}“ rückgängig machen?\nDer Kassenstand wird entsprechend korrigiert und ein Gegenbuchungseintrag erstellt.`
+    )) return;
     setApp(prev => {
       const currentKasse = normalizeKlassenkasse(prev.klassenkasse);
       const collection = currentKasse.sammlungen.find(item => item.id === sammlungId);
@@ -1142,7 +1148,9 @@ export default function OrgaLists() {
 
                         {/* PRIMARY 1-CLICK TOGGLE BUTTON */}
                         <button
+                          type="button"
                           onClick={() => toggleStudentPayment(st.id, currentSammlung.id)}
+                          title={isPaid ? 'Zahlung mit Bestätigung rückgängig buchen' : 'Restbetrag als tatsächlich erhalten buchen'}
                           className={`px-4 py-2 rounded-xl text-[0.75rem] font-extrabold flex items-center gap-2 transition-all shadow-3xs ${
                             isPaid 
                               ? 'bg-emerald-500 text-white hover:bg-emerald-600' 
@@ -1154,17 +1162,17 @@ export default function OrgaLists() {
                           {isPaid ? (
                             <>
                               <CheckCircle2 size={16} />
-                              <span>Bezahlt ({formatEuro(currentSammlung.betrag)})</span>
+                              <span>Bezahlt · Korrigieren</span>
                             </>
                           ) : isPartial ? (
                             <>
                               <Clock size={16} />
-                              <span>Offen ({formatEuro(currentSammlung.betrag - paidAmount)})</span>
+                              <span>Rest {formatEuro(currentSammlung.betrag - paidAmount)} buchen</span>
                             </>
                           ) : (
                             <>
                               <span className="w-4 h-4 rounded-full border-2 border-slate-400 inline-block" />
-                              <span>Offen ({formatEuro(currentSammlung.betrag)})</span>
+                              <span>{formatEuro(currentSammlung.betrag)} erhalten buchen</span>
                             </>
                           )}
                         </button>
