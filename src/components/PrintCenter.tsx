@@ -760,35 +760,39 @@ export default function PrintCenter() {
     }
   }, [printOrientation, activeTemplate, activeSmartTool]);
 
-  // Apply printing class to body to manage visibility correctly
+  // Keep the KEL paper layout isolated from generic school print headers.
   useEffect(() => {
-    if (printModeActive) {
-      document.body.classList.add('print-center-active');
-      (window as any).__printTitle = customHeaderTitle || undefined;
-    } else {
-      document.body.classList.remove('print-center-active');
-      (window as any).__printTitle = undefined;
-    }
+    document.body.classList.toggle('print-center-active', printModeActive);
+    document.body.classList.toggle('print-center-kel-parent-active', printModeActive && activeTemplate === 'kel_elternblatt');
+    (window as any).__printTitle = printModeActive ? customHeaderTitle || undefined : undefined;
     return () => {
-      document.body.classList.remove('print-center-active');
+      document.body.classList.remove('print-center-active', 'print-center-kel-parent-active');
       (window as any).__printTitle = undefined;
     };
-  }, [printModeActive, customHeaderTitle]);
+  }, [printModeActive, activeTemplate, customHeaderTitle]);
 
-  // Trigger main print dialogue
+  // Trigger main print dialogue. Keep the KEL sheet mounted until Chrome
+  // actually exits its print preview; the old 500ms reset could unmount it
+  // while the user was still reviewing the page.
   const handleTriggerPrint = () => {
     if (activeTemplate === 'materialabholung' && !pickupCanPrint) return;
+    const isParentSheet = activeTemplate === 'kel_elternblatt';
     setPrintModeActive(true);
     setTimeout(() => {
+      const closeParentPrint = () => {
+        window.removeEventListener('afterprint', closeParentPrint);
+        setPrintModeActive(false);
+      };
+      if (isParentSheet) window.addEventListener('afterprint', closeParentPrint, { once: true });
       try {
         window.print();
       } catch (err) {
         console.warn("Print dialogue was blocked or failed:", err);
+        if (isParentSheet) closeParentPrint();
       }
-      // Wait a bit, then return to normal mode
-      setTimeout(() => {
-        setPrintModeActive(false);
-      }, 500);
+      if (!isParentSheet) {
+        setTimeout(() => setPrintModeActive(false), 500);
+      }
     }, 150);
   };
 
@@ -1026,6 +1030,61 @@ export default function PrintCenter() {
             background: #ffffff !important;
             z-index: 9999999 !important;
             overflow: visible !important;
+          }
+          /* This parent document owns its own school/student heading.
+             Suppress any generic header injected by the app or other print routes. */
+          body.print-center-active.print-center-kel-parent-active .global-print-header {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: 0 !important;
+          }
+          body.print-center-active.print-center-kel-parent-active .print-center-overlay-parent {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            max-width: none !important;
+          }
+          body.print-center-active.print-center-kel-parent-active .print-center-overlay-parent > * {
+            margin-top: 0 !important;
+          }
+          body.print-center-active.print-center-kel-parent-active .print-center-overlay {
+            border: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          body.print-center-active.print-center-kel-parent-active [data-kel-parent-print-sheet] {
+            box-sizing: border-box !important;
+            width: 210mm !important;
+            max-width: 210mm !important;
+            margin: 0 !important;
+            padding: 11mm 12mm !important;
+          }
+          body.print-center-active.print-center-kel-parent-active [data-kel-report-head] {
+            display: block !important;
+            visibility: visible !important;
+            margin-top: 0 !important;
+          }
+          body.print-center-active.print-center-kel-parent-active [data-kel-parent-report] {
+            max-width: none !important;
+            width: 100% !important;
+            margin: 0 !important;
+          }
+          body.print-center-active.print-center-kel-parent-active [data-kel-parent-report] section {
+            border-color: #cbd5e1 !important;
+            border-width: 0.75pt !important;
+          }
+          body.print-center-active.print-center-kel-parent-active [data-kel-behavior-bar] {
+            width: 100% !important;
+            height: 6px !important;
+            min-height: 6px !important;
+          }
+          body.print-center-active.print-center-kel-parent-active [data-kel-mood-selected="true"] {
+            background-color: #d1fae5 !important;
+            border: 2px solid #0f766e !important;
+            color: #134e4a !important;
           }
           body.print-center-active .print-center-overlay div,
           body.print-center-active .print-center-overlay table,
@@ -4246,6 +4305,7 @@ export default function PrintCenter() {
               ) : (
                 // Regular single page printing
                 <div
+                  data-kel-parent-print-sheet={activeTemplate === 'kel_elternblatt' ? true : undefined}
                   className={activeTemplate === 'klassenbuch' ? 'klassenbuch-a4-page' : activeTemplate === 'schueler_wochenplan' ? 'schueler-wochenplan-a4-page' : undefined}
                   style={activeTemplate === 'klassenbuch' || activeTemplate === 'schueler_wochenplan'
                     ? undefined : { padding: `${printMargin}mm` }}
