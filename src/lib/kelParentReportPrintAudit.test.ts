@@ -22,7 +22,7 @@ test('KEL sheet has readable body type rather than 6pt labels', () => {
 
 test('preview does not claim one page when approved long notes can wrap to another', () => {
   assert.match(print, /activeTemplate !== 'schueler_wochenplan' && activeTemplate !== 'kel_elternblatt' && <div className="mt-8/);
-  assert.match(print, /Bei langen freigegebenen Notizen kann eine zweite Seite entstehen/);
+  assert.match(print, /Bei vielen Lernbereichen oder ausführlichen Notizen kann eine zweite Seite entstehen/);
   assert.match(sheet, /break-inside-avoid/);
 });
 
