@@ -262,6 +262,7 @@ export default function KELPresentation({
     setSelectionSaved(Boolean(matchingSavedPlan));
     setView('prepare');
     setSlideIndex(0);
+    setSubjectPreviewRequest(null);
   // A fresh meeting/selection created by pressing Save must NOT reset the edited
   // form. Only changing the child, class or semester resets the disclosure scope.
   // eslint-disable-next-line react-hooks/exhaustive-deps
