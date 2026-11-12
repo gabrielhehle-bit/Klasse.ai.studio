@@ -356,7 +356,14 @@ export default function PrintCenter() {
   };
 
   useEffect(() => {
-    if (activeTemplate === 'kel_elternblatt') setPrintTheme('slate');
+    if (activeTemplate === 'kel_elternblatt') {
+      setPrintTheme('slate');
+    } else {
+      // A previous print session must never carry parent-approved private notes
+      // into a newly selected document or a later KEL print session.
+      setElternblattShowNotes(false);
+      setElternblattSharedNoteIds([]);
+    }
   }, [activeTemplate]);
 
   // F. KEL-Gespräche / Dossier Options
@@ -2687,7 +2694,7 @@ export default function PrintCenter() {
                   <div>
                     <label htmlFor="kel-parent-student" className="mb-1 block text-[0.6875rem] font-bold text-slate-600">Kind</label>
                     <select id="kel-parent-student" value={elternblattSelectedStudentId}
-                      onChange={event => { setElternblattSelectedStudentId(event.target.value); setElternblattSharedNoteIds([]); }}
+                      onChange={event => { setElternblattSelectedStudentId(event.target.value); setElternblattShowNotes(false); setElternblattSharedNoteIds([]); }}
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs">
                       {students.map(st => <option key={st.id} value={st.id}>{st.nachname} {st.vorname}</option>)}
                     </select>
@@ -4185,7 +4192,7 @@ export default function PrintCenter() {
                     </div>
                     
                     {/* Simulated Footer */}
-                    {activeTemplate !== 'schueler_wochenplan' && <div className="mt-8 pt-4 border-t border-slate-200/80 flex justify-between items-center text-[0.5625rem] text-slate-400 font-bold uppercase tracking-widest leading-none">
+                    {activeTemplate !== 'schueler_wochenplan' && activeTemplate !== 'kel_elternblatt' && <div className="mt-8 pt-4 border-t border-slate-200/80 flex justify-between items-center text-[0.5625rem] text-slate-400 font-bold uppercase tracking-widest leading-none">
                       <span>Dokument gedruckt im Schul-Druckzentrum</span>
                       <span>Seite 1 / 1</span>
                     </div>}

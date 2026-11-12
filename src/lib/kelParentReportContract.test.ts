@@ -17,7 +17,7 @@ test('the student dossier opens the shared parent sheet using the current child 
 test('private observation notes stay closed by default and require explicit per-note selection', () => {
   assert.match(printCenter, /const \[elternblattShowNotes, setElternblattShowNotes\] = useState\(false\)/);
   assert.match(printCenter, /const \[elternblattSharedNoteIds, setElternblattSharedNoteIds\] = useState<string\[\]>\(\[\]\)/);
-  assert.match(printCenter, /setElternblattSelectedStudentId\(event.target.value\); setElternblattSharedNoteIds\(\[\]\)/);
+  assert.match(printCenter, /setElternblattSelectedStudentId\(event.target.value\); setElternblattShowNotes\(false\); setElternblattSharedNoteIds\(\[\]\)/);
   assert.match(printCenter, /Ausgewählte Dossiernotizen für Eltern freigeben/);
   assert.match(printCenter, /checked=\{elternblattSharedNoteIds.includes\(note.id\)\}/);
   assert.match(report, /options.showNotes\s*\?\s*notes.filter\(/);
