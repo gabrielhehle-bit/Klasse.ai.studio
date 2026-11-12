@@ -414,6 +414,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
             <div className="absolute right-0 top-full z-40 mt-2 w-52 rounded-xl border border-slate-200 bg-white p-2 text-slate-800 shadow-lg">
               <button type="button" onClick={() => exportSchuelerPDF(student.id, app)} className="block w-full rounded-lg p-2 text-left text-xs hover:bg-slate-50">Dossier (PDF)</button>
               <button type="button" onClick={() => setPresentationModeActive(true)} className="block w-full rounded-lg p-2 text-left text-xs hover:bg-slate-50">KEL für Eltern</button>
+              <button type="button" onClick={() => { setApp(prev => ({ ...prev, activePrintTemplate: 'kel_elternblatt', activePrintStudentId: student.id })); setPage?.('drucken'); }} className="block w-full rounded-lg p-2 text-left text-xs font-semibold text-teal-800 hover:bg-teal-50">KEL-Elternblatt drucken</button>
               <button type="button" onClick={() => { setApp(prev => ({ ...prev, activePrintTemplate: 'schuelerprofil', activePrintStudentId: student.id })); setPage?.('drucken'); }} className="block w-full rounded-lg p-2 text-left text-xs hover:bg-slate-50">Dossier drucken</button>
               <button type="button" onClick={() => setApp(prev => ({...prev,dossierFocusMode:!prev.dossierFocusMode}))} className="block w-full rounded-lg p-2 text-left text-xs font-semibold text-indigo-700 hover:bg-indigo-50">{app.dossierFocusMode?'Fokusmodus beenden':'Fokusmodus starten'}</button>
             </div>
