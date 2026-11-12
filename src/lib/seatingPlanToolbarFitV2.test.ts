@@ -17,7 +17,7 @@ test('Sitzplan 2.0: Status and toolbar get separate full-width rows', () => {
 test('Sitzplan 2.0: side dock is optional and canvas can use full width', () => {
   assert.match(component, /const \[showSeatDock, setShowSeatDock\] = useState\(false\)/);
   assert.match(component, /data-seating-dock-toggle/);
-  assert.match(component, /aria-expanded=\{showSeatDock\}/);
+  assert.match(component, /aria-expanded=\{showSeatDock && !selectedObjId\}/);
   assert.match(component, /editMode && !presentationMode && showSeatDock/);
   assert.match(component, /data-seating-workspace/);
   assert.match(component, /min-w-0 flex-1 relative overflow-hidden/);
