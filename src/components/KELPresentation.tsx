@@ -205,6 +205,7 @@ export default function KELPresentation({
   const { app, setApp } = useApp();
   const [view, setView] = useState<'slides' | 'prepare'>('prepare');
   const [slideIndex, setSlideIndex] = useState(0);
+  const [subjectPreviewRequest, setSubjectPreviewRequest] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedLang, setSelectedLang] = useState('de');
   const [showConfig, setShowConfig] = useState(false);
@@ -498,6 +499,17 @@ export default function KELPresentation({
     if (visible.closing) list.push({ id: 'closing', type: 'closing', title: t.closing });
     return list;
   }, [student.vorname, student.nachname, t, visible, strengths.length, childVoice.length, parentVoice, teacherVoice.length, chosenLearningSubjects.length, chosenLearningSubjects, chosenAssessments.length, kelAreas.length, selectedPortfolio.length, attendance.hasData, ikmRecord]);
+
+  // Enabling subjectPages creates slides on the next render. Wait for the
+  // requested subject slide to exist before switching to presentation mode.
+  useEffect(() => {
+    if (!subjectPreviewRequest) return;
+    const target = slides.findIndex(slide => slide.type === 'subject' && slide.subject === subjectPreviewRequest);
+    if (target < 0) return;
+    setSlideIndex(target);
+    setView('slides');
+    setSubjectPreviewRequest(null);
+  }, [slides, subjectPreviewRequest]);
 
   useEffect(() => {
     if (slideIndex >= slides.length) setSlideIndex(Math.max(0, slides.length - 1));
@@ -994,7 +1006,7 @@ export default function KELPresentation({
                   <input type="checkbox" checked={selectedSubjects.includes(item.fach)} onChange={() => toggleSubject(item.fach)} />
                   {item.fach}: {item.label}
                 </label>
-              ) : <p className="text-xs text-slate-500">Noch keine dokumentierten Fachstände im gewählten Semester.</p>}
+              ) : <p className="text-xs text-slate-500">Noch keine dokumentierten Fachstände für dieses Schuljahr.</p>}
             </div>
             {chosenLearningSubjects.length > 0 && !visible.learning &&
               <p className="text-xs text-amber-800">Die Fachstand-Folie ist derzeit ausgeblendet. Du kannst sie unter „Weitere Folien wählen“ wieder einschalten.</p>}
@@ -1077,8 +1089,8 @@ export default function KELPresentation({
                       </p>
                       <button type="button" onClick={() => {
                         setVisible(previous => ({ ...previous, learning: true, subjectPages: true }));
-                        const position = slides.findIndex(slide => slide.type === 'subject' && slide.subject === item.fach);
-                        setSlideIndex(Math.max(0, position)); setView('slides');
+                        setSelectionSaved(false);
+                        setSubjectPreviewRequest(item.fach);
                       }} className="min-h-10 rounded-lg bg-indigo-50 px-4 text-xs font-bold text-indigo-800 hover:bg-indigo-100">
                         Fachseite ansehen
                       </button>
@@ -1109,7 +1121,7 @@ export default function KELPresentation({
                   )}
                 </div>
               </details>
-            ) : <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">Noch keine auswertbaren Einzelbewertungen aus der Notenmappe für dieses Kind und Semester vorhanden.</p>}
+            ) : <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">Noch keine auswertbaren Einzelbewertungen aus der Notenmappe für dieses Kind im Schuljahr vorhanden.</p>}
             {selectedAssessmentIds.length > chosenAssessments.length &&
               <p role="status" className="text-xs font-semibold text-amber-800">Ein zuvor ausgewählter Leistungsnachweis wurde verändert oder entfernt und wird deshalb nicht mehr gezeigt. Bitte Auswahl überprüfen und erneut speichern.</p>}
             {chosenAssessments.length > 0 && !visible.individualGrades &&
@@ -1121,7 +1133,7 @@ export default function KELPresentation({
               <Save size={14} className="mr-1 inline-block" /> Auswahl für dieses KEL-Gespräch speichern
             </button>
             <span role="status" className={selectionSaved ? 'text-xs font-bold text-emerald-700' : 'text-xs font-semibold text-amber-800'}>
-              {selectionSaved ? 'Auswahl für dieses Kind und Semester gespeichert.' : 'Änderungen noch nicht gespeichert.'}
+              {selectionSaved ? 'Auswahl für dieses Kind und Schuljahr gespeichert.' : 'Änderungen noch nicht gespeichert.'}
             </span>
             <button type="button" onClick={() => { setShowConfig(false); setView('slides'); setSlideIndex(0); }}
               className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold">Vorschau ansehen</button>
