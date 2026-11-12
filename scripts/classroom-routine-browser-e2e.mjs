@@ -4009,7 +4009,7 @@ async function main() {
           await waitFor(client,'assessment selection transition closes before metadata entry',`!document.querySelector('#gradebook-add-assessment-menu')`);
           const title='Schnelleingabe '+typ;
           await setInputByLabel(client,'Bezeichnung / Titel',title);
-          if (typ === 'lzk') await setInputByLabel(client,'Unterbereich in Mathematik','Längen');
+          if (typ === 'lzk') await setInputByLabel(client,'Teilbereich in Mathematik','Längen');
           await setInputByLabel(client,'Maximal erreichbare Punkte','20');
           await clickSelector(client,'#btn-save-assessment-modal');
           await waitFor(client,'assessment dialogs close before native entry',`!document.querySelector('#assessment-item-modal-content')&&!document.querySelector('#gradebook-add-assessment-menu')`);
