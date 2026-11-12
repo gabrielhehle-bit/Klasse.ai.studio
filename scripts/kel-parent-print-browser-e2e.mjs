@@ -78,15 +78,20 @@ async function clickButton(c, label) {
   if (!await evaluate(c, expr)) throw new Error('Button unavailable: ' + label);
 }
 async function fillInput(c, label, value) {
-  const expr = '(() => {const key=' + q(label.toLowerCase()) + ', value=' + q(value) + ';' +
-    'const norm=s=>String(s||"").replace(/\\s+/g," ").trim().toLowerCase();' +
-    'const node=Array.from(document.querySelectorAll("label")).find(el=>norm(el.textContent).includes(key));' +
-    'let field=node?.querySelector("input,textarea,select")||(node?.htmlFor&&document.getElementById(node.htmlFor));' +
-    'if(!field)field=Array.from(document.querySelectorAll("input,textarea,select")).find(el=>norm(el.getAttribute("placeholder")).includes(key)||norm(el.getAttribute("aria-label")).includes(key));' +
+  const expr = '(() => {' +
+    'const norm=v=>String(v||"").replace(/\\s+/g," ").trim().toLowerCase();' +
+    'const expected=norm(' + q(label) + ');' +
+    'const node=Array.from(document.querySelectorAll("label")).find(el=>norm(el.textContent).includes(expected));' +
+    'let field=node?.querySelector("input,textarea,select")||null;' +
+    'if(!field&&node?.htmlFor)field=document.getElementById(node.htmlFor);' +
+    'if(!field&&node?.parentElement)field=node.parentElement.querySelector("input,textarea,select");' +
+    'if(!field)field=Array.from(document.querySelectorAll("input,textarea,select")).find(el=>norm(el.getAttribute("placeholder")).includes(expected)||norm(el.getAttribute("aria-label")).includes(expected));' +
     'if(!field)return false;' +
     'const proto=field instanceof HTMLTextAreaElement?HTMLTextAreaElement.prototype:field instanceof HTMLSelectElement?HTMLSelectElement.prototype:HTMLInputElement.prototype;' +
-    'Object.getOwnPropertyDescriptor(proto,"value").set.call(field,value);' +
-    'field.dispatchEvent(new Event("input",{bubbles:true}));field.dispatchEvent(new Event("change",{bubbles:true}));return true;})()';
+    'const setter=Object.getOwnPropertyDescriptor(proto,"value")?.set;' +
+    'if(setter)setter.call(field,' + q(value) + ');else field.value=' + q(value) + ';' +
+    'field.focus();field.dispatchEvent(new Event("input",{bubbles:true}));field.dispatchEvent(new Event("change",{bubbles:true}));return true;' +
+    '})()';
   if (!await evaluate(c, expr)) throw new Error('Could not fill ' + label);
 }
 async function clickCheckbox(c, label) {
