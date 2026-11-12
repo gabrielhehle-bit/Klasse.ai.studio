@@ -59,7 +59,7 @@ test('Chrome print preview retains the KEL report until afterprint', () => {
 test('KEL charts and odd card count remain readable in the print preview', () => {
   assert.match(print, /\[data-kel-summary-grid\] > section:last-child:nth-child\(odd\)/);
   assert.match(print, /\[data-kel-behavior-bar\] \{/);
-  assert.match(print, /\[data-kel-mood-selected="true"\] \{/);
+  assert.match(print, /\[data-kel-mood-bar\],/);
   assert.match(sheet, /data-kel-summary-grid/);
   assert.match(sheet, /data-kel-mood-selected=/);
   assert.match(sheet, /\{row.total === 1 \? 'Punkt' : 'Punkte'\}/);
