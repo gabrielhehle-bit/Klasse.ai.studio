@@ -24,7 +24,7 @@ test('tools drawer traps focus, closes on Escape and restores page scrolling', (
 });
 
 test('manual participation is recognized as a recorded assessment and existing grades remain untouched', () => {
-  assert.match(gradebook, /const hasParticipation = data\.miDirekt !== undefined && data\.miDirekt !== null && data\.miDirekt !== ''/);
+  assert.match(gradebook, /const hasParticipation = data\.miDirekt !== undefined && data\.miDirekt !== null && String\(data\.miDirekt\)\.trim\(\) !== ''/);
   assert.match(gradebook, /return hasParticipation \|\| \["sa", "lzk", "wp", "aufgaben"\]/);
   assert.match(gradebook, /Kinder mit offenen Bewertungen/);
   assert.match(gradebook, /berechne\(app, s\.id, activeFach, sem\)/);
