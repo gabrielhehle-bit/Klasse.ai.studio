@@ -29,7 +29,7 @@ test('charts rely on real stored child data, not fabricated assessment scores', 
   assert.match(report, /getDossierOverviewStats\(app, studentId, options.period\)/);
   assert.match(report, /getStudentSubjectYearParticipationSummary\(app, studentId, subject\)/);
   assert.match(report, /getStudentAssessmentDomainPerformance\(app, studentId, subject, 'both'\)/);
-  assert.match(report, /moodSamples > 0 \? moodSum \/ moodSamples : null/);
+  assert.match(report, /summarizeKelMood\(app\.schuelerStimmung\?\.\[studentId\], stats\.start, stats\.today\)/);
   assert.match(report, /row.assessments/);
   assert.match(report, /Keine dokumentierten Verhaltensereignisse/);
   assert.match(report, /Keine auswertbaren Lernbereiche|Noch keine auswertbaren Lernbereiche/);
