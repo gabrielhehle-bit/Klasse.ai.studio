@@ -36,6 +36,7 @@ export default function KELSubjectPage({
       ? documented.filter(row => selectedAreas.includes(row.area))
       : documented;
   }, [app, studentId, fach, semester, selectedAreas]);
+  const noAreasSelected = Array.isArray(selectedAreas) && selectedAreas.length === 0;
   const hasNote = showNote && Boolean(note?.trim());
   const bars = areas.slice(0, 8).map(row => ({
     name: row.area, value: row.percent, count: row.assessments,
@@ -83,8 +84,14 @@ export default function KELSubjectPage({
       )}
       {areas.length === 0 && (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center" data-kel-subject-empty>
-          <p className="text-sm font-bold text-slate-800">Für dieses Fach sind noch keine Lernbereiche mit auswertbaren Bewertungen dokumentiert.</p>
-          <p className="mt-2 text-xs text-slate-600">Lernbereiche können in der Notenmappe zugeordnet werden. Hier werden keine Werte ergänzt oder geschätzt.</p>
+          <p className="text-sm font-bold text-slate-800">
+            {noAreasSelected ? 'Für diese Präsentation sind keine Lernbereiche ausgewählt.' :
+              'Für dieses Fach sind noch keine Lernbereiche mit auswertbaren Bewertungen dokumentiert.'}
+          </p>
+          <p className="mt-2 text-xs text-slate-600">
+            {noAreasSelected ? 'Die Auswahl lässt sich in der Vorbereitung jederzeit ändern.' :
+              'Lernbereiche können in der Notenmappe zugeordnet werden. Hier werden keine Werte ergänzt oder geschätzt.'}
+          </p>
         </div>
       )}
       {hasNote && (
