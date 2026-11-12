@@ -1076,6 +1076,9 @@ export default function PrintCenter() {
             border-color: #cbd5e1 !important;
             border-width: 0.75pt !important;
           }
+          body.print-center-active.print-center-kel-parent-active [data-kel-summary-grid] > section:last-child:nth-child(odd) {
+            grid-column: 1 / -1 !important;
+          }
           body.print-center-active.print-center-kel-parent-active [data-kel-behavior-bar] {
             width: 100% !important;
             height: 6px !important;
@@ -1125,6 +1128,11 @@ export default function PrintCenter() {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
           }
+        }
+
+        /* Give a lone last KEL summary card the full row in both preview and print. */
+        [data-kel-summary-grid] > section:last-child:nth-child(odd) {
+          grid-column: 1 / -1;
         }
 
         /* Interactive Dossier-Vorschau screen-only overrides */
