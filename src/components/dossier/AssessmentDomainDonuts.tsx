@@ -6,22 +6,25 @@ import { getStudentAssessmentDomainPerformance } from '../../lib/assessmentDomai
 const PALETTE = ['#047857', '#2563eb', '#a16207', '#7c3aed', '#0f766e', '#be185d'] as const;
 
 export default function AssessmentDomainDonuts({
-  studentId, subject, semester = '1', compact = false, hideWhenEmpty = false,
+  studentId, subject, semester = '1', compact = false, hideWhenEmpty = false, selectedAreas,
 }: {
   studentId: string;
   subject: string;
   semester?: '1' | '2' | 'both';
   compact?: boolean;
   hideWhenEmpty?: boolean;
+  /** Optional explicit subset for the KEL presentation; dossier defaults to all areas. */
+  selectedAreas?: string[];
 }) {
   const { app } = useApp();
   const areas = useMemo(() =>
     getStudentAssessmentDomainPerformance(app, studentId, subject, semester),
     [app, studentId, subject, semester]);
+  const filteredAreas = selectedAreas ? areas.filter(row => selectedAreas.includes(row.area)) : areas;
   const maxVisible = compact ? 4 : 8;
-  const visible = areas.slice(0, maxVisible);
+  const visible = filteredAreas.slice(0, maxVisible);
 
-  if (areas.length === 0 && hideWhenEmpty) return null;
+  if (filteredAreas.length === 0 && hideWhenEmpty) return null;
 
   return (
     <section data-assessment-domain-donuts
@@ -37,11 +40,11 @@ export default function AssessmentDomainDonuts({
             Leistungen pro Teilbereich – keine vollständige Kompetenzdiagnose.
           </p>
         </div>
-        {areas.length > 0 && <span className="rounded-full bg-emerald-50 px-2 py-1 text-[0.68rem] font-bold text-emerald-800">
-          {areas.length} {areas.length === 1 ? 'Bereich' : 'Bereiche'}
+        {filteredAreas.length > 0 && <span className="rounded-full bg-emerald-50 px-2 py-1 text-[0.68rem] font-bold text-emerald-800">
+          {filteredAreas.length} {filteredAreas.length === 1 ? 'Bereich' : 'Bereiche'}
         </span>}
       </div>
-      {!areas.length ? (
+      {!filteredAreas.length ? (
         <p className="mt-3 rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
           Noch keine bewerteten LZK, Wochenpläne oder Aufgaben mit zugeordnetem Teilbereich.
           Unterbereiche kannst du in der Notenmappe bei der jeweiligen Bewertung eintragen.
@@ -88,8 +91,8 @@ export default function AssessmentDomainDonuts({
               );
             })}
           </div>
-          {areas.length > maxVisible && <p className="mt-2 text-xs text-slate-500">
-            {areas.length - maxVisible} weitere Teilbereiche sind im Dossier erfasst.
+          {filteredAreas.length > maxVisible && <p className="mt-2 text-xs text-slate-500">
+            {filteredAreas.length - maxVisible} weitere ausgewählte Teilbereiche sind dokumentiert.
           </p>}
           <p className="mt-3 text-[0.68rem] leading-relaxed text-slate-500">
             Die Kreise entsprechen dem mittleren normalisierten Leistungswert innerhalb des Teilbereichs.

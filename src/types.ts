@@ -492,6 +492,12 @@ export interface Student {
     visible: Record<string, boolean>;
     selectedSubjects: string[];
     selectedAssessmentIds: string[];
+    /** Only deliberately authored KEL discussion notes, never imported private dossier notes. */
+    subjectNotes?: Record<string, string>;
+    subjectNoteVisible?: Record<string, boolean>;
+    /** Explicitly chosen learning domains; absent = all documented domains. */
+    subjectAreaSelection?: Record<string, string[]>;
+    subjectChartTypes?: Record<string, 'donuts' | 'bars'>;
     updatedAt: string;
   }>;
   /** Optional teacher-reviewed learning-goal explanation per semester; separate from Oberau matrix. */

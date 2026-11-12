@@ -11,6 +11,8 @@ import { exportSchuelerPDF } from '../lib/exportService';
 import { getAssessmentMode } from '../lib/GradeUtils';
 import { getKelGradebookAssessments, pickKelAssessments } from '../lib/kelGradebookSelection';
 import AssessmentDomainDonuts from './dossier/AssessmentDomainDonuts';
+import KELSubjectPage, { type KelSubjectChartType } from './KELSubjectPage';
+import { getStudentAssessmentDomainPerformance } from '../lib/assessmentDomainPerformance';
 import { getStudentAttendanceSummary } from '../lib/studentMetrics';
 
 interface KELPresentationProps {
@@ -30,6 +32,7 @@ type SlideType =
   | 'strengths'
   | 'voices'
   | 'learning'
+  | 'subject'
   | 'individualGrades'
   | 'assessment'
   | 'portfolio'
@@ -43,12 +46,14 @@ type Slide = {
   type: SlideType;
   title: string;
   subtitle?: string;
+  subject?: string;
 };
 
 type VisibleConfig = {
   strengths: boolean;
   voices: boolean;
   learning: boolean;
+  subjectPages: boolean;
   individualGrades: boolean;
   assessment: boolean;
   portfolio: boolean;
@@ -62,6 +67,7 @@ const DEFAULT_CONFIG: VisibleConfig = {
   strengths: true,
   voices: true,
   learning: false,
+  subjectPages: true,
   individualGrades: false,
   assessment: true,
   portfolio: true,
@@ -234,6 +240,10 @@ export default function KELPresentation({
     Array.isArray(matchingSavedPlan?.selectedSubjects) ? matchingSavedPlan.selectedSubjects : []);
   const [selectedAssessmentIds, setSelectedAssessmentIds] = useState<string[]>(() =>
     Array.isArray(matchingSavedPlan?.selectedAssessmentIds) ? matchingSavedPlan.selectedAssessmentIds : []);
+  const [subjectNotes, setSubjectNotes] = useState<Record<string,string>>(() => ({ ...(matchingSavedPlan?.subjectNotes || {}) }));
+  const [subjectNoteVisible, setSubjectNoteVisible] = useState<Record<string,boolean>>(() => ({ ...(matchingSavedPlan?.subjectNoteVisible || {}) }));
+  const [subjectAreaSelection, setSubjectAreaSelection] = useState<Record<string,string[]>>(() => ({ ...(matchingSavedPlan?.subjectAreaSelection || {}) }));
+  const [subjectChartTypes, setSubjectChartTypes] = useState<Record<string,KelSubjectChartType>>(() => ({ ...(matchingSavedPlan?.subjectChartTypes || {}) }));
   const [selectionSaved, setSelectionSaved] = useState(Boolean(matchingSavedPlan));
   const selectionScope = JSON.stringify([app.activeClassId, student.id, app.schuljahr, sem]);
   const scopeRef = useRef(selectionScope);
@@ -244,6 +254,10 @@ export default function KELPresentation({
     setVisible({ ...DEFAULT_CONFIG, ...(matchingSavedPlan?.visible || {}) });
     setSelectedSubjects(Array.isArray(matchingSavedPlan?.selectedSubjects) ? matchingSavedPlan.selectedSubjects : []);
     setSelectedAssessmentIds(Array.isArray(matchingSavedPlan?.selectedAssessmentIds) ? matchingSavedPlan.selectedAssessmentIds : []);
+    setSubjectNotes({ ...(matchingSavedPlan?.subjectNotes || {}) });
+    setSubjectNoteVisible({ ...(matchingSavedPlan?.subjectNoteVisible || {}) });
+    setSubjectAreaSelection({ ...(matchingSavedPlan?.subjectAreaSelection || {}) });
+    setSubjectChartTypes({ ...(matchingSavedPlan?.subjectChartTypes || {}) });
     setSelectionSaved(Boolean(matchingSavedPlan));
     setView('prepare');
     setSlideIndex(0);
@@ -326,15 +340,14 @@ export default function KELPresentation({
       ].filter((item: any) => item !== null && item !== undefined && item !== '').length;
       const hasParticipation = app.mitarbeit?.[student.id]?.[fach]?.[sem] !== undefined || record?.miDirekt !== undefined;
       const hasData = value !== null || evidence > 0 || hasParticipation;
-      if (!hasData) return [];
       const mode = getAssessmentMode(app, fach);
       const label = value === null
         ? 'noch keine Gesamtbewertung'
         : mode === 'grades'
           ? `Note ${Number(value).toLocaleString('de-AT', { maximumFractionDigits: 2 })}`
           : `${Number(value).toLocaleString('de-AT', { maximumFractionDigits: 1 })} %`;
-      return [{ fach, value, mode, label, evidence, hasParticipation }];
-    }).slice(0, 8);
+      return [{ fach, value, mode, label, evidence, hasParticipation, hasData }];
+    });
   }, [activeFaecher, app, berechne, sem, student.id]);
 
   // Read-only material from the REAL Notenmappe, limited to this child and semester.
@@ -344,13 +357,37 @@ export default function KELPresentation({
       : [],
     [app, student.id, sem, activeFaecher]);
   const chosenLearningSubjects = scopeMatches
-    ? learningSubjects.filter(entry => selectedSubjects.includes(entry.fach)) : [];
+    ? selectedSubjects.flatMap(fach => {
+        const subject = learningSubjects.find(entry => entry.fach === fach);
+        return subject ? [subject] : [];
+      }) : [];
   const chosenAssessments = scopeMatches
     ? pickKelAssessments(availableAssessments, selectedAssessmentIds) : [];
   const toggleSubject = (fach: string) => {
     setSelectedSubjects(previous => previous.includes(fach)
       ? previous.filter(item => item !== fach) : [...previous, fach]);
     setVisible(previous => ({ ...previous, learning: true }));
+    setSelectionSaved(false);
+  };
+  const changeSubjectOrder = (fach: string, delta: -1 | 1) => {
+    setSelectedSubjects(previous => {
+      const current = previous.indexOf(fach);
+      const target = current + delta;
+      if (current < 0 || target < 0 || target >= previous.length) return previous;
+      const next = [...previous];
+      [next[current], next[target]] = [next[target], next[current]];
+      return next;
+    });
+    setSelectionSaved(false);
+  };
+  const toggleSubjectArea = (fach: string, area: string, available: string[]) => {
+    setSubjectAreaSelection(previous => {
+      const current = previous[fach] ?? available;
+      const next = current.includes(area)
+        ? current.filter(value => value !== area)
+        : [...current, area];
+      return { ...previous, [fach]: next };
+    });
     setSelectionSaved(false);
   };
   const toggleAssessment = (id: string) => {
@@ -366,6 +403,14 @@ export default function KELPresentation({
       visible: { ...visible },
       selectedSubjects: chosenLearningSubjects.map(item => item.fach),
       selectedAssessmentIds: chosenAssessments.map(item => item.id),
+      subjectNotes: Object.fromEntries(chosenLearningSubjects
+        .filter(item => Boolean(subjectNotes[item.fach]?.trim()))
+        .map(item => [item.fach, subjectNotes[item.fach].trim()])),
+      subjectNoteVisible: Object.fromEntries(chosenLearningSubjects.map(item => [item.fach, Boolean(subjectNoteVisible[item.fach])])),
+      subjectAreaSelection: Object.fromEntries(chosenLearningSubjects
+        .filter(item => Object.prototype.hasOwnProperty.call(subjectAreaSelection, item.fach))
+        .map(item => [item.fach, subjectAreaSelection[item.fach]])),
+      subjectChartTypes: Object.fromEntries(chosenLearningSubjects.map(item => [item.fach, subjectChartTypes[item.fach] || 'donuts'])),
       updatedAt: new Date().toISOString(),
     };
     setApp(previous => {
@@ -433,7 +478,17 @@ export default function KELPresentation({
     ];
     if (visible.strengths && strengths.length) list.push({ id: 'strengths', type: 'strengths', title: t.strengths });
     if (visible.voices && (childVoice.length || parentVoice || teacherVoice.length)) list.push({ id: 'voices', type: 'voices', title: t.voices });
-    if (visible.learning && chosenLearningSubjects.length) list.push({ id: 'learning', type: 'learning', title: t.learning, subtitle: 'Nur eigene dokumentierte Lernstände – kein Klassenvergleich' });
+    if (visible.learning && chosenLearningSubjects.length) {
+      list.push({ id: 'learning', type: 'learning', title: t.learning, subtitle: 'Die Fachübersicht aus demselben Schülerdossier' });
+      if (visible.subjectPages) {
+        for (const subject of chosenLearningSubjects) {
+          list.push({
+            id: 'subject-' + subject.fach, type: 'subject', subject: subject.fach,
+            title: subject.fach, subtitle: 'Meine Lernbereiche · Nachweise · Gesprächsnotizen',
+          });
+        }
+      }
+    }
     if (visible.individualGrades && chosenAssessments.length) list.push({ id: 'individualGrades', type: 'individualGrades', title: 'Meine ausgewählten Arbeiten', subtitle: 'Nur einzeln freigegebene Bewertungen aus der Notenmappe' });
     if (visible.assessment && kelAreas.length) list.push({ id: 'assessment', type: 'assessment', title: t.assessment });
     if (visible.portfolio && selectedPortfolio.length) list.push({ id: 'portfolio', type: 'portfolio', title: t.portfolio });
@@ -442,7 +497,7 @@ export default function KELPresentation({
     if (visible.goals) list.push({ id: 'goals', type: 'goals', title: t.goals, subtitle: 'Gemeinsam konkret und überprüfbar vereinbaren' });
     if (visible.closing) list.push({ id: 'closing', type: 'closing', title: t.closing });
     return list;
-  }, [student.vorname, student.nachname, t, visible, strengths.length, childVoice.length, parentVoice, teacherVoice.length, chosenLearningSubjects.length, chosenAssessments.length, kelAreas.length, selectedPortfolio.length, attendance.hasData, ikmRecord]);
+  }, [student.vorname, student.nachname, t, visible, strengths.length, childVoice.length, parentVoice, teacherVoice.length, chosenLearningSubjects.length, chosenLearningSubjects, chosenAssessments.length, kelAreas.length, selectedPortfolio.length, attendance.hasData, ikmRecord]);
 
   useEffect(() => {
     if (slideIndex >= slides.length) setSlideIndex(Math.max(0, slides.length - 1));
@@ -566,6 +621,40 @@ export default function KELPresentation({
           addBullets(slide, rows, 0.95, 1.55, 11.5, 5.0);
           continue;
         }
+        if (slideData.type === 'subject' && slideData.subject) {
+          const subject = chosenLearningSubjects.find(entry => entry.fach === slideData.subject);
+          if (!subject) continue;
+          const allDomains = getStudentAssessmentDomainPerformance(app, student.id, subject.fach, sem === '2' ? '2' : '1');
+          const chosenDomains = Object.prototype.hasOwnProperty.call(subjectAreaSelection, subject.fach)
+            ? allDomains.filter(area => subjectAreaSelection[subject.fach].includes(area.area))
+            : allDomains;
+          const safeNote = subjectNoteVisible[subject.fach] ? (subjectNotes[subject.fach] || '').trim() : '';
+          slide.addText(`Fachstand: ${subject.label} · ${subject.evidence} dokumentierte Nachweise`,
+            { x: 0.8, y: 1.4, w: 11.8, h: 0.4, fontSize: 14, bold: true, color: colors.ink, margin: 0 });
+          if (chosenDomains.length) {
+            const domains = chosenDomains.slice(0, 7);
+            slide.addChart(pptx.ChartType.bar, [{
+              name: 'Bewertete Lernbereiche',
+              labels: domains.map(area => area.area),
+              values: domains.map(area => area.percent),
+            }], {
+              x: 0.9, y: 1.95, w: 11.3, h: safeNote ? 3.0 : 4.6,
+              showLegend: false, showValue: true,
+              showTitle: true, title: 'Lernbereiche – bewertete Nachweise in %',
+              valAxisMinVal: 0, valAxisMaxVal: 100,
+              catAxisLabelFontSize: 10,
+            });
+          } else {
+            slide.addText('Noch keine auswertbaren Lernbereiche dokumentiert.',
+              { x: 1.0, y: 2.4, w: 11, h: 0.6, fontSize: 16, color: colors.muted, margin: 0 });
+          }
+          if (safeNote) {
+            slide.addText('Gesprächsnotiz: ' + safeNote.slice(0, 1000),
+              { x: 0.9, y: 5.2, w: 11.3, h: 1.35, fontSize: 13, color: colors.ink,
+                margin: 0.16, fit: 'shrink', fill: { color: 'FFFBEB' }, line: { color: 'FDE68A', pt: 1 } });
+          }
+          continue;
+        }
         if (slideData.type === 'individualGrades') {
           const rows = chosenAssessments.map(item =>
             `${item.fach} · ${item.titel}${item.datum ? ' · ' + item.datum : ''}: ${item.ergebnis}`);
@@ -648,6 +737,7 @@ export default function KELPresentation({
     { key: 'strengths', label: 'Stärken', help: 'Dokumentierte Stärken und Badges', available: strengths.length > 0 },
     { key: 'voices', label: 'Sichtweisen', help: 'Aussagen von Kind, Eltern und Lehrperson aus dem KEL-Protokoll', available: Boolean(childVoice.length || parentVoice || teacherVoice.length) },
     { key: 'learning', label: 'Lernstand', help: 'Nur die unten ausdrücklich ausgewählten Fächer', available: learningSubjects.length > 0 },
+    { key: 'subjectPages', label: 'Einzelfolien je Fach', help: 'Je ausgewähltem Fach Lernbereichsdiagramme und freigegebene Gesprächsnotizen', available: chosenLearningSubjects.length > 0 },
     { key: 'individualGrades', label: 'Einzelne Bewertungen', help: 'Nur die unten einzeln ausgewählten Leistungsnachweise', available: availableAssessments.length > 0 },
     { key: 'assessment', label: 'Selbst- & Fremdeinschätzung', help: 'Nur ausdrücklich erfasste KEL-Einschätzungen', available: kelAreas.length > 0 },
     { key: 'portfolio', label: 'Portfolio', help: 'Nur Einträge, die ausdrücklich „für KEL“ markiert sind', available: selectedPortfolio.length > 0 },
@@ -717,17 +807,33 @@ export default function KELPresentation({
           <p className="mt-2 text-xs font-semibold text-slate-500">{item.evidence ? `${item.evidence} dokumentierte Leistungsnachweise` : 'Gesamtstand aus der Notenmappe'}{item.hasParticipation ? ' · Mitarbeit dokumentiert' : ''}</p>
         </div>)}
       </div>
-      <div className="mt-4 grid w-full grid-cols-1 gap-3 lg:grid-cols-2" data-kel-selected-assessment-domains>
+      {!visible.subjectPages && <div className="mt-4 grid w-full grid-cols-1 gap-3 lg:grid-cols-2" data-kel-selected-assessment-domains>
         {chosenLearningSubjects.map(item => (
           <AssessmentDomainDonuts key={item.fach} studentId={student.id} subject={item.fach}
             semester={sem === '2' ? '2' : '1'} compact hideWhenEmpty />
         ))}
-      </div>
+      </div>}
       <p className="mt-5 text-center text-xs font-semibold text-slate-500">
         Keine Rangliste und kein Klassenvergleich. Kreisdiagramme zeigen nur dokumentierte Teilbereiche
         der ausdrücklich ausgewählten Fächer und keine vollständige Kompetenzdiagnose.
       </p>
     </SlideShell>;
+
+    if (currentSlide.type === 'subject') {
+      const subject = chosenLearningSubjects.find(entry => entry.fach === currentSlide.subject);
+      if (!subject) return null;
+      return <SlideShell title={`Mein Lernen in ${subject.fach}`} subtitle="Wir schauen gemeinsam auf dokumentierte Nachweise und nächste Schritte.">
+        <KELSubjectPage
+          studentId={student.id} fach={subject.fach}
+          semester={sem === '2' ? '2' : '1'}
+          selectedAreas={subjectAreaSelection[subject.fach]}
+          chartType={subjectChartTypes[subject.fach] || 'donuts'}
+          subjectLabel={subject.label} evidenceCount={subject.evidence}
+          note={subjectNotes[subject.fach]}
+          showNote={Boolean(subjectNoteVisible[subject.fach])}
+        />
+      </SlideShell>;
+    }
 
     if (currentSlide.type === 'individualGrades') return <SlideShell title={currentSlide.title} subtitle={currentSlide.subtitle}>
       <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
@@ -893,6 +999,95 @@ export default function KELPresentation({
             {chosenLearningSubjects.length > 0 && !visible.learning &&
               <p className="text-xs text-amber-800">Die Fachstand-Folie ist derzeit ausgeblendet. Du kannst sie unter „Weitere Folien wählen“ wieder einschalten.</p>}
           </div>
+          {chosenLearningSubjects.length > 0 && (
+            <div data-kel-subject-settings className="space-y-3 rounded-2xl border border-indigo-100 bg-indigo-50/30 p-3 sm:p-4">
+              <div>
+                <h3 className="text-base font-black text-slate-900">Fachseiten individuell gestalten</h3>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                  Jedes ausgewählte Fach erhält eine eigene Präsentationsseite mit denselben Lernbereichsdaten wie im Schülerdossier.
+                  Diagramm, Lernbereiche, Reihenfolge und Gesprächsnotizen lassen sich getrennt festlegen.
+                </p>
+              </div>
+              {chosenLearningSubjects.map((item, index) => {
+                const allAreas = getStudentAssessmentDomainPerformance(app, student.id, item.fach, sem === '2' ? '2' : '1');
+                const enabledAreas = subjectAreaSelection[item.fach] ?? allAreas.map(area => area.area);
+                return (
+                  <details key={item.fach} data-kel-subject-settings-fach={item.fach}
+                    className="rounded-xl border border-slate-200 bg-white p-3">
+                    <summary className="cursor-pointer text-sm font-black text-slate-900">
+                      {index + 1}. {item.fach}
+                      <span className="ml-2 text-xs font-medium text-slate-500">{allAreas.length} dokumentierte Lernbereiche</span>
+                    </summary>
+                    <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-bold text-slate-700">Reihenfolge</span>
+                        <button type="button" disabled={index === 0} onClick={() => changeSubjectOrder(item.fach, -1)}
+                          className="min-h-10 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 disabled:opacity-40">Nach oben</button>
+                        <button type="button" disabled={index === chosenLearningSubjects.length - 1} onClick={() => changeSubjectOrder(item.fach, 1)}
+                          className="min-h-10 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 disabled:opacity-40">Nach unten</button>
+                      </div>
+                      <fieldset className="space-y-2">
+                        <legend className="text-xs font-black text-slate-800">Diagramm pro Fach</legend>
+                        <div className="flex flex-wrap gap-2">
+                          {([
+                            ['donuts', 'Kreisdiagramme'],
+                            ['bars', 'Balkendiagramm'],
+                          ] as const).map(([chart,label]) =>
+                            <label key={chart} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-800">
+                              <input type="radio" name={`kel-subject-chart-${item.fach}`}
+                                checked={(subjectChartTypes[item.fach] || 'donuts') === chart}
+                                onChange={() => { setSubjectChartTypes(previous => ({ ...previous, [item.fach]: chart })); setSelectionSaved(false); }}/>
+                              {label}
+                            </label>
+                          )}
+                        </div>
+                      </fieldset>
+                      <fieldset className="space-y-2">
+                        <legend className="text-xs font-black text-slate-800">Welche dokumentierten Lernbereiche zeigen?</legend>
+                        {allAreas.length ? (
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {allAreas.map(area =>
+                              <label key={area.area} className="flex min-h-10 cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-700">
+                                <input type="checkbox" className="mt-0.5"
+                                  checked={enabledAreas.includes(area.area)}
+                                  onChange={() => toggleSubjectArea(item.fach, area.area, allAreas.map(entry => entry.area))}/>
+                                <span className="min-w-0"><strong className="block break-words text-slate-900">{area.area}</strong>
+                                  <span className="mt-1 block text-[0.68rem]">{area.assessments} Nachweise · {area.percent.toLocaleString('de-AT', {maximumFractionDigits: 1})}%</span>
+                                </span>
+                              </label>
+                            )}
+                          </div>
+                        ) : <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">Keine auswertbaren Lernbereiche. Diese können in der Notenmappe zugeordnet werden.</p>}
+                      </fieldset>
+                      <label className="block space-y-1.5 text-xs font-bold text-slate-800">
+                        Gesprächsnotiz zu {item.fach}
+                        <textarea rows={3} maxLength={2000}
+                          placeholder="Stärke, Lernfortschritt, nächste Schritte – nur für dieses Gespräch formulieren …"
+                          value={subjectNotes[item.fach] || ''}
+                          onChange={event => { setSubjectNotes(previous => ({ ...previous, [item.fach]: event.target.value })); setSelectionSaved(false); }}
+                          className="w-full resize-y rounded-xl border border-slate-200 bg-white p-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-500"/>
+                      </label>
+                      <label className="flex cursor-pointer items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+                        <input type="checkbox" checked={Boolean(subjectNoteVisible[item.fach])}
+                          onChange={event => { setSubjectNoteVisible(previous => ({ ...previous, [item.fach]: event.target.checked })); setSelectionSaved(false); }}/>
+                        Diese eigene Gesprächsnotiz auf Folie und in PowerPoint zeigen
+                      </label>
+                      <p className="text-[0.68rem] text-slate-500">
+                        Interne Schülernotizen werden nicht automatisch übernommen. Nur bewusst freigegebener Text erscheint in der Elternpräsentation.
+                      </p>
+                      <button type="button" onClick={() => {
+                        setVisible(previous => ({ ...previous, learning: true, subjectPages: true }));
+                        const position = slides.findIndex(slide => slide.type === 'subject' && slide.subject === item.fach);
+                        setSlideIndex(Math.max(0, position)); setView('slides');
+                      }} className="min-h-10 rounded-lg bg-indigo-50 px-4 text-xs font-bold text-indigo-800 hover:bg-indigo-100">
+                        Fachseite ansehen
+                      </button>
+                    </div>
+                  </details>
+                );
+              })}
+            </div>
+          )}
           <div className="space-y-3">
             <h3 className="text-sm font-bold text-slate-800">Einzelne Leistungsnachweise (optional)</h3>
             {availableAssessments.length ? [...new Set(availableAssessments.map(item => item.fach))].map(fach =>

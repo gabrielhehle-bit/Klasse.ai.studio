@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { EmptyState } from './EmptyState';
+import StudentDossier from './StudentDossier';
 import { logActivity, getCurrentSchuljahr } from '../lib/utils';
 import { 
   KELGespraech, 
@@ -128,7 +129,7 @@ const KELGespraeche: React.FC = () => {
   const [isPrintMode, setIsPrintMode] = useState<'child' | 'protocol' | null>(null);
   const [filterStudentId, setFilterStudentId] = useState<string>('all');
 
-  const [kelTab, setKelTab] = useState<'protokolle' | 'analyse'>('protokolle');
+  const [kelTab, setKelTab] = useState<'protokolle' | 'analyse'>('analyse');
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [analyseChartType, setAnalyseChartType] = useState<'column' | 'bar' | 'pie' | 'line'>('column');
   const [notesFilterCategory, setNotesFilterCategory] = useState<string>('all');
@@ -306,125 +307,62 @@ const KELGespraeche: React.FC = () => {
   const [portalSearch, setPortalSearch] = useState('');
 
   const renderStudentPortal = () => {
-    const sortedStudents = [...app.schueler].sort((a,b) => a.nachname.localeCompare(b.nachname));
-    const searchedStudents = sortedStudents.filter(s => 
-      `${s.vorname} ${s.nachname}`.toLowerCase().includes(portalSearch.toLowerCase())
-    );
+    const query = portalSearch.trim().toLocaleLowerCase('de-AT');
+    const sortedStudents = [...app.schueler]
+      .filter(student => !query ||
+        `${student.vorname} ${student.nachname}`.toLocaleLowerCase('de-AT').includes(query))
+      .sort((a, b) => a.nachname.localeCompare(b.nachname, 'de-AT') ||
+        a.vorname.localeCompare(b.vorname, 'de-AT'));
 
     return (
-      <div className="space-y-8">
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
+      <div className="mx-auto w-full max-w-6xl space-y-5 px-3 py-4" data-kel-shared-dossier-portal>
+        <header className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-[0.75rem] font-black uppercase tracking-[0.2em] text-indigo-600 flex items-center gap-2 mb-1">
-              <BarChart3 size={16} />
-              Eltern-Dashboard & Analyse
-            </h2>
-            <h1 className="text-[1.875rem] leading-tight font-black text-slate-900 tracking-tight">KEL-Visuelle Analyse</h1>
-            <p className="text-[0.875rem] leading-snug font-medium text-slate-400 mt-1">Interaktive Leistungsbeurteilungen & Auswertungen für Elterngespräche</p>
+            <p className="text-xs font-extrabold uppercase tracking-wider text-indigo-700">KEL-Gespräche · Vorbereitung</p>
+            <h1 className="mt-1 text-2xl font-black text-slate-950">Schülerdossier & KEL-Präsentation</h1>
+            <p className="mt-2 max-w-2xl text-sm text-slate-600">
+              Ein gemeinsamer Datenstand: Das KEL öffnet dasselbe Schülerdossier wie unter „Klasse“.
+              Dort kannst du Bereiche dokumentieren und die Elternpräsentation individuell vorbereiten.
+            </p>
           </div>
-          <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200/60 shadow-xs shrink-0 gap-1">
-            <button 
-              onClick={() => { setKelTab('protokolle'); setSelectedStudentId(null); }}
-              className="px-6 py-3 text-[0.75rem] leading-tight font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2 text-slate-500 hover:text-slate-800"
-            >
-              <MessagesSquare size={14} className="text-rose-500" />
-              Protokolle
-            </button>
-            <button 
-              className="px-6 py-3 text-[0.75rem] leading-tight font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2 bg-white text-slate-950 shadow-md"
-            >
-              <BarChart3 size={14} className="text-indigo-600" />
-              Visuelle Analyse
-            </button>
-          </div>
+          <button type="button" onClick={() => { setKelTab('protokolle'); setSelectedStudentId(null); }}
+            className="min-h-11 shrink-0 rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-800 hover:bg-slate-50">
+            <ArrowLeft size={14} className="mr-1 inline"/> Zu den Protokollen
+          </button>
         </header>
-
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
-          <div>
-            <h3 className="text-[1.125rem] leading-normal font-black text-slate-900 tracking-tight">Schulinterne Analyse-Portal</h3>
-            <p className="text-slate-400 text-[0.75rem] leading-tight font-bold uppercase mt-0.5 tracking-wider">Wähle ein Kind aus, um das interaktive Eltern-Dashboard zu laden</p>
-          </div>
-          <div className="relative w-full sm:w-80">
-            <input 
-              className="w-full bg-slate-50 border border-slate-200 hover:border-slate-350 focus:border-indigo-500 rounded-2xl pl-10 pr-4 py-2.5 text-[0.75rem] leading-tight font-bold text-slate-700 cursor-text outline-none transition-all placeholder:text-slate-400"
-              placeholder="Suchen nach Name..."
-              value={portalSearch}
-              onChange={e => setPortalSearch(e.target.value)}
-            />
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[0.75rem] leading-tight">🔍</span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {searchedStudents.map(s => {
-            let totalGradeSum = 0;
-            let activeGradesCount = 0;
-            FAECHER_ALLE.forEach(fach => {
-              const grade = berechne(app, s.id, fach, '1');
-              if (grade && grade > 0) {
-                totalGradeSum += grade;
-                activeGradesCount++;
-              }
-            });
-            const localAvg = activeGradesCount > 0 ? totalGradeSum / activeGradesCount : null;
-            const att = getAbsenceStatsForStudent(s.id);
-            const portfolioCount = (portfolioEntries[s.id] || []).length;
-
+        <label className="block max-w-md space-y-1.5 text-xs font-bold text-slate-700">
+          Kind auswählen
+          <input type="search" value={portalSearch} onChange={event => setPortalSearch(event.target.value)}
+            placeholder="Name suchen …"
+            className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none focus:border-indigo-500"/>
+        </label>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {sortedStudents.map(student => {
+            const studentMeetings = meetings.filter(meeting => meeting.schuelerId === student.id)
+              .sort((a, b) => b.datum.localeCompare(a.datum));
+            const lastMeeting = studentMeetings[0];
             return (
-              <div 
-                key={s.id}
-                onClick={() => setSelectedStudentId(s.id)}
-                className="group bg-white p-6 rounded-[2.5rem] border border-slate-100 hover:border-indigo-200 shadow-sm hover:shadow-xl hover:shadow-slate-900/5 hover:-translate-y-1 transition-all cursor-pointer flex flex-col justify-between min-h-[220px]"
-              >
-                <div className="flex items-start gap-4">
-                  {s.foto ? (
-                    <img 
-                      src={s.foto} 
-                      alt="" 
-                      className="w-12 h-12 rounded-2xl object-cover shrink-0 border border-slate-100"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 font-bold flex items-center justify-center text-[0.875rem] leading-snug shrink-0 border border-indigo-100/50">
-                      {s.vorname.charAt(0)}{s.nachname.charAt(0)}
-                    </div>
-                  )}
-                  <div>
-                    <h3 className="text-[1rem] leading-normal font-black text-slate-800 uppercase tracking-tight group-hover:text-indigo-650 transition-colors">{s.nachname} {s.vorname}</h3>
-                    <p className="text-[0.75rem] leading-tight font-bold text-slate-400 uppercase tracking-wider">{s.niveau ? `Level ${s.niveau}` : 'Einschulungsklasse'}</p>
-                    <div className="flex gap-1.5 mt-2 flex-wrap">
-                      {s.spf && <span className="px-1.5 py-0.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 text-[0.5rem] font-black uppercase">SPF</span>}
-                      {s.daz && <span className="px-1.5 py-0.5 rounded-lg bg-amber-50 text-amber-600 border border-amber-100 text-[0.5rem] font-black uppercase">DAZ</span>}
-                      {portfolioCount > 0 && <span className="px-1.5 py-0.5 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100 text-[0.5rem] font-black uppercase">{portfolioCount} Portfolio</span>}
-                    </div>
+              <button type="button" key={student.id} onClick={() => setSelectedStudentId(student.id)}
+                className="flex min-h-32 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-indigo-300 hover:bg-indigo-50"
+                aria-label={`Schülerdossier und KEL für ${student.vorname} ${student.nachname} öffnen`}>
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-sm font-black text-indigo-700">
+                    {student.vorname?.[0]}{student.nachname?.[0]}
+                  </span>
+                  <div className="min-w-0">
+                    <h2 className="truncate text-sm font-black text-slate-900">{student.vorname} {student.nachname}</h2>
+                    <p className="mt-1 text-xs text-slate-500">{studentMeetings.length} KEL-Protokolle</p>
                   </div>
                 </div>
-
-                <div className="grid grid-cols-2 gap-2 mt-4 py-3 bg-slate-50/50 rounded-2xl px-3 border border-slate-100/50 text-left">
-                  <div>
-                    <span className="text-[0.5rem] font-black uppercase text-slate-400 tracking-wider">Fehlzeiten</span>
-                    <span className="block text-[0.875rem] leading-snug font-black text-slate-800">{att.total} Std.</span>
-                  </div>
-                  <div>
-                    <span className="text-[0.5rem] font-black uppercase text-slate-400 tracking-wider">GPA Ø Noten</span>
-                    <span className="block text-[0.875rem] leading-snug font-black text-slate-800">{localAvg ? localAvg.toFixed(2) : '–'}</span>
-                  </div>
+                <div className="mt-4 flex items-center justify-between gap-2 text-xs font-semibold text-slate-600">
+                  <span>{lastMeeting ? `Letztes Gespräch: ${lastMeeting.datum}` : 'Noch kein Gespräch dokumentiert'}</span>
+                  <ChevronRight size={17} className="shrink-0 text-indigo-600"/>
                 </div>
-
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedStudentId(s.id);
-                  }}
-                  className="w-full mt-4 py-3 bg-slate-50 group-hover:bg-indigo-600 group-hover:text-white text-slate-400 rounded-2xl text-[0.5625rem] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border border-slate-100"
-                >
-                  Analyse öffnen
-                  <ChevronRight size={14} />
-                </button>
-              </div>
+              </button>
             );
           })}
         </div>
+        {!sortedStudents.length && <p className="rounded-xl bg-slate-50 p-5 text-sm text-slate-600">Keine Kinder zu dieser Suche gefunden.</p>}
       </div>
     );
   };
@@ -1559,10 +1497,16 @@ const KELGespraeche: React.FC = () => {
 
   if (kelTab === 'analyse') {
     if (selectedStudentId) {
-      return renderParentsDashboardView(selectedStudentId);
-    } else {
-      return renderStudentPortal();
+      // Exactly the same dossier component, data and presentation used under "Klasse".
+      return <div data-kel-shared-dossier><StudentDossier
+        key={selectedStudentId}
+        schuelerId={selectedStudentId}
+        initialTab="kel_reflexion"
+        onBack={() => setSelectedStudentId(null)}
+        onStudentChange={setSelectedStudentId}
+      /></div>;
     }
+    return renderStudentPortal();
   }
 
   return (
@@ -1586,7 +1530,7 @@ const KELGespraeche: React.FC = () => {
               className="px-6 py-3 text-[0.75rem] leading-tight font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2 text-slate-500 hover:text-slate-800"
             >
               <BarChart3 size={14} className="text-indigo-650" />
-              Visuelle Analyse
+              Schülerdossier & Präsentation
             </button>
           </div>
           <button 
@@ -1677,13 +1621,19 @@ const KELGespraeche: React.FC = () => {
                     </div>
                   </div>
 
-                  <button 
-                    onClick={() => setViewingMeeting(m)}
-                    className="w-full py-4 bg-slate-50 group-hover:bg-rose-500 text-slate-400 group-hover:text-white rounded-2xl text-[0.625rem] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
-                  >
-                    Details ansehen
-                    <ChevronRight size={14} />
-                  </button>
+                  <div className="space-y-2">
+                    <button type="button"
+                      onClick={() => { setSelectedStudentId(m.schuelerId); setKelTab('analyse'); }}
+                      className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-indigo-50 px-3 text-xs font-bold text-indigo-800 hover:bg-indigo-100">
+                      <BookOpen size={15}/> Schülerdossier & KEL
+                      <ChevronRight size={14}/>
+                    </button>
+                    <button type="button"
+                      onClick={() => setViewingMeeting(m)}
+                      className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                      Protokoll ansehen <ChevronRight size={14}/>
+                    </button>
+                  </div>
                 </motion.div>
               ))}
             </div>

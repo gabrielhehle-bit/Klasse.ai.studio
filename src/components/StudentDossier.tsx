@@ -66,6 +66,8 @@ interface StudentDossierProps {
   onStudentChange?: (id: string) => void;
   /** Optional deep link from class-year report management, no persisted navigation state. */
   initialReportView?: boolean;
+  /** Share the identical dossier screen with KEL without copying dossier data. */
+  initialTab?: DossierTab;
 }
 
 export type MainAreaId = 
@@ -205,12 +207,12 @@ export const getActiveMainArea = (tab: DossierTab): MainAreaId => {
   return 'uebersicht';
 };
 
-export default function StudentDossier({ schuelerId, onBack, onStudentChange, initialReportView = false }: StudentDossierProps) {
+export default function StudentDossier({ schuelerId, onBack, onStudentChange, initialReportView = false, initialTab }: StudentDossierProps) {
   const { app, setApp, setPage } = useApp();
   const student = app.schueler.find(s => s.id === schuelerId);
   
   // Always start with 'uebersicht'
-  const [activeTab, setActiveTab] = useState<DossierTab>(initialReportView ? 'berichte' : 'uebersicht');
+  const [activeTab, setActiveTab] = useState<DossierTab>(initialTab || (initialReportView ? 'berichte' : 'uebersicht'));
   const [overviewSubject, setOverviewSubject] = useState<string | undefined>();
   const [pendingQuickEntry, setPendingQuickEntry] = useState<'note' | 'strength' | 'parent' | 'goal' | null>(null);
 
