@@ -807,12 +807,12 @@ export default function KELPresentation({
           <p className="mt-2 text-xs font-semibold text-slate-500">{item.evidence ? `${item.evidence} dokumentierte Leistungsnachweise` : 'Gesamtstand aus der Notenmappe'}{item.hasParticipation ? ' · Mitarbeit dokumentiert' : ''}</p>
         </div>)}
       </div>
-      <div className="mt-4 grid w-full grid-cols-1 gap-3 lg:grid-cols-2" data-kel-selected-assessment-domains>
+      {!visible.subjectPages && <div className="mt-4 grid w-full grid-cols-1 gap-3 lg:grid-cols-2" data-kel-selected-assessment-domains>
         {chosenLearningSubjects.map(item => (
           <AssessmentDomainDonuts key={item.fach} studentId={student.id} subject={item.fach}
             semester={sem === '2' ? '2' : '1'} compact hideWhenEmpty />
         ))}
-      </div>
+      </div>}
       <p className="mt-5 text-center text-xs font-semibold text-slate-500">
         Keine Rangliste und kein Klassenvergleich. Kreisdiagramme zeigen nur dokumentierte Teilbereiche
         der ausdrücklich ausgewählten Fächer und keine vollständige Kompetenzdiagnose.
@@ -999,6 +999,95 @@ export default function KELPresentation({
             {chosenLearningSubjects.length > 0 && !visible.learning &&
               <p className="text-xs text-amber-800">Die Fachstand-Folie ist derzeit ausgeblendet. Du kannst sie unter „Weitere Folien wählen“ wieder einschalten.</p>}
           </div>
+          {chosenLearningSubjects.length > 0 && (
+            <div data-kel-subject-settings className="space-y-3 rounded-2xl border border-indigo-100 bg-indigo-50/30 p-3 sm:p-4">
+              <div>
+                <h3 className="text-base font-black text-slate-900">Fachseiten individuell gestalten</h3>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                  Jedes ausgewählte Fach erhält eine eigene Präsentationsseite mit denselben Lernbereichsdaten wie im Schülerdossier.
+                  Diagramm, Lernbereiche, Reihenfolge und Gesprächsnotizen lassen sich getrennt festlegen.
+                </p>
+              </div>
+              {chosenLearningSubjects.map((item, index) => {
+                const allAreas = getStudentAssessmentDomainPerformance(app, student.id, item.fach, sem === '2' ? '2' : '1');
+                const enabledAreas = subjectAreaSelection[item.fach] ?? allAreas.map(area => area.area);
+                return (
+                  <details key={item.fach} data-kel-subject-settings-fach={item.fach}
+                    className="rounded-xl border border-slate-200 bg-white p-3">
+                    <summary className="cursor-pointer text-sm font-black text-slate-900">
+                      {index + 1}. {item.fach}
+                      <span className="ml-2 text-xs font-medium text-slate-500">{allAreas.length} dokumentierte Lernbereiche</span>
+                    </summary>
+                    <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-bold text-slate-700">Reihenfolge</span>
+                        <button type="button" disabled={index === 0} onClick={() => changeSubjectOrder(item.fach, -1)}
+                          className="min-h-10 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 disabled:opacity-40">Nach oben</button>
+                        <button type="button" disabled={index === chosenLearningSubjects.length - 1} onClick={() => changeSubjectOrder(item.fach, 1)}
+                          className="min-h-10 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 disabled:opacity-40">Nach unten</button>
+                      </div>
+                      <fieldset className="space-y-2">
+                        <legend className="text-xs font-black text-slate-800">Diagramm pro Fach</legend>
+                        <div className="flex flex-wrap gap-2">
+                          {([
+                            ['donuts', 'Kreisdiagramme'],
+                            ['bars', 'Balkendiagramm'],
+                          ] as const).map(([chart,label]) =>
+                            <label key={chart} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-800">
+                              <input type="radio" name={`kel-subject-chart-${item.fach}`}
+                                checked={(subjectChartTypes[item.fach] || 'donuts') === chart}
+                                onChange={() => { setSubjectChartTypes(previous => ({ ...previous, [item.fach]: chart })); setSelectionSaved(false); }}/>
+                              {label}
+                            </label>
+                          )}
+                        </div>
+                      </fieldset>
+                      <fieldset className="space-y-2">
+                        <legend className="text-xs font-black text-slate-800">Welche dokumentierten Lernbereiche zeigen?</legend>
+                        {allAreas.length ? (
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {allAreas.map(area =>
+                              <label key={area.area} className="flex min-h-10 cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-700">
+                                <input type="checkbox" className="mt-0.5"
+                                  checked={enabledAreas.includes(area.area)}
+                                  onChange={() => toggleSubjectArea(item.fach, area.area, allAreas.map(entry => entry.area))}/>
+                                <span className="min-w-0"><strong className="block break-words text-slate-900">{area.area}</strong>
+                                  <span className="mt-1 block text-[0.68rem]">{area.assessments} Nachweise · {area.percent.toLocaleString('de-AT', {maximumFractionDigits: 1})}%</span>
+                                </span>
+                              </label>
+                            )}
+                          </div>
+                        ) : <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">Keine auswertbaren Lernbereiche. Diese können in der Notenmappe zugeordnet werden.</p>}
+                      </fieldset>
+                      <label className="block space-y-1.5 text-xs font-bold text-slate-800">
+                        Gesprächsnotiz zu {item.fach}
+                        <textarea rows={3} maxLength={2000}
+                          placeholder="Stärke, Lernfortschritt, nächste Schritte – nur für dieses Gespräch formulieren …"
+                          value={subjectNotes[item.fach] || ''}
+                          onChange={event => { setSubjectNotes(previous => ({ ...previous, [item.fach]: event.target.value })); setSelectionSaved(false); }}
+                          className="w-full resize-y rounded-xl border border-slate-200 bg-white p-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-500"/>
+                      </label>
+                      <label className="flex cursor-pointer items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+                        <input type="checkbox" checked={Boolean(subjectNoteVisible[item.fach])}
+                          onChange={event => { setSubjectNoteVisible(previous => ({ ...previous, [item.fach]: event.target.checked })); setSelectionSaved(false); }}/>
+                        Diese eigene Gesprächsnotiz auf Folie und in PowerPoint zeigen
+                      </label>
+                      <p className="text-[0.68rem] text-slate-500">
+                        Interne Schülernotizen werden nicht automatisch übernommen. Nur bewusst freigegebener Text erscheint in der Elternpräsentation.
+                      </p>
+                      <button type="button" onClick={() => {
+                        setVisible(previous => ({ ...previous, learning: true, subjectPages: true }));
+                        const position = slides.findIndex(slide => slide.type === 'subject' && slide.subject === item.fach);
+                        setSlideIndex(Math.max(0, position)); setView('slides');
+                      }} className="min-h-10 rounded-lg bg-indigo-50 px-4 text-xs font-bold text-indigo-800 hover:bg-indigo-100">
+                        Fachseite ansehen
+                      </button>
+                    </div>
+                  </details>
+                );
+              })}
+            </div>
+          )}
           <div className="space-y-3">
             <h3 className="text-sm font-bold text-slate-800">Einzelne Leistungsnachweise (optional)</h3>
             {availableAssessments.length ? [...new Set(availableAssessments.map(item => item.fach))].map(fach =>
