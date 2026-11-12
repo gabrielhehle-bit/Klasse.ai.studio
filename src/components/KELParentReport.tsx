@@ -182,7 +182,7 @@ export default function KELParentReport({
               <div className="space-y-2">
                 {learning.map(subject => subject.rows.length > 0 && (
                   <div key={subject.subject}>
-                    <p className="mb-1 text-[9px] font-extrabold text-slate-700">{subject.subject}</p>
+                    <p className="mb-1 text-[9px] font-extrabold text-slate-700">{subject.subject}{subject.rows.length > 4 && <span className="ml-1 font-normal text-slate-500">(4 von {subject.rows.length} Bereichen – weitere im Dossier)</span>}</p>
                     <div className="grid grid-cols-2 gap-1.5">
                       {subject.rows.slice(0, 4).map((row, index) => {
                         const percentage = Math.min(100, Math.max(0, row.percent));
