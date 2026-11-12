@@ -16,6 +16,7 @@ export function summarizeKelMood(
   const counts = [0, 0, 0, 0, 0];
   for (const [day, raw] of Object.entries(entries || {})) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || day < start || day > end) continue;
+    if (typeof raw !== 'number' && typeof raw !== 'string') continue;
     const value = Number(raw);
     if (!Number.isInteger(value) || value < 1 || value > 5) continue;
     counts[value - 1] += 1;
@@ -61,6 +62,13 @@ export function summarizeKelBehavior(
       color: typeof stage.color === 'string' ? stage.color : '#64748b',
     };
   }).filter(row => row.count > 0).sort((a,b) => b.count - a.count || a.label.localeCompare(b.label, 'de'));
+  // Keep older entries visible even if their original custom stage was removed.
+  const knownIds = new Set(stages.map(stage => String(stage.id)));
+  const withoutCategory = [...counts].reduce((sum, [id, count]) => sum + (knownIds.has(id) ? 0 : count), 0);
+  if (withoutCategory) known.push({
+    id: '_unassigned', label: 'Nicht zugeordnet', count: withoutCategory, color: '#64748b',
+  });
+  known.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'de'));
   const total = known.reduce((sum, row) => sum + row.count, 0);
   const percentages = known.map(row => ({
     ...row, percent: total ? Math.round(row.count / total * 100) : 0,
