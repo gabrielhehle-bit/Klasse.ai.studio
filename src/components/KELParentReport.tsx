@@ -145,9 +145,11 @@ export default function KELParentReport({
                     <div className="flex justify-between gap-2 text-[11px] text-slate-700">
                       <span className="truncate">{row.label}</span><strong>{row.count}</strong>
                     </div>
-                    <div className="mt-0.5 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                      <div className="h-full rounded-full" style={{ width: (row.count / behaviorTotal * 100) + '%', backgroundColor: row.color }}/>
-                    </div>
+                    <svg data-kel-behavior-bar role="img" aria-label={row.label + ': ' + row.count + ' von ' + behaviorTotal + ' Verhaltensbeobachtungen'}
+                      viewBox="0 0 100 6" preserveAspectRatio="none" className="mt-0.5 block h-[6px] w-full">
+                      <rect x="0" y="0" width="100" height="6" rx="3" fill="#e2e8f0" />
+                      <rect x="0" y="0" width={row.count / behaviorTotal * 100} height="6" rx="3" fill={row.color} />
+                    </svg>
                   </div>
                 ))}
                 <p className="text-[11px] text-slate-500">Häufigkeit dokumentierter Einträge, keine Persönlichkeitsnote</p>
