@@ -61,6 +61,6 @@ test('KEL charts and odd card count remain readable in the print preview', () =>
   assert.match(print, /\[data-kel-behavior-bar\] \{/);
   assert.match(print, /\[data-kel-mood-bar\],/);
   assert.match(sheet, /data-kel-summary-grid/);
-  assert.match(sheet, /data-kel-mood-selected=/);
+  assert.match(sheet, /data-kel-mood-distribution/);
   assert.match(sheet, /\{row.total === 1 \? 'Punkt' : 'Punkte'\}/);
 });
