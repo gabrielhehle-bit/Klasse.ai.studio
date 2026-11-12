@@ -47,7 +47,7 @@ export default function KELSubjectPage({
         <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4">
           <div className="flex items-center gap-2 text-indigo-700"><BookOpen size={16}/><span className="text-xs font-extrabold uppercase tracking-wider">Fachstand</span></div>
           <p className="mt-3 break-words text-xl font-black text-slate-950">{subjectLabel}</p>
-          <p className="mt-1 text-xs text-slate-600">Notenmappe dieses Kindes · Semester {semester}</p>
+          <p className="mt-1 text-xs text-slate-600">Notenmappe dieses Kindes · {semester === '1' ? 'Ganzes Schuljahr' : '2. Semester (ältere Daten)'}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
           <div className="flex items-center gap-2 text-slate-600"><Target size={16}/><span className="text-xs font-extrabold uppercase tracking-wider">Lernbereiche</span></div>
