@@ -472,6 +472,13 @@ async function main() {
       await client.send('Emulation.setDeviceMetricsOverride', {width:1440,height:1000,deviceScaleFactor:1,mobile:false});
       await clickSidebar(client, page);
       await waitFor(client, page+' surface ready', 'Boolean(document.querySelector('+q(selector)+')?.querySelector("h1"))');
+      if (key === 'hub') {
+        await waitFor(client, 'planning home renders all five saved-day summaries',
+          'document.querySelectorAll("[data-planning-week-overview] [data-planning-day-summary]").length===5');
+        await waitFor(client, 'planning home reflects the saved weekly lesson and not just the empty timetable',
+          'Array.from(document.querySelectorAll("[data-planning-day-summary]")).some(day=>day.textContent.includes('+q(topic)+'))');
+        console.log('✓ planning home mirrors the actual stored weekly plan in five daily summaries');
+      }
       if (key === 'weekly') {
         await evaluate(client, 'Array.from(document.querySelectorAll("[data-planning-view] button")).find(b=>b.textContent.trim()==="Tag")?.click()');
         await waitFor(client, 'daily lesson list', 'Array.from(document.querySelectorAll("section")).some(s=>s.getAttribute("aria-label")==="Tagesansicht des Wochenplans")');

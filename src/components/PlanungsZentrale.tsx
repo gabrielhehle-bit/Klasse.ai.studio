@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import WeeklyGoalsWidget from './WeeklyGoalsWidget';
 import DailyHomeworkButton from './DailyHomeworkButton';
+import { getPlanningWeekOverview } from '../lib/planningWeekOverview';
 
 export default function PlanungsZentrale() {
   const { app, setApp, setPage } = useApp();
@@ -193,6 +194,61 @@ export default function PlanungsZentrale() {
   useEffect(() => {
     setJahresplanInput(getJahresplanTheme(nextKW));
   }, [nextKW, app.jahresplanung]);
+
+  // Resolve the same saved slot that handleSelectSlot loads. Changing the
+  // day/hour must never save the previous slot's draft to another lesson.
+  const getSavedSlot = (dayIdx: number, hourIdx: number): any => {
+    const week = app.wochenplanung?.[nextKW] || {};
+    const dayKey = week[dayIdx] !== undefined ? dayIdx : DAYS_DE[dayIdx];
+    return week[dayKey]?.[hourIdx];
+  };
+
+  const hasUnsavedQuickPlanChanges = () => {
+    if (quickPlanType === 'event') return quickEventTitle.trim().length > 0;
+    const saved = getSavedSlot(selectedDayIdx, selectedHour);
+    const defaultSubject = app.stammplan?.[DAYS_DE[selectedDayIdx]]?.[selectedHour + 1] || '';
+    const expectedSubject = saved?.fach || defaultSubject || availableSubjects[0] || '';
+    const expectedMaterials = Array.isArray(saved?.materialsList)
+      ? saved.materialsList : saved?.material ? [saved.material] : [];
+    return activeSubject !== expectedSubject ||
+      lessonTopic !== (saved?.thema || '') ||
+      lessonHomework !== (saved?.housework || '') ||
+      showInChildWeekPlan !== (saved?.imKinderWochenplan === true) ||
+      childWeekMaterial !== (saved?.wochenplanMaterial || '') ||
+      didacticType !== (saved?.art || 'Einführung') ||
+      socialForm !== (saved?.sozialform || 'Einzelarbeit') ||
+      customMaterialText !== (saved?.customMaterial || '') ||
+      JSON.stringify(selectedMaterials) !== JSON.stringify(expectedMaterials);
+  };
+
+  const confirmAbandonQuickDraft = () =>
+    !hasUnsavedQuickPlanChanges() || window.confirm(
+      'Nicht gespeicherte Eingaben werden verworfen. Möchtest du fortfahren?'
+    );
+
+  const handleSwitchQuickSlot = (dayIdx: number, hourIdx: number) => {
+    if (dayIdx === selectedDayIdx && hourIdx === selectedHour) return;
+    if (!confirmAbandonQuickDraft()) return;
+    handleSelectSlot(dayIdx, hourIdx);
+  };
+
+  const handleCloseQuickPlan = () => {
+    if (confirmAbandonQuickDraft()) setQuickPlanOpen(false);
+  };
+
+  const handleSwitchQuickPlanType = (type: 'lesson' | 'event') => {
+    if (type === quickPlanType) return;
+    if (!confirmAbandonQuickDraft()) return;
+    if (type === 'lesson') handleSelectSlot(selectedDayIdx, selectedHour);
+    setQuickPlanType(type);
+  };
+
+  const handleClearSlotWithConfirmation = () => {
+    const existing = getSavedSlot(selectedDayIdx, selectedHour);
+    if (existing && Object.keys(existing).length > 0 &&
+        !window.confirm(`Die gespeicherte Stunde ${selectedHour + 1} am ${DAYS_DE[selectedDayIdx]} wirklich löschen? Das kann nicht rückgängig gemacht werden.`)) return;
+    handleClearSlot();
+  };
 
   // Load a planned or empty slot into active editor
   const handleSelectSlot = (dayIdx: number, hourIdx: number) => {
@@ -590,42 +646,22 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
     setQuickPlanOpen(false);
   };
 
-  // Calculation helpers
-  const countPlannedLessonsThisWeek = useMemo(() => {
-    const wp = app.wochenplanung?.[nextKW] || {};
-    let count = 0;
-    DAYS_DE.forEach((dayName, dIdx) => {
-      const useIdx = wp[dIdx] !== undefined;
-      const dayKey = useIdx ? dIdx : dayName;
-      const dayPlan = wp[dayKey] || {};
-      Object.values(dayPlan).forEach((l: any) => {
-        if (l && l.fach) count++;
-      });
-    });
-    return count;
-  }, [app.wochenplanung, nextKW, DAYS_DE]);
-
+  // Read-only source for the same five days shown on Planung. Historic
+  // numeric/name duplicates are not counted twice.
+  const weekDayOverview = useMemo(
+    () => getPlanningWeekOverview(app.wochenplanung?.[nextKW]),
+    [app.wochenplanung, nextKW]
+  );
+  const countPlannedLessonsThisWeek = useMemo(
+    () => weekDayOverview.reduce((total, day) => total + day.lessons.length, 0),
+    [weekDayOverview]
+  );
   const weekStats = useMemo(() => {
-    const wp = app.wochenplanung?.[nextKW] || {};
-    let total = 0;
-    let completed = 0;
-    DAYS_DE.forEach((dayName, dIdx) => {
-      const useIdx = wp[dIdx] !== undefined;
-      const dayKey = useIdx ? dIdx : dayName;
-      const dayPlan = wp[dayKey] || {};
-      Object.values(dayPlan).forEach((lesson: any) => {
-        if (lesson && lesson.fach) {
-          total++;
-          if (lesson.erledigt) completed++;
-        }
-      });
-    });
-    return {
-      total,
-      completed,
-      percent: total > 0 ? Math.round((completed / total) * 100) : 0
-    };
-  }, [app.wochenplanung, nextKW, DAYS_DE]);
+    const total = countPlannedLessonsThisWeek;
+    const completed = weekDayOverview.reduce((sum, day) =>
+      sum + day.lessons.filter(lesson => lesson.completed).length, 0);
+    return { total, completed, percent: total > 0 ? Math.round(completed / total * 100) : 0 };
+  }, [weekDayOverview, countPlannedLessonsThisWeek]);
 
   // Find all unprepared lessons or missing topic slots across week
   const openLessonsList = useMemo(() => {
@@ -1346,7 +1382,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs"
-              onClick={() => setQuickPlanOpen(false)}
+              onClick={handleCloseQuickPlan}
             >
               <motion.div
                 initial={{ scale: 0.95, y: 15, opacity: 0 }}
@@ -1368,7 +1404,8 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                   </div>
 
                   <button
-                    onClick={() => setQuickPlanOpen(false)}
+                    onClick={handleCloseQuickPlan}
+                    aria-label="Schnellplanung schließen"
                     className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl"
                   >
                     <X size={18} />
@@ -1378,13 +1415,13 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                 {/* Type Selection Tabs */}
                 <div className="grid grid-cols-2 bg-slate-100 p-1 rounded-2xl gap-1 text-xs font-extrabold text-center">
                   <button
-                    onClick={() => setQuickPlanType('lesson')}
+                    onClick={() => handleSwitchQuickPlanType('lesson')}
                     className={`py-2 rounded-xl transition cursor-pointer ${quickPlanType === 'lesson' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600'}`}
                   >
                     Unterrichtsstunde
                   </button>
                   <button
-                    onClick={() => setQuickPlanType('event')}
+                    onClick={() => handleSwitchQuickPlanType('event')}
                     className={`py-2 rounded-xl transition cursor-pointer ${quickPlanType === 'event' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600'}`}
                   >
                     Termin / Ausflug
@@ -1401,7 +1438,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                         <label className="text-[10px] font-black text-slate-500 uppercase block mb-1">Tag auswählen</label>
                         <select
                           value={selectedDayIdx}
-                          onChange={(e) => setSelectedDayIdx(parseInt(e.target.value))}
+                          onChange={(e) => handleSwitchQuickSlot(parseInt(e.target.value, 10), selectedHour)}
                           className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold"
                         >
                           {DAYS_DE.map((d, idx) => (
@@ -1414,7 +1451,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                         <label className="text-[10px] font-black text-slate-500 uppercase block mb-1">Stunde auswählen</label>
                         <select
                           value={selectedHour}
-                          onChange={(e) => setSelectedHour(parseInt(e.target.value))}
+                          onChange={(e) => handleSwitchQuickSlot(selectedDayIdx, parseInt(e.target.value, 10))}
                           className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold"
                         >
                           {LESSON_SLOT_NUMBERS.map(slot => (
@@ -1423,6 +1460,11 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                         </select>
                       </div>
                     </div>
+
+                    <p className="text-[11px] font-medium text-slate-500">
+                      Beim Wechsel von Tag oder Stunde werden deren gespeicherte Angaben geladen.
+                      Nicht gespeicherte Änderungen werden vorher bestätigt.
+                    </p>
 
                     {/* Subject Pills */}
                     <div className="space-y-1.5">
@@ -1600,7 +1642,8 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                       </button>
 
                       <button
-                        onClick={handleClearSlot}
+                        type="button"
+                        onClick={handleClearSlotWithConfirmation}
                         className="px-3 py-3 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-2xl font-bold text-xs cursor-pointer"
                         title="Inhalt zurücksetzen"
                       >
