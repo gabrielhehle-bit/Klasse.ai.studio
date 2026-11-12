@@ -107,6 +107,8 @@ async function createClient() {
   // Production continues to require a real teacher's confirmation.
   client.approveExpectedGradebookMaxPoints = false;
   client.approvedGradebookMaxPointsCount = 0;
+  client.approveExpectedProtectedModeAlert = false;
+  client.protectedModeAlertCount = 0;
   client.on('Page.javascriptDialogOpening', event => {
     if (event.type === 'confirm' && event.message.startsWith('Für diese Bewertung sind bereits ') &&
         event.message.includes('Maximalpunkten ändern sich die Prozentwerte')) {
@@ -115,6 +117,15 @@ async function createClient() {
       if (approve) client.approvedGradebookMaxPointsCount += 1;
       console.log('Gradebook max-points safety prompt:', approve ? 'approved explicitly by synthetic test' : 'rejected');
       void client.send('Page.handleJavaScriptDialog', { accept: approve }).catch(() => {});
+    } else if (event.type === 'alert' &&
+        event.message.startsWith('Für "Mathematik" sind bereits Noten, Punkte oder Mitarbeitwerte gespeichert.') &&
+        event.message.includes('Die Bewertungsart bleibt unverändert')) {
+      // Test an explicit safeguard, not a forced migration of existing grades.
+      const expected = client.approveExpectedProtectedModeAlert === true;
+      client.approveExpectedProtectedModeAlert = false;
+      if (expected) client.protectedModeAlertCount += 1;
+      console.log('Protected grade-mode change alert:', expected ? 'acknowledged by synthetic test' : 'unexpected');
+      void client.send('Page.handleJavaScriptDialog', { accept: expected }).catch(() => {});
     } else if (event.type === 'alert' && event.message === 'Gewichtungen erfolgreich gespeichert!') {
       void client.send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {});
     } else if (event.type === 'beforeunload') {
@@ -4117,14 +4128,25 @@ async function main() {
         await reloadAndUnlock(client);await openPage(client,'Notenmappe');
         await evaluate(client,`(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);await clickButton(client,'Mitarbeit',true);
         await waitFor(client,'manual zero survives encrypted reload',`document.querySelector(${q(manualField)}).value==='0'&&${manualRow}.querySelector('td:last-child').textContent.trim()==='0 Pkt'`);
-        await openGradebookTool('Gewichtung');await clickButton(client,'Prozent');await clickButton(client,'Speichern',true);await clickButton(client,'Mitarbeit',true);
-        await numbersTypeSigned('[data-gradebook]',manualLabel,'50');
-        await waitFor(client,'manual percent shows percentage instead of a grade',`${manualRow}.querySelector('td:last-child').textContent.trim()==='50 %'`);
+        await openGradebookTool('Gewichtung');
+        const previousRejectedModes = client.protectedModeAlertCount;
+        client.approveExpectedProtectedModeAlert = true;
+        try {
+          await clickButton(client,'Prozent');
+        } finally {
+          client.approveExpectedProtectedModeAlert = false;
+        }
+        if (client.protectedModeAlertCount !== previousRejectedModes + 1) {
+          throw new Error('Changing point mode with saved assessments did not show the expected protection warning.');
+        }
+        await clickButton(client,'Speichern',true);await clickButton(client,'Mitarbeit',true);
+        await waitFor(client,'protected assessment mode remains points and the saved zero survives',
+          `document.querySelector(${q(manualField)}).value==='0'&&${manualRow}.querySelector('td:last-child').textContent.trim()==='0 Pkt'`);
         await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/,'-manual-participation.png'));
         await clickSelector(client,`button[aria-label=${q(manualLabel+' löschen')}]`);
         await waitFor(client,'manual deletion preserves missing-value distinction',`document.querySelector(${q(manualField)}).value===''&&${manualRow}.querySelector('td:last-child').textContent.trim()==='–'`);
         await openGradebookTool('Gewichtung');await clickButton(client,'Punkte');await clickButton(client,'Fixe Punkte',true);await clickButton(client,'Speichern',true);
-        console.log('✓ Manual participation uses points/percent fields, preserves zero on encrypted reload and clears values explicitly.');
+        console.log('✓ Manual points preserve zero across encrypted reload, unsafe mode changes are rejected, and deletion is explicit.');
 
 
       }
