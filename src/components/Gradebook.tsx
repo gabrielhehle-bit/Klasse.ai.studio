@@ -4,6 +4,7 @@ import { getPositiveBehaviorRate } from '../lib/gradebookBehaviorRate';
 import { getSubjectColumnRemovalBlockReason, removeSubjectColumn, updateSubjectColumn } from '../lib/classroomEdits';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { logActivity, getAccentTextColor } from '../lib/utils';
@@ -239,6 +240,8 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
   const [gradebookScrollEdges, setGradebookScrollEdges] = useState({ left: false, right: false });
   const [assessmentFilter, setAssessmentFilter] = useState<'all' | 'lzk' | 'wp' | 'sa' | 'obj'>('all');
   const [showMoreMenu, setShowMoreMenu] = useState<boolean>(false);
+  const moreMenuTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const moreMenuCloseRef = useRef<HTMLButtonElement | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const ownsBrowserFullscreen = useRef(false);
   const toggleFullscreen = async () => {
@@ -277,13 +280,35 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
 
   useEffect(() => {
     if (!showMoreMenu) return;
-    const closeToolsOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      event.stopPropagation();
-      setShowMoreMenu(false);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    moreMenuCloseRef.current?.focus();
+    const handleToolsKeyboard = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        setShowMoreMenu(false);
+        moreMenuTriggerRef.current?.focus();
+      } else if (event.key === 'Tab') {
+        // A modal drawer must keep keyboard focus within its own controls.
+        const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>(
+          '#gradebook-tools-menu button:not(:disabled)'
+        ));
+        if (!buttons.length) return;
+        if (event.shiftKey && document.activeElement === buttons[0]) {
+          event.preventDefault();
+          buttons[buttons.length - 1].focus();
+        } else if (!event.shiftKey && document.activeElement === buttons[buttons.length - 1]) {
+          event.preventDefault();
+          buttons[0].focus();
+        }
+      }
     };
-    document.addEventListener('keydown', closeToolsOnEscape, true);
-    return () => document.removeEventListener('keydown', closeToolsOnEscape, true);
+    document.addEventListener('keydown', handleToolsKeyboard, true);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleToolsKeyboard, true);
+    };
   }, [showMoreMenu]);
   const [showAddAssessmentModal, setShowAddAssessmentModal] = useState<boolean>(false);
   const closeAddAssessmentDialog = () => {
@@ -780,7 +805,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     return (app.schueler || []).some((student) => {
       const data = app.noten?.[student.id]?.[activeFach]?.[sem];
       if (!data) return false;
-      return ["sa", "lzk", "wp", "aufgaben"].some((key) =>
+      // Manual participation counts as an entered grade even when LZK/WP cells are empty.
+      const hasParticipation = data.miDirekt !== undefined && data.miDirekt !== null && String(data.miDirekt).trim() !== '';
+      return hasParticipation || ["sa", "lzk", "wp", "aufgaben"].some((key) =>
         (data[key] || []).some((value: unknown) =>
           value !== undefined && value !== null && value !== "" && value !== "-" && value !== "e" && value !== "f",
         ),
@@ -1796,8 +1823,11 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
 
                 <div className="relative">
                   <button
+                    ref={moreMenuTriggerRef}
+                    type="button"
                     onClick={() => setShowMoreMenu(!showMoreMenu)}
                     aria-expanded={showMoreMenu}
+                    aria-haspopup="dialog"
                     aria-controls="gradebook-tools-menu"
                     className="min-h-11 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[0.8125rem] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200/60"
                   >
@@ -1805,20 +1835,46 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                     <ChevronDown size={14} className={`transition-transform ${showMoreMenu ? 'rotate-180' : ''}`} />
                   </button>
 
-                  <AnimatePresence>
-                    {showMoreMenu && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-40"
-                          onClick={() => setShowMoreMenu(false)}
-                        />
-                        <motion.div
-                          id="gradebook-tools-menu"
-                          initial={{ opacity: 0, scale: 0.95, y: -5 }}
-                          animate={{ opacity: 1, scale: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.95, y: -5 }}
-                          className="absolute right-0 top-full mt-2 max-h-[65vh] overflow-y-auto w-56 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 flex flex-col gap-1 text-[0.8125rem]"
-                        >
+                  {/* Portal prevents the table, sticky toolbar and fullscreen stacking contexts
+                      from painting on top of the tools drawer. */}
+                  {typeof document !== 'undefined' && createPortal(
+                    <AnimatePresence>
+                      {showMoreMenu && (
+                        <>
+                          <motion.div
+                            aria-hidden="true"
+                            className="fixed inset-0 z-[9998] bg-slate-950/35"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => { setShowMoreMenu(false); moreMenuTriggerRef.current?.focus(); }}
+                          />
+                          <motion.aside
+                            id="gradebook-tools-menu"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-label="Weitere Werkzeuge der Notenmappe"
+                            initial={{ opacity: 0, x: 32 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 32 }}
+                            transition={{ duration: 0.16 }}
+                            className="fixed inset-y-0 right-0 z-[9999] flex h-[100dvh] w-full max-w-[23rem] flex-col border-l border-slate-200 bg-white text-[0.8125rem] shadow-2xl"
+                          >
+                            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+                              <div>
+                                <h2 className="text-base font-bold text-slate-900">Weitere Werkzeuge</h2>
+                                <p className="text-xs text-slate-500">Notenmappe · {activeFach}</p>
+                              </div>
+                              <button
+                                ref={moreMenuCloseRef}
+                                type="button"
+                                aria-label="Werkzeugmenü schließen"
+                                onClick={() => { setShowMoreMenu(false); moreMenuTriggerRef.current?.focus(); }}
+                                className="min-h-11 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                              >Schließen</button>
+                            </div>
+                            <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-3">
+                              <div className="px-3 py-1 text-[0.625rem] font-black uppercase tracking-wider text-slate-500">Bewerten &amp; auswerten</div>
                           <button
                             onClick={() => {
                               setShowGradeCalculator(true);
@@ -1902,10 +1958,14 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                               </button>
                             ))}
                           </div>
-                        </motion.div>
-                      </>
-                    )}
-                  </AnimatePresence>
+
+                            </div>
+                          </motion.aside>
+                        </>
+                      )}
+                    </AnimatePresence>,
+                    document.body
+                  )}
                 </div>
               </div>
 
@@ -1915,7 +1975,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
             <span className="font-semibold">{gradebookDataStatus.assessmentEntries} Einträge</span>
             <span>{gradebookDataStatus.studentsWithEntries}/{gradebookDataStatus.totalStudents} Kinder mit Daten</span>
             <span>{gradebookDataStatus.calculatedStudents}/{gradebookDataStatus.totalStudents} vorläufige Stände</span>
-            <span>{hasAnyAssessment ? `${missingCount} unvollständig` : gradebookDataStatus.calculatedStudents > 0 ? 'Stand auch aus Mitarbeit/HÜ möglich' : 'Noch keine Bewertungen'}</span>
+            <span>{hasAnyAssessment ? `${missingCount} Kinder mit offenen Bewertungen` : gradebookDataStatus.calculatedStudents > 0 ? 'Stand auch aus Mitarbeit/HÜ möglich' : 'Noch keine Bewertungen'}</span>
           </div>
         )}
       </header>
