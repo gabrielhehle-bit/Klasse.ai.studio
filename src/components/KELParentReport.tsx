@@ -27,9 +27,9 @@ const tidy = (input: unknown) => typeof input === 'string' ? input.trim() : '';
 
 function Section({ title, detail, children }: { title: string; detail?: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-3 break-inside-avoid">
+    <section className="rounded-xl border border-[#d8e3e5] bg-white p-3 break-inside-avoid">
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <h3 className="text-[12px] font-black uppercase tracking-[0.09em] text-slate-800">{title}</h3>
+        <h3 className="text-[12px] font-extrabold uppercase tracking-[0.045em] text-slate-800">{title}</h3>
         {detail && <span className="text-[11px] text-slate-500">{detail}</span>}
       </div>
       {children}
@@ -38,7 +38,7 @@ function Section({ title, detail, children }: { title: string; detail?: string; 
 }
 
 function EmptyLine({ children }: { children: React.ReactNode }) {
-  return <p className="min-h-7 border-b border-dashed border-slate-300 py-1 text-[12px] leading-snug text-slate-700">{children}</p>;
+  return <p className="min-h-7 border-b border-slate-200 py-1 text-[12px] leading-snug text-slate-700">{children}</p>;
 }
 
 /** Read-only, parent-safe A4 sheet; no changes to the original classroom records. */
@@ -104,9 +104,9 @@ export default function KELParentReport({
         <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11px] text-slate-600">
           <span>Klasse: {app.klassenbezeichnung || '—'}</span>
           <span>Schuljahr: {app.schuljahr || '—'}</span>
-          <span>Schule: {app.schulName || '—'}</span>
+          {app.schulName && <span>Schule: {app.schulName}</span>}
           <span>Gespräch am: {new Date().toLocaleDateString('de-AT')}</span>
-          <span>Lehrperson: {[app.anrede, app.nachname].filter(Boolean).join(' ') || '—'}</span>
+          {(app.anrede || app.nachname) && <span>Lehrperson: {[app.anrede, app.nachname].filter(Boolean).join(' ')}</span>}
         </div>
       </div>
 
@@ -116,25 +116,31 @@ export default function KELParentReport({
             {mood.average === null ? (
               <p className="text-[12px] text-slate-500">Noch keine Befindens-Rückmeldungen im Zeitraum.</p>
             ) : (
-              <div data-kel-mood-distribution className="space-y-1.5">
+              <div data-kel-mood-distribution className="space-y-2">
                 <p className="text-[12px] font-bold leading-snug text-slate-800">
                   {mood.positiveCount} von {mood.total} Einschätzungen waren gut oder sehr gut ({Math.round(mood.positiveCount / mood.total * 100)} %).
                 </p>
-                {moodLabels.map((label, index) => (
-                  <div key={label} data-kel-mood-row>
-                    <div className="flex justify-between gap-2 text-[11px] leading-tight text-slate-700">
-                      <span>{index + 1} · {label}</span>
-                      <span className="whitespace-nowrap font-bold tabular-nums">{mood.counts[index]} · {mood.percentages[index]} %</span>
+                <svg data-kel-mood-bar role="img" aria-label={'Verteilung von ' + mood.total + ' Befindens-Einschätzungen'}
+                  viewBox="0 0 100 10" preserveAspectRatio="none" className="block h-[10px] w-full">
+                  <rect x="0" y="0" width="100" height="10" rx="3" fill="#e2e8f0" />
+                  {mood.counts.map((count, index) => count > 0 && (
+                    <rect key={index} x={mood.counts.slice(0, index).reduce((sum, n) => sum + n, 0) / mood.total * 100}
+                      y="0" width={count / mood.total * 100} height="10" fill={moodColors[index]} />
+                  ))}
+                </svg>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                  {moodLabels.map((label, index) => (
+                    <div key={label} data-kel-mood-row className="flex items-center justify-between gap-1 text-[11px] leading-tight text-slate-700">
+                      <span className="flex min-w-0 items-center gap-1">
+                        <span aria-hidden="true" className="inline-block h-2 w-2 shrink-0 rounded-sm"
+                          style={{ backgroundColor: moodColors[index] }} />
+                        <span>{label}</span>
+                      </span>
+                      <strong className="whitespace-nowrap tabular-nums">{mood.counts[index]} · {mood.percentages[index]} %</strong>
                     </div>
-                    <svg data-kel-mood-bar role="img"
-                      aria-label={label + ': ' + mood.counts[index] + ' von ' + mood.total + ', ' + mood.percentages[index] + ' Prozent'}
-                      viewBox="0 0 100 7" preserveAspectRatio="none" className="mt-0.5 block h-[7px] w-full">
-                      <rect x="0" y="0" width="100" height="7" rx="2" fill="#e2e8f0" />
-                      <rect x="0" y="0" width={mood.counts[index] / mood.total * 100} height="7" rx="2" fill={moodColors[index]} />
-                    </svg>
-                  </div>
-                ))}
-                <p className="pt-1 text-[11px] leading-snug text-slate-600">
+                  ))}
+                </div>
+                <p className="text-[11px] leading-snug text-slate-600">
                   Durchschnitt {fmt(mood.average)} / 5
                   {mood.mostFrequent ? ' · häufigste Antwort: ' + moodLabels[mood.mostFrequent - 1] : ''}
                 </p>
@@ -157,19 +163,27 @@ export default function KELParentReport({
                     ? 'Am häufigsten dokumentiert: ' + behavior.leading.label + ' (' + behavior.leading.count + ' von ' + behaviorTotal + ').'
                     : behaviorTotal + ' dokumentierte Tageswerte'}
                 </p>
-                {behaviorRows.map(row => (
-                  <div key={row.id} data-kel-behavior-row>
-                    <div className="flex justify-between gap-2 text-[11px] leading-tight text-slate-700">
-                      <span className="break-words">{row.label}</span>
-                      <span className="whitespace-nowrap font-bold tabular-nums">{row.count} · {row.percent} %</span>
+                <svg data-kel-behavior-bar role="img" aria-label={'Verteilung von ' + behaviorTotal + ' dokumentierten Verhaltenstageswerten'}
+                  viewBox="0 0 100 10" preserveAspectRatio="none" className="block h-[10px] w-full">
+                  <rect x="0" y="0" width="100" height="10" rx="3" fill="#e2e8f0" />
+                  {behaviorRows.map((row, index) => (
+                    <rect key={row.id}
+                      x={behaviorRows.slice(0, index).reduce((sum, entry) => sum + entry.count, 0) / behaviorTotal * 100}
+                      y="0" width={row.count / behaviorTotal * 100} height="10" fill={row.color} />
+                  ))}
+                </svg>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                  {behaviorRows.map(row => (
+                    <div key={row.id} data-kel-behavior-row className="flex items-center justify-between gap-1 text-[11px] leading-tight text-slate-700">
+                      <span className="flex min-w-0 items-center gap-1">
+                        <span aria-hidden="true" className="inline-block h-2 w-2 shrink-0 rounded-sm"
+                          style={{ backgroundColor: row.color }} />
+                        <span className="break-words">{row.label}</span>
+                      </span>
+                      <strong className="whitespace-nowrap tabular-nums">{row.count} · {row.percent} %</strong>
                     </div>
-                    <svg data-kel-behavior-bar role="img" aria-label={row.label + ': ' + row.count + ' von ' + behaviorTotal + ' Verhaltensbeobachtungen, ' + row.percent + ' Prozent'}
-                      viewBox="0 0 100 7" preserveAspectRatio="none" className="mt-0.5 block h-[7px] w-full">
-                      <rect x="0" y="0" width="100" height="7" rx="2" fill="#e2e8f0" />
-                      <rect x="0" y="0" width={row.count / behaviorTotal * 100} height="7" rx="2" fill={row.color} />
-                    </svg>
-                  </div>
-                ))}
+                  ))}
+                </div>
                 <p className="text-[11px] leading-snug text-slate-500">
                   Anteil an dokumentierten Tageswerten, nicht an allen Schultagen · keine Persönlichkeitsnote
                 </p>
@@ -280,7 +294,7 @@ export default function KELParentReport({
         </section>
       )}
       <p className="mt-3 text-[11px] text-slate-500">
-        Persönliche Beobachtungen werden nur nach ausdrücklicher Auswahl übernommen. Ohne Daten keine geschätzten Bewertungen.
+        Gesprächsgrundlage sind die dokumentierten Rückmeldungen und ausgewählten Lernnachweise. Die Übersicht ergänzt das persönliche Gespräch.
       </p>
     </article>
   );
