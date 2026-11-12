@@ -83,7 +83,7 @@ export default function KELParentReport({
 
   const learning = options.subjects.map(subject => ({
     subject,
-    rows: getStudentAssessmentDomainPerformance(app, studentId, subject, '1').slice(0, 4),
+    rows: getStudentAssessmentDomainPerformance(app, studentId, subject, '1'),
   }));
   const rangeTitle = options.period === 'recent' ? 'Letzte 6 Wochen' : 'Bisheriges Schuljahr';
 
@@ -94,7 +94,7 @@ export default function KELParentReport({
       className="mx-auto w-full max-w-[186mm] bg-white text-slate-900 font-sans [print-color-adjust:exact]">
       <header className="mb-3 border-b-2 border-[#d6e5e5] pb-3">
         <div className="mb-1 flex items-center justify-between text-[9px] font-extrabold uppercase tracking-[0.18em] text-[#0f766e]">
-          <span>KLASSIO · KEL-Gespräch</span><span>{rangeTitle}</span>
+          <span>KLASSIO · KEL-Gespräch</span><span>Befinden &amp; Verhalten: {rangeTitle}</span>
         </div>
         <h1 className="text-[22px] leading-tight font-black tracking-tight text-slate-950">Lern- &amp; Entwicklungsübersicht</h1>
         <p className="mt-1 text-[12px] font-semibold text-slate-700">{student.vorname} {student.nachname}</p>
@@ -103,6 +103,7 @@ export default function KELParentReport({
           <span>Schuljahr: {app.schuljahr || '—'}</span>
           <span>Schule: {app.schulName || '—'}</span>
           <span>Gespräch am: {new Date().toLocaleDateString('de-AT')}</span>
+          <span>Lehrperson: {[app.anrede, app.nachname].filter(Boolean).join(' ') || '—'}</span>
         </div>
       </header>
 
@@ -156,7 +157,7 @@ export default function KELParentReport({
         )}
 
         {options.showParticipation && (
-          <Section title="Mitarbeit &amp; Arbeitsverhalten" detail={rangeTitle}>
+          <Section title="Mitarbeit &amp; Arbeitsverhalten" detail="Ganzes Schuljahr">
             {participation.length === 0 ? (
               <p className="text-[10px] text-slate-500">Keine Mitarbeitspunkte in den gewählten Fächern dokumentiert.</p>
             ) : (
@@ -183,7 +184,7 @@ export default function KELParentReport({
                   <div key={subject.subject}>
                     <p className="mb-1 text-[9px] font-extrabold text-slate-700">{subject.subject}</p>
                     <div className="grid grid-cols-2 gap-1.5">
-                      {subject.rows.map((row, index) => {
+                      {subject.rows.slice(0, 4).map((row, index) => {
                         const percentage = Math.min(100, Math.max(0, row.percent));
                         const color = COLORS[index % COLORS.length];
                         return (
@@ -218,12 +219,12 @@ export default function KELParentReport({
       <div className="mt-2.5 grid grid-cols-2 gap-2.5">
         <Section title="Das gelingt schon gut">
           {strengths.length
-            ? strengths.slice(0, 3).map((note: any) => <EmptyLine key={note.id}>{tidy(note.inhalt)}</EmptyLine>)
+            ? strengths.map((note: any) => <EmptyLine key={note.id}>{tidy(note.inhalt)}</EmptyLine>)
             : <><EmptyLine> </EmptyLine><EmptyLine> </EmptyLine></>}
         </Section>
         <Section title="Daran arbeiten wir weiter">
           {nextSteps.length
-            ? nextSteps.slice(0, 3).map((note: any) => <EmptyLine key={note.id}>{tidy(note.inhalt)}</EmptyLine>)
+            ? nextSteps.map((note: any) => <EmptyLine key={note.id}>{tidy(note.inhalt)}</EmptyLine>)
             : <><EmptyLine> </EmptyLine><EmptyLine> </EmptyLine></>}
         </Section>
       </div>
