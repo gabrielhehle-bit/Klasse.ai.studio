@@ -806,7 +806,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
       const data = app.noten?.[student.id]?.[activeFach]?.[sem];
       if (!data) return false;
       // Manual participation counts as an entered grade even when LZK/WP cells are empty.
-      const hasParticipation = data.miDirekt !== undefined && data.miDirekt !== null && data.miDirekt !== '';
+      const hasParticipation = data.miDirekt !== undefined && data.miDirekt !== null && String(data.miDirekt).trim() !== '';
       return hasParticipation || ["sa", "lzk", "wp", "aufgaben"].some((key) =>
         (data[key] || []).some((value: unknown) =>
           value !== undefined && value !== null && value !== "" && value !== "-" && value !== "e" && value !== "f",
