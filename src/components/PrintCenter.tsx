@@ -1077,7 +1077,39 @@ export default function PrintCenter() {
             width: 210mm !important;
             max-width: 210mm !important;
             margin: 0 !important;
-            padding: 11mm 12mm !important;
+            padding: 8mm 11mm !important;
+          }
+          /* The generic global print CSS adds 12pt gaps to EVERY grid and large
+             heading margins. Restore compact, readable spacing for this A4 report. */
+          body.print-center-active.print-center-kel-parent-active [data-kel-report-head] {
+            margin-bottom: 2mm !important;
+            padding-bottom: 2mm !important;
+          }
+          body.print-center-active.print-center-kel-parent-active [data-kel-report-head] h1 {
+            margin: 0 !important;
+            font-size: 17pt !important;
+            line-height: 1.12 !important;
+          }
+          body.print-center-active.print-center-kel-parent-active [data-kel-report-head] p {
+            margin: 1mm 0 !important;
+          }
+          body.print-center-active.print-center-kel-parent-active [data-kel-report-head] > div:last-child {
+            margin-top: 1mm !important;
+            gap: 1pt 8pt !important;
+          }
+          body.print-center-active.print-center-kel-parent-active [data-kel-summary-grid],
+          body.print-center-active.print-center-kel-parent-active [data-kel-parent-report] > div.grid {
+            gap: 2.5mm !important;
+          }
+          body.print-center-active.print-center-kel-parent-active [data-kel-parent-report] section h3 {
+            margin: 0 0 1.5mm 0 !important;
+            line-height: 1.15 !important;
+          }
+          body.print-center-active.print-center-kel-parent-active [data-kel-parent-report] > div.mt-2\\.5 {
+            margin-top: 2mm !important;
+          }
+          body.print-center-active.print-center-kel-parent-active [data-kel-parent-report] > p:last-child {
+            margin: 2mm 0 0 !important;
           }
           body.print-center-active.print-center-kel-parent-active [data-kel-report-head] {
             display: block !important;
@@ -1107,7 +1139,7 @@ export default function PrintCenter() {
             break-inside: avoid !important;
             page-break-inside: avoid !important;
             border: 0 !important;
-            margin-top: 5mm !important;
+            margin-top: 2mm !important;
           }
           body.print-center-active.print-center-kel-parent-active [data-kel-signature-space] {
             min-height: 29mm !important;
