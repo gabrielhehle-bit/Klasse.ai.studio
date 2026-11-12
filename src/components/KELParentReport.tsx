@@ -107,7 +107,7 @@ export default function KELParentReport({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5">
+      <div data-kel-summary-grid className="grid grid-cols-2 gap-2.5">
         {options.showMood && (
           <Section title="Befinden" detail={moodSamples + ' Rückmeldungen'}>
             {moodAverage === null ? (
@@ -117,7 +117,7 @@ export default function KELParentReport({
                 <div className="flex items-center gap-1.5" role="img"
                   aria-label={'Befinden: gerundeter Mittelwert ' + fmt(moodAverage) + ' auf einer Skala von 1 (sehr gut) bis 5 (schlecht)'}>
                   {moodLabels.map((label, index) => (
-                    <span key={label} aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[12px] font-black"
+                    <span key={label} aria-hidden="true" data-kel-mood-selected={index + 1 === roundedMood ? "true" : "false"} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[12px] font-black"
                       style={index + 1 === roundedMood
                         ? { backgroundColor: '#cdece6', borderColor: '#0f766e', color: '#115e59' }
                         : { backgroundColor: '#f8fafc', borderColor: '#cbd5e1', color: '#94a3b8' }}>
@@ -167,7 +167,7 @@ export default function KELParentReport({
                 {participation.map(row => (
                   <div key={row.subject} className="flex items-baseline justify-between gap-2 border-b border-slate-100 pb-1 text-[12px]">
                     <span className="text-slate-700">{row.subject}</span>
-                    <span className="font-bold tabular-nums text-slate-900">{row.total} Punkte</span>
+                    <span className="font-bold tabular-nums text-slate-900">{row.total} {row.total === 1 ? 'Punkt' : 'Punkte'}</span>
                   </div>
                 ))}
                 <p className="text-[11px] text-slate-500">Gespeicherte Schuljahres-Punkte; nicht zwischen Fächern vergleichbar</p>
