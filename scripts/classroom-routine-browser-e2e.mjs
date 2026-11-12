@@ -568,7 +568,21 @@ async function main() {
       await leaveCockpit();
       await waitFor(client, 'dashboard after cockpit', `Boolean(document.querySelector('button[aria-current=page]'))`);
       await clickSidebar(client, 'Notenmappe');
-      await waitFor(client, 'gradebook subject selection', `Boolean(document.querySelector('#gradebook-active-subject'))`);
+      try {
+        await waitFor(client, 'gradebook subject selection', `Boolean(document.querySelector('#gradebook-active-subject'))`);
+      } catch (error) {
+        // Preserve the actual route and mounted view at the moment of failure.
+        // A sidebar highlight alone is not proof that its page rendered.
+        console.log('Gradebook navigation diagnostic:', JSON.stringify(await evaluate(client, `(() => ({
+          selectedPage: document.querySelector('button[aria-current="page"]')?.textContent.trim(),
+          gradebookMounted: Boolean(document.querySelector('[data-gradebook]')),
+          activeDialog: document.querySelector('[role="dialog"]')?.getAttribute('aria-label'),
+          visibleHeading: document.querySelector('main h1')?.textContent.trim(),
+          message: document.body.innerText.slice(-350)
+        }))()`)));
+        await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-gradebook-navigation-failure.png'));
+        throw error;
+      }
       await evaluate(client, `(() => { const select = document.querySelector('#gradebook-active-subject'); select.value = 'Deutsch'; select.dispatchEvent(new Event('change', {bubbles:true})); })()`);
       await clickButton(client, 'Mitarbeit');
       await waitFor(client, 'German participation rows', `document.querySelector('#gradebook-active-subject')?.value === 'Deutsch' && Boolean(document.querySelector('input[data-quick-entry="mitarbeit"]'))`);
@@ -3784,7 +3798,15 @@ async function main() {
     for(const width of [360,820,1360]){
       await client.send('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:false});
       await evaluate(client,`document.querySelector('[data-class-chart="behavior"]').scrollIntoView({block:'center'})`);
-      await waitFor(client,'class behavior good above poor at '+width,`(() => {const root=document.querySelector('[data-class-chart="behavior"]'),ticks=Array.from(root.querySelectorAll('.recharts-cartesian-axis-tick-value'));const good=ticks.find(t=>t.textContent==='1'),poor=ticks.find(t=>t.textContent==='5');return good&&poor&&good.getBoundingClientRect().top<poor.getBoundingClientRect().top&&root.textContent.includes('1 = sehr positiv');})()`);
+      await waitFor(client,'class behavior labels or honest sparse state at '+width,`(() => {
+        const root=document.querySelector('[data-class-chart="behavior"]');
+        if (!root) return false;
+        const sparse=root.querySelector('[data-class-sparse-chart="behavior"]');
+        if (sparse) return root.textContent.includes('1 = sehr positiv') && /Nur \\d+ erfasste Zeitabschnitte|Noch keine Verhaltenseinträge/.test(sparse.textContent);
+        const ticks=Array.from(root.querySelectorAll('.recharts-cartesian-axis-tick-value'));
+        const good=ticks.find(t=>t.textContent.trim()==='1'),poor=ticks.find(t=>t.textContent.trim()==='5');
+        return Boolean(good&&poor&&good.getBoundingClientRect().top<poor.getBoundingClientRect().top&&root.textContent.includes('1 = sehr positiv'));
+      })()`);
       await saveScreenshot(client,SCREENSHOT_PATH.replace('.png','-class-behavior-'+width+'.png'));
     }
     await clickButton(client,'Zur Klassenübersicht',true);
@@ -3816,7 +3838,11 @@ async function main() {
         if(key === 'gradebook' && width === 390) {
           await evaluate(client, `Array.from(document.querySelectorAll('[data-gradebook-header] button')).find(b=>b.textContent.trim()==='Mehr').click()`);
           await sleep(200);
-          const available = await evaluate(client, `['Notenrechner','Gewichtung','Auswertungen','Leistungsfeedback'].every(label=>Array.from(document.querySelectorAll('[data-gradebook-header] button')).some(b=>b.textContent.trim().endsWith(label)&&b.getBoundingClientRect().width>0))`);
+          const available = await evaluate(client, `(() => {
+            const menu=document.querySelector('#gradebook-tools-menu[role="dialog"][aria-modal="true"]');
+            return Boolean(menu && ['Notenrechner','Gewichtung','Auswertungen','Leistungsfeedback'].every(label=>
+              Array.from(menu.querySelectorAll('button')).some(b=>b.textContent.trim().endsWith(label)&&b.getBoundingClientRect().width>0)));
+          })()`);
           if(!available) throw new Error('Gradebook mobile tools missing.');
           await client.send('Input.dispatchKeyEvent', {type:'keyDown', key:'Escape', code:'Escape'});
           await client.send('Input.dispatchKeyEvent', {type:'keyUp', key:'Escape', code:'Escape'});
