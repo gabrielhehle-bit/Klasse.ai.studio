@@ -17,6 +17,9 @@ import {
   deleteManualCashTransaction,
   formatOrgaDate,
   getLocalOrgaDateKey,
+  getOrgaDueGroup,
+  getCollectionPaymentStatus,
+  summarizeCollectionPayments,
   markCollectionPaidForStudents,
   normalizeKlassenkasse,
   parseEuroInput,
@@ -176,6 +179,19 @@ export default function OrgaLists() {
 
   // Active checklisten
   const activeChecklisten = checklisten;
+  const todayOrgaKey = getLocalOrgaDateKey();
+  const dueThisWeekChecklisten = activeChecklisten.filter(c => getOrgaDueGroup(c.datum, todayOrgaKey) === 'thisWeek');
+  const overdueChecklisten = activeChecklisten.filter(c => getOrgaDueGroup(c.datum, todayOrgaKey) === 'overdue');
+  const otherChecklisten = activeChecklisten.filter(c =>
+    !['overdue', 'thisWeek'].includes(getOrgaDueGroup(c.datum, todayOrgaKey))
+  );
+  const openCollectionsWithDue = activeSammlungen.filter(s => s.faelligkeit &&
+    summarizeCollectionPayments(s, students.map(student => student.id)).outstanding > 0
+  );
+  const dueThisWeekCollections = openCollectionsWithDue.filter(s => getOrgaDueGroup(s.faelligkeit, todayOrgaKey) === 'thisWeek');
+  const overdueCollections = openCollectionsWithDue.filter(s => getOrgaDueGroup(s.faelligkeit, todayOrgaKey) === 'overdue');
+  const thisWeekCount = dueThisWeekChecklisten.length + dueThisWeekCollections.length;
+  const overdueCount = overdueChecklisten.length + overdueCollections.length;
 
   // Selected sammlung reference
   const currentSammlung = kasse.sammlungen.find(s => s.id === selectedSammlungId);
@@ -240,7 +256,13 @@ export default function OrgaLists() {
 
   // Mark all paid in one click
   const markAllPaidForSammlung = (samId: string) => {
-    if (!confirm('Alle Schüler als vollständig bezahlt markieren?')) return;
+    const collection = kasse.sammlungen.find(s => s.id === samId);
+    if (!collection) return;
+    const summary = summarizeCollectionPayments(collection, students.map(st => st.id));
+    if (summary.outstandingChildren === 0) return;
+    if (!window.confirm(
+      `Wirklich ${summary.outstandingChildren} Kinder bei „${collection.titel}“ als vollständig bezahlt buchen?\n\n${formatEuro(summary.outstanding)} werden als tatsächlich erhaltene Zahlungen eingetragen. Dieser Vorgang erstellt Kassenbuch-Einträge.\n\nNur bestätigen, wenn das Geld wirklich eingegangen ist.`
+    )) return;
     setApp(prev => {
       const currentKasse = normalizeKlassenkasse(prev.klassenkasse);
       const classStudents = (prev.schueler || []).map(student => ({
