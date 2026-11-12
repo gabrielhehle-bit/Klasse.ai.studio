@@ -67,10 +67,17 @@ function isEmptyAssessmentCell(value: unknown) {
   return value === null || value === undefined || value === '';
 }
 
-function cloneMetaList(container: Record<string, any>, key: string) {
-  const existing = container[key] || [];
-  container[key] = Array.isArray(existing) ? [...existing] : Object.assign([], existing);
-  return container[key] as any[];
+function cloneMetaList(container: Record<string, any>, key: string): Record<number, any> {
+  const existing = container[key];
+  // Gradebook stores numeric-keyed column metadata as objects, while older
+  // dossiers may use arrays. Preserve the original representation so a
+  // dossier edit never turns sparse object metadata into JSON arrays.
+  container[key] = Array.isArray(existing)
+    ? [...existing]
+    : existing && typeof existing === 'object'
+      ? { ...existing }
+      : {};
+  return container[key] as Record<number, any>;
 }
 
 /**
