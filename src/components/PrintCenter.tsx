@@ -47,6 +47,7 @@ import Markdown from 'react-markdown';
 import PrintHeader from './PrintHeader';
 import KELParentReport, { type KELParentReportOptions } from './KELParentReport';
 import { getStudentNotes } from '../lib/studentMetrics';
+import { getStudentAssessmentDomainPerformance } from '../lib/assessmentDomainPerformance';
 import { exportSchuelerPDF } from '../lib/exportService';
 import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, sortYearlySubjects, getSchulstartKW, getSemester, getCurrentSchuljahr, formatLocalDateKey } from '../lib/utils';
 import { getFachCfg, berechne, getNotenLabel, getAssessmentMode } from '../lib/GradeUtils';
@@ -345,6 +346,7 @@ export default function PrintCenter() {
   const [elternblattShowNotes, setElternblattShowNotes] = useState(false);
   const [elternblattShowSignatures, setElternblattShowSignatures] = useState(true);
   const [elternblattSubjects, setElternblattSubjects] = useState<string[]>(['Deutsch', 'Mathematik']);
+  const [elternblattSubjectAreas, setElternblattSubjectAreas] = useState<Record<string, string[]>>({});
   const [elternblattSharedNoteIds, setElternblattSharedNoteIds] = useState<string[]>([]);
   const [elternblattStrengthsText, setElternblattStrengthsText] = useState('');
   const [elternblattGoalsText, setElternblattGoalsText] = useState('');
@@ -355,7 +357,8 @@ export default function PrintCenter() {
     period: elternblattPeriod, showMood: elternblattShowMood, showBehavior: elternblattShowBehavior,
     showParticipation: elternblattShowParticipation, showLearning: elternblattShowLearning,
     showNotes: elternblattShowNotes, showSignatures: elternblattShowSignatures,
-    subjects: elternblattSubjects, sharedNoteIds: elternblattSharedNoteIds,
+    subjects: elternblattSubjects, subjectAreas: elternblattSubjectAreas,
+    sharedNoteIds: elternblattSharedNoteIds,
     strengthsText: elternblattStrengthsText,
     goalsText: elternblattGoalsText,
     agreementsText: elternblattAgreementsText,
@@ -369,6 +372,7 @@ export default function PrintCenter() {
       // into a newly selected document or a later KEL print session.
       setElternblattShowNotes(false);
       setElternblattSharedNoteIds([]);
+      setElternblattSubjectAreas({});
       setElternblattStrengthsText('');
       setElternblattGoalsText('');
       setElternblattAgreementsText('');
@@ -659,6 +663,7 @@ export default function PrintCenter() {
         setElternblattSelectedStudentId(app.activePrintStudentId);
         setElternblattShowNotes(false);
         setElternblattSharedNoteIds([]);
+        setElternblattSubjectAreas({});
         setElternblattStrengthsText('');
         setElternblattGoalsText('');
         setElternblattAgreementsText('');
@@ -679,6 +684,7 @@ export default function PrintCenter() {
     setElternblattSelectedStudentId(app.activePrintStudentId && students.some(st => st.id === app.activePrintStudentId) ? app.activePrintStudentId : firstStudentId);
     setElternblattSharedNoteIds([]);
     setElternblattShowNotes(false);
+    setElternblattSubjectAreas({});
     setElternblattStrengthsText('');
     setElternblattGoalsText('');
     setElternblattAgreementsText('');
@@ -2825,6 +2831,7 @@ export default function PrintCenter() {
                         setElternblattSelectedStudentId(event.target.value);
                         setElternblattShowNotes(false);
                         setElternblattSharedNoteIds([]);
+                        setElternblattSubjectAreas({});
                         setElternblattStrengthsText('');
                         setElternblattGoalsText('');
                         setElternblattAgreementsText('');
@@ -2868,6 +2875,51 @@ export default function PrintCenter() {
                       </label>
                     ))}
                   </fieldset>
+                  {elternblattShowLearning && elternblattSubjects.length > 0 && (
+                    <fieldset data-kel-parent-area-picker className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+                      <legend className="text-[0.6875rem] font-black text-slate-700">Lernbereiche für die Diagramme</legend>
+                      <p className="text-[0.6875rem] leading-relaxed text-slate-600">
+                        Wähle je Fach bis zu vier dokumentierte Lernbereiche für das A4-Elternblatt.
+                        Standardmäßig erscheinen die ersten vier. Die Auswahl gilt nur für diesen Ausdruck.
+                      </p>
+                      {elternblattSubjects.map(fach => {
+                        const available = getStudentAssessmentDomainPerformance(app, elternblattSelectedStudentId, fach, 'both');
+                        const selected = elternblattSubjectAreas[fach] ?? available.slice(0, 4).map(area => area.area);
+                        return (
+                          <div key={fach} data-kel-parent-area-subject={fach} className="space-y-1.5 border-t border-slate-100 pt-2">
+                            <p className="text-xs font-extrabold text-slate-800">
+                              {fach} <span className="font-medium text-slate-500">· {selected.length} von höchstens 4 ausgewählt</span>
+                            </p>
+                            {available.length === 0
+                              ? <p className="text-[0.6875rem] text-slate-500">Noch keine auswertbaren Lernbereiche dokumentiert.</p>
+                              : <div className="grid gap-1">
+                                  {available.map(area => {
+                                    const checked = selected.includes(area.area);
+                                    return (
+                                      <label key={area.area} className="flex min-h-9 items-start gap-2 rounded-lg bg-slate-50 px-2 py-1.5 text-xs text-slate-700">
+                                        <input type="checkbox" data-kel-parent-area-checkbox
+                                          className="mt-0.5" checked={checked}
+                                          disabled={!checked && selected.length >= 4}
+                                          onChange={event => setElternblattSubjectAreas(previous => {
+                                            const current = previous[fach] ??
+                                              available.slice(0, 4).map(item => item.area);
+                                            const next = event.target.checked
+                                              ? current.length < 4 ? [...current, area.area] : current
+                                              : current.filter(value => value !== area.area);
+                                            return { ...previous, [fach]: next };
+                                          })} />
+                                        <span className="min-w-0 flex-1 break-words">{area.area}
+                                          <span className="block text-[0.625rem] text-slate-500">{area.assessments} dokumentierte Nachweise</span>
+                                        </span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>}
+                          </div>
+                        );
+                      })}
+                    </fieldset>
+                  )}
                   <div data-kel-parent-editor-controls className="space-y-3 rounded-xl border border-teal-200 bg-teal-50/70 p-3">
                     <div>
                       <h4 className="text-xs font-black text-teal-950">Persönliche Rückmeldung für die Eltern</h4>
