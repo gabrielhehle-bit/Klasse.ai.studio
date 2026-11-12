@@ -12,6 +12,8 @@ const types = readFileSync('src/types.ts','utf8');
 test('KEL opens exactly the same dossier component and KEL reflection as the class pupil dossier', () => {
   assert.match(kel, /import StudentDossier from '\.\/StudentDossier'/);
   assert.match(kel, /data-kel-shared-dossier/);
+  assert.match(kel, /useState<'protokolle' \| 'analyse'>\('analyse'\)/);
+  assert.match(kel, /setSelectedStudentId\(m\.schuelerId\); setKelTab\('analyse'\)/);
   assert.match(kel, /<StudentDossier[\s\S]*schuelerId=\{selectedStudentId\}/);
   assert.match(kel, /initialTab="kel_reflexion"/);
   assert.match(dossier, /initialTab\?: DossierTab/);
