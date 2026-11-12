@@ -65,6 +65,70 @@ export function parseEuroInput(
   return { valid: true, value };
 }
 
+export type CollectionPaymentSummary = {
+  total: number;
+  fullyPaid: number;
+  partlyPaid: number;
+  unpaid: number;
+  outstandingChildren: number;
+  collected: number;
+  outstanding: number;
+  expected: number;
+  percentCollected: number;
+};
+
+/** Count actual per-child amounts, not potentially stale legacy status flags. */
+export function summarizeCollectionPayments(
+  collection: Pick<Geldsammlung, 'betrag' | 'betraege'>,
+  studentIds: string[]
+): CollectionPaymentSummary {
+  const target = roundEuro(Math.max(0, Number(collection.betrag) || 0));
+  const summary: CollectionPaymentSummary = {
+    total: studentIds.length, fullyPaid: 0, partlyPaid: 0, unpaid: 0,
+    outstandingChildren: 0, collected: 0, outstanding: 0, expected: roundEuro(studentIds.length * target),
+    percentCollected: 0,
+  };
+  for (const studentId of studentIds) {
+    const raw = Number(collection.betraege?.[studentId]) || 0;
+    const paid = roundEuro(Math.min(target, Math.max(0, raw)));
+    summary.collected = roundEuro(summary.collected + paid);
+    summary.outstanding = roundEuro(summary.outstanding + Math.max(0, target - paid));
+    const status = getCollectionPaymentStatus(paid, target);
+    if (status === 'bezahlt') summary.fullyPaid++;
+    else if (status === 'teilweise') summary.partlyPaid++;
+    else summary.unpaid++;
+    if (paid < target) summary.outstandingChildren++;
+  }
+  summary.percentCollected = summary.expected > 0
+    ? Math.min(100, Math.max(0, (summary.collected / summary.expected) * 100)) : 0;
+  return summary;
+}
+
+export type OrgaDueGroup = 'overdue' | 'thisWeek' | 'later' | 'undated';
+
+function dateOnlyForOrga(value?: string): string | null {
+  if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return dateInputToLocalNoonIso(value) ? value : null;
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : getLocalOrgaDateKey(date);
+}
+
+/** Compare calendar dates in the teacher's local timezone; week starts Monday. */
+export function getOrgaDueGroup(dateValue: string | undefined, todayKey = getLocalOrgaDateKey()): OrgaDueGroup {
+  const dueKey = dateOnlyForOrga(dateValue);
+  if (!dueKey) return 'undated';
+  const base = dateInputToLocalNoonIso(todayKey);
+  if (!base) return 'undated';
+  const today = new Date(base);
+  const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (today.getDay() + 6) % 7, 12);
+  const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6, 12);
+  if (dueKey < todayKey) return 'overdue';
+  if (dueKey >= getLocalOrgaDateKey(monday) && dueKey <= getLocalOrgaDateKey(sunday)) return 'thisWeek';
+  return 'later';
+}
+
 export function getCollectionPaymentStatus(
   paidAmount: number,
   targetAmount: number

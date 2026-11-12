@@ -17,6 +17,9 @@ import {
   deleteManualCashTransaction,
   formatOrgaDate,
   getLocalOrgaDateKey,
+  getOrgaDueGroup,
+  getCollectionPaymentStatus,
+  summarizeCollectionPayments,
   markCollectionPaidForStudents,
   normalizeKlassenkasse,
   parseEuroInput,
@@ -157,17 +160,14 @@ export default function OrgaLists() {
   const archivedSammlungen = kasse.sammlungen.filter(s => s.abgeschlossen);
 
   // Count open collections with unpaid balance
-  const openSammlungenCount = activeSammlungen.filter(s => {
-    return students.some(st => (s.betraege?.[st.id] || 0) < s.betrag);
-  }).length;
+  const openSammlungenCount = activeSammlungen.filter(s =>
+    summarizeCollectionPayments(s, students.map(st => st.id)).outstanding > 0
+  ).length;
 
   // Total open money remaining across active collections
-  const totalOpenDebtSum = activeSammlungen.reduce((sum, s) => {
-    return sum + students.reduce((stSum, st) => {
-      const paid = s.betraege?.[st.id] || 0;
-      return stSum + Math.max(0, s.betrag - paid);
-    }, 0);
-  }, 0);
+  const totalOpenDebtSum = activeSammlungen.reduce((sum, collection) =>
+    sum + summarizeCollectionPayments(collection, students.map(st => st.id)).outstanding, 0
+  );
 
   // Students with open payments
   const studentsWithOpenPayments = students.filter(st => {
@@ -176,12 +176,31 @@ export default function OrgaLists() {
 
   // Active checklisten
   const activeChecklisten = checklisten;
+  const todayOrgaKey = getLocalOrgaDateKey();
+  const dueThisWeekChecklisten = activeChecklisten.filter(c => getOrgaDueGroup(c.datum, todayOrgaKey) === 'thisWeek');
+  const overdueChecklisten = activeChecklisten.filter(c => getOrgaDueGroup(c.datum, todayOrgaKey) === 'overdue');
+  const otherChecklisten = activeChecklisten.filter(c =>
+    !['overdue', 'thisWeek'].includes(getOrgaDueGroup(c.datum, todayOrgaKey))
+  );
+  const openCollectionsWithDue = activeSammlungen.filter(s => s.faelligkeit &&
+    summarizeCollectionPayments(s, students.map(student => student.id)).outstanding > 0
+  );
+  const dueThisWeekCollections = openCollectionsWithDue.filter(s => getOrgaDueGroup(s.faelligkeit, todayOrgaKey) === 'thisWeek');
+  const overdueCollections = openCollectionsWithDue.filter(s => getOrgaDueGroup(s.faelligkeit, todayOrgaKey) === 'overdue');
+  const thisWeekCount = dueThisWeekChecklisten.length + dueThisWeekCollections.length;
+  const overdueCount = overdueChecklisten.length + overdueCollections.length;
 
   // Selected sammlung reference
   const currentSammlung = kasse.sammlungen.find(s => s.id === selectedSammlungId);
 
   // Handle 1-click toggle payment
   const toggleStudentPayment = (sid: string, sammlungId: string) => {
+    const collectionBefore = kasse.sammlungen.find(item => item.id === sammlungId);
+    if (!collectionBefore) return;
+    const amountBefore = collectionBefore.betraege?.[sid] || 0;
+    if (amountBefore >= collectionBefore.betrag && !window.confirm(
+      `Zahlung von ${formatEuro(amountBefore)} für „${collectionBefore.titel}“ rückgängig machen?\nDer Kassenstand wird entsprechend korrigiert und ein Gegenbuchungseintrag erstellt.`
+    )) return;
     setApp(prev => {
       const currentKasse = normalizeKlassenkasse(prev.klassenkasse);
       const collection = currentKasse.sammlungen.find(item => item.id === sammlungId);
@@ -240,7 +259,13 @@ export default function OrgaLists() {
 
   // Mark all paid in one click
   const markAllPaidForSammlung = (samId: string) => {
-    if (!confirm('Alle Schüler als vollständig bezahlt markieren?')) return;
+    const collection = kasse.sammlungen.find(s => s.id === samId);
+    if (!collection) return;
+    const summary = summarizeCollectionPayments(collection, students.map(st => st.id));
+    if (summary.outstandingChildren === 0) return;
+    if (!window.confirm(
+      `Wirklich ${summary.outstandingChildren} Kinder bei „${collection.titel}“ als vollständig bezahlt buchen?\n\n${formatEuro(summary.outstanding)} werden als tatsächlich erhaltene Zahlungen eingetragen. Dieser Vorgang erstellt Kassenbuch-Einträge.\n\nNur bestätigen, wenn das Geld wirklich eingegangen ist.`
+    )) return;
     setApp(prev => {
       const currentKasse = normalizeKlassenkasse(prev.klassenkasse);
       const classStudents = (prev.schueler || []).map(student => ({
@@ -656,14 +681,14 @@ export default function OrgaLists() {
             {/* 2. SCHÜLER MIT OFFENEN ZAHLUNGEN */}
             <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-3xs space-y-1">
               <div className="flex items-center justify-between text-slate-400">
-                <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-500">Noch nicht bezahlt</span>
+                <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-500">Kinder mit Restbetrag</span>
                 <Clock size={16} className="text-amber-500" />
               </div>
               <div className="text-[1.5rem] font-black text-slate-900 leading-tight">
                 {studentsWithOpenPayments.length} <span className="text-[0.8125rem] font-bold text-slate-400">Kinder</span>
               </div>
               <p className="text-[0.6875rem] font-semibold text-slate-500">
-                von insgesamt {students.length} Schülern
+                bei {activeSammlungen.length} aktiven Sammlungen
               </p>
             </div>
 
@@ -674,10 +699,10 @@ export default function OrgaLists() {
                 <AlertCircle size={16} className="text-sky-500" />
               </div>
               <div className="text-[1.5rem] font-black text-slate-900 leading-tight">
-                {activeSammlungen.filter(s => s.faelligkeit).length + activeChecklisten.length} <span className="text-[0.8125rem] font-bold text-slate-400">Posten</span>
+                {thisWeekCount} <span className="text-[0.8125rem] font-bold text-slate-400">fällig</span>
               </div>
-              <p className="text-[0.6875rem] font-semibold text-slate-500 truncate">
-                Fälligkeiten & Rückläufe
+              <p className="text-[0.6875rem] font-semibold text-slate-500">
+                {overdueCount > 0 ? `${overdueCount} zusätzlich überfällig` : 'Nur diese Kalenderwoche'}
               </p>
             </div>
 
@@ -690,7 +715,8 @@ export default function OrgaLists() {
               <div className="text-[1.5rem] font-black text-slate-900 leading-tight font-mono">
                 {formatEuro(kasse.kontostand)}
               </div>
-              <button 
+              <p className="text-[0.6875rem] text-slate-500">Gebuchtes Geld, ohne offene Forderungen</p>
+              <button
                 onClick={() => setActiveTab('kassenbuch')} 
                 className="text-[0.6875rem] font-bold text-indigo-600 hover:underline inline-flex items-center gap-1"
               >
@@ -746,13 +772,11 @@ export default function OrgaLists() {
               ) : (
                 <div className="space-y-3">
                   {activeSammlungen.map(s => {
-                    const paidCount = students.filter(st => (s.status[st.id] || 'offen') === 'bezahlt').length;
-                    const openCount = students.length - paidCount;
+                    const summary = summarizeCollectionPayments(s, students.map(st => st.id));
+                    const paidCount = summary.fullyPaid;
+                    const openCount = summary.outstandingChildren;
                     const isFullyPaid = openCount === 0 && students.length > 0;
-                    const openSumForThis = students.reduce((sum, st) => {
-                      const paid = s.betraege?.[st.id] || 0;
-                      return sum + Math.max(0, s.betrag - paid);
-                    }, 0);
+                    const openSumForThis = summary.outstanding;
 
                     return (
                       <div
@@ -795,7 +819,8 @@ export default function OrgaLists() {
                         <div className="space-y-1.5">
                           <div className="flex items-center justify-between text-[0.6875rem] font-bold">
                             <span className="text-slate-600">
-                              <strong className="text-slate-900">{paidCount}</strong> von {students.length} bezahlt
+                              <strong className="text-slate-900">{paidCount}</strong> von {students.length} vollständig bezahlt
+                              {summary.partlyPaid > 0 && <span className="ml-1 text-amber-700">· {summary.partlyPaid} teilweise</span>}
                             </span>
                             {openCount > 0 ? (
                               <span className="text-amber-600 font-extrabold">
@@ -806,22 +831,22 @@ export default function OrgaLists() {
                             )}
                           </div>
 
-                          <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden flex">
-                            <div 
-                              className="bg-emerald-500 h-full transition-all"
-                              style={{ width: `${students.length > 0 ? (paidCount / students.length) * 100 : 0}%` }}
-                            />
+                          <div role="progressbar" aria-label={`Eingegangene Zahlungen für ${s.titel}`}
+                            aria-valuenow={Math.round(summary.percentCollected)} aria-valuemin={0} aria-valuemax={100}
+                            className="w-full bg-slate-100 rounded-full h-2 overflow-hidden flex">
+                            <div className="bg-emerald-500 h-full transition-all"
+                              style={{ width: `${summary.percentCollected}%` }} />
                           </div>
+                          <p className="text-[0.6875rem] font-semibold text-slate-500">
+                            {formatEuro(summary.collected)} von {formatEuro(summary.expected)} eingegangen
+                          </p>
                         </div>
 
                         {/* CARD BOTTOM ACTION BAR */}
                         <div className="pt-1 flex items-center justify-between text-[0.6875rem]">
-                          <button
-                            onClick={() => markAllPaidForSammlung(s.id)}
-                            className="text-slate-500 hover:text-emerald-600 font-semibold flex items-center gap-1"
-                          >
-                            <CheckCircle2 size={13} /> Alle als bezahlt markieren
-                          </button>
+                          <span className="font-medium text-slate-500">
+                            Zahlungen pro Kind unter „Öffnen“ erfassen
+                          </span>
 
                           <button
                             onClick={() => toggleArchiveSammlung(s.id)}
@@ -852,45 +877,71 @@ export default function OrgaLists() {
                 </button>
               </div>
 
-              {activeChecklisten.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-6 text-center space-y-2">
-                  <p className="text-[0.8125rem] font-bold text-slate-600">Keine offenen Ausflüge oder Checklisten</p>
-                  <p className="text-[0.6875rem] text-slate-400">Erstellen Sie Rücklaufzettel oder Aufgaben für die Klasse.</p>
+              {thisWeekCount === 0 && overdueCount === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-5 text-center space-y-2" data-orga-week-empty>
+                  <p className="text-[0.8125rem] font-bold text-slate-700">Diese Woche ist nichts fällig</p>
+                  <p className="text-[0.6875rem] text-slate-500">Nur tatsächlich datierte Termine werden hier gezählt. Weitere Checklisten bleiben unten erreichbar.</p>
                 </div>
               ) : (
-                <div className="space-y-2.5">
-                  {activeChecklisten.map(c => {
+                <div className="space-y-2.5" data-orga-week-items>
+                  {overdueCount > 0 && (
+                    <p className="text-[0.6875rem] font-bold text-rose-700">{overdueCount} überfällig – bitte prüfen</p>
+                  )}
+                  {[...overdueCollections, ...dueThisWeekCollections].map(collection => {
+                    const summary = summarizeCollectionPayments(collection, students.map(st => st.id));
+                    const overdue = getOrgaDueGroup(collection.faelligkeit, todayOrgaKey) === 'overdue';
                     return (
-                      <div
-                        key={c.id}
-                        className="bg-white rounded-2xl border border-slate-200/80 p-3.5 shadow-3xs flex items-center justify-between gap-3 hover:border-sky-200 transition-all"
-                      >
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-2">
-                            <Backpack size={15} className="text-sky-500" />
-                            <h3 className="text-[0.8125rem] font-bold text-slate-900">{c.titel}</h3>
-                          </div>
-                          {c.datum && (
-                            <p className="text-[0.6875rem] font-semibold text-slate-400">
-                              Termin: {formatOrgaDate(c.datum)}
-                            </p>
-                          )}
+                      <div key={collection.id} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-3" data-orga-week-collection>
+                        <div className="min-w-0">
+                          <p className="truncate text-[0.8125rem] font-bold text-slate-900">{collection.titel}</p>
+                          <p className={`text-[0.6875rem] font-semibold ${overdue ? 'text-rose-700' : 'text-slate-500'}`}>
+                            {overdue ? 'Überfällig' : 'Diese Woche'}: {formatOrgaDate(collection.faelligkeit)} · {summary.outstandingChildren} Kinder, {formatEuro(summary.outstanding)} offen
+                          </p>
                         </div>
-
-                        <button
-                          onClick={() => {
-                            setSelectedChecklisteId(c.id);
-                            setActiveTab('checklisten');
-                          }}
-                          className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[0.75rem] transition-all"
-                        >
-                          Ansehen
-                        </button>
+                        <button type="button" onClick={() => { setSelectedSammlungId(collection.id); setActiveTab('sammlung-detail'); }}
+                          className="min-h-10 shrink-0 rounded-xl bg-indigo-50 px-3 text-xs font-bold text-indigo-700 hover:bg-indigo-100">Zahlungen</button>
+                      </div>
+                    );
+                  })}
+                  {[...overdueChecklisten, ...dueThisWeekChecklisten].map(checkliste => {
+                    const overdue = getOrgaDueGroup(checkliste.datum, todayOrgaKey) === 'overdue';
+                    return (
+                      <div key={checkliste.id} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-3" data-orga-week-checklist>
+                        <div className="min-w-0">
+                          <p className="truncate text-[0.8125rem] font-bold text-slate-900">{checkliste.titel}</p>
+                          <p className={`text-[0.6875rem] font-semibold ${overdue ? 'text-rose-700' : 'text-slate-500'}`}>
+                            {overdue ? 'Überfällig' : 'Termin'}: {formatOrgaDate(checkliste.datum)}
+                          </p>
+                        </div>
+                        <button type="button" onClick={() => { setSelectedChecklisteId(checkliste.id); setActiveTab('checklisten'); }}
+                          className="min-h-10 shrink-0 rounded-xl bg-slate-100 px-3 text-xs font-bold text-slate-700 hover:bg-slate-200">Ansehen</button>
                       </div>
                     );
                   })}
                 </div>
               )}
+
+              {otherChecklisten.length > 0 && (
+                <details data-orga-other-checklists className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+                  <summary className="cursor-pointer text-xs font-bold text-slate-700">
+                    Weitere Checklisten & Ausflüge ({otherChecklisten.length})
+                  </summary>
+                  <div className="mt-2 space-y-1.5">
+                    {otherChecklisten.map(checkliste => (
+                      <button key={checkliste.id} type="button"
+                        onClick={() => { setSelectedChecklisteId(checkliste.id); setActiveTab('checklisten'); }}
+                        className="flex min-h-10 w-full items-center justify-between gap-2 rounded-lg bg-slate-50 px-2.5 py-2 text-left text-xs hover:bg-slate-100">
+                        <span className="min-w-0 truncate font-semibold text-slate-700">{checkliste.titel}</span>
+                        <span className="shrink-0 text-[0.65rem] text-slate-500">{checkliste.datum ? formatOrgaDate(checkliste.datum) : 'Ohne Termin'}</span>
+                      </button>
+                    ))}
+                  </div>
+                </details>
+              )}
+              <button type="button" onClick={() => setActiveTab('checklisten')}
+                className="min-h-10 rounded-lg px-2 text-xs font-bold text-sky-700 hover:bg-sky-50">
+                Alle Ausflüge & Checklisten öffnen <ArrowRight size={13} className="ml-1 inline" />
+              </button>
 
               {/* QUICK LINKS TO TOOLS */}
               <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/60 space-y-2">
@@ -961,7 +1012,7 @@ export default function OrgaLists() {
                   onClick={() => markAllPaidForSammlung(currentSammlung.id)}
                   className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold text-[0.75rem] flex items-center gap-1.5 transition-all"
                 >
-                  <CheckCircle2 size={15} /> Alle bezahlt
+                  <CheckCircle2 size={15} /> Alle Zahlungen buchen
                 </button>
 
                 <button
@@ -995,13 +1046,13 @@ export default function OrgaLists() {
                   onClick={() => setStudentFilter('open')}
                   className={`px-3 py-1 rounded-lg text-[0.75rem] font-bold transition-all ${studentFilter === 'open' ? 'bg-white text-amber-700 shadow-3xs' : 'text-slate-600 hover:text-slate-900'}`}
                 >
-                  Nur Offen ({students.filter(st => (currentSammlung.status[st.id] || 'offen') !== 'bezahlt').length})
+                  Noch offen ({students.filter(st => getCollectionPaymentStatus(currentSammlung.betraege?.[st.id] || 0, currentSammlung.betrag) !== 'bezahlt').length})
                 </button>
                 <button
                   onClick={() => setStudentFilter('paid')}
                   className={`px-3 py-1 rounded-lg text-[0.75rem] font-bold transition-all ${studentFilter === 'paid' ? 'bg-white text-emerald-700 shadow-3xs' : 'text-slate-600 hover:text-slate-900'}`}
                 >
-                  Nur Bezahlt ({students.filter(st => (currentSammlung.status[st.id] || 'offen') === 'bezahlt').length})
+                  Bezahlt ({students.filter(st => getCollectionPaymentStatus(currentSammlung.betraege?.[st.id] || 0, currentSammlung.betrag) === 'bezahlt').length})
                 </button>
               </div>
 
@@ -1027,13 +1078,13 @@ export default function OrgaLists() {
               {students
                 .filter(st => {
                   const matchesSearch = `${st.vorname} ${st.nachname}`.toLowerCase().includes(studentSearch.toLowerCase());
-                  const stStatus = currentSammlung.status[st.id] || 'offen';
+                  const stStatus = getCollectionPaymentStatus(currentSammlung.betraege?.[st.id] || 0, currentSammlung.betrag);
                   if (studentFilter === 'open') return matchesSearch && stStatus !== 'bezahlt';
                   if (studentFilter === 'paid') return matchesSearch && stStatus === 'bezahlt';
                   return matchesSearch;
                 })
                 .map((st, index) => {
-                  const status = currentSammlung.status[st.id] || 'offen';
+                  const status = getCollectionPaymentStatus(currentSammlung.betraege?.[st.id] || 0, currentSammlung.betrag);
                   const paidAmount = currentSammlung.betraege?.[st.id] || 0;
                   const isPaid = status === 'bezahlt';
                   const isPartial = status === 'teilweise';
@@ -1097,7 +1148,9 @@ export default function OrgaLists() {
 
                         {/* PRIMARY 1-CLICK TOGGLE BUTTON */}
                         <button
+                          type="button"
                           onClick={() => toggleStudentPayment(st.id, currentSammlung.id)}
+                          title={isPaid ? 'Zahlung mit Bestätigung rückgängig buchen' : 'Restbetrag als tatsächlich erhalten buchen'}
                           className={`px-4 py-2 rounded-xl text-[0.75rem] font-extrabold flex items-center gap-2 transition-all shadow-3xs ${
                             isPaid 
                               ? 'bg-emerald-500 text-white hover:bg-emerald-600' 
@@ -1109,17 +1162,17 @@ export default function OrgaLists() {
                           {isPaid ? (
                             <>
                               <CheckCircle2 size={16} />
-                              <span>Bezahlt ({formatEuro(currentSammlung.betrag)})</span>
+                              <span>Bezahlt · Korrigieren</span>
                             </>
                           ) : isPartial ? (
                             <>
                               <Clock size={16} />
-                              <span>Offen ({formatEuro(currentSammlung.betrag - paidAmount)})</span>
+                              <span>Rest {formatEuro(currentSammlung.betrag - paidAmount)} buchen</span>
                             </>
                           ) : (
                             <>
                               <span className="w-4 h-4 rounded-full border-2 border-slate-400 inline-block" />
-                              <span>Offen ({formatEuro(currentSammlung.betrag)})</span>
+                              <span>{formatEuro(currentSammlung.betrag)} erhalten buchen</span>
                             </>
                           )}
                         </button>
