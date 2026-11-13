@@ -14,7 +14,7 @@ const WochenplanExcelModal = React.lazy(() => import('./WochenplanExcelModal'));
 import { addWeeklyLessonToEmptyYearPlan, addWeeklyLessonsToYearPlan, buildYearlyAiTimetable, hasWeeklyPlanningDetails, mergeYearlyAssignmentsIntoWeeklyWeek, mergeYearlySuggestionIntoEmptyWeeklySlot } from '../lib/planningSync';
 import { toggleWeeklyCompletion, toggleYearlyEntryCompletion } from '../lib/planningCompletionSync';
 import { pasteCopiedLessonIntoEmptyWeek, reconcileCopiedLessonYearlyStatus, transferQuickPlannedLesson, type QuickPlanTransferMode } from '../lib/quickPlanLessonTransfer';
-import { moveOrSwapWeeklyLesson, parkWeeklyLessonSafely, restoreParkedWeeklyLessonSafely, type DragDropStatus } from '../lib/weeklyDragDropSafety';
+import { findFirstRestorableParkedSlot, moveOrSwapWeeklyLesson, parkWeeklyLessonSafely, restoreParkedWeeklyLessonSafely, type DragDropStatus } from '../lib/weeklyDragDropSafety';
 import { yearPlanCellEntries } from '../lib/yearlyPlanData';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
 import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots, isWeeklyLessonPrepared } from '../lib/weeklyPlanData';
@@ -345,6 +345,11 @@ export default function WeeklyPlan() {
   const [checkInExtraTodos, setCheckInExtraTodos] = useState('');
   const [copiedLesson, setCopiedLesson] = useState<any | null>(null);
   const [draggedOverCell, setDraggedOverCell] = useState<{tag: string, idx: number} | null>(null);
+  const [garageRestoreSelection, setGarageRestoreSelection] = useState<{
+    parkedIndex: number; parkedId: string; dayIdx: number; hourIdx: number;
+    kw: number; classId: unknown;
+  } | null>(null);
+  const [garageNotice, setGarageNotice] = useState<string | null>(null);
   const [showSchuelerWochenplanModal, setShowSchuelerWochenplanModal] = useState(false);
   const headerRef = useRef<HTMLDivElement>(null);
   const [navHeight, setNavHeight] = useState(120);
@@ -748,6 +753,73 @@ export default function WeeklyPlan() {
   }, []);
 
   const parkedLessons = app.parkgarage || [];
+  
+  // A keyboard/touch alternative to drag-and-drop. This reuses the exact
+  // immutable restore transaction and the yearly completion reconciliation.
+  const startGarageRestore = (parkedIndex: number, item: any) => {
+    if (typeof item?.id !== 'string' || !item.id) {
+      setGarageNotice('Dieser ältere Parkeintrag hat keine eindeutige Kennung und kann nicht automatisch zugeordnet werden.');
+      return;
+    }
+    const parkedId = item.id;
+    const preferredDayIdx = Math.max(0, TAGE_NAMEN.indexOf(selectedDay));
+    const first = findFirstRestorableParkedSlot({
+      week: app.wochenplanung?.[activeKW], garage: app.parkgarage,
+      parkedIndex, parkedIdentity: parkedId, targetWeek: activeKW,
+      preferredDayIdx,
+    });
+    setGarageRestoreSelection({
+      parkedIndex, parkedId, dayIdx: first?.dayIdx ?? preferredDayIdx,
+      hourIdx: first?.hourIdx ?? 0, kw: activeKW, classId: app.activeClassId,
+    });
+    setGarageNotice(first ? null : 'Kein geeigneter freier Platz gefunden. Du kannst unten einen anderen Tag und eine Stunde prüfen.');
+  };
+
+  const confirmGarageRestore = () => {
+    const choice = garageRestoreSelection;
+    if (!choice) return;
+    if (choice.kw !== activeKW || choice.classId !== app.activeClassId) {
+      setGarageNotice('Die Klasse oder Kalenderwoche hat gewechselt. Bitte den Parkeintrag erneut auswählen.');
+      setGarageRestoreSelection(null);
+      return;
+    }
+    const target = { dayIdx: choice.dayIdx, hourIdx: choice.hourIdx };
+    const preview = restoreParkedWeeklyLessonSafely({
+      week: app.wochenplanung?.[activeKW], garage: app.parkgarage,
+      parkedIndex: choice.parkedIndex, parkedIdentity: choice.parkedId,
+      target, targetWeek: activeKW,
+    });
+    if (preview.status !== 'restored') {
+      setGarageNotice(describeBlockedDrop(preview.status));
+      return;
+    }
+    setApp(prev => {
+      if (prev.activeClassId !== app.activeClassId ||
+          (prev.currentKW && prev.currentKW !== activeKW)) return prev;
+      const result = restoreParkedWeeklyLessonSafely({
+        week: prev.wochenplanung?.[activeKW], garage: prev.parkgarage,
+        parkedIndex: choice.parkedIndex, parkedIdentity: choice.parkedId,
+        target, targetWeek: activeKW,
+      });
+      if (result.status !== 'restored') return prev;
+      const year = prev.jahresplanung?.[activeKW] || {};
+      const revisedYear = reconcileCopiedLessonYearlyStatus({
+        week: result.week, year, target,
+        subjects: sortYearlySubjects(prev.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS),
+      });
+      return {
+        ...prev,
+        wochenplanung: { ...(prev.wochenplanung || {}), [activeKW]: result.week },
+        parkgarage: result.garage,
+        ...(revisedYear !== year ? {
+          jahresplanung: { ...(prev.jahresplanung || {}), [activeKW]: revisedYear },
+        } : {}),
+      };
+    });
+    setGarageRestoreSelection(null);
+    setGarageNotice(null);
+  };
+
 
   const incompleteWeeklySlots = useMemo(
     () => collectIncompleteWeeklyLessonSlots(app.wochenplanung?.[activeKW]),
