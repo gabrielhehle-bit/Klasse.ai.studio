@@ -150,3 +150,17 @@ test('Hilferuf-Namen bleiben bis zur bewussten Lehrer-Aktion zugeklappt', () => 
   assert.doesNotMatch(mobile, /<details data-weekly-mobile-help-details\s+open/);
   assert.match(mobile, /min-h-11 cursor-pointer/);
 });
+
+test('Tagesübersicht zeigt ausschließlich aggregierten Hilfebedarf mit erreichbarerer Stunde', () => {
+  assert.match(mobile, /summarizeDailyPendingHelp\(dayPlan, students, app\.schuljahr \|\| '', activeKW, day\)/);
+  assert.match(mobile, /dailyHelp\.requests > 0/);
+  assert.match(mobile, /data-weekly-mobile-help-overview/);
+  assert.match(mobile, /aria-label="Offene Hilferufe dieses Schultages"/);
+  assert.match(mobile, /dailyHelp\.children/);
+  assert.match(mobile, /dailyHelp\.lessons/);
+  assert.match(mobile, /dailyHelp\.slots\.map\(slot =>/);
+  assert.match(mobile, /data-weekly-mobile-help-shortcut/);
+  assert.match(mobile, /card\?\.scrollIntoView/);
+  assert.match(mobile, /card\?\.focus/);
+  assert.match(mobile, /tabIndex=\{-1\} data-weekly-day-card/);
+});

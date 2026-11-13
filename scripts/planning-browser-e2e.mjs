@@ -560,6 +560,20 @@ async function main() {
           if (initiallyPublished !== 'true') {
             throw new Error('Mobile child-plan control did not reflect the published saved task.');
           }
+          const dailyHelpOverview = await evaluate(client,
+            '(() => {const o=document.querySelector("[data-weekly-mobile-help-overview]");' +
+            'const shortcuts=o?.querySelectorAll("[data-weekly-mobile-help-shortcut]");' +
+            'return !!o&&o.textContent.includes("1 offener Hilferuf")&&' +
+            'o.textContent.includes("1 Kind")&&o.textContent.includes("1 Unterrichtsstunde")&&' +
+            'shortcuts?.length===1&&!o.textContent.includes("Hilfekind");})()');
+          if (!dailyHelpOverview) {
+            throw new Error('Teacher day help summary must show accurate totals without pupil names.');
+          }
+          const jumpedToHelp = await evaluate(client,
+            '(() => {const shortcut=document.querySelector("[data-weekly-mobile-help-shortcut]");' +
+            'const card=(' + mobileSourceCard + ');if(!shortcut||!card)return false;' +
+            'shortcut.click();return document.activeElement===card;})()');
+          if (!jumpedToHelp) throw new Error('Day help shortcut did not focus the correct lesson card.');
           const childProgressVisible = await evaluate(client,
             '(() => {const card=(' + mobileSourceCard + ');' +
             'const panel=card?.querySelector("[data-weekly-mobile-child-progress]");' +

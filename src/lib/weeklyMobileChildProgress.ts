@@ -1,4 +1,7 @@
 import type { Student } from '../types';
+import { MAX_LESSON_SLOTS } from '../constants';
+import { weekTaskKey } from './classroomWeeklyPlan';
+import { isWeeklyLessonSlotCovered } from './weeklyPlanData';
 
 export type MobileChildTaskSummary = {
   total: number;
@@ -53,4 +56,48 @@ export function getPendingChildHelpRequests(
       displayName: fullName || String(student.name || '').trim() || 'Kind ohne Namen',
     }];
   });
+}
+
+export type DailyPendingHelpOverview = {
+  requests: number;
+  children: number;
+  lessons: number;
+  slots: { hourIndex: number; subject: string; topic: string; requests: number }[];
+};
+
+/** Read-only help overview for the currently selected teacher day. Counts
+ * individual requests across lesson slots separately from distinct children.
+ * It uses exactly the published, visible lesson slots of the mobile cards.
+ */
+export function summarizeDailyPendingHelp(
+  dayPlan: Record<string, any> | undefined,
+  students: readonly (Pick<Student, 'id' | 'wochenplanFortschritt'> &
+    Partial<Pick<Student, 'vorname' | 'nachname' | 'name'>>)[],
+  schoolYear: string,
+  week: number,
+  day: string,
+): DailyPendingHelpOverview {
+  const empty: DailyPendingHelpOverview = { requests: 0, children: 0, lessons: 0, slots: [] };
+  if (!dayPlan || !Number.isInteger(week) || week < 1 || week > 53 ||
+    !['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'].includes(day)) return empty;
+
+  const distinctChildren = new Set<string>();
+  let requests = 0;
+  const slots: DailyPendingHelpOverview['slots'] = [];
+  for (let hourIndex = 0; hourIndex < MAX_LESSON_SLOTS; hourIndex++) {
+    if (isWeeklyLessonSlotCovered(dayPlan, hourIndex)) continue;
+    const lesson = dayPlan[hourIndex];
+    if (!lesson || typeof lesson !== 'object' || Array.isArray(lesson) ||
+      lesson.imKinderWochenplan !== true) continue;
+    const subject = typeof lesson.fach === 'string' ? lesson.fach.trim() : '';
+    const topic = typeof lesson.thema === 'string' ? lesson.thema.trim() : '';
+    if (!subject || !topic) continue;
+    const pending = getPendingChildHelpRequests(students,
+      weekTaskKey(schoolYear, week, day, hourIndex));
+    if (!pending.length) continue;
+    pending.forEach(child => distinctChildren.add(child.studentId));
+    requests += pending.length;
+    slots.push({ hourIndex, subject, topic, requests: pending.length });
+  }
+  return { requests, children: distinctChildren.size, lessons: slots.length, slots };
 }
