@@ -1,3 +1,5 @@
+import { isAssessmentValueMissing } from './GradeUtils';
+
 /** Return original slot indices: hiding empty placeholders must never move grades. */
 export function visibleAssessmentIndices(options: {
   count?: number;
@@ -32,7 +34,8 @@ export function visibleAssessmentIndices(options: {
 export function hasMissingVisibleAssessment(values: unknown[], indices: number[], participation?: Record<number, boolean>): boolean {
   return indices.some(index => {
     if (participation?.[index] === false) return false;
-    const value = values[index];
-    return value === undefined || value === null || value === '' || value === 'e' || value === 'f' || value === '-';
+    // Match the status colours and missing-cell highlights in the gradebook.
+    // A recorded zero is still a valid result; a marked non-participant is exempt.
+    return isAssessmentValueMissing(values[index]);
   });
 }
