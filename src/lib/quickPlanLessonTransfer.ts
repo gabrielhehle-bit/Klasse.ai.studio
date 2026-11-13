@@ -43,6 +43,7 @@ function findStoredSlot(week: Week, position: QuickPlanPosition): {
   // changing a hidden lesson. New targets go to an existing day, otherwise a
   // descriptive weekday key.
   const key = inNumeric ? numericKey : inNamed ? namedKey :
+    isRecord(week[namedKey]) ? namedKey :
     isRecord(week[numericKey]) ? numericKey : namedKey;
   return {
     key,
@@ -56,10 +57,6 @@ function findStoredSlot(week: Week, position: QuickPlanPosition): {
 function destinationIssue(week: Week, target: QuickPlanPosition, sourceLesson: Record<string, any>):
   'occupied-target' | 'invalid-slot' | null {
   if (findStoredSlot(week, target).exists) return 'occupied-target';
-  // Pupil progress is keyed by school-year/week/day/hour. Moving a published
-  // lesson without migrating those records would orphan existing feedback.
-  // Copying is safe: it creates an independent, unfinished child task.
-
   // Longer lessons reserve their following slots even when those do not have
   // separate saved objects. Check both directions, including a previous block
   // that already spans the apparently empty target.
