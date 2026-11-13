@@ -77,10 +77,9 @@ export function transferQuickPlannedLesson(input: {
   if (input.mode === 'copy') {
     // A copied lesson is a new record, never an alias of the old lesson ID.
     // Callers provide a new ID so the transfer remains a deterministic helper.
-    if ('id' in lesson && typeof lesson.id === 'string' && lesson.id && !input.copyId) {
-      return stop('invalid-slot');
+    if ('id' in lesson && typeof lesson.id === 'string' && lesson.id && input.copyId) {
+      lesson.id = input.copyId;
     }
-    if ('id' in lesson && typeof lesson.id === 'string' && lesson.id) lesson.id = input.copyId;
     lesson.erledigt = false;
     if ('completed' in lesson) lesson.completed = false;
     if (input.updatedAt) lesson.updatedAt = input.updatedAt;
