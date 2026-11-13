@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { transferQuickPlannedLesson as transfer } from './quickPlanLessonTransfer';
+import { reconcileCopiedLessonYearlyStatus, transferQuickPlannedLesson as transfer } from './quickPlanLessonTransfer';
 
 const source = { dayIdx: 0, hourIdx: 0 };
 const target = { dayIdx: 1, hourIdx: 2 };
@@ -105,6 +105,28 @@ test('Leere Quelle, identisches Ziel und ungültige Tages-/Stundenplätze änder
   assert.equal(transfer({ week, source: { dayIdx: 0, hourIdx: -1 }, target, mode: 'move' }).status, 'invalid-slot');
   assert.equal(transfer({ week, source, target: { dayIdx: 5, hourIdx: 0 }, mode: 'copy' }).status, 'invalid-slot');
   assert.equal(transfer({ week, source, target: { dayIdx: 1, hourIdx: 10 }, mode: 'move' }).status, 'invalid-slot');
+});
+
+test('Neue unerledigte Kopie öffnet das zugehörige Jahresthema ohne fachfremde Themen zu verändern', () => {
+  const week = {
+    Montag: { 0: { fach: 'Deutsch', thema: 'Silben', erledigt: true } },
+    Dienstag: { 3: { fach: 'Mathematik', thema: 'Silben', erledigt: true } },
+  };
+  const year = {
+    deutsch: { thema: 'Silben', completed: true },
+    mathematik: { thema: 'Silben', completed: true },
+  };
+  const original = structuredClone(year);
+  const copied = transfer({ week, source, target: { dayIdx: 2, hourIdx: 1 }, mode: 'copy' });
+  assert.equal(copied.status, 'copied');
+  const revised = reconcileCopiedLessonYearlyStatus({
+    week: copied.week, year, target: { dayIdx: 2, hourIdx: 1 },
+    subjects: [{ id: 'deutsch', label: 'Deutsch' }, { id: 'mathematik', label: 'Mathematik' }],
+  });
+  assert.equal(revised.deutsch.completed, false);
+  assert.equal(revised.mathematik, year.mathematik);
+  assert.equal(copied.week.Mittwoch[1].erledigt, false);
+  assert.deepEqual(year, original);
 });
 
 const ui = readFileSync('src/components/PlanungsZentrale.tsx', 'utf8');
