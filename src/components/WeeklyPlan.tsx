@@ -322,7 +322,7 @@ export default function WeeklyPlan() {
   const [dateStatusMenu, setDateStatusMenu] = useState<string | null>(null); // date string
   const [viewMode, setViewMode] = useState<'grid' | 'day' | 'klassenbuch'>(() =>
     typeof window !== 'undefined' && typeof window.matchMedia === 'function' &&
-      window.matchMedia('(max-width: 767px)').matches ? 'day' : 'grid'
+      window.matchMedia('(max-width: 1199px)').matches ? 'day' : 'grid'
   );
   const [classbookNoteDrafts, setClassbookNoteDrafts] = useState<Record<string, string>>({});
   const [selectedDay, setSelectedDay] = useState<string>(() => {
