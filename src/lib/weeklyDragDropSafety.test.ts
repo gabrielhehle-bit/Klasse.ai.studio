@@ -5,6 +5,7 @@ import {
   moveOrSwapWeeklyLesson as moveOrSwap,
   parkWeeklyLessonSafely as park,
   restoreParkedWeeklyLessonSafely as restore,
+  findFirstRestorableParkedSlot,
 } from './weeklyDragDropSafety';
 
 const monday = { dayIdx: 0, hourIdx: 0 };
@@ -166,4 +167,40 @@ test('Wochenplan: Drag and Parkgarage nutzen geprüfte Aktualisierung ohne direk
   assert.match(s, /parkWeeklyLessonSafely\(/);
   assert.match(s, /parkedLessonIdentity/);
   assert.match(s, /sourceHasChildProgress: hasChildProgressForSlot/);
+});
+
+test('Parkgarage: Touch-Auswahl findet freien Platz am bevorzugten Tag statt belegte Stunden zu überschreiben', () => {
+  const garage = [{ id: 'parked-1', fach: 'Deutsch', thema: 'Silben', materialIds: ['m1'], duration: 2 }];
+  const week = {
+    Montag: { 0: { fach: 'Mathematik', duration: 3 }, 5: { fach: 'Sport' } },
+    Dienstag: { 0: { fach: 'Religion' } },
+  };
+  const first = findFirstRestorableParkedSlot({
+    week, garage, parkedIndex: 0, parkedIdentity: 'parked-1',
+    targetWeek: 46, preferredDayIdx: 0,
+  });
+  assert.deepEqual(first, { dayIdx: 0, hourIdx: 3 });
+  assert.equal(week.Montag[3], undefined);
+  const result = restore({ week, garage, parkedIndex: 0,
+    parkedIdentity: 'parked-1', targetWeek: 46, target: first! });
+  assert.equal(result.status, 'restored');
+  assert.deepEqual(result.week.Montag[3].materialIds, ['m1']);
+  assert.equal(result.week.Montag[0], week.Montag[0]);
+});
+
+test('Parkgarage: Touch-Auswahl blockiert veröffentlichte Aufgaben und vollständig belegte Wochen', () => {
+  const garage = [{ id: 'parked-child', fach: 'Deutsch', thema: 'Lesen', imKinderWochenplan: true }];
+  assert.equal(findFirstRestorableParkedSlot({
+    week: {}, garage, parkedIndex: 0, parkedIdentity: 'parked-child',
+    targetWeek: 46, preferredDayIdx: 1,
+  }), null);
+
+  const allDay = Object.fromEntries(
+    ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'].map(day =>
+      [day, { 0: { fach: 'Projekt', duration: 'all' } }]),
+  );
+  assert.equal(findFirstRestorableParkedSlot({
+    week: allDay, garage: [{ id: 'parked-free', fach: 'Musik', thema: 'Singen' }],
+    parkedIndex: 0, parkedIdentity: 'parked-free', targetWeek: 46,
+  }), null);
 });
