@@ -510,6 +510,55 @@ async function main() {
              !dayControls.hasHour || dayControls.horizontalOverflow) {
             throw new Error('Mobile weekly day cards are inaccessible: '+JSON.stringify(dayControls));
           }
+          // The synthetic task was published and finished earlier in this
+          // journey. Find its actual weekday instead of assuming Monday.
+          let lessonFound = false;
+          for (let dayIndex = 0; dayIndex < 5 && !lessonFound; dayIndex++) {
+            const selected = await evaluate(client,
+              '(() => {const tabs=document.querySelectorAll("section[aria-label=\\\"Tagesansicht des Wochenplans\\\"] [aria-label=\\\"Wochentag auswählen\\\"] button");' +
+              'const tab=tabs[' + dayIndex + '];if(!tab)return false;tab.click();return true;})()');
+            if (!selected) throw new Error('Mobile weekday selector was not clickable.');
+            await sleep(170);
+            lessonFound = await evaluate(client,
+              'Array.from(document.querySelectorAll("[data-weekly-day-card]")).some(card=>card.textContent.includes(' +
+              q(topic) + ')&&card.querySelector("[data-weekly-mobile-child-toggle]")&&card.querySelector("[data-weekly-mobile-copy]"))');
+          }
+          if (!lessonFound) throw new Error('Mobile lesson card cannot access the previously saved teaching task.');
+          const mobileSourceCard =
+            'Array.from(document.querySelectorAll("[data-weekly-day-card]")).find(card=>card.textContent.includes(' +
+            q(topic) + ')&&card.querySelector("[data-weekly-mobile-child-toggle]"))';
+          const initiallyPublished = await evaluate(client,
+            '(' + mobileSourceCard + ')?.querySelector("[data-weekly-mobile-child-toggle]")?.getAttribute("aria-pressed")');
+          if (initiallyPublished !== 'true') {
+            throw new Error('Mobile child-plan control did not reflect the published saved task.');
+          }
+          await evaluate(client,
+            '(() => {const b=(' + mobileSourceCard + ')?.querySelector("[data-weekly-mobile-child-toggle]");if(!b)return false;b.click();return true;})()');
+          await waitFor(client, 'mobile unpublish retains teaching card',
+            '(' + mobileSourceCard + ')?.querySelector("[data-weekly-mobile-child-toggle]")?.getAttribute("aria-pressed")==="false"');
+          await evaluate(client,
+            '(() => {const b=(' + mobileSourceCard + ')?.querySelector("[data-weekly-mobile-child-toggle]");if(!b)return false;b.click();return true;})()');
+          await waitFor(client, 'mobile republish restores existing child task',
+            '(' + mobileSourceCard + ')?.querySelector("[data-weekly-mobile-child-toggle]")?.getAttribute("aria-pressed")==="true"');
+          await evaluate(client,
+            '(() => {const b=(' + mobileSourceCard + ')?.querySelector("[data-weekly-mobile-copy]");if(!b)return false;b.click();return true;})()');
+          await waitFor(client, 'mobile copied lesson banner',
+            'document.body?.innerText.includes("Zum Einfügen bereit:") && document.body?.innerText.includes("Bisherige Kinder-Rückmeldungen werden nicht mitkopiert")');
+          let pasteReady = false;
+          for (let dayIndex = 0; dayIndex < 5 && !pasteReady; dayIndex++) {
+            await evaluate(client,
+              '(() => {const tabs=document.querySelectorAll("section[aria-label=\\\"Tagesansicht des Wochenplans\\\"] [aria-label=\\\"Wochentag auswählen\\\"] button");' +
+              'const tab=tabs[' + dayIndex + '];if(!tab)return false;tab.click();return true;})()');
+            await sleep(120);
+            pasteReady = await evaluate(client, 'Boolean(document.querySelector("[data-weekly-mobile-paste]:not([disabled])"))');
+          }
+          if (!pasteReady) throw new Error('No safely pasteable mobile weekday or hour was found.');
+          const pasted = await evaluate(client,
+            '(() => {const b=document.querySelector("[data-weekly-mobile-paste]:not([disabled])");if(!b)return false;b.click();return true;})()');
+          if (!pasted) throw new Error('Mobile safe paste button did not work.');
+          await waitFor(client, 'mobile copied task inserted safely',
+            '!document.body?.innerText.includes("Zum Einfügen bereit:") && Array.from(document.querySelectorAll("[data-weekly-day-card]")).some(card=>card.textContent.includes(' + q(topic) + '))');
+          console.log('✓ mobile child publishing, copy and guarded paste work in Chrome while preserving saved lesson details.');
           await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-weekly-day-390.png'));
           await evaluate(client,
             'Array.from(document.querySelectorAll("[data-planning-view] button")).find(b=>b.textContent.trim()==="Wochenplan")?.click()');

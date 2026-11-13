@@ -2541,6 +2541,22 @@ export default function WeeklyPlan() {
               })}
             </div>
           </div>
+          {copiedLesson && (
+            <div role="status" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-xs font-semibold text-indigo-900">
+              <span>Zum Einfügen bereit: {copiedLesson.fach || 'Unterricht'} · {copiedLesson.thema || 'Ohne Thema'}. Wähle eine freie Stunde.
+                {copiedLesson.imKinderWochenplan === true && (
+                  <span className="mt-1 block font-bold text-amber-800">
+                    Hinweis: Die neue Kopie wird ebenfalls für Kinder freigegeben. Bisherige Kinder-Rückmeldungen werden nicht mitkopiert.
+                  </span>
+                )}
+              </span>
+              <button type="button"
+                onClick={() => setCopiedLesson(null)}
+                className="min-h-11 rounded-lg border border-indigo-200 bg-white px-3 font-bold text-indigo-800 hover:bg-indigo-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600">
+                Kopie verwerfen
+              </button>
+            </div>
+          )}
           <MobileDayLessonCards
             day={selectedDay}
             plan={plan}
@@ -2549,6 +2565,19 @@ export default function WeeklyPlan() {
             onOpen={openWeeklyCell}
             onToggleDone={toggleDoneStatus}
             onPark={handleParkLesson}
+            onToggleChildPlan={(tag, idx) => {
+              setApp(previous => previous.currentKW !== app.currentKW ||
+                previous.activeClassId !== app.activeClassId
+                ? previous : toggleClassroomWeeklyLesson(previous, activeKW, tag, idx));
+            }}
+            onCopyLesson={lesson => setCopiedLesson(structuredClone(lesson))}
+            copiedLesson={copiedLesson}
+            onPasteLesson={pasteLessonBlock}
+            canPasteLesson={(tag, idx) => !!copiedLesson &&
+              pasteCopiedLessonIntoEmptyWeek({
+                week: app.wochenplanung?.[activeKW], lesson: copiedLesson,
+                target: { dayIdx: TAGE_NAMEN.indexOf(tag), hourIdx: idx },
+              }).status === 'copied'}
           />
         </section>
       ) : freeWeekInfo.isEntireWeekFree ? (

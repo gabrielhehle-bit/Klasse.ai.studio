@@ -14,6 +14,11 @@ type Props = {
   onOpen: (day: string, idx: number) => void;
   onToggleDone: (event: React.MouseEvent, day: string, idx: number) => void;
   onPark: (day: string, idx: number) => void;
+  onToggleChildPlan: (day: string, idx: number) => void;
+  onCopyLesson: (lesson: any) => void;
+  copiedLesson: any | null;
+  onPasteLesson: (event: React.MouseEvent, day: string, idx: number) => void;
+  canPasteLesson: (day: string, idx: number) => boolean;
 };
 
 /** Read-only summaries plus explicit, separate actions. Never nest buttons or
@@ -21,6 +26,7 @@ type Props = {
  */
 export const MobileDayLessonCards: React.FC<Props> = ({
   day, plan, activeKW, isCurrent, onOpen, onToggleDone, onPark,
+  onToggleChildPlan, onCopyLesson, copiedLesson, onPasteLesson, canPasteLesson,
 }) => {
   const { app } = useApp();
   const dayPlan = plan?.[day];
@@ -33,6 +39,11 @@ export const MobileDayLessonCards: React.FC<Props> = ({
         const subject = item?.fach || app.stammplan?.[day]?.[idx + 1] || '';
         const hasSavedLesson = Boolean(item && typeof item === 'object' && (item.fach || item.thema));
         const isDone = item?.erledigt === true || item?.completed === true;
+        const mayPublishToChildren = Boolean(
+          String(item?.fach || '').trim() && String(item?.thema || '').trim(),
+        );
+        const isPublished = item?.imKinderWochenplan === true;
+        const canPasteHere = !hasSavedLesson && !!copiedLesson && canPasteLesson(day, idx);
         const current = isCurrent(day, idx);
         const materialsCount = Array.isArray(item?.materialIds) ? item.materialIds.length : 0;
         const childKey = weekTaskKey(app.schuljahr || '', activeKW, day, idx);
@@ -66,6 +77,23 @@ export const MobileDayLessonCards: React.FC<Props> = ({
               {current && <span className="shrink-0 rounded-lg bg-emerald-100 px-2 py-1 text-[0.6875rem] font-bold text-emerald-800">Jetzt</span>}
               <ChevronRight size={16} className="shrink-0 text-slate-400" aria-hidden="true" />
             </button>
+            {!hasSavedLesson && copiedLesson && (
+              <div className="border-t border-indigo-100 px-3 py-2.5">
+                <button type="button"
+                  data-weekly-mobile-paste
+                  disabled={!canPasteHere}
+                  onClick={event => onPasteLesson(event, day, idx)}
+                  aria-label={`Kopierte Stunde in ${idx + 1}. Stunde am ${day} einfügen`}
+                  title={canPasteHere
+                    ? 'Kopierte Unterrichtsstunde sicher hier einfügen'
+                    : 'Dieser Platz ist durch eine andere Unterrichtseinheit belegt'}
+                  className="min-h-11 w-full rounded-xl border border-indigo-200 bg-indigo-50 px-3 text-xs font-bold text-indigo-800 hover:bg-indigo-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-500">
+                  {canPasteHere
+                    ? `Kopierte Stunde hier einfügen`
+                    : 'Einfügen hier nicht möglich'}
+                </button>
+              </div>
+            )}
             {hasSavedLesson && (
               <div className="border-t border-slate-100 px-3 pb-2.5 pt-2">
                 <div data-weekly-day-badges className="flex flex-wrap items-center gap-1.5 text-xs">
@@ -86,7 +114,7 @@ export const MobileDayLessonCards: React.FC<Props> = ({
                       {materialsCount > 0 ? `${materialsCount} Materialien` : 'Material'}
                     </span>
                   )}
-                  {item.imKinderWochenplan === true && (
+                  {isPublished && (
                     <span className="rounded-md bg-violet-50 px-2 py-1 text-[0.6875rem] font-bold text-violet-800">
                       Für Kinder sichtbar{students.length ? ` · ${childDone}/${students.length} fertig` : ''}
                     </span>
@@ -108,6 +136,28 @@ export const MobileDayLessonCards: React.FC<Props> = ({
                   </p>
                 )}
                 <div className="mt-2 flex flex-wrap gap-2" data-weekly-day-actions>
+                  {mayPublishToChildren && (
+                    <button type="button"
+                      data-weekly-mobile-child-toggle
+                      aria-pressed={isPublished}
+                      aria-label={isPublished ? 'Aus Kinderplan entfernen' : 'Zum Kinderplan hinzufügen'}
+                      title={isPublished
+                        ? 'Aufgabe aus dem Kinder-Wochenplan nehmen – vorhandene Rückmeldungen bleiben gespeichert'
+                        : 'Aufgabe für den Kinder-Wochenplan freigeben'}
+                      onClick={() => onToggleChildPlan(day, idx)}
+                      className={`min-h-11 rounded-xl border px-3 text-xs font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 ${isPublished
+                        ? 'border-violet-300 bg-violet-50 text-violet-900 hover:bg-violet-100'
+                        : 'border-indigo-300 bg-indigo-50 text-indigo-900 hover:bg-indigo-100'}`}>
+                      {isPublished ? 'Aus Kinderplan nehmen' : 'Für Kinder freigeben'}
+                    </button>
+                  )}
+                  <button type="button"
+                    data-weekly-mobile-copy
+                    onClick={() => onCopyLesson(item)}
+                    aria-label={`${idx + 1}. Stunde kopieren`}
+                    className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600">
+                    Kopieren
+                  </button>
                   <button type="button"
                     onClick={event => onToggleDone(event, day, idx)}
                     aria-label={isDone ? `${idx + 1}. Stunde als unerledigt markieren`
