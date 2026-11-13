@@ -9,17 +9,19 @@ const target = { dayIdx: 1, hourIdx: 2 };
 test('Kopieren übernimmt alle Felder, lässt das Original bestehen und startet unerledigt', () => {
   const week = {
     Montag: { 0: {
-      fach: 'Deutsch', thema: 'Silben', erledigt: true, completed: true,
+      id: 'lesson-old', fach: 'Deutsch', thema: 'Silben', erledigt: true, completed: true,
       housework: 'S. 10', materialIds: ['1'], halves: { enabled: true, first: { thema: 'Laut' } },
       imKinderWochenplan: true, wochenplanMaterial: 'Arbeitsheft', updatedAt: 'alt',
     } },
     Dienstag: { 1: { fach: 'Mathematik', thema: 'Zählen' } },
   };
   const before = structuredClone(week);
-  const result = transfer({ week, source, target, mode: 'copy', updatedAt: 'neu' });
+  const result = transfer({ week, source, target, mode: 'copy', updatedAt: 'neu', copyId: 'lesson-new' });
   assert.equal(result.status, 'copied');
   const copy = result.week.Dienstag[2];
   assert.equal(copy.fach, 'Deutsch');
+  assert.equal(copy.id, 'lesson-new');
+  assert.equal(week.Montag[0].id, 'lesson-old');
   assert.equal(copy.thema, 'Silben');
   assert.equal(copy.housework, 'S. 10');
   assert.equal(copy.imKinderWochenplan, true);
@@ -91,4 +93,8 @@ test('Schnellplanung bietet bewusste Kopier-/Verschiebeaktion und schützt unges
   assert.match(ui, /onClick=\{\(\) => handleTransferLesson\('move'\)\}/);
   assert.match(ui, /Zielstunde ist bereits belegt/);
   assert.match(ui, /Bitte zuerst deine Änderungen speichern/);
+  const weekly = readFileSync('src/components/WeeklyPlan.tsx', 'utf8');
+  assert.match(weekly, /data-weekly-overview-transfer/);
+  assert.match(weekly, /onClick=\{\(\) => handleOverviewLessonTransfer\('copy'\)\}/);
+  assert.match(weekly, /onClick=\{\(\) => handleOverviewLessonTransfer\('move'\)\}/);
 });
