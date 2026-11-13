@@ -52,6 +52,67 @@ function findStoredSlot(week: Week, position: QuickPlanPosition): {
   };
 }
 
+/** One occupancy rule for all ways of reusing a lesson (modal, clipboard and next hour). */
+function destinationIssue(week: Week, target: QuickPlanPosition, sourceLesson: Record<string, any>):
+  'occupied-target' | 'invalid-slot' | null {
+  if (findStoredSlot(week, target).exists) return 'occupied-target';
+  // Pupil progress is keyed by school-year/week/day/hour. Moving a published
+  // lesson without migrating those records would orphan existing feedback.
+  // Copying is safe: it creates an independent, unfinished child task.
+
+  // Longer lessons reserve their following slots even when those do not have
+  // separate saved objects. Check both directions, including a previous block
+  // that already spans the apparently empty target.
+  const duration = sourceLesson.duration === 'all'
+    ? MAX_LESSON_SLOTS - target.hourIdx
+    : Number.isInteger(sourceLesson.duration) && sourceLesson.duration > 1
+      ? sourceLesson.duration : 1;
+  if (target.hourIdx + duration > MAX_LESSON_SLOTS) return 'invalid-slot';
+  for (let idx = 0; idx < MAX_LESSON_SLOTS; idx++) {
+    if (idx === target.hourIdx) continue;
+    const existing = findStoredSlot(week, { dayIdx: target.dayIdx, hourIdx: idx });
+    if (!existing.exists || !isRecord(existing.lesson) || !Object.keys(existing.lesson).length) continue;
+    const span = existing.lesson.duration === 'all'
+      ? MAX_LESSON_SLOTS - idx
+      : Number.isInteger(existing.lesson.duration) && existing.lesson.duration > 1
+        ? existing.lesson.duration : 1;
+    const overlaps = idx < target.hourIdx
+      ? idx + span > target.hourIdx
+      : idx < target.hourIdx + duration;
+    if (overlaps) return 'occupied-target';
+  }
+
+  return null;
+}
+
+/** Paste a clipboard lesson without creating a fake source cell or overwriting
+ * an existing slot. This also respects legacy weekday keys and long blocks.
+ */
+export function pasteCopiedLessonIntoEmptyWeek(input: {
+  week: Week | undefined;
+  lesson: unknown;
+  target: QuickPlanPosition;
+  updatedAt?: string;
+  copyId?: string;
+}): { status: QuickPlanTransferStatus; week: Week } {
+  const week = input.week || {};
+  const stop = (status: QuickPlanTransferStatus) => ({ status, week });
+  if (!validPosition(input.target)) return stop('invalid-slot');
+  if (!isRecord(input.lesson) || Object.keys(input.lesson).length === 0) return stop('empty-source');
+  const issue = destinationIssue(week, input.target, input.lesson);
+  if (issue) return stop(issue);
+  const to = findStoredSlot(week, input.target);
+  const copied = structuredClone(input.lesson);
+  if (typeof copied.id === 'string' && copied.id && input.copyId) copied.id = input.copyId;
+  copied.erledigt = false;
+  if ('completed' in copied) copied.completed = false;
+  if (input.updatedAt) copied.updatedAt = input.updatedAt;
+  return {
+    status: 'copied',
+    week: { ...week, [to.key]: { ...(isRecord(week[to.key]) ? week[to.key] : {}), [input.target.hourIdx]: copied } },
+  };
+}
+
 export function transferQuickPlannedLesson(input: {
   week: Week | undefined;
   source: QuickPlanPosition;
@@ -72,35 +133,11 @@ export function transferQuickPlannedLesson(input: {
   if (!from.exists || !isRecord(from.lesson) || Object.keys(from.lesson).length === 0) {
     return stop('empty-source');
   }
-  if (to.exists) return stop('occupied-target');
-  // Pupil progress is keyed by school-year/week/day/hour. Moving a published
-  // lesson without migrating those records would orphan existing feedback.
-  // Copying is safe: it creates an independent, unfinished child task.
   if (input.mode === 'move' && from.lesson.imKinderWochenplan === true) {
     return stop('published-child-task');
   }
-
-  // Longer lessons reserve their following slots even when those do not have
-  // separate saved objects. Check both directions, including a previous block
-  // that already spans the apparently empty target.
-  const duration = from.lesson.duration === 'all'
-    ? MAX_LESSON_SLOTS - input.target.hourIdx
-    : Number.isInteger(from.lesson.duration) && from.lesson.duration > 1
-      ? from.lesson.duration : 1;
-  if (input.target.hourIdx + duration > MAX_LESSON_SLOTS) return stop('invalid-slot');
-  for (let idx = 0; idx < MAX_LESSON_SLOTS; idx++) {
-    if (idx === input.target.hourIdx) continue;
-    const existing = findStoredSlot(week, { dayIdx: input.target.dayIdx, hourIdx: idx });
-    if (!existing.exists || !isRecord(existing.lesson) || !Object.keys(existing.lesson).length) continue;
-    const span = existing.lesson.duration === 'all'
-      ? MAX_LESSON_SLOTS - idx
-      : Number.isInteger(existing.lesson.duration) && existing.lesson.duration > 1
-        ? existing.lesson.duration : 1;
-    const overlaps = idx < input.target.hourIdx
-      ? idx + span > input.target.hourIdx
-      : idx < input.target.hourIdx + duration;
-    if (overlaps) return stop('occupied-target');
-  }
+  const issue = destinationIssue(week, input.target, from.lesson);
+  if (issue) return stop(issue);
 
   const lesson = structuredClone(from.lesson);
   if (input.mode === 'copy') {
