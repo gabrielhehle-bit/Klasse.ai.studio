@@ -1264,6 +1264,7 @@ export default function WeeklyPlan() {
       const latest = transferQuickPlannedLesson({
         week: prev.wochenplanung?.[activeKW], source, target, mode,
         updatedAt: new Date().toISOString(),
+        copyId: mode === 'copy' ? `lesson-${Date.now()}-${Math.random().toString(36).slice(2, 10)}` : undefined,
       });
       return latest.status === 'copied' || latest.status === 'moved'
         ? { ...prev, wochenplanung: { ...(prev.wochenplanung || {}), [activeKW]: latest.week } }
