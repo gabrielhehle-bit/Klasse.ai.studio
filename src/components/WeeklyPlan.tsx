@@ -1256,6 +1256,7 @@ export default function WeeklyPlan() {
         ? 'Diese Zielstunde ist bereits belegt. Bitte wähle eine freie Stunde.'
         : preview.status === 'same-slot' ? 'Bitte ein anderes Ziel auswählen.'
         : preview.status === 'ambiguous-source' ? 'Diese ältere Stunde ist doppelt gespeichert; bitte die Einträge zuerst prüfen.'
+        : preview.status === 'published-child-task' ? 'Diese Stunde ist im Kinder-Wochenplan freigegeben. Verschieben ist zum Schutz der Kinder-Rückmeldungen gesperrt; Kopieren bleibt möglich.'
         : 'Die Stunde konnte nicht übernommen werden.';
       window.alert(message);
       return;
@@ -3565,13 +3566,18 @@ export default function WeeklyPlan() {
                         {status === 'ambiguous-source' && <p role="status" className="text-xs font-bold text-rose-800">
                           Diese ältere Stunde enthält doppelte Einträge. Bitte zuerst prüfen.
                         </p>}
+                        {lesson.imKinderWochenplan === true && (
+                          <p className="text-xs font-bold text-amber-800">
+                            Bereits im Kinder-Wochenplan: Kopieren möglich, Verschieben zum Schutz der Rückmeldungen gesperrt.
+                          </p>
+                        )}
                         <div className="flex flex-wrap gap-2">
                           <button type="button" disabled={status !== 'copied'}
                             onClick={() => handleOverviewLessonTransfer('copy')}
                             className="rounded-xl border border-indigo-200 bg-white px-4 py-2.5 text-xs font-black text-indigo-700 disabled:cursor-not-allowed disabled:opacity-40">
                             <Copy size={14} className="mr-2 inline" /> Kopieren
                           </button>
-                          <button type="button" disabled={status !== 'copied'}
+                          <button type="button" disabled={status !== 'copied' || lesson.imKinderWochenplan === true}
                             onClick={() => handleOverviewLessonTransfer('move')}
                             className="rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-40">
                             <Clipboard size={14} className="mr-2 inline" /> Verschieben
