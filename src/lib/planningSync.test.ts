@@ -195,7 +195,7 @@ test('Jahresplan-KI: nur wirklich freie Fachstunden erhalten Themen; Wiederholun
 
 test('Jahresplan-KI: kein Fantasiestundenplan, keine fachfremden oder ungültigen Zuweisungen', () => {
   const saved = { Dienstag: { 2: { fach: 'Musik' } } };
-  const template = buildYearlyAiTimetable(saved, { Dienstag: { 3: 'Deutsch' } });
+  const template = { Dienstag: { 2: { fach: 'Deutsch' } } }; // outdated template after teacher changed subject
   const result = mergeYearlyAssignmentsIntoWeeklyWeek({
     existingWeek: saved, timetableWeek: template,
     assignments: [
