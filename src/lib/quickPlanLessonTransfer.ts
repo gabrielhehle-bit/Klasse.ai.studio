@@ -77,7 +77,7 @@ export function transferQuickPlannedLesson(input: {
   // separate saved objects. Check both directions, including a previous block
   // that already spans the apparently empty target.
   const duration = from.lesson.duration === 'all'
-    ? MAX_LESSON_SLOTS - input.source.hourIdx
+    ? MAX_LESSON_SLOTS - input.target.hourIdx
     : Number.isInteger(from.lesson.duration) && from.lesson.duration > 1
       ? from.lesson.duration : 1;
   if (input.target.hourIdx + duration > MAX_LESSON_SLOTS) return stop('invalid-slot');
