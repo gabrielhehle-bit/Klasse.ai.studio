@@ -17,6 +17,7 @@ import { pasteCopiedLessonIntoEmptyWeek, reconcileCopiedLessonYearlyStatus, tran
 import { findFirstRestorableParkedSlot, moveOrSwapWeeklyLesson, parkWeeklyLessonSafely, restoreParkedWeeklyLessonSafely, type DragDropStatus } from '../lib/weeklyDragDropSafety';
 import { yearPlanCellEntries } from '../lib/yearlyPlanData';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
+import { MobileDayLessonCards } from './wochenplan/MobileDayLessonCards';
 import { GarageRestorePicker } from './wochenplan/GarageRestorePicker';
 import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots, isWeeklyLessonPrepared } from '../lib/weeklyPlanData';
 import { parseLessonTimeRange } from '../lib/lessonTimeSlots';
@@ -319,7 +320,10 @@ export default function WeeklyPlan() {
   const [selectedYearPlanBulkKeys, setSelectedYearPlanBulkKeys] = useState<string[]>([]);
   const [yearPlanBulkNotice, setYearPlanBulkNotice] = useState<string | null>(null);
   const [dateStatusMenu, setDateStatusMenu] = useState<string | null>(null); // date string
-  const [viewMode, setViewMode] = useState<'grid' | 'day' | 'klassenbuch'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'day' | 'klassenbuch'>(() =>
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function' &&
+      window.matchMedia('(max-width: 1199px)').matches ? 'day' : 'grid'
+  );
   const [classbookNoteDrafts, setClassbookNoteDrafts] = useState<Record<string, string>>({});
   const [selectedDay, setSelectedDay] = useState<string>(() => {
     const today = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'][new Date().getDay()];
@@ -2519,7 +2523,7 @@ export default function WeeklyPlan() {
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-base font-extrabold text-slate-900">Tagesplanung · {selectedDay}</h2>
-              <p className="text-xs font-semibold text-slate-500">Dieselben Stunden und Daten wie im Wochenplan – Stunde anklicken zum Bearbeiten.</p>
+              <p className="text-xs font-semibold text-slate-500">Stunde antippen zum Bearbeiten. Status, Hausübung, Material und Kinderfreigabe siehst du direkt auf jeder Karte.</p>
               <DailyHomeworkButton day={selectedDay} date={formatLocalDateKey(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + TAGE_NAMEN.indexOf(selectedDay)))} />
             </div>
             <div className="flex flex-wrap gap-1" aria-label="Wochentag auswählen">
@@ -2530,45 +2534,22 @@ export default function WeeklyPlan() {
                 return (
                   <button key={tag} type="button" onClick={() => setSelectedDay(tag)}
                     aria-pressed={selectedDay === tag}
-                    className={`rounded-lg border px-2.5 py-1.5 text-xs font-bold ${selectedDay === tag ? 'border-indigo-300 bg-indigo-50 text-indigo-800' : isToday ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                    className={`min-h-11 rounded-lg border px-2.5 py-1.5 text-xs font-bold ${selectedDay === tag ? 'border-indigo-300 bg-indigo-50 text-indigo-800' : isToday ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
                     {tag.slice(0, 2)} {date.getDate()}.{date.getMonth() + 1}.{isToday ? ' · Heute' : ''}
                   </button>
                 );
               })}
             </div>
           </div>
-          <div className="space-y-2">
-            {Array.from({ length: MAX_LESSON_SLOTS }, (_, idx) => {
-              const item = plan[selectedDay]?.[idx];
-              const fach = item?.fach || app.stammplan?.[selectedDay]?.[idx + 1] || '';
-              const date = new Date(monday);
-              date.setDate(monday.getDate() + TAGE_NAMEN.indexOf(selectedDay));
-              const current = formatLocalDateKey(date) === formatLocalDateKey(actualToday) && isCurrentHour(selectedDay, idx);
-              return (
-                <button key={idx} type="button" onClick={() => openWeeklyCell(selectedDay, idx)}
-                  className={`flex w-full min-w-0 items-start gap-3 rounded-xl border p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 ${current ? 'border-emerald-400 bg-emerald-50' : item?.thema || fach ? 'border-slate-200 bg-slate-50 hover:border-indigo-300 hover:bg-indigo-50/40' : 'border-dashed border-slate-200 bg-white hover:border-indigo-300'}`}>
-                  <span className="w-20 shrink-0 text-xs font-extrabold text-slate-700">
-                    {idx + 1}. Stunde
-                    <span className="mt-1 block text-[0.6875rem] font-normal text-slate-500">
-                      {configuredLessonTime(app.stundenZeiten, STUNDEN_INFO, idx + 1)}
-                    </span>
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-xs font-bold text-slate-600">{fach || 'Stunde planen'}</span>
-                    <span className="mt-0.5 block whitespace-pre-wrap text-sm font-semibold text-slate-900">{item?.thema || (fach ? 'Unterrichtsinhalt ergänzen' : '+ Planung öffnen')}</span>
-                    {Array.isArray(item?.schwerpunkte) && item.schwerpunkte.length > 0 && (
-                      <span className="mt-1 block text-xs text-slate-600">{item.schwerpunkte.join(' · ')}</span>
-                    )}
-                    {item?.housework && <span className="mt-1 block text-xs text-slate-600">Hausübung: {item.housework}</span>}
-                    {item?.halves?.enabled && <span className="mt-1 block text-xs text-slate-600">
-                      1. Hälfte: {item.halves.first?.thema || '—'} · 2. Hälfte: {item.halves.second?.thema || '—'}
-                    </span>}
-                  </span>
-                  {current && <span className="shrink-0 rounded-lg bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800">Jetzt</span>}
-                </button>
-              );
-            })}
-          </div>
+          <MobileDayLessonCards
+            day={selectedDay}
+            plan={plan}
+            activeKW={activeKW}
+            isCurrent={(day, idx) => activeKW === actualKW && isCurrentHour(day, idx)}
+            onOpen={openWeeklyCell}
+            onToggleDone={toggleDoneStatus}
+            onPark={handleParkLesson}
+          />
         </section>
       ) : freeWeekInfo.isEntireWeekFree ? (
         <div className="w-full pb-6" data-zoom={app?.settings?.zoomLevel}>

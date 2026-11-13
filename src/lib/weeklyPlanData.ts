@@ -128,3 +128,22 @@ export function collectIncompleteWeeklyLessonSlots(
 
   return slots;
 }
+
+/** A long lesson occupies following hours without creating individual stored
+ * lesson records. Day cards should not offer those hours as seemingly free.
+ * If a real entry exists at the queried slot, keep it visible even in an
+ * inconsistent legacy plan instead of concealing user data.
+ */
+export function isWeeklyLessonSlotCovered(
+  day: Record<string, any> | undefined,
+  hourIdx: number,
+): boolean {
+  if (!day || !Number.isInteger(hourIdx) || hourIdx < 0 || hourIdx >= MAX_LESSON_SLOTS ||
+      Object.prototype.hasOwnProperty.call(day, hourIdx)) return false;
+  for (let start = 0; start < hourIdx; start++) {
+    const lesson = day[start];
+    if (!lesson || typeof lesson !== 'object' || Array.isArray(lesson)) continue;
+    if (start + weeklyLessonDurationSlots(lesson.duration, start) > hourIdx) return true;
+  }
+  return false;
+}

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const week = readFileSync('src/components/WeeklyPlan.tsx', 'utf8');
+const dayCards = readFileSync('src/components/wochenplan/MobileDayLessonCards.tsx', 'utf8');
 const printing = readFileSync('src/components/PrintCenter.tsx', 'utf8');
 const projection = readFileSync('src/lib/weeklyClassbookProjection.ts', 'utf8');
 
@@ -23,8 +24,10 @@ test('Materialfrei bedeutet weder fehlend noch unvorbereitet', () => {
 
 test('Wochenplan, Tagesansicht, Klassenbuch und Druckzentrum verwenden dieselben Klassen-Unterrichtseinträge', () => {
   assert.match(week, /viewMode === 'day'/);
-  assert.match(week, /onClick=\{\(\) => openWeeklyCell\(selectedDay, idx\)\}/);
-  assert.match(week, /plan\[selectedDay\]\?\.\[idx\]/);
+  assert.match(week, /onOpen=\{openWeeklyCell\}/);
+  assert.match(week, /plan=\{plan\}/);
+  assert.match(dayCards, /onClick=\{\(\) => onOpen\(day, idx\)\}/);
+  assert.match(dayCards, /const item = dayPlan\?\.\[idx\]/);
   assert.match(week, /const getKlassenbuchData = \(\) => withClassbookNotes\(projectWeeklyPlanToClassbook/);
   assert.match(printing, /const compileKlassenbuchData = \(targetKW: number\) => withClassbookNotes\(projectWeeklyPlanToClassbook/);
   assert.match(week, /app\.klassenbuchErgaenzungen\?\.\[activeKW\]/);

@@ -311,7 +311,10 @@ async function verifyRandomPickerInRealBrowser(client) {
     compactLibrary.error ||
     compactLibrary.left < -1 || compactLibrary.right > 641 ||
     compactLibrary.top < -1 || compactLibrary.bottom > 721 ||
-    compactLibrary.searchWidth < 520 ||
+    // The search must occupy nearly the whole usable dialog width. A fixed
+    // 520px cutoff falsely rejects valid 516px inputs on Chromium/runner fonts.
+    (compactLibrary.right - compactLibrary.left) < 500 ||
+    compactLibrary.searchWidth < (compactLibrary.right - compactLibrary.left) * 0.9 ||
     compactLibrary.searchTop <= compactLibrary.settingsTop ||
     compactLibrary.railDisplay !== 'flex' ||
     !['auto','scroll'].includes(compactLibrary.railOverflowX) ||
