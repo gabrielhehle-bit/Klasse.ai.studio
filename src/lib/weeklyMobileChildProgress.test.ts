@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { weekTaskKey } from './classroomWeeklyPlan';
-import { summarizeChildTaskProgress } from './weeklyMobileChildProgress';
+import { getPendingChildHelpRequests, summarizeChildTaskProgress } from './weeklyMobileChildProgress';
 
 const key = weekTaskKey('2026/27', 46, 'Donnerstag', 2);
 const otherKey = weekTaskKey('2026/27', 46, 'Freitag', 2);
@@ -51,4 +51,41 @@ test('Kinderfortschritt: nur übergebene Klassenkinder berücksichtigen', () => 
   assert.deepEqual(summarizeChildTaskProgress(visibleClass, key), {
     total: 2, done: 1, helpNeeded: 0, percentage: 50,
   });
+});
+
+test('Hilferufe: nur die aktuell wartenden Kinder derselben Aufgabe nennen', () => {
+  const pupils = [
+    { id: 'a', vorname: 'Hilfekind', nachname: 'Beispiel',
+      wochenplanFortschritt: { [key]: { done: false, helpRequested: true, updatedAt: at } } },
+    { id: 'b', vorname: 'Fertig', nachname: 'Beispiel',
+      wochenplanFortschritt: { [key]: { done: true, helpRequested: true, updatedAt: at } } },
+    { id: 'c', vorname: 'Ohne', nachname: 'Hilferuf',
+      wochenplanFortschritt: { [key]: { done: false, helpRequested: false, updatedAt: at } } },
+    { id: 'd', vorname: 'Andere', nachname: 'Aufgabe',
+      wochenplanFortschritt: { [otherKey]: { done: false, helpRequested: true, updatedAt: at } } },
+  ];
+  const original = structuredClone(pupils);
+  assert.deepEqual(getPendingChildHelpRequests(pupils, key), [
+    { studentId: 'a', displayName: 'Hilfekind Beispiel' },
+  ]);
+  assert.deepEqual(summarizeChildTaskProgress(pupils, key), {
+    total: 4, done: 1, helpNeeded: 1, percentage: 25,
+  });
+  assert.deepEqual(pupils, original);
+});
+
+test('Hilferufe: ohne Aufgaben-ID und ohne Rückmeldungen niemals Namen zeigen', () => {
+  const pupils = [{ id: 'p1', vorname: 'Lina', nachname: 'Muster',
+    wochenplanFortschritt: { [key]: { done: false, helpRequested: true, updatedAt: at } } }];
+  assert.deepEqual(getPendingChildHelpRequests(pupils, ''), []);
+  assert.deepEqual(getPendingChildHelpRequests([], key), []);
+  assert.deepEqual(getPendingChildHelpRequests([{ id: 'p2', name: 'Alex' }], key), []);
+});
+
+test('Hilferufe: Namensanzeige hat einen sicheren Fallback bei unvollständigen Altbeständen', () => {
+  const pupils = [{ id: 'legacy', name: 'Eintrag Alt',
+    wochenplanFortschritt: { [key]: { done: false, helpRequested: true, updatedAt: at } } }];
+  assert.deepEqual(getPendingChildHelpRequests(pupils, key), [
+    { studentId: 'legacy', displayName: 'Eintrag Alt' },
+  ]);
 });
