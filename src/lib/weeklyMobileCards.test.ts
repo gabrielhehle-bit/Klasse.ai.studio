@@ -129,11 +129,11 @@ test('Mobile Kinderaufgaben zeigen einen zugänglichen Fortschrittsbalken und of
   assert.match(mobile, /data-weekly-mobile-child-progress/);
   assert.match(mobile, /isPublished && childProgress/);
   assert.match(mobile, /role="progressbar"/);
-  assert.match(mobile, /aria-valuemin=\\{0\\}/);
-  assert.match(mobile, /aria-valuenow=\\{childProgress\\.done\\}/);
-  assert.match(mobile, /aria-valuemax=\\{childProgress\\.total\\}/);
-  assert.match(mobile, /childProgress\\.percentage/);
+  assert.match(mobile, /aria-valuemin=\{0\}/);
+  assert.match(mobile, /aria-valuenow=\{childProgress\.done\}/);
+  assert.match(mobile, /aria-valuemax=\{childProgress\.total\}/);
+  assert.match(mobile, /childProgress\.percentage/);
   assert.match(mobile, /data-weekly-mobile-help-needed/);
-  assert.match(mobile, /childProgress\\.helpNeeded > 0/);
-  assert.doesNotMatch(mobile, /getChildTaskProgress\\(/);
+  assert.match(mobile, /childProgress\.helpNeeded > 0/);
+  assert.doesNotMatch(mobile, /getChildTaskProgress\(/);
 });
