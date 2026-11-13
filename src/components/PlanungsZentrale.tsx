@@ -376,7 +376,9 @@ export default function PlanungsZentrale() {
           ? 'Quelle und Ziel sind identisch. Bitte wähle eine andere Stunde.'
           : preview.status === 'ambiguous-source'
             ? 'Für diese Stunde gibt es ältere doppelte Einträge. Bitte öffne sie zuerst im Wochenplan.'
-            : 'Die gespeicherte Stunde konnte nicht übernommen werden.';
+            : preview.status === 'published-child-task'
+              ? 'Diese Stunde ist bereits im Kinder-Wochenplan. Zum Schutz der Rückmeldungen kannst du sie kopieren, aber nicht verschieben.'
+              : 'Die gespeicherte Stunde konnte nicht übernommen werden.';
       window.alert(issue);
       return;
     }
@@ -1759,13 +1761,18 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                                 Bitte eine andere Stunde wählen.
                               </p>
                             ) : null}
+                            {getSavedSlot(selectedDayIdx, selectedHour)?.imKinderWochenplan === true && (
+                              <p className="text-[11px] font-semibold text-amber-800">
+                                Im Kinder-Wochenplan veröffentlicht: Kopieren ist möglich, Verschieben bleibt zum Schutz der Rückmeldungen gesperrt.
+                              </p>
+                            )}
                             <div className="flex gap-2">
                               <button type="button" disabled={!quickTransferCanRun}
                                 onClick={() => handleTransferLesson('copy')}
                                 className="flex-1 rounded-xl bg-white border border-indigo-200 px-3 py-2 text-xs font-black text-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed">
                                 <Copy size={13} className="inline mr-1" /> Kopieren
                               </button>
-                              <button type="button" disabled={!quickTransferCanRun}
+                              <button type="button" disabled={!quickTransferCanRun || getSavedSlot(selectedDayIdx, selectedHour)?.imKinderWochenplan === true}
                                 onClick={() => handleTransferLesson('move')}
                                 className="flex-1 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-black text-white disabled:opacity-40 disabled:cursor-not-allowed">
                                 <ArrowRight size={13} className="inline mr-1" /> Verschieben
