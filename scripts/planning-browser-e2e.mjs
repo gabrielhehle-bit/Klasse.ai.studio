@@ -369,6 +369,15 @@ async function main() {
     await clickButton(client, 'Weiter', true);
     await clickButton(client, 'Anlegen', true);
     await waitFor(client, 'synthetic pupil saved', '!document.querySelector("#student-dialog-title")', 15000);
+    // A second fictional pupil will request help. Never touch live class records.
+    await clickButton(client, 'Schüler hinzufügen');
+    await waitFor(client, 'second synthetic pupil form', 'document.body?.innerText.includes("Neuer Schüler")');
+    await setInputByPlaceholder(client, 'z.B. Lukas', 'Hilfekind');
+    await setInputByPlaceholder(client, 'z.B. Müller', 'Beispiel');
+    await clickButton(client, 'Weiter', true);
+    await clickButton(client, 'Weiter', true);
+    await clickButton(client, 'Anlegen', true);
+    await waitFor(client, 'second synthetic pupil saved', '!document.querySelector("#student-dialog-title")', 15000);
     await clickSidebar(client, 'Lehrercockpit');
     await waitFor(client, 'white classroom board', 'Boolean(document.getElementById("widget-board-stage"))', 30000);
     await clickButton(client, 'Widget hinzufügen');
@@ -400,6 +409,25 @@ async function main() {
     if (!feedbackSaved) throw new Error('Could not submit synthetic pupil feedback.');
     await waitFor(client, 'public board restored without individual feedback',
       '(() => {const b=document.querySelector("[aria-label=\\\"Wochenplan der Klasse\\\"]");return !!b&&b.textContent.includes(' + q(topic) + ')&&!document.querySelector("[role=dialog][aria-label=\\\"Ich bin fertig mit einer Aufgabe\\\"]")&&!b.textContent.includes("Das war sehr schwer");})()');
+    // Save a different child's genuine help request through the same on-board
+    // workflow, never by writing directly to local storage or mutating state.
+    await clickButton(client, 'Ich bin fertig mit einer Aufgabe');
+    await waitFor(client, 'task selection for help request',
+      'Boolean(document.querySelector("[role=dialog][aria-label=\\\"Ich bin fertig mit einer Aufgabe\\\"] [aria-label=\\\"Aufgabe auswählen\\\"]"))');
+    const helpTaskSelected = await evaluate(client,
+      '(() => {const b=Array.from(document.querySelectorAll("[aria-label=\\\"Aufgabe auswählen\\\"] button")).find(b=>b.textContent.includes(' + q(topic) + '));if(!b)return false;b.click();return true;})()');
+    if (!helpTaskSelected) throw new Error('Could not choose task for synthetic help request.');
+    await waitFor(client, 'child selector for help request',
+      'Boolean(document.querySelector("[role=dialog] [aria-label=\\\"Kind auswählen\\\"]"))');
+    const helpChildSelected = await evaluate(client,
+      '(() => {const b=Array.from(document.querySelectorAll("[aria-label=\\\"Kind auswählen\\\"] button")).find(b=>b.textContent.trim().startsWith("Hilfekind"));if(!b)return false;b.click();return true;})()');
+    if (!helpChildSelected) throw new Error('Could not choose second synthetic child.');
+    await waitFor(client, 'help request option',
+      'Array.from(document.querySelectorAll("[role=dialog] button")).some(b=>b.textContent.includes("noch nicht fertig und brauche Hilfe"))');
+    await clickButton(client, 'Ich bin noch nicht fertig und brauche Hilfe');
+    await waitFor(client, 'help request saved in teacher state',
+      '!document.querySelector("[role=dialog][aria-label=\\\"Ich bin fertig mit einer Aufgabe\\\"]")', 15000);
+    console.log('✓ two fictional children saved completion and open help request through the real board');
     console.log('✓ real Chrome: classroom task, pupil feedback and private board verified');
     const closedCockpit = await evaluate(client,
       '(() => {const b=document.querySelector("button[aria-label=\\\"Lehrercockpit schließen · Zurück zu Heute\\\"]");if(!b)return false;b.click();return true;})()');
@@ -409,7 +437,7 @@ async function main() {
     await clickSidebar(client, 'Wochenplan');
     await waitFor(client, 'saved selected week after cockpit journey', 'Boolean(' + savedHourlyCell + ')', 20000);
     await waitFor(client, 'individual child completion reflected in teacher weekly planning',
-      '(() => {const cell=' + savedHourlyCell + ';const b=cell?.querySelector("button[aria-label=\\\"Aus Kinderplan entfernen\\\"]");return !!b&&b.textContent.includes("1/1 fertig");})()', 12000);
+      '(() => {const cell=' + savedHourlyCell + ';const b=cell?.querySelector("button[aria-label=\\\"Aus Kinderplan entfernen\\\"]");return !!b&&b.textContent.includes("1/2 fertig");})()', 12000);
     if (!await evaluate(client, '(() => {const cell=' + savedHourlyCell + ';if(!cell)return false;cell.click();return true;})()'))
       throw new Error('Could not open the saved hourly lesson.');
     try {
@@ -537,12 +565,31 @@ async function main() {
             'const panel=card?.querySelector("[data-weekly-mobile-child-progress]");' +
             'const bar=panel?.querySelector("[role=progressbar]");' +
             'return !!panel&&!!bar&&bar.getAttribute("aria-valuenow")==="1"&&' +
-            'bar.getAttribute("aria-valuemax")==="1"&&' +
-            'panel.textContent.includes("1 von 1 erledigt")&&' +
-            '!panel.querySelector("[data-weekly-mobile-help-needed]");})()');
+            'bar.getAttribute("aria-valuemax")==="2"&&' +
+            'panel.textContent.includes("1 von 2 erledigt")&&' +
+            'panel.querySelector("[data-weekly-mobile-help-needed]")?.textContent.includes("1 Kind braucht noch Hilfe");})()');
           if (!childProgressVisible) {
             throw new Error('Mobile weekly day card does not show the saved pupil completion correctly.');
           }
+          const collapsedHelp = await evaluate(client,
+            '(() => {const card=(' + mobileSourceCard + ');' +
+            'const details=card?.querySelector("[data-weekly-mobile-help-details]");' +
+            'const names=details?.querySelector("[data-weekly-mobile-help-children]");' +
+            'return !!details&&!details.open&&!!names&&names.textContent.includes("Hilfekind Beispiel");})()');
+          if (!collapsedHelp) throw new Error('Pending help names must be hidden by default.');
+          const openedHelp = await evaluate(client,
+            '(() => {const details=(' + mobileSourceCard + ')?.querySelector("[data-weekly-mobile-help-details]");' +
+            'if(!details)return false;details.querySelector("summary")?.click();return details.open;})()');
+          if (!openedHelp) throw new Error('Teacher cannot reveal pending-help child names.');
+          const detailsVisible = await evaluate(client,
+            '(() => {const details=(' + mobileSourceCard + ')?.querySelector("[data-weekly-mobile-help-details]");' +
+            'const list=details?.querySelector("[data-weekly-mobile-help-children]");' +
+            'return !!details?.open&&!!list&&list.getBoundingClientRect().height>0&&list.textContent.includes("Hilfekind Beispiel")&&' +
+            '!list.textContent.includes("Testkind Wochenplan");})()');
+          if (!detailsVisible) throw new Error('Expanded help panel lists the wrong children.');
+          await evaluate(client,
+            '(() => {const details=(' + mobileSourceCard + ')?.querySelector("[data-weekly-mobile-help-details]");' +
+            'details?.querySelector("summary")?.click();return !details?.open;})()');
           const publishedParkingBlocked = await evaluate(client,
             '(() => {const card=(' + mobileSourceCard + ');' +
             'const park=card?.querySelector("[data-weekly-mobile-park]");' +
@@ -563,7 +610,7 @@ async function main() {
           await waitFor(client, 'mobile republish restores existing child task',
             '(' + mobileSourceCard + ')?.querySelector("[data-weekly-mobile-child-toggle]")?.getAttribute("aria-pressed")==="true"');
           await waitFor(client, 'mobile republish retains original pupil completion',
-            '(' + mobileSourceCard + ')?.textContent.includes("1/1 fertig")');
+            '(' + mobileSourceCard + ')?.textContent.includes("1/2 fertig")');
           await evaluate(client,
             '(() => {const b=(' + mobileSourceCard + ')?.querySelector("[data-weekly-mobile-copy]");if(!b)return false;b.click();return true;})()');
           await waitFor(client, 'mobile copied lesson banner',
