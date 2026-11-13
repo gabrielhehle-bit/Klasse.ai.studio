@@ -9,6 +9,8 @@ on:
       - 'src/components/PlanungHub.tsx'
       - 'src/components/WeeklyPlan.tsx'
       - 'src/components/YearlyPlan.tsx'
+      - 'src/lib/planningCompletionSync.ts'
+      - 'src/lib/planningCompletionSync.test.ts'
       - 'src/components/DailyHomeworkButton.tsx'
       - 'src/components/cockpit/WidgetReadableText.tsx'
       - 'src/components/cockpit/widgets/HomeworkWidget.tsx'

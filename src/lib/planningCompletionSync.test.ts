@@ -153,6 +153,61 @@ test('Wochenplan: Nicht vorhandene Slots oder andere Kalenderwochen erzeugen kei
   assert.equal(toggleWeeklyCompletion({ week, year, tag: 'Sonntag', idx: 0, subjects }).week, week);
 });
 
+test('Legacy und benannter Wochentag: eine unsichtbare Dublette blockiert den Jahresabschluss nicht', () => {
+  const week = {
+    0: { 0: { fach: 'Deutsch', thema: 'Silben', erledigt: false, notiz: 'Alt' } },
+    Montag: { 0: { fach: 'Deutsch', thema: 'Silben', erledigt: false, notiz: 'Aktuell' } },
+  };
+  const year = { deutsch: { thema: 'Silben', completed: false } };
+  const unchanged = structuredClone(week);
+  const result = toggleWeeklyCompletion({ week, year, tag: 'Montag', idx: 0, subjects });
+  assert.equal(result.week.Montag[0].erledigt, true);
+  assert.equal(result.year.deutsch.completed, true, 'only the visible named hour counts');
+  assert.equal(result.week[0][0], week[0][0], 'shadowed legacy data must not be rewritten');
+  assert.deepEqual(week, unchanged, 'the original weekly records remain untouched');
+});
+
+test('Jahresplan-Haken aktualisiert benannte Stunden und nur sichtbare nummerische Legacy-Slots', () => {
+  const week = {
+    0: {
+      0: { fach: 'Deutsch', thema: 'Lesen', erledigt: false, notiz: 'Historisch' },
+      1: { fach: 'Deutsch', thema: 'Lesen', erledigt: false, material: 'Buch' },
+    },
+    Montag: {
+      0: { fach: 'Deutsch', thema: 'Lesen', erledigt: false, notiz: 'Neu' },
+      2: { fach: 'Mathematik', thema: 'Lesen', erledigt: false },
+    },
+  };
+  const year = { deutsch: { thema: 'Lesen', completed: false } };
+  const unchanged = structuredClone(week);
+  const done = toggleYearlyCellCompletion({ week, year, subjectId: 'deutsch', subjects });
+  assert.equal(done.week.Montag[0].erledigt, true);
+  assert.equal(done.week[0][1].erledigt, true, 'unshadowed numeric hours still work');
+  assert.equal(done.week[0][1].material, 'Buch');
+  assert.equal(done.week[0][0], week[0][0], 'hidden duplicate stays untouched');
+  assert.equal(done.week.Montag[2], week.Montag[2], 'different subjects are isolated');
+  assert.deepEqual(week, unchanged);
+  const reopened = toggleYearlyCellCompletion({ week: done.week, year: done.year, subjectId: 'deutsch', subjects });
+  assert.equal(reopened.week.Montag[0].erledigt, false);
+  assert.equal(reopened.week[0][1].erledigt, false);
+  assert.equal(reopened.week[0][0].erledigt, false);
+});
+
+test('Namensbasierter Wochentag übersteuert Fach eines alten nummerischen Eintrags', () => {
+  const week = {
+    1: { 3: { fach: 'Deutsch', thema: 'Wiederholung', erledigt: false } },
+    Dienstag: { 3: { fach: 'Mathematik', thema: 'Wiederholung', erledigt: false } },
+  };
+  const year = {
+    deutsch: { thema: 'Wiederholung', completed: false },
+    mathematik: { thema: 'Wiederholung', completed: false },
+  };
+  const result = toggleWeeklyCompletion({ week, year, tag: 'Dienstag', idx: 3, subjects });
+  assert.equal(result.year.mathematik.completed, true);
+  assert.equal(result.year.deutsch.completed, false);
+  assert.equal(result.week[1][3], week[1][3]);
+});
+
 test('Produktoberflächen nutzen denselben unveränderlichen Abschluss-Abgleich', () => {
   const weekly = readFileSync('src/components/WeeklyPlan.tsx', 'utf8');
   const yearly = readFileSync('src/components/YearlyPlan.tsx', 'utf8');
