@@ -492,6 +492,29 @@ async function main() {
       for (const width of [390,820,1440]) {
         await client.send('Emulation.setDeviceMetricsOverride', {width,height:1000,deviceScaleFactor:1,mobile:false});
         await sleep(400);
+        if (key === 'weekly' && width === 390) {
+          // Exercise the mobile day-card surface in real Chrome, not just the
+          // wide grid's horizontal scrolling layout.
+          await evaluate(client,
+            'Array.from(document.querySelectorAll("[data-planning-view] button")).find(b=>b.textContent.trim()==="Tag")?.click()');
+          await waitFor(client, 'readable mobile day cards',
+            'document.querySelectorAll("[data-weekly-day-cards] [data-weekly-day-card]").length>=1');
+          const dayControls = await evaluate(client,
+            '(() => {const cards=Array.from(document.querySelectorAll("[data-weekly-day-card]"));' +
+            'const buttons=cards.flatMap(card=>Array.from(card.querySelectorAll("button")));' +
+            'return {count:cards.length,small:buttons.filter(b=>b.getBoundingClientRect().height<43).map(b=>b.textContent.trim()),' +
+            'nested:buttons.some(b=>b.querySelector("button")),' +
+            'hasHour:cards.some(c=>c.textContent.includes("Stunde")),' +
+            'horizontalOverflow:document.documentElement.scrollWidth>innerWidth+3};})()');
+          if(dayControls.count<1 || dayControls.small.length || dayControls.nested ||
+             !dayControls.hasHour || dayControls.horizontalOverflow) {
+            throw new Error('Mobile weekly day cards are inaccessible: '+JSON.stringify(dayControls));
+          }
+          await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-weekly-day-390.png'));
+          await evaluate(client,
+            'Array.from(document.querySelectorAll("[data-planning-view] button")).find(b=>b.textContent.trim()==="Wochenplan")?.click()');
+          console.log('✓ mobile lesson cards render with readable controls and no nested buttons or overflow.');
+        }
         if(width === 390 && key !== 'hub') {
           const toolsLabel = key === 'weekly' ? 'Mehr' : 'Weitere Werkzeuge';
           const expanded = await evaluate(client, '(() => {const header=document.querySelector('+q(selector)+');const button=Array.from(header.querySelectorAll("button")).find(b=>b.textContent.trim()==='+q(toolsLabel)+');if(!button)return false;button.click();return true;})()');
