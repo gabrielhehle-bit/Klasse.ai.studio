@@ -17,6 +17,7 @@ import { pasteCopiedLessonIntoEmptyWeek, reconcileCopiedLessonYearlyStatus, tran
 import { findFirstRestorableParkedSlot, moveOrSwapWeeklyLesson, parkWeeklyLessonSafely, restoreParkedWeeklyLessonSafely, type DragDropStatus } from '../lib/weeklyDragDropSafety';
 import { yearPlanCellEntries } from '../lib/yearlyPlanData';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
+import { GarageRestorePicker } from './wochenplan/GarageRestorePicker';
 import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots, isWeeklyLessonPrepared } from '../lib/weeklyPlanData';
 import { parseLessonTimeRange } from '../lib/lessonTimeSlots';
 import { getAttendanceSemester } from '../lib/attendanceData';
@@ -3316,51 +3317,112 @@ export default function WeeklyPlan() {
               )}
             </div>
 
-            {parkedLessons.length === 0 ? (
+            <p className="mb-3 text-xs leading-relaxed text-slate-600">
+                Zum Wiederverwenden auf <strong>Einsetzen</strong> tippen, dann Tag und Stunde wählen.
+                Alternativ kannst du die Einheit mit der Maus direkt in den Plan ziehen.
+              </p>
+              {garageNotice && (
+                <p role="status" className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-relaxed text-amber-900">
+                  {garageNotice}
+                </p>
+              )}
+              {parkedLessons.length === 0 ? (
               <div className="text-center py-6 text-slate-400 select-none">
                 <p className="text-[0.75rem] font-bold">Die Parkgarage ist leer</p>
                 <p className="text-[0.6875rem] mt-1">Zieh eine Unterrichtsstunde aus dem Wochenplan hierher, um sie für später aufzuheben.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[220px] overflow-y-auto no-scrollbar p-1">
-                {parkedLessons.map((item: any, pIdx: number) => (
-                  <div
-                    key={item.id || pIdx}
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData('parkedLessonIndex', String(pIdx));
-                       e.dataTransfer.setData('parkedLessonIdentity', String(item.id || ''));
-                       e.dataTransfer.effectAllowed = 'move';
-                    }}
-                    className="bg-white border border-slate-150 p-3.5 rounded-2xl shadow-xs hover:shadow-md cursor-grab active:cursor-grabbing transition-all flex flex-col gap-2 relative group text-left"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[0.625rem] font-black uppercase text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
-                        {item.fach}
-                      </span>
-                      <button 
-                        onClick={() => {
-                          setApp(prev => {
-                            const p = [...(prev.parkgarage || [])];
-                            p.splice(pIdx, 1);
-                            return { ...prev, parkgarage: p };
-                          });
-                        }}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-lg transition-all"
-                        title="Aus Parkgarage löschen"
-                      >
-                        <X size={12} />
-                      </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[420px] overflow-y-auto no-scrollbar p-1">
+                {parkedLessons.map((item: any, pIdx: number) => {
+                  const parkedId = String(item.id || '');
+                  const selection = garageRestoreSelection?.parkedIndex === pIdx &&
+                    garageRestoreSelection.parkedId === parkedId &&
+                    garageRestoreSelection.kw === activeKW &&
+                    garageRestoreSelection.classId === app.activeClassId
+                    ? garageRestoreSelection : null;
+                  const restoreStatus = selection
+                    ? restoreParkedWeeklyLessonSafely({
+                        week: app.wochenplanung?.[activeKW], garage: app.parkgarage,
+                        parkedIndex: pIdx, parkedIdentity: parkedId,
+                        target: { dayIdx: selection.dayIdx, hourIdx: selection.hourIdx },
+                        targetWeek: activeKW,
+                      }).status
+                    : null;
+                  return (
+                    <div key={item.id || pIdx}
+                      draggable={!selection}
+                      onDragStart={(event) => {
+                        event.dataTransfer.setData('parkedLessonIndex', String(pIdx));
+                        event.dataTransfer.setData('parkedLessonIdentity', parkedId);
+                        event.dataTransfer.effectAllowed = 'move';
+                      }}
+                      className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-3.5 text-left shadow-sm transition-all hover:shadow-md">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate rounded-md bg-indigo-50 px-2 py-1 text-[0.625rem] font-black uppercase text-indigo-700">
+                          {item.fach || 'Unterricht'}
+                        </span>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <button type="button" data-garage-restore-start
+                            aria-expanded={!!selection}
+                            onClick={() => {
+                              if (selection) {
+                                setGarageRestoreSelection(null);
+                                setGarageNotice(null);
+                              } else startGarageRestore(pIdx, item);
+                            }}
+                            className="min-h-9 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 text-xs font-bold text-indigo-800 hover:bg-indigo-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500">
+                            {selection ? 'Schließen' : 'Einsetzen'}
+                          </button>
+                          <button type="button"
+                            aria-label={'Geparkte Stunde ' + (item.thema || item.fach || '') + ' löschen'}
+                            onClick={() => {
+                              if (!window.confirm('Geparkte Stunde „' +
+                                (item.thema || item.fach || 'Unterricht') +
+                                '“ endgültig löschen? Sie ist danach nicht mehr in der Parkgarage verfügbar.')) return;
+                              setApp(prev => {
+                                const parked = prev.parkgarage || [];
+                                const candidate = parked[pIdx];
+                                const sameItem = parkedId
+                                  ? candidate?.id === parkedId && candidate?.parkedAt === item.parkedAt
+                                  : candidate === item;
+                                if (!sameItem) return prev;
+                                return { ...prev, parkgarage: parked.filter((_, index) => index !== pIdx) };
+                              });
+                              if (selection) setGarageRestoreSelection(null);
+                            }}
+                            className="flex min-h-9 min-w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-500"
+                            title="Aus Parkgarage löschen (mit Bestätigung)">
+                            <X size={15} />
+                          </button>
+                        </div>
+                      </div>
+                      <p className="line-clamp-2 text-sm font-semibold leading-snug text-slate-800">
+                        {item.thema || 'Ohne Thema'}
+                      </p>
+                      <div className="flex flex-wrap items-center justify-between gap-1 text-[0.6875rem] text-slate-500 select-none">
+                        <span>Geparkt am {item.parkedAt || 'heute'}</span>
+                        <span>Alternativ per Ziehen</span>
+                      </div>
+                      {selection && (
+                        <GarageRestorePicker
+                          dayIdx={selection.dayIdx}
+                          hourIdx={selection.hourIdx}
+                          timeLabels={LESSON_SLOT_NUMBERS.map(slot => configuredLessonTime(app.stundenZeiten, STUNDEN_INFO, slot))}
+                          canRestore={restoreStatus === 'restored'}
+                          message={restoreStatus === 'restored'
+                            ? 'Dieser Platz ist frei. Alle Unterrichtsdaten bleiben erhalten.'
+                            : describeBlockedDrop(restoreStatus || 'invalid-slot')}
+                          onDayChange={dayIdx => setGarageRestoreSelection(prev =>
+                            prev?.parkedId === parkedId ? { ...prev, dayIdx } : prev)}
+                          onHourChange={hourIdx => setGarageRestoreSelection(prev =>
+                            prev?.parkedId === parkedId ? { ...prev, hourIdx } : prev)}
+                          onCancel={() => { setGarageRestoreSelection(null); setGarageNotice(null); }}
+                          onConfirm={confirmGarageRestore}
+                        />
+                      )}
                     </div>
-                    <p className="text-[0.75rem] font-bold text-slate-800 line-clamp-2 leading-tight">
-                      {item.thema}
-                    </p>
-                    <div className="flex justify-between items-center text-[0.5625rem] text-slate-400 mt-1 select-none">
-                      <span>Geparkt am {item.parkedAt || "heute"}</span>
-                      <span className="font-semibold text-indigo-500">Zieh mich im Plan!</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
