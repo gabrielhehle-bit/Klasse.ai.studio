@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { STUNDEN_INFO, MAX_LESSON_SLOTS } from '../../constants';
 import { getFachHexColor } from '../../lib/fachColorUtils';
 import { weekTaskKey } from '../../lib/classroomWeeklyPlan';
-import { summarizeChildTaskProgress } from '../../lib/weeklyMobileChildProgress';
+import { getPendingChildHelpRequests, summarizeChildTaskProgress } from '../../lib/weeklyMobileChildProgress';
 import { configuredLessonTime, isWeeklyLessonSlotCovered } from '../../lib/weeklyPlanData';
 import { getMobileWeeklyLessonPermissions } from '../../lib/weeklyMobileCardPermissions';
 
@@ -51,6 +51,8 @@ export const MobileDayLessonCards: React.FC<Props> = ({
         const childKey = weekTaskKey(app.schuljahr || '', activeKW, day, idx);
         const childProgress = isPublished && students.length > 0
           ? summarizeChildTaskProgress(students, childKey) : null;
+        const pendingHelp = isPublished && childProgress?.helpNeeded
+          ? getPendingChildHelpRequests(students, childKey) : [];
         const parkingPermissions = getMobileWeeklyLessonPermissions({
           lesson: item, taskId: childKey, students: app.schueler || [],
         });
@@ -143,10 +145,20 @@ export const MobileDayLessonCards: React.FC<Props> = ({
                         style={{ width: `${childProgress.percentage}%` }} />
                     </div>
                     {childProgress.helpNeeded > 0 && (
-                      <p data-weekly-mobile-help-needed className="mt-2 text-xs font-semibold text-amber-800">
-                        {childProgress.helpNeeded} {childProgress.helpNeeded === 1
-                          ? 'Kind braucht noch Hilfe' : 'Kinder brauchen noch Hilfe'}
-                      </p>
+                      <details data-weekly-mobile-help-details
+                        className="mt-2 rounded-lg border border-amber-200 bg-amber-50/80 text-amber-950">
+                        <summary data-weekly-mobile-help-needed
+                          className="flex min-h-11 cursor-pointer items-center px-3 py-2 text-xs font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-600">
+                          {childProgress.helpNeeded} {childProgress.helpNeeded === 1
+                            ? 'Kind braucht noch Hilfe' : 'Kinder brauchen noch Hilfe'} · Namen anzeigen
+                        </summary>
+                        <ul data-weekly-mobile-help-children
+                          className="space-y-1 border-t border-amber-200 px-3 py-2 text-sm font-medium">
+                          {pendingHelp.map(child => (
+                            <li key={child.studentId}>{child.displayName}</li>
+                          ))}
+                        </ul>
+                      </details>
                     )}
                   </div>
                 )}
