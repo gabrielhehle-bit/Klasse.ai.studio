@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   getSW, getStartYear, getKW, kwYear, kwToMonday, getCurrentSchuljahr, getSchulstartKW, formatLocalDateKey 
 } from '../lib/utils';
-import { LESSON_SLOT_NUMBERS, MAX_LESSON_SLOTS, TAGE_NAMEN } from '../constants';
+import { DEFAULT_YEARLY_SUBJECTS, LESSON_SLOT_NUMBERS, MAX_LESSON_SLOTS, TAGE_NAMEN } from '../constants';
 import { ErrorBoundaryLogger } from './ErrorBoundaryLogger';
 import { 
   BrainCircuit, CalendarRange, ArrowRight, Activity, AlertCircle, Sparkles, 
