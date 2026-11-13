@@ -19,7 +19,7 @@ import {
 import WeeklyGoalsWidget from './WeeklyGoalsWidget';
 import DailyHomeworkButton from './DailyHomeworkButton';
 import { getPlanningWeekOverview } from '../lib/planningWeekOverview';
-import { transferQuickPlannedLesson, type QuickPlanTransferMode } from '../lib/quickPlanLessonTransfer';
+import { reconcileCopiedLessonYearlyStatus, transferQuickPlannedLesson, type QuickPlanTransferMode } from '../lib/quickPlanLessonTransfer';
 
 export default function PlanungsZentrale() {
   const { app, setApp, setPage } = useApp();
@@ -390,9 +390,17 @@ export default function PlanungsZentrale() {
         copyId: mode === 'copy' ? `lesson-${Date.now()}-${Math.random().toString(36).slice(2, 10)}` : undefined,
       });
       if (current.status !== 'copied' && current.status !== 'moved') return prev;
+      const year = prev.jahresplanung?.[nextKW] || {};
+      const revisedYear = mode === 'copy' ? reconcileCopiedLessonYearlyStatus({
+        week: current.week, year, target,
+        subjects: prev.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS,
+      }) : year;
       return {
         ...prev,
         wochenplanung: { ...(prev.wochenplanung || {}), [nextKW]: current.week },
+        ...(revisedYear !== year ? {
+          jahresplanung: { ...(prev.jahresplanung || {}), [nextKW]: revisedYear },
+        } : {}),
       };
     });
 
