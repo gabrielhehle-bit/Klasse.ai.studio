@@ -552,6 +552,17 @@ async function main() {
               q(topic) + ')&&card.querySelector("[data-weekly-mobile-child-toggle]")&&card.querySelector("[data-weekly-mobile-copy]"))');
           }
           if (!lessonFound) throw new Error('Mobile lesson card cannot access the previously saved teaching task.');
+          const weekdayHelpBadge = await evaluate(client,
+            '(() => {const tabs=Array.from(document.querySelectorAll("section[aria-label=\\\"Tagesansicht des Wochenplans\\\"] [aria-label=\\\"Wochentag auswählen\\\"] button"));' +
+            'const badged=tabs.filter(tab=>!!tab.querySelector("[data-weekly-day-help-count]"));' +
+            'return tabs.length===5&&badged.length===1&&badged[0].getAttribute("aria-pressed")==="true"&&' +
+            'badged[0].querySelector("[data-weekly-day-help-count]")?.textContent.includes("1 Hilfe")&&' +
+            'badged[0].getAttribute("aria-label")?.includes("1 offener Hilferuf")&&' +
+            'tabs.every(tab=>tab.getAttribute("aria-label")?.includes("Hilferuf"))&&' +
+            'tabs.every(tab=>!tab.textContent.includes("Hilfekind"));})()');
+          if (!weekdayHelpBadge) {
+            throw new Error('Weekday navigation must show exactly one accessible pending-help indicator, without child names.');
+          }
           const mobileSourceCard =
             'Array.from(document.querySelectorAll("[data-weekly-day-card]")).find(card=>card.textContent.includes(' +
             q(topic) + ')&&card.querySelector("[data-weekly-mobile-child-toggle]"))';

@@ -164,3 +164,14 @@ test('Tagesübersicht zeigt ausschließlich aggregierten Hilfebedarf mit erreich
   assert.match(mobile, /card\?\.focus/);
   assert.match(mobile, /tabIndex=\{-1\} data-weekly-day-card/);
 });
+
+test('Wochentage zeigen Hilferuf-Zahlen ohne Namen; ohne Hilferuf gibt es kein Badge', () => {
+  assert.match(weekly, /const visibleWeekPupils = \(app\.schueler \|\| \[\]\)\.filter\(student => !student\.id\.startsWith\('demo-'\)\)/);
+  assert.match(weekly, /const pendingHelpCount = summarizeDailyPendingHelp\(/);
+  assert.match(weekly, /plan\?\.\[tag\], visibleWeekPupils, app\.schuljahr \|\| '', activeKW, tag/);
+  assert.match(weekly, /pendingHelpCount > 0 && \(/);
+  assert.match(weekly, /data-weekly-day-help-count aria-hidden="true"/);
+  assert.match(weekly, /\{pendingHelpCount\} Hilfe/);
+  assert.match(weekly, /aria-label=\{\x60[^\x60]*?pendingHelpCount/);
+  assert.match(weekly, /setSelectedDay\(tag\)/);
+});
