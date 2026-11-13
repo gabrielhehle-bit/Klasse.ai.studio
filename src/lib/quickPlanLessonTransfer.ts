@@ -10,7 +10,7 @@ export type QuickPlanPosition = { dayIdx: number; hourIdx: number };
 export type QuickPlanTransferMode = 'copy' | 'move';
 export type QuickPlanTransferStatus =
   | 'copied' | 'moved' | 'invalid-slot' | 'same-slot'
-  | 'empty-source' | 'occupied-target' | 'ambiguous-source';
+  | 'empty-source' | 'occupied-target' | 'ambiguous-source' | 'published-child-task';
 
 type Week = Record<string, any>;
 
@@ -73,6 +73,12 @@ export function transferQuickPlannedLesson(input: {
     return stop('empty-source');
   }
   if (to.exists) return stop('occupied-target');
+  // Pupil progress is keyed by school-year/week/day/hour. Moving a published
+  // lesson without migrating those records would orphan existing feedback.
+  // Copying is safe: it creates an independent, unfinished child task.
+  if (input.mode === 'move' && from.lesson.imKinderWochenplan === true) {
+    return stop('published-child-task');
+  }
 
   // Longer lessons reserve their following slots even when those do not have
   // separate saved objects. Check both directions, including a previous block
