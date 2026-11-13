@@ -532,6 +532,17 @@ async function main() {
           if (initiallyPublished !== 'true') {
             throw new Error('Mobile child-plan control did not reflect the published saved task.');
           }
+          const childProgressVisible = await evaluate(client,
+            '(() => {const card=(' + mobileSourceCard + ');' +
+            'const panel=card?.querySelector("[data-weekly-mobile-child-progress]");' +
+            'const bar=panel?.querySelector("[role=progressbar]");' +
+            'return !!panel&&!!bar&&bar.getAttribute("aria-valuenow")==="1"&&' +
+            'bar.getAttribute("aria-valuemax")==="1"&&' +
+            'panel.textContent.includes("1 von 1 erledigt")&&' +
+            '!panel.querySelector("[data-weekly-mobile-help-needed]");})()');
+          if (!childProgressVisible) {
+            throw new Error('Mobile weekly day card does not show the saved pupil completion correctly.');
+          }
           const publishedParkingBlocked = await evaluate(client,
             '(() => {const card=(' + mobileSourceCard + ');' +
             'const park=card?.querySelector("[data-weekly-mobile-park]");' +

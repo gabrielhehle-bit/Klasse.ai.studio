@@ -22,7 +22,7 @@ test('Tageskarten: Fach, Titel, Stundenzeit und pädagogische Details bleiben si
   assert.match(mobile, /item\.schwerpunkte/);
   assert.match(mobile, /materialIds/);
   assert.match(mobile, /Für Kinder sichtbar/);
-  assert.match(mobile, /getChildTaskProgress\(/);
+  assert.match(mobile, /summarizeChildTaskProgress\(/);
   assert.match(mobile, /isWeeklyLessonSlotCovered\(/);
 });
 
@@ -123,4 +123,17 @@ test('Mobiler Wochenplan: veröffentlichte oder rückgemeldete Stunden zeigen ei
   assert.match(mobile, /Kinder-Rückmeldungen sind für diese Stunde gespeichert/);
   assert.match(mobile, /title=\{parkingReason \|\|/);
   assert.doesNotMatch(mobile, /onClick=\{\(\) => onPark\(day, idx\)\}/);
+});
+
+test('Mobile Kinderaufgaben zeigen einen zugänglichen Fortschrittsbalken und offene Hilferufe', () => {
+  assert.match(mobile, /data-weekly-mobile-child-progress/);
+  assert.match(mobile, /isPublished && childProgress/);
+  assert.match(mobile, /role="progressbar"/);
+  assert.match(mobile, /aria-valuemin=\{0\}/);
+  assert.match(mobile, /aria-valuenow=\{childProgress\.done\}/);
+  assert.match(mobile, /aria-valuemax=\{childProgress\.total\}/);
+  assert.match(mobile, /childProgress\.percentage/);
+  assert.match(mobile, /data-weekly-mobile-help-needed/);
+  assert.match(mobile, /childProgress\.helpNeeded > 0/);
+  assert.doesNotMatch(mobile, /getChildTaskProgress\(/);
 });
