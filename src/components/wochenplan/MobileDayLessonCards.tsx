@@ -5,6 +5,7 @@ import { STUNDEN_INFO, MAX_LESSON_SLOTS } from '../../constants';
 import { getFachHexColor } from '../../lib/fachColorUtils';
 import { getChildTaskProgress, weekTaskKey } from '../../lib/classroomWeeklyPlan';
 import { configuredLessonTime, isWeeklyLessonSlotCovered } from '../../lib/weeklyPlanData';
+import { getMobileWeeklyLessonPermissions } from '../../lib/weeklyMobileCardPermissions';
 
 type Props = {
   day: string;
@@ -49,6 +50,14 @@ export const MobileDayLessonCards: React.FC<Props> = ({
         const childKey = weekTaskKey(app.schuljahr || '', activeKW, day, idx);
         const childDone = item?.imKinderWochenplan === true
           ? students.filter(student => getChildTaskProgress(student, childKey)?.done === true).length : 0;
+        const parkingPermissions = getMobileWeeklyLessonPermissions({
+          lesson: item, taskId: childKey, students: app.schueler || [],
+        });
+        const parkingReason = parkingPermissions.isPublished
+          ? 'Parken gesperrt: Diese Stunde ist im Kinder-Wochenplan veröffentlicht.'
+          : parkingPermissions.hasChildFeedback
+            ? 'Parken gesperrt: Kinder-Rückmeldungen sind für diese Stunde gespeichert, auch wenn sie nicht mehr veröffentlicht ist.'
+            : null;
         const accent = getFachHexColor(app.fachConfig?.[subject]?.color || subject);
         return (
           <div key={idx} data-weekly-day-card
@@ -135,6 +144,11 @@ export const MobileDayLessonCards: React.FC<Props> = ({
                     1. Hälfte: {item.halves.first?.thema || '—'} · 2. Hälfte: {item.halves.second?.thema || '—'}
                   </p>
                 )}
+                {parkingReason && (
+                  <p data-weekly-mobile-parking-explanation className="mt-2 text-xs font-semibold leading-relaxed text-amber-800">
+                    {parkingReason}
+                  </p>
+                )}
                 <div className="mt-2 flex flex-wrap gap-2" data-weekly-day-actions>
                   {mayPublishToChildren && (
                     <button type="button"
@@ -166,13 +180,17 @@ export const MobileDayLessonCards: React.FC<Props> = ({
                     {isDone ? 'Wieder öffnen' : 'Als erledigt markieren'}
                   </button>
                   <button type="button"
+                    data-weekly-mobile-park
+                    disabled={!parkingPermissions.canPark}
                     onClick={() => {
+                      if (!parkingPermissions.canPark) return;
                       if (window.confirm('Diese Unterrichtsstunde in die Parkgarage verschieben? Sie bleibt dort vollständig erhalten.')) {
                         onPark(day, idx);
                       }
                     }}
                     aria-label={`${idx + 1}. Stunde in die Parkgarage verschieben`}
-                    className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:border-indigo-200 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600">
+                    title={parkingReason || 'Stunde in die Parkgarage verschieben'}
+                    className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:border-indigo-200 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">
                     Parken
                   </button>
                 </div>
