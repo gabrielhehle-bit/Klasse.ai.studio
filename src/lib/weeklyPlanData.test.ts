@@ -5,6 +5,7 @@ import {
   configuredLessonTime,
   getPreviousCalendarWeekKw,
   weeklyLessonDurationSlots,
+  isWeeklyLessonSlotCovered,
   collectIncompleteWeeklyLessonSlots,
   isWeeklyLessonPrepared,
 } from './weeklyPlanData';
@@ -74,4 +75,31 @@ test('Wochenplan-Fortschritt: vorbereitete Stunde ist nicht dasselbe wie erledig
   assert.equal(isWeeklyLessonPrepared({ halves: { enabled: true, first: { thema: 'Lesen' } } }), true);
   assert.equal(isWeeklyLessonPrepared({ materialIds: ['mat-1'] }), true);
   assert.equal(isWeeklyLessonPrepared({ type: 'standard' }), false);
+});
+
+test('Tagesansicht: mehrstündige Einheit verbirgt nur nicht gespeicherte Folgestunden', () => {
+  const day = {
+    0: { fach: 'Deutsch', thema: 'Projekt', duration: 3 },
+    4: { fach: 'Mathematik', thema: 'Rechnen' },
+  };
+  assert.equal(isWeeklyLessonSlotCovered(day, 0), false);
+  assert.equal(isWeeklyLessonSlotCovered(day, 1), true);
+  assert.equal(isWeeklyLessonSlotCovered(day, 2), true);
+  assert.equal(isWeeklyLessonSlotCovered(day, 3), false);
+  assert.equal(isWeeklyLessonSlotCovered(day, 4), false);
+  assert.equal(isWeeklyLessonSlotCovered(day, -1), false);
+  assert.equal(isWeeklyLessonSlotCovered(day, 10), false);
+  assert.equal(isWeeklyLessonSlotCovered(undefined, 3), false);
+});
+
+test('Tagesansicht: belegte Legacy-Stunde bleibt selbst bei Überlappung sichtbar', () => {
+  const day = {
+    0: { fach: 'Musik', duration: 'all' },
+    1: { fach: 'Deutsch', thema: 'Sichtbarer Alt-Eintrag' },
+    zeitunabhaengig: [{ thema: 'Elternabend' }],
+  };
+  assert.equal(isWeeklyLessonSlotCovered(day, 1), false);
+  assert.equal(isWeeklyLessonSlotCovered(day, 2), true);
+  assert.equal(isWeeklyLessonSlotCovered(day, 9), true);
+  assert.equal(day[1].thema, 'Sichtbarer Alt-Eintrag');
 });
