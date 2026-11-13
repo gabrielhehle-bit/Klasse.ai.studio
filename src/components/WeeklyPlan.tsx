@@ -12,6 +12,7 @@ import { getFachHexColor, getFachThemeStyles } from '../lib/fachColorUtils';
 import type { WochenplanImportRow } from '../lib/planerExcelService';
 const WochenplanExcelModal = React.lazy(() => import('./WochenplanExcelModal'));
 import { addWeeklyLessonToEmptyYearPlan, addWeeklyLessonsToYearPlan, buildYearlyAiTimetable, hasWeeklyPlanningDetails, mergeYearlyAssignmentsIntoWeeklyWeek, mergeYearlySuggestionIntoEmptyWeeklySlot } from '../lib/planningSync';
+import { toggleWeeklyCompletion, toggleYearlyEntryCompletion } from '../lib/planningCompletionSync';
 import { yearPlanCellEntries } from '../lib/yearlyPlanData';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
 import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots, isWeeklyLessonPrepared } from '../lib/weeklyPlanData';
@@ -1485,92 +1486,43 @@ export default function WeeklyPlan() {
   const toggleDoneStatus = (e: React.MouseEvent, tag: string, idx: number) => {
     e.stopPropagation();
     setApp(prev => {
-      const wp = { ...(prev.wochenplanung || {}) };
-      const currentWeekObj = { ...wp[activeKW] };
-      if (!currentWeekObj[tag]) currentWeekObj[tag] = {};
-      const item = { ...(currentWeekObj[tag][idx] || {}) };
-      
-      const newErledigt = !item.erledigt;
-      item.erledigt = newErledigt;
-      currentWeekObj[tag][idx] = item;
-      wp[activeKW] = currentWeekObj;
-
-      // Update Jahresplanung if there's a matching theme in the active week
-      const jp = { ...(prev.jahresplanung || {}) };
-      const weekJp = { ...(jp[activeKW] || {}) };
-      let jpChanged = false;
-
-      if (item.thema) {
-        Object.entries(weekJp).forEach(([subjId, subjData]: [string, any]) => {
-          if (subjData.items && subjData.items.length > 0) {
-            const updatedItems = subjData.items.map((it: any) => {
-              if (it.thema === item.thema) {
-                jpChanged = true;
-                return { ...it, completed: newErledigt };
-              }
-              return it;
-            });
-            const allDone = updatedItems.every((it: any) => it.completed);
-            weekJp[subjId] = { ...subjData, items: updatedItems, completed: allDone };
-          } else if (subjData.thema === item.thema) {
-            weekJp[subjId] = { ...subjData, completed: newErledigt };
-            jpChanged = true;
-          }
-        });
-      }
-
-      if (jpChanged) {
-        jp[activeKW] = weekJp;
-        return { ...prev, wochenplanung: wp, jahresplanung: jp };
-      }
-
-      return { ...prev, wochenplanung: wp };
+      const week = prev.wochenplanung?.[activeKW] || {};
+      const year = prev.jahresplanung?.[activeKW] || {};
+      const result = toggleWeeklyCompletion({
+        week, year, tag, idx,
+        subjects: sortYearlySubjects(prev.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS),
+      });
+      if (result.week === week && result.year === year) return prev;
+      return {
+        ...prev,
+        ...(result.week !== week ? {
+          wochenplanung: { ...(prev.wochenplanung || {}), [activeKW]: result.week },
+        } : {}),
+        ...(result.year !== year ? {
+          jahresplanung: { ...(prev.jahresplanung || {}), [activeKW]: result.year },
+        } : {}),
+      };
     });
   };
 
   const toggleYearlyItemCompletion = (subjectId: string, itemIndex: number | null) => {
     setApp(prev => {
-      const jp = { ...(prev.jahresplanung || {}) };
-      const weekData = { ...(jp[activeKW] || {}) };
-      const cell = { ...(weekData[subjectId] || {}) };
-      
-      const isCompleted = itemIndex === null ? !cell.completed : !cell.items?.[itemIndex]?.completed;
-
-      if (itemIndex === null) {
-        cell.completed = isCompleted;
-      } else {
-        const items = [...(cell.items || [])];
-        if (items[itemIndex]) {
-          items[itemIndex] = { ...items[itemIndex], completed: isCompleted };
-        }
-        cell.items = items;
-        cell.completed = items.every((it: any) => it.completed);
-      }
-      
-      weekData[subjectId] = cell;
-      jp[activeKW] = weekData;
-
-      // Sync to WeeklyPlan: if marked as erledigt, also check it off in WeeklyPlan
-      const wp = { ...(prev.wochenplanung || {}) };
-      const weekWp = { ...(wp[activeKW] || {}) };
-      let wpChanged = false;
-
-      Object.entries(weekWp).forEach(([tag, daySlots]: [string, any]) => {
-        Object.entries(daySlots).forEach(([idx, slot]: [string, any]) => {
-          const itemThema = itemIndex === null ? cell.thema : cell.items?.[itemIndex]?.thema;
-          if (slot && slot.thema === itemThema) {
-            weekWp[tag][idx] = { ...slot, erledigt: isCompleted };
-            wpChanged = true;
-          }
-        });
+      const week = prev.wochenplanung?.[activeKW] || {};
+      const year = prev.jahresplanung?.[activeKW] || {};
+      const result = toggleYearlyEntryCompletion({
+        week, year, subjectId, itemIndex,
+        subjects: sortYearlySubjects(prev.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS),
       });
-
-      if (wpChanged) {
-        wp[activeKW] = weekWp;
-        return { ...prev, jahresplanung: jp, wochenplanung: wp };
-      }
-
-      return { ...prev, jahresplanung: jp };
+      if (result.week === week && result.year === year) return prev;
+      return {
+        ...prev,
+        ...(result.year !== year ? {
+          jahresplanung: { ...(prev.jahresplanung || {}), [activeKW]: result.year },
+        } : {}),
+        ...(result.week !== week ? {
+          wochenplanung: { ...(prev.wochenplanung || {}), [activeKW]: result.week },
+        } : {}),
+      };
     });
   };
 
