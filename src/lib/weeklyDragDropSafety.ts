@@ -79,6 +79,8 @@ export function moveOrSwapWeeklyLesson(input: {
   const to = readSlot(week, input.target);
   if (from.ambiguous) return stop('ambiguous-source');
   if (!from.exists || !isRecord(from.lesson) || !Object.keys(from.lesson).length) return stop('empty-source');
+  if (from.key !== TAGE_NAMEN[input.source.dayIdx] ||
+      to.key !== TAGE_NAMEN[input.target.dayIdx]) return stop('legacy-day');
   if (!noTeacherOrStudentProgress(from.lesson, input.sourceHasChildProgress)) return stop('published-child-task');
   if (to.ambiguous) return stop('occupied-target');
 
@@ -121,6 +123,7 @@ export function parkWeeklyLessonSafely(input: {
   const from = readSlot(week, input.source);
   if (from.ambiguous) return stop('ambiguous-source');
   if (!from.exists || !isRecord(from.lesson) || !Object.keys(from.lesson).length) return stop('empty-source');
+  if (from.key !== TAGE_NAMEN[input.source.dayIdx]) return stop('legacy-day');
   if (!noTeacherOrStudentProgress(from.lesson, input.sourceHasChildProgress)) return stop('published-child-task');
   if (garage.some(item => item?.id === input.parkedId)) return stop('stale-parked-item');
 
@@ -181,6 +184,7 @@ export function restoreParkedWeeklyLessonSafely(input: {
   if (check.status !== 'copied') return stop(check.status === 'invalid-slot' ? 'invalid-slot' : 'occupied-target');
 
   const to = readSlot(week, input.target);
+  if (to.key !== TAGE_NAMEN[input.target.dayIdx]) return stop('legacy-day');
   const next = {
     ...week,
     [to.key]: { ...(isRecord(week[to.key]) ? week[to.key] : {}), [input.target.hourIdx]: structuredClone(lesson) },
