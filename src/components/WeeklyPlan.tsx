@@ -675,37 +675,36 @@ export default function WeeklyPlan() {
          return { ...prev, wochenplanung: wp };
        });
     } else if (parkedIndexStr !== '' && parkedIndexStr !== undefined && parkedIndexStr !== null) {
-       const pIdx = parseInt(parkedIndexStr, 10);
-       setApp(prev => {
-         const parked = [...(prev.parkgarage || [])];
-         const item = parked[pIdx];
-         if (!item) return prev;
-
-         // Remove from parked
-         parked.splice(pIdx, 1);
-
-         // Place into weekly plan
-         const wp = { ...(prev.wochenplanung || {}) };
-         const currentWeekObj = { ...wp[activeKW] };
-         if (!currentWeekObj[targetTag]) currentWeekObj[targetTag] = {};
-
-         currentWeekObj[targetTag][targetIdx] = {
-           fach: item.fach,
-           thema: item.thema,
-           type: item.type || 'standard',
-           material: item.material || '',
-           hue: item.hue || '',
-           method: item.method || '',
-           social: item.social || 'single',
-           reflexion: item.reflexion || '',
-           schwerpunkte: item.schwerpunkte || [],
-           duration: item.duration || 1,
-           erledigt: item.erledigt || false
-         };
-
-         wp[activeKW] = currentWeekObj;
-         return { ...prev, wochenplanung: wp, parkgarage: parked };
-       });
+      const parkedIndex = Number(parkedIndexStr);
+      const target = { dayIdx: TAGE_NAMEN.indexOf(targetTag), hourIdx: targetIdx };
+      const preview = restoreParkedWeeklyLessonSafely({
+        week: app.wochenplanung?.[activeKW], garage: app.parkgarage,
+        parkedIndex, parkedIdentity, target, targetWeek: activeKW,
+      });
+      if (preview.status !== 'restored') {
+        window.alert(describeBlockedDrop(preview.status));
+        return;
+      }
+      setApp(prev => {
+        const result = restoreParkedWeeklyLessonSafely({
+          week: prev.wochenplanung?.[activeKW], garage: prev.parkgarage,
+          parkedIndex, parkedIdentity, target, targetWeek: activeKW,
+        });
+        if (result.status !== 'restored') return prev;
+        const year = prev.jahresplanung?.[activeKW] || {};
+        const revisedYear = reconcileCopiedLessonYearlyStatus({
+          week: result.week, year, target,
+          subjects: sortYearlySubjects(prev.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS),
+        });
+        return {
+          ...prev,
+          wochenplanung: { ...(prev.wochenplanung || {}), [activeKW]: result.week },
+          parkgarage: result.garage,
+          ...(revisedYear !== year ? {
+            jahresplanung: { ...(prev.jahresplanung || {}), [activeKW]: revisedYear },
+          } : {}),
+        };
+      });
     } else if (textData) {
        // A plain-text drop can contain a yearly theme, but is never allowed to
        // replace existing text, homework or a differently assigned subject.
@@ -1633,36 +1632,44 @@ export default function WeeklyPlan() {
   };
 
   const handleParkLesson = (tag: string, idx: number) => {
+    const source = { dayIdx: TAGE_NAMEN.indexOf(tag), hourIdx: idx };
+    const parkedId = 'parked-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+    const parkedAt = new Date().toLocaleDateString('de-AT');
+    const preview = parkWeeklyLessonSafely({
+      week: app.wochenplanung?.[activeKW], garage: app.parkgarage,
+      source, parkedId, parkedAt, weekNumber: activeKW,
+      sourceHasChildProgress: hasChildProgressForSlot(app, tag, idx),
+    });
+    if (preview.status !== 'parked') {
+      window.alert(describeBlockedDrop(preview.status));
+      return;
+    }
     setApp(prev => {
-      const wp = { ...(prev.wochenplanung || {}) };
-      const currentWeekObj = { ...wp[activeKW] };
-      const item = currentWeekObj[tag]?.[idx];
-      if (!item || (!item.fach && !item.thema)) return prev;
-
-      const parked = [...(prev.parkgarage || [])];
-      parked.push({
-        ...item,
-        id: `parked-${Date.now()}-${Math.random()}`,
-        parkedAt: new Date().toLocaleDateString('de-AT')
+      const result = parkWeeklyLessonSafely({
+        week: prev.wochenplanung?.[activeKW], garage: prev.parkgarage,
+        source, parkedId, parkedAt, weekNumber: activeKW,
+        sourceHasChildProgress: hasChildProgressForSlot(prev, tag, idx),
       });
-
-      const updatedWeek = { ...currentWeekObj };
-      if (updatedWeek[tag]) {
-        delete updatedWeek[tag][idx];
-      }
-      wp[activeKW] = updatedWeek;
-
-      return { ...prev, wochenplanung: wp, parkgarage: parked };
+      if (result.status !== 'parked') return prev;
+      return {
+        ...prev,
+        wochenplanung: { ...(prev.wochenplanung || {}), [activeKW]: result.week },
+        parkgarage: result.garage,
+      };
     });
   };
 
   const handleDropToParkgarage = (e: React.DragEvent) => {
     e.preventDefault();
+    setDraggedLesson(null);
     const sourceDataStr = e.dataTransfer.getData('sourceCell');
     if (!sourceDataStr) return;
     const sourceData = safeJsonParse(sourceDataStr, null);
-    if (!sourceData) return;
-
+    if (!sourceData || sourceData.kw !== activeKW || sourceData.classId !== app.activeClassId ||
+        !TAGE_NAMEN.includes(sourceData.tag) || !Number.isInteger(sourceData.idx)) {
+      window.alert('Die gezogene Stunde gehört nicht zur aktuellen Kalenderwoche oder Klasse.');
+      return;
+    }
     handleParkLesson(sourceData.tag, sourceData.idx);
   };
 
@@ -3230,6 +3237,8 @@ export default function WeeklyPlan() {
                     draggable
                     onDragStart={(e) => {
                       e.dataTransfer.setData('parkedLessonIndex', String(pIdx));
+                       e.dataTransfer.setData('parkedLessonIdentity', String(item.id || ''));
+                       e.dataTransfer.effectAllowed = 'move';
                     }}
                     className="bg-white border border-slate-150 p-3.5 rounded-2xl shadow-xs hover:shadow-md cursor-grab active:cursor-grabbing transition-all flex flex-col gap-2 relative group text-left"
                   >
