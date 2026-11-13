@@ -57,11 +57,12 @@ test('Mobiler Wochenplan: Fremde Wochen und andere Stunden sperren die Stunde ni
 });
 
 test('Mobiler Wochenplan: Unvollständige oder alte Stunden werden nicht als Kinderaufgabe angeboten', () => {
-  for (const entry of [undefined, null, {}, { fach: '  ', thema: 'Lesen' },
-    { fach: 'Deutsch', thema: '' }, { fach: 'Deutsch', thema: 'Lesen' }]) {
+  const entries = [undefined, null, {}, { fach: '  ', thema: 'Lesen' },
+    { fach: 'Deutsch', thema: '' }, { fach: 'Deutsch', thema: 'Lesen' }];
+  entries.forEach((entry, index) => {
     const state = getMobileWeeklyLessonPermissions({ lesson: entry, taskId: key, students: [] });
-    assert.equal(state.canPublish, entry?.fach === 'Deutsch' && entry?.thema === 'Lesen');
-  }
+    assert.equal(state.canPublish, index === 5);
+  });
 });
 
 test('Mobiler Wochenplan: Rückmeldungen von Demo-/Altkindern werden beim Parkschutz berücksichtigt', () => {
