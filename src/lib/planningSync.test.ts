@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addWeeklyLessonToEmptyYearPlan, addWeeklyLessonsToYearPlan, hasWeeklyPlanningDetails, isYearPlanCellFree } from './planningSync';
+import { readFileSync } from 'node:fs';
+import { addWeeklyLessonToEmptyYearPlan, addWeeklyLessonsToYearPlan, buildYearlyAiTimetable, hasWeeklyPlanningDetails, isYearPlanCellFree, mergeYearlyAssignmentsIntoWeeklyWeek } from './planningSync';
 
 test('Wochenplan → Jahresplan: leeres Fach der gleichen KW wird sicher ergänzt', () => {
   const result = addWeeklyLessonToEmptyYearPlan({
@@ -122,4 +123,99 @@ test('Mehrfachübernahme überspringt unbekannte Fächer, leere Themen und termi
   assert.equal(result.added, 0);
   assert.equal(result.skipped, 3);
   assert.equal(result.plan, original);
+});
+
+test('Jahresplan-KI: Stammplanvorlage bleibt rein lesend und überschreibt keine Wochenplanstunden', () => {
+  const saved = { Montag: { 0: { fach: 'Deutsch', thema: 'Eigene Lesestunde', material: 'Karten' } } };
+  const stamm = { Montag: { 1: 'Mathematik', 2: 'Sachunterricht' }, Dienstag: { 3: 'Musik' } };
+  const original = structuredClone(saved);
+  const template = buildYearlyAiTimetable(saved, stamm);
+  assert.deepEqual(saved, original);
+  assert.notEqual(template.Montag, saved.Montag);
+  assert.equal(template.Montag[0].fach, 'Deutsch', 'existing weekly subject overrides Stammplan');
+  assert.equal(template.Montag[1].fach, 'Sachunterricht');
+  assert.equal(template.Dienstag[2].fach, 'Musik');
+  assert.deepEqual(saved, original, 'prompt preparation must not write to live state');
+});
+
+test('Jahresplan-KI: vorhandene Unterrichtsthemen, Hausübungen und Kind-Aufgaben werden nicht ersetzt', () => {
+  const saved = { Montag: {
+    0: { fach: 'Deutsch', thema: 'Eigenes Thema', housework: 'S. 9', erledigt: true },
+    1: { fach: 'Mathematik', thema: '', material: 'Dienes-Würfel', imKinderWochenplan: true },
+    2: { fach: 'Sachunterricht', thema: '', notiz: 'Elterninfo' },
+    3: { fach: 'Religion', thema: '', erledigt: true },
+  } };
+  const before = structuredClone(saved);
+  const template = buildYearlyAiTimetable(saved, {
+    Montag: { 1: 'Deutsch', 2: 'Mathematik', 3: 'Sachunterricht', 4: 'Religion' },
+  });
+  const result = mergeYearlyAssignmentsIntoWeeklyWeek({
+    existingWeek: saved, timetableWeek: template,
+    assignments: [
+      { tag: 'Montag', idx: 0, thema: 'KI ersetzt nicht die Lehrkraft' },
+      { tag: 'Montag', idx: 1, thema: 'KI ersetzt nicht Material' },
+      { tag: 'Montag', idx: 2, thema: 'KI ersetzt nicht Notizen' },
+      { tag: 'Montag', idx: 3, thema: 'KI setzt erledigte Stunde nicht zurück' },
+    ],
+  });
+  assert.equal(result.added, 0);
+  assert.equal(result.skipped, 4);
+  assert.equal(result.week, saved);
+  assert.deepEqual(saved, before);
+});
+
+test('Jahresplan-KI: nur wirklich freie Fachstunden erhalten Themen; Wiederholung bleibt idempotent', () => {
+  const saved = { Montag: { 0: { fach: 'Deutsch', erledigt: false } } };
+  const frozen = structuredClone(saved);
+  const template = buildYearlyAiTimetable(saved, { Montag: { 1: 'Deutsch', 2: 'Mathematik' } });
+  const assignments = [
+    { tag: 'Montag', idx: 0, thema: 'Silben lesen', buch: 'S. 20', subCategories: ['Deutsch (Lesen)'] },
+    { tag: 'Montag', idx: 1, thema: 'Zahlenraum 20', buch: 'AH S. 12', type: 'standard' },
+    { tag: 'Montag', idx: 0, thema: 'Anderer KI-Vorschlag' },
+  ];
+  const first = mergeYearlyAssignmentsIntoWeeklyWeek({ existingWeek: saved, timetableWeek: template, assignments });
+  assert.equal(first.added, 2);
+  assert.equal(first.skipped, 1);
+  assert.equal(first.week.Montag[0].thema, 'Silben lesen');
+  assert.equal(first.week.Montag[0].erledigt, false);
+  assert.deepEqual(first.week.Montag[0].schwerpunkte, ['Deutsch (Lesen)']);
+  assert.equal(first.week.Montag[1].fach, 'Mathematik');
+  assert.equal(first.week.Montag[1].thema, 'Zahlenraum 20');
+  assert.deepEqual(saved, frozen);
+  assert.notEqual(first.week.Montag, saved.Montag);
+
+  const second = mergeYearlyAssignmentsIntoWeeklyWeek({
+    existingWeek: first.week,
+    timetableWeek: buildYearlyAiTimetable(first.week, { Montag: { 1: 'Deutsch', 2: 'Mathematik' } }),
+    assignments,
+  });
+  assert.equal(second.added, 0);
+  assert.equal(second.week, first.week);
+});
+
+test('Jahresplan-KI: kein Fantasiestundenplan, keine fachfremden oder ungültigen Zuweisungen', () => {
+  const saved = { Dienstag: { 2: { fach: 'Musik' } } };
+  const template = { Dienstag: { 2: { fach: 'Deutsch' } } }; // outdated template after teacher changed subject
+  const result = mergeYearlyAssignmentsIntoWeeklyWeek({
+    existingWeek: saved, timetableWeek: template,
+    assignments: [
+      { tag: 'Sonntag', idx: 2, thema: 'Sonntag ist kein Schultag' },
+      { tag: 'Dienstag', idx: 10, thema: 'Außerhalb Stundenplan' },
+      { tag: 'Dienstag', idx: 3, thema: 'Ohne eingetragenes Fach' },
+      { tag: 'Dienstag', idx: 2, thema: 'Unpassendes Fach im geänderten Wochenplan' },
+      { tag: 'Dienstag', idx: 2, thema: '   ' },
+    ],
+  });
+  assert.equal(result.added, 0);
+  assert.equal(result.skipped, 5);
+  assert.equal(result.week, saved);
+});
+
+test('Jahresplan-KI: der produktive Wochenplan speichert nur sichere Merges aus dem neuesten Zustand', () => {
+  const source = readFileSync('src/components/WeeklyPlan.tsx', 'utf8');
+  assert.match(source, /buildYearlyAiTimetable\(existingWeek, prev\.stammplan\)/);
+  assert.match(source, /mergeYearlyAssignmentsIntoWeeklyWeek\(\{/);
+  assert.match(source, /if \(result\.added === 0\) return prev/);
+  assert.match(source, /prev\.currentKW !== activeKW\) return prev/);
+  assert.doesNotMatch(source, /lesson\.thema = assign\.thema/);
 });
