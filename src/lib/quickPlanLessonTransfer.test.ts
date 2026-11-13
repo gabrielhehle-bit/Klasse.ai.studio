@@ -76,6 +76,28 @@ test('Historische numerische Slots bleiben benutzbar, werden aber nie verdeckt �
   assert.equal(ambiguous.week, duplicate);
 });
 
+test('Doppelstunden und Restlicher-Tag-Blöcke dürfen keine Nachbarstunden überdecken', () => {
+  const sourceTwo = { Montag: { 0: { fach: 'Deutsch', thema: 'Lesen', duration: 2 } },
+    Dienstag: { 3: { fach: 'Musik', thema: 'Singen' } } };
+  const blocking = transfer({ week: sourceTwo, source,
+    target: { dayIdx: 1, hourIdx: 2 }, mode: 'copy' });
+  assert.equal(blocking.status, 'occupied-target', 'second slot is occupied');
+  assert.equal(blocking.week, sourceTwo);
+
+  const overEnd = transfer({ week: sourceTwo, source,
+    target: { dayIdx: 1, hourIdx: 9 }, mode: 'move' });
+  assert.equal(overEnd.status, 'invalid-slot', 'two hours do not fit after hour 10');
+  assert.equal(overEnd.week, sourceTwo);
+
+  const earlierBlock = { ...sourceTwo, Dienstag: { 1: { fach: 'Mathematik', duration: 3 } } };
+  assert.equal(transfer({ week: earlierBlock, source, target, mode: 'copy' }).status, 'occupied-target');
+
+  const wholeDay = { Montag: { 0: { fach: 'Deutsch', thema: 'Projekt', duration: 'all' } },
+    Mittwoch: { 6: { fach: 'Sachunterricht', thema: 'Igel' } } };
+  assert.equal(transfer({ week: wholeDay, source,
+    target: { dayIdx: 2, hourIdx: 1 }, mode: 'copy' }).status, 'occupied-target');
+});
+
 test('Leere Quelle, identisches Ziel und ungültige Tages-/Stundenplätze ändern nichts', () => {
   const week = { Mittwoch: { 0: { fach: 'Deutsch', thema: 'Lesen' } } };
   assert.equal(transfer({ week, source, target, mode: 'copy' }).status, 'empty-source');
