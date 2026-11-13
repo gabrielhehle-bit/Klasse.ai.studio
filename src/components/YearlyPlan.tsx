@@ -12,6 +12,7 @@ import type { JahresplanImportRow } from '../lib/planerExcelService';
 const JahresplanExcelModal = React.lazy(() => import('./JahresplanExcelModal'));
 import { applyYearPlanImportRows, shiftYearPlanSubjectForward, yearPlanCellDisplayText, yearPlanCellEntries } from '../lib/yearlyPlanData';
 import { occupiedYearPlanCell, plannedYearWeeks, conflictingYearWeeks } from '../lib/annualPlanSafety';
+import { toggleYearlyCellCompletion } from '../lib/planningCompletionSync';
 
 const COLOR_PALETTES: Record<string, { name: string, desc: string, colors: Record<string, string> }> = {
   pastell: {
@@ -488,11 +489,22 @@ export default function YearlyPlan() {
 
   const toggleCompleted = (kw: number, subjectId: string) => {
     setApp(prev => {
-      const jp = { ...(prev.jahresplanung || {}) };
-      if (!jp[kw]) jp[kw] = {};
-      const existing = jp[kw][subjectId] || { thema: '', buch: '', type: 'standard', subCategory: '', subCategories: [], items: [], completed: false };
-      jp[kw][subjectId] = { ...existing, completed: !existing.completed };
-      return { ...prev, jahresplanung: jp };
+      const week = prev.wochenplanung?.[kw] || {};
+      const year = prev.jahresplanung?.[kw] || {};
+      const result = toggleYearlyCellCompletion({
+        week, year, subjectId,
+        subjects: sortYearlySubjects(prev.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS),
+      });
+      if (result.year === year && result.week === week) return prev;
+      return {
+        ...prev,
+        ...(result.year !== year ? {
+          jahresplanung: { ...(prev.jahresplanung || {}), [kw]: result.year },
+        } : {}),
+        ...(result.week !== week ? {
+          wochenplanung: { ...(prev.wochenplanung || {}), [kw]: result.week },
+        } : {}),
+      };
     });
   };
 
