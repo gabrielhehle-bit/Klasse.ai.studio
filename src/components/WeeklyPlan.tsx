@@ -13,6 +13,7 @@ import type { WochenplanImportRow } from '../lib/planerExcelService';
 const WochenplanExcelModal = React.lazy(() => import('./WochenplanExcelModal'));
 import { addWeeklyLessonToEmptyYearPlan, addWeeklyLessonsToYearPlan, buildYearlyAiTimetable, hasWeeklyPlanningDetails, mergeYearlyAssignmentsIntoWeeklyWeek, mergeYearlySuggestionIntoEmptyWeeklySlot } from '../lib/planningSync';
 import { toggleWeeklyCompletion, toggleYearlyEntryCompletion } from '../lib/planningCompletionSync';
+import { transferQuickPlannedLesson, type QuickPlanTransferMode } from '../lib/quickPlanLessonTransfer';
 import { yearPlanCellEntries } from '../lib/yearlyPlanData';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
 import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots, isWeeklyLessonPrepared } from '../lib/weeklyPlanData';
@@ -267,6 +268,8 @@ export default function WeeklyPlan() {
   const [editingCell, setEditingCell] = useState<{ tag: string, idx: number } | null>(null);
   const [plannerEditorTab, setPlannerEditorTab] = useState<'inhalt' | 'rahmen' | 'organisation' | 'optionen' | 'entwurf'>('inhalt');
   const [viewingCell, setViewingCell] = useState<{ tag: string, idx: number } | null>(null);
+  const [overviewTransferDay, setOverviewTransferDay] = useState('Montag');
+  const [overviewTransferHour, setOverviewTransferHour] = useState(0);
   const [yearPlanSyncNotice, setYearPlanSyncNotice] = useState<string | null>(null);
   const [editingZeitunabhaengig, setEditingZeitunabhaengig] = useState<{ tag: string; item?: any } | null>(null);
   const [tempZeitThema, setTempZeitThema] = useState('');
@@ -1234,10 +1237,39 @@ export default function WeeklyPlan() {
     const current = plan[tag]?.[idx] || {};
     if (hasWeeklyPlanningDetails(current)) {
       setYearPlanSyncNotice(null);
+      setOverviewTransferDay(idx + 1 < MAX_LESSON_SLOTS
+        ? tag : TAGE_NAMEN[(TAGE_NAMEN.indexOf(tag) + 1) % TAGE_NAMEN.length]);
+      setOverviewTransferHour(idx + 1 < MAX_LESSON_SLOTS ? idx + 1 : 0);
       setViewingCell({ tag, idx });
       return;
     }
     handleEditCell(tag, idx);
+  };
+
+  const handleOverviewLessonTransfer = (mode: QuickPlanTransferMode) => {
+    if (!viewingCell) return;
+    const source = { dayIdx: TAGE_NAMEN.indexOf(viewingCell.tag), hourIdx: viewingCell.idx };
+    const target = { dayIdx: TAGE_NAMEN.indexOf(overviewTransferDay), hourIdx: overviewTransferHour };
+    const preview = transferQuickPlannedLesson({ week: app.wochenplanung?.[activeKW], source, target, mode });
+    if (preview.status !== 'copied' && preview.status !== 'moved') {
+      const message = preview.status === 'occupied-target'
+        ? 'Diese Zielstunde ist bereits belegt. Bitte wähle eine freie Stunde.'
+        : preview.status === 'same-slot' ? 'Bitte ein anderes Ziel auswählen.'
+        : preview.status === 'ambiguous-source' ? 'Diese ältere Stunde ist doppelt gespeichert; bitte die Einträge zuerst prüfen.'
+        : 'Die Stunde konnte nicht übernommen werden.';
+      window.alert(message);
+      return;
+    }
+    setApp(prev => {
+      const latest = transferQuickPlannedLesson({
+        week: prev.wochenplanung?.[activeKW], source, target, mode,
+        updatedAt: new Date().toISOString(),
+      });
+      return latest.status === 'copied' || latest.status === 'moved'
+        ? { ...prev, wochenplanung: { ...(prev.wochenplanung || {}), [activeKW]: latest.week } }
+        : prev;
+    });
+    setViewingCell(null);
   };
 
   const addWeeklyLessonToYearPlan = (tag: string, idx: number) => {
@@ -3476,6 +3508,68 @@ export default function WeeklyPlan() {
                     </section>
                   )}
                 </div>
+
+                <section className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3" data-weekly-overview-transfer>
+                  <div>
+                    <h4 className="text-xs font-black text-slate-900">Stunde kopieren oder verschieben</h4>
+                    <p className="mt-1 text-xs text-slate-600">
+                      Direkt in einen freien Platz der aktuellen Woche übernehmen – ohne andere Stunden zu überschreiben.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="text-xs font-bold text-slate-700">
+                      Zieltag
+                      <select value={overviewTransferDay}
+                        onChange={event => setOverviewTransferDay(event.target.value)}
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs">
+                        {TAGE_NAMEN.map(day => <option key={day} value={day}>{day}</option>)}
+                      </select>
+                    </label>
+                    <label className="text-xs font-bold text-slate-700">
+                      Zielstunde
+                      <select value={overviewTransferHour}
+                        onChange={event => setOverviewTransferHour(Number(event.target.value))}
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs">
+                        {LESSON_SLOT_NUMBERS.map(number => (
+                          <option key={number} value={number - 1}>{number}. Stunde</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  {(() => {
+                    const status = transferQuickPlannedLesson({
+                      week: app.wochenplanung?.[activeKW],
+                      source: { dayIdx: TAGE_NAMEN.indexOf(viewingCell.tag), hourIdx: viewingCell.idx },
+                      target: { dayIdx: TAGE_NAMEN.indexOf(overviewTransferDay), hourIdx: overviewTransferHour },
+                      mode: 'copy',
+                    }).status;
+                    return (
+                      <>
+                        {status === 'occupied-target' && <p role="status" className="text-xs font-bold text-rose-800">
+                          Die Zielstunde ist bereits belegt. Bitte einen freien Platz wählen.
+                        </p>}
+                        {status === 'same-slot' && <p role="status" className="text-xs font-bold text-slate-600">
+                          Bitte eine andere Stunde auswählen.
+                        </p>}
+                        {status === 'ambiguous-source' && <p role="status" className="text-xs font-bold text-rose-800">
+                          Diese ältere Stunde enthält doppelte Einträge. Bitte zuerst prüfen.
+                        </p>}
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" disabled={status !== 'copied'}
+                            onClick={() => handleOverviewLessonTransfer('copy')}
+                            className="rounded-xl border border-indigo-200 bg-white px-4 py-2.5 text-xs font-black text-indigo-700 disabled:cursor-not-allowed disabled:opacity-40">
+                            <Copy size={14} className="mr-2 inline" /> Kopieren
+                          </button>
+                          <button type="button" disabled={status !== 'copied'}
+                            onClick={() => handleOverviewLessonTransfer('move')}
+                            className="rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-40">
+                            <Clipboard size={14} className="mr-2 inline" /> Verschieben
+                          </button>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </section>
 
                 <div className="mt-5 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
