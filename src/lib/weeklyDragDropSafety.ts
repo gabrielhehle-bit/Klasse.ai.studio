@@ -195,3 +195,29 @@ export function restoreParkedWeeklyLessonSafely(input: {
     garage: garage.filter((_, index) => index !== input.parkedIndex),
   };
 }
+
+/** A safe default for keyboard and touch restoration: prefer the currently
+ * selected weekday, then search other weekdays, never assuming a slot is free
+ * merely because it has no visible lesson card. The restore validator handles
+ * longer lessons, legacy duplicate keys, and pupil-bound tasks.
+ */
+export function findFirstRestorableParkedSlot(input: {
+  week: Week | undefined;
+  garage: Garage | undefined;
+  parkedIndex: number;
+  parkedIdentity: string;
+  targetWeek: number;
+  preferredDayIdx?: number;
+}): QuickPlanPosition | null {
+  const preference = Number.isInteger(input.preferredDayIdx) &&
+    input.preferredDayIdx! >= 0 && input.preferredDayIdx! < TAGE_NAMEN.length
+    ? input.preferredDayIdx! : 0;
+  const days = [preference, ...TAGE_NAMEN.map((_, dayIdx) => dayIdx).filter(dayIdx => dayIdx !== preference)];
+  for (const dayIdx of days) {
+    for (let hourIdx = 0; hourIdx < MAX_LESSON_SLOTS; hourIdx++) {
+      const target = { dayIdx, hourIdx };
+      if (restoreParkedWeeklyLessonSafely({ ...input, target }).status === 'restored') return target;
+    }
+  }
+  return null;
+}
