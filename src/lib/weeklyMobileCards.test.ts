@@ -137,3 +137,16 @@ test('Mobile Kinderaufgaben zeigen einen zugänglichen Fortschrittsbalken und of
   assert.match(mobile, /childProgress\.helpNeeded > 0/);
   assert.doesNotMatch(mobile, /getChildTaskProgress\(/);
 });
+
+test('Hilferuf-Namen bleiben bis zur bewussten Lehrer-Aktion zugeklappt', () => {
+  assert.match(mobile, /getPendingChildHelpRequests\(/);
+  assert.match(mobile, /isPublished && childProgress\?\.helpNeeded/);
+  assert.match(mobile, /<details data-weekly-mobile-help-details/);
+  assert.match(mobile, /<summary data-weekly-mobile-help-needed/);
+  assert.match(mobile, /data-weekly-mobile-help-children/);
+  assert.match(mobile, /pendingHelp\.map\(child =>/);
+  assert.match(mobile, /key=\{child\.studentId\}/);
+  assert.match(mobile, /\{child\.displayName\}/);
+  assert.doesNotMatch(mobile, /<details data-weekly-mobile-help-details\s+open/);
+  assert.match(mobile, /min-h-11 cursor-pointer/);
+});
