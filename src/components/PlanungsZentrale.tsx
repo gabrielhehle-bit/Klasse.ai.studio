@@ -387,6 +387,7 @@ export default function PlanungsZentrale() {
       const current = transferQuickPlannedLesson({
         week: prev.wochenplanung?.[nextKW], source, target, mode,
         updatedAt: new Date().toISOString(),
+        copyId: mode === 'copy' ? `lesson-${Date.now()}-${Math.random().toString(36).slice(2, 10)}` : undefined,
       });
       if (current.status !== 'copied' && current.status !== 'moved') return prev;
       return {
