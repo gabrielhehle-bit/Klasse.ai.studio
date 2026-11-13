@@ -2021,6 +2021,10 @@ export default function WeeklyPlan() {
                           {aiLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} 
                           KI: Jahresplan verteilen
                         </button>
+                        <p className="px-2 pb-1 text-[0.625rem] leading-relaxed text-slate-500">
+                          Ergänzt nur freie Stunden mit passendem Fach.
+                          Eigene Themen, Materialien und Hausübungen bleiben erhalten.
+                        </p>
                         <button onClick={() => { setShowWeekMenu(false); setShowSyncSettingsModal(true); }} className="btn !bg-white !text-indigo-700 hover:!bg-indigo-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3">
                           <Zap size={14} /> Sync-Set konfigurieren
                         </button>
