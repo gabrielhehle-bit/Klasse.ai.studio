@@ -18,6 +18,7 @@ import { findFirstRestorableParkedSlot, moveOrSwapWeeklyLesson, parkWeeklyLesson
 import { yearPlanCellEntries } from '../lib/yearlyPlanData';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
 import { MobileDayLessonCards } from './wochenplan/MobileDayLessonCards';
+import { summarizeDailyPendingHelp } from '../lib/weeklyMobileChildProgress';
 import { GarageRestorePicker } from './wochenplan/GarageRestorePicker';
 import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots, isWeeklyLessonPrepared } from '../lib/weeklyPlanData';
 import { parseLessonTimeRange } from '../lib/lessonTimeSlots';
@@ -1118,6 +1119,7 @@ export default function WeeklyPlan() {
 
   const sw = getSW(monday, app.schuljahr, app.bundesland || 'VBG');
   const plan = (app.wochenplanung || {})[activeKW] || {};
+  const visibleWeekPupils = (app.schueler || []).filter(student => !student.id.startsWith('demo-'));
   // Each recorded lesson (and each half of a split lesson) can be selected separately.
   const yearPlanBulkCandidates = TAGE_NAMEN.flatMap(tag =>
     Object.entries((plan as any)[tag] || {}).flatMap(([slot, raw]) => {
@@ -2531,11 +2533,21 @@ export default function WeeklyPlan() {
                 const date = new Date(monday);
                 date.setDate(monday.getDate() + index);
                 const isToday = formatLocalDateKey(date) === formatLocalDateKey(actualToday);
+                const pendingHelpCount = summarizeDailyPendingHelp(
+                  plan?.[tag], visibleWeekPupils, app.schuljahr || '', activeKW, tag,
+                ).requests;
                 return (
                   <button key={tag} type="button" onClick={() => setSelectedDay(tag)}
                     aria-pressed={selectedDay === tag}
+                    aria-label={`${tag}, ${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}${isToday ? ', heute' : ''}: ${pendingHelpCount === 0 ? 'keine offenen Hilferufe' : `${pendingHelpCount} ${pendingHelpCount === 1 ? 'offener Hilferuf' : 'offene Hilferufe'}`}`}
                     className={`min-h-11 rounded-lg border px-2.5 py-1.5 text-xs font-bold ${selectedDay === tag ? 'border-indigo-300 bg-indigo-50 text-indigo-800' : isToday ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
                     {tag.slice(0, 2)} {date.getDate()}.{date.getMonth() + 1}.{isToday ? ' · Heute' : ''}
+                    {pendingHelpCount > 0 && (
+                      <span data-weekly-day-help-count aria-hidden="true"
+                        className="ml-1.5 inline-flex min-h-6 items-center rounded-md bg-amber-100 px-1.5 text-[0.6875rem] font-extrabold text-amber-950">
+                        {pendingHelpCount} Hilfe
+                      </span>
+                    )}
                   </button>
                 );
               })}
