@@ -193,6 +193,31 @@ export function addWeeklyLessonsToYearPlan(input: {
 }
 
 
+/** Build a temporary AI timetable, never editing the live weekly plan.
+ * Saved lesson subjects win over Stammplan defaults; the result is transient.
+ */
+export function buildYearlyAiTimetable(
+  existingWeek: Record<string, any> | undefined,
+  stammplan: Record<string, any> | undefined,
+): Record<string, any> {
+  const original = existingWeek || {};
+  const next: Record<string, any> = { ...original };
+  for (const tag of TAGE_NAMEN) {
+    const stammDay = stammplan?.[tag] || {};
+    const existingDay = original[tag] || {};
+    const nextDay = { ...existingDay };
+    for (const [hourText, fach] of Object.entries(stammDay)) {
+      const hourNumber = Number(hourText);
+      if (!Number.isInteger(hourNumber) || hourNumber < 1 || hourNumber > MAX_LESSON_SLOTS ||
+          typeof fach !== 'string' || !fach.trim()) continue;
+      const slot = hourNumber - 1;
+      if (!nextDay[slot]?.fach) nextDay[slot] = { ...(nextDay[slot] || {}), fach: fach.trim() };
+    }
+    if (Object.keys(nextDay).length) next[tag] = nextDay;
+  }
+  return next;
+}
+
 /** A generated annual-topic suggestion may only fill a genuine timetable
  * slot that has no teacher content. This function never rewrites other
  * weeks, student tasks, homework, materials, or even a legacy completion flag.
