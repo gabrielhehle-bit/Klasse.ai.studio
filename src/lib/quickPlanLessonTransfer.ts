@@ -73,6 +73,28 @@ export function transferQuickPlannedLesson(input: {
   }
   if (to.exists) return stop('occupied-target');
 
+  // Longer lessons reserve their following slots even when those do not have
+  // separate saved objects. Check both directions, including a previous block
+  // that already spans the apparently empty target.
+  const duration = from.lesson.duration === 'all'
+    ? MAX_LESSON_SLOTS - input.source.hourIdx
+    : Number.isInteger(from.lesson.duration) && from.lesson.duration > 1
+      ? from.lesson.duration : 1;
+  if (input.target.hourIdx + duration > MAX_LESSON_SLOTS) return stop('invalid-slot');
+  for (let idx = 0; idx < MAX_LESSON_SLOTS; idx++) {
+    if (idx === input.target.hourIdx) continue;
+    const existing = findStoredSlot(week, { dayIdx: input.target.dayIdx, hourIdx: idx });
+    if (!existing.exists || !isRecord(existing.lesson) || !Object.keys(existing.lesson).length) continue;
+    const span = existing.lesson.duration === 'all'
+      ? MAX_LESSON_SLOTS - idx
+      : Number.isInteger(existing.lesson.duration) && existing.lesson.duration > 1
+        ? existing.lesson.duration : 1;
+    const overlaps = idx < input.target.hourIdx
+      ? idx + span > input.target.hourIdx
+      : idx < input.target.hourIdx + duration;
+    if (overlaps) return stop('occupied-target');
+  }
+
   const lesson = structuredClone(from.lesson);
   if (input.mode === 'copy') {
     // A copied lesson is a new record, never an alias of the old lesson ID.
