@@ -245,7 +245,7 @@ export function mergeYearlyAssignmentsIntoWeeklyWeek(input: {
   for (const assignment of input.assignments) {
     const tag = assignment?.tag || '';
     const idx = assignment?.idx;
-    if (!TAGE_NAMEN.includes(tag) || !Number.isInteger(idx) || idx! < 0 || idx! >= MAX_LESSON_SLOTS) {
+    if (!TAGE_NAMEN.includes(tag) || typeof idx !== 'number' || !Number.isInteger(idx) || idx < 0 || idx >= MAX_LESSON_SLOTS) {
       skipped++;
       continue;
     }
