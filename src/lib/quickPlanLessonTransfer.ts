@@ -1,4 +1,5 @@
 import { MAX_LESSON_SLOTS, TAGE_NAMEN } from '../constants';
+import { toggleWeeklyCompletion } from './planningCompletionSync';
 
 /**
  * A conservative, immutable transfer for the planning centre's quick editor.
@@ -114,4 +115,36 @@ export function transferQuickPlannedLesson(input: {
     next[from.key] = oldDay;
   }
   return { status: input.mode === 'move' ? 'moved' : 'copied', week: next };
+}
+
+/** A copied, not-yet-taught lesson must also reopen the corresponding yearly
+ * topic if it had been completed. Re-use the existing year/week subject guard
+ * instead of maintaining a second topic-matching implementation.
+ */
+export function reconcileCopiedLessonYearlyStatus(input: {
+  week: Week;
+  year: Week;
+  target: QuickPlanPosition;
+  subjects?: readonly { id: string; label: string }[];
+}): Week {
+  if (!validPosition(input.target)) return input.year;
+  const dayName = TAGE_NAMEN[input.target.dayIdx];
+  const numericName = String(input.target.dayIdx);
+  const tag = Object.prototype.hasOwnProperty.call(input.week[dayName] || {}, input.target.hourIdx)
+    ? dayName : numericName;
+  const lesson = input.week[tag]?.[input.target.hourIdx];
+  if (!isRecord(lesson) || lesson.erledigt === true) return input.year;
+
+  // Toggle twice to compute the same verified annual roll-up used when a
+  // teacher explicitly reopens a lesson. The first intermediate copy is never
+  // persisted or shown; the final week remains open.
+  const temporarilyDone = toggleWeeklyCompletion({
+    week: input.week, year: input.year, tag, idx: input.target.hourIdx,
+    subjects: input.subjects,
+  });
+  const reopened = toggleWeeklyCompletion({
+    week: temporarilyDone.week, year: temporarilyDone.year, tag, idx: input.target.hourIdx,
+    subjects: input.subjects,
+  });
+  return reopened.year;
 }
