@@ -43,6 +43,7 @@ export const MobileDayLessonCards: React.FC<Props> = ({
           String(item?.fach || '').trim() && String(item?.thema || '').trim(),
         );
         const isPublished = item?.imKinderWochenplan === true;
+        const canPasteHere = !hasSavedLesson && !!copiedLesson && canPasteLesson(day, idx);
         const current = isCurrent(day, idx);
         const materialsCount = Array.isArray(item?.materialIds) ? item.materialIds.length : 0;
         const childKey = weekTaskKey(app.schuljahr || '', activeKW, day, idx);
@@ -80,14 +81,14 @@ export const MobileDayLessonCards: React.FC<Props> = ({
               <div className="border-t border-indigo-100 px-3 py-2.5">
                 <button type="button"
                   data-weekly-mobile-paste
-                  disabled={!canPasteLesson(day, idx)}
+                  disabled={!canPasteHere}
                   onClick={event => onPasteLesson(event, day, idx)}
                   aria-label={`Kopierte Stunde in ${idx + 1}. Stunde am ${day} einfügen`}
-                  title={canPasteLesson(day, idx)
+                  title={canPasteHere
                     ? 'Kopierte Unterrichtsstunde sicher hier einfügen'
                     : 'Dieser Platz ist durch eine andere Unterrichtseinheit belegt'}
                   className="min-h-11 w-full rounded-xl border border-indigo-200 bg-indigo-50 px-3 text-xs font-bold text-indigo-800 hover:bg-indigo-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-500">
-                  {canPasteLesson(day, idx)
+                  {canPasteHere
                     ? `Kopierte Stunde hier einfügen`
                     : 'Einfügen hier nicht möglich'}
                 </button>
