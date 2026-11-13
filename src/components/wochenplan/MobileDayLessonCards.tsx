@@ -3,7 +3,8 @@ import { ChevronRight } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { STUNDEN_INFO, MAX_LESSON_SLOTS } from '../../constants';
 import { getFachHexColor } from '../../lib/fachColorUtils';
-import { getChildTaskProgress, weekTaskKey } from '../../lib/classroomWeeklyPlan';
+import { weekTaskKey } from '../../lib/classroomWeeklyPlan';
+import { summarizeChildTaskProgress } from '../../lib/weeklyMobileChildProgress';
 import { configuredLessonTime, isWeeklyLessonSlotCovered } from '../../lib/weeklyPlanData';
 import { getMobileWeeklyLessonPermissions } from '../../lib/weeklyMobileCardPermissions';
 
@@ -48,8 +49,8 @@ export const MobileDayLessonCards: React.FC<Props> = ({
         const current = isCurrent(day, idx);
         const materialsCount = Array.isArray(item?.materialIds) ? item.materialIds.length : 0;
         const childKey = weekTaskKey(app.schuljahr || '', activeKW, day, idx);
-        const childDone = item?.imKinderWochenplan === true
-          ? students.filter(student => getChildTaskProgress(student, childKey)?.done === true).length : 0;
+        const childProgress = isPublished && students.length > 0
+          ? summarizeChildTaskProgress(students, childKey) : null;
         const parkingPermissions = getMobileWeeklyLessonPermissions({
           lesson: item, taskId: childKey, students: app.schueler || [],
         });
@@ -125,10 +126,30 @@ export const MobileDayLessonCards: React.FC<Props> = ({
                   )}
                   {isPublished && (
                     <span className="rounded-md bg-violet-50 px-2 py-1 text-[0.6875rem] font-bold text-violet-800">
-                      Für Kinder sichtbar{students.length ? ` · ${childDone}/${students.length} fertig` : ''}
+                      Für Kinder sichtbar{childProgress ? ` · ${childProgress.done}/${childProgress.total} fertig` : ''}
                     </span>
                   )}
                 </div>
+                {isPublished && childProgress && (
+                  <div data-weekly-mobile-child-progress className="mt-2.5 rounded-xl border border-violet-100 bg-violet-50/60 px-3 py-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-violet-900">
+                      <span className="font-semibold">Kinder-Wochenplan</span>
+                      <span className="font-bold">{childProgress.done} von {childProgress.total} erledigt</span>
+                    </div>
+                    <div role="progressbar" aria-label="Kinderaufgaben erledigt"
+                      aria-valuemin={0} aria-valuemax={childProgress.total} aria-valuenow={childProgress.done}
+                      className="mt-2 h-2 overflow-hidden rounded-full bg-violet-200">
+                      <div className="h-full rounded-full bg-violet-600 transition-[width]"
+                        style={{ width: `${childProgress.percentage}%` }} />
+                    </div>
+                    {childProgress.helpNeeded > 0 && (
+                      <p data-weekly-mobile-help-needed className="mt-2 text-xs font-semibold text-amber-800">
+                        {childProgress.helpNeeded} {childProgress.helpNeeded === 1
+                          ? 'Kind braucht noch Hilfe' : 'Kinder brauchen noch Hilfe'}
+                      </p>
+                    )}
+                  </div>
+                )}
                 {(item.housework || item.hue) && (
                   <p className="mt-2 line-clamp-2 break-words text-xs text-slate-600">
                     Hausübung: {item.housework || item.hue}
