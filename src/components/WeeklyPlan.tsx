@@ -13,7 +13,7 @@ import type { WochenplanImportRow } from '../lib/planerExcelService';
 const WochenplanExcelModal = React.lazy(() => import('./WochenplanExcelModal'));
 import { addWeeklyLessonToEmptyYearPlan, addWeeklyLessonsToYearPlan, buildYearlyAiTimetable, hasWeeklyPlanningDetails, mergeYearlyAssignmentsIntoWeeklyWeek, mergeYearlySuggestionIntoEmptyWeeklySlot } from '../lib/planningSync';
 import { toggleWeeklyCompletion, toggleYearlyEntryCompletion } from '../lib/planningCompletionSync';
-import { transferQuickPlannedLesson, type QuickPlanTransferMode } from '../lib/quickPlanLessonTransfer';
+import { reconcileCopiedLessonYearlyStatus, transferQuickPlannedLesson, type QuickPlanTransferMode } from '../lib/quickPlanLessonTransfer';
 import { yearPlanCellEntries } from '../lib/yearlyPlanData';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
 import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots, isWeeklyLessonPrepared } from '../lib/weeklyPlanData';
@@ -1266,9 +1266,19 @@ export default function WeeklyPlan() {
         updatedAt: new Date().toISOString(),
         copyId: mode === 'copy' ? `lesson-${Date.now()}-${Math.random().toString(36).slice(2, 10)}` : undefined,
       });
-      return latest.status === 'copied' || latest.status === 'moved'
-        ? { ...prev, wochenplanung: { ...(prev.wochenplanung || {}), [activeKW]: latest.week } }
-        : prev;
+      if (latest.status !== 'copied' && latest.status !== 'moved') return prev;
+      const year = prev.jahresplanung?.[activeKW] || {};
+      const revisedYear = mode === 'copy' ? reconcileCopiedLessonYearlyStatus({
+        week: latest.week, year, target,
+        subjects: sortYearlySubjects(prev.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS),
+      }) : year;
+      return {
+        ...prev,
+        wochenplanung: { ...(prev.wochenplanung || {}), [activeKW]: latest.week },
+        ...(revisedYear !== year ? {
+          jahresplanung: { ...(prev.jahresplanung || {}), [activeKW]: revisedYear },
+        } : {}),
+      };
     });
     setViewingCell(null);
   };
