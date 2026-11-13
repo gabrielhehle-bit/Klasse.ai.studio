@@ -19,6 +19,7 @@ import {
 import WeeklyGoalsWidget from './WeeklyGoalsWidget';
 import DailyHomeworkButton from './DailyHomeworkButton';
 import { getPlanningWeekOverview } from '../lib/planningWeekOverview';
+import { transferQuickPlannedLesson, type QuickPlanTransferMode } from '../lib/quickPlanLessonTransfer';
 
 export default function PlanungsZentrale() {
   const { app, setApp, setPage } = useApp();
@@ -51,6 +52,9 @@ export default function PlanungsZentrale() {
   // Selection states for active planner
   const [selectedDayIdx, setSelectedDayIdx] = useState<number>(0);
   const [selectedHour, setSelectedHour] = useState<number>(0);
+  const [showLessonTransfer, setShowLessonTransfer] = useState(false);
+  const [transferTargetDayIdx, setTransferTargetDayIdx] = useState(0);
+  const [transferTargetHour, setTransferTargetHour] = useState(1);
   const [hasSelectedSlot, setHasSelectedSlot] = useState(false);
   const [showExpandedDetailsInDrawer, setShowExpandedDetailsInDrawer] = useState<boolean>(false);
 
@@ -255,6 +259,9 @@ export default function PlanungsZentrale() {
     setHasSelectedSlot(true);
     setSelectedDayIdx(dayIdx);
     setSelectedHour(hourIdx);
+    setShowLessonTransfer(false);
+    setTransferTargetDayIdx(hourIdx + 1 < MAX_LESSON_SLOTS ? dayIdx : (dayIdx + 1) % DAYS_DE.length);
+    setTransferTargetHour(hourIdx + 1 < MAX_LESSON_SLOTS ? hourIdx + 1 : 0);
     
     const dayName = DAYS_DE[dayIdx];
     const wp = app.wochenplanung?.[nextKW] || {};
@@ -347,6 +354,50 @@ export default function PlanungsZentrale() {
     setSuccessMessage(`${activeSubject}-Stunde für ${dayName} (${selectedHour + 1}. Std.) gespeichert!`);
     setTimeout(() => setSuccessMessage(''), 2500);
     setQuickPlanOpen(false);
+  };
+
+  // Copy or move one saved lesson within the selected KW, never overwriting
+  // another saved hour. Draft edits must be saved first and are never silently
+  // substituted for the stored source lesson.
+  const handleTransferLesson = (mode: QuickPlanTransferMode) => {
+    if (hasUnsavedQuickPlanChanges()) {
+      window.alert('Bitte zuerst deine Änderungen speichern, bevor du die Stunde kopierst oder verschiebst.');
+      return;
+    }
+    const source = { dayIdx: selectedDayIdx, hourIdx: selectedHour };
+    const target = { dayIdx: transferTargetDayIdx, hourIdx: transferTargetHour };
+    const preview = transferQuickPlannedLesson({
+      week: app.wochenplanung?.[nextKW], source, target, mode,
+    });
+    if (preview.status !== 'copied' && preview.status !== 'moved') {
+      const issue = preview.status === 'occupied-target'
+        ? 'Zielstunde ist bereits belegt. Bitte wähle einen freien Platz.'
+        : preview.status === 'same-slot'
+          ? 'Quelle und Ziel sind identisch. Bitte wähle eine andere Stunde.'
+          : preview.status === 'ambiguous-source'
+            ? 'Für diese Stunde gibt es ältere doppelte Einträge. Bitte öffne sie zuerst im Wochenplan.'
+            : 'Die gespeicherte Stunde konnte nicht übernommen werden.';
+      window.alert(issue);
+      return;
+    }
+
+    // Revalidate against the latest state inside the update: two devices
+    // must never make an older preview overwrite a newly occupied target.
+    setApp(prev => {
+      const current = transferQuickPlannedLesson({
+        week: prev.wochenplanung?.[nextKW], source, target, mode,
+        updatedAt: new Date().toISOString(),
+      });
+      if (current.status !== 'copied' && current.status !== 'moved') return prev;
+      return {
+        ...prev,
+        wochenplanung: { ...(prev.wochenplanung || {}), [nextKW]: current.week },
+      };
+    });
+
+    setQuickPlanOpen(false);
+    setSuccessMessage(`Stunde ${mode === 'move' ? 'verschoben' : 'kopiert'} nach ${DAYS_DE[transferTargetDayIdx]}, ${transferTargetHour + 1}. Stunde.`);
+    setTimeout(() => setSuccessMessage(''), 3000);
   };
 
   // Toggle completion checkmark directly
@@ -833,6 +884,14 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
   const missingTopicLessons = openLessonsList.filter(item => item.thema === 'Kein Thema eingetragen');
   const weekEnd = new Date(monday);
   weekEnd.setDate(weekEnd.getDate() + 4);
+  const quickTransferPreview = transferQuickPlannedLesson({
+    week: app.wochenplanung?.[nextKW],
+    source: { dayIdx: selectedDayIdx, hourIdx: selectedHour },
+    target: { dayIdx: transferTargetDayIdx, hourIdx: transferTargetHour },
+    mode: 'copy',
+  });
+  const quickTransferCanRun = quickTransferPreview.status === 'copied' &&
+    !hasUnsavedQuickPlanChanges();
 
   return (
     <ErrorBoundaryLogger componentName="PlanungsZentrale">
@@ -1631,6 +1690,82 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                         </div>
                       )}
                     </div>
+
+                    {/* Safe copy/move: stored lesson only, with an explicit destination. */}
+                    {getSavedSlot(selectedDayIdx, selectedHour) && (
+                      <section className="rounded-2xl border border-slate-200 bg-slate-50 p-3 space-y-3" data-quick-lesson-transfer>
+                        <button
+                          type="button"
+                          onClick={() => setShowLessonTransfer(value => !value)}
+                          className="w-full flex items-center justify-between text-xs font-black text-slate-800"
+                          aria-expanded={showLessonTransfer}
+                        >
+                          <span className="flex items-center gap-2"><Copy size={14} /> Stunde kopieren oder verschieben</span>
+                          <ChevronDown size={15} className={showLessonTransfer ? 'rotate-180' : ''} />
+                        </button>
+                        {showLessonTransfer && (
+                          <div className="space-y-3">
+                            <p className="text-[11px] text-slate-600">
+                              Übernimmt die vollständige gespeicherte Stunde in einen freien Platz derselben Woche.
+                              Kopien sind wieder unerledigt; beim Verschieben bleibt die Erledigt-Markierung erhalten.
+                            </p>
+                            <div className="grid grid-cols-2 gap-2">
+                              <label className="text-[11px] font-bold text-slate-700">
+                                Zieltag
+                                <select
+                                  value={transferTargetDayIdx}
+                                  onChange={event => setTransferTargetDayIdx(Number(event.target.value))}
+                                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-2 text-xs"
+                                >
+                                  {DAYS_DE.map((day, idx) => <option key={day} value={idx}>{day}</option>)}
+                                </select>
+                              </label>
+                              <label className="text-[11px] font-bold text-slate-700">
+                                Zielstunde
+                                <select
+                                  value={transferTargetHour}
+                                  onChange={event => setTransferTargetHour(Number(event.target.value))}
+                                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-2 text-xs"
+                                >
+                                  {LESSON_SLOT_NUMBERS.map(number => (
+                                    <option key={number} value={number - 1}>{number}. Stunde</option>
+                                  ))}
+                                </select>
+                              </label>
+                            </div>
+                            {hasUnsavedQuickPlanChanges() ? (
+                              <p role="status" className="text-[11px] font-semibold text-amber-800">
+                                Bitte zuerst deine Änderungen speichern, damit nichts verloren geht.
+                              </p>
+                            ) : quickTransferPreview.status === 'occupied-target' ? (
+                              <p role="status" className="text-[11px] font-semibold text-rose-800">
+                                Zielstunde ist bereits belegt. Wähle einen freien Platz.
+                              </p>
+                            ) : quickTransferPreview.status === 'ambiguous-source' ? (
+                              <p role="status" className="text-[11px] font-semibold text-rose-800">
+                                Dieser alte Eintrag ist doppelt gespeichert. Bitte zuerst im Wochenplan prüfen.
+                              </p>
+                            ) : quickTransferPreview.status === 'same-slot' ? (
+                              <p role="status" className="text-[11px] font-semibold text-slate-600">
+                                Bitte eine andere Stunde wählen.
+                              </p>
+                            ) : null}
+                            <div className="flex gap-2">
+                              <button type="button" disabled={!quickTransferCanRun}
+                                onClick={() => handleTransferLesson('copy')}
+                                className="flex-1 rounded-xl bg-white border border-indigo-200 px-3 py-2 text-xs font-black text-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                                <Copy size={13} className="inline mr-1" /> Kopieren
+                              </button>
+                              <button type="button" disabled={!quickTransferCanRun}
+                                onClick={() => handleTransferLesson('move')}
+                                className="flex-1 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-black text-white disabled:opacity-40 disabled:cursor-not-allowed">
+                                <ArrowRight size={13} className="inline mr-1" /> Verschieben
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </section>
+                    )}
 
                     {/* Actions */}
                     <div className="flex items-center gap-2 pt-2">
