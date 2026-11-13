@@ -14,6 +14,7 @@ const WochenplanExcelModal = React.lazy(() => import('./WochenplanExcelModal'));
 import { addWeeklyLessonToEmptyYearPlan, addWeeklyLessonsToYearPlan, buildYearlyAiTimetable, hasWeeklyPlanningDetails, mergeYearlyAssignmentsIntoWeeklyWeek, mergeYearlySuggestionIntoEmptyWeeklySlot } from '../lib/planningSync';
 import { toggleWeeklyCompletion, toggleYearlyEntryCompletion } from '../lib/planningCompletionSync';
 import { pasteCopiedLessonIntoEmptyWeek, reconcileCopiedLessonYearlyStatus, transferQuickPlannedLesson, type QuickPlanTransferMode } from '../lib/quickPlanLessonTransfer';
+import { moveOrSwapWeeklyLesson, parkWeeklyLessonSafely, restoreParkedWeeklyLessonSafely, type DragDropStatus } from '../lib/weeklyDragDropSafety';
 import { yearPlanCellEntries } from '../lib/yearlyPlanData';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
 import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots, isWeeklyLessonPrepared } from '../lib/weeklyPlanData';
@@ -570,11 +571,37 @@ export default function WeeklyPlan() {
     }
   };
 
+  const hasChildProgressForSlot = (state: any, tag: string, idx: number): boolean => {
+    const key = weekTaskKey(state.schuljahr || '', activeKW, tag, idx);
+    return (state.schueler || []).some((student: any) =>
+      student.wochenplanFortschritt &&
+      Object.prototype.hasOwnProperty.call(student.wochenplanFortschritt, key));
+  };
+
+  const describeBlockedDrop = (status: DragDropStatus): string => {
+    if (status === 'published-child-task') {
+      return 'Diese Stunde ist im Kinder-Wochenplan freigegeben oder hat bereits Kinder-Rückmeldungen. Zum Schutz der Rückmeldungen kann sie nicht verschoben oder getauscht werden.';
+    }
+    if (status === 'legacy-day' || status === 'ambiguous-source') {
+      return 'Für diesen Tag sind ältere numerische Planungsdaten vorhanden. Bitte zuerst im Wochenplan prüfen; es wurde nichts verändert.';
+    }
+    if (status === 'occupied-target') {
+      return 'Die Zielstunde ist bereits belegt oder Teil einer Doppelstunde. Hier kann nichts ohne Datenverlust abgelegt werden.';
+    }
+    if (status === 'stale-parked-item') return 'Der Eintrag in der Parkgarage hat sich geändert. Bitte erneut ziehen.';
+    if (status === 'invalid-slot') return 'Dieses Ziel passt nicht zur Dauer der Unterrichtsstunde.';
+    if (status === 'empty-source') return 'Die ursprüngliche Unterrichtsstunde ist nicht mehr vorhanden.';
+    return 'Die Stunde konnte nicht sicher verschoben werden. Bitte prüfe Quelle und Ziel.';
+  };
+
   const handleDragStartPlan = (e: React.DragEvent, tag: string, idx: number) => {
-    e.dataTransfer.setData('sourceCell', JSON.stringify({ tag, idx }));
+    e.dataTransfer.setData('sourceCell', JSON.stringify({
+      tag, idx, kw: activeKW, classId: app.activeClassId,
+    }));
+    e.dataTransfer.effectAllowed = 'move';
     setDraggedLesson({ tag, idx });
   };
-  
+
   const handleDropPlan = (e: React.DragEvent, targetTag: string, targetIdx: number) => {
     e.preventDefault();
     setDraggedLesson(null);
@@ -582,34 +609,42 @@ export default function WeeklyPlan() {
     const sourceDataStr = e.dataTransfer.getData('sourceCell');
     const yearlyItemStr = e.dataTransfer.getData('yearlyItem');
     const parkedIndexStr = e.dataTransfer.getData('parkedLessonIndex');
-    
+    const parkedIdentity = e.dataTransfer.getData('parkedLessonIdentity');
+
     if (sourceDataStr) {
-       // internal drag and drop
-       const sourceData = safeJsonParse(sourceDataStr, null);
-       if (!sourceData) return;
-       if (sourceData.tag === targetTag && sourceData.idx === targetIdx) return;
-       
-       setApp(prev => {
-         const wp = { ...(prev.wochenplanung || {}) };
-         const currentWeekObj = { ...wp[activeKW] };
-         
-         if (!currentWeekObj[sourceData.tag]) currentWeekObj[sourceData.tag] = {};
-         if (!currentWeekObj[targetTag]) currentWeekObj[targetTag] = {};
-         
-         const sourceItem = currentWeekObj[sourceData.tag][sourceData.idx];
-         const targetItem = currentWeekObj[targetTag][targetIdx];
-         
-         currentWeekObj[targetTag][targetIdx] = sourceItem;
-         
-         if (targetItem) {
-            currentWeekObj[sourceData.tag][sourceData.idx] = targetItem;
-         } else {
-            delete currentWeekObj[sourceData.tag][sourceData.idx];
-         }
-         
-         wp[activeKW] = currentWeekObj;
-         return { ...prev, wochenplanung: wp };
-       });
+      const sourceData = safeJsonParse(sourceDataStr, null);
+      if (!sourceData || sourceData.kw !== activeKW || sourceData.classId !== app.activeClassId) {
+        window.alert('Diese Stunde wurde aus einer anderen Kalenderwoche oder Klasse gezogen. Bitte die aktuelle Planung erneut öffnen.');
+        return;
+      }
+      const source = { dayIdx: TAGE_NAMEN.indexOf(sourceData.tag), hourIdx: sourceData.idx };
+      const target = { dayIdx: TAGE_NAMEN.indexOf(targetTag), hourIdx: targetIdx };
+      const check = {
+        week: app.wochenplanung?.[activeKW], source, target,
+        sourceHasChildProgress: hasChildProgressForSlot(app, sourceData.tag, sourceData.idx),
+        targetHasChildProgress: hasChildProgressForSlot(app, targetTag, targetIdx),
+      };
+      const preview = moveOrSwapWeeklyLesson(check);
+      if (preview.status === 'same-slot') return;
+      const approvedSwap = preview.status === 'swap-confirmation' && window.confirm(
+        'Die Zielstunde ' + (targetIdx + 1) + ' am ' + targetTag +
+        ' ist belegt. Möchtest du beide einzelnen Unterrichtsstunden bewusst tauschen? Beide Inhalte bleiben erhalten.'
+      );
+      if (preview.status === 'swap-confirmation' && !approvedSwap) return;
+      if (preview.status !== 'moved' && !approvedSwap) {
+        window.alert(describeBlockedDrop(preview.status));
+        return;
+      }
+
+      setApp(prev => {
+        const result = moveOrSwapWeeklyLesson({
+          week: prev.wochenplanung?.[activeKW], source, target, allowSwap: approvedSwap,
+          sourceHasChildProgress: hasChildProgressForSlot(prev, sourceData.tag, sourceData.idx),
+          targetHasChildProgress: hasChildProgressForSlot(prev, targetTag, targetIdx),
+        });
+        if (result.status !== 'moved' && result.status !== 'swapped') return prev;
+        return { ...prev, wochenplanung: { ...(prev.wochenplanung || {}), [activeKW]: result.week } };
+      });
     } else if (yearlyItemStr) {
        const yearlyData = safeJsonParse(yearlyItemStr, null);
        if (!yearlyData) return;
@@ -640,37 +675,36 @@ export default function WeeklyPlan() {
          return { ...prev, wochenplanung: wp };
        });
     } else if (parkedIndexStr !== '' && parkedIndexStr !== undefined && parkedIndexStr !== null) {
-       const pIdx = parseInt(parkedIndexStr, 10);
-       setApp(prev => {
-         const parked = [...(prev.parkgarage || [])];
-         const item = parked[pIdx];
-         if (!item) return prev;
-
-         // Remove from parked
-         parked.splice(pIdx, 1);
-
-         // Place into weekly plan
-         const wp = { ...(prev.wochenplanung || {}) };
-         const currentWeekObj = { ...wp[activeKW] };
-         if (!currentWeekObj[targetTag]) currentWeekObj[targetTag] = {};
-
-         currentWeekObj[targetTag][targetIdx] = {
-           fach: item.fach,
-           thema: item.thema,
-           type: item.type || 'standard',
-           material: item.material || '',
-           hue: item.hue || '',
-           method: item.method || '',
-           social: item.social || 'single',
-           reflexion: item.reflexion || '',
-           schwerpunkte: item.schwerpunkte || [],
-           duration: item.duration || 1,
-           erledigt: item.erledigt || false
-         };
-
-         wp[activeKW] = currentWeekObj;
-         return { ...prev, wochenplanung: wp, parkgarage: parked };
-       });
+      const parkedIndex = Number(parkedIndexStr);
+      const target = { dayIdx: TAGE_NAMEN.indexOf(targetTag), hourIdx: targetIdx };
+      const preview = restoreParkedWeeklyLessonSafely({
+        week: app.wochenplanung?.[activeKW], garage: app.parkgarage,
+        parkedIndex, parkedIdentity, target, targetWeek: activeKW,
+      });
+      if (preview.status !== 'restored') {
+        window.alert(describeBlockedDrop(preview.status));
+        return;
+      }
+      setApp(prev => {
+        const result = restoreParkedWeeklyLessonSafely({
+          week: prev.wochenplanung?.[activeKW], garage: prev.parkgarage,
+          parkedIndex, parkedIdentity, target, targetWeek: activeKW,
+        });
+        if (result.status !== 'restored') return prev;
+        const year = prev.jahresplanung?.[activeKW] || {};
+        const revisedYear = reconcileCopiedLessonYearlyStatus({
+          week: result.week, year, target,
+          subjects: sortYearlySubjects(prev.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS),
+        });
+        return {
+          ...prev,
+          wochenplanung: { ...(prev.wochenplanung || {}), [activeKW]: result.week },
+          parkgarage: result.garage,
+          ...(revisedYear !== year ? {
+            jahresplanung: { ...(prev.jahresplanung || {}), [activeKW]: revisedYear },
+          } : {}),
+        };
+      });
     } else if (textData) {
        // A plain-text drop can contain a yearly theme, but is never allowed to
        // replace existing text, homework or a differently assigned subject.
@@ -1598,36 +1632,44 @@ export default function WeeklyPlan() {
   };
 
   const handleParkLesson = (tag: string, idx: number) => {
+    const source = { dayIdx: TAGE_NAMEN.indexOf(tag), hourIdx: idx };
+    const parkedId = 'parked-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+    const parkedAt = new Date().toLocaleDateString('de-AT');
+    const preview = parkWeeklyLessonSafely({
+      week: app.wochenplanung?.[activeKW], garage: app.parkgarage,
+      source, parkedId, parkedAt, weekNumber: activeKW,
+      sourceHasChildProgress: hasChildProgressForSlot(app, tag, idx),
+    });
+    if (preview.status !== 'parked') {
+      window.alert(describeBlockedDrop(preview.status));
+      return;
+    }
     setApp(prev => {
-      const wp = { ...(prev.wochenplanung || {}) };
-      const currentWeekObj = { ...wp[activeKW] };
-      const item = currentWeekObj[tag]?.[idx];
-      if (!item || (!item.fach && !item.thema)) return prev;
-
-      const parked = [...(prev.parkgarage || [])];
-      parked.push({
-        ...item,
-        id: `parked-${Date.now()}-${Math.random()}`,
-        parkedAt: new Date().toLocaleDateString('de-AT')
+      const result = parkWeeklyLessonSafely({
+        week: prev.wochenplanung?.[activeKW], garage: prev.parkgarage,
+        source, parkedId, parkedAt, weekNumber: activeKW,
+        sourceHasChildProgress: hasChildProgressForSlot(prev, tag, idx),
       });
-
-      const updatedWeek = { ...currentWeekObj };
-      if (updatedWeek[tag]) {
-        delete updatedWeek[tag][idx];
-      }
-      wp[activeKW] = updatedWeek;
-
-      return { ...prev, wochenplanung: wp, parkgarage: parked };
+      if (result.status !== 'parked') return prev;
+      return {
+        ...prev,
+        wochenplanung: { ...(prev.wochenplanung || {}), [activeKW]: result.week },
+        parkgarage: result.garage,
+      };
     });
   };
 
   const handleDropToParkgarage = (e: React.DragEvent) => {
     e.preventDefault();
+    setDraggedLesson(null);
     const sourceDataStr = e.dataTransfer.getData('sourceCell');
     if (!sourceDataStr) return;
     const sourceData = safeJsonParse(sourceDataStr, null);
-    if (!sourceData) return;
-
+    if (!sourceData || sourceData.kw !== activeKW || sourceData.classId !== app.activeClassId ||
+        !TAGE_NAMEN.includes(sourceData.tag) || !Number.isInteger(sourceData.idx)) {
+      window.alert('Die gezogene Stunde gehört nicht zur aktuellen Kalenderwoche oder Klasse.');
+      return;
+    }
     handleParkLesson(sourceData.tag, sourceData.idx);
   };
 
@@ -2779,6 +2821,17 @@ export default function WeeklyPlan() {
                       const isSelectedStunde = isNowLive;
 
                       const isDraggedOver = draggedOverCell && draggedOverCell.tag === tag && draggedOverCell.idx === zIdx;
+                      const dragPreviewStatus = isDraggedOver && draggedLesson
+                        ? moveOrSwapWeeklyLesson({
+                            week: app.wochenplanung?.[activeKW],
+                            source: { dayIdx: TAGE_NAMEN.indexOf(draggedLesson.tag), hourIdx: draggedLesson.idx },
+                            target: { dayIdx: tIdx, hourIdx: zIdx },
+                            sourceHasChildProgress: hasChildProgressForSlot(app, draggedLesson.tag, draggedLesson.idx),
+                            targetHasChildProgress: hasChildProgressForSlot(app, tag, zIdx),
+                          }).status
+                        : null;
+                      const isBlockedDragTarget = !!dragPreviewStatus &&
+                        !['moved', 'swap-confirmation', 'same-slot'].includes(dragPreviewStatus);
                        const canPublishForChildren = !!item?.fach?.trim() && !!item?.thema?.trim();
                        const pupilCount = (app.schueler || []).filter(student => !student.id.startsWith('demo-')).length;
                        const taskId = weekTaskKey(app.schuljahr || '', activeKW, tag, zIdx);
@@ -2791,13 +2844,22 @@ export default function WeeklyPlan() {
                           key={`${tag}-${zIdx}`}
                           draggable={!!item && (!!item.fach || !!item.thema)}
                           onDragStart={(e) => handleDragStartPlan(e, tag, zIdx)}
+                          onDragEnd={() => { setDraggedLesson(null); setDraggedOverCell(null); }}
+                          title={dragPreviewStatus === 'swap-confirmation'
+                            ? 'Belegte Einzelstunden tauschen – Bestätigung nötig'
+                            : isBlockedDragTarget ? describeBlockedDrop(dragPreviewStatus!) :
+                              dragPreviewStatus === 'moved' ? 'Stunde hierher verschieben' : undefined}
                           onDragOver={(e) => e.preventDefault()}
                           onDragEnter={(e) => { e.preventDefault(); setDraggedOverCell({ tag, idx: zIdx }); }}
                           onDragLeave={() => setDraggedOverCell(null)}
                           onDrop={(e) => { handleDropPlan(e, tag, zIdx); setDraggedOverCell(null); }}
                           onClick={() => !isFree && openWeeklyCell(tag, zIdx)}
                           style={{ gridColumn: tIdx + 2, gridRow: `${gridRowStart} / span ${spanValue}`, zIndex: isSelectedStunde ? 90 : (crossesLunch ? 80 : 1) }}
-                          className={`min-h-[5.3125rem] border-b border-slate-100 p-1.5 relative group/cell cursor-pointer transition-all duration-300 ${isFree ? 'bg-slate-50/30' : isToday ? 'bg-emerald-50/10' : 'bg-white'} hover:bg-slate-100/30 ${isToday ? 'ring-inset ring-1 ring-emerald-200' : ''} ${isSelectedStunde ? 'ring-2 ring-indigo-500 shadow-lg shadow-indigo-500/25 bg-indigo-50/5' : ''} ${isNowLive ? 'ring-2 ring-amber-400 shadow-lg shadow-amber-500/25 bg-amber-50/5' : ''} ${isDraggedOver ? 'ring-2 ring-dashed ring-emerald-500 bg-emerald-50/40 scale-[0.98] z-40' : ''} ${optimizationSuggestion ? 'ring-inset ring-2 ring-emerald-400/50 bg-emerald-50/30' : ''}`}
+                          className={`min-h-[5.3125rem] border-b border-slate-100 p-1.5 relative group/cell cursor-pointer transition-all duration-300 ${isFree ? 'bg-slate-50/30' : isToday ? 'bg-emerald-50/10' : 'bg-white'} hover:bg-slate-100/30 ${isToday ? 'ring-inset ring-1 ring-emerald-200' : ''} ${isSelectedStunde ? 'ring-2 ring-indigo-500 shadow-lg shadow-indigo-500/25 bg-indigo-50/5' : ''} ${isNowLive ? 'ring-2 ring-amber-400 shadow-lg shadow-amber-500/25 bg-amber-50/5' : ''} ${isDraggedOver ? isBlockedDragTarget
+                            ? 'ring-2 ring-dashed ring-rose-500 bg-rose-50/70 scale-[0.98] z-40'
+                            : dragPreviewStatus === 'swap-confirmation'
+                              ? 'ring-2 ring-dashed ring-amber-500 bg-amber-50/70 scale-[0.98] z-40'
+                              : 'ring-2 ring-dashed ring-emerald-500 bg-emerald-50/40 scale-[0.98] z-40' : ''} ${optimizationSuggestion ? 'ring-inset ring-2 ring-emerald-400/50 bg-emerald-50/30' : ''}`}
                         >
                           {isSelectedStunde && (
                             <div className="absolute top-1 left-1.5 z-30 flex items-center gap-1 bg-indigo-600 text-white text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md shadow-md">
@@ -3195,6 +3257,8 @@ export default function WeeklyPlan() {
                     draggable
                     onDragStart={(e) => {
                       e.dataTransfer.setData('parkedLessonIndex', String(pIdx));
+                       e.dataTransfer.setData('parkedLessonIdentity', String(item.id || ''));
+                       e.dataTransfer.effectAllowed = 'move';
                     }}
                     className="bg-white border border-slate-150 p-3.5 rounded-2xl shadow-xs hover:shadow-md cursor-grab active:cursor-grabbing transition-all flex flex-col gap-2 relative group text-left"
                   >
