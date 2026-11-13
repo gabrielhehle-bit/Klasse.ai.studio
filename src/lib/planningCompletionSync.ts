@@ -30,14 +30,28 @@ function matchingWeekSlots(
   const match = normalized(thema);
   if (!match) return [];
   const found: Array<{ day: string; hour: string; lesson: any }> = [];
-  for (const [day, cells] of Object.entries(week)) {
-    if (!hasWeekday(day) || !cells || typeof cells !== 'object') continue;
-    for (const [hour, lesson] of Object.entries(cells as Record<string, any>)) {
-      if (!/^\d+$/.test(hour) || Number(hour) >= MAX_LESSON_SLOTS ||
-          !lesson || typeof lesson !== 'object') continue;
+
+  // Old plans may store days as 0..4 while current plans store weekday names.
+  // A named hour shadows its numeric legacy counterpart, just as in the
+  // read-only planning overview. Never count or update the hidden duplicate.
+  for (const [index, name] of TAGE_NAMEN.entries()) {
+    const numericKey = String(index);
+    const numericDay = week[numericKey] && typeof week[numericKey] === 'object' &&
+      !Array.isArray(week[numericKey]) ? week[numericKey] : {};
+    const namedDay = week[name] && typeof week[name] === 'object' &&
+      !Array.isArray(week[name]) ? week[name] : {};
+    const hours = new Set([...Object.keys(numericDay), ...Object.keys(namedDay)]);
+
+    for (const hour of hours) {
+      const slot = Number(hour);
+      if (!Number.isInteger(slot) || slot < 0 || slot >= MAX_LESSON_SLOTS ||
+          String(slot) !== hour) continue;
+      const useNamed = Object.prototype.hasOwnProperty.call(namedDay, hour);
+      const lesson = useNamed ? namedDay[hour] : numericDay[hour];
+      if (!lesson || typeof lesson !== 'object' || Array.isArray(lesson)) continue;
       if (normalized(lesson.thema) === match &&
           lessonSubjectId(lesson.fach, subjects) === subjectId) {
-        found.push({ day, hour, lesson });
+        found.push({ day: useNamed ? name : numericKey, hour, lesson });
       }
     }
   }
