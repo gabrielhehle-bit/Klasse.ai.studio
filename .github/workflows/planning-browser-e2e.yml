@@ -11,6 +11,8 @@ on:
       - 'src/components/YearlyPlan.tsx'
       - 'src/lib/planningCompletionSync.ts'
       - 'src/lib/planningCompletionSync.test.ts'
+      - 'src/lib/quickPlanLessonTransfer.ts'
+      - 'src/lib/quickPlanLessonTransfer.test.ts'
       - 'src/components/DailyHomeworkButton.tsx'
       - 'src/components/cockpit/WidgetReadableText.tsx'
       - 'src/components/cockpit/widgets/HomeworkWidget.tsx'
