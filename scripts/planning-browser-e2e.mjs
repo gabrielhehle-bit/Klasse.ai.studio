@@ -532,14 +532,27 @@ async function main() {
           if (initiallyPublished !== 'true') {
             throw new Error('Mobile child-plan control did not reflect the published saved task.');
           }
+          const publishedParkingBlocked = await evaluate(client,
+            '(() => {const card=(' + mobileSourceCard + ');' +
+            'const park=card?.querySelector("[data-weekly-mobile-park]");' +
+            'return !!park&&park.disabled&&card.querySelector("[data-weekly-mobile-parking-explanation]")?.textContent.includes("veröffentlicht");})()');
+          if (!publishedParkingBlocked) {
+            throw new Error('Published child task could be parked from mobile planning.');
+          }
           await evaluate(client,
             '(() => {const b=(' + mobileSourceCard + ')?.querySelector("[data-weekly-mobile-child-toggle]");if(!b)return false;b.click();return true;})()');
           await waitFor(client, 'mobile unpublish retains teaching card',
             '(' + mobileSourceCard + ')?.querySelector("[data-weekly-mobile-child-toggle]")?.getAttribute("aria-pressed")==="false"');
+          await waitFor(client, 'feedback still prevents parking after unpublishing',
+            '(() => {const card=(' + mobileSourceCard + ');' +
+            'const park=card?.querySelector("[data-weekly-mobile-park]");' +
+            'return !!park&&park.disabled&&card.querySelector("[data-weekly-mobile-parking-explanation]")?.textContent.includes("Kinder-Rückmeldungen");})()');
           await evaluate(client,
             '(() => {const b=(' + mobileSourceCard + ')?.querySelector("[data-weekly-mobile-child-toggle]");if(!b)return false;b.click();return true;})()');
           await waitFor(client, 'mobile republish restores existing child task',
             '(' + mobileSourceCard + ')?.querySelector("[data-weekly-mobile-child-toggle]")?.getAttribute("aria-pressed")==="true"');
+          await waitFor(client, 'mobile republish retains original pupil completion',
+            '(' + mobileSourceCard + ')?.textContent.includes("1/1 fertig")');
           await evaluate(client,
             '(() => {const b=(' + mobileSourceCard + ')?.querySelector("[data-weekly-mobile-copy]");if(!b)return false;b.click();return true;})()');
           await waitFor(client, 'mobile copied lesson banner',

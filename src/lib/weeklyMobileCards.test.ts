@@ -112,3 +112,15 @@ test('Mobiles Einfügen kopiert unabhängig und überschreibt weder belegt noch 
   assert.equal(copied.week.Montag[0], original);
   assert.equal(week.Montag[1], undefined);
 });
+
+test('Mobiler Wochenplan: veröffentlichte oder rückgemeldete Stunden zeigen eine gesperrte Parkfunktion', () => {
+  assert.match(mobile, /getMobileWeeklyLessonPermissions\(/);
+  assert.match(mobile, /students: app\.schueler \|\| \[\]/);
+  assert.match(mobile, /data-weekly-mobile-parking-explanation/);
+  assert.match(mobile, /data-weekly-mobile-park/);
+  assert.match(mobile, /disabled=\{!parkingPermissions\.canPark\}/);
+  assert.match(mobile, /if \(!parkingPermissions\.canPark\) return/);
+  assert.match(mobile, /Kinder-Rückmeldungen sind für diese Stunde gespeichert/);
+  assert.match(mobile, /title=\{parkingReason \|\|/);
+  assert.doesNotMatch(mobile, /onClick=\{\(\) => onPark\(day, idx\)\}/);
+});
