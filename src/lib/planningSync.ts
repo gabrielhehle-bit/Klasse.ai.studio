@@ -1,4 +1,4 @@
-import { DEFAULT_YEARLY_SUBJECTS } from '../constants';
+import { DEFAULT_YEARLY_SUBJECTS, MAX_LESSON_SLOTS, TAGE_NAMEN } from '../constants';
 import { resolveJahresplanSubjectId } from './yearPlanSubjects';
 import { yearPlanCellEntries, yearPlanEntriesToCell, type YearPlanCell, type YearPlanEntry } from './yearlyPlanData';
 
@@ -190,4 +190,88 @@ export function addWeeklyLessonsToYearPlan(input: {
     added++;
   }
   return { plan, added, alreadyPresent, skipped };
+}
+
+
+/** A generated annual-topic suggestion may only fill a genuine timetable
+ * slot that has no teacher content. This function never rewrites other
+ * weeks, student tasks, homework, materials, or even a legacy completion flag.
+ * A blank Stammplan subject alone is a valid target, not an authored lesson.
+ */
+export function mergeYearlyAssignmentsIntoWeeklyWeek(input: {
+  existingWeek: Record<string, any> | undefined;
+  timetableWeek: Record<string, any> | undefined;
+  assignments: readonly {
+    tag?: string;
+    idx?: number;
+    thema?: string;
+    buch?: string;
+    type?: string;
+    subCategory?: string;
+    subCategories?: string[];
+  }[];
+}): { week: Record<string, any>; added: number; skipped: number } {
+  const original = input.existingWeek || {};
+  const template = input.timetableWeek || {};
+  let next = original;
+  let added = 0;
+  let skipped = 0;
+
+  for (const assignment of input.assignments) {
+    const tag = assignment?.tag || '';
+    const idx = assignment?.idx;
+    if (!TAGE_NAMEN.includes(tag) || !Number.isInteger(idx) || idx! < 0 || idx! >= MAX_LESSON_SLOTS) {
+      skipped++;
+      continue;
+    }
+    const hour = idx as number;
+    const existingDay = original[tag] || {};
+    const templateDay = template[tag] || {};
+    const existing = next[tag]?.[hour] || existingDay[hour];
+    const base = templateDay[hour];
+    const templateSubject = typeof base?.fach === 'string' ? base.fach.trim() : '';
+    const existingSubject = typeof existing?.fach === 'string' ? existing.fach.trim() : '';
+
+    // Do not assign into an unscheduled hour or a changed subject.
+    if (!templateSubject || (existingSubject && existingSubject !== templateSubject)) {
+      skipped++;
+      continue;
+    }
+    // Any authored information, a published child task, or a completed lesson
+    // protects the slot, including empty-topic lessons prepared otherwise.
+    if (existing && Object.entries(existing).some(([key, value]) =>
+      key !== 'fach' && key !== 'erledigt' &&
+      value !== null && value !== undefined && value !== '' && value !== false
+    ) || existing?.erledigt === true) {
+      skipped++;
+      continue;
+    }
+
+    const prior = existing || { fach: templateSubject };
+    const allowedTypes = new Set(['standard', 'sa', 'test', 'lzk', 'event']);
+    const type = typeof assignment.type === 'string' && allowedTypes.has(assignment.type)
+      ? assignment.type : 'standard';
+    const res = mergeYearlySuggestionIntoEmptyWeeklySlot(prior, {
+      thema: typeof assignment.thema === 'string' ? assignment.thema.trim() : '',
+      buch: typeof assignment.buch === 'string' ? assignment.buch.trim() : '',
+      type,
+      subCategory: typeof assignment.subCategory === 'string' ? assignment.subCategory.trim() : '',
+      subCategories: Array.isArray(assignment.subCategories)
+        ? assignment.subCategories.filter(value => typeof value === 'string' && value.trim()).map(value => value.trim())
+        : [],
+    }, templateSubject);
+    if (res.status !== 'added') {
+      skipped++;
+      continue;
+    }
+
+    // Copy-on-write and return the original object when no assignments fit.
+    next = {
+      ...next,
+      [tag]: { ...(next[tag] || original[tag] || {}), [hour]: res.lesson },
+    };
+    added++;
+  }
+
+  return { week: next, added, skipped };
 }
