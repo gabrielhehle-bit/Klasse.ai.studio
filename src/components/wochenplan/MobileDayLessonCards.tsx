@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { STUNDEN_INFO, MAX_LESSON_SLOTS } from '../../constants';
 import { getFachHexColor } from '../../lib/fachColorUtils';
 import { weekTaskKey } from '../../lib/classroomWeeklyPlan';
-import { getPendingChildHelpRequests, summarizeChildTaskProgress } from '../../lib/weeklyMobileChildProgress';
+import { getPendingChildHelpRequests, summarizeChildTaskProgress, summarizeDailyPendingHelp } from '../../lib/weeklyMobileChildProgress';
 import { configuredLessonTime, isWeeklyLessonSlotCovered } from '../../lib/weeklyPlanData';
 import { getMobileWeeklyLessonPermissions } from '../../lib/weeklyMobileCardPermissions';
 
@@ -33,8 +33,36 @@ export const MobileDayLessonCards: React.FC<Props> = ({
   const { app } = useApp();
   const dayPlan = plan?.[day];
   const students = (app.schueler || []).filter(student => !student.id.startsWith('demo-'));
+  const dailyHelp = summarizeDailyPendingHelp(dayPlan, students, app.schuljahr || '', activeKW, day);
   return (
     <div className="space-y-2.5" data-weekly-day-cards>
+      {dailyHelp.requests > 0 && (
+        <section data-weekly-mobile-help-overview aria-label="Offene Hilferufe dieses Schultages"
+          className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-amber-950">
+          <p className="text-sm font-extrabold">
+            {dailyHelp.requests} {dailyHelp.requests === 1 ? 'offener Hilferuf' : 'offene Hilferufe'}
+          </p>
+          <p className="mt-1 text-xs font-medium">
+            {dailyHelp.children} {dailyHelp.children === 1 ? 'Kind' : 'Kinder'} in{' '}
+            {dailyHelp.lessons} {dailyHelp.lessons === 1 ? 'Unterrichtsstunde' : 'Unterrichtsstunden'}.
+            Zu den betroffenen Stunden springen:
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {dailyHelp.slots.map(slot => (
+              <button key={slot.hourIndex} type="button" data-weekly-mobile-help-shortcut
+                aria-label={`Zur ${slot.hourIndex + 1}. Stunde ${slot.subject} mit ${slot.requests} offenen Hilferufen springen`}
+                onClick={() => {
+                  const card = document.getElementById(`weekly-mobile-lesson-${day}-${slot.hourIndex}`);
+                  card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  card?.focus({ preventScroll: true });
+                }}
+                className="min-h-11 rounded-xl border border-amber-300 bg-white px-3 py-2 text-left text-xs font-bold text-amber-950 hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-700">
+                {slot.hourIndex + 1}. Std. · {slot.subject} · {slot.requests} {slot.requests === 1 ? 'Hilferuf' : 'Hilferufe'}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
       {Array.from({ length: MAX_LESSON_SLOTS }, (_, idx) => {
         if (isWeeklyLessonSlotCovered(dayPlan, idx)) return null;
         const item = dayPlan?.[idx];
@@ -63,7 +91,7 @@ export const MobileDayLessonCards: React.FC<Props> = ({
             : null;
         const accent = getFachHexColor(app.fachConfig?.[subject]?.color || subject);
         return (
-          <div key={idx} data-weekly-day-card
+          <div key={idx} id={`weekly-mobile-lesson-${day}-${idx}`} tabIndex={-1} data-weekly-day-card
             className={`overflow-hidden rounded-2xl border shadow-sm ${current
               ? 'border-emerald-400 bg-emerald-50/70 ring-1 ring-emerald-200'
               : hasSavedLesson ? 'border-slate-200 bg-white'
