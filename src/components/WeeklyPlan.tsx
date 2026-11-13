@@ -13,7 +13,7 @@ import type { WochenplanImportRow } from '../lib/planerExcelService';
 const WochenplanExcelModal = React.lazy(() => import('./WochenplanExcelModal'));
 import { addWeeklyLessonToEmptyYearPlan, addWeeklyLessonsToYearPlan, buildYearlyAiTimetable, hasWeeklyPlanningDetails, mergeYearlyAssignmentsIntoWeeklyWeek, mergeYearlySuggestionIntoEmptyWeeklySlot } from '../lib/planningSync';
 import { toggleWeeklyCompletion, toggleYearlyEntryCompletion } from '../lib/planningCompletionSync';
-import { reconcileCopiedLessonYearlyStatus, transferQuickPlannedLesson, type QuickPlanTransferMode } from '../lib/quickPlanLessonTransfer';
+import { pasteCopiedLessonIntoEmptyWeek, reconcileCopiedLessonYearlyStatus, transferQuickPlannedLesson, type QuickPlanTransferMode } from '../lib/quickPlanLessonTransfer';
 import { yearPlanCellEntries } from '../lib/yearlyPlanData';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
 import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots, isWeeklyLessonPrepared } from '../lib/weeklyPlanData';
@@ -1070,45 +1070,72 @@ export default function WeeklyPlan() {
   const pasteLessonBlock = (e: React.MouseEvent, tag: string, idx: number) => {
     e.stopPropagation();
     if (!copiedLesson) return;
+    const target = { dayIdx: TAGE_NAMEN.indexOf(tag), hourIdx: idx };
+    const preview = pasteCopiedLessonIntoEmptyWeek({
+      week: app.wochenplanung?.[activeKW], lesson: copiedLesson, target,
+    });
+    if (preview.status !== 'copied') {
+      window.alert(preview.status === 'occupied-target'
+        ? 'Diese Stunde oder ein angrenzender Unterrichtsblock ist bereits belegt. Es wurde nichts überschrieben.'
+        : 'Diese Stunde kann hier nicht eingefügt werden.');
+      return;
+    }
+    const copyId = 'lesson-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+    const updatedAt = new Date().toISOString();
     setApp(prev => {
-      const wp = { ...(prev.wochenplanung || {}) };
-      const currentWeekObj = { ...wp[activeKW] };
-      if (!currentWeekObj[tag]) currentWeekObj[tag] = {};
-      
-      currentWeekObj[tag][idx] = { 
-        ...copiedLesson, 
-        id: Math.random().toString(36).substr(2, 9),
-        erledigt: false 
+      const result = pasteCopiedLessonIntoEmptyWeek({
+        week: prev.wochenplanung?.[activeKW], lesson: copiedLesson, target, copyId, updatedAt,
+      });
+      if (result.status !== 'copied') return prev;
+      const year = prev.jahresplanung?.[activeKW] || {};
+      const revisedYear = reconcileCopiedLessonYearlyStatus({
+        week: result.week, year, target,
+        subjects: sortYearlySubjects(prev.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS),
+      });
+      return {
+        ...prev,
+        wochenplanung: { ...(prev.wochenplanung || {}), [activeKW]: result.week },
+        ...(revisedYear !== year ? {
+          jahresplanung: { ...(prev.jahresplanung || {}), [activeKW]: revisedYear },
+        } : {}),
       };
-      
-      wp[activeKW] = currentWeekObj;
-      return { ...prev, wochenplanung: wp };
     });
     setCopiedLesson(null);
   };
 
   const duplicateLessonBlock = (e: React.MouseEvent, tag: string, idx: number) => {
     e.stopPropagation();
-    const item = plan[tag]?.[idx];
-    if (!item) return;
-    
-    const nextIdx = idx + 1;
-    if (nextIdx < MAX_LESSON_SLOTS) {
-      setApp(prev => {
-        const wp = { ...(prev.wochenplanung || {}) };
-        const currentWeekObj = { ...wp[activeKW] };
-        if (!currentWeekObj[tag]) currentWeekObj[tag] = {};
-        
-        currentWeekObj[tag][nextIdx] = { 
-          ...item, 
-          id: Math.random().toString(36).substr(2, 9), 
-          erledigt: false 
-        };
-        
-        wp[activeKW] = currentWeekObj;
-        return { ...prev, wochenplanung: wp };
-      });
+    const source = { dayIdx: TAGE_NAMEN.indexOf(tag), hourIdx: idx };
+    const target = { dayIdx: source.dayIdx, hourIdx: idx + 1 };
+    const preview = transferQuickPlannedLesson({
+      week: app.wochenplanung?.[activeKW], source, target, mode: 'copy',
+    });
+    if (preview.status !== 'copied') {
+      window.alert(preview.status === 'occupied-target'
+        ? 'Die nächste Stunde ist bereits belegt oder Teil einer längeren Einheit. Es wurde nichts überschrieben.'
+        : 'Duplizieren ist an diesem Stundenplatz nicht möglich.');
+      return;
     }
+    const copyId = 'lesson-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+    const updatedAt = new Date().toISOString();
+    setApp(prev => {
+      const result = transferQuickPlannedLesson({
+        week: prev.wochenplanung?.[activeKW], source, target, mode: 'copy', copyId, updatedAt,
+      });
+      if (result.status !== 'copied') return prev;
+      const year = prev.jahresplanung?.[activeKW] || {};
+      const revisedYear = reconcileCopiedLessonYearlyStatus({
+        week: result.week, year, target,
+        subjects: sortYearlySubjects(prev.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS),
+      });
+      return {
+        ...prev,
+        wochenplanung: { ...(prev.wochenplanung || {}), [activeKW]: result.week },
+        ...(revisedYear !== year ? {
+          jahresplanung: { ...(prev.jahresplanung || {}), [activeKW]: revisedYear },
+        } : {}),
+      };
+    });
   };
 
   useLayoutEffect(() => {
@@ -2944,7 +2971,7 @@ export default function WeeklyPlan() {
                                        <Copy size={10} />
                                      </button>
 
-                                     {zIdx < 7 && (
+                                     {zIdx + 1 < MAX_LESSON_SLOTS && (
                                        <button 
                                          onClick={(e) => duplicateLessonBlock(e, tag, zIdx)}
                                          className="w-5 h-5 rounded-md bg-white/50 hover:bg-white flex items-center justify-center hover:scale-110 active:scale-90 transition-all text-slate-700 shadow-sm"

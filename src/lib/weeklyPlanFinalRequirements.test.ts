@@ -12,7 +12,9 @@ test('Wochenplanung: Hauptansicht nutzt durchgängig zehn Stunden-Slots', () => 
   assert.match(weekly, /LESSON_SLOT_NUMBERS\.map/);
   assert.match(weekly, /for \(let idx = 0; idx < MAX_LESSON_SLOTS; idx\+\+\)/);
   assert.match(weekly, /for \(let i = 0; i < MAX_LESSON_SLOTS; i\+\+\)/);
-  assert.match(weekly, /nextIdx < MAX_LESSON_SLOTS/);
+  assert.match(weekly, /zIdx \+ 1 < MAX_LESSON_SLOTS/);
+  assert.match(weekly, /hourIdx: idx \+ 1/);
+  assert.match(weekly, /transferQuickPlannedLesson\(/);
   assert.match(weekly, /weeklyLessonDurationSlots\(item\?\.duration, zIdx\)/);
   assert.doesNotMatch(weekly, /for \(let idx = 0; idx < 8; idx\+\+\)/);
   assert.doesNotMatch(weekly, /for \(let i = 0; i < 8; i\+\+\)/);
