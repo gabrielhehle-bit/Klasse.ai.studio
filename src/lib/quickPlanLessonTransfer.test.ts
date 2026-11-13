@@ -76,6 +76,21 @@ test('Historische numerische Slots bleiben benutzbar, werden aber nie verdeckt �
   assert.equal(ambiguous.week, duplicate);
 });
 
+test('Veröffentlichte Kinderaufgaben bleiben wegen stundengebundenen Rückmeldungen am Ursprungsplatz', () => {
+  const week = { Montag: { 0: { fach: 'Deutsch', thema: 'Lesen', imKinderWochenplan: true,
+    wochenplanMaterial: 'Heft', id: 'aufgabe-1' } } };
+  const before = structuredClone(week);
+  const moved = transfer({ week, source, target, mode: 'move' });
+  assert.equal(moved.status, 'published-child-task');
+  assert.equal(moved.week, week);
+  const copied = transfer({ week, source, target, mode: 'copy', copyId: 'aufgabe-2' });
+  assert.equal(copied.status, 'copied');
+  assert.equal(copied.week.Dienstag[2].imKinderWochenplan, true);
+  assert.equal(copied.week.Dienstag[2].id, 'aufgabe-2');
+  assert.equal(copied.week.Montag[0].id, 'aufgabe-1');
+  assert.deepEqual(week, before);
+});
+
 test('Doppelstunden und Restlicher-Tag-Blöcke dürfen keine Nachbarstunden überdecken', () => {
   const sourceTwo = { Montag: { 0: { fach: 'Deutsch', thema: 'Lesen', duration: 2 } },
     Dienstag: { 3: { fach: 'Musik', thema: 'Singen' } } };
