@@ -14,6 +14,7 @@ const WochenplanExcelModal = React.lazy(() => import('./WochenplanExcelModal'));
 import { addWeeklyLessonToEmptyYearPlan, addWeeklyLessonsToYearPlan, buildYearlyAiTimetable, hasWeeklyPlanningDetails, mergeYearlyAssignmentsIntoWeeklyWeek, mergeYearlySuggestionIntoEmptyWeeklySlot } from '../lib/planningSync';
 import { toggleWeeklyCompletion, toggleYearlyEntryCompletion } from '../lib/planningCompletionSync';
 import { pasteCopiedLessonIntoEmptyWeek, reconcileCopiedLessonYearlyStatus, transferQuickPlannedLesson, type QuickPlanTransferMode } from '../lib/quickPlanLessonTransfer';
+import { moveOrSwapWeeklyLesson, parkWeeklyLessonSafely, restoreParkedWeeklyLessonSafely, type DragDropStatus } from '../lib/weeklyDragDropSafety';
 import { yearPlanCellEntries } from '../lib/yearlyPlanData';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
 import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots, isWeeklyLessonPrepared } from '../lib/weeklyPlanData';
@@ -570,11 +571,37 @@ export default function WeeklyPlan() {
     }
   };
 
+  const hasChildProgressForSlot = (state: any, tag: string, idx: number): boolean => {
+    const key = weekTaskKey(state.schuljahr || '', activeKW, tag, idx);
+    return (state.schueler || []).some((student: any) =>
+      student.wochenplanFortschritt &&
+      Object.prototype.hasOwnProperty.call(student.wochenplanFortschritt, key));
+  };
+
+  const describeBlockedDrop = (status: DragDropStatus): string => {
+    if (status === 'published-child-task') {
+      return 'Diese Stunde ist im Kinder-Wochenplan freigegeben oder hat bereits Kinder-Rückmeldungen. Zum Schutz der Rückmeldungen kann sie nicht verschoben oder getauscht werden.';
+    }
+    if (status === 'legacy-day' || status === 'ambiguous-source') {
+      return 'Für diesen Tag sind ältere numerische Planungsdaten vorhanden. Bitte zuerst im Wochenplan prüfen; es wurde nichts verändert.';
+    }
+    if (status === 'occupied-target') {
+      return 'Die Zielstunde ist bereits belegt oder Teil einer Doppelstunde. Hier kann nichts ohne Datenverlust abgelegt werden.';
+    }
+    if (status === 'stale-parked-item') return 'Der Eintrag in der Parkgarage hat sich geändert. Bitte erneut ziehen.';
+    if (status === 'invalid-slot') return 'Dieses Ziel passt nicht zur Dauer der Unterrichtsstunde.';
+    if (status === 'empty-source') return 'Die ursprüngliche Unterrichtsstunde ist nicht mehr vorhanden.';
+    return 'Die Stunde konnte nicht sicher verschoben werden. Bitte prüfe Quelle und Ziel.';
+  };
+
   const handleDragStartPlan = (e: React.DragEvent, tag: string, idx: number) => {
-    e.dataTransfer.setData('sourceCell', JSON.stringify({ tag, idx }));
+    e.dataTransfer.setData('sourceCell', JSON.stringify({
+      tag, idx, kw: activeKW, classId: app.activeClassId,
+    }));
+    e.dataTransfer.effectAllowed = 'move';
     setDraggedLesson({ tag, idx });
   };
-  
+
   const handleDropPlan = (e: React.DragEvent, targetTag: string, targetIdx: number) => {
     e.preventDefault();
     setDraggedLesson(null);
@@ -582,34 +609,42 @@ export default function WeeklyPlan() {
     const sourceDataStr = e.dataTransfer.getData('sourceCell');
     const yearlyItemStr = e.dataTransfer.getData('yearlyItem');
     const parkedIndexStr = e.dataTransfer.getData('parkedLessonIndex');
-    
+    const parkedIdentity = e.dataTransfer.getData('parkedLessonIdentity');
+
     if (sourceDataStr) {
-       // internal drag and drop
-       const sourceData = safeJsonParse(sourceDataStr, null);
-       if (!sourceData) return;
-       if (sourceData.tag === targetTag && sourceData.idx === targetIdx) return;
-       
-       setApp(prev => {
-         const wp = { ...(prev.wochenplanung || {}) };
-         const currentWeekObj = { ...wp[activeKW] };
-         
-         if (!currentWeekObj[sourceData.tag]) currentWeekObj[sourceData.tag] = {};
-         if (!currentWeekObj[targetTag]) currentWeekObj[targetTag] = {};
-         
-         const sourceItem = currentWeekObj[sourceData.tag][sourceData.idx];
-         const targetItem = currentWeekObj[targetTag][targetIdx];
-         
-         currentWeekObj[targetTag][targetIdx] = sourceItem;
-         
-         if (targetItem) {
-            currentWeekObj[sourceData.tag][sourceData.idx] = targetItem;
-         } else {
-            delete currentWeekObj[sourceData.tag][sourceData.idx];
-         }
-         
-         wp[activeKW] = currentWeekObj;
-         return { ...prev, wochenplanung: wp };
-       });
+      const sourceData = safeJsonParse(sourceDataStr, null);
+      if (!sourceData || sourceData.kw !== activeKW || sourceData.classId !== app.activeClassId) {
+        window.alert('Diese Stunde wurde aus einer anderen Kalenderwoche oder Klasse gezogen. Bitte die aktuelle Planung erneut öffnen.');
+        return;
+      }
+      const source = { dayIdx: TAGE_NAMEN.indexOf(sourceData.tag), hourIdx: sourceData.idx };
+      const target = { dayIdx: TAGE_NAMEN.indexOf(targetTag), hourIdx: targetIdx };
+      const check = {
+        week: app.wochenplanung?.[activeKW], source, target,
+        sourceHasChildProgress: hasChildProgressForSlot(app, sourceData.tag, sourceData.idx),
+        targetHasChildProgress: hasChildProgressForSlot(app, targetTag, targetIdx),
+      };
+      const preview = moveOrSwapWeeklyLesson(check);
+      if (preview.status === 'same-slot') return;
+      const approvedSwap = preview.status === 'swap-confirmation' && window.confirm(
+        'Die Zielstunde ' + (targetIdx + 1) + ' am ' + targetTag +
+        ' ist belegt. Möchtest du beide einzelnen Unterrichtsstunden bewusst tauschen? Beide Inhalte bleiben erhalten.'
+      );
+      if (preview.status === 'swap-confirmation' && !approvedSwap) return;
+      if (preview.status !== 'moved' && !approvedSwap) {
+        window.alert(describeBlockedDrop(preview.status));
+        return;
+      }
+
+      setApp(prev => {
+        const result = moveOrSwapWeeklyLesson({
+          week: prev.wochenplanung?.[activeKW], source, target, allowSwap: approvedSwap,
+          sourceHasChildProgress: hasChildProgressForSlot(prev, sourceData.tag, sourceData.idx),
+          targetHasChildProgress: hasChildProgressForSlot(prev, targetTag, targetIdx),
+        });
+        if (result.status !== 'moved' && result.status !== 'swapped') return prev;
+        return { ...prev, wochenplanung: { ...(prev.wochenplanung || {}), [activeKW]: result.week } };
+      });
     } else if (yearlyItemStr) {
        const yearlyData = safeJsonParse(yearlyItemStr, null);
        if (!yearlyData) return;
