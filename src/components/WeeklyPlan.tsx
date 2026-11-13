@@ -2821,6 +2821,17 @@ export default function WeeklyPlan() {
                       const isSelectedStunde = isNowLive;
 
                       const isDraggedOver = draggedOverCell && draggedOverCell.tag === tag && draggedOverCell.idx === zIdx;
+                      const dragPreviewStatus = isDraggedOver && draggedLesson
+                        ? moveOrSwapWeeklyLesson({
+                            week: app.wochenplanung?.[activeKW],
+                            source: { dayIdx: TAGE_NAMEN.indexOf(draggedLesson.tag), hourIdx: draggedLesson.idx },
+                            target: { dayIdx: tIdx, hourIdx: zIdx },
+                            sourceHasChildProgress: hasChildProgressForSlot(app, draggedLesson.tag, draggedLesson.idx),
+                            targetHasChildProgress: hasChildProgressForSlot(app, tag, zIdx),
+                          }).status
+                        : null;
+                      const isBlockedDragTarget = !!dragPreviewStatus &&
+                        !['moved', 'swap-confirmation', 'same-slot'].includes(dragPreviewStatus);
                        const canPublishForChildren = !!item?.fach?.trim() && !!item?.thema?.trim();
                        const pupilCount = (app.schueler || []).filter(student => !student.id.startsWith('demo-')).length;
                        const taskId = weekTaskKey(app.schuljahr || '', activeKW, tag, zIdx);
@@ -2833,13 +2844,22 @@ export default function WeeklyPlan() {
                           key={`${tag}-${zIdx}`}
                           draggable={!!item && (!!item.fach || !!item.thema)}
                           onDragStart={(e) => handleDragStartPlan(e, tag, zIdx)}
+                          onDragEnd={() => { setDraggedLesson(null); setDraggedOverCell(null); }}
+                          title={dragPreviewStatus === 'swap-confirmation'
+                            ? 'Belegte Einzelstunden tauschen – Bestätigung nötig'
+                            : isBlockedDragTarget ? describeBlockedDrop(dragPreviewStatus!) :
+                              dragPreviewStatus === 'moved' ? 'Stunde hierher verschieben' : undefined}
                           onDragOver={(e) => e.preventDefault()}
                           onDragEnter={(e) => { e.preventDefault(); setDraggedOverCell({ tag, idx: zIdx }); }}
                           onDragLeave={() => setDraggedOverCell(null)}
                           onDrop={(e) => { handleDropPlan(e, tag, zIdx); setDraggedOverCell(null); }}
                           onClick={() => !isFree && openWeeklyCell(tag, zIdx)}
                           style={{ gridColumn: tIdx + 2, gridRow: `${gridRowStart} / span ${spanValue}`, zIndex: isSelectedStunde ? 90 : (crossesLunch ? 80 : 1) }}
-                          className={`min-h-[5.3125rem] border-b border-slate-100 p-1.5 relative group/cell cursor-pointer transition-all duration-300 ${isFree ? 'bg-slate-50/30' : isToday ? 'bg-emerald-50/10' : 'bg-white'} hover:bg-slate-100/30 ${isToday ? 'ring-inset ring-1 ring-emerald-200' : ''} ${isSelectedStunde ? 'ring-2 ring-indigo-500 shadow-lg shadow-indigo-500/25 bg-indigo-50/5' : ''} ${isNowLive ? 'ring-2 ring-amber-400 shadow-lg shadow-amber-500/25 bg-amber-50/5' : ''} ${isDraggedOver ? 'ring-2 ring-dashed ring-emerald-500 bg-emerald-50/40 scale-[0.98] z-40' : ''} ${optimizationSuggestion ? 'ring-inset ring-2 ring-emerald-400/50 bg-emerald-50/30' : ''}`}
+                          className={`min-h-[5.3125rem] border-b border-slate-100 p-1.5 relative group/cell cursor-pointer transition-all duration-300 ${isFree ? 'bg-slate-50/30' : isToday ? 'bg-emerald-50/10' : 'bg-white'} hover:bg-slate-100/30 ${isToday ? 'ring-inset ring-1 ring-emerald-200' : ''} ${isSelectedStunde ? 'ring-2 ring-indigo-500 shadow-lg shadow-indigo-500/25 bg-indigo-50/5' : ''} ${isNowLive ? 'ring-2 ring-amber-400 shadow-lg shadow-amber-500/25 bg-amber-50/5' : ''} ${isDraggedOver ? isBlockedDragTarget
+                            ? 'ring-2 ring-dashed ring-rose-500 bg-rose-50/70 scale-[0.98] z-40'
+                            : dragPreviewStatus === 'swap-confirmation'
+                              ? 'ring-2 ring-dashed ring-amber-500 bg-amber-50/70 scale-[0.98] z-40'
+                              : 'ring-2 ring-dashed ring-emerald-500 bg-emerald-50/40 scale-[0.98] z-40' : ''} ${optimizationSuggestion ? 'ring-inset ring-2 ring-emerald-400/50 bg-emerald-50/30' : ''}`}
                         >
                           {isSelectedStunde && (
                             <div className="absolute top-1 left-1.5 z-30 flex items-center gap-1 bg-indigo-600 text-white text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md shadow-md">
