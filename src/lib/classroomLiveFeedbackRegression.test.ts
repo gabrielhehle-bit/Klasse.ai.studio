@@ -26,7 +26,11 @@ test('Wochenplan: separate vorbereitete und erledigte Stunden werden korrekt bes
   assert.match(weekly, /isWeeklyLessonPrepared\(item\)/);
   assert.match(weekly, /\{weekMetrics\.prepared\}\/\{weekMetrics\.total\} vorbereitet/);
   assert.match(weekly, /\{progress\.prepared\}\/\{progress\.total\} vorbereitet · \{progress\.completed\} erledigt/);
-  assert.match(weekly, /item\.erledigt = newErledigt/);
+  assert.match(weekly, /toggleWeeklyCompletion\(\{/);
+  const completion = readFileSync('src/lib/planningCompletionSync.ts', 'utf8');
+  assert.match(completion, /const done = original\.erledigt !== true/);
+  assert.match(completion, /\[idx\]: \{ \.\.\.original, erledigt: done \}/);
+  assert.doesNotMatch(weekly, /item\.erledigt = newErledigt/);
 });
 
 test('Verhaltens-Tagesabschluss: pro Kind idempotent, im Dossier je Tag nur ein Eintrag', () => {
