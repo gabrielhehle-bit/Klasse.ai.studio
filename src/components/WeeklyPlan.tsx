@@ -11,7 +11,7 @@ import { LehrplanZuordnung } from '../types';
 import { getFachHexColor, getFachThemeStyles } from '../lib/fachColorUtils';
 import type { WochenplanImportRow } from '../lib/planerExcelService';
 const WochenplanExcelModal = React.lazy(() => import('./WochenplanExcelModal'));
-import { addWeeklyLessonToEmptyYearPlan, addWeeklyLessonsToYearPlan, hasWeeklyPlanningDetails, mergeYearlySuggestionIntoEmptyWeeklySlot } from '../lib/planningSync';
+import { addWeeklyLessonToEmptyYearPlan, addWeeklyLessonsToYearPlan, buildYearlyAiTimetable, hasWeeklyPlanningDetails, mergeYearlyAssignmentsIntoWeeklyWeek, mergeYearlySuggestionIntoEmptyWeeklySlot } from '../lib/planningSync';
 import { yearPlanCellEntries } from '../lib/yearlyPlanData';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
 import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots, isWeeklyLessonPrepared } from '../lib/weeklyPlanData';
@@ -528,21 +528,10 @@ export default function WeeklyPlan() {
       return;
     }
     
-    // First, sync with stammplan (silently) to have the base layout
-    const stamm = app.stammplan || {};
-    const baseWochenplanung = { ...(app.wochenplanung?.[activeKW] || {}) };
-    
-    // If empty, prefill with stammplan subjects
-    Object.keys(stamm).forEach(tag => {
-      if (!baseWochenplanung[tag]) baseWochenplanung[tag] = {};
-      Object.keys(stamm[tag] || {}).forEach(idxStr => {
-        const idx = parseInt(idxStr);
-        const targetIdx = idx - 1; // 0-indexed target in baseWochenplanung
-        if (!baseWochenplanung[tag][targetIdx]?.fach && stamm[tag]?.[idx]) {
-          baseWochenplanung[tag][targetIdx] = { ...baseWochenplanung[tag][targetIdx], fach: stamm[tag][idx] };
-        }
-      });
-    });
+    // Prepare a temporary template without mutating saved weekly lessons.
+    const baseWochenplanung = buildYearlyAiTimetable(
+      app.wochenplanung?.[activeKW], app.stammplan,
+    );
 
     setAiLoading(true);
     try {
@@ -551,31 +540,22 @@ export default function WeeklyPlan() {
         alert(assignments);
       } else if (Array.isArray(assignments)) {
         setApp(prev => {
-          const wp = { ...(prev.wochenplanung || {}) };
-          const weekPlan = { ...(wp[activeKW] || baseWochenplanung) };
-
-          assignments.forEach(assign => {
-            if (!weekPlan[assign.tag]) weekPlan[assign.tag] = {};
-            const lesson = { ...(weekPlan[assign.tag][assign.idx] || {}) };
-            
-            // Do not override user's explicitly typed thema unless it's empty
-            lesson.thema = assign.thema;
-            if (assign.buch) lesson.buch = assign.buch;
-            if (assign.subCategory) lesson.subCategory = assign.subCategory;
-            if (assign.subCategories && assign.subCategories.length > 0) {
-              lesson.schwerpunkte = assign.subCategories;
-            } else if (assign.subCategory) {
-              lesson.schwerpunkte = [assign.subCategory];
-            }
-            if (assign.type) lesson.type = assign.type;
-            
-            weekPlan[assign.tag][assign.idx] = lesson;
+          // Do not apply stale AI results after a calendar-week change.
+          if (prev.currentKW && prev.currentKW !== activeKW) return prev;
+          const existingWeek = prev.wochenplanung?.[activeKW] || {};
+          const latestTimetable = buildYearlyAiTimetable(existingWeek, prev.stammplan);
+          const result = mergeYearlyAssignmentsIntoWeeklyWeek({
+            existingWeek,
+            timetableWeek: latestTimetable,
+            assignments,
           });
-
-          wp[activeKW] = weekPlan;
-          return { ...prev, wochenplanung: wp };
+          if (result.added === 0) return prev;
+          return {
+            ...prev,
+            wochenplanung: { ...(prev.wochenplanung || {}), [activeKW]: result.week },
+          };
         });
-        alert("Wochenplan wurde mit der KI befüllt!");
+        alert('KI-Vorschläge geprüft. Nur freie Stunden mit passendem Stammplan-Fach werden ergänzt; vorhandene Themen, Hausübungen und Materialien bleiben unverändert.');
       }
     } catch (e) {
       console.error(e);
