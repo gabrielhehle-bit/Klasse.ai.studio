@@ -23,7 +23,7 @@ export default function KELParentTrendChart({ kind, buckets, period }: Props) {
       </p>
       {kind === 'mood' ? (
         <svg data-kel-mood-trend role="img"
-          aria-label={`Durchschnitt der tatsächlichen Befindens-Einschätzungen je ${unit}, Skala 1 sehr gut bis 5 schlecht. Fehlende ${unit}n bleiben Lücken.`}
+          aria-label={`Durchschnitt der tatsächlichen Befindens-Einschätzungen je ${unit}, Skala 1 sehr gut bis 5 schlecht. Zeiträume ohne Rückmeldung bleiben Lücken.`}
           viewBox="0 0 320 82" className="block h-[72px] w-full" preserveAspectRatio="none">
           {[1, 3, 5].map(level => (
             <g key={level}>
