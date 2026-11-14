@@ -57,7 +57,16 @@ test('missing records and invalid boundaries do not fabricate timeline values', 
 
 test('recorded behavior categories are counted as observations, not given a qualitative severity score', () => {
   const trend = buildKelParentTrend('recent','2026-11-02','2026-11-15',{},
-    [{datum:'2026-11-03',iconId:'great'}, {datum:'2026-11-10',iconId:'difficult'}]);
+    [{datum:'2026-11-03',iconId:'great'}, {datum:'2026-11-10',iconId:'difficult'}],
+    [{id:'great'},{id:'difficult'}]);
   assert.deepEqual(trend.buckets.map(b=>b.behaviorCount), [1,1]);
+  assert.deepEqual(trend.buckets.map(b=>b.behaviorByStage), [{great:1},{difficult:1}]);
   assert.ok(trend.buckets.every(b=>b.moodAverage===null));
+});
+
+test('legacy behavior stage is counted but flagged unassigned without pretending a rating', () => {
+  const r=buildKelParentTrend('recent','2026-11-02','2026-11-08',{},
+    [{datum:'2026-11-03',iconId:'deleted-stage'}],[{id:'current'}]);
+  assert.equal(r.buckets[0].behaviorCount,1);
+  assert.deepEqual(r.buckets[0].behaviorByStage,{'_unassigned':1});
 });
