@@ -1,7 +1,5 @@
 import type { KELGespraech } from '../types';
 
-type Goal = KELGespraech['zieleKind'][number];
-
 /** All quick edits are immutable and use the existing KEL storage fields. */
 export function setKelQuickTeacherComment(
   meeting: Partial<KELGespraech>,
