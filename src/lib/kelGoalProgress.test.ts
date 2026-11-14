@@ -129,7 +129,7 @@ test('progress is tied to the saved meeting and a specific goal, with explicit o
   assert.match(panel,/data-kel-goal-progress-save/);
   assert.match(panel,/disabled=\{!canSubmit\}/);
   assert.match(panel,/appendKelGoalProgress\(previous\.kelGespraeche, stored\.id/);
-  assert.match(panel,/previous\.kelGespraeche: updated/); // unlikely literal? Check actual expression below
+  assert.match(panel, /\{ \.\.\.previous, kelGespraeche: updated \}/);
 });
 
 test('next KEL meeting reads only earlier same-child goals, without importing their private observations into parent print',()=>{
