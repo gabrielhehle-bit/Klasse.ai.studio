@@ -103,7 +103,7 @@ test('review is draft-only, not printed or automatically copied to parent report
   for(const id of ['data-kel-completion-review','data-kel-review-goals','data-kel-review-agreements',
     'data-kel-review-feedback','data-kel-review-parent-impression','data-kel-review-suggestions'])
     assert.match(component,new RegExp(id));
-  assert.match(component,/className="mx-auto max-w-4xl space-y-4/);
+  assert.match(component,/className="no-print mx-auto max-w-4xl space-y-4/);
   assert.match(component,/Erst „Änderungen speichern“ legt das Protokoll ab/);
   assert.match(component,/Das separate Elternblatt übernimmt keine privaten Gesprächsnotizen automatisch/);
   assert.doesNotMatch(component,/setApp\(|localStorage|window\.print/);
