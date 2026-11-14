@@ -1,4 +1,5 @@
 import { visibleAssessmentIndices, hasMissingVisibleAssessment } from '../lib/gradebookVisibleColumns';
+import { summarizeAssessmentColumnCoverage } from '../lib/gradebookColumnCoverage';
 import { countsInClassAverage } from '../lib/classAveragePolicy';
 import { getPositiveBehaviorRate } from '../lib/gradebookBehaviorRate';
 import { getSubjectColumnRemovalBlockReason, removeSubjectColumn, updateSubjectColumn } from '../lib/classroomEdits';
@@ -808,9 +809,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
       // Manual participation counts as an entered grade even when LZK/WP cells are empty.
       const hasParticipation = data.miDirekt !== undefined && data.miDirekt !== null && String(data.miDirekt).trim() !== '';
       return hasParticipation || ["sa", "lzk", "wp", "aufgaben"].some((key) =>
-        (data[key] || []).some((value: unknown) =>
-          value !== undefined && value !== null && value !== "" && value !== "-" && value !== "e" && value !== "f",
-        ),
+        (data[key] || []).some((value: unknown) => !isAssessmentValueMissing(value)),
       );
     });
   }, [app.schueler, app.noten, activeFach, sem]);
@@ -1580,6 +1579,15 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     const customDate = app.notenMeta?.[activeFach]?.colDates?.[typ]?.[i];
     const maxP = getMaxPoints(app, activeFach, typ, i);
     const itemMode = getAssessmentItemMode(app, activeFach, typ, i);
+    const coverage = summarizeAssessmentColumnCoverage((app.schueler || []).map(student => {
+      const nd = app.noten?.[student.id]?.[activeFach]?.[sem];
+      const values = typ === 'sa' ? nd?.sa : typ === 'lzk' ? nd?.lzk
+        : typ === 'wp' ? nd?.wp : nd?.aufgaben;
+      return {
+        value: values?.[i],
+        exempt: typ === 'lzk' && nd?.lzkParticipation?.[i] === false,
+      };
+    }));
 
     return (
       <th 
@@ -1636,6 +1644,23 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
             <span className="inline-block text-[0.5625rem] font-bold bg-blue-100/80 text-blue-900 px-1.5 py-0.2 rounded-full border border-blue-200">
               0–100%
             </span>
+          )}
+          {(app.schueler?.length || 0) > 0 && (
+            <div data-gradebook-column-coverage
+              className="mt-1 flex w-full max-w-[7.5rem] flex-col items-center gap-1"
+              title={`${coverage.entered} von ${coverage.expected} Bewertungen erfasst; ${coverage.missing} offen${coverage.exempt ? `, ${coverage.exempt} nicht teilgenommen` : ''}`}>
+              <span className={`text-[0.625rem] font-bold normal-case ${coverage.missing > 0 ? 'text-amber-800' : 'text-emerald-700'}`}>
+                {coverage.expected > 0
+                  ? `${coverage.entered}/${coverage.expected} erfasst`
+                  : 'Keine Wertung nötig'}
+              </span>
+              {coverage.expected > 0 && (
+                <div className="h-1 w-full overflow-hidden rounded-full bg-slate-200" aria-hidden="true">
+                  <div className={`h-full rounded-full ${coverage.missing > 0 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                    style={{ width: `${Math.round(coverage.entered * 100 / coverage.expected)}%` }} />
+                </div>
+              )}
+            </div>
           )}
         </div>
       </th>
