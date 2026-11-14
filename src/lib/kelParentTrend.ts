@@ -8,6 +8,7 @@ export type KelParentTrendBucket = {
   moodAverage: number | null;
   moodCount: number;
   behaviorCount: number;
+  behaviorByStage: Record<string, number>;
 };
 
 export type KelParentTrend = {
@@ -23,6 +24,7 @@ export function buildKelParentTrend(
   end: string,
   moods: Record<string, unknown> | null | undefined,
   dailyBehaviorLogs: readonly { datum?: unknown; timestamp?: unknown; iconId?: unknown }[],
+  knownStages: readonly { id: unknown }[] = [],
 ): KelParentTrend {
   const dates = getDossierPeriodDays(start, end);
   const sums = new Map<string, {
@@ -30,6 +32,7 @@ export function buildKelParentTrend(
     moodSum: number;
     moodCount: number;
     behaviorCount: number;
+    behaviorByStage: Record<string, number>;
   }>();
 
   const bucketKey = (day: string): string => {
@@ -47,7 +50,7 @@ export function buildKelParentTrend(
       label: period === 'year'
         ? labelDate.toLocaleDateString('de-AT', { month: 'short' })
         : labelDate.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' }),
-      moodSum: 0, moodCount: 0, behaviorCount: 0,
+      moodSum: 0, moodCount: 0, behaviorCount: 0, behaviorByStage: {},
     });
   }
 
@@ -62,15 +65,23 @@ export function buildKelParentTrend(
   // Dossier stats already collapse historical logs to one daily status.
   // The Set guards against any future caller accidentally providing duplicates.
   const countedDays = new Set<string>();
+  const knownIds = new Set(knownStages.map(stage => String(stage.id)));
   for (const log of dailyBehaviorLogs) {
     const day = behaviorLogDay(log);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || day < start || day > end || countedDays.has(day)) continue;
     const b = sums.get(bucketKey(day));
-    if (b) { b.behaviorCount++; countedDays.add(day); }
+    if (b) {
+      b.behaviorCount++;
+      const rawStageId = String(log.iconId ?? '');
+      const stageId = knownIds.has(rawStageId) ? rawStageId : '_unassigned';
+      b.behaviorByStage[stageId] = (b.behaviorByStage[stageId] || 0) + 1;
+      countedDays.add(day);
+    }
   }
   const buckets = [...sums].map(([key, row]) => ({
     key, label: row.label, moodAverage: row.moodCount ? row.moodSum / row.moodCount : null,
     moodCount: row.moodCount, behaviorCount: row.behaviorCount,
+    behaviorByStage: { ...row.behaviorByStage },
   }));
   return {
     buckets,
