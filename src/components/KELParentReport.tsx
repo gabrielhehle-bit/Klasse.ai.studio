@@ -85,8 +85,8 @@ export default function KELParentReport({
   const behaviorTotal = behavior.total;
   const trend = useMemo(() => buildKelParentTrend(
     options.period, stats.start, stats.today,
-    app.schuelerStimmung?.[studentId], stats.logs,
-  ), [app.schuelerStimmung, studentId, options.period, stats.start, stats.today, stats.logs]);
+    app.schuelerStimmung?.[studentId], stats.logs, stats.stages,
+  ), [app.schuelerStimmung, studentId, options.period, stats.start, stats.today, stats.logs, stats.stages]);
 
   const participation = options.subjects.map(subject => ({
     subject,
@@ -201,7 +201,7 @@ export default function KELParentReport({
                     </div>
                   ))}
                 </div>
-                <KELParentTrendChart kind="behavior" buckets={trend.buckets} period={options.period} />
+                <KELParentTrendChart kind="behavior" buckets={trend.buckets} period={options.period} behaviorRows={behaviorRows} />
                 <p className="text-[11px] leading-snug text-slate-500">
                   Anteil an dokumentierten Tageswerten, nicht an allen Schultagen · keine Persönlichkeitsnote
                 </p>
