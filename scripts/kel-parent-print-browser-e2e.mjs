@@ -92,7 +92,13 @@ async function fillInput(c, label, value) {
     'if(setter)setter.call(field,' + q(value) + ');else field.value=' + q(value) + ';' +
     'field.focus();field.dispatchEvent(new Event("input",{bubbles:true}));field.dispatchEvent(new Event("change",{bubbles:true}));return true;' +
     '})()';
-  if (!await evaluate(c, expr)) throw new Error('Could not fill ' + label);
+  // The access screen can paint its heading before its controlled input.
+  // Retry only locating/filling the real field; never skip the access gate.
+  for (let attempt = 0; attempt < 40; attempt++) {
+    if (await evaluate(c, expr)) return;
+    await sleep(250);
+  }
+  throw new Error('Could not fill ' + label);
 }
 async function clickCheckbox(c, label) {
   const expr = '(() => {const node=Array.from(document.querySelectorAll("label")).find(el=>String(el.textContent||"").includes(' + q(label) + '));' +
