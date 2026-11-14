@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, History } from 'lucide-react';
+import { useApp } from '../context/AppContext';
+import { getPriorKelGoals, KEL_PROGRESS_LABELS } from '../lib/kelGoalProgress';
 import { STANDARD_KEL_BEREICHE, type KELGespraech, type Student } from '../types';
 import { addKelQuickGoal, editKelQuickGoal, removeKelQuickGoal, setKelQuickTeacherComment } from '../lib/kelQuickEdit';
 
@@ -14,6 +16,8 @@ type Props = {
  * only to the parent editor draft; saving remains the existing explicit action.
  */
 export default function KELQuickEntry({ meeting, students, setMeeting }: Props) {
+  const { app } = useApp();
+  const priorGoals = getPriorKelGoals(app.kelGespraeche, meeting);
   const [selectedAreaId, setSelectedAreaId] = useState('lesen');
   const sortedStudents = [...students].sort((a, b) =>
     a.nachname.localeCompare(b.nachname, 'de-AT') || a.vorname.localeCompare(b.vorname, 'de-AT'));
@@ -53,6 +57,61 @@ export default function KELQuickEntry({ meeting, students, setMeeting }: Props) 
             className="mt-1 block w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-900" />
         </label>
       </div>
+
+      <section data-kel-prior-goals className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4 sm:p-5">
+        <div className="flex items-start gap-2.5">
+          <History size={18} className="mt-0.5 shrink-0 text-indigo-700" />
+          <div>
+            <h4 className="text-sm font-extrabold text-slate-900">Ziele aus dem letzten KEL-Gespräch</h4>
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">
+              Rückblick auf tatsächlich dokumentierte Fortschritte. Diese Angaben werden nicht automatisch
+              als neue Ziele oder Bewertungen übernommen.
+            </p>
+          </div>
+        </div>
+        {priorGoals ? (
+          <div className="mt-3 space-y-2">
+            <p className="text-xs font-semibold text-slate-600">
+              Gespräch vom {priorGoals.meetingDate.split('-').reverse().join('.')} · {priorGoals.schoolYear || 'Schuljahr nicht hinterlegt'}
+            </p>
+            {priorGoals.goals.map(({ goal, latest, progress }, index) => (
+              <div data-kel-prior-goal-row key={goal.id || index}
+                className="rounded-xl border border-indigo-100 bg-white p-3">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-xs font-bold leading-relaxed text-slate-800">
+                    {goal.ziel}
+                  </p>
+                  <span data-kel-prior-goal-status
+                    className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                    {latest ? KEL_PROGRESS_LABELS[latest.status] : 'Noch nicht dokumentiert'}
+                  </span>
+                </div>
+                {goal.woranErkennbar && (
+                  <p className="mt-1 text-[11px] text-slate-500">Woran erkennbar: {goal.woranErkennbar}</p>
+                )}
+                {latest ? (
+                  <div className="mt-2 border-l-2 border-indigo-200 pl-3">
+                    <p className="text-[11px] font-semibold text-slate-600">
+                      Letzter Eintrag vom {latest.datum.split('-').reverse().join('.')}
+                      {progress.length > 1 ? ` · ${progress.length} Beobachtungen` : ''}
+                    </p>
+                    <p className="mt-0.5 whitespace-pre-wrap break-words text-xs leading-relaxed text-slate-700">
+                      {latest.notiz}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mt-1 text-[11px] text-slate-500">Noch keine Fortschritte dokumentiert.</p>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-3 text-xs text-slate-500">Für dieses Kind ist noch kein früheres KEL-Gespräch mit Zielen dokumentiert.</p>
+        )}
+        <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+          Neue Fortschrittsbeobachtungen kannst du beim gespeicherten früheren Gespräch ergänzen.
+        </p>
+      </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
         <div className="mb-3">
