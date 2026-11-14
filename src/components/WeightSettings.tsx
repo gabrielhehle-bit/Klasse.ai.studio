@@ -494,8 +494,12 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
                             />
                           </div>
                         )}
-                        <input 
+                        <input
                           type="number"
+                          min="0" max="100" step="1"
+                          data-weight-key={field.key}
+                          data-weight-subject={fach}
+                          aria-label={`${field.label} in ${fach} gewichten`}
                           className="w-12 px-1 py-0.5 border border-border rounded text-center font-bold text-text-primary"
                           value={w[field.key] || 0}
                           onFocus={e => e.target.select()}
