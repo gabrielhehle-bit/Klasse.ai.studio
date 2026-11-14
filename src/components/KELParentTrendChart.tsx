@@ -5,10 +5,11 @@ type Props = {
   kind: 'mood' | 'behavior';
   buckets: readonly KelParentTrendBucket[];
   period: 'recent' | 'year';
+  behaviorRows?: readonly { id: string; label: string; color: string }[];
 };
 
 /** Static inline SVG: screen and Chrome's real A4 print render identical data. */
-export default function KELParentTrendChart({ kind, buckets, period }: Props) {
+export default function KELParentTrendChart({ kind, buckets, period, behaviorRows = [] }: Props) {
   const observed = buckets.filter(bucket => kind === 'mood' ? bucket.moodAverage !== null : bucket.behaviorCount > 0);
   if (observed.length < 2 || buckets.length < 2) return null;
   const x = (index: number) => 30 + (index + 0.5) * 278 / buckets.length;
@@ -58,13 +59,27 @@ export default function KELParentTrendChart({ kind, buckets, period }: Props) {
           <line x1="24" x2="314" y1="58" y2="58" stroke="#cbd5e1" strokeWidth="1"/>
           {buckets.map((bucket, index) => {
             const height = bucket.behaviorCount / maxBehavior * 38;
+            const shownIds = new Set(behaviorRows.map(row => row.id));
+            const segments = behaviorRows.map(row => ({
+              ...row,
+              count: row.id === '_others'
+                ? Object.entries(bucket.behaviorByStage).reduce(
+                    (sum, [id, count]) => sum + (shownIds.has(id) ? 0 : count), 0)
+                : (bucket.behaviorByStage[row.id] || 0),
+            })).filter(row => row.count > 0);
+            let stackedHeight = 0;
             return (
               <g key={bucket.key}>
                 {bucket.behaviorCount > 0 && (
                   <>
-                    <rect x={x(index) - Math.min(12, 115 / buckets.length)}
-                      y={58 - height} width={Math.min(24, 230 / buckets.length)}
-                      height={height} rx="2" fill="#64748b"/>
+                    {segments.map(row => {
+                      const segmentHeight = row.count / maxBehavior * 38;
+                      stackedHeight += segmentHeight;
+                      return <rect key={row.id}
+                        x={x(index) - Math.min(12, 115 / buckets.length)}
+                        y={58 - stackedHeight} width={Math.min(24, 230 / buckets.length)}
+                        height={segmentHeight} fill={row.color}/>;
+                    })}
                     <text x={x(index)} y={Math.max(10, 55 - height)}
                       textAnchor="middle" fontSize="9" fontWeight="600" fill="#334155">
                       {bucket.behaviorCount}
@@ -82,7 +97,7 @@ export default function KELParentTrendChart({ kind, buckets, period }: Props) {
       <p className="text-[11px] leading-snug text-slate-500">
         {kind === 'mood'
           ? `Mittelwert der tatsächlich erfassten Selbsteinschätzungen je ${unit}. Leere Abschnitte sind keine Rückmeldung; 1 = sehr gut, 5 = schlecht.`
-          : `Anzahl dokumentierter Tageswerte je ${unit}. Weniger Einträge bedeuten nicht automatisch besseres Verhalten; die Dokumentationshäufigkeit kann schwanken.`}
+          : `Anzahl dokumentierter Tageswerte je ${unit}. Die Farben zeigen die dokumentierten Kategorien aus der Verteilung oben. Weniger Einträge bedeuten nicht automatisch besseres Verhalten; die Dokumentationshäufigkeit kann schwanken.`}
       </p>
     </div>
   );
