@@ -11,6 +11,7 @@ import { useApp } from '../context/AppContext';
 import { logActivity, getAccentTextColor } from '../lib/utils';
 import { getFachCfg, berechne, miZuNote, getAssessmentMode, getAssessmentItemMode, getMaxPoints, calculateItemPercent, getNotenLabel, isAssessmentValueMissing, hasCalculatedAverage, hasSubjectAssessmentEntries, parseAssessmentInput, parseFinalGradeInput, getHomeworkGradebookSettings, getMirroredAssessmentValue, getShowPointsPercent } from '../lib/GradeUtils';
 import { FAECHER_ALLE, NOTE_LABELS, STUNDEN_INFO } from '../constants';
+import { explainGradebookWeightImpact } from '../lib/gradebookWeightImpact';
 import { GradeData } from '../types';
 import WeightSettings from './WeightSettings';
 import GradeOverview from './GradeOverview';
@@ -4252,21 +4253,24 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                           {hasCalculatedAverage(avg) ? (
                             <div className="flex flex-col items-center justify-center gap-1 group/ball relative">
                               {assessmentMode === 'grades' ? (
-                                <div 
+                                <button type="button"
                                   onClick={() => setSelectedGradeExplanationStudent(s)}
                                   className="flex items-center gap-1.5 transition-transform hover:scale-105 cursor-pointer"
-                                  title="Klicken für Zeugnisnoten-Erklärung"
+                                  aria-label={"Fachstand und Gewichtung erklären für " + s.vorname + " " + s.nachname}
+                                  title="Fachstand und Gewichtung erklären"
                                 >
                                   <span className={`nb nb-${Math.round(avg)} ${zoomLevel === 'compact' ? '!scale-75 -my-1' : zoomLevel === 'large' ? '!scale-110 my-1' : '!scale-95'} shadow-sm`}>{Math.round(avg)}</span>
                                   <div className="flex flex-col items-start hidden lg:flex">
                                     <span className="text-[0.5625rem] text-text-muted font-bold uppercase print:hidden tracking-tighter leading-none">{NOTE_LABELS[Math.round(avg)]}</span>
                                     <div className="text-[0.625rem] leading-none mt-0.5">{getTrendIcon(nd)}</div>
                                   </div>
-                                </div>
+                                </button>
                               ) : (
-                                <div 
-                                  className="flex items-center gap-1.5"
-                                  title={`Gesamtwert: ${avg.toFixed(1)}%`}
+                                <button type="button"
+                                  onClick={() => setSelectedGradeExplanationStudent(s)}
+                                  className="flex items-center gap-1.5 cursor-pointer"
+                                  aria-label={"Fachstand und Gewichtung erklären für " + s.vorname + " " + s.nachname}
+                                  title={`Gesamtwert: ${avg.toFixed(1)}%. Gewichtung erklären`}
                                 >
                                   <span className={`px-2.5 py-1 rounded-full text-xs font-black border shadow-3xs tabular-nums ${
                                     avg >= 87.5 ? 'bg-emerald-100 text-emerald-850 border-emerald-300' :
@@ -4278,7 +4282,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                     {Math.round(avg)}%
                                   </span>
                                   <div className="text-[0.625rem] leading-none">{getTrendIcon(nd)}</div>
-                                </div>
+                                </button>
                               )}
                                
                                <button 
@@ -4545,9 +4549,9 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
           <AnimatePresence>
             {selectedGradeExplanationStudent && (() => {
               const s = selectedGradeExplanationStudent;
-              const avg = berechne(app, s.id, activeFach, sem);
-              const roundedNote = hasCalculatedAverage(avg) ? Math.round(avg) : null;
-              const rawNd = (app.noten?.[s.id]?.[activeFach]?.[sem] || {}) as any;
+              const impact = explainGradebookWeightImpact(app, s.id, activeFach, sem);
+              const avg = impact.total;
+              const roundedNote = impact.mode === 'grades' && hasCalculatedAverage(avg) ? Math.round(avg) : null;
 
               return (
                 <motion.div
@@ -4561,14 +4565,15 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                     initial={{ scale: 0.95, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.95, opacity: 0 }}
-                    id="gradebook-add-assessment-menu"
-                  className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg p-6"
+                    id="gradebook-weight-impact-dialog"
+                    role="dialog" aria-modal="true" aria-label="Fachstand und Gewichtung erklären"
+                    className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg max-h-[90vh] overflow-y-auto p-6"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
                       <div>
                         <h3 className="font-black text-[1.125rem] text-slate-900">
-                          Zeugnisnote: {s.vorname} {s.nachname}
+                          Fachstand: {s.vorname} {s.nachname}
                         </h3>
                         <p className="text-[0.75rem] text-slate-500 font-bold uppercase tracking-wider">
                           Fach: {activeFach}
@@ -4576,72 +4581,85 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                       </div>
                       <button
                         onClick={() => setSelectedGradeExplanationStudent(null)}
+                        aria-label="Erklärung schließen"
                         className="text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full cursor-pointer"
                       >
                         ✕
                       </button>
                     </div>
 
-                    <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl mb-5 border border-slate-100">
-                      <div
-                        className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-black text-white shadow-md ${
-                          roundedNote === 1
-                            ? 'bg-emerald-500'
-                            : roundedNote === 2
-                            ? 'bg-blue-500'
-                            : roundedNote === 3
-                            ? 'bg-amber-500'
-                            : roundedNote === 4
-                            ? 'bg-orange-500'
-                            : 'bg-red-500'
-                        }`}
-                      >
-                        {roundedNote || '–'}
+                    <section data-gradebook-weight-impact className="mb-6 space-y-4">
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Berechneter Zwischenstand</p>
+                        <p className="mt-1 text-2xl font-black tabular-nums text-slate-900">
+                          {hasCalculatedAverage(avg)
+                            ? (impact.mode === 'grades' ? avg.toFixed(2) : avg.toFixed(1) + ' %')
+                            : 'Noch keine Bewertung'}
+                        </p>
+                        {roundedNote !== null && (
+                          <p className="text-sm font-semibold text-slate-600">
+                            Rechnerisch gerundet: {roundedNote} ({NOTE_LABELS[roundedNote]})
+                          </p>
+                        )}
+                        <p className="mt-2 text-xs leading-relaxed text-slate-600">
+                          Der Zwischenstand ist keine automatisch festgesetzte Zeugnisnote.
+                          Manuell eingetragene Endnoten bleiben unverändert.
+                        </p>
                       </div>
+
                       <div>
-                        <div className="text-[0.75rem] font-bold text-slate-400 uppercase tracking-widest">
-                          Berechneter Notenschnitt
-                        </div>
-                        <div className="text-[1.25rem] font-black text-slate-900">
-                          {hasCalculatedAverage(avg) ? avg.toFixed(2) : 'Keine Noten'}{' '}
-                          {roundedNote && (
-                            <span className="text-[0.875rem] font-bold text-slate-500 font-sans">
-                              ({NOTE_LABELS[roundedNote]})
+                        <h4 className="text-sm font-black text-slate-900">So wirkt die Gewichtung</h4>
+                        <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                          „Eingestellt“ ist die dauerhafte Gewichtung; „wirkt aktuell“ zeigt den Anteil
+                          bei den für dieses Kind bereits bewerteten Leistungsbereichen.
+                        </p>
+                      </div>
+                      {impact.rows.length === 0 && (
+                        <p className="text-xs text-slate-600">Noch keine gewichtete Kategorie eingerichtet.</p>
+                      )}
+                      {impact.rows.map(row => (
+                        <div key={row.key} data-weight-impact-category={row.key}
+                          className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+                          <div className="flex flex-wrap justify-between gap-2 text-xs">
+                            <span className="font-bold text-slate-900">{row.label}</span>
+                            <span className="font-semibold tabular-nums text-slate-600">
+                              Eingestellt: {Number(row.configuredWeight.toFixed(1))} %
                             </span>
-                          )}
+                          </div>
+                          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100"
+                            role="img" aria-label={row.label + ': aktuell ' + row.effectiveWeight + ' Prozent Gewicht'}>
+                            <div className="h-full rounded-full bg-emerald-500"
+                              style={{ width: row.effectiveWeight + '%' }} />
+                          </div>
+                          <p className="mt-1.5 text-xs text-slate-600">
+                            {row.active
+                              ? ('Wirkt aktuell: ' + row.effectiveWeight + ' % · Bereichswert: ' +
+                                (row.categoryValue === null ? '–' : row.categoryValue.toFixed(impact.mode === 'grades' ? 2 : 1)) +
+                                (impact.mode === 'grades' ? '' : ' %'))
+                              : 'Noch kein wertbarer Eintrag – zählt derzeit nicht mit.'}
+                          </p>
                         </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 mb-6 text-[0.8125rem]">
-                      <div className="font-bold text-slate-700 text-[0.75rem] uppercase tracking-wider mb-2">
-                        Zusammensetzung der Gesamtnote:
-                      </div>
-                      <div className="flex justify-between items-center p-2.5 rounded-xl bg-blue-50/50 border border-blue-100">
-                        <span className="font-bold text-blue-900">📝 Schularbeiten:</span>
-                        <span className="font-mono font-bold text-blue-800">
-                          {rawNd.sa && rawNd.sa.length > 0
-                            ? rawNd.sa.filter((n: any) => n !== undefined && n !== null && n !== '').join(', ') || '–'
-                            : 'keine'}
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between items-center p-2.5 rounded-xl bg-emerald-50/50 border border-emerald-100">
-                        <span className="font-bold text-emerald-900">🎯 Tests / LZKs:</span>
-                        <span className="font-mono font-bold text-emerald-800">
-                          {rawNd.lzk && rawNd.lzk.length > 0
-                            ? rawNd.lzk.filter((n: any) => n !== undefined && n !== null && n !== '').join(', ') || '–'
-                            : 'keine'}
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between items-center p-2.5 rounded-xl bg-orange-50/50 border border-orange-100">
-                        <span className="font-bold text-orange-900">✋ Mitarbeit:</span>
-                        <span className="font-mono font-bold text-orange-800">
-                          {app.mitarbeit?.[s.id]?.[activeFach]?.[sem] || 0} Punkte
-                        </span>
-                      </div>
-                    </div>
+                      ))}
+                      {!impact.miOnly && impact.activeWeight > 0 && impact.activeWeight < impact.configuredTotal && (
+                        <p data-weight-impact-renormalized
+                          className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs leading-relaxed text-blue-900">
+                          Noch nicht bewertete Bereiche zählen vorläufig nicht mit. Die vorhandenen
+                          Bereiche teilen sich deshalb die aktuell wirksamen 100 %.
+                          Sobald weitere Bewertungen hinzukommen, ändert sich ihre Verteilung.
+                        </p>
+                      )}
+                      {impact.miOnly && (
+                        <p className="text-xs text-slate-600">
+                          Dieses Fach berechnet den Zwischenstand ausschließlich aus Mitarbeit.
+                        </p>
+                      )}
+                      {!impact.miOnly && Math.abs(impact.configuredTotal - 100) > 0.01 && (
+                        <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                          Die Fachgewichte ergeben {Number(impact.configuredTotal.toFixed(1))} % statt 100 %.
+                          Die bestehende Berechnung bleibt unverändert; die Einstellungen können korrigiert werden.
+                        </p>
+                      )}
+                    </section>
 
                     <div className="text-right">
                       <button
