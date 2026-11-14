@@ -27,9 +27,10 @@ const COLORS = ['#0d9488', '#4f46e5', '#c67e4c', '#7c3aed'];
 const fmt = (number: number) => number.toLocaleString('de-AT', { maximumFractionDigits: 1 });
 const tidy = (input: unknown) => typeof input === 'string' ? input.trim() : '';
 
-function Section({ title, detail, children }: { title: string; detail?: string; children: React.ReactNode }) {
+function Section({ title, detail, children, allowPageBreak = false }: { title: string; detail?: string; children: React.ReactNode; allowPageBreak?: boolean }) {
   return (
-    <section className="rounded-xl border border-[#d8e3e5] bg-white p-3 break-inside-avoid">
+    <section data-kel-learning-section={allowPageBreak ? true : undefined}
+      className={`rounded-xl border border-[#d8e3e5] bg-white p-3 ${allowPageBreak ? 'break-inside-auto' : 'break-inside-avoid'}`}>
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <h3 className="text-[12px] font-extrabold uppercase tracking-[0.045em] text-slate-800">{title}</h3>
         {detail && <span className="text-[11px] text-slate-500">{detail}</span>}
@@ -220,7 +221,7 @@ export default function KELParentReport({
         )}
 
         {options.showLearning && (
-          <Section title="Lernen" detail="Ganzes Schuljahr">
+          <Section title="Lernen" detail="Ganzes Schuljahr" allowPageBreak>
             {learning.every(subject => subject.rows.length === 0) ? (
               <p className="text-[12px] text-slate-500">
                 {intentionallyHiddenAreas
@@ -233,11 +234,12 @@ export default function KELParentReport({
                   <div key={subject.subject}>
                     <p className="mb-1 text-[11px] font-extrabold text-slate-700">{subject.subject}{subject.documentedCount > subject.rows.length && <span className="ml-1 font-normal text-slate-500">({subject.rows.length} von {subject.documentedCount} Bereichen ausgewählt)</span>}</p>
                     <div className="grid grid-cols-2 gap-1.5">
-                      {subject.rows.slice(0, 4).map((row, index) => {
+                      {subject.rows.map((row, index) => {
                         const percentage = Math.min(100, Math.max(0, row.percent));
                         const color = COLORS[index % COLORS.length];
                         return (
-                          <div key={row.area} className="flex items-center gap-1.5">
+                          <div key={row.area} data-kel-learning-item data-kel-learning-area={row.area}
+                            className="flex items-center gap-1.5 break-inside-avoid">
                             <svg aria-label={row.area + ': ' + fmt(row.percent) + '% aus ' + row.assessments + ' Nachweisen'}
                               role="img" viewBox="0 0 40 40" className="h-9 w-9 shrink-0">
                               <circle cx="20" cy="20" r="15.9" fill="none" stroke="#e2e8f0" strokeWidth="6"/>
@@ -258,7 +260,11 @@ export default function KELParentReport({
                     </div>
                   </div>
                 ))}
-                <p className="text-[11px] text-slate-500">Rechnerischer Mittelwert erfasster Leistungen; keine vollständige Kompetenzdiagnose</p>
+                <p data-kel-learning-scale-note className="text-[11px] leading-snug text-slate-500">
+                  Angezeigt werden nur ausgewählte, tatsächlich bewertete Lernbereiche.
+                  Prozentwerte sind rechnerische Mittelwerte der Nachweise (bei Noten auf einer Vergleichsskala),
+                  keine vollständige Kompetenzdiagnose. Einzelne Nachweise erlauben noch keine verlässliche Tendenz.
+                </p>
               </div>
             )}
           </Section>
@@ -295,7 +301,7 @@ export default function KELParentReport({
             {['Erziehungsberechtigte', 'Lehrperson'].map(label => (
               <div key={label} data-kel-signature-field className="rounded-lg border border-slate-300 px-3 pt-2 pb-1">
                 <p className="text-[12px] font-semibold text-slate-800">{label}</p>
-                <div data-kel-signature-space aria-hidden="true" className="min-h-[29mm] border-b border-slate-400" />
+                <div data-kel-signature-space aria-hidden="true" className="min-h-[34mm] border-b border-slate-400" />
                 <p className="pt-1 text-[11px] text-slate-500">Unterschrift</p>
               </div>
             ))}

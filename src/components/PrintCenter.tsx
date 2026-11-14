@@ -1148,9 +1148,19 @@ export default function PrintCenter() {
             margin-top: 2mm !important;
           }
           body.print-center-active.print-center-kel-parent-active [data-kel-signature-space] {
-            min-height: 29mm !important;
-            height: 29mm !important;
+            min-height: 34mm !important;
+            height: 34mm !important;
             display: block !important;
+          }
+          /* Explicitly selected learning areas may need another A4 page.
+             Individual data cells and the handwritten signatures remain intact. */
+          body.print-center-active.print-center-kel-parent-active [data-kel-learning-item] {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
+          body.print-center-active.print-center-kel-parent-active [data-kel-learning-section] {
+            break-inside: auto !important;
+            page-break-inside: auto !important;
           }
           body.print-center-active.print-center-kel-parent-active [data-kel-signature-field] {
             border: 0.75pt solid #cbd5e1 !important;
@@ -2879,8 +2889,9 @@ export default function PrintCenter() {
                     <fieldset data-kel-parent-area-picker className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
                       <legend className="text-[0.6875rem] font-black text-slate-700">Lernbereiche für die Diagramme</legend>
                       <p className="text-[0.6875rem] leading-relaxed text-slate-600">
-                        Wähle je Fach bis zu vier dokumentierte Lernbereiche für das A4-Elternblatt.
-                        Standardmäßig erscheinen die ersten vier. Die Auswahl gilt nur für diesen Ausdruck.
+                        Die ersten vier dokumentierten Lernbereiche sind vorausgewählt. Du kannst weitere
+                        Bereiche hinzufügen oder einzelne abwählen. Die Auswahl gilt nur für diesen Ausdruck.
+                        Bei vielen Bereichen entstehen zusätzliche A4-Seiten; keine Auswahl wird abgeschnitten.
                       </p>
                       {elternblattSubjects.map(fach => {
                         const available = getStudentAssessmentDomainPerformance(app, elternblattSelectedStudentId, fach, 'both');
@@ -2888,7 +2899,7 @@ export default function PrintCenter() {
                         return (
                           <div key={fach} data-kel-parent-area-subject={fach} className="space-y-1.5 border-t border-slate-100 pt-2">
                             <p className="text-xs font-extrabold text-slate-800">
-                              {fach} <span className="font-medium text-slate-500">· {selected.length} von höchstens 4 ausgewählt</span>
+                              {fach} <span className="font-medium text-slate-500">· {selected.length} von {available.length} dokumentierten Bereichen ausgewählt</span>
                             </p>
                             {available.length === 0
                               ? <p className="text-[0.6875rem] text-slate-500">Noch keine auswertbaren Lernbereiche dokumentiert.</p>
@@ -2899,12 +2910,11 @@ export default function PrintCenter() {
                                       <label key={area.area} className="flex min-h-9 items-start gap-2 rounded-lg bg-slate-50 px-2 py-1.5 text-xs text-slate-700">
                                         <input type="checkbox" data-kel-parent-area-checkbox
                                           className="mt-0.5" checked={checked}
-                                          disabled={!checked && selected.length >= 4}
                                           onChange={event => setElternblattSubjectAreas(previous => {
                                             const current = previous[fach] ??
                                               available.slice(0, 4).map(item => item.area);
                                             const next = event.target.checked
-                                              ? current.length < 4 ? [...current, area.area] : current
+                                              ? current.includes(area.area) ? current : [...current, area.area]
                                               : current.filter(value => value !== area.area);
                                             return { ...previous, [fach]: next };
                                           })} />

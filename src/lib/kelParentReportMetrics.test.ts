@@ -57,18 +57,18 @@ test('behavior charts preserve uncategorized legacy entries and do not invent a 
   assert.equal(summary.rows.find(row=>row.label==='Nicht zugeordnet')?.count, 1);
 });
 
-test('signature boxes have 29mm usable handwriting height and a date field in both preview and print', () => {
+test('signature boxes have 34mm usable handwriting height and a date field in both preview and print', () => {
   const report = readFileSync('src/components/KELParentReport.tsx','utf8');
   const print = readFileSync('src/components/PrintCenter.tsx','utf8');
   assert.match(report, /data-kel-signatures/);
   assert.match(report, /data-kel-signature-field/);
   assert.match(report, /data-kel-signature-space/);
-  assert.match(report, /min-h-\[29mm\]/);
+  assert.match(report, /min-h-\[34mm\]/);
   assert.match(report, /Erziehungsberechtigte/);
   assert.match(report, /Lehrperson/);
   assert.match(report, /Ort \/ Datum/);
   assert.match(print, /\[data-kel-signature-space\] \{/);
-  assert.match(print, /height: 29mm !important;/);
+  assert.match(print, /height: 34mm !important;/);
 });
 
 test('the parent printout never asserts behavior severity from a custom label', () => {
@@ -78,4 +78,17 @@ test('the parent printout never asserts behavior severity from a custom label', 
   assert.match(report,/row\.percent/);
   assert.match(report,/Keine dokumentierten Verhaltensereignisse/);
   assert.doesNotMatch(report,/überwiegend positive Einträge|Sozialverhalten insgesamt stabil/);
+});
+
+test('explicitly released learning areas remain pageable while every signature stays together', () => {
+  const report = readFileSync('src/components/KELParentReport.tsx', 'utf8');
+  const print = readFileSync('src/components/PrintCenter.tsx', 'utf8');
+  assert.match(report, /<Section title="Lernen" detail="Ganzes Schuljahr" allowPageBreak>/);
+  assert.match(report, /data-kel-learning-item/);
+  assert.match(report, /subject\.rows\.map\(\(row, index\)/);
+  assert.doesNotMatch(report, /subject\.rows\.slice\(0, 4\)/);
+  assert.match(print, /\[data-kel-learning-section\] \{/);
+  assert.match(print, /break-inside: auto !important;/);
+  assert.match(print, /\[data-kel-learning-item\] \{/);
+  assert.match(print, /page-break-inside: avoid !important;/);
 });
