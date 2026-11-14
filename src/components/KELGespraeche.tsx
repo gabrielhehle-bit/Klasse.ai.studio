@@ -1754,7 +1754,7 @@ const KELGespraeche: React.FC = () => {
                 ))}
               </div>
 
-              <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar">
+              <div key={activeTab} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar">
                 {activeTab === 'schnell' && editingMeeting && (
                    <KELQuickEntry
                      meeting={editingMeeting}
