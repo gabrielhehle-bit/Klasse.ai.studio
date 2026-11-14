@@ -56,6 +56,7 @@ import { getLocalKelDate, hasUnsavedKelChanges } from '../lib/kelQuickEdit';
 import KELQuickEntry from './KELQuickEntry';
 import KELCompletionReview from './KELCompletionReview';
 import KELConversationOverview from './KELConversationOverview';
+import KELGoalProgressPanel from './KELGoalProgressPanel';
 import { 
   ResponsiveContainer, 
   RadarChart, 
@@ -1382,6 +1383,13 @@ const KELGespraeche: React.FC = () => {
         </div>
 
         <KELConversationOverview key={viewingMeeting.id} meeting={viewingMeeting} />
+
+        <KELGoalProgressPanel
+          key={viewingMeeting.id}
+          meeting={meetings.find(item =>
+            item.id === viewingMeeting.id && item.schuelerId === viewingMeeting.schuelerId,
+          ) || viewingMeeting}
+        />
 
         <ComparisonView meeting={viewingMeeting} />
 
