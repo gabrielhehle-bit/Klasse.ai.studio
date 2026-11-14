@@ -14,6 +14,10 @@ const records = [
     zieleKind:[], vereinbarungen:'NICHT für Anna' },
   { id:'old-year', schuelerId:'anna', schuljahr:'2025/26', datum:'2026-05-01',
     zieleKind:[], vereinbarungen:'NICHT aus dem Vorjahr' },
+  { id:'legacy-no-year', schuelerId:'anna', datum:'2025-05-08',
+    zieleKind:[], vereinbarungen:'Alte Vereinbarung' },
+  { id:'old-date-new-label', schuelerId:'anna', schuljahr:'2026/27', datum:'2025-11-08',
+    zieleKind:[], vereinbarungen:'Falsches Schuljahr im Label' },
   { id:'undated', schuelerId:'anna', schuljahr:'2026/27', datum:'', zieleKind:[], vereinbarungen:'' },
 ];
 
@@ -24,6 +28,7 @@ test('KEL parent selection is child-scoped, school-year-scoped, dated and newest
   assert.equal(listKelParentMeetingSources(records, 'bert', '2026/27').length, 1);
   assert.deepEqual(listKelParentMeetingSources(records, 'nobody', '2026/27'), []);
   assert.deepEqual(listKelParentMeetingSources(records, 'anna', ''), []);
+  assert.deepEqual(listKelParentMeetingSources(records, 'anna', 'nicht gesetzt'), []);
   assert.equal(JSON.stringify(records), snapshot, 'never mutate any saved protocol');
 });
 
