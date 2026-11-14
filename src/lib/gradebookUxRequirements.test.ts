@@ -103,3 +103,35 @@ test('assessment form uses the school-year period and a category-specific save a
   assert.match(modal, /const finalLabel = label\.trim\(\) \|\| currentTypeInfo\.defaultName/);
   assert.match(modal, /onSave\(finalLabel, date, finalMaxP, area\.trim\(\), entryMode\)/);
 });
+
+
+test('gewichtungsentwurf kann gezielt auf 100 Prozent ergänzt werden ohne die Noten zu verändern', () => {
+  const start = weights.indexOf('const addRemainingToCategory = ');
+  const end = weights.indexOf('const updateSACount = ', start);
+  assert.ok(start > 0 && end > start);
+  const action = weights.slice(start, end);
+  assert.match(action, /fillRemainingWeight\(getWeight\(fach\), target\)/);
+  assert.match(action, /setLocalWeights\(prev => \(\{ \.\.\.prev, \[fach\]: updated \}\)\)/);
+  assert.match(action, /setDirtySubjects/);
+  assert.doesNotMatch(action, /setApp\(/);
+  assert.match(weights, /data-weight-key=\{field\.key\}/);
+  assert.match(weights, /data-weight-subject=\{fach\}/);
+  assert.match(weights, /data-weight-unsaved-drafts/);
+  assert.match(weights, /data-weight-distribution-preview/);
+  assert.match(weights, /sum < 100 && \(/);
+  assert.match(weights, /addRemainingToCategory\(fach, field\.key as WeightKey\)/);
+  assert.match(weights, /Fehlende \$\{100 - sum\} Prozentpunkte zu \$\{field\.label\}/);
+});
+
+test('ungültige gewichtete Fächer öffnen ihr Eingabeformular und zeigen die fehlenden Prozentpunkte inline', () => {
+  const from = weights.indexOf('const handleSaveAll = ');
+  const to = weights.indexOf('const autoDistributeEvenly = ', from);
+  const save = weights.slice(from, to);
+  assert.match(save, /const invalidFaecher = dirtySubjects\.filter\(f => calculateSum\(f\) !== 100\)/);
+  assert.match(save, /setSelectedFach\(first\)/);
+  assert.match(save, /setShowAllFaecher\(false\)/);
+  assert.match(save, /setSaveIssue\(/);
+  assert.match(save, /Object\.fromEntries\(dirtySubjects\.map\(fach => \[fach, localWeights\[fach\]\]\)\)/);
+  assert.match(weights, /role="alert" data-weight-save-issue/);
+  assert.match(weights, /show: fach === 'Deutsch' \|\| fach === 'Mathematik' \|\| \(w\.sa \|\| 0\) > 0/);
+});
