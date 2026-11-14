@@ -54,6 +54,7 @@ import { generateKELAssessment, generateKELAgreement } from '../services/aiServi
 import { normalizeKelMeetings } from '../lib/kelData';
 import { getLocalKelDate, hasUnsavedKelChanges } from '../lib/kelQuickEdit';
 import KELQuickEntry from './KELQuickEntry';
+import KELCompletionReview from './KELCompletionReview';
 import KELConversationOverview from './KELConversationOverview';
 import { 
   ResponsiveContainer, 
@@ -125,7 +126,9 @@ const KELGespraeche: React.FC = () => {
   const { app, setApp, setPage } = useApp();
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingMeeting, setEditingMeeting] = useState<Partial<KELGespraech> | null>(null);
-  const [activeTab, setActiveTab] = useState<'schnell' | 'vorbereitung' | 'kind' | 'lehrperson' | 'ziele'>('schnell');
+  type EditorSection = 'schnell' | 'vorbereitung' | 'kind' | 'lehrperson' | 'ziele';
+  const [activeTab, setActiveTab] = useState<EditorSection | 'pruefen'>('schnell');
+  const [reviewReturnTab, setReviewReturnTab] = useState<EditorSection>('schnell');
   const originalMeetingDraftRef = useRef('');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState<string | null>(null);
@@ -177,6 +180,11 @@ const KELGespraeche: React.FC = () => {
     return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
   }, [filteredMeetings]);
 
+  const openCompletionReview = () => {
+    if (activeTab !== 'pruefen') setReviewReturnTab(activeTab);
+    setActiveTab('pruefen');
+  };
+
   const handleCloseEditor = () => {
     if (hasUnsavedKelChanges(originalMeetingDraftRef.current, editingMeeting)
       && !window.confirm('Ungespeicherte Änderungen wirklich verwerfen?')) return;
@@ -204,6 +212,7 @@ const KELGespraeche: React.FC = () => {
     originalMeetingDraftRef.current = JSON.stringify(newMeeting);
     setEditingMeeting(newMeeting);
     setActiveTab('schnell');
+    setReviewReturnTab('schnell');
     setIsEditorOpen(true);
   };
 
@@ -211,6 +220,7 @@ const KELGespraeche: React.FC = () => {
     originalMeetingDraftRef.current = JSON.stringify(meeting);
     setEditingMeeting(meeting);
     setActiveTab('schnell');
+    setReviewReturnTab('schnell');
     setIsEditorOpen(true);
   };
 
@@ -222,7 +232,11 @@ const KELGespraeche: React.FC = () => {
   };
 
   const handleSave = () => {
-    if (!editingMeeting?.schuelerId) return alert('Bitte wähle ein Kind aus.');
+    // Final persistence happens only after a preview of the current draft.
+    if (activeTab !== 'pruefen') return;
+    if (!editingMeeting?.schuelerId || !app.schueler.some(student => student.id === editingMeeting.schuelerId)) {
+      return alert('Bitte wähle ein Kind aus der aktiven Klasse.');
+    }
     
     const meetingToSave = editingMeeting as KELGespraech;
     const existingIndex = meetings.findIndex(m => m.id === meetingToSave.id);
@@ -1701,7 +1715,9 @@ const KELGespraeche: React.FC = () => {
               <div className="p-6 sm:p-8 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
                 <div>
                   <h2 className="text-[0.75rem] font-black uppercase tracking-[0.2em] text-rose-500">Editor</h2>
-                  <h3 className="text-[1.5rem] leading-normal font-black text-slate-900">KEL-Gespräch bearbeiten</h3>
+                  <h3 className="text-[1.5rem] leading-normal font-black text-slate-900">
+                    {activeTab === 'pruefen' ? 'KEL-Gespräch abschließen' : 'KEL-Gespräch bearbeiten'}
+                  </h3>
                   <p data-kel-unsaved-state className="mt-1 text-xs text-slate-500">
                     {hasUnsavedKelChanges(originalMeetingDraftRef.current, editingMeeting)
                       ? 'Ungespeicherte Änderungen' : 'Noch keine Änderungen'}
@@ -1721,11 +1737,15 @@ const KELGespraeche: React.FC = () => {
                   { id: 'vorbereitung', label: 'Vorbereitung', icon: Calendar },
                   { id: 'kind', label: 'Selbsteinschätzung', icon: Smile },
                   { id: 'lehrperson', label: 'Lehrperson', icon: User },
-                  { id: 'ziele', label: 'Ziele & Abschluss', icon: Target }
+                  { id: 'ziele', label: 'Ziele & Abschluss', icon: Target },
+                  { id: 'pruefen', label: 'Abschluss prüfen', icon: CheckCircle2 }
                 ].map(tab => (
                   <button 
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
+                    onClick={() => {
+                      if (tab.id === 'pruefen') openCompletionReview();
+                      else setActiveTab(tab.id as EditorSection);
+                    }}
                     className={`flex-1 flex items-center justify-center gap-3 px-8 py-5 text-[0.625rem] font-black uppercase tracking-widest transition-all whitespace-nowrap border-b-4 ${activeTab === tab.id ? 'border-rose-500 text-rose-500 bg-rose-50/30' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
                   >
                     <tab.icon size={16} />
@@ -1740,6 +1760,19 @@ const KELGespraeche: React.FC = () => {
                      meeting={editingMeeting}
                      students={app.schueler}
                      setMeeting={setEditingMeeting}
+                   />
+                 )}
+                 {activeTab === 'pruefen' && editingMeeting && (
+                   <KELCompletionReview
+                     meeting={editingMeeting}
+                     studentName={(() => {
+                       const student = app.schueler.find(child => child.id === editingMeeting.schuelerId);
+                       return student ? `${student.vorname} ${student.nachname}` : '';
+                     })()}
+                     onEdit={tab => {
+                       setReviewReturnTab(tab);
+                       setActiveTab(tab);
+                     }}
                    />
                  )}
                  {activeTab === 'vorbereitung' && (
@@ -2034,9 +2067,13 @@ const KELGespraeche: React.FC = () => {
                  <div className="flex gap-2">
                     <button 
                       onClick={() => {
-                        const tabs = ['schnell', 'vorbereitung', 'kind', 'lehrperson', 'ziele'];
+                        const tabs = ['schnell', 'vorbereitung', 'kind', 'lehrperson', 'ziele', 'pruefen'];
                         const idx = tabs.indexOf(activeTab);
-                        if (idx > 0) setActiveTab(tabs[idx - 1] as any);
+                        if (activeTab === 'pruefen') {
+                          setActiveTab(reviewReturnTab);
+                          return;
+                        }
+                        if (idx > 0) setActiveTab(tabs[idx - 1] as EditorSection);
                       }}
                       disabled={activeTab === 'schnell'}
                       className="px-6 py-4 bg-white text-slate-600 rounded-2xl text-[0.625rem] font-black uppercase tracking-widest hover:bg-slate-50 transition-all disabled:opacity-20 border border-slate-200"
@@ -2045,23 +2082,36 @@ const KELGespraeche: React.FC = () => {
                     </button>
                     <button 
                       onClick={() => {
-                        const tabs = ['schnell', 'vorbereitung', 'kind', 'lehrperson', 'ziele'];
+                        const tabs = ['schnell', 'vorbereitung', 'kind', 'lehrperson', 'ziele', 'pruefen'];
                         const idx = tabs.indexOf(activeTab);
-                        if (idx < tabs.length - 1) setActiveTab(tabs[idx + 1] as any);
+                        if (idx < tabs.length - 1) {
+                          if (tabs[idx + 1] === 'pruefen') openCompletionReview();
+                          else setActiveTab(tabs[idx + 1] as EditorSection);
+                        }
                       }}
-                      disabled={activeTab === 'ziele'}
+                      disabled={activeTab === 'pruefen'}
                       className="px-6 py-4 bg-white text-slate-600 rounded-2xl text-[0.625rem] font-black uppercase tracking-widest hover:bg-slate-50 transition-all disabled:opacity-20 border border-slate-200"
                     >
                       Weiter
                     </button>
                  </div>
-                 <button 
-                   onClick={handleSave}
-                   className="px-10 py-4 bg-rose-500 text-white rounded-2xl text-[0.6875rem] font-black uppercase tracking-widest hover:bg-rose-600 transition-all shadow-xl shadow-rose-500/20 flex items-center gap-2"
-                 >
-                   <Save size={18} />
-                   Änderungen speichern
-                 </button>
+                 {activeTab === 'pruefen' ? (
+                   <button type="button" data-kel-review-confirm-save
+                     onClick={handleSave}
+                     disabled={!editingMeeting?.schuelerId ||
+                       !app.schueler.some(student => student.id === editingMeeting.schuelerId)}
+                     className="inline-flex min-h-12 items-center gap-2 rounded-2xl bg-rose-500 px-6 py-3 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-rose-500/20 hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-40"
+                   >
+                     <Save size={18} /> Änderungen speichern
+                   </button>
+                 ) : (
+                   <button type="button" data-kel-open-completion-review
+                     onClick={openCompletionReview}
+                     className="inline-flex min-h-12 items-center gap-2 rounded-2xl bg-teal-700 px-6 py-3 text-xs font-black uppercase tracking-wider text-white hover:bg-teal-800"
+                   >
+                     <CheckCircle2 size={18} /> Abschluss prüfen
+                   </button>
+                 )}
               </div>
             </motion.div>
           </div>
