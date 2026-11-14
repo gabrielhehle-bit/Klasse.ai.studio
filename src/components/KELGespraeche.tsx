@@ -1290,7 +1290,7 @@ const KELGespraeche: React.FC = () => {
               <p className="text-[0.875rem] leading-snug font-medium text-slate-400 mt-1">{new Date(viewingMeeting.datum).toLocaleDateString()} • {viewingMeeting.schuljahr}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-3">
              <button 
               onClick={() => {
                 setApp(prev => ({
@@ -1304,6 +1304,21 @@ const KELGespraeche: React.FC = () => {
             >
               <Printer size={16} />
               Selbsteinschätzung
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setApp(prev => ({
+                  ...prev,
+                  activePrintTemplate: 'kel_elternblatt',
+                  activePrintStudentId: student.id,
+                }));
+                setPage?.('drucken');
+              }}
+              className="px-5 py-3 bg-teal-50 text-teal-800 border border-teal-200 rounded-2xl text-[0.6875rem] font-black uppercase tracking-widest hover:bg-teal-100 transition-all flex items-center gap-2"
+            >
+              <Printer size={16} />
+              Elternblatt mit Diagrammen
             </button>
             <button 
               onClick={() => {
