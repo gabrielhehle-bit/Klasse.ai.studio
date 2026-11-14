@@ -3901,6 +3901,29 @@ async function main() {
         await openGradebookTool('Erweiterte Ansicht');
         await evaluate(client, `(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
         await openGradebookTool('Gewichtung');
+        await waitFor(client, 'weight preview appears without touching stored grades', `Boolean(document.querySelector('[data-weight-distribution-preview] [role="img"]'))`);
+        const mathWeightDraft = await evaluate(client, `(() => {
+          const inputs=Array.from(document.querySelectorAll('input[data-weight-subject="Mathematik"][data-weight-key]'));
+          const target=inputs.find(input => Number(input.value) > 5);
+          const sum=inputs.reduce((total,input) => total+Number(input.value||0),0);
+          return target ? {label:target.getAttribute('aria-label'),previous:Number(target.value),sum} : null;
+        })()`);
+        if (!mathWeightDraft || mathWeightDraft.sum !== 100) throw new Error('Weighting fixture must start at exactly 100%: '+JSON.stringify(mathWeightDraft));
+        await setInputByLabel(client, mathWeightDraft.label, String(mathWeightDraft.previous - 5));
+        await waitFor(client, 'editing a weight creates an unsaved draft', `document.querySelector('[data-weight-unsaved-drafts]')?.textContent.includes('Mathematik') && Array.from(document.querySelectorAll('button')).some(button=>button.getAttribute('aria-label')?.includes('Fehlende 5 Prozentpunkte zu'))`);
+        await clickButton(client, 'Speichern', true);
+        await waitFor(client, 'invalid 95 percent draft stays open with inline guidance', `document.querySelector('[data-weight-save-issue]')?.textContent.includes('95 % statt 100 %') && document.querySelector('#weight-subject')?.value==='Mathematik'`);
+        await evaluate(client, `(() => {
+          const button=Array.from(document.querySelectorAll('button')).find(button=>button.getAttribute('aria-label') === 'Fehlende 5 Prozentpunkte zu ' + ${q(mathWeightDraft.label.split(' in Mathematik gewichten')[0])} + ' in Mathematik hinzufügen');
+          if (!button) throw Error('Missing explicit 5% remainder control for originally edited category.');
+          button.click();
+        })()`);
+        await waitFor(client, 'rest action restores exactly 100 percent without modifying other categories', `(() => {
+          const selected=Array.from(document.querySelectorAll('input[data-weight-subject="Mathematik"][data-weight-key]')).find(input=>input.getAttribute('aria-label')===${q(mathWeightDraft.label)});
+          const sum=Array.from(document.querySelectorAll('input[data-weight-subject="Mathematik"][data-weight-key]')).reduce((total,input)=>total+Number(input.value||0),0);
+          return selected?.value===${q(String(mathWeightDraft.previous))} && sum===100 && !document.querySelector('[data-weight-save-issue]');
+        })()`);
+        console.log('✓ Weight editor: visual distribution, unsaved draft, inline 95% error and chosen +5% remainder restore 100%.');
         await clickButton(client, 'Punkte');
         await waitFor(client, 'point percentage option available', `Boolean(Array.from(document.querySelectorAll('label')).find(l=>l.textContent.includes('Prozentwerte bei Punkten anzeigen'))?.querySelector('input[type=checkbox]'))`);
         await clickButton(client, 'Speichern', true);
