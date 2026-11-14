@@ -4041,11 +4041,26 @@ async function main() {
           const labels=await evaluate(client,`Array.from(document.querySelectorAll('input[data-col='+JSON.stringify(${q(col)})+']')).map(i=>i.getAttribute('aria-label'))`);
           if(labels.length<2)throw new Error('Quick entry requires two fixture pupils.');
           const field=i=>'input[aria-label='+q(labels[i])+']';
+          const columnCoverageSelector = 'button[aria-label='+q('Bewertungen für '+title+' eintragen')+']';
+          const coverageReadExpression = `(() => {
+            const text = document.querySelector(${q(columnCoverageSelector)})?.closest('th')?.querySelector('[data-gradebook-column-coverage]')?.textContent?.trim() || '';
+            const parts = text.split(' ')[0].split('/');
+            return parts.length === 2 ? {entered:Number(parts[0]),expected:Number(parts[1])} : null;
+          })()`;
+          const readColumnCoverage = () => evaluate(client, coverageReadExpression);
+          const coverageMatches = (entered, expected) => `(() => {const c=${coverageReadExpression};return !!c && c.entered === ${entered} && c.expected === ${expected};})()`;
+          const beforeColumnCoverage = await readColumnCoverage();
+          if (!beforeColumnCoverage || beforeColumnCoverage.expected < 2) throw new Error('Missing or invalid column coverage before entry: '+JSON.stringify(beforeColumnCoverage));
+          const initiallyMissing = value => value == null || ['', 'e', 'f', 'x', '-'].includes(String(value).trim().toLowerCase());
+          const firstWasMissing = initiallyMissing(await evaluate(client, `document.querySelector(${q(field(0))})?.value`));
+          const secondWasMissing = initiallyMissing(await evaluate(client, `document.querySelector(${q(field(1))})?.value`));
           await numbersTypeSigned('[data-gradebook]',labels[0],'12');await pressAuditKey('Enter');
-          await waitFor(client,'quick '+typ+' one of two children recorded', `document.querySelector('[data-gradebook-column-coverage]')?.textContent.includes('1/2 erfasst')`);
+          const afterFirstEntry = beforeColumnCoverage.entered + (firstWasMissing ? 1 : 0);
+          await waitFor(client,'quick '+typ+' first score updates correct column coverage', coverageMatches(afterFirstEntry, beforeColumnCoverage.expected));
           await waitFor(client,'native Enter commits '+typ+' without debounce and moves one row',`document.activeElement===document.querySelector(${q(field(1))})&&document.querySelector(${q(field(0))}).closest('td').querySelector('[data-points-percent]')?.textContent.trim()==='60 %'`);
           await numbersTypeSigned('[data-gradebook]',labels[1],'0');await pressAuditKey('Enter');
-          await waitFor(client,'quick '+typ+' zero points count as second recorded result', `document.querySelector('[data-gradebook-column-coverage]')?.textContent.includes('2/2 erfasst')`);
+          const afterSecondEntry = afterFirstEntry + (secondWasMissing ? 1 : 0);
+          await waitFor(client,'quick '+typ+' zero points updates correct column coverage', coverageMatches(afterSecondEntry, beforeColumnCoverage.expected));
           await waitFor(client,'quick '+typ+' progress counts recorded zero',`document.querySelector('[data-column-entry-status]').textContent.includes('2/')&&document.querySelector(${q(field(1))}).closest('td').querySelector('[data-points-percent]')?.textContent.trim()==='0 %'`);
           await numbersTypeSigned('[data-gradebook]',labels[0],'21');await pressAuditKey('Enter');
           await waitFor(client,'invalid '+typ+' keeps focus and saved value',`document.activeElement===document.querySelector(${q(field(0))})&&document.activeElement.getAttribute('aria-invalid')==='true'&&document.querySelector(${q(field(0))}).closest('td').querySelector('[data-points-percent]')?.textContent.trim()==='60 %'`);
@@ -4067,7 +4082,7 @@ async function main() {
             await waitFor(client,'new LZK area survives encrypted reload',`document.querySelector('[data-gradebook]').textContent.includes('Längen')`);
             await clickGradebookOption(participation);
             await waitFor(client,'non-participation disables exempt input and keeps the other real zero',`document.querySelector(${q(field(0))}).disabled&&document.querySelector(${q(field(0))}).value===''&&document.querySelector(${q(field(1))}).value==='0'`);
-            await waitFor(client,'LZK exemption reduces expected column score count', `document.querySelector('[data-gradebook-column-coverage]')?.textContent.includes('1/1 erfasst')`);
+            await waitFor(client,'LZK exemption reduces the expected and recorded score count', coverageMatches(afterSecondEntry - 1, beforeColumnCoverage.expected - 1));
             await waitFor(client,'non-participation is distinct from open assessments',`document.querySelector('[data-column-entry-status]').textContent.includes('1 nehmen nicht teil')`);
             await waitFor(client,'class mean retains the included SPF zero-point result',`document.querySelector('[data-lzk-class-average="'+${idx}+'"]')?.textContent.trim()==='0.0P'`);
             await reloadAndUnlock(client); await openPage(client,'Notenmappe');
@@ -4077,7 +4092,7 @@ async function main() {
             await waitFor(client,'quick entry starts at the first participating child',`document.activeElement===document.querySelector(${q(field(1))})`);
             await waitFor(client,'SPF class-average choice survives encrypted reload',`document.querySelector(${q(zeroChoice)}).checked&&document.querySelector(${q(field(1))}).value==='0'`);
             await clickGradebookOption(participation);
-            await waitFor(client,'restoring participation restores full column coverage', `document.querySelector('[data-gradebook-column-coverage]')?.textContent.includes('2/2 erfasst')`);
+            await waitFor(client,'restoring participation restores full column coverage', coverageMatches(afterSecondEntry, beforeColumnCoverage.expected));
             await waitFor(client,'restoring participation recovers saved score',`!document.querySelector(${q(field(0))}).disabled&&document.querySelector(${q(field(0))}).value==='12'`);
             const averageChoice = await evaluate(client,`document.querySelector(${q(field(0))}).closest('tr').querySelector('input[aria-label$="im Klassenschnitt mitzählen"]').getAttribute('aria-label')`);
             await clickGradebookOption('input[aria-label='+q(averageChoice)+']');
