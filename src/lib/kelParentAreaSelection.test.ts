@@ -61,5 +61,5 @@ test('per-child KEL selections reset when another child or print template opens'
   assert.match(print, /if \(activeTemplate === 'kel_elternblatt'\)[\s\S]*?setElternblattSubjectAreas\(\{\}\)/);
   assert.match(report, /intentionallyHiddenAreas/);
   assert.match(report, /Für diesen Ausdruck wurden keine dokumentierten Lernbereiche ausgewählt/);
-  assert.match(report, /<Section title="Lernen" detail="Ganzes Schuljahr">/);
+  assert.match(report, /<Section title="Lernen" detail="Ganzes Schuljahr" allowPageBreak>/);
 });
