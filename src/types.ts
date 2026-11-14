@@ -279,6 +279,15 @@ export const STANDARD_KEL_BEREICHE: KELBereich[] = [
   { id: 'bewegung', label: 'Sport & Bewegung', kategorie: 'interessen', kindgerecht: 'Ich bewege mich gerne und probiere Sportarten aus.' }
 ];
 
+export type KELGoalProgressStatus = 'in_arbeit' | 'fortschritt' | 'erreicht' | 'angepasst';
+
+export interface KELGoalProgressEntry {
+  id: string;
+  datum: string; // ISO calendar date YYYY-MM-DD, dated evidence, not a generated score
+  status: KELGoalProgressStatus;
+  notiz: string; // manually documented observation; internal, never auto-export to parents
+}
+
 export interface KELGespraech {
   id: string;
   schuelerId: string;
@@ -288,7 +297,7 @@ export interface KELGespraech {
   selbsteinschaetzungKind: Record<string, { wert: 1 | 2 | 3 | 4; kommentar?: string }>;
   einschaetzungLehrperson: Record<string, { wert: 1 | 2 | 3 | 4; kommentar?: string }>;
   elternEindruck: string;
-  zieleKind: { id: string; ziel: string; woranErkennbar: string; bisWann: string }[];
+  zieleKind: { id: string; ziel: string; woranErkennbar: string; bisWann: string; fortschritt?: KELGoalProgressEntry[] }[];
   vereinbarungen: string;
   naechsterTermin: string;
   unterschriftKind: boolean;
