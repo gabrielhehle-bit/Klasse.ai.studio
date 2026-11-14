@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import { FAECHER_ALLE, DEFAULT_GEWICHTUNG } from '../constants';
 import { getAssessmentMode, hasSubjectAssessmentEntries, getHomeworkGradebookSettings, getNotenLabel, getShowPointsPercent } from '../lib/GradeUtils';
 import { Save, RotateCcw, AlertTriangle, Zap, BookOpen, Check, Info, FileText, CheckCircle2 } from 'lucide-react';
+import { fillRemainingWeight, type WeightKey } from '../lib/gradebookWeightDraft';
 
 export default function WeightSettings({ onBack, initialFach }: { onBack: () => void; initialFach?: string }) {
   const { app, setApp } = useApp();
@@ -11,6 +12,7 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
   // Track only changed subjects. Saving a weight draft must never overwrite
   // another subject's more recent settings or any stored assessment data.
   const [dirtySubjects, setDirtySubjects] = useState<string[]>([]);
+  const [saveIssue, setSaveIssue] = useState<string | null>(null);
   const [selectedFach, setSelectedFach] = useState(() => initialFach || app.faecher?.[0] || 'Deutsch');
   const [showAllFaecher, setShowAllFaecher] = useState(false);
   const [hueSettingsFach, setHueSettingsFach] = useState(() => initialFach || app.faecher?.[0] || 'Deutsch');
@@ -19,6 +21,7 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
     // Falls die Klasse während dieser Ansicht wechselt, niemals alte Entwürfe in die neue Klasse speichern.
     setLocalWeights({ ...app.notenGewichtung });
     setDirtySubjects([]);
+    setSaveIssue(null);
     setSelectedFach(initialFach || app.faecher?.[0] || 'Deutsch');
     setHueSettingsFach(initialFach || app.faecher?.[0] || 'Deutsch');
     setShowAllFaecher(false);
@@ -39,6 +42,15 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
     current[field] = value;
     setLocalWeights(prev => ({ ...prev, [fach]: current }));
     setDirtySubjects(prev => prev.includes(fach) ? prev : [...prev, fach]);
+    setSaveIssue(null);
+  };
+
+  const addRemainingToCategory = (fach: string, target: WeightKey) => {
+    const updated = fillRemainingWeight(getWeight(fach), target);
+    if (!updated) return;
+    setLocalWeights(prev => ({ ...prev, [fach]: updated }));
+    setDirtySubjects(prev => prev.includes(fach) ? prev : [...prev, fach]);
+    setSaveIssue(null);
   };
 
   const updateSACount = (fach: string, count: number) => {
@@ -124,9 +136,14 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
     // retain older settings. Never replace the complete weight map.
     const invalidFaecher = dirtySubjects.filter(f => calculateSum(f) !== 100);
     if (invalidFaecher.length > 0) {
-      alert(`Folgende geänderte Fächer haben keine 100%: ${invalidFaecher.join(', ')}`);
+      const first = invalidFaecher[0];
+      const sum = calculateSum(first);
+      setSelectedFach(first);
+      setShowAllFaecher(false);
+      setSaveIssue(`„${first}“ hat ${sum} % statt 100 %. ${sum < 100 ? `Es fehlen ${100 - sum} %.` : `Es sind ${sum - 100} % zu viel.`} Bitte korrigiere die Gewichtung.`);
       return;
     }
+    setSaveIssue(null);
     if (dirtySubjects.length > 0) {
       setApp(prev => ({
         ...prev,
@@ -141,7 +158,7 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
 
   const autoDistributeEvenly = (fach: string) => {
     const fields = [
-      { key: 'sa', show: fach === 'Deutsch' || fach === 'Mathematik' },
+      { key: 'sa', show: fach === 'Deutsch' || fach === 'Mathematik' || (getWeight(fach).sa || 0) > 0 },
       { key: 'lzk', show: true },
       { key: 'wp', show: true },
       { key: 'hue', show: true },
@@ -173,6 +190,7 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
 
     setLocalWeights(prev => ({ ...prev, [fach]: newWeightsForFach }));
     setDirtySubjects(prev => prev.includes(fach) ? prev : [...prev, fach]);
+    setSaveIssue(null);
   };
 
   const resetAllWeights = () => {
@@ -183,6 +201,7 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
       });
       setLocalWeights(prev => ({ ...prev, ...resetObj }));
       setDirtySubjects(prev => [...new Set([...prev, ...activeFaecher])]);
+      setSaveIssue(null);
     }
   };
 
@@ -278,6 +297,16 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
             Mitarbeit- und Hausübungsregeln werden wie bisher sofort gespeichert. „Abbrechen“ verwirft nur noch
             nicht gespeicherte Prozentgewichtungen.
           </p>
+          {dirtySubjects.length > 0 && (
+            <p data-weight-unsaved-drafts className="text-xs font-bold text-amber-800">
+              Noch nicht gespeichert: {dirtySubjects.join(', ')}
+            </p>
+          )}
+          {saveIssue && (
+            <p role="alert" data-weight-save-issue className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800">
+              {saveIssue}
+            </p>
+          )}
           <label className="flex items-center gap-2 cursor-pointer group mt-2">
             <div className={`w-10 h-5 rounded-full relative transition-colors ${app.notenMeta?.syncWpDeutschMath ? 'bg-indigo-500' : 'bg-slate-200'}`}>
               <div className={`absolute top-0.5 left-0.5 bg-white w-4 h-4 rounded-full transition-transform ${app.notenMeta?.syncWpDeutschMath ? 'translate-x-5' : 'translate-x-0'}`} />
@@ -323,12 +352,21 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
           const sum = calculateSum(fach);
           const isOk = sum === 100;
           const currentMode = app.notenMeta?.[fach]?.assessmentMode || 'grades';
+          const visualSegments = [
+            { key: 'sa', label: 'Schularbeiten', value: w.sa || 0, color: 'bg-blue-500' },
+            { key: 'lzk', label: 'Lernzielkontrollen', value: w.lzk || 0, color: 'bg-emerald-500' },
+            { key: 'wp', label: 'Wochenplan', value: w.wp || 0, color: 'bg-violet-500' },
+            { key: 'hue', label: 'Hausübung', value: w.hue || 0, color: 'bg-amber-500' },
+            { key: 'obj', label: 'Aufgaben', value: w.obj || 0, color: 'bg-cyan-500' },
+            { key: 'mi', label: 'Mitarbeit', value: w.mi || 0, color: 'bg-rose-500' },
+          ].filter(segment => segment.value > 0);
 
           return (
             <div key={fach} className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm relative transition-all hover:shadow-md">
               <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <h4 className="font-extrabold text-[0.875rem] text-slate-800">{fach}</h4>
+                  {dirtySubjects.includes(fach) && <span className="text-[0.625rem] font-semibold text-amber-800">Ungespeichert</span>}
                   <button
                     type="button"
                     onClick={() => autoDistributeEvenly(fach)}
@@ -428,7 +466,7 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
 
               <div className="space-y-4">
                 {[
-                  { key: 'sa', label: getNotenLabel(app, fach, 'sa', 'Schularbeiten'), show: fach === 'Deutsch' || fach === 'Mathematik' },
+                  { key: 'sa', label: getNotenLabel(app, fach, 'sa', 'Schularbeiten'), show: fach === 'Deutsch' || fach === 'Mathematik' || (w.sa || 0) > 0 },
                   { key: 'lzk', label: getNotenLabel(app, fach, 'lzk', 'Lernzielkontrollen'), show: true },
                   { key: 'wp', label: getNotenLabel(app, fach, 'wp', 'Wochenplan'), show: true },
                   { key: 'hue', label: getNotenLabel(app, fach, 'hue', 'Hausübung'), show: true },
@@ -436,7 +474,7 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
                   { key: 'mi', label: getNotenLabel(app, fach, 'mi', 'Mitarbeit'), show: true }
                 ].filter(f => f.show).map(field => (
                   <div key={field.key} className="space-y-1">
-                    <div className="flex justify-between items-center text-[0.6875rem] font-medium text-text-secondary">
+                    <div className="flex flex-wrap justify-between items-center gap-2 text-[0.6875rem] font-medium text-text-secondary">
                       <input 
                         type="text"
                         className="bg-transparent border-none p-0 font-bold focus:ring-0 text-slate-700 hover:text-emerald-600 cursor-text w-32"
@@ -444,7 +482,7 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
                         onChange={(e) => updateSubjectLabel(fach, field.key, e.target.value)}
                         placeholder="Name..."
                       />
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         {field.key === 'sa' && (
                           <div className="flex items-center gap-1 mr-2 px-2 py-1 bg-blue-50 rounded-lg">
                             <span className="text-[0.5625rem] uppercase font-black text-blue-400">Anzahl:</span>
@@ -456,14 +494,27 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
                             />
                           </div>
                         )}
-                        <input 
+                        <input
                           type="number"
+                          min="0" max="100" step="1"
+                          data-weight-key={field.key}
+                          data-weight-subject={fach}
+                          aria-label={`${field.label} in ${fach} gewichten`}
                           className="w-12 px-1 py-0.5 border border-border rounded text-center font-bold text-text-primary"
                           value={w[field.key] || 0}
                           onFocus={e => e.target.select()}
                           onChange={e => updateWeight(fach, field.key, Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
                         />
                         <span className="font-bold">%</span>
+                        {sum < 100 && (
+                          <button type="button"
+                            onClick={() => addRemainingToCategory(fach, field.key as WeightKey)}
+                            aria-label={`Fehlende ${100 - sum} Prozentpunkte zu ${field.label} in ${fach} hinzufügen`}
+                            title={`Nur ${field.label} aufstocken: +${100 - sum} %, die anderen Gewichte bleiben gleich`}
+                            className="min-h-9 rounded-lg border border-emerald-200 bg-emerald-50 px-2 text-[0.625rem] font-bold text-emerald-800 hover:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600">
+                            +{100 - sum} % Rest
+                          </button>
+                        )}
                       </div>
                     </div>
                     <input 
@@ -476,6 +527,25 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
                 ))}
               </div>
               
+              <div data-weight-distribution-preview className="mt-4 space-y-2" aria-label={`Gewichtsverteilung für ${fach}: insgesamt ${sum} Prozent`}>
+                <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-slate-200" role="img"
+                  aria-label={`Gewichtungsverteilung: ${visualSegments.map(segment => `${segment.label} ${segment.value} Prozent`).join(', ') || 'noch keine Anteile'}; Summe ${sum} Prozent`}>
+                  {visualSegments.map(segment => (
+                    <div key={segment.key} className={`h-full shrink-0 ${segment.color}`}
+                      style={{ width: `${segment.value}%` }} title={`${segment.label}: ${segment.value} %`} aria-hidden="true" />
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                  {visualSegments.map(segment => (
+                    <span key={segment.key} className="inline-flex items-center gap-1 text-[0.625rem] text-slate-600">
+                      <span className={`h-2 w-2 shrink-0 rounded-sm ${segment.color}`} aria-hidden="true" />
+                      {segment.label} {segment.value} %
+                    </span>
+                  ))}
+                  {sum < 100 && <span className="text-[0.625rem] font-semibold text-amber-800">{100 - sum} % noch offen</span>}
+                  {sum > 100 && <span className="text-[0.625rem] font-semibold text-rose-800">{sum - 100} % zu viel</span>}
+                </div>
+              </div>
               <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Verteilung:</span>
                 {sum === 100 ? (
