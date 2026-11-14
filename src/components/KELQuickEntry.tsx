@@ -28,7 +28,7 @@ export default function KELQuickEntry({ meeting, students, setMeeting }: Props) 
         <h3 className="text-base font-extrabold text-teal-950">Gespräch schnell erfassen</h3>
         <p className="mt-1 text-xs leading-relaxed text-teal-900">
           Rückmeldung, Ziele und Vereinbarungen direkt mitschreiben. Alle Felder gehören zum bestehenden
-          KEL-Protokoll. Gespeichert wird erst mit „Änderungen speichern“.
+          KEL-Protokoll. Gespeichert wird erst mit „Änderungen speichern“ nach der Abschlusskontrolle.
         </p>
       </div>
 
