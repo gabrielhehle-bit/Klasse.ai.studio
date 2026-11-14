@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { berechne } from '../lib/GradeUtils';
 import { getOverviewNote } from '../lib/gradeOverviewValues';
+import { getGradeOverviewOrigin, summarizeGradeOverview } from '../lib/gradeOverviewAudit';
 import { FAECHER_ALLE } from '../constants';
 import { faecherFuerKlasse } from '../lib/sek1Subjects';
 import { Download, ArrowLeft, Users } from 'lucide-react';
@@ -15,6 +16,7 @@ export default function GradeOverview({ embedded = false, onBack }: { embedded?:
     : faecherFuerKlasse(app);
 
   const [selectedSemester] = useState<'1' | '2' | 'combined'>('1');
+  const gradeAudit = summarizeGradeOverview(app, students.map(s => s.id), activeFaecher, selectedSemester);
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
 
   const handleToggleEdit = () => setIsEditMode(previous => !previous);
@@ -97,6 +99,23 @@ export default function GradeOverview({ embedded = false, onBack }: { embedded?:
         </div>
       </div>
 
+      <div data-grade-overview-audit aria-label="Stand der Zeugnisnoten"
+        className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs print:hidden">
+        <span className="font-semibold text-slate-600">Facheinträge in dieser Klasse:</span>
+        <span data-grade-overview-manual className="font-bold text-amber-800">
+          {gradeAudit.manual} manuell eingetragen
+        </span>
+        <span data-grade-overview-calculated className="font-bold text-emerald-800">
+          {gradeAudit.calculated} berechnet
+        </span>
+        <span data-grade-overview-missing className="font-bold text-slate-700">
+          {gradeAudit.missing} ohne Note
+        </span>
+        <span className="text-slate-500">
+          Gezählte Fachfelder, nicht Kinder. Ein berechneter Wert ist keine festgelegte Zeugnisnote.
+        </span>
+      </div>
+
       {isEditMode && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 print:hidden">
 
@@ -176,6 +195,7 @@ export default function GradeOverview({ embedded = false, onBack }: { embedded?:
 
                       // Same precedence and numeric values as the CSV export.
                       const { noteToRender, numericForAvg } = getOverviewNote(app, s.id, f, selectedSemester);
+                      const origin = getGradeOverviewOrigin(app, s.id, f, selectedSemester);
 
                       if (numericForAvg !== null) {
                         sum += numericForAvg;
@@ -183,7 +203,8 @@ export default function GradeOverview({ embedded = false, onBack }: { embedded?:
                       }
 
                       return (
-                        <td key={f} className="px-2 py-3 text-center border-r border-border/30">
+                        <td key={f} data-grade-origin={origin} title={origin === "manual" ? "Manuell eingetragene Endnote" : origin === "calculated" ? "Aus Bewertungen berechneter Wert – nicht festgelegt" : "Noch keine Endnote oder berechenbare Bewertung"}
+                          className="px-2 py-3 text-center border-r border-border/30">
                           {isEditMode ? (
                             <div className="flex items-center justify-center">
                               <select
@@ -249,6 +270,13 @@ export default function GradeOverview({ embedded = false, onBack }: { embedded?:
                             ) : (
                               <span className="text-[0.625rem] text-text-muted">–</span>
                             )
+                          )}
+                          {!isEditMode && (
+                            <div className="mt-1 text-[0.5625rem] font-semibold leading-tight print:hidden">
+                              <span className={origin === 'manual' ? 'text-amber-800' : origin === 'calculated' ? 'text-emerald-800' : 'text-slate-500'}>
+                                {origin === 'manual' ? 'Manuell' : origin === 'calculated' ? 'Berechnet' : 'Ohne Note'}
+                              </span>
+                            </div>
                           )}
                         </td>
                       );
