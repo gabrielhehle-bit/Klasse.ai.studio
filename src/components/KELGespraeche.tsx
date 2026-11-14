@@ -57,6 +57,7 @@ import KELQuickEntry from './KELQuickEntry';
 import KELCompletionReview from './KELCompletionReview';
 import KELConversationOverview from './KELConversationOverview';
 import KELGoalProgressPanel from './KELGoalProgressPanel';
+import { getKelGoalProgress, KEL_PROGRESS_LABELS } from '../lib/kelGoalProgress';
 import { 
   ResponsiveContainer, 
   RadarChart, 
@@ -1292,7 +1293,7 @@ const KELGespraeche: React.FC = () => {
     if (isPrintMode) {
       return (
         <PrintView 
-          meeting={viewingMeeting} 
+          meeting={meetings.find(item => item.id === viewingMeeting.id && item.schuelerId === viewingMeeting.schuelerId) || viewingMeeting} 
           student={student} 
           type={isPrintMode} 
           onClose={() => setIsPrintMode(null)} 
@@ -2330,6 +2331,13 @@ const PrintView: React.FC<{
   type: 'child' | 'protocol';
   onClose: () => void;
 }> = ({ meeting, student, type, onClose }) => {
+  // Per-preview choice only: nothing is saved to any pupil or meeting record.
+  // All private progress observations are excluded from printing by default.
+  const [selectedProgressIds, setSelectedProgressIds] = useState<string[]>([]);
+  const progressChoices = (meeting.zieleKind || []).flatMap(goal =>
+    getKelGoalProgress(goal).map(entry => ({ goal, entry, key: goal.id + ':' + entry.id })));
+  const printableProgress = type === 'protocol'
+    ? progressChoices.filter(item => selectedProgressIds.includes(item.key)) : [];
   return (
     <div className="fixed inset-0 z-[200] bg-white overflow-y-auto no-scrollbar print:relative print:overflow-visible print:bg-white">
        <div className="max-w-4xl mx-auto p-12 space-y-10 print:p-0 print:m-0 print:max-w-none">
@@ -2343,6 +2351,23 @@ const PrintView: React.FC<{
              
           </div>
 
+          {type === 'protocol' && progressChoices.length > 0 && (
+            <section data-kel-print-progress-selection className="print:hidden rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+              <h2 className="font-bold text-sm text-slate-900">Zielbeobachtungen für dieses Elternblatt</h2>
+              <p className="text-xs text-slate-700">Interne Notizen bleiben standardmäßig ausgeschlossen. Nur ausdrücklich angehakte Einträge werden in dieser Druckvorschau übernommen. Die Auswahl wird nicht gespeichert.</p>
+              <div className="max-h-60 overflow-y-auto space-y-2">
+                {progressChoices.map(({ goal, entry, key }) => (
+                  <label key={key} className="flex items-start gap-2 rounded-lg border border-amber-100 bg-white p-3 text-xs cursor-pointer">
+                    <input type="checkbox" className="mt-0.5" checked={selectedProgressIds.includes(key)}
+                      onChange={event => setSelectedProgressIds(previous => event.target.checked
+                        ? [...previous, key] : previous.filter(id => id !== key))} />
+                    <span className="min-w-0 break-words"><strong>{goal.ziel}</strong> · {entry.datum.split('-').reverse().join('.')} · {KEL_PROGRESS_LABELS[entry.status]}<span className="block mt-1 text-slate-600">{entry.notiz}</span></span>
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs font-semibold text-amber-900">{selectedProgressIds.length} Beobachtung(en) für die Druckvorschau ausgewählt</p>
+            </section>
+          )}
           <header className="border-b-4 border-slate-900 pb-10">
              <div className="flex justify-between items-start mb-6">
                 <div>
@@ -2546,6 +2571,18 @@ const PrintView: React.FC<{
             </>
           )}
 
+          {printableProgress.length > 0 && (
+            <section data-kel-print-selected-progress className="break-inside-avoid space-y-3 border-t border-slate-200 pt-6">
+              <h2 className="text-sm font-black uppercase tracking-wide text-slate-900">Ausgewählte Zielbeobachtungen</h2>
+              {printableProgress.map(({ goal, entry, key }) => (
+                <div key={key} className="break-inside-avoid rounded-xl border border-slate-200 p-3 text-xs leading-relaxed">
+                  <p className="font-bold text-slate-900">{goal.ziel}</p>
+                  <p className="font-semibold text-slate-700">{entry.datum.split('-').reverse().join('.')} · {KEL_PROGRESS_LABELS[entry.status]}</p>
+                  <p className="whitespace-pre-wrap break-words text-slate-700">{entry.notiz}</p>
+                </div>
+              ))}
+            </section>
+          )}
           <footer className="pt-20 border-t-2 border-slate-100 grid grid-cols-3 gap-12">
              {[
                { label: 'Unterschrift Kind', key: 'unterschriftKind' },
