@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   MessagesSquare, 
@@ -52,6 +52,8 @@ import { FlowerChart, KEL_GRADES_INFO } from './FlowerChart';
 import { berechne } from '../lib/GradeUtils';
 import { generateKELAssessment, generateKELAgreement } from '../services/aiService';
 import { normalizeKelMeetings } from '../lib/kelData';
+import { getLocalKelDate, hasUnsavedKelChanges } from '../lib/kelQuickEdit';
+import KELQuickEntry from './KELQuickEntry';
 import KELConversationOverview from './KELConversationOverview';
 import { 
   ResponsiveContainer, 
@@ -123,7 +125,8 @@ const KELGespraeche: React.FC = () => {
   const { app, setApp, setPage } = useApp();
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingMeeting, setEditingMeeting] = useState<Partial<KELGespraech> | null>(null);
-  const [activeTab, setActiveTab] = useState<'vorbereitung' | 'kind' | 'lehrperson' | 'ziele'>('vorbereitung');
+  const [activeTab, setActiveTab] = useState<'schnell' | 'vorbereitung' | 'kind' | 'lehrperson' | 'ziele'>('schnell');
+  const originalMeetingDraftRef = useRef('');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState<string | null>(null);
   const [viewingMeeting, setViewingMeeting] = useState<KELGespraech | null>(null);
@@ -174,15 +177,23 @@ const KELGespraeche: React.FC = () => {
     return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
   }, [filteredMeetings]);
 
+  const handleCloseEditor = () => {
+    if (hasUnsavedKelChanges(originalMeetingDraftRef.current, editingMeeting)
+      && !window.confirm('Ungespeicherte Änderungen wirklich verwerfen?')) return;
+    setIsEditorOpen(false);
+    setEditingMeeting(null);
+  };
+
   const handleCreateNew = () => {
     const newMeeting: Partial<KELGespraech> = {
       id: crypto.randomUUID(),
-      datum: new Date().toISOString().split('T')[0],
+      datum: getLocalKelDate(new Date()),
       schuljahr: app.schuljahr || getCurrentSchuljahr(),
       teilnehmer: ['Kind', 'Klassenlehrerin'],
       selbsteinschaetzungKind: {},
       einschaetzungLehrperson: {},
       zieleKind: [],
+      elternEindruck: '',
       vereinbarungen: '',
       naechsterTermin: '',
       unterschriftKind: false,
@@ -190,14 +201,16 @@ const KELGespraeche: React.FC = () => {
       unterschriftLehrperson: false,
       notiz: ''
     };
+    originalMeetingDraftRef.current = JSON.stringify(newMeeting);
     setEditingMeeting(newMeeting);
-    setActiveTab('vorbereitung');
+    setActiveTab('schnell');
     setIsEditorOpen(true);
   };
 
   const handleEdit = (meeting: KELGespraech) => {
+    originalMeetingDraftRef.current = JSON.stringify(meeting);
     setEditingMeeting(meeting);
-    setActiveTab('vorbereitung');
+    setActiveTab('schnell');
     setIsEditorOpen(true);
   };
 
@@ -1677,7 +1690,7 @@ const KELGespraeche: React.FC = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-              onClick={() => setIsEditorOpen(false)}
+              onClick={handleCloseEditor}
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -1689,9 +1702,13 @@ const KELGespraeche: React.FC = () => {
                 <div>
                   <h2 className="text-[0.75rem] font-black uppercase tracking-[0.2em] text-rose-500">Editor</h2>
                   <h3 className="text-[1.5rem] leading-normal font-black text-slate-900">KEL-Gespräch bearbeiten</h3>
+                  <p data-kel-unsaved-state className="mt-1 text-xs text-slate-500">
+                    {hasUnsavedKelChanges(originalMeetingDraftRef.current, editingMeeting)
+                      ? 'Ungespeicherte Änderungen' : 'Noch keine Änderungen'}
+                  </p>
                 </div>
                 <button 
-                  onClick={() => setIsEditorOpen(false)}
+                  onClick={handleCloseEditor}
                   className="p-4 bg-slate-100 text-slate-400 hover:text-slate-900 rounded-3xl transition-all"
                 >
                   <X size={24} />
@@ -1700,10 +1717,11 @@ const KELGespraeche: React.FC = () => {
 
               <div className="flex bg-white border-b border-slate-100 overflow-x-auto custom-scrollbar">
                 {[
-                  { id: 'vorbereitung', label: '1. Vorbereitung', icon: Calendar },
-                  { id: 'kind', label: '2. Selbsteinschätzung', icon: Smile },
-                  { id: 'lehrperson', label: '3. Lehrperson', icon: User },
-                  { id: 'ziele', label: '4. Ziele & Abschluss', icon: Target }
+                  { id: 'schnell', label: 'Schnellerfassung', icon: FileText },
+                  { id: 'vorbereitung', label: 'Vorbereitung', icon: Calendar },
+                  { id: 'kind', label: 'Selbsteinschätzung', icon: Smile },
+                  { id: 'lehrperson', label: 'Lehrperson', icon: User },
+                  { id: 'ziele', label: 'Ziele & Abschluss', icon: Target }
                 ].map(tab => (
                   <button 
                     key={tab.id}
@@ -1716,8 +1734,15 @@ const KELGespraeche: React.FC = () => {
                 ))}
               </div>
 
-              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                {activeTab === 'vorbereitung' && (
+              <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar">
+                {activeTab === 'schnell' && editingMeeting && (
+                   <KELQuickEntry
+                     meeting={editingMeeting}
+                     students={app.schueler}
+                     setMeeting={setEditingMeeting}
+                   />
+                 )}
+                 {activeTab === 'vorbereitung' && (
                   <div className="max-w-3xl mx-auto space-y-8">
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-4">
@@ -2005,22 +2030,22 @@ const KELGespraeche: React.FC = () => {
                 )}
               </div>
 
-              <div className="p-8 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50 p-4 sm:p-6">
                  <div className="flex gap-2">
                     <button 
                       onClick={() => {
-                        const tabs = ['vorbereitung', 'kind', 'lehrperson', 'ziele'];
+                        const tabs = ['schnell', 'vorbereitung', 'kind', 'lehrperson', 'ziele'];
                         const idx = tabs.indexOf(activeTab);
                         if (idx > 0) setActiveTab(tabs[idx - 1] as any);
                       }}
-                      disabled={activeTab === 'vorbereitung'}
+                      disabled={activeTab === 'schnell'}
                       className="px-6 py-4 bg-white text-slate-600 rounded-2xl text-[0.625rem] font-black uppercase tracking-widest hover:bg-slate-50 transition-all disabled:opacity-20 border border-slate-200"
                     >
                       Zurück
                     </button>
                     <button 
                       onClick={() => {
-                        const tabs = ['vorbereitung', 'kind', 'lehrperson', 'ziele'];
+                        const tabs = ['schnell', 'vorbereitung', 'kind', 'lehrperson', 'ziele'];
                         const idx = tabs.indexOf(activeTab);
                         if (idx < tabs.length - 1) setActiveTab(tabs[idx + 1] as any);
                       }}
