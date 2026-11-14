@@ -52,6 +52,7 @@ import { FlowerChart, KEL_GRADES_INFO } from './FlowerChart';
 import { berechne } from '../lib/GradeUtils';
 import { generateKELAssessment, generateKELAgreement } from '../services/aiService';
 import { normalizeKelMeetings } from '../lib/kelData';
+import KELConversationOverview from './KELConversationOverview';
 import { 
   ResponsiveContainer, 
   RadarChart, 
@@ -1352,6 +1353,8 @@ const KELGespraeche: React.FC = () => {
             {showBehaviorNotesInKel ? 'Beobachtungsnotizen ausblenden' : 'Beobachtungsnotizen anzeigen'}
           </button>
         </div>
+
+        <KELConversationOverview key={viewingMeeting.id} meeting={viewingMeeting} />
 
         <ComparisonView meeting={viewingMeeting} />
 
