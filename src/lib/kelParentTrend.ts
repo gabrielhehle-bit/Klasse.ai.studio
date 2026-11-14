@@ -22,7 +22,7 @@ export function buildKelParentTrend(
   start: string,
   end: string,
   moods: Record<string, unknown> | null | undefined,
-  dailyBehaviorLogs: readonly { datum?: unknown; timestamp?: unknown }[],
+  dailyBehaviorLogs: readonly { datum?: unknown; timestamp?: unknown; iconId?: unknown }[],
 ): KelParentTrend {
   const dates = getDossierPeriodDays(start, end);
   const sums = new Map<string, {
