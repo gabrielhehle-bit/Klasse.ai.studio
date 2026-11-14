@@ -5,11 +5,15 @@ import { normalizeKelMeetings } from './kelData';
 export function listKelParentMeetingSources(
   meetings: unknown, studentId: string, schoolYear: string,
 ): KELGespraech[] {
-  if (!studentId || !schoolYear) return [];
+  const startYear = Number(schoolYear.match(/20\d{2}/)?.[0]);
+  if (!studentId || !Number.isInteger(startYear) || !startYear) return [];
+  const schoolStart = `${startYear}-08-01`;
+  const schoolEnd = `${startYear + 1}-07-31`;
   return normalizeKelMeetings(meetings, schoolYear)
     .filter(meeting => meeting.schuelerId === studentId
       && meeting.schuljahr === schoolYear
-      && /^\d{4}-\d{2}-\d{2}$/.test(meeting.datum))
+      && /^\d{4}-\d{2}-\d{2}$/.test(meeting.datum)
+      && meeting.datum >= schoolStart && meeting.datum <= schoolEnd)
     .sort((a, b) => b.datum.localeCompare(a.datum) || a.id.localeCompare(b.id));
 }
 
