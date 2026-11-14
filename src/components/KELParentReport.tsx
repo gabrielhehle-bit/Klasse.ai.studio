@@ -23,6 +23,7 @@ export interface KELParentReportOptions {
   strengthsText: string;
   goalsText: string;
   agreementsText: string;
+  meetingSourceDate?: string;
 }
 
 const COLORS = ['#0d9488', '#4f46e5', '#c67e4c', '#7c3aed'];
@@ -278,6 +279,13 @@ export default function KELParentReport({
           </Section>
         )}
       </div>
+
+      {options.meetingSourceDate && (
+        <p data-kel-meeting-source className="mt-2 text-[11px] leading-snug text-slate-600">
+          Vorlage für Ziele und Vereinbarungen aus dem gespeicherten KEL-Protokoll vom
+          {' '}{options.meetingSourceDate.split('-').reverse().join('.')}. Vor der Weitergabe bitte den Text prüfen.
+        </p>
+      )}
 
       <div className="mt-2.5 grid grid-cols-2 gap-2.5">
         <Section title="Das gelingt schon gut">
