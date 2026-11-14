@@ -46,6 +46,7 @@ import {
 import Markdown from 'react-markdown';
 import PrintHeader from './PrintHeader';
 import KELParentReport, { type KELParentReportOptions } from './KELParentReport';
+import { listKelParentMeetingSources, draftKelParentMeetingText } from '../lib/kelParentMeetingDraft';
 import { getStudentNotes } from '../lib/studentMetrics';
 import { getStudentAssessmentDomainPerformance } from '../lib/assessmentDomainPerformance';
 import { exportSchuelerPDF } from '../lib/exportService';
@@ -351,6 +352,14 @@ export default function PrintCenter() {
   const [elternblattStrengthsText, setElternblattStrengthsText] = useState('');
   const [elternblattGoalsText, setElternblattGoalsText] = useState('');
   const [elternblattAgreementsText, setElternblattAgreementsText] = useState('');
+  const [elternblattSavedMeetingId, setElternblattSavedMeetingId] = useState('');
+  const [elternblattMeetingSourceDate, setElternblattMeetingSourceDate] = useState('');
+  const elternblattSavedMeetings = listKelParentMeetingSources(
+    app.kelGespraeche, elternblattSelectedStudentId, app.schuljahr || '',
+  );
+  const selectedElternblattMeeting = elternblattSavedMeetings.find(
+    meeting => meeting.id === elternblattSavedMeetingId,
+  );
   const elternblattNotes = getStudentNotes(app, elternblattSelectedStudentId)
     .filter((note: any) => typeof note.id === 'string' && note.id && typeof note.inhalt === 'string' && note.inhalt.trim());
   const elternblattOptions: KELParentReportOptions = {
@@ -362,6 +371,7 @@ export default function PrintCenter() {
     strengthsText: elternblattStrengthsText,
     goalsText: elternblattGoalsText,
     agreementsText: elternblattAgreementsText,
+    meetingSourceDate: elternblattMeetingSourceDate,
   };
 
   useEffect(() => {
@@ -376,6 +386,8 @@ export default function PrintCenter() {
       setElternblattStrengthsText('');
       setElternblattGoalsText('');
       setElternblattAgreementsText('');
+        setElternblattSavedMeetingId('');
+        setElternblattMeetingSourceDate('');
     }
   }, [activeTemplate]);
 
@@ -667,6 +679,8 @@ export default function PrintCenter() {
         setElternblattStrengthsText('');
         setElternblattGoalsText('');
         setElternblattAgreementsText('');
+        setElternblattSavedMeetingId('');
+        setElternblattMeetingSourceDate('');
         setProfSelectedStudentId(app.activePrintStudentId);
         setDiagSelectedStudentId(app.activePrintStudentId);
         setKpSelectedStudentId(app.activePrintStudentId);
@@ -688,6 +702,8 @@ export default function PrintCenter() {
     setElternblattStrengthsText('');
     setElternblattGoalsText('');
     setElternblattAgreementsText('');
+        setElternblattSavedMeetingId('');
+        setElternblattMeetingSourceDate('');
     setProfSelectedStudentId(firstStudentId);
     setDiagSelectedStudentId(firstStudentId);
     setKpSelectedStudentId(firstStudentId);
@@ -2857,6 +2873,8 @@ export default function PrintCenter() {
                         setElternblattStrengthsText('');
                         setElternblattGoalsText('');
                         setElternblattAgreementsText('');
+        setElternblattSavedMeetingId('');
+        setElternblattMeetingSourceDate('');
                       }}
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs">
                       {students.map(st => <option key={st.id} value={st.id}>{st.nachname} {st.vorname}</option>)}
@@ -2942,6 +2960,46 @@ export default function PrintCenter() {
                       })}
                     </fieldset>
                   )}
+                  <div data-kel-meeting-import-controls className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <h4 className="text-xs font-black text-slate-800">Gespeichertes KEL-Protokoll verwenden</h4>
+                    <p className="text-[0.6875rem] leading-relaxed text-slate-600">
+                      Nur die Ziele des Kindes und die Vereinbarungen werden nach deinem Klick übernommen.
+                      Interne Notizen, Bewertungen und Elterneindrücke bleiben ausgeschlossen.
+                    </p>
+                    <label htmlFor="kel-parent-meeting" className="block text-xs font-semibold text-slate-700">
+                      Protokoll auswählen
+                      <select id="kel-parent-meeting" value={elternblattSavedMeetingId}
+                        onChange={event => setElternblattSavedMeetingId(event.target.value)}
+                        className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-xs">
+                        <option value="">Kein Protokoll ausgewählt</option>
+                        {elternblattSavedMeetings.map(meeting => (
+                          <option key={meeting.id} value={meeting.id}>
+                            {meeting.datum.split('-').reverse().join('.')} · KEL-Gespräch
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {elternblattSavedMeetings.length === 0 && (
+                      <p className="text-[0.6875rem] text-slate-500">
+                        Für dieses Kind ist im aktuellen Schuljahr noch kein datiertes KEL-Protokoll gespeichert.
+                      </p>
+                    )}
+                    <button type="button" data-kel-import-meeting
+                      disabled={!selectedElternblattMeeting}
+                      onClick={() => {
+                        const source = selectedElternblattMeeting;
+                        if (!source) return;
+                        const draft = draftKelParentMeetingText(source);
+                        if ((elternblattGoalsText.trim() || elternblattAgreementsText.trim())
+                          && !window.confirm('Vorhandene Texte bei Zielen und Vereinbarungen durch das ausgewählte KEL-Protokoll ersetzen?')) return;
+                        setElternblattGoalsText(draft.goalsText);
+                        setElternblattAgreementsText(draft.agreementsText);
+                        setElternblattMeetingSourceDate(draft.sourceDate);
+                      }}
+                      className="rounded-lg bg-slate-800 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">
+                      Ziele und Vereinbarungen übernehmen
+                    </button>
+                  </div>
                   <div data-kel-parent-editor-controls className="space-y-3 rounded-xl border border-teal-200 bg-teal-50/70 p-3">
                     <div>
                       <h4 className="text-xs font-black text-teal-950">Persönliche Rückmeldung für die Eltern</h4>
@@ -2959,14 +3017,14 @@ export default function PrintCenter() {
                     </label>
                     <label htmlFor="kel-parent-goals" className="block text-xs font-semibold text-slate-700">
                       Daran arbeiten wir weiter
-                      <textarea id="kel-parent-goals" rows={3} maxLength={600}
+                      <textarea id="kel-parent-goals" rows={3} maxLength={8000}
                         value={elternblattGoalsText} onChange={event => setElternblattGoalsText(event.target.value)}
                         placeholder="z. B. Aufgaben selbstständiger beginnen\nsorgfältig kontrollieren"
                         className="mt-1 w-full resize-y rounded-lg border border-teal-200 bg-white p-2 text-xs font-normal leading-relaxed text-slate-900" />
                     </label>
                     <label htmlFor="kel-parent-agreements" className="block text-xs font-semibold text-slate-700">
                       Gesprächsnotizen &amp; Vereinbarungen
-                      <textarea id="kel-parent-agreements" rows={3} maxLength={800}
+                      <textarea id="kel-parent-agreements" rows={3} maxLength={12000}
                         value={elternblattAgreementsText} onChange={event => setElternblattAgreementsText(event.target.value)}
                         placeholder="Gemeinsam vereinbarte nächste Schritte …"
                         className="mt-1 w-full resize-y rounded-lg border border-teal-200 bg-white p-2 text-xs font-normal leading-relaxed text-slate-900" />
