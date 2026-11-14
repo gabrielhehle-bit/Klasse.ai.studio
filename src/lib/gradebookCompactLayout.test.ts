@@ -46,3 +46,30 @@ test('visible assessment fields are still genuine saved-grade inputs with keyboa
   assert.match(source, /disabled=\{!gradebookScrollEdges\.left\}/);
   assert.match(source, /disabled=\{!gradebookScrollEdges\.right\}/);
 });
+
+test('assessment columns show entry coverage and keep points/weights read only', () => {
+  const from = source.indexOf('const renderColHeader = ');
+  const to = source.indexOf('if (showDetailedAnalysis)', from);
+  assert.ok(from >= 0 && to > from);
+  const header = source.slice(from, to);
+  assert.match(header, /summarizeAssessmentColumnCoverage\(/);
+  assert.match(header, /value: values\?\.\[i\]/);
+  assert.match(header, /exempt: typ === 'lzk' && nd\?\.lzkParticipation\?\.\[i\] === false/);
+  assert.match(header, /data-gradebook-column-coverage/);
+  assert.match(header, /\$\{coverage.entered\}\/\$\{coverage.expected\} erfasst/);
+  assert.match(header, /coverage.missing > 0/);
+  assert.match(header, /coverage.exempt/);
+  assert.match(header, /getMaxPoints\(app, activeFach, typ, i\)/);
+  assert.match(header, /getAssessmentItemMode\(app, activeFach, typ, i\)/);
+  assert.doesNotMatch(header, /setApp\(/);
+  assert.doesNotMatch(header, /setNote\(/);
+});
+
+test('gradebook treats old placeholder x consistently as a missing assessment', () => {
+  const from = source.indexOf('const hasAnyAssessment = ');
+  const to = source.indexOf('const getHighlightClass = ', from);
+  assert.ok(from >= 0 && to > from);
+  const detection = source.slice(from, to);
+  assert.match(detection, /!isAssessmentValueMissing\(value\)/);
+  assert.doesNotMatch(detection, /value !== "x"/);
+});
