@@ -6,6 +6,8 @@ import { getStudentSubjectYearParticipationSummary } from '../lib/studentPartici
 import { getStudentAssessmentDomainPerformance } from '../lib/assessmentDomainPerformance';
 import { summarizeKelMood, summarizeKelBehavior } from '../lib/kelParentReportMetrics';
 import { selectKelParentLearningAreas } from '../lib/kelParentAreaSelection';
+import { buildKelParentTrend } from '../lib/kelParentTrend';
+import KELParentTrendChart from './KELParentTrendChart';
 
 export interface KELParentReportOptions {
   period: 'recent' | 'year';
@@ -81,6 +83,10 @@ export default function KELParentReport({
   const behavior = summarizeKelBehavior(stats.logs, stats.stages);
   const behaviorRows = behavior.rows;
   const behaviorTotal = behavior.total;
+  const trend = useMemo(() => buildKelParentTrend(
+    options.period, stats.start, stats.today,
+    app.schuelerStimmung?.[studentId], stats.logs, stats.stages,
+  ), [app.schuelerStimmung, studentId, options.period, stats.start, stats.today, stats.logs, stats.stages]);
 
   const participation = options.subjects.map(subject => ({
     subject,
@@ -150,6 +156,7 @@ export default function KELParentReport({
                     </div>
                   ))}
                 </div>
+                <KELParentTrendChart kind="mood" buckets={trend.buckets} period={options.period} />
                 <p className="text-[11px] leading-snug text-slate-600">
                   Durchschnitt {fmt(mood.average)} / 5
                   {mood.mostFrequent ? ' · häufigste Antwort: ' + moodLabels[mood.mostFrequent - 1] : ''}
@@ -194,6 +201,7 @@ export default function KELParentReport({
                     </div>
                   ))}
                 </div>
+                <KELParentTrendChart kind="behavior" buckets={trend.buckets} period={options.period} behaviorRows={behaviorRows} />
                 <p className="text-[11px] leading-snug text-slate-500">
                   Anteil an dokumentierten Tageswerten, nicht an allen Schultagen · keine Persönlichkeitsnote
                 </p>

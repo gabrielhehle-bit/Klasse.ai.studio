@@ -1141,6 +1141,18 @@ export default function PrintCenter() {
             min-height: 10px !important;
             display: block !important;
           }
+          /* Keep the inline trend SVGs at a legible, stable height in Chrome PDF. */
+          body.print-center-active.print-center-kel-parent-active [data-kel-mood-trend],
+          body.print-center-active.print-center-kel-parent-active [data-kel-behavior-trend] {
+            width: 100% !important;
+            height: 72px !important;
+            min-height: 72px !important;
+            display: block !important;
+          }
+          body.print-center-active.print-center-kel-parent-active [data-kel-trend] {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
           body.print-center-active.print-center-kel-parent-active [data-kel-signatures] {
             break-inside: avoid !important;
             page-break-inside: avoid !important;
