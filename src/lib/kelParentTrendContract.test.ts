@@ -8,9 +8,9 @@ const print = readFileSync('src/components/PrintCenter.tsx', 'utf8');
 
 test('both parent-facing timelines use the same dossier data and selected reporting period', () => {
   assert.match(report, /buildKelParentTrend\(\s*options\.period, stats\.start, stats\.today,/);
-  assert.match(report, /app\.schuelerStimmung\?\.\[studentId\], stats\.logs/);
+  assert.match(report, /app\.schuelerStimmung\?\.\[studentId\], stats\.logs, stats\.stages/);
   assert.match(report, /<KELParentTrendChart kind="mood" buckets=\{trend\.buckets\} period=\{options\.period\} \/>/);
-  assert.match(report, /<KELParentTrendChart kind="behavior" buckets=\{trend\.buckets\} period=\{options\.period\} \/>/);
+  assert.match(report, /<KELParentTrendChart kind="behavior" buckets=\{trend\.buckets\} period=\{options\.period\} behaviorRows=\{behaviorRows\} \/>/);
   assert.doesNotMatch(report, /setApp\(/);
 });
 
@@ -26,6 +26,10 @@ test('wellbeing SVG explicitly keeps gaps in weeks with no self-assessment', () 
 test('behavior trend counts documented days and never assigns a positive or negative behavior score', () => {
   assert.match(component, /data-kel-behavior-trend/);
   assert.match(component, /bucket\.behaviorCount/);
+  assert.match(component, /bucket\.behaviorByStage/);
+  assert.match(component, /segments\.map\(row =>/);
+  assert.match(component, /fill=\{row\.color\}/);
+  assert.match(component, /Die Farben zeigen die dokumentierten Kategorien/);
   assert.match(component, /Weniger Einträge bedeuten nicht automatisch besseres Verhalten/);
   assert.match(component, /Anzahl dokumentierter Tageswerte/);
 });
