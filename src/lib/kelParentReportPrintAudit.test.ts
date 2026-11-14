@@ -76,3 +76,14 @@ test('the printed parent sheet uses calm editorial labels rather than a private-
   assert.match(sheet, /data-kel-mood-bar/);
   assert.match(sheet, /data-kel-behavior-bar/);
 });
+
+test('expanded KEL learning selection never silently drops a fifth row or shrinks signatures', () => {
+  assert.match(sheet, /subject\.rows\.map\(\(row, index\)/);
+  assert.doesNotMatch(sheet, /subject\.rows\.slice\(0, 4\)/);
+  assert.match(sheet, /data-kel-learning-item/);
+  assert.match(sheet, /data-kel-learning-section/);
+  assert.match(sheet, /min-h-\[34mm\]/);
+  assert.match(print, /height: 34mm !important;/);
+  assert.match(print, /\[data-kel-learning-section\] \{/);
+  assert.match(print, /\[data-kel-learning-item\] \{/);
+});
