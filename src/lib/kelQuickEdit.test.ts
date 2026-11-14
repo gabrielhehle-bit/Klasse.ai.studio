@@ -69,7 +69,7 @@ const main=readFileSync('src/components/KELGespraeche.tsx','utf8');
 const quick=readFileSync('src/components/KELQuickEntry.tsx','utf8');
 
 test('the quick entry is the default tab, and detailed existing tabs are retained',()=>{
-  assert.match(main,/activeTab, setActiveTab\] = useState<'schnell'/);
+  assert.match(main,/activeTab, setActiveTab\] = useState<EditorSection \| 'pruefen'>\('schnell'\)/);
   assert.match(main,/setActiveTab\('schnell'\)/);
   assert.match(main,/label: 'Schnellerfassung'/);
   assert.match(main,/label: 'Vorbereitung'/);
