@@ -15,7 +15,7 @@ export default function KELCompletionReview({ meeting, studentName, onEdit }: Pr
   const review = getKelCompletionReview(meeting);
 
   return (
-    <section data-kel-completion-review className="mx-auto max-w-4xl space-y-4 pb-4">
+    <section data-kel-completion-review className="no-print mx-auto max-w-4xl space-y-4 pb-4">
       <div className="rounded-2xl border border-teal-200 bg-teal-50 p-5">
         <div className="flex items-start gap-3">
           <CheckCircle2 className="mt-0.5 shrink-0 text-teal-700" size={22} />
