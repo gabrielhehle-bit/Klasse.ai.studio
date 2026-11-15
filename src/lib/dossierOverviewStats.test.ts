@@ -50,3 +50,20 @@ test('participation uses inclusive period boundaries, signed entries and configu
  assert.equal(recent.count,2);assert.equal(recent.total,2);assert.equal(recent.timeline.length,6);
  assert.equal(recent.timeline.reduce((sum,bucket)=>sum+bucket.points,0),recent.total);
 });
+
+
+test('documented mood development stays attached to recorded weeks and never fills empty weeks', () => {
+ const app={schuljahr:'2026/27',schuelerStimmung:{
+  a:{'2026-09-02':4,'2026-09-10':3,'2026-09-18':2,'2026-10-06':1,'2026-10-22':2,'2026-11-03':3},
+  b:{'2026-10-06':5}
+ }};
+ const source=structuredClone(app);
+ const result=getDossierOverviewStats(app,'a','year',new Date(2026,10,15,12));
+ assert.equal(result.moodCount,6);
+ const observed=result.weeks.filter(w=>w.moodCount>0);
+ assert.equal(observed.length,6);
+ assert.deepEqual(observed.map(w=>w.mood),[4,3,2,1,2,3]);
+ assert.ok(result.weeks.some(w=>w.mood===null));
+ assert.equal(result.weeks.reduce((n,w)=>n+w.moodCount,0),6);
+ assert.deepEqual(app,source);
+});
