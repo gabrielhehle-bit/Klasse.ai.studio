@@ -47,6 +47,8 @@ import Markdown from 'react-markdown';
 import PrintHeader from './PrintHeader';
 import KELParentReport, { type KELParentReportOptions } from './KELParentReport';
 import { listKelParentMeetingSources, draftKelParentMeetingText } from '../lib/kelParentMeetingDraft';
+import { listKelParentGoalProgress } from '../lib/kelParentGoalProgress';
+import { KEL_PROGRESS_LABELS } from '../lib/kelGoalProgress';
 import { getStudentNotes } from '../lib/studentMetrics';
 import { getStudentAssessmentDomainPerformance } from '../lib/assessmentDomainPerformance';
 import { exportSchuelerPDF } from '../lib/exportService';
@@ -349,6 +351,8 @@ export default function PrintCenter() {
   const [elternblattSubjects, setElternblattSubjects] = useState<string[]>(['Deutsch', 'Mathematik']);
   const [elternblattSubjectAreas, setElternblattSubjectAreas] = useState<Record<string, string[]>>({});
   const [elternblattSharedNoteIds, setElternblattSharedNoteIds] = useState<string[]>([]);
+  const [elternblattShowGoalProgress, setElternblattShowGoalProgress] = useState(false);
+  const [elternblattSharedProgressKeys, setElternblattSharedProgressKeys] = useState<string[]>([]);
   const [elternblattStrengthsText, setElternblattStrengthsText] = useState('');
   const [elternblattGoalsText, setElternblattGoalsText] = useState('');
   const [elternblattAgreementsText, setElternblattAgreementsText] = useState('');
@@ -360,6 +364,10 @@ export default function PrintCenter() {
   const selectedElternblattMeeting = elternblattSavedMeetings.find(
     meeting => meeting.id === elternblattSavedMeetingId,
   );
+  const elternblattProgressChoices = listKelParentGoalProgress(
+    app.kelGespraeche, elternblattSelectedStudentId, app.schuljahr || '',
+    selectedElternblattMeeting?.id || '',
+  );
   const elternblattNotes = getStudentNotes(app, elternblattSelectedStudentId)
     .filter((note: any) => typeof note.id === 'string' && note.id && typeof note.inhalt === 'string' && note.inhalt.trim());
   const elternblattOptions: KELParentReportOptions = {
@@ -368,6 +376,9 @@ export default function PrintCenter() {
     showNotes: elternblattShowNotes, showSignatures: elternblattShowSignatures,
     subjects: elternblattSubjects, subjectAreas: elternblattSubjectAreas,
     sharedNoteIds: elternblattSharedNoteIds,
+    showGoalProgress: elternblattShowGoalProgress,
+    progressMeetingId: selectedElternblattMeeting?.id || '',
+    sharedProgressKeys: elternblattSharedProgressKeys,
     strengthsText: elternblattStrengthsText,
     goalsText: elternblattGoalsText,
     agreementsText: elternblattAgreementsText,
@@ -382,6 +393,8 @@ export default function PrintCenter() {
       // into a newly selected document or a later KEL print session.
       setElternblattShowNotes(false);
       setElternblattSharedNoteIds([]);
+      setElternblattShowGoalProgress(false);
+      setElternblattSharedProgressKeys([]);
       setElternblattSubjectAreas({});
       setElternblattStrengthsText('');
       setElternblattGoalsText('');
@@ -675,6 +688,8 @@ export default function PrintCenter() {
         setElternblattSelectedStudentId(app.activePrintStudentId);
         setElternblattShowNotes(false);
         setElternblattSharedNoteIds([]);
+        setElternblattShowGoalProgress(false);
+        setElternblattSharedProgressKeys([]);
         setElternblattSubjectAreas({});
         setElternblattStrengthsText('');
         setElternblattGoalsText('');
@@ -698,6 +713,8 @@ export default function PrintCenter() {
     setElternblattSelectedStudentId(app.activePrintStudentId && students.some(st => st.id === app.activePrintStudentId) ? app.activePrintStudentId : firstStudentId);
     setElternblattSharedNoteIds([]);
     setElternblattShowNotes(false);
+    setElternblattShowGoalProgress(false);
+    setElternblattSharedProgressKeys([]);
     setElternblattSubjectAreas({});
     setElternblattStrengthsText('');
     setElternblattGoalsText('');
@@ -2869,6 +2886,8 @@ export default function PrintCenter() {
                         setElternblattSelectedStudentId(event.target.value);
                         setElternblattShowNotes(false);
                         setElternblattSharedNoteIds([]);
+                        setElternblattShowGoalProgress(false);
+                        setElternblattSharedProgressKeys([]);
                         setElternblattSubjectAreas({});
                         setElternblattStrengthsText('');
                         setElternblattGoalsText('');
@@ -2969,7 +2988,12 @@ export default function PrintCenter() {
                     <label htmlFor="kel-parent-meeting" className="block text-xs font-semibold text-slate-700">
                       Protokoll auswählen
                       <select id="kel-parent-meeting" value={elternblattSavedMeetingId}
-                        onChange={event => setElternblattSavedMeetingId(event.target.value)}
+                        onChange={event => {
+                          setElternblattSavedMeetingId(event.target.value);
+                          setElternblattShowGoalProgress(false);
+                          setElternblattSharedProgressKeys([]);
+                          setElternblattMeetingSourceDate('');
+                        }}
                         className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-xs">
                         <option value="">Kein Protokoll ausgewählt</option>
                         {elternblattSavedMeetings.map(meeting => (
@@ -2999,6 +3023,49 @@ export default function PrintCenter() {
                       className="rounded-lg bg-slate-800 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">
                       Ziele und Vereinbarungen übernehmen
                     </button>
+                  </div>
+                  <div data-kel-parent-goal-progress-controls className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <label className="flex items-start gap-2 text-xs font-bold text-amber-950">
+                      <input type="checkbox" data-kel-parent-goal-progress-enable
+                        disabled={!selectedElternblattMeeting || elternblattProgressChoices.length === 0}
+                        checked={elternblattShowGoalProgress}
+                        onChange={event => {
+                          setElternblattShowGoalProgress(event.target.checked);
+                          if (!event.target.checked) setElternblattSharedProgressKeys([]);
+                        }} />
+                      Einzelne Zielbeobachtungen für das Elternblatt freigeben
+                    </label>
+                    <p className="text-[0.6875rem] leading-relaxed text-amber-900">
+                      Zuerst ein gespeichertes KEL-Protokoll auswählen. Interne Verlaufsnotizen bleiben
+                      standardmäßig privat; nur separat angehakte Einträge erscheinen auf diesem Ausdruck.
+                      Diese Auswahl wird nicht gespeichert.
+                    </p>
+                    {selectedElternblattMeeting && elternblattProgressChoices.length === 0 && (
+                      <p className="text-xs text-slate-600">Für dieses Protokoll gibt es keine dokumentierten Zielbeobachtungen.</p>
+                    )}
+                    {elternblattShowGoalProgress && (
+                      <div data-kel-parent-goal-progress-choices className="max-h-56 space-y-1.5 overflow-y-auto">
+                        {elternblattProgressChoices.map(item => (
+                          <label key={item.key} className="flex items-start gap-2 rounded-lg bg-white p-2 text-xs text-slate-700">
+                            <input type="checkbox" data-kel-parent-goal-progress-checkbox
+                              checked={elternblattSharedProgressKeys.includes(item.key)}
+                              onChange={event => setElternblattSharedProgressKeys(previous => event.target.checked
+                                ? previous.includes(item.key) ? previous : [...previous, item.key]
+                                : previous.filter(key => key !== item.key))} />
+                            <span className="min-w-0 break-words">
+                              <strong>{item.goalTitle}</strong>
+                              <span className="block text-[0.6875rem] text-slate-600">
+                                {item.date.split('-').reverse().join('.')} · {KEL_PROGRESS_LABELS[item.status]}
+                              </span>
+                              <span className="block whitespace-pre-wrap">{item.note}</span>
+                            </span>
+                          </label>
+                        ))}
+                        <p className="text-[0.6875rem] font-semibold text-amber-900">
+                          {elternblattSharedProgressKeys.length} Eintrag/Einträge für diese Druckvorschau freigegeben
+                        </p>
+                      </div>
+                    )}
                   </div>
                   <div data-kel-parent-editor-controls className="space-y-3 rounded-xl border border-teal-200 bg-teal-50/70 p-3">
                     <div>

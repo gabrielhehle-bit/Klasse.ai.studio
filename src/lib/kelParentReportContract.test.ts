@@ -59,3 +59,26 @@ test('KEL parent-facing feedback is typed explicitly and never saved as a child 
   assert.doesNotMatch(report, /setApp\(/);
   assert.match(printCenter, /setElternblattStrengthsText\(''\);\s*setElternblattGoalsText\(''\);\s*setElternblattAgreementsText\(''\)/);
 });
+
+test('saved KEL goal observations require a separate per-entry opt-in in the shared parent sheet', () => {
+  assert.match(printCenter, /data-kel-parent-goal-progress-controls/);
+  assert.match(printCenter, /const \[elternblattShowGoalProgress, setElternblattShowGoalProgress\] = useState\(false\)/);
+  assert.match(printCenter, /const \[elternblattSharedProgressKeys, setElternblattSharedProgressKeys\] = useState<string\[\]>\(\[\]\)/);
+  assert.match(printCenter, /data-kel-parent-goal-progress-enable/);
+  assert.match(printCenter, /data-kel-parent-goal-progress-checkbox/);
+  assert.match(printCenter, /setElternblattSharedProgressKeys\(\[\]\)/);
+  assert.match(printCenter, /progressMeetingId: selectedElternblattMeeting\?\.id \|\| ''/);
+  assert.match(report, /options\.showGoalProgress\s*\? selectKelParentGoalProgress\(/);
+  assert.match(report, /data-kel-parent-goal-progress-print/);
+  assert.match(report, /data-kel-parent-goal-progress-item/);
+  assert.match(report, /selectedGoalProgress\.length > 0/);
+  assert.doesNotMatch(report, /setApp\(/);
+});
+
+test('switching child, protocol or print template resets consent and prevents stale progress', () => {
+  assert.match(printCenter, /setElternblattSelectedStudentId\(event\.target\.value\);\s*setElternblattShowNotes\(false\);\s*setElternblattSharedNoteIds\(\[\]\);\s*setElternblattShowGoalProgress\(false\);\s*setElternblattSharedProgressKeys\(\[\]\)/);
+  assert.match(printCenter, /setElternblattSavedMeetingId\(event\.target\.value\);\s*setElternblattShowGoalProgress\(false\);\s*setElternblattSharedProgressKeys\(\[\]\)/);
+  assert.match(printCenter, /if \(activeTemplate === 'kel_elternblatt'\)/);
+  assert.match(printCenter, /setElternblattSharedNoteIds\(\[\]\);\s*setElternblattShowGoalProgress\(false\);\s*setElternblattSharedProgressKeys\(\[\]\)/);
+  assert.match(printCenter, /if \(!event\.target\.checked\) setElternblattSharedProgressKeys\(\[\]\)/);
+});
