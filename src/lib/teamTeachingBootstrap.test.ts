@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { initialAppState } from './appState';
+import { initialAppState, syncActiveClass } from './appState';
 import { classRoomFingerprint } from './teamTeachingCrypto';
 import { hydrateLinkedTeamClass, applyHydratedTeamClassIfUnchanged } from './teamTeachingBootstrap';
 import type { ClassRoom } from '../types';
@@ -101,13 +101,13 @@ test('Teamteaching Zweitgerät erfindet bei fehlender Freigabe keine Revision', 
 
 test('asynchronous Team bootstrap keeps unrelated newer local changes and marks team baseline', () => {
   const pointer = room({ teamTeachingSharedClassId: 'shared-1' });
-  const latest = { ...initialAppState, activeClassId: pointer.id, classes: [pointer], theme: 'newer-theme' as any,
+  const latest = { ...initialAppState, activeClassId: pointer.id, classes: [pointer], firstLogin: false,
     currentPage: 'teamteaching' as any };
   const received = room({ wochenplanung: { frisch: { text: 'Remote' } } as any,
     teamTeaching: { sharedClassId: 'shared-1', role: 'editor', revision: 14, lastSyncedHash: 'old' } as any });
   const updated = applyHydratedTeamClassIfUnchanged(latest, pointer.id, 'shared-1',
-    classRoomFingerprint(pointer), received);
-  assert.equal(updated.theme, 'newer-theme');
+    classRoomFingerprint(syncActiveClass(latest).classes[0]), received);
+  assert.equal(updated.firstLogin, false);
   assert.equal(updated.currentPage, 'teamteaching');
   assert.deepEqual(updated.classes[0].wochenplanung, received.wochenplanung);
   assert.equal(updated.classes[0].teamTeaching?.revision, 14);
