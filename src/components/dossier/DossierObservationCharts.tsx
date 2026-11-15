@@ -31,7 +31,7 @@ export default function DossierObservationCharts({student,initialDetail='verhalt
  const timelineWidth=period==='year' && stats.weeks.length>6 ? Math.min(1700,stats.weeks.length*52+60) : 0;
  const saveDailyBehavior=(event:React.FormEvent)=>{
    event.preventDefault();
-   const stageId=entryStage || stats.stages[0]?.id;
+   const stageId=entryStage;
    const dayValue=new Date(entryDay+'T12:00:00');
    const validDay=/^\d{4}-\d{2}-\d{2}$/.test(entryDay) &&
      !Number.isNaN(dayValue.getTime()) && toLocalDateKey(dayValue)===entryDay &&
@@ -81,9 +81,10 @@ export default function DossierObservationCharts({student,initialDetail='verhalt
         </label>
         <label className="min-w-[8rem] flex-1 text-xs font-semibold text-slate-700">
           Verhaltensstufe
-          <select data-observation-behavior-stage value={entryStage || stats.stages[0]?.id || ''}
+          <select data-observation-behavior-stage value={entryStage}
             onChange={event=>setEntryStage(event.target.value)}
             className="mt-1 min-h-11 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-900">
+            <option value="">Stufe auswählen</option>
             {stats.stages.map(stage=><option key={stage.id} value={stage.id}>{stage.icon} {stage.label}</option>)}
           </select>
         </label>
