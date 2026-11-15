@@ -4385,28 +4385,17 @@ export default function PrintCenter() {
                 <span className="text-xs font-black uppercase tracking-wider text-slate-200">SCHRITT 3: Vorschau &amp; Druck</span>
               </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleTriggerPrint}
-                  disabled={students.length === 0 || (activeTemplate === 'materialabholung' && !pickupCanPrint)}
-                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-3xs active:scale-95 disabled:opacity-50"
-                >
-                  <Printer size={15} strokeWidth={2.5} />
-                  <span>Drucken (A4)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleTriggerPrint}
-                  disabled={students.length === 0 || (activeTemplate === 'materialabholung' && !pickupCanPrint)}
-                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 border border-slate-700"
-                >
-                  <Download size={14} />
-                  <span>Als PDF speichern</span>
-                </button>
-              </div>
-              <p className="w-full text-[11px] text-slate-300">PDF: Im Browser-Druckdialog „Als PDF speichern“ als Druckziel wählen. Beide Schaltflächen öffnen denselben Druckdialog.</p>
+              <button
+                type="button"
+                data-testid="print-center-primary-print"
+                onClick={handleTriggerPrint}
+                disabled={students.length === 0 || (activeTemplate === 'materialabholung' && !pickupCanPrint)}
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-black text-slate-950 transition-all hover:bg-emerald-400 disabled:opacity-50"
+              >
+                <Printer size={15} strokeWidth={2.5} />
+                Drucken oder als PDF speichern
+              </button>
+              <p className="w-full text-[11px] text-slate-300">Im Browser-Druckdialog den Drucker wählen oder „Als PDF speichern“ auswählen.</p>
             </div>
 
             <div className="flex flex-wrap justify-between items-center gap-2 no-print pt-1">
