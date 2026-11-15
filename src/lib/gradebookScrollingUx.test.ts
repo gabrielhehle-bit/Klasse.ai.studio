@@ -31,3 +31,15 @@ test('compact row control is view-only and original grade calculations remain in
   const displayControl = gradebook.split('data-gradebook-scroll-controls')[1].split('data-gradebook-scroll-container')[0];
   assert.doesNotMatch(displayControl, /setApp\(/);
 });
+
+
+test('coarse-pointer grade input fields and table scroll controls are finger-sized without changing desktop density', () => {
+  assert.match(gradebook, /@media screen and \(pointer: coarse\)/);
+  assert.match(gradebook, /\.gradebook-scroll-area \.gradebook-table input\[data-col\]/);
+  assert.match(gradebook, /min-height: 44px !important;/);
+  assert.match(gradebook, /min-width: 44px !important;/);
+  assert.match(gradebook, /font-size: 16px !important;/);
+  assert.match(gradebook, /\[data-gradebook-scroll-controls\] button/);
+  assert.match(gradebook, /-webkit-overflow-scrolling: touch/);
+  assert.match(gradebook, /\.gradebook-table--dense tbody tr \{ height: 2\.6rem; \}/);
+});
