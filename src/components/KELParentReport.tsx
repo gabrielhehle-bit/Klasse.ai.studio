@@ -7,6 +7,8 @@ import { getStudentAssessmentDomainPerformance } from '../lib/assessmentDomainPe
 import { summarizeKelMood, summarizeKelBehavior } from '../lib/kelParentReportMetrics';
 import { selectKelParentLearningAreas } from '../lib/kelParentAreaSelection';
 import { buildKelParentTrend } from '../lib/kelParentTrend';
+import { selectKelParentGoalProgress } from '../lib/kelParentGoalProgress';
+import { KEL_PROGRESS_LABELS } from '../lib/kelGoalProgress';
 import KELParentTrendChart from './KELParentTrendChart';
 
 export interface KELParentReportOptions {
@@ -20,6 +22,9 @@ export interface KELParentReportOptions {
   subjects: string[];
   subjectAreas?: Record<string, string[]>;
   sharedNoteIds: string[];
+  showGoalProgress: boolean;
+  progressMeetingId: string;
+  sharedProgressKeys: string[];
   strengthsText: string;
   goalsText: string;
   agreementsText: string;
@@ -66,6 +71,14 @@ export default function KELParentReport({
   );
   const approvedNotes = options.showNotes
     ? notes.filter((note: any) => typeof note.id === 'string' && options.sharedNoteIds.includes(note.id))
+    : [];
+  // Only an explicitly checked entry from this pupil's selected saved meeting is printable.
+  // Even stale or cross-pupil IDs supplied by a previous screen must fail closed.
+  const selectedGoalProgress = options.showGoalProgress
+    ? selectKelParentGoalProgress(
+        app.kelGespraeche, studentId, app.schuljahr || '',
+        options.progressMeetingId, options.sharedProgressKeys,
+      )
     : [];
   const strengths = approvedNotes.filter((note: any) => note.art === 'positiv' || note.kategorie === 'Erfolg');
   const nextSteps = approvedNotes.filter((note: any) => note.art === 'beobachten');
@@ -285,6 +298,25 @@ export default function KELParentReport({
           Vorlage für Ziele und Vereinbarungen aus dem gespeicherten KEL-Protokoll vom
           {' '}{options.meetingSourceDate.split('-').reverse().join('.')}. Vor der Weitergabe bitte den Text prüfen.
         </p>
+      )}
+
+      {selectedGoalProgress.length > 0 && (
+        <div data-kel-parent-goal-progress-print className="mt-2.5">
+          <Section title="Ausgewählte Zielbeobachtungen" detail={selectedGoalProgress.length + ' Einträge'} allowPageBreak>
+            <div className="space-y-2">
+              {selectedGoalProgress.map(item => (
+                <div key={item.key} data-kel-parent-goal-progress-item
+                  className="break-inside-avoid border-b border-slate-200 pb-2 text-[12px] leading-snug">
+                  <p className="font-bold text-slate-900">{item.goalTitle}</p>
+                  <p className="text-[11px] font-semibold text-slate-600">
+                    {item.date.split('-').reverse().join('.')} · {KEL_PROGRESS_LABELS[item.status]}
+                  </p>
+                  <p className="whitespace-pre-wrap break-words text-slate-700">{item.note}</p>
+                </div>
+              ))}
+            </div>
+          </Section>
+        </div>
       )}
 
       <div className="mt-2.5 grid grid-cols-2 gap-2.5">
