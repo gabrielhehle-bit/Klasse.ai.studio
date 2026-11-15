@@ -382,9 +382,8 @@ try{
   await click(c,'[data-observation-behavior-save]');
   await until(c,'one displayed behavior per calendar day',
     'document.querySelector("[data-observation-behavior]")?.textContent.includes("6 erfasste Tage")');
-  const latestBehavior=await evalPage(c,
-    'document.querySelector("[data-observation-behavior]")?.textContent');
-  if(!latestBehavior?.includes('Ermahnung'))throw new Error('The revised daily behavior stage is not displayed');
+  await until(c,'revised daily behavior stage displayed',
+    'document.querySelector("[data-observation-behavior] p.font-semibold")?.textContent.includes("Ermahnung")');
 
   await c.send('Emulation.setDeviceMetricsOverride',
     {width:360,height:780,deviceScaleFactor:1,mobile:true});
