@@ -70,3 +70,21 @@ test('legacy behavior stage is counted but flagged unassigned without pretending
   assert.equal(r.buckets[0].behaviorCount,1);
   assert.deepEqual(r.buckets[0].behaviorByStage,{'_unassigned':1});
 });
+
+
+test('six recorded pupil days produce five documented school weeks, with a real empty-week gap',()=>{
+ const dates=['2026-10-05','2026-10-12','2026-10-19','2026-10-23','2026-11-03','2026-11-09'];
+ const moods=Object.fromEntries(dates.map((date,i)=>[date,[5,4,3,2,1,2][i]]));
+ const logs=dates.map((datum,i)=>({datum,iconId:String([3,4,2,1,2,3][i])}));
+ const input=structuredClone({moods,logs});
+ const result=buildKelParentTrend('recent','2026-10-05','2026-11-15',moods,logs,
+  ['1','2','3','4'].map(id=>({id})));
+ assert.equal(result.buckets.length,6);
+ assert.equal(result.moodPeriods,5);
+ assert.equal(result.behaviorPeriods,5);
+ assert.deepEqual(result.buckets.map(b=>b.moodCount),[1,1,2,0,1,1]);
+ assert.deepEqual(result.buckets.map(b=>b.moodAverage),[5,4,2.5,null,1,2]);
+ assert.deepEqual(result.buckets.map(b=>b.behaviorCount),[1,1,2,0,1,1]);
+ assert.equal(result.buckets.reduce((sum,b)=>sum+b.behaviorCount,0),6);
+ assert.deepEqual({moods,logs},input);
+});
