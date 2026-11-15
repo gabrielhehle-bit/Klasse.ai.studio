@@ -333,10 +333,10 @@ try{
     ['2026-10-26','2'],['2026-11-02','1'],['2026-11-09','2']
   ];
   await click(c,'[data-menu-id="anwesenheit"]');
+  const pupilMoodSelector='select[aria-label='+q('Befinden für '+pupilName)+']';
   await until(c,'Attendance mood editor',
     'Boolean(document.querySelector("[aria-label=Anwesenheitsdatum]")) && ' +
-    'Boolean(document.querySelector("select[aria-label="+JSON.stringify("Befinden für "+'+q(pupilName)+')+"]"))');
-  const pupilMoodSelector='select[aria-label='+q('Befinden für '+pupilName)+']';
+    'Boolean(document.querySelector('+q(pupilMoodSelector)+'))');
   for(const [day,value] of datedMoods){
     await controlChange('input[aria-label="Anwesenheitsdatum"]',day);
     await until(c,'selected attendance day '+day,
