@@ -4,6 +4,9 @@ on:
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -21,10 +24,12 @@ jobs:
 
       - name: Inspect existing public production headers without signing in
         continue-on-error: true
+        env:
+          EXPECTED_KLASSIO_COMMIT: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
         run: node scripts/public-security-readonly.mjs
 
       - name: Explain scope
         run: |
-          echo "This read-only diagnostic inspects the PRE-DEPLOYMENT live site."
+          echo "This read-only diagnostic compares the live commit with the PR base or pushed main HEAD."
           echo "Its result is informational; it cannot confirm how this PR will behave after deployment."
           echo "No login, student data, active probing or production writes were performed."
