@@ -8,6 +8,7 @@ const VAULT_PASSWORD = process.env.KLASSIO_E2E_VAULT_PASSWORD || 'Klassio-KEL-Pr
 const PDF_PATH = process.env.KLASSIO_E2E_PDF || '/tmp/klassio-kel-parent-e2e.pdf';
 const SCREENSHOT_PATH = process.env.KLASSIO_E2E_SCREENSHOT || '/tmp/klassio-kel-parent-e2e.png';
 const LONG_PDF_PATH = process.env.KLASSIO_E2E_LONG_PDF || '/tmp/klassio-kel-parent-e2e-long.pdf';
+const SELECTED_PDF_PATH = process.env.KLASSIO_E2E_SELECTED_PDF || '/tmp/klassio-kel-parent-e2e-selected.pdf';
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const q = value => JSON.stringify(value);
 
