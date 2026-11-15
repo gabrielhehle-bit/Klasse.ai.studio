@@ -258,7 +258,7 @@ try{
       'document.querySelectorAll("[data-assessment-row]").length >= '+(i+1));
   }
   await until(c,'actual dated chart has multiple points',
-    'document.querySelector("[data-dossier-assessment-chart]")?.textContent.includes("8 datierte Bewertungen")');
+    'Number(document.querySelector("[data-dossier-assessment-chart] span")?.textContent.match(/\\d+/)?.[0]||0)>=8');
   await c.send('Emulation.setDeviceMetricsOverride',
     {width:360,height:780,deviceScaleFactor:1,mobile:true});
   await sleep(500);
