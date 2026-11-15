@@ -76,3 +76,13 @@ test('verification email delivery is bounded per source and globally', () => {
   assert.match(server, /const globalLimit = 200/);
   assert.match(server, /Retry-After/);
 });
+
+
+test('public read-only audit reports exact live version without credentials or writes', () => {
+  const diagnostic = readFileSync('scripts/public-security-readonly.mjs', 'utf8');
+  assert.match(diagnostic, /'\/api\/release'/);
+  assert.match(diagnostic, /report\.releaseCommit/);
+  assert.match(diagnostic, /\^\[a-f0-9\]\{40\}\$/);
+  assert.match(diagnostic, /method: 'GET'/);
+  assert.doesNotMatch(diagnostic, /method: 'POST'|method: 'PUT'|Authorization:|Cookie:/);
+});
