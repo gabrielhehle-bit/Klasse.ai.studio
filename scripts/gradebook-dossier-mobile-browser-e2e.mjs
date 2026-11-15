@@ -470,6 +470,18 @@ try{
     pages.push((await page.getTextContent()).items.map(item=>'str' in item?item.str:'').join(' '));
   }
   const printed=pages.join(' ');
+
+  console.log('Populated KEL A4 PDF diagnostic:',JSON.stringify({
+    pages:document.numPages,
+    mood:printed.includes('Befinden im Zeitverlauf'),
+    behavior:printed.includes('Dokumentation im Zeitverlauf'),
+    coverage:printed.includes('5 von 6 Wochen'),
+    guardians:printed.includes('Erziehungsberechtigte'),
+    teacher:printed.includes('Lehrperson'),
+    blank:pages.map(p=>!p.trim()),
+    excerpt:printed.slice(0,800)
+  }));
+
   if(!printed.includes('Befinden im Zeitverlauf') ||
     !printed.includes('Dokumentation im Zeitverlauf') ||
     !printed.includes('5 von 6 Wochen') ||
