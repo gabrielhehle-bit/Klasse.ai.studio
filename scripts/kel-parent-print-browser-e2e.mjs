@@ -7,6 +7,7 @@ const ACCESS_CODE = process.env.KLASSIO_E2E_ACCESS_CODE || 'ci-parent-print-acce
 const VAULT_PASSWORD = process.env.KLASSIO_E2E_VAULT_PASSWORD || 'Klassio-KEL-Print-2026!';
 const PDF_PATH = process.env.KLASSIO_E2E_PDF || '/tmp/klassio-kel-parent-e2e.pdf';
 const SCREENSHOT_PATH = process.env.KLASSIO_E2E_SCREENSHOT || '/tmp/klassio-kel-parent-e2e.png';
+const LONG_PDF_PATH = process.env.KLASSIO_E2E_LONG_PDF || '/tmp/klassio-kel-parent-e2e-long.pdf';
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const q = value => JSON.stringify(value);
 
@@ -143,12 +144,17 @@ try {
     'const rect=el=>{const r=el?.getBoundingClientRect();return r?{top:r.top,width:r.width,height:r.height}:null};' +
     'const visible=el=>el&&getComputedStyle(el).display!=="none"&&getComputedStyle(el).visibility!=="hidden";' +
     'return {parent:rect(parent),heading:rect(heading),sheet:rect(sheet),headingVisible:Boolean(visible(heading)),' +
-    'text:parent?.textContent.slice(0,800),genericVisible:Array.from(document.querySelectorAll(".global-print-header")).some(visible)};' +
+    'text:parent?.textContent.slice(0,800),genericVisible:Array.from(document.querySelectorAll(".global-print-header")).some(visible),' +
+    'signatureFields:Array.from(parent?.querySelectorAll("[data-kel-signature-field]")||[]).filter(visible).length,' +
+    'signatureSpaceHeights:Array.from(parent?.querySelectorAll("[data-kel-signature-space]")||[]).map(el=>el.getBoundingClientRect().height)};' +
     '})()');
   console.log('Actual print-media KEL layout:', JSON.stringify(metrics));
   if (!metrics.parent || !metrics.headingVisible || !metrics.heading || metrics.heading.width < 450) throw new Error('KEL heading invisible in Chrome print CSS');
   if (!metrics.sheet || metrics.sheet.width < 650 || metrics.sheet.width > 810) throw new Error('KEL sheet width does not fit A4');
   if (metrics.genericVisible || metrics.text.includes('Schulunterlagen')) throw new Error('Generic school header leaked into printed KEL report');
+  if (metrics.signatureFields !== 2 || metrics.signatureSpaceHeights.length !== 2 || metrics.signatureSpaceHeights.some(h => h < 115)) {
+    throw new Error('Parent and teacher signature fields do not retain 34mm writing room in A4 print: ' + JSON.stringify(metrics.signatureSpaceHeights));
+  }
 
   const screenshot = await client.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
   await fs.writeFile(SCREENSHOT_PATH, Buffer.from(screenshot.data, 'base64'));
@@ -163,12 +169,40 @@ try {
     content += '\n' + texts.items.map(item => ('str' in item ? item.str : '')).join(' ');
   }
   console.log('Actual printed PDF pages:', document.numPages, 'Text:', content.slice(0, 1100));
-  for (const phrase of ['Lern-', 'Entwicklungsübersicht', 'Arbeitet freundlich', 'Aufgaben zunehmend', 'Wir üben gemeinsam']) {
+  for (const phrase of ['Lern-', 'Entwicklungsübersicht', 'Arbeitet freundlich', 'Aufgaben zunehmend', 'Wir üben gemeinsam', 'Erziehungsberechtigte', 'Lehrperson', 'Unterschrift']) {
     if (!content.includes(phrase)) throw new Error('Printed KEL PDF missing: ' + phrase);
   }
   if (content.includes('Schulunterlagen')) throw new Error('Printed PDF still includes generic Schulunterlagen header');
   if (document.numPages !== 1) throw new Error('Compact default KEL test unexpectedly spans ' + document.numPages + ' PDF pages');
-  console.log('PASS Actual A4 KEL parent report print and PDF verification');
+  console.log('PASS Compact A4 PDF with parent/teacher signatures and readable text');
+
+  // A realistic longer conversation must produce a complete multi-page PDF rather
+  // than silently omitting the last written agreement or clipping signatures.
+  await client.send('Emulation.setEmulatedMedia', { media: 'screen' });
+  const longAgreements = Array.from({ length: 32 }, (_, i) =>
+    'Zusatzvereinbarung ' + String(i + 1).padStart(2, '0') + ': Weiterarbeit wird beim nächsten Gespräch besprochen.').join('\\n');
+  await fillInput(client, 'Gesprächsnotizen & Vereinbarungen', longAgreements);
+  await waitFor(client, 'long notes in KEL document',
+    'document.querySelector(".print-center-overlay [data-kel-parent-report]")?.textContent.includes("Zusatzvereinbarung 32")');
+  await client.send('Emulation.setEmulatedMedia', { media: 'print' });
+  const longResult = await client.send('Page.printToPDF', { printBackground: true, preferCSSPageSize: true });
+  const longBytes = new Uint8Array(Buffer.from(longResult.data, 'base64'));
+  await fs.writeFile(LONG_PDF_PATH, longBytes);
+  const longDocument = await getDocument({ data: longBytes, useSystemFonts: true, disableFontFace: true }).promise;
+  const pageTexts = [];
+  for (let i = 1; i <= longDocument.numPages; i++) {
+    const page = await longDocument.getPage(i);
+    const text = await page.getTextContent();
+    pageTexts.push(text.items.map(item => ('str' in item ? item.str : '')).join(' '));
+  }
+  console.log('Long KEL print PDF pages:', longDocument.numPages);
+  if (longDocument.numPages < 2 || longDocument.numPages > 5) throw new Error('Long KEL content pagination unexpected: ' + longDocument.numPages);
+  if (!pageTexts.join(' ').includes('Zusatzvereinbarung 32')) throw new Error('Last agreement missing in multi-page KEL PDF');
+  if (!pageTexts.some(text => text.includes('Erziehungsberechtigte') && text.includes('Lehrperson') && text.includes('Unterschrift'))) {
+    throw new Error('Parent and teacher signature boxes split across pages or missing');
+  }
+  if (pageTexts.some(text => !text.trim())) throw new Error('Unexpected completely blank KEL PDF page');
+  console.log('PASS Multi-page A4 KEL PDF preserves full text and signature fields');
 } finally {
   client.close();
 }
