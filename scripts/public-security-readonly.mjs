@@ -1,6 +1,6 @@
 // Read-only, unauthenticated public release diagnostic. NEVER send credentials, tokens or student records.
 const base = 'https://klassio.at';
-const routes = ['/', '/api/health', '/api/access/status'];
+const routes = ['/', '/api/health', '/api/access/status', '/api/release'];
 const failures = [];
 const messages = [];
 
@@ -27,6 +27,14 @@ for (const route of routes) {
       scriptAllowsUnsafeInline: scriptDirective.includes("'unsafe-inline'"),
       frameAncestors: csp.split(';').map(part => part.trim()).find(part => part.startsWith('frame-ancestors ')) || '',
     };
+    // The live release marker is public metadata. Never print response bodies
+    // from login, account, student-data or unrelated endpoints.
+    if (route === '/api/release' && response.ok) {
+      const payload = await response.json();
+      report.releaseCommit = typeof payload?.commit === 'string' && /^[a-f0-9]{40}$/.test(payload.commit)
+        ? payload.commit : null;
+      if (!report.releaseCommit) failures.push('/api/release did not return a valid commit');
+    }
     messages.push(report);
     if (response.status !== 200) failures.push(route + ' HTTP ' + response.status);
     if (!report.hsts || !report.noSniff || !report.scriptCspPresent) failures.push(route + ' missing security headers');
