@@ -142,3 +142,23 @@ test('next KEL meeting reads only earlier same-child goals, without importing th
   assert.doesNotMatch(parent,/fortschritt|\.notiz|progress/);
   assert.match(panel,/Interne Dokumentation, nicht automatisch im Elternblatt/);
 });
+
+test('KEL parent print is explicitly opt-in for each progress observation, with no saved selection', () => {
+  assert.match(view, /const \[selectedProgressIds, setSelectedProgressIds\] = useState<string\[\]>\(\[\]\)/);
+  assert.match(view, /data-kel-print-progress-selection/);
+  assert.match(view, /type === 'protocol' && progressChoices\.length > 0/);
+  assert.match(view, /selectedProgressIds\.includes\(item\.key\)/);
+  assert.match(view, /printableProgress\.length > 0/);
+  assert.match(view, /data-kel-print-selected-progress/);
+  assert.match(view, /className="print:hidden/);
+  assert.match(view, /data-kel-print-action/);
+  assert.match(view, /onClick=\{\(\) => window\.print\(\)\}/);
+  assert.doesNotMatch(view, /setApp\([^)]*selectedProgressIds/);
+});
+
+test('the KEL child self-assessment excludes progress and print choices are not persisted', () => {
+  assert.match(view, /const printableProgress = type === 'protocol'/);
+  assert.match(view, /getKelGoalProgress\(goal\)/);
+  assert.match(view, /selectedProgressIds\.includes\(key\)/);
+  assert.match(view, /meeting=\{meetings\.find\(item => item\.id === viewingMeeting\.id/);
+});
