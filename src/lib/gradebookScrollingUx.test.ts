@@ -39,7 +39,7 @@ test('coarse-pointer grade input fields and table scroll controls are finger-siz
   assert.match(gradebook, /min-height: 44px !important;/);
   assert.match(gradebook, /min-width: 44px !important;/);
   assert.match(gradebook, /font-size: 16px !important;/);
-  assert.match(gradebook, /\[data-gradebook-scroll-controls\] button/);
+  assert.match(gradebook, /\.gradebook-compact-scroll-controls button/);
   assert.match(gradebook, /-webkit-overflow-scrolling: touch/);
   assert.match(gradebook, /\.gradebook-table--dense tbody tr \{ height: 2\.6rem; \}/);
 });
