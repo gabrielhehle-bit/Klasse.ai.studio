@@ -108,8 +108,12 @@ try{
   await clickText(c,'Einrichtung abschließen');
   await until(c,'first-run setup','document.body?.textContent.toLowerCase().includes("willkommen bei klassio")');
   await clickText(c,'Beispielklasse erkunden');
-  await until(c,'sample teacher dashboard','Boolean(document.querySelector("[data-menu-id=noten]"))');
-
+  await until(c,'sample teacher dashboard','Array.from(document.querySelectorAll("button")).some(b=>b.textContent?.trim()==="Heute")');
+  // The desktop sidebar intentionally hides secondary destinations under "Mehr".
+  if(!await evalPage(c,'Boolean(document.querySelector("[data-menu-id=noten]"))')) {
+    await click(c,'button[aria-label^="Mehr ("]');
+  }
+  await until(c,'gradebook available in sidebar','Boolean(document.querySelector("[data-menu-id=noten]"))');
   await click(c,'[data-menu-id="noten"]');
   await until(c,'real gradebook table','Boolean(document.querySelector("[data-gradebook-scroll-container]"))');
   await usePhone(c);
