@@ -13,3 +13,22 @@ test('points compare normalized percentages and preserve a real zero',()=>{
  const s=getDossierAssessmentChart([{...item('zero','2026-09-01',''),percent:0},{...item('half','2026-09-02',''),percent:50},{...item('missing','2026-09-03','')}],'points');
  assert.deepEqual(s.rows.map(x=>x.value),[0,50]);assert.equal(s.excludedCount,1);
 });
+
+
+test('many documented dated assessments keep all measured grades in order without invented values', () => {
+ const entries=[
+  item('nov10','2026-11-10',2),item('sep02','2026-09-02',4),
+  item('oct01','2026-10-01',3),item('sep20','2026-09-20',3),
+  item('nov03','2026-11-03',2),item('oct15','2026-10-15',1),
+  item('nov12','2026-11-12',2),item('oct28','2026-10-28',1),
+  item('missing','',5),item('other','2026-11-14','f')
+ ];
+ const source=structuredClone(entries);
+ const result=getDossierAssessmentChart(entries,'grades');
+ assert.equal(result.rows.length,8);
+ assert.equal(result.excludedCount,2);
+ assert.deepEqual(result.rows.map(row=>row.id),
+  ['sep02','sep20','oct01','oct15','oct28','nov03','nov10','nov12']);
+ assert.deepEqual(result.rows.map(row=>row.value),[4,3,3,1,1,2,2,2]);
+ assert.deepEqual(entries,source);
+});
