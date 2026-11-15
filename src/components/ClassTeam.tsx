@@ -354,6 +354,62 @@ export default function ClassTeam() {
     }
   };
 
+  // One teacher-facing action. Re-read server metadata first; never guess that
+  // an old tab can upload safely or overwrite another teacher's changes.
+  const synchronizeTeamSimply = async () => {
+    if (busy || !activeSharedId || !activeRoom?.teamTeaching) return;
+    setBusy('smart-sync');
+    setError(null);
+    try {
+      const latestList = await listSharedClasses();
+      setShared(latestList);
+      const remote = latestList.find(item => item.id === activeSharedId);
+      const now = syncActiveClass(liveAppRef.current).classes.find(room => room.id === activeRoom.id);
+      if (!remote || !now?.teamTeaching || now.teamTeaching.sharedClassId !== activeSharedId) {
+        throw new Error('Teamverbindung nicht bestätigt. Bitte die Anmeldung und Gerätefreigabe prüfen.');
+      }
+      if (now.teamTeaching.syncStatus === 'conflict' || now.teamTeaching.syncStatus === 'error') {
+        setNotice('Die Änderungen müssen zuerst verglichen werden. Nichts wurde überschrieben.');
+        return;
+      }
+      const hasLocalEdits = !now.teamTeaching.lastSyncedHash
+        || classRoomFingerprint(now) !== now.teamTeaching.lastSyncedHash;
+      const remoteChanged = remote.revision > now.teamTeaching.revision;
+      if (remote.revision < now.teamTeaching.revision) {
+        throw new Error('Der Server meldet eine ältere Version. Bitte die Verbindung prüfen; nichts wurde übertragen.');
+      }
+      if (hasLocalEdits && remoteChanged) {
+        setNotice('Auf beiden Geräten wurde gearbeitet. Bitte „Änderungen zusammenführen“ wählen. Deine Eingaben bleiben erhalten.');
+        return;
+      }
+      if (hasLocalEdits && !now.teamTeaching.lastSyncedHash) {
+        throw new Error('Dieser Teamstand ist noch nicht bestätigt. Bitte zuerst die Verbindung prüfen; deine lokalen Eingaben bleiben erhalten.');
+      }
+      if (hasLocalEdits && now.teamTeaching.role === 'viewer') {
+        throw new Error('Dieses Gerät hat nur Leserechte. Die lokale Fassung bleibt erhalten.');
+      }
+      if (hasLocalEdits) {
+        // Recheck the live state after the network call to avoid pushing a stale
+        // snapshot when a teacher continues editing during the server check.
+        if (classRoomFingerprint(activeRoom) !== classRoomFingerprint(now)
+          || activeRoom.teamTeaching.revision !== now.teamTeaching.revision) {
+          throw new Error('Es gab inzwischen neue Eingaben. Bitte „Synchronisieren“ erneut auswählen.');
+        }
+        setBusy(null);
+        await push();
+      } else if (remoteChanged) {
+        setBusy(null);
+        await pull();
+      } else {
+        setNotice('Der gemeinsame Klassenstand ist bereits aktuell. Keine Aktion erforderlich.');
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Der Abgleich war nicht möglich. Deine Daten bleiben erhalten.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const prepareSafeMerge = async () => {
     if (!activeSharedId) return;
     setBusy('prepare-merge');
@@ -691,8 +747,8 @@ export default function ClassTeam() {
     'add-colleague': { title: 'Kollegin oder Kollegen hinzufügen', text: 'Wähle unten eine Lehrperson deiner Schule. Sie erhält Bearbeitungsrechte nur für die ausdrücklich geteilte Klasse.', button: 'Lehrperson auswählen' },
     'colleague-first-login': { title: 'Kollegin zuerst anmelden lassen', text: 'Die andere Lehrperson öffnet KLASSIO einmal mit ihrer eigenen verifizierten Schulmail und danach „Klassenteam“. Anschließend erscheint sie in der Auswahl.', button: 'Kollegium aktualisieren' },
     'resolve-conflict': { title: 'Unterschiede sicher klären', text: 'Auf zwei Geräten gibt es unterschiedliche Änderungen. Bitte die Fassungen vergleichen; nichts wird automatisch überschrieben.', button: 'Änderungen sicher vergleichen' },
-    'compare-versions': { title: 'Gemeinsamen Stand prüfen', text: 'KLASSIO gleicht Änderungen automatisch ab. Prüfe zunächst nur lesend, ob dieses Gerät und der Teamserver dieselbe Version zeigen.', button: 'Änderungen vergleichen' },
-    ready: { title: 'Klassenteam verbunden', text: 'Dieses Gerät hat einen bestätigten gemeinsamen Klassenstand. Änderungen am Wochenplan können jetzt von berechtigten Lehrpersonen übernommen werden.', button: 'Gemeinsamen Stand kontrollieren' },
+    'compare-versions': { title: 'Gemeinsamen Stand prüfen', text: 'Ein Klick: KLASSIO prüft den Serverstand und sendet oder lädt Änderungen, wenn das ohne Konflikt möglich ist. Bei gleichzeitigen Änderungen wird nichts überschrieben.', button: 'Jetzt synchronisieren' },
+    ready: { title: 'Klassenteam verbunden', text: 'Dieses Gerät hat einen bestätigten gemeinsamen Klassenstand. Änderungen am Wochenplan können jetzt von berechtigten Lehrpersonen übernommen werden.', button: 'Synchronisierung prüfen' },
   };
   const guide = guidance[nextAction];
   const onGuideAction = () => {
@@ -714,8 +770,8 @@ export default function ClassTeam() {
         if (activeRoom?.teamTeaching?.role === 'viewer' || !activeRoom?.teamTeaching?.lastSyncedHash) void showLatestChanges();
         else void prepareSafeMerge();
         break;
-      case 'compare-versions':
-      case 'ready': void showLatestChanges(); break;
+      case 'compare-versions': void synchronizeTeamSimply(); break;
+      case 'ready': void synchronizeTeamSimply(); break;
     }
   };
 
@@ -729,6 +785,9 @@ export default function ClassTeam() {
             <h1 className="mt-1 text-2xl font-black text-[var(--text)]">Eine Klasse gemeinsam führen</h1>
             <p className="mt-2 max-w-2xl text-sm font-medium leading-relaxed text-[var(--text2)]">
               Jede Lehrperson nutzt ihr eigenes Schulkonto. Nur ausdrücklich hinzugefügte Kolleg:innen erhalten Zugriff auf die verschlüsselte Klasse.
+            </p>
+            <p data-testid="team-autosave-explanation" className="mt-2 max-w-2xl text-xs font-semibold leading-relaxed text-[var(--text2)]">
+              Änderungen werden automatisch auf diesem Gerät gespeichert und bei bestehender Verbindung im Klassenteam abgeglichen. Du musst nicht nach jeder Eingabe auf „Senden“ oder „Laden“ klicken. Erst „Team synchronisiert“ bestätigt den gemeinsamen Stand.
             </p>
           </div>
         </div>
@@ -842,11 +901,14 @@ export default function ClassTeam() {
             )
           ) : (
             <div className="flex flex-wrap gap-2">
+              <button onClick={() => void synchronizeTeamSimply()} disabled={Boolean(busy)} data-testid="team-simple-sync" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-black text-white disabled:opacity-50"><RefreshCw size={16}/> {busy === 'smart-sync' ? 'Prüfe Teamstand …' : 'Jetzt synchronisieren'}</button>
+              <details className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm"><summary className="cursor-pointer font-semibold">Weitere Möglichkeiten bei Problemen</summary><div className="mt-3 flex flex-wrap gap-2">
               <button onClick={showLatestChanges} disabled={Boolean(busy)} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-bold disabled:opacity-50">Änderungen vergleichen</button>
               {activeRoom.teamTeaching.role !== 'viewer' && <button onClick={() => void prepareSafeMerge()} disabled={Boolean(busy) || !activeRoom.teamTeaching.lastSyncedHash} className="inline-flex items-center gap-2 rounded-xl border border-indigo-400 px-3 py-2 text-sm font-bold disabled:opacity-50">Änderungen zusammenführen</button>}
               <button onClick={() => void showHistory()} disabled={Boolean(busy) || historyBusy} aria-expanded={historyVisible} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-bold disabled:opacity-50">{historyVisible ? 'Versionsgeschichte schließen' : 'Versionsgeschichte'}</button>
               <button onClick={pull} disabled={Boolean(busy)} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-bold"><Download size={16}/> Neueste Version laden</button>
-              {activeRoom.teamTeaching.role !== 'viewer' && <button onClick={push} disabled={Boolean(busy) || activeRoom.teamTeaching.syncStatus === 'conflict' || !activeRoom.teamTeaching.lastSyncedHash} className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-3 py-2 text-sm font-black text-white disabled:opacity-50"><Upload size={16}/> Änderungen senden</button>}
+              {activeRoom.teamTeaching.role !== 'viewer' && <button onClick={push} disabled={Boolean(busy) || activeRoom.teamTeaching.syncStatus === 'conflict' || !activeRoom.teamTeaching.lastSyncedHash} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-bold disabled:opacity-50"><Upload size={16}/> Änderungen senden</button>}
+              </div></details>
             </div>
           )}
         </div>
