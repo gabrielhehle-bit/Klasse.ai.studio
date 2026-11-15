@@ -40,7 +40,7 @@ for (const route of routes) {
     if (!report.hsts || !report.noSniff || !report.scriptCspPresent) failures.push(route + ' missing security headers');
     if (route.startsWith('/api/') && !report.cacheControl.includes('no-store')) failures.push(route + ' no no-store');
     if (report.scriptAllowsUnsafeEval || report.scriptAllowsUnsafeInline) failures.push(route + ' permissive script CSP');
-    await response.body?.cancel();
+    if (!response.bodyUsed) await response.body?.cancel();
   } catch (error) {
     failures.push(route + ': ' + (error instanceof Error ? error.message : String(error)));
   }
