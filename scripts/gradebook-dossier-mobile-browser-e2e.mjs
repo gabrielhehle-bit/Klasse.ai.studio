@@ -51,7 +51,7 @@ async function openBrowser() {
 }
 async function evalPage(c,expression){
   const r=await c.send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true,userGesture:true});
-  if(r.exceptionDetails)throw new Error(r.exceptionDetails.text);
+  if(r.exceptionDetails)throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
   return r.result?.value;
 }
 async function until(c,label,expr){
@@ -123,8 +123,8 @@ try{
   if (!initiallyEmpty) throw new Error('Expected a fresh demo gradebook without assessments');
   await click(c,'#gradebook-add-assessment-trigger');
   await until(c,'assessment chooser','Boolean(document.querySelector("#gradebook-add-assessment-menu"))');
-  const canLzk = await evalPage(c,
-    'Boolean(document.querySelector("#gradebook-add-assessment-menu button[aria-label=\"Lernzielkontrolle für die Klasse anlegen\"]:not(:disabled)"))');
+  const lzkSelector='#gradebook-add-assessment-menu button[aria-label="Lernzielkontrolle für die Klasse anlegen"]:not(:disabled)';
+  const canLzk = await evalPage(c, 'Boolean(document.querySelector('+q(lzkSelector)+'))');
   if (canLzk) {
     await click(c,'#gradebook-add-assessment-menu button[aria-label="Lernzielkontrolle für die Klasse anlegen"]');
   } else {
