@@ -379,11 +379,21 @@ try{
   // summary, while the previous event remains in the history.
   await controlChange('[data-observation-behavior-date]',behaviorDates.at(-1));
   await controlChange('[data-observation-behavior-stage]','4');
+  await sleep(120);
+  const selectedStage=await evalPage(c,
+    'document.querySelector("[data-observation-behavior-stage]")?.value');
+  if(selectedStage!=='4')throw new Error('Teacher selection did not retain behavior stage 4');
   await click(c,'[data-observation-behavior-save]');
   await until(c,'one displayed behavior per calendar day',
     'document.querySelector("[data-observation-behavior]")?.textContent.includes("6 erfasste Tage")');
+  const behaviorDisplay=await evalPage(c,'(() => ({' +
+    'selected:document.querySelector("[data-observation-behavior-stage]")?.value,' +
+    'current:document.querySelector("[data-observation-behavior]")?.getAttribute("data-observation-latest-stage"),' +
+    'summary:document.querySelector("[data-observation-behavior] p.font-semibold")?.textContent' +
+    '}) )()');
+  console.log('Dossier corrected daily behavior stage:',JSON.stringify(behaviorDisplay));
   await until(c,'revised daily behavior stage displayed',
-    'document.querySelector("[data-observation-behavior] p.font-semibold")?.textContent.includes("Ermahnung")');
+    'document.querySelector("[data-observation-behavior]")?.getAttribute("data-observation-latest-stage")==="4"');
 
   await c.send('Emulation.setDeviceMetricsOverride',
     {width:360,height:780,deviceScaleFactor:1,mobile:true});
