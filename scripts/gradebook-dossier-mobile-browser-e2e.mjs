@@ -2,6 +2,9 @@
  * Real Chrome mobile smoke test. Uses a throwaway local server, a fresh
  * vault and the explicitly selected demo class; reads only UI/layout.
  */
+import fs from 'node:fs/promises';
+import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
+
 const BASE_URL = process.env.KLASSIO_E2E_BASE_URL || 'http://127.0.0.1:3100/login';
 const DEBUG_URL = process.env.KLASSIO_CHROME_DEBUG_URL || 'http://127.0.0.1:9282';
 const CODE = process.env.KLASSIO_E2E_ACCESS_CODE || 'ci-mobile-audit-access-2026';
@@ -418,4 +421,80 @@ try{
      metrics.find(m=>m.name==='behavior')?.bars<6)
     throw new Error('Recorded child mood or behavior chart is unreadable at 360px');
   console.log('PASS 6 mood dates aggregate to 5 weekly chart points and 6 behavior days at 360px');
+  console.log('Preparing parent A4 trend verification');
+  await c.send('Emulation.setTouchEmulationEnabled',{enabled:false});
+  await c.send('Emulation.setDeviceMetricsOverride',{width:1440,height:980,deviceScaleFactor:1,mobile:false});
+  await clickText(c,'Druckzentrum');
+  await until(c,'Druckzentrum after recorded observations','document.body?.textContent.includes("DRUCKZENTRUM")');
+  await clickText(c,'KEL-Elternblatt');
+  await until(c,'parent report controls','Boolean(document.querySelector("[data-kel-parent-report-controls]"))');
+  const reportStudentId=await evalPage(c,'(() => {const text='+q(pupilName.split(' ').reverse().join(' '))+';' +
+    'const option=Array.from(document.querySelector("#kel-parent-student")?.options||[]).find(o=>o.textContent?.trim()===text);return option?.value||null;})()');
+  if(!reportStudentId)throw new Error('Synthetic pupil missing from KEL parent selector');
+  await controlChange('#kel-parent-student',reportStudentId);
+  await controlChange('#kel-parent-period','recent');
+
+  await until(c,'recorded pupil loaded in parent print',
+    'document.querySelector(".print-center-overlay [data-kel-parent-report]")?.getAttribute("data-kel-parent-student-id")==='+q(reportStudentId));
+  for(const kind of ['mood','behavior']){
+    const coverage='[data-kel-trend-coverage='+kind+']';
+    await until(c,'documented '+kind+' periods explained',
+      'document.querySelector(".print-center-overlay '+coverage+'")?.textContent.includes("5 von 6 Wochen")');
+    const chart=await evalPage(c,'(() => {const root=document.querySelector(".print-center-overlay [data-kel-parent-report]");' +
+      'const box=root?.querySelector("[data-kel-trend='+kind+']");const svg=box?.querySelector("svg");' +
+      'return {coverage:box?.querySelector("[data-kel-trend-coverage]")?.textContent.trim(),' +
+      'svg:!!svg,ratio:svg?.getAttribute("preserveAspectRatio"),width:svg?.getBoundingClientRect().width,' +
+      'height:svg?.getBoundingClientRect().height};})()');
+    console.log('KEL parent chart '+kind+':',JSON.stringify(chart));
+    if(!chart.svg||chart.ratio!=='xMidYMid meet')
+      throw new Error('KEL parent '+kind+' trend chart is not printable/readable');
+  }
+  console.log('PASS Both KEL parent timelines distinguish 5 documented of 6 available weeks');
+
+  await evalPage(c,'document.body.classList.add("print-center-active","print-center-kel-parent-active")');
+  await c.send('Emulation.setEmulatedMedia',{media:'print'});
+  const printMetrics=await evalPage(c,'(() => {const root=document.querySelector(".print-center-overlay [data-kel-parent-report]");' +
+    'return ["mood","behavior"].map(kind=>{const chart=root?.querySelector("[data-kel-trend="+kind+"]");' +
+    'const svg=chart?.querySelector("svg");const r=svg?.getBoundingClientRect();return {kind,width:r?.width,height:r?.height,' +
+    'sheetRight:root?.getBoundingClientRect().right,chartRight:chart?.getBoundingClientRect().right};});})()');
+  console.log('KEL charts in actual A4 print media:',JSON.stringify(printMetrics));
+  if(printMetrics.some(m=>!m.width||m.width<200||!m.height||m.height<40||m.chartRight>m.sheetRight+2))
+    throw new Error('KEL parent trend chart clipped in A4 print media');
+  const output=await c.send('Page.printToPDF',{printBackground:true,preferCSSPageSize:true});
+  const bytes=new Uint8Array(Buffer.from(output.data,'base64'));
+  await fs.writeFile('/tmp/klassio-kel-trends-a4.pdf',bytes);
+  const document=await getDocument({data:bytes,useSystemFonts:true,disableFontFace:true}).promise;
+  const pages=[];
+  for(let pageNo=1;pageNo<=document.numPages;pageNo++){
+    const page=await document.getPage(pageNo);
+    pages.push((await page.getTextContent()).items.map(item=>'str' in item?item.str:'').join(' '));
+  }
+  const printed=pages.join(' ');
+
+  console.log('Populated KEL A4 PDF diagnostic:',JSON.stringify({
+    pages:document.numPages,
+    mood:printed.includes('Befinden im Zeitverlauf'),
+    behavior:printed.includes('Dokumentation im Zeitverlauf'),
+    coverage:printed.includes('5 von 6 Wochen'),
+    guardians:printed.includes('Erziehungsberechtigte'),
+    teacher:printed.includes('Lehrperson'),
+    blank:pages.map(p=>!p.trim()),
+    excerpt:printed.slice(0,800)
+  }));
+
+  const normal=printed.replace(/\s+/g,'');
+  if(!normal.includes('BefindenimZeitverlauf') ||
+    !normal.includes('DokumentationimZeitverlauf') ||
+    !normal.includes('5von6Wochen') ||
+    !normal.includes('Erziehungsberechtigte') ||
+    !normal.includes('Lehrperson') ||
+    pages.some(text=>!text.trim()) ||
+    document.numPages>3)
+    throw new Error('KEL A4 PDF lacks chart coverage, signature boxes or readable pages');
+  if(!pages.some(text=>{const normal=text.replace(/\s+/g,'');return normal.includes('BefindenimZeitverlauf')&&normal.includes('DokumentationimZeitverlauf');}))
+    throw new Error('KEL mood and behavior chart panels split across pages');
+  console.log('PASS Real populated KEL A4 PDF retains both trends, honest coverage and signatures');
+
+
+
 }finally{c.close();}

@@ -97,6 +97,7 @@ jobs:
         with:
           name: klassio-mobile-ui-${{ github.sha }}-${{ github.run_attempt }}
           path: |
+            /tmp/klassio-kel-trends-a4.pdf
             /tmp/klassio-mobile-ui-server.log
             /tmp/klassio-mobile-ui-chrome.log
           if-no-files-found: ignore

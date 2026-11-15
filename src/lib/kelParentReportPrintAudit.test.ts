@@ -94,3 +94,19 @@ test('long parent agreements can continue on the first A4 page without moving th
   assert.match(sheet, /data-kel-learning-section=\{allowPageBreak \? true : undefined\}/);
   assert.match(print, /\[data-kel-learning-section\] \{\s*break-inside: auto !important;\s*page-break-inside: auto !important;/);
 });
+
+
+test('KEL timelines explain documented periods and retain their real SVG proportions in print',()=>{
+ const chart=readFileSync('src/components/KELParentTrendChart.tsx','utf8');
+ const browser=readFileSync('scripts/gradebook-dossier-mobile-browser-e2e.mjs','utf8');
+ assert.match(chart,/data-kel-trend-coverage=\{kind\}/);
+ assert.match(chart,/observed\.length\} von \{buckets\.length\}/);
+ assert.match(chart,/Ohne Eintrag bedeutet: keine Aussage möglich/);
+ assert.match(chart,/preserveAspectRatio="xMidYMid meet"/);
+ assert.doesNotMatch(chart,/preserveAspectRatio="none"/);
+ assert.match(chart,/break-inside-avoid border-t/);
+ assert.match(browser,/PASS Both KEL parent timelines distinguish 5 documented of 6 available weeks/);
+ assert.match(browser,/Page\.printToPDF/);
+ assert.match(browser,/getDocument\(\{data:bytes/);
+ assert.match(browser,/PASS Real populated KEL A4 PDF retains both trends/);
+});
