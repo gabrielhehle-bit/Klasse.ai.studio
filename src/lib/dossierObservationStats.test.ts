@@ -21,7 +21,7 @@ test('year ends with selected school year and empty records produce no fictitiou
 
 
 test('six mood and six behavior dates from the school UI stay distinct, with no carried-forward empty weeks',()=>{
- const dates=['2026-10-05','2026-10-12','2026-10-19','2026-10-26','2026-11-02','2026-11-09'];
+ const dates=['2026-10-05','2026-10-12','2026-10-19','2026-10-23','2026-11-03','2026-11-09'];
  const app={
   schuljahr:'2026/27',
   schuelerStimmung:{
@@ -39,7 +39,7 @@ test('six mood and six behavior dates from the school UI stay distinct, with no 
  assert.equal(recent.moods.length,6);
  assert.equal(recent.behavior.length,6,'later feedback on the same day collapses to one daily observation');
  assert.equal(recent.behavior.find(item=>item.date==='2026-11-09')?.iconId,'4');
- assert.deepEqual(recent.weeks.filter(w=>w.moodCount>0).map(w=>w.mood),[5,4,3,2,1,2]);
+ assert.deepEqual(recent.weeks.filter(w=>w.moodCount>0).map(w=>w.mood),[5,4,2.5,1,2]);
  assert.equal(recent.weeks.reduce((n,w)=>n+w.behaviorCount,0),6);
  const fullYear=getDossierObservationStats(app,'a','year',new Date(2026,10,15,12));
  assert.ok(fullYear.weeks.some(w=>w.mood===null),'unreported school-year weeks remain gaps');
