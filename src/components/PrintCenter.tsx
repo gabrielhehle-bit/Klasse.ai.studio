@@ -688,6 +688,8 @@ export default function PrintCenter() {
         setElternblattSelectedStudentId(app.activePrintStudentId);
         setElternblattShowNotes(false);
         setElternblattSharedNoteIds([]);
+        setElternblattShowGoalProgress(false);
+        setElternblattSharedProgressKeys([]);
         setElternblattSubjectAreas({});
         setElternblattStrengthsText('');
         setElternblattGoalsText('');
@@ -711,6 +713,8 @@ export default function PrintCenter() {
     setElternblattSelectedStudentId(app.activePrintStudentId && students.some(st => st.id === app.activePrintStudentId) ? app.activePrintStudentId : firstStudentId);
     setElternblattSharedNoteIds([]);
     setElternblattShowNotes(false);
+    setElternblattShowGoalProgress(false);
+    setElternblattSharedProgressKeys([]);
     setElternblattSubjectAreas({});
     setElternblattStrengthsText('');
     setElternblattGoalsText('');
