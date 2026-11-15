@@ -38,5 +38,5 @@ test('real Chrome acceptance test creates dated, per-pupil observations and meas
  assert.match(e2e,/data-dossier-assessment-scroll/);
  assert.match(e2e,/recharts-line-dots circle/);
  assert.match(e2e,/width:360/);
- assert.match(e2e,/eight dated/i);
+ assert.match(e2e,/PASS 8 real dated/);
 });
