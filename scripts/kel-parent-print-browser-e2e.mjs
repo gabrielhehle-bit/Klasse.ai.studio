@@ -166,6 +166,19 @@ try {
   await clickButton(client, 'Protokoll ansehen');
   await waitFor(client, 'KEL progress section', 'Boolean(document.querySelector("[data-kel-goal-progress-add]"))');
 
+  await clickSelector(client, '[data-kel-goal-progress-add]');
+  await waitFor(client, 'progress editor 1', 'Boolean(document.querySelector("[data-kel-goal-progress-editor]"))');
+  await setControl(client, '[data-kel-goal-progress-editor] textarea', 'AUSGEWAEHLT: Liest drei Silben korrekt.');
+  await clickSelector(client, '[data-kel-goal-progress-save]');
+  await waitFor(client, 'first saved observation',
+    'document.querySelector("[data-kel-goal-progress-history]")?.textContent.includes("AUSGEWAEHLT")');
+  await clickSelector(client, '[data-kel-goal-progress-add]');
+  await setControl(client, '[data-kel-goal-progress-editor] textarea', 'NICHT FREIGEGEBEN: Benötigt weitere Uebung.');
+  await clickSelector(client, '[data-kel-goal-progress-save]');
+  await waitFor(client, 'second saved observation',
+    'document.querySelector("[data-kel-goal-progress-history]")?.textContent.includes("NICHT FREIGEGEBEN")');
+  console.log('PASS Two dated KEL observations saved for a sample child');
+
   await clickButton(client, 'Druckzentrum');
   await waitFor(client, 'print center', 'document.body?.textContent.includes("DRUCKZENTRUM")');
   await clickButton(client, 'KEL-Elternblatt');
