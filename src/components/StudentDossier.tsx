@@ -423,7 +423,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
       </div>
 
       {/* MAIN CONTENT AREA */}
-      <div className={`flex-1 min-w-0 overflow-hidden lg:overflow-visible ${
+      <div className={`flex-1 min-w-0 overflow-visible ${
         app.dossierFocusMode 
           ? 'bg-white rounded-none border-0 shadow-none p-3 md:p-5' 
           : 'bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 md:p-6'
@@ -432,11 +432,16 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
           {/* Dossierbereiche: one compact navigation level */}
           {!app.dossierFocusMode && (
           <div data-student-dossier-areas className="mb-4 border-b border-slate-100 pb-3 print:hidden">
-              <span className="sr-only">4 Bereiche</span>
+              <p id="dossier-mobile-main-nav-hint" data-dossier-mobile-nav-hint
+                className="mb-1.5 text-right text-[11px] font-medium text-slate-500 sm:hidden">
+                Weitere Bereiche: seitlich wischen →
+              </p>
               <div
-                className="flex gap-2 overflow-x-auto pb-1 scrollbar-none"
+                className="flex gap-2 overflow-x-auto overscroll-x-contain pb-1 scrollbar-none"
                 role="tablist"
+                tabIndex={0}
                 aria-label="Schülerdossier-Hauptbereiche"
+                aria-describedby="dossier-mobile-main-nav-hint"
               >
                 {getFilteredMainAreas().map((area) => {
                   const isActive = activeMainArea === area.id;
