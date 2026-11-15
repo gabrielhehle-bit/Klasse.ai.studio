@@ -184,6 +184,29 @@ try {
   await clickButton(client, 'KEL-Elternblatt');
   await waitFor(client, 'KEL options', 'Boolean(document.querySelector("[data-kel-parent-report-controls]"))');
   await waitFor(client, 'pupil in KEL parent sheet', 'Boolean(document.querySelector("[data-kel-parent-student-id]"))');
+  await setControl(client, '#kel-parent-student', sampleStudentId);
+  await waitFor(client, 'selected sample child', 'document.querySelector("[data-kel-parent-student-id]")?.getAttribute("data-kel-parent-student-id")===' + q(sampleStudentId));
+  await waitFor(client, 'new meeting offered for sample child', 'document.querySelector("#kel-parent-meeting")?.options.length > 1');
+  const sampleMeetingId=await evaluate(client,'document.querySelector("#kel-parent-meeting")?.options[1]?.value');
+  await setControl(client, '#kel-parent-meeting', sampleMeetingId);
+  await waitFor(client, 'goal opt-in enabled by selected meeting',
+    'Boolean(document.querySelector("[data-kel-parent-goal-progress-enable]:not([disabled])"))');
+  const beforeConsent = await evaluate(client,
+    '(() => {const p=document.querySelector("[data-kel-parent-report]");return {enabled:document.querySelector("[data-kel-parent-goal-progress-enable]")?.checked,private:p?.textContent.includes("AUSGEWAEHLT")||p?.textContent.includes("NICHT FREIGEGEBEN")};})()');
+  if(beforeConsent.enabled || beforeConsent.private)throw new Error('Default parent report exposes private observations');
+  await clickSelector(client, '[data-kel-parent-goal-progress-enable]');
+  await waitFor(client, 'both observations separately selectable',
+    'document.querySelectorAll("[data-kel-parent-goal-progress-checkbox]").length===2');
+  if(await evaluate(client,'Boolean(document.querySelector("[data-kel-parent-goal-progress-print]"))'))
+    throw new Error('Checking section toggle alone exposed goal progress');
+  await clickSelector(client, '[data-kel-parent-goal-progress-checkbox]');
+  await waitFor(client, 'one approved observation in print preview',
+    'document.querySelectorAll("[data-kel-parent-goal-progress-item]").length===1');
+  const afterConsent=await evaluate(client,
+    '(() => {const p=document.querySelector("[data-kel-parent-report]");return {selected:p?.textContent.includes("AUSGEWAEHLT"),excluded:p?.textContent.includes("NICHT FREIGEGEBEN")};})()');
+  if(!afterConsent.selected || afterConsent.excluded)
+    throw new Error('Individual observation approval failed: ' + JSON.stringify(afterConsent));
+
   await fillInput(client, 'Das gelingt schon gut', 'Arbeitet freundlich mit anderen Kindern');
   await fillInput(client, 'Daran arbeiten wir weiter', 'Aufgaben zunehmend selbstständig beginnen');
   await fillInput(client, 'Gesprächsnotizen & Vereinbarungen', 'Wir üben gemeinsam täglich zehn Minuten.');
