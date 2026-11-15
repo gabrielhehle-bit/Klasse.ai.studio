@@ -180,7 +180,7 @@ try {
   // than silently omitting the last written agreement or clipping signatures.
   await client.send('Emulation.setEmulatedMedia', { media: 'screen' });
   const longAgreements = Array.from({ length: 32 }, (_, i) =>
-    'Zusatzvereinbarung ' + String(i + 1).padStart(2, '0') + ': Weiterarbeit wird beim nächsten Gespräch besprochen.').join('\\n');
+    'Zusatzvereinbarung ' + String(i + 1).padStart(2, '0') + ': Weiterarbeit wird beim nächsten Gespräch besprochen.').join('\n');
   await fillInput(client, 'Gesprächsnotizen & Vereinbarungen', longAgreements);
   await waitFor(client, 'long notes in KEL document',
     'document.querySelector(".print-center-overlay [data-kel-parent-report]")?.textContent.includes("Zusatzvereinbarung 32")');
