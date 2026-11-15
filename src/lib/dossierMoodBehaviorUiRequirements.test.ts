@@ -37,5 +37,5 @@ test('real browser acceptance enters six moods via Attendance and six daily beha
  assert.match(chrome,/datedMoods/);
  assert.match(chrome,/\["behavior","mood"\]/);
  assert.match(chrome,/data-observation-chart-scroll=/);
- assert.match(chrome,/PASS 6 mood dates and 6 behavior days visibly rendered/);
+ assert.match(chrome,/PASS 6 mood dates aggregate to 5 weekly chart points/);
 });
