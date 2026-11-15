@@ -382,6 +382,9 @@ export default function ClassTeam() {
         setNotice('Auf beiden Geräten wurde gearbeitet. Bitte „Änderungen zusammenführen“ wählen. Deine Eingaben bleiben erhalten.');
         return;
       }
+      if (hasLocalEdits && !now.teamTeaching.lastSyncedHash) {
+        throw new Error('Dieser Teamstand ist noch nicht bestätigt. Bitte zuerst die Verbindung prüfen; deine lokalen Eingaben bleiben erhalten.');
+      }
       if (hasLocalEdits && now.teamTeaching.role === 'viewer') {
         throw new Error('Dieses Gerät hat nur Leserechte. Die lokale Fassung bleibt erhalten.');
       }
