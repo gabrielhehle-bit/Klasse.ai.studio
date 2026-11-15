@@ -311,4 +311,99 @@ try{
     throw new Error('School-year timelines are clipped or not appropriately sized on phone');
   console.log('PASS School-year weekly development timeline scrolls while short monthly history stays compact');
 
+
+  // Full UI check: six child moods are entered via Attendance's real date and
+  // dropdown controls, then six daily statuses via the Dossier's own editor.
+  // All changes belong to the CI-only demo vault, never to school accounts.
+  await c.send('Emulation.setTouchEmulationEnabled',{enabled:false});
+  await c.send('Emulation.setDeviceMetricsOverride',
+    {width:1440,height:980,deviceScaleFactor:1,mobile:false});
+  const pupilName=first.replace(/^Schülerdossier und KEL für /,'').replace(/ öffnen$/,'');
+  if(!pupilName)throw new Error('Cannot resolve selected synthetic pupil from KEL button');
+  const controlChange=async (selector,value)=>{
+    const expression='(() => {const el=document.querySelector('+q(selector)+');' +
+      'if(!el)return false;const p=el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;' +
+      'Object.getOwnPropertyDescriptor(p,"value").set.call(el,'+q(value)+');' +
+      'el.dispatchEvent(new Event("input",{bubbles:true}));' +
+      'el.dispatchEvent(new Event("change",{bubbles:true}));return true;})()';
+    if(!await evalPage(c,expression))throw new Error('UI control not found: '+selector);
+  };
+  const datedMoods=[
+    ['2026-10-05','5'],['2026-10-12','4'],['2026-10-19','3'],
+    ['2026-10-26','2'],['2026-11-02','1'],['2026-11-09','2']
+  ];
+  await click(c,'[data-menu-id="anwesenheit"]');
+  await until(c,'Attendance mood editor',
+    'Boolean(document.querySelector("[aria-label=Anwesenheitsdatum]")) && ' +
+    'Boolean(document.querySelector("select[aria-label="+JSON.stringify("Befinden für "+'+q(pupilName)+')+"]"))');
+  const pupilMoodSelector='select[aria-label='+q('Befinden für '+pupilName)+']';
+  for(const [day,value] of datedMoods){
+    await controlChange('input[aria-label="Anwesenheitsdatum"]',day);
+    await until(c,'selected attendance day '+day,
+      'document.querySelector("[aria-label=Anwesenheitsdatum]")?.value==='+q(day));
+    await controlChange(pupilMoodSelector,value);
+    await until(c,'mood '+value+' saved on '+day,
+      'document.querySelector('+q(pupilMoodSelector)+')?.value==='+q(value));
+  }
+  // Revisiting an earlier day forces a fresh read of the date-specific value.
+  await controlChange('input[aria-label="Anwesenheitsdatum"]',datedMoods[0][0]);
+  await until(c,'first mood persisted after changing the day',
+    'document.querySelector('+q(pupilMoodSelector)+')?.value==='+q(datedMoods[0][1]));
+  console.log('PASS Six real dated child-mood selections entered in Attendance');
+
+  await click(c,'[data-menu-id="kel"]');
+  await until(c,'KEL portal reopened for selected synthetic pupil',
+    'Boolean(document.querySelector("[data-kel-shared-dossier-portal]"))');
+  await click(c,'button[aria-label='+q(first)+']');
+  await until(c,'Dossier reopened for child','Boolean(document.querySelector("[data-student-dossier-areas]"))');
+  await click(c,'[data-student-dossier-areas] button[role="tab"]:nth-child(3)');
+  await until(c,'observation charts from pupil records',
+    'Boolean(document.querySelector("[data-dossier-observation-charts]"))');
+  await until(c,'six mood records in observations',
+    'document.querySelector("[data-observation-mood]")?.textContent.includes("6 Rückmeldungen")');
+
+  const stageIds=['3','4','2','1','2','3'];
+  const behaviorDates=datedMoods.map(x=>x[0]);
+  for(let i=0;i<behaviorDates.length;i++){
+    await controlChange('[data-observation-behavior-date]',behaviorDates[i]);
+    await controlChange('[data-observation-behavior-stage]',stageIds[i]);
+    await click(c,'[data-observation-behavior-save]');
+    await until(c,'daily behavior record '+(i+1),
+      'document.querySelector("[data-observation-behavior]")?.textContent.includes('+
+      q((i+1)+' erfasste Tage')+')');
+  }
+  // Recording a revised status for one day changes only the visible daily
+  // summary, while the previous event remains in the history.
+  await controlChange('[data-observation-behavior-date]',behaviorDates.at(-1));
+  await controlChange('[data-observation-behavior-stage]','4');
+  await click(c,'[data-observation-behavior-save]');
+  await until(c,'one displayed behavior per calendar day',
+    'document.querySelector("[data-observation-behavior]")?.textContent.includes("6 erfasste Tage")');
+  const latestBehavior=await evalPage(c,
+    'document.querySelector("[data-observation-behavior]")?.textContent');
+  if(!latestBehavior?.includes('Ermahnung'))throw new Error('The revised daily behavior stage is not displayed');
+
+  await c.send('Emulation.setDeviceMetricsOverride',
+    {width:360,height:780,deviceScaleFactor:1,mobile:true});
+  await c.send('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:5});
+  await click(c,'[aria-label="Beobachtungszeitraum"] button:last-child');
+  await until(c,'observation school-year selected',
+    'document.querySelector("[aria-label=Beobachtungszeitraum] button:last-child")?.getAttribute("aria-pressed")==="true"');
+  await until(c,'dated mood SVG rendered on a phone',
+    'Boolean(document.querySelector("[data-observation-chart-scroll=mood] svg.recharts-surface"))');
+  const metrics=await evalPage(c,'(() => ["behavior","mood"].map(name=>{' +
+    'const scroll=document.querySelector("[data-observation-chart-scroll="+JSON.stringify(name)+"]");' +
+    'const svg=scroll?.querySelector("svg.recharts-surface");' +
+    'if(!scroll||!svg)return {name,error:"missing"};' +
+    'scroll.scrollLeft=scroll.scrollWidth;' +
+    'return {name,width:scroll.clientWidth,total:scroll.scrollWidth,left:scroll.scrollLeft,' +
+    'right:scroll.getBoundingClientRect().right,' +
+    'points:svg.querySelectorAll(".recharts-line-dots circle").length,' +
+    'bars:svg.querySelectorAll(".recharts-rectangle").length};}) )()');
+  console.log('Dossier real mood and behavior charts at 360px:',JSON.stringify(metrics));
+  if(metrics.some(m=>m.error||m.total<=m.width+100||m.left<100||m.right>362) ||
+     metrics.find(m=>m.name==='mood')?.points<6 ||
+     metrics.find(m=>m.name==='behavior')?.bars<6)
+    throw new Error('Recorded child mood or behavior chart is unreadable at 360px');
+  console.log('PASS 6 mood dates and 6 behavior days visibly rendered on 360px school-year charts');
 }finally{c.close();}
