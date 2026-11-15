@@ -1756,7 +1756,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
             min-width: 44px !important;
             font-size: 16px !important;
           }
-          [data-gradebook-scroll-controls] button {
+          .gradebook-compact-scroll-controls button {
             min-height: 44px;
             min-width: 44px;
           }
@@ -3706,7 +3706,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                   </div>
 
                   {students.length > 0 && (cfg.sa || cfg.lzk || cfg.wp || cfg.obj || cfg.mi || cfg.hue) && (
-                    <div data-gradebook-scroll-controls className="ml-auto flex shrink-0 items-center gap-1.5" aria-label="Tabellenansicht">
+                    <div data-gradebook-scroll-controls className="gradebook-compact-scroll-controls ml-auto flex shrink-0 items-center gap-1.5" aria-label="Tabellenansicht">
                       <button type="button" aria-pressed={denseGradebookRows}
                         aria-label={denseGradebookRows ? 'Normale Zeilen anzeigen' : 'Enge Zeilen anzeigen'}
                         onClick={() => setDenseGradebookRows(value => !value)}
