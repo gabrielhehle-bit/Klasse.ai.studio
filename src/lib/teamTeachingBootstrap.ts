@@ -1,5 +1,6 @@
 import type { AppState, ClassRoom } from '../types';
 import { syncActiveClass } from './appState';
+import { classRoomFingerprint } from './teamTeachingCrypto';
 import { adoptAcknowledgedTeamRoom } from './teamTeachingProjection';
 import { pullSharedClass } from './teamTeachingService';
 
@@ -37,5 +38,30 @@ export async function hydrateLinkedTeamClass(
     teamTeachingSharedClassId: sharedClassId,
   };
 
+  return adoptAcknowledgedTeamRoom(current, receivedRoom);
+}
+
+
+/**
+ * Apply an asynchronous Teamteaching bootstrap against the CURRENT state,
+ * never the state captured before the network request. Reject it when the
+ * active class or pointer changed during the request. This preserves unrelated
+ * account edits while keeping the team's authoritative class snapshot.
+ */
+export function applyHydratedTeamClassIfUnchanged(
+  previous: AppState,
+  roomId: string,
+  sharedClassId: string,
+  expectedFingerprint: string,
+  receivedRoom: ClassRoom,
+): AppState {
+  if (previous.activeClassId !== roomId) return previous;
+  const current = syncActiveClass(previous);
+  const currentRoom = current.classes?.find(room => room.id === roomId);
+  if (!currentRoom || currentRoom.teamTeaching
+    || currentRoom.teamTeachingSharedClassId !== sharedClassId
+    || classRoomFingerprint(currentRoom) !== expectedFingerprint
+    || receivedRoom.id !== roomId
+    || receivedRoom.teamTeaching?.sharedClassId !== sharedClassId) return previous;
   return adoptAcknowledgedTeamRoom(current, receivedRoom);
 }
