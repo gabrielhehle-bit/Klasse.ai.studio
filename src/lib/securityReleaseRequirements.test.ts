@@ -84,5 +84,6 @@ test('public read-only audit reports exact live version without credentials or w
   assert.match(diagnostic, /report\.releaseCommit/);
   assert.match(diagnostic, /\^\[a-f0-9\]\{40\}\$/);
   assert.match(diagnostic, /method: 'GET'/);
+  assert.match(diagnostic, /if \(!response\.bodyUsed\) await response\.body\?\.cancel\(\)/);
   assert.doesNotMatch(diagnostic, /method: 'POST'|method: 'PUT'|Authorization:|Cookie:/);
 });
