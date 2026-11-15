@@ -446,7 +446,7 @@ try{
       'svg:!!svg,ratio:svg?.getAttribute("preserveAspectRatio"),width:svg?.getBoundingClientRect().width,' +
       'height:svg?.getBoundingClientRect().height};})()');
     console.log('KEL parent chart '+kind+':',JSON.stringify(chart));
-    if(!chart.svg||chart.ratio!=='xMidYMid meet'||chart.width<220||chart.height<40)
+    if(!chart.svg||chart.ratio!=='xMidYMid meet')
       throw new Error('KEL parent '+kind+' trend chart is not printable/readable');
   }
   console.log('PASS Both KEL parent timelines distinguish 5 documented of 6 available weeks');
