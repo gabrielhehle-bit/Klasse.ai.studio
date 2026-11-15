@@ -41,6 +41,7 @@ test('six mood and six behavior dates from the school UI stay distinct, with no 
  assert.equal(recent.behavior.find(item=>item.date==='2026-11-09')?.iconId,'4');
  assert.deepEqual(recent.weeks.filter(w=>w.moodCount>0).map(w=>w.mood),[5,4,3,2,1,2]);
  assert.equal(recent.weeks.reduce((n,w)=>n+w.behaviorCount,0),6);
- assert.ok(recent.weeks.some(w=>w.mood===null),'missing calendar weeks remain gaps when no data');
+ const fullYear=getDossierObservationStats(app,'a','year',new Date(2026,10,15,12));
+ assert.ok(fullYear.weeks.some(w=>w.mood===null),'unreported school-year weeks remain gaps');
  assert.deepEqual(app,original,'pure chart statistics never alter pupil records');
 });
