@@ -108,6 +108,22 @@ async function clickCheckbox(c, label) {
   if (!await evaluate(c, expr)) throw new Error('Checkbox not found: ' + label);
 }
 
+async function setControl(c, selector, value) {
+  const expr = '(() => {const f=document.querySelector(' + q(selector) + ');if(!f)return false;' +
+    'const proto=f instanceof HTMLTextAreaElement?HTMLTextAreaElement.prototype:' +
+    'f instanceof HTMLSelectElement?HTMLSelectElement.prototype:HTMLInputElement.prototype;' +
+    'Object.getOwnPropertyDescriptor(proto,"value").set.call(f,' + q(value) + ');' +
+    'f.dispatchEvent(new Event("input",{bubbles:true}));' +
+    'f.dispatchEvent(new Event("change",{bubbles:true}));return true;})()';
+  for (let i=0;i<40;i++){if(await evaluate(c,expr))return;await sleep(250);}
+  throw new Error('Field unavailable: '+selector);
+}
+async function clickSelector(c, selector) {
+  const ok=await evaluate(c,'(() => {const n=document.querySelector(' + q(selector) +
+    ');if(!n||n.disabled)return false;n.click();return true;})()');
+  if(!ok)throw new Error('Control unavailable: '+selector);
+}
+
 const client = await createClient();
 try {
   await client.send('Page.navigate', { url: BASE_URL });
