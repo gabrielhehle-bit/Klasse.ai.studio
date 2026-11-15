@@ -40,3 +40,10 @@ test('real Chrome acceptance test creates dated, per-pupil observations and meas
  assert.match(e2e,/width:360/);
  assert.match(e2e,/PASS 8 real dated/);
 });
+
+
+test('switching a brand-new assessment from SA to LZK never reuses the SA slot',()=>{
+ assert.match(evidence,/const category = e\.target\.value as 'sa' \| 'lzk' \| 'wp' \| 'aufgaben'/);
+ assert.match(evidence,/nextDossierAssessmentColumnIndex\(app, editingItem\.fach, category\)/);
+ assert.match(evidence,/colIndex: editingItem\.originalCategory/);
+});
