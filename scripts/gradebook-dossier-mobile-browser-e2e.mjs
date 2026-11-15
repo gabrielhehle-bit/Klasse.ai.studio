@@ -419,4 +419,16 @@ try{
     throw new Error('Recorded child mood or behavior chart is unreadable at 360px');
   console.log('PASS 6 mood dates aggregate to 5 weekly chart points and 6 behavior days at 360px');
   console.log('Preparing parent A4 trend verification');
+  await c.send('Emulation.setTouchEmulationEnabled',{enabled:false});
+  await c.send('Emulation.setDeviceMetricsOverride',{width:1440,height:980,deviceScaleFactor:1,mobile:false});
+  await clickText(c,'Druckzentrum');
+  await until(c,'Druckzentrum after recorded observations','document.body?.textContent.includes("DRUCKZENTRUM")');
+  await clickText(c,'KEL-Elternblatt');
+  await until(c,'parent report controls','Boolean(document.querySelector("[data-kel-parent-report-controls]"))');
+  const reportStudentId=await evalPage(c,'(() => {const text='+q(pupilName.split(' ').reverse().join(' '))+';' +
+    'const option=Array.from(document.querySelector("#kel-parent-student")?.options||[]).find(o=>o.textContent?.trim()===text);return option?.value||null;})()');
+  if(!reportStudentId)throw new Error('Synthetic pupil missing from KEL parent selector');
+  await controlChange('#kel-parent-student',reportStudentId);
+  await controlChange('#kel-parent-period','recent');
+
 }finally{c.close();}
