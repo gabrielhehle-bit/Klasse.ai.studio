@@ -2348,7 +2348,14 @@ const PrintView: React.FC<{
              >
                <ArrowLeft size={16} /> Zurück
              </button>
-             
+             <button
+               type="button"
+               data-kel-print-action
+               onClick={() => window.print()}
+               className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-teal-700 px-5 py-3 text-xs font-bold text-white hover:bg-teal-800"
+             >
+               <Printer size={16} /> Drucken / Als PDF speichern
+             </button>
           </div>
 
           {type === 'protocol' && progressChoices.length > 0 && (
