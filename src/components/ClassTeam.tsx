@@ -730,6 +730,9 @@ export default function ClassTeam() {
             <p className="mt-2 max-w-2xl text-sm font-medium leading-relaxed text-[var(--text2)]">
               Jede Lehrperson nutzt ihr eigenes Schulkonto. Nur ausdrücklich hinzugefügte Kolleg:innen erhalten Zugriff auf die verschlüsselte Klasse.
             </p>
+            <p data-testid="team-autosave-explanation" className="mt-2 max-w-2xl text-xs font-semibold leading-relaxed text-[var(--text2)]">
+              Änderungen werden automatisch auf diesem Gerät gespeichert und bei bestehender Verbindung im Klassenteam abgeglichen. Du musst nicht nach jeder Eingabe auf „Senden“ oder „Laden“ klicken. Erst „Team synchronisiert“ bestätigt den gemeinsamen Stand.
+            </p>
           </div>
         </div>
       </header>
