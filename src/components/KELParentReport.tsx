@@ -301,7 +301,7 @@ export default function KELParentReport({
       </div>
 
       <div className="mt-2.5">
-        <Section title="Gesprächsnotizen &amp; Vereinbarungen" detail="Platz zum Ergänzen">
+        <Section title="Gesprächsnotizen &amp; Vereinbarungen" detail="Platz zum Ergänzen" allowPageBreak>
           {agreementLines.map((line, index) => <EmptyLine key={'typed-agreement-' + index}>{line}</EmptyLine>)}
           {otherNotes.map((note: any) => (
             <p key={note.id} className="mb-1.5 whitespace-pre-wrap break-words text-[12px] text-slate-700">{tidy(note.inhalt)}</p>
