@@ -200,6 +200,7 @@ try {
   if(await evaluate(client,'Boolean(document.querySelector("[data-kel-parent-goal-progress-print]"))'))
     throw new Error('Checking section toggle alone exposed goal progress');
   await clickSelector(client, '[data-kel-parent-goal-progress-checkbox]');
+  console.log('Checked observation:',await evaluate(client,'document.querySelector("[data-kel-parent-goal-progress-checkbox]")?.checked'));
   await waitFor(client, 'one approved observation in print preview',
     'document.querySelectorAll("[data-kel-parent-goal-progress-item]").length===1');
   const afterConsent=await evaluate(client,
