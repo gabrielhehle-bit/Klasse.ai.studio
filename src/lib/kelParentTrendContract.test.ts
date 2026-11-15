@@ -15,7 +15,9 @@ test('both parent-facing timelines use the same dossier data and selected report
 });
 
 test('wellbeing SVG explicitly keeps gaps in weeks with no self-assessment', () => {
-  assert.match(component, /observed\.length < 2/);
+  assert.match(component, /observed\.length === 0/);
+  assert.match(component, /observed\.length === 1/);
+  assert.match(component, /Noch keine Entwicklung ablesbar/);
   assert.match(component, /current !== null && previous\?\.moodAverage != null/);
   assert.match(component, /current !== null && \(/);
   assert.match(component, /data-kel-mood-trend/);
