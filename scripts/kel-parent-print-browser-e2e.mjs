@@ -140,6 +140,32 @@ try {
   await waitFor(client, 'first-run setup', 'document.body?.innerText.toLowerCase().includes("willkommen bei klassio")');
   await clickButton(client, 'Beispielklasse erkunden');
   await waitFor(client, 'teacher dashboard', 'Array.from(document.querySelectorAll("button")).some(b=>String(b.textContent||"").trim()==="Heute")');
+  // Create an isolated example-only KEL meeting through the same UI teachers use.
+  if (!await evaluate(client, 'Boolean(document.querySelector("[data-menu-id=kel]"))')) {
+    await clickSelector(client, 'button[aria-label^="Mehr ("]');
+  }
+  await waitFor(client, 'KEL menu', 'Boolean(document.querySelector("[data-menu-id=kel]"))');
+  await clickSelector(client, '[data-menu-id="kel"]');
+  await waitFor(client, 'KEL page', 'document.body?.textContent.includes("KEL-Gespräche")');
+  if (await evaluate(client, 'Array.from(document.querySelectorAll("button")).some(b=>b.textContent?.includes("Zu den Protokollen"))')) {
+    await clickButton(client, 'Zu den Protokollen');
+  } else {
+    await clickButton(client, 'Protokolle');
+  }
+  await clickButton(client, 'Neues Protokoll');
+  await waitFor(client, 'KEL quick editor', 'Boolean(document.querySelector("[data-kel-quick-entry]"))');
+  const sampleStudentId=await evaluate(client,'document.querySelector("#kel-quick-student")?.options[1]?.value');
+  if(!sampleStudentId)throw new Error('No sample child in explicit demo class');
+  await setControl(client, '#kel-quick-student', sampleStudentId);
+  await clickSelector(client, '[data-kel-quick-add-goal]');
+  await setControl(client, '[data-kel-quick-goals] input[placeholder="Konkretes Ziel"]','Synthetisches Ziel: Silben sicher lesen');
+  await clickSelector(client, '[data-kel-open-completion-review]');
+  await waitFor(client, 'KEL review', 'Boolean(document.querySelector("[data-kel-review-confirm-save]"))');
+  await clickSelector(client, '[data-kel-review-confirm-save]');
+  await waitFor(client, 'saved KEL meeting', 'Array.from(document.querySelectorAll("button")).some(b=>b.textContent?.includes("Protokoll ansehen"))');
+  await clickButton(client, 'Protokoll ansehen');
+  await waitFor(client, 'KEL progress section', 'Boolean(document.querySelector("[data-kel-goal-progress-add]"))');
+
   await clickButton(client, 'Druckzentrum');
   await waitFor(client, 'print center', 'document.body?.textContent.includes("DRUCKZENTRUM")');
   await clickButton(client, 'KEL-Elternblatt');
