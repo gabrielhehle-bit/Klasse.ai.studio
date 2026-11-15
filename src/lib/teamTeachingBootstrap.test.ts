@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initialAppState } from './appState';
 import { classRoomFingerprint } from './teamTeachingCrypto';
-import { hydrateLinkedTeamClass } from './teamTeachingBootstrap';
+import { hydrateLinkedTeamClass, applyHydratedTeamClassIfUnchanged } from './teamTeachingBootstrap';
 import type { ClassRoom } from '../types';
 
 function room(overrides: Partial<ClassRoom> = {}): ClassRoom {
@@ -96,4 +96,35 @@ test('Teamteaching Zweitgerät erfindet bei fehlender Freigabe keine Revision', 
 
   assert.equal(result.classes[0].teamTeaching, undefined);
   assert.equal(result.classes[0].teamTeachingSharedClassId, 'shared-1');
+});
+
+
+test('asynchronous Team bootstrap keeps unrelated newer local changes and marks team baseline', () => {
+  const pointer = room({ teamTeachingSharedClassId: 'shared-1' });
+  const latest = { ...initialAppState, activeClassId: pointer.id, classes: [pointer], theme: 'newer-theme' as any,
+    currentPage: 'teamteaching' as any };
+  const received = room({ wochenplanung: { frisch: { text: 'Remote' } } as any,
+    teamTeaching: { sharedClassId: 'shared-1', role: 'editor', revision: 14, lastSyncedHash: 'old' } as any });
+  const updated = applyHydratedTeamClassIfUnchanged(latest, pointer.id, 'shared-1',
+    classRoomFingerprint(pointer), received);
+  assert.equal(updated.theme, 'newer-theme');
+  assert.equal(updated.currentPage, 'teamteaching');
+  assert.deepEqual(updated.classes[0].wochenplanung, received.wochenplanung);
+  assert.equal(updated.classes[0].teamTeaching?.revision, 14);
+  assert.equal(updated.classes[0].teamTeaching?.lastSyncedHash, classRoomFingerprint(updated.classes[0]));
+});
+
+test('asynchronous Team bootstrap never replaces a modified class, switched class or wrong shared ID', () => {
+  const pointer = room({ teamTeachingSharedClassId: 'shared-1' });
+  const prior = { ...initialAppState, activeClassId: pointer.id, classes: [pointer] };
+  const received = room({ teamTeaching: { sharedClassId: 'shared-1', revision: 3 } as any });
+  const hash = classRoomFingerprint(pointer);
+  const modified = { ...prior, classes: [room({ teamTeachingSharedClassId: 'shared-1',
+    wochenplanung: { changed: true } as any })] };
+  const switched = { ...prior, activeClassId: 'other' };
+  assert.equal(applyHydratedTeamClassIfUnchanged(modified, pointer.id, 'shared-1', hash, received), modified);
+  assert.equal(applyHydratedTeamClassIfUnchanged(switched, pointer.id, 'shared-1', hash, received), switched);
+  assert.equal(applyHydratedTeamClassIfUnchanged(prior, pointer.id, 'shared-wrong', hash, received), prior);
+  assert.equal(applyHydratedTeamClassIfUnchanged(prior, pointer.id, 'shared-1', hash,
+    { ...received, teamTeaching: { ...received.teamTeaching!, sharedClassId: 'other' } }), prior);
 });
