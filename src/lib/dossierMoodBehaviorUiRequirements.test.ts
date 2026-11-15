@@ -11,6 +11,8 @@ test('dossier per-day teacher behavior form records only explicit real dated pup
  assert.match(charts,/data-observation-behavior-date/);
  assert.match(charts,/data-observation-behavior-stage/);
  assert.match(charts,/data-observation-behavior-save/);
+ assert.match(charts,/<option value="">Stufe auswählen<\/option>/);
+ assert.match(charts,/const stageId=entryStage;/);
  assert.match(charts,/!previous\.schueler\.some\(child=>child\.id===student\.id\)/);
  assert.match(charts,/previous\.activeClassId!==activeClassId/);
  assert.match(charts,/entryDay>=fullYear\.start && entryDay<=fullYear\.end/);
