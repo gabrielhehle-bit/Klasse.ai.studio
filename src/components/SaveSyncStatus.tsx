@@ -7,7 +7,7 @@ import { saveSyncPresentation } from '../lib/saveSyncPresentation';
 import { syncActiveClass } from '../lib/appState';
 import { teamSyncPresentation } from '../lib/teamSyncPresentation';
 import { classRoomFingerprint } from '../lib/teamTeachingCrypto';
-import { hydrateLinkedTeamClass } from '../lib/teamTeachingBootstrap';
+import { hydrateLinkedTeamClass, applyHydratedTeamClassIfUnchanged } from '../lib/teamTeachingBootstrap';
 
 const time = (value?: string | null) => value && Number.isFinite(Date.parse(value))
   ? new Date(value).toLocaleString('de-AT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -91,13 +91,9 @@ export default function SaveSyncStatus({
         const hydratedRoom = hydrated.classes?.find(candidate => candidate.id === roomId);
         if (!hydratedRoom?.teamTeaching) return;
 
-        setApp(previous => {
-          const current = syncActiveClass(previous);
-          const currentRoom = current.classes?.find(candidate => candidate.id === roomId);
-          if (!currentRoom || currentRoom.teamTeaching || currentRoom.teamTeachingSharedClassId !== sharedId
-            || classRoomFingerprint(currentRoom) !== startingHash) return previous;
-          return hydrated;
-        });
+        setApp(previous => applyHydratedTeamClassIfUnchanged(
+          previous, roomId, sharedId, startingHash, hydratedRoom,
+        ));
       } finally {
         bootstrapBusyRef.current = false;
       }
@@ -202,6 +198,7 @@ export default function SaveSyncStatus({
                   )}
                   <p>Zuletzt geändert: {meta?.lastChangedBy || 'Noch nicht bestätigt'} · {time(meta?.lastChangedAt)}</p>
                   <p>Letzter Team-Abgleich: {time(meta?.lastSyncedAt)}</p>
+                  <p className="text-slate-600">Das Klassenteam wird getrennt vom persönlichen Konto abgeglichen. Der Konto-Knopf unten löst keinen Team-Abgleich aus.</p>
                   {meta?.syncMessage && deviceAuthorization !== 'unauthorized' && <p>{meta.syncMessage}</p>}
                   <button
                     type="button"
@@ -226,7 +223,7 @@ export default function SaveSyncStatus({
                   }
                 }}
               >
-                Jetzt synchronisieren
+                Persönliches Konto jetzt synchronisieren
               </button>
             </div>
           </>,
