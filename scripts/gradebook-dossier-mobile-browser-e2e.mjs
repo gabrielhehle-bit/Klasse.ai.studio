@@ -71,7 +71,7 @@ async function clickText(c,text){
 }
 async function fill(c,label,value){
   const expr='(() => {const text='+q(label)+';const lab=Array.from(document.querySelectorAll("label")).find(x=>x.textContent?.includes(text));' +
-    'const f=lab?.querySelector("input,textarea,select")||document.querySelector("input[placeholder*="+JSON.stringify(label)+"]");' +
+    'const f=lab?.querySelector("input,textarea,select")||null;' +
     'if(!f)return false;const proto=f instanceof HTMLTextAreaElement?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;' +
     'Object.getOwnPropertyDescriptor(proto,"value").set.call(f,'+q(value)+');f.dispatchEvent(new Event("input",{bubbles:true}));return true;})()';
   for(let i=0;i<50;i++){if(await evalPage(c,expr))return;await sleep(200);}
