@@ -87,3 +87,16 @@ test('public read-only audit reports exact live version without credentials or w
   assert.match(diagnostic, /if \(!response\.bodyUsed\) await response\.body\?\.cancel\(\)/);
   assert.doesNotMatch(diagnostic, /method: 'POST'|method: 'PUT'|Authorization:|Cookie:/);
 });
+
+
+test('release parity is checked against GitHub main without mutating the host', () => {
+  const diagnostic = readFileSync('scripts/public-security-readonly.mjs', 'utf8');
+  const workflow = readFileSync('.github/workflows/public-security-readonly.yml', 'utf8');
+  assert.match(diagnostic, /process\.env\.EXPECTED_KLASSIO_COMMIT/);
+  assert.match(diagnostic, /LIVE_RELEASE_PARITY=/);
+  assert.match(diagnostic, /liveCommit === expectedCommit \? 'MATCH' : 'DIFFERENT'/);
+  assert.match(diagnostic, /GITHUB_STEP_SUMMARY/);
+  assert.match(workflow, /push:\s*branches:\s*- main/);
+  assert.match(workflow, /github\.event\.pull_request\.base\.sha \|\| github\.sha/);
+  assert.match(workflow, /continue-on-error: true/);
+});

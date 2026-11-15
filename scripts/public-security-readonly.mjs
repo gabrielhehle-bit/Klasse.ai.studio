@@ -46,6 +46,28 @@ for (const route of routes) {
   }
 }
 
+// The expected SHA is supplied by GitHub Actions (PR base or pushed main HEAD).
+// A mismatch is a release status, not a failed change-quality test.
+const expectedCommit = process.env.EXPECTED_KLASSIO_COMMIT || '';
+const liveCommit = messages.find(result => result.route === '/api/release')?.releaseCommit || null;
+if (expectedCommit && !/^[a-f0-9]{40}$/.test(expectedCommit)) {
+  failures.push('GitHub expected deployment commit is malformed');
+}
+const releaseState = !/^[a-f0-9]{40}$/.test(expectedCommit) || !liveCommit
+  ? 'UNKNOWN'
+  : liveCommit === expectedCommit ? 'MATCH' : 'DIFFERENT';
+const releaseParity = { state: releaseState, expectedCommit: expectedCommit || null, liveCommit };
+console.log('LIVE_RELEASE_PARITY=' + JSON.stringify(releaseParity));
+if (process.env.GITHUB_STEP_SUMMARY) {
+  const { appendFileSync } = await import('node:fs');
+  appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+    '### Klassio live deployment (read-only)\n\n' +
+    '| GitHub expected | World4You live | Result |\n|---|---|---|\n' +
+    '| ' + (expectedCommit || 'unknown') + ' | ' + (liveCommit || 'unknown') +
+    ' | **' + releaseState + '** |\n\n' +
+    'A mismatch means production has not been confirmed on the expected commit. No deployment was performed.\n');
+}
+
 for (const result of messages) console.log(JSON.stringify(result));
 if (failures.length) {
   // An existing production deployment is intentionally not treated as the new PR's quality gate.
