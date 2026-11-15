@@ -287,9 +287,9 @@ try{
 
   await click(c,'[data-student-dossier-areas] button[role="tab"]:first-child');
   await until(c,'Dossier overview returns','Boolean(document.querySelector("[data-dossier-overview]"))');
-  await clickText(c,'Schuljahr');
+  await click(c,'[aria-label="Zeitraum der Alltagsdiagramme"] button:last-child');
   await until(c,'year view selected',
-    'Array.from(document.querySelectorAll("button[aria-pressed]")).some(x=>x.textContent?.trim()==="Schuljahr" && x.getAttribute("aria-pressed")==="true")');
+    'document.querySelector("[aria-label=\\\"Zeitraum der Alltagsdiagramme\\\"] button:last-child")?.getAttribute("aria-pressed")==="true"');
   const yearGraphs=await evalPage(c,'(() => [' +
     '"participation","wellbeing"].map(name=>{' +
     'const el=document.querySelector("[data-dossier-trend-scroll="+JSON.stringify(name)+"]");' +
