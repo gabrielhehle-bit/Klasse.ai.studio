@@ -300,8 +300,15 @@ try{
     'right:el.getBoundingClientRect().right};' +
     '}) )()');
   console.log('Dossier 360px school-year timelines:',JSON.stringify(yearGraphs));
-  if(yearGraphs.some(g=>g.error || g.scroll<=g.client+40 || g.scrollLeft<40 || g.right>362))
-    throw new Error('School-year development timelines do not scroll inside phone viewport');
-  console.log('PASS Year-long documented development chart surfaces remain scrollable at 360px');
+  const moodGraph=yearGraphs.find(g=>g.name==='wellbeing');
+  const participationGraph=yearGraphs.find(g=>g.name==='participation');
+  // In November the current school year has only four monthly buckets.
+  // Its compact participation chart should NOT be artificially widened.
+  if(!moodGraph || !participationGraph ||
+    yearGraphs.some(g=>g.error || g.right>362) ||
+    moodGraph.scroll<=moodGraph.client+40 || moodGraph.scrollLeft<40 ||
+    participationGraph.scroll<participationGraph.client-2)
+    throw new Error('School-year timelines are clipped or not appropriately sized on phone');
+  console.log('PASS School-year weekly development timeline scrolls while short monthly history stays compact');
 
 }finally{c.close();}
