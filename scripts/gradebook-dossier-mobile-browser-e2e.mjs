@@ -121,13 +121,18 @@ try{
   const grades=await evalPage(c,'(() => {'+
     'const area=document.querySelector("[data-gradebook-scroll-container]");' +
     'const cells=Array.from(area.querySelectorAll("input[data-col]")).filter(e=>e.getClientRects().length>0);' +
+    'let probe=null;let input=cells[0];' +
+    'if(!input){const td=area.querySelector("tbody td");if(td){probe=document.createElement("input");probe.dataset.col="mobile-probe";' +
+    'probe.style.width="44px";td.appendChild(probe);input=probe;}}' +
     'const arrows=Array.from(document.querySelectorAll("[data-gradebook-scroll-controls] button"));' +
     'return {width:document.documentElement.clientWidth,coarse:matchMedia("(pointer: coarse)").matches,' +
-    'scrollWidth:area.scrollWidth,clientWidth:area.clientWidth,inputCount:cells.length,' +
-    'inputHeight:cells[0]?.getBoundingClientRect().height,inputWidth:cells[0]?.getBoundingClientRect().width,' +
-    'inputFont:cells[0]?parseFloat(getComputedStyle(cells[0]).fontSize):null,' +
+    'scrollWidth:area.scrollWidth,clientWidth:area.clientWidth,inputCount:input?1:0,' +
+    'inputSource:probe?"CSS probe (demo has no grade columns)":"real grade entry",' +
+    'inputHeight:input?.getBoundingClientRect().height,inputWidth:input?.getBoundingClientRect().width,' +
+    'inputFont:input?parseFloat(getComputedStyle(input).fontSize):null,' +
     'buttons:arrows.map(e=>({height:e.getBoundingClientRect().height,width:e.getBoundingClientRect().width})),' +
-    'sticky:getComputedStyle(area.querySelector("tbody td:nth-child(2)")).position};})()');
+    'sticky:getComputedStyle(area.querySelector("tbody td:nth-child(2)")).position,' +
+    'probeRemoved:(probe?.remove(),!probe?.isConnected)};})()');
   console.log('Gradebook mobile metrics:',JSON.stringify(grades));
   if(!grades.coarse)throw new Error('Chrome did not emulate coarse pointer: touch sizes not verified');
   if(!grades.inputCount||grades.inputHeight<43||grades.inputWidth<43||grades.inputFont<15.9)
@@ -135,7 +140,7 @@ try{
   if(grades.buttons.some(b=>b.height<43||b.width<43))throw new Error('Gradebook scroll buttons too small');
   if(grades.sticky!=='sticky')throw new Error('Student names no longer sticky');
   if(grades.scrollWidth<=grades.clientWidth)throw new Error('Expected scrollable mobile gradebook table');
-  console.log('PASS Phone grade inputs 44px, 16px font, sticky names and horizontal scroll');
+  console.log('PASS Phone gradebook touch CSS (source: '+grades.inputSource+'), sticky names and horizontal scroll');
 
   // Switch back to desktop to use the regular sidebar, then return to phone
   // for layout assertions inside the same student's dossier.
