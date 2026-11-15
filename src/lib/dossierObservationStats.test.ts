@@ -18,3 +18,30 @@ test('year ends with selected school year and empty records produce no fictitiou
  const s=getDossierObservationStats({schuljahr:'2025/26',anwesenheit:{a:{'2026-09-01':{1:'a'},'2026-07-01':{1:'a'}}}},'a','year',now);assert.equal(s.end,'2026-07-31');assert.equal(s.attendance.length,1);
  const empty=getDossierObservationStats({},'a','recent',now);assert.equal(empty.attendance.length,0);assert.equal(empty.moods.length,0);
 });
+
+
+test('six mood and six behavior dates from the school UI stay distinct, with no carried-forward empty weeks',()=>{
+ const dates=['2026-10-05','2026-10-12','2026-10-19','2026-10-23','2026-11-03','2026-11-09'];
+ const app={
+  schuljahr:'2026/27',
+  schuelerStimmung:{
+   a:Object.fromEntries(dates.map((date,i)=>[date,[5,4,3,2,1,2][i]])),
+   b:{'2026-11-09':5}
+  },
+  statusLog:[
+   ...dates.map((datum,i)=>({id:String(i),schuelerId:'a',datum,iconId:String([3,4,2,1,2,3][i]),timestamp:1000+i})),
+   {id:'overwrite-last',schuelerId:'a',datum:dates.at(-1),iconId:'4',timestamp:99999},
+   {id:'other-pupil',schuelerId:'b',datum:dates.at(-1),iconId:'5',timestamp:100000},
+  ]
+ };
+ const original=structuredClone(app);
+ const recent=getDossierObservationStats(app,'a','recent',new Date(2026,10,15,12));
+ assert.equal(recent.moods.length,6);
+ assert.equal(recent.behavior.length,6,'later feedback on the same day collapses to one daily observation');
+ assert.equal(recent.behavior.find(item=>item.date==='2026-11-09')?.iconId,'4');
+ assert.deepEqual(recent.weeks.filter(w=>w.moodCount>0).map(w=>w.mood),[5,4,2.5,1,2]);
+ assert.equal(recent.weeks.reduce((n,w)=>n+w.behaviorCount,0),6);
+ const fullYear=getDossierObservationStats(app,'a','year',new Date(2026,10,15,12));
+ assert.ok(fullYear.weeks.some(w=>w.mood===null),'unreported school-year weeks remain gaps');
+ assert.deepEqual(app,original,'pure chart statistics never alter pupil records');
+});
