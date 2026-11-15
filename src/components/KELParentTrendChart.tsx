@@ -16,16 +16,23 @@ export default function KELParentTrendChart({ kind, buckets, period, behaviorRow
   const moodY = (average: number) => 12 + ((average - 1) / 4) * 43;
   const maxBehavior = Math.max(1, ...buckets.map(bucket => bucket.behaviorCount));
   const unit = period === 'recent' ? 'Woche' : 'Monat';
+  const coverageLabel = period === 'recent'
+    ? (buckets.length === 1 ? 'Woche' : 'Wochen')
+    : (buckets.length === 1 ? 'Monat' : 'Monaten');
 
   return (
-    <div data-kel-trend={kind} className="mt-2 border-t border-slate-100 pt-1.5">
+    <div data-kel-trend={kind} className="mt-2 break-inside-avoid border-t border-slate-100 pt-1.5">
       <p className="mb-0.5 text-[11px] font-bold text-slate-700">
         {kind === 'mood' ? 'Befinden im Zeitverlauf' : 'Dokumentation im Zeitverlauf'}
+      </p>
+      <p data-kel-trend-coverage={kind} className="text-[10px] leading-snug text-slate-600">
+        {observed.length} von {buckets.length} {coverageLabel} mit dokumentierten {kind === 'mood' ? 'Befindensantworten' : 'Tageswerten'}.
+        {' '}Ohne Eintrag bedeutet: keine Aussage möglich.
       </p>
       {kind === 'mood' ? (
         <svg data-kel-mood-trend role="img"
           aria-label={`Durchschnitt der tatsächlichen Befindens-Einschätzungen je ${unit}, Skala 1 sehr gut bis 5 schlecht. Zeiträume ohne Rückmeldung bleiben Lücken.`}
-          viewBox="0 0 320 82" className="block h-[72px] w-full" preserveAspectRatio="none">
+          viewBox="0 0 320 82" className="block h-auto w-full" preserveAspectRatio="xMidYMid meet">
           {[1, 3, 5].map(level => (
             <g key={level}>
               <line x1="24" x2="314" y1={moodY(level)} y2={moodY(level)} stroke="#e2e8f0" strokeWidth="1"/>
@@ -55,7 +62,7 @@ export default function KELParentTrendChart({ kind, buckets, period, behaviorRow
       ) : (
         <svg data-kel-behavior-trend role="img"
           aria-label={`Anzahl dokumentierter Verhaltenstageswerte je ${unit}; kein Urteil über das Verhalten des Kindes.`}
-          viewBox="0 0 320 82" className="block h-[72px] w-full" preserveAspectRatio="none">
+          viewBox="0 0 320 82" className="block h-auto w-full" preserveAspectRatio="xMidYMid meet">
           <line x1="24" x2="314" y1="58" y2="58" stroke="#cbd5e1" strokeWidth="1"/>
           {buckets.map((bucket, index) => {
             const height = bucket.behaviorCount / maxBehavior * 38;
