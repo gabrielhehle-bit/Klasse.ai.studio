@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { saveSyncPresentation } from './saveSyncPresentation';
 test('Gerätewechsel ist nur mit lokalem und aktuellem Servernachweis grün', () => {
   assert.equal(saveSyncPresentation('saved', 'synced', true).ready, true);
@@ -22,4 +23,15 @@ test('Persönlicher Sync allein reicht bei ausstehenden Teamänderungen nicht', 
   for (const team of ['pending', 'conflict', 'error'] as const) assert.equal(saveSyncPresentation('saved', 'synced', true, team).ready, false);
   assert.equal(saveSyncPresentation('saved', 'synced', true, 'synced').ready, true);
   assert.equal(saveSyncPresentation('saved', 'synced', true, 'conflict').label, 'Synchronisationskonflikt');
+});
+
+
+test('autosave guidance distinguishes durable local saves from confirmed account and team uploads', () => {
+  const status = readFileSync('src/components/SaveSyncStatus.tsx', 'utf8');
+  const team = readFileSync('src/components/ClassTeam.tsx', 'utf8');
+  assert.match(status, /data-testid="autosave-explanation"/);
+  assert.match(status, /getrennt, was auf diesem Gerät und auf dem Server angekommen ist/);
+  assert.match(status, /Änderung wird automatisch gespeichert/);
+  assert.match(team, /data-testid="team-autosave-explanation"/);
+  assert.match(team, /Erst „Team synchronisiert“ bestätigt den gemeinsamen Stand/);
 });

@@ -47,9 +47,23 @@ test('Teacher setup surface links to the existing secure class sharing actions',
   assert.match(source, /teamSyncPresentation\(activeRoom\)/);
   assert.match(source, /case 'activate': void enableSharing\(\)/);
   assert.match(source, /case 'request-device': void requestDeviceAccess\(\)/);
-  assert.match(source, /case 'ready': void showLatestChanges\(\)/);
+  assert.match(source, /case 'ready': void synchronizeTeamSimply\(\)/);
   assert.match(source, /id="team-teacher-search"/);
   assert.match(source, /requestTeamTeachingDeviceAccess\(summary\.id\)/);
   assert.match(source, /Versionsgeschichte/);
   assert.match(source, /Änderungen zusammenführen/);
+});
+
+
+test('teacher can sync with one main action while advanced controls remain available', () => {
+  const source = readFileSync('src/components/ClassTeam.tsx', 'utf8');
+  assert.match(source, /data-testid="team-simple-sync"/);
+  assert.match(source, /const synchronizeTeamSimply = async/);
+  assert.match(source, /const latestList = await listSharedClasses\(\)/);
+  assert.match(source, /remote\.revision > now\.teamTeaching\.revision/);
+  assert.match(source, /hasLocalEdits && remoteChanged/);
+  assert.match(source, /classRoomFingerprint\(activeRoom\) !== classRoomFingerprint\(now\)/);
+  assert.match(source, /await push\(\)/);
+  assert.match(source, /await pull\(\)/);
+  assert.match(source, /Weitere Möglichkeiten bei Problemen/);
 });
