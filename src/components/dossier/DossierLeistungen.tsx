@@ -684,7 +684,20 @@ export default function DossierLeistungen({
                   </label>
                   <select data-dossier-assessment-category
                     value={editingItem.category}
-                    onChange={e => setEditingItem({ ...editingItem, category: e.target.value as any })}
+                    onChange={e => {
+                      const category = e.target.value as 'sa' | 'lzk' | 'wp' | 'aufgaben';
+                      // A new entry must use the next FREE column of its chosen
+                      // category, not the index initially reserved for "sa".
+                      // Existing edits retain their original index; category
+                      // moves are allocated safely by writeDossierAssessment.
+                      setEditingItem({
+                        ...editingItem,
+                        category,
+                        colIndex: editingItem.originalCategory
+                          ? editingItem.colIndex
+                          : nextDossierAssessmentColumnIndex(app, editingItem.fach, category),
+                      });
+                    }}
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-indigo-600"
                   >
                     <option value="sa">Schularbeit / Test</option>
