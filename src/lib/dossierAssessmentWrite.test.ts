@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initialAppState } from './appState';
 import { calculateItemPercent, getMaxPoints } from './GradeUtils';
-import { writeDossierAssessment } from './dossierAssessmentWrite';
+import { writeDossierAssessment, nextDossierAssessmentColumnIndex } from './dossierAssessmentWrite';
 
 const base = (mode: 'grades' | 'percent' | 'points') => ({
   ...initialAppState,
@@ -243,4 +243,31 @@ test('Schülerdossier erhält numerisch verschlüsselte Metadaten-Objekte und fr
     assert.equal(Array.isArray(next.notenMeta.Deutsch[key].lzk), false, key + ' must remain a numeric-keyed object');
   }
   assert.deepEqual(source, before);
+});
+
+
+test('new assessment category switch allocates a fresh LZK slot and keeps previous pupil grades',()=>{
+ const start=base('grades');
+ start.noten={
+  'student-1':{Deutsch:{'1':{sa:[],lzk:[2],wp:[],aufgaben:[]}}}
+ };
+ start.notenMeta={Deutsch:{assessmentMode:'grades',colLabels:{lzk:{0:'Alter Lesetest'}},
+  colDates:{lzk:{0:'2026-09-01'}}}};
+ const untouched=structuredClone(start);
+ const firstIndex=nextDossierAssessmentColumnIndex(start,'Deutsch','lzk');
+ assert.equal(firstIndex,1);
+ const first=writeDossierAssessment(start,{
+  studentId:'student-1',fach:'Deutsch',semester:'1',category:'lzk',
+  colIndex:firstIndex,label:'Mobiltest 1',date:'2026-10-01',grade:'3',note:''
+ });
+ const secondIndex=nextDossierAssessmentColumnIndex(first,'Deutsch','lzk');
+ assert.equal(secondIndex,2);
+ const second=writeDossierAssessment(first,{
+  studentId:'student-1',fach:'Deutsch',semester:'1',category:'lzk',
+  colIndex:secondIndex,label:'Mobiltest 2',date:'2026-10-15',grade:'1',note:''
+ });
+ assert.deepEqual(second.noten['student-1'].Deutsch['1'].lzk,[2,3,1]);
+ assert.deepEqual(second.notenMeta.Deutsch.colLabels.lzk,
+  {0:'Alter Lesetest',1:'Mobiltest 1',2:'Mobiltest 2'});
+ assert.deepEqual(start,untouched);
 });
