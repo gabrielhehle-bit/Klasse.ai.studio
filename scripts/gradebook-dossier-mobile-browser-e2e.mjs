@@ -431,4 +431,22 @@ try{
   await controlChange('#kel-parent-student',reportStudentId);
   await controlChange('#kel-parent-period','recent');
 
+  await until(c,'recorded pupil loaded in parent print',
+    'document.querySelector(".print-center-overlay [data-kel-parent-report]")?.getAttribute("data-kel-parent-student-id")==='+q(reportStudentId));
+  for(const kind of ['mood','behavior']){
+    const coverage='[data-kel-trend-coverage='+kind+']';
+    await until(c,'documented '+kind+' periods explained',
+      'document.querySelector(".print-center-overlay '+coverage+'")?.textContent.includes("5 von 6 Wochen")');
+    const chart=await evalPage(c,'(() => {const root=document.querySelector(".print-center-overlay [data-kel-parent-report]");' +
+      'const box=root?.querySelector("[data-kel-trend='+kind+']");const svg=box?.querySelector("svg");' +
+      'return {coverage:box?.querySelector("[data-kel-trend-coverage]")?.textContent.trim(),' +
+      'svg:!!svg,ratio:svg?.getAttribute("preserveAspectRatio"),width:svg?.getBoundingClientRect().width,' +
+      'height:svg?.getBoundingClientRect().height};})()');
+    console.log('KEL parent chart '+kind+':',JSON.stringify(chart));
+    if(!chart.svg||chart.ratio!=='xMidYMid meet'||chart.width<220||chart.height<40)
+      throw new Error('KEL parent '+kind+' trend chart is not printable/readable');
+  }
+  console.log('PASS Both KEL parent timelines distinguish 5 documented of 6 available weeks');
+
+
 }finally{c.close();}
