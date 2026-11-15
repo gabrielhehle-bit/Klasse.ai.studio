@@ -196,7 +196,10 @@ try {
     pageTexts.push(text.items.map(item => ('str' in item ? item.str : '')).join(' '));
   }
   console.log('Long KEL print PDF pages:', longDocument.numPages);
-  if (longDocument.numPages < 2 || longDocument.numPages > 5) throw new Error('Long KEL content pagination unexpected: ' + longDocument.numPages);
+  if (longDocument.numPages !== 2) throw new Error('Long KEL document should fit in 2 A4 pages, got ' + longDocument.numPages);
+  if (!pageTexts[0].includes('Zusatzvereinbarung 01')) {
+    throw new Error('Long agreements were unnecessarily pushed to the next page');
+  }
   if (!pageTexts.join(' ').includes('Zusatzvereinbarung 32')) throw new Error('Last agreement missing in multi-page KEL PDF');
   if (!pageTexts.some(text => text.includes('Erziehungsberechtigte') && text.includes('Lehrperson') && text.includes('Unterschrift'))) {
     throw new Error('Parent and teacher signature boxes split across pages or missing');
