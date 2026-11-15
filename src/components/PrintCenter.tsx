@@ -1727,7 +1727,7 @@ export default function PrintCenter() {
               { id: 'checkliste', label: 'Notenübersicht', desc: 'Punkteraster & Schnitt', icon: '📚', bg: 'hover:border-blue-300' },
               { id: 'wochenplan', label: 'Wochenplan', desc: 'Unterrichts- & Wochenplan', icon: '📅', bg: 'hover:border-amber-300' },
               { id: 'schuelerprofil', label: 'Schülerdossier', desc: 'Stammdaten & Profil', icon: '👤', bg: 'hover:border-purple-300' },
-              { id: 'smart_tools', label: 'Geldsammlung', desc: 'Orga, Kasse & Listen', icon: '💶', bg: 'hover:border-rose-300' },
+              { id: 'kel_elternblatt', label: 'KEL-Elternblatt', desc: 'Elterngespräch auf A4', icon: '♡', bg: 'hover:border-rose-300' },
             ].map(f => {
               const isActive = activeTemplate === f.id;
               return (
@@ -1882,7 +1882,7 @@ export default function PrintCenter() {
           <div className="flex items-center gap-2 text-[0.6875rem]">
             <span className="px-2.5 py-1 bg-slate-800 rounded-lg text-slate-300 font-bold">SCHRITT 1: Dokument wählen</span>
             <span className="text-slate-600">→</span>
-            <span className="px-2.5 py-1 bg-emerald-600/40 text-emerald-300 border border-emerald-500/30 rounded-lg font-bold">SCHRITT 2: Filter &amp; Angaben</span>
+            <span className="px-2.5 py-1 bg-emerald-600/40 text-emerald-300 border border-emerald-500/30 rounded-lg font-bold">SCHRITT 2: Angaben auswählen</span>
             <span className="text-slate-600">→</span>
             <span className="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg font-bold">SCHRITT 3: Vorschau &amp; Druck</span>
           </div>
@@ -1894,12 +1894,14 @@ export default function PrintCenter() {
           {/* Left Panel: Configuration Controls (Screen-only) */}
           <div className="lg:col-span-5 space-y-6 no-print">
             
-            {/* General Styling Card */}
-            <div className="bg-white rounded-3xl border border-slate-200/80 p-5 md:p-6 space-y-5 shadow-inner">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                <Sliders size={16} className="text-slate-400" />
-                <h3 className="text-[0.875rem] leading-snug font-black text-slate-800">1. Globale Formatierung</h3>
-              </div>
+            {/* Print defaults stay available without making teachers configure them for every report. */}
+            <details data-testid="print-center-advanced-format" className="group rounded-3xl border border-slate-200/80 bg-white shadow-inner">
+              <summary className="flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-3xl p-5 text-sm font-bold text-slate-800 focus-visible:outline-2 focus-visible:outline-emerald-600">
+                <span className="flex items-center gap-2"><Sliders size={16} className="text-slate-500" /> Druckformat anpassen <span className="text-xs font-normal text-slate-500">(optional)</span></span>
+                <span aria-hidden="true" className="text-slate-500 transition-transform group-open:rotate-180">⌄</span>
+              </summary>
+              <div className="space-y-5 border-t border-slate-100 px-5 pb-5 pt-4 md:px-6">
+                <p className="text-xs leading-relaxed text-slate-600">Die Standardwerte sind bereits eingestellt. Hier kannst du bei Bedarf Ausrichtung, Schrift, Seitenränder und Farben ändern.</p>
 
               {/* Theme & Orientation controls */}
               <div className="grid grid-cols-2 gap-4">
@@ -2021,13 +2023,14 @@ export default function PrintCenter() {
                   className="w-4 h-4 rounded text-emerald-600 border-slate-300 focus:ring-emerald-550 cursor-pointer"
                 />
               </div>
-            </div>
+              </div>
+            </details>
 
             {/* Template-Specific Settings Block */}
             <div className="bg-white rounded-3xl border border-slate-200/80 p-5 md:p-6 space-y-5 shadow-inner">
               <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
                 <Sliders size={16} className="text-slate-400" />
-                <h3 className="text-[0.875rem] leading-snug font-black text-slate-800">2. Vorlagendetails</h3>
+                <h3 className="text-[0.875rem] leading-snug font-black text-slate-800">Angaben für dieses Dokument</h3>
               </div>
 
               {/* A. SCHUELERLISTE CONTROLS */}
@@ -4390,7 +4393,7 @@ export default function PrintCenter() {
                   className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-3xs active:scale-95 disabled:opacity-50"
                 >
                   <Printer size={15} strokeWidth={2.5} />
-                  <span>🖨️ Drucken (A4)</span>
+                  <span>Drucken (A4)</span>
                 </button>
 
                 <button
@@ -4400,9 +4403,10 @@ export default function PrintCenter() {
                   className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 border border-slate-700"
                 >
                   <Download size={14} />
-                  <span>📄 als PDF speichern</span>
+                  <span>Als PDF speichern</span>
                 </button>
               </div>
+              <p className="w-full text-[11px] text-slate-300">PDF: Im Browser-Druckdialog „Als PDF speichern“ als Druckziel wählen. Beide Schaltflächen öffnen denselben Druckdialog.</p>
             </div>
 
             <div className="flex flex-wrap justify-between items-center gap-2 no-print pt-1">
