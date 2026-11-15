@@ -57,6 +57,7 @@ jobs:
           KLASSIO_CHROME_DEBUG_URL: http://127.0.0.1:9282
           KLASSIO_E2E_PDF: /tmp/klassio-kel-parent-e2e.pdf
           KLASSIO_E2E_LONG_PDF: /tmp/klassio-kel-parent-e2e-long.pdf
+          KLASSIO_E2E_SELECTED_PDF: /tmp/klassio-kel-parent-e2e-selected.pdf
           KLASSIO_E2E_SCREENSHOT: /tmp/klassio-kel-parent-e2e.png
         run: |
           set -euo pipefail
@@ -95,6 +96,7 @@ jobs:
           path: |
             /tmp/klassio-kel-parent-e2e.pdf
             /tmp/klassio-kel-parent-e2e-long.pdf
+            /tmp/klassio-kel-parent-e2e-selected.pdf
             /tmp/klassio-kel-parent-e2e.png
             /tmp/klassio-kel-parent-server.log
             /tmp/klassio-kel-parent-chrome.log

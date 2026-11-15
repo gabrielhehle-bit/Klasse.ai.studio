@@ -8,6 +8,7 @@ const VAULT_PASSWORD = process.env.KLASSIO_E2E_VAULT_PASSWORD || 'Klassio-KEL-Pr
 const PDF_PATH = process.env.KLASSIO_E2E_PDF || '/tmp/klassio-kel-parent-e2e.pdf';
 const SCREENSHOT_PATH = process.env.KLASSIO_E2E_SCREENSHOT || '/tmp/klassio-kel-parent-e2e.png';
 const LONG_PDF_PATH = process.env.KLASSIO_E2E_LONG_PDF || '/tmp/klassio-kel-parent-e2e-long.pdf';
+const SELECTED_PDF_PATH = process.env.KLASSIO_E2E_SELECTED_PDF || '/tmp/klassio-kel-parent-e2e-selected.pdf';
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const q = value => JSON.stringify(value);
 
@@ -107,6 +108,22 @@ async function clickCheckbox(c, label) {
   if (!await evaluate(c, expr)) throw new Error('Checkbox not found: ' + label);
 }
 
+async function setControl(c, selector, value) {
+  const expr = '(() => {const f=document.querySelector(' + q(selector) + ');if(!f)return false;' +
+    'const proto=f instanceof HTMLTextAreaElement?HTMLTextAreaElement.prototype:' +
+    'f instanceof HTMLSelectElement?HTMLSelectElement.prototype:HTMLInputElement.prototype;' +
+    'Object.getOwnPropertyDescriptor(proto,"value").set.call(f,' + q(value) + ');' +
+    'f.dispatchEvent(new Event("input",{bubbles:true}));' +
+    'f.dispatchEvent(new Event("change",{bubbles:true}));return true;})()';
+  for (let i=0;i<40;i++){if(await evaluate(c,expr))return;await sleep(250);}
+  throw new Error('Field unavailable: '+selector);
+}
+async function clickSelector(c, selector) {
+  const ok=await evaluate(c,'(() => {const n=document.querySelector(' + q(selector) +
+    ');if(!n||n.disabled)return false;n.click();return true;})()');
+  if(!ok)throw new Error('Control unavailable: '+selector);
+}
+
 const client = await createClient();
 try {
   await client.send('Page.navigate', { url: BASE_URL });
@@ -123,11 +140,99 @@ try {
   await waitFor(client, 'first-run setup', 'document.body?.innerText.toLowerCase().includes("willkommen bei klassio")');
   await clickButton(client, 'Beispielklasse erkunden');
   await waitFor(client, 'teacher dashboard', 'Array.from(document.querySelectorAll("button")).some(b=>String(b.textContent||"").trim()==="Heute")');
+  // Create an isolated example-only KEL meeting through the same UI teachers use.
+  if (!await evaluate(client, 'Boolean(document.querySelector("[data-menu-id=kel]"))')) {
+    await clickSelector(client, 'button[aria-label^="Mehr ("]');
+  }
+  await waitFor(client, 'KEL menu', 'Boolean(document.querySelector("[data-menu-id=kel]"))');
+  await clickSelector(client, '[data-menu-id="kel"]');
+  await waitFor(client, 'KEL page rendered', 'Boolean(document.querySelector("[data-kel-shared-dossier-portal]")) || Array.from(document.querySelectorAll("button")).some(b=>b.textContent?.includes("Neues Protokoll"))');
+  if (await evaluate(client, 'Array.from(document.querySelectorAll("button")).some(b=>b.textContent?.includes("Zu den Protokollen"))')) {
+    await clickButton(client, 'Zu den Protokollen');
+  } else {
+    await clickButton(client, 'Protokolle');
+  }
+  await clickButton(client, 'Neues Protokoll');
+  await waitFor(client, 'KEL quick editor', 'Boolean(document.querySelector("[data-kel-quick-entry]"))');
+  const sampleStudentId=await evaluate(client,'document.querySelector("#kel-quick-student")?.options[1]?.value');
+  if(!sampleStudentId)throw new Error('No sample child in explicit demo class');
+  await setControl(client, '#kel-quick-student', sampleStudentId);
+  await clickSelector(client, '[data-kel-quick-add-goal]');
+  await setControl(client, '[data-kel-quick-goals] input[placeholder="Konkretes Ziel"]','Synthetisches Ziel: Silben sicher lesen');
+  await clickSelector(client, '[data-kel-open-completion-review]');
+  await waitFor(client, 'KEL review', 'Boolean(document.querySelector("[data-kel-review-confirm-save]"))');
+  await clickSelector(client, '[data-kel-review-confirm-save]');
+  await waitFor(client, 'saved KEL meeting', 'Array.from(document.querySelectorAll("button")).some(b=>b.textContent?.includes("Protokoll ansehen"))');
+  await clickButton(client, 'Protokoll ansehen');
+  await waitFor(client, 'KEL progress section', 'Boolean(document.querySelector("[data-kel-goal-progress-add]"))');
+
+  await clickSelector(client, '[data-kel-goal-progress-add]');
+  await waitFor(client, 'progress editor 1', 'Boolean(document.querySelector("[data-kel-goal-progress-editor]"))');
+  await setControl(client, '[data-kel-goal-progress-editor] textarea', 'AUSGEWAEHLT: Liest drei Silben korrekt.');
+  await clickSelector(client, '[data-kel-goal-progress-save]');
+  await waitFor(client, 'first saved observation',
+    'document.querySelector("[data-kel-goal-progress-history]")?.textContent.includes("AUSGEWAEHLT")');
+  await clickSelector(client, '[data-kel-goal-progress-add]');
+  await setControl(client, '[data-kel-goal-progress-editor] textarea', 'NICHT FREIGEGEBEN: Benötigt weitere Uebung.');
+  await clickSelector(client, '[data-kel-goal-progress-save]');
+  await waitFor(client, 'second saved observation',
+    'document.querySelector("[data-kel-goal-progress-history]")?.textContent.includes("NICHT FREIGEGEBEN")');
+  console.log('PASS Two dated KEL observations saved for a sample child');
+
   await clickButton(client, 'Druckzentrum');
   await waitFor(client, 'print center', 'document.body?.textContent.includes("DRUCKZENTRUM")');
   await clickButton(client, 'KEL-Elternblatt');
   await waitFor(client, 'KEL options', 'Boolean(document.querySelector("[data-kel-parent-report-controls]"))');
   await waitFor(client, 'pupil in KEL parent sheet', 'Boolean(document.querySelector("[data-kel-parent-student-id]"))');
+  await setControl(client, '#kel-parent-student', sampleStudentId);
+  await waitFor(client, 'selected sample child', 'document.querySelector("[data-kel-parent-student-id]")?.getAttribute("data-kel-parent-student-id")===' + q(sampleStudentId));
+  await waitFor(client, 'new meeting offered for sample child', 'document.querySelector("#kel-parent-meeting")?.options.length > 1');
+  const sampleMeetingId=await evaluate(client,'document.querySelector("#kel-parent-meeting")?.options[1]?.value');
+  await setControl(client, '#kel-parent-meeting', sampleMeetingId);
+  await waitFor(client, 'goal opt-in enabled by selected meeting',
+    'Boolean(document.querySelector("[data-kel-parent-goal-progress-enable]:not([disabled])"))');
+  const beforeConsent = await evaluate(client,
+    '(() => {const p=document.querySelector("[data-kel-parent-report]");return {enabled:document.querySelector("[data-kel-parent-goal-progress-enable]")?.checked,private:p?.textContent.includes("AUSGEWAEHLT")||p?.textContent.includes("NICHT FREIGEGEBEN")};})()');
+  if(beforeConsent.enabled || beforeConsent.private)throw new Error('Default parent report exposes private observations');
+  await clickSelector(client, '[data-kel-parent-goal-progress-enable]');
+  await waitFor(client, 'both observations separately selectable',
+    'document.querySelectorAll("[data-kel-parent-goal-progress-checkbox]").length===2');
+  if(await evaluate(client,'Boolean(document.querySelector("[data-kel-parent-goal-progress-print]"))'))
+    throw new Error('Checking section toggle alone exposed goal progress');
+  await clickSelector(client, '[data-kel-parent-goal-progress-checkbox]');
+  await waitFor(client, 'one approved observation in print preview',
+    'document.querySelector(".print-center-overlay [data-kel-parent-report]")?.querySelectorAll("[data-kel-parent-goal-progress-item]").length===1');
+  const afterConsent=await evaluate(client,
+    '(() => {const p=document.querySelector("[data-kel-parent-report]");return {selected:p?.textContent.includes("AUSGEWAEHLT"),excluded:p?.textContent.includes("NICHT FREIGEGEBEN")};})()');
+  if(!afterConsent.selected || afterConsent.excluded)
+    throw new Error('Individual observation approval failed: ' + JSON.stringify(afterConsent));
+
+  await evaluate(client,'document.body.classList.add("print-center-active","print-center-kel-parent-active")');
+  await client.send('Emulation.setEmulatedMedia',{media:'print'});
+  const approvedPdf=await client.send('Page.printToPDF',{printBackground:true,preferCSSPageSize:true});
+  const approvedBytes=new Uint8Array(Buffer.from(approvedPdf.data,'base64'));
+  await fs.writeFile(SELECTED_PDF_PATH,approvedBytes);
+  const approvedDoc=await getDocument({data:approvedBytes,useSystemFonts:true,disableFontFace:true}).promise;
+  const approvedPages=[];
+  for(let n=1;n<=approvedDoc.numPages;n++){
+    const p=await approvedDoc.getPage(n);
+    approvedPages.push((await p.getTextContent()).items.map(i=>'str'in i?i.str:'').join(' '));
+  }
+  const approvedText=approvedPages.join(' ');
+  if(!approvedText.includes('AUSGEWAEHLT')||approvedText.includes('NICHT FREIGEGEBEN')||
+     !approvedText.includes('Erziehungsberechtigte')||!approvedText.includes('Lehrperson'))
+    throw new Error('Selected A4 PDF leaks unapproved progress or loses signatures');
+  console.log('PASS Actual A4 parent PDF prints only one selected progress observation');
+  await client.send('Emulation.setEmulatedMedia',{media:'screen'});
+  await evaluate(client,'document.body.classList.remove("print-center-active","print-center-kel-parent-active")');
+  await clickSelector(client,'[data-kel-parent-goal-progress-checkbox]');
+  await waitFor(client,'revoked consent removes selected observation',
+    '!document.querySelector("[data-kel-parent-goal-progress-print]")');
+  await clickSelector(client,'[data-kel-parent-goal-progress-enable]');
+  if(await evaluate(client,'document.querySelector("[data-kel-parent-goal-progress-enable]")?.checked'))
+    throw new Error('Disabling observation approval did not reset parent preview');
+  console.log('PASS Observation consent is individually reversible');
+
   await fillInput(client, 'Das gelingt schon gut', 'Arbeitet freundlich mit anderen Kindern');
   await fillInput(client, 'Daran arbeiten wir weiter', 'Aufgaben zunehmend selbstständig beginnen');
   await fillInput(client, 'Gesprächsnotizen & Vereinbarungen', 'Wir üben gemeinsam täglich zehn Minuten.');
