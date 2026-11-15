@@ -146,7 +146,7 @@ try {
   }
   await waitFor(client, 'KEL menu', 'Boolean(document.querySelector("[data-menu-id=kel]"))');
   await clickSelector(client, '[data-menu-id="kel"]');
-  await waitFor(client, 'KEL page', 'document.body?.textContent.includes("KEL-Gespräche")');
+  await waitFor(client, 'KEL page rendered', 'Boolean(document.querySelector("[data-kel-shared-dossier-portal]")) || Array.from(document.querySelectorAll("button")).some(b=>b.textContent?.includes("Neues Protokoll"))');
   if (await evaluate(client, 'Array.from(document.querySelectorAll("button")).some(b=>b.textContent?.includes("Zu den Protokollen"))')) {
     await clickButton(client, 'Zu den Protokollen');
   } else {
