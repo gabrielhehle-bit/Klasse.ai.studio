@@ -663,7 +663,7 @@ export default function DossierLeistungen({
         {/* Modal for adding/editing an assessment */}
         {isModalOpen && editingItem && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+            <div data-dossier-assessment-editor className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-xl">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
                 <h4 className="text-sm font-bold text-slate-900">
                   Leistungsnachweis {editingItem.fach}
@@ -682,7 +682,7 @@ export default function DossierLeistungen({
                   <label className="block text-[0.625rem] font-bold uppercase tracking-wider text-slate-500 mb-1">
                     Kategorie
                   </label>
-                  <select
+                  <select data-dossier-assessment-category
                     value={editingItem.category}
                     onChange={e => setEditingItem({ ...editingItem, category: e.target.value as any })}
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-indigo-600"
@@ -698,7 +698,7 @@ export default function DossierLeistungen({
                   <label className="block text-[0.625rem] font-bold uppercase tracking-wider text-slate-500 mb-1">
                     Bezeichnung
                   </label>
-                  <input
+                  <input data-dossier-assessment-title
                     type="text"
                     value={editingItem.label}
                     onChange={e => setEditingItem({ ...editingItem, label: e.target.value })}
@@ -724,7 +724,7 @@ export default function DossierLeistungen({
                   <label className="block text-[0.625rem] font-bold uppercase tracking-wider text-slate-500 mb-1">
                     Datum
                   </label>
-                  <input
+                  <input data-dossier-assessment-date
                     type="date"
                     value={editingItem.date}
                     onChange={e => setEditingItem({ ...editingItem, date: e.target.value })}
@@ -738,7 +738,7 @@ export default function DossierLeistungen({
                     <label className="block text-[0.625rem] font-bold uppercase tracking-wider text-slate-500 mb-1">
                       Note (1 bis 5)
                     </label>
-                    <select
+                    <select data-dossier-assessment-grade
                       value={editingItem.grade}
                       onChange={e => setEditingItem({ ...editingItem, grade: e.target.value })}
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold outline-none focus:border-indigo-600"
@@ -817,6 +817,7 @@ export default function DossierLeistungen({
                 <button
                   type="button"
                   onClick={handleSaveAssessment}
+                  data-dossier-assessment-save
                   className="rounded-xl bg-indigo-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 transition cursor-pointer shadow-xs"
                 >
                   Speichern
