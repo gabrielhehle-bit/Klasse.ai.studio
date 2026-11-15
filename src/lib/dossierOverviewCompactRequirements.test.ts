@@ -148,7 +148,7 @@ test('student dossier keeps scrollable tab headers and does not clip mobile cont
   assert.match(dossier, /data-dossier-mobile-nav-hint/);
   assert.match(dossier, /Weitere Bereiche: seitlich wischen/);
   assert.match(dossier, /aria-describedby="dossier-mobile-main-nav-hint"/);
-  assert.match(dossier, /overscroll-x-contain pb-1 scrollbar-none/);
+  assert.match(dossier, /pb-1 scrollbar-none overscroll-x-contain/);
   assert.match(dossier, /tabIndex=\{0\}/);
   assert.match(dossier, /getFilteredMainAreas\(\)\.map/);
 });
