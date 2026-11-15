@@ -116,23 +116,46 @@ try{
   await until(c,'gradebook available in sidebar','Boolean(document.querySelector("[data-menu-id=noten]"))');
   await click(c,'[data-menu-id="noten"]');
   await until(c,'real gradebook table','Boolean(document.querySelector("[data-gradebook-scroll-container]"))');
+  // Set up an assessment through the actual Gradebook UI in this disposable demo vault.
+  // Unlike a CSS probe, these rows exercise input validation, committing and readback.
+  const initiallyEmpty = await evalPage(c,
+    'document.querySelectorAll("[data-gradebook-scroll-container] input[data-col]").length === 0');
+  if (!initiallyEmpty) throw new Error('Expected a fresh demo gradebook without assessments');
+  await click(c,'#gradebook-add-assessment-trigger');
+  await until(c,'assessment chooser','Boolean(document.querySelector("#gradebook-add-assessment-menu"))');
+  const canLzk = await evalPage(c,
+    'Boolean(document.querySelector("#gradebook-add-assessment-menu button[aria-label=\"Lernzielkontrolle für die Klasse anlegen\"]:not(:disabled)"))');
+  if (canLzk) {
+    await click(c,'#gradebook-add-assessment-menu button[aria-label="Lernzielkontrolle für die Klasse anlegen"]');
+  } else {
+    await clickText(c,'Sonstige Leistung / bewertete HÜ');
+  }
+  await until(c,'assessment item editor','Boolean(document.querySelector("#assessment-item-modal-content"))');
+  await fill(c,'Bezeichnung / Titel','Mobile Demo-Bewertung');
+  await click(c,'#btn-save-assessment-modal');
+  await until(c,'new visible editable grade column',
+    'document.querySelectorAll("[data-gradebook-scroll-container] input[data-col]:not(:disabled)").length >= 2');
+  const gradeCellInfo=await evalPage(c,'(() => {' +
+    'const a=Array.from(document.querySelectorAll("[data-gradebook-scroll-container] input[data-col]:not(:disabled)"));' +
+    'return a.slice(0,2).map(x=>({label:x.getAttribute("aria-label"),column:x.getAttribute("data-col")}));})()');
+  if(gradeCellInfo.length!==2 || !gradeCellInfo.every(c=>c.label&&c.column) ||
+      gradeCellInfo[0].label===gradeCellInfo[1].label)
+    throw new Error('New assessment does not have two distinct editable child rows');
+  console.log('PASS Created a genuine named assessment for two synthetic pupils');
   await usePhone(c);
   await until(c,'390px mobile gradebook','document.documentElement.clientWidth === 390');
   const grades=await evalPage(c,'(() => {'+
     'const area=document.querySelector("[data-gradebook-scroll-container]");' +
-    'const cells=Array.from(area.querySelectorAll("input[data-col]")).filter(e=>e.getClientRects().length>0);' +
-    'let probe=null;let input=cells[0];' +
-    'if(!input){const td=area.querySelector("tbody td");if(td){probe=document.createElement("input");probe.dataset.col="mobile-probe";' +
-    'probe.style.width="44px";td.appendChild(probe);input=probe;}}' +
+    'const cells=Array.from(area.querySelectorAll("input[data-col]:not(:disabled)")).filter(e=>e.getClientRects().length>0);' +
+    'const input=cells[0];' +
     'const arrows=Array.from(document.querySelectorAll("[data-gradebook-scroll-controls] button"));' +
     'return {width:document.documentElement.clientWidth,coarse:matchMedia("(pointer: coarse)").matches,' +
-    'scrollWidth:area.scrollWidth,clientWidth:area.clientWidth,inputCount:input?1:0,' +
-    'inputSource:probe?"CSS probe (demo has no grade columns)":"real grade entry",' +
+    'scrollWidth:area.scrollWidth,clientWidth:area.clientWidth,inputCount:cells.length,' +
+    'inputSource:"real populated assessment input",' +
     'inputHeight:input?.getBoundingClientRect().height,inputWidth:input?.getBoundingClientRect().width,' +
     'inputFont:input?parseFloat(getComputedStyle(input).fontSize):null,' +
     'buttons:arrows.map(e=>({height:e.getBoundingClientRect().height,width:e.getBoundingClientRect().width})),' +
-    'sticky:getComputedStyle(area.querySelector("tbody td:nth-child(2)")).position,' +
-    'probeRemoved:(probe?.remove(),!probe?.isConnected)};})()');
+    'sticky:getComputedStyle(area.querySelector("tbody td:nth-child(2)")).position};})()');
   console.log('Gradebook mobile metrics:',JSON.stringify(grades));
   if(!grades.coarse)throw new Error('Chrome did not emulate coarse pointer: touch sizes not verified');
   if(!grades.inputCount||grades.inputHeight<43||grades.inputWidth<43||grades.inputFont<15.9)
@@ -140,7 +163,40 @@ try{
   if(grades.buttons.some(b=>b.height<43||b.width<43))throw new Error('Gradebook scroll buttons too small');
   if(grades.sticky!=='sticky')throw new Error('Student names no longer sticky');
   if(grades.scrollWidth<=grades.clientWidth)throw new Error('Expected scrollable mobile gradebook table');
-  console.log('PASS Phone gradebook touch CSS (source: '+grades.inputSource+'), sticky names and horizontal scroll');
+  console.log('PASS Real populated grade inputs on 390px phone: 44px target, 16px font, sticky names');
+  const enterGrade=async (label,value)=>{
+    const selector='[data-gradebook-scroll-container] input[data-col][aria-label='+q(label)+']';
+    const inputExpr='(() => {const e=document.querySelector('+q(selector)+');if(!e)return false;' +
+      'e.scrollIntoView({block:"nearest",inline:"nearest"});e.focus();' +
+      'Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set.call(e,'+q(value)+');' +
+      'e.dispatchEvent(new InputEvent("input",{bubbles:true,inputType:"insertText",data:'+q(value)+'}));' +
+      'return true;})()';
+    if(!await evalPage(c,inputExpr))throw new Error('Cannot type into '+label);
+    await sleep(150);
+    await evalPage(c,'document.querySelector('+q(selector)+')?.blur()');
+    await until(c,'visible grade '+value+' in '+label,
+      'document.querySelector('+q(selector)+')?.value==='+q(value));
+  };
+  await enterGrade(gradeCellInfo[0].label,'2');
+  await enterGrade(gradeCellInfo[1].label,'4');
+  // Force a React unmount/remount by changing the subject, not by editing app state.
+  const originalSubject=await evalPage(c,'document.querySelector("#gradebook-active-subject")?.value');
+  const otherSubject=await evalPage(c,'(() => {const s=document.querySelector("#gradebook-active-subject");return Array.from(s.options).find(o=>o.value&&o.value!==s.value)?.value})()');
+  if(!otherSubject)throw new Error('Demo lacks a second subject for isolation and persistence checks');
+  const chooseSubject=async val=>{
+    const expr='(() => {const s=document.querySelector("#gradebook-active-subject");' +
+      'Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,"value").set.call(s,'+q(val)+');' +
+      's.dispatchEvent(new Event("change",{bubbles:true}));return true;})()';
+    await evalPage(c,expr);
+    await until(c,'subject selected '+val,'document.querySelector("#gradebook-active-subject")?.value==='+q(val));
+  };
+  await chooseSubject(otherSubject);
+  await until(c,'other subject has no demo grade entry',
+    '!Array.from(document.querySelectorAll("[data-gradebook-scroll-container] input[data-col]")).some(e=>e.value==="2"||e.value==="4")');
+  await chooseSubject(originalSubject);
+  await until(c,'both saved demo grades reappear',
+    '(() => {const f=Array.from(document.querySelectorAll("[data-gradebook-scroll-container] input[data-col]"));return f.some(x=>x.getAttribute("aria-label")==='+q(gradeCellInfo[0].label)+'&&x.value==="2")&&f.some(x=>x.getAttribute("aria-label")==='+q(gradeCellInfo[1].label)+'&&x.value==="4");})()');
+  console.log('PASS Two real 1–5 grades committed and survive switching subjects without cross-subject leakage');
 
   // Switch back to desktop to use the regular sidebar, then return to phone
   // for layout assertions inside the same student's dossier.
