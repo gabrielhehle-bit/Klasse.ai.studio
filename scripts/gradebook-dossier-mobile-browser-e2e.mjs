@@ -418,4 +418,5 @@ try{
      metrics.find(m=>m.name==='behavior')?.bars<6)
     throw new Error('Recorded child mood or behavior chart is unreadable at 360px');
   console.log('PASS 6 mood dates aggregate to 5 weekly chart points and 6 behavior days at 360px');
+  console.log('Preparing parent A4 trend verification');
 }finally{c.close();}
