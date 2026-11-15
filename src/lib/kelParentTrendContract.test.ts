@@ -43,3 +43,13 @@ test('Chrome PDF preserves both SVG trends without altering the protected signat
   assert.match(print, /\[data-kel-signature-space\] \{/);
   assert.match(print, /height: 34mm !important;/);
 });
+
+test('PrintCenter offers KEL parents a direct entry and one unambiguous print/PDF action', () => {
+  assert.match(print, /\{ id: 'kel_elternblatt', label: 'KEL-Elternblatt', desc: 'Elterngespräch auf A4'/);
+  assert.match(print, /data-testid="print-center-advanced-format"/);
+  assert.match(print, /<details data-testid="print-center-advanced-format"/);
+  assert.match(print, /Angaben für dieses Dokument/);
+  assert.match(print, /data-testid="print-center-primary-print"/);
+  assert.match(print, /Drucken oder als PDF speichern/);
+  assert.match(print, /Im Browser-Druckdialog den Drucker wählen/);
+});
