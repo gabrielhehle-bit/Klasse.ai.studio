@@ -451,5 +451,37 @@ try{
   }
   console.log('PASS Both KEL parent timelines distinguish 5 documented of 6 available weeks');
 
+  await evalPage(c,'document.body.classList.add("print-center-active","print-center-kel-parent-active")');
+  await c.send('Emulation.setEmulatedMedia',{media:'print'});
+  const printMetrics=await evalPage(c,'(() => {const root=document.querySelector(".print-center-overlay [data-kel-parent-report]");' +
+    'return ["mood","behavior"].map(kind=>{const chart=root?.querySelector("[data-kel-trend="+kind+"]");' +
+    'const svg=chart?.querySelector("svg");const r=svg?.getBoundingClientRect();return {kind,width:r?.width,height:r?.height,' +
+    'sheetRight:root?.getBoundingClientRect().right,chartRight:chart?.getBoundingClientRect().right};});})()');
+  console.log('KEL charts in actual A4 print media:',JSON.stringify(printMetrics));
+  if(printMetrics.some(m=>!m.width||m.width<200||!m.height||m.height<40||m.chartRight>m.sheetRight+2))
+    throw new Error('KEL parent trend chart clipped in A4 print media');
+  const output=await c.send('Page.printToPDF',{printBackground:true,preferCSSPageSize:true});
+  const bytes=new Uint8Array(Buffer.from(output.data,'base64'));
+  await fs.writeFile('/tmp/klassio-kel-trends-a4.pdf',bytes);
+  const document=await getDocument({data:bytes,useSystemFonts:true,disableFontFace:true}).promise;
+  const pages=[];
+  for(let pageNo=1;pageNo<=document.numPages;pageNo++){
+    const page=await document.getPage(pageNo);
+    pages.push((await page.getTextContent()).items.map(item=>'str' in item?item.str:'').join(' '));
+  }
+  const printed=pages.join(' ');
+  if(!printed.includes('Befinden im Zeitverlauf') ||
+    !printed.includes('Dokumentation im Zeitverlauf') ||
+    !printed.includes('5 von 6 Wochen') ||
+    !printed.includes('Erziehungsberechtigte') ||
+    !printed.includes('Lehrperson') ||
+    pages.some(text=>!text.trim()) ||
+    document.numPages>3)
+    throw new Error('KEL A4 PDF lacks chart coverage, signature boxes or readable pages');
+  if(!pages.some(text=>text.includes('Befinden im Zeitverlauf')&&text.includes('Dokumentation im Zeitverlauf')))
+    throw new Error('KEL mood and behavior chart panels split across pages');
+  console.log('PASS Real populated KEL A4 PDF retains both trends, honest coverage and signatures');
+
+
 
 }finally{c.close();}
