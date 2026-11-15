@@ -35,7 +35,7 @@ test('real browser acceptance enters six moods via Attendance and six daily beha
  assert.match(chrome,/PASS Six real dated child-mood selections entered in Attendance/);
  assert.match(chrome,/data-observation-behavior-save/);
  assert.match(chrome,/datedMoods/);
- assert.match(chrome,/data-observation-chart-scroll=mood/);
- assert.match(chrome,/data-observation-chart-scroll=behavior/);
+ assert.match(chrome,/\["behavior","mood"\]/);
+ assert.match(chrome,/data-observation-chart-scroll=/);
  assert.match(chrome,/PASS 6 mood dates and 6 behavior days visibly rendered/);
 });
