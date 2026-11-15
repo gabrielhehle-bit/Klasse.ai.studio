@@ -207,7 +207,7 @@ try {
   console.log('Approved choice labels:',await evaluate(client,'document.querySelector("[data-kel-parent-goal-progress-choices]")?.textContent.slice(-130)'));
 
   await waitFor(client, 'one approved observation in print preview',
-    'document.querySelectorAll("[data-kel-parent-goal-progress-item]").length===1');
+    'document.querySelector(".print-center-overlay [data-kel-parent-report]")?.querySelectorAll("[data-kel-parent-goal-progress-item]").length===1');
   const afterConsent=await evaluate(client,
     '(() => {const p=document.querySelector("[data-kel-parent-report]");return {selected:p?.textContent.includes("AUSGEWAEHLT"),excluded:p?.textContent.includes("NICHT FREIGEGEBEN")};})()');
   if(!afterConsent.selected || afterConsent.excluded)
