@@ -1747,6 +1747,21 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
           outline: 2px solid #059669; outline-offset: 1px;
           background: #fff; box-shadow: 0 0 0 3px rgba(5,150,105,0.1);
         }
+        /* Compact desktop rows must not shrink score inputs below a finger-friendly
+           target on phones/tablets. 16px prevents iOS Safari focus zoom. */
+        @media screen and (pointer: coarse) {
+          .gradebook-scroll-area .gradebook-table--dense tbody tr { height: auto; }
+          .gradebook-scroll-area .gradebook-table input[data-col] {
+            min-height: 44px !important;
+            min-width: 44px !important;
+            font-size: 16px !important;
+          }
+          [data-gradebook-scroll-controls] button {
+            min-height: 44px;
+            min-width: 44px;
+          }
+          .gradebook-scroll-area { -webkit-overflow-scrolling: touch; }
+        }
         @media (hover: hover) and (pointer: fine) and (min-width: 768px) {
           .gradebook-table--dense [data-gradebook-row-actions] {
             position: absolute; top: 50%; right: 0.25rem;
