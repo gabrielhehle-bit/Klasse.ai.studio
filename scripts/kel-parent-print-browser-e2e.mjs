@@ -207,6 +207,32 @@ try {
   if(!afterConsent.selected || afterConsent.excluded)
     throw new Error('Individual observation approval failed: ' + JSON.stringify(afterConsent));
 
+  await evaluate(client,'document.body.classList.add("print-center-active","print-center-kel-parent-active")');
+  await client.send('Emulation.setEmulatedMedia',{media:'print'});
+  const approvedPdf=await client.send('Page.printToPDF',{printBackground:true,preferCSSPageSize:true});
+  const approvedBytes=new Uint8Array(Buffer.from(approvedPdf.data,'base64'));
+  await fs.writeFile(SELECTED_PDF_PATH,approvedBytes);
+  const approvedDoc=await getDocument({data:approvedBytes,useSystemFonts:true,disableFontFace:true}).promise;
+  const approvedPages=[];
+  for(let n=1;n<=approvedDoc.numPages;n++){
+    const p=await approvedDoc.getPage(n);
+    approvedPages.push((await p.getTextContent()).items.map(i=>'str'in i?i.str:'').join(' '));
+  }
+  const approvedText=approvedPages.join(' ');
+  if(!approvedText.includes('AUSGEWAEHLT')||approvedText.includes('NICHT FREIGEGEBEN')||
+     !approvedText.includes('Erziehungsberechtigte')||!approvedText.includes('Lehrperson'))
+    throw new Error('Selected A4 PDF leaks unapproved progress or loses signatures');
+  console.log('PASS Actual A4 parent PDF prints only one selected progress observation');
+  await client.send('Emulation.setEmulatedMedia',{media:'screen'});
+  await evaluate(client,'document.body.classList.remove("print-center-active","print-center-kel-parent-active")');
+  await clickSelector(client,'[data-kel-parent-goal-progress-checkbox]');
+  await waitFor(client,'revoked consent removes selected observation',
+    '!document.querySelector("[data-kel-parent-goal-progress-print]")');
+  await clickSelector(client,'[data-kel-parent-goal-progress-enable]');
+  if(await evaluate(client,'document.querySelector("[data-kel-parent-goal-progress-enable]")?.checked'))
+    throw new Error('Disabling observation approval did not reset parent preview');
+  console.log('PASS Observation consent is individually reversible');
+
   await fillInput(client, 'Das gelingt schon gut', 'Arbeitet freundlich mit anderen Kindern');
   await fillInput(client, 'Daran arbeiten wir weiter', 'Aufgaben zunehmend selbstständig beginnen');
   await fillInput(client, 'Gesprächsnotizen & Vereinbarungen', 'Wir üben gemeinsam täglich zehn Minuten.');
