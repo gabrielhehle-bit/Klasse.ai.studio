@@ -414,8 +414,8 @@ try{
     'bars:svg.querySelectorAll(".recharts-rectangle").length};}) )()');
   console.log('Dossier real mood and behavior charts at 360px:',JSON.stringify(metrics));
   if(metrics.some(m=>m.error||m.total<=m.width+100||m.left<100||m.right>362) ||
-     metrics.find(m=>m.name==='mood')?.points<6 ||
+     metrics.find(m=>m.name==='mood')?.points<5 ||
      metrics.find(m=>m.name==='behavior')?.bars<6)
     throw new Error('Recorded child mood or behavior chart is unreadable at 360px');
-  console.log('PASS 6 mood dates and 6 behavior days visibly rendered on 360px school-year charts');
+  console.log('PASS 6 mood dates aggregate to 5 weekly chart points and 6 behavior days at 360px');
 }finally{c.close();}
