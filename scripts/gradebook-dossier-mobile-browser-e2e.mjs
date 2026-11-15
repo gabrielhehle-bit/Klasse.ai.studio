@@ -230,8 +230,10 @@ try{
 
   // Create eight distinct dated pupil assessments via the real Dossier form.
   // No direct AppContext or persisted-vault injection is involved.
-  const subjectButton='[data-dossier-subject-grid] button[aria-label='+q('Bewertungsstand '+originalSubject)+']';
-  await click(c,subjectButton);
+  const selectedSubjectCard = await evalPage(c, '(() => {' +
+    'const button=Array.from(document.querySelectorAll("[data-dossier-subject-grid] button")).find(b=>' +
+    'b.textContent?.includes('+q(originalSubject)+'));if(!button)return false;button.click();return true;})()');
+  if(!selectedSubjectCard)throw new Error('No visible Dossier subject card for '+originalSubject);
   await until(c,'Dossier subject assessment editor available',
     'Boolean(document.querySelector("[data-dossier-performance-header]"))');
   const values=['4','3','3','1','1','2','2','2'];
