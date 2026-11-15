@@ -482,15 +482,16 @@ try{
     excerpt:printed.slice(0,800)
   }));
 
-  if(!printed.includes('Befinden im Zeitverlauf') ||
-    !printed.includes('Dokumentation im Zeitverlauf') ||
-    !printed.includes('5 von 6 Wochen') ||
-    !printed.includes('Erziehungsberechtigte') ||
-    !printed.includes('Lehrperson') ||
+  const normal=printed.replace(/\s+/g,'');
+  if(!normal.includes('BefindenimZeitverlauf') ||
+    !normal.includes('DokumentationimZeitverlauf') ||
+    !normal.includes('5von6Wochen') ||
+    !normal.includes('Erziehungsberechtigte') ||
+    !normal.includes('Lehrperson') ||
     pages.some(text=>!text.trim()) ||
     document.numPages>3)
     throw new Error('KEL A4 PDF lacks chart coverage, signature boxes or readable pages');
-  if(!pages.some(text=>text.includes('Befinden im Zeitverlauf')&&text.includes('Dokumentation im Zeitverlauf')))
+  if(!pages.some(text=>{const normal=text.replace(/\s+/g,'');return normal.includes('BefindenimZeitverlauf')&&normal.includes('DokumentationimZeitverlauf');}))
     throw new Error('KEL mood and behavior chart panels split across pages');
   console.log('PASS Real populated KEL A4 PDF retains both trends, honest coverage and signatures');
 
