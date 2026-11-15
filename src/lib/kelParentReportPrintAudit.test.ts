@@ -87,3 +87,10 @@ test('expanded KEL learning selection never silently drops a fifth row or shrink
   assert.match(print, /\[data-kel-learning-section\] \{/);
   assert.match(print, /\[data-kel-learning-item\] \{/);
 });
+
+
+test('long parent agreements can continue on the first A4 page without moving the full section', () => {
+  assert.match(sheet, /<Section title="Gesprächsnotizen &amp; Vereinbarungen" detail="Platz zum Ergänzen" allowPageBreak>/);
+  assert.match(sheet, /data-kel-learning-section=\{allowPageBreak \? true : undefined\}/);
+  assert.match(print, /\[data-kel-learning-section\] \{\s*break-inside: auto !important;\s*page-break-inside: auto !important;/);
+});

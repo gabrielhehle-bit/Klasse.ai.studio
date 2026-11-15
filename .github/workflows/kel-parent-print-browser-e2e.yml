@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'src/components/KELParentReport.tsx'
+      - 'src/components/KELParentTrendChart.tsx'
+      - 'src/index.css'
       - 'src/components/PrintCenter.tsx'
       - 'src/lib/studentParticipation.ts'
       - 'src/lib/kelParentReportContract.test.ts'
@@ -15,6 +17,8 @@ on:
     branches: [main]
     paths:
       - 'src/components/KELParentReport.tsx'
+      - 'src/components/KELParentTrendChart.tsx'
+      - 'src/index.css'
       - 'src/components/PrintCenter.tsx'
       - 'src/lib/studentParticipation.ts'
       - 'scripts/kel-parent-print-browser-e2e.mjs'
@@ -52,6 +56,7 @@ jobs:
           KLASSIO_E2E_ACCESS_CODE: ci-parent-print-access-2026
           KLASSIO_CHROME_DEBUG_URL: http://127.0.0.1:9282
           KLASSIO_E2E_PDF: /tmp/klassio-kel-parent-e2e.pdf
+          KLASSIO_E2E_LONG_PDF: /tmp/klassio-kel-parent-e2e-long.pdf
           KLASSIO_E2E_SCREENSHOT: /tmp/klassio-kel-parent-e2e.png
         run: |
           set -euo pipefail
@@ -89,6 +94,7 @@ jobs:
           name: klassio-kel-parent-print-${{ github.sha }}-${{ github.run_attempt }}
           path: |
             /tmp/klassio-kel-parent-e2e.pdf
+            /tmp/klassio-kel-parent-e2e-long.pdf
             /tmp/klassio-kel-parent-e2e.png
             /tmp/klassio-kel-parent-server.log
             /tmp/klassio-kel-parent-chrome.log
