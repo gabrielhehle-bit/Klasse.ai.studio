@@ -2,6 +2,9 @@
  * Real Chrome mobile smoke test. Uses a throwaway local server, a fresh
  * vault and the explicitly selected demo class; reads only UI/layout.
  */
+import fs from 'node:fs/promises';
+import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
+
 const BASE_URL = process.env.KLASSIO_E2E_BASE_URL || 'http://127.0.0.1:3100/login';
 const DEBUG_URL = process.env.KLASSIO_CHROME_DEBUG_URL || 'http://127.0.0.1:9282';
 const CODE = process.env.KLASSIO_E2E_ACCESS_CODE || 'ci-mobile-audit-access-2026';
