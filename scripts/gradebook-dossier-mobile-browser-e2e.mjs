@@ -330,7 +330,7 @@ try{
   };
   const datedMoods=[
     ['2026-10-05','5'],['2026-10-12','4'],['2026-10-19','3'],
-    ['2026-10-26','2'],['2026-11-02','1'],['2026-11-09','2']
+    ['2026-10-23','2'],['2026-11-03','1'],['2026-11-09','2']
   ];
   await click(c,'[data-menu-id="anwesenheit"]');
   const pupilMoodSelector='select[aria-label='+q('Befinden für '+pupilName)+']';
@@ -341,6 +341,9 @@ try{
     await controlChange('input[aria-label="Anwesenheitsdatum"]',day);
     await until(c,'selected attendance day '+day,
       'document.querySelector("[aria-label=Anwesenheitsdatum]")?.value==='+q(day));
+    await sleep(100); // Allow the school-calendar-dependent pupil rows to rerender.
+    await until(c,'mood selector available on school day '+day,
+      'Boolean(document.querySelector('+q(pupilMoodSelector)+'))');
     await controlChange(pupilMoodSelector,value);
     await until(c,'mood '+value+' saved on '+day,
       'document.querySelector('+q(pupilMoodSelector)+')?.value==='+q(value));
