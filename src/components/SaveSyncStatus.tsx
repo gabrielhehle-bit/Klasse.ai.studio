@@ -154,12 +154,15 @@ export default function SaveSyncStatus({
                   ? 'Die neuesten Änderungen sind am Server bestätigt. Du kannst auf einem anderen Gerät weiterarbeiten.'
                   : 'Vor dem Gerätewechsel auf den grünen Punkt warten.'}
               </p>
+              <p data-testid="autosave-explanation" className="text-slate-600">
+                KLASSIO speichert Änderungen automatisch und überträgt sie, sobald die Voraussetzungen erfüllt sind. Die folgenden Bestätigungen zeigen getrennt, was auf diesem Gerät und auf dem Server angekommen ist.
+              </p>
               <p>
                 Dieses Gerät: {localSaveStatus === 'saved'
                   ? `gespeichert · ${time(localSaveLastAt)}`
                   : localSaveStatus === 'error'
                     ? 'Letzte Änderung nicht gespeichert'
-                    : 'Änderung noch ausstehend'}
+                    : 'Änderung wird automatisch gespeichert'}
               </p>
               <p>
                 Konto: {accountSyncStatus === 'synced'
