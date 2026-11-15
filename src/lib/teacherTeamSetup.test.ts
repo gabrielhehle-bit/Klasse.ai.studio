@@ -47,7 +47,7 @@ test('Teacher setup surface links to the existing secure class sharing actions',
   assert.match(source, /teamSyncPresentation\(activeRoom\)/);
   assert.match(source, /case 'activate': void enableSharing\(\)/);
   assert.match(source, /case 'request-device': void requestDeviceAccess\(\)/);
-  assert.match(source, /case 'ready': void showLatestChanges\(\)/);
+  assert.match(source, /case 'ready': void synchronizeTeamSimply\(\)/);
   assert.match(source, /id="team-teacher-search"/);
   assert.match(source, /requestTeamTeachingDeviceAccess\(summary\.id\)/);
   assert.match(source, /Versionsgeschichte/);
