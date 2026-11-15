@@ -8,6 +8,13 @@ on:
       - 'scripts/gradebook-dossier-mobile-browser-e2e.mjs'
       - 'src/components/Gradebook.tsx'
       - 'src/components/StudentDossier.tsx'
+      - 'src/components/dossier/DossierAssessmentChart.tsx'
+      - 'src/components/dossier/DossierLeistungen.tsx'
+      - 'src/components/dossier/DossierUebersicht.tsx'
+      - 'src/lib/dossierMobileChartsRequirements.test.ts'
+      - 'src/lib/dossierAssessmentWrite.test.ts'
+      - 'src/lib/dossierAssessmentChart.test.ts'
+      - 'src/lib/dossierOverviewStats.test.ts'
       - 'src/index.css'
       - 'src/lib/gradebookScrollingUx.test.ts'
       - 'src/lib/dossierOverviewCompactRequirements.test.ts'
@@ -18,6 +25,13 @@ on:
       - 'scripts/gradebook-dossier-mobile-browser-e2e.mjs'
       - 'src/components/Gradebook.tsx'
       - 'src/components/StudentDossier.tsx'
+      - 'src/components/dossier/DossierAssessmentChart.tsx'
+      - 'src/components/dossier/DossierLeistungen.tsx'
+      - 'src/components/dossier/DossierUebersicht.tsx'
+      - 'src/lib/dossierMobileChartsRequirements.test.ts'
+      - 'src/lib/dossierAssessmentWrite.test.ts'
+      - 'src/lib/dossierAssessmentChart.test.ts'
+      - 'src/lib/dossierOverviewStats.test.ts'
       - 'src/index.css'
   workflow_dispatch:
 
@@ -38,7 +52,7 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
       - name: Run focused mobile regression tests
-        run: bun test src/lib/gradebookScrollingUx.test.ts src/lib/dossierOverviewCompactRequirements.test.ts
+        run: bun test src/lib/gradebookScrollingUx.test.ts src/lib/dossierOverviewCompactRequirements.test.ts src/lib/dossierAssessmentChart.test.ts src/lib/dossierOverviewStats.test.ts src/lib/dossierMobileChartsRequirements.test.ts src/lib/dossierAssessmentWrite.test.ts
       - name: Production build
         run: bun run build
       - name: Verify 390px coarse-pointer UI in real Chrome

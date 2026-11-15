@@ -227,4 +227,88 @@ try{
     throw new Error('Dossier horizontal navigation is not scrollable');
   if(dossier.smallTargets)throw new Error('Dossier tab touch targets below 44px');
   console.log('PASS Dossier phone tab scrolling, visible cue and unclipped content');
+
+  // Create eight distinct dated pupil assessments via the real Dossier form.
+  // No direct AppContext or persisted-vault injection is involved.
+  const selectedSubjectCard = await evalPage(c, '(() => {' +
+    'const button=Array.from(document.querySelectorAll("[data-dossier-subject-grid] button")).find(b=>' +
+    'b.textContent?.includes('+q(originalSubject)+'));if(!button)return false;button.click();return true;})()');
+  if(!selectedSubjectCard)throw new Error('No visible Dossier subject card for '+originalSubject);
+  await until(c,'Dossier subject assessment editor available',
+    'Boolean(document.querySelector("[data-dossier-performance-header]"))');
+  const values=['4','3','3','1','1','2','2','2'];
+  const dates=['2026-09-02','2026-09-20','2026-10-01','2026-10-15',
+    '2026-10-28','2026-11-03','2026-11-10','2026-11-12'];
+  const setField=async(sel,val)=>{
+    const expr='(() => {const el=document.querySelector('+q(sel)+');if(!el)return false;' +
+      'const proto=el instanceof HTMLSelectElement?HTMLSelectElement.prototype:HTMLInputElement.prototype;' +
+      'Object.getOwnPropertyDescriptor(proto,"value").set.call(el,'+q(val)+');' +
+      'el.dispatchEvent(new Event("input",{bubbles:true}));' +
+      'el.dispatchEvent(new Event("change",{bubbles:true}));return true;})()';
+    if(!await evalPage(c,expr))throw new Error('Cannot fill assessment '+sel);
+  };
+  for(let i=0;i<dates.length;i++){
+    await clickText(c,'Leistungsnachweis eintragen');
+    await until(c,'assessment editor '+i,'Boolean(document.querySelector("[data-dossier-assessment-editor]"))');
+    await setField('[data-dossier-assessment-category]','lzk');
+    await setField('[data-dossier-assessment-title]','Mobiltest '+String(i+1).padStart(2,'0'));
+    await setField('[data-dossier-assessment-date]',dates[i]);
+    await setField('[data-dossier-assessment-grade]',values[i]);
+    await click(c,'[data-dossier-assessment-save]');
+    await until(c,'assessment saved '+(i+1),
+      '!document.querySelector("[data-dossier-assessment-editor]") && ' +
+      'document.querySelectorAll("[data-assessment-row]").length >= '+(i+1));
+  }
+  await until(c,'actual dated chart has multiple points',
+    'Number(document.querySelector("[data-dossier-assessment-chart] span")?.textContent.match(/\\d+/)?.[0]||0)>=8');
+  await c.send('Emulation.setDeviceMetricsOverride',
+    {width:360,height:780,deviceScaleFactor:1,mobile:true});
+  await sleep(500);
+  await until(c,'assessment SVG rendered at 360px',
+    'Boolean(document.querySelector("[data-dossier-assessment-scroll] svg.recharts-surface"))');
+  const chartMetrics=await evalPage(c,'(() => {' +
+    'const sc=document.querySelector("[data-dossier-assessment-scroll]");' +
+    'const plot= document.querySelector("[data-dossier-assessment-chart-plot]");' +
+    'const svg=plot.querySelector("svg.recharts-surface");' +
+    'const dots=svg.querySelectorAll(".recharts-line-dots circle").length;' +
+    'const x=svg.querySelectorAll(".recharts-xAxis .recharts-cartesian-axis-tick").length;' +
+    'const pane=sc.getBoundingClientRect();sc.scrollLeft=sc.scrollWidth;return {' +
+    'screen:document.documentElement.clientWidth,scrollWidth:sc.scrollWidth,' +
+    'clientWidth:sc.clientWidth,scrollLeft:sc.scrollLeft,' +
+    'plotWidth:plot.getBoundingClientRect().width,plotHeight:plot.getBoundingClientRect().height,' +
+    'paneRight:pane.right,dots,x};})()');
+  console.log('Dossier 360px dated assessment chart metrics:',JSON.stringify(chartMetrics));
+  if(chartMetrics.screen!==360||chartMetrics.dots<8||chartMetrics.x<3||
+    chartMetrics.plotWidth<620||chartMetrics.plotHeight<200||
+    chartMetrics.scrollWidth<=chartMetrics.clientWidth+80||chartMetrics.scrollLeft<80||
+    chartMetrics.paneRight>chartMetrics.screen+2)
+    throw new Error('Dated assessment chart clipped or unreadable on 360px phone');
+  console.log('PASS 8 real dated grade observations in a horizontally readable 360px chart');
+
+  await click(c,'[data-student-dossier-areas] button[role="tab"]:first-child');
+  await until(c,'Dossier overview returns','Boolean(document.querySelector("[data-dossier-overview]"))');
+  await click(c,'[aria-label="Zeitraum der Alltagsdiagramme"] button:last-child');
+  await until(c,'year view selected',
+    'document.querySelector("[aria-label=\\\"Zeitraum der Alltagsdiagramme\\\"] button:last-child")?.getAttribute("aria-pressed")==="true"');
+  const yearGraphs=await evalPage(c,'(() => [' +
+    '"participation","wellbeing"].map(name=>{' +
+    'const el=document.querySelector("[data-dossier-trend-scroll="+JSON.stringify(name)+"]");' +
+    'if(!el)return {name,error:"missing"};' +
+    'const plot=el.firstElementChild;el.scrollLeft=el.scrollWidth;' +
+    'return {name,client:el.clientWidth,scroll:el.scrollWidth,' +
+    'scrollLeft:el.scrollLeft,plot:plot.getBoundingClientRect().width,' +
+    'right:el.getBoundingClientRect().right};' +
+    '}) )()');
+  console.log('Dossier 360px school-year timelines:',JSON.stringify(yearGraphs));
+  const moodGraph=yearGraphs.find(g=>g.name==='wellbeing');
+  const participationGraph=yearGraphs.find(g=>g.name==='participation');
+  // In November the current school year has only four monthly buckets.
+  // Its compact participation chart should NOT be artificially widened.
+  if(!moodGraph || !participationGraph ||
+    yearGraphs.some(g=>g.error || g.right>362) ||
+    moodGraph.scroll<=moodGraph.client+40 || moodGraph.scrollLeft<40 ||
+    participationGraph.scroll<participationGraph.client-2)
+    throw new Error('School-year timelines are clipped or not appropriately sized on phone');
+  console.log('PASS School-year weekly development timeline scrolls while short monthly history stays compact');
+
 }finally{c.close();}

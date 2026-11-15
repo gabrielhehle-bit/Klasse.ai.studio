@@ -134,6 +134,10 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
     [participationEntries,trendStats,period]
   );
   const participationTimeline=participationPeriod.timeline;
+  // Long school-year timelines need a horizontal reading surface on phones.
+  // Values remain unchanged and empty weeks do not become invented scores.
+  const participationPlotMinWidth = period === 'year' && participationTimeline.length > 6
+    ? Math.min(1400, participationTimeline.length * 60 + 40) : 0;
 
   const wellbeingTimeline=useMemo(()=>trendStats.weeks.map((week:any)=>{
     let count=0;
@@ -145,6 +149,9 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
     });
     return {...week,behavior:count?weighted/count:null};
   }),[trendStats]);
+
+  const wellbeingPlotMinWidth = period === 'year' && wellbeingTimeline.length > 6
+    ? Math.min(1600, wellbeingTimeline.length * 52 + 40) : 0;
 
   const attendanceHeatmap=useMemo(()=>{
     const attendance=(app.anwesenheit?.[student.id]||{}) as Record<string,any>;
@@ -233,7 +240,12 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
             <div><h3 className="flex items-center gap-2 text-sm font-bold text-slate-900"><Star size={17} className="text-amber-600"/>Mitarbeit</h3><p className="mt-1 text-[0.68rem] text-slate-500">Punkte im gewählten Zeitraum</p></div>
             <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[0.68rem] font-bold text-amber-800">{participationPeriod.total} ★ im Zeitraum</span>
           </div>
-          <div className="mt-3 h-32">{participationTimeline.some(item=>item.points!==0)?<ResponsiveContainer width="100%" height="100%"><BarChart data={participationTimeline} margin={{top:4,right:4,left:-8,bottom:0}}>{chartAxes}<YAxis allowDecimals={false} width={22} tick={{fontSize:10}} axisLine={false} tickLine={false}/><Tooltip/><Bar dataKey="points" name="Mitarbeit" fill="#d97706" radius={[5,5,0,0]} maxBarSize={24}/></BarChart></ResponsiveContainer>:<p className="flex h-full items-center justify-center text-xs text-slate-400">Keine Mitarbeitseinträge im Zeitraum</p>}</div>
+          <div data-dossier-trend-scroll="participation" className="mt-3 min-w-0 overflow-x-auto overscroll-x-contain"
+            tabIndex={participationPlotMinWidth ? 0 : undefined}
+            aria-label="Mitarbeitsverlauf, bei vielen Monaten seitlich scrollbar">
+            <div className="h-32" style={{minWidth: participationPlotMinWidth ? `${participationPlotMinWidth}px` : '100%'}}>
+              {participationTimeline.some(item=>item.points!==0)?<ResponsiveContainer width="100%" height="100%"><BarChart data={participationTimeline} margin={{top:4,right:4,left:-8,bottom:0}}>{chartAxes}<YAxis allowDecimals={false} width={22} tick={{fontSize:10}} axisLine={false} tickLine={false}/><Tooltip/><Bar dataKey="points" name="Mitarbeit" fill="#d97706" radius={[5,5,0,0]} maxBarSize={24}/></BarChart></ResponsiveContainer>:<p className="flex h-full items-center justify-center text-xs text-slate-400">Keine Mitarbeitseinträge im Zeitraum</p>}
+            </div></div>
           <p className="mt-2 text-[0.65rem] text-slate-500">{participationPeriod.count} protokollierte Einträge im Zeitraum</p>
         </section>
 
@@ -242,7 +254,12 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
             <div><h3 className="flex items-center gap-2 text-sm font-bold text-slate-900"><Activity size={17} className="text-violet-600"/>Verhalten & Befinden</h3><p className="mt-1 text-[0.68rem] text-slate-500">Wochenmittel · bessere Werte oben</p></div>
             <span className="max-w-[10rem] rounded-full bg-violet-50 px-2.5 py-1 text-right text-[0.68rem] font-bold text-violet-800">{trendLatestStage?trendLatestStage.icon+' '+trendLatestStage.label:trendMood?trendMood.emoji+' '+trendMood.label:'Noch nicht erfasst'}</span>
           </div>
-          <div className="mt-3 h-32">{trendStats.logs.length||trendStats.moodCount?<ResponsiveContainer width="100%" height="100%"><LineChart data={wellbeingTimeline} margin={{top:4,right:4,left:-8,bottom:0}}>{chartAxes}<YAxis reversed interval={0} domain={[1,Math.max(5,trendStats.stages.length)]} ticks={[1,3,5]} width={22} tick={{fontSize:10}} axisLine={false} tickLine={false}/><Tooltip formatter={(value:any,name:any)=>name==='Befinden'?[Number(value).toFixed(1),'Befinden']:[Number(value).toFixed(1),'Verhalten']}/><Line dataKey="behavior" name="Verhalten" stroke="#7c3aed" strokeWidth={2.5} dot={{r:2.5}} connectNulls={false}/><Line dataKey="mood" name="Befinden" stroke="#d97706" strokeWidth={2} strokeDasharray="5 4" dot={{r:2}} connectNulls={false}/></LineChart></ResponsiveContainer>:<p className="flex h-full items-center justify-center text-xs text-slate-400">Noch keine Verlaufsdaten im Zeitraum</p>}</div>
+          <div data-dossier-trend-scroll="wellbeing" className="mt-3 min-w-0 overflow-x-auto overscroll-x-contain"
+            tabIndex={wellbeingPlotMinWidth ? 0 : undefined}
+            aria-label="Verhaltens- und Befindensverlauf, bei vielen Wochen seitlich scrollbar">
+            <div className="h-32" style={{minWidth: wellbeingPlotMinWidth ? `${wellbeingPlotMinWidth}px` : '100%'}}>
+              {trendStats.logs.length||trendStats.moodCount?<ResponsiveContainer width="100%" height="100%"><LineChart data={wellbeingTimeline} margin={{top:4,right:4,left:-8,bottom:0}}>{chartAxes}<YAxis reversed interval={0} domain={[1,Math.max(5,trendStats.stages.length)]} ticks={[1,3,5]} width={22} tick={{fontSize:10}} axisLine={false} tickLine={false}/><Tooltip formatter={(value:any,name:any)=>name==='Befinden'?[Number(value).toFixed(1),'Befinden']:[Number(value).toFixed(1),'Verhalten']}/><Line dataKey="behavior" name="Verhalten" stroke="#7c3aed" strokeWidth={2.5} dot={{r:2.5}} connectNulls={false}/><Line dataKey="mood" name="Befinden" stroke="#d97706" strokeWidth={2} strokeDasharray="5 4" dot={{r:2}} connectNulls={false}/></LineChart></ResponsiveContainer>:<p className="flex h-full items-center justify-center text-xs text-slate-400">Noch keine Verlaufsdaten im Zeitraum</p>}
+            </div></div>
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[0.65rem] text-slate-600" aria-label="Legende für Verhalten und Befinden">
             <span className="inline-flex items-center gap-1.5"><i aria-hidden="true" className="w-5 border-t-2 border-violet-600"/>Verhalten</span>
             <span className="inline-flex items-center gap-1.5"><i aria-hidden="true" className="w-5 border-t-2 border-dashed border-amber-600"/>Befinden</span>
