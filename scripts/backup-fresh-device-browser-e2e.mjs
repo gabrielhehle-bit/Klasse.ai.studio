@@ -141,6 +141,8 @@ async function enterDemo(c, password) {
   return code;
 }
 async function goTo(c,id,expected) {
+  await until(c,'teacher navigation ready',
+    'Boolean(document.querySelector("nav[aria-label=Hauptnavigation]"))');
   // Datensicherung lives in the distinct fixed "Persönlich & Daten" footer,
   // not in the expandable main navigation. Check the user-facing route.
   if(id==='datensicherung') {
@@ -260,8 +262,16 @@ try {
   await until(second,'real browser reload completed',
     'performance.timeOrigin>'+String(originalPageStart));
   second.allowReloadBeforeUnload=false;
-  await until(second,'reload remains authenticated',
-    'document.body?.textContent.includes("Heute") || document.body?.textContent.includes("Tresor entsperren")');
+  await until(second,'vault lock or real dashboard after reload',
+    'Boolean(document.querySelector("nav[aria-label=Hauptnavigation]")) || Array.from(document.querySelectorAll("h1")).some(h=>h.textContent.trim()==="Tresor entsperren")');
+  const isLocked=await evalPage(second,
+    'Array.from(document.querySelectorAll("h1")).some(h=>h.textContent.trim()==="Tresor entsperren")');
+  if(isLocked){
+    await fill(second,'Tresor-Passwort',OTHER_PASSWORD);
+    await clickText(second,'Tresor entsperren');
+  }
+  await until(second,'encrypted local state unlocked after browser restart',
+    'Boolean(document.querySelector("nav[aria-label=Hauptnavigation]"))');
   await assertMarker(second,markerA,true);
   await assertMarker(second,markerB,false);
   console.log('PASS Fresh-device recovery survives an encrypted browser reload');
