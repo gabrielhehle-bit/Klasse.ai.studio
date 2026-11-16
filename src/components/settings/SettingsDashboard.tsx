@@ -8,13 +8,14 @@ import type { SettingsCategory } from './SettingsHeader';
 interface SettingsDashboardProps {
   onSelectCategory: (category: SettingsCategory) => void;
   onOpenTeam: () => void;
+  einfachModus: boolean;
   disabledModulesCount: number;
   hasActiveSync: boolean;
   hasDemoData: boolean;
 }
 
 export default function SettingsDashboard({
-  onSelectCategory, onOpenTeam, disabledModulesCount, hasActiveSync, hasDemoData,
+  onSelectCategory, onOpenTeam, einfachModus, disabledModulesCount, hasActiveSync, hasDemoData,
 }: SettingsDashboardProps) {
   // Keep familiar category routes and order; the Smartboard label now avoids
   // suggesting that this remote control is the teacher-to-teacher sync.
@@ -120,6 +121,9 @@ export default function SettingsDashboard({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
         aria-label="Einstellungsbereiche">
         {TILES.map(tile => {
+          // Match the simplified top navigation: do not overwhelm teachers
+          // with donation and technical/system options in the default mode.
+          if (einfachModus && (tile.id === 'support' || tile.id === 'advanced')) return null;
           const Icon = tile.icon;
           return (
             <button key={tile.id} type="button" onClick={() => onSelectCategory(tile.id)}
@@ -144,6 +148,11 @@ export default function SettingsDashboard({
           );
         })}
       </div>
+      {einfachModus && (
+        <p data-testid="settings-simple-mode-footnote" className="text-xs leading-relaxed text-[var(--text2)]">
+          Du siehst die wichtigsten Einstellungen. Für erweiterte Funktionen und Unterstützung oben „Alle Optionen“ einschalten.
+        </p>
+      )}
     </div>
   );
 }
