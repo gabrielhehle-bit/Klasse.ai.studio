@@ -35,3 +35,15 @@ test('autosave guidance distinguishes durable local saves from confirmed account
   assert.match(team, /data-testid="team-autosave-explanation"/);
   assert.match(team, /Erst „Team synchronisiert“ bestätigt den gemeinsamen Stand/);
 });
+
+test('mobile header exposes real save and sync text instead of an unexplained colored dot', () => {
+  const topbar = readFileSync('src/components/Topbar.tsx', 'utf8');
+  const status = readFileSync('src/components/SaveSyncStatus.tsx', 'utf8');
+  assert.match(topbar, /<SaveSyncStatus fullWidth \/>/);
+  assert.match(status, /fullWidth = false/);
+  assert.match(status, /data-testid="mobile-save-state"/);
+  assert.match(status, /\{state\.compactLabel\}/);
+  assert.match(status, /state\.attention \? 'bg-rose-500'/);
+  assert.match(status, /min-h-11/);
+  assert.match(status, /aria-label=\{\`Speicherstatus: \$\{statusTitle\}\`\}/);
+});
