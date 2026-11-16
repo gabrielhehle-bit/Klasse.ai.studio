@@ -108,8 +108,10 @@ export default function ClassTeam() {
     }
   }, [ownDeviceRequest, activeSharedId, awaitingDeviceApprovalFor, deviceAuthorization]);
 
-  const load = React.useCallback(async () => {
-    setLoading(true);
+  const load = React.useCallback(async (showInitialLoader = false) => {
+    // Refreshing membership on focus must not blank the setup wizard or hide
+    // the button a teacher is about to press. Only first load blocks the page.
+    if (showInitialLoader) setLoading(true);
     setError(null);
     try {
       const session = await ensureRegisteredTeamTeachingDevice();
@@ -138,7 +140,7 @@ export default function ClassTeam() {
     }
   }, []);
 
-  React.useEffect(() => { void load(); }, [load]);
+  React.useEffect(() => { void load(true); }, [load]);
   React.useEffect(() => {
     const reload = () => { void load(); };
     window.addEventListener(ACCOUNT_SESSION_CHANGED_EVENT, reload);
