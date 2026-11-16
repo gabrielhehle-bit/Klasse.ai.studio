@@ -95,3 +95,13 @@ test('Owner roster updates as the colleague logs in without replacing the class 
   assert.match(teamPage, /Die Liste aktualisiert sich automatisch|Liste aktualisiert sich automatisch/);
   assert.match(teamPage, /Gerät freigeben/);
 });
+
+test('Conflict help gives two obvious choices and never hides the local backup', () => {
+  const source = readFileSync('src/components/ClassTeam.tsx', 'utf8');
+  assert.match(source, /data-testid="team-conflict-quick-help"/);
+  assert.match(source, /Nein – gemeinsame Klasse laden/);
+  assert.match(source, /Ja – beide Änderungen vergleichen/);
+  assert.match(source, /onClick=\{\(\) => void pull\(\)\}/);
+  assert.match(source, /Konfliktkopie.*Klassenauswahl/);
+  assert.match(source, /case 'resolve-conflict':/);
+});
