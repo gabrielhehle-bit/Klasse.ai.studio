@@ -43,9 +43,25 @@ export default function SettingsHeader({
   einfachModus,
   setEinfachModus
 }: SettingsHeaderProps) {
+  // Keep a deep-linked section visible in the tabs, even when normally hidden by easy mode.
   const visibleCategories = einfachModus
-    ? CATEGORIES.filter(cat => cat.id !== 'advanced' && cat.id !== 'support')
+    ? CATEGORIES.filter(cat => (cat.id !== 'advanced' && cat.id !== 'support') || cat.id === activeCategory)
     : CATEGORIES;
+  const navRef = React.useRef<HTMLElement>(null);
+
+  // On a narrow phone the active tab may otherwise be offscreen after selecting a category.
+  React.useEffect(() => {
+    const nav = navRef.current;
+    const activeTab = nav?.querySelector<HTMLButtonElement>('[aria-current="page"]');
+    if (!nav || !activeTab) return;
+    const bounds = nav.getBoundingClientRect();
+    const tabBounds = activeTab.getBoundingClientRect();
+    if (tabBounds.left < bounds.left + 8) {
+      nav.scrollBy({ left: tabBounds.left - bounds.left - 8, behavior: 'auto' });
+    } else if (tabBounds.right > bounds.right - 8) {
+      nav.scrollBy({ left: tabBounds.right - bounds.right + 8, behavior: 'auto' });
+    }
+  }, [activeCategory, einfachModus]);
 
   return (
     <div className="space-y-6">
@@ -120,10 +136,12 @@ export default function SettingsHeader({
       </div>
 
       {/* Pill Navigation */}
-      <nav aria-label="Einstellungen: Bereiche" className="flex items-center gap-2 overflow-x-auto border-b border-[var(--border)] pb-1 no-scrollbar">
+      <nav ref={navRef} aria-label="Einstellungen: Bereiche" className="flex items-center gap-2 overflow-x-auto border-b border-[var(--border)] pb-1 no-scrollbar">
         <button
+          type="button"
+          aria-current={activeCategory === 'overview' ? 'page' : undefined}
           onClick={() => setActiveCategory('overview')}
-          className={`px-4 py-2.5 rounded-md text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+          className={`min-h-11 px-4 py-2.5 rounded-md text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer flex items-center gap-2 ${
             activeCategory === 'overview'
               ? 'bg-[var(--surface2)] text-[var(--text)] border border-[var(--border2)]'
               : 'hover:bg-[var(--surface2)] text-[var(--text2)] border border-transparent'
@@ -139,8 +157,10 @@ export default function SettingsHeader({
           return (
             <button
               key={cat.id}
+              type="button"
+              aria-current={isActive ? 'page' : undefined}
               onClick={() => setActiveCategory(cat.id)}
-              className={`px-4 py-2.5 rounded-md text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+              className={`min-h-11 px-4 py-2.5 rounded-md text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer flex items-center gap-2 ${
                 isActive
                   ? 'bg-[var(--surface2)] text-[var(--text)] border border-[var(--border2)]'
                   : 'hover:bg-[var(--surface2)] text-[var(--text2)] border border-transparent'

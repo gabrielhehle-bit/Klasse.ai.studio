@@ -1,4 +1,5 @@
 import AccountServerLoadButton from './AccountServerLoadButton';
+import { ChevronDown } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
@@ -16,6 +17,7 @@ const time = (value?: string | null) => value && Number.isFinite(Date.parse(valu
 export default function SaveSyncStatus({
   onOpenTeam,
   compact = false,
+  fullWidth = false,
 }: {
   onOpenTeam?: () => void;
   fullWidth?: boolean;
@@ -104,11 +106,11 @@ export default function SaveSyncStatus({
   }, [deviceAuthorization, needsTeamBootstrap, online, room?.id, room?.teamTeachingSharedClassId, setApp]);
 
   return (
-    <div className="flex shrink-0 items-center gap-1" data-save-sync-status>
+    <div className={`flex shrink-0 items-center gap-1 ${fullWidth ? "w-full" : ""}`} data-save-sync-status>
       <details
         open={detailsOpen}
         onToggle={event => setDetailsOpen(event.currentTarget.open)}
-        className="relative inline-block w-fit shrink-0 text-left text-slate-900"
+        className={`relative inline-block text-left text-slate-900 ${fullWidth ? "w-full" : "w-fit shrink-0"}`}
         data-account-live-status={accountLiveStatus}
         data-account-sync-status={accountSyncStatus}
         data-local-save-status={localSaveStatus}
@@ -117,12 +119,14 @@ export default function SaveSyncStatus({
         <summary
           aria-label={`Speicherstatus: ${statusTitle}`}
           title={statusTitle}
-          className="flex h-8 w-8 shrink-0 cursor-pointer list-none items-center justify-center rounded-full outline-none transition hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-400 [&::-webkit-details-marker]:hidden"
+          className={`flex min-h-11 shrink-0 cursor-pointer list-none items-center outline-none transition hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-400 [&::-webkit-details-marker]:hidden ${fullWidth ? "w-full justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3" : "w-11 justify-center rounded-full"}`}
         >
           <span
             aria-hidden="true"
-            className={`h-2.5 w-2.5 shrink-0 rounded-full ${state.ready ? 'bg-emerald-500' : 'bg-amber-400'}`}
+            className={`h-2.5 w-2.5 shrink-0 rounded-full ${state.attention ? 'bg-rose-500' : state.ready ? 'bg-emerald-500' : 'bg-amber-400'}`}
           />
+          {fullWidth && <span data-testid="mobile-save-state" className="min-w-0 flex-1 text-left text-xs font-semibold leading-5 text-slate-800">{state.compactLabel}</span>}
+          {fullWidth && <ChevronDown aria-hidden="true" size={16} className="shrink-0 text-slate-500" />}
           <span role="status" className="sr-only">
             {state.label}{accountLiveStatus === 'live' ? ' · Live-Abgleich aktiv' : ''}
           </span>

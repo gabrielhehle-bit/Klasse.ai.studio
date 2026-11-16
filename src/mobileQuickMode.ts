@@ -55,7 +55,7 @@ function ensureStyles() {
         left: 0;
         right: 0;
         min-height: calc(3.5rem + env(safe-area-inset-top));
-        padding: calc(.55rem + env(safe-area-inset-top)) .9rem .55rem;
+        padding: calc(.35rem + env(safe-area-inset-top)) .9rem .35rem;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -93,17 +93,33 @@ function ensureStyles() {
       }
 
       #${SHELL_ID} .kqm-sync {
-        width: 2.4rem;
-        height: 2.4rem;
+        min-width: 2.75rem;
+        max-width: 56vw;
+        min-height: 2.75rem;
+        padding: .35rem .55rem;
         flex: 0 0 auto;
-        display: grid;
-        place-items: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .45rem;
         border: 1px solid var(--border-default, var(--border, #e2e8f0));
         border-radius: .85rem;
         background: var(--surface-subtle, var(--surface2, #f8fafc));
       }
 
+      #${SHELL_ID} .kqm-sync-label {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow: hidden;
+        font-size: .73rem;
+        line-height: 1.2;
+        font-weight: 750;
+        text-align: left;
+      }
+
       #${SHELL_ID} .kqm-sync-dot {
+        flex: 0 0 auto;
         width: .72rem;
         height: .72rem;
         border-radius: 999px;
@@ -355,6 +371,12 @@ function getSyncReady(): boolean {
   return status?.dataset.deviceSwitchReady === 'true';
 }
 
+// The React topbar is hidden on phones; reuse its truthful account/team save wording.
+function getSyncLabel(): string {
+  const message = document.querySelector<HTMLElement>('[data-testid="mobile-save-state"]')?.textContent?.trim();
+  return message || (getSyncReady() ? 'Synchronisiert' : 'Speicherstatus prüfen');
+}
+
 function openSyncDetails() {
   const status = document.querySelector<HTMLDetailsElement>('[data-device-switch-ready]');
   status?.querySelector<HTMLElement>('summary')?.click();
@@ -462,6 +484,7 @@ function ensureShell() {
     </div>
     <button type="button" class="kqm-sync" aria-label="Synchronisierungsstatus öffnen" title="Synchronisierungsstatus öffnen" data-ready="false">
       <span class="kqm-sync-dot" aria-hidden="true"></span>
+      <span class="kqm-sync-label" data-testid="mobile-quick-sync-label">Speicherstatus prüfen</span>
     </button>
   `;
   header.querySelector<HTMLButtonElement>('.kqm-sync')?.addEventListener('click', openSyncDetails);
@@ -530,7 +553,10 @@ function updateShellState() {
   if (sync) {
     const ready = getSyncReady();
     sync.dataset.ready = ready ? 'true' : 'false';
-    sync.title = ready ? 'Synchronisiert · Details öffnen' : 'Synchronisierung läuft oder benötigt Aufmerksamkeit · Details öffnen';
+    const message = getSyncLabel();
+    const label = sync.querySelector<HTMLElement>('.kqm-sync-label');
+    if (label && label.textContent !== message) label.textContent = message;
+    sync.title = message + ' · Details öffnen';
     sync.setAttribute('aria-label', sync.title);
   }
 }
