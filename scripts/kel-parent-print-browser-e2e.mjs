@@ -182,8 +182,25 @@ try {
 
   await clickButton(client, 'Druckzentrum');
   await waitFor(client, 'print center', 'document.body?.textContent.includes("DRUCKZENTRUM")');
+  // Teachers can find the ONE formatting section without hunting for
+  // orientation and header controls in multiple places.
+  await clickButton(client, 'Vorlagen & Tipps');
+  await waitFor(client, 'print presets and help visible',
+    'Boolean(document.querySelector("[data-testid=print-center-presets-and-tips]"))');
+  await clickButton(client, 'Druckformat anpassen');
+  await waitFor(client, 'single print format section expanded',
+    'document.querySelector("[data-testid=print-center-advanced-format]")?.open === true && !document.querySelector("#print-center-more-panel")');
+  console.log('PASS Single print-format editor opens from the top help panel');
+
   await clickButton(client, 'KEL-Elternblatt');
   await waitFor(client, 'KEL options', 'Boolean(document.querySelector("[data-kel-parent-report-controls]"))');
+  await clickButton(client, '100 % Zoom');
+  await waitFor(client, '100 percent preview selected',
+    'document.querySelector("#print-preview-zoom-slider")?.value === "1" && document.querySelector("[data-testid=print-preview-zoom-controls] button[aria-pressed=true]")?.textContent.includes("100 % Zoom")');
+  await clickButton(client, 'Seite einpassen');
+  await waitFor(client, 'fitted print preview selected',
+    'document.querySelector("#print-preview-zoom-slider")?.value === "0.7" && document.querySelector("[data-testid=print-preview-zoom-controls] button[aria-pressed=true]")?.textContent.includes("Seite einpassen")');
+  console.log('PASS A4 preview chooses fit or 100 percent without modifying the printed document');
   // No child's private record should appear until the teacher explicitly
   // chooses the recipient. Printing must be blocked in the empty state.
   await waitFor(client, 'parent sheet awaits pupil selection',
