@@ -55,6 +55,7 @@ test('planning dashboard has meaningful actions without modifying week data', ()
   assert.match(hub, /data-testid="planning-open-cockpit"/);
   assert.match(hub, /onClick=\{\(\) => setPage\('cockpit'\)\}/);
   assert.match(hub, /Ausgewählte Planungswoche/);
-  assert.match(hub, /Der Wochenplan öffnet standardmäßig die aktuelle Kalenderwoche/);
+  assert.match(hub, /data-testid="planning-selected-week-handoff"/);
+  assert.match(hub, /Beim Öffnen des Wochenplans bleibst du in KW/);
   assert.doesNotMatch(hub, /setApp\(/);
 });

@@ -29,6 +29,7 @@ import { splitKlassenbuchCategoryKey } from '../lib/klassenbuchSubjects';
 import { EMPTY_LESSON_DRAFT, hasLessonDraftContent, lessonDraftFromMaterial, lessonDraftToText, normalizeLessonDraft, type LessonDraftFields } from '../lib/lessonDrafts';
 import { useMaterialLibrary } from './Materialbibliothek';
 import { getChildTaskProgress, toggleClassroomWeeklyLesson, weekTaskKey } from '../lib/classroomWeeklyPlan';
+import { resolveWeeklyPlanOpeningWeek } from '../lib/planningWeekNavigation';
 import LessonPlannerAI from './LessonPlannerAI';
 import DailyHomeworkButton from './DailyHomeworkButton';
 
@@ -742,19 +743,18 @@ export default function WeeklyPlan() {
   const actualKW = getKW(actualToday);
   const activeKW = app.currentKW || actualKW;
 
-  // Opening the weekly planner always starts at the actual calendar week.
-  // Reset only the UI week pointer; never alter or delete any week's lessons.
-  // Subsequent prev/next/week-picker navigation remains under the teacher's control.
+  // A click from "Planung" opens the very week shown in that overview.
+  // Other entry points still open today's calendar week. This changes only
+  // the selected week pointer, never stored lesson content.
+  const openingKW = resolveWeeklyPlanOpeningWeek(app.previousPage, app.currentKW, actualKW);
   React.useEffect(() => {
-    // AppContext.setApp intentionally schedules encrypted persistence even
-    // for an unchanged object. Do not initiate a redundant encrypted save
-    // every time the planner opens on the already-current week.
-    if (app.currentKW !== actualKW) {
-      setApp(previous => previous.currentKW === actualKW
+    // No redundant encrypted write when the selected KW is already correct.
+    if (app.currentKW !== openingKW) {
+      setApp(previous => previous.currentKW === openingKW
         ? previous
-        : { ...previous, currentKW: actualKW });
+        : { ...previous, currentKW: openingKW });
     }
-    // Only on this planner mount; changing the week must not reset navigation.
+    // Only on mount: prev/next week navigation remains in the teacher's hands.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
