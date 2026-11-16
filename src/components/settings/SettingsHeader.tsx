@@ -121,13 +121,13 @@ export default function SettingsHeader({
             aria-checked={einfachModus}
             aria-label="Einfachmodus umschalten"
             onClick={() => setEinfachModus(!einfachModus)}
-            className={`relative w-12 h-6 rounded-full transition-colors duration-150 flex items-center px-0.5 cursor-pointer shrink-0 ${
-              einfachModus ? 'bg-[var(--accent)]' : 'bg-[var(--border2)]'
-            }`}
+            className="relative flex min-h-11 w-12 shrink-0 cursor-pointer items-center rounded-lg px-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
           >
+            <span aria-hidden="true" className={`pointer-events-none absolute inset-x-0 top-1/2 h-6 -translate-y-1/2 rounded-full transition-colors duration-150 ${einfachModus ? 'bg-[var(--accent)]' : 'bg-[var(--border2)]'}`} />
             <motion.div
+              aria-hidden="true"
               animate={{ x: einfachModus ? 24 : 0 }}
-              className="w-5 h-5 bg-white rounded-full shadow-sm flex items-center justify-center text-[10px]"
+              className="relative z-10 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] shadow-sm"
             >
               {einfachModus && <Check size={12} className="text-amber-600 stroke-[3]" />}
             </motion.div>
