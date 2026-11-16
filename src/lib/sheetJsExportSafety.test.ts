@@ -32,7 +32,8 @@ test('official patched SheetJS version is used for read-free template exports', 
   assert.ok(sheet1Xml?.includes('Wochentag'));
   assert.ok(sheet1Xml?.includes('Igel lesen'));
   assert.ok(sheet2Xml?.includes('AUSFÜLLHILFE'));
-  assert.ok(bytes.length > 1000, 'Expected actual nonempty XLSX ZIP bytes');
+  const actualByteLength = bytes instanceof ArrayBuffer ? bytes.byteLength : (bytes as Uint8Array).length;
+  assert.ok(actualByteLength > 1000, 'Expected actual nonempty XLSX ZIP bytes');
 });
 
 test('untrusted weekly and yearly workbook imports remain disabled despite patched library', async () => {
