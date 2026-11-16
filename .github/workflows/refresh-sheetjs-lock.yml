@@ -7,6 +7,7 @@ on:
       - security/sheetjs-0203-20261116
     paths:
       - package.json
+      - src/lib/sheetJsExportSafety.test.ts
       - .github/workflows/refresh-sheetjs-lock.yml
 
 permissions:
