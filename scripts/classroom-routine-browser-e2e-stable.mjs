@@ -3,6 +3,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+// Re-run the full cross-module routine alongside the focused Gradebook #571 regression.
+// Do not treat the isolated green test as proof that the long end-to-end sequence is healthy.
 const sourceUrl = new URL('./classroom-routine-browser-e2e.mjs', import.meta.url);
 let source = await fs.readFile(sourceUrl, 'utf8');
 
