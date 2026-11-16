@@ -21,6 +21,20 @@ test('Setup distinguishes genuine sign-in, class sharing, and existing team', ()
   assert.equal(getTeacherTeamNextAction(team({ hasConnectedTeam: false, hasSharedClassReference: true })), 'reconnect');
 });
 
+test('A second teacher with an invitation is guided to join, not to create a separate class', () => {
+  assert.equal(getTeacherTeamNextAction(team({
+    hasConnectedTeam: false, hasActiveClass: false, hasPendingTeamInvitation: true,
+  })), 'join-invited');
+  assert.equal(getTeacherTeamNextAction(team({
+    hasConnectedTeam: false, hasActiveClass: true,
+    hasSharedClassReference: false, hasPendingTeamInvitation: true,
+  })), 'join-invited');
+  assert.equal(getTeacherTeamNextAction(team({
+    needsSchoolLogin: true, hasConnectedTeam: false, hasPendingTeamInvitation: true,
+  })), 'sign-in');
+  assert.equal(getTeacherTeamStepNumber('join-invited'), 1);
+});
+
 test('Unverified device and missing team server cannot show green readiness', () => {
   assert.equal(getTeacherTeamNextAction(team({ deviceChecking: true })), 'checking-device');
   assert.equal(getTeacherTeamNextAction(team({ serverSummaryLoaded: false })), 'check-connection');
@@ -66,4 +80,18 @@ test('teacher can sync with one main action while advanced controls remain avail
   assert.match(source, /await push\(\)/);
   assert.match(source, /await pull\(\)/);
   assert.match(source, /Weitere Möglichkeiten bei Problemen/);
+});
+
+test('Owner roster updates as the colleague logs in without replacing the class screen', () => {
+  const teamPage = readFileSync('src/components/ClassTeam.tsx', 'utf8');
+  assert.match(teamPage, /const pendingInvitation = shared\.find/);
+  assert.match(teamPage, /hasPendingTeamInvitation: Boolean\(pendingInvitation\)/);
+  assert.match(teamPage, /case 'join-invited'/);
+  assert.match(teamPage, /void adopt\(pendingInvitation\)/);
+  assert.match(teamPage, /listTeamTeachingColleagues\(\)/);
+  assert.match(teamPage, /listTeamTeachingSchoolUsers\(\)/);
+  assert.match(teamPage, /window\.setInterval\(\(\) => \{ void refreshColleagues\(\); \}, 12_000\)/);
+  assert.match(teamPage, /data-testid="team-two-teachers-help"/);
+  assert.match(teamPage, /Die Liste aktualisiert sich automatisch|Liste aktualisiert sich automatisch/);
+  assert.match(teamPage, /Gerät freigeben/);
 });
