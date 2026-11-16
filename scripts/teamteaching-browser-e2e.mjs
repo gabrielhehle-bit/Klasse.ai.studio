@@ -555,7 +555,7 @@ async function main() {
     await clickButton(berta, 'Neue Teamklasse öffnen');
     await sleep(4000);
     console.log('RECOVERY JOIN RESULT: ' + JSON.stringify(await evaluate(berta,
-      '({body:document.body?.innerText.slice(-1400),current:document.querySelector("[data-testid=team-simple-working-status]")?.innerText,meta:fetch("/api/teamteaching/classes",{cache:"no-store"}).then(r=>r.json()).then(d=>(d.classes||[]).map(c=>({name:c.classLabel,role:c.myRole,revision:c.revision})))})'.replace('meta:fetch(', 'meta:null,unused:fetch('))));
+      '({body:document.body?.innerText.slice(-1400),current:document.querySelector("[data-testid=team-simple-working-status]")?.innerText})')));;
     await waitFor(berta, 'editor adopts the new team class',
       'document.body?.innerText.includes("Aktuelle Klasse: E2E 1A – Neustart")', 45000);
     console.log('RECOVERY BERTA DIAGNOSTIC: ' + JSON.stringify(await evaluate(berta,
