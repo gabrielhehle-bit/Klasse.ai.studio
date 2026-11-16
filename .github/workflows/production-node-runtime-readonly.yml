@@ -17,23 +17,14 @@ permissions:
 
 jobs:
   production-node-runtime:
-    if: >-
-      ${{
-        github.event_name == 'workflow_dispatch' ||
-        (github.event.workflow_run.conclusion == 'success' &&
-         github.event.workflow_run.head_branch == 'main')
-      }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Verify the running server's minimum Node requirement
         shell: bash
         env:
-          EXPECTED_SHA: ${{
-            github.event_name == 'workflow_run' &&
-            github.event.workflow_run.head_sha ||
-            ''
-          }}
+          EXPECTED_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '' }}
         run: |
           set -euo pipefail
           release="$(curl --fail --silent --show-error --retry 5 --retry-delay 2 \
