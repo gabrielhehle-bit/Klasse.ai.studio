@@ -1917,7 +1917,7 @@ export default function PrintCenter() {
           <div id="print-center-configuration" className="lg:col-span-5 space-y-6 no-print scroll-mt-4">
             
             {/* Print defaults stay available without making teachers configure them for every report. */}
-            <details id="print-center-advanced-format" data-testid="print-center-advanced-format" className="group scroll-mt-4 rounded-3xl border border-slate-200/80 bg-white shadow-inner">
+            <details data-testid="print-center-advanced-format" id="print-center-advanced-format" className="group scroll-mt-4 rounded-3xl border border-slate-200/80 bg-white shadow-inner">
               <summary className="flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-3xl p-5 text-sm font-bold text-slate-800 focus-visible:outline-2 focus-visible:outline-emerald-600">
                 <span className="flex items-center gap-2"><Sliders size={16} className="text-slate-500" /> Druckformat anpassen <span className="text-xs font-normal text-slate-500">(optional)</span></span>
                 <span aria-hidden="true" className="text-slate-500 transition-transform group-open:rotate-180">⌄</span>
