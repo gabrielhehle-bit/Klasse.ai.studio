@@ -1960,7 +1960,7 @@ export default function PrintCenter() {
               {/* Margin Slider */}
               <div className="space-y-1.5">
                 <div className="flex justify-between items-baseline">
-                  <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider">Seitenränder (Zoll/mm)</label>
+                  <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider">Seitenränder (mm)</label>
                   <span className="text-[0.6875rem] font-black text-slate-700">{printMargin} mm</span>
                 </div>
                 <input 
@@ -4458,15 +4458,15 @@ export default function PrintCenter() {
                     type="button"
                     aria-pressed={previewZoom === (isTischPreview && tischPreviewMode === 'detail' ? 0.85 : printOrientation === 'portrait' ? 0.7 : 0.55)}
                     onClick={() => setPreviewZoom(isTischPreview && tischPreviewMode === 'detail' ? 0.85 : printOrientation === 'portrait' ? 0.7 : 0.55)}
-                    className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-emerald-600"
+                    className={`min-h-10 rounded-lg border px-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 ${previewZoom === (isTischPreview && tischPreviewMode === 'detail' ? 0.85 : printOrientation === 'portrait' ? 0.7 : 0.55) ? 'border-indigo-700 bg-indigo-700 text-white' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}
                   >
-                    Übersicht
+                    Seite einpassen
                   </button>
                   <button
                     type="button"
                     aria-pressed={previewZoom === 1}
                     onClick={() => setPreviewZoom(1)}
-                    className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-emerald-600"
+                    className={`min-h-10 rounded-lg border px-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 ${previewZoom === 1 ? 'border-indigo-700 bg-indigo-700 text-white' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}
                   >
                     100 % Zoom
                   </button>
