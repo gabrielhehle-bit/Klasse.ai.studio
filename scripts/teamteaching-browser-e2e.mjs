@@ -342,7 +342,7 @@ async function main() {
     await createClassInUi(anna, 'E2E 1A');
     await openClassTeam(anna);
     await clickButton(anna, 'Diese Klasse gemeinsam nutzen');
-    await waitFor(anna, 'encrypted shared class active', 'document.body?.innerText.includes("Teamteaching aktiv")', 30000);
+    await waitFor(anna, 'encrypted shared class active', 'Boolean(document.querySelector("[data-testid=team-simple-working-status]")) && document.body?.innerText.includes("Aktuelle Klasse: E2E 1A")', 30000);
     console.log('✓ Lehrkraft A: class encrypted and shared');
 
     await loginWithSchoolMail(berta, EMAIL_B, VAULT_B);
@@ -366,7 +366,7 @@ async function main() {
     await waitFor(berta, 'first-run join exits setup after class has been adopted',
       '!document.querySelector("[data-testid=first-run-team-join]") && document.body?.innerText.includes("E2E 1A")', 30000);
     await openClassTeam(berta);
-    await waitFor(berta, 'shared class decrypted locally', 'document.body?.innerText.includes("Aktuelle Klasse: E2E 1A") && document.body?.innerText.includes("Rolle: editor")', 30000);
+    await waitFor(berta, 'shared class decrypted locally', 'document.body?.innerText.includes("Aktuelle Klasse: E2E 1A") && document.querySelector("[data-testid=team-simple-working-status]")?.textContent.includes("Du kannst diese gemeinsame Klasse bearbeiten")', 30000);
     console.log('✓ Lehrkraft B: shared class decrypted locally');
 
     // Unlike the previous smoke test, check an actual weekly lesson on a
@@ -440,7 +440,7 @@ async function main() {
     await setInputByLabel(berta, '000000', await waitForMailCode(EMAIL_B));
     await clickButton(berta, 'Anmelden & Sync starten');
     await waitFor(berta, 'same shared class reconnects after re-login',
-      '!document.querySelector("input[type=email]") && document.body?.innerText.includes("Rolle: editor") && /Gemeinsamer Teamstand: Version \\d+/.test(document.body?.innerText||"")', 30000);
+      '!document.querySelector("input[type=email]") && document.querySelector("[data-testid=team-simple-working-status]")?.textContent.includes("Du kannst diese gemeinsame Klasse bearbeiten") && /Gemeinsamer Teamstand: Version \\d+/.test(document.querySelector("[data-testid=team-technical-details]")?.textContent||"")', 30000);
     await clickSidebar(berta, 'Wochenplan');
     await waitFor(berta, 'weekly lesson retained after session recovery',
       'document.body?.innerText.includes(' + q(weeklyTopic) + ')');
