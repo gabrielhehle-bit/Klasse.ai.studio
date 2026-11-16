@@ -11,7 +11,7 @@ type Props = {
 /** Static inline SVG: screen and Chrome's real A4 print render identical data. */
 export default function KELParentTrendChart({ kind, buckets, period, behaviorRows = [] }: Props) {
   const observed = buckets.filter(bucket => kind === 'mood' ? bucket.moodAverage !== null : bucket.behaviorCount > 0);
-  if (observed.length < 2 || buckets.length < 2) return null;
+  if (observed.length === 0 || buckets.length === 0) return null;
   const x = (index: number) => 30 + (index + 0.5) * 278 / buckets.length;
   const moodY = (average: number) => 12 + ((average - 1) / 4) * 43;
   const maxBehavior = Math.max(1, ...buckets.map(bucket => bucket.behaviorCount));
@@ -29,6 +29,11 @@ export default function KELParentTrendChart({ kind, buckets, period, behaviorRow
         {observed.length} von {buckets.length} {coverageLabel} mit dokumentierten {kind === 'mood' ? 'Befindensantworten' : 'Tageswerten'}.
         {' '}Ohne Eintrag bedeutet: keine Aussage möglich.
       </p>
+      {observed.length === 1 && (
+        <p data-kel-trend-single-period className="text-[10px] leading-snug text-slate-600">
+          Erst ein dokumentierter Zeitraum: Noch keine Entwicklung ablesbar.
+        </p>
+      )}
       {kind === 'mood' ? (
         <svg data-kel-mood-trend role="img"
           aria-label={`Durchschnitt der tatsächlichen Befindens-Einschätzungen je ${unit}, Skala 1 sehr gut bis 5 schlecht. Zeiträume ohne Rückmeldung bleiben Lücken.`}

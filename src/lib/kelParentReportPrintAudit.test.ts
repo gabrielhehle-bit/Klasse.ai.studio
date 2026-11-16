@@ -110,3 +110,13 @@ test('KEL timelines explain documented periods and retain their real SVG proport
  assert.match(browser,/getDocument\(\{data:bytes/);
  assert.match(browser,/PASS Real populated KEL A4 PDF retains both trends/);
 });
+
+
+test('a single documented week or month stays visible without implying a trend', () => {
+  const chart = readFileSync('src/components/KELParentTrendChart.tsx', 'utf8');
+  assert.match(chart, /if \(observed\.length === 0 \|\| buckets\.length === 0\) return null;/);
+  assert.doesNotMatch(chart, /observed\.length < 2/);
+  assert.match(chart, /observed\.length === 1/);
+  assert.match(chart, /data-kel-trend-single-period/);
+  assert.match(chart, /Noch keine Entwicklung ablesbar/);
+});

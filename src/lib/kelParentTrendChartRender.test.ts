@@ -56,14 +56,23 @@ test('actual documented mood and behavior entries render their chart segments, n
   assert.deepEqual({moods,logs,stages},source, 'chart rendering is read-only');
 });
 
-test('no trend is invented when data covers only one time period', () => {
+test('one documented period renders its data but explicitly says that no trend can yet be inferred', () => {
   const trend = buildKelParentTrend('year','2026-10-01','2026-10-31',
     {'2026-10-10': 2}, [{datum:'2026-10-10',iconId:'calm'}], [{id:'calm'}]);
-  assert.equal(renderToStaticMarkup(React.createElement(KELParentTrendChart, {
+  const mood = renderToStaticMarkup(React.createElement(KELParentTrendChart, {
     kind:'mood',buckets:trend.buckets,period:'year',
-  })), '');
-  assert.equal(renderToStaticMarkup(React.createElement(KELParentTrendChart, {
+  }));
+  const behavior = renderToStaticMarkup(React.createElement(KELParentTrendChart, {
     kind:'behavior',buckets:trend.buckets,period:'year',
     behaviorRows:[{id:'calm',label:'Ruhig',color:'#047857'}],
-  })), '');
+  }));
+  for (const markup of [mood, behavior]) {
+    assert.match(markup, /data-kel-trend-single-period/);
+    assert.match(markup, /Noch keine Entwicklung ablesbar/);
+    assert.doesNotMatch(markup, /<line[^>]+stroke="#0f766e"/);
+  }
+  assert.match(mood, /data-kel-mood-trend/);
+  assert.match(mood, /<circle /);
+  assert.match(behavior, /data-kel-behavior-trend/);
+  assert.match(behavior, /<rect /);
 });
