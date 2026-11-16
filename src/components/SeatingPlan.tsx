@@ -1440,6 +1440,7 @@ export default function SeatingPlan() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setPresentationMode(false);
+        setSelectedSeatStudentId(null);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -2863,7 +2864,24 @@ export default function SeatingPlan() {
           <div className="flex w-full min-w-0 flex-wrap items-center gap-2" aria-label="Sitzplan-Status">
             <span className="whitespace-nowrap rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-900">{placedStudents.length}/{students.length} Kinder platziert</span>
             {unplacedStudents.length > 0 && <span className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-800">{unplacedStudents.length} noch offen</span>}
-            {editMode && <span className="text-xs text-slate-600">{selectedSeatStudent ? `${selectedSeatStudent.vorname} ausgewählt · zweites Kind anklicken` : 'Zwei Kinder anklicken zum Tauschen · oder ziehen'}</span>}
+            {editMode && (
+              <div data-testid="seating-step-guide" className="flex min-h-9 flex-wrap items-center gap-2" role="status" aria-live="polite">
+                <span className="text-xs font-semibold text-slate-700">
+                  {selectedSeatStudent
+                    ? `1. ${selectedSeatStudent.vorname} gewählt · 2. anderes Kind antippen, um die Plätze zu tauschen`
+                    : 'Zum Tauschen zwei Kinder nacheinander antippen. Zum Verschieben ein Kind ziehen.'}
+                </span>
+                {selectedSeatStudent && (
+                  <button type="button"
+                    data-testid="seating-cancel-selection"
+                    onClick={() => setSelectedSeatStudentId(null)}
+                    className="min-h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-100"
+                    aria-label="Platzauswahl abbrechen">
+                    Auswahl aufheben
+                  </button>
+                )}
+              </div>
+            )}
             {outOfBoundsStudents.length > 0 && <button type="button" onClick={handleBringOutOfBoundsToRoom}
               className="min-h-9 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100">
               {outOfBoundsStudents.length} außerhalb (Zurückholen)
@@ -2882,7 +2900,7 @@ export default function SeatingPlan() {
                 <Eye size={14} /> Alltag
               </button>
               <button 
-                onClick={() => { autoFitAllowed.current = false; setEditMode(true); setShowSeatDock(unplacedStudents.length > 0); setPresentationMode(false); }}
+                onClick={() => { autoFitAllowed.current = false; setEditMode(true); setSelectedObjId(null); setShowSeatDock(true); setPresentationMode(false); }}
                 aria-pressed={editMode}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[0.6875rem] font-bold uppercase tracking-wider transition-all ${(editMode) ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
                 title="Sitzplan bearbeiten, Möbel verschieben, Schüler neu platzieren"

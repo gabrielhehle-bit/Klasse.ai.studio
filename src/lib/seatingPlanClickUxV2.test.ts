@@ -46,3 +46,14 @@ test('Gespeicherte Sitzordnungen und Rückgängig bleiben unverändert angebunde
   assert.match(plan, /handleUndo/);
   assert.doesNotMatch(plan, /localStorage\.setItem\('seating_plan_layouts/);
 });
+
+test('Planen opens the seat dock and two-tap swapping can be cancelled accessibly', () => {
+  assert.match(plan, /setEditMode\(true\); setSelectedObjId\(null\); setShowSeatDock\(true\)/);
+  assert.match(plan, /data-testid="seating-step-guide"/);
+  assert.match(plan, /role="status" aria-live="polite"/);
+  assert.match(plan, /Zum Tauschen zwei Kinder nacheinander antippen/);
+  assert.match(plan, /data-testid="seating-cancel-selection"/);
+  assert.match(plan, /aria-label="Platzauswahl abbrechen"/);
+  assert.match(plan, /onClick=\{\(\) => setSelectedSeatStudentId\(null\)\}/);
+  assert.match(plan, /if \(e\.key === 'Escape'\) \{[\s\S]*?setSelectedSeatStudentId\(null\)/);
+});
