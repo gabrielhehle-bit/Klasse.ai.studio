@@ -182,6 +182,55 @@ try {
 
   await clickButton(client, 'Druckzentrum');
   await waitFor(client, 'print center', 'document.body?.textContent.includes("DRUCKZENTRUM")');
+
+  // Real Chrome phone layout: entry points must stay legible, tappable,
+  // and horizontally reachable at 360 CSS pixels before checking A4 printing.
+  await client.send('Emulation.setDeviceMetricsOverride', {
+    width: 360, height: 780, deviceScaleFactor: 1, mobile: true,
+  });
+  await waitFor(client, '360px phone width', 'window.innerWidth === 360');
+  await clickButton(client, 'Vorlagen & Tipps');
+  await waitFor(client, 'mobile quick templates visible',
+    'document.querySelectorAll("[data-testid=print-quick-preset]").length===4');
+  const mobileControls=await evaluate(client, '(() => {' +
+    'const root=document.querySelector(".print-center-overlay-parent");' +
+    'const pick=selector=>Array.from(root?.querySelectorAll(selector)||[]);' +
+    'const rect=el=>{const r=el.getBoundingClientRect();return {left:r.left,right:r.right,width:r.width,height:r.height};};' +
+    'return {phone:innerWidth,search:pick("[data-testid=print-template-search]").map(rect),' +
+    'help:pick("[data-testid=print-template-more-button]").map(rect),' +
+    'presets:pick("[data-testid=print-quick-preset]").map(rect),' +
+    'categories:pick("[data-testid=print-template-category]").map(rect)};' +
+    '})()');
+  const mobileTargets=[
+    ...mobileControls.search, ...mobileControls.help,
+    ...mobileControls.presets, ...mobileControls.categories,
+  ];
+  if(mobileControls.phone!==360 || mobileControls.search.length!==1 ||
+     mobileControls.help.length!==1 || mobileControls.presets.length!==4 ||
+     mobileControls.categories.length!==6 ||
+     mobileTargets.some(r=>r.width<44 || r.height<44 || r.left < -1 || r.right>361)){
+    throw new Error('Print center mobile controls are too small or offscreen: '+JSON.stringify(mobileControls));
+  }
+  await clickButton(client, 'Druckformat anpassen');
+  await waitFor(client, 'mobile print-format editor open',
+    'document.querySelector("[data-testid=print-center-advanced-format]")?.open===true');
+  const mobileFormats=await evaluate(client, '(() => {' +
+    'const root=document.querySelector("[data-testid=print-center-advanced-format]");' +
+    'const buttons=Array.from(root?.querySelectorAll("button[aria-pressed]")||[]).slice(0,10);' +
+    'return buttons.map(b=>{const r=b.getBoundingClientRect();return {label:b.getAttribute("aria-label")||b.textContent.trim(),left:r.left,right:r.right,width:r.width,height:r.height};});' +
+    '})()');
+  if(mobileFormats.length!==10 || mobileFormats.some(r=>r.height<44 || r.width<44 || r.left< -1 || r.right>361)){
+    throw new Error('Print-format phone controls are too small or clipped: '+JSON.stringify(mobileFormats));
+  }
+  await evaluate(client, 'window.scrollTo(0,0)');
+  const mobileShot=await client.send('Page.captureScreenshot', {format:'png',captureBeyondViewport:false});
+  await fs.writeFile('/tmp/klassio-kel-parent-mobile.png',Buffer.from(mobileShot.data,'base64'));
+  console.log('PASS Real 360px Chrome print center: search, quick templates, filters and format controls are touch accessible');
+
+  await client.send('Emulation.setDeviceMetricsOverride', {
+    width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false,
+  });
+  await waitFor(client, 'desktop print view restored', 'window.innerWidth===1440');
   // Teachers can find the ONE formatting section without hunting for
   // orientation and header controls in multiple places.
   await clickButton(client, 'Vorlagen & Tipps');
