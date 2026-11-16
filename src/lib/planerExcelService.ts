@@ -170,8 +170,9 @@ export function generateWochenplanTemplate(app: AppState, activeKW: number) {
 // ==========================================
 
 export async function parseWochenplanExcel(_file: File): Promise<WochenplanImportResult> {
-  // SECURITY: xlsx@0.18.5 has known vulnerabilities when parsing crafted workbooks.
-  // Export remains available; importing stays fail-closed until the parser is replaced.
+  // SECURITY: workbook import remains fail-closed even with the patched SheetJS
+  // library until size limits, row/sheet bounds and malformed-file tests pass.
+  // Trusted template export continues to work independently.
   return {
     success: false,
     error: 'Der Excel-Import ist vorübergehend aus Sicherheitsgründen deaktiviert. Die Excel-Vorlage kann weiterhin exportiert werden.',
@@ -388,8 +389,9 @@ export async function parseJahresplanExcel(
   _file: File,
   _availableSubjects: { id: string; label: string }[]
 ): Promise<JahresplanImportResult> {
-  // SECURITY: do not feed externally supplied workbook bytes into the vulnerable
-  // SheetJS parser. Template generation is write-only and remains available.
+  // SECURITY: do not enable parsing externally supplied workbooks until
+  // malformed-file, memory-limit and column-validation regression tests pass.
+  // The pinned patched SheetJS library remains export-only in this release.
   return {
     success: false,
     error: 'Der Excel-Import ist vorübergehend aus Sicherheitsgründen deaktiviert. Die Jahresplan-Vorlage kann weiterhin exportiert werden.',
