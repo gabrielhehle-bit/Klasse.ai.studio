@@ -34,6 +34,7 @@ import { ACCOUNT_SESSION_CHANGED_EVENT } from '../lib/accountSyncService';
 import { useTeamDeviceAuthorization } from '../hooks/useTeamDeviceAuthorization';
 import { teamSyncPresentation } from '../lib/teamSyncPresentation';
 import { getTeacherTeamNextAction, getTeacherTeamStepNumber, type TeacherTeamNextAction } from '../lib/teacherTeamSetup';
+import { teacherClassPermission, teacherClassWorkingStatus } from '../lib/teamTeachingTeacherCopy';
 
 const TEAM_CONNECTION_ERROR = 'Die Verbindung zum Klassenteam ist gerade unterbrochen. Sie wird automatisch erneut geprüft.';
 
@@ -780,10 +781,10 @@ export default function ClassTeam() {
     'request-device': { title: 'Dieses Gerät freigeben lassen', text: 'Bitte jetzt die Gerätefreigabe anfordern. Eine schon berechtigte Teamlehrperson bestätigt den Prüfcode in ihrem Klassenteam.', button: 'Gerätefreigabe anfordern' },
     'await-device': { title: 'Auf Freigabe warten', text: 'Eine berechtigte Kollegin oder ein Kollege muss im Klassenteam „Gerät freigeben“ auswählen und den Prüfcode abgleichen.', button: 'Freigabe erneut prüfen' },
     'add-colleague': { title: 'Kollegin oder Kollegen hinzufügen', text: 'Wähle unten eine Lehrperson deiner Schule. Sie erhält Bearbeitungsrechte nur für die ausdrücklich geteilte Klasse.', button: 'Lehrperson auswählen' },
-    'colleague-first-login': { title: 'Kollegin oder Kollegen anmelden lassen', text: 'Die zweite Lehrperson öffnet KLASSIO mit ihrer eigenen verifizierten Schulmail und geht zu „Klassenteam“. Danach erscheint sie hier automatisch in der Liste. Ihr müsst nichts koppeln oder Codes austauschen.', button: 'Jetzt nach Lehrpersonen suchen' },
+    'colleague-first-login': { title: 'Kollegin oder Kollegen anmelden lassen', text: 'Die zweite Lehrperson öffnet KLASSIO mit ihrer eigenen verifizierten Schulmail und geht zu „Klassenteam“. Danach erscheint sie hier automatisch in der Liste. Ihr müsst nichts koppeln oder Codes austauschen.', button: 'Kollegium erneut prüfen' },
     'resolve-conflict': { title: 'Unterschiede sicher klären', text: 'Auf zwei Geräten gibt es unterschiedliche Änderungen. Bitte die Fassungen vergleichen; nichts wird automatisch überschrieben.', button: 'Änderungen sicher vergleichen' },
     'compare-versions': { title: 'Gemeinsamen Stand prüfen', text: 'Ein Klick: KLASSIO prüft den Serverstand und sendet oder lädt Änderungen, wenn das ohne Konflikt möglich ist. Bei gleichzeitigen Änderungen wird nichts überschrieben.', button: 'Jetzt synchronisieren' },
-    ready: { title: 'Klassenteam verbunden', text: 'Dieses Gerät hat einen bestätigten gemeinsamen Klassenstand. Änderungen am Wochenplan können jetzt von berechtigten Lehrpersonen übernommen werden.', button: 'Synchronisierung prüfen' },
+    ready: { title: 'Klassenteam verbunden', text: 'Dieses Gerät hat einen bestätigten gemeinsamen Klassenstand. Änderungen werden jetzt automatisch abgeglichen; du musst nichts von Hand senden.' },
   };
   const guide = guidance[nextAction];
   const onGuideAction = () => {
@@ -858,10 +859,9 @@ export default function ClassTeam() {
                 Tipp: Jede Lehrperson verwendet ihr eigenes Konto. Es wird kein gemeinsames Passwort benötigt.
               </p>
             )}
-            {nextAction === 'ready' && activeRoom?.teamTeaching && activeSummary && (
+            {nextAction === 'ready' && activeRoom?.teamTeaching && (
               <p className="mt-2 text-xs font-semibold text-[var(--text2)]">
-                Teamversion {activeSummary.revision} · dieses Gerät Version {activeRoom.teamTeaching.revision}
-                {activeRoom.teamTeaching.role === 'viewer' ? ' · nur lesender Zugriff' : ' · Bearbeiten erlaubt'}
+                {teacherClassPermission(activeRoom.teamTeaching.role)}
               </p>
             )}
           </div>
@@ -912,25 +912,34 @@ export default function ClassTeam() {
           <div>
             <h2 className="font-black text-[var(--text)]">Aktuelle Klasse: {activeRoom?.name || 'Keine Klasse'}</h2>
             <ClassTeamStatus />
-            <p className="mt-1 text-sm text-[var(--text2)]">
-              {activeRoom?.teamTeaching
-                ? `Teamteaching aktiv · Rolle: ${activeRoom.teamTeaching.role}`
-                : 'Noch nicht für gemeinsame Bearbeitung freigegeben.'}
-            </p>
-            {activeRoom?.teamTeaching && (
-              <div className="mt-3 space-y-1 rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-3 py-3 text-xs text-[var(--text2)]" aria-live="polite">
-                <p className="font-bold text-[var(--text)]">Gemeinsamer Teamstand: Version {activeSummary?.revision ?? 'wird geprüft'}</p>
-                <p>{activeSummary?.contentUpdatedAt
-                  ? 'Zuletzt inhaltlich geändert am ' + formatTeamDate(activeSummary.contentUpdatedAt) + ' von '
-                    + (activeSummary.members.find(member => member.userId === activeSummary.contentUpdatedBy)?.displayName || 'einer Teamlehrperson')
-                  : 'Der genaue Zeitpunkt der letzten Inhaltsänderung ist für diese ältere Teamversion nicht erfasst.'}</p>
-                <p>Dein Gerät: Version {activeRoom.teamTeaching.revision} · zuletzt abgeglichen am {formatTeamDate(activeRoom.teamTeaching.lastSyncedAt)}</p>
-                <p className="font-semibold">{activeRoom.teamTeaching.lastSyncedHash
-                  ? classRoomFingerprint(activeRoom) === activeRoom.teamTeaching.lastSyncedHash
-                    ? 'Keine ungesendeten lokalen Inhaltsänderungen erkannt.'
-                    : 'Du hast lokale Änderungen, die noch nicht bestätigt wurden.'
-                  : 'Dieses Gerät hat noch keinen bestätigten Teamstand. Senden ist gesperrt.'}</p>
+            {activeRoom?.teamTeaching ? (
+              <div className="mt-2 space-y-2" data-testid="team-simple-working-status" aria-live="polite">
+                <p className="text-sm font-semibold text-[var(--text)]">{teacherClassWorkingStatus(nextAction)}</p>
+                <p className="text-sm text-[var(--text2)]">{teacherClassPermission(activeRoom.teamTeaching.role)}</p>
+                <p className="text-xs text-[var(--text2)]">
+                  Letzter bestätigter Team-Abgleich: {formatTeamDate(activeRoom.teamTeaching.lastSyncedAt)}
+                </p>
+                <details data-testid="team-technical-details" className="rounded-xl border border-[var(--border)] bg-[var(--surface2)] p-3">
+                  <summary className="min-h-7 cursor-pointer text-xs font-semibold text-[var(--text2)]">
+                    Technische Informationen bei Problemen
+                  </summary>
+                  <div className="mt-3 space-y-1 text-xs text-[var(--text2)]">
+                    <p className="font-semibold text-[var(--text)]">Gemeinsamer Teamstand: Version {activeSummary?.revision ?? 'wird geprüft'}</p>
+                    <p>{activeSummary?.contentUpdatedAt
+                      ? 'Zuletzt inhaltlich geändert am ' + formatTeamDate(activeSummary.contentUpdatedAt) + ' von '
+                        + (activeSummary.members.find(member => member.userId === activeSummary.contentUpdatedBy)?.displayName || 'einer Teamlehrperson')
+                      : 'Der genaue Zeitpunkt der letzten Inhaltsänderung ist für diese ältere Teamversion nicht erfasst.'}</p>
+                    <p>Dein Gerät: Version {activeRoom.teamTeaching.revision} · zuletzt abgeglichen am {formatTeamDate(activeRoom.teamTeaching.lastSyncedAt)}</p>
+                    <p className="font-semibold">{activeRoom.teamTeaching.lastSyncedHash
+                      ? classRoomFingerprint(activeRoom) === activeRoom.teamTeaching.lastSyncedHash
+                        ? 'Keine ungesendeten lokalen Inhaltsänderungen erkannt.'
+                        : 'Du hast lokale Änderungen, die noch nicht bestätigt wurden.'
+                      : 'Dieses Gerät hat noch keinen bestätigten Teamstand. Senden ist gesperrt.'}</p>
+                  </div>
+                </details>
               </div>
+            ) : (
+              <p className="mt-1 text-sm text-[var(--text2)]">Noch nicht für gemeinsame Bearbeitung freigegeben.</p>
             )}
             {activeRoom?.teamTeaching?.syncMessage && (
               <p className="mt-2 max-w-2xl text-xs leading-5 text-[var(--text2)]">
