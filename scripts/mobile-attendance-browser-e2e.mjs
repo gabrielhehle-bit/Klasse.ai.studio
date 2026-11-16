@@ -273,6 +273,17 @@ async function main() {
     await clickSidebar(client, 'Anwesenheit & Befinden');
     await waitFor(client, 'attendance ready',
       'Array.from(document.querySelectorAll("h1")).some(h=>String(h.textContent||"").trim()==="Anwesenheit")', 30000);
+    await waitFor(client, 'mobile autosave label is visible',
+      'Boolean(document.querySelector("[data-testid=mobile-save-state]"))');
+    const mobileSave = await evaluate(client, `(() => {
+      const label = document.querySelector('[data-testid=mobile-save-state]');
+      const button = label?.closest('summary');
+      const bounds = button?.getBoundingClientRect();
+      return { label: label?.textContent?.trim(), height: bounds?.height, right: bounds?.right, width: bounds?.width };
+    })()`);
+    if (!mobileSave.label || mobileSave.height < 44 || mobileSave.right > 361) {
+      throw new Error('Phone autosave must have readable state and a full-width touch target: ' + JSON.stringify(mobileSave));
+    }
     const result = await evaluate(client, `(() => {
       const visible = el => {
         if (!el) return false;
@@ -340,6 +351,17 @@ async function main() {
       console.error('MOBILE_MASCOT_ROUTE_DIAGNOSTIC', JSON.stringify(debug));
       throw error;
     }
+
+    // Deep links from the phone More menu must reveal the active settings tab.
+    await waitFor(client, 'active settings tab is visible and touch accessible', `(() => {
+      const nav = document.querySelector('nav[aria-label="Einstellungen: Bereiche"]');
+      const active = nav?.querySelector('button[aria-current="page"]');
+      if (!active) return false;
+      const n = nav.getBoundingClientRect();
+      const a = active.getBoundingClientRect();
+      return a.width >= 44 && a.height >= 44 && a.left >= n.left - 2 && a.right <= n.right + 2;
+    })()`, 15000);
+    console.log('PASS Phone save indicator and deep-linked settings tab are visible without horizontal page overflow');
 
     const mobileMascotGeometry = await evaluate(client, `(() => {
       const panel = document.querySelector('[data-mobile-mascot-settings]');
