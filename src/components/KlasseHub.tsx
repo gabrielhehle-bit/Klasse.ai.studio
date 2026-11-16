@@ -1,8 +1,9 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { Users, UserCheck, Armchair, Wallet, MessagesSquare, Heart, Notebook, ChevronRight, UserPlus, FileText, ContactRound, BarChart3, ArrowLeft } from 'lucide-react';
+import { Users, UserCheck, Armchair, Wallet, MessagesSquare, Heart, Notebook, ChevronRight, UserPlus, FileText, ContactRound, BarChart3, ArrowLeft, Search, X } from 'lucide-react';
 import { toLocalDateKey } from '../lib/localDate';
 import { countStudentsWithAttendanceForDay } from '../lib/dashboardAttendance';
+import { filterClassHubItems } from '../lib/classHubSearch';
 import ClassDossier from './ClassDossier';
 import StudentDossier from './StudentDossier';
 
@@ -12,6 +13,7 @@ type HubItem = {
   description: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
   meta?: string;
+  keywords?: string;
   klassenvorstandOnly?: boolean;
 };
 
@@ -52,6 +54,7 @@ export default function KlasseHub() {
   const { app, setPage } = useApp();
   const [showClassDossier, setShowClassDossier] = React.useState(false);
   const [selectedStudentId, setSelectedStudentId] = React.useState<string | null>(null);
+  const [functionQuery, setFunctionQuery] = React.useState('');
   const students = app.schueler || [];
   const today = toLocalDateKey();
   const recordedToday = countStudentsWithAttendanceForDay(students, app.anwesenheit, today);
@@ -62,6 +65,7 @@ export default function KlasseHub() {
   React.useEffect(() => {
     setShowClassDossier(false);
     setSelectedStudentId(null);
+    setFunctionQuery('');
   }, [app.activeClassId]);
 
   if (selectedStudentId) {
@@ -97,45 +101,53 @@ export default function KlasseHub() {
       description: 'Kinder und Stammdaten verwalten.',
       icon: Users,
       meta: `${students.length} Kinder`,
+      keywords: 'Kinderliste Namen Schüler Schülerliste Stammdaten Klasse',
     },
     {
       id: 'anwesenheit',
       title: 'Anwesenheit & Befinden',
       description: 'Anwesenheit und Befinden erfassen.',
       icon: UserCheck,
+      keywords: 'Fehlzeiten Fehlstunden krank anwesend Stimmung Tagesbeginn',
     },
     {
       id: 'dossier',
       title: 'Schülerdossier',
       description: 'Entwicklung und Informationen eines Kindes ansehen.',
       icon: ContactRound,
+      keywords: 'Kind Lernstand Entwicklung Beobachtungen Elternbericht Elterngespräch',
     },
     {
       id: 'klassendossier',
       title: 'Klassendossier',
       description: 'Überblick und Entwicklung der gesamten Klasse ansehen.',
       icon: BarChart3,
+      keywords: 'Statistik Klassenentwicklung Leistungen Diagramme',
     },
     {
       id: 'sitzplan',
       title: 'Sitzplan & Gruppen',
       description: 'Sitzplätze und feste Gruppen organisieren.',
       icon: Armchair,
+      keywords: 'Sitzordnung Tische Plätze Platztausch Gruppeneinteilung Raumplan',
     },
     {
       id: 'verhalten',
       title: 'Notizen',
       description: 'Klassen- und Schülernotizen sammeln und finden.',
       icon: Notebook,
+      keywords: 'Beobachtungen Journaleinträge Verhalten Notiz',
     },
   ];
 
   const organizationItems: HubItem[] = [
     {
       id: 'orga',
-      title: 'Klassenkasse',
-      description: 'Beiträge, Zahlungen und Kassenbuch verwalten.',
+      title: 'Organisation & Listen',
+      description: 'Klassenkasse, Sammlungen, Ausflüge, Checklisten und eigene Listen.',
       icon: Wallet,
+      meta: 'Kasse · Checklisten · Listen',
+      keywords: 'Geld Beiträge Zahlungen Kassenbuch Ausflug Checkliste Organisation Sammelgeld Passwort Zugangsdaten',
       klassenvorstandOnly: true,
     },
     {
@@ -143,6 +155,7 @@ export default function KlasseHub() {
       title: 'Jahresabschluss',
       description: 'Freigegebene Jahresberichte prüfen und gesammelt drucken.',
       icon: FileText,
+      keywords: 'Jahresbericht Zeugnis Abschluss Berichte Druck',
       klassenvorstandOnly: true,
     },
     {
@@ -150,6 +163,7 @@ export default function KlasseHub() {
       title: 'KEL-Gespräche',
       description: 'Gespräche vorbereiten und Vereinbarungen festhalten.',
       icon: MessagesSquare,
+      keywords: 'Eltern Elterngespräch Elternsprechtag Entwicklungsgespräch Protokoll KEL Gesprächsnotizen',
       klassenvorstandOnly: true,
     },
     {
@@ -157,6 +171,7 @@ export default function KlasseHub() {
       title: 'Wir-Gefühl & Klasse',
       description: 'Klassenklima und gemeinsame Aktivitäten dokumentieren.',
       icon: Heart,
+      keywords: 'Klassengemeinschaft Klassenklima Wohlbefinden Aktivitäten',
       klassenvorstandOnly: true,
     },
     {
@@ -165,12 +180,16 @@ export default function KlasseHub() {
       description: 'Klasse mit Kolleg:innen derselben Schule teilen und bearbeiten.',
       meta: 'Schulmail erforderlich',
       icon: UserPlus,
+      keywords: 'Team Zusammenarbeit gemeinsam Synchronisieren Kollegium Freigabe Laptop',
     },
   ];
 
-  const visibleOrganizationItems = organizationItems.filter(
-    item => !item.klassenvorstandOnly || app.klassenvorstand,
+  const visibleDailyItems = filterClassHubItems(dailyItems, functionQuery);
+  const visibleOrganizationItems = filterClassHubItems(
+    organizationItems.filter(item => !item.klassenvorstandOnly || app.klassenvorstand),
+    functionQuery,
   );
+  const matchingFunctions = visibleDailyItems.length + visibleOrganizationItems.length;
 
   const openItem = (id: string) => {
     if (id === 'klassendossier') {
@@ -205,18 +224,54 @@ export default function KlasseHub() {
         )}
       </header>
 
-      <section className="space-y-3" aria-labelledby="klasse-alltag">
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 sm:p-4" data-class-function-search>
+        <label htmlFor="class-function-search" className="mb-2 block text-sm font-semibold text-[var(--text)]">Was möchtest du erledigen?</label>
+        <div className="relative">
+          <Search size={18} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text3)]" />
+          <input id="class-function-search" type="search"
+            value={functionQuery} onChange={event => setFunctionQuery(event.target.value)}
+            placeholder="z. B. Sitzplan, Ausflug, Eltern, Checkliste"
+            autoComplete="off"
+            className="min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface2)] py-2 pl-10 pr-12 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text3)] focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+          />
+          {functionQuery.length > 0 && (
+            <button type="button" onClick={() => setFunctionQuery('')}
+              aria-label="Funktionssuche leeren"
+              className="absolute right-2 top-1/2 inline-flex min-h-9 min-w-9 -translate-y-1/2 items-center justify-center rounded-lg text-[var(--text2)] hover:bg-[var(--surface)]">
+              <X size={17} />
+            </button>
+          )}
+        </div>
+        {functionQuery.trim() && (
+          <p className="mt-2 text-xs text-[var(--text2)]" role="status" aria-live="polite">
+            {matchingFunctions} {matchingFunctions === 1 ? 'passende Funktion' : 'passende Funktionen'} gefunden.
+          </p>
+        )}
+      </div>
+
+      {functionQuery.trim() && matchingFunctions === 0 && (
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 text-center" data-class-search-empty>
+          <p className="text-sm font-semibold text-[var(--text)]">Keine passende Funktion gefunden</p>
+          <p className="mt-1 text-sm text-[var(--text2)]">Versuche einen anderen Begriff oder zeige alle Funktionen an.</p>
+          <button type="button" onClick={() => setFunctionQuery('')}
+            className="mt-3 min-h-11 rounded-xl bg-[var(--accent)] px-4 text-sm font-semibold text-white">
+            Alle Funktionen anzeigen
+          </button>
+        </div>
+      )}
+
+      {visibleDailyItems.length > 0 && <section className="space-y-3" aria-labelledby="klasse-alltag">
         <div className="px-1">
           <h2 id="klasse-alltag" className="text-base font-semibold text-[var(--text)]">
             Kinder & Alltag
           </h2>
         </div>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {dailyItems.map(item => (
+          {visibleDailyItems.map(item => (
             <ClassCard key={item.id} item={item} onOpen={openItem} />
           ))}
         </div>
-      </section>
+      </section>}
 
       {visibleOrganizationItems.length > 0 && (
         <section className="space-y-3" aria-labelledby="klasse-organisation">
