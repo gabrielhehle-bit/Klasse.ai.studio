@@ -28,7 +28,7 @@ import { AVAILABLE_MODULES } from '../lib/settingsModuleCatalog';
 
 
 export default function Settings() {
-  const { app, setApp, deleteClass } = useApp();
+  const { app, setApp, setPage, deleteClass } = useApp();
   const { showToast } = useToast();
 
   // Active Category tab. The global ? button can request the help section directly.
@@ -325,6 +325,7 @@ export default function Settings() {
           {activeCategory === 'overview' && (
             <SettingsDashboard
               onSelectCategory={setActiveCategory}
+              onOpenTeam={() => setPage('teamteaching')}
               disabledModulesCount={disabledModulesCount}
               hasActiveSync={hasActiveSync}
               hasDemoData={hatBeispieldaten}
@@ -373,6 +374,7 @@ export default function Settings() {
               app={app}
               setApp={setApp}
               showToast={showToast}
+              onOpenTeam={() => setPage('teamteaching')}
             />
           )}
 
