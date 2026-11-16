@@ -199,7 +199,16 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       const commit = fs.readFileSync(marker, 'utf8').trim();
       if (!/^[a-f0-9]{40}$/.test(commit)) throw new Error('Invalid release marker');
       res.setHeader('Cache-Control', 'no-store, max-age=0');
-      res.json({ commit });
+      // Only expose a compatibility boolean, not the installed runtime version or
+      // server details. This is evaluated by the ACTUAL running Node process,
+      // avoiding misleading GitHub-runner/SSH PATH version checks.
+      const nodeMajor = Number.parseInt(process.versions.node.split('.')[0] || '', 10);
+      res.json({
+        commit,
+        runtime: {
+          node20OrNewer: Number.isInteger(nodeMajor) && nodeMajor >= 20,
+        },
+      });
     } catch {
       res.status(503).json({ error: 'Release marker unavailable' });
     }
