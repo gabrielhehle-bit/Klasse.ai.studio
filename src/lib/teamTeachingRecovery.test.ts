@@ -40,10 +40,16 @@ test('Owner can start an independent team from a locked local viewer placeholder
 
 test('Missing real pupil data or disconnected class refuses a misleading new shared team', () => {
   assert.throws(() => prepareLocalTeamRecoveryRoom(
-    { ...lockedLocalRoom(), schueler: [] }, newRoomId), /Schülerliste/);
+    { ...lockedLocalRoom(), schueler: [], notes: [], wochenplanung: {} }, newRoomId), /Klasseneinträge/);
   assert.throws(() => prepareLocalTeamRecoveryRoom(
     { ...lockedLocalRoom(), teamTeaching: undefined }, newRoomId), /nicht mit/);
   assert.throws(() => prepareLocalTeamRecoveryRoom(lockedLocalRoom(), oldRoomId), /Kennung/);
+});
+
+test('Real lesson plan can be recovered even if pupils were not entered yet', () => {
+  const local = { ...lockedLocalRoom(), schueler: [], notes: [] } as ClassRoom;
+  const next = prepareLocalTeamRecoveryRoom(local, newRoomId);
+  assert.deepEqual(next.wochenplanung, local.wochenplanung);
 });
 
 test('New acknowledged room is added without overwriting inaccessible old class', () => {
