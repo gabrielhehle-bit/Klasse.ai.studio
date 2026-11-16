@@ -28,12 +28,14 @@ interface SyncSettingsProps {
   app: any;
   setApp: React.Dispatch<React.SetStateAction<any>>;
   showToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
+  onOpenTeam: () => void;
 }
 
 export default function SyncSettings({
   app,
   setApp,
-  showToast
+  showToast,
+  onOpenTeam,
 }: SyncSettingsProps) {
   const [syncCode, setSyncCode] = useState('');
   const [sessionKeyInput, setSessionKeyInput] = useState('');
@@ -130,6 +132,16 @@ export default function SyncSettings({
 
   return (
     <div className="space-y-6">
+      <section data-testid="smartboard-not-teamteaching" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-sm font-semibold text-[var(--text)]">Hier koppelst du nur Smartboard und Smartphone.</h2>
+          <p className="mt-1 text-sm text-[var(--text2)]">Für Teamteaching mit einer zweiten Lehrperson brauchst du keinen Kopplungscode. Öffne dafür das Klassenteam.</p>
+        </div>
+        <button type="button" onClick={onOpenTeam}
+          className="min-h-11 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--btn-text,#fff)]">
+          Zum Klassenteam
+        </button>
+      </section>
       {/* Intro Banner */}
       <div className="bg-white rounded-[2.5rem] border border-stone-200/80 p-6 md:p-8 space-y-4 shadow-sm">
         <div className="flex items-center gap-3 border-b border-stone-150 pb-4">
@@ -137,7 +149,7 @@ export default function SyncSettings({
             <Smartphone size={20} />
           </div>
           <div>
-            <h2 className="text-base font-black text-slate-900">Zero-Knowledge Live-Fernbedienung & Smartboard-Kopplung</h2>
+            <h2 className="text-base font-black text-slate-900">Smartboard mit dem Smartphone steuern</h2>
             <p className="text-xs text-slate-500 font-medium">Steuere deine App kabellos vom Smartphone aus, während das Smartboard das Board anzeigt.</p>
           </div>
         </div>

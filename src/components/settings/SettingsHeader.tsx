@@ -30,7 +30,7 @@ export const CATEGORIES: { id: SettingsCategory; label: string; icon: any; short
   { id: 'general', label: 'Allgemein', icon: Sliders, shortDesc: 'Schuljahr, Bundesland & Fächer' },
   { id: 'display', label: 'Darstellung', icon: Palette, shortDesc: 'Design, Schrift & Cockpit' },
   { id: 'modules', label: 'Module', icon: LayoutGrid, shortDesc: 'Bereiche ein- & ausblenden' },
-  { id: 'sync', label: 'Synchronisierung', icon: Smartphone, shortDesc: 'Smartboard & Fernbedienung' },
+  { id: 'sync', label: 'Smartboard', icon: Smartphone, shortDesc: 'Nur Smartboard & Fernbedienung' },
   { id: 'backup', label: 'Daten & Backup', icon: Download, shortDesc: 'Sichern, Laden & App-Install' },
   { id: 'support', label: 'Unterstützung', icon: Heart, shortDesc: 'Freiwillige Beiträge & Unterstützer:innen' },
   { id: 'advanced', label: 'Erweitert', icon: Shield, shortDesc: 'Datenschutz & Gefahrenbereich' },
@@ -43,6 +43,10 @@ export default function SettingsHeader({
   einfachModus,
   setEinfachModus
 }: SettingsHeaderProps) {
+  const visibleCategories = einfachModus
+    ? CATEGORIES.filter(cat => cat.id !== 'advanced' && cat.id !== 'support')
+    : CATEGORIES;
+
   return (
     <div className="space-y-6">
       {/* Top Bar with Title and Einfachmodus Switch */}
@@ -67,7 +71,7 @@ export default function SettingsHeader({
                 {activeCategory === 'general' && 'Allgemeine Einstellungen'}
                 {activeCategory === 'display' && 'Darstellung & Cockpit'}
                 {activeCategory === 'modules' && 'Module & Bereiche'}
-                {activeCategory === 'sync' && 'Smartboard & Synchronisierung'}
+                {activeCategory === 'sync' && 'Smartboard & Fernbedienung'}
                 {activeCategory === 'backup' && 'Daten & Datensicherung'}
                 {activeCategory === 'support' && 'Klassio unterstützen'}
                 {activeCategory === 'advanced' && 'Erweitert & Sicherheit'}
@@ -116,7 +120,7 @@ export default function SettingsHeader({
       </div>
 
       {/* Pill Navigation */}
-      <div className="flex items-center gap-2 overflow-x-auto border-b border-[var(--border)] pb-1 no-scrollbar">
+      <nav aria-label="Einstellungen: Bereiche" className="flex items-center gap-2 overflow-x-auto border-b border-[var(--border)] pb-1 no-scrollbar">
         <button
           onClick={() => setActiveCategory('overview')}
           className={`px-4 py-2.5 rounded-md text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer flex items-center gap-2 ${
@@ -128,7 +132,7 @@ export default function SettingsHeader({
           <span>Übersicht</span>
         </button>
 
-        {CATEGORIES.map(cat => {
+        {visibleCategories.map(cat => {
           const Icon = cat.icon;
           const isActive = activeCategory === cat.id;
 
@@ -147,7 +151,8 @@ export default function SettingsHeader({
             </button>
           );
         })}
-      </div>
+      </nav>
+      {einfachModus && <p className="text-xs text-[var(--text2)]">Weitere Optionen findest du auf der Übersicht oder über „Alle Optionen“.</p>}
     </div>
   );
 }
