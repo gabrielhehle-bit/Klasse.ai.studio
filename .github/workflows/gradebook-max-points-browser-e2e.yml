@@ -9,7 +9,7 @@ on:
       - 'scripts/gradebook-max-points-browser-e2e.mjs'
       - '.github/workflows/gradebook-max-points-browser-e2e.yml'
   push:
-    branches: [main]
+    branches: [main, test/gradebook-maxpoints-chrome-20261116]
     paths:
       - 'src/components/Gradebook.tsx'
       - 'src/components/gradebook/AssessmentItemModal.tsx'
