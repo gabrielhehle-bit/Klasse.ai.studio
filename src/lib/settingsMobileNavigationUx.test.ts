@@ -20,3 +20,11 @@ test('easy mode hides risky categories on overview but keeps directly opened cat
   assert.match(settings, /klassio-open-settings-category/);
   assert.match(settings, /setActiveCategory\(requested as SettingsCategory\)/);
 });
+
+test('the phone settings deep link survives double-invoked React StrictMode state initialization', () => {
+  const initializer = settings.split('const [activeCategory, setActiveCategory] = useState<SettingsCategory>')[1]?.split('  useEffect(() => {')[0];
+  assert.ok(initializer, 'settings category initializer should exist');
+  assert.match(initializer, /sessionStorage\.getItem\('klassio-settings-category'\)/);
+  assert.doesNotMatch(initializer, /sessionStorage\.removeItem/);
+  assert.match(settings, /window\.sessionStorage\.removeItem\('klassio-settings-category'\)/);
+});
