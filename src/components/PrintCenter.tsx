@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { isDiagnosticAlert } from '../lib/diagnosticData';
+import { filterPrintTemplates } from '../lib/printTemplateSearch';
 import { 
   Printer, 
   Users, 
@@ -185,7 +186,7 @@ export default function PrintCenter() {
 
   const ALL_TEMPLATES = useMemo(() => [
     { id: 'schuelerliste', icon: Users, label: 'Klassenliste', desc: 'Namens- & Stammdatenliste', cat: 'listen', taskCat: 'klasse', badge: 'Klasse', keywords: 'schüler name klasse stammdaten telefon adresse' },
-    { id: 'checkliste', icon: CheckSquare, label: 'Notenübersicht', desc: 'Punkteraster & Notenschnitt', cat: 'listen', taskCat: 'leistung', badge: 'Noten', keywords: 'noten punkte checkliste hausübung test kontrolle' },
+    { id: 'checkliste', icon: CheckSquare, label: 'Notenübersicht', desc: 'Punkteraster & Notenschnitt', cat: 'listen', taskCat: 'leistung', badge: 'Noten', keywords: 'noten punkte checkliste hausübung test kontrolle ausflug wandertag sammlung bezahlung unterschrift' },
     { id: 'zeugnis_noten', icon: GraduationCap, label: 'Semester-Notenspiegel', desc: '1. & 2. Semester Übersicht', cat: 'listen', taskCat: 'leistung', badge: 'Semester', keywords: 'noten semester übersicht ganzjahr halbjahr fächer' },
     { id: 'fehlstunden', icon: Clock, label: 'Anwesenheitsliste', desc: 'Entschuldigt / Unentschuldigt', cat: 'listen', taskCat: 'klasse', badge: 'Absenzen', keywords: 'fehlstunden krankenstand absenzen entschuldigt' },
 
@@ -196,8 +197,8 @@ export default function PrintCenter() {
     { id: 'klassenbuch', icon: BookOpen, label: 'Klassenbuch', desc: 'Wochen- & Lehrbericht', cat: 'planung', taskCat: 'planung', badge: 'Lehrbericht', keywords: 'klassenbuch bericht woche unterricht ersatz' },
     { id: 'jahresplanung', icon: FileText, label: 'Jahresplan', desc: 'Syllabus & Kompetenzen', cat: 'planung', taskCat: 'planung', badge: 'Syllabus', keywords: 'jahresplan syllabus monate ziele kompetenzen' },
 
-    { id: 'kel', icon: Award, label: 'KEL-Gespräch', desc: 'Entwicklungsdossier & Zieldialog', cat: 'eltern', taskCat: 'schueler', badge: 'Dossier', keywords: 'kel gespräch eltern entwicklung ziele vereinbarung' },
-    { id: 'kel_elternblatt', icon: Heart, label: 'KEL-Elternblatt', desc: 'Befinden, Verhalten, Mitarbeit, Lernen und Gesprächsnotizen', cat: 'eltern', taskCat: 'schueler', badge: 'A4 Eltern', keywords: 'elternblatt kel gespräch entwicklung befinden verhalten mitarbeit lernbereiche notizen drucken' },
+    { id: 'kel', icon: Award, label: 'KEL-Gespräch', desc: 'Entwicklungsdossier & Zieldialog', cat: 'eltern', taskCat: 'schueler', badge: 'Dossier', keywords: 'kel gespräch eltern entwicklung ziele vereinbarung elterngespräch elternsprechtag' },
+    { id: 'kel_elternblatt', icon: Heart, label: 'KEL-Elternblatt', desc: 'Befinden, Verhalten, Mitarbeit, Lernen und Gesprächsnotizen', cat: 'eltern', taskCat: 'schueler', badge: 'A4 Eltern', keywords: 'elternblatt kel gespräch entwicklung befinden verhalten mitarbeit lernbereiche notizen drucken elterngespräch elternsprechtag unterschrift elternunterschrift pdf' },
     { id: 'kel_presentation', icon: Sparkles, label: 'KEL-Präsentation', desc: 'Visuelle Bento-Karten', cat: 'eltern', taskCat: 'schueler', badge: 'Bento-Visual', keywords: 'kel bento präsentation visual stärken' },
     { id: 'eltern_diagnostik', icon: Stethoscope, label: 'Elternbericht', desc: 'Förderdiagnostik & Feedback', cat: 'eltern', taskCat: 'schueler', badge: 'Diagnostik', keywords: 'eltern bericht diagnostik förderung test ergebnis' },
     { id: 'schuelerprofil', icon: User, label: 'Schülerdossier', desc: 'Stammdaten, Noten & Profil', cat: 'eltern', taskCat: 'schueler', badge: 'Einzelblatt', keywords: 'schüler profil stammdaten notarzt eltern handy' },
@@ -210,14 +211,10 @@ export default function PrintCenter() {
     { id: 'smart_tools', icon: Sparkles, label: 'Geldsammlung & Orga', desc: 'Tischschilder, Kasse & Joker', cat: 'spezial', taskCat: 'orga', badge: 'Orga & Kasse', keywords: 'spezial tools powerup helfer zufall gruppen geld sammlung' },
   ], []);
 
-  const filteredTemplates = useMemo(() => {
-    return ALL_TEMPLATES.filter(t => {
-      const matchCat = activeTaskCategory === 'all' || t.taskCat === activeTaskCategory;
-      const q = templateSearch.trim().toLowerCase();
-      const matchSearch = !q || t.label.toLowerCase().includes(q) || t.desc.toLowerCase().includes(q) || t.keywords.toLowerCase().includes(q);
-      return matchCat && matchSearch;
-    });
-  }, [ALL_TEMPLATES, activeTaskCategory, templateSearch]);
+  const filteredTemplates = useMemo(
+    () => filterPrintTemplates(ALL_TEMPLATES, templateSearch, activeTaskCategory),
+    [ALL_TEMPLATES, activeTaskCategory, templateSearch],
+  );
 
   // 2. Global Styling & Paper Adjustments
   const [printPaperSize, setPrintPaperSize] = useState<'A4'>('A4');
@@ -1590,17 +1587,26 @@ export default function PrintCenter() {
               <div className="relative flex-1 sm:w-64">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
-                  type="text"
-                  placeholder="Dokument oder Begriff suchen..."
+                  type="search"
+                  aria-label="Druckvorlagen durchsuchen"
+                  data-testid="print-template-search"
+                  placeholder="z. B. Elterngespräch, Ausflug, Unterschrift"
                   value={templateSearch}
-                  onChange={(e) => setTemplateSearch(e.target.value)}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setTemplateSearch(next);
+                    // Searches start across ALL templates, even when teachers
+                    // previously left the catalogue in a narrow category.
+                    if (next.trim()) setActiveTaskCategory('all');
+                  }}
                   className="w-full pl-8 pr-7 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[0.75rem] font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all"
                 />
                 {templateSearch && (
                   <button
                     type="button"
-                    onClick={() => setTemplateSearch('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                    onClick={() => { setTemplateSearch(''); setActiveTaskCategory('all'); }}
+                    aria-label="Vorlagensuche löschen"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 flex min-h-9 min-w-9 items-center justify-center text-slate-600 hover:text-slate-900 text-sm font-bold"
                   >
                     ✕
                   </button>
@@ -1718,8 +1724,8 @@ export default function PrintCenter() {
           )}
         </div>
 
-        {/* Section 1: Häufig verwendet */}
-        <div className="space-y-2.5 no-print">
+        {/* Quick access is not a second list of search results. Keep only relevant matches visible. */}
+        {!templateSearch.trim() && <div className="space-y-2.5 no-print" data-testid="print-quick-access">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
               <Sparkles size={14} className="text-emerald-600" />
@@ -1742,9 +1748,12 @@ export default function PrintCenter() {
                 <button
                   key={f.id}
                   type="button"
+                  aria-pressed={isActive}
+                  aria-label={`${f.label} als Druckvorlage auswählen`}
                   onClick={() => {
                     setActiveTemplate(f.id as any);
                     if (f.id === 'smart_tools') setActiveSmartTool('tischschilder');
+                    document.getElementById('print-center-configuration')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }}
                   className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between h-24 ${f.bg} ${
                     isActive
@@ -1766,14 +1775,18 @@ export default function PrintCenter() {
               );
             })}
           </div>
-        </div>
+        </div>}
 
         {/* Section 2: Alle Dokumente nach Aufgaben */}
         <div className="bg-white rounded-2xl border border-slate-200/90 p-4 space-y-3.5 no-print shadow-2xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
             <div>
               <h2 className="text-sm font-black text-slate-800">Was möchtest du drucken?</h2>
-              <p className="text-[0.6875rem] text-slate-400 font-medium">Alle verfügbaren Druckvorlagen übersichtlich kategorisiert</p>
+              <p data-testid="print-template-results" role="status" aria-live="polite"
+                className="text-xs text-slate-600 font-medium">
+                {filteredTemplates.length} {filteredTemplates.length === 1 ? 'Vorlage' : 'Vorlagen'} gefunden
+                {templateSearch.trim() ? ' · Suche in allen Dokumenten gestartet' : ' · Kategorie wählen oder Begriff suchen'}
+              </p>
             </div>
 
             {/* Category Filter Pills */}
@@ -1820,12 +1833,15 @@ export default function PrintCenter() {
                   <button
                     key={t.id}
                     type="button"
+                    aria-pressed={isSel}
                     onClick={() => {
                         if (t.id === 'uebergabemappe') {
                           setApp(prev => ({ ...prev, openPrintModalOnLoad: true }));
                           setPage('vertretung');
                         } else {
                           setActiveTemplate(t.id as any);
+                          // Immediately reveal the controls for the chosen document.
+                          document.getElementById('print-center-configuration')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                         }
                       }}
                     className={`p-3 rounded-xl border text-left flex flex-col justify-between h-28 transition-all cursor-pointer active:scale-97 ${
@@ -1860,8 +1876,9 @@ export default function PrintCenter() {
               })}
             </div>
           ) : (
-            <div className="py-6 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
-              <p className="text-xs font-bold text-slate-500">Keine Vorlagen für diese Kategorie / Suche gefunden</p>
+            <div data-testid="print-template-empty" className="py-6 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+              <p className="text-sm font-semibold text-slate-700">Keine passende Druckvorlage gefunden.</p>
+              <p className="mt-1 text-xs text-slate-500">Versuche einen anderen Begriff oder zeige alle Dokumente.</p>
               <button
                 type="button"
                 onClick={() => { setTemplateSearch(''); setActiveTaskCategory('all'); }}
@@ -1873,8 +1890,8 @@ export default function PrintCenter() {
           )}
         </div>
 
-        {/* Step Indicator Bar */}
-        <div className="bg-slate-900 text-white p-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 no-print shadow-sm">
+        {/* The selected document stays visible even when the catalogue is filtered. */}
+        <div className="bg-slate-900 text-white p-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 no-print shadow-sm" data-testid="print-selected-template">
           <div className="flex items-center gap-2">
             <span className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-black">
               ✓
@@ -1887,8 +1904,16 @@ export default function PrintCenter() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-[0.6875rem]">
-            <span className="px-2.5 py-1 bg-slate-800 rounded-lg text-slate-300 font-bold">SCHRITT 1: Dokument wählen</span>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <button type="button" onClick={() => document.getElementById('print-center-configuration')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              className="min-h-10 rounded-lg border border-emerald-400/40 bg-emerald-700 px-3 font-semibold text-white hover:bg-emerald-600">
+              Angaben einstellen
+            </button>
+            <button type="button" onClick={() => document.getElementById('print-center-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              className="min-h-10 rounded-lg border border-slate-600 bg-slate-800 px-3 font-semibold text-white hover:bg-slate-700">
+              A4-Vorschau ansehen
+            </button>
+            <span className="hidden xl:inline px-2.5 py-1 bg-slate-800 rounded-lg text-slate-300 font-bold">SCHRITT 1: Dokument wählen</span>
             <span className="text-slate-600">→</span>
             <span className="px-2.5 py-1 bg-emerald-600/40 text-emerald-300 border border-emerald-500/30 rounded-lg font-bold">SCHRITT 2: Angaben auswählen</span>
             <span className="text-slate-600">→</span>
@@ -1900,7 +1925,7 @@ export default function PrintCenter() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
           {/* Left Panel: Configuration Controls (Screen-only) */}
-          <div className="lg:col-span-5 space-y-6 no-print">
+          <div id="print-center-configuration" className="lg:col-span-5 space-y-6 no-print scroll-mt-4">
             
             {/* Print defaults stay available without making teachers configure them for every report. */}
             <details data-testid="print-center-advanced-format" className="group rounded-3xl border border-slate-200/80 bg-white shadow-inner">
@@ -4400,7 +4425,7 @@ export default function PrintCenter() {
           </div>
 
           {/* Right Panel: Interactive Live PDF Simulator (A4 Aspect Ratio Sheet inside editor Frame) */}
-          <div className="lg:col-span-7 space-y-3">
+          <div id="print-center-preview" className="lg:col-span-7 space-y-3 scroll-mt-4">
             {/* Primary Action Bar above Preview */}
             <div className="bg-slate-900 text-white p-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 no-print shadow-md">
               <div className="flex items-center gap-2">
@@ -4424,7 +4449,7 @@ export default function PrintCenter() {
             <div className="flex flex-wrap justify-between items-center gap-2 no-print pt-1">
               <div className="flex flex-wrap items-center gap-2 text-slate-600">
                 <span className="text-xs font-black uppercase tracking-wider">
-                  {isTischPreview && tischPreviewMode === 'detail' ? 'Tischschild · vergrößerte Einzelvorschau' : 'Simuliertes A4 Blatt'}
+                  {isTischPreview && tischPreviewMode === 'detail' ? 'Tischschild · vergrößerte Einzelvorschau' : 'A4-Vorschau (verkleinerte Ansicht)'}
                 </span>
                 {isTischPreview && (
                   <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
