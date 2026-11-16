@@ -214,6 +214,16 @@ export default function PrintCenter() {
     () => filterPrintTemplates(ALL_TEMPLATES, templateSearch, activeTaskCategory),
     [ALL_TEMPLATES, activeTaskCategory, templateSearch],
   );
+  // Shared category definitions keep mobile and desktop filtering identical.
+  const printTaskCategories = useMemo(() => [
+    { id: 'all', label: 'Alle', count: ALL_TEMPLATES.length },
+    { id: 'klasse', label: 'Klasse', count: ALL_TEMPLATES.filter(t => t.taskCat === 'klasse').length },
+    { id: 'schueler', label: 'Schüler:innen', count: ALL_TEMPLATES.filter(t => t.taskCat === 'schueler').length },
+    { id: 'leistung', label: 'Leistung', count: ALL_TEMPLATES.filter(t => t.taskCat === 'leistung').length },
+    { id: 'planung', label: 'Planung', count: ALL_TEMPLATES.filter(t => t.taskCat === 'planung').length },
+    { id: 'orga', label: 'Organisation', count: ALL_TEMPLATES.filter(t => t.taskCat === 'orga').length },
+  ] as const, [ALL_TEMPLATES]);
+
 
   // 2. Global Styling & Paper Adjustments
   const [printPaperSize, setPrintPaperSize] = useState<'A4'>('A4');
@@ -1569,8 +1579,8 @@ export default function PrintCenter() {
                 <Printer size={20} strokeWidth={2.5} />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-lg font-black text-slate-800 tracking-tight">DRUCKZENTRUM</h1>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-lg font-semibold text-slate-900 tracking-tight">Druckzentrum</h1>
                   <span className="bg-slate-100 text-slate-700 text-[0.6875rem] font-bold px-2.5 py-0.5 rounded-full border border-slate-200">
                     Klasse {app?.klassenbezeichnung?.trim() || 'nicht angegeben'}
                   </span>
@@ -1755,11 +1765,12 @@ export default function PrintCenter() {
           </div>
         </div>}
 
-        {/* Section 2: Alle Dokumente nach Aufgaben */}
-        <div className="bg-white rounded-2xl border border-slate-200/90 p-4 space-y-3.5 no-print shadow-2xs">
+        {/* Document catalogue: step 1 */}
+        <div id="print-center-catalog" className="bg-white rounded-2xl border border-slate-200/90 p-4 space-y-3.5 no-print shadow-2xs scroll-mt-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
             <div>
-              <h2 className="text-sm font-black text-slate-800">Was möchtest du drucken?</h2>
+              <h2 className="text-base font-semibold text-slate-900">1. Dokument auswählen</h2>
+              <p className="mt-0.5 text-xs leading-relaxed text-slate-600">Wähle eine Vorlage. Anschließend passt du die Angaben an und prüfst die Vorschau.</p>
               <p data-testid="print-template-results" role="status" aria-live="polite"
                 className="text-xs text-slate-600 font-medium">
                 {filteredTemplates.length} {filteredTemplates.length === 1 ? 'Vorlage' : 'Vorlagen'} gefunden
@@ -1767,16 +1778,20 @@ export default function PrintCenter() {
               </p>
             </div>
 
-            {/* Category Filter Pills */}
-            <div className="flex flex-wrap gap-2 text-xs">
-              {[
-                { id: 'all', label: 'Alle', count: ALL_TEMPLATES.length },
-                { id: 'klasse', label: 'Klasse', count: ALL_TEMPLATES.filter(t => t.taskCat === 'klasse').length },
-                { id: 'schueler', label: 'Schüler:innen', count: ALL_TEMPLATES.filter(t => t.taskCat === 'schueler').length },
-                { id: 'leistung', label: 'Leistung', count: ALL_TEMPLATES.filter(t => t.taskCat === 'leistung').length },
-                { id: 'planung', label: 'Planung', count: ALL_TEMPLATES.filter(t => t.taskCat === 'planung').length },
-                { id: 'orga', label: 'Organisation', count: ALL_TEMPLATES.filter(t => t.taskCat === 'orga').length },
-              ].map(cat => {
+            {/* One labelled selector on phones, same categories as desktop. */}
+            <div data-testid="print-mobile-category-filter" className="space-y-1.5 sm:hidden">
+              <label htmlFor="print-mobile-category" className="block text-sm font-semibold text-slate-800">Dokumente nach Bereich filtern</label>
+              <select id="print-mobile-category" value={activeTaskCategory}
+                onChange={event => setActiveTaskCategory(event.target.value as typeof activeTaskCategory)}
+                className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base font-medium text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600">
+                {printTaskCategories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.label} ({cat.count})</option>
+                ))}
+              </select>
+            </div>
+            {/* Keep large-screen category pills available as before. */}
+            <div className="hidden sm:flex flex-wrap gap-2 text-xs" aria-label="Dokumentbereiche">
+              {printTaskCategories.map(cat => {
                 const isActive = activeTaskCategory === cat.id;
                 return (
                   <button
@@ -1805,7 +1820,7 @@ export default function PrintCenter() {
 
           {/* Grid of Templates */}
           {filteredTemplates.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5">
+            <div data-testid="print-template-grid" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5">
               {filteredTemplates.map(t => {
                 const IconComp = t.icon;
                 const isSel = activeTemplate === t.id;
@@ -1824,33 +1839,34 @@ export default function PrintCenter() {
                           document.getElementById('print-center-configuration')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                         }
                       }}
-                    className={`p-3 rounded-xl border text-left flex flex-col justify-between h-28 transition-all cursor-pointer active:scale-97 ${
+                    className={`group min-h-20 rounded-xl border p-3 text-left flex items-center gap-3 transition-colors cursor-pointer sm:h-28 sm:flex-col sm:items-stretch sm:justify-between sm:gap-0 ${
                       isSel
                         ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-600/20'
                         : 'bg-slate-50/70 hover:bg-white border-slate-200/80 text-slate-700 hover:border-slate-300 shadow-3xs'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                      <div className={`w-9 h-9 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center ${
                         isSel ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200'
                       }`}>
                         <IconComp size={15} />
                       </div>
-                      <span className={`text-[0.5625rem] font-black uppercase px-1.5 py-0.5 rounded ${
+                      <span className={`hidden sm:inline-flex text-[0.5625rem] font-black uppercase px-1.5 py-0.5 rounded ${
                         isSel ? 'bg-white/20 text-white' : 'bg-slate-200/70 text-slate-600'
                       }`}>
                         {t.badge}
                       </span>
                     </div>
 
-                    <div>
-                      <div className="text-[0.75rem] font-black leading-tight tracking-tight">{t.label}</div>
-                      <div className={`text-[0.625rem] mt-0.5 font-medium line-clamp-1 leading-tight ${
+                    <div className="min-w-0 flex-1 sm:flex-none">
+                      <div className="text-sm font-semibold leading-snug tracking-tight sm:text-xs">{t.label}</div>
+                      <div className={`mt-1 text-xs font-medium leading-snug line-clamp-2 sm:line-clamp-1 sm:text-[0.6875rem] ${
                         isSel ? 'text-emerald-100' : 'text-slate-400'
                       }`}>
                         {t.desc}
                       </div>
                     </div>
+                    {isSel && <Check size={18} aria-hidden="true" className="shrink-0 sm:hidden" />}
                   </button>
                 );
               })}
@@ -1886,18 +1902,13 @@ export default function PrintCenter() {
 
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <button type="button" onClick={() => document.getElementById('print-center-configuration')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-              className="min-h-10 rounded-lg border border-emerald-400/40 bg-emerald-700 px-3 font-semibold text-white hover:bg-emerald-600">
+              className="min-h-11 rounded-xl border border-emerald-400/40 bg-emerald-700 px-4 font-semibold text-white hover:bg-emerald-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
               Angaben einstellen
             </button>
             <button type="button" onClick={() => document.getElementById('print-center-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-              className="min-h-10 rounded-lg border border-slate-600 bg-slate-800 px-3 font-semibold text-white hover:bg-slate-700">
+              className="min-h-11 rounded-xl border border-slate-600 bg-slate-800 px-4 font-semibold text-white hover:bg-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
               A4-Vorschau ansehen
             </button>
-            <span className="hidden xl:inline px-2.5 py-1 bg-slate-800 rounded-lg text-slate-300 font-bold">SCHRITT 1: Dokument wählen</span>
-            <span className="text-slate-600">→</span>
-            <span className="px-2.5 py-1 bg-emerald-600/40 text-emerald-300 border border-emerald-500/30 rounded-lg font-bold">SCHRITT 2: Angaben auswählen</span>
-            <span className="text-slate-600">→</span>
-            <span className="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg font-bold">SCHRITT 3: Vorschau &amp; Druck</span>
           </div>
         </div>
 
@@ -1906,7 +1917,11 @@ export default function PrintCenter() {
           
           {/* Left Panel: Configuration Controls (Screen-only) */}
           <div id="print-center-configuration" className="lg:col-span-5 space-y-6 no-print scroll-mt-4">
-            
+            <div className="space-y-1">
+              <h2 className="text-base font-semibold text-slate-900">2. Angaben auswählen</h2>
+              <p className="text-sm leading-relaxed text-slate-600">Passe das Dokument an. Das Papierformat ist bereits voreingestellt.</p>
+            </div>
+
             {/* Print defaults stay available without making teachers configure them for every report. */}
             <details data-testid="print-center-advanced-format" className="group rounded-3xl border border-slate-200/80 bg-white shadow-inner">
               <summary className="flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-3xl p-5 text-sm font-bold text-slate-800 focus-visible:outline-2 focus-visible:outline-emerald-600">
@@ -4424,12 +4439,21 @@ export default function PrintCenter() {
                 data-testid="print-center-primary-print"
                 onClick={handleTriggerPrint}
                 disabled={students.length === 0 || (activeTemplate === 'materialabholung' && !pickupCanPrint) || (activeTemplate === 'kel_elternblatt' && !selectedParentStudent)}
-                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-black text-slate-950 transition-all hover:bg-emerald-400 disabled:opacity-50"
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition-all hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 <Printer size={15} strokeWidth={2.5} />
                 {activeTemplate === 'kel_elternblatt' ? 'Elternblatt drucken / PDF' : 'Drucken oder als PDF speichern'}
               </button>
-              <p className="w-full text-[11px] text-slate-300">Im Browser-Druckdialog den Drucker wählen oder „Als PDF speichern“ auswählen.</p>
+              {(students.length === 0 || (activeTemplate === 'materialabholung' && !pickupCanPrint) || (activeTemplate === 'kel_elternblatt' && !selectedParentStudent)) && (
+                <p role="status" className="w-full text-xs font-medium text-amber-200">
+                  {students.length === 0
+                    ? 'Bitte zuerst eine Klasse mit Kindern auswählen.'
+                    : activeTemplate === 'kel_elternblatt'
+                      ? 'Bitte zuerst ein Kind für das Elternblatt auswählen.'
+                      : 'Bitte die benötigten Angaben für die Materialabholung vervollständigen.'}
+                </p>
+              )}
+              <p className="w-full text-xs text-slate-300">Im Browser-Druckdialog den Drucker wählen oder „Als PDF speichern“ auswählen.</p>
             </div>
 
             <div className="flex flex-wrap justify-between items-center gap-2 no-print pt-1">
@@ -4521,7 +4545,7 @@ export default function PrintCenter() {
             )}
 
             {/* Simulated Frame with dynamic scaling */}
-            <div className="bg-slate-100 rounded-3xl p-4 md:p-8 flex flex-col items-center justify-start overflow-auto shadow-inner border border-slate-200/60 no-print flex-1 w-full scrollbar-thin" style={{ minHeight: '440px', maxHeight: '85vh' }}>
+            <div className="bg-slate-100 rounded-2xl p-3 md:rounded-3xl md:p-8 flex min-h-[320px] flex-col items-center justify-start overflow-auto shadow-inner border border-slate-200/60 no-print flex-1 w-full scrollbar-thin sm:min-h-[440px]" style={{ maxHeight: '85vh' }}>
               {isMultiPageTemplate ? (
                 /* Multi-page template rendering as a column of beautiful A4 sheets */
                 <div 
