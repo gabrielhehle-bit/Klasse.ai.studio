@@ -8,7 +8,7 @@ const header = readFileSync('src/components/settings/SettingsHeader.tsx', 'utf8'
 const originalOrder = ['help', 'account', 'general', 'display', 'modules', 'sync', 'backup', 'support', 'advanced'];
 const originalTitles = [
   'Hilfe & Anleitungen', 'Konto & Schulmail', 'Allgemein', 'Darstellung', 'Module & Bereiche',
-  'Synchronisierung', 'Daten & Backup', 'Unterstützung', 'Erweitert & Sicherheit',
+  'Smartboard-Fernbedienung', 'Daten & Backup', 'Unterstützung', 'Erweitert & Sicherheit',
 ];
 
 test('Redesign preserves exactly the nine known cards, their names and their positions', () => {
