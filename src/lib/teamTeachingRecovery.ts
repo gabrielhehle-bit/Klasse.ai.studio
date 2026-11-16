@@ -1,6 +1,19 @@
 import type { ClassRoom } from '../types';
 import { classRoomWithoutTeamMetadata } from './teamTeachingCrypto';
 
+/** Require actual locally available classroom content, never a blank placeholder. */
+export function hasRecoverableLocalClassData(room: ClassRoom): boolean {
+  if ((room.schueler || []).length > 0) return true;
+  if ((room.notes || []).length > 0) return true;
+  const weeks = room.wochenplanung || {};
+  return Object.values(weeks).some(week =>
+    week && typeof week === 'object'
+    && Object.values(week).some(day =>
+      day && typeof day === 'object'
+      && Object.values(day).some(lesson => lesson && typeof lesson === 'object'
+        && Object.keys(lesson).length > 0)));
+}
+
 /**
  * Start a NEW encrypted team from an explicitly selected local owner snapshot.
  * The former team class, its server history and the other teacher's local copy
@@ -15,8 +28,8 @@ export function prepareLocalTeamRecoveryRoom(local: ClassRoom, newId: string): C
   }
   if (!local.name?.trim()) throw new Error('Die Klasse hat keine gültige Bezeichnung.');
   // The inaccessible original is never silently replaced by an empty placeholder.
-  if (!Array.isArray(local.schueler) || local.schueler.length === 0) {
-    throw new Error('Auf diesem Gerät ist keine bestätigte Schülerliste vorhanden. Bitte die lokale Sicherung prüfen, bevor ein neues Klassenteam angelegt wird.');
+  if (!hasRecoverableLocalClassData(local)) {
+    throw new Error('Auf diesem Gerät sind keine vollständigen Klasseneinträge erkennbar. Bitte die lokale Sicherung prüfen, bevor ein neues Klassenteam angelegt wird.');
   }
   const independent = classRoomWithoutTeamMetadata(local);
   return {
