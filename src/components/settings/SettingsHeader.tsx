@@ -80,8 +80,8 @@ export default function SettingsHeader({
           )}
 
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl md:text-2xl font-semibold text-[var(--text)] tracking-tight font-sans">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <h1 className="text-xl md:text-2xl font-semibold text-[var(--text)] tracking-tight font-sans break-words">
                 {activeCategory === 'overview' && 'Einstellungen'}
                 {activeCategory === 'account' && 'Konto & Schulmail'}
                 {activeCategory === 'general' && 'Allgemeine Einstellungen'}
@@ -135,8 +135,32 @@ export default function SettingsHeader({
         </div>
       </div>
 
+      {/* On narrow phones, a native picker makes every section discoverable
+          without requiring teachers to spot a horizontally hidden tab. */}
+      <div className="space-y-2 sm:hidden" data-testid="settings-mobile-section-picker">
+        <label htmlFor="klassio-settings-mobile-category"
+          className="block text-sm font-semibold text-[var(--text)]">
+          Einstellungsbereich auswählen
+        </label>
+        <select
+          id="klassio-settings-mobile-category"
+          aria-label="Einstellungsbereich auswählen"
+          value={activeCategory}
+          onChange={(event) => setActiveCategory(event.target.value as SettingsCategory)}
+          className="block min-h-12 w-full rounded-xl border border-[var(--border2)] bg-[var(--surface)] px-3 py-2.5 text-base font-medium text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring,var(--accent))]"
+        >
+          <option value="overview">Übersicht</option>
+          {visibleCategories.map(cat => (
+            <option key={cat.id} value={cat.id}>{cat.label}</option>
+          ))}
+        </select>
+        <p className="text-xs leading-relaxed text-[var(--text2)]">
+          Wähle einen Bereich. Deine Änderungen bleiben beim Wechsel erhalten.
+        </p>
+      </div>
+
       {/* Pill Navigation */}
-      <nav ref={navRef} aria-label="Einstellungen: Bereiche" className="flex items-center gap-2 overflow-x-auto border-b border-[var(--border)] pb-1 no-scrollbar">
+      <nav ref={navRef} aria-label="Einstellungen: Bereiche" className="hidden sm:flex items-center gap-2 overflow-x-auto border-b border-[var(--border)] pb-1 no-scrollbar">
         <button
           type="button"
           aria-current={activeCategory === 'overview' ? 'page' : undefined}
