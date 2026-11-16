@@ -326,6 +326,7 @@ export default function Settings() {
             <SettingsDashboard
               onSelectCategory={setActiveCategory}
               onOpenTeam={() => setPage('teamteaching')}
+              einfachModus={einfachModus}
               disabledModulesCount={disabledModulesCount}
               hasActiveSync={hasActiveSync}
               hasDemoData={hatBeispieldaten}
