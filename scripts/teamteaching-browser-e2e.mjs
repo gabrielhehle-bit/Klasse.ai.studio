@@ -359,8 +359,9 @@ async function main() {
     await waitFor(anna, 'second teacher added', 'document.body?.innerText.includes("wurde als Teamlehrkraft hinzugefügt") || document.body?.innerText.includes("2 Lehrperson")', 30000);
     console.log('✓ Lehrkraft A: second teacher added as editor');
 
-    await clickButton(berta, 'Einladungen aktualisieren');
-    await waitFor(berta, 'shared class invitation appears in first-run setup', 'document.querySelector("[data-testid=first-run-team-join]")?.textContent.includes("E2E 1A")', 30000);
+    // A new invitation must appear on B's already-open setup screen without
+    // manual refresh, page reload or a second empty classroom.
+    await waitFor(berta, 'shared class invitation automatically appears in first-run setup', 'document.querySelector("[data-testid=first-run-team-join]")?.textContent.includes("E2E 1A")', 35000);
     await clickButton(berta, 'Klasse öffnen');
     await waitFor(berta, 'first-run join exits setup after class has been adopted',
       '!document.querySelector("[data-testid=first-run-team-join]") && document.body?.innerText.includes("E2E 1A")', 30000);
