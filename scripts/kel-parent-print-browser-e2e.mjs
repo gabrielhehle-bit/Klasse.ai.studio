@@ -181,7 +181,7 @@ try {
   console.log('PASS Two dated KEL observations saved for a sample child');
 
   await clickButton(client, 'Druckzentrum');
-  await waitFor(client, 'print center', 'document.body?.textContent.includes("DRUCKZENTRUM")');
+  await waitFor(client, 'print center', 'Boolean(document.querySelector("#print-center-catalog") && document.querySelector("[data-testid=print-center-primary-print]"))');
 
   // Real Chrome phone layout: entry points must stay legible, tappable,
   // and horizontally reachable at 360 CSS pixels before checking A4 printing.
@@ -199,18 +199,28 @@ try {
     'return {phone:innerWidth,search:pick("[data-testid=print-template-search]").map(rect),' +
     'help:pick("[data-testid=print-template-more-button]").map(rect),' +
     'presets:pick("[data-testid=print-quick-preset]").map(rect),' +
-    'categories:pick("[data-testid=print-template-category]").map(rect)};' +
+    'categoryPicker:pick("#print-mobile-category").map(rect),' +
+    'categoryOptions:document.querySelector("#print-mobile-category")?.options.length,' +
+    'cards:pick("[data-testid=print-template-grid] button").slice(0,6).map(rect)};' +
     '})()');
   const mobileTargets=[
     ...mobileControls.search, ...mobileControls.help,
-    ...mobileControls.presets, ...mobileControls.categories,
+    ...mobileControls.presets, ...mobileControls.categoryPicker, ...mobileControls.cards,
   ];
   if(mobileControls.phone!==360 || mobileControls.search.length!==1 ||
      mobileControls.help.length!==1 || mobileControls.presets.length!==4 ||
-     mobileControls.categories.length!==6 ||
+     mobileControls.categoryPicker.length!==1 || mobileControls.categoryOptions!==6 ||
+     mobileControls.cards.length<5 ||
      mobileTargets.some(r=>r.width<44 || r.height<44 || r.left < -1 || r.right>361)){
     throw new Error('Print center mobile controls are too small or offscreen: '+JSON.stringify(mobileControls));
   }
+  await setControl(client, '#print-mobile-category', 'schueler');
+  await waitFor(client, 'mobile category filter changes actual template list',
+    'document.querySelector("#print-mobile-category")?.value==="schueler" && ' +
+    'Array.from(document.querySelectorAll("[data-testid=print-template-grid] button")).some(b=>b.textContent?.includes("KEL-Elternblatt")) && ' +
+    '!Array.from(document.querySelectorAll("[data-testid=print-template-grid] button")).some(b=>b.textContent?.includes("Klassenliste"))');
+  await setControl(client, '#print-mobile-category', 'all');
+  await waitFor(client, 'mobile category reset', 'document.querySelector("#print-mobile-category")?.value==="all"');
   await clickButton(client, 'Druckformat anpassen');
   await waitFor(client, 'mobile print-format editor open',
     'document.querySelector("[data-testid=print-center-advanced-format]")?.open===true');
@@ -225,7 +235,7 @@ try {
   await evaluate(client, 'window.scrollTo(0,0)');
   const mobileShot=await client.send('Page.captureScreenshot', {format:'png',captureBeyondViewport:false});
   await fs.writeFile('/tmp/klassio-kel-parent-mobile.png',Buffer.from(mobileShot.data,'base64'));
-  console.log('PASS Real 360px Chrome print center: search, quick templates, filters and format controls are touch accessible');
+  console.log('PASS Real 360px Chrome print center: search, category selection, filtered templates, quick presets and format controls are touch accessible');
 
   await client.send('Emulation.setDeviceMetricsOverride', {
     width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false,
