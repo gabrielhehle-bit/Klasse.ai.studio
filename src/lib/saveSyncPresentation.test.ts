@@ -40,6 +40,11 @@ test('mobile header exposes real save and sync text instead of an unexplained co
   const topbar = readFileSync('src/components/Topbar.tsx', 'utf8');
   const status = readFileSync('src/components/SaveSyncStatus.tsx', 'utf8');
   assert.match(topbar, /<SaveSyncStatus fullWidth \/>/);
+  const mobileQuick = readFileSync('src/mobileQuickMode.ts', 'utf8');
+  assert.match(mobileQuick, /data-testid="mobile-quick-sync-label"/);
+  assert.match(mobileQuick, /function getSyncLabel\(\): string/);
+  assert.match(mobileQuick, /mobile-save-state/);
+  assert.match(mobileQuick, /sync\.title = message \+ ' · Details öffnen'/);
   assert.match(status, /fullWidth = false/);
   assert.match(status, /data-testid="mobile-save-state"/);
   assert.match(status, /\{state\.compactLabel\}/);
