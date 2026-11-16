@@ -1,0 +1,97 @@
+name: Production Node Runtime Audit (Read Only)
+
+# A production runtime claim must come from the actual deployed Node process,
+# not from the GitHub Actions runner or the SSH account's default PATH.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/production-node-runtime-readonly.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  production-node-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    environment: production
+    steps:
+      - name: Inspect production Node executable version without reading app data
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.KLASSIO_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.KLASSIO_DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.KLASSIO_DEPLOY_PORT }}
+          DEPLOY_PRIVATE_KEY: ${{ secrets.KLASSIO_DEPLOY_PRIVATE_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.KLASSIO_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          for var in DEPLOY_HOST DEPLOY_USER DEPLOY_PRIVATE_KEY DEPLOY_KNOWN_HOSTS; do
+            [[ -n "${!var:-}" ]] || { echo "Missing protected GitHub Actions connection setting"; exit 1; }
+          done
+          [[ "$DEPLOY_USER" == "klassio-deploy" ]] || { echo "Dedicated deploy user required"; exit 1; }
+          DEPLOY_PORT="${DEPLOY_PORT:-22}"
+          [[ "$DEPLOY_PORT" =~ ^[0-9]{1,5}$ ]] || { echo "Invalid SSH port"; exit 1; }
+
+          keyfile="$RUNNER_TEMP/klassio-runtime-key"
+          hostfile="$RUNNER_TEMP/klassio-runtime-knownhosts"
+          umask 077
+          printf '%s\n' "$DEPLOY_PRIVATE_KEY" > "$keyfile"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$hostfile"
+          chmod 600 "$keyfile" "$hostfile"
+          trap 'rm -f "$keyfile" "$hostfile"' EXIT
+
+          # The remote script is strictly read-only. Never print cmdline, process
+          # environment, paths, application data, hostnames or credentials.
+          ssh -i "$keyfile" -o BatchMode=yes -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$hostfile" \
+            -o ConnectTimeout=20 -p "$DEPLOY_PORT" \
+            "$DEPLOY_USER@$DEPLOY_HOST" 'sh -s' <<'REMOTE'
+          set -eu
+          found=0
+          inaccessible=0
+          for proc in /proc/[0-9]*; do
+            [ -r "$proc/cmdline" ] || continue
+            # Only use command arguments to locate the actual KLASSIO node process.
+            # Do not print or save them.
+            args="$(tr '\000' ' ' < "$proc/cmdline" 2>/dev/null || true)"
+            case "$args" in
+              *"dist/server.cjs"*)
+                if [ ! -e "$proc/exe" ]; then
+                  inaccessible=1
+                  continue
+                fi
+                executable="$(readlink "$proc/exe" 2>/dev/null || true)"
+                if [ -z "$executable" ] || [ ! -x "$executable" ]; then
+                  inaccessible=1
+                  continue
+                fi
+                service_version="$("$executable" -p 'process.versions.node' 2>/dev/null || true)"
+                if ! printf '%s' "$service_version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+                  inaccessible=1
+                  continue
+                fi
+                echo "KLASSIO running service Node.js version: $service_version"
+                major="${service_version%%.*}"
+                if [ "$major" -ge 20 ]; then
+                  echo "Runtime compatibility gate for Nodemailer 10: PASS (Node >=20)"
+                else
+                  echo "Runtime compatibility gate for Nodemailer 10: BLOCKED (Node <20)"
+                  exit 2
+                fi
+                found=1
+                break
+                ;;
+            esac
+          done
+          if [ "$found" -ne 1 ]; then
+            if [ "$inaccessible" -eq 1 ]; then
+              echo "Unable to inspect the deployed process executable as the restricted deploy user; runtime not verified."
+            else
+              echo "No matching deployed node process is readable; runtime not verified."
+            fi
+            exit 3
+          fi
+          REMOTE
