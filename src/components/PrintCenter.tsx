@@ -1751,6 +1751,7 @@ export default function PrintCenter() {
                   onClick={() => {
                     setActiveTemplate(f.id as any);
                     if (f.id === 'smart_tools') setActiveSmartTool('tischschilder');
+                    document.getElementById('print-center-configuration')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }}
                   className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between h-24 ${f.bg} ${
                     isActive
