@@ -1,0 +1,104 @@
+name: Backup Fresh Device Real Chrome E2E
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/backup-fresh-device-browser-e2e.mjs'
+      - '.github/workflows/backup-fresh-device-browser-e2e.yml'
+      - 'src/components/Backup.tsx'
+      - 'src/context/AppContext.tsx'
+      - 'src/lib/backupRestore.ts'
+      - 'src/lib/backupCryptoService.ts'
+      - 'src/lib/secureStorageService.ts'
+  push:
+    branches: [main, test/backup-fresh-device-real-chrome-20261116]
+    paths:
+      - 'scripts/backup-fresh-device-browser-e2e.mjs'
+      - '.github/workflows/backup-fresh-device-browser-e2e.yml'
+      - 'src/components/Backup.tsx'
+      - 'src/context/AppContext.tsx'
+      - 'src/lib/backupRestore.ts'
+      - 'src/lib/backupCryptoService.ts'
+      - 'src/lib/secureStorageService.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup-fresh-device-browser-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Backup and safety unit tests
+        run: bun test src/lib/backupRestore.test.ts src/lib/backupCryptoService.test.ts src/lib/backupCompatibility.test.ts
+
+      - name: Production build
+        run: bun run build
+
+      - name: Verify fresh browser A to B restoration in real Chrome
+        env:
+          NODE_ENV: production
+          PORT: 3100
+          APP_URL: http://localhost:3100
+          SESSION_SECRET: ci-backup-two-profiles-session-secret-longer-than-32-characters
+          LEHRERAPP_ACCESS_TEAM: ci-mobile-audit-access-2026
+          LEHRERAPP_ACCESS_EXTERNAL: ci-mobile-audit-external-2026
+          KLASSIO_DATA_DIR: /tmp/klassio-fresh-restore-server-data
+          KLASSIO_E2E_BASE_URL: http://localhost:3100/login
+          KLASSIO_CHROME_A_URL: http://127.0.0.1:9282
+          KLASSIO_CHROME_B_URL: http://127.0.0.1:9283
+          KLASSIO_E2E_ACCESS_CODE: ci-mobile-audit-access-2026
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/klassio-fresh-restore-server-data /tmp/klassio-fresh-restore-downloads \
+            /tmp/klassio-fresh-chrome-a /tmp/klassio-fresh-chrome-b
+          mkdir -p /tmp/klassio-fresh-restore-server-data /tmp/klassio-fresh-restore-downloads
+          node dist/server.cjs > /tmp/klassio-fresh-restore-server.log 2>&1 &
+          SERVER_PID=$!
+          CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME_BIN"
+          "$CHROME_BIN" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage \
+            --remote-debugging-port=9282 --remote-allow-origins=* \
+            --user-data-dir=/tmp/klassio-fresh-chrome-a about:blank \
+            > /tmp/klassio-fresh-chrome-a.log 2>&1 &
+          CHROME_A_PID=$!
+          "$CHROME_BIN" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage \
+            --remote-debugging-port=9283 --remote-allow-origins=* \
+            --user-data-dir=/tmp/klassio-fresh-chrome-b about:blank \
+            > /tmp/klassio-fresh-chrome-b.log 2>&1 &
+          CHROME_B_PID=$!
+          cleanup() {
+            kill "$CHROME_A_PID" "$CHROME_B_PID" "$SERVER_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          for i in {1..60}; do
+            if curl --fail --silent http://localhost:3100/api/health > /tmp/klassio-fresh-restore-health.json; then break; fi
+            sleep 0.5
+          done
+          grep -q '"status":"ok"' /tmp/klassio-fresh-restore-health.json
+          bun scripts/backup-fresh-device-browser-e2e.mjs
+
+      - name: Upload non-secret browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: klassio-backup-fresh-device-diagnostics
+          path: |
+            /tmp/klassio-fresh-restore-server.log
+            /tmp/klassio-fresh-chrome-a.log
+            /tmp/klassio-fresh-chrome-b.log
+          if-no-files-found: ignore
+          retention-days: 3
