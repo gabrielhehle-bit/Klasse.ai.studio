@@ -61,7 +61,7 @@ export default function SettingsDashboard({
       subtitle: 'Smartboard und eigenes Smartphone koppeln',
       desc: 'Nur für die Fernbedienung deines Smartboards. Zwei Lehrpersonen arbeiten über „Klassenteam“ zusammen – ohne Smartboard-Code.',
       icon: Smartphone,
-      status: hasActiveSync ? 'Kopplung aktiv' : 'Live-Sync',
+      status: hasActiveSync ? 'Smartboard gekoppelt' : 'Nicht gekoppelt',
     },
     {
       id: 'backup' as SettingsCategory,
