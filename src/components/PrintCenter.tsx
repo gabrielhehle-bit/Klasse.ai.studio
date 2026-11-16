@@ -1748,6 +1748,8 @@ export default function PrintCenter() {
                 <button
                   key={f.id}
                   type="button"
+                  aria-pressed={isActive}
+                  aria-label={`${f.label} als Druckvorlage auswählen`}
                   onClick={() => {
                     setActiveTemplate(f.id as any);
                     if (f.id === 'smart_tools') setActiveSmartTool('tischschilder');
