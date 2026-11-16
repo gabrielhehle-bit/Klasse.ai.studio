@@ -1618,20 +1618,22 @@ export default function PrintCenter() {
               <button
                 type="button"
                 onClick={() => setShowMoreMenu(prev => !prev)}
-                className={`px-3 py-2 rounded-xl text-[0.75rem] font-black border transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                aria-expanded={showMoreMenu}
+                aria-controls="print-center-more-panel"
+                className={`min-h-11 px-3 py-2 rounded-xl text-[0.75rem] font-black border transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
                   showMoreMenu
                     ? 'bg-slate-900 text-white border-slate-900 shadow-3xs'
                     : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
                 }`}
               >
-                <span>⋯ Mehr</span>
+                <span>Vorlagen &amp; Tipps</span>
               </button>
             </div>
           </div>
 
           {/* "⋯ Mehr" Popover Drawer / Panel */}
           {showMoreMenu && (
-            <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50/70 p-4 rounded-xl border border-slate-200/60">
+            <div id="print-center-more-panel" className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50/70 p-4 rounded-xl border border-slate-200/60">
               {/* Only one set of real layout controls: the optional section beside the preview. */}
               <div data-testid="print-format-single-entry" className="space-y-2">
                 <div className="flex items-center gap-1.5 text-xs font-black text-slate-700 uppercase tracking-wider">
