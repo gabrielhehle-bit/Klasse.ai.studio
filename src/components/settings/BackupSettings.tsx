@@ -427,13 +427,10 @@ export default function BackupSettings({
               aria-checked={!app.settings?.disableBackupReminders}
               aria-label="Backup-Erinnerungen"
               onClick={toggleBackupReminders}
-              className={`w-12 h-6 rounded-full transition-colors relative flex items-center px-0.5 cursor-pointer shrink-0 ${
-                !app.settings?.disableBackupReminders ? 'bg-emerald-500' : 'bg-slate-300'
-              }`}
+              className="relative flex min-h-11 w-12 shrink-0 cursor-pointer items-center rounded-lg px-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
             >
-              <div className={`w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${
-                !app.settings?.disableBackupReminders ? 'translate-x-6' : 'translate-x-0'
-              }`} />
+              <span aria-hidden="true" className={`pointer-events-none absolute inset-x-0 top-1/2 h-6 -translate-y-1/2 rounded-full transition-colors ${!app.settings?.disableBackupReminders ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+              <span aria-hidden="true" className={`relative z-10 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${!app.settings?.disableBackupReminders ? 'translate-x-6' : 'translate-x-0'}`} />
             </button>
         </div>
       </div>
