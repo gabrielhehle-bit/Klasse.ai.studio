@@ -7,13 +7,14 @@ import type { SettingsCategory } from './SettingsHeader';
 
 interface SettingsDashboardProps {
   onSelectCategory: (category: SettingsCategory) => void;
+  onOpenTeam: () => void;
   disabledModulesCount: number;
   hasActiveSync: boolean;
   hasDemoData: boolean;
 }
 
 export default function SettingsDashboard({
-  onSelectCategory, disabledModulesCount, hasActiveSync, hasDemoData,
+  onSelectCategory, onOpenTeam, disabledModulesCount, hasActiveSync, hasDemoData,
 }: SettingsDashboardProps) {
   // Keep the existing order, names and destinations so experienced teachers
   // find each tool in precisely the same place as before the visual facelift.
@@ -56,9 +57,9 @@ export default function SettingsDashboard({
     },
     {
       id: 'sync' as SettingsCategory,
-      title: 'Synchronisierung',
-      subtitle: 'Smartboard & Smartphone-Kopplung',
-      desc: 'Steuere deine Klassio drahtlos vom Smartphone aus oder erstelle eine Live-Verbindung zum Smartboard.',
+      title: 'Smartboard-Fernbedienung',
+      subtitle: 'Smartboard und eigenes Smartphone koppeln',
+      desc: 'Nur für die Fernbedienung deines Smartboards. Zwei Lehrpersonen arbeiten über „Klassenteam“ zusammen – ohne Smartboard-Code.',
       icon: Smartphone,
       status: hasActiveSync ? 'Kopplung aktiv' : 'Live-Sync',
     },
@@ -98,6 +99,23 @@ export default function SettingsDashboard({
           Löschfunktionen sind getrennt im Gefahrenbereich abgesichert.
         </p>
       </header>
+
+      <section data-testid="settings-teamteaching-entry"
+        className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5"
+        aria-labelledby="settings-teamheading">
+        <div className="min-w-0 flex-1">
+          <h3 id="settings-teamheading" className="text-base font-semibold text-[var(--text)]">Gemeinsam in einer Klasse arbeiten</h3>
+          <p className="mt-1 text-sm leading-relaxed text-[var(--text2)]">
+            Teamteaching mit einer zweiten Lehrperson einrichten, eine Einladung öffnen oder die automatische Übertragung prüfen.
+            Kein QR-Code und keine Smartboard-Kopplung nötig.
+          </p>
+        </div>
+        <button type="button" onClick={onOpenTeam}
+          data-testid="settings-open-class-team"
+          className="min-h-11 w-full rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--btn-text,#fff)] hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] sm:w-auto">
+          Klassenteam öffnen
+        </button>
+      </section>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
         aria-label="Einstellungsbereiche">
