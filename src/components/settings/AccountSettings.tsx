@@ -47,6 +47,7 @@ export default function AccountSettings() {
   };
   const {
     app,
+    setPage,
     isVaultUnlocked,
     accountSyncStatus,
     accountSyncLastAt,
@@ -209,6 +210,16 @@ export default function AccountSettings() {
           </div>
         </div>
         <EmailAccountLogin onSuccess={() => setRefreshKey(value => value + 1)} />
+        <div data-testid="account-open-teamteaching" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-900">Eine Klasse mit einer zweiten Lehrperson führen?</p>
+            <p className="mt-1 text-sm text-slate-600">Nach der Anmeldung mit der Schulmail im Klassenteam einladen oder einer geteilten Klasse beitreten. Das ist etwas anderes als die Smartboard-Fernbedienung.</p>
+          </div>
+          <button type="button" onClick={() => setPage('teamteaching')}
+            className="min-h-11 rounded-xl bg-indigo-700 px-4 text-sm font-semibold text-white hover:bg-indigo-800">
+            Klassenteam öffnen
+          </button>
+        </div>
         {signedInEmail && (
           <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4" data-testid="account-session-controls">
             <h3 className="text-sm font-black text-amber-950">Sitzungen und Geräte schützen</h3>
