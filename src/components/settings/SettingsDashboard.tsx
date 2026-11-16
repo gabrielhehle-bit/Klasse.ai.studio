@@ -16,8 +16,8 @@ interface SettingsDashboardProps {
 export default function SettingsDashboard({
   onSelectCategory, onOpenTeam, disabledModulesCount, hasActiveSync, hasDemoData,
 }: SettingsDashboardProps) {
-  // Keep the existing order, names and destinations so experienced teachers
-  // find each tool in precisely the same place as before the visual facelift.
+  // Keep familiar category routes and order; the Smartboard label now avoids
+  // suggesting that this remote control is the teacher-to-teacher sync.
   const TILES = [
     {
       id: 'help' as SettingsCategory,
