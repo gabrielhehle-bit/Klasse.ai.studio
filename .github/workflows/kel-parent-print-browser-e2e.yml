@@ -98,6 +98,7 @@ jobs:
             /tmp/klassio-kel-parent-e2e-long.pdf
             /tmp/klassio-kel-parent-e2e-selected.pdf
             /tmp/klassio-kel-parent-e2e.png
+            /tmp/klassio-kel-parent-mobile.png
             /tmp/klassio-kel-parent-server.log
             /tmp/klassio-kel-parent-chrome.log
           if-no-files-found: ignore

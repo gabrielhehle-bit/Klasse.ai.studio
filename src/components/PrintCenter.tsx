@@ -1582,8 +1582,8 @@ export default function PrintCenter() {
             </div>
 
             {/* Header Right Actions: Search & More */}
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <div className="relative flex-1 sm:w-64">
+            <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center">
+              <div className="relative min-w-0 flex-1 sm:w-64">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="search"
@@ -1598,14 +1598,14 @@ export default function PrintCenter() {
                     // previously left the catalogue in a narrow category.
                     if (next.trim()) setActiveTaskCategory('all');
                   }}
-                  className="w-full pl-8 pr-7 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[0.75rem] font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all"
+                  className="min-h-11 w-full pl-8 pr-12 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all"
                 />
                 {templateSearch && (
                   <button
                     type="button"
                     onClick={() => { setTemplateSearch(''); setActiveTaskCategory('all'); }}
                     aria-label="Vorlagensuche löschen"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 flex min-h-9 min-w-9 items-center justify-center text-slate-600 hover:text-slate-900 text-sm font-bold"
+                    className="absolute right-0 top-1/2 -translate-y-1/2 flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-600 hover:text-slate-900 text-sm font-bold focus-visible:outline-2 focus-visible:outline-emerald-600"
                   >
                     ✕
                   </button>
@@ -1617,8 +1617,9 @@ export default function PrintCenter() {
                 type="button"
                 aria-expanded={showMoreMenu}
                 aria-controls="print-center-more-panel"
+                data-testid="print-template-more-button"
                 onClick={() => setShowMoreMenu(prev => !prev)}
-                className={`px-3 py-2 rounded-xl text-[0.75rem] font-black border transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                className={`min-h-11 w-full justify-center px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer shrink-0 sm:w-auto ${
                   showMoreMenu
                     ? 'bg-slate-900 text-white border-slate-900 shadow-3xs'
                     : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
@@ -1637,34 +1638,38 @@ export default function PrintCenter() {
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5 text-xs font-black text-slate-700 uppercase tracking-wider">
                   <Sparkles size={14} className="text-amber-500" />
-                  <span>Schnell-Presets</span>
+                  <span>Schnellvorlagen</span>
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
                   <button
                     type="button"
+                    data-testid="print-quick-preset"
                     onClick={() => { applyPreset('klassisch'); setShowMoreMenu(false); }}
-                    className="p-2 bg-white hover:bg-slate-100 text-left rounded-lg border border-slate-200 text-[0.6875rem] font-bold text-slate-700 cursor-pointer"
+                    className="min-h-11 p-2 bg-white hover:bg-slate-100 text-left rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 cursor-pointer focus-visible:outline-2 focus-visible:outline-emerald-600"
                   >
                     📋 Standard-Liste
                   </button>
                   <button
                     type="button"
+                    data-testid="print-quick-preset"
                     onClick={() => { applyPreset('raster'); setShowMoreMenu(false); }}
-                    className="p-2 bg-white hover:bg-slate-100 text-left rounded-lg border border-slate-200 text-[0.6875rem] font-bold text-slate-700 cursor-pointer"
+                    className="min-h-11 p-2 bg-white hover:bg-slate-100 text-left rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 cursor-pointer focus-visible:outline-2 focus-visible:outline-emerald-600"
                   >
                     📝 Notenraster
                   </button>
                   <button
                     type="button"
+                    data-testid="print-quick-preset"
                     onClick={() => { applyPreset('ausflug'); setShowMoreMenu(false); }}
-                    className="p-2 bg-white hover:bg-slate-100 text-left rounded-lg border border-slate-200 text-[0.6875rem] font-bold text-slate-700 cursor-pointer"
+                    className="min-h-11 p-2 bg-white hover:bg-slate-100 text-left rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 cursor-pointer focus-visible:outline-2 focus-visible:outline-emerald-600"
                   >
                     🚶 Ausflugsliste
                   </button>
                   <button
                     type="button"
+                    data-testid="print-quick-preset"
                     onClick={() => { applyPreset('kel'); setShowMoreMenu(false); }}
-                    className="p-2 bg-white hover:bg-slate-100 text-left rounded-lg border border-slate-200 text-[0.6875rem] font-bold text-slate-700 cursor-pointer"
+                    className="min-h-11 p-2 bg-white hover:bg-slate-100 text-left rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 cursor-pointer focus-visible:outline-2 focus-visible:outline-emerald-600"
                   >
                     🗣️ KEL-Dossier
                   </button>
@@ -1763,7 +1768,7 @@ export default function PrintCenter() {
             </div>
 
             {/* Category Filter Pills */}
-            <div className="flex flex-wrap gap-1 text-[0.6875rem]">
+            <div className="flex flex-wrap gap-2 text-xs">
               {[
                 { id: 'all', label: 'Alle', count: ALL_TEMPLATES.length },
                 { id: 'klasse', label: 'Klasse', count: ALL_TEMPLATES.filter(t => t.taskCat === 'klasse').length },
@@ -1777,8 +1782,10 @@ export default function PrintCenter() {
                   <button
                     key={cat.id}
                     type="button"
+                    data-testid="print-template-category"
+                    aria-pressed={isActive}
                     onClick={() => setActiveTaskCategory(cat.id as any)}
-                    className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+                    className={`min-h-11 px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-emerald-600 ${
                       isActive
                         ? 'bg-slate-900 text-white shadow-3xs'
                         : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
@@ -1855,7 +1862,7 @@ export default function PrintCenter() {
               <button
                 type="button"
                 onClick={() => { setTemplateSearch(''); setActiveTaskCategory('all'); }}
-                className="mt-1.5 text-xs font-black text-emerald-600 hover:underline cursor-pointer"
+                className="mt-1.5 min-h-11 rounded-xl px-4 py-2 text-xs font-bold text-emerald-700 hover:underline cursor-pointer focus-visible:outline-2 focus-visible:outline-emerald-600"
               >
                 Zurück zu allen Dokumenten
               </button>
@@ -1910,7 +1917,7 @@ export default function PrintCenter() {
                 <p className="text-xs leading-relaxed text-slate-600">Die Standardwerte sind bereits eingestellt. Hier kannst du bei Bedarf Ausrichtung, Schrift, Seitenränder und Farben ändern.</p>
 
               {/* Theme & Orientation controls */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider block">Papier-Ausrichtung</label>
                   <div className="flex bg-slate-100 rounded-xl p-0.5 border border-slate-200">
@@ -1918,7 +1925,7 @@ export default function PrintCenter() {
                       type="button"
                       aria-pressed={printOrientation === 'portrait'}
                       onClick={() => setPrintOrientation('portrait')}
-                      className={`flex-1 py-2 rounded-lg text-[0.75rem] leading-tight font-black transition-all ${printOrientation === 'portrait' ? 'bg-white text-slate-900 shadow-3xs' : 'text-slate-500 hover:text-slate-800'}`}
+                      className={`min-h-11 flex-1 py-2 rounded-lg text-xs leading-tight font-bold transition-all ${printOrientation === 'portrait' ? 'bg-white text-slate-900 shadow-3xs' : 'text-slate-500 hover:text-slate-800'}`}
                     >
                       Hochformat
                     </button>
@@ -1926,7 +1933,7 @@ export default function PrintCenter() {
                       type="button"
                       aria-pressed={printOrientation === 'landscape'}
                       onClick={() => setPrintOrientation('landscape')}
-                      className={`flex-1 py-2 rounded-lg text-[0.75rem] leading-tight font-black transition-all ${printOrientation === 'landscape' ? 'bg-white text-slate-900 shadow-3xs' : 'text-slate-500 hover:text-slate-800'}`}
+                      className={`min-h-11 flex-1 py-2 rounded-lg text-xs leading-tight font-bold transition-all ${printOrientation === 'landscape' ? 'bg-white text-slate-900 shadow-3xs' : 'text-slate-500 hover:text-slate-800'}`}
                     >
                       Querformat
                     </button>
@@ -1948,7 +1955,7 @@ export default function PrintCenter() {
                         aria-label={`Schriftgröße ${sz.label}`}
                         aria-pressed={printFontSize === sz.id}
                         onClick={() => setPrintFontSize(sz.id as any)}
-                        className={`py-2 rounded-lg text-[0.75rem] leading-tight font-black transition-all ${printFontSize === sz.id ? 'bg-white text-slate-900 shadow-3xs' : 'text-slate-500 hover:text-slate-800'}`}
+                        className={`min-h-11 py-2 rounded-lg text-xs leading-tight font-bold transition-all ${printFontSize === sz.id ? 'bg-white text-slate-900 shadow-3xs' : 'text-slate-500 hover:text-slate-800'}`}
                       >
                         {sz.label}
                       </button>
@@ -1989,7 +1996,7 @@ export default function PrintCenter() {
                       type="button"
                       aria-pressed={printTheme === pal.id}
                       onClick={() => setPrintTheme(pal.id as any)}
-                      className={`p-2.5 rounded-xl border text-[0.59375rem] font-black flex flex-col items-center justify-center gap-1.5 transition-all text-center leading-none ${pal.color} ${
+                      className={`min-h-11 p-2.5 rounded-xl border text-xs font-semibold flex flex-col items-center justify-center gap-1.5 transition-all text-center leading-tight ${pal.color} ${
                         printTheme === pal.id ? 'ring-2 ring-slate-850 ring-offset-2 scale-105' : 'opacity-70 hover:opacity-100'
                       }`}
                     >
@@ -2045,17 +2052,17 @@ export default function PrintCenter() {
                   <div className="space-y-1.5">
                     <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider block">Geschlechter-Filter</label>
                     <div className="grid grid-cols-3 bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-[0.75rem] leading-tight">
-                      <button type="button" aria-pressed={slGenderFilter === 'all'} onClick={() => setSlGenderFilter('all')} className={`py-1.5 rounded-lg font-bold ${slGenderFilter === 'all' ? 'bg-white text-slate-900 shadow-3xs' : 'text-slate-500'}`}>Alle</button>
-                      <button type="button" aria-pressed={slGenderFilter === 'm'} onClick={() => setSlGenderFilter('m')} className={`py-1.5 rounded-lg font-bold ${slGenderFilter === 'm' ? 'bg-white text-slate-900 shadow-3xs' : 'text-slate-500'}`}>Männlich (M)</button>
-                      <button type="button" aria-pressed={slGenderFilter === 'w'} onClick={() => setSlGenderFilter('w')} className={`py-1.5 rounded-lg font-bold ${slGenderFilter === 'w' ? 'bg-white text-slate-900 shadow-3xs' : 'text-slate-500'}`}>Weiblich (W)</button>
+                      <button type="button" aria-pressed={slGenderFilter === 'all'} onClick={() => setSlGenderFilter('all')} className={`min-h-11 py-2 rounded-lg font-bold ${slGenderFilter === 'all' ? 'bg-white text-slate-900 shadow-3xs' : 'text-slate-500'}`}>Alle</button>
+                      <button type="button" aria-pressed={slGenderFilter === 'm'} onClick={() => setSlGenderFilter('m')} className={`min-h-11 py-2 rounded-lg font-bold ${slGenderFilter === 'm' ? 'bg-white text-slate-900 shadow-3xs' : 'text-slate-500'}`}>Männlich (M)</button>
+                      <button type="button" aria-pressed={slGenderFilter === 'w'} onClick={() => setSlGenderFilter('w')} className={`min-h-11 py-2 rounded-lg font-bold ${slGenderFilter === 'w' ? 'bg-white text-slate-900 shadow-3xs' : 'text-slate-500'}`}>Weiblich (W)</button>
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
                     <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider block">Sortierung</label>
                     <div className="grid grid-cols-2 bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-[0.75rem] leading-tight">
-                      <button type="button" aria-pressed={slSortBy === 'nachname'} onClick={() => setSlSortBy('nachname')} className={`py-1.5 rounded-lg font-bold ${slSortBy === 'nachname' ? 'bg-white text-slate-900 shadow-3xs' : 'text-slate-500'}`}>Nachname</button>
-                      <button type="button" aria-pressed={slSortBy === 'vorname'} onClick={() => setSlSortBy('vorname')} className={`py-1.5 rounded-lg font-bold ${slSortBy === 'vorname' ? 'bg-white text-slate-900 shadow-3xs' : 'text-slate-500'}`}>Vorname</button>
+                      <button type="button" aria-pressed={slSortBy === 'nachname'} onClick={() => setSlSortBy('nachname')} className={`min-h-11 py-2 rounded-lg font-bold ${slSortBy === 'nachname' ? 'bg-white text-slate-900 shadow-3xs' : 'text-slate-500'}`}>Nachname</button>
+                      <button type="button" aria-pressed={slSortBy === 'vorname'} onClick={() => setSlSortBy('vorname')} className={`min-h-11 py-2 rounded-lg font-bold ${slSortBy === 'vorname' ? 'bg-white text-slate-900 shadow-3xs' : 'text-slate-500'}`}>Vorname</button>
                     </div>
                   </div>
 
@@ -2114,12 +2121,15 @@ export default function PrintCenter() {
                     </div>
                     <div className="flex gap-2">
                       <button 
+                        type="button"
+                        aria-label="Zusatzspalte entfernen"
+                        disabled={slCustomColsCount === 0}
                         onClick={() => {
                           const cnt = Math.max(0, slCustomColsCount - 1);
                           setSlCustomColsCount(cnt);
                           setSlCustomCols(prev => prev.slice(0, cnt));
                         }}
-                        className="w-10 h-10 border border-slate-200 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-50"
+                        className="w-11 h-11 border border-slate-200 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-50"
                       >
                         <Minus size={14} />
                       </button>
@@ -2129,6 +2139,9 @@ export default function PrintCenter() {
                       </div>
 
                       <button 
+                        type="button"
+                        aria-label="Zusatzspalte hinzufügen"
+                        disabled={slCustomColsCount === 8}
                         onClick={() => {
                           const cnt = Math.min(8, slCustomColsCount + 1);
                           setSlCustomColsCount(cnt);
@@ -2140,7 +2153,7 @@ export default function PrintCenter() {
                             return copy;
                           });
                         }}
-                        className="w-10 h-10 border border-slate-200 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-50"
+                        className="w-11 h-11 border border-slate-200 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-50"
                       >
                         <Plus size={14} />
                       </button>
