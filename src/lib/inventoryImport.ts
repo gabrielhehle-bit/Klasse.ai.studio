@@ -189,3 +189,68 @@ export function uniqueImportRecords(records: InventoryImportRecord[]): Inventory
     return Boolean(record.name);
   });
 }
+
+export function parseInventoryCsv(input: string): InventoryImportRecord[] {
+  if (input.length > 4_000_000) {
+    throw new Error('Die CSV-Datei ist zu groß. Bitte die Inventarliste in kleinere Dateien aufteilen.');
+  }
+  const text = input.replace(/^\uFEFF/, '');
+  // Detect delimiter in the first logical record (ignore separators inside quotes).
+  const counts = new Map<string, number>([[',', 0], [';', 0], ['\t', 0]]);
+  let quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      if (quoted && text[i + 1] === '"') { i++; continue; }
+      quoted = !quoted;
+    } else if (!quoted && (ch === '\n' || ch === '\r')) {
+      break;
+    } else if (!quoted && counts.has(ch)) {
+      counts.set(ch, (counts.get(ch) || 0) + 1);
+    }
+  }
+  const separator = [...counts].sort((a, b) => b[1] - a[1])[0][0];
+  const parsed: string[][] = [];
+  let row: string[] = [];
+  let cell = '';
+  quoted = false;
+  const endRow = () => {
+    row.push(cell);
+    if (row.some(value => value.trim())) {
+      parsed.push(row);
+      if (parsed.length > 50_000) throw new Error('Die CSV-Datei enthält zu viele Zeilen.');
+    }
+    row = [];
+    cell = '';
+  };
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      if (quoted && text[i + 1] === '"') { cell += '"'; i++; }
+      else quoted = !quoted;
+    } else if (ch === separator && !quoted) {
+      row.push(cell);
+      if (row.length > 64) throw new Error('Die CSV-Datei enthält zu viele Spalten.');
+      cell = '';
+    } else if (!quoted && (ch === '\n' || ch === '\r')) {
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      endRow();
+    } else {
+      cell += ch;
+    }
+  }
+  if (quoted) throw new Error('Die CSV-Datei enthält ein nicht geschlossenes Anführungszeichen.');
+  if (cell !== '' || row.length) endRow();
+  if (!parsed.length) return [];
+  const headers = parsed[0].map(value => value.trim());
+  const mapping = detectInventoryColumns(headers);
+  if (Object.keys(mapping).length < 2) {
+    return uniqueImportRecords(parseInventoryText(parsed.map(values => values.join('\t')).join('\n')));
+  }
+  const records = parsed.slice(1).map(values => {
+    const record: Record<string, unknown> = {};
+    headers.forEach((header, i) => { record[header] = values[i] ?? ''; });
+    return record;
+  });
+  return uniqueImportRecords(mapInventoryRows(records, mapping));
+}

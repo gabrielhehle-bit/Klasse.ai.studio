@@ -37,6 +37,19 @@ test('known-vulnerable SheetJS code is never used to parse user workbooks', () =
 });
 
 
+test('vulnerable SheetJS is not a direct dependency and templates use the safe writer', () => {
+  const manifest = JSON.parse(readFileSync('package.json', 'utf8'));
+  const lock = readFileSync('bun.lock', 'utf8');
+  assert.equal(manifest.dependencies.xlsx, undefined);
+  assert.doesNotMatch(lock, /"xlsx": \["xlsx@/);
+  assert.match(excel, /downloadXlsxWorkbook/);
+  assert.doesNotMatch(excel, /from ['"]xlsx['"]/);
+  const inventoryUi = readFileSync('src/components/InventoryManager.tsx', 'utf8');
+  assert.doesNotMatch(inventoryUi, /import\(['"]xlsx['"]\)|XLSX\.read|sheet_to_json/);
+  assert.match(inventoryUi, /Excel-Dateien sind aus Sicherheitsgründen derzeit gesperrt/);
+  assert.match(inventoryUi, /parseInventoryCsv/);
+});
+
 test('mail transport is hardened against parser, header and content-access abuse', () => {
   assert.match(server, /SIMPLE_MAILBOX_RE/);
   assert.match(server, /disableFileAccess: true/);

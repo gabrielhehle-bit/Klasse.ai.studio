@@ -28,20 +28,13 @@ import {
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import {
-  detectInventoryColumns,
-  mapInventoryRows,
+  parseInventoryCsv,
   parseInventoryText,
   uniqueImportRecords,
   type InventoryImportRecord,
 } from '../lib/inventoryImport';
 
-let xlsxModulePromise: Promise<typeof import('xlsx')> | null = null;
 let pdfJsModulePromise: Promise<typeof import('pdfjs-dist')> | null = null;
-
-const loadXlsx = () => {
-  xlsxModulePromise ??= import('xlsx');
-  return xlsxModulePromise;
-};
 
 const loadPdfJs = () => {
   pdfJsModulePromise ??= Promise.all([
@@ -555,17 +548,6 @@ export default function InventoryManager() {
     }
   };
 
-  const parseWorkbook = async (file: File) => {
-    const buffer = await file.arrayBuffer();
-    const XLSX = await loadXlsx();
-    const workbook = XLSX.read(buffer, { type: 'array' });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
-    if (!rows.length) return [];
-    const headers = [...new Set(rows.flatMap(row => Object.keys(row)))];
-    return uniqueImportRecords(mapInventoryRows(rows, detectInventoryColumns(headers)));
-  };
-
   const parsePdf = async (file: File) => {
     const buffer = await file.arrayBuffer();
     const pdfjsLib = await loadPdfJs();
@@ -607,8 +589,10 @@ export default function InventoryManager() {
     try {
       const name = file.name.toLowerCase();
       let records: InventoryImportRecord[] = [];
-      if (name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.csv')) {
-        records = await parseWorkbook(file);
+      if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+        throw new Error('Excel-Dateien sind aus Sicherheitsgründen derzeit gesperrt. Bitte in Excel als CSV UTF-8 speichern und diese CSV-Datei importieren.');
+      } else if (name.endsWith('.csv')) {
+        records = parseInventoryCsv(await file.text());
       } else if (name.endsWith('.pdf')) {
         records = await parsePdf(file);
       } else if (name.endsWith('.txt') || name.endsWith('.tsv')) {
@@ -618,7 +602,7 @@ export default function InventoryManager() {
         const TextDetectorCtor = (window as any).TextDetector;
         if (!TextDetectorCtor || typeof createImageBitmap !== 'function') {
           setImportRows([]);
-          showToast('Dein Browser bietet keine lokale Texterkennung. KLASSIO lädt das Foto aus Datenschutzgründen nicht zu einem externen OCR-Dienst hoch. Nutze unten „Text einfügen“ oder Excel/PDF.', 'info');
+          showToast('Dein Browser bietet keine lokale Texterkennung. KLASSIO lädt das Foto aus Datenschutzgründen nicht zu einem externen OCR-Dienst hoch. Nutze unten „Text einfügen“ oder CSV/PDF.', 'info');
           return;
         }
         const bitmap = await createImageBitmap(file);
@@ -853,7 +837,7 @@ export default function InventoryManager() {
                     <button type="button" onClick={() => setTab('import')} className="rounded-2xl bg-slate-950 p-5 text-left text-white hover:bg-slate-800">
                       <Upload size={20} className="mb-4" />
                       <span className="block text-sm font-black">Vorhandene Liste importieren</span>
-                      <span className="mt-1 block text-xs leading-5 text-slate-300">Excel, CSV, PDF, Text oder – wenn der Browser es lokal kann – Foto.</span>
+                      <span className="mt-1 block text-xs leading-5 text-slate-300">CSV, PDF, Text oder – wenn der Browser es lokal kann – Foto.</span>
                     </button>
                     <button type="button" onClick={() => setItemDraft({ ...EMPTY_ITEM })} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-left hover:bg-slate-100">
                       <Plus size={20} className="mb-4 text-slate-500" />
@@ -973,7 +957,7 @@ export default function InventoryManager() {
                         <Upload size={18} className="text-slate-500" />
                         <span>
                           <span className="block text-sm font-black text-slate-900">Alte Liste übernehmen</span>
-                          <span className="block text-xs text-slate-500">Excel, CSV, PDF oder Text</span>
+                          <span className="block text-xs text-slate-500">CSV, PDF oder Text</span>
                         </span>
                       </button>
                     </div>
@@ -1217,15 +1201,18 @@ export default function InventoryManager() {
           {tab === 'import' && (
             <div className="space-y-5">
               <div className="grid gap-4 lg:grid-cols-4">
-                <ImportCard icon={<FileSpreadsheet size={22} />} title="Excel / CSV" helper="Bestehende Inventarliste direkt übernehmen" onClick={() => fileRef.current?.click()} />
+                <ImportCard icon={<FileSpreadsheet size={22} />} title="CSV" helper="Excel-Datei als CSV UTF-8 speichern und hier übernehmen" onClick={() => fileRef.current?.click()} />
                 <ImportCard icon={<FileText size={22} />} title="PDF" helper="Textbasierte Kastenlisten lokal lesen" onClick={() => fileRef.current?.click()} />
                 <ImportCard icon={<Camera size={22} />} title="Foto" helper="Lokale Texterkennung, falls der Browser sie unterstützt" onClick={() => fileRef.current?.click()} />
                 <ImportCard icon={<ClipboardCheck size={22} />} title="Text einfügen" helper="Liste kopieren und unten prüfen" onClick={() => document.getElementById('inventory-paste')?.focus()} />
               </div>
+              <p className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900" role="status">
+                Excel-Dateien (.xlsx/.xls) sind vorübergehend aus Sicherheitsgründen gesperrt. In Excel die Liste als „CSV UTF-8“ speichern und dann hier hochladen. Bereits gespeicherte Lehrmittel bleiben unverändert.
+              </p>
               <input
                 ref={fileRef}
                 type="file"
-                accept=".xlsx,.xls,.csv,.pdf,.txt,.tsv,image/png,image/jpeg,image/webp"
+                accept=".csv,.pdf,.txt,.tsv,image/png,image/jpeg,image/webp"
                 className="hidden"
                 onChange={event => {
                   const file = event.target.files?.[0];
@@ -1439,7 +1426,7 @@ export default function InventoryManager() {
 
             <ol className="grid gap-3 md:grid-cols-2">
               {[
-                ['1. Bestand übernehmen', 'Unter „Import & QR“ kannst du Excel, CSV, PDF oder kopierten Text übernehmen. Prüfe die Vorschau und importiere erst dann. Gleiche Inventarnummern aktualisieren bestehende Einträge.'],
+                ['1. Bestand übernehmen', 'Unter „Import & QR“ kannst du CSV, PDF oder kopierten Text übernehmen. Excel-Dateien vorher als CSV UTF-8 speichern. Prüfe die Vorschau und importiere erst dann. Gleiche Inventarnummern aktualisieren bestehende Einträge.'],
                 ['2. Kästen & Standorte', 'Lege Kästen, Räume oder Lagerorte als Standorte an. Danach kannst du Lehrmittel einem Standort zuordnen und für ganze Kästen QR-Blätter drucken.'],
                 ['3. Lehrmittel finden', 'Die Suche findet Bezeichnung, Inventarnummer, Fach, Kasten, Raum und auch den Namen einer Person, die etwas ausgeliehen hat.'],
                 ['4. Schnell ausleihen', 'Öffne ein Lehrmittel und tippe bei „Wer nimmt es mit?“ einfach @ plus Vor- oder Nachname, z. B. @gabriel oder @hehle. Wähle den Treffer. @vorname.nachname funktioniert ebenfalls.'],

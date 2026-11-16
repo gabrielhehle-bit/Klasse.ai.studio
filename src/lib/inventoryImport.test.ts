@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   detectInventoryColumns,
   mapInventoryRows,
+  parseInventoryCsv,
   parseInventoryText,
   uniqueImportRecords,
 } from './inventoryImport';
@@ -93,4 +94,32 @@ test('leere Tabellenspalten verschieben nachfolgende Werte nicht', () => {
   assert.equal(records[0].location, 'SU Kasten 2');
   assert.equal(records[0].room, '');
   assert.equal(records[0].quantity, 3);
+});
+
+test('CSV import preserves quoted semicolons, umlauts, empty cells and quantities', () => {
+  const records = parseInventoryCsv(
+    '\uFEFFInventarnr;Bezeichnung;Fach;Kasten;Anzahl\r\n' +
+    '42;"Magnettafel; groß";;"Kasten 3";2\r\n'
+  );
+  assert.equal(records.length, 1);
+  assert.equal(records[0].inventoryNumber, '42');
+  assert.equal(records[0].name, 'Magnettafel; groß');
+  assert.equal(records[0].subject, '');
+  assert.equal(records[0].quantity, 2);
+});
+
+test('CSV import handles comma-separated, quoted values and duplicate inventory numbers', () => {
+  const records = parseInventoryCsv(
+    'Inventarnr,Bezeichnung,Fach,Anzahl\n' +
+    'E-1,"Würfel, bunt",Mathematik,4\n' +
+    'E-1,"Würfel, doppelt",Mathematik,1\n'
+  );
+  assert.equal(records.length, 1);
+  assert.equal(records[0].name, 'Würfel, bunt');
+  assert.equal(records[0].quantity, 4);
+});
+
+test('CSV import rejects malformed quoted rows and excessive files', () => {
+  assert.throws(() => parseInventoryCsv('Nr.,Bezeichnung\n1,"Nicht geschlossen'));
+  assert.throws(() => parseInventoryCsv('x'.repeat(4_000_001)));
 });
