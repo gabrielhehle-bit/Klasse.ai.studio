@@ -28,7 +28,7 @@ import { classRoomFingerprint, classRoomWithoutTeamMetadata } from '../lib/teamT
 import { adoptAcknowledgedTeamRoom } from '../lib/teamTeachingProjection';
 import { describeTeamClassChanges, type TeamClassChange } from '../lib/teamTeachingChanges';
 import { mergeTeamClassRevisions } from '../lib/teamTeachingMerge';
-import { prepareLocalTeamRecoveryRoom } from '../lib/teamTeachingRecovery';
+import { hasRecoverableLocalClassData, prepareLocalTeamRecoveryRoom } from '../lib/teamTeachingRecovery';
 import { assertTeamTeachingDevicePersisted } from '../lib/teamTeachingDevice';
 import type { ClassRoom } from '../types';
 import ClassTeamStatus from './ClassTeamStatus';
@@ -958,13 +958,13 @@ export default function ClassTeam() {
               </label>
               <button type="button" data-testid="team-recovery-create" onClick={() => void startLocalTeamRecovery()}
                 disabled={Boolean(busy) || !recoveryBackupsConfirmed || !recoveryBaseConfirmed
-                  || !activeRoom?.schueler?.length}
+                  || !activeRoom || !hasRecoverableLocalClassData(activeRoom)}
                 className="min-h-11 rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-black text-white disabled:opacity-50">
                 {busy === 'recover-local' ? 'Neues Team wird gesichert …' : 'Neues Klassenteam sicher erstellen'}
               </button>
-              {!activeRoom?.schueler?.length && (
+              {(!activeRoom || !hasRecoverableLocalClassData(activeRoom)) && (
                 <p className="text-sm font-semibold text-rose-700">
-                  Dieses Gerät zeigt keine Schülerliste. Bitte nichts neu anlegen; zuerst die Sicherung prüfen.
+                  Dieses Gerät zeigt keinen vollständigen Klasseninhalt. Bitte nichts neu anlegen; zuerst die Sicherung prüfen.
                 </p>
               )}
             </div>
