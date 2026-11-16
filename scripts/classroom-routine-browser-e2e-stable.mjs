@@ -84,7 +84,7 @@ source = source.replace(compactOld, compactNew);
 source = source.replace("'whole class fits compact sidebar'", "'compact student sidebar remains usable'");
 
 const oldSaveStatus = "if (!tidyHeader.syncHeight || tidyHeader.syncHeight > 28 || !tidyHeader.syncText.includes('Lokal gespeichert')) throw new Error('Cockpit save status must be compact and still distinguish local storage from sync.');";
-const newSaveStatus = "if (!tidyHeader.syncHeight || tidyHeader.syncHeight > 33 || !(tidyHeader.syncText.includes('Auf diesem Gerät gespeichert') || tidyHeader.syncText.includes('Lokal gespeichert'))) throw new Error('Cockpit save status must be compact and still distinguish local storage from sync.');";
+const newSaveStatus = "if (!tidyHeader.syncHeight || tidyHeader.syncHeight < 44 || tidyHeader.syncHeight > 56 || !(tidyHeader.syncText.includes('Auf diesem Gerät gespeichert') || tidyHeader.syncText.includes('Lokal gespeichert'))) throw new Error('Cockpit save status needs a 44px touch target and a clear local-vs-server label: ' + JSON.stringify(tidyHeader));";
 if (!source.includes(oldSaveStatus)) {
   throw new Error('Classroom E2E compatibility patch: save-status assertion not found.');
 }
