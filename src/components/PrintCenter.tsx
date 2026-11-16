@@ -1060,6 +1060,7 @@ export default function PrintCenter() {
     : [];
   const safeTischPreviewIndex = Math.min(tischPreviewIndex, Math.max(0, tischPreviewStudents.length - 1));
   const isTischPreview = activeTemplate === 'smart_tools' && activeSmartTool === 'tischschilder';
+  const fitPreviewZoom = isTischPreview && tischPreviewMode === 'detail' ? 0.85 : printOrientation === 'portrait' ? 0.7 : 0.55;
 
   const isMultiPageTemplate = 
     activeTemplate === 'uebergabemappe' ||
@@ -1631,43 +1632,29 @@ export default function PrintCenter() {
           {/* "⋯ Mehr" Popover Drawer / Panel */}
           {showMoreMenu && (
             <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50/70 p-4 rounded-xl border border-slate-200/60">
-              {/* Box 1: Printer & Page Setup */}
-              <div className="space-y-2">
+              {/* Only one set of real layout controls: the optional section beside the preview. */}
+              <div data-testid="print-format-single-entry" className="space-y-2">
                 <div className="flex items-center gap-1.5 text-xs font-black text-slate-700 uppercase tracking-wider">
                   <Sliders size={14} className="text-emerald-600" />
-                  <span>Druck- & Seiteneinstellungen</span>
+                  <span>Druckformat</span>
                 </div>
-                <div className="space-y-2 text-[0.75rem]">
-                  <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-slate-200">
-                    <span className="font-semibold text-slate-600">Ausrichtung</span>
-                    <div className="flex gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setPrintOrientation('portrait')}
-                        className={`px-2 py-1 rounded text-[0.625rem] font-black ${printOrientation === 'portrait' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'}`}
-                      >
-                        Hoch
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPrintOrientation('landscape')}
-                        className={`px-2 py-1 rounded text-[0.625rem] font-black ${printOrientation === 'landscape' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'}`}
-                      >
-                        Quer
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-slate-200">
-                    <span className="font-semibold text-slate-600">Briefkopf drucken</span>
-                    <input
-                      type="checkbox"
-                      checked={showMainHeader}
-                      onChange={(e) => setShowMainHeader(e.target.checked)}
-                      className="w-4 h-4 text-emerald-600 rounded border-slate-300 cursor-pointer"
-                    />
-                  </div>
-                </div>
+                <p className="text-xs leading-relaxed text-slate-600">
+                  A4, Schrift, Seitenränder und Briefkopf stellst du an einer Stelle ein.
+                  Die Standardwerte passen für die meisten Vorlagen.
+                </p>
+                <button type="button"
+                  data-testid="print-open-format-settings"
+                  onClick={() => {
+                    setShowMoreMenu(false);
+                    const details = document.getElementById('print-center-advanced-format') as HTMLDetailsElement | null;
+                    if (details) {
+                      details.open = true;
+                      details.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                  }}
+                  className="min-h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600">
+                  Druckformat anpassen
+                </button>
               </div>
 
               {/* Box 2: Quick Presets */}
@@ -1928,7 +1915,7 @@ export default function PrintCenter() {
           <div id="print-center-configuration" className="lg:col-span-5 space-y-6 no-print scroll-mt-4">
             
             {/* Print defaults stay available without making teachers configure them for every report. */}
-            <details data-testid="print-center-advanced-format" className="group rounded-3xl border border-slate-200/80 bg-white shadow-inner">
+            <details id="print-center-advanced-format" data-testid="print-center-advanced-format" className="group scroll-mt-4 rounded-3xl border border-slate-200/80 bg-white shadow-inner">
               <summary className="flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-3xl p-5 text-sm font-bold text-slate-800 focus-visible:outline-2 focus-visible:outline-emerald-600">
                 <span className="flex items-center gap-2"><Sliders size={16} className="text-slate-500" /> Druckformat anpassen <span className="text-xs font-normal text-slate-500">(optional)</span></span>
                 <span aria-hidden="true" className="text-slate-500 transition-transform group-open:rotate-180">⌄</span>
@@ -1987,7 +1974,7 @@ export default function PrintCenter() {
               {/* Margin Slider */}
               <div className="space-y-1.5">
                 <div className="flex justify-between items-baseline">
-                  <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider">Seitenränder (Zoll/mm)</label>
+                  <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider">Seitenränder (mm)</label>
                   <span className="text-[0.6875rem] font-black text-slate-700">{printMargin} mm</span>
                 </div>
                 <input 
@@ -4479,57 +4466,37 @@ export default function PrintCenter() {
               </div>
               
               <div className="flex items-center gap-2">
-                {/* Dynamic Zoom Controls */}
-                <div className="flex flex-wrap items-center gap-2 bg-slate-100/90 px-3 py-1.5 rounded-2xl border border-slate-200 shadow-2xs">
-                  <span className="text-[0.5625rem] font-black uppercase text-slate-400 tracking-widest select-none">Zoom:</span>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setPreviewZoom(z => Math.max(0.3, parseFloat((z - 0.05).toFixed(2))))}
-                      className="w-5 h-5 flex items-center justify-center text-[0.6875rem] font-black text-slate-500 bg-white hover:bg-slate-50 hover:text-indigo-600 border border-slate-200 rounded-md shadow-3xs cursor-pointer active:scale-95 select-none"
-                      title="Vorschau verkleinern (-5%)"
-                    >
-                      －
-                    </button>
-                    <input
-                      type="range"
-                      min="0.3"
-                      max="1.2"
-                      step="0.05"
-                      className="w-20 accent-indigo-600 h-1 bg-slate-200 rounded-lg cursor-pointer"
-                      value={previewZoom}
-                      onChange={(e) => setPreviewZoom(parseFloat(e.target.value))}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setPreviewZoom(z => Math.min(1.2, parseFloat((z + 0.05).toFixed(2))))}
-                      className="w-5 h-5 flex items-center justify-center text-[0.6875rem] font-black text-slate-500 bg-white hover:bg-slate-50 hover:text-indigo-600 border border-slate-200 rounded-md shadow-3xs cursor-pointer active:scale-95 select-none"
-                      title="Vorschau vergrößern (+5%)"
-                    >
-                      ＋
-                    </button>
-                  </div>
-                  <span className="text-[0.625rem] font-black text-indigo-750 min-w-[36px] text-center select-none bg-indigo-50/50 px-1.5 py-0.5 rounded border border-indigo-100">
-                    {Math.round(previewZoom * 100)}%
-                  </span>
-                  <div className="flex items-center gap-1 border-l border-slate-250/60 pl-2">
-                    <button
-                      type="button"
-                      onClick={() => setPreviewZoom(isTischPreview && tischPreviewMode === 'detail' ? 0.85 : printOrientation === 'portrait' ? 0.7 : 0.55)}
-                      className="px-2 py-1 text-[0.5625rem] font-black text-indigo-700 hover:text-indigo-800 bg-white hover:bg-indigo-50 border border-indigo-200/50 rounded-lg transition-all active:scale-90 cursor-pointer uppercase tracking-wider"
-                      title="Zurücksetzen auf Standardgröße"
-                    >
-                      Auto-Fit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPreviewZoom(1.0)}
-                      className="px-2 py-1 text-[0.5625rem] font-black text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-all active:scale-90 cursor-pointer uppercase tracking-wider"
-                      title="100% Originalgröße"
-                    >
-                      100%
-                    </button>
-                  </div>
+                {/* Two useful choices first; fine adjustments only if needed. */}
+                <div data-testid="print-preview-size-controls" className="flex flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5">
+                  <span className="px-1 text-xs font-medium text-slate-600">Ansicht:</span>
+                  <button type="button"
+                    onClick={() => setPreviewZoom(fitPreviewZoom)}
+                    aria-pressed={previewZoom === fitPreviewZoom}
+                    className={`min-h-10 rounded-lg px-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${previewZoom === fitPreviewZoom ? 'bg-indigo-700 text-white' : 'bg-slate-100 text-slate-800 hover:bg-slate-200'}`}>
+                    Seite einpassen
+                  </button>
+                  <button type="button"
+                    onClick={() => setPreviewZoom(1)}
+                    aria-pressed={previewZoom === 1}
+                    className={`min-h-10 rounded-lg px-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${previewZoom === 1 ? 'bg-indigo-700 text-white' : 'bg-slate-100 text-slate-800 hover:bg-slate-200'}`}>
+                    100 %
+                  </button>
+                  <details data-testid="print-preview-custom-zoom" className="group relative">
+                    <summary className="flex min-h-10 cursor-pointer items-center rounded-lg px-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-indigo-600">
+                      Weitere Größen
+                    </summary>
+                    <div className="mt-1 flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <label htmlFor="print-preview-zoom-range" className="text-xs text-slate-700">Vorschaugröße</label>
+                      <input id="print-preview-zoom-range" type="range" min="0.3" max="1.2" step="0.05"
+                        value={previewZoom}
+                        onChange={event => setPreviewZoom(Number(event.target.value))}
+                        className="w-24 accent-indigo-700"
+                      />
+                      <output htmlFor="print-preview-zoom-range" className="min-w-12 text-right text-xs font-semibold text-slate-800">
+                        {Math.round(previewZoom * 100)} %
+                      </output>
+                    </div>
+                  </details>
                 </div>
 
                 <span className="text-[0.625rem] text-indigo-700 font-black uppercase tracking-wider bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100 select-none">
