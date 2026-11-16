@@ -169,6 +169,34 @@ export default function ClassTeam() {
     return () => window.clearInterval(refresh);
   }, [activeSharedId, needsSchoolLogin, load]);
 
+  // A colleague's first school login and device registration should appear
+  // without the owner reloading the whole Klassenteam form or losing a search.
+  React.useEffect(() => {
+    if (needsSchoolLogin || !activeSharedId || activeSummary?.myRole !== 'owner'
+      || (activeSummary?.members.length || 0) >= 2) return;
+    let cancelled = false;
+    let refreshing = false;
+    const refreshColleagues = async () => {
+      if (refreshing || document.visibilityState !== 'visible') return;
+      refreshing = true;
+      try {
+        const [users, allUsers] = await Promise.all([
+          listTeamTeachingColleagues(),
+          listTeamTeachingSchoolUsers(),
+        ]);
+        if (!cancelled) {
+          setColleagues(users);
+          setSchoolUsers(allUsers);
+        }
+      } catch {
+        // A temporary connection loss must never make an existing member
+        // disappear or be mistaken for a new, empty school account.
+      } finally { refreshing = false; }
+    };
+    const timer = window.setInterval(() => { void refreshColleagues(); }, 12_000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [activeSharedId, activeSummary?.myRole, activeSummary?.members.length, needsSchoolLogin]);
+
   const requestDeviceAccess = async (sharedClassId = activeSharedId) => {
     if (!sharedClassId) return;
     setBusy('request-device');
@@ -709,6 +737,9 @@ export default function ClassTeam() {
   }
 
   const memberIds = new Set(activeSummary?.members.map(member => member.userId) || []);
+  const pendingInvitation = shared.find(summary =>
+    summary.myRole !== 'owner'
+    && !synced.classes?.some(room => room.teamTeaching?.sharedClassId === summary.id));
   const available = colleagues.filter(colleague => !memberIds.has(colleague.userId));
   const searchedColleagues = available.filter(colleague =>
     (colleague.displayName + ' ' + colleague.handle).toLocaleLowerCase('de-AT')
@@ -719,6 +750,7 @@ export default function ClassTeam() {
   const nextAction = getTeacherTeamNextAction({
     needsSchoolLogin,
     hasActiveClass: Boolean(activeRoom),
+    hasPendingTeamInvitation: Boolean(pendingInvitation),
     hasSharedClassReference: Boolean(knownTeamReference),
     hasConnectedTeam: Boolean(activeSharedId),
     deviceAuthorized: deviceAuthorization === 'authorized',
@@ -738,6 +770,7 @@ export default function ClassTeam() {
   const guidance: Record<TeacherTeamNextAction, { title: string; text: string; button?: string }> = {
     'sign-in': { title: 'Mit Schulmail anmelden', text: 'Melde dich mit deiner verifizierten Schul-E-Mail-Adresse an. Die persönliche E-Mail-Anmeldung allein reicht ohne Schulfreigabe nicht aus.' },
     'choose-class': { title: 'Wähle zuerst eine Klasse', text: 'Öffne deine Klasse über die Klassenauswahl in KLASSIO. Hier wird keine neue oder leere Klasse erstellt.' },
+    'join-invited': { title: 'Du wurdest zu einer Klasse eingeladen', text: 'Öffne die bereits geteilte Klasse. Du musst keine zweite Klasse anlegen und brauchst keinen Synchronisierungscode. Falls dein Gerät noch nicht freigegeben ist, wird die Freigabe angefordert.', button: 'Eingeladene Klasse öffnen' },
     activate: { title: 'Klasse für Zusammenarbeit freigeben', text: 'Deine bestehende Klasse wird verschlüsselt für das Klassenteam freigegeben. Bestehende Einträge bleiben erhalten.', button: 'Diese Klasse gemeinsam nutzen' },
     reconnect: { title: 'Bestehende Teamklasse verbinden', text: 'Diese Klasse gehört bereits zu einem Team. Verbinde den vorhandenen gemeinsamen Stand, statt eine zweite Klasse anzulegen.', button: reconnectableTeam ? 'Bestehende Teamklasse öffnen' : 'Verbindung erneut prüfen' },
     'checking-device': { title: 'Gerätefreigabe wird geprüft', text: 'KLASSIO prüft, ob dieses Gerät den verschlüsselten Teamstand öffnen darf. Bestehende Einträge bleiben erhalten.', button: 'Erneut prüfen' },
@@ -745,7 +778,7 @@ export default function ClassTeam() {
     'request-device': { title: 'Dieses Gerät freigeben lassen', text: 'Bitte jetzt die Gerätefreigabe anfordern. Eine schon berechtigte Teamlehrperson bestätigt den Prüfcode in ihrem Klassenteam.', button: 'Gerätefreigabe anfordern' },
     'await-device': { title: 'Auf Freigabe warten', text: 'Eine berechtigte Kollegin oder ein Kollege muss im Klassenteam „Gerät freigeben“ auswählen und den Prüfcode abgleichen.', button: 'Freigabe erneut prüfen' },
     'add-colleague': { title: 'Kollegin oder Kollegen hinzufügen', text: 'Wähle unten eine Lehrperson deiner Schule. Sie erhält Bearbeitungsrechte nur für die ausdrücklich geteilte Klasse.', button: 'Lehrperson auswählen' },
-    'colleague-first-login': { title: 'Kollegin zuerst anmelden lassen', text: 'Die andere Lehrperson öffnet KLASSIO einmal mit ihrer eigenen verifizierten Schulmail und danach „Klassenteam“. Anschließend erscheint sie in der Auswahl.', button: 'Kollegium aktualisieren' },
+    'colleague-first-login': { title: 'Kollegin oder Kollegen anmelden lassen', text: 'Die zweite Lehrperson öffnet KLASSIO mit ihrer eigenen verifizierten Schulmail und geht zu „Klassenteam“. Danach erscheint sie hier automatisch in der Liste. Ihr müsst nichts koppeln oder Codes austauschen.', button: 'Jetzt nach Lehrpersonen suchen' },
     'resolve-conflict': { title: 'Unterschiede sicher klären', text: 'Auf zwei Geräten gibt es unterschiedliche Änderungen. Bitte die Fassungen vergleichen; nichts wird automatisch überschrieben.', button: 'Änderungen sicher vergleichen' },
     'compare-versions': { title: 'Gemeinsamen Stand prüfen', text: 'Ein Klick: KLASSIO prüft den Serverstand und sendet oder lädt Änderungen, wenn das ohne Konflikt möglich ist. Bei gleichzeitigen Änderungen wird nichts überschrieben.', button: 'Jetzt synchronisieren' },
     ready: { title: 'Klassenteam verbunden', text: 'Dieses Gerät hat einen bestätigten gemeinsamen Klassenstand. Änderungen am Wochenplan können jetzt von berechtigten Lehrpersonen übernommen werden.', button: 'Synchronisierung prüfen' },
@@ -753,6 +786,9 @@ export default function ClassTeam() {
   const guide = guidance[nextAction];
   const onGuideAction = () => {
     switch (nextAction) {
+      case 'join-invited':
+        if (pendingInvitation) void adopt(pendingInvitation);
+        break;
       case 'activate': void enableSharing(); break;
       case 'reconnect':
         if (reconnectableTeam) void adopt(reconnectableTeam);
@@ -835,9 +871,23 @@ export default function ClassTeam() {
           )}
         </div>
         <p className="mt-3 text-xs font-medium text-[var(--text2)]">
-          Du kannst jederzeit unten Versionen prüfen. Bei gleichzeitigen Änderungen wird nichts ungefragt überschrieben.
+          Nach dem Einrichten laufen Änderungen automatisch im Hintergrund. Erst „Team synchronisiert“ bestätigt den gemeinsamen Stand. Bei gleichzeitigen Änderungen wird nichts ungefragt überschrieben.
         </p>
       </section>
+
+      <details data-testid="team-two-teachers-help"
+        className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 py-4">
+        <summary className="min-h-9 cursor-pointer text-sm font-semibold text-[var(--text)]">
+          Wer macht was? Einfache Anleitung für zwei Lehrpersonen
+        </summary>
+        <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-[var(--text2)]">
+          <li><strong>Lehrperson A</strong> öffnet ihre bestehende Klasse und wählt „Diese Klasse gemeinsam nutzen“.</li>
+          <li><strong>Lehrperson B</strong> meldet sich auf ihrem Gerät mit der eigenen Schulmail an und öffnet „Klassenteam“. Keine zweite Klasse erstellen.</li>
+          <li><strong>Lehrperson A</strong> wählt B in der automatisch aktualisierten Kollegiumsliste aus.</li>
+          <li><strong>Lehrperson B</strong> öffnet die Einladung. Wenn KLASSIO eine Gerätefreigabe verlangt, bestätigt A den angezeigten Prüfcode.</li>
+          <li>Beide öffnen <strong>dieselbe Teamklasse</strong>. Änderungen werden automatisch abgeglichen; bei Konflikten bleiben beide Stände geschützt.</li>
+        </ol>
+      </details>
 
       {deviceRequestsToApprove.length > 0 && <section className="rounded-2xl border border-[var(--accent)] bg-[var(--surface)] p-5 space-y-3" aria-label="Geräteanfragen im Klassenteam">
         <h2 className="font-black">Ein Teamgerät braucht deine Bestätigung</h2>
@@ -1031,7 +1081,7 @@ export default function ClassTeam() {
             <div id="team-teacher-invite" className="scroll-mt-24 border-t border-[var(--border)] pt-4">
               <h3 className="text-sm font-black">Kolleg:in hinzufügen</h3>
               {available.length === 0 ? (
-                <p className="mt-2 text-sm text-[var(--text2)]">Keine weitere KLASSIO-Lehrperson dieser Schule verfügbar.</p>
+                <p className="mt-2 text-sm text-[var(--text2)]">Noch keine andere Lehrperson mit registriertem Gerät gefunden. Bitte die Kollegin oder den Kollegen KLASSIO mit der eigenen Schulmail öffnen und „Klassenteam“ aufrufen lassen. Die Liste aktualisiert sich automatisch.</p>
               ) : (
                 <div className="mt-3 space-y-3">
                   <label htmlFor="team-teacher-search" className="block text-xs font-bold text-[var(--text2)]">
@@ -1043,7 +1093,7 @@ export default function ClassTeam() {
                     className="min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--text)]"
                   />
                   {searchedColleagues.length === 0 && (
-                    <p className="text-sm text-[var(--text2)]">Keine passende Lehrperson gefunden. Suche ändern oder Kollegium aktualisieren.</p>
+                    <p className="text-sm text-[var(--text2)]">Noch keine passende Lehrperson. Namen prüfen oder die Kollegin bzw. den Kollegen KLASSIO mit der eigenen Schulmail öffnen lassen; die Liste aktualisiert sich automatisch.</p>
                   )}
                   <div className="grid gap-2 sm:grid-cols-2">
                   {searchedColleagues.map(colleague => (
@@ -1059,7 +1109,7 @@ export default function ClassTeam() {
                         <span className="text-xs text-[var(--text3)]">
                           {colleague.devices.length
                             ? `${colleague.devices.length} Gerät(e) bereit · kann Klasse bearbeiten`
-                            : 'Im Kollegium registriert · muss KLASSIO einmal öffnen'}
+                            : 'Im Kollegium, aber noch kein Gerät registriert · bitte einmal „Klassenteam“ öffnen'}
                         </span>
                       </span>
                       <UserPlus size={17} />
