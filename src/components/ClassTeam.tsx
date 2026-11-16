@@ -288,6 +288,13 @@ export default function ClassTeam() {
       if (serverClass.myRole !== 'owner' || serverClass.id !== activeSharedId) {
         throw new Error('Nur die Besitzerin bzw. der Besitzer der bisherigen Klasse darf diesen Wiederanlauf starten.');
       }
+      const existingTeams = await listSharedClasses();
+      const existingRestart = existingTeams.find(item => item.ownerUserId === teamUserId
+        && item.classLabel === local.name.trim() + ' – Neustart');
+      if (existingRestart) {
+        throw new Error('Ein neuer Teamstand wurde bereits erstellt. Öffne bitte zuerst „'
+          + existingRestart.classLabel + '“ unter „Mit mir geteilte Klassen“, statt einen weiteren anzulegen.');
+      }
       const prepared = prepareLocalTeamRecoveryRoom(local, crypto.randomUUID());
       if (!window.confirm(
         'Neues, SEPARATES Klassenteam „' + prepared.name + '“ aus deinem LOKALEN Klassenstand erstellen? '
@@ -806,6 +813,8 @@ export default function ClassTeam() {
     summary.myRole !== 'owner'
     && !synced.classes?.some(room => room.teamTeaching?.sharedClassId === summary.id));
   const available = colleagues.filter(colleague => !memberIds.has(colleague.userId));
+  const existingLocalRecovery = activeRoom ? shared.find(room => room.ownerUserId === teamUserId
+    && room.classLabel === activeRoom.name.trim() + ' – Neustart') : undefined;
   const searchedColleagues = available.filter(colleague =>
     (colleague.displayName + ' ' + colleague.handle).toLocaleLowerCase('de-AT')
       .includes(colleagueQuery.trim().toLocaleLowerCase('de-AT')))
@@ -911,11 +920,21 @@ export default function ClassTeam() {
             <strong> deinem auf diesem Laptop vorhandenen Klassenstand</strong> ein neues, getrenntes Klassenteam bilden.
             Die bisherige Teamklasse bleibt unverändert und die Sicherungen beider Lehrpersonen bleiben erhalten.
           </p>
-          <button type="button" onClick={() => setRecoveryOpen(value => !value)} disabled={Boolean(busy)}
-            className="min-h-11 rounded-xl border border-amber-500 bg-white px-4 py-3 text-left text-sm font-bold text-slate-950 disabled:opacity-50">
-            {recoveryOpen ? 'Wiederanlauf schließen' : 'Neues Team aus meiner lokalen Klasse vorbereiten'}
-          </button>
-          {recoveryOpen && (
+          {existingLocalRecovery ? (
+            <div className="space-y-2">
+              <p className="text-sm font-semibold">Das neue Team „{existingLocalRecovery.classLabel}“ wurde bereits erstellt. Bitte kein weiteres erstellen.</p>
+              <button type="button" disabled={Boolean(busy)} onClick={() => void adopt(existingLocalRecovery)}
+                className="min-h-11 rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-black text-white disabled:opacity-50">
+                Bereits erstelltes neues Klassenteam öffnen
+              </button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setRecoveryOpen(value => !value)} disabled={Boolean(busy)}
+              className="min-h-11 rounded-xl border border-amber-500 bg-white px-4 py-3 text-left text-sm font-bold text-slate-950 disabled:opacity-50">
+              {recoveryOpen ? 'Wiederanlauf schließen' : 'Neues Team aus meiner lokalen Klasse vorbereiten'}
+            </button>
+          )}
+          {recoveryOpen && !existingLocalRecovery && (
             <div className="space-y-3 rounded-xl border border-amber-300 bg-white p-4">
               <p className="font-bold">Ausgangsbasis: {activeRoom?.name || 'Keine Klasse'} · {activeRoom?.schueler?.length ?? 0} Kinder auf diesem Gerät</p>
               <p className="text-sm">
