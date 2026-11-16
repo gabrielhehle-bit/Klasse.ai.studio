@@ -64,3 +64,45 @@ export function getPlanningWeekOverview(week: unknown): PlanningDayOverview[] {
     };
   });
 }
+
+
+/**
+ * A readiness hint, not a judgment that the entire teaching week is complete.
+ * Only explicitly saved lesson entries count; a timetable slot, appointment or
+ * empty weekday never makes a week appear "fully planned".
+ */
+export function summarizePlanningWeekPreparation(days: readonly PlanningDayOverview[]): {
+  kind: 'no-lessons' | 'missing-topics' | 'topics-entered';
+  lessonCount: number;
+  missingTopicCount: number;
+  label: string;
+  explanation: string;
+  actionLabel: string;
+} {
+  const lessonCount = days.reduce((sum, day) => sum + day.lessons.length, 0);
+  const missingTopicCount = days.reduce((sum, day) => sum + day.lessons.filter(lesson => !lesson.topic.trim()).length, 0);
+  if (lessonCount === 0) return {
+    kind: 'no-lessons',
+    lessonCount,
+    missingTopicCount: 0,
+    label: 'Noch keine Unterrichtsstunden eingetragen',
+    explanation: 'Lege zuerst Stunden im Wochenplan an. Ein leerer Stundenplan gilt nicht als vorbereitet.',
+    actionLabel: 'Stunden im Wochenplan planen',
+  };
+  if (missingTopicCount > 0) return {
+    kind: 'missing-topics',
+    lessonCount,
+    missingTopicCount,
+    label: `${missingTopicCount} ${missingTopicCount === 1 ? 'Stundenthema fehlt' : 'Stundenthemen fehlen'}`,
+    explanation: 'Für diese gespeicherten Stunden ist noch kein Thema hinterlegt. Andere Vorbereitungen werden hier nicht bewertet.',
+    actionLabel: 'Fehlende Themen ergänzen',
+  };
+  return {
+    kind: 'topics-entered',
+    lessonCount,
+    missingTopicCount: 0,
+    label: 'Alle gespeicherten Stunden haben ein Thema',
+    explanation: 'Das zeigt nur den Themenstand, nicht ob Materialien und Unterricht vollständig vorbereitet sind.',
+    actionLabel: 'Wochenplan ansehen',
+  };
+}
