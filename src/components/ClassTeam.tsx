@@ -334,7 +334,7 @@ export default function ClassTeam() {
 
       setNotice(
         preservedCopy
-          ? 'Neuester Teamstand geladen. Deine vorherigen lokalen Änderungen wurden zusätzlich als „Konfliktkopie“ behalten.'
+          ? 'Gemeinsame Klasse geladen. Deine bisherigen lokalen Änderungen sind als „Konfliktkopie“ in der Klassenauswahl erhalten; sie sind nicht automatisch im Team.'
           : 'Neuester verschlüsselter Stand wurde geladen.'
       );
       await load();
@@ -782,7 +782,7 @@ export default function ClassTeam() {
     'await-device': { title: 'Auf Freigabe warten', text: 'Eine berechtigte Kollegin oder ein Kollege muss im Klassenteam „Gerät freigeben“ auswählen und den Prüfcode abgleichen.', button: 'Freigabe erneut prüfen' },
     'add-colleague': { title: 'Kollegin oder Kollegen hinzufügen', text: 'Wähle unten eine Lehrperson deiner Schule. Sie erhält Bearbeitungsrechte nur für die ausdrücklich geteilte Klasse.', button: 'Lehrperson auswählen' },
     'colleague-first-login': { title: 'Kollegin oder Kollegen anmelden lassen', text: 'Die zweite Lehrperson öffnet KLASSIO mit ihrer eigenen verifizierten Schulmail und geht zu „Klassenteam“. Danach erscheint sie hier automatisch in der Liste. Ihr müsst nichts koppeln oder Codes austauschen.', button: 'Kollegium erneut prüfen' },
-    'resolve-conflict': { title: 'Unterschiede sicher klären', text: 'Auf zwei Geräten gibt es unterschiedliche Änderungen. Bitte die Fassungen vergleichen; nichts wird automatisch überschrieben.', button: 'Änderungen sicher vergleichen' },
+    'resolve-conflict': { title: 'Zwei unterschiedliche Klassenstände', text: 'Bitte entscheidet, ob auf diesem Gerät noch eigene Eingaben vorhanden sind, die im Team fehlen. Beide Möglichkeiten sind unten erklärt.' },
     'compare-versions': { title: 'Gemeinsamen Stand prüfen', text: 'Ein Klick: KLASSIO prüft den Serverstand und sendet oder lädt Änderungen, wenn das ohne Konflikt möglich ist. Bei gleichzeitigen Änderungen wird nichts überschrieben.', button: 'Jetzt synchronisieren' },
     ready: { title: 'Klassenteam verbunden', text: 'Dieses Gerät hat einen bestätigten gemeinsamen Klassenstand. Änderungen werden jetzt automatisch abgeglichen; du musst nichts von Hand senden.' },
   };
@@ -865,6 +865,24 @@ export default function ClassTeam() {
               </p>
             )}
           </div>
+          {nextAction === 'resolve-conflict' && (
+            <div data-testid="team-conflict-quick-help" className="w-full rounded-xl border border-amber-300 bg-amber-50 p-4 text-slate-950">
+              <p className="text-sm font-black">Hast du auf diesem Gerät etwas eingetragen, das die andere Lehrperson noch nicht sieht?</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <button type="button" onClick={() => void pull()} disabled={Boolean(busy)}
+                  className="min-h-12 rounded-xl bg-[var(--accent)] px-4 py-3 text-left text-sm font-bold text-white disabled:opacity-55">
+                  Nein – gemeinsame Klasse laden
+                </button>
+                <button type="button" onClick={onGuideAction} disabled={Boolean(busy)}
+                  className="min-h-12 rounded-xl border border-amber-500 bg-white px-4 py-3 text-left text-sm font-bold text-slate-950 disabled:opacity-55">
+                  Ja – beide Änderungen vergleichen
+                </button>
+              </div>
+              <p className="mt-3 text-xs font-medium leading-5">
+                Beim Laden bleiben bisherige ungesendete Eingaben als „Konfliktkopie“ in der Klassenauswahl erhalten. Sie werden nicht automatisch ins Klassenteam übernommen.
+              </p>
+            </div>
+          )}
           {guide.button && (
             <button type="button" onClick={onGuideAction} disabled={Boolean(busy)}
               className="min-h-11 w-full rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-black text-white disabled:opacity-55 sm:w-auto">

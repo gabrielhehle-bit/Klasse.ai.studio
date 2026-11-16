@@ -44,3 +44,22 @@ export function adoptAcknowledgedTeamRoom(state: AppState, receivedRoom: ClassRo
     }),
   };
 }
+
+/**
+ * A previously conflicting device can accept the authoritative server receipt
+ * without discarding local work when the encrypted class CONTENT already matches.
+ * A server rollback must still be treated as an error.
+ */
+export function shouldAcknowledgeMatchingTeamSnapshot(
+  localHash: string,
+  remoteHash: string,
+  localRevision: number,
+  remoteRevision: number,
+  syncStatus: string | undefined,
+  hasBaseline: boolean,
+): boolean {
+  return localHash === remoteHash
+    && remoteRevision >= localRevision
+    && (!hasBaseline || remoteRevision > localRevision
+      || syncStatus === 'conflict' || syncStatus === 'error');
+}

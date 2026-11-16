@@ -59,7 +59,7 @@ import {
 import { registerActiveAppStateGetter } from '../services/aiService';
 import { ensureRegisteredTeamTeachingDevice, pullSharedClass, pushSharedClass } from '../lib/teamTeachingService';
 import { classRoomFingerprint } from '../lib/teamTeachingCrypto';
-import { adoptAcknowledgedTeamRoom } from '../lib/teamTeachingProjection';
+import { adoptAcknowledgedTeamRoom, shouldAcknowledgeMatchingTeamSnapshot } from '../lib/teamTeachingProjection';
 import { normalizeSchulart } from '../lib/schularten';
 
 localforage.config({
@@ -1098,6 +1098,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const metadataOnlyRevision = Boolean(
           baseline && remoteHash === baseline && remote.detail.revision > meta.revision
         );
+        // Two devices can reach exactly the same class content despite a prior
+        // 409 conflict. Accept the server receipt instead of leaving the second
+        // teacher permanently blocked by a conflict that no longer exists.
+        if (shouldAcknowledgeMatchingTeamSnapshot(
+          localHash, remoteHash, meta.revision, remote.detail.revision,
+          meta.syncStatus, Boolean(baseline),
+        )) {
+          applyRemoteRoom(remote.room, latestRoom.id, meta.revision, localHash);
+          return;
+        }
         if (meta.syncStatus === 'conflict' && localHash !== baseline && remoteHash !== baseline) {
           // Genuine competing lesson changes: no automatic overwrite.
           return;
