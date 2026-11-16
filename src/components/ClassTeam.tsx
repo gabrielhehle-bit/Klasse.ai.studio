@@ -29,6 +29,7 @@ import { adoptAcknowledgedTeamRoom } from '../lib/teamTeachingProjection';
 import { describeTeamClassChanges, type TeamClassChange } from '../lib/teamTeachingChanges';
 import { mergeTeamClassRevisions } from '../lib/teamTeachingMerge';
 import { prepareLocalTeamRecoveryRoom } from '../lib/teamTeachingRecovery';
+import { assertTeamTeachingDevicePersisted } from '../lib/teamTeachingDevice';
 import type { ClassRoom } from '../types';
 import ClassTeamStatus from './ClassTeamStatus';
 import EmailAccountLogin from './EmailAccountLogin';
@@ -288,6 +289,9 @@ export default function ClassTeam() {
       if (serverClass.myRole !== 'owner' || serverClass.id !== activeSharedId) {
         throw new Error('Nur die Besitzerin bzw. der Besitzer der bisherigen Klasse darf diesen Wiederanlauf starten.');
       }
+      const { me: currentUser, device: currentDevice } = await ensureRegisteredTeamTeachingDevice();
+      if (currentUser.user.userId !== teamUserId) throw new Error('Die Anmeldung hat sich geändert. Bitte neu anmelden und prüfen.');
+      await assertTeamTeachingDevicePersisted(currentUser.user.userId, currentDevice.deviceId);
       const existingTeams = await listSharedClasses();
       const existingRestart = existingTeams.find(item => item.ownerUserId === teamUserId
         && item.classLabel === local.name.trim() + ' – Neustart');
