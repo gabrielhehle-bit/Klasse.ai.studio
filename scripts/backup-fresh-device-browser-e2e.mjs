@@ -15,7 +15,7 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const q = JSON.stringify;
 
 class Client {
-  constructor(url) { this.url=url; this.seq=0; this.pending=new Map(); this.dialogQueue=[]; this.dialogSeen=[]; this.dialogErrors=[]; }
+  constructor(url) { this.url=url; this.seq=0; this.pending=new Map(); this.dialogQueue=[]; this.dialogSeen=[]; this.dialogErrors=[]; this.allowReloadBeforeUnload=false; this.beforeUnloadCount=0; }
   async connect() {
     await new Promise((resolve, reject) => {
       const ws = new WebSocket(this.url); this.ws=ws;
@@ -23,6 +23,12 @@ class Client {
       ws.onmessage=e=>{
         const m=JSON.parse(String(e.data));
         if(m.method==='Page.javascriptDialogOpening'){
+          if(m.params?.type==='beforeunload' && this.allowReloadBeforeUnload){
+            this.beforeUnloadCount++;
+            this.allowReloadBeforeUnload=false;
+            void this.send('Page.handleJavaScriptDialog',{accept:true}).catch(()=>this.dialogErrors.push('Could not confirm explicit saved-data reload'));
+            return;
+          }
           const next=this.dialogQueue.shift();
           this.dialogSeen.push(m.params?.type||'unknown');
           if(!next || next.type!==m.params?.type) this.dialogErrors.push('Unexpected browser dialog type: '+String(m.params?.type));
@@ -248,7 +254,12 @@ try {
   await assertMarker(second,markerB,false);
   console.log('PASS Recovery code restores Device A state on independent Device B');
 
+  const originalPageStart=await evalPage(second,'performance.timeOrigin');
+  second.allowReloadBeforeUnload=true;
   await second.send('Page.reload',{ignoreCache:true});
+  await until(second,'real browser reload completed',
+    'performance.timeOrigin>'+String(originalPageStart));
+  second.allowReloadBeforeUnload=false;
   await until(second,'reload remains authenticated',
     'document.body?.textContent.includes("Heute") || document.body?.textContent.includes("Tresor entsperren")');
   await assertMarker(second,markerA,true);
