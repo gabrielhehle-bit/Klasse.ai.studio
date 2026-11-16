@@ -127,23 +127,29 @@ export default function SettingsDashboard({
           const Icon = tile.icon;
           return (
             <button key={tile.id} type="button" onClick={() => onSelectCategory(tile.id)}
-              className="group flex min-h-[175px] flex-col justify-between rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 text-left transition-colors hover:border-[var(--accent)] hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring,var(--accent))]"
+              className="group flex min-h-0 items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-left transition-colors hover:border-[var(--accent)] hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring,var(--accent))] sm:min-h-[175px] sm:flex-col sm:items-stretch sm:justify-between sm:gap-0 sm:p-5"
               data-settings-destination={tile.id}>
-              <div>
-                <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 flex-1 items-center gap-3 sm:block">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface2)] sm:h-auto sm:w-auto sm:justify-between sm:rounded-none sm:border-0 sm:bg-transparent">
                   <Icon size={19} strokeWidth={1.75} className="text-[var(--text2)]" aria-hidden="true" />
                   {'status' in tile && tile.status && (
-                    <span className="text-xs font-medium text-[var(--text2)]">{tile.status}</span>
+                    <span className="hidden text-xs font-medium text-[var(--text2)] sm:inline">{tile.status}</span>
                   )}
                 </div>
-                <h3 className="mt-4 text-base font-semibold tracking-tight text-[var(--text)]">{tile.title}</h3>
-                <p className="mt-1 text-xs font-medium text-[var(--text2)]">{tile.subtitle}</p>
-                <p className="mt-2 text-sm leading-relaxed text-[var(--text3)]">{tile.desc}</p>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-semibold tracking-tight text-[var(--text)] sm:mt-4 sm:text-base">{tile.title}</h3>
+                  <p className="mt-0.5 text-xs font-medium leading-relaxed text-[var(--text2)] sm:mt-1">{tile.subtitle}</p>
+                  <p className="mt-2 hidden text-sm leading-relaxed text-[var(--text3)] sm:block">{tile.desc}</p>
+                  {'status' in tile && tile.status && (
+                    <span className="mt-1 block text-xs font-medium text-[var(--text2)] sm:hidden">{tile.status}</span>
+                  )}
+                </div>
               </div>
-              <div className="mt-5 flex items-center justify-between border-t border-[var(--border)] pt-3 text-xs font-semibold text-[var(--text2)]">
+              <div className="mt-5 hidden items-center justify-between border-t border-[var(--border)] pt-3 text-xs font-semibold text-[var(--text2)] sm:flex">
                 <span>Bereich öffnen</span>
                 <ChevronRight size={17} strokeWidth={1.6} aria-hidden="true" className="transition-transform group-hover:translate-x-0.5" />
               </div>
+              <ChevronRight size={18} strokeWidth={1.75} aria-hidden="true" className="shrink-0 text-[var(--text2)] sm:hidden" />
             </button>
           );
         })}
