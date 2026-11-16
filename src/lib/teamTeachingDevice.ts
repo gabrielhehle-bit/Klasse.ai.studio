@@ -110,6 +110,29 @@ export async function ensureTeamTeachingDevice(userId: string): Promise<TeamTeac
   }
 }
 
+/**
+ * A fresh replacement team must not be created using an ephemeral key.
+ * If the owner loses the only private key again after reloading, the new
+ * server ciphertext would immediately become inaccessible too.
+ */
+export async function assertTeamTeachingDevicePersisted(userId: string, deviceId: string): Promise<void> {
+  const indexed = getStorage();
+  const message = 'Der private Geräteschlüssel ist auf diesem Laptop nicht dauerhaft gespeichert. '
+    + 'Bitte Browser-Speicherung/Privatmodus prüfen. Kein neues Klassenteam angelegt.';
+  if (!indexed) throw new Error(message);
+  try {
+    await indexed.ready();
+    if (indexed.driver() !== localforage.INDEXEDDB) throw new Error(message);
+    const stored = await indexed.getItem<TeamTeachingDeviceIdentity>(recordKey(userId));
+    if (!isDeviceIdentity(stored, userId) || stored.deviceId !== deviceId
+      || stored.privateKey.type !== 'private'
+      || stored.privateKey.algorithm.name !== 'RSA-OAEP'
+      || !stored.privateKey.usages.includes('decrypt')) throw new Error(message);
+  } catch {
+    throw new Error(message);
+  }
+}
+
 export async function deleteTeamTeachingDevice(userId: string): Promise<void> {
   await pendingDevices.get(userId)?.catch(() => undefined);
   const key = recordKey(userId);

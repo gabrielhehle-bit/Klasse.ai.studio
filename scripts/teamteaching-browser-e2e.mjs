@@ -330,6 +330,10 @@ async function main() {
       if (params.type === 'confirm' && client.deviceApprovalCode && params.message.includes('Prüfcode ' + client.deviceApprovalCode)) {
         void client.send('Page.handleJavaScriptDialog', { accept: true });
       }
+      if (params.type === 'confirm' && client.allowRecoveryConfirmation
+        && params.message.includes('Neues, SEPARATES Klassenteam')) {
+        void client.send('Page.handleJavaScriptDialog', { accept: true });
+      }
     });
     client.on('Runtime.exceptionThrown', params => {
       const details = params.exceptionDetails || {};
@@ -508,6 +512,60 @@ async function main() {
       'fetch("/api/teamteaching/classes",{cache:"no-store"}).then(r=>r.json()).then(d=>d.classes.find(c=>c.classLabel==="E2E 1A")).then(c=>({myRole:c.myRole,editors:c.members.filter(m=>m.role==="editor").length,pending:c.deviceAccessRequests.length}))');
     if (rolesAfterRecovery.myRole !== 'owner' || rolesAfterRecovery.editors !== 1 || rolesAfterRecovery.pending !== 0) throw new Error('Owner recovery changed roles or left a reusable request');
     console.log('✓ Lost owner key recovered through explicit request and existing editor confirmation; roles and latest team lesson preserved');
+
+    // Disaster recovery: both teachers now lose the ONLY locally persisted RSA
+    // keys, although both still have their own encrypted account/class snapshots.
+    // The owner must be able to create a separate, new encrypted team without
+    // altering old ciphertext or deleting the editor's local account records.
+    const oldTeamInfo = await evaluate(anna, 'fetch("/api/teamteaching/classes",{cache:"no-store"}).then(r=>r.json()).then(d=>d.classes.find(c=>c.classLabel==="E2E 1A")).then(c=>({id:c.id,revision:c.revision}))');
+    if (!oldTeamInfo?.id) throw new Error('Cannot locate old locked shared team for recovery check');
+    const clearLocalTeamKeys = 'new Promise((resolve,reject)=>{const req=indexedDB.open("Klassio_TeamTeaching");req.onerror=()=>reject(req.error);req.onsuccess=()=>{const db=req.result;const tx=db.transaction("device_keys","readwrite");tx.objectStore("device_keys").clear();tx.oncomplete=()=>{db.close();resolve(true);};tx.onerror=()=>{db.close();reject(tx.error);};};})';
+    for (const [client, password] of [[anna, VAULT_A], [berta, VAULT_B]]) {
+      await waitFor(client, 'confirmed personal data before disaster recovery',
+        'Boolean(document.querySelector("header[data-account-sync-status=synced]"))', 45000);
+      await evaluate(client, clearLocalTeamKeys);
+      await reloadExistingTeamVault(client, password);
+      await openClassTeam(client);
+    }
+    await waitFor(anna, 'owner sees guarded local recovery after both keys are unavailable',
+      'Boolean(document.querySelector("[data-testid=team-owner-recovery]"))', 35000);
+    await clickButton(anna, 'Neues Team aus meiner lokalen Klasse vorbereiten');
+    await clickCheckboxNearText(anna, 'von BEIDEN Geräten');
+    await clickCheckboxNearText(anna, 'vollständigeren Stand');
+    anna.allowRecoveryConfirmation = true;
+    await clickButton(anna, 'Neues Klassenteam sicher erstellen');
+    await waitFor(anna, 'new team created from owner local classroom',
+      'document.body?.innerText.includes("Aktuelle Klasse: E2E 1A – Neustart")', 45000);
+    anna.allowRecoveryConfirmation = false;
+    const afterRestart = await evaluate(anna, 'fetch("/api/teamteaching/classes",{cache:"no-store"}).then(r=>r.json()).then(d=>d.classes.filter(c=>c.classLabel==="E2E 1A"||c.classLabel==="E2E 1A – Neustart").map(c=>({id:c.id,label:c.classLabel,revision:c.revision,members:c.members.length})))');
+    if (afterRestart.length !== 2) throw new Error('Recovery must preserve old team and create exactly one new team');
+    const unchangedOld = afterRestart.find(c => c.id === oldTeamInfo.id);
+    const newTeam = afterRestart.find(c => c.label === 'E2E 1A – Neustart');
+    if (!unchangedOld || unchangedOld.revision !== oldTeamInfo.revision || !newTeam || newTeam.members !== 1)
+      throw new Error('Local recovery altered legacy history or failed to initialize a separate team');
+    console.log('✓ Both keys lost: owner created independent encrypted restart; original team and revision unchanged');
+
+    await waitFor(anna, 'editor in colleague picker for new class',
+      'document.querySelector("[data-testid=team-simple-working-status]")?.textContent.includes("Deine Klasse ist freigegeben") || document.body?.innerText.includes("Berta")', 30000);
+    await clickButton(anna, 'Berta');
+    await waitFor(anna, 'editor added to new recovery team',
+      'document.body?.innerText.includes("wurde als Teamlehrkraft hinzugefügt")', 30000);
+    await waitFor(berta, 'editor sees new invite despite locked old team',
+      'Boolean(document.querySelector("[data-testid=team-new-invitation-while-locked]"))', 45000);
+    await clickButton(berta, 'Neue Teamklasse öffnen');
+    await sleep(4000);
+    console.log('RECOVERY JOIN RESULT: ' + JSON.stringify(await evaluate(berta,
+      '({body:document.body?.innerText.slice(-1400),current:document.querySelector("[data-testid=team-simple-working-status]")?.innerText})')));;
+    await waitFor(berta, 'editor adopts the new team class',
+      'document.body?.innerText.includes("Aktuelle Klasse: E2E 1A – Neustart")', 45000);
+    console.log('RECOVERY BERTA DIAGNOSTIC: ' + JSON.stringify(await evaluate(berta,
+      '({badge:document.querySelector("[data-team-sync-status]")?.outerHTML,working:document.querySelector("[data-testid=team-simple-working-status]")?.innerText,errors:Array.from(document.querySelectorAll(".text-rose-700")).map(x=>x.innerText).slice(0,5),body:document.body?.innerText.slice(-800)})')));
+    await waitFor(berta, 'editor successfully opens new class with owner content',
+      'Boolean(document.querySelector("[data-team-sync-status=synced]"))', 45000);
+    await clickSidebar(berta, 'Wochenplan');
+    await waitFor(berta, 'owner lesson preserved for new editor after key-loss restart',
+      'document.body?.innerText.includes(' + q(recoveredTopic) + ')', 30000);
+    console.log('✓ Editor joined new restart with own school account, old copy untouched, owner lesson retained');
 
     const teamFileHasCiphertext = await fs.readFile('/tmp/klassio-e2e-data/teamteaching.json', 'utf8');
     if (!teamFileHasCiphertext.includes('"ciphertext"')) throw new Error('Server teamteaching store has no encrypted snapshot.');
