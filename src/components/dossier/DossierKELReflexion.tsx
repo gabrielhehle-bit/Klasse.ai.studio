@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Student, STANDARD_KEL_BEREICHE } from '../../types';
 import { useApp } from '../../context/AppContext';
+import { findActiveKelDossierRecordIndex } from '../../lib/kelDossierRecord';
 import { FlowerChart, KEL_GRADES_INFO, DEVELOPMENT_DIAGRAM_FIELDS } from '../FlowerChart';
 import { generateKELAssessment } from '../../services/aiService';
 import {
@@ -67,10 +68,10 @@ export default function DossierKELReflexion({ student, onStartPresentation }: Do
   }, []);
 
   const latestKel: any = useMemo(() => {
-    return [...(app.kelGespraeche || [])]
-      .filter(item => item.schuelerId === student.id)
-      .sort((a, b) => new Date(b.datum || 0).getTime() - new Date(a.datum || 0).getTime())[0];
-  }, [app.kelGespraeche, student.id]);
+    const records = app.kelGespraeche || [];
+    const index = findActiveKelDossierRecordIndex(records, student.id, app.schuljahr);
+    return index >= 0 ? records[index] : undefined;
+  }, [app.kelGespraeche, app.schuljahr, student.id]);
 
   const meetings = useMemo(() => {
     return [...(app.elterngespraeche || [])]
@@ -118,12 +119,12 @@ export default function DossierKELReflexion({ student, onStartPresentation }: Do
   ) => {
     setApp((prev: any) => {
       const records = prev.kelGespraeche || [];
-      const index = records.findIndex((record: any) => record.schuelerId === student.id);
+      const index = findActiveKelDossierRecordIndex(records, student.id, prev.schuljahr);
       const existing = index >= 0 ? records[index] : createEmptyKelMeeting(prev.schuljahr || '');
       const perspectiveKey = perspective === 'kind' ? 'selbsteinschaetzungKind' : 'einschaetzungLehrperson';
       const updated = {
         ...existing,
-        datum: new Date().toISOString().split('T')[0],
+        // Preserve the original meeting date; editing a rating is not a new meeting.
         [perspectiveKey]: {
           ...(existing[perspectiveKey] || {}),
           [criterionId]: {
@@ -145,21 +146,17 @@ export default function DossierKELReflexion({ student, onStartPresentation }: Do
   const removeRating = (criterionId: string, perspective: Perspective) => {
     setApp((prev: any) => {
       const records = prev.kelGespraeche || [];
+      const index = findActiveKelDossierRecordIndex(records, student.id, prev.schuljahr);
+      if (index < 0) return prev;
       const perspectiveKey = perspective === 'kind' ? 'selbsteinschaetzungKind' : 'einschaetzungLehrperson';
+      const active = records[index];
+      const existingEntry = active[perspectiveKey]?.[criterionId] || {};
+      const { wert: _removedValue, ...commentOnly } = existingEntry;
       return {
         ...prev,
-        kelGespraeche: records.map((record: any) => {
-          if (record.schuelerId !== student.id) return record;
-          const existingEntry = record[perspectiveKey]?.[criterionId] || {};
-          const { wert: _removedValue, ...commentOnly } = existingEntry;
-          return {
-            ...record,
-            [perspectiveKey]: {
-              ...(record[perspectiveKey] || {}),
-              [criterionId]: commentOnly
-            }
-          };
-        })
+        kelGespraeche: records.map((record: any, recordIndex: number) => recordIndex === index
+          ? { ...record, [perspectiveKey]: { ...(record[perspectiveKey] || {}), [criterionId]: commentOnly } }
+          : record)
       };
     });
   };
@@ -305,6 +302,9 @@ export default function DossierKELReflexion({ student, onStartPresentation }: Do
           <h2 className="text-[1.5rem] font-black leading-tight tracking-tight text-slate-900">KEL-Entwicklung</h2>
           <p className="mt-1 text-[0.75rem] font-semibold text-slate-500">
             Selbstbild des Kindes und Beobachtung der Lehrperson bleiben getrennt und nachvollziehbar.
+          </p>
+          <p data-testid="kel-dossier-school-year" className="mt-1 text-xs font-medium text-slate-600">
+            Aktuelles Schuljahr: {app.schuljahr || 'nicht hinterlegt'} · Frühere KEL-Gespräche bleiben unverändert.
           </p>
         </div>
         <button
