@@ -43,12 +43,15 @@ test('one optional format area keeps the real controls and is reachable from hel
 
 test('the preview offers two teacher-friendly sizes with fine zoom collapsed by default', () => {
   assert.ok(zoomStart > 0 && zoomEnd > zoomStart);
-  assert.match(zoomControls, /Übersicht/);
+  assert.match(zoomControls, /Seite einpassen/);
   assert.match(zoomControls, /100 % Zoom/);
   assert.match(zoomControls, /data-testid="print-preview-fine-zoom"/);
   assert.match(zoomControls, /<details/);
   assert.doesNotMatch(zoomControls, /<details[^>]*\sopen(?:\s|>)/);
   assert.match(zoomControls, /aria-pressed=\{previewZoom === 1\}/);
+  assert.match(zoomControls, /border-indigo-700 bg-indigo-700 text-white/);
+  assert.match(print, /Seitenränder \(mm\)/);
+  assert.doesNotMatch(print, /Seitenränder \(Zoll\/mm\)/);
   assert.match(zoomControls, /id="print-preview-zoom-slider"/);
   assert.match(zoomControls, /min="0\.3"/);
   assert.match(zoomControls, /max="1\.2"/);
