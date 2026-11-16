@@ -23,11 +23,12 @@ test('Fachbezogene Notiz bleibt einem Kind und seinem Bereich zugeordnet', () =>
   assert.equal(state.notes[0].teilbereich, undefined);
 });
 
-test('Wochenplanung startet aktuell, ohne Unterrichtsplan oder Noten zu überschreiben', () => {
+test('Wochenplanung respektiert die Planungsübersicht und überschreibt keine Unterrichtsdaten', () => {
   const source = readFileSync('src/components/WeeklyPlan.tsx', 'utf8');
   assert.match(source, /const actualKW = getKW\(actualToday\)/);
-  assert.match(source, /setApp\(previous => previous\.currentKW === actualKW/);
-  assert.match(source, /\{ \.\.\.previous, currentKW: actualKW \}/);
+  assert.match(source, /resolveWeeklyPlanOpeningWeek\(app\.previousPage, app\.currentKW, actualKW\)/);
+  assert.match(source, /setApp\(previous => previous\.currentKW === openingKW/);
+  assert.match(source, /\{ \.\.\.previous, currentKW: openingKW \}/);
   assert.match(source, /\}, \[\]\);/);
 });
 
