@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import { downloadXlsxWorkbook } from './safeXlsxExport';
 import { AppState } from '../types';
 import { STUNDEN_INFO, TAGE_NAMEN, DEFAULT_YEARLY_SUBJECTS, MAX_LESSON_SLOTS } from '../constants';
 import { getStartYear, getSchulstartKW, kwToMonday, kwYear, getKW, isHoliday, sortYearlySubjects } from './utils';
@@ -60,7 +60,6 @@ export interface JahresplanImportResult {
 // ==========================================
 
 export function generateWochenplanTemplate(app: AppState, activeKW: number) {
-  const wb = XLSX.utils.book_new();
 
   // Column definitions for the template
   const headers = [
@@ -122,22 +121,7 @@ export function generateWochenplanTemplate(app: AppState, activeKW: number) {
     }
   });
 
-  const ws = XLSX.utils.aoa_to_sheet(rows);
 
-  // Set nice column widths for Excel
-  ws['!cols'] = [
-    { wch: 18 }, // Wochentag
-    { wch: 8 },  // Stunde
-    { wch: 16 }, // Uhrzeit
-    { wch: 16 }, // Fach
-    { wch: 38 }, // Thema / Inhalt
-    { wch: 28 }, // Lernziel / Methode
-    { wch: 24 }, // Material
-    { wch: 22 }, // Hausuebung
-    { wch: 28 }  // Notiz / Reflexion
-  ];
-
-  XLSX.utils.book_append_sheet(wb, ws, `Wochenplan_KW${activeKW}`);
 
   // Add a second sheet with helpful instructions
   const infoRows = [
@@ -156,13 +140,14 @@ export function generateWochenplanTemplate(app: AppState, activeKW: number) {
     [''],
     ['Hinweis:', 'Zeilen mit "(BEISPIEL)" werden beim Import automatisch ignoriert. Leere Zeilen werden übersprungen.']
   ];
-  const wsInfo = XLSX.utils.aoa_to_sheet(infoRows);
-  wsInfo['!cols'] = [{ wch: 22 }, { wch: 45 }, { wch: 35 }];
-  XLSX.utils.book_append_sheet(wb, wsInfo, 'Hinweise');
+
 
   // Trigger file download
   const filename = `Wochenplan_Vorlage_KW${activeKW}.xlsx`;
-  XLSX.writeFile(wb, filename);
+  void downloadXlsxWorkbook([
+    { name: `Wochenplan_KW${activeKW}`, rows, columnWidths: [18, 8, 16, 16, 38, 28, 24, 22, 28] },
+    { name: 'Hinweise', rows: infoRows, columnWidths: [22, 45, 35] },
+  ], filename).catch(() => window.alert('Die Excel-Vorlage konnte nicht heruntergeladen werden.'));
 }
 
 // ==========================================
@@ -336,25 +321,10 @@ export function buildJahresplanTemplateRows(app: AppState): (string | number)[][
 }
 
 export function generateJahresplanTemplate(app: AppState) {
-  const wb = XLSX.utils.book_new();
   const rows = buildJahresplanTemplateRows(app);
   const activeSubjects = sortYearlySubjects(app.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS);
 
-  const ws = XLSX.utils.aoa_to_sheet(rows);
 
-  ws['!cols'] = [
-    { wch: 15 },
-    { wch: 12 },
-    { wch: 14 },
-    { wch: 22 },
-    { wch: 36 },
-    { wch: 30 },
-    { wch: 22 },
-    { wch: 16 },
-    { wch: 10 }
-  ];
-
-  XLSX.utils.book_append_sheet(wb, ws, 'Jahresplanung');
 
   const infoRows = [
     ['KLASSIO JAHRESPLANER - AUSFÜLLHILFE'],
@@ -372,12 +342,13 @@ export function generateJahresplanTemplate(app: AppState) {
     [''],
     ['Hinweis:', 'Mehrere Zeilen mit derselben KW und demselben Fach werden als mehrere Themen derselben Jahresplan-Zelle importiert. Zeilen mit "(BEISPIEL)" werden ignoriert.']
   ];
-  const wsInfo = XLSX.utils.aoa_to_sheet(infoRows);
-  wsInfo['!cols'] = [{ wch: 22 }, { wch: 55 }, { wch: 40 }];
-  XLSX.utils.book_append_sheet(wb, wsInfo, 'Hinweise');
+
 
   const filename = `Jahresplanung_${app.schuljahr || 'Aktuell'}_Vorlage.xlsx`;
-  XLSX.writeFile(wb, filename);
+  void downloadXlsxWorkbook([
+    { name: 'Jahresplanung', rows, columnWidths: [15, 12, 14, 22, 36, 30, 22, 16, 10] },
+    { name: 'Hinweise', rows: infoRows, columnWidths: [22, 55, 40] },
+  ], filename).catch(() => window.alert('Die Excel-Vorlage konnte nicht heruntergeladen werden.'));
 }
 
 // ==========================================
