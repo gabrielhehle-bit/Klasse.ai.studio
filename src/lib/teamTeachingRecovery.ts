@@ -7,8 +7,8 @@ import { classRoomWithoutTeamMetadata } from './teamTeachingCrypto';
  * are intentionally untouched. This does NOT decrypt or restore old ciphertext.
  */
 export function prepareLocalTeamRecoveryRoom(local: ClassRoom, newId: string): ClassRoom {
-  if (!local.teamTeaching?.sharedClassId || local.teamTeaching.role !== 'owner') {
-    throw new Error('Nur die Besitzerin bzw. der Besitzer kann aus der eigenen lokalen Klasse einen neuen Teamstand starten.');
+  if (!local.teamTeaching?.sharedClassId) {
+    throw new Error('Diese Klasse ist nicht mit dem bisherigen Klassenteam verknüpft.');
   }
   if (!/^[a-f0-9-]{36}$/i.test(newId) || newId === local.id) {
     throw new Error('Für den neuen Klassenstand konnte keine unabhängige Kennung erstellt werden.');
