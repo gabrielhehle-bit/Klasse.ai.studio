@@ -1,0 +1,85 @@
+name: Gradebook Max Points Browser E2E
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/Gradebook.tsx'
+      - 'src/components/gradebook/AssessmentItemModal.tsx'
+      - 'scripts/gradebook-max-points-browser-e2e.mjs'
+      - '.github/workflows/gradebook-max-points-browser-e2e.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/components/Gradebook.tsx'
+      - 'src/components/gradebook/AssessmentItemModal.tsx'
+      - 'scripts/gradebook-max-points-browser-e2e.mjs'
+      - '.github/workflows/gradebook-max-points-browser-e2e.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  assessment-points-browser-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: TypeScript
+        run: bun run lint
+      - name: Production build
+        run: bun run build
+      - name: Verify saved point-scale safety in real Chrome
+        env:
+          NODE_ENV: production
+          PORT: 3100
+          APP_URL: http://localhost:3100
+          SESSION_SECRET: ci-gradebook-points-session-secret-2026-at-least-32-characters
+          LEHRERAPP_ACCESS_TEAM: ci-mobile-audit-access-2026
+          LEHRERAPP_ACCESS_EXTERNAL: ci-mobile-audit-external-2026
+          KLASSIO_DATA_DIR: /tmp/klassio-gradebook-points-test-data
+          KLASSIO_E2E_BASE_URL: http://localhost:3100/login
+          KLASSIO_CHROME_DEBUG_URL: http://127.0.0.1:9282
+          KLASSIO_E2E_ACCESS_CODE: ci-mobile-audit-access-2026
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/klassio-gradebook-points-test-data /tmp/klassio-gradebook-points-chrome
+          mkdir -p /tmp/klassio-gradebook-points-test-data
+          node dist/server.cjs > /tmp/klassio-gradebook-points-server.log 2>&1 &
+          SERVER_PID=$!
+          CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME_BIN"
+          "$CHROME_BIN" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage \
+            --remote-debugging-port=9282 --remote-allow-origins=* \
+            --user-data-dir=/tmp/klassio-gradebook-points-chrome about:blank \
+            > /tmp/klassio-gradebook-points-chrome.log 2>&1 &
+          CHROME_PID=$!
+          cleanup() {
+            kill "$CHROME_PID" 2>/dev/null || true
+            kill "$SERVER_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          for i in {1..60}; do
+            if curl --fail --silent http://localhost:3100/api/health > /tmp/klassio-gradebook-points-health.json; then break; fi
+            sleep 0.5
+          done
+          grep -q '"status":"ok"' /tmp/klassio-gradebook-points-health.json
+          bun scripts/gradebook-max-points-browser-e2e.mjs
+      - name: Save demo-only failure diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: klassio-gradebook-pointscale-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            /tmp/klassio-gradebook-points-server.log
+            /tmp/klassio-gradebook-points-chrome.log
+          if-no-files-found: ignore
+          retention-days: 7
