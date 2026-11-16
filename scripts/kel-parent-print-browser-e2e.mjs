@@ -182,8 +182,23 @@ try {
 
   await clickButton(client, 'Druckzentrum');
   await waitFor(client, 'print center', 'document.body?.textContent.includes("DRUCKZENTRUM")');
+
+  // The top menu must lead to the ONE paper/header configuration, without
+  // duplicating orientation or school-header toggles.
+  await clickButton(client, 'Vorlagen & Tipps');
+  await waitFor(client, 'optional print menu opens', 'Boolean(document.querySelector("#print-center-more-panel"))');
+  await clickButton(client, 'Druckformat anpassen');
+  await waitFor(client, 'advanced print format really opened',
+    'document.querySelector("#print-center-advanced-format")?.open === true && !document.querySelector("#print-center-more-panel")');
+  console.log('PASS One real paper-format section reached from optional menu');
+
   await clickButton(client, 'KEL-Elternblatt');
   await waitFor(client, 'KEL options', 'Boolean(document.querySelector("[data-kel-parent-report-controls]"))');
+  await clickButton(client, '100 %');
+  await waitFor(client, 'print preview original size', 'document.querySelector("#print-preview-zoom-range")?.value === "1"');
+  await clickButton(client, 'Seite einpassen');
+  await waitFor(client, 'print preview fitted size', 'document.querySelector("#print-preview-zoom-range")?.value === "0.7"');
+  console.log('PASS Print preview size can switch between fit and original without changing print output');
   // No child's private record should appear until the teacher explicitly
   // chooses the recipient. Printing must be blocked in the empty state.
   await waitFor(client, 'parent sheet awaits pupil selection',
