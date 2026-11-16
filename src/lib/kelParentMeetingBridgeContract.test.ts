@@ -12,7 +12,7 @@ test('all three KEL entry points use the same parent-sheet template and current 
   assert.match(kel, /activePrintTemplate: 'kel_elternblatt',\s*activePrintStudentId: student.id/);
   assert.match(kel, /Elternblatt mit Diagrammen/);
   assert.match(print, /case 'kel_elternblatt':/);
-  assert.match(print, /<KELParentReport studentId=\{targetSt.id\} options=\{elternblattOptions\}/);
+  assert.match(print, /<KELParentReport studentId=\{selectedParentStudent.id\} options=\{elternblattOptions\}/);
 });
 
 test('saved meeting goals and agreements enter the parent report only after a button click', () => {
