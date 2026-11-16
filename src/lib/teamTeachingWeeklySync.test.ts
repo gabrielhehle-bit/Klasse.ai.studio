@@ -4,7 +4,7 @@ import { initialAppState, syncActiveClass } from './appState';
 import { accountSyncState, hasSharedClassAccountDrift, mergeAccountSyncState } from './accountSyncService';
 import { decryptSharedClass, encryptSharedClass, generateSharedClassKey } from './teamTeachingCrypto';
 import { classRoomFingerprint } from './teamTeachingCrypto';
-import { adoptAcknowledgedTeamRoom } from './teamTeachingProjection';
+import { adoptAcknowledgedTeamRoom, shouldAcknowledgeMatchingTeamSnapshot } from './teamTeachingProjection';
 
 const oldPlan = { 39: { Montag: { 0: { fach: 'Deutsch', thema: 'Alte Kopie im persönlichen Konto' } } } };
 const newPlan = { 39: { Montag: { 0: { fach: 'Deutsch', thema: 'Neu im Team geplant' } } } };
@@ -118,4 +118,13 @@ test('New shared-class pointer alone does not manufacture a team account conflic
   const local = asTeam(makeState(newPlan));
   const remote = accountSyncState(local);
   assert.equal(hasSharedClassAccountDrift(remote, local), false);
+});
+
+test('Already identical class contents clear an obsolete team conflict safely', () => {
+  const same = 'identical-class-hash';
+  assert.equal(shouldAcknowledgeMatchingTeamSnapshot(same, same, 3, 4, 'conflict', true), true);
+  assert.equal(shouldAcknowledgeMatchingTeamSnapshot(same, same, 4, 4, 'conflict', true), true);
+  assert.equal(shouldAcknowledgeMatchingTeamSnapshot(same, same, 4, 4, 'synced', true), false);
+  assert.equal(shouldAcknowledgeMatchingTeamSnapshot(same, 'other-changes', 3, 4, 'conflict', true), false);
+  assert.equal(shouldAcknowledgeMatchingTeamSnapshot(same, same, 5, 4, 'conflict', true), false);
 });
