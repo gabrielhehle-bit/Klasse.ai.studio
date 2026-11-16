@@ -1,0 +1,54 @@
+name: Nodemailer 10 Lockfile Refresh (Isolated Branch)
+
+# Temporary, branch-scoped dependency migration. Never runs on main or PR code,
+# never accesses production environments/secrets, and only commits bun.lock.
+on:
+  push:
+    branches:
+      - security/nodemailer10-20261116
+    paths:
+      - package.json
+      - .github/workflows/refresh-nodemailer10-lock.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-lockfile:
+    if: github.repository == 'gabrielhehle-bit/Klasse.ai.studio'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - name: Checkout this isolated branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Regenerate lockfile from explicitly reviewed package.json
+        run: |
+          set -euo pipefail
+          node -e "const p=require('./package.json'); if(p.dependencies.nodemailer!=='^10.6.0' || p.devDependencies['@types/nodemailer']) process.exit(1)"
+          bun install
+          grep -q 'nodemailer@10.6.0' bun.lock
+      - name: Check TypeScript
+        run: bun run lint
+      - name: Test
+        run: bun run test
+      - name: Production build
+        run: bun run build
+      - name: Commit only the generated lockfile to isolated branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -- bun.lock
+          if git diff --cached --quiet; then
+            echo "Lockfile already in sync with requested dependency"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(lock): resolve Nodemailer 10.6.0 under Bun"
+          git push origin HEAD:refs/heads/security/nodemailer10-20261116
