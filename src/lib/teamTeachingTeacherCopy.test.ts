@@ -42,3 +42,11 @@ test('simple team UI shows permissions and last confirmation, while keeping deta
   assert.match(source, /data-testid="team-simple-sync"/);
   assert.match(source, /Weitere Möglichkeiten bei Problemen/);
 });
+
+test('two-teacher browser test verifies new permissions and hidden diagnostics instead of obsolete UI copy', () => {
+  const script = readFileSync('scripts/teamteaching-browser-e2e.mjs', 'utf8');
+  assert.match(script, /data-testid=team-simple-working-status/);
+  assert.match(script, /data-testid=team-technical-details/);
+  assert.match(script, /Du kannst diese gemeinsame Klasse bearbeiten/);
+  assert.doesNotMatch(script, /Rolle: editor|Teamteaching aktiv/);
+});
