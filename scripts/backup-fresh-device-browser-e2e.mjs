@@ -135,6 +135,13 @@ async function enterDemo(c, password) {
   return code;
 }
 async function goTo(c,id,expected) {
+  // Datensicherung lives in the distinct fixed "Persönlich & Daten" footer,
+  // not in the expandable main navigation. Check the user-facing route.
+  if(id==='datensicherung') {
+    await click(c,'[aria-label="Persönlich und Daten"] button[title="Datensicherung"]');
+    await until(c,'actual backup screen','Boolean(Array.from(document.querySelectorAll("h2")).find(h=>h.textContent.trim()==="Datensicherung"))');
+    return;
+  }
   if(!await evalPage(c,'Boolean(document.querySelector("[data-menu-id='+id+']"))')) {
     await click(c,'button[aria-label^="Mehr ("]');
   }
