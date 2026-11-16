@@ -553,8 +553,12 @@ async function main() {
     await waitFor(berta, 'editor sees new invite despite locked old team',
       'Boolean(document.querySelector("[data-testid=team-new-invitation-while-locked]"))', 45000);
     await clickButton(berta, 'Neue Teamklasse öffnen');
+    await waitFor(berta, 'editor adopts the new team class',
+      'document.body?.innerText.includes("Aktuelle Klasse: E2E 1A – Neustart")', 45000);
+    console.log('RECOVERY BERTA DIAGNOSTIC: ' + JSON.stringify(await evaluate(berta,
+      '({badge:document.querySelector("[data-team-sync-status]")?.outerHTML,working:document.querySelector("[data-testid=team-simple-working-status]")?.innerText,errors:Array.from(document.querySelectorAll(".text-rose-700")).map(x=>x.innerText).slice(0,5),body:document.body?.innerText.slice(-800)})')));
     await waitFor(berta, 'editor successfully opens new class with owner content',
-      'document.body?.innerText.includes("Aktuelle Klasse: E2E 1A – Neustart") && document.querySelector("[data-team-sync-status=synced]")', 45000);
+      'Boolean(document.querySelector("[data-team-sync-status=synced]"))', 45000);
     await clickSidebar(berta, 'Wochenplan');
     await waitFor(berta, 'owner lesson preserved for new editor after key-loss restart',
       'document.body?.innerText.includes(' + q(recoveredTopic) + ')', 30000);
