@@ -35,8 +35,9 @@ export default function Settings() {
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>(() => {
     if (typeof window === 'undefined') return 'overview';
     try {
+      // Read-only initializer: React StrictMode can call this twice. Removing the
+      // request here would make the second call silently reset to the overview.
       const requested = window.sessionStorage.getItem('klassio-settings-category');
-      window.sessionStorage.removeItem('klassio-settings-category');
       if (requested && ['overview', 'account', 'general', 'display', 'modules', 'sync', 'backup', 'support', 'advanced', 'help'].includes(requested)) {
         return requested as SettingsCategory;
       }
@@ -45,6 +46,15 @@ export default function Settings() {
     }
     return 'overview';
   });
+
+  // Consume the one-time mobile/deep-link request only after the first commit.
+  useEffect(() => {
+    try {
+      window.sessionStorage.removeItem('klassio-settings-category');
+    } catch {
+      // Navigation still works if browser session storage is restricted.
+    }
+  }, []);
 
   useEffect(() => {
     const handleOpenSettingsCategory = (event: Event) => {
