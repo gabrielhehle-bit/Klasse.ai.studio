@@ -6,6 +6,7 @@ import {
   addTeamTeachingMember,
   createSharedClass,
   deleteSharedClass,
+  getSharedClassDetail,
   ensureRegisteredTeamTeachingDevice,
   listSharedClasses,
   listSharedClassHistory,
@@ -27,6 +28,7 @@ import { classRoomFingerprint, classRoomWithoutTeamMetadata } from '../lib/teamT
 import { adoptAcknowledgedTeamRoom } from '../lib/teamTeachingProjection';
 import { describeTeamClassChanges, type TeamClassChange } from '../lib/teamTeachingChanges';
 import { mergeTeamClassRevisions } from '../lib/teamTeachingMerge';
+import { prepareLocalTeamRecoveryRoom } from '../lib/teamTeachingRecovery';
 import type { ClassRoom } from '../types';
 import ClassTeamStatus from './ClassTeamStatus';
 import EmailAccountLogin from './EmailAccountLogin';
@@ -85,6 +87,9 @@ export default function ClassTeam() {
     conflicts: string[]; changes: TeamClassChange[];
   } | null>(null);
   const [mergeDecisions, setMergeDecisions] = React.useState<Record<string, 'local' | 'team'>>({});
+  const [recoveryOpen, setRecoveryOpen] = React.useState(false);
+  const [recoveryBackupsConfirmed, setRecoveryBackupsConfirmed] = React.useState(false);
+  const [recoveryBaseConfirmed, setRecoveryBaseConfirmed] = React.useState(false);
 
   const synced = React.useMemo(() => syncActiveClass(app), [app]);
   const activeRoom = synced.classes?.find(room => room.id === synced.activeClassId);
@@ -256,6 +261,63 @@ export default function ClassTeam() {
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Die Klasse konnte nicht freigegeben werden.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  // Last-resort recovery: when the last authorized device is gone, nobody can
+  // decrypt the OLD team ciphertext. A separate new team may still be created
+  // from the owner's LOCAL class after both teachers have independently backed up.
+  // Never delete, rewrite, or detach the inaccessible original team.
+  const startLocalTeamRecovery = async () => {
+    if (busy || !activeSharedId || activeSummary?.myRole !== 'owner'
+      || deviceAuthorization !== 'unauthorized'
+      || !recoveryBackupsConfirmed || !recoveryBaseConfirmed) return;
+    setBusy('recover-local');
+    setError(null);
+    try {
+      const live = syncActiveClass(liveAppRef.current);
+      const local = live.classes?.find(room => room.id === live.activeClassId);
+      if (!local || local.teamTeaching?.sharedClassId !== activeSharedId) {
+        throw new Error('Die lokale Klasse hat gewechselt. Bitte den Wiederanlauf erneut prüfen.');
+      }
+      // Re-check actual owner permission on the server, not a possibly stale
+      // local placeholder role. A colleague cannot initiate this flow.
+      const serverClass = await getSharedClassDetail(activeSharedId);
+      if (serverClass.myRole !== 'owner' || serverClass.id !== activeSharedId) {
+        throw new Error('Nur die Besitzerin bzw. der Besitzer der bisherigen Klasse darf diesen Wiederanlauf starten.');
+      }
+      const prepared = prepareLocalTeamRecoveryRoom(local, crypto.randomUUID());
+      if (!window.confirm(
+        'Neues, SEPARATES Klassenteam „' + prepared.name + '“ aus deinem LOKALEN Klassenstand erstellen? '
+        + 'Die alte gemeinsame Teamklasse und ihre verschlüsselte Versionsgeschichte bleiben unverändert. '
+        + 'Die andere Lehrperson muss anschließend zur NEUEN Klasse eingeladen werden. '
+        + 'Nicht übertragene Einträge der anderen Person werden nicht automatisch übernommen.'
+      )) return;
+      // The server stores a NEW ciphertext under a NEW ID and fresh class key.
+      // Inaccessible legacy ciphertext is never decrypted, replaced, or deleted.
+      const result = await createSharedClass(prepared);
+      setApp(prev => {
+        const current = syncActiveClass(prev);
+        if (current.classes.some(room => room.id === result.localRoom.id)) return prev;
+        const latestOriginal = current.classes.find(room => room.id === local.id);
+        if (!latestOriginal || classRoomFingerprint(latestOriginal) !== classRoomFingerprint(local)) {
+          // Another tab edited during creation: preserve both independent
+          // classes; do not silently mark its newer edits as synchronized.
+          return { ...current, classes: [...current.classes, result.localRoom] };
+        }
+        return adoptAcknowledgedTeamRoom({ ...current, activeClassId: undefined }, result.localRoom);
+      });
+      setRecoveryOpen(false);
+      setRecoveryBackupsConfirmed(false);
+      setRecoveryBaseConfirmed(false);
+      setNotice('Das NEUE Klassenteam „' + result.localRoom.name
+        + '“ wurde aus deinem lokalen Stand erstellt. Die alte Teamklasse blieb unverändert. '
+        + 'Bitte wähle jetzt im neuen Klassenteam die zweite Lehrperson aus; ihre eigene Sicherung bleibt erhalten.');
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Neuer Teamstand konnte nicht angelegt werden. Die alte Klasse bleibt unverändert.');
     } finally {
       setBusy(null);
     }
@@ -838,6 +900,54 @@ export default function ClassTeam() {
         <EmailAccountLogin />
       )}
       {notice && <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm font-semibold">{notice}</div>}
+
+      {activeSharedId && activeSummary?.myRole === 'owner'
+        && deviceAuthorization === 'unauthorized' && (
+        <section data-testid="team-owner-recovery" className="rounded-[1.75rem] border border-amber-400 bg-amber-50 p-5 text-slate-950 space-y-3">
+          <h2 className="font-black">Kein freigegebenes Gerät mehr? Sicherer Wiederanlauf</h2>
+          <p className="text-sm leading-6">
+            Wenn wirklich kein bisheriges Gerät die Klasse mehr öffnen kann, lässt sich der verschlüsselte
+            alte Teamstand ohne den Klassenschlüssel nicht entschlüsseln. Du kannst stattdessen aus
+            <strong> deinem auf diesem Laptop vorhandenen Klassenstand</strong> ein neues, getrenntes Klassenteam bilden.
+            Die bisherige Teamklasse bleibt unverändert und die Sicherungen beider Lehrpersonen bleiben erhalten.
+          </p>
+          <button type="button" onClick={() => setRecoveryOpen(value => !value)} disabled={Boolean(busy)}
+            className="min-h-11 rounded-xl border border-amber-500 bg-white px-4 py-3 text-left text-sm font-bold text-slate-950 disabled:opacity-50">
+            {recoveryOpen ? 'Wiederanlauf schließen' : 'Neues Team aus meiner lokalen Klasse vorbereiten'}
+          </button>
+          {recoveryOpen && (
+            <div className="space-y-3 rounded-xl border border-amber-300 bg-white p-4">
+              <p className="font-bold">Ausgangsbasis: {activeRoom?.name || 'Keine Klasse'} · {activeRoom?.schueler?.length ?? 0} Kinder auf diesem Gerät</p>
+              <p className="text-sm">
+                Die neue Klasse erhält zur Unterscheidung den Zusatz „Neustart“. Sie wird zunächst nur für
+                die Besitzerin freigegeben. Danach kann die zweite Lehrperson mit ihrem eigenen Schulkonto
+                hinzugefügt werden. Deren bisherige Einträge werden nicht automatisch übernommen.
+              </p>
+              <label className="flex items-start gap-3 text-sm font-semibold">
+                <input type="checkbox" className="mt-1 h-4 w-4 shrink-0" checked={recoveryBackupsConfirmed}
+                  onChange={event => setRecoveryBackupsConfirmed(event.target.checked)} />
+                Ich habe von BEIDEN Geräten getrennte verschlüsselte Sicherungsdateien aufbewahrt.
+              </label>
+              <label className="flex items-start gap-3 text-sm font-semibold">
+                <input type="checkbox" className="mt-1 h-4 w-4 shrink-0" checked={recoveryBaseConfirmed}
+                  onChange={event => setRecoveryBaseConfirmed(event.target.checked)} />
+                Diese lokale Klasse enthält den vollständigeren Stand und soll als Ausgangsbasis dienen.
+              </label>
+              <button type="button" data-testid="team-recovery-create" onClick={() => void startLocalTeamRecovery()}
+                disabled={Boolean(busy) || !recoveryBackupsConfirmed || !recoveryBaseConfirmed
+                  || !activeRoom?.schueler?.length}
+                className="min-h-11 rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-black text-white disabled:opacity-50">
+                {busy === 'recover-local' ? 'Neues Team wird gesichert …' : 'Neues Klassenteam sicher erstellen'}
+              </button>
+              {!activeRoom?.schueler?.length && (
+                <p className="text-sm font-semibold text-rose-700">
+                  Dieses Gerät zeigt keine Schülerliste. Bitte nichts neu anlegen; zuerst die Sicherung prüfen.
+                </p>
+              )}
+            </div>
+          )}
+        </section>
+      )}
 
       <section data-testid="team-setup-guide" aria-label="Teamteaching Schritt für Schritt"
         className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm sm:p-6">
