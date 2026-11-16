@@ -273,16 +273,22 @@ async function main() {
     await clickSidebar(client, 'Anwesenheit & Befinden');
     await waitFor(client, 'attendance ready',
       'Array.from(document.querySelectorAll("h1")).some(h=>String(h.textContent||"").trim()==="Anwesenheit")', 30000);
-    await waitFor(client, 'mobile autosave label is visible',
-      'Boolean(document.querySelector("[data-testid=mobile-save-state]"))');
-    const mobileSave = await evaluate(client, `(() => {
-      const label = document.querySelector('[data-testid=mobile-save-state]');
-      const button = label?.closest('summary');
-      const bounds = button?.getBoundingClientRect();
-      return { label: label?.textContent?.trim(), height: bounds?.height, right: bounds?.right, width: bounds?.width };
+    await waitFor(client, 'visible quick-mode autosave wording matches real sync state', `(() => {
+      const visible = document.querySelector('[data-testid="mobile-quick-sync-label"]')?.textContent?.trim();
+      const source = document.querySelector('[data-testid="mobile-save-state"]')?.textContent?.trim();
+      return Boolean(visible && source && visible === source);
     })()`);
-    if (!mobileSave.label || mobileSave.height < 44 || mobileSave.right > 361) {
-      throw new Error('Phone autosave must have readable state and a full-width touch target: ' + JSON.stringify(mobileSave));
+    const mobileSave = await evaluate(client, `(() => {
+      const label = document.querySelector('[data-testid="mobile-quick-sync-label"]');
+      const source = document.querySelector('[data-testid="mobile-save-state"]');
+      const button = label?.closest('button');
+      const bounds = button?.getBoundingClientRect();
+      return { label: label?.textContent?.trim(), source: source?.textContent?.trim(),
+        height: bounds?.height, right: bounds?.right, width: bounds?.width };
+    })()`);
+    if (!mobileSave.label || mobileSave.label !== mobileSave.source ||
+        mobileSave.height < 44 || mobileSave.width < 44 || mobileSave.right > 361) {
+      throw new Error('Phone quick-header autosave must show the real state with a touch target: ' + JSON.stringify(mobileSave));
     }
     const result = await evaluate(client, `(() => {
       const visible = el => {
