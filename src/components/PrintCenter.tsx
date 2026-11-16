@@ -340,7 +340,7 @@ export default function PrintCenter() {
   const [jpShowProgressBars, setJpShowProgressBars] = useState(true);
 
   // Parent-friendly, read-only KEL sheet. Notes are NEVER selected automatically.
-  const [elternblattSelectedStudentId, setElternblattSelectedStudentId] = useState<string>(students[0]?.id || '');
+  const [elternblattSelectedStudentId, setElternblattSelectedStudentId] = useState<string>('');
   const [elternblattPeriod, setElternblattPeriod] = useState<'recent' | 'year'>('year');
   const [elternblattShowMood, setElternblattShowMood] = useState(true);
   const [elternblattShowBehavior, setElternblattShowBehavior] = useState(true);
@@ -370,6 +370,13 @@ export default function PrintCenter() {
   );
   const elternblattNotes = getStudentNotes(app, elternblattSelectedStudentId)
     .filter((note: any) => typeof note.id === 'string' && note.id && typeof note.inhalt === 'string' && note.inhalt.trim());
+  // Never guess a parent report recipient. A deep-link can select a child only
+  // after explicit membership validation; a stale ID must block all printing.
+  const selectedParentStudent = students.find(student => student.id === elternblattSelectedStudentId);
+  const approvedParentNoteCount = elternblattShowNotes
+    ? elternblattNotes.filter((note: any) => elternblattSharedNoteIds.includes(note.id)).length : 0;
+  const approvedParentGoalCount = elternblattShowGoalProgress && selectedElternblattMeeting
+    ? elternblattProgressChoices.filter(item => elternblattSharedProgressKeys.includes(item.key)).length : 0;
   const elternblattOptions: KELParentReportOptions = {
     period: elternblattPeriod, showMood: elternblattShowMood, showBehavior: elternblattShowBehavior,
     showParticipation: elternblattShowParticipation, showLearning: elternblattShowLearning,
@@ -710,7 +717,7 @@ export default function PrintCenter() {
   useEffect(() => {
     const firstStudentId = students[0]?.id || '';
     setKelSelectedStudentId(firstStudentId);
-    setElternblattSelectedStudentId(app.activePrintStudentId && students.some(st => st.id === app.activePrintStudentId) ? app.activePrintStudentId : firstStudentId);
+    setElternblattSelectedStudentId(app.activePrintStudentId && students.some(st => st.id === app.activePrintStudentId) ? app.activePrintStudentId : '');
     setElternblattSharedNoteIds([]);
     setElternblattShowNotes(false);
     setElternblattShowGoalProgress(false);
@@ -832,6 +839,7 @@ export default function PrintCenter() {
   // while the user was still reviewing the page.
   const handleTriggerPrint = () => {
     if (activeTemplate === 'materialabholung' && !pickupCanPrint) return;
+    if (activeTemplate === 'kel_elternblatt' && !selectedParentStudent) return;
     const isParentSheet = activeTemplate === 'kel_elternblatt';
     setPrintModeActive(true);
     setTimeout(() => {
@@ -2898,9 +2906,24 @@ export default function PrintCenter() {
         setElternblattSavedMeetingId('');
         setElternblattMeetingSourceDate('');
                       }}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs">
+                      className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                      <option value="">Bitte Kind auswählen</option>
                       {students.map(st => <option key={st.id} value={st.id}>{st.nachname} {st.vorname}</option>)}
                     </select>
+                  </div>
+                  <div data-testid="kel-parent-print-preflight" role="status" aria-live="polite"
+                    className="space-y-1 rounded-xl border border-teal-200 bg-teal-50 p-3 text-xs leading-relaxed text-teal-950">
+                    {selectedParentStudent ? (
+                      <>
+                        <p className="font-bold">Elternblatt für {selectedParentStudent.vorname} {selectedParentStudent.nachname}</p>
+                        <p>Unterschriften: {elternblattShowSignatures ? 'mit ausreichend Platz für beide Seiten' : 'ausgeblendet'}.</p>
+                        <p>Interne Dossiernotizen: {approvedParentNoteCount} ausdrücklich ausgewählt.
+                          Zielbeobachtungen: {approvedParentGoalCount} ausdrücklich ausgewählt.</p>
+                        <p className="font-medium">Bitte alle angezeigten Aussagen in der Vorschau vor der Weitergabe prüfen.</p>
+                      </>
+                    ) : (
+                      <p className="font-bold">Bitte zuerst das Kind auswählen. Erst dann ist Drucken oder PDF möglich.</p>
+                    )}
                   </div>
                   <div>
                     <label htmlFor="kel-parent-period" className="mb-1 block text-[0.6875rem] font-bold text-slate-600">Zeitraum für Befinden &amp; Verhalten</label>
@@ -4389,11 +4412,11 @@ export default function PrintCenter() {
                 type="button"
                 data-testid="print-center-primary-print"
                 onClick={handleTriggerPrint}
-                disabled={students.length === 0 || (activeTemplate === 'materialabholung' && !pickupCanPrint)}
+                disabled={students.length === 0 || (activeTemplate === 'materialabholung' && !pickupCanPrint) || (activeTemplate === 'kel_elternblatt' && !selectedParentStudent)}
                 className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-black text-slate-950 transition-all hover:bg-emerald-400 disabled:opacity-50"
               >
                 <Printer size={15} strokeWidth={2.5} />
-                Drucken oder als PDF speichern
+                {activeTemplate === 'kel_elternblatt' ? 'Elternblatt drucken / PDF' : 'Drucken oder als PDF speichern'}
               </button>
               <p className="w-full text-[11px] text-slate-300">Im Browser-Druckdialog den Drucker wählen oder „Als PDF speichern“ auswählen.</p>
             </div>
@@ -6352,10 +6375,10 @@ export default function PrintCenter() {
 
       // Parent-safe, print-ready KEL summary. No raw dossier notes without opt-in.
       case 'kel_elternblatt': {
-        const targetSt = students.find(st => st.id === elternblattSelectedStudentId) || students[0];
-        return targetSt
-          ? <KELParentReport studentId={targetSt.id} options={elternblattOptions}/>
-          : <p className="text-sm text-slate-500">Keine Kinder in dieser Klasse vorhanden.</p>;
+        // Never silently print another child's records when selection is stale.
+        return selectedParentStudent
+          ? <KELParentReport studentId={selectedParentStudent.id} options={elternblattOptions}/>
+          : <p data-testid="kel-parent-no-student" className="text-sm font-semibold text-slate-600">Bitte links ein Kind auswählen, um das Elternblatt zu prüfen.</p>;
       }
 
       // F. KEL PORTFOLIO DOSSIER (Single mode)

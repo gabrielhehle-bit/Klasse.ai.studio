@@ -10,7 +10,7 @@ test('the student dossier opens the shared parent sheet using the current child 
   assert.match(dossier, /activePrintTemplate: 'kel_elternblatt', activePrintStudentId: student.id/);
   assert.match(dossier, /KEL-Elternblatt drucken/);
   assert.match(printCenter, /case 'kel_elternblatt':/);
-  assert.match(printCenter, /<KELParentReport studentId=\{targetSt.id\} options=\{elternblattOptions\}/);
+  assert.match(printCenter, /<KELParentReport studentId=\{selectedParentStudent.id\} options=\{elternblattOptions\}/);
   assert.match(printCenter, /setElternblattSelectedStudentId\(app.activePrintStudentId\)/);
 });
 

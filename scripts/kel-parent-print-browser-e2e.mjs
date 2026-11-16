@@ -184,8 +184,13 @@ try {
   await waitFor(client, 'print center', 'document.body?.textContent.includes("DRUCKZENTRUM")');
   await clickButton(client, 'KEL-Elternblatt');
   await waitFor(client, 'KEL options', 'Boolean(document.querySelector("[data-kel-parent-report-controls]"))');
-  await waitFor(client, 'pupil in KEL parent sheet', 'Boolean(document.querySelector("[data-kel-parent-student-id]"))');
+  // No child's private record should appear until the teacher explicitly
+  // chooses the recipient. Printing must be blocked in the empty state.
+  await waitFor(client, 'parent sheet awaits pupil selection',
+    'document.querySelector("#kel-parent-student")?.value === "" && !document.querySelector("[data-kel-parent-student-id]") && document.querySelector("[data-testid=print-center-primary-print]")?.disabled === true');
   await setControl(client, '#kel-parent-student', sampleStudentId);
+  await waitFor(client, 'parent print unlocked for selected child',
+    'document.querySelector("[data-testid=print-center-primary-print]")?.disabled === false && document.querySelector("[data-testid=kel-parent-print-preflight]")?.textContent.includes("Elternblatt für")');
   await waitFor(client, 'selected sample child', 'document.querySelector("[data-kel-parent-student-id]")?.getAttribute("data-kel-parent-student-id")===' + q(sampleStudentId));
   await waitFor(client, 'new meeting offered for sample child', 'document.querySelector("#kel-parent-meeting")?.options.length > 1');
   const sampleMeetingId=await evaluate(client,'document.querySelector("#kel-parent-meeting")?.options[1]?.value');
