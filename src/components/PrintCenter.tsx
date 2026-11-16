@@ -1679,7 +1679,7 @@ export default function PrintCenter() {
                 </div>
                 <div className="bg-white p-2.5 rounded-lg border border-slate-200 text-[0.625rem] text-slate-600 leading-relaxed font-medium space-y-1">
                   <p>• Aktiviere im Druckfenster <strong>"Hintergrundgrafiken"</strong>, um Linien und Farben zu sehen.</p>
-                  <p>• Papierformat, Ausrichtung und Dokumentkopf findest du einmalig unter <strong>„Druckformat anpassen“</strong> bei den Dokumentangaben.</p>
+                  <p>• Ausrichtung, Farben und Dokumentkopf findest du einmalig unter <strong>„Druckformat anpassen“</strong> bei den Dokumentangaben.</p>
                   <p>• Ausdrucke mit Schülernamen bitte vertraulich aufbewahren.</p>
                 </div>
                 <button type="button"
