@@ -30,7 +30,7 @@ export const CATEGORIES: { id: SettingsCategory; label: string; icon: any; short
   { id: 'general', label: 'Allgemein', icon: Sliders, shortDesc: 'Schuljahr, Bundesland & Fächer' },
   { id: 'display', label: 'Darstellung', icon: Palette, shortDesc: 'Design, Schrift & Cockpit' },
   { id: 'modules', label: 'Module', icon: LayoutGrid, shortDesc: 'Bereiche ein- & ausblenden' },
-  { id: 'sync', label: 'Synchronisierung', icon: Smartphone, shortDesc: 'Smartboard & Fernbedienung' },
+  { id: 'sync', label: 'Smartboard', icon: Smartphone, shortDesc: 'Nur Smartboard & Fernbedienung' },
   { id: 'backup', label: 'Daten & Backup', icon: Download, shortDesc: 'Sichern, Laden & App-Install' },
   { id: 'support', label: 'Unterstützung', icon: Heart, shortDesc: 'Freiwillige Beiträge & Unterstützer:innen' },
   { id: 'advanced', label: 'Erweitert', icon: Shield, shortDesc: 'Datenschutz & Gefahrenbereich' },
@@ -67,7 +67,7 @@ export default function SettingsHeader({
                 {activeCategory === 'general' && 'Allgemeine Einstellungen'}
                 {activeCategory === 'display' && 'Darstellung & Cockpit'}
                 {activeCategory === 'modules' && 'Module & Bereiche'}
-                {activeCategory === 'sync' && 'Smartboard & Synchronisierung'}
+                {activeCategory === 'sync' && 'Smartboard & Fernbedienung'}
                 {activeCategory === 'backup' && 'Daten & Datensicherung'}
                 {activeCategory === 'support' && 'Klassio unterstützen'}
                 {activeCategory === 'advanced' && 'Erweitert & Sicherheit'}
