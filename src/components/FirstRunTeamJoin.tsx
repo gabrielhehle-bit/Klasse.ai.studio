@@ -26,32 +26,56 @@ export default function FirstRunTeamJoin({ onJoined }: { onJoined: () => void })
   const [message, setMessage] = React.useState('');
   const [loginRequired, setLoginRequired] = React.useState(false);
   const [requestedFor, setRequestedFor] = React.useState<string | null>(null);
+  const latestCheckRef = React.useRef(0);
 
-  const check = React.useCallback(async () => {
-    setChecking(true);
-    setMessage('');
+  // Invitations can arrive after this teacher opened the first-run screen.
+  // Refresh quietly, keeping the verification code and visible join button
+  // intact. An older network response must not replace a more recent one.
+  const check = React.useCallback(async (silent = false) => {
+    const checkId = ++latestCheckRef.current;
+    if (!silent) {
+      setChecking(true);
+      setMessage('');
+    }
     try {
-      // Register this browser's own public device key before the owning
-      // teacher searches the school colleague list; no class is created.
+      // Register the device with the teacher's own verified school identity;
+      // discovering an invitation never creates or overwrites a classroom.
       await ensureRegisteredTeamTeachingDevice();
       const found = await listSharedClasses();
+      if (checkId !== latestCheckRef.current) return;
       setClasses(found);
       setLoginRequired(false);
     } catch (error: any) {
-      setClasses([]);
+      if (checkId !== latestCheckRef.current) return;
       const loginNeeded = error?.status === 401 || error?.status === 403;
       setLoginRequired(loginNeeded);
-      if (!loginNeeded) setMessage(error instanceof Error ? error.message : 'Teamklassen sind gerade nicht erreichbar.');
+      // A signed-out account must not see another session's class names.
+      // Transient network failures do not erase previously verified invites.
+      if (loginNeeded) setClasses([]);
+      else if (!silent) setMessage(error instanceof Error ? error.message : 'Teamklassen sind gerade nicht erreichbar.');
     } finally {
-      setChecking(false);
+      if (checkId === latestCheckRef.current) setChecking(false);
     }
   }, []);
 
   React.useEffect(() => {
     void check();
-    const refresh = () => { void check(); };
-    window.addEventListener(ACCOUNT_SESSION_CHANGED_EVENT, refresh);
-    return () => window.removeEventListener(ACCOUNT_SESSION_CHANGED_EVENT, refresh);
+    const refreshSession = () => { void check(); };
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') void check(true);
+    };
+    const interval = window.setInterval(refreshIfVisible, 10_000);
+    window.addEventListener(ACCOUNT_SESSION_CHANGED_EVENT, refreshSession);
+    window.addEventListener('focus', refreshIfVisible);
+    window.addEventListener('online', refreshIfVisible);
+    document.addEventListener('visibilitychange', refreshIfVisible);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener(ACCOUNT_SESSION_CHANGED_EVENT, refreshSession);
+      window.removeEventListener('focus', refreshIfVisible);
+      window.removeEventListener('online', refreshIfVisible);
+      document.removeEventListener('visibilitychange', refreshIfVisible);
+    };
   }, [check]);
 
   const open = async (summary: SharedClassSummary) => {
@@ -104,11 +128,11 @@ export default function FirstRunTeamJoin({ onJoined }: { onJoined: () => void })
         </p>
       )}
       {checking ? <p className="mt-3 text-sm text-slate-600">Einladungen werden geprüft …</p> : (
-        <div className="mt-3 space-y-2">
+        <div className="mt-3 space-y-2" aria-live="polite" data-testid="first-run-live-invitations">
           {classes.length === 0 && !loginRequired && (
             <p className="text-sm text-slate-700">
               Noch keine geteilte Klasse gefunden. Bitte eine Kollegin oder einen Kollegen,
-              dich in KLASSIO unter „Klassenteam“ hinzuzufügen.
+              dich in KLASSIO unter „Klassenteam“ hinzuzufügen. Diese Seite sucht automatisch nach neuen Einladungen.
             </p>
           )}
           {classes.map(summary => (

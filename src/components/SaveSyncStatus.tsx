@@ -183,7 +183,7 @@ export default function SaveSyncStatus({
                 <div className="space-y-1 border-t pt-2">
                   <p className="font-bold">
                     Teamteaching: {deviceAuthorization === 'unauthorized'
-                      ? 'Teamzugang wird automatisch eingerichtet'
+                      ? 'Dieses Gerät ist noch nicht für die Teamklasse freigegeben'
                       : deviceAuthorization === 'checking'
                         ? 'Teamzugang wird geprüft'
                         : team === 'synced'
@@ -196,7 +196,7 @@ export default function SaveSyncStatus({
                   </p>
                   {deviceAuthorization === 'unauthorized' && (
                     <p>
-                      Dieses Gerät wird automatisch freigeschaltet, sobald ein bereits berechtigtes Teamgerät die Klasse geöffnet hat. Es muss nicht manuell im Klassenteam hinzugefügt werden.
+                      KLASSIO versucht, die Gerätefreigabe im Hintergrund einzurichten. Solange sie nicht bestätigt ist, bleibt der Teamstand gesperrt. Öffne das Klassenteam, um eine Freigabe anzufordern oder den Status zu prüfen. Eine berechtigte Teamlehrperson kann die Anfrage dort bestätigen.
                     </p>
                   )}
                   <p>Zuletzt geändert: {meta?.lastChangedBy || 'Noch nicht bestätigt'} · {time(meta?.lastChangedAt)}</p>
