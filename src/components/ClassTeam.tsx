@@ -949,6 +949,21 @@ export default function ClassTeam() {
         </section>
       )}
 
+      {activeSharedId && deviceAuthorization === 'unauthorized' && pendingInvitation && (
+        <section data-testid="team-new-invitation-while-locked" className="rounded-[1.75rem] border border-[var(--accent)] bg-[var(--surface)] p-5 space-y-3">
+          <h2 className="font-black">Eine andere gemeinsame Klasse ist für dich bereit</h2>
+          <p className="text-sm leading-6">
+            „{pendingInvitation.classLabel}“ wurde für dein Schulkonto freigegeben.
+            Du kannst sie öffnen, ohne die bisherige lokale Klasse und deren Sicherung zu löschen.
+            Bitte wähle sie nur, wenn deine Teamkollegin diese neue Klasse für euch vorbereitet hat.
+          </p>
+          <button type="button" disabled={Boolean(busy)} onClick={() => void adopt(pendingInvitation)}
+            className="min-h-11 rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-black text-white disabled:opacity-50">
+            Neue Teamklasse öffnen
+          </button>
+        </section>
+      )}
+
       <section data-testid="team-setup-guide" aria-label="Teamteaching Schritt für Schritt"
         className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm sm:p-6">
         <h2 className="text-lg font-black text-[var(--text)]">Teamteaching in drei Schritten</h2>
