@@ -152,8 +152,8 @@ export default function PlanungHub() {
             <p className="text-sm font-semibold text-[var(--text)]">{preparation.label}</p>
             <p className="mt-1 text-xs leading-relaxed text-[var(--text2)]">{preparation.explanation}</p>
             {!isCurrentCalendarWeek && (
-              <p className="mt-1 text-xs font-medium text-[var(--text2)]">
-                Du siehst eine ausgewählte Woche. Der Wochenplan öffnet standardmäßig die aktuelle Kalenderwoche.
+              <p data-testid="planning-selected-week-handoff" className="mt-1 text-xs font-medium text-[var(--text2)]">
+                Beim Öffnen des Wochenplans bleibst du in KW {activeKW}.
               </p>
             )}
           </div>
