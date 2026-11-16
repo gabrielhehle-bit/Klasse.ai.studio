@@ -77,7 +77,10 @@ test('Recovery UI requires real ownership, two backups, explicit baseline and gu
   assert.match(team, /getSharedClassDetail\(activeSharedId\)/);
   assert.match(team, /prepareLocalTeamRecoveryRoom\(local, crypto\.randomUUID\(\)\)/);
   assert.match(team, /await createSharedClass\(prepared\)/);
-  assert.doesNotMatch(team, /deleteSharedClass\(activeSharedId\).*startLocalTeamRecovery/s);
+  const recoveryStart = team.indexOf('const startLocalTeamRecovery');
+  const recoveryEnd = team.indexOf('const adopt = ', recoveryStart);
+  assert.ok(recoveryStart >= 0 && recoveryEnd > recoveryStart);
+  assert.doesNotMatch(team.slice(recoveryStart, recoveryEnd), /deleteSharedClass\(/);
   assert.match(team, /data-testid="team-new-invitation-while-locked"/);
   assert.match(team, /onClick=\{\(\) => void adopt\(pendingInvitation\)\}/);
 });
