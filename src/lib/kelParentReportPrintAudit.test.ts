@@ -105,7 +105,8 @@ test('KEL timelines explain documented periods and retain their real SVG proport
  assert.match(chart,/preserveAspectRatio="xMidYMid meet"/);
  assert.doesNotMatch(chart,/preserveAspectRatio="none"/);
  assert.match(chart,/break-inside-avoid border-t/);
- assert.match(browser,/PASS Both KEL parent timelines distinguish 5 documented of 6 available weeks/);
+ assert.match(browser,/const expectedCoverage = recentDocumentedWeeks \+ ' von 6 Wochen'/);
+ assert.match(browser,/PASS KEL parent timelines report/);
  assert.match(browser,/Page\.printToPDF/);
  assert.match(browser,/getDocument\(\{data:bytes/);
  assert.match(browser,/PASS Real populated KEL A4 PDF retains both trends/);
