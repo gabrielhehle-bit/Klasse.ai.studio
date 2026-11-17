@@ -1409,7 +1409,8 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                                     key={hourIdx}
                                     onClick={() => openSlotForQuickPlan(dIdx, hourIdx)}
                                     data-klassio-subject-card={lesson.fach}
-                                    style={{ '--fach-card-bg': fachTheme.bgLight, borderColor: fachTheme.borderColor } as React.CSSProperties}
+                                    data-klassio-subject-outline
+                                    style={{ '--fach-card-bg': fachTheme.bgLight, '--fach-card-border': fachTheme.borderColor } as React.CSSProperties}
                                     className={`p-2 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between h-20 ${style.bg} ${style.border}`}
                                   >
                                     <div>
@@ -1430,9 +1431,10 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                                     key={hourIdx}
                                     onClick={() => openSlotForQuickPlan(dIdx, hourIdx)}
                                     data-klassio-subject-card={defaultFach || undefined}
+                                    data-klassio-subject-outline={defaultFach ? '' : undefined}
                                     style={defaultFach ? {
                                       '--fach-card-bg': getFachThemeStyles(defaultFach, app.fachConfig).bgLight,
-                                      borderColor: getFachThemeStyles(defaultFach, app.fachConfig).borderColor,
+                                      '--fach-card-border': getFachThemeStyles(defaultFach, app.fachConfig).borderColor,
                                     } as React.CSSProperties : undefined}
                                     className="p-2 rounded-xl border border-dashed border-slate-200 bg-white hover:border-indigo-300 transition text-left h-20 flex flex-col justify-between text-slate-600"
                                   >
@@ -1569,9 +1571,10 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                               onClick={() => setActiveSubject(subj)}
                               aria-pressed={isActive}
                               data-klassio-subject-card={subj}
+                              data-klassio-subject-outline
                               style={{
                                 '--fach-card-bg': isActive ? fachTheme.bgMedium : fachTheme.bgLight,
-                                borderColor: isActive ? fachTheme.hex : fachTheme.borderColor,
+                                '--fach-card-border': isActive ? fachTheme.hex : fachTheme.borderColor,
                               } as React.CSSProperties}
                               className={`min-h-11 rounded-xl border px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
                                 isActive ? 'ring-2 ring-offset-1 ring-[var(--accent)] text-[var(--text)]' : `${style.bg} ${style.border}`
