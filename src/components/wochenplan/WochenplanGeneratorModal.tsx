@@ -838,6 +838,7 @@ export const WochenplanGeneratorModal: React.FC<Props> = ({ activeKW, onClose })
                     plan={plan}
                     previewOnly={true}
                     colorMode={colorMode}
+                    fachConfig={app.fachConfig}
                   />
                 </div>
               </div>
@@ -1077,6 +1078,7 @@ export const WochenplanGeneratorModal: React.FC<Props> = ({ activeKW, onClose })
                     plan={plan}
                     previewOnly={true}
                     colorMode={colorMode}
+                    fachConfig={app.fachConfig}
                   />
                 </div>
               </div>

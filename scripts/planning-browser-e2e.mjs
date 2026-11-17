@@ -340,6 +340,16 @@ async function main() {
     const savedHourlyCell =
       'Array.from(document.querySelectorAll("div")).find(el=>String(el.className||"").includes("group/cell")&&String(el.className||"").includes("min-h-[5.3125rem]")&&String(el.textContent||"").includes(' + q(topic) + '))';
     await waitFor(client, 'saved topic visible in the actual hourly weekly grid', 'Boolean(' + savedHourlyCell + ')', 20000);
+    // The Fachfarbe is a functional reading aid: verify the actual rendered
+    // background, not merely the presence of a color class or a CSS variable.
+    const desktopSubjectTint = await evaluate(client,
+      '(() => {const cell=(' + savedHourlyCell + ');const card=cell?.querySelector("[data-klassio-subject-card]");' +
+      'if(!card)return {card:false};const css=getComputedStyle(card);const expected=css.getPropertyValue("--fach-card-bg").trim();' +
+      'const probe=document.createElement("span");probe.style.backgroundColor=expected;document.body.appendChild(probe);' +
+      'const normalized=getComputedStyle(probe).backgroundColor;probe.remove();' +
+      'return {card:true,fach:card.getAttribute("data-klassio-subject-card"),expected:normalized,actual:css.backgroundColor,match:!!expected&&normalized===css.backgroundColor};})()');
+    if (!desktopSubjectTint?.match) throw new Error('Weekly desktop card lost its subject background: ' + JSON.stringify(desktopSubjectTint));
+    console.log('✓ desktop lesson card keeps its configured subject tint after theme overrides');
     await waitFor(client, 'published lesson has one-click control in weekly planning',
       'Boolean((' + savedHourlyCell + ')?.querySelector("button[aria-label=\\\"Aus Kinderplan entfernen\\\"]"))');
     const removedFromBoard = await evaluate(client,
@@ -552,6 +562,20 @@ async function main() {
               q(topic) + ')&&card.querySelector("[data-weekly-mobile-child-toggle]")&&card.querySelector("[data-weekly-mobile-copy]"))');
           }
           if (!lessonFound) throw new Error('Mobile lesson card cannot access the previously saved teaching task.');
+          const mobileFachTint = await evaluate(client,
+            '(() => {const card=Array.from(document.querySelectorAll("[data-weekly-day-card]")).find(el=>el.textContent.includes(' + q(topic) + '));' +
+            'if(!card)return {card:false};const css=getComputedStyle(card);const expected=css.getPropertyValue("--fach-card-bg").trim();' +
+            'const stripe=css.getPropertyValue("--fach-card-stripe").trim();' +
+            'const probe=document.createElement("span");probe.style.backgroundColor=expected;probe.style.borderLeft="5px solid "+stripe;' +
+            'document.body.appendChild(probe);const colors=getComputedStyle(probe);' +
+            'const result={card:true,fach:card.getAttribute("data-klassio-subject-card"),background:css.backgroundColor,expectedBackground:colors.backgroundColor,' +
+            'border:css.borderLeftColor,expectedBorder:colors.borderLeftColor,actualWidth:parseFloat(css.borderLeftWidth)};probe.remove();' +
+            'return result;})()');
+          if (!mobileFachTint?.card || mobileFachTint.background !== mobileFachTint.expectedBackground ||
+              mobileFachTint.border !== mobileFachTint.expectedBorder || mobileFachTint.actualWidth < 4) {
+            throw new Error('Mobile lesson card lost its fach tint or stripe: ' + JSON.stringify(mobileFachTint));
+          }
+          console.log('✓ mobile day card keeps its subject background and stripe in actual Chrome CSS');
           const weekdayHelpBadge = await evaluate(client,
             '(() => {const tabs=Array.from(document.querySelectorAll("section[aria-label=\\\"Tagesansicht des Wochenplans\\\"] [aria-label=\\\"Wochentag auswählen\\\"] button"));' +
             'const badged=tabs.filter(tab=>!!tab.querySelector("[data-weekly-day-help-count]"));' +

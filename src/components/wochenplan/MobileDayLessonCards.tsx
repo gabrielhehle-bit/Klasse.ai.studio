@@ -2,7 +2,7 @@ import React from 'react';
 import { ChevronRight } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { STUNDEN_INFO, MAX_LESSON_SLOTS } from '../../constants';
-import { getFachHexColor } from '../../lib/fachColorUtils';
+import { getFachThemeStyles } from '../../lib/fachColorUtils';
 import { weekTaskKey } from '../../lib/classroomWeeklyPlan';
 import { getPendingChildHelpRequests, summarizeChildTaskProgress, summarizeDailyPendingHelp } from '../../lib/weeklyMobileChildProgress';
 import { configuredLessonTime, isWeeklyLessonSlotCovered } from '../../lib/weeklyPlanData';
@@ -89,15 +89,21 @@ export const MobileDayLessonCards: React.FC<Props> = ({
           : parkingPermissions.hasChildFeedback
             ? 'Parken gesperrt: Kinder-Rückmeldungen sind für diese Stunde gespeichert, auch wenn sie nicht mehr veröffentlicht ist.'
             : null;
-        const accent = getFachHexColor(app.fachConfig?.[subject]?.color || subject);
+        const fachTheme = subject ? getFachThemeStyles(subject, app.fachConfig) : null;
         return (
           <div key={idx} id={`weekly-mobile-lesson-${day}-${idx}`} tabIndex={-1} data-weekly-day-card
+            data-klassio-subject-card={subject || undefined}
+            data-klassio-subject-stripe={fachTheme ? 'true' : undefined}
             className={`overflow-hidden rounded-2xl border shadow-sm ${current
-              ? 'border-emerald-400 bg-emerald-50/70 ring-1 ring-emerald-200'
-              : hasSavedLesson ? 'border-slate-200 bg-white'
+              ? 'border-emerald-400 ring-1 ring-emerald-200'
+              : subject ? 'border-slate-200'
                 : 'border-dashed border-slate-200 bg-slate-50/40'}`}
-            style={{ borderLeftWidth: hasSavedLesson ? 5 : undefined,
-              borderLeftColor: hasSavedLesson ? accent : undefined }}>
+            style={{
+              borderLeftWidth: fachTheme ? 5 : undefined,
+              borderLeftColor: fachTheme?.hex,
+              '--fach-card-bg': fachTheme?.bgLight,
+              '--fach-card-stripe': fachTheme?.hex,
+            } as React.CSSProperties}>
             <button type="button" onClick={() => onOpen(day, idx)}
               aria-label={`${idx + 1}. Stunde ${subject || 'ohne Fach'}: ${item?.thema || 'Planung öffnen'} bearbeiten`}
               className="flex min-h-16 w-full min-w-0 items-center gap-3 px-3 py-3 text-left hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)]">
@@ -108,7 +114,10 @@ export const MobileDayLessonCards: React.FC<Props> = ({
                 </span>
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-xs font-bold text-slate-600">{subject || 'Noch nicht belegt'}</span>
+                <span className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                  {fachTheme && <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: fachTheme.hex }} />}
+                  {subject || 'Noch nicht belegt'}
+                </span>
                 <span className={`mt-0.5 block break-words text-[0.9375rem] font-semibold leading-snug ${isDone
                   ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
                   {item?.thema || (subject ? 'Unterrichtsinhalt ergänzen' : '+ Stunde planen')}

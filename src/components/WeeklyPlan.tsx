@@ -2899,6 +2899,7 @@ export default function WeeklyPlan() {
                       }
 
                       const style = displayFach ? getFachStyle(displayFach) : null;
+                      const fachTheme = displayFach ? getFachThemeStyles(displayFach, app.fachConfig) : null;
                       const date = new Date(monday);
                       date.setDate(monday.getDate() + tIdx);
                       const { status, holidayName } = getDayStatus(date);
@@ -3007,10 +3008,12 @@ export default function WeeklyPlan() {
                                 <span className="text-[0.625rem] font-black uppercase tracking-widest rotate-[-15deg]">{holidayName || 'FREI'}</span>
                              </div>
                           ) : item && (item.fach || item.thema || app.stammplan?.[tag]?.[zIdx + 1]) ? (
-                            <motion.div 
+                            <motion.div
                                layoutId={`${activeKW}-${tag}-${zIdx}`}
+                               data-klassio-subject-card={displayFach || undefined}
+                               style={{ '--fach-card-bg': fachTheme?.bgLight } as React.CSSProperties}
                                whileHover={{ scale: 1.03, y: -2, zIndex: 50 }}
-                               className={`h-full w-full rounded-xl border border-transparent pl-4 pr-2.5 py-2.5 ${canPublishForChildren ? 'pb-8' : ''} shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:shadow-[0_12px_24px_rgba(0,0,0,0.08)] transition-all flex flex-col gap-1 relative  group/card contrast-container ${style?.bg || 'bg-white'} ${item.erledigt ? '!bg-white ring-2 ring-emerald-500/20 opacity-70 saturate-[0.8]' : getContrastTextClass(style?.bg)} ${item.type === 'sa' ? 'ring-2 ring-rose-500/20' : item.type === 'test' || item.type === 'lzk' ? 'ring-2 ring-amber-500/20' : ''}`}
+                               className={`h-full w-full rounded-xl border border-transparent pl-4 pr-2.5 py-2.5 ${canPublishForChildren ? 'pb-8' : ''} shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:shadow-[0_12px_24px_rgba(0,0,0,0.08)] transition-all flex flex-col gap-1 relative  group/card contrast-container ${style?.bg || 'bg-white'} ${item.erledigt ? 'ring-2 ring-emerald-500/20 opacity-70 saturate-[0.8]' : getContrastTextClass(style?.bg)} ${item.type === 'sa' ? 'ring-2 ring-rose-500/20' : item.type === 'test' || item.type === 'lzk' ? 'ring-2 ring-amber-500/20' : ''}`}
                             >
                                {item.halves?.enabled ? (
                                  <div className={`absolute inset-x-0 top-0 ${canPublishForChildren ? 'bottom-7' : 'bottom-0'} grid grid-rows-2 overflow-hidden rounded-xl bg-white`}>

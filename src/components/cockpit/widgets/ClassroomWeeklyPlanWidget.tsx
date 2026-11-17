@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useApp } from '../../../context/AppContext';
 import { getActiveClassContext } from '../../../lib/activeClassContext';
 import { getKW } from '../../../lib/utils';
+import { getFachThemeStyles } from '../../../lib/fachColorUtils';
 import type { CockpitWidgetConfig } from '../../../types';
 import { useWidgetSize } from '../widgetLayout';
 import { getClassroomWeeklyWidgetPreferences } from '../../../lib/classroomWeeklyWidgetPreferences';
@@ -208,6 +209,14 @@ export default function ClassroomWeeklyPlanWidget({
         : <div className={`grid ${compactBoard ? "gap-1.5" : roomyBoard ? "gap-4" : "gap-3"}`}
             style={{ gridTemplateColumns: `repeat(${taskColumns}, minmax(0, 1fr))` }}>
             {tasks.map((task, index) => <article key={task.id}
+              data-klassio-subject-card={task.fach}
+              data-klassio-subject-stripe="true"
+              style={{
+                '--fach-card-bg': getFachThemeStyles(task.fach, app.fachConfig).bgLight,
+                '--fach-card-stripe': getFachThemeStyles(task.fach, app.fachConfig).hex,
+                borderLeftWidth: 5,
+                borderLeftColor: getFachThemeStyles(task.fach, app.fachConfig).hex,
+              } as React.CSSProperties}
               className={`weekly-plan-light-card min-w-0 rounded-2xl border-2 border-slate-200 bg-white shadow-sm ${compactBoard ? "p-2.5" : "p-3 sm:p-4"}`}>
               <p className="mb-2 text-sm font-extrabold text-accent">Aufgabe {index + 1} · {task.day}</p>
               <TaskText task={task} showMaterials={preferences.showMaterials} scale={tinyBoard ? 'compact' : roomyBoard ? 'large' : 'normal'} />

@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import { TAGE_NAMEN, LESSON_SLOT_NUMBERS } from '../constants';
 import { getKW } from '../lib/utils';
 import { faecherFuerKlasse } from '../lib/sek1Subjects';
+import { getFachThemeStyles } from '../lib/fachColorUtils';
 
 type Slot = { tag: string; stunde: number; fach: string; thema: string; material: string; housework: string };
 const fachSlot = (v: unknown) => String(v || '').trim();
@@ -76,12 +77,23 @@ export default function Sek1WeeklyPlan() {
           return <div key={tag} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
             <h2 className="font-extrabold text-[var(--text)]">{tag}</h2>
             {day.length ? <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {day.map(slot => <button type="button" key={slot.stunde} onClick={() => openLesson(slot)}
-                className="rounded-xl border border-[var(--border)] bg-[var(--surface2)] p-3 text-left hover:border-[var(--accent)]">
-                <span className="text-xs font-semibold text-[var(--text2)]">{slot.stunde}. Stunde · {slot.fach}</span>
+              {day.map(slot => {
+                const fachTheme = getFachThemeStyles(slot.fach, app.fachConfig);
+                return <button type="button" key={slot.stunde} onClick={() => openLesson(slot)}
+                  data-klassio-subject-card={slot.fach}
+                  data-klassio-subject-stripe="true"
+                  style={{
+                    '--fach-card-bg': fachTheme.bgLight,
+                    '--fach-card-stripe': fachTheme.hex,
+                    borderLeftWidth: 5,
+                    borderLeftColor: fachTheme.hex,
+                  } as React.CSSProperties}
+                  className="min-h-20 rounded-xl border border-[var(--border)] p-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
+                  <span className="text-sm font-semibold text-[var(--text2)]">{slot.stunde}. Stunde · {slot.fach}</span>
                 <span className="mt-1 block text-sm font-bold text-[var(--text)]">{slot.thema || 'Thema eintragen'}</span>
                 {slot.material && <span className="mt-1 block text-xs text-[var(--text2)]">Material: {slot.material}</span>}
-              </button>)}
+                </button>;
+              })}
             </div> : <p className="mt-2 text-sm text-[var(--text2)]">Keine deiner Fachstunden eingetragen.</p>}
           </div>;
         })}

@@ -60,3 +60,40 @@
 .dashboard-shell > .relative.z-20.bg-emerald-50.border-emerald-200 {
   z-index: auto !important;
 }
+
+
+/*
+ * Fachfarben sind Informationen, keine dekorativen Theme-Akzente.
+ * Die hinterlegte Farbe eines Unterrichtsfachs muss auch nach einem Wechsel
+ * des KLASSIO-App-Themes in Tageskarten, Wochenraster, Schnellplanung und
+ * farbiger A4-Vorschau sichtbar bleiben. Auch die globalen Theme-Overrides
+ * für .bg-white/.bg-slate-50 (!important) dürfen sie nicht nivellieren.
+ * Mono-Druck und echte freie Slots erhalten absichtlich keine Fachfarbe.
+ */
+/*
+ * The app-theme conversion uses [data-style] .bg-white/.bg-slate-50 with
+ * !important. Match that specificity (and exceed it inside the themed app).
+ * Never apply to ordinary module/overview cards.
+ */
+/*
+ * The global theme conversion is declared inside @layer base and uses
+ * !important. Important declarations in a layer outrank important rules
+ * outside layers, regardless of selector specificity; keep these overrides
+ * in that SAME layer and make them more specific.
+ */
+@layer base {
+  [data-klassio-subject-card],
+  [data-style] [data-klassio-subject-card][data-klassio-subject-card] {
+    background-color: var(--fach-card-bg) !important;
+  }
+
+  [data-klassio-subject-card][data-klassio-subject-stripe],
+  [data-style] [data-klassio-subject-card][data-klassio-subject-stripe] {
+    border-left-color: var(--fach-card-stripe) !important;
+  }
+
+  [data-klassio-subject-card][data-klassio-subject-outline],
+  [data-style] [data-klassio-subject-card][data-klassio-subject-outline] {
+    border-color: var(--fach-card-border) !important;
+  }
+}

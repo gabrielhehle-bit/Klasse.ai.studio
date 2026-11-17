@@ -5793,7 +5793,7 @@ export default function PrintCenter() {
       // Child plan is the same saved encrypted document as in the generator.
       case 'schueler_wochenplan':
         return selectedChildPlan
-          ? <SchuelerWochenplanA4Sheet plan={selectedChildPlan} previewOnly={false} colorMode={childPrintColorMode} />
+          ? <SchuelerWochenplanA4Sheet plan={selectedChildPlan} previewOnly={false} colorMode={childPrintColorMode} fachConfig={app.fachConfig} />
           : <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Noch keinen Wochenplan für Kinder gespeichert. Bitte zuerst im Wochenplan erstellen.</p>;
 
       // C. WOCHENPLAN
