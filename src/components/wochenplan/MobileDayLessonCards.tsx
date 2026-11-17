@@ -93,7 +93,7 @@ export const MobileDayLessonCards: React.FC<Props> = ({
         return (
           <div key={idx} id={`weekly-mobile-lesson-${day}-${idx}`} tabIndex={-1} data-weekly-day-card
             data-klassio-subject-card={subject || undefined}
-            data-klassio-subject-stripe={fachTheme ? '' : undefined}
+            data-klassio-subject-stripe={fachTheme ? 'true' : undefined}
             className={`overflow-hidden rounded-2xl border shadow-sm ${current
               ? 'border-emerald-400 ring-1 ring-emerald-200'
               : subject ? 'border-slate-200'
