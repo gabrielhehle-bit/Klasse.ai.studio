@@ -129,7 +129,7 @@ export function PublicStudentListWidget({
               setRecentlyAwardedId(null);
               setRecentAwardSubject(null);
             }} className="min-h-11 shrink-0 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-bold text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
-              aria-label={`Letzte ${socialMode ? 'Sozial-' : 'Mitarbeits'}bewertung für ${labels.get(lastAwardedId)} rückgängig machen`}>↶ Rückgängig</button>
+              aria-label={`Letzte ${socialMode ? 'Sozialbewertung' : 'Mitarbeitsbewertung'} für ${labels.get(lastAwardedId)} rückgängig machen`}>↶ Rückgängig</button>
           </>
         )}
         {!sidebar && !gridMode && !sidebarCompact && (
