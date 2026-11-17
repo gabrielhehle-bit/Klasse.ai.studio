@@ -124,6 +124,7 @@ async function main() {
     await client.send('Emulation.setDeviceMetricsOverride',{width:WIDTH,height:HEIGHT,deviceScaleFactor:1,mobile:false});
     await client.send('Page.navigate',{url:BASE_URL});
     await waitFor(client,'access gate','document.body?.innerText.toLowerCase().includes("geschützter zugang")');
+    await waitFor(client,'access form ready',`Array.from(document.querySelectorAll('input')).some(i => String(i.placeholder || '').includes('Zugangscode eingeben'))`);
     await fill(client,'Zugangscode',ACCESS_CODE);
     await clickButton(client,'Klassio öffnen');
     await waitFor(client,'new vault','document.body?.innerText.toLowerCase().includes("tresor auf diesem gerät einrichten")');
