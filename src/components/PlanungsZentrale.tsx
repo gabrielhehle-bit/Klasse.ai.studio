@@ -1577,7 +1577,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                                 '--fach-card-border': isActive ? fachTheme.hex : fachTheme.borderColor,
                               } as React.CSSProperties}
                               className={`min-h-11 rounded-xl border px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
-                                isActive ? 'ring-2 ring-offset-1 ring-[var(--accent)] text-[var(--text)]' : `${style.bg} ${style.border}`
+                                isActive ? 'ring-2 ring-offset-1 ring-[var(--fach-card-border)] text-[var(--text)]' : `${style.bg} ${style.border}`
                               }`}
                             >
                               <span aria-hidden="true" className="mr-2 inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: fachTheme.hex }} />
