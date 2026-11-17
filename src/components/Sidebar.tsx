@@ -272,55 +272,58 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
       />
       <aside className={`fixed lg:sticky top-0 h-dvh z-[150] bg-surface border-r border-border transition-all duration-300 ease-in-out print:hidden ${isOpen ? 'w-[240px] translate-x-0 shadow-2xl lg:shadow-none' : isCollapsed ? 'w-[240px] lg:w-[70px] -translate-x-full lg:translate-x-0' : 'w-[240px] lg:w-[240px] -translate-x-full lg:translate-x-0'}`}>
         <div className="h-full flex flex-col"> 
-          <div className="p-5 pb-4 border-b border-border relative">
-            {/* Elegant Top Ambient Accent bar */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent/40 via-accent to-accent/40 opacity-80" />
+          <div className="relative border-b border-[var(--border)] p-4 pb-4">
             {!isCollapsed ? (
               <>
-                <div className="text-[0.625rem] text-text-muted font-black uppercase tracking-[0.25em] mb-1 leading-none">{app.schuljahr || getCurrentSchuljahr()}</div>
+                <div className="mb-2 text-xs font-medium text-[var(--text2)]">Schuljahr {app.schuljahr || getCurrentSchuljahr()}</div>
                 <button type="button" aria-label="Mein Profil öffnen" title="Mein Profil"
                   onClick={() => { setPage('profil'); if (window.innerWidth < 1024) setIsOpen(false); }}
-                  className="flex w-full min-w-0 items-center gap-3 rounded-2xl p-1 text-left hover:bg-[var(--accent-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]">
+                  className="flex min-h-11 w-full min-w-0 items-center gap-3 rounded-xl p-1 text-left transition-colors hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
                   <TeacherAvatar app={app} size="md" />
                   <span className="min-w-0">
-                    <span className="block break-words font-sans text-[1rem] font-black leading-tight text-text-primary">
+                    <span className="block break-words font-sans text-base font-semibold leading-tight text-[var(--text)]">
                       {app.lehrerProfil?.name?.trim() || teacherDisplayName || 'KLASSIO'}
                     </span>
-                    <span className="mt-1 block text-[0.75rem] font-bold text-accent">
+                    <span className="mt-1 block text-sm font-medium text-[var(--text2)]">
                       {app.lehrerProfil?.kuerzel?.trim() || 'Mein Profil einrichten'}
                     </span>
-                    <span className="mt-1 block text-[0.625rem] font-medium text-text-muted">
+                    <span className="mt-0.5 block text-xs text-[var(--text3)]">
                       {SCHULARTEN.find(option => option.id === schulart)?.label || 'Volksschule'}
                     </span>
                   </span>
                 </button>
                 
                 <div className="mt-2 flex items-center justify-between gap-2 w-full">
-                  <span className="text-xs font-semibold text-text-muted">Klassio</span>
+                  <span className="text-xs font-semibold tracking-wide text-[var(--text2)]">KLASSIO</span>
                   <button
                     type="button"
                     onClick={() => setShowCustomizeModal(true)}
-                    className="px-2.5 py-1.5 hover:bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 text-[0.625rem] font-bold uppercase tracking-wider border border-[var(--border-default,var(--border))] shrink-0 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))]"
+                    className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-xs font-medium text-[var(--text2)] transition-colors hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                     title="Sidebar sortieren und Bereiche ein-/ausblenden"
                     aria-label="Sidebar anpassen"
                   >
                     <GripVertical size={12} />
-                    <span>Sidebar</span>
+                    <span>Anpassen</span>
                   </button>
                 </div>
                 
                 <div className="relative mt-4">
                   <div 
-                    className={`inline-flex items-center gap-2 text-[0.6875rem] font-bold px-3.5 py-2.5 rounded-xl cursor-pointer transition-all border group whitespace-nowrap w-full justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))] ${
+                    className={`inline-flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
                       showClassMenu 
                         ? 'bg-[var(--accent-soft)] border-[var(--accent)] text-[var(--accent)] ring-2 ring-[var(--accent)]/20' 
                         : 'bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--accent-soft)] text-[var(--text-secondary)] hover:text-[var(--accent)] border-[var(--border-default,var(--border))] hover:border-[var(--accent)]/30'
                     }`}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Klasse auswählen"
+                    aria-expanded={showClassMenu}
+                    onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setShowClassMenu(!showClassMenu); } }}
                     onClick={() => setShowClassMenu(!showClassMenu)}
                   >
                     <div className="flex items-center gap-2 text-wrap leading-tight break-words">
                        <span className="text-wrap leading-tight break-words">{sek1 ? `${app.klassenbezeichnung || 'Ohne Namen'} · ${app.stufe}. Schulstufe` : `${app.stufe || '?'}. Klasse ${app.klassenbezeichnung || 'Ohne Namen'}`}</span>
-                       {!app.klassenvorstand && <span className="bg-[var(--surface-muted,var(--surface3))] text-[var(--text-secondary)] text-[0.5rem] px-1.5 py-0.5 rounded-full">Fachlehrer</span>}
+                       {!app.klassenvorstand && <span className="bg-[var(--surface-muted,var(--surface3))] text-[var(--text-secondary)] text-xs px-2 py-0.5 rounded-md">Fachlehrer</span>}
                     </div>
                     <ChevronDown size={11} className={`shrink-0 transition-transform ${showClassMenu ? 'rotate-180' : ''}`} /> 
                   </div>
@@ -328,8 +331,8 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                    {showClassMenu && (
                     <>
                       <div className="fixed inset-0 z-[160]" onClick={() => setShowClassMenu(false)} />
-                      <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--surface-card,var(--surface))]/98 backdrop-blur-xl rounded-2xl shadow-2xl border border-[var(--border-default,var(--border))] py-2 z-[161] min-w-[200px] max-h-[300px] overflow-y-auto elegant-scrollbar">
-                        <div className="px-4 py-2 text-[0.625rem] font-black text-[var(--text-muted)] uppercase tracking-widest border-b border-[var(--border-default,var(--border))]/60 mb-1">Meine Klassen</div>
+                      <div className="absolute left-0 right-0 top-full z-[161] mt-2 max-h-[300px] min-w-[200px] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2 shadow-lg elegant-scrollbar">
+                        <div className="mb-1 border-b border-[var(--border)] px-4 py-2 text-xs font-semibold text-[var(--text2)]">Meine Klassen</div>
                         {(app.classes || []).map(c => (
                           <div 
                             key={c.id} 
@@ -337,7 +340,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                             className={`px-4 py-3 hover:bg-[var(--surface-subtle,var(--surface2))] cursor-pointer flex items-center justify-between group transition-colors ${app.activeClassId === c.id ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-bold' : 'text-[var(--text-secondary)]'}`}
                           >
                             <div className="flex flex-col">
-                              <span className="text-[0.75rem]">{istSekundarstufe(c.schulart) ? `${c.name} · ${c.stufe}. Schulstufe` : `${c.stufe}. Klasse ${c.name}`}</span>
+                              <span className="text-sm">{istSekundarstufe(c.schulart) ? `${c.name} · ${c.stufe}. Schulstufe` : `${c.stufe}. Klasse ${c.name}`}</span>
                               {!c.klassenvorstand && <span className="text-[0.5625rem] opacity-70">Fachunterricht</span>}
                             </div>
                             <div className="flex items-center gap-2">
@@ -415,7 +418,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
           <nav className="flex-1 py-3 overflow-y-auto no-scrollbar" aria-label="Hauptnavigation">
             <div className="px-2 space-y-0.5">
               {!isCollapsed && (
-                <div className="px-3 pb-2 text-[0.625rem] font-black uppercase tracking-[0.18em] text-text-muted">
+                <div className="px-3 pb-2 text-xs font-semibold text-[var(--text2)]">
                   Arbeitsbereich
                 </div>
               )}
@@ -427,12 +430,11 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                   data-menu-id={item.id}
                   aria-current={currentPage === item.id ? 'page' : undefined}
                   title={isCollapsed ? item.label : ''}
-                  className={`w-full text-left flex items-center gap-3 px-3.5 py-2.5 cursor-pointer rounded-xl transition-all duration-200 text-[0.8125rem] relative overflow-hidden ${
+                  className={`relative flex min-h-11 w-full items-center gap-3 overflow-hidden rounded-lg px-3.5 py-2.5 text-left text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
                     currentPage === item.id
-                      ? 'text-white shadow-sm font-bold'
-                      : 'text-text-secondary hover:bg-surface2 hover:text-text-primary group'
+                      ? 'bg-[var(--accent-soft)] text-[var(--text)] font-semibold'
+                      : 'text-[var(--text2)] hover:bg-[var(--surface2)] hover:text-[var(--text)] group'
                   } ${isCollapsed ? 'justify-center px-0' : ''}`}
-                  style={currentPage === item.id ? { backgroundColor: 'var(--accent, #10b981)', color: 'var(--btn-text, #ffffff)' } : {}}
                   onClick={() => {
                     setPage(item.id);
                     if (window.innerWidth < 1024) setIsOpen(false);
@@ -441,13 +443,13 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                   {currentPage === item.id && (
                     <motion.div
                       layoutId="activeSideIndicator"
-                      className="absolute left-0 top-2.5 bottom-2.5 w-0.5 rounded-r-full bg-white opacity-90 z-20"
-                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                      className="absolute bottom-2.5 left-0 top-2.5 z-20 w-[3px] rounded-r-full bg-[var(--accent)]"
+                      transition={{ duration: 0.15, ease: 'easeOut' }}
                     />
                   )}
                   <span
                     className={`relative shrink-0 ${currentPage === item.id ? '' : 'text-text-muted group-hover:text-accent transition-colors'}`}
-                    style={currentPage === item.id ? { color: 'var(--btn-text, #ffffff)' } : {}}
+                    style={currentPage === item.id ? { color: 'var(--accent-ink, var(--accent))' } : {}}
                   >
                     {item.icon}
                     {item.id === 'lehrerzimmer' && lehrerzimmerUnread.count > 0 && (
@@ -502,7 +504,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
 
           <div className="p-2 border-t border-border space-y-1" aria-label="Persönlich und Daten">
             {!isCollapsed && (
-              <div className="px-3 pb-1 text-[0.5625rem] font-black uppercase tracking-[0.16em] text-text-muted">
+              <div className="px-3 pb-1 text-xs font-semibold text-[var(--text2)]">
                 Persönlich &amp; Daten
               </div>
             )}
