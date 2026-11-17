@@ -18,7 +18,8 @@ test('Mitarbeit und Sozialverhalten behalten getrennte Datenfunktionen', () => {
   assert.match(cockpit, /addParticipation=\{sidebarParticipationKind === "social" \? addSocialParticipation : addParticipation\}/);
   assert.match(cockpit, /removeParticipation=\{sidebarParticipationKind === "social" \? removeSocialParticipation : removeParticipation\}/);
   assert.match(cockpit, /commitSocialAward\(prev, \{ id, sid, classId \}\)/);
-  assert.match(cockpit, /awardParticipation\(sid, getActiveSubject\(\), app.activeClassId, event, onAwarded\)/);
+  assert.match(cockpit, /awardParticipation\(sid, automaticSubject, app.activeClassId, event, onAwarded\)/);
+  assert.match(cockpit, /resolveAutomaticParticipationSubject\(/);
   assert.match(list, /addParticipation\(student\.id, event/);
   assert.match(list, /removeParticipation\(student\.id\)/);
 });
