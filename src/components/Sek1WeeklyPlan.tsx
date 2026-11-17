@@ -81,8 +81,10 @@ export default function Sek1WeeklyPlan() {
                 const fachTheme = getFachThemeStyles(slot.fach, app.fachConfig);
                 return <button type="button" key={slot.stunde} onClick={() => openLesson(slot)}
                   data-klassio-subject-card={slot.fach}
+                  data-klassio-subject-stripe
                   style={{
                     '--fach-card-bg': fachTheme.bgLight,
+                    '--fach-card-stripe': fachTheme.hex,
                     borderLeftWidth: 5,
                     borderLeftColor: fachTheme.hex,
                   } as React.CSSProperties}
