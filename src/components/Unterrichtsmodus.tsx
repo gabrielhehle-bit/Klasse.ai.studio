@@ -9961,7 +9961,7 @@ ${content}
                             title={sidebarMode === "hidden" ? "Schülerliste wieder anzeigen" : "Mehr Platz für die Tafel – Schülerliste ausblenden"}
                             className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-2.5 text-xs font-semibold transition-colors ${sidebarMode === "hidden" ? "border-accent bg-accent-soft text-accent" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>
                             {sidebarMode === "hidden" ? <Users size={15} /> : <Maximize2 size={15} />}
-                            <span className="hidden 2xl:inline">{sidebarMode === "hidden" ? "Schülerliste" : "Tafel groß"}</span>
+                            <span className="hidden lg:inline">{sidebarMode === "hidden" ? "Schülerliste" : "Tafel groß"}</span>
                           </button>
 
                           <button
