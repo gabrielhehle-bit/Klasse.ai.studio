@@ -210,8 +210,10 @@ export default function ClassroomWeeklyPlanWidget({
             style={{ gridTemplateColumns: `repeat(${taskColumns}, minmax(0, 1fr))` }}>
             {tasks.map((task, index) => <article key={task.id}
               data-klassio-subject-card={task.fach}
+              data-klassio-subject-stripe
               style={{
                 '--fach-card-bg': getFachThemeStyles(task.fach, app.fachConfig).bgLight,
+                '--fach-card-stripe': getFachThemeStyles(task.fach, app.fachConfig).hex,
                 borderLeftWidth: 5,
                 borderLeftColor: getFachThemeStyles(task.fach, app.fachConfig).hex,
               } as React.CSSProperties}
