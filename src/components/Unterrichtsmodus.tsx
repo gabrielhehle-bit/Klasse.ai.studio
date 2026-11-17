@@ -7092,7 +7092,7 @@ ${content}
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [openSettingsId, app.boardWidgets]);
 
-  const [pendingParticipation, setPendingParticipation] = useState<{ sid: string; classId: string; event?: React.MouseEvent; onAwarded?: () => void; inSidebar: boolean } | null>(null);
+  const [pendingParticipation, setPendingParticipation] = useState<{ sid: string; classId: string; event?: React.MouseEvent; onAwarded?: (subject: string) => void; inSidebar: boolean } | null>(null);
   const [isParticipationSettingsOpen, setIsParticipationSettingsOpen] = useState(false);
   const [participationResetVersion, setParticipationResetVersion] = useState(0);
   const [badgeStudentId, setBadgeStudentId] = useState<string | null>(null);
@@ -7114,7 +7114,7 @@ ${content}
       if (pendingParticipation?.inSidebar) setPendingParticipation(null);
     }
   }, [sidebarMode, pendingParticipation?.inSidebar]);
-  const awardParticipation = (sid: string, subject: string, classId: string, event?: React.MouseEvent, onAwarded?: () => void) => {
+  const awardParticipation = (sid: string, subject: string, classId: string, event?: React.MouseEvent, onAwarded?: (subject: string) => void) => {
     if (classId !== app.activeClassId || !app.schueler.some(student => student.id === sid)
       || !subject || !app.faecher?.includes(subject)) return;
     const id = crypto.randomUUID();
@@ -7124,10 +7124,10 @@ ${content}
     const feedback = app.participationSettings?.feedback || 'animation';
     if (event && (feedback === 'animation' || feedback === 'both')) triggerRewardAnimation(sid, event);
     if (feedback === 'mascot' || feedback === 'both') window.dispatchEvent(new CustomEvent(MASCOT_RITUAL_EVENT, { detail: 'praise' }));
-    onAwarded?.();
+    onAwarded?.(subject);
   };
   // Reward Logic Helpers
-  const addParticipation = (sid: string, event?: React.MouseEvent, onAwarded?: () => void) => {
+  const addParticipation = (sid: string, event?: React.MouseEvent, onAwarded?: (subject: string) => void) => {
     if (!app.activeClassId) return;
     // Outside a real subject lesson "Unterricht" is just a UI placeholder.
     // Never record it as a subject/gradebook item: ask for a real class subject.
@@ -7141,7 +7141,7 @@ ${content}
     awardParticipation(sid, automaticSubject, app.activeClassId, event, onAwarded);
   };
 
-  const addSocialParticipation = (sid: string, event?: React.MouseEvent, onAwarded?: () => void) => {
+  const addSocialParticipation = (sid: string, event?: React.MouseEvent, onAwarded?: (subject: string) => void) => {
     if (!app.activeClassId || !app.schueler.some(student => student.id === sid)) return;
     const id = crypto.randomUUID();
     const classId = app.activeClassId;
@@ -7150,7 +7150,7 @@ ${content}
     const feedback = app.participationSettings?.feedback || 'animation';
     if (event && (feedback === 'animation' || feedback === 'both')) triggerRewardAnimation(sid, event);
     if (feedback === 'mascot' || feedback === 'both') window.dispatchEvent(new CustomEvent(MASCOT_RITUAL_EVENT, { detail: 'praise' }));
-    onAwarded?.();
+    onAwarded?.('Sozialverhalten');
   };
 
   const removeParticipation = (sid: string) => {
@@ -12813,10 +12813,15 @@ ${content}
                         <div role="group" aria-label="Pluspunkt-Art" className="mt-1 flex gap-1 rounded-lg bg-slate-100 p-0.5">
                           {([['subject', 'Mitarbeit'], ['social', 'Sozialverhalten']] as const).map(([kind, label]) => <button key={kind} type="button"
                             aria-pressed={sidebarParticipationKind === kind}
-                            aria-label={kind === 'subject' ? `Mitarbeit im Fach ${getActiveSubject()}` : 'Sozialverhalten'}
+                            aria-label={kind === 'subject' ? (resolveAutomaticParticipationSubject(getActiveSubject(), app.faecher, app.participationSettings?.subjectMode) ? `Mitarbeit im Fach ${getActiveSubject()}` : 'Mitarbeit – Fach auswählen') : 'Sozialverhalten'}
                             title={kind === 'subject' ? (app.faecher?.includes(getActiveSubject()) ? `Mitarbeitspunkte im Fach ${getActiveSubject()} erfassen` : 'Mitarbeitspunkt vergeben – Fach wird ausgewählt') : 'Sozialpunkte erfassen (getrennt von Verhaltensstufen)'}
                             onClick={() => { setPendingParticipation(null); setSidebarParticipationKind(kind); }}
-                            className={`min-h-8 flex-1 rounded-md px-2 text-xs font-semibold ${sidebarParticipationKind === kind ? (kind === 'subject' ? 'bg-white text-emerald-800 shadow-sm' : 'bg-white text-sky-800 shadow-sm') : 'text-slate-500 hover:text-slate-800'}`}>{label}</button>)}
+                            className={`min-h-11 flex-1 rounded-md px-2 py-1 text-xs font-semibold ${sidebarParticipationKind === kind ? (kind === 'subject' ? 'bg-white text-emerald-800 shadow-sm' : 'bg-white text-sky-800 shadow-sm') : 'text-slate-500 hover:text-slate-800'}`}>
+                            <span className="block">{label}</span>
+                            {kind === 'subject' && <span className="block truncate text-[10px] font-medium opacity-85">
+                              {resolveAutomaticParticipationSubject(getActiveSubject(), app.faecher, app.participationSettings?.subjectMode) ? `Fach: ${getActiveSubject()}` : 'Fach auswählen'}
+                            </span>}
+                          </button>)}
                         </div>
                       </div>
 
