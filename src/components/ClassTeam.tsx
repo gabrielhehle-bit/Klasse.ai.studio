@@ -32,6 +32,7 @@ import { hasRecoverableLocalClassData, prepareLocalTeamRecoveryRoom } from '../l
 import { assertTeamTeachingDevicePersisted } from '../lib/teamTeachingDevice';
 import type { ClassRoom } from '../types';
 import ClassTeamStatus from './ClassTeamStatus';
+import TeamTeachingQuickHelp from './TeamTeachingQuickHelp';
 import EmailAccountLogin from './EmailAccountLogin';
 import { ACCOUNT_SESSION_CHANGED_EVENT } from '../lib/accountSyncService';
 import { useTeamDeviceAuthorization } from '../hooks/useTeamDeviceAuthorization';
@@ -1043,19 +1044,14 @@ export default function ClassTeam() {
         </p>
       </section>
 
-      <details data-testid="team-two-teachers-help"
-        className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 py-4">
-        <summary className="min-h-9 cursor-pointer text-sm font-semibold text-[var(--text)]">
-          Wer macht was? Einfache Anleitung für zwei Lehrpersonen
-        </summary>
-        <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-[var(--text2)]">
-          <li><strong>Lehrperson A</strong> öffnet ihre bestehende Klasse und wählt „Diese Klasse gemeinsam nutzen“.</li>
-          <li><strong>Lehrperson B</strong> meldet sich auf ihrem Gerät mit der eigenen Schulmail an und öffnet „Klassenteam“. Keine zweite Klasse erstellen.</li>
-          <li><strong>Lehrperson A</strong> wählt B in der automatisch aktualisierten Kollegiumsliste aus.</li>
-          <li><strong>Lehrperson B</strong> öffnet die Einladung. Wenn KLASSIO eine Gerätefreigabe verlangt, bestätigt A den angezeigten Prüfcode.</li>
-          <li>Beide öffnen <strong>dieselbe Teamklasse</strong>. Änderungen werden automatisch abgeglichen; bei Konflikten bleiben beide Stände geschützt.</li>
-        </ol>
-      </details>
+      <div data-testid="team-two-teachers-help">
+        <TeamTeachingQuickHelp
+          sharedClassId={activeSharedId}
+          serverConfirmed={Boolean(activeSummary)}
+          deviceAuthorization={deviceAuthorization}
+          teamSyncStatus={teamSyncStatus}
+        />
+      </div>
 
       {deviceRequestsToApprove.length > 0 && <section className="rounded-2xl border border-[var(--accent)] bg-[var(--surface)] p-5 space-y-3" aria-label="Geräteanfragen im Klassenteam">
         <h2 className="font-black">Ein Teamgerät braucht deine Bestätigung</h2>
