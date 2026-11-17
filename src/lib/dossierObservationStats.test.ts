@@ -45,3 +45,18 @@ test('six mood and six behavior dates from the school UI stay distinct, with no 
  assert.ok(fullYear.weeks.some(w=>w.mood===null),'unreported school-year weeks remain gaps');
  assert.deepEqual(app,original,'pure chart statistics never alter pupil records');
 });
+
+
+test('six-week window rolls to the next Monday while school-year view preserves older mood and behavior entries',()=>{
+ const dates=['2026-10-05','2026-10-12','2026-10-19','2026-10-23','2026-11-03','2026-11-09'];
+ const app={schuljahr:'2026/27',schuelerStimmung:{a:Object.fromEntries(dates.map((date,i)=>[date,i%5+1]))},
+  statusLog:dates.map((datum,i)=>({id:String(i),schuelerId:'a',datum,iconId:'1',timestamp:1000+i}))};
+ const today=new Date(2026,10,17,12);
+ const recent=getDossierObservationStats(app,'a','recent',today);
+ const fullYear=getDossierObservationStats(app,'a','year',today);
+ assert.equal(recent.start,'2026-10-12');
+ assert.equal(recent.moods.length,5,'October 5 belongs outside six-week range on November 17');
+ assert.equal(recent.behavior.length,5);
+ assert.equal(fullYear.moods.length,6);
+ assert.equal(fullYear.behavior.length,6);
+});
