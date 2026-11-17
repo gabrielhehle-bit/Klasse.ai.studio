@@ -117,6 +117,6 @@ test('Real print center and all three A4 task layouts receive configured colors;
   assert.match(a4, /const getPrintedSubjectStyle = \(fach: string\)/);
   assert.match(a4, /if \(colorMode !== 'color'\) return undefined/);
   assert.equal((a4.match(/style=\{getPrintedSubjectStyle\(task\.fach\)\}/g) || []).length, 3);
-  assert.match(a4, /data-klassio-subject-stripe=\{fachTheme \? '' : undefined\}/);
+  assert.match(a4, /data-klassio-subject-stripe=\{fachTheme \? 'true' : undefined\}/);
   assert.match(a4, /colorMode === 'color' \? getFachThemeStyles\(fach, fachConfig\) : null/);
 });
