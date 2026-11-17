@@ -32,10 +32,10 @@ test('shared writing surface can draw and erase, without overwriting widget layo
 });
 
 test('right student list stays class-local, resizable, visible on touch, and uses existing public list', () => {
-  assert.equal(DEFAULT_COCKPIT_SIDEBAR_WIDTH, 420);
-  assert.equal(clampCockpitSidebarWidth(undefined), 420);
-  assert.equal(clampCockpitSidebarWidth(NaN), 420);
-  assert.equal(clampCockpitSidebarWidth(150), 300);
+  assert.equal(DEFAULT_COCKPIT_SIDEBAR_WIDTH, 320);
+  assert.equal(clampCockpitSidebarWidth(undefined), 320);
+  assert.equal(clampCockpitSidebarWidth(NaN), 320);
+  assert.equal(clampCockpitSidebarWidth(150), 292);
   assert.equal(clampCockpitSidebarWidth(900), 620);
   assert.equal(resizeCockpitSidebarWidth(420, 100, 50), 470);
   assert.equal(resizeCockpitSidebarWidth(420, 100, 150), 370);

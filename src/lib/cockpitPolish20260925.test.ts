@@ -16,7 +16,7 @@ test('cockpit keeps template creation visible while reducing themed outer frame'
   assert.match(surface, /Vorlage erstellen/);
   assert.match(surface, /setVorlagenStartTab\("create"\)/);
   assert.match(surface, /overflow-hidden flex flex-col p-1 sm:p-1\.5 gap-1/);
-  assert.match(surface, /min-h-\[46px\] py-1/);
+  assert.match(surface, /min-h-12 py-0\.5/);
   assert.match(surface, /klassio-whiteboard flex-1 relative/);
 });
 

@@ -4,6 +4,7 @@ import { getDisplayStudentName } from './studentSelectionUtils';
 import { useRef } from 'react';
 import { useWidgetSize } from './widgetLayout';
 import { getCompactStudentGridLayout, getStudentGridLayout } from '../../lib/studentWidgetGrid';
+import { getCockpitEarnedBadges } from '../../lib/cockpitEarnedBadges';
 
 interface Props {
   app: AppState;
@@ -53,10 +54,16 @@ export function PublicStudentListWidget({
   const listRef = useRef<HTMLDivElement>(null);
   const listSize = useWidgetSize(listRef);
   const [compact, setCompact] = useState(false);
-  const dense = !gridMode && (sidebarCompact || compact);
-  const compactGrid = !gridMode && (sidebarCompact || compact);
   const compactLayout = getCompactStudentGridLayout(listSize.width, listSize.height, students.length);
+  // On classroom screens, do not force teachers to scroll through a full class.
+  // Use the existing dense, two-column card layout when it actually fits.
+  // For very large classes or narrow panels, retain the scrollable list.
+  const autoCompactSidebar = sidebar && !sidebarCompact && !gridMode &&
+    students.length >= 10 && listSize.width >= 260 && compactLayout.fits;
+  const dense = !gridMode && (sidebarCompact || compact || autoCompactSidebar);
+  const compactGrid = !gridMode && (sidebarCompact || compact || autoCompactSidebar);
   const showBehavior = app.boardSettings?.showStudentBehaviorInPluspoints === true;
+  const showEarnedBadges = app.boardSettings?.showEarnedBadgesInCockpit === true;
   // Personal emoji is intentionally opt-in; do not invent a placeholder avatar.
   const showStudentEmoji = app.boardSettings?.showStudentEmojiInList === true;
   const [lastAwardedId, setLastAwardedId] = useState<string | null>(null);
@@ -148,15 +155,22 @@ export function PublicStudentListWidget({
             ? behaviorStages[(currentStageIndex + 1) % behaviorStages.length]
             : undefined;
           const isRecentlyAwarded = recentlyAwardedId === student.id;
+          const earnedBadges = getCockpitEarnedBadges(student, showEarnedBadges, compactGrid ? 2 : 3);
           const cardTone = isRecentlyAwarded
-            ? 'border-emerald-300 bg-emerald-50/90 ring-2 ring-emerald-200/80'
+            ? (socialMode ? 'border-sky-300 bg-sky-50/90 ring-2 ring-sky-200/80' : 'border-emerald-300 bg-emerald-50/90 ring-2 ring-emerald-200/80')
             : 'border-slate-200 bg-white hover:border-slate-300';
           if (compactGrid) {
             return (
               <div key={student.id} role="listitem"
-                className={`flex min-h-0 min-w-0 flex-col justify-center gap-0.5 rounded-lg border px-1.5 py-0.5 ${cardTone}`}>
-                <span className="block break-words text-xs font-semibold leading-tight text-slate-900">{onBadgeRequest ? <button type="button" className="text-left font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600" aria-label={`Badges für ${labels.get(student.id)} vergeben`} title="Badges vergeben" onClick={() => onBadgeRequest(student.id)}>{labels.get(student.id)}</button> : labels.get(student.id)}{(socialMode ? [] : student.badges?.filter(badge => badge.visibleInCockpit === true && badge.id !== "social-stars-10"))?.slice(-1).map(badge => <span key={badge.id} title={badge.name} aria-label={`Badge: ${badge.name}`}> {badge.icon}</span>)}</span>
-                <div className="flex min-w-0 items-center justify-between gap-1">
+                className={`flex min-h-0 min-w-0 items-center justify-between gap-1.5 rounded-lg border px-1.5 py-0.5 ${cardTone}`}>
+                <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
+                  <div className="flex min-w-0 items-center gap-0.5">
+                    <span className="min-w-0 flex-1 truncate text-xs font-semibold leading-tight text-slate-900" title={labels.get(student.id)}>
+                      {onBadgeRequest ? <button type="button" className="max-w-full truncate text-left font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600" aria-label={`Badges für ${labels.get(student.id)} vergeben`} title="Badges vergeben" onClick={() => onBadgeRequest(student.id)}>{labels.get(student.id)}</button> : labels.get(student.id)}
+                    </span>
+                    {earnedBadges.visible.map(badge => <span key={badge.id} data-earned-badge title={badge.name} aria-label={`Verdientes Badge: ${badge.name}`} className="shrink-0 text-xs leading-none">{badge.icon}</span>)}
+                    {earnedBadges.more > 0 && <span title={`Weitere Badges: ${earnedBadges.remainingNames.join(', ')}`} aria-label={`${earnedBadges.more} weitere verdiente Badges`} className="shrink-0 text-[9px] font-bold text-slate-600">+${earnedBadges.more}</span>}
+                  </div>
                   <div className="flex min-w-0 items-center gap-1">
                     {showBehavior && behaviorStage && <span className="sr-only" aria-label={`Verhaltensstatus: ${behaviorStage.label}`}>{behaviorStage.label}</span>}
                     {showBehavior && behaviorStage && (onBehaviorStageChange ? (
@@ -170,13 +184,14 @@ export function PublicStudentListWidget({
                     ) : <span title={behaviorStage.label} className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs ${behaviorColor}`}>{behaviorStage.icon || '●'}</span>)}
                     <span className={`text-[10px] tabular-nums ${points > 0 ? 'font-semibold text-emerald-800' : 'text-slate-500'}`} aria-label={`${points} Pluspunkte`}>{socialMode ? `${points} ⭐` : points}</span>
                   </div>
-                  <button type="button" onClick={event => addParticipation(student.id, event, () => {
-                    setLastAwardedId(student.id);
-                    setRecentlyAwardedId(student.id);
-                  })}
-                    className="h-8 w-8 shrink-0 rounded-md bg-emerald-600 text-xs font-extrabold text-white hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
-                    aria-label={`${socialMode ? "Sozialpunkt" : "Pluspunkt"} für ${labels.get(student.id)} vergeben`}>+1</button>
                 </div>
+                <button type="button" onClick={event => addParticipation(student.id, event, () => {
+                  setLastAwardedId(student.id);
+                  setRecentlyAwardedId(student.id);
+                })}
+                  className={`min-h-11 min-w-11 shrink-0 rounded-lg text-sm font-extrabold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 ${socialMode ? "bg-sky-600 hover:bg-sky-700" : "bg-emerald-600 hover:bg-emerald-700"}`}
+                  title={socialMode ? "Sozialpunkt für das Sozialverhalten" : "Mitarbeitspunkt für ein Unterrichtsfach"}
+                  aria-label={`${socialMode ? "Sozialpunkt" : "Pluspunkt"} für ${labels.get(student.id)} vergeben`}>+1</button>
               </div>
             );
           }
@@ -209,7 +224,13 @@ export function PublicStudentListWidget({
                     )
                   )}
                   <div className="min-w-0 flex-1">
-                    <span className={`block break-words font-extrabold leading-tight text-slate-900 ${gridMode ? 'text-xs sm:text-sm' : dense ? 'text-xs' : 'text-base'}`}>{onBadgeRequest ? <button type="button" className="text-left font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600" aria-label={`Badges für ${labels.get(student.id)} vergeben`} title="Badges vergeben" onClick={() => onBadgeRequest(student.id)}>{labels.get(student.id)}</button> : labels.get(student.id)}{(socialMode ? [] : student.badges?.filter(badge => badge.visibleInCockpit === true && badge.id !== "social-stars-10"))?.slice(-1).map(badge => <span key={badge.id} title={badge.name} aria-label={`Badge: ${badge.name}`}> {badge.icon}</span>)}</span>
+                    <div className="flex min-w-0 items-center gap-1">
+                      <span className={`min-w-0 flex-1 truncate font-extrabold leading-tight text-slate-900 ${gridMode ? 'text-xs sm:text-sm' : dense ? 'text-xs' : 'text-base'}`} title={labels.get(student.id)}>
+                        {onBadgeRequest ? <button type="button" className="max-w-full truncate text-left font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600" aria-label={`Badges für ${labels.get(student.id)} vergeben`} onClick={() => onBadgeRequest(student.id)}>{labels.get(student.id)}</button> : labels.get(student.id)}
+                      </span>
+                      {earnedBadges.visible.map(badge => <span key={badge.id} data-earned-badge title={badge.name} aria-label={`Verdientes Badge: ${badge.name}`} className="shrink-0 text-sm leading-none">{badge.icon}</span>)}
+                      {earnedBadges.more > 0 && <span title={`Weitere Badges: ${earnedBadges.remainingNames.join(', ')}`} aria-label={`${earnedBadges.more} weitere verdiente Badges`} className="shrink-0 text-[10px] font-bold text-slate-600">+${earnedBadges.more}</span>}
+                    </div>
                     <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
                       <span className={sidebar ? `block text-xs tabular-nums ${points > 0 ? 'font-semibold text-emerald-800' : 'text-slate-500'}` : `block font-bold text-amber-800 ${dense ? 'text-[10px]' : 'text-sm'}`} aria-label={`${points} Pluspunkte`}>
                         {socialMode ? `${points} ⭐` : sidebar ? points : dense ? `${points} P.` : gridMode ? `⭐ ${points}` : `${'⭐'.repeat(Math.min(points, 8))}${points > 8 ? '…' : ''} ${points}`}
@@ -240,8 +261,9 @@ export function PublicStudentListWidget({
                         setRecentlyAwardedId(student.id);
                       });
                     }}
-                    className={`${dense ? 'min-h-11 min-w-11 px-1 text-xs rounded-lg' : 'min-h-11 min-w-11 px-3 text-lg rounded-xl'} bg-emerald-600 font-extrabold text-white shadow-sm transition-transform hover:bg-emerald-700 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600`}
+                    className={`${dense ? 'min-h-11 min-w-11 px-1 text-xs rounded-lg' : 'min-h-11 min-w-11 px-3 text-lg rounded-xl'} ${socialMode ? 'bg-sky-600 hover:bg-sky-700' : 'bg-emerald-600 hover:bg-emerald-700'} font-extrabold text-white shadow-sm transition-transform active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600`}
                     aria-label={`${socialMode ? "Sozialpunkt" : "Pluspunkt"} für ${labels.get(student.id)} vergeben`}
+                    title={socialMode ? "Sozialpunkt für das Sozialverhalten" : "Mitarbeitspunkt für ein Unterrichtsfach"}
                   >{recentlyAwardedId === student.id && !dense ? '✓ +1' : '+1'}</button>
                 </div>
               </div>

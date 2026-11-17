@@ -638,9 +638,14 @@ async function main() {
     const automaticSubject = await evaluate(client, `document.querySelector('.klassio-student-sidebar [role=dialog] strong').textContent`);
     await clickButton(client, 'Fertig');
     await clickPlus();
-    await waitFor(client, 'automatic subject awards immediately', pointsExpression + ' === ' + (initialPoints + 2));
-    if (await evaluate(client, `Boolean(document.querySelector('[role=dialog][aria-label="Fach für Mitarbeit auswählen"]'))`)) throw new Error('Automatic mode must not ask for a subject.');
-    await clickButton(client, '🤝 Sozial +1');
+    const fallbackPickerOpen = await evaluate(client, `Boolean(document.querySelector('[role=dialog][aria-label="Fach für Mitarbeit auswählen"]'))`);
+    if (fallbackPickerOpen) {
+      // A placeholder like Unterricht must never silently receive Fachpunkte.
+      await evaluate(client, `Array.from(document.querySelectorAll('.klassio-student-sidebar [role=dialog] button')).find(b => b.textContent.trim() === 'Deutsch').click()`);
+    }
+    await waitFor(client, 'valid subject or explicitly chosen fallback awards once', pointsExpression + ' === ' + (initialPoints + 2));
+    const awardedSubject = fallbackPickerOpen ? 'Deutsch' : automaticSubject;
+    await clickButton(client, 'Sozialverhalten');
     await waitFor(client, 'social star counter', `document.querySelector('.klassio-student-sidebar [role=listitem] [aria-label$="Pluspunkte"]').textContent.includes('⭐') && !document.querySelector('.klassio-student-sidebar [role=listitem] [aria-label$="Pluspunkte"]').textContent.includes('/10')`);
     for (let stars = 1; stars <= 10; stars++) {
       await evaluate(client, `document.querySelector('.klassio-student-sidebar button[aria-label^="Sozialpunkt für"]').click()`);
@@ -652,7 +657,7 @@ async function main() {
     await waitFor(client, 'social correction removes tenth star', pointsExpression + ` === 9 && !document.querySelector('.klassio-student-sidebar [role=listitem] [aria-label="Badge für 10 soziale Sterne"]')`);
     await evaluate(client, `document.querySelector('.klassio-student-sidebar button[aria-label^="Sozialpunkt für"]').click()`);
     await waitFor(client, 'social tenth star without an automatic badge', pointsExpression + ` === 10 && document.querySelectorAll('.klassio-student-sidebar [role=listitem] [aria-label="Badge für 10 soziale Sterne"]').length === 0`);
-    await clickButton(client, 'Fach +1');
+    await clickButton(client, 'Mitarbeit');
     await waitFor(client, 'subject and social counters remain separate', pointsExpression + ' === ' + (initialPoints + 2));
     await evaluate(client, `document.querySelector('.klassio-student-sidebar button[aria-label^="Badges für"]').click()`);
     await waitFor(client, 'badge picker opened by student name', `Boolean(document.querySelector('.klassio-student-sidebar [role=dialog][aria-label^="Badges für"]'))`);
@@ -683,7 +688,7 @@ async function main() {
     await waitFor(client, 'student list restored after chart', pointsExpression + ' === ' + (initialPoints + 2));
     console.log('✓ Sidebar: all/social/unassigned/subject stars with total/month/semester/week chart; gradebook still shares awarded subject data.');
     await openGradebook();
-    const expectedBookPoints = initialBookPoints + 1 + (automaticSubject === 'Deutsch' ? 1 : 0);
+    const expectedBookPoints = initialBookPoints + 1 + (awardedSubject === 'Deutsch' ? 1 : 0);
     await waitFor(client, 'subject awards appear in gradebook and social stars do not change it', bookPointsExpression + ' === ' + expectedBookPoints);
     await clickSidebar(client, 'Lehrercockpit');
     await waitFor(client, 'cockpit reopened for multiple-point correction', `Boolean(document.querySelector('.klassio-student-sidebar button[aria-label^="Pluspunkt für"]'))`);
@@ -719,7 +724,7 @@ async function main() {
     };
     await resetStars('subject');
     await waitFor(client, 'multiple subject errors reset the counter', pointsExpression + ' === 0');
-    await clickButton(client, '🤝 Sozial +1');
+    await clickButton(client, 'Sozialverhalten');
     await waitFor(client, 'subject reset preserves social stars', pointsExpression + ' === 10');
     await resetStars('social');
     await waitFor(client, 'social counter resets independently', pointsExpression + ' === 0');

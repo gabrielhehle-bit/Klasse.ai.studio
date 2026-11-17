@@ -17,11 +17,13 @@ const time = (value?: string | null) => value && Number.isFinite(Date.parse(valu
 export default function SaveSyncStatus({
   onOpenTeam,
   compact = false,
+  inlineLabel = false,
   fullWidth = false,
 }: {
   onOpenTeam?: () => void;
   fullWidth?: boolean;
   compact?: boolean;
+  inlineLabel?: boolean;
 }) {
   const {
     app,
@@ -119,12 +121,13 @@ export default function SaveSyncStatus({
         <summary
           aria-label={`Speicherstatus: ${statusTitle}`}
           title={statusTitle}
-          className={`flex min-h-11 shrink-0 cursor-pointer list-none items-center outline-none transition hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-400 [&::-webkit-details-marker]:hidden ${fullWidth ? "w-full justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3" : "w-11 justify-center rounded-full"}`}
+          className={`flex min-h-11 shrink-0 cursor-pointer list-none items-center outline-none transition hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-400 [&::-webkit-details-marker]:hidden ${fullWidth ? "w-full justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3" : inlineLabel ? "min-w-11 max-w-44 justify-start gap-1.5 rounded-lg px-2" : "w-11 justify-center rounded-full"}`}
         >
           <span
             aria-hidden="true"
             className={`h-2.5 w-2.5 shrink-0 rounded-full ${state.attention ? 'bg-rose-500' : state.ready ? 'bg-emerald-500' : 'bg-amber-400'}`}
           />
+          {inlineLabel && !fullWidth && <span data-testid="cockpit-save-state" className="max-w-36 truncate text-[10px] font-semibold leading-tight text-slate-700">{state.compactLabel}</span>}
           {fullWidth && <span data-testid="mobile-save-state" className="min-w-0 flex-1 text-left text-xs font-semibold leading-5 text-slate-800">{state.compactLabel}</span>}
           {fullWidth && <ChevronDown aria-hidden="true" size={16} className="shrink-0 text-slate-500" />}
           <span role="status" className="sr-only">

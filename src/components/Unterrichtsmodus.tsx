@@ -8,6 +8,7 @@ import ParticipationResetPanel from './cockpit/ParticipationResetPanel';
 import ParticipationSubjectPicker from './cockpit/ParticipationSubjectPicker';
 import StudentBadgePicker from './cockpit/StudentBadgePicker';
 import { commitParticipationAward, commitSocialAward, getSocialStars, undoLatestParticipationAward, undoParticipationAward } from '../lib/participationAward';
+import { resolveAutomaticParticipationSubject } from '../lib/cockpitParticipationSubject';
 import { MASCOT_RITUAL_EVENT } from '../lib/classMascot';
 import { shouldApplyTafelCommand } from '../lib/tafelCommands';
 import { getTodayIsoDate } from '../lib/kidAttendanceAlgorithm';
@@ -202,6 +203,7 @@ import { findCockpitWidgetOpeningPlacement } from "../lib/cockpitWidgetPlacement
 import {
   COMPACT_COCKPIT_SIDEBAR_WIDTH,
   clampCockpitSidebarWidth,
+  getCockpitSidebarPreferredWidth,
   getCockpitSidebarReservedRightPx,
   resizeCockpitSidebarWidth,
 } from "../lib/cockpitSidebarLayout";
@@ -5937,7 +5939,7 @@ ${content}
   };
   const [sidebarContent, setSidebarContent] = useState<'students' | 'stars'>('students');
   const sidebarMode = app.boardSettings?.sidebarMode || "hidden";
-  const sidebarPreferredWidth = clampCockpitSidebarWidth((app.boardSettings as any)?.cockpitStudentSidebarWidthByClass?.[boardTextClassKey]);
+  const sidebarPreferredWidth = getCockpitSidebarPreferredWidth((app.boardSettings as any)?.cockpitStudentSidebarWidthByClass?.[boardTextClassKey]);
   const [sidebarResizePreview, setSidebarResizePreview] = useState<number | null>(null);
   const [prevSidebarMode, setPrevSidebarMode] = useState<"expanded" | "mini">(
     "expanded",
@@ -7114,7 +7116,7 @@ ${content}
   }, [sidebarMode, pendingParticipation?.inSidebar]);
   const awardParticipation = (sid: string, subject: string, classId: string, event?: React.MouseEvent, onAwarded?: () => void) => {
     if (classId !== app.activeClassId || !app.schueler.some(student => student.id === sid)
-      || !subject || (app.participationSettings?.subjectMode === 'choose' && !app.faecher?.includes(subject))) return;
+      || !subject || !app.faecher?.includes(subject)) return;
     const id = crypto.randomUUID();
     setApp(prev => commitParticipationAward(prev, { id, sid, subject, classId }));
     lastParticipationAward.current = { id, sid, subject, classId };
@@ -7127,11 +7129,16 @@ ${content}
   // Reward Logic Helpers
   const addParticipation = (sid: string, event?: React.MouseEvent, onAwarded?: () => void) => {
     if (!app.activeClassId) return;
-    if (app.participationSettings?.subjectMode === 'choose') {
+    // Outside a real subject lesson "Unterricht" is just a UI placeholder.
+    // Never record it as a subject/gradebook item: ask for a real class subject.
+    const automaticSubject = resolveAutomaticParticipationSubject(
+      getActiveSubject(), app.faecher, app.participationSettings?.subjectMode,
+    );
+    if (!automaticSubject) {
       setPendingParticipation({ sid, classId: app.activeClassId, event, onAwarded, inSidebar: Boolean(event?.currentTarget.closest(".klassio-student-sidebar")) });
       return;
     }
-    awardParticipation(sid, getActiveSubject(), app.activeClassId, event, onAwarded);
+    awardParticipation(sid, automaticSubject, app.activeClassId, event, onAwarded);
   };
 
   const addSocialParticipation = (sid: string, event?: React.MouseEvent, onAwarded?: () => void) => {
@@ -8357,35 +8364,38 @@ ${content}
       />
       {/* HEADER ROOM */}
       <header
-        className={`w-full px-2 sm:px-3 min-h-[46px] py-1 flex justify-between items-center relative z-[500] shrink-0 border shadow-sm backdrop-blur-xl rounded-xl gap-2 overflow-visible ${currentIsLight ? "bg-white/90 border-slate-200" : "bg-black/60 border-white/10"} dim-in-focus`}
+        className={`w-full px-2 sm:px-3 min-h-12 py-0.5 flex justify-between items-center relative z-[500] shrink-0 border shadow-sm backdrop-blur-xl rounded-xl gap-1.5 overflow-visible ${currentIsLight ? "bg-white/90 border-slate-200" : "bg-black/60 border-white/10"} dim-in-focus`}
       >
         {/* Left: Branding & Status */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 flex-initial shrink-0 min-w-0">
+        <div className="flex items-center gap-1.5 flex-initial min-w-0">
           <button
             onClick={handleCloseCockpit}
-            className={`p-1.5 sm:p-2 rounded-lg transition-all cursor-pointer border shadow-md hover:scale-105 active:scale-95 ${currentIsLight ? "bg-black/5 border-black/10 text-slate-700 hover:bg-black/10 hover:text-black" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/15 hover:text-white"}`}
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border transition-colors ${currentIsLight ? "bg-black/5 border-black/10 text-slate-700 hover:bg-black/10 hover:text-black" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/15 hover:text-white"}`}
             title="Lehrercockpit schließen · Zurück zu Heute"
             aria-label="Lehrercockpit schließen · Zurück zu Heute"
           >
             <ArrowLeft size={16} strokeWidth={2.5} />
           </button>
 
-          <div className="flex flex-col justify-center">
+          <div className="flex min-w-0 flex-wrap items-center justify-start gap-x-2 gap-y-0.5">
             <div
-              className={`text-xs sm:text-sm font-black tracking-tight flex items-center gap-1 sm:gap-1.5 ${currentIsLight ? "text-slate-950" : "text-white"}`}
+              className={`flex min-w-0 items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-black tracking-tight ${currentIsLight ? "text-slate-950" : "text-white"}`}
             >
-              LEHRERCOCKPIT
+              <span className="shrink-0">LEHRERCOCKPIT</span>
               {cockpitClassLabel && (
                 <span
-                  className={`px-1 sm:px-1.5 py-0.5 border rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider shadow-sm transition-all duration-300 ${getThemeClassBadgeClasses()}`}
+                  className={`min-w-0 max-w-40 truncate px-1 sm:px-1.5 py-0.5 border rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider shadow-sm transition-all duration-300 ${getThemeClassBadgeClasses()}`}
                   style={getThemeClassBadgeStyle()}
+                  title={cockpitClassLabel}
                 >
                   {cockpitClassLabel}
                 </span>
               )}
+            </div>
+            <div className="flex min-w-0 items-center gap-1" aria-label="Speicherung und Klassenteam">
+              <SaveSyncStatus compact inlineLabel onOpenTeam={() => { handleCloseCockpit(); setPage("teamteaching"); }} />
               <ClassTeamStatus onOpen={() => { handleCloseCockpit(); setPage("teamteaching"); }} />
             </div>
-            <SaveSyncStatus compact onOpenTeam={() => { handleCloseCockpit(); setPage("teamteaching"); }} />
           </div>
         </div>
 
@@ -8393,7 +8403,7 @@ ${content}
         {(() => {
           const subjectColors = getSubjectColorClasses(getActiveSubject());
           return (
-            <div className="hidden md:flex flex-col items-center flex-shrink-0 w-64 xl:w-80 max-w-[32%] px-1.5">
+            <div className="hidden md:flex flex-col items-center flex-shrink-0 w-32 xl:w-48 max-w-[17%] px-1" aria-label={currentHour ? `Aktuelles Fach: ${getActiveSubject()}` : "Keine aktuelle Stunde laut Stundenplan"}>
               <div className="w-full flex justify-between items-center mb-0.5 px-0.5">
                 {/* Subject name */}
                 <div className="flex items-center gap-1 min-w-0">
@@ -8404,7 +8414,7 @@ ${content}
                         : "text-white/95"
                     }`}
                   >
-                    {getActiveSubject() || "Unterricht"}
+                    {currentHour ? (getActiveSubject() || "Unterricht") : "Freie Tafel"}
                   </span>
                 </div>
 
@@ -8457,11 +8467,11 @@ ${content}
         })()}
 
         {/* Right: Actions, Clock & Controls */}
-        <div className="flex flex-nowrap items-center justify-end gap-1 sm:gap-2 xl:gap-2.5 flex-1 min-w-0 py-1">
+        <div className="flex flex-nowrap items-center justify-end gap-1 sm:gap-1.5 flex-1 min-w-0 py-0.5">
           <button
             type="button"
             onClick={openCockpitHelp}
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-all hover:scale-105 active:scale-95 ${
+            className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border transition-colors ${
               currentIsLight
                 ? "border-black/10 bg-black/5 text-slate-700 hover:bg-black/10"
                 : "border-white/10 bg-white/5 text-white/80 hover:bg-white/15 hover:text-white"
@@ -8575,7 +8585,7 @@ ${content}
                 })}
               </span>
               <span
-                className={`text-[7px] sm:text-[7.5px] xl:text-[8px] font-black uppercase tracking-[0.15em] mt-0.5 ${currentIsLight ? "text-slate-500" : "text-white/40"}`}
+                className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.06em] mt-0.5 ${currentIsLight ? "text-slate-500" : "text-white/40"}`}
               >
                 {time
                   .toLocaleDateString("de-DE", { weekday: "short" })
@@ -9944,6 +9954,17 @@ ${content}
                             <span className="hidden lg:inline ml-1">{isFullscreen ? "Vollbild aus" : "Vollbild"}</span>
                           </button>
 
+                          {/* Tafel priorisieren: nur die vorhandene Schüler-Seitenleiste umschalten. */}
+                          <button type="button"
+                            onClick={() => changeSidebarMode(sidebarMode === "hidden" ? prevSidebarMode : "hidden")}
+                            aria-label={sidebarMode === "hidden" ? "Schülerliste wieder anzeigen" : "Tafel groß anzeigen"}
+                            aria-pressed={sidebarMode === "hidden"}
+                            title={sidebarMode === "hidden" ? "Schülerliste wieder anzeigen" : "Mehr Platz für die Tafel – Schülerliste ausblenden"}
+                            className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-2.5 text-xs font-semibold transition-colors ${sidebarMode === "hidden" ? "border-accent bg-accent-soft text-accent" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>
+                            {sidebarMode === "hidden" ? <Users size={15} /> : <Maximize2 size={15} />}
+                            <span className="hidden lg:inline">{sidebarMode === "hidden" ? "Schülerliste" : "Tafel groß"}</span>
+                          </button>
+
                           <button
                             type="button"
                             onClick={() => {
@@ -9959,8 +9980,8 @@ ${content}
                             title="Aktuelles Widget-Layout als neue Vorlage speichern"
                           >
                             <Save size={13} />
-                            <span className="hidden md:inline">Vorlage erstellen</span>
-                            <span className="md:hidden">Vorlage</span>
+                            <span className="hidden xl:inline">Vorlage erstellen</span>
+                            <span className="xl:hidden">Vorlage</span>
                           </button>
 
                           {/* Secondary Actions: Dropdown Menu (••• Optionen) */}
@@ -10124,6 +10145,24 @@ ${content}
                                   <span className="min-w-0 flex-1 whitespace-normal break-words">
                                     <span className="block leading-5">Verhalten anzeigen</span>
                                     <span className="block text-[10px] font-normal leading-4 opacity-75">Auch am Smartboard sichtbar · ohne Notizen. Ein Klick auf das Symbol geht eine Stufe weiter.</span>
+                                  </span>
+                                </label>
+
+                                <label className={`flex min-h-11 w-full shrink-0 cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold leading-5 ${currentIsLight ? "border-slate-200 bg-slate-50 text-slate-800" : "border-white/10 bg-white/5 text-white"}`}
+                                  title="Nur tatsächlich vergebene, ausdrücklich für das Cockpit freigegebene Badges öffentlich anzeigen. Keine automatisch errechneten Auszeichnungen.">
+                                  <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0 accent-amber-600"
+                                    aria-label="Verdiente Kinder-Badges in der Schülerliste anzeigen"
+                                    checked={app.boardSettings?.showEarnedBadgesInCockpit === true}
+                                    onChange={event => setApp(prev => ({
+                                      ...prev,
+                                      boardSettings: {
+                                        ...prev.boardSettings,
+                                        showEarnedBadgesInCockpit: event.target.checked,
+                                      },
+                                    }))} />
+                                  <span className="min-w-0 flex-1 whitespace-normal break-words">
+                                    <span className="block leading-5">Verdiente Badges anzeigen</span>
+                                    <span className="block text-[10px] font-normal leading-4 opacity-75">Nur vergebene und freigegebene Badges – bis zu zwei in kleinen Karten, weitere als +Anzahl. Über das Pokal-Symbol schnell umschaltbar.</span>
                                   </span>
                                 </label>
 
@@ -12721,7 +12760,7 @@ ${content}
                     >
                       {sidebarMode === "expanded" && !isAddWidgetMenuOpen && !isWidgetConfigurationOpen && !widgetSettingsOpenId && !openSettingsId && (
                         <div role="separator" tabIndex={0} aria-orientation="vertical"
-                          aria-label="Breite der Schülerliste ändern" aria-valuemin={300} aria-valuemax={620}
+                          aria-label="Breite der Schülerliste ändern" aria-valuemin={292} aria-valuemax={620}
                           aria-valuenow={sidebarResizePreview ?? sidebarPreferredWidth}
                           onPointerDown={handleSidebarResizeStart}
                           onKeyDown={event => {
@@ -12743,6 +12782,19 @@ ${content}
                             <option value="students">{cockpitClassLabel || 'Klasse'} · {app.schueler.length} Kinder</option><option value="stars">Sterneübersicht · Diagramm</option>
                           </select>
                           <button type="button"
+                            aria-label={app.boardSettings?.showEarnedBadgesInCockpit === true ? "Verdiente Badges ausblenden" : "Verdiente Badges anzeigen"}
+                            aria-pressed={app.boardSettings?.showEarnedBadgesInCockpit === true}
+                            title={app.boardSettings?.showEarnedBadgesInCockpit === true ? "Verdiente Kinder-Badges ausblenden" : "Verdiente Kinder-Badges anzeigen"}
+                            onClick={() => setApp(prev => ({
+                              ...prev, boardSettings: {
+                                ...prev.boardSettings,
+                                showEarnedBadgesInCockpit: prev.boardSettings?.showEarnedBadgesInCockpit !== true,
+                              },
+                            }))}
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600 ${app.boardSettings?.showEarnedBadgesInCockpit ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-100'}`}>
+                            <Trophy size={16} aria-hidden="true" />
+                          </button>
+                          <button type="button"
                             aria-label={sidebarMode === "mini" ? "Schüler-Seitenleiste groß anzeigen" : "Schüler-Seitenleiste kompakt anzeigen"}
                             aria-pressed={sidebarMode === "mini"}
                             title={sidebarMode === "mini" ? "Große Ansicht" : "Kompakte Ansicht – alle Kinder sichtbar"}
@@ -12759,11 +12811,12 @@ ${content}
                             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600"><X size={16} /></button>
                         </div>
                         <div role="group" aria-label="Pluspunkt-Art" className="mt-1 flex gap-1 rounded-lg bg-slate-100 p-0.5">
-                          {([['subject', 'Fach +1'], ['social', '🤝 Sozial +1']] as const).map(([kind, label]) => <button key={kind} type="button"
+                          {([['subject', 'Mitarbeit'], ['social', 'Sozialverhalten']] as const).map(([kind, label]) => <button key={kind} type="button"
                             aria-pressed={sidebarParticipationKind === kind}
-                            title={kind === 'subject' ? `Mitarbeit · ${getActiveSubject()}` : 'Soziale Sterne'}
+                            aria-label={kind === 'subject' ? `Mitarbeit im Fach ${getActiveSubject()}` : 'Sozialverhalten'}
+                            title={kind === 'subject' ? (app.faecher?.includes(getActiveSubject()) ? `Mitarbeitspunkte im Fach ${getActiveSubject()} erfassen` : 'Mitarbeitspunkt vergeben – Fach wird ausgewählt') : 'Sozialpunkte erfassen (getrennt von Verhaltensstufen)'}
                             onClick={() => { setPendingParticipation(null); setSidebarParticipationKind(kind); }}
-                            className={`min-h-8 flex-1 rounded-md px-2 text-xs font-semibold ${sidebarParticipationKind === kind ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>{label}</button>)}
+                            className={`min-h-8 flex-1 rounded-md px-2 text-xs font-semibold ${sidebarParticipationKind === kind ? (kind === 'subject' ? 'bg-white text-emerald-800 shadow-sm' : 'bg-white text-sky-800 shadow-sm') : 'text-slate-500 hover:text-slate-800'}`}>{label}</button>)}
                         </div>
                       </div>
 
