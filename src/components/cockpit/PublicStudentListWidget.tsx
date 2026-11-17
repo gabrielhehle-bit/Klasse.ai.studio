@@ -149,7 +149,7 @@ export function PublicStudentListWidget({
             : undefined;
           const isRecentlyAwarded = recentlyAwardedId === student.id;
           const cardTone = isRecentlyAwarded
-            ? 'border-emerald-300 bg-emerald-50/90 ring-2 ring-emerald-200/80'
+            ? (socialMode ? 'border-sky-300 bg-sky-50/90 ring-2 ring-sky-200/80' : 'border-emerald-300 bg-emerald-50/90 ring-2 ring-emerald-200/80')
             : 'border-slate-200 bg-white hover:border-slate-300';
           if (compactGrid) {
             return (
@@ -174,7 +174,8 @@ export function PublicStudentListWidget({
                     setLastAwardedId(student.id);
                     setRecentlyAwardedId(student.id);
                   })}
-                    className="h-8 w-8 shrink-0 rounded-md bg-emerald-600 text-xs font-extrabold text-white hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
+                    className={`h-8 w-8 shrink-0 rounded-md text-xs font-extrabold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 ${socialMode ? "bg-sky-600 hover:bg-sky-700" : "bg-emerald-600 hover:bg-emerald-700"}`}
+                    title={socialMode ? "Sozialpunkt für das Sozialverhalten" : "Mitarbeitspunkt für ein Unterrichtsfach"}
                     aria-label={`${socialMode ? "Sozialpunkt" : "Pluspunkt"} für ${labels.get(student.id)} vergeben`}>+1</button>
                 </div>
               </div>
@@ -240,8 +241,9 @@ export function PublicStudentListWidget({
                         setRecentlyAwardedId(student.id);
                       });
                     }}
-                    className={`${dense ? 'min-h-11 min-w-11 px-1 text-xs rounded-lg' : 'min-h-11 min-w-11 px-3 text-lg rounded-xl'} bg-emerald-600 font-extrabold text-white shadow-sm transition-transform hover:bg-emerald-700 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600`}
+                    className={`${dense ? 'min-h-11 min-w-11 px-1 text-xs rounded-lg' : 'min-h-11 min-w-11 px-3 text-lg rounded-xl'} ${socialMode ? 'bg-sky-600 hover:bg-sky-700' : 'bg-emerald-600 hover:bg-emerald-700'} font-extrabold text-white shadow-sm transition-transform active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600`}
                     aria-label={`${socialMode ? "Sozialpunkt" : "Pluspunkt"} für ${labels.get(student.id)} vergeben`}
+                    title={socialMode ? "Sozialpunkt für das Sozialverhalten" : "Mitarbeitspunkt für ein Unterrichtsfach"}
                   >{recentlyAwardedId === student.id && !dense ? '✓ +1' : '+1'}</button>
                 </div>
               </div>
