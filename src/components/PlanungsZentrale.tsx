@@ -1409,7 +1409,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                                     key={hourIdx}
                                     onClick={() => openSlotForQuickPlan(dIdx, hourIdx)}
                                     data-klassio-subject-card={lesson.fach}
-                                    data-klassio-subject-outline
+                                    data-klassio-subject-outline="true"
                                     style={{ '--fach-card-bg': fachTheme.bgLight, '--fach-card-border': fachTheme.borderColor } as React.CSSProperties}
                                     className={`p-2 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between h-20 ${style.bg} ${style.border}`}
                                   >
@@ -1571,7 +1571,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                               onClick={() => setActiveSubject(subj)}
                               aria-pressed={isActive}
                               data-klassio-subject-card={subj}
-                              data-klassio-subject-outline
+                              data-klassio-subject-outline="true"
                               style={{
                                 '--fach-card-bg': isActive ? fachTheme.bgMedium : fachTheme.bgLight,
                                 '--fach-card-border': isActive ? fachTheme.hex : fachTheme.borderColor,
