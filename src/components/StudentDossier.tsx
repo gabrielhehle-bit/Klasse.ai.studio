@@ -5,7 +5,7 @@ import {
   Stethoscope, GraduationCap, Banknote, FileText, ChevronRight, ChevronDown,
   ArrowLeft, Clock, Save, Edit3, Trash2, Award, ClipboardList,
   AlertCircle, Compass, Calendar, Shield, CheckCircle2,
-  BookOpen, Phone, ListChecks
+  BookOpen, Phone, ListChecks, MoreHorizontal
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { exportSchuelerPDF } from '../lib/exportService';
@@ -410,13 +410,13 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
             <ChevronRight size={14} />
           </button>
           <details className="relative shrink-0">
-            <summary aria-label="Dossieraktionen öffnen" title="Dossieraktionen öffnen" className={`flex min-h-11 items-center justify-center cursor-pointer list-none rounded-xl border px-2.5 py-2 text-xs font-semibold ${app.dossierFocusMode?'border-slate-700 bg-slate-800 text-slate-300':'border-slate-200 text-slate-600'}`}>•••</summary>
-            <div className="absolute right-0 top-full z-40 mt-2 w-52 rounded-xl border border-slate-200 bg-white p-2 text-slate-800 shadow-lg">
-              <button type="button" onClick={() => exportSchuelerPDF(student.id, app)} className="block w-full rounded-lg p-2 text-left text-xs hover:bg-slate-50">Dossier (PDF)</button>
-              <button type="button" onClick={() => setPresentationModeActive(true)} className="block w-full rounded-lg p-2 text-left text-xs hover:bg-slate-50">KEL für Eltern</button>
-              <button type="button" onClick={() => { setApp(prev => ({ ...prev, activePrintTemplate: 'kel_elternblatt', activePrintStudentId: student.id })); setPage?.('drucken'); }} className="block w-full rounded-lg p-2 text-left text-xs font-semibold text-teal-800 hover:bg-teal-50">KEL-Elternblatt drucken</button>
-              <button type="button" onClick={() => { setApp(prev => ({ ...prev, activePrintTemplate: 'schuelerprofil', activePrintStudentId: student.id })); setPage?.('drucken'); }} className="block w-full rounded-lg p-2 text-left text-xs hover:bg-slate-50">Dossier drucken</button>
-              <button type="button" onClick={() => setApp(prev => ({...prev,dossierFocusMode:!prev.dossierFocusMode}))} className="block w-full rounded-lg p-2 text-left text-xs font-semibold text-indigo-700 hover:bg-indigo-50">{app.dossierFocusMode?'Fokusmodus beenden':'Fokusmodus starten'}</button>
+            <summary aria-label="Dossieraktionen öffnen" title="Dossieraktionen öffnen" className={`flex min-h-11 min-w-11 items-center justify-center cursor-pointer list-none rounded-xl border px-2.5 py-2 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${app.dossierFocusMode?'border-slate-700 bg-slate-800 text-slate-300':'border-[var(--border)] bg-[var(--surface2)] text-[var(--text)]'}`}><MoreHorizontal size={20} aria-hidden="true" /></summary>
+            <div data-dossier-actions-menu className="absolute right-0 top-full z-40 mt-2 max-h-[70dvh] w-64 max-w-[calc(100vw-2.5rem)] overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--text)] shadow-xl">
+              <button type="button" onClick={() => exportSchuelerPDF(student.id, app)} className="flex min-h-11 w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-semibold hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">Dossier (PDF)</button>
+              <button type="button" onClick={() => setPresentationModeActive(true)} className="flex min-h-11 w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-semibold hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">KEL für Eltern</button>
+              <button type="button" onClick={() => { setApp(prev => ({ ...prev, activePrintTemplate: 'kel_elternblatt', activePrintStudentId: student.id })); setPage?.('drucken'); }} className="flex min-h-11 w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-[var(--accent)] hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">KEL-Elternblatt drucken</button>
+              <button type="button" onClick={() => { setApp(prev => ({ ...prev, activePrintTemplate: 'schuelerprofil', activePrintStudentId: student.id })); setPage?.('drucken'); }} className="flex min-h-11 w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-semibold hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">Dossier drucken</button>
+              <button type="button" onClick={() => setApp(prev => ({...prev,dossierFocusMode:!prev.dossierFocusMode}))} className="flex min-h-11 w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-[var(--text)] hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">{app.dossierFocusMode?'Fokusmodus beenden':'Fokusmodus starten'}</button>
             </div>
           </details>
         </div>
