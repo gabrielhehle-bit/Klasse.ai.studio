@@ -4395,7 +4395,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                   aria-modal="true"
                   aria-labelledby="gradebook-add-assessment-title"
                   aria-describedby="gradebook-add-assessment-description"
-                  className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg p-6"
+                  className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg max-h-[90dvh] overflow-y-auto p-6"
                   onClick={(e) => e.stopPropagation()}
                   onKeyDown={(event) => {
                     if (event.key === 'Escape') {
