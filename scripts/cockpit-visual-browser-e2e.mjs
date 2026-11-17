@@ -69,13 +69,23 @@ async function clickLabel(client,label,optional=false) {
   return ok;
 }
 async function fill(client,label,value) {
-  const ok=await evaluate(client,
-    '(() => {const l=Array.from(document.querySelectorAll("label")).find(x=>x.textContent.includes('+q(label)+'));' +
-    'const input=l?.querySelector("input")||(l?.htmlFor?document.getElementById(l.htmlFor):null);if(!input)return false;' +
-    'Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set.call(input,'+q(value)+');' +
-    'input.dispatchEvent(new Event("input",{bubbles:true}));input.dispatchEvent(new Event("change",{bubbles:true}));return true;})()');
-  if(!ok)throw Error('Input missing: '+label);
+  const expression =
+    '(() => {' +
+    'const norm=v=>String(v||"").replace(/\\s+/g," ").trim().toLowerCase();' +
+    'const expected=norm('+q(label)+');' +
+    'const l=Array.from(document.querySelectorAll("label")).find(x=>norm(x.textContent).includes(expected));' +
+    'let input=l?.querySelector("input,textarea,select")||null;' +
+    'if(!input&&l?.htmlFor) input=document.getElementById(l.htmlFor);' +
+    'if(!input&&l?.parentElement) input=l.parentElement.querySelector("input,textarea,select");' +
+    'if(!input)input=Array.from(document.querySelectorAll("input,textarea,select")).find(x=>norm(x.getAttribute("aria-label")).includes(expected)||norm(x.getAttribute("placeholder")).includes(expected));' +
+    'if(!input)return false;' +
+    'const proto=input instanceof HTMLTextAreaElement?HTMLTextAreaElement.prototype:input instanceof HTMLSelectElement?HTMLSelectElement.prototype:HTMLInputElement.prototype;' +
+    'const setter=Object.getOwnPropertyDescriptor(proto,"value")?.set;' +
+    'if(setter)setter.call(input,'+q(value)+');else input.value='+q(value)+';' +
+    'input.focus();input.dispatchEvent(new Event("input",{bubbles:true}));input.dispatchEvent(new Event("change",{bubbles:true}));return true;})()';
+  if(!await evaluate(client,expression))throw Error('Input missing: '+label);
 }
+
 async function screenshot(client,suffix) {
   const r=await client.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
   const path=PREFIX+'-'+suffix+'.png';
