@@ -135,7 +135,7 @@ async function main() {
     if(opened.docWidth>WIDTH+10||opened.board.w<WIDTH*0.45||!opened.cardsWithin||opened.controls.length)throw Error('Cockpit width/card/button clipping: '+JSON.stringify(opened));
     await screenshot(client,'board-with-students');
     await clickLabel(client,'Tafel groß anzeigen');
-    await waitFor(client,'sidebar hidden','!document.querySelector(".klassio-student-sidebar") && Boolean(document.querySelector("button[aria-label='Schülerliste wieder anzeigen']"))');
+    await waitFor(client,'sidebar hidden',`!document.querySelector('.klassio-student-sidebar') && Boolean(document.querySelector('button[aria-label="Schülerliste wieder anzeigen"]'))`);
     await sleep(650);
     const focused=await metrics(client);
     console.log('FOCUS '+JSON.stringify(focused));
@@ -148,13 +148,13 @@ async function main() {
     console.log('RESTORED '+JSON.stringify(restored));
     if(restored.studentCount!==opened.studentCount||Math.abs(restored.board.w-opened.board.w)>18)throw Error('Sidebar restore changed the board/card state');
     const modes=await evaluate(client,
-      'Array.from(document.querySelectorAll(".klassio-student-sidebar [role=group][aria-label='Pluspunkt-Art'] button")).map(b=>b.textContent.trim())');
+      `Array.from(document.querySelectorAll('.klassio-student-sidebar [role=group][aria-label="Pluspunkt-Art"] button')).map(b=>b.textContent.trim())`);
     if(JSON.stringify(modes)!==JSON.stringify(['Mitarbeit','Sozialverhalten']))throw Error('Mode labels incorrect: '+JSON.stringify(modes));
     await clickButton(client,'Sozialverhalten');
-    await waitFor(client,'separate blue social scoring','Boolean(document.querySelector(".klassio-student-sidebar button[aria-label^='Sozialpunkt für'].bg-sky-600"))');
+    await waitFor(client,'separate blue social scoring',`Boolean(document.querySelector('.klassio-student-sidebar button[aria-label^="Sozialpunkt für"].bg-sky-600'))`);
     await screenshot(client,'social-blue');
     await clickButton(client,'Mitarbeit');
-    await waitFor(client,'green subject scoring','Boolean(document.querySelector(".klassio-student-sidebar button[aria-label^='Pluspunkt für'].bg-emerald-600"))');
+    await waitFor(client,'green subject scoring',`Boolean(document.querySelector('.klassio-student-sidebar button[aria-label^="Pluspunkt für"].bg-emerald-600'))`);
     await screenshot(client,'restored-subject-green');
     console.log('✓ Cockpit visual QA passed for '+WIDTH+'×'+HEIGHT+'. Board primary, students restorable, award modes distinct.');
   } catch(error) {
