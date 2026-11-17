@@ -1431,7 +1431,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                                     key={hourIdx}
                                     onClick={() => openSlotForQuickPlan(dIdx, hourIdx)}
                                     data-klassio-subject-card={defaultFach || undefined}
-                                    data-klassio-subject-outline={defaultFach ? '' : undefined}
+                                    data-klassio-subject-outline={defaultFach ? 'true' : undefined}
                                     style={defaultFach ? {
                                       '--fach-card-bg': getFachThemeStyles(defaultFach, app.fachConfig).bgLight,
                                       '--fach-card-border': getFachThemeStyles(defaultFach, app.fachConfig).borderColor,
