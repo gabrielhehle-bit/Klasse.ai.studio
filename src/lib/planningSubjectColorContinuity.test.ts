@@ -84,3 +84,39 @@ test('A4 color mode reflects configured subjects; black-and-white copies remain 
   assert.match(a4, /printColorAdjust: 'exact'/);
   assert.doesNotMatch(a4, /if \(f\.includes\('deutsch'\)\) return 'bg-blue-50/);
 });
+
+
+test('Substitution and publishing contexts retain fach color without changing their actions', () => {
+  const sek1 = source('src/components/Sek1WeeklyPlan.tsx');
+  const classroom = source('src/components/cockpit/widgets/ClassroomWeeklyPlanWidget.tsx');
+  assert.match(sek1, /getFachThemeStyles\(slot\.fach, app\.fachConfig\)/);
+  assert.match(sek1, /data-klassio-subject-card=\{slot\.fach\}/);
+  assert.match(sek1, /data-klassio-subject-stripe/);
+  assert.match(sek1, /'--fach-card-stripe': fachTheme\.hex/);
+  assert.match(sek1, /onClick=\{\(\) => openLesson\(slot\)\}/);
+  assert.match(classroom, /data-klassio-subject-card=\{task\.fach\}/);
+  assert.match(classroom, /data-klassio-subject-stripe/);
+  assert.match(classroom, /getFachThemeStyles\(task\.fach, app\.fachConfig\)\.bgLight/);
+  assert.match(classroom, /tasks\.map\(\(task, index\) => <article/);
+  assert.match(classroom, /aria-label="Aufgaben dieser Woche"/);
+});
+
+test('Theme conversion cannot strip fach backgrounds, stripes or outlines', () => {
+  assert.match(css, /\[data-style\] \[data-klassio-subject-card\]\[data-klassio-subject-card\]/);
+  assert.match(css, /background-color: var\(--fach-card-bg\) !important/);
+  assert.match(css, /border-left-color: var\(--fach-card-stripe\) !important/);
+  assert.match(css, /border-color: var\(--fach-card-border\) !important/);
+  assert.match(mobile, /data-klassio-subject-stripe=/);
+  assert.match(center, /data-klassio-subject-outline/);
+  assert.match(a4, /data-klassio-subject-outline=\{colorMode === 'color'/);
+});
+
+test('Real print center and all three A4 task layouts receive configured colors; mono stays untouched', () => {
+  const print = source('src/components/PrintCenter.tsx');
+  assert.match(print, /colorMode=\{childPrintColorMode\} fachConfig=\{app\.fachConfig\}/);
+  assert.match(a4, /const getPrintedSubjectStyle = \(fach: string\)/);
+  assert.match(a4, /if \(colorMode !== 'color'\) return undefined/);
+  assert.equal((a4.match(/style=\{getPrintedSubjectStyle\(task\.fach\)\}/g) || []).length, 3);
+  assert.match(a4, /data-klassio-subject-stripe=\{fachTheme \? '' : undefined\}/);
+  assert.match(a4, /colorMode === 'color' \? getFachThemeStyles\(fach, fachConfig\) : null/);
+});
