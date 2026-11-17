@@ -83,7 +83,7 @@ test('Kompakte Cockpit-Seitenleiste zeigt alle 17 Kinder im Raster ohne Scrollen
   assert.match(teaching, /sidebarCompact=\{sidebarMode === "mini"\}/);
   assert.match(html, /grid min-h-0 flex-1 gap-1 overflow-hidden/);
   assert.match(html, /aria-label="1 Pluspunkte">1<\/span>/);
-  assert.match(html, /h-8 w-8 shrink-0/);
+  assert.match(html, /min-h-11 min-w-11 shrink-0/);
   assert.doesNotMatch(html, /Unsere Pluspunkte|Große Ansicht|Kompakt<\/button>/);
   for (let i = 1; i <= 17; i++) assert.match(html, new RegExp(`Kind${i}(?!\\d)`));
   assert.equal((html.match(/Pluspunkt für/g) || []).length, 17);
