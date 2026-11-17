@@ -1973,7 +1973,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                   {(['compact', 'standard', 'large'] as const).map((lvl) => (
                                     <button type="button" key={lvl} onClick={() => changeZoomLevel(lvl)}
                                       aria-pressed={zoomLevel === lvl}
-                                      className={\`min-h-11 min-w-0 flex-1 rounded-lg px-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] \${zoomLevel === lvl ? 'bg-[var(--surface)] text-[var(--text)] shadow-xs' : 'text-[var(--text2)] hover:bg-[var(--surface)]'}\`}>
+                                      className={`min-h-11 min-w-0 flex-1 rounded-lg px-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${zoomLevel === lvl ? 'bg-[var(--surface)] text-[var(--text)] shadow-xs' : 'text-[var(--text2)] hover:bg-[var(--surface)]'}`}>
                                       {lvl === 'compact' ? 'Klein' : lvl === 'large' ? 'Groß' : 'Normal'}
                                     </button>
                                   ))}
