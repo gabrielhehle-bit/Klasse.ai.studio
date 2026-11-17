@@ -208,7 +208,7 @@ export function PublicStudentListWidget({
                     <span className={`text-[10px] tabular-nums ${points > 0 ? 'font-semibold text-emerald-800' : 'text-slate-500'}`} aria-label={`${points} Pluspunkte`}>{socialMode ? `${points} ⭐` : points}</span>
                   </div>
                 </div>
-                <button type="button" onClick={event => addParticipation(student.id, event, () => {
+                <button type="button" onClick={event => addParticipation(student.id, event, (subject) => {
                   setLastAwardedId(student.id);
                   setRecentlyAwardedId(student.id);
                   setRecentAwardSubject(subject);
@@ -284,7 +284,7 @@ export function PublicStudentListWidget({
                   )}
                   <button type="button"
                     onClick={event => {
-                      addParticipation(student.id, event, () => {
+                      addParticipation(student.id, event, (subject) => {
                         setLastAwardedId(student.id);
                         setRecentlyAwardedId(student.id);
                         setRecentAwardSubject(subject);
