@@ -365,6 +365,12 @@ try{
   await click(c,'[data-student-dossier-areas] button[role="tab"]:nth-child(3)');
   await until(c,'observation charts from pupil records',
     'Boolean(document.querySelector("[data-dossier-observation-charts]"))');
+  // The first synthetic mood (2026-10-05) falls outside "Letzte 6 Wochen"
+  // on 2026-11-17. For a six-record historical regression, select the
+  // complete school year instead of changing the real rolling-window logic.
+  await click(c,'[role="group"][aria-label="Beobachtungszeitraum"] button:last-child');
+  await until(c,'full school-year observations selected',
+    'document.querySelector("[role=group][aria-label=\\\"Beobachtungszeitraum\\\"] button:last-child")?.getAttribute("aria-pressed")==="true"');
   await until(c,'six mood records in observations',
     'document.querySelector("[data-observation-mood]")?.textContent.includes("6 Rückmeldungen")');
 
@@ -425,7 +431,22 @@ try{
   await c.send('Emulation.setTouchEmulationEnabled',{enabled:false});
   await c.send('Emulation.setDeviceMetricsOverride',{width:1440,height:980,deviceScaleFactor:1,mobile:false});
   await clickText(c,'Druckzentrum');
-  await until(c,'Druckzentrum after recorded observations','document.body?.textContent.includes("DRUCKZENTRUM")');
+  await until(c,'Druckzentrum after recorded observations','document.querySelector(".print-center-overlay-parent h1")?.textContent.trim()==="Druckzentrum"');
+  // Historical test entries span more than the rolling six-week window.
+  // Calculate expected coverage at run time (Monday to Sunday buckets).
+  const recentToday = new Date();
+  const recentCutoff = new Date(recentToday.getFullYear(), recentToday.getMonth(), recentToday.getDate() - 35, 12);
+  recentCutoff.setDate(recentCutoff.getDate() - (recentCutoff.getDay() + 6) % 7);
+  const dayKey = d => [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
+  const recentDocumentedWeeks = new Set(datedMoods
+    .filter(([day]) => day >= dayKey(recentCutoff) && day <= dayKey(recentToday))
+    .map(([day]) => {
+      const d = new Date(day + 'T12:00:00');
+      d.setDate(d.getDate() - (d.getDay() + 6) % 7);
+      return dayKey(d);
+    })).size;
+  const expectedCoverage = recentDocumentedWeeks + ' von 6 Wochen';
+  console.log('Expected rolling KEL report coverage:', expectedCoverage);
   await clickText(c,'KEL-Elternblatt');
   await until(c,'parent report controls','Boolean(document.querySelector("[data-kel-parent-report-controls]"))');
   const reportStudentId=await evalPage(c,'(() => {const text='+q(pupilName.split(' ').reverse().join(' '))+';' +
@@ -439,7 +460,7 @@ try{
   for(const kind of ['mood','behavior']){
     const coverage='[data-kel-trend-coverage='+kind+']';
     await until(c,'documented '+kind+' periods explained',
-      'document.querySelector(".print-center-overlay '+coverage+'")?.textContent.includes("5 von 6 Wochen")');
+      'document.querySelector(".print-center-overlay '+coverage+'")?.textContent.includes('+q(expectedCoverage)+')');
     const chart=await evalPage(c,'(() => {const root=document.querySelector(".print-center-overlay [data-kel-parent-report]");' +
       'const box=root?.querySelector("[data-kel-trend='+kind+']");const svg=box?.querySelector("svg");' +
       'return {coverage:box?.querySelector("[data-kel-trend-coverage]")?.textContent.trim(),' +
@@ -449,7 +470,7 @@ try{
     if(!chart.svg||chart.ratio!=='xMidYMid meet')
       throw new Error('KEL parent '+kind+' trend chart is not printable/readable');
   }
-  console.log('PASS Both KEL parent timelines distinguish 5 documented of 6 available weeks');
+  console.log('PASS KEL parent timelines report ' + expectedCoverage);
 
   await evalPage(c,'document.body.classList.add("print-center-active","print-center-kel-parent-active")');
   await c.send('Emulation.setEmulatedMedia',{media:'print'});
@@ -475,7 +496,7 @@ try{
     pages:document.numPages,
     mood:printed.includes('Befinden im Zeitverlauf'),
     behavior:printed.includes('Dokumentation im Zeitverlauf'),
-    coverage:printed.includes('5 von 6 Wochen'),
+    coverage:printed.includes(expectedCoverage),
     guardians:printed.includes('Erziehungsberechtigte'),
     teacher:printed.includes('Lehrperson'),
     blank:pages.map(p=>!p.trim()),
@@ -485,7 +506,7 @@ try{
   const normal=printed.replace(/\s+/g,'');
   if(!normal.includes('BefindenimZeitverlauf') ||
     !normal.includes('DokumentationimZeitverlauf') ||
-    !normal.includes('5von6Wochen') ||
+    !normal.includes(expectedCoverage.replace(/\s+/g,'')) ||
     !normal.includes('Erziehungsberechtigte') ||
     !normal.includes('Lehrperson') ||
     pages.some(text=>!text.trim()) ||
