@@ -100,7 +100,7 @@ export const MobileDayLessonCards: React.FC<Props> = ({
               borderLeftColor: hasSavedLesson ? accent : undefined }}>
             <button type="button" onClick={() => onOpen(day, idx)}
               aria-label={`${idx + 1}. Stunde ${subject || 'ohne Fach'}: ${item?.thema || 'Planung öffnen'} bearbeiten`}
-              className="flex min-h-16 w-full min-w-0 items-center gap-3 px-3 py-3 text-left hover:bg-indigo-50/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-indigo-600">
+              className="flex min-h-16 w-full min-w-0 items-center gap-3 px-3 py-3 text-left hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)]">
               <span className="flex w-[5.25rem] shrink-0 flex-col gap-1 border-r border-slate-200 pr-2 text-xs font-extrabold text-slate-800">
                 {idx + 1}. Stunde
                 <span className="text-[0.6875rem] font-medium leading-tight text-slate-500">
@@ -210,7 +210,7 @@ export const MobileDayLessonCards: React.FC<Props> = ({
                     {parkingReason}
                   </p>
                 )}
-                <div className="mt-2 flex flex-wrap gap-2" data-weekly-day-actions>
+                <div className="mt-2 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" data-weekly-day-actions>
                   {mayPublishToChildren && (
                     <button type="button"
                       data-weekly-mobile-child-toggle
@@ -220,7 +220,7 @@ export const MobileDayLessonCards: React.FC<Props> = ({
                         ? 'Aufgabe aus dem Kinder-Wochenplan nehmen – vorhandene Rückmeldungen bleiben gespeichert'
                         : 'Aufgabe für den Kinder-Wochenplan freigeben'}
                       onClick={() => onToggleChildPlan(day, idx)}
-                      className={`min-h-11 rounded-xl border px-3 text-xs font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 ${isPublished
+                      className={`min-h-11 min-w-0 rounded-xl border px-3 py-2 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${isPublished
                         ? 'border-violet-300 bg-violet-50 text-violet-900 hover:bg-violet-100'
                         : 'border-indigo-300 bg-indigo-50 text-indigo-900 hover:bg-indigo-100'}`}>
                       {isPublished ? 'Aus Kinderplan nehmen' : 'Für Kinder freigeben'}
@@ -230,14 +230,14 @@ export const MobileDayLessonCards: React.FC<Props> = ({
                     data-weekly-mobile-copy
                     onClick={() => onCopyLesson(item)}
                     aria-label={`${idx + 1}. Stunde kopieren`}
-                    className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600">
+                    className="min-h-11 min-w-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold text-[var(--text)] hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
                     Kopieren
                   </button>
                   <button type="button"
                     onClick={event => onToggleDone(event, day, idx)}
                     aria-label={isDone ? `${idx + 1}. Stunde als unerledigt markieren`
                       : `${idx + 1}. Stunde als erledigt markieren`}
-                    className="min-h-11 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-bold text-emerald-800 hover:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600">
+                    className="min-h-11 min-w-0 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600">
                     {isDone ? 'Wieder öffnen' : 'Als erledigt markieren'}
                   </button>
                   <button type="button"
@@ -251,7 +251,7 @@ export const MobileDayLessonCards: React.FC<Props> = ({
                     }}
                     aria-label={`${idx + 1}. Stunde in die Parkgarage verschieben`}
                     title={parkingReason || 'Stunde in die Parkgarage verschieben'}
-                    className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:border-indigo-200 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">
+                    className="min-h-11 min-w-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold text-[var(--text)] hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">
                     Parken
                   </button>
                 </div>
