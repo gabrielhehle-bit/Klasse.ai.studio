@@ -411,7 +411,7 @@ async function checkRoutine(client) {
   await openObservations(client);
   await clickButton(client, 'Beobachtung notieren');
   await setInputByPlaceholder(client, 'Konkrete, wertfreie Unterrichtsbeobachtung', 'Synthetische Browser-Testnotiz');
-  await setInputByLabel(client, 'Päd. Einordnung', 'positiv');
+  await setInputByLabel(client, 'Pädagogische Einordnung', 'positiv');
   await clickButton(client, 'Beobachtung speichern');
   await waitFor(client, 'positive note visibly saved', 'document.body.innerText.includes("Synthetische Browser-Testnotiz") && document.body.innerText.includes("Stärke / Ressource")');
   await clickSelector(client, 'button[aria-label="Beobachtung bearbeiten"]');
