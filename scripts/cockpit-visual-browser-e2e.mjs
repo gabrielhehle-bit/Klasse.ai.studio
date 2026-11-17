@@ -102,11 +102,13 @@ async function metrics(client) {
     const cards=Array.from(list?.querySelectorAll('[role=listitem]')||[]);
     const boardR=rect(board), sideR=rect(sidebar), dockR=rect(dock), listR=rect(list);
     const cardsWithin=cards.every(el=>{const r=el.getBoundingClientRect();return r.left>=listR.x-2&&r.right<=listR.right+2&&r.top>=listR.y-2&&r.bottom<=listR.bottom+2;});
+    const touchTargets=cards.map(el=>el.querySelector('button[aria-label^="Pluspunkt für"]')?.getBoundingClientRect());
+    const touchSizeOK=touchTargets.length>0 && touchTargets.every(r=>r && r.width>=43 && r.height>=43);
     const controls=Array.from(document.querySelectorAll('.klassio-cockpit-shell button')).filter(b=>{
       const r=b.getBoundingClientRect();return r.width>0&&r.height>0&&r.top<150;
     }).map(b=>({label:b.getAttribute('aria-label')||b.title||b.textContent.trim(),r:rect(b)}));
     return {viewport:innerWidth,docWidth:document.documentElement.scrollWidth,board:boardR,
-      sidebar:sideR,dock:dockR,studentCount:cards.length,cardsWithin,
+      sidebar:sideR,dock:dockR,studentCount:cards.length,cardsWithin,touchSizeOK,
       controls:controls.filter(x=>x.r.right>innerWidth+2||x.r.x< -2),
       visibleBoardActions:controls.filter(x=>/Tafel groß|Schülerliste|Vollbild/.test(x.label))};
   })()`);
@@ -142,7 +144,7 @@ async function main() {
     const opened=await metrics(client);
     console.log('OPEN '+JSON.stringify(opened));
     if(!opened.board || !opened.sidebar || !opened.dock || opened.studentCount<10)throw Error('Cockpit main surfaces or demo student list missing');
-    if(opened.docWidth>WIDTH+10||opened.board.w<WIDTH*0.45||!opened.cardsWithin||opened.controls.length)throw Error('Cockpit width/card/button clipping: '+JSON.stringify(opened));
+    if(opened.docWidth>WIDTH+10||opened.board.w<WIDTH*0.45||!opened.cardsWithin||!opened.touchSizeOK||opened.controls.length)throw Error('Cockpit width/card/button clipping: '+JSON.stringify(opened));
     await screenshot(client,'board-with-students');
     await clickLabel(client,'Tafel groß anzeigen');
     await waitFor(client,'sidebar hidden',`!document.querySelector('.klassio-student-sidebar') && Boolean(document.querySelector('button[aria-label="Schülerliste wieder anzeigen"]'))`);
