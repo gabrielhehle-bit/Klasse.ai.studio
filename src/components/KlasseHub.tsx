@@ -29,15 +29,15 @@ function ClassCard({
     <button
       type="button"
       onClick={() => onOpen(item.id)}
-      className="group flex min-h-28 items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-left transition-colors hover:border-[var(--accent)] hover:bg-[var(--surface2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+      data-klassio-module-card className="group flex min-h-28 items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-left transition-colors hover:border-[var(--border2)] hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
     >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface2)] text-[var(--text2)]">
         <Icon size={21} />
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-start justify-between gap-3">
           <span className="text-base font-semibold text-[var(--text)]">{item.title}</span>
-          <ChevronRight size={18} className="mt-0.5 shrink-0 text-[var(--text3)] transition group-hover:translate-x-0.5 group-hover:text-[var(--accent)]" />
+          <ChevronRight size={18} className="mt-0.5 shrink-0 text-[var(--text3)] transition-colors group-hover:text-[var(--accent)]" />
         </span>
         <span className="mt-1 block text-sm leading-relaxed text-[var(--text2)]">{item.description}</span>
         {item.meta && (
