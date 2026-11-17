@@ -96,6 +96,7 @@ async function metrics(client) {
   return evaluate(client,`(() => {
     const rect=el=>{const r=el?.getBoundingClientRect();return r?{x:r.x,y:r.y,w:r.width,h:r.height,right:r.right,bottom:r.bottom}:null;};
     const board=document.querySelector('.klassio-whiteboard');
+    const header=document.querySelector('.klassio-cockpit-shell > header');
     const sidebar=document.querySelector('.klassio-student-sidebar');
     const dock=document.querySelector('.klassio-widget-dock');
     const list=sidebar?.querySelector('[role=list]');
@@ -107,7 +108,7 @@ async function metrics(client) {
     const controls=Array.from(document.querySelectorAll('.klassio-cockpit-shell button')).filter(b=>{
       const r=b.getBoundingClientRect();return r.width>0&&r.height>0&&r.top<150;
     }).map(b=>({label:b.getAttribute('aria-label')||b.title||b.textContent.trim(),r:rect(b)}));
-    return {viewport:innerWidth,docWidth:document.documentElement.scrollWidth,board:boardR,
+    return {viewport:innerWidth,docWidth:document.documentElement.scrollWidth,header:rect(header),board:boardR,
       sidebar:sideR,dock:dockR,studentCount:cards.length,cardsWithin,touchSizeOK,
       controls:controls.filter(x=>x.r.right>innerWidth+2||x.r.x< -2),
       visibleBoardActions:controls.filter(x=>/Tafel groß|Schülerliste|Vollbild/.test(x.label))};
@@ -145,7 +146,7 @@ async function main() {
     const opened=await metrics(client);
     console.log('OPEN '+JSON.stringify(opened));
     if(!opened.board || !opened.sidebar || !opened.dock || opened.studentCount<10)throw Error('Cockpit main surfaces or demo student list missing');
-    if(opened.docWidth>WIDTH+10||opened.board.w<WIDTH*0.45||!opened.cardsWithin||!opened.touchSizeOK||opened.controls.length)throw Error('Cockpit width/card/button clipping: '+JSON.stringify(opened));
+    if(opened.docWidth>WIDTH+10||opened.header?.h>70||opened.sidebar.w>335||opened.board.w<WIDTH*0.64||!opened.cardsWithin||!opened.touchSizeOK||opened.controls.length)throw Error('Cockpit width/card/button clipping: '+JSON.stringify(opened));
     await screenshot(client,'board-with-students');
     await clickLabel(client,'Tafel groß anzeigen');
     await waitFor(client,'sidebar hidden',`!document.querySelector('.klassio-student-sidebar') && Boolean(document.querySelector('button[aria-label="Schülerliste wieder anzeigen"]'))`);
@@ -163,6 +164,22 @@ async function main() {
     const modes=await evaluate(client,
       `Array.from(document.querySelectorAll('.klassio-student-sidebar [role=group][aria-label="Pluspunkt-Art"] button')).map(b=>b.textContent.trim())`);
     if(JSON.stringify(modes)!==JSON.stringify(['Mitarbeit','Sozialverhalten']))throw Error('Mode labels incorrect: '+JSON.stringify(modes));
+    // Award one real demo badge, then verify the public display is opt-in.
+    const badgeCountBefore = await evaluate(client, `document.querySelectorAll('.klassio-student-sidebar [data-earned-badge]').length`);
+    if (badgeCountBefore !== 0) throw Error('Badges must be hidden by default.');
+    const badgePickerOpened = await evaluate(client, `(() => {const b=document.querySelector('.klassio-student-sidebar button[aria-label^="Badges für"]');if(!b)return false;b.click();return true;})()`);
+    if(!badgePickerOpened)throw Error('Existing badge picker not accessible from student name.');
+    await waitFor(client,'badge picker',`Boolean(document.querySelector('.klassio-student-sidebar [role="dialog"][aria-label^="Badges für"]'))`);
+    const awarded = await evaluate(client, `(() => {const b=document.querySelector('.klassio-student-sidebar [role="dialog"] button[aria-label$="vergeben"]:not(:disabled)');if(!b)return false;b.click();return true;})()`);
+    if (!awarded)throw Error('No available demo badge to award.');
+    await clickLabel(client,'Badge-Auswahl schließen');
+    await clickLabel(client,'Verdiente Badges anzeigen');
+    await waitFor(client,'earned badge visible',`document.querySelectorAll('.klassio-student-sidebar [data-earned-badge]').length >= 1`);
+    await screenshot(client,'earned-badges-visible');
+    await clickLabel(client,'Verdiente Badges ausblenden');
+    await waitFor(client,'earned badge hidden again',`document.querySelectorAll('.klassio-student-sidebar [data-earned-badge]').length === 0`);
+    await clickLabel(client,'Verdiente Badges anzeigen');
+
     await clickButton(client,'Sozialverhalten');
     await waitFor(client,'separate blue social scoring',`Boolean(document.querySelector('.klassio-student-sidebar button[aria-label^="Sozialpunkt für"].bg-sky-600'))`);
     await screenshot(client,'social-blue');
