@@ -33,7 +33,7 @@ export function SegmentedControl<T extends string = string>({
   className = ''
 }: SegmentedControlProps<T>) {
   const containerSizeClasses = size === 'sm' ? 'p-1 rounded-xl gap-1 text-xs' : 'p-1.5 rounded-2xl gap-1.5 text-sm';
-  const itemSizeClasses = size === 'sm' ? 'min-h-[34px] px-3 py-1 rounded-lg' : 'min-h-[40px] px-4 py-1.5 rounded-xl';
+  const itemSizeClasses = size === 'sm' ? 'min-h-11 px-3 py-1 text-sm rounded-lg sm:min-h-[34px] sm:text-xs' : 'min-h-11 px-4 py-1.5 rounded-xl';
 
   return (
     <div
@@ -51,8 +51,26 @@ export function SegmentedControl<T extends string = string>({
             type="button"
             role="tab"
             aria-selected={isSelected}
+            tabIndex={isSelected ? 0 : -1}
             disabled={isDisabled}
             onClick={() => !isDisabled && onChange(option.value)}
+            onKeyDown={event => {
+              if (!['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+              const enabledOptions = options.filter(candidate => !candidate.disabled);
+              const currentIndex = enabledOptions.findIndex(candidate => candidate.value === option.value);
+              if (currentIndex < 0 || !enabledOptions.length) return;
+
+              const previous = event.key === 'ArrowLeft' || event.key === 'ArrowUp';
+              const nextIndex = event.key === 'Home' ? 0
+                : event.key === 'End' ? enabledOptions.length - 1
+                : (currentIndex + (previous ? -1 : 1) + enabledOptions.length) % enabledOptions.length;
+
+              event.preventDefault();
+              // Move keyboard focus and selection together, skipping disabled tabs.
+              const enabledTabs = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('button[role="tab"]:not(:disabled)');
+              enabledTabs?.[nextIndex]?.focus();
+              onChange(enabledOptions[nextIndex].value);
+            }
             className={`
               relative inline-flex items-center justify-center font-medium select-none transition-all duration-150 cursor-pointer
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface-card,var(--surface))]
