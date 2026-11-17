@@ -60,3 +60,16 @@
 .dashboard-shell > .relative.z-20.bg-emerald-50.border-emerald-200 {
   z-index: auto !important;
 }
+
+
+/*
+ * Fachfarben sind Informationen, keine dekorativen Theme-Akzente.
+ * Die hinterlegte Farbe eines Unterrichtsfachs muss auch nach einem Wechsel
+ * des KLASSIO-App-Themes in Tageskarten, Wochenraster, Schnellplanung und
+ * farbiger A4-Vorschau sichtbar bleiben. Auch die globalen Theme-Overrides
+ * für .bg-white/.bg-slate-50 (!important) dürfen sie nicht nivellieren.
+ * Mono-Druck und echte freie Slots erhalten absichtlich keine Fachfarbe.
+ */
+[data-klassio-subject-card] {
+  background-color: var(--fach-card-bg) !important;
+}
