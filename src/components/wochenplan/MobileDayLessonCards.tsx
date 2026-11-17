@@ -93,6 +93,7 @@ export const MobileDayLessonCards: React.FC<Props> = ({
         return (
           <div key={idx} id={`weekly-mobile-lesson-${day}-${idx}`} tabIndex={-1} data-weekly-day-card
             data-klassio-subject-card={subject || undefined}
+            data-klassio-subject-stripe={fachTheme ? '' : undefined}
             className={`overflow-hidden rounded-2xl border shadow-sm ${current
               ? 'border-emerald-400 ring-1 ring-emerald-200'
               : subject ? 'border-slate-200'
@@ -101,6 +102,7 @@ export const MobileDayLessonCards: React.FC<Props> = ({
               borderLeftWidth: fachTheme ? 5 : undefined,
               borderLeftColor: fachTheme?.hex,
               '--fach-card-bg': fachTheme?.bgLight,
+              '--fach-card-stripe': fachTheme?.hex,
             } as React.CSSProperties}>
             <button type="button" onClick={() => onOpen(day, idx)}
               aria-label={`${idx + 1}. Stunde ${subject || 'ohne Fach'}: ${item?.thema || 'Planung öffnen'} bearbeiten`}
