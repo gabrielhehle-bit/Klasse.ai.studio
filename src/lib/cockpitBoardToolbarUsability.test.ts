@@ -19,8 +19,8 @@ test('Cockpit-Kopfaktionen bleiben mindestens 44px groß und eindeutig beschrift
   );
   assert.match(toolbar, /min-h-11 min-w-11 rounded-xl/);
   assert.match(toolbar, /aria-label=\{isFullscreen \? "Vollbild beenden" : "Vollbild öffnen"\}/);
-  assert.match(toolbar, /aria-label="Vorlage erstellen"/);
-  assert.match(toolbar, />Vorlage erstellen<\/span>/);
+  assert.doesNotMatch(toolbar, /aria-label="Vorlage erstellen"/);
+  assert.doesNotMatch(toolbar, />Vorlage erstellen<\/span>/);
   assert.doesNotMatch(toolbar, /min-h-10/);
 
   const optionsTrigger = between(
@@ -37,6 +37,8 @@ test('Cockpit-Optionen haben eine benannte Menüfläche und keine 40px-Aktionsze
     '{/* Layout Slot Menu Modal if opened */}',
   );
   assert.match(options, /min-h-11/);
+  assert.match(options, /aria-label="Vorlage erstellen"/);
+  assert.match(options, /setVorlagenStartTab\("create"\)/);
   assert.match(options, /Widget-Leiste anzeigen/);
   assert.match(options, /relative inline-flex min-h-11 min-w-14/);
   assert.match(options, /alle Widgets suchen, hinzufügen, sortieren und sicher entfernen/);

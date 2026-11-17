@@ -7092,7 +7092,7 @@ ${content}
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [openSettingsId, app.boardWidgets]);
 
-  const [pendingParticipation, setPendingParticipation] = useState<{ sid: string; classId: string; event?: React.MouseEvent; onAwarded?: () => void; inSidebar: boolean } | null>(null);
+  const [pendingParticipation, setPendingParticipation] = useState<{ sid: string; classId: string; event?: React.MouseEvent; onAwarded?: (subject: string) => void; inSidebar: boolean } | null>(null);
   const [isParticipationSettingsOpen, setIsParticipationSettingsOpen] = useState(false);
   const [participationResetVersion, setParticipationResetVersion] = useState(0);
   const [badgeStudentId, setBadgeStudentId] = useState<string | null>(null);
@@ -7114,7 +7114,7 @@ ${content}
       if (pendingParticipation?.inSidebar) setPendingParticipation(null);
     }
   }, [sidebarMode, pendingParticipation?.inSidebar]);
-  const awardParticipation = (sid: string, subject: string, classId: string, event?: React.MouseEvent, onAwarded?: () => void) => {
+  const awardParticipation = (sid: string, subject: string, classId: string, event?: React.MouseEvent, onAwarded?: (subject: string) => void) => {
     if (classId !== app.activeClassId || !app.schueler.some(student => student.id === sid)
       || !subject || !app.faecher?.includes(subject)) return;
     const id = crypto.randomUUID();
@@ -7124,10 +7124,10 @@ ${content}
     const feedback = app.participationSettings?.feedback || 'animation';
     if (event && (feedback === 'animation' || feedback === 'both')) triggerRewardAnimation(sid, event);
     if (feedback === 'mascot' || feedback === 'both') window.dispatchEvent(new CustomEvent(MASCOT_RITUAL_EVENT, { detail: 'praise' }));
-    onAwarded?.();
+    onAwarded?.(subject);
   };
   // Reward Logic Helpers
-  const addParticipation = (sid: string, event?: React.MouseEvent, onAwarded?: () => void) => {
+  const addParticipation = (sid: string, event?: React.MouseEvent, onAwarded?: (subject: string) => void) => {
     if (!app.activeClassId) return;
     // Outside a real subject lesson "Unterricht" is just a UI placeholder.
     // Never record it as a subject/gradebook item: ask for a real class subject.
@@ -7141,7 +7141,7 @@ ${content}
     awardParticipation(sid, automaticSubject, app.activeClassId, event, onAwarded);
   };
 
-  const addSocialParticipation = (sid: string, event?: React.MouseEvent, onAwarded?: () => void) => {
+  const addSocialParticipation = (sid: string, event?: React.MouseEvent, onAwarded?: (subject: string) => void) => {
     if (!app.activeClassId || !app.schueler.some(student => student.id === sid)) return;
     const id = crypto.randomUUID();
     const classId = app.activeClassId;
@@ -7150,7 +7150,7 @@ ${content}
     const feedback = app.participationSettings?.feedback || 'animation';
     if (event && (feedback === 'animation' || feedback === 'both')) triggerRewardAnimation(sid, event);
     if (feedback === 'mascot' || feedback === 'both') window.dispatchEvent(new CustomEvent(MASCOT_RITUAL_EVENT, { detail: 'praise' }));
-    onAwarded?.();
+    onAwarded?.('Sozialverhalten');
   };
 
   const removeParticipation = (sid: string) => {
@@ -9965,25 +9965,6 @@ ${content}
                             <span className="hidden lg:inline">{sidebarMode === "hidden" ? "Schülerliste" : "Tafel groß"}</span>
                           </button>
 
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setVorlagenStartTab("create");
-                              setIsVorlagenModalOpen(true);
-                            }}
-                            className={`min-h-11 px-2.5 rounded-xl border text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                              currentIsLight
-                                ? "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                                : "bg-zinc-900 border-white/10 text-white/80 hover:bg-zinc-800"
-                            }`}
-                            aria-label="Vorlage erstellen"
-                            title="Aktuelles Widget-Layout als neue Vorlage speichern"
-                          >
-                            <Save size={13} />
-                            <span className="hidden xl:inline">Vorlage erstellen</span>
-                            <span className="xl:hidden">Vorlage</span>
-                          </button>
-
                           {/* Secondary Actions: Dropdown Menu (••• Optionen) */}
                           <div className="relative">
                             <button
@@ -10062,6 +10043,13 @@ ${content}
                                 >
                                   <Sparkles size={12} className="text-amber-500 shrink-0" />
                                   <span>Automatisch anordnen</span>
+                                </button>
+
+                                <button type="button" aria-label="Vorlage erstellen"
+                                  onClick={() => { setVorlagenStartTab("create"); setIsVorlagenModalOpen(true); setIsMoreOptionsMenuOpen(false); }}
+                                  className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600">
+                                  <Save size={14} className="shrink-0" aria-hidden="true" />
+                                  <span>Vorlage erstellen</span>
                                 </button>
 
                                 <button
@@ -12813,10 +12801,15 @@ ${content}
                         <div role="group" aria-label="Pluspunkt-Art" className="mt-1 flex gap-1 rounded-lg bg-slate-100 p-0.5">
                           {([['subject', 'Mitarbeit'], ['social', 'Sozialverhalten']] as const).map(([kind, label]) => <button key={kind} type="button"
                             aria-pressed={sidebarParticipationKind === kind}
-                            aria-label={kind === 'subject' ? `Mitarbeit im Fach ${getActiveSubject()}` : 'Sozialverhalten'}
+                            aria-label={kind === 'subject' ? (resolveAutomaticParticipationSubject(getActiveSubject(), app.faecher, app.participationSettings?.subjectMode) ? `Mitarbeit im Fach ${getActiveSubject()}` : 'Mitarbeit – Fach auswählen') : 'Sozialverhalten'}
                             title={kind === 'subject' ? (app.faecher?.includes(getActiveSubject()) ? `Mitarbeitspunkte im Fach ${getActiveSubject()} erfassen` : 'Mitarbeitspunkt vergeben – Fach wird ausgewählt') : 'Sozialpunkte erfassen (getrennt von Verhaltensstufen)'}
                             onClick={() => { setPendingParticipation(null); setSidebarParticipationKind(kind); }}
-                            className={`min-h-8 flex-1 rounded-md px-2 text-xs font-semibold ${sidebarParticipationKind === kind ? (kind === 'subject' ? 'bg-white text-emerald-800 shadow-sm' : 'bg-white text-sky-800 shadow-sm') : 'text-slate-500 hover:text-slate-800'}`}>{label}</button>)}
+                            className={`min-h-11 flex-1 rounded-md px-2 py-1 text-xs font-semibold ${sidebarParticipationKind === kind ? (kind === 'subject' ? 'bg-white text-emerald-800 shadow-sm' : 'bg-white text-sky-800 shadow-sm') : 'text-slate-500 hover:text-slate-800'}`}>
+                            <span className="block">{label}</span>
+                            {kind === 'subject' && <span className="block truncate text-[10px] font-medium opacity-85">
+                              {resolveAutomaticParticipationSubject(getActiveSubject(), app.faecher, app.participationSettings?.subjectMode) ? `Fach: ${getActiveSubject()}` : 'Fach auswählen'}
+                            </span>}
+                          </button>)}
                         </div>
                       </div>
 
