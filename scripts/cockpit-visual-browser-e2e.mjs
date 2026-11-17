@@ -163,7 +163,7 @@ async function main() {
     if(restored.studentCount!==opened.studentCount||Math.abs(restored.board.w-opened.board.w)>18)throw Error('Sidebar restore changed the board/card state');
     const modes=await evaluate(client,
       `Array.from(document.querySelectorAll('.klassio-student-sidebar [role=group][aria-label="Pluspunkt-Art"] button')).map(b=>b.textContent.trim())`);
-    if(JSON.stringify(modes)!==JSON.stringify(['Mitarbeit','Sozialverhalten']))throw Error('Mode labels incorrect: '+JSON.stringify(modes));
+    if(modes.length!==2||!modes[0].startsWith('Mitarbeit')||modes[1]!=='Sozialverhalten')throw Error('Mode labels incorrect: '+JSON.stringify(modes));
     // Award one real demo badge, then verify the public display is opt-in.
     const badgeCountBefore = await evaluate(client, `document.querySelectorAll('.klassio-student-sidebar [data-earned-badge]').length`);
     if (badgeCountBefore !== 0) throw Error('Badges must be hidden by default.');
@@ -176,6 +176,14 @@ async function main() {
     await clickLabel(client,'Verdiente Badges anzeigen');
     await waitFor(client,'earned badge visible',`document.querySelectorAll('.klassio-student-sidebar [data-earned-badge]').length >= 1`);
     await screenshot(client,'earned-badges-visible');
+    const badgeDetailsOpened = await evaluate(client,`(() => {const b=document.querySelector('.klassio-student-sidebar button[aria-label^="Verdiente Badges von"]');if(!b)return false;b.click();return true;})()`);
+    if(!badgeDetailsOpened)throw Error('Earned-badge preview button missing');
+    await waitFor(client,'read-only badge details',`Boolean(document.querySelector('.klassio-student-sidebar [role="dialog"][aria-label^="Verdiente Badges von"]'))`);
+    const badgesHaveDates = await evaluate(client,`document.querySelector('.klassio-student-sidebar [role="dialog"][aria-label^="Verdiente Badges von"]')?.textContent.includes('Vergeben am')`);
+    if(!badgesHaveDates)throw Error('Badge details must include earned date.');
+    await screenshot(client,'earned-badge-details');
+    await clickLabel(client,'Badge-Übersicht schließen');
+
     await clickLabel(client,'Verdiente Badges ausblenden');
     await waitFor(client,'earned badge hidden again',`document.querySelectorAll('.klassio-student-sidebar [data-earned-badge]').length === 0`);
     await clickLabel(client,'Verdiente Badges anzeigen');
@@ -183,9 +191,37 @@ async function main() {
     await clickButton(client,'Sozialverhalten');
     await waitFor(client,'separate blue social scoring',`Boolean(document.querySelector('.klassio-student-sidebar button[aria-label^="Sozialpunkt für"].bg-sky-600'))`);
     await screenshot(client,'social-blue');
+    const firstSocialScore = `document.querySelector('.klassio-student-sidebar [role="listitem"] [aria-label$="Pluspunkte"]')?.textContent`;
+    const socialBefore = await evaluate(client, firstSocialScore);
+    const socialClicked = await evaluate(client,`(() => {const b=document.querySelector('.klassio-student-sidebar button[aria-label^="Sozialpunkt für"]');if(!b)return false;b.click();return true;})()`);
+    if(!socialClicked)throw Error('Social +1 action missing');
+    await waitFor(client,'social award confirmation',`Boolean(document.querySelector('.klassio-student-sidebar [role="status"]')?.textContent.includes('Sozialverhalten'))`);
+    await screenshot(client,'social-award-confirmation');
+    const socialUndoOK=await evaluate(client,`(() => {const b=document.querySelector('.klassio-student-sidebar button[aria-label^="Letzte Sozialbewertung"]');if(!b)return false;const r=b.getBoundingClientRect();b.click();return r.height>=43;})()`);
+    if(!socialUndoOK)throw Error('Social undo must be a 44px control');
+    await waitFor(client,'social undo restoration',`!document.querySelector('.klassio-student-sidebar button[aria-label^="Letzte Sozialbewertung"]')`);
+    if((await evaluate(client,firstSocialScore))!==socialBefore)throw Error('Social +1 was not undone');
+
     await clickButton(client,'Mitarbeit');
     await waitFor(client,'green subject scoring',`Boolean(document.querySelector('.klassio-student-sidebar button[aria-label^="Pluspunkt für"].bg-emerald-600'))`);
     await screenshot(client,'restored-subject-green');
+    const subjectLabel=await evaluate(client,`document.querySelector('.klassio-student-sidebar [role="group"][aria-label="Pluspunkt-Art"] button')?.textContent`);
+    if(!subjectLabel?.includes('Fach:')&&!subjectLabel?.includes('Fach auswählen'))throw Error('Mitarbeit must show explicit subject');
+    const subjectBefore = await evaluate(client,`document.querySelector('.klassio-student-sidebar [role="listitem"] [aria-label$="Pluspunkte"]')?.textContent`);
+    await evaluate(client,`document.querySelector('.klassio-student-sidebar button[aria-label^="Pluspunkt für"]').click()`);
+    const needsSubject=await evaluate(client,`Boolean(document.querySelector('.klassio-student-sidebar [role="dialog"][aria-label="Fach für Mitarbeit auswählen"]'))`);
+    if(needsSubject){
+      const picked=await evaluate(client,`(() => {const buttons=Array.from(document.querySelectorAll('.klassio-student-sidebar [role="dialog"] button')); const b=buttons.find(x=>x.textContent.trim()==='Deutsch');if(!b)return false;b.click();return true;})()`);
+      if(!picked)throw Error('Expected explicit Deutsch subject in picker');
+    }
+    await waitFor(client,'subject award confirmation',`Boolean(document.querySelector('.klassio-student-sidebar [role="status"]')?.textContent.includes('Mitarbeit ·'))`);
+    await screenshot(client,'subject-award-confirmation');
+    const subjectUndo=await evaluate(client,`(() => {const b=document.querySelector('.klassio-student-sidebar button[aria-label^="Letzte Mitarbeit"]');if(!b)return false;b.click();return true;})()`);
+    if(!subjectUndo)throw Error('Subject undo missing');
+    await waitFor(client,'subject undo restoration',`!document.querySelector('.klassio-student-sidebar button[aria-label^="Letzte Mitarbeit"]')`);
+    const subjectAfter=await evaluate(client,`document.querySelector('.klassio-student-sidebar [role="listitem"] [aria-label$="Pluspunkte"]')?.textContent`);
+    if(subjectBefore!==subjectAfter)throw Error('Subject award not undone');
+
     console.log('✓ Cockpit visual QA passed for '+WIDTH+'×'+HEIGHT+'. Board primary, students restorable, award modes distinct.');
   } catch(error) {
     try {await screenshot(client,'FAIL');}catch{}
