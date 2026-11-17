@@ -365,6 +365,12 @@ try{
   await click(c,'[data-student-dossier-areas] button[role="tab"]:nth-child(3)');
   await until(c,'observation charts from pupil records',
     'Boolean(document.querySelector("[data-dossier-observation-charts]"))');
+  // The first synthetic mood (2026-10-05) falls outside "Letzte 6 Wochen"
+  // on 2026-11-17. For a six-record historical regression, select the
+  // complete school year instead of changing the real rolling-window logic.
+  await click(c,'[role="group"][aria-label="Beobachtungszeitraum"] button:last-child');
+  await until(c,'full school-year observations selected',
+    'document.querySelector("[role=group][aria-label=\\\"Beobachtungszeitraum\\\"] button:last-child")?.getAttribute("aria-pressed")==="true"');
   await until(c,'six mood records in observations',
     'document.querySelector("[data-observation-mood]")?.textContent.includes("6 Rückmeldungen")');
 
