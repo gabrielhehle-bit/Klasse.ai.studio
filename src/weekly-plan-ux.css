@@ -70,6 +70,22 @@
  * für .bg-white/.bg-slate-50 (!important) dürfen sie nicht nivellieren.
  * Mono-Druck und echte freie Slots erhalten absichtlich keine Fachfarbe.
  */
-[data-klassio-subject-card] {
+/*
+ * The app-theme conversion uses [data-style] .bg-white/.bg-slate-50 with
+ * !important. Match that specificity (and exceed it inside the themed app).
+ * Never apply to ordinary module/overview cards.
+ */
+[data-klassio-subject-card],
+[data-style] [data-klassio-subject-card][data-klassio-subject-card] {
   background-color: var(--fach-card-bg) !important;
+}
+
+[data-klassio-subject-card][data-klassio-subject-stripe],
+[data-style] [data-klassio-subject-card][data-klassio-subject-stripe] {
+  border-left-color: var(--fach-card-stripe) !important;
+}
+
+[data-klassio-subject-card][data-klassio-subject-outline],
+[data-style] [data-klassio-subject-card][data-klassio-subject-outline] {
+  border-color: var(--fach-card-border) !important;
 }
