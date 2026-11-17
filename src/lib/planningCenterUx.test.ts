@@ -34,7 +34,7 @@ test('Planungszentrale benennt ihre beiden Ebenen verständlich', () => {
   assert.match(source, /'Übersicht'/);
   assert.match(source, /'Planungswerkzeuge'/);
   assert.doesNotMatch(source, /Einfachmodus AN/);
-  assert.equal((source.match(/grid grid-cols-2 bg-slate-100/g) || []).length >= 1, true);
+  assert.match(source, /role="group" aria-label="Art der Schnellplanung"/);
 });
 
 
