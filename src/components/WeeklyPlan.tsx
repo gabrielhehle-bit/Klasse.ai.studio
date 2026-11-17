@@ -2122,7 +2122,9 @@ export default function WeeklyPlan() {
 
                 {/* Dropdown Menu: Mehr */}
                 <div className="relative z-[210]">
-                  <button 
+                  <button type="button"
+                    aria-expanded={showWeekMenu}
+                    aria-label="Weitere Wochenplan-Werkzeuge"
                     onClick={() => setShowWeekMenu(!showWeekMenu)}
                     className="min-h-11 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200"
                   >
@@ -2522,13 +2524,13 @@ export default function WeeklyPlan() {
         </div>
       ) : viewMode === 'day' ? (
         <section aria-label="Tagesansicht des Wochenplans" className="w-full rounded-2xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="mb-3 flex flex-col gap-3">
             <div>
               <h2 className="text-base font-extrabold text-slate-900">Tagesplanung · {selectedDay}</h2>
               <p className="text-xs font-semibold text-slate-500">Stunde antippen zum Bearbeiten. Status, Hausübung, Material und Kinderfreigabe siehst du direkt auf jeder Karte.</p>
               <DailyHomeworkButton day={selectedDay} date={formatLocalDateKey(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + TAGE_NAMEN.indexOf(selectedDay)))} />
             </div>
-            <div className="flex flex-wrap gap-1" aria-label="Wochentag auswählen">
+            <div role="group" className="flex w-full min-w-0 gap-2 overflow-x-auto overscroll-x-contain pb-1 sm:flex-wrap sm:overflow-visible" aria-label="Wochentag auswählen">
               {TAGE_NAMEN.map((tag, index) => {
                 const date = new Date(monday);
                 date.setDate(monday.getDate() + index);
@@ -2540,7 +2542,7 @@ export default function WeeklyPlan() {
                   <button key={tag} type="button" onClick={() => setSelectedDay(tag)}
                     aria-pressed={selectedDay === tag}
                     aria-label={`${tag}, ${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}${isToday ? ', heute' : ''}: ${pendingHelpCount === 0 ? 'keine offenen Hilferufe' : `${pendingHelpCount} ${pendingHelpCount === 1 ? 'offener Hilferuf' : 'offene Hilferufe'}`}`}
-                    className={`min-h-11 rounded-lg border px-2.5 py-1.5 text-xs font-bold ${selectedDay === tag ? 'border-indigo-300 bg-indigo-50 text-indigo-800' : isToday ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                    className={`min-h-11 shrink-0 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${selectedDay === tag ? 'border-indigo-300 bg-indigo-50 text-indigo-800' : isToday ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
                     {tag.slice(0, 2)} {date.getDate()}.{date.getMonth() + 1}.{isToday ? ' · Heute' : ''}
                     {pendingHelpCount > 0 && (
                       <span data-weekly-day-help-count aria-hidden="true"
