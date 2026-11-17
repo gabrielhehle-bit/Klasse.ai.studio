@@ -28,7 +28,8 @@ test('Schnellplanung keeps lesson or event, accessible day/hour fields and topic
   assert.match(center, /role="group" aria-labelledby="quick-plan-subject-hint"/);
   assert.match(center, /aria-pressed=\{isActive\}/);
   assert.match(center, /handleSwitchQuickSlot\(/);
-  assert.match(center, /handleSaveQuickPlan/);
+  assert.match(center, /onClick=\{handleSaveLesson\}/);
+  assert.match(center, /onClick=\{handleSaveQuickEvent\}/);
   assert.match(center, /aria-expanded=\{showExpandedDetailsInDrawer\}/);
   assert.match(center, /showInChildWeekPlan/);
 });
