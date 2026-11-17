@@ -59,7 +59,7 @@ async function waitFor(client,name,expression,timeout=30000) {
 }
 async function clickButton(client,text) {
   const ok=await evaluate(client,
-    '(() => {const t='+q(text)+'; const b=Array.from(document.querySelectorAll("button")).find(x=>x.textContent.replace(/\\s+/g," ").trim()===t && x.getBoundingClientRect().width>0);if(!b)return false;b.click();return true;})()');
+    '(() => {const t='+q(text)+';const buttons=Array.from(document.querySelectorAll("button")).filter(x=>x.getBoundingClientRect().width>0 && x.getBoundingClientRect().height>0 && !x.disabled);const normalized=x=>x.textContent.replace(/\\s+/g," ").trim();const b=buttons.find(x=>normalized(x)===t)||buttons.find(x=>normalized(x).includes(t));if(!b)return false;b.click();return true;})()');
   if(!ok)throw Error('Button missing: '+text);
 }
 async function clickLabel(client,label,optional=false) {
