@@ -60,7 +60,7 @@ export function Chip({
           type="button"
           disabled={disabled}
           onClick={onClick}
-          className="focus-visible:outline-none focus-visible:underline"
+          className="inline-flex min-h-11 items-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] sm:min-h-0"
           {...rest}
         >
           {children}
@@ -78,7 +78,7 @@ export function Chip({
             e.stopPropagation();
             onDismiss();
           }}
-          className="ml-0.5 -mr-1 p-0.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-current cursor-pointer"
+          className="ml-0.5 -mr-1 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-current hover:bg-black/10 dark:hover:bg-white/10 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-current cursor-pointer sm:min-h-7 sm:min-w-7"
         >
           <X className="w-3 h-3" aria-hidden="true" />
         </button>

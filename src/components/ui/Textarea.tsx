@@ -49,7 +49,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(({
               : undefined
         }
         className={`
-          w-full px-3.5 py-2.5 text-sm rounded-xl transition-all duration-150
+          w-full px-3.5 py-2.5 text-base sm:text-sm rounded-xl transition-all duration-150
           bg-[var(--surface-card,var(--surface))]
           text-[var(--text-primary,var(--text))]
           placeholder:text-[var(--text-muted,var(--text3))]

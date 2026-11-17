@@ -55,9 +55,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   // Size specifications complying with touch targets:
   // md: ~44px height (WCAG touch standard)
   // lg: ~52px height
-  // sm: ~34px height (compact, touch-manipulation safe)
+  // sm: >=44px on phones; compact 34px only above the mobile breakpoint
   const sizeClasses: Record<ButtonSize, string> = {
-    sm: 'min-h-[34px] px-3 py-1.5 text-xs font-semibold rounded-lg gap-1.5 active:scale-[0.98]',
+    sm: 'min-h-[44px] px-3 py-1.5 text-sm sm:min-h-[34px] sm:text-xs font-semibold rounded-lg gap-1.5 active:scale-[0.98]',
     md: 'min-h-[44px] px-4 py-2 text-sm font-semibold rounded-xl gap-2 active:scale-[0.98]',
     lg: 'min-h-[52px] px-6 py-3 text-base font-bold rounded-2xl gap-2.5 active:scale-[0.98]'
   };
