@@ -101,7 +101,7 @@ async function metrics(client) {
     const list=sidebar?.querySelector('[role=list]');
     const cards=Array.from(list?.querySelectorAll('[role=listitem]')||[]);
     const boardR=rect(board), sideR=rect(sidebar), dockR=rect(dock), listR=rect(list);
-    const cardsWithin=cards.every(el=>{const r=el.getBoundingClientRect();return r.left>=listR.x-2&&r.right<=listR.right+2;});
+    const cardsWithin=cards.every(el=>{const r=el.getBoundingClientRect();return r.left>=listR.x-2&&r.right<=listR.right+2&&r.top>=listR.y-2&&r.bottom<=listR.bottom+2;});
     const controls=Array.from(document.querySelectorAll('.klassio-cockpit-shell button')).filter(b=>{
       const r=b.getBoundingClientRect();return r.width>0&&r.height>0&&r.top<150;
     }).map(b=>({label:b.getAttribute('aria-label')||b.title||b.textContent.trim(),r:rect(b)}));
