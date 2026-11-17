@@ -10149,6 +10149,24 @@ ${content}
                                 </label>
 
                                 <label className={`flex min-h-11 w-full shrink-0 cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold leading-5 ${currentIsLight ? "border-slate-200 bg-slate-50 text-slate-800" : "border-white/10 bg-white/5 text-white"}`}
+                                  title="Nur tatsächlich vergebene, ausdrücklich für das Cockpit freigegebene Badges öffentlich anzeigen. Keine automatisch errechneten Auszeichnungen.">
+                                  <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0 accent-amber-600"
+                                    aria-label="Verdiente Kinder-Badges in der Schülerliste anzeigen"
+                                    checked={app.boardSettings?.showEarnedBadgesInCockpit === true}
+                                    onChange={event => setApp(prev => ({
+                                      ...prev,
+                                      boardSettings: {
+                                        ...prev.boardSettings,
+                                        showEarnedBadgesInCockpit: event.target.checked,
+                                      },
+                                    }))} />
+                                  <span className="min-w-0 flex-1 whitespace-normal break-words">
+                                    <span className="block leading-5">Verdiente Badges anzeigen</span>
+                                    <span className="block text-[10px] font-normal leading-4 opacity-75">Nur vergebene und freigegebene Badges – bis zu zwei in kleinen Karten, weitere als +Anzahl. Über das Pokal-Symbol schnell umschaltbar.</span>
+                                  </span>
+                                </label>
+
+                                <label className={`flex min-h-11 w-full shrink-0 cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold leading-5 ${currentIsLight ? "border-slate-200 bg-slate-50 text-slate-800" : "border-white/10 bg-white/5 text-white"}`}
                                   title="Persönliches Profil-Emoji jedes Kindes in der Schülerliste zusätzlich anzeigen.">
                                   <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0 accent-indigo-600"
                                     aria-label="Persönliche Emojis der Kinder in der Schülerliste anzeigen"
@@ -12763,6 +12781,19 @@ ${content}
                           <select aria-label="Widget der Seitenleiste" title={`${cockpitClassLabel || 'Klasse'} · ${app.schueler.length} Kinder`} value={sidebarContent} onChange={event => setSidebarContent(event.target.value as 'students' | 'stars')} className="min-h-8 min-w-0 flex-1 rounded-md border-0 bg-white px-1 text-xs font-semibold">
                             <option value="students">{cockpitClassLabel || 'Klasse'} · {app.schueler.length} Kinder</option><option value="stars">Sterneübersicht · Diagramm</option>
                           </select>
+                          <button type="button"
+                            aria-label={app.boardSettings?.showEarnedBadgesInCockpit === true ? "Verdiente Badges ausblenden" : "Verdiente Badges anzeigen"}
+                            aria-pressed={app.boardSettings?.showEarnedBadgesInCockpit === true}
+                            title={app.boardSettings?.showEarnedBadgesInCockpit === true ? "Verdiente Kinder-Badges ausblenden" : "Verdiente Kinder-Badges anzeigen"}
+                            onClick={() => setApp(prev => ({
+                              ...prev, boardSettings: {
+                                ...prev.boardSettings,
+                                showEarnedBadgesInCockpit: prev.boardSettings?.showEarnedBadgesInCockpit !== true,
+                              },
+                            }))}
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600 ${app.boardSettings?.showEarnedBadgesInCockpit ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-100'}`}>
+                            <Trophy size={16} aria-hidden="true" />
+                          </button>
                           <button type="button"
                             aria-label={sidebarMode === "mini" ? "Schüler-Seitenleiste groß anzeigen" : "Schüler-Seitenleiste kompakt anzeigen"}
                             aria-pressed={sidebarMode === "mini"}
