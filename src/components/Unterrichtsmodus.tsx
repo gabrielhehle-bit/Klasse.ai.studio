@@ -9944,6 +9944,17 @@ ${content}
                             <span className="hidden lg:inline ml-1">{isFullscreen ? "Vollbild aus" : "Vollbild"}</span>
                           </button>
 
+                          {/* Tafel priorisieren: nur die vorhandene Schüler-Seitenleiste umschalten. */}
+                          <button type="button"
+                            onClick={() => changeSidebarMode(sidebarMode === "hidden" ? prevSidebarMode : "hidden")}
+                            aria-label={sidebarMode === "hidden" ? "Schülerliste wieder anzeigen" : "Tafel groß anzeigen"}
+                            aria-pressed={sidebarMode === "hidden"}
+                            title={sidebarMode === "hidden" ? "Schülerliste wieder anzeigen" : "Mehr Platz für die Tafel – Schülerliste ausblenden"}
+                            className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-2.5 text-xs font-semibold transition-colors ${sidebarMode === "hidden" ? "border-accent bg-accent-soft text-accent" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>
+                            {sidebarMode === "hidden" ? <Users size={15} /> : <Maximize2 size={15} />}
+                            <span className="hidden 2xl:inline">{sidebarMode === "hidden" ? "Schülerliste" : "Tafel groß"}</span>
+                          </button>
+
                           <button
                             type="button"
                             onClick={() => {
@@ -12759,11 +12770,12 @@ ${content}
                             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600"><X size={16} /></button>
                         </div>
                         <div role="group" aria-label="Pluspunkt-Art" className="mt-1 flex gap-1 rounded-lg bg-slate-100 p-0.5">
-                          {([['subject', 'Fach +1'], ['social', '🤝 Sozial +1']] as const).map(([kind, label]) => <button key={kind} type="button"
+                          {([['subject', 'Mitarbeit'], ['social', 'Sozialverhalten']] as const).map(([kind, label]) => <button key={kind} type="button"
                             aria-pressed={sidebarParticipationKind === kind}
-                            title={kind === 'subject' ? `Mitarbeit · ${getActiveSubject()}` : 'Soziale Sterne'}
+                            aria-label={kind === 'subject' ? `Mitarbeit im Fach ${getActiveSubject()}` : 'Sozialverhalten'}
+                            title={kind === 'subject' ? `Mitarbeitspunkte im Fach ${getActiveSubject()} erfassen` : 'Punkte für das Sozialverhalten erfassen'}
                             onClick={() => { setPendingParticipation(null); setSidebarParticipationKind(kind); }}
-                            className={`min-h-8 flex-1 rounded-md px-2 text-xs font-semibold ${sidebarParticipationKind === kind ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>{label}</button>)}
+                            className={`min-h-8 flex-1 rounded-md px-2 text-xs font-semibold ${sidebarParticipationKind === kind ? (kind === 'subject' ? 'bg-white text-emerald-800 shadow-sm' : 'bg-white text-sky-800 shadow-sm') : 'text-slate-500 hover:text-slate-800'}`}>{label}</button>)}
                         </div>
                       </div>
 
