@@ -231,6 +231,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     typ: 'sa' | 'lzk' | 'wp' | 'obj';
     idx: number;
     isNew?: boolean;
+    learningAreaQuickEntry?: boolean;
   } | null>(null);
   const [editingColLabel, setEditingColLabel] = useState<{typ: 'sa'|'lzk'|'wp'|'obj', idx: number} | null>(null);
   const [tempColLabel, setTempColLabel] = useState('');
@@ -862,7 +863,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     }));
   };
 
-  const addColumn = (e: React.MouseEvent, typ: 'sa' | 'lzk' | 'wp' | 'obj') => {
+  const addColumn = (e: React.MouseEvent, typ: 'sa' | 'lzk' | 'wp' | 'obj', learningAreaQuickEntry = false) => {
     e.stopPropagation();
     setActiveView('noten'); setShowWeights(false); setShowGradeCalculator(false);
     const dataKey: 'sa' | 'lzk' | 'wp' | 'aufgaben' = typ === 'obj' ? 'aufgaben' : typ;
@@ -902,7 +903,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     }
 
     const idx = reusableIndex >= 0 ? reusableIndex : currentCount;
-    setEditingAssessmentModal({ typ, idx, isNew: true });
+    setEditingAssessmentModal({ typ, idx, isNew: true, learningAreaQuickEntry });
   };
 
   const removeColumn = (e: React.MouseEvent, typ: 'lzk' | 'wp' | 'obj') => {
@@ -4499,6 +4500,26 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                     </button>
 
                     <button
+                      type="button"
+                      aria-label={`Lernbereich in ${activeFach} bewerten`}
+                      onClick={(event) => {
+                        setShowAddAssessmentModal(false);
+                        // Reuse the assessed-task columns and the existing grading model.
+                        // Only saving a new area assessment can activate this column category.
+                        addColumn(event, 'obj', true);
+                      }}
+                      className="p-4 rounded-2xl border border-sky-200 bg-sky-50/60 hover:bg-sky-100/70 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600"
+                    >
+                      <div className="text-2xl mb-2" aria-hidden="true">📚</div>
+                      <div className="font-black text-sky-950 text-[0.9375rem] mb-1">
+                        Lernbereich / Kompetenz
+                      </div>
+                      <div className="text-[0.75rem] text-sky-800 leading-snug">
+                        Lesen, Rechtschreibung oder Größen und Messen – mit Unterpunkten bewerten
+                      </div>
+                    </button>
+
+                    <button
                       onClick={(e) => {
                         setShowAddAssessmentModal(false);
                         e.stopPropagation();
@@ -4746,6 +4767,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                         ...meta,
                         [activeFach]: {
                           ...subjectMeta,
+                          ...(editingAssessmentModal.typ === 'obj' ? { enableObj: true } : {}),
                           ...(editingAssessmentModal.typ === 'sa' ? { saCount: Math.max(getFachCfg(prev, activeFach).saCount, editingAssessmentModal.idx + 1) } : {}),
                           colCounts: {
                             ...counts,
@@ -4788,6 +4810,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
               subject={activeFach}
               semester={sem}
               isNew={editingAssessmentModal.isNew}
+              learningAreaQuickEntry={editingAssessmentModal.learningAreaQuickEntry}
             />
           )}
         </div>
