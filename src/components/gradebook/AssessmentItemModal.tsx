@@ -182,16 +182,16 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
                   htmlFor="assessment-item-title-input"
                   className="block text-xs font-black uppercase tracking-wider text-slate-700"
                 >
-                  Bezeichnung / Titel
+                  {learningAreaQuickEntry ? 'Kompetenz / Unterpunkt' : 'Bezeichnung / Titel'}
                 </label>
                 <div className="relative">
                   <input
                     id="assessment-item-title-input"
                     type="text"
-                    autoFocus
+                    autoFocus={!learningAreaQuickEntry}
                     value={label}
                     onChange={e => setLabel(e.target.value)}
-                    placeholder={currentTypeInfo.defaultName}
+                    placeholder={learningAreaQuickEntry ? 'z. B. Leseflüssigkeit oder Geld' : currentTypeInfo.defaultName}
                     className="w-full px-3.5 py-2.5 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl text-sm font-bold text-slate-800 outline-hidden transition-all placeholder:text-slate-400"
                   />
                 </div>
@@ -256,6 +256,7 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
             <div className="space-y-2">
               <label htmlFor="assessment-item-area" className="block text-sm font-bold text-slate-700">Teilbereich in {subject} {learningAreaQuickEntry ? '(erforderlich)' : '(optional)'}</label>
               <input id="assessment-item-area" list="assessment-area-options" value={area}
+                autoFocus={learningAreaQuickEntry}
                 required={learningAreaQuickEntry}
                 maxLength={100} onChange={e => setArea(e.target.value)}
                 placeholder={presets[0] || 'z. B. Rechtschreibung oder Größen und Messen'} className="input-field w-full" />
@@ -280,6 +281,11 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
                   </div>
                   <p className="text-xs text-sky-900">Der Unterpunkt wird oben als Bezeichnung übernommen und kann frei geändert werden. Im Schülerdossier werden Ergebnisse dem gewählten Teilbereich zugeordnet.</p>
                 </div>
+              )}
+              {learningAreaQuickEntry && (
+                <p className="text-xs text-slate-600">
+                  Wird als bewertete Aufgabe unter „Sonstige Leistungen“ gespeichert. Ob sie den Fach-Gesamtschnitt beeinflusst, hängt von der eingestellten Gewichtung ab.
+                </p>
               )}
               <p className="text-xs text-slate-500">Gilt für diese LZK, Schularbeit, diesen Wochenplan oder eine bewertete Aufgabe/HÜ. Die Anzahl vergessener Hausübungen wird weiterhin nur dokumentiert, nicht als Lernleistung interpretiert.</p>
             </div>
