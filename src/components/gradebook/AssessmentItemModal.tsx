@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LERNZIELE_BY_STUFE } from '../LernzielTracker';
 import { formatLocalDateKey } from '../../lib/utils';
+import { getLearningAreaGroups } from '../../lib/learningAreaAssessmentOptions';
 import { 
   X, 
   Calendar, 
@@ -31,6 +32,7 @@ interface AssessmentItemModalProps {
   subject: string;
   semester: string;
   isNew?: boolean;
+  learningAreaQuickEntry?: boolean;
 }
 
 export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
@@ -47,15 +49,13 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
   assessmentMode,
   subject,
   semester,
-  isNew = false
+  isNew = false,
+  learningAreaQuickEntry = false
 }) => {
   const [area, setArea] = useState(initialArea);
-  const fachName = subject.toLocaleLowerCase('de-AT');
-  const presets = fachName.includes('deutsch')
-    ? ['Lesen', 'Rechtschreibung', 'Texte schreiben', 'Sprachbetrachtung', 'Sprechen und Zuhören']
-    : (fachName.includes('mathematik') || fachName.includes('mathe'))
-      ? ['Zahlen und Operationen', 'Rechnen', 'Größen und Messen', 'Raum und Form', 'Sachrechnen']
-      : [];
+  const learningAreaGroups = getLearningAreaGroups(subject);
+  const presets = learningAreaGroups.map(group => group.area);
+  const selectedLearningArea = learningAreaGroups.find(group => group.area === area.trim());
   const areas = [...new Set([...presets, ...Object.values(LERNZIELE_BY_STUFE).flatMap(level =>
     (level[subject] || []).map(goal => goal.text.split(':')[0].trim())
   ).filter(Boolean)])];
@@ -122,7 +122,7 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const finalLabel = label.trim() || currentTypeInfo.defaultName;
+    const finalLabel = label.trim() || (learningAreaQuickEntry ? area.trim() : currentTypeInfo.defaultName);
     const finalMaxP = entryMode === 'points' ? Math.max(1, maxPoints || 20) : undefined;
     const saved = onSave(finalLabel, date, finalMaxP, area.trim(), entryMode);
     // Keep the editor open when changing a points scale would invalidate existing results.
@@ -153,7 +153,7 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
               </div>
               <div>
                 <h3 className="text-lg font-black text-slate-900 leading-tight">
-                  {isNew ? `${currentTypeInfo.singular} erstellen` : `${currentTypeInfo.singular} bearbeiten`}
+                  {learningAreaQuickEntry ? 'Lernbereich bewerten' : isNew ? `${currentTypeInfo.singular} erstellen` : `${currentTypeInfo.singular} bearbeiten`}
                 </h3>
                 <p className="text-xs font-semibold text-slate-500 mt-0.5">
                   Fach: <span className="font-bold text-slate-800">{subject}</span> · <span className="font-bold text-slate-800">{semester === '1' ? 'Ganzes Schuljahr' : `${semester}. Semester`}</span>
@@ -254,10 +254,11 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="assessment-item-area" className="block text-sm font-bold text-slate-700">Teilbereich in {subject} (optional)</label>
+              <label htmlFor="assessment-item-area" className="block text-sm font-bold text-slate-700">Teilbereich in {subject} {learningAreaQuickEntry ? '(erforderlich)' : '(optional)'}</label>
               <input id="assessment-item-area" list="assessment-area-options" value={area}
+                required={learningAreaQuickEntry}
                 maxLength={100} onChange={e => setArea(e.target.value)}
-                placeholder={presets[0] || 'Lernbereich auswählen oder eingeben'} className="input-field w-full" />
+                placeholder={presets[0] || 'z. B. Rechtschreibung oder Größen und Messen'} className="input-field w-full" />
               <datalist id="assessment-area-options">{areas.map(name => <option key={name} value={name} />)}</datalist>
               {presets.length > 0 && <div className="flex flex-wrap gap-1.5" aria-label="Teilbereiche auswählen">
                 {presets.map(name => <button key={name} type="button" onClick={() => setArea(name)}
@@ -266,6 +267,20 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
                   {name}
                 </button>)}
               </div>}
+              {selectedLearningArea && (
+                <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-3 space-y-2" data-learning-area-skills>
+                  <p className="text-xs font-bold text-sky-950">Unterpunkt auswählen (optional)</p>
+                  <div className="flex flex-wrap gap-1.5" aria-label={`Unterpunkte für ${selectedLearningArea.area}`}>
+                    {selectedLearningArea.skills.map(skill => <button key={skill} type="button"
+                      onClick={() => setLabel(skill)}
+                      aria-pressed={label.trim() === skill}
+                      className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${label.trim() === skill ? 'border-sky-600 bg-sky-100 text-sky-950' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}>
+                      {skill}
+                    </button>)}
+                  </div>
+                  <p className="text-xs text-sky-900">Der Unterpunkt wird oben als Bezeichnung übernommen und kann frei geändert werden. Im Schülerdossier werden Ergebnisse dem gewählten Teilbereich zugeordnet.</p>
+                </div>
+              )}
               <p className="text-xs text-slate-500">Gilt für diese LZK, Schularbeit, diesen Wochenplan oder eine bewertete Aufgabe/HÜ. Die Anzahl vergessener Hausübungen wird weiterhin nur dokumentiert, nicht als Lernleistung interpretiert.</p>
             </div>
             {/* Each assessment can use a different entry scale. Legacy columns retain their original scale. */}
@@ -456,7 +471,7 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
                 className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black shadow-md shadow-indigo-600/20 hover:shadow-lg transition-all flex items-center gap-2"
               >
                 <CheckCircle2 size={16} />
-                {isNew ? `${currentTypeInfo.singular} anlegen` : 'Änderungen speichern'}
+                {learningAreaQuickEntry ? 'Lernbereich anlegen' : isNew ? `${currentTypeInfo.singular} anlegen` : 'Änderungen speichern'}
               </button>
             </div>
           </form>
