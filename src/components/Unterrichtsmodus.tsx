@@ -8,6 +8,7 @@ import ParticipationResetPanel from './cockpit/ParticipationResetPanel';
 import ParticipationSubjectPicker from './cockpit/ParticipationSubjectPicker';
 import StudentBadgePicker from './cockpit/StudentBadgePicker';
 import { commitParticipationAward, commitSocialAward, getSocialStars, undoLatestParticipationAward, undoParticipationAward } from '../lib/participationAward';
+import { resolveAutomaticParticipationSubject } from '../lib/cockpitParticipationSubject';
 import { MASCOT_RITUAL_EVENT } from '../lib/classMascot';
 import { shouldApplyTafelCommand } from '../lib/tafelCommands';
 import { getTodayIsoDate } from '../lib/kidAttendanceAlgorithm';
@@ -7114,7 +7115,7 @@ ${content}
   }, [sidebarMode, pendingParticipation?.inSidebar]);
   const awardParticipation = (sid: string, subject: string, classId: string, event?: React.MouseEvent, onAwarded?: () => void) => {
     if (classId !== app.activeClassId || !app.schueler.some(student => student.id === sid)
-      || !subject || (app.participationSettings?.subjectMode === 'choose' && !app.faecher?.includes(subject))) return;
+      || !subject || !app.faecher?.includes(subject)) return;
     const id = crypto.randomUUID();
     setApp(prev => commitParticipationAward(prev, { id, sid, subject, classId }));
     lastParticipationAward.current = { id, sid, subject, classId };
@@ -7127,11 +7128,16 @@ ${content}
   // Reward Logic Helpers
   const addParticipation = (sid: string, event?: React.MouseEvent, onAwarded?: () => void) => {
     if (!app.activeClassId) return;
-    if (app.participationSettings?.subjectMode === 'choose') {
+    // Outside a real subject lesson "Unterricht" is just a UI placeholder.
+    // Never record it as a subject/gradebook item: ask for a real class subject.
+    const automaticSubject = resolveAutomaticParticipationSubject(
+      getActiveSubject(), app.faecher, app.participationSettings?.subjectMode,
+    );
+    if (!automaticSubject) {
       setPendingParticipation({ sid, classId: app.activeClassId, event, onAwarded, inSidebar: Boolean(event?.currentTarget.closest(".klassio-student-sidebar")) });
       return;
     }
-    awardParticipation(sid, getActiveSubject(), app.activeClassId, event, onAwarded);
+    awardParticipation(sid, automaticSubject, app.activeClassId, event, onAwarded);
   };
 
   const addSocialParticipation = (sid: string, event?: React.MouseEvent, onAwarded?: () => void) => {
@@ -9970,8 +9976,8 @@ ${content}
                             title="Aktuelles Widget-Layout als neue Vorlage speichern"
                           >
                             <Save size={13} />
-                            <span className="hidden md:inline">Vorlage erstellen</span>
-                            <span className="md:hidden">Vorlage</span>
+                            <span className="hidden xl:inline">Vorlage erstellen</span>
+                            <span className="xl:hidden">Vorlage</span>
                           </button>
 
                           {/* Secondary Actions: Dropdown Menu (••• Optionen) */}
@@ -12773,7 +12779,7 @@ ${content}
                           {([['subject', 'Mitarbeit'], ['social', 'Sozialverhalten']] as const).map(([kind, label]) => <button key={kind} type="button"
                             aria-pressed={sidebarParticipationKind === kind}
                             aria-label={kind === 'subject' ? `Mitarbeit im Fach ${getActiveSubject()}` : 'Sozialverhalten'}
-                            title={kind === 'subject' ? `Mitarbeitspunkte im Fach ${getActiveSubject()} erfassen` : 'Punkte für das Sozialverhalten erfassen'}
+                            title={kind === 'subject' ? (app.faecher?.includes(getActiveSubject()) ? `Mitarbeitspunkte im Fach ${getActiveSubject()} erfassen` : 'Mitarbeitspunkt vergeben – Fach wird ausgewählt') : 'Sozialpunkte erfassen (getrennt von Verhaltensstufen)'}
                             onClick={() => { setPendingParticipation(null); setSidebarParticipationKind(kind); }}
                             className={`min-h-8 flex-1 rounded-md px-2 text-xs font-semibold ${sidebarParticipationKind === kind ? (kind === 'subject' ? 'bg-white text-emerald-800 shadow-sm' : 'bg-white text-sky-800 shadow-sm') : 'text-slate-500 hover:text-slate-800'}`}>{label}</button>)}
                         </div>
