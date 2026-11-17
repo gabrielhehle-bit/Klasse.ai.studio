@@ -53,9 +53,14 @@ export function PublicStudentListWidget({
   const listRef = useRef<HTMLDivElement>(null);
   const listSize = useWidgetSize(listRef);
   const [compact, setCompact] = useState(false);
-  const dense = !gridMode && (sidebarCompact || compact);
-  const compactGrid = !gridMode && (sidebarCompact || compact);
   const compactLayout = getCompactStudentGridLayout(listSize.width, listSize.height, students.length);
+  // On classroom screens, do not force teachers to scroll through a full class.
+  // Use the existing dense, two-column card layout when it actually fits.
+  // For very large classes or narrow panels, retain the scrollable list.
+  const autoCompactSidebar = sidebar && !sidebarCompact && !gridMode &&
+    students.length >= 10 && listSize.width >= 260 && compactLayout.fits;
+  const dense = !gridMode && (sidebarCompact || compact || autoCompactSidebar);
+  const compactGrid = !gridMode && (sidebarCompact || compact || autoCompactSidebar);
   const showBehavior = app.boardSettings?.showStudentBehaviorInPluspoints === true;
   // Personal emoji is intentionally opt-in; do not invent a placeholder avatar.
   const showStudentEmoji = app.boardSettings?.showStudentEmojiInList === true;
