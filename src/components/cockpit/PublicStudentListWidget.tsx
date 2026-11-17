@@ -9,7 +9,7 @@ import { getCockpitEarnedBadges } from '../../lib/cockpitEarnedBadges';
 interface Props {
   app: AppState;
   getTodayPoints: (studentId: string) => number;
-  addParticipation: (studentId: string, event?: React.MouseEvent, onAwarded?: () => void) => void;
+  addParticipation: (studentId: string, event?: React.MouseEvent, onAwarded?: (subject: string) => void) => void;
   removeParticipation: (studentId: string) => void;
   /** Teacher action: adjacent stage is written to behavior_status and the dossier history. */
   onBehaviorStageChange?: (studentId: string, stageId: string) => void;
@@ -68,11 +68,22 @@ export function PublicStudentListWidget({
   const showStudentEmoji = app.boardSettings?.showStudentEmojiInList === true;
   const [lastAwardedId, setLastAwardedId] = useState<string | null>(null);
   const [recentlyAwardedId, setRecentlyAwardedId] = useState<string | null>(null);
+  const [recentAwardSubject, setRecentAwardSubject] = useState<string | null>(null);
+  const [badgeDetailsStudentId, setBadgeDetailsStudentId] = useState<string | null>(null);
 
   useEffect(() => {
     setLastAwardedId(null);
     setRecentlyAwardedId(null);
+    setRecentAwardSubject(null);
+    setBadgeDetailsStudentId(null);
   }, [app.activeClassId, socialMode]);
+
+  useEffect(() => {
+    if (!badgeDetailsStudentId) return;
+    const handleEscape = (e: KeyboardEvent) => { if (e.key === 'Escape') setBadgeDetailsStudentId(null); };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [badgeDetailsStudentId]);
 
   const labels = useMemo(() => {
     const result = new Map<string, string>();
@@ -103,15 +114,23 @@ export function PublicStudentListWidget({
 
   return (
     <section ref={containerRef} aria-label="Öffentliche Schülerliste und Pluspunkte"
-      className={`flex h-full min-h-0 flex-col text-slate-900 ${dense ? 'gap-1 p-1' : 'gap-2 p-2'}`}>
-      {(!sidebar || (dense && lastAwardedId)) && <div className="flex shrink-0 items-center justify-between gap-1">
-        {!sidebar && <h3 className={`${dense ? 'text-xs' : 'text-sm'} font-extrabold`}>{socialMode ? "🤝 Soziale Sterne" : "✨ Unsere Pluspunkte"} · {students.length}</h3>}
-        {dense && lastAwardedId && (
-          <button type="button" onClick={() => {
-            if (getTodayPoints(lastAwardedId) > 0) removeParticipation(lastAwardedId);
-            setLastAwardedId(null);
-            setRecentlyAwardedId(null);
-          }} className="min-h-9 shrink-0 rounded-md border border-slate-300 bg-white px-1.5 text-xs font-semibold" aria-label="Letzten Pluspunkt rückgängig machen">↶</button>
+      className={`relative flex h-full min-h-0 flex-col text-slate-900 ${dense ? 'gap-1 p-1' : 'gap-2 p-2'}`}>
+      {(!sidebar || Boolean(lastAwardedId && recentAwardSubject)) && <div className="flex min-h-11 shrink-0 items-center justify-between gap-1">
+        {!sidebar && !lastAwardedId && <h3 className={`${dense ? 'text-xs' : 'text-sm'} font-extrabold`}>{socialMode ? "Soziale Sterne" : "Unsere Pluspunkte"} · {students.length}</h3>}
+        {lastAwardedId && recentAwardSubject && (
+          <>
+            <span role="status" aria-live="polite" className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-800"
+              title={`${labels.get(lastAwardedId)} · ${socialMode ? 'Sozialverhalten' : `Mitarbeit · ${recentAwardSubject}`} +1`}>
+              ✓ {labels.get(lastAwardedId)} · {socialMode ? 'Sozialverhalten' : `Mitarbeit · ${recentAwardSubject}`} +1
+            </span>
+            <button type="button" onClick={() => {
+              if (getTodayPoints(lastAwardedId) > 0) removeParticipation(lastAwardedId);
+              setLastAwardedId(null);
+              setRecentlyAwardedId(null);
+              setRecentAwardSubject(null);
+            }} className="min-h-11 shrink-0 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-bold text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
+              aria-label={`Letzte ${socialMode ? 'Sozial-' : 'Mitarbeits'}bewertung für ${labels.get(lastAwardedId)} rückgängig machen`}>↶ Rückgängig</button>
+          </>
         )}
         {!sidebar && !gridMode && !sidebarCompact && (
           <button type="button" aria-pressed={compact}
@@ -188,6 +207,7 @@ export function PublicStudentListWidget({
                 <button type="button" onClick={event => addParticipation(student.id, event, () => {
                   setLastAwardedId(student.id);
                   setRecentlyAwardedId(student.id);
+                  setRecentAwardSubject(subject);
                 })}
                   className={`min-h-11 min-w-11 shrink-0 rounded-lg text-sm font-extrabold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 ${socialMode ? "bg-sky-600 hover:bg-sky-700" : "bg-emerald-600 hover:bg-emerald-700"}`}
                   title={socialMode ? "Sozialpunkt für das Sozialverhalten" : "Mitarbeitspunkt für ein Unterrichtsfach"}
@@ -259,6 +279,7 @@ export function PublicStudentListWidget({
                       addParticipation(student.id, event, () => {
                         setLastAwardedId(student.id);
                         setRecentlyAwardedId(student.id);
+                        setRecentAwardSubject(subject);
                       });
                     }}
                     className={`${dense ? 'min-h-11 min-w-11 px-1 text-xs rounded-lg' : 'min-h-11 min-w-11 px-3 text-lg rounded-xl'} ${socialMode ? 'bg-sky-600 hover:bg-sky-700' : 'bg-emerald-600 hover:bg-emerald-700'} font-extrabold text-white shadow-sm transition-transform active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600`}
