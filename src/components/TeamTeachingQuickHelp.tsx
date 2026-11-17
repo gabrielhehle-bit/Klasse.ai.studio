@@ -13,7 +13,6 @@ type CheckStep =
 
 interface Props {
   sharedClassId?: string;
-  className?: string;
   serverConfirmed: boolean;
   deviceAuthorization: TeamDeviceAuthorization;
   teamSyncStatus?: 'synced' | 'pending' | 'conflict' | 'error';
@@ -34,7 +33,7 @@ const describeSync = (status?: Props['teamSyncStatus']): string => {
  * It never sends test data, changes team membership or declares a backend test successful.
  */
 export default function TeamTeachingQuickHelp({
-  sharedClassId, className, serverConfirmed, deviceAuthorization, teamSyncStatus,
+  sharedClassId, serverConfirmed, deviceAuthorization, teamSyncStatus,
 }: Props) {
   const [step, setStep] = React.useState<CheckStep>('compare');
   const [showReport, setShowReport] = React.useState(false);
@@ -56,7 +55,9 @@ export default function TeamTeachingQuickHelp({
     setStep(next);
     setShowReport(false);
   };
-  const deviceMessage = deviceAuthorization === 'unauthorized'
+  const deviceMessage = !sharedClassId
+    ? 'Auf diesem Gerät ist noch keine gemeinsame Klasse geöffnet. Öffne unter „Mit mir geteilte Klassen“ die vorhandene Klasse. Keine neue erstellen.'
+    : deviceAuthorization === 'unauthorized'
     ? 'Dieses Gerät braucht noch eine Freigabe. Hier auf „Freigabe anfordern“ klicken. Die andere Lehrperson bestätigt den Prüfcode.'
     : deviceAuthorization === 'checking' || deviceAuthorization === 'unknown'
       ? 'KLASSIO prüft die Freigabe dieses Geräts. Bitte die Verbindung im Klassenteam prüfen.'
@@ -71,7 +72,6 @@ export default function TeamTeachingQuickHelp({
   const answerB = step === 'problem-b';
   const report = [
     'KLASSIO Teamtest – Angaben von diesem Gerät',
-    'Klasse: ' + (className || 'nicht ausgewählt'),
     'Team-Kurzcode: ' + (teamCode || 'nicht vorhanden'),
     'Team vom Server bestätigt: ' + (serverConfirmed ? 'ja' : 'nein'),
     'Gerätefreigabe: ' + deviceAuthorization,
@@ -84,7 +84,7 @@ export default function TeamTeachingQuickHelp({
   ].join('\n');
 
   return (
-    <details data-testid="team-two-teachers-help"
+    <details data-testid="team-help-simple"
       className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 py-4">
       <summary className="min-h-11 cursor-pointer text-base font-black text-[var(--text)]">
         Hilfe: Wir sehen nicht dieselbe Klasse
