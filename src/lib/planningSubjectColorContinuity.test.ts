@@ -102,6 +102,7 @@ test('Substitution and publishing contexts retain fach color without changing th
 });
 
 test('Theme conversion cannot strip fach backgrounds, stripes or outlines', () => {
+  assert.match(css, /@layer base \{[\s\S]*?\[data-klassio-subject-card\]/);
   assert.match(css, /\[data-style\] \[data-klassio-subject-card\]\[data-klassio-subject-card\]/);
   assert.match(css, /background-color: var\(--fach-card-bg\) !important/);
   assert.match(css, /border-left-color: var\(--fach-card-stripe\) !important/);
