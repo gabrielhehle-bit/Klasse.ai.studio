@@ -1,0 +1,81 @@
+name: Cockpit Tafel Visual Browser QA
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/Unterrichtsmodus.tsx'
+      - 'src/components/cockpit/PublicStudentListWidget.tsx'
+      - 'src/lib/cockpitParticipationSubject.ts'
+      - 'src/lib/cockpitParticipationSubject.test.ts'
+      - 'scripts/cockpit-visual-browser-e2e.mjs'
+      - '.github/workflows/cockpit-visual-browser-e2e.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cockpit-visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    strategy:
+      fail-fast: false
+      matrix:
+        width: [1600, 1280]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Build production app
+        run: bun run build
+      - name: Run real Chrome visual board checks
+        env:
+          NODE_ENV: production
+          PORT: 3100
+          APP_URL: http://localhost:3100
+          SESSION_SECRET: ci-cockpit-visual-session-secret-at-least-32-characters
+          LEHRERAPP_ACCESS_TEAM: ci-cockpit-visual-access-2026
+          LEHRERAPP_ACCESS_EXTERNAL: ci-cockpit-visual-external-2026
+          KLASSIO_DATA_DIR: /tmp/klassio-cockpit-visual-data
+          KLASSIO_E2E_BASE_URL: http://localhost:3100/login
+          KLASSIO_E2E_ACCESS_CODE: ci-cockpit-visual-access-2026
+          KLASSIO_E2E_WIDTH: ${{ matrix.width }}
+          KLASSIO_CHROME_DEBUG_URL: http://127.0.0.1:9292
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/klassio-cockpit-visual-data /tmp/klassio-cockpit-visual-chrome
+          mkdir -p /tmp/klassio-cockpit-visual-data
+          node dist/server.cjs > /tmp/klassio-cockpit-visual-server.log 2>&1 &
+          SERVER_PID=$!
+          CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$CHROME_BIN" ]; then echo "Chrome binary not found"; exit 1; fi
+          "$CHROME_BIN" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage \
+            --remote-debugging-port=9292 --remote-allow-origins=* \
+            --user-data-dir=/tmp/klassio-cockpit-visual-chrome about:blank \
+            > /tmp/klassio-cockpit-visual-chrome.log 2>&1 &
+          CHROME_PID=$!
+          cleanup() { kill "$CHROME_PID" 2>/dev/null || true; kill "$SERVER_PID" 2>/dev/null || true; }
+          trap cleanup EXIT
+          for i in {1..60}; do
+            if curl --fail --silent http://localhost:3100/api/health > /tmp/klassio-cockpit-visual-health.json; then break; fi
+            sleep 0.5
+          done
+          grep -q '"status":"ok"' /tmp/klassio-cockpit-visual-health.json
+          bun scripts/cockpit-visual-browser-e2e.mjs
+      - name: Upload screenshots and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: klassio-cockpit-visual-${{ matrix.width }}-${{ github.sha }}
+          path: |
+            /tmp/klassio-cockpit-visual-*.png
+            /tmp/klassio-cockpit-visual-server.log
+            /tmp/klassio-cockpit-visual-chrome.log
+          if-no-files-found: ignore
+          retention-days: 7
