@@ -1,9 +1,9 @@
 :root {
-  --klassio-radius-area: 1.25rem;
-  --klassio-radius-control: 0.875rem;
-  --klassio-radius-compact: 0.625rem;
+  --klassio-radius-area: 1rem;
+  --klassio-radius-control: 0.75rem;
+  --klassio-radius-compact: 0.5rem;
   --klassio-space-section: 1rem;
-  --klassio-shadow-float: 0 18px 48px -34px rgba(15, 23, 42, 0.38);
+  --klassio-shadow-float: 0 14px 36px -28px rgba(15, 23, 42, 0.22);
   --klassio-shadow-control: 0 1px 2px rgba(15, 23, 42, 0.05);
 }
 
