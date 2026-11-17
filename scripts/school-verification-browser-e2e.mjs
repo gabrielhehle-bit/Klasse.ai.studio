@@ -437,7 +437,6 @@ async function verifyDirectCockpitNavigation(client) {
     String.raw`(() => {
       const selectors=[
         'button[aria-label="Vollbild öffnen"],button[aria-label="Vollbild beenden"]',
-        'button[aria-label="Vorlage erstellen"]',
         'button[aria-label="Weitere Optionen und Layout-Werkzeuge"]'
       ];
       const controls=selectors.map(selector=>{
@@ -467,6 +466,9 @@ async function verifyDirectCockpitNavigation(client) {
       });
       return {controls};
     })()`);
+  if (!optionsTouch.controls.some(control => control.text.includes('Vorlage erstellen'))) {
+    throw new Error('Vorlage erstellen must remain available in Cockpit options.');
+  }
   if (optionsTouch.error || optionsTouch.controls.some(control => control.w < 43 || control.h < 43)) {
     throw new Error('Cockpit options keep 44px touch targets: ' + JSON.stringify(optionsTouch));
   }
