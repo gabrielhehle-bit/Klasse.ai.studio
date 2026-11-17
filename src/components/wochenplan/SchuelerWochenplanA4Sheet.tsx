@@ -104,6 +104,17 @@ export const SchuelerWochenplanA4Sheet: React.FC<Props> = ({
     ? 'bg-slate-100 text-black border-black/60'
     : 'text-black';
 
+  // In day, grid and list views every subject label keeps its configured
+  // color. The monochrome print option deliberately omits the color variables.
+  const getPrintedSubjectStyle = (fach: string): React.CSSProperties | undefined => {
+    if (colorMode !== 'color') return undefined;
+    const theme = getFachThemeStyles(fach, fachConfig);
+    return {
+      '--fach-card-bg': theme.bgLight,
+      borderColor: theme.borderColor,
+    } as React.CSSProperties;
+  };
+
   return (
     <div
       id="schueler-wochenplan-a4-document"
@@ -303,7 +314,9 @@ export const SchuelerWochenplanA4Sheet: React.FC<Props> = ({
                         <div className="flex-1 min-w-0">
                           <div className="flex items-baseline justify-between gap-2">
                             <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-black px-1.5 py-0.2 border border-black/30 rounded bg-slate-50 uppercase">
+                              <span data-klassio-subject-card={colorMode === 'color' ? task.fach : undefined}
+                                style={getPrintedSubjectStyle(task.fach)}
+                                className="text-[10px] font-black px-1.5 py-0.2 border border-black/30 rounded bg-slate-50 uppercase">
                                 {task.fach}
                               </span>
                               <span className={`${fontConfig.body} font-bold text-black`}>
@@ -352,7 +365,9 @@ export const SchuelerWochenplanA4Sheet: React.FC<Props> = ({
                               {task.typ === 'zusatz' ? '★' : ''}
                             </div>
                             <div className="min-w-0">
-                              <span className="text-[9px] font-black text-slate-700 block uppercase leading-none">
+                              <span data-klassio-subject-card={colorMode === 'color' ? task.fach : undefined}
+                                style={getPrintedSubjectStyle(task.fach)}
+                                className="inline-block rounded border border-black/20 px-1 text-[9px] font-black text-slate-700 uppercase leading-none">
                                 {task.fach}
                               </span>
                               <p className="text-[10px] font-bold text-black leading-tight mt-0.5">
@@ -384,7 +399,9 @@ export const SchuelerWochenplanA4Sheet: React.FC<Props> = ({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-black px-1.5 py-0.2 border border-black/30 rounded bg-slate-50 uppercase">
+                        <span data-klassio-subject-card={colorMode === 'color' ? task.fach : undefined}
+                                style={getPrintedSubjectStyle(task.fach)}
+                                className="text-[9px] font-black px-1.5 py-0.2 border border-black/30 rounded bg-slate-50 uppercase">
                           {task.fach}
                         </span>
                         <span className={`${fontConfig.body} font-bold text-black`}>
