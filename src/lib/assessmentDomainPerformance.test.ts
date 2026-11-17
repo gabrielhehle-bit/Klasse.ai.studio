@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { getStudentAssessmentDomainPerformance } from './assessmentDomainPerformance';
 import { updateSubjectColumn } from './classroomEdits';
+import { getLearningAreaGroups } from './learningAreaAssessmentOptions';
 import { getKelGradebookAssessments, pickKelAssessments } from './kelGradebookSelection';
 
 function fixture(): any {
@@ -84,6 +85,7 @@ test('dossier and KEL use the same domain data but KEL only shows opted-in subje
   assert.match(presentation, /chosenLearningSubjects\.map\(item => \(/);
   assert.match(presentation, /compact hideWhenEmpty/);
   assert.match(modal, /Teilbereich in \{subject\}/);
-  assert.match(modal, /Zahlen und Operationen/);
-  assert.match(modal, /Rechtschreibung/);
+  assert.match(modal, /getLearningAreaGroups\(subject\)/);
+  assert.ok(getLearningAreaGroups('Mathematik').some(group => group.area === 'Zahlen und Operationen'));
+  assert.ok(getLearningAreaGroups('Deutsch').some(group => group.area === 'Rechtschreibung'));
 });
