@@ -203,6 +203,7 @@ import { findCockpitWidgetOpeningPlacement } from "../lib/cockpitWidgetPlacement
 import {
   COMPACT_COCKPIT_SIDEBAR_WIDTH,
   clampCockpitSidebarWidth,
+  getCockpitSidebarPreferredWidth,
   getCockpitSidebarReservedRightPx,
   resizeCockpitSidebarWidth,
 } from "../lib/cockpitSidebarLayout";
@@ -5938,7 +5939,7 @@ ${content}
   };
   const [sidebarContent, setSidebarContent] = useState<'students' | 'stars'>('students');
   const sidebarMode = app.boardSettings?.sidebarMode || "hidden";
-  const sidebarPreferredWidth = clampCockpitSidebarWidth((app.boardSettings as any)?.cockpitStudentSidebarWidthByClass?.[boardTextClassKey]);
+  const sidebarPreferredWidth = getCockpitSidebarPreferredWidth((app.boardSettings as any)?.cockpitStudentSidebarWidthByClass?.[boardTextClassKey]);
   const [sidebarResizePreview, setSidebarResizePreview] = useState<number | null>(null);
   const [prevSidebarMode, setPrevSidebarMode] = useState<"expanded" | "mini">(
     "expanded",
@@ -8363,20 +8364,20 @@ ${content}
       />
       {/* HEADER ROOM */}
       <header
-        className={`w-full px-2 sm:px-3 min-h-[46px] py-1 flex justify-between items-center relative z-[500] shrink-0 border shadow-sm backdrop-blur-xl rounded-xl gap-2 overflow-visible ${currentIsLight ? "bg-white/90 border-slate-200" : "bg-black/60 border-white/10"} dim-in-focus`}
+        className={`w-full px-2 sm:px-3 min-h-12 py-0.5 flex justify-between items-center relative z-[500] shrink-0 border shadow-sm backdrop-blur-xl rounded-xl gap-1.5 overflow-visible ${currentIsLight ? "bg-white/90 border-slate-200" : "bg-black/60 border-white/10"} dim-in-focus`}
       >
         {/* Left: Branding & Status */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 flex-initial shrink-0 min-w-0">
+        <div className="flex items-center gap-1.5 flex-initial min-w-0">
           <button
             onClick={handleCloseCockpit}
-            className={`p-1.5 sm:p-2 rounded-lg transition-all cursor-pointer border shadow-md hover:scale-105 active:scale-95 ${currentIsLight ? "bg-black/5 border-black/10 text-slate-700 hover:bg-black/10 hover:text-black" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/15 hover:text-white"}`}
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border transition-colors ${currentIsLight ? "bg-black/5 border-black/10 text-slate-700 hover:bg-black/10 hover:text-black" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/15 hover:text-white"}`}
             title="Lehrercockpit schließen · Zurück zu Heute"
             aria-label="Lehrercockpit schließen · Zurück zu Heute"
           >
             <ArrowLeft size={16} strokeWidth={2.5} />
           </button>
 
-          <div className="flex min-w-0 flex-col justify-center gap-0.5">
+          <div className="flex min-w-0 flex-wrap items-center justify-start gap-x-2 gap-y-0.5">
             <div
               className={`flex min-w-0 items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-black tracking-tight ${currentIsLight ? "text-slate-950" : "text-white"}`}
             >
@@ -8391,7 +8392,7 @@ ${content}
                 </span>
               )}
             </div>
-            <div className="flex min-w-0 items-center gap-1.5" aria-label="Speicherung und Klassenteam">
+            <div className="flex min-w-0 items-center gap-1" aria-label="Speicherung und Klassenteam">
               <SaveSyncStatus compact inlineLabel onOpenTeam={() => { handleCloseCockpit(); setPage("teamteaching"); }} />
               <ClassTeamStatus onOpen={() => { handleCloseCockpit(); setPage("teamteaching"); }} />
             </div>
@@ -8402,7 +8403,7 @@ ${content}
         {(() => {
           const subjectColors = getSubjectColorClasses(getActiveSubject());
           return (
-            <div className="hidden md:flex flex-col items-center flex-shrink-0 w-56 xl:w-72 max-w-[29%] px-1.5" aria-label={currentHour ? `Aktuelles Fach: ${getActiveSubject()}` : "Keine aktuelle Stunde laut Stundenplan"}>
+            <div className="hidden md:flex flex-col items-center flex-shrink-0 w-32 xl:w-48 max-w-[17%] px-1" aria-label={currentHour ? `Aktuelles Fach: ${getActiveSubject()}` : "Keine aktuelle Stunde laut Stundenplan"}>
               <div className="w-full flex justify-between items-center mb-0.5 px-0.5">
                 {/* Subject name */}
                 <div className="flex items-center gap-1 min-w-0">
@@ -8466,7 +8467,7 @@ ${content}
         })()}
 
         {/* Right: Actions, Clock & Controls */}
-        <div className="flex flex-nowrap items-center justify-end gap-1 sm:gap-2 xl:gap-2.5 flex-1 min-w-0 py-1">
+        <div className="flex flex-nowrap items-center justify-end gap-1 sm:gap-1.5 flex-1 min-w-0 py-0.5">
           <button
             type="button"
             onClick={openCockpitHelp}
@@ -12741,7 +12742,7 @@ ${content}
                     >
                       {sidebarMode === "expanded" && !isAddWidgetMenuOpen && !isWidgetConfigurationOpen && !widgetSettingsOpenId && !openSettingsId && (
                         <div role="separator" tabIndex={0} aria-orientation="vertical"
-                          aria-label="Breite der Schülerliste ändern" aria-valuemin={300} aria-valuemax={620}
+                          aria-label="Breite der Schülerliste ändern" aria-valuemin={292} aria-valuemax={620}
                           aria-valuenow={sidebarResizePreview ?? sidebarPreferredWidth}
                           onPointerDown={handleSidebarResizeStart}
                           onKeyDown={event => {
