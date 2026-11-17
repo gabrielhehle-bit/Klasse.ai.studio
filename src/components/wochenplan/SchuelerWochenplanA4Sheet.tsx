@@ -1,11 +1,13 @@
 import React from 'react';
 import { SchuelerWochenplan, SchuelerWochenplanAufgabe } from '../../types';
+import { getFachThemeStyles } from '../../lib/fachColorUtils';
 import { BookOpen, Calculator, Globe, Star, CheckSquare, Sparkles, Clock, Calendar, Check, Smile, Meh, Frown, Award, Heart, Activity } from 'lucide-react';
 
 interface Props {
   plan: SchuelerWochenplan;
   previewOnly?: boolean;
-  colorMode?: 'color' | 'mono'; // 'color' uses subtle subject tints, 'mono' is pure 100% black & white for copy machines
+  colorMode?: 'color' | 'mono'; // Farbmodus folgt den eingestellten Fachfarben, Mono bleibt kopiererfreundlich
+  fachConfig?: Record<string, any>;
   selectedDifferenzierung?: string;
 }
 
@@ -13,6 +15,7 @@ export const SchuelerWochenplanA4Sheet: React.FC<Props> = ({
   plan,
   previewOnly = false,
   colorMode = 'color',
+  fachConfig,
   selectedDifferenzierung = 'alle'
 }) => {
   // Filter aufgaben based on selected flag and differenzierung filter
@@ -97,20 +100,9 @@ export const SchuelerWochenplanA4Sheet: React.FC<Props> = ({
     return <Sparkles className="w-3.5 h-3.5" />;
   };
 
-  const getSubjectColorClasses = (fach: string) => {
-    if (colorMode === 'mono') {
-      return 'bg-slate-100 text-black border-black/60';
-    }
-    const f = fach.toLowerCase();
-    if (f.includes('deutsch')) return 'bg-blue-50 text-blue-900 border-blue-200';
-    if (f.includes('mathe')) return 'bg-red-50 text-red-900 border-red-200';
-    if (f.includes('sach')) return 'bg-emerald-50 text-emerald-900 border-emerald-200';
-    if (f.includes('sport')) return 'bg-teal-50 text-teal-900 border-teal-200';
-    if (f.includes('englisch')) return 'bg-sky-50 text-sky-900 border-sky-200';
-    if (f.includes('musik')) return 'bg-purple-50 text-purple-900 border-purple-200';
-    if (f.includes('kunst') || f.includes('werk')) return 'bg-amber-50 text-amber-900 border-amber-200';
-    return 'bg-slate-100 text-slate-900 border-slate-200';
-  };
+  const getSubjectColorClasses = () => colorMode === 'mono'
+    ? 'bg-slate-100 text-black border-black/60'
+    : 'text-black';
 
   return (
     <div
@@ -183,11 +175,17 @@ export const SchuelerWochenplanA4Sheet: React.FC<Props> = ({
             {Object.keys(groupedByFach).map(fach => {
               const tasks = groupedByFach[fach];
               if (!tasks || tasks.length === 0) return null;
-              const colorClasses = getSubjectColorClasses(fach);
+              const colorClasses = getSubjectColorClasses();
+              const fachTheme = colorMode === 'color' ? getFachThemeStyles(fach, fachConfig) : null;
 
               return (
                 <section key={fach} className="border border-black/40 rounded-lg overflow-hidden break-inside-avoid">
-                  <div className={`flex items-center justify-between font-black uppercase tracking-wider ${fontConfig.heading} ${colorClasses} border-b border-black/30`}>
+                  <div data-klassio-subject-card={fachTheme ? fach : undefined}
+                    style={fachTheme ? {
+                      '--fach-card-bg': fachTheme.bgLight,
+                      borderLeft: `5px solid ${fachTheme.hex}`,
+                    } as React.CSSProperties : undefined}
+                    className={`flex items-center justify-between font-black uppercase tracking-wider ${fontConfig.heading} ${colorClasses} border-b border-black/30`}>
                     <div className="flex items-center gap-1.5">
                       {renderSubjectIcon(fach)}
                       <span>{fach}</span>
