@@ -22,7 +22,8 @@ test('synthetic browser test explicitly handles ONLY the expected native gradebo
 
 test('long browser test uses the current assessment area field label', () => {
   const modal = readFileSync('src/components/gradebook/AssessmentItemModal.tsx', 'utf8');
-  assert.match(modal, /Teilbereich in \{subject\} \(optional\)/);
+  assert.match(modal, /Teilbereich in \{subject\}/);
+  assert.match(modal, /learningAreaQuickEntry \? '\(erforderlich\)' : '\(optional\)'/);
   assert.match(browserScript, /setInputByLabel\(client,'Teilbereich in Mathematik','Längen'\)/);
   assert.doesNotMatch(browserScript, /setInputByLabel\(client,'Unterbereich in Mathematik'/);
 });
