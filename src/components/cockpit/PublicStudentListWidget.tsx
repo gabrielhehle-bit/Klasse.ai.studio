@@ -187,8 +187,12 @@ export function PublicStudentListWidget({
                     <span className="min-w-0 flex-1 truncate text-xs font-semibold leading-tight text-slate-900" title={labels.get(student.id)}>
                       {onBadgeRequest ? <button type="button" className="max-w-full truncate text-left font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600" aria-label={`Badges für ${labels.get(student.id)} vergeben`} title="Badges vergeben" onClick={() => onBadgeRequest(student.id)}>{labels.get(student.id)}</button> : labels.get(student.id)}
                     </span>
-                    {earnedBadges.visible.map(badge => <span key={badge.id} data-earned-badge title={badge.name} aria-label={`Verdientes Badge: ${badge.name}`} className="shrink-0 text-xs leading-none">{badge.icon}</span>)}
-                    {earnedBadges.more > 0 && <span title={`Weitere Badges: ${earnedBadges.remainingNames.join(', ')}`} aria-label={`${earnedBadges.more} weitere verdiente Badges`} className="shrink-0 text-[9px] font-bold text-slate-600">+${earnedBadges.more}</span>}
+                    {(earnedBadges.visible.length > 0 || earnedBadges.more > 0) && <button type="button" onClick={() => setBadgeDetailsStudentId(student.id)}
+                      aria-label={`Verdiente Badges von ${labels.get(student.id)} ansehen`} title="Verdiente Badges ansehen"
+                      className="flex min-h-8 shrink-0 items-center gap-0.5 rounded-md px-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-600">
+                      {earnedBadges.visible.map(badge => <span key={badge.id} data-earned-badge title={badge.name} className="text-xs leading-none">{badge.icon}</span>)}
+                      {earnedBadges.more > 0 && <span className="text-[9px] font-bold text-slate-600">+${earnedBadges.more}</span>}
+                    </button>}
                   </div>
                   <div className="flex min-w-0 items-center gap-1">
                     {showBehavior && behaviorStage && <span className="sr-only" aria-label={`Verhaltensstatus: ${behaviorStage.label}`}>{behaviorStage.label}</span>}
@@ -248,8 +252,12 @@ export function PublicStudentListWidget({
                       <span className={`min-w-0 flex-1 truncate font-extrabold leading-tight text-slate-900 ${gridMode ? 'text-xs sm:text-sm' : dense ? 'text-xs' : 'text-base'}`} title={labels.get(student.id)}>
                         {onBadgeRequest ? <button type="button" className="max-w-full truncate text-left font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600" aria-label={`Badges für ${labels.get(student.id)} vergeben`} onClick={() => onBadgeRequest(student.id)}>{labels.get(student.id)}</button> : labels.get(student.id)}
                       </span>
-                      {earnedBadges.visible.map(badge => <span key={badge.id} data-earned-badge title={badge.name} aria-label={`Verdientes Badge: ${badge.name}`} className="shrink-0 text-sm leading-none">{badge.icon}</span>)}
-                      {earnedBadges.more > 0 && <span title={`Weitere Badges: ${earnedBadges.remainingNames.join(', ')}`} aria-label={`${earnedBadges.more} weitere verdiente Badges`} className="shrink-0 text-[10px] font-bold text-slate-600">+${earnedBadges.more}</span>}
+                      {(earnedBadges.visible.length > 0 || earnedBadges.more > 0) && <button type="button" onClick={() => setBadgeDetailsStudentId(student.id)}
+                        aria-label={`Verdiente Badges von ${labels.get(student.id)} ansehen`} title="Verdiente Badges ansehen"
+                        className="flex min-h-8 shrink-0 items-center gap-0.5 rounded-md px-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-600">
+                        {earnedBadges.visible.map(badge => <span key={badge.id} data-earned-badge title={badge.name} className="text-sm leading-none">{badge.icon}</span>)}
+                        {earnedBadges.more > 0 && <span className="text-[10px] font-bold text-slate-600">+${earnedBadges.more}</span>}
+                      </button>}
                     </div>
                     <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
                       <span className={sidebar ? `block text-xs tabular-nums ${points > 0 ? 'font-semibold text-emerald-800' : 'text-slate-500'}` : `block font-bold text-amber-800 ${dense ? 'text-[10px]' : 'text-sm'}`} aria-label={`${points} Pluspunkte`}>
@@ -292,6 +300,29 @@ export function PublicStudentListWidget({
           );
         })}
       </div>
+
+      {badgeDetailsStudentId && (() => {
+        const selected = students.find(student => student.id === badgeDetailsStudentId);
+        if (!selected) return null;
+        const earned = getCockpitEarnedBadges(selected, true, 999).visible;
+        return <div role="dialog" aria-modal="true" aria-label={`Verdiente Badges von ${labels.get(selected.id)}`}
+          className="absolute inset-0 z-[95] flex min-h-0 flex-col rounded-xl border border-amber-200 bg-white p-3 shadow-xl">
+          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 pb-2">
+            <h3 className="min-w-0 truncate text-sm font-bold text-slate-900">Verdiente Badges · {labels.get(selected.id)}</h3>
+            <button type="button" autoFocus onClick={() => setBadgeDetailsStudentId(null)}
+              aria-label="Badge-Übersicht schließen" className="min-h-11 min-w-11 rounded-lg border border-slate-200 text-lg font-bold">×</button>
+          </div>
+          <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto py-3">
+            {earned.map(badge => <li key={badge.id} className="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2">
+              <span aria-hidden="true" className="text-2xl">{badge.icon}</span>
+              <span className="min-w-0 text-xs font-semibold text-slate-900">{badge.name}
+                {badge.date && <span className="block text-[11px] font-normal text-slate-600">Vergeben am {/^\d{4}-\d{2}-\d{2}$/.test(badge.date) ? badge.date.split('-').reverse().join('.') : badge.date}</span>}
+              </span>
+            </li>)}
+          </ul>
+          <p className="shrink-0 text-[11px] text-slate-500">Nur für die Tafel freigegebene, bereits verdiente Badges.</p>
+        </div>;
+      })()}
     </section>
   );
 }
