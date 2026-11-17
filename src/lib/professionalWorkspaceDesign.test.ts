@@ -45,7 +45,7 @@ test('Topbar shows a readable page title without frosted glass or microscopicall
   assert.match(topbar, /data-account-sync-status=\{accountSyncStatus\}/);
   assert.match(topbar, /<SaveSyncStatus/);
   assert.match(topbar, /createManualBackup\(\)/);
-  assert.match(topbar, /onMenuClick=\{onMenuClick\}/);
+  assert.match(topbar, /onClick=\{onMenuClick\}/);
 });
 
 test('Module entry cards are consistent and never turn normal navigation into colorful tiles', () => {
