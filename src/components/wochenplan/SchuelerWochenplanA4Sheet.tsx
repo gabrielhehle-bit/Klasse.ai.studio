@@ -111,7 +111,7 @@ export const SchuelerWochenplanA4Sheet: React.FC<Props> = ({
     const theme = getFachThemeStyles(fach, fachConfig);
     return {
       '--fach-card-bg': theme.bgLight,
-      borderColor: theme.borderColor,
+      '--fach-card-border': theme.borderColor,
     } as React.CSSProperties;
   };
 
@@ -192,8 +192,10 @@ export const SchuelerWochenplanA4Sheet: React.FC<Props> = ({
               return (
                 <section key={fach} className="border border-black/40 rounded-lg overflow-hidden break-inside-avoid">
                   <div data-klassio-subject-card={fachTheme ? fach : undefined}
+                    data-klassio-subject-stripe={fachTheme ? '' : undefined}
                     style={fachTheme ? {
                       '--fach-card-bg': fachTheme.bgLight,
+                      '--fach-card-stripe': fachTheme.hex,
                       borderLeft: `5px solid ${fachTheme.hex}`,
                     } as React.CSSProperties : undefined}
                     className={`flex items-center justify-between font-black uppercase tracking-wider ${fontConfig.heading} ${colorClasses} border-b border-black/30`}>
@@ -315,6 +317,7 @@ export const SchuelerWochenplanA4Sheet: React.FC<Props> = ({
                           <div className="flex items-baseline justify-between gap-2">
                             <div className="flex items-center gap-2">
                               <span data-klassio-subject-card={colorMode === 'color' ? task.fach : undefined}
+                                data-klassio-subject-outline={colorMode === 'color' ? '' : undefined}
                                 style={getPrintedSubjectStyle(task.fach)}
                                 className="text-[10px] font-black px-1.5 py-0.2 border border-black/30 rounded bg-slate-50 uppercase">
                                 {task.fach}
@@ -366,6 +369,7 @@ export const SchuelerWochenplanA4Sheet: React.FC<Props> = ({
                             </div>
                             <div className="min-w-0">
                               <span data-klassio-subject-card={colorMode === 'color' ? task.fach : undefined}
+                                data-klassio-subject-outline={colorMode === 'color' ? '' : undefined}
                                 style={getPrintedSubjectStyle(task.fach)}
                                 className="inline-block rounded border border-black/20 px-1 text-[9px] font-black text-slate-700 uppercase leading-none">
                                 {task.fach}
@@ -400,6 +404,7 @@ export const SchuelerWochenplanA4Sheet: React.FC<Props> = ({
                     <div className="flex items-baseline justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <span data-klassio-subject-card={colorMode === 'color' ? task.fach : undefined}
+                                data-klassio-subject-outline={colorMode === 'color' ? '' : undefined}
                                 style={getPrintedSubjectStyle(task.fach)}
                                 className="text-[9px] font-black px-1.5 py-0.2 border border-black/30 rounded bg-slate-50 uppercase">
                           {task.fach}
