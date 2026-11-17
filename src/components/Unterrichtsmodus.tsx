@@ -8376,22 +8376,25 @@ ${content}
             <ArrowLeft size={16} strokeWidth={2.5} />
           </button>
 
-          <div className="flex flex-col justify-center">
+          <div className="flex min-w-0 flex-col justify-center gap-0.5">
             <div
-              className={`text-xs sm:text-sm font-black tracking-tight flex items-center gap-1 sm:gap-1.5 ${currentIsLight ? "text-slate-950" : "text-white"}`}
+              className={`flex min-w-0 items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-black tracking-tight ${currentIsLight ? "text-slate-950" : "text-white"}`}
             >
-              LEHRERCOCKPIT
+              <span className="shrink-0">LEHRERCOCKPIT</span>
               {cockpitClassLabel && (
                 <span
-                  className={`px-1 sm:px-1.5 py-0.5 border rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider shadow-sm transition-all duration-300 ${getThemeClassBadgeClasses()}`}
+                  className={`min-w-0 max-w-40 truncate px-1 sm:px-1.5 py-0.5 border rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider shadow-sm transition-all duration-300 ${getThemeClassBadgeClasses()}`}
                   style={getThemeClassBadgeStyle()}
+                  title={cockpitClassLabel}
                 >
                   {cockpitClassLabel}
                 </span>
               )}
+            </div>
+            <div className="flex min-w-0 items-center gap-1.5" aria-label="Speicherung und Klassenteam">
+              <SaveSyncStatus compact inlineLabel onOpenTeam={() => { handleCloseCockpit(); setPage("teamteaching"); }} />
               <ClassTeamStatus onOpen={() => { handleCloseCockpit(); setPage("teamteaching"); }} />
             </div>
-            <SaveSyncStatus compact onOpenTeam={() => { handleCloseCockpit(); setPage("teamteaching"); }} />
           </div>
         </div>
 
@@ -8399,7 +8402,7 @@ ${content}
         {(() => {
           const subjectColors = getSubjectColorClasses(getActiveSubject());
           return (
-            <div className="hidden md:flex flex-col items-center flex-shrink-0 w-64 xl:w-80 max-w-[32%] px-1.5">
+            <div className="hidden md:flex flex-col items-center flex-shrink-0 w-56 xl:w-72 max-w-[29%] px-1.5" aria-label={currentHour ? `Aktuelles Fach: ${getActiveSubject()}` : "Keine aktuelle Stunde laut Stundenplan"}>
               <div className="w-full flex justify-between items-center mb-0.5 px-0.5">
                 {/* Subject name */}
                 <div className="flex items-center gap-1 min-w-0">
@@ -8410,7 +8413,7 @@ ${content}
                         : "text-white/95"
                     }`}
                   >
-                    {getActiveSubject() || "Unterricht"}
+                    {currentHour ? (getActiveSubject() || "Unterricht") : "Freie Tafel"}
                   </span>
                 </div>
 
@@ -8467,7 +8470,7 @@ ${content}
           <button
             type="button"
             onClick={openCockpitHelp}
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-all hover:scale-105 active:scale-95 ${
+            className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border transition-colors ${
               currentIsLight
                 ? "border-black/10 bg-black/5 text-slate-700 hover:bg-black/10"
                 : "border-white/10 bg-white/5 text-white/80 hover:bg-white/15 hover:text-white"
@@ -8581,7 +8584,7 @@ ${content}
                 })}
               </span>
               <span
-                className={`text-[7px] sm:text-[7.5px] xl:text-[8px] font-black uppercase tracking-[0.15em] mt-0.5 ${currentIsLight ? "text-slate-500" : "text-white/40"}`}
+                className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.06em] mt-0.5 ${currentIsLight ? "text-slate-500" : "text-white/40"}`}
               >
                 {time
                   .toLocaleDateString("de-DE", { weekday: "short" })
