@@ -358,14 +358,13 @@ async function main() {
       throw error;
     }
 
-    // Deep links from the phone More menu must reveal the active settings tab.
-    await waitFor(client, 'active settings tab is visible and touch accessible', `(() => {
-      const nav = document.querySelector('nav[aria-label="Einstellungen: Bereiche"]');
-      const active = nav?.querySelector('button[aria-current="page"]');
-      if (!active) return false;
-      const n = nav.getBoundingClientRect();
-      const a = active.getBoundingClientRect();
-      return a.width >= 44 && a.height >= 44 && a.left >= n.left - 2 && a.right <= n.right + 2;
+    // On 360px phones the native settings section picker replaces the hidden
+    // desktop tabs. The deep link must select "Darstellung" in that visible picker.
+    await waitFor(client, 'mobile settings picker shows the deep-linked display section', `(() => {
+      const picker = document.querySelector('[data-testid="settings-mobile-section-picker"] select#klassio-settings-mobile-category');
+      if (!picker || picker.value !== 'display') return false;
+      const rect = picker.getBoundingClientRect();
+      return rect.width >= 44 && rect.height >= 44 && rect.left >= -2 && rect.right <= innerWidth + 2;
     })()`, 15000);
     console.log('PASS Phone save indicator and deep-linked settings tab are visible without horizontal page overflow');
 

@@ -347,7 +347,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
       data-account-sync-status={accountSyncStatus}
     >
       {/* Haupt-Header Zeile */}
-      <div className="bg-[var(--surface-card,var(--surface))]/95 backdrop-blur-xl border-b border-[var(--border-default,var(--border))] py-2.5 px-3 sm:px-6 shadow-xs">
+      <div className="border-b border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 sm:px-5">
         <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-2 sm:gap-4 w-full">
           
           {/* Linker Bereich: Navigation, Rückweg und Seitentitel */}
@@ -366,7 +366,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
               <button
                 type="button"
                 onClick={() => setPage(navigationParent.id)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] px-2.5 py-1.5 text-xs font-bold text-[var(--text-secondary)] transition-all hover:border-[var(--accent)]/35 hover:bg-[var(--accent-soft)] hover:text-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))] shrink-0"
+                className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-xs font-medium text-[var(--text2)] transition-colors hover:bg-[var(--surface3)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                 title={`Zurück zu ${navigationParent.label}`}
                 aria-label={`Zurück zu ${navigationParent.label}`}
               >
@@ -375,13 +375,13 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
               </button>
             )}
 
-            <div className="hidden md:flex min-w-0 flex-col leading-tight">
+            <div className="flex min-w-0 flex-col leading-tight">
               {navigationParent && (
-                <span className="text-[0.625rem] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)] truncate">
+                <span className="hidden truncate text-xs font-medium text-[var(--text2)] md:block">
                   {navigationParent.label}
                 </span>
               )}
-              <span className="max-w-[220px] xl:max-w-[320px] truncate text-sm font-black text-[var(--text-primary)]">
+              <span className="max-w-[96px] truncate text-sm font-semibold text-[var(--text)] sm:max-w-[180px] xl:max-w-[320px]">
                 {title}
               </span>
             </div>
@@ -396,7 +396,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
               disabled={manualBackupBusy || !isVaultUnlocked}
               aria-label="Jetzt verschlüsseltes Backup herunterladen"
               title="Verschlüsseltes Backup dieser KLASSIO-Daten als Datei herunterladen"
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[var(--accent)] transition-colors hover:bg-[var(--accent-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))] disabled:opacity-40"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[var(--text2)] transition-colors hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] disabled:opacity-40"
             >
               <Save size={20} aria-hidden="true" className={manualBackupBusy ? 'animate-pulse' : ''} />
             </button>
@@ -405,7 +405,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
               onClick={openHelpCenter}
               aria-label="Hilfe und Anleitungen öffnen"
               title="Hilfe und Anleitungen"
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)]/35 hover:bg-[var(--accent-soft)] hover:text-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))]"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface2)] text-[var(--text2)] transition-colors hover:bg-[var(--surface3)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
             >
               <HelpCircle size={20} aria-hidden="true" />
             </button>
