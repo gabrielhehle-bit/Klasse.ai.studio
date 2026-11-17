@@ -34,6 +34,12 @@ import { AssessmentItemModal } from './gradebook/AssessmentItemModal';
 import { faecherFuerKlasse } from '../lib/sek1Subjects';
 import { istSekundarstufe } from '../lib/sek1Navigation';
 
+// Shared, touch-friendly presentation for the existing gradebook actions.
+// Only CSS classes: no change to assessment handling or persistent app data.
+const gradebookToolActionClass = 'flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]';
+const gradebookToolIconClass = 'h-4 w-4 shrink-0 text-[var(--accent)]';
+const gradebookToolHeadingClass = 'px-3 pb-1 pt-3 text-xs font-bold text-[var(--text2)]';
+
 const StudentRowWrapper = React.memo(({ s, i, avg, nd, miRaw, isItemSelected, isRowHovered, studentErrors, activeFach, sem, cfg, colCounts, isolatedCol, heatmapMode, mitarbeitSettings, currentSymbol, relativeMiDivisor, studentsCount, assessmentMode, showPointsPercent, maxPointsMeta, renderRow }: any) => {
   return renderRow();
 }, (prev, next) => {
@@ -1817,7 +1823,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
 
       {/* One subject selector and a compact overview; assessment data and calculation remain unchanged. */}
       <header data-gradebook-header className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm print:hidden" aria-label="Notenmappe – Fach und Werkzeuge">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           {activeView === 'verhalten' ? <div><h1 className="text-lg font-semibold text-slate-900">Notenmappe</h1><p className="mt-0.5 text-xs text-slate-500">Verhalten · Klassenübersicht</p></div> : <div className="flex min-w-0 flex-wrap items-center gap-2.5">
             <div><h1 className="text-lg font-semibold text-slate-900">Notenmappe</h1><p className="mt-0.5 text-xs text-slate-500">{app.klassenbezeichnung || 'Deine Klasse'}</p></div>
             <label className="sr-only" htmlFor="gradebook-active-subject">Schulfach auswählen</label>
@@ -1843,7 +1849,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
           </div>}
 
               {/* Right: + Bewertung & Mehr Menu */}
-              <div className="flex items-center gap-2">
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
                 <button type="button" onClick={() => void toggleFullscreen()} aria-pressed={isFullscreen}
                   aria-label={isFullscreen ? 'Vollbild beenden' : 'Notenmappe im Vollbild öffnen'}
                   className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 flex items-center gap-2">
@@ -1856,7 +1862,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                   aria-haspopup="dialog"
                   aria-expanded={showAddAssessmentModal}
                   onClick={() => { setActiveView('noten'); setShowWeights(false); setShowAddAssessmentModal(true); }}
-                  className="min-h-11 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-[0.8125rem] rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+                  className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-bold text-white shadow-xs transition-colors hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] sm:flex-none"
                 >
                   <Plus size={16} strokeWidth={3} />
                   <span>Bewertung hinzufügen</span>
@@ -1870,7 +1876,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                     aria-expanded={showMoreMenu}
                     aria-haspopup="dialog"
                     aria-controls="gradebook-tools-menu"
-                    className="min-h-11 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[0.8125rem] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200/60"
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-3.5 py-2 text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--surface3)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                   >
                     <span>Mehr</span>
                     <ChevronDown size={14} className={`transition-transform ${showMoreMenu ? 'rotate-180' : ''}`} />
@@ -1914,92 +1920,71 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                 className="min-h-11 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100"
                               >Schließen</button>
                             </div>
-                            <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-3">
-                              <div className="px-3 py-1 text-[0.625rem] font-black uppercase tracking-wider text-slate-500">Bewerten &amp; auswerten</div>
-                          <button
-                            onClick={() => {
-                              setShowGradeCalculator(true);
-                              setShowMoreMenu(false);
-                            }}
-                            className="min-h-11 w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
-                          >
-                            <span>🧮</span>
-                            <span>Notenrechner</span>
-                          </button>
+                            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-6 pt-2">
+                              <section aria-labelledby="gradebook-tools-assessment-heading">
+                                <h3 id="gradebook-tools-assessment-heading" className={gradebookToolHeadingClass}>Bewerten &amp; auswerten</h3>
+                                <button type="button" onClick={() => { setShowGradeCalculator(true); setShowMoreMenu(false); }}
+                                  className={gradebookToolActionClass}>
+                                  <Calculator className={gradebookToolIconClass} aria-hidden="true" /> Notenrechner
+                                </button>
+                                <button type="button" onClick={() => { setShowWeights(true); setShowMoreMenu(false); }}
+                                  className={gradebookToolActionClass}>
+                                  <Settings className={gradebookToolIconClass} aria-hidden="true" /> Gewichtung
+                                </button>
+                                <button type="button" onClick={() => { setShowStats(!showStats); setShowMoreMenu(false); }}
+                                  aria-pressed={showStats} className={gradebookToolActionClass}>
+                                  <BarChart2 className={gradebookToolIconClass} aria-hidden="true" />
+                                  {showStats ? 'Statistik ausblenden' : 'Statistik & Notenspiegel'}
+                                </button>
+                                <button type="button" onClick={() => { setShowDetailedAnalysis(true); setShowFeedback(false); setShowOverview(false); setShowWeights(false); setShowMoreMenu(false); setShowGradeCalculator(false); }}
+                                  className={gradebookToolActionClass}>
+                                  <TrendingUp className={gradebookToolIconClass} aria-hidden="true" /> Auswertungen
+                                </button>
+                                <button type="button" onClick={() => { setShowFeedback(true); setShowOverview(false); setShowGradeCalculator(false); setShowWeights(false); setShowMoreMenu(false); }}
+                                  className={gradebookToolActionClass}>
+                                  <MessageSquare className={gradebookToolIconClass} aria-hidden="true" /> Leistungsfeedback
+                                </button>
+                              </section>
 
-                          <button
-                            onClick={() => {
-                              setShowWeights(true);
-                              setShowMoreMenu(false);
-                            }}
-                            className="min-h-11 w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
-                          >
-                            <span>⚖️</span>
-                            <span>Gewichtung</span>
-                          </button>
+                              <section aria-labelledby="gradebook-tools-views-heading" className="mt-3 border-t border-[var(--border)] pt-2">
+                                <h3 id="gradebook-tools-views-heading" className={gradebookToolHeadingClass}>Ansicht &amp; Ausgabe</h3>
+                                <button type="button" onClick={() => { setShowOverview(true); setShowMoreMenu(false); }}
+                                  className={gradebookToolActionClass}>
+                                  <FileText className={gradebookToolIconClass} aria-hidden="true" /> Notenübersicht
+                                </button>
+                                <button type="button" onClick={() => { setSimpleDashboardMode(prev => !prev); setShowMoreMenu(false); }}
+                                  className={gradebookToolActionClass}>
+                                  <Check className={gradebookToolIconClass} aria-hidden="true" />{simpleDashboardMode ? 'Erweiterte Ansicht' : 'Kompakte Ansicht'}
+                                </button>
+                                <button type="button" onClick={() => { setHeatmapMode(!heatmapMode); setShowMoreMenu(false); }}
+                                  aria-pressed={heatmapMode} className={gradebookToolActionClass}>
+                                  <Filter className={gradebookToolIconClass} aria-hidden="true" />
+                                  Heatmap: {heatmapMode ? 'AN' : 'AUS'}
+                                </button>
+                                <button type="button" onClick={() => { handleExport(); setShowMoreMenu(false); }}
+                                  className={gradebookToolActionClass}>
+                                  <Printer className={gradebookToolIconClass} aria-hidden="true" /> Export / Drucken
+                                </button>
+                              </section>
 
-                          <button
-                            onClick={() => {
-                              setShowStats(!showStats);
-                              setShowMoreMenu(false);
-                            }}
-                            className="min-h-11 w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
-                          >
-                            <span>📊</span>
-                            <span>{showStats ? 'Statistik ausblenden' : 'Statistik & Notenspiegel'}</span>
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              setHeatmapMode(!heatmapMode);
-                              setShowMoreMenu(false);
-                            }}
-                            className="min-h-11 w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
-                          >
-                            <span>🌡️</span>
-                            <span>Heatmap: {heatmapMode ? 'AN' : 'AUS'}</span>
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              handleExport();
-                              setShowMoreMenu(false);
-                            }}
-                            className="min-h-11 w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
-                          >
-                            <span>🖨️</span>
-                            <span>Export / Drucken</span>
-                          </button>
-
-                          <button type="button" onClick={() => {
-                            setShowDetailedAnalysis(true); setShowFeedback(false); setShowOverview(false); setShowWeights(false);
-                            setShowMoreMenu(false); setShowGradeCalculator(false);
-                          }} className="min-h-11 w-full rounded-xl px-3 py-2.5 text-left text-slate-700 hover:bg-slate-50"> Auswertungen</button>
-                          <button type="button" onClick={() => {
-                            setShowFeedback(true); setShowOverview(false); setShowGradeCalculator(false); setShowWeights(false); setShowMoreMenu(false);
-                          }} className="min-h-11 w-full rounded-xl px-3 py-2.5 text-left text-slate-700 hover:bg-slate-50"> Leistungsfeedback</button>
-                          <button type="button" onClick={() => { setShowOverview(true); setShowMoreMenu(false); }} className="min-h-11 w-full rounded-xl px-3 py-2.5 text-left text-slate-700 hover:bg-slate-50"> Notenübersicht</button>
-                          <button type="button" onClick={() => { setSimpleDashboardMode(prev => !prev); setShowMoreMenu(false); }} className="min-h-11 w-full rounded-xl px-3 py-2.5 text-left text-slate-700 hover:bg-slate-50">{simpleDashboardMode ? 'Erweiterte Ansicht' : 'Kompakte Ansicht'}</button>
-                          <button type="button" onClick={() => setApp(prev => ({ ...prev, setupInitialStepMode: 'Fächer', currentPage: 'setup' }))} className="min-h-11 w-full rounded-xl px-3 py-2.5 text-left text-slate-700 hover:bg-slate-50">Fach hinzufügen</button>
-                          <div className="my-1 border-t border-slate-100" />
-
-                          <div className="px-3 py-1 text-[0.625rem] font-black uppercase text-slate-400 tracking-wider">
-                            Darstellung
-                          </div>
-                          <div className="flex bg-slate-100 p-1 rounded-xl items-center">
-                            {(['compact', 'standard', 'large'] as const).map((lvl) => (
-                              <button
-                                key={lvl}
-                                onClick={() => changeZoomLevel(lvl)}
-                                className={`min-h-11 flex-1 py-1 text-[0.625rem] font-bold rounded-lg transition-all ${
-                                  zoomLevel === lvl ? 'bg-white shadow-xs text-slate-900' : 'text-slate-500'
-                                }`}
-                              >
-                                {lvl === 'compact' ? 'Klein' : lvl === 'large' ? 'Groß' : 'Normal'}
-                              </button>
-                            ))}
-                          </div>
-
+                              <section aria-labelledby="gradebook-tools-display-heading" className="mt-3 border-t border-[var(--border)] pt-2">
+                                <h3 id="gradebook-tools-display-heading" className={gradebookToolHeadingClass}>Darstellung</h3>
+                                <div className="mx-2 flex rounded-xl border border-[var(--border)] bg-[var(--surface2)] p-1" role="group" aria-label="Größe der Notenmappe">
+                                  {(['compact', 'standard', 'large'] as const).map((lvl) => (
+                                    <button type="button" key={lvl} onClick={() => changeZoomLevel(lvl)}
+                                      aria-pressed={zoomLevel === lvl}
+                                      className={\`min-h-11 min-w-0 flex-1 rounded-lg px-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] \${zoomLevel === lvl ? 'bg-[var(--surface)] text-[var(--text)] shadow-xs' : 'text-[var(--text2)] hover:bg-[var(--surface)]'}\`}>
+                                      {lvl === 'compact' ? 'Klein' : lvl === 'large' ? 'Groß' : 'Normal'}
+                                    </button>
+                                  ))}
+                                </div>
+                              </section>
+                              <section aria-label="Fächer" className="mt-3 border-t border-[var(--border)] pt-2">
+                                <button type="button" onClick={() => { setShowMoreMenu(false); setApp(prev => ({ ...prev, setupInitialStepMode: 'Fächer', currentPage: 'setup' })); }}
+                                  className={gradebookToolActionClass}>
+                                  <Plus className={gradebookToolIconClass} aria-hidden="true" /> Fach hinzufügen
+                                </button>
+                              </section>
                             </div>
                           </motion.aside>
                         </>
