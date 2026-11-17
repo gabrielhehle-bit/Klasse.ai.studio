@@ -192,7 +192,7 @@ export const SchuelerWochenplanA4Sheet: React.FC<Props> = ({
               return (
                 <section key={fach} className="border border-black/40 rounded-lg overflow-hidden break-inside-avoid">
                   <div data-klassio-subject-card={fachTheme ? fach : undefined}
-                    data-klassio-subject-stripe={fachTheme ? '' : undefined}
+                    data-klassio-subject-stripe={fachTheme ? 'true' : undefined}
                     style={fachTheme ? {
                       '--fach-card-bg': fachTheme.bgLight,
                       '--fach-card-stripe': fachTheme.hex,
