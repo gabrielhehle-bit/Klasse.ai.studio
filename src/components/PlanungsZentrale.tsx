@@ -934,7 +934,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
         </AnimatePresence>
 
         {/* 1. ULTRA-CLEAN & INTUITIVE HEADER */}
-        <header className="planning-center-header print:hidden bg-white border-b border-slate-200 px-6 py-3 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-30 shadow-xs">
+        <header className="planning-center-header sticky top-0 z-30 flex flex-col gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-3 py-3 shadow-xs sm:px-5 lg:flex-row lg:items-center lg:justify-between print:hidden">
           {/* Left Title & Context info */}
           <div className="flex items-center gap-3.5 min-w-0">
             <div className="w-11 h-11 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-indigo-200">
@@ -954,12 +954,12 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
           </div>
 
           {/* Right Controls: Quick Add, Calendar Navigator, View Toggles & More Menu */}
-          <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
             
             {/* Primary Action Button: + PLANEN */}
             <button
               onClick={() => setPage('wochenplanung')}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-black text-xs flex items-center gap-1.5 shadow-md shadow-indigo-200 hover:shadow-indigo-300 transition active:scale-95 cursor-pointer"
+              className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-bold text-white transition-colors hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] sm:flex-none"
             >
               <CalendarDays size={16} />
               <span>Wochenplan öffnen</span>
@@ -987,7 +987,8 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                   d.setDate(d.getDate() - 7);
                   setApp(p => ({ ...p, currentKW: getKW(d) }));
                 }} 
-                className="p-1.5 hover:bg-white text-slate-700 rounded-lg transition"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-[var(--text)] transition hover:bg-[var(--surface)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+                aria-label="Vorherige Kalenderwoche"
                 title="Vorherige Woche"
               >
                 <ChevronLeft size={16} />
@@ -1003,7 +1004,8 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                   d.setDate(d.getDate() + 7);
                   setApp(p => ({ ...p, currentKW: getKW(d) }));
                 }} 
-                className="p-1.5 hover:bg-white text-slate-700 rounded-lg transition"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-[var(--text)] transition hover:bg-[var(--surface)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+                aria-label="Nächste Kalenderwoche"
                 title="Nächste Woche"
               >
                 <ChevronRight size={16} />
@@ -1012,7 +1014,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
               {nextKW !== actualKW && (
                 <button
                   onClick={() => setApp(p => ({ ...p, currentKW: actualKW }))}
-                  className="px-2 py-1 bg-white hover:bg-indigo-50 text-indigo-700 rounded-lg transition border border-slate-200 font-extrabold text-[10px] ml-1"
+                  className="ml-1 min-h-11 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold text-[var(--accent)] hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]" aria-label="Zur aktuellen Kalenderwoche springen"
                 >
                   Heute
                 </button>
@@ -1023,7 +1025,9 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
             <div className="relative">
               <button
                 onClick={() => setShowMehrMenu(!showMehrMenu)}
-                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-extrabold text-xs flex items-center gap-1.5 border border-slate-200 transition cursor-pointer"
+                aria-expanded={showMehrMenu}
+                aria-label="Weitere Planungswerkzeuge"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--surface)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
               >
                 <MoreHorizontal size={16} />
                 <span>Mehr</span>
@@ -1458,7 +1462,8 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                 initial={{ scale: 0.95, y: 15, opacity: 0 }}
                 animate={{ scale: 1, y: 0, opacity: 1 }}
                 exit={{ scale: 0.95, y: 15, opacity: 0 }}
-                className="bg-white rounded-3xl shadow-2xl border border-slate-200 p-6 max-w-lg w-full max-h-[90vh] flex flex-col gap-4 overflow-y-auto"
+                role="dialog" aria-modal="true" aria-labelledby="quick-plan-title"
+                className="flex max-h-[90dvh] w-full max-w-lg flex-col gap-4 overflow-y-auto rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-2xl sm:p-6"
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Header */}
@@ -1468,7 +1473,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                       <Plus size={18} />
                     </div>
                     <div>
-                      <h3 className="font-black text-slate-900 text-sm">2. Schnell Planen</h3>
+                      <h3 id="quick-plan-title" className="text-base font-bold text-[var(--text)]">Stunde oder Termin planen</h3>
                       <p className="text-[11px] text-slate-500 font-medium">Unterrichtsstunde, Termin oder Aufgabe hinzufügen</p>
                     </div>
                   </div>
@@ -1476,7 +1481,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                   <button
                     onClick={handleCloseQuickPlan}
                     aria-label="Schnellplanung schließen"
-                    className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl"
+                    className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-[var(--text2)] hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                   >
                     <X size={18} />
                   </button>
@@ -1486,13 +1491,15 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                 <div className="grid grid-cols-2 bg-slate-100 p-1 rounded-2xl gap-1 text-xs font-extrabold text-center">
                   <button
                     onClick={() => handleSwitchQuickPlanType('lesson')}
-                    className={`py-2 rounded-xl transition cursor-pointer ${quickPlanType === 'lesson' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600'}`}
+                    type="button" aria-pressed={quickPlanType === 'lesson'}
+                    className={`min-h-11 rounded-xl px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${quickPlanType === 'lesson' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600'}`}
                   >
                     Unterrichtsstunde
                   </button>
                   <button
                     onClick={() => handleSwitchQuickPlanType('event')}
-                    className={`py-2 rounded-xl transition cursor-pointer ${quickPlanType === 'event' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600'}`}
+                    type="button" aria-pressed={quickPlanType === 'event'}
+                    className={`min-h-11 rounded-xl px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${quickPlanType === 'event' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600'}`}
                   >
                     Termin / Ausflug
                   </button>
@@ -1505,8 +1512,9 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                     {/* Day & Hour Selection */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-[10px] font-black text-slate-500 uppercase block mb-1">Tag auswählen</label>
+                        <label htmlFor="quick-plan-day" className="mb-1.5 block text-sm font-semibold text-[var(--text)]">Tag</label>
                         <select
+                          id="quick-plan-day"
                           value={selectedDayIdx}
                           onChange={(e) => handleSwitchQuickSlot(parseInt(e.target.value, 10), selectedHour)}
                           className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold"
@@ -1518,8 +1526,9 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-black text-slate-500 uppercase block mb-1">Stunde auswählen</label>
+                        <label htmlFor="quick-plan-hour" className="mb-1.5 block text-sm font-semibold text-[var(--text)]">Stunde</label>
                         <select
+                          id="quick-plan-hour"
                           value={selectedHour}
                           onChange={(e) => handleSwitchQuickSlot(selectedDayIdx, parseInt(e.target.value, 10))}
                           className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold"
@@ -1538,8 +1547,8 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
 
                     {/* Subject Pills */}
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-500 uppercase block">Fach wählen</label>
-                      <div className="flex flex-wrap gap-1.5">
+                      <p id="quick-plan-subject-hint" className="text-sm font-semibold text-[var(--text)]">Fach wählen</p>
+                      <div role="group" aria-labelledby="quick-plan-subject-hint" className="flex flex-wrap gap-2">
                         {availableSubjects.map(subj => {
                           const isActive = activeSubject === subj;
                           const style = getLessonStyle(subj);
@@ -1548,7 +1557,8 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                               key={subj}
                               type="button"
                               onClick={() => setActiveSubject(subj)}
-                              className={`px-3 py-1.5 rounded-xl text-xs font-bold border cursor-pointer ${
+                              aria-pressed={isActive}
+                              className={`min-h-11 rounded-xl border px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
                                 isActive ? 'bg-indigo-600 text-white border-indigo-600' : `${style.bg} ${style.border}`
                               }`}
                             >
@@ -1579,7 +1589,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                     {/* Topic Field */}
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-black text-slate-500 uppercase">Unterrichtsthema</label>
+                        <label htmlFor="quick-plan-topic" className="text-sm font-semibold text-[var(--text)]">Unterrichtsthema</label>
                         <button
                           type="button"
                           onClick={handleSuggestAiThemes}
@@ -1591,10 +1601,11 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                       </div>
 
                       <textarea
+                        id="quick-plan-topic"
                         value={lessonTopic}
                         onChange={(e) => setLessonTopic(e.target.value)}
                         placeholder="Was ist für diese Stunde geplant?"
-                        className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-2xl h-20 font-medium focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        className="min-h-28 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 text-base text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                       />
 
                       {aiSuggestionError && (
@@ -1617,7 +1628,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                                 setAiSuggestions([]);
                                 setAiSuggestionError('');
                               }}
-                              className="block w-full rounded-lg border border-indigo-100 bg-white px-2.5 py-2 text-left text-[11px] font-semibold text-slate-800 transition hover:border-indigo-300 hover:bg-indigo-50"
+                              className="block min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-left text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                             >
                               {suggestion}
                             </button>
@@ -1889,7 +1900,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                   </div>
                   <button 
                     onClick={() => setShowInfoOverlay(false)}
-                    className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl"
+                    className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-[var(--text2)] hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                   >
                     <X size={16} />
                   </button>
