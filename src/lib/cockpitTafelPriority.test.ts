@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { getCompactStudentGridLayout } from './studentWidgetGrid';
 
 const cockpit = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
 const list = readFileSync('src/components/cockpit/PublicStudentListWidget.tsx', 'utf8');
@@ -28,4 +29,16 @@ test('Sozialverhaltenspunkte sind optisch unterscheidbar', () => {
   assert.match(list, /socialMode \? "bg-sky-600 hover:bg-sky-700" : "bg-emerald-600 hover:bg-emerald-700"/);
   assert.match(list, /Sozialpunkt für das Sozialverhalten/);
   assert.match(list, /Mitarbeitspunkt für ein Unterrichtsfach/);
+});
+
+test('bei genügend Platz sind 16 Kinder in der Seitenleiste ohne Scrollen erreichbar', () => {
+  const layout = getCompactStudentGridLayout(400, 520, 16);
+  assert.equal(layout.columns, 2);
+  assert.equal(layout.rows, 8);
+  assert.equal(layout.fits, true);
+  const narrow = getCompactStudentGridLayout(190, 420, 16);
+  assert.equal(narrow.fits, false);
+  assert.match(list, /const autoCompactSidebar = sidebar && !sidebarCompact && !gridMode/);
+  assert.match(list, /listSize.width >= 260 && compactLayout.fits/);
+  assert.match(list, /sidebarCompact \|\| compact \|\| autoCompactSidebar/);
 });
