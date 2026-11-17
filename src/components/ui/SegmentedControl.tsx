@@ -70,7 +70,7 @@ export function SegmentedControl<T extends string = string>({
               const enabledTabs = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('button[role="tab"]:not(:disabled)');
               enabledTabs?.[nextIndex]?.focus();
               onChange(enabledOptions[nextIndex].value);
-            }
+            }}
             className={`
               relative inline-flex items-center justify-center font-medium select-none transition-all duration-150 cursor-pointer
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface-card,var(--surface))]
