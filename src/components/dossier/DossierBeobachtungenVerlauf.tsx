@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Student, AppNote } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { FileText, Activity, Users, Plus, Trash2, Search, CheckCircle2, AlertCircle, Pencil } from 'lucide-react';
+import { FileText, Activity, Users, Plus, Trash2, Search, CheckCircle2, AlertCircle, Pencil, X } from 'lucide-react';
 import { formatGermanDate } from '../../lib/diagnosticCoreUtils';
 import { logObservation } from '../../lib/utils';
 import { toLocalDateKey } from '../../lib/localDate';
@@ -112,14 +112,17 @@ export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufPr
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-150">
+    <div className="space-y-5 animate-in fade-in duration-150" data-dossier-observations>
+
       {/* Navigation Sub-Tabs */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-2 bg-slate-100/90 border border-slate-200/90 rounded-2xl">
-        <div className="flex flex-wrap items-center gap-1.5">
+      <div data-dossier-observations-toolbar className="flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface2)] p-2 sm:flex-row sm:items-center sm:justify-between">
+        <div role="tablist" aria-label="Beobachtungsbereiche" className="flex min-w-0 gap-1 overflow-x-auto overscroll-x-contain pb-1 sm:flex-wrap sm:pb-0">
           <button
             type="button"
             onClick={() => setActiveSubSection('verhalten')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+            role="tab"
+            aria-selected={(activeSubSection === 'verhalten' || activeSubSection === 'anwesenheit')}
+            className={`flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
               (activeSubSection === 'verhalten' || activeSubSection === 'anwesenheit')
                 ? 'bg-white text-slate-900 shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
@@ -132,7 +135,9 @@ export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufPr
           <button
             type="button"
             onClick={() => setActiveSubSection('beobachtungen')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+            role="tab"
+            aria-selected={activeSubSection === 'beobachtungen'}
+            className={`flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
               activeSubSection === 'beobachtungen'
                 ? 'bg-white text-slate-900 shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
@@ -150,7 +155,9 @@ export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufPr
           <button
             type="button"
             onClick={() => setActiveSubSection('kel')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+            role="tab"
+            aria-selected={activeSubSection === 'kel'}
+            className={`flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
               activeSubSection === 'kel'
                 ? 'bg-white text-slate-900 shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
@@ -165,7 +172,7 @@ export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufPr
           <button
             type="button"
             onClick={() => { setActiveSubSection('beobachtungen'); setEditingNoteId(null); setNewNoteText(''); setNewNoteSubject(''); setNewNoteCategory('Notiz'); setNewNoteType('neutral'); setNewNoteDate(toLocalDateKey()); setIsAddingNote(true); }}
-            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-bold text-white transition hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] sm:w-auto"
           >
             <Plus size={13} />
             <span>Beobachtung notieren</span>
@@ -180,7 +187,7 @@ export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufPr
         <div className="space-y-4">
           {/* Add Note Inline Form */}
           {isAddingNote && (
-            <div className="p-4 sm:p-5 bg-white border-2 border-indigo-200 rounded-2xl shadow-md space-y-3.5 animate-in fade-in">
+            <div data-dossier-observation-editor className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm animate-in fade-in sm:p-5">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                 <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
                   {editingNoteId ? 'Beobachtung bearbeiten' : 'Neue pädagogische Beobachtung erfassen'}
@@ -188,31 +195,35 @@ export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufPr
                 <button
                   type="button"
                   onClick={() => setIsAddingNote(false)}
-                  className="text-slate-400 hover:text-slate-600"
+                  aria-label="Beobachtungseingabe schließen"
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-[var(--text2)] hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                 >
-                  <Trash2 size={14} />
+                  <X size={18} aria-hidden="true" />
                 </button>
               </div>
 
               <form onSubmit={handleAddNote} className="space-y-3">
                 <div>
+                  <label htmlFor="dossier-observation-text" className="mb-1.5 block text-sm font-semibold text-[var(--text)]">Beobachtung</label>
                   <textarea
+                    id="dossier-observation-text"
                     required
                     rows={3}
                     value={newNoteText}
                     onChange={e => setNewNoteText(e.target.value)}
                     placeholder="Konkrete, wertfreie Unterrichtsbeobachtung eingeben (z. B. Zeigte hohe Ausdauer beim Lösen von Sachaufgaben; benötigt Struktur bei offenen Phasen)..."
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="min-h-24 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Kategorie</label>
+                    <label htmlFor="dossier-observation-category" className="mb-1.5 block text-sm font-semibold text-[var(--text)]">Kategorie</label>
                     <select
+                      id="dossier-observation-category"
                       value={newNoteCategory}
                       onChange={e => setNewNoteCategory(e.target.value as AppNote['kategorie'])}
-                      className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-300 bg-white"
+                      className="min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-base text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                     >
                       <option value="Notiz">Beobachtung / Notiz</option>
                       <option value="Verhalten">Verhalten</option>
@@ -224,32 +235,35 @@ export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufPr
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Fach / Kontext</label>
+                    <label htmlFor="dossier-observation-context" className="mb-1.5 block text-sm font-semibold text-[var(--text)]">Fach / Kontext</label>
                     <input
+                      id="dossier-observation-context"
                       type="text"
                       value={newNoteSubject}
                       onChange={e => setNewNoteSubject(e.target.value)}
                       placeholder="z. B. Mathematik, Deutsch, Pause..."
-                      className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-300 bg-white"
+                      className="min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-base text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Datum</label>
+                    <label htmlFor="dossier-observation-day" className="mb-1.5 block text-sm font-semibold text-[var(--text)]">Datum</label>
                     <input
+                      id="dossier-observation-day"
                       type="date"
                       value={newNoteDate}
                       onChange={e => setNewNoteDate(e.target.value)}
-                      className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-300 bg-white"
+                      className="min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-base text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Päd. Einordnung</label>
+                    <label htmlFor="dossier-observation-kind" className="mb-1.5 block text-sm font-semibold text-[var(--text)]">Pädagogische Einordnung</label>
                     <select
+                      id="dossier-observation-kind"
                       value={newNoteType}
                       onChange={e => setNewNoteType(e.target.value as any)}
-                      className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-300 bg-white"
+                      className="min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-base text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                     >
                       <option value="neutral">Neutral / Beobachtung</option>
                       <option value="positiv">Stärke / Positiv</option>
@@ -262,13 +276,13 @@ export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufPr
                   <button
                     type="button"
                     onClick={() => setIsAddingNote(false)}
-                    className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl"
+                    className="min-h-11 rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--text)] hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                   >
                     Abbrechen
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-xs cursor-pointer"
+                    className="min-h-11 rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-bold text-white hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                   >
                     Beobachtung speichern
                   </button>
@@ -278,24 +292,27 @@ export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufPr
           )}
 
           {/* Search & Filter Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white rounded-xl border border-slate-200/80 shadow-3xs">
+          <div className="flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2 flex-1 min-w-[200px]">
               <Search size={14} className="text-slate-400 shrink-0" />
               <input
-                type="text"
+                type="search"
+                aria-label="Beobachtungen durchsuchen"
                 value={noteSearch}
                 onChange={e => setNoteSearch(e.target.value)}
                 placeholder="In Beobachtungen suchen..."
-                className="w-full text-xs bg-transparent focus:outline-none placeholder:text-slate-400"
+                className="min-h-11 w-full rounded-lg bg-transparent px-2 text-base text-[var(--text)] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] placeholder:text-[var(--text2)]"
               />
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold text-slate-500">Kategorie:</span>
+              <label htmlFor="dossier-observation-filter" className="text-sm font-semibold text-[var(--text2)]">Kategorie</label>
               <select
+                id="dossier-observation-filter"
+                aria-label="Beobachtungen nach Kategorie filtern"
                 value={noteCategoryFilter}
                 onChange={e => setNoteCategoryFilter(e.target.value)}
-                className="px-2.5 py-1 text-xs font-bold rounded-lg border border-slate-200 bg-white text-slate-700"
+                className="min-h-11 min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold text-[var(--text)] sm:flex-none"
               >
                 <option value="alle">Alle Kategorien</option>
                 <option value="Notiz">Beobachtung / Notiz</option>
@@ -355,14 +372,15 @@ export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufPr
                           <span>Weiter beobachten</span>
                         </span>
                       )}
-                      <button type="button" aria-label="Beobachtung bearbeiten" onClick={() => { setEditingNoteId(note.id); setNewNoteText(note.inhalt || note.text || note.titel || ''); setNewNoteCategory((note.kategorie || 'Notiz') as AppNote['kategorie']); setNewNoteDate(noteDateKey(note)); setNewNoteSubject(note.fach || ''); setNewNoteType(note.art || 'neutral'); setIsAddingNote(true); }} className="min-h-10 min-w-10 rounded-lg text-slate-500 hover:bg-slate-100"><Pencil size={14} /></button>
+                      <button type="button" aria-label="Beobachtung bearbeiten" onClick={() => { setEditingNoteId(note.id); setNewNoteText(note.inhalt || note.text || note.titel || ''); setNewNoteCategory((note.kategorie || 'Notiz') as AppNote['kategorie']); setNewNoteDate(noteDateKey(note)); setNewNoteSubject(note.fach || ''); setNewNoteType(note.art || 'neutral'); setIsAddingNote(true); }} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-[var(--text2)] hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"><Pencil size={16} aria-hidden="true" /></button>
                       <button
                         type="button"
                         onClick={() => handleDeleteNote(note.id)}
-                        className="text-slate-300 hover:text-rose-600 p-1 rounded transition-colors"
+                        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-[var(--text2)] transition-colors hover:bg-rose-50 hover:text-rose-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-600"
+                        aria-label="Beobachtung löschen"
                         title="Eintrag löschen"
                       >
-                        <Trash2 size={13} />
+                        <Trash2 size={16} aria-hidden="true" />
                       </button>
                     </div>
                   </div>

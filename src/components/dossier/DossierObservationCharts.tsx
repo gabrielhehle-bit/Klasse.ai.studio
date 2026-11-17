@@ -8,7 +8,7 @@ import { toLocalDateKey } from '../../lib/localDate';
 
 const colors=['#10b981','#3b82f6','#64748b','#f59e0b','#ef4444'];
 const attendanceColors={present:'#10b981',mixed:'#8b5cf6',excused:'#0ea5e9',unexcused:'#ef4444',unknown:'#94a3b8'};
-const card='min-w-0 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-3';
+const card='min-w-0 space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5';
 const axes=<><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0"/><XAxis dataKey="label" tick={{fontSize:10}} minTickGap={20} axisLine={false} tickLine={false}/></>;
 const empty=(label:string)=><p className="flex h-44 items-center justify-center text-center text-sm text-slate-500">{label}</p>;
 export default function DossierObservationCharts({student,initialDetail='verhalten'}:{student:Student;initialDetail?:'verhalten'|'anwesenheit'}) {
@@ -60,7 +60,7 @@ export default function DossierObservationCharts({student,initialDetail='verhalt
  return <section data-dossier-observation-charts className="space-y-5">
   <div className="flex flex-wrap items-start justify-between gap-3">
    <div><h3 className="text-lg font-bold text-slate-900">Verhalten, Befinden & Anwesenheit</h3><p className="mt-1 text-xs text-slate-500">{observationDateLabel(stats.start)} – {observationDateLabel(stats.end)} · Schuljahr {app.schuljahr}</p></div>
-   <div role="group" aria-label="Beobachtungszeitraum" className="flex flex-wrap gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">{([['recent','Letzte 6 Wochen'],['year','Gesamtes Schuljahr']] as const).map(([key,label])=><button key={key} type="button" aria-pressed={period===key} onClick={()=>setPeriod(key)} className={`min-h-10 rounded-lg px-3 text-xs font-semibold ${period===key?'bg-white text-slate-900 shadow-sm':'text-slate-500'}`}>{label}</button>)}</div>
+   <div role="group" aria-label="Beobachtungszeitraum" className="flex w-full gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface2)] p-1 sm:w-auto">{([['recent','Letzte 6 Wochen'],['year','Gesamtes Schuljahr']] as const).map(([key,label])=><button key={key} type="button" aria-pressed={period===key} onClick={()=>setPeriod(key)} className={`min-h-11 flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] sm:flex-none ${period===key?'bg-[var(--surface)] text-[var(--text)] shadow-xs':'text-[var(--text2)] hover:bg-[var(--surface)]'}`}>{label}</button>)}</div>
   </div>
   <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
    <section data-observation-behavior data-observation-latest-stage={latestBehavior?.iconId || ''} className={`${card} xl:col-span-2`}>
@@ -77,19 +77,19 @@ export default function DossierObservationCharts({student,initialDetail='verhalt
           <input data-observation-behavior-date type="date" value={entryDay}
             min={fullYear.start} max={fullYear.end}
             onChange={event=>setEntryDay(event.target.value)}
-            className="mt-1 min-h-11 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-900"/>
+            className="mt-1 min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-base text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"/>
         </label>
         <label className="min-w-[8rem] flex-1 text-xs font-semibold text-slate-700">
           Verhaltensstufe
           <select data-observation-behavior-stage value={entryStage}
             onChange={event=>setEntryStage(event.target.value)}
-            className="mt-1 min-h-11 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-900">
+            className="mt-1 min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-base text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
             <option value="">Stufe auswählen</option>
             {stats.stages.map(stage=><option key={stage.id} value={stage.id}>{stage.icon} {stage.label}</option>)}
           </select>
         </label>
         <button data-observation-behavior-save type="submit"
-          className="min-h-11 rounded-lg bg-indigo-700 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-800">
+          className="min-h-11 w-full rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-bold text-white hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] sm:w-auto">
           Tagesstand speichern
         </button>
       </div>
@@ -112,15 +112,15 @@ export default function DossierObservationCharts({student,initialDetail='verhalt
    </section>
   </div>
   <section className={card}>
-   <div className="flex flex-wrap items-center justify-between gap-3"><h4 className="text-sm font-bold">Einzelne Tagesdaten</h4><div className="flex flex-wrap gap-1" role="group" aria-label="Tagesdaten auswählen">{([['verhalten','Verhalten'],['befinden','Befinden'],['anwesenheit','Anwesenheit']] as const).map(([key,label])=><button key={key} type="button" aria-pressed={detail===key} onClick={()=>setDetail(key)} className={`min-h-10 rounded-lg px-3 text-xs font-semibold ${detail===key?'bg-indigo-50 text-indigo-700':'text-slate-500 hover:bg-slate-50'}`}>{label}</button>)}</div></div>
+   <div className="flex flex-wrap items-center justify-between gap-3"><h4 className="text-sm font-bold">Einzelne Tagesdaten</h4><div className="flex w-full gap-1 overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--surface2)] p-1 sm:w-auto" role="group" aria-label="Tagesdaten auswählen">{([['verhalten','Verhalten'],['befinden','Befinden'],['anwesenheit','Anwesenheit']] as const).map(([key,label])=><button key={key} type="button" aria-pressed={detail===key} onClick={()=>setDetail(key)} className={`min-h-11 shrink-0 flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] sm:flex-none ${detail===key?'bg-[var(--surface)] text-[var(--text)] shadow-xs':'text-[var(--text2)] hover:bg-[var(--surface)]'}`}>{label}</button>)}</div></div>
    <div className="max-h-96 overflow-y-auto divide-y divide-slate-100" data-observation-records>
     {detail==='verhalten'&&stats.behavior.map((b,i)=>{const s=stats.stages.find(s=>s.id===b.iconId);return <div key={b.id||i} className="flex flex-wrap gap-x-4 gap-y-1 py-3 text-sm"><time className="text-slate-500">{observationDateLabel(b.date)}</time><span className="font-semibold">{s?.icon} {s?.label||'Frühere Verhaltensstufe'}</span>{(b.bemerkung||b.comment)&&<p className="w-full break-words text-slate-600">{b.bemerkung||b.comment}</p>}</div>;})}
     {detail==='befinden'&&stats.moods.map(m=><div key={m.date} className="flex gap-4 py-3 text-sm"><time className="text-slate-500">{observationDateLabel(m.date)}</time><span>{getMoodMeta(m.value)?.emoji} {getMoodMeta(m.value)?.label}</span></div>)}
     {detail==='anwesenheit'&&stats.attendance.map(a=><div key={a.date} className="flex flex-wrap gap-x-4 gap-y-1 py-3 text-sm"><time className="text-slate-500">{observationDateLabel(a.date)}</time><span className="font-semibold">{ATTENDANCE_LABELS[a.kind]}</span>{a.missedHours>0&&<span className="text-slate-500">{a.missedHours} Fehlstunden</span>}{a.note&&<p className="w-full break-words text-slate-600">{a.note}</p>}</div>)}
     {!(detail==='verhalten'?stats.behavior.length:detail==='befinden'?stats.moods.length:stats.attendance.length)&&<p className="py-6 text-sm text-slate-500">Keine Einträge im gewählten Zeitraum.</p>}
    </div>
-   {detail==='verhalten'&&<button type="button" onClick={()=>setPage('verhalten')} className="min-h-10 rounded-lg px-3 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">Verhalten bearbeiten</button>}
-   {detail==='anwesenheit'&&<button type="button" onClick={()=>setPage('anwesenheit')} className="min-h-10 rounded-lg px-3 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">Anwesenheit & Befinden bearbeiten</button>}
+   {detail==='verhalten'&&<button type="button" onClick={()=>setPage('verhalten')} className="min-h-11 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-semibold text-[var(--accent)] hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">Verhalten bearbeiten</button>}
+   {detail==='anwesenheit'&&<button type="button" onClick={()=>setPage('anwesenheit')} className="min-h-11 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-semibold text-[var(--accent)] hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">Anwesenheit & Befinden bearbeiten</button>}
   </section>
  </section>;
 }
