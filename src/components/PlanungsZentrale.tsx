@@ -1488,7 +1488,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                 </div>
 
                 {/* Type Selection Tabs */}
-                <div className="grid grid-cols-2 bg-slate-100 p-1 rounded-2xl gap-1 text-xs font-extrabold text-center">
+                <div role="group" aria-label="Art der Schnellplanung" className="grid grid-cols-2 gap-1 rounded-2xl bg-[var(--surface2)] p-1 text-center">
                   <button
                     onClick={() => handleSwitchQuickPlanType('lesson')}
                     type="button" aria-pressed={quickPlanType === 'lesson'}
@@ -1517,7 +1517,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                           id="quick-plan-day"
                           value={selectedDayIdx}
                           onChange={(e) => handleSwitchQuickSlot(parseInt(e.target.value, 10), selectedHour)}
-                          className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold"
+                          className="min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-base font-semibold text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                         >
                           {DAYS_DE.map((d, idx) => (
                             <option key={d} value={idx}>{d}</option>
@@ -1531,7 +1531,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                           id="quick-plan-hour"
                           value={selectedHour}
                           onChange={(e) => handleSwitchQuickSlot(selectedDayIdx, parseInt(e.target.value, 10))}
-                          className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold"
+                          className="min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-base font-semibold text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                         >
                           {LESSON_SLOT_NUMBERS.map(slot => (
                             <option key={slot} value={slot - 1}>{slot}. Stunde</option>
@@ -1660,7 +1660,8 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                       <button
                         type="button"
                         onClick={() => setShowExpandedDetailsInDrawer(!showExpandedDetailsInDrawer)}
-                        className="text-xs font-black text-indigo-600 hover:underline flex items-center gap-1 cursor-pointer"
+                        aria-expanded={showExpandedDetailsInDrawer}
+                        className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-sm font-semibold text-[var(--accent)] hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                       >
                         <ChevronDown size={14} className={`transition-transform ${showExpandedDetailsInDrawer ? 'rotate-180' : ''}`} />
                         <span>{showExpandedDetailsInDrawer ? 'Weniger Details' : 'Mehr Details (Didaktik, Materialien...)'}</span>
@@ -1824,7 +1825,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                       <select
                         value={selectedDayIdx}
                         onChange={(e) => setSelectedDayIdx(parseInt(e.target.value))}
-                        className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold"
+                        className="min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-base font-semibold text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                       >
                         {DAYS_DE.map((d, idx) => (
                           <option key={d} value={idx}>{d}</option>
