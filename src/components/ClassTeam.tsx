@@ -1047,7 +1047,6 @@ export default function ClassTeam() {
       <div data-testid="team-two-teachers-help">
         <TeamTeachingQuickHelp
           sharedClassId={activeSharedId}
-          className={activeSummary?.classLabel || activeRoom?.name}
           serverConfirmed={Boolean(activeSummary)}
           deviceAuthorization={deviceAuthorization}
           teamSyncStatus={teamSyncStatus}
