@@ -9965,25 +9965,6 @@ ${content}
                             <span className="hidden lg:inline">{sidebarMode === "hidden" ? "Schülerliste" : "Tafel groß"}</span>
                           </button>
 
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setVorlagenStartTab("create");
-                              setIsVorlagenModalOpen(true);
-                            }}
-                            className={`min-h-11 px-2.5 rounded-xl border text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                              currentIsLight
-                                ? "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                                : "bg-zinc-900 border-white/10 text-white/80 hover:bg-zinc-800"
-                            }`}
-                            aria-label="Vorlage erstellen"
-                            title="Aktuelles Widget-Layout als neue Vorlage speichern"
-                          >
-                            <Save size={13} />
-                            <span className="hidden xl:inline">Vorlage erstellen</span>
-                            <span className="xl:hidden">Vorlage</span>
-                          </button>
-
                           {/* Secondary Actions: Dropdown Menu (••• Optionen) */}
                           <div className="relative">
                             <button
@@ -10062,6 +10043,13 @@ ${content}
                                 >
                                   <Sparkles size={12} className="text-amber-500 shrink-0" />
                                   <span>Automatisch anordnen</span>
+                                </button>
+
+                                <button type="button" aria-label="Vorlage erstellen"
+                                  onClick={() => { setVorlagenStartTab("create"); setIsVorlagenModalOpen(true); setIsMoreOptionsMenuOpen(false); }}
+                                  className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600">
+                                  <Save size={14} className="shrink-0" aria-hidden="true" />
+                                  <span>Vorlage erstellen</span>
                                 </button>
 
                                 <button
