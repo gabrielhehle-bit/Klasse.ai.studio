@@ -42,3 +42,12 @@ test('bei genügend Platz sind 16 Kinder in der Seitenleiste ohne Scrollen errei
   assert.match(list, /listSize.width >= 260 && compactLayout.fits/);
   assert.match(list, /sidebarCompact \|\| compact \|\| autoCompactSidebar/);
 });
+
+test('Header unterscheidet Speicherung, Teamstand und Unterrichtsplatzhalter', () => {
+  assert.match(cockpit, /<SaveSyncStatus compact inlineLabel onOpenTeam=/);
+  assert.match(cockpit, /<ClassTeamStatus onOpen=/);
+  assert.match(cockpit, /aria-label="Speicherung und Klassenteam"/);
+  assert.match(cockpit, /currentHour \? \(getActiveSubject\(\) \|\| "Unterricht"\) : "Freie Tafel"/);
+  assert.match(cockpit, /Keine aktuelle Stunde laut Stundenplan/);
+  assert.match(cockpit, /text-\[9px\] sm:text-\[10px\] font-bold uppercase/);
+});
