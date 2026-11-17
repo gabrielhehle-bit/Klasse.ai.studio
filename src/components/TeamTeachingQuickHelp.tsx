@@ -90,7 +90,7 @@ export default function TeamTeachingQuickHelp({
         Hilfe: Wir sehen nicht dieselbe Klasse
       </summary>
       <div className="mt-3 space-y-4 text-sm leading-relaxed text-[var(--text2)]">
-        <p>Setzt euch mit beiden Geräten nebeneinander. Ihr braucht <strong>zwei eigene Schul-E-Mail-Adressen</strong>, aber nur <strong>eine gemeinsame Klasse</strong>.</p>
+        <p>Setzt euch mit beiden Geräten nebeneinander. Ihr braucht <strong>zwei eigene Schul-E-Mail-Adressen</strong>, aber nur <strong>eine gemeinsame Klasse</strong>. Falls ihr bisher in zwei getrennten Klassen gearbeitet habt, werden diese Einträge nicht automatisch zusammengeführt.</p>
 
         <div className="space-y-2 rounded-xl bg-[var(--surface2)] p-4">
           <h3 className="font-black text-[var(--text)]">Zuerst gemeinsam einrichten</h3>
@@ -147,7 +147,7 @@ export default function TeamTeachingQuickHelp({
           {step === 'from-a' && (
             <>
               <h3 className="font-black text-[var(--text)]">2. Kommt die Änderung von A bei B an?</h3>
-              <p><strong>A</strong> schreibt „TEAMTEST A“ in ein <strong>freies</strong> Feld im Wochenplan und speichert. <strong>B</strong> schaut im selben Wochenplan nach, ohne selbst etwas zu ändern.</p>
+              <p>Beide wählen <strong>dieselbe Kalenderwoche</strong>. <strong>A</strong> schreibt „TEAMTEST A“ in ein <strong>freies</strong> Feld im Wochenplan und speichert. <strong>B</strong> schaut nach, ohne selbst etwas zu ändern.</p>
               <p>Wartet, bis der Teamstatus den Abgleich bestätigt. Sieht B den Eintrag?</p>
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => choose('from-b')}
