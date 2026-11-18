@@ -778,7 +778,7 @@ async function main() {
     // The normal picker stays small; exact legacy names remain available separately.
     await clickButton(client, 'Widget hinzufügen');
     await clickButton(client, 'Kernwidgets');
-    await waitFor(client, 'regular picker has 25 grouped entries', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length === 25`);
+    await waitFor(client, 'regular picker has 26 grouped entries', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length === 26`);
     await waitFor(client, 'student-list resize grip is removed while choosing widgets', `!document.querySelector('[aria-label="Breite der Schülerliste ändern"]')`);
     await sleep(250);
     await evaluate(client, `document.querySelector('button[aria-label="Widget-Voreinstellungen öffnen"]').click()`);
@@ -789,7 +789,7 @@ async function main() {
     await client.send('Emulation.setDeviceMetricsOverride', { width:820, height:900, deviceScaleFactor:1, mobile:false });
     // Below 768px the app deliberately switches from the cockpit to phone quick mode.
     await sleep(250);
-    await waitFor(client, 'regular picker fits the supported tablet viewport', `(() => {const dialog=document.querySelector('[role=dialog][aria-label="Widget-Bibliothek"]');if(!dialog)return false;const rect=dialog.getBoundingClientRect();return rect.left>=-1 && rect.right<=innerWidth+1 && rect.top>=0 && rect.bottom<=innerHeight+1 && document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length===25;})()`);
+    await waitFor(client, 'regular picker fits the supported tablet viewport', `(() => {const dialog=document.querySelector('[role=dialog][aria-label="Widget-Bibliothek"]');if(!dialog)return false;const rect=dialog.getBoundingClientRect();return rect.left>=-1 && rect.right<=innerWidth+1 && rect.top>=0 && rect.bottom<=innerHeight+1 && document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length===26;})()`);
     await waitFor(client, 'tablet picker controls are unobstructed', `(() => {
       const dialog=document.querySelector('[role=dialog][aria-label="Widget-Bibliothek"]'),content=dialog.querySelector('main').getBoundingClientRect();
       const actions=Array.from(dialog.querySelectorAll('[data-widget-card-action="primary"], [data-widget-library-action]')).filter(button=>{const r=button.getBoundingClientRect(),y=r.top+r.height/2;return r.width>0 && y>=content.top && y<=content.bottom || button.hasAttribute('data-widget-library-action');});
@@ -808,9 +808,28 @@ async function main() {
     await setInputByLabel(client, 'Widget suchen', 'Zahnputz');
     await waitFor(client, 'special topic remains accessible', `Boolean(document.querySelector('button[aria-label="Zahnputz-Station öffnen"]'))`);
     await evaluate(client, `document.querySelector('button[aria-label="Widgetsuche leeren"]').click()`);
-    await waitFor(client, 'all historical picker entries remain available', `document.querySelectorAll('[role=dialog][aria-label="Widget-Bibliothek"] [data-widget-card-action="primary"]').length === 112`);
+    await waitFor(client, 'all historical picker entries remain available', `document.querySelectorAll('[role=dialog][aria-label="Widget-Bibliothek"] [data-widget-card-action="primary"]').length === 113`);
     await evaluate(client, `document.querySelector('button[aria-label="Widget-Bibliothek schließen"]').click()`);
     await waitFor(client, 'student-list resize grip returns after closing the picker', `Boolean(document.querySelector('[aria-label="Breite der Schülerliste ändern"]'))`);
+    await clickButton(client, 'Widget hinzufügen');
+    await clickButton(client, 'Kernwidgets');
+    await setInputByLabel(client, 'Widget suchen', 'Waldruhe');
+    await waitFor(client, 'Waldruhe is listed as a core widget', `Boolean(document.querySelector('button[aria-label="Waldruhe öffnen"]'))`);
+    await clickSelector(client, 'button[aria-label="Waldruhe öffnen"]');
+    const waldruheWidget = '[data-widget-type="waldruhe"]';
+    const waldruhePanel = `document.querySelector('[data-practice-root="waldruhe"]')`;
+    await waitFor(client, 'Waldruhe opens on the classroom board', `Boolean(${waldruhePanel})`);
+    await clickButton(client, 'Ohne Mikrofon testen', true);
+    await waitFor(client, 'the first animal appears during quiet', `${waldruhePanel}?.textContent.includes('1 von 5 Tieren')`);
+    await clickButton(client, 'Laut', true);
+    await waitFor(client, 'Waldruhe waits when the class gets louder', `${waldruhePanel}?.textContent.includes('Der Wald wartet')`);
+    await clickSelector(client, waldruheWidget + ' .cockpit-widget-settings-trigger');
+    await clickSelector(client, waldruheWidget + ' input[type="checkbox"]');
+    await waitFor(client, 'the animal hides when that option is enabled', `${waldruhePanel}?.textContent.includes('0 von 5 Tieren')`);
+    await clickButton(client, 'Test beenden', true);
+    await clickSelector(client, waldruheWidget + ' button[aria-label="Widget-Menü öffnen"]');
+    await clickButton(client, 'Widget schließen', true);
+    await waitFor(client, 'Waldruhe closes cleanly', `!${waldruhePanel}`);
     const openAuditWidget = async (type, search, label) => {
       await clickButton(client, 'Widget hinzufügen');
       await clickButton(client, 'Weitere Widgets');

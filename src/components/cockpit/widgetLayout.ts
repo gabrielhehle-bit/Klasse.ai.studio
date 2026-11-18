@@ -70,6 +70,7 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   dailyquotes: { minW: 640, minH: 560, prefW: 640, prefH: 560 },
   phases: { minW: 460, minH: 560, prefW: 560, prefH: 560 },
   trafficlight: { minW: 460, minH: 560, prefW: 520, prefH: 560 },
+  waldruhe: { minW: 330, minH: 320, prefW: 640, prefH: 430 },
   noisemeter: { minW: 460, minH: 460, prefW: 520, prefH: 500 },
   noisescales: { minW: 460, minH: 420, prefW: 520, prefH: 460 },
   sounds: { minW: 840, minH: 560, prefW: 840, prefH: 560 },
