@@ -37,7 +37,7 @@ export default function AssessmentValueInput({ value, mode, maxPoints, onCommit,
     return true;
   };
   return <>
-    <input {...props} ref={input} type="text" value={draft}
+    <input enterKeyHint="next" {...props} ref={input} type="text" value={draft}
       aria-invalid={invalid || undefined} aria-describedby={invalid ? errorId : props['aria-describedby']}
       title={invalid ? message : props.title}
       onChange={event => { dirty.current = true; setDraft(event.target.value); setInvalid(false); event.currentTarget.setCustomValidity(''); }}

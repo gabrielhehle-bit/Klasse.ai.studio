@@ -1510,37 +1510,41 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     });
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent, sid: string, typ: string, idx: number) => {
+  const getEditableGradeInputs = () => Array.from(gradebookScrollRef.current?.querySelectorAll<HTMLInputElement>('input[data-col]:not(:disabled)') ?? [])
+    .filter(input => input.getClientRects().length > 0);
+
+  const focusGradeInput = (input: HTMLInputElement) => {
+    input.focus({ preventScroll: true });
+    input.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.key)) return;
-    
-    const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('[data-gradebook] input[data-col]'))
-      .filter(input => input.getClientRects().length > 0 && !input.disabled);
-    const currentIndex = inputs.indexOf(e.target as HTMLInputElement);
+    const inputs = getEditableGradeInputs();
+    const currentInput = e.currentTarget;
+    const currentIndex = inputs.indexOf(currentInput);
     if (currentIndex === -1) return;
 
-    const dataCol = (e.target as HTMLElement).getAttribute('data-col');
+    e.preventDefault();
+    const direction = e.key === 'ArrowUp' || e.key === 'ArrowLeft' || (e.key === 'Enter' && e.shiftKey) ? -1 : 1;
+    const horizontal = e.key === 'ArrowLeft' || e.key === 'ArrowRight';
+    const siblings = horizontal ? inputs : inputs.filter(input => input.dataset.col === currentInput.dataset.col);
+    const next = siblings[siblings.indexOf(currentInput) + direction];
+    if (next) focusGradeInput(next);
+  };
 
-    if (e.key === 'ArrowRight') {
-      e.preventDefault();
-      inputs[currentIndex + 1]?.focus();
-    } else if (e.key === 'ArrowLeft') {
-      e.preventDefault();
-      inputs[currentIndex - 1]?.focus();
-    } else if (e.key === 'ArrowDown' || (e.key === 'Enter' && !e.shiftKey)) {
-      e.preventDefault();
-      const nextRowInput = inputs.find((el, i) => i > currentIndex && el.getAttribute('data-col') === dataCol);
-      nextRowInput?.focus();
-    } else if (e.key === 'ArrowUp' || (e.key === 'Enter' && e.shiftKey)) {
-      e.preventDefault();
-      const prevRowInputs = inputs.filter((el, i) => i < currentIndex && el.getAttribute('data-col') === dataCol);
-      prevRowInputs[prevRowInputs.length - 1]?.focus();
-    }
+  const focusColumnEntry = (allowFilled: boolean) => {
+    if (!isolatedCol) return;
+    const column = `${isolatedCol.typ}-${isolatedCol.idx}`;
+    const inputs = getEditableGradeInputs().filter(input => input.dataset.col === column);
+    const invalid = inputs.find(input => !input.validity.valid);
+    const input = invalid ?? inputs.find(input => !input.value.trim()) ?? (allowFilled ? inputs[0] : undefined);
+    if (input) focusGradeInput(input);
   };
 
   useEffect(() => {
     if (!isolatedCol || editingAssessmentModal || activeView !== 'noten') return;
-    const input = document.querySelector<HTMLInputElement>(`[data-gradebook] input[data-col="${isolatedCol.typ === 'obj' ? 'aufgaben' : isolatedCol.typ}-${isolatedCol.idx}"]:not(:disabled)`);
-    input?.focus(); input?.select();
+    focusColumnEntry(true);
   }, [isolatedCol, editingAssessmentModal, activeView]);
 
   const updateColMeta = (typ: 'sa'|'lzk'|'wp'|'obj', idx: number, labelVal: string, dateVal: string, maxPointsVal?: number, area?: string, itemMode?: 'grades' | 'percent' | 'points') => {
@@ -1568,14 +1572,23 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     if (activeView !== 'noten') return;
     const element = gradebookScrollRef.current;
     if (!element) return;
-    updateGradebookScrollEdges();
-    const observer = typeof ResizeObserver !== 'undefined'
-      ? new ResizeObserver(updateGradebookScrollEdges) : null;
-    observer?.observe(element);
     const table = element.querySelector('table');
+    const header = table?.tHead;
+    const footer = table?.tFoot;
+    const updateScrollLayout = () => {
+      updateGradebookScrollEdges();
+      element.style.scrollPaddingTop = `${(header?.offsetHeight ?? 0) + 4}px`;
+      element.style.scrollPaddingBottom = `${(footer?.offsetHeight ?? 0) + 4}px`;
+    };
+    updateScrollLayout();
+    const observer = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(updateScrollLayout) : null;
+    observer?.observe(element);
     if (table) observer?.observe(table);
+    if (header) observer?.observe(header);
+    if (footer) observer?.observe(footer);
     return () => observer?.disconnect();
-  }, [activeView, activeFach, assessmentFilter, isolatedCol, simpleDashboardMode, zoomLevel, students.length]);
+  }, [activeView, activeFach, assessmentFilter, isolatedCol, showClassAverage, simpleDashboardMode, zoomLevel, students.length]);
 
   const renderColHeader = (typ: 'sa'|'lzk'|'wp'|'obj', i: number, baseColorClass: string, isFirst: boolean, defaultName: string) => {
     if (isolatedCol && (isolatedCol.typ !== typ || isolatedCol.idx !== i)) {
@@ -1599,6 +1612,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     return (
       <th 
         key={`h${typ}-${i}`} 
+        data-gradebook-entry-heading
         onMouseEnter={() => setHoveredCell({sid: '', typ, idx: i})}
         onMouseLeave={() => setHoveredCell(null)}
         className={`px-1 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-[8rem] border-b-2 border-r transition-all group/col relative isolate
@@ -1739,6 +1753,14 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
         .gradebook-scroll-area::-webkit-scrollbar-track { background: #edf2ef; border-radius: 8px; }
         .gradebook-scroll-area::-webkit-scrollbar-thumb { background: #9baea7; border: 2px solid #edf2ef; border-radius: 8px; }
         .gradebook-scroll-area thead { position: sticky; top: 0; z-index: 55; }
+        [data-gradebook-column-entry] :is(thead, tbody, tfoot) > tr > :is(:first-child, :nth-child(3)),
+        [data-gradebook-column-entry] [data-gradebook-row-actions] { display: none; }
+        [data-gradebook-column-entry] :is(thead, tbody, tfoot) > tr > :nth-child(2) {
+          left: 0; width: auto; padding-inline: 0.5rem;
+        }
+        [data-gradebook-column-entry] thead th[data-gradebook-entry-heading] {
+          width: clamp(8rem, 40%, 16rem); min-width: 0;
+        }
         .gradebook-table--dense tbody td { padding-top: 0.125rem !important; padding-bottom: 0.125rem !important; }
         .gradebook-table--dense tbody tr { height: 2.6rem; }
         .gradebook-table--dense input[data-col] {
@@ -3722,21 +3744,27 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                 const value = app.noten?.[student.id]?.[activeFach]?.[sem]?.[dataKey]?.[isolatedCol.idx];
                 return value !== null && value !== undefined && value !== '' && !['f', 'x', 'e', '-'].includes(String(value));
               }).length;
-              return <div data-column-entry-status role="status" className="flex flex-wrap items-center justify-between gap-2 border-y border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              const hasBlank = participating.some(student => {
+                const value = app.noten?.[student.id]?.[activeFach]?.[sem]?.[dataKey]?.[isolatedCol.idx];
+                return value == null || String(value).trim() === '';
+              });
+              return <div data-column-entry-status className="flex flex-wrap items-center gap-x-3 gap-y-2 border-y border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <p role="status" className="w-full"><strong>Einzeleingabe · {app.notenMeta?.[activeFach]?.colLabels?.[isolatedCol.typ]?.[isolatedCol.idx] || `${isolatedCol.typ.toUpperCase()} ${isolatedCol.idx + 1}`}</strong> · {recorded}/{participating.length} erfasst · {participating.length - recorded} offen · {students.length - participating.length} nehmen nicht teil</p>
                 <button type="button" onClick={() => { setIsolatedCol(null); setAssessmentFilter('all'); setFilterMissing(false); }}
-                  className="min-h-10 rounded-lg border border-emerald-200 bg-white px-3 py-2 font-semibold text-emerald-800">Zur Gesamtübersicht</button>
-                <span className="font-semibold">Einzeleingabe – nur diese Bewertung</span>
-                <span><strong>{app.notenMeta?.[activeFach]?.colLabels?.[isolatedCol.typ]?.[isolatedCol.idx] || `${isolatedCol.typ.toUpperCase()} ${isolatedCol.idx + 1}`}</strong> · {recorded}/{participating.length} erfasst · {participating.length - recorded} offen · {students.length - participating.length} nehmen nicht teil</span>
-                <span className="text-xs">Enter: nächstes Kind · Shift+Enter: zurück · Escape: Eingabe verwerfen</span>
+                  className="min-h-11 rounded-lg border border-emerald-200 bg-white px-3 py-2 font-semibold text-emerald-800">Zur Gesamtübersicht</button>
+                <button type="button" onClick={() => focusColumnEntry(false)} disabled={!hasBlank}
+                  className="min-h-11 rounded-lg border border-emerald-200 bg-white px-3 py-2 font-semibold text-emerald-800 disabled:opacity-50">Zum ersten leeren Feld</button>
+                <span className="text-xs">Enter: nächstes Kind · Umschalt+Enter: zurück · Esc: Eingabe verwerfen</span>
               </div>;
             })()}
             {students.length > 0 && (cfg.sa || cfg.lzk || cfg.wp || cfg.obj || cfg.mi || cfg.hue) && (
               <>
               <div ref={gradebookScrollRef} onScroll={updateGradebookScrollEdges}
                 data-gradebook-scroll-container role="region" tabIndex={0}
+                data-gradebook-column-entry={isolatedCol ? '' : undefined}
                 aria-label="Notentabelle – horizontal und vertikal scrollbar" aria-describedby="gradebook-keyboard-hint"
                 className="gradebook-scroll-area w-full max-h-[72dvh] overflow-auto relative rounded-b-2xl border border-t-0 border-slate-200 shadow-sm bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600 print:max-h-none print:overflow-visible">
-              <table className={`w-full border-separate border-spacing-0 text-[0.875rem] leading-snug table-fixed print:table-auto gradebook-table ${denseGradebookRows ? 'gradebook-table--dense' : ''} ${isolatedCol ? 'min-w-[600px]' : simpleDashboardMode ? 'min-w-[650px]' : 'min-w-[1200px]'}`}>
+              <table className={`w-full border-separate border-spacing-0 text-[0.875rem] leading-snug table-fixed print:table-auto gradebook-table ${denseGradebookRows ? 'gradebook-table--dense' : ''} ${isolatedCol ? '' : simpleDashboardMode ? 'min-w-[650px]' : 'min-w-[1200px]'}`}>
                 <thead>
                   <tr className="sticky top-0 z-30 text-[0.6rem] font-bold uppercase tracking-wider text-text-muted text-center print:break-inside-avoid">
                     <th className={`${zoomLevel === 'compact' ? 'px-2.5 py-2 text-[0.55rem] w-[3rem]' : zoomLevel === 'large' ? 'px-5 py-5 text-[0.75rem] w-[5rem]' : 'px-4 py-3.5 text-[0.6rem] w-[4rem]'} text-left border-b-2 border-r border-slate-200 bg-white sticky left-0 z-[50] print:relative print:left-0 shadow-[2px_0_10px_rgba(0,0,0,0.1)]`}>#</th>
@@ -3976,7 +4004,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                         setFocusedCell({sid: s.id, typ: 'sa', idx});
                                       }}
                                       onBlur={() => setFocusedCell(null)}
-                                      onKeyDown={(e) => handleKeyDown(e, s.id, 'sa', idx)}
+                                      onKeyDown={handleKeyDown}
                                       className={`w-full mx-auto block text-center ${heatmapMode && isColorableGrade(nd.sa[idx]) ? 'bg-transparent' : 'bg-white/95'} border border-slate-250 hover:border-blue-400 focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none transition-all font-bold ${getGradeColor(nd.sa[idx], true, 'sa', idx).includes('ring-rose') ? '' : getGradeColor(nd.sa[idx], true, 'sa', idx)} ${nd.sa[idx] === 5 && itemMode === 'grades' ? 'text-red-650 font-extrabold' : nd.sa[idx] === 'f' ? 'text-slate-400' : 'text-blue-800'} ${zoomLevel === 'compact' ? 'min-w-[2.25rem] py-0.5 text-[0.75rem] rounded-md max-w-[3.25rem]' : zoomLevel === 'large' ? 'min-w-[3.5rem] py-2 text-[0.9375rem] rounded-xl max-w-[4.75rem]' : 'min-w-[2.75rem] py-1 text-[0.8125rem] rounded-lg max-w-[4rem]'}`}
                                       value={nd.sa[idx] !== null && nd.sa[idx] !== undefined ? nd.sa[idx] : ''}
                                       onCommit={(val) => setNote(s.id, 'sa', idx, val)}
@@ -4044,7 +4072,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                           setFocusedCell({sid: s.id, typ: 'lzk', idx});
                                         }}
                                         onBlur={() => setFocusedCell(null)}
-                                        onKeyDown={(e) => handleKeyDown(e, s.id, 'lzk', idx)}
+                                        onKeyDown={handleKeyDown}
                                         className={`w-full mx-auto block text-center ${heatmapMode && isColorableGrade(nd.lzk[idx]) ? 'bg-transparent' : 'bg-white/95'} border border-slate-250 hover:border-green-400 focus:border-green-500 focus:bg-white focus:ring-1 focus:ring-green-500 outline-none transition-all font-bold ${getGradeColor(nd.lzk[idx], true, 'lzk', idx).includes('ring-rose') ? '' : getGradeColor(nd.lzk[idx], true, 'lzk', idx)} ${nd.lzk[idx] === 5 && assessmentMode === 'grades' ? 'text-red-650 font-extrabold' : nd.lzk[idx] === 'f' ? 'text-slate-400' : 'text-green-800'} ${zoomLevel === 'compact' ? 'min-w-[2.25rem] py-0.5 text-[0.75rem] rounded-md max-w-[3.25rem]' : zoomLevel === 'large' ? 'min-w-[3.5rem] py-2 text-[0.9375rem] rounded-xl max-w-[4.75rem]' : 'min-w-[2.75rem] py-1 text-[0.8125rem] rounded-lg max-w-[4rem]'}`}
                                         value={nd.lzk[idx] !== null && nd.lzk[idx] !== undefined ? nd.lzk[idx] : ''}
                                         onCommit={(val) => setNote(s.id, 'lzk', idx, val)}
@@ -4109,7 +4137,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                           setFocusedCell({sid: s.id, typ: 'wp', idx});
                                         }}
                                         onBlur={() => setFocusedCell(null)}
-                                        onKeyDown={(e) => handleKeyDown(e, s.id, 'wp', idx)}
+                                        onKeyDown={handleKeyDown}
                                         className={`w-full mx-auto block text-center ${heatmapMode && isColorableGrade(nd.wp[idx]) ? 'bg-transparent' : 'bg-white/95'} border border-slate-250 hover:border-purple-400 focus:border-purple-500 focus:bg-white focus:ring-1 focus:ring-purple-500 outline-none transition-all font-bold ${getGradeColor(nd.wp[idx], false, 'wp', idx)} ${nd.wp[idx] === 5 && assessmentMode === 'grades' ? 'text-red-650 font-extrabold' : nd.wp[idx] === 'f' ? 'text-slate-400' : 'text-purple-800'} ${zoomLevel === 'compact' ? 'min-w-[2.25rem] py-0.5 text-[0.75rem] rounded-md max-w-[3.25rem]' : zoomLevel === 'large' ? 'min-w-[3.5rem] py-2 text-[0.9375rem] rounded-xl max-w-[4.75rem]' : 'min-w-[2.75rem] py-1 text-[0.8125rem] rounded-lg max-w-[4rem]'}`}
                                         value={nd.wp[idx] !== null && nd.wp[idx] !== undefined ? nd.wp[idx] : ''}
                                         onCommit={(val) => setNote(s.id, 'wp', idx, val)}
@@ -4170,7 +4198,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                           setFocusedCell({sid: s.id, typ: 'aufgaben', idx});
                                         }}
                                         onBlur={() => setFocusedCell(null)}
-                                        onKeyDown={(e) => handleKeyDown(e, s.id, 'aufgaben', idx)}
+                                        onKeyDown={handleKeyDown}
                                         className={`w-full mx-auto block text-center ${heatmapMode && isColorableGrade(nd.aufgaben[idx]) ? 'bg-transparent' : 'bg-white/95'} border border-slate-250 hover:border-amber-400 focus:border-amber-500 focus:bg-white focus:ring-1 focus:ring-amber-500 outline-none transition-all font-bold ${getGradeColor(nd.aufgaben[idx], false, 'obj', idx)} ${nd.aufgaben[idx] === 5 && assessmentMode === 'grades' ? 'text-red-650 font-extrabold' : nd.aufgaben[idx] === 'f' ? 'text-slate-400' : 'text-amber-800'} ${zoomLevel === 'compact' ? 'min-w-[2.25rem] py-0.5 text-[0.75rem] rounded-md max-w-[3.25rem]' : zoomLevel === 'large' ? 'min-w-[3.5rem] py-2 text-[0.9375rem] rounded-xl max-w-[4.75rem]' : 'min-w-[2.75rem] py-1 text-[0.8125rem] rounded-lg max-w-[4rem]'}`}
                                         value={nd.aufgaben[idx] !== null && nd.aufgaben[idx] !== undefined ? nd.aufgaben[idx] : ''}
                                         onCommit={(val) => setNote(s.id, 'aufgaben', idx, val)}
@@ -4209,7 +4237,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
                                    setFocusedCell({sid: s.id, typ: 'mi', idx: 0});
                                  }}
                                  onBlur={() => setFocusedCell(null)}
-                                 onKeyDown={(e) => handleKeyDown(e, s.id, 'mi', 0)}
+                                 onKeyDown={handleKeyDown}
                                  className={`mx-auto block text-center ${heatmapMode && isColorableGrade(nd.miDirekt) ? 'bg-transparent' : 'bg-white/95'} border border-slate-250 hover:border-orange-400 focus:border-orange-500 focus:bg-white focus:ring-1 focus:ring-orange-500 outline-none transition-all font-bold ${getGradeColor(nd.miDirekt)} text-orange-900 ${zoomLevel === 'compact' ? 'rounded-md py-0.5 text-[0.75rem] w-12' : zoomLevel === 'large' ? 'rounded-xl py-2 text-[0.9375rem] w-20' : 'rounded-lg py-1 text-[0.8125rem] w-16'}`}
                                  value={nd.miDirekt !== null && nd.miDirekt !== undefined ? nd.miDirekt : ''}
                                  onChange={(val) => setMIDirekt(s.id, val)}

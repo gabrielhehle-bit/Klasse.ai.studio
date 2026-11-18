@@ -16,7 +16,8 @@ test('gradebook table keeps a visible, keyboard-accessible two-axis scroll regio
 test('scroll controls reflect actual horizontal overflow and are keyboard reachable', () => {
   assert.match(gradebook, /data-gradebook-scroll-controls/);
   assert.match(gradebook, /element\.scrollLeft \+ element\.clientWidth < element\.scrollWidth - 2/);
-  assert.match(gradebook, /ResizeObserver\(updateGradebookScrollEdges\)/);
+  assert.match(gradebook, /ResizeObserver\(updateScrollLayout\)/);
+  assert.match(gradebook, /const updateScrollLayout = \(\) => \{\s*updateGradebookScrollEdges\(\)/);
   assert.match(gradebook, /aria-label="Notentabelle nach links scrollen"/);
   assert.match(gradebook, /aria-label="Notentabelle nach rechts scrollen"/);
   assert.match(gradebook, /disabled=\{!gradebookScrollEdges\.left\}/);

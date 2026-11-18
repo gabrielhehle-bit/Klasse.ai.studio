@@ -165,9 +165,17 @@ try{
     throw new Error('Grade input is not readable/finger-sized on phone');
   if(grades.buttons.some(b=>b.height<43||b.width<43))throw new Error('Gradebook scroll buttons too small');
   if(grades.sticky!=='sticky')throw new Error('Student names no longer sticky');
-  if(grades.scrollWidth<=grades.clientWidth)throw new Error('Expected scrollable mobile gradebook table');
+  if(grades.scrollWidth>grades.clientWidth+2)throw new Error('A single assessment still needs horizontal scrolling');
+  await until(c,'column entry is focused on the first pupil and visible beside the name',`(() => {
+    const area = document.querySelector('[data-gradebook-column-entry]');
+    const input = document.activeElement;
+    const nameCell = input.closest('tr')?.cells[1];
+    if (!area?.contains(input) || !nameCell || input.getAttribute('aria-label') !== ${q(gradeCellInfo[0].label)}) return false;
+    const field = input.getBoundingClientRect();
+    return field.left >= nameCell.getBoundingClientRect().right - 1 && field.right <= area.getBoundingClientRect().right && input.enterKeyHint === 'next';
+  })()`);
   console.log('PASS Real populated grade inputs on 390px phone: 44px target, 16px font, sticky names');
-  const enterGrade=async (label,value)=>{
+  const enterGrade=async (label,value,key)=>{
     const selector='[data-gradebook-scroll-container] input[data-col][aria-label='+q(label)+']';
     const inputExpr='(() => {const e=document.querySelector('+q(selector)+');if(!e)return false;' +
       'e.scrollIntoView({block:"nearest",inline:"nearest"});e.focus();' +
@@ -176,12 +184,28 @@ try{
       'return true;})()';
     if(!await evalPage(c,inputExpr))throw new Error('Cannot type into '+label);
     await sleep(150);
-    await evalPage(c,'document.querySelector('+q(selector)+')?.blur()');
+    if(key){
+      await evalPage(c,`document.querySelector(${q(selector)})?.dispatchEvent(new KeyboardEvent('keydown',{key:${q(key)},bubbles:true,cancelable:true}))`);
+    }else{
+      await evalPage(c,'document.querySelector('+q(selector)+')?.blur()');
+    }
     await until(c,'visible grade '+value+' in '+label,
       'document.querySelector('+q(selector)+')?.value==='+q(value));
   };
-  await enterGrade(gradeCellInfo[0].label,'2');
+  await enterGrade(gradeCellInfo[0].label,'9','Enter');
+  await until(c,'invalid grade stays on the same row',`document.activeElement?.getAttribute('aria-label') === ${q(gradeCellInfo[0].label)} && document.activeElement?.getAttribute('aria-invalid') === 'true'`);
+  await enterGrade(gradeCellInfo[0].label,'2','Enter');
+  await until(c,'Enter saves and focuses the next pupil in the same column',`document.activeElement?.getAttribute('aria-label') === ${q(gradeCellInfo[1].label)} && document.activeElement?.dataset.col === ${q(gradeCellInfo[0].column)}`);
+  await evalPage(c,`document.activeElement.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',shiftKey:true,bubbles:true,cancelable:true}))`);
+  await until(c,'Shift+Enter returns to the preceding pupil',`document.activeElement?.getAttribute('aria-label') === ${q(gradeCellInfo[0].label)}`);
+  await clickText(c,'Zum ersten leeren Feld');
+  await until(c,'first blank shortcut skips the existing grade',`document.activeElement?.getAttribute('aria-label') === ${q(gradeCellInfo[1].label)}`);
   await enterGrade(gradeCellInfo[1].label,'4');
+  await clickText(c,'Zur Gesamtübersicht');
+  await until(c,'full gradebook keeps horizontal scrolling after compact entry',`(() => {
+    const area = document.querySelector('[data-gradebook-scroll-container]');
+    return !area?.hasAttribute('data-gradebook-column-entry') && area.scrollWidth > area.clientWidth;
+  })()`);
   // Force a React unmount/remount by changing the subject, not by editing app state.
   const originalSubject=await evalPage(c,'document.querySelector("#gradebook-active-subject")?.value');
   const otherSubject=await evalPage(c,'(() => {const s=document.querySelector("#gradebook-active-subject");return Array.from(s.options).find(o=>o.value&&o.value!==s.value)?.value})()');
