@@ -255,11 +255,17 @@ try{
   await c.send('Emulation.setDeviceMetricsOverride',{width:1440,height:980,deviceScaleFactor:1,mobile:false});
   await click(c,'[data-menu-id="kel"]');
   await until(c,'KEL portal','Boolean(document.querySelector("[data-kel-shared-dossier-portal]"))');
-  const first=await evalPage(c,'document.querySelector("button[data-kel-child] h2")?.textContent.trim()');
-  if(!first)throw new Error('Demo dossier entry not found');
-  await click(c,'button[data-kel-child]');
-  await until(c,'KEL opens conversation preparation','Boolean(document.querySelector(\'button[title="KEL schließen"]\'))');
-  await click(c,'button[title="KEL schließen"]');
+  const pupil=await evalPage(c,`(() => {
+    const card = document.querySelector('button[data-kel-child]');
+    return card && { id: card.dataset.kelChild, name: card.querySelector('h2')?.textContent.trim() };
+  })()`);
+  if(!pupil?.id || !pupil.name)throw new Error('Demo dossier entry not found');
+  const openPupilDossier=async()=>{
+    await click(c,'button[data-kel-child='+q(pupil.id)+']');
+    await until(c,'KEL opens conversation preparation','Boolean(document.querySelector(\'button[title="KEL schließen"]\'))');
+    await click(c,'button[title="KEL schließen"]');
+  };
+  await openPupilDossier();
   await until(c,'dossier main tabs','Boolean(document.querySelector("[data-student-dossier-areas] [role=tablist]"))');
   await usePhone(c);
   const dossier=await evalPage(c,'(() => {const list=document.querySelector("[data-student-dossier-areas] [role=tablist]");' +
@@ -371,7 +377,7 @@ try{
   await c.send('Emulation.setTouchEmulationEnabled',{enabled:false});
   await c.send('Emulation.setDeviceMetricsOverride',
     {width:1440,height:980,deviceScaleFactor:1,mobile:false});
-  const pupilName=first;
+  const pupilName=pupil.name;
   if(!pupilName)throw new Error('Cannot resolve selected synthetic pupil from KEL button');
   const controlChange=async (selector,value)=>{
     const expression='(() => {const el=document.querySelector('+q(selector)+');' +
@@ -410,7 +416,7 @@ try{
   await click(c,'[data-menu-id="kel"]');
   await until(c,'KEL portal reopened for selected synthetic pupil',
     'Boolean(document.querySelector("[data-kel-shared-dossier-portal]"))');
-  await click(c,'button[aria-label='+q(first)+']');
+  await openPupilDossier();
   await until(c,'Dossier reopened for child','Boolean(document.querySelector("[data-student-dossier-areas]"))');
   await click(c,'[data-student-dossier-areas] button[role="tab"]:nth-child(3)');
   await until(c,'observation charts from pupil records',
