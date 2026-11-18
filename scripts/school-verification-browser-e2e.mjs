@@ -499,10 +499,10 @@ async function verifyDirectCockpitNavigation(client) {
   // New classrooms start with a full-width whiteboard and the right pupil
   // panel is opened only when the teacher needs it.
   await waitFor(client, 'visible favorites dock and full board',
-    String.raw`(() => {const dock=document.querySelector('nav[aria-label="Meine Widget-Favoriten"]');const board=document.getElementById('widget-board-stage');return !!dock&&!!board&&board.getBoundingClientRect().width>800&&!!dock.querySelector('button[aria-label="Weitere Widgets hinzufügen"]')&&!!dock.querySelector('button[aria-label="Schülerliste einblenden"]');})()`);
+    String.raw`(() => {const dock=document.querySelector('nav[aria-label="Meine Widget-Favoriten"]');const board=document.getElementById('widget-board-stage');const toggle=document.querySelector('[data-cockpit-student-toggle][aria-expanded="false"]');return !!dock&&!!board&&board.getBoundingClientRect().width>800&&!!dock.querySelector('button[aria-label="Weitere Widgets hinzufügen"]')&&!!toggle&&toggle.getBoundingClientRect().height>=44;})()`);
   const openedStudentSidebar = await evaluate(client,
-    String.raw`(() => {const b=document.querySelector('nav[aria-label="Meine Widget-Favoriten"] button[aria-label="Schülerliste einblenden"]');if(!b)return false;b.click();return true;})()`);
-  if (!openedStudentSidebar) throw new Error('Bottom dock cannot open the student panel.');
+    String.raw`(() => {const b=document.querySelector('[data-cockpit-student-toggle][aria-expanded="false"]');if(!b)return false;b.click();return true;})()`);
+  if (!openedStudentSidebar) throw new Error('Cockpit toolbar cannot open the student panel.');
   await waitFor(client, 'empty real class appears only after opening public student panel',
     String.raw`(() => {const panel=document.querySelector('.klassio-student-sidebar');return !!panel&&panel.textContent.includes('In dieser Klasse sind noch keine Kinder angelegt.')&&!panel.textContent.includes('Max M.');})()`);
   const dockWithSidebar = await evaluate(client,
@@ -519,7 +519,7 @@ async function verifyDirectCockpitNavigation(client) {
     throw new Error('Bottom dock does not run under the open student sidebar: ' + JSON.stringify(dockWithSidebar));
   }
   const closedStudentSidebar = await evaluate(client,
-    String.raw`(() => {const b=document.querySelector('.klassio-student-sidebar button[aria-label="Schülerliste schließen"]');if(!b)return false;b.click();return true;})()`);
+    String.raw`(() => {const b=document.querySelector('[data-cockpit-student-toggle][aria-expanded="true"]');if(!b)return false;b.click();return true;})()`);
   if (!closedStudentSidebar) throw new Error('Student panel cannot be collapsed.');
   await waitFor(client, 'full width restored after closing student list',
     String.raw`(() => {const board=document.getElementById('widget-board-stage');return !!board&&board.getBoundingClientRect().width>800&&!document.querySelector('.klassio-student-sidebar');})()`);

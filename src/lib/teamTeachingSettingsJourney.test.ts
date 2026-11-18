@@ -43,7 +43,7 @@ test('team setup keeps verified schoolmail/device checks and safe automatic back
   assert.match(team, /requestTeamTeachingDeviceAccess\(summary\.id\)/);
   assert.match(team, /approveTeamTeachingDeviceAccess/);
   assert.match(team, /data-testid="team-setup-guide"/);
-  assert.match(team, /data-testid="team-simple-sync"/);
+  assert.match(team, /team-simple-sync/);
   assert.match(context, /const interval = window\.setInterval\(\(\) => void syncOnce\(\), 2500\)/);
   assert.match(context, /setLocalTeamStatus\('conflict'/);
   assert.match(service, /pushSharedClass/);

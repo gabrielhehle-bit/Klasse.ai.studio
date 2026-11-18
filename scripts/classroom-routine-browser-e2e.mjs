@@ -489,6 +489,28 @@ async function main() {
     await clickButton(client, 'Beispielklasse erkunden');
     await waitFor(client, 'dashboard ready',
       'Array.from(document.querySelectorAll("button")).some(b=>String(b.textContent||"").trim()==="Heute")', 30000);
+    await waitFor(client, 'today shows lesson focus and attendance above the full plan', `(() => {
+      const overview = document.querySelector('[data-dashboard-overview]');
+      const priorities = overview?.querySelector('[data-dashboard-day-priority]');
+      const fullPlan = overview?.querySelector('[aria-label="Heutiger Unterricht"]');
+      return Boolean(priorities?.querySelector('button') &&
+        priorities?.querySelector('[data-dashboard-attendance-status] [role=status]') &&
+        fullPlan && (priorities.compareDocumentPosition(fullPlan) & Node.DOCUMENT_POSITION_FOLLOWING));
+    })()`);
+    for (const width of [360, 820, 1360]) {
+      await client.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
+      await waitFor(client, `today priority cards fit with 44px targets at ${width}px`, `(() => {
+        const cards = document.querySelector('[data-dashboard-day-priority]');
+        const bounds = cards?.getBoundingClientRect();
+        const buttons = Array.from(cards?.querySelectorAll('button') ?? []);
+        return innerWidth === ${width} && bounds?.width > 0 && bounds.left >= -1 && bounds.right <= innerWidth + 1 &&
+          buttons.length > 0 && buttons.every(button => {
+            const rect = button.getBoundingClientRect();
+            return rect.width >= 43.5 && rect.height >= 43.5 && rect.left >= bounds.left - 1 && rect.right <= bounds.right + 1;
+          });
+      })()`);
+    }
+    await client.send('Emulation.setDeviceMetricsOverride', { width: WIDTH, height: 1000, deviceScaleFactor: 1, mobile: true });
     await waitFor(client, 'phone navigation toggle',
       'Boolean(document.querySelector("button[aria-label=\\\"Navigation öffnen\\\"]"))', 15000);
     const menuOpened = await evaluate(client,
@@ -540,6 +562,24 @@ async function main() {
     const topButtons = result.topbarVisible.filter(x => !x.label.includes('Navigation'));
     if (topButtons.some(x => x.r && x.r.right > WIDTH + 3)) throw new Error('Phone toolbar action is clipped.');
     await checkRoutine(client);
+    await client.send('Emulation.setDeviceMetricsOverride', { width: 1360, height: 1000, deviceScaleFactor: 1, mobile: false });
+    await openPage(client, 'Klasse');
+    await waitFor(client, 'class overview opens with a student dossier search', `Boolean(document.querySelector('#class-student-search'))`);
+    await setInputByLabel(client, 'Schülerdossier finden', 'Pichler, anna');
+    const studentResult = 'section[aria-labelledby="class-student-search-label"] li button';
+    await waitFor(client, 'class search finds Anna Pichler in reverse order', `document.querySelector(${q(studentResult)})?.textContent.trim() === 'Anna Pichler'`);
+    for (const width of [360, 820, 1360]) {
+      await client.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
+      await waitFor(client, `class search stays tappable at ${width}px`, `(() => {
+        const input = document.querySelector('#class-student-search').getBoundingClientRect();
+        const result = document.querySelector(${q(studentResult)}).getBoundingClientRect();
+        return innerWidth === ${width} && [input, result].every(rect => rect.height >= 43.5 && rect.left >= 0 && rect.right <= innerWidth + 1);
+      })()`);
+    }
+    await clickSelector(client, studentResult);
+    await waitFor(client, 'class search opens the matching dossier directly', `Boolean(document.querySelector('[data-student-dossier-nav]')?.textContent.includes('Anna Pichler'))`);
+    await clickSelector(client, '[data-student-dossier-nav] button[aria-label="Zur Klassenübersicht"]');
+    await waitFor(client, 'class overview restores the student search on return', `document.querySelector('#class-student-search')?.value === 'Pichler, anna'`);
     // Exercise the single sidebar view switch twice at a normal laptop viewport.
     await client.send('Emulation.setDeviceMetricsOverride', {
       width: 1280, height: 720, deviceScaleFactor: 1, mobile: false,
@@ -575,14 +615,14 @@ async function main() {
       const list = sidebar.querySelector('[role=list]');
       const sync = document.querySelector('.klassio-cockpit-shell summary[aria-label^="Speicherstatus:"]');
       return { headerHeight: list.getBoundingClientRect().top - sidebar.getBoundingClientRect().top,
-        closeButtons: sidebar.querySelectorAll('button[aria-label="Schülerliste schließen"]').length,
+        closeButtons: document.querySelectorAll('button[data-cockpit-student-toggle][aria-expanded="true"][aria-controls="klassio-cockpit-students"]').length,
         syncHeight: sync?.getBoundingClientRect().height,
         syncText: sync?.textContent,
         extraHeading: sidebar.textContent.includes('Unsere Pluspunkte'),
         settingHint: sidebar.textContent.includes('Name antippen') };
     })()`);
     console.log('Compact cockpit controls:', JSON.stringify(tidyHeader));
-    if (tidyHeader.headerHeight > 115 || tidyHeader.closeButtons !== 1 || tidyHeader.extraHeading || tidyHeader.settingHint) throw new Error('Student sidebar header must stay compact with one close action.');
+    if (tidyHeader.headerHeight > 132 || tidyHeader.closeButtons !== 1 || tidyHeader.extraHeading || tidyHeader.settingHint) throw new Error('Student sidebar header must stay compact with one toolbar toggle.');
     if (!tidyHeader.syncHeight || tidyHeader.syncHeight > 28 || !tidyHeader.syncText.includes('Lokal gespeichert')) throw new Error('Cockpit save status must be compact and still distinguish local storage from sync.');
     const studentName = await evaluate(client, `document.querySelector('.klassio-student-sidebar button[aria-label^="Pluspunkt für"]').getAttribute('aria-label').replace('Pluspunkt für ', '').replace(' vergeben', '')`);
     const leaveCockpit = () => evaluate(client, `document.querySelector('button[aria-label^="Lehrercockpit schließen"]').click()`);
@@ -3317,8 +3357,8 @@ async function main() {
     await clickSelector(client,'[data-widget-type="clockpuzzle"] button[aria-label$="Einstellungen öffnen"]');await clockStudioFits();
     await natureClick(clockStudioRoot,'Fertig');await clockStudioFits();
     await saveScreenshot(client,SCREENSHOT_PATH.replace(/\.png$/, '-clock-learning-trainer.png'));
-    const clockSidebarWasOpen=await evaluate(client,`Boolean(document.querySelector('[aria-label="Schülerliste schließen"]'))`);
-    if(clockSidebarWasOpen)await clickSelector(client,'[aria-label="Schülerliste schließen"]');
+    const clockSidebarWasOpen=await evaluate(client,`Boolean(document.querySelector('[data-cockpit-student-toggle][aria-expanded="true"]'))`);
+    if(clockSidebarWasOpen)await clickSelector(client,'[data-cockpit-student-toggle]');
     await client.send('Emulation.setDeviceMetricsOverride',{width:820,height:900,deviceScaleFactor:1,mobile:false});await sleep(250);
     await waitFor(client,'clock-learning window fits tablet viewport',`(() => {const r=document.querySelector('[data-widget-type="clockpuzzle"]').getBoundingClientRect();return r.left>=0&&r.right<=innerWidth+1&&r.top>=0&&r.bottom<=innerHeight+1;})()`);
     for(const tool of ['trainer','spoken','words'])await clockStudioChoose(tool);
@@ -3453,8 +3493,8 @@ async function main() {
     await selectRandomMode('names');
     await assertSelectionControls('names', 'Name draw');
     await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-random-studio-names.png'));
-    const selectionSidebarWasOpen = await evaluate(client, `Boolean(document.querySelector('[aria-label="Schülerliste schließen"]'))`);
-    if (selectionSidebarWasOpen) await clickSelector(client, '[aria-label="Schülerliste schließen"]');
+    const selectionSidebarWasOpen = await evaluate(client, `Boolean(document.querySelector('[data-cockpit-student-toggle][aria-expanded="true"]'))`);
+    if (selectionSidebarWasOpen) await clickSelector(client, '[data-cockpit-student-toggle]');
     await client.send('Emulation.setDeviceMetricsOverride', {width:820,height:900,deviceScaleFactor:1,mobile:false});
     await sleep(250);
     await waitFor(client, 'random mode controls fit tablet', `Array.from(document.querySelectorAll('${selectionRoot} [data-random-selection-mode]')).every(button=>{const r=button.getBoundingClientRect(),top=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return r.height>=44 && r.width>=44 && (top===button || button.contains(top));})`);

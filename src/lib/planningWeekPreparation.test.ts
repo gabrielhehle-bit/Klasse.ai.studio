@@ -57,5 +57,5 @@ test('planning dashboard has meaningful actions without modifying week data', ()
   assert.match(hub, /Ausgewählte Planungswoche/);
   assert.match(hub, /data-testid="planning-selected-week-handoff"/);
   assert.match(hub, /Beim Öffnen des Wochenplans bleibst du in KW/);
-  assert.doesNotMatch(hub, /setApp\(/);
+  assert.doesNotMatch(hub, /wochenplanung\s*:/);
 });

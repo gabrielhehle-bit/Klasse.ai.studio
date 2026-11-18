@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Sliders, Palette, LayoutGrid, Smartphone, Download, Shield, Heart,
-  ChevronRight, Mail, HelpCircle,
+  ChevronRight, Mail, HelpCircle, Search,
 } from 'lucide-react';
 import type { SettingsCategory } from './SettingsHeader';
+import { filterClassHubItems } from '../../lib/classHubSearch';
 
 interface SettingsDashboardProps {
   onSelectCategory: (category: SettingsCategory) => void;
@@ -17,6 +18,7 @@ interface SettingsDashboardProps {
 export default function SettingsDashboard({
   onSelectCategory, onOpenTeam, einfachModus, disabledModulesCount, hasActiveSync, hasDemoData,
 }: SettingsDashboardProps) {
+  const [query, setQuery] = useState('');
   // Keep familiar category routes and order; the Smartboard label now avoids
   // suggesting that this remote control is the teacher-to-teacher sync.
   const TILES = [
@@ -88,6 +90,12 @@ export default function SettingsDashboard({
     },
   ];
 
+  const visibleTiles = TILES.filter(tile => !einfachModus || (tile.id !== 'support' && tile.id !== 'advanced'));
+  const matchingTiles = filterClassHubItems(visibleTiles.map(tile => ({
+    ...tile,
+    description: `${tile.subtitle} ${tile.desc}`,
+  })), query);
+
   return (
     <div className="space-y-5" data-testid="klassio-editorial-settings">
       <header className="border-b border-[var(--border)] pb-5">
@@ -118,12 +126,22 @@ export default function SettingsDashboard({
         </button>
       </section>
 
+      <div className="space-y-1.5">
+        <label htmlFor="settings-search" className="block text-sm font-semibold text-[var(--text)]">Einstellungen suchen</label>
+        <div className="relative max-w-xl">
+          <Search size={18} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text2)]" />
+          <input id="settings-search" type="search" value={query} onChange={event => setQuery(event.target.value)}
+            placeholder="z. B. Schriftgröße, Schulmail, Sicherung"
+            className="min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2 pl-10 pr-3 text-base text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]" />
+        </div>
+        {query.trim() && <p role="status" className="text-sm text-[var(--text2)]">
+          {matchingTiles.length ? `${matchingTiles.length} Treffer` : 'Keine passenden Bereiche gefunden.'}
+        </p>}
+      </div>
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
         aria-label="Einstellungsbereiche">
-        {TILES.map(tile => {
-          // Match the simplified top navigation: do not overwhelm teachers
-          // with donation and technical/system options in the default mode.
-          if (einfachModus && (tile.id === 'support' || tile.id === 'advanced')) return null;
+        {matchingTiles.map(tile => {
           const Icon = tile.icon;
           return (
             <button key={tile.id} type="button" onClick={() => onSelectCategory(tile.id)}

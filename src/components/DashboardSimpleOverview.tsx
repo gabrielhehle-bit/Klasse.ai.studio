@@ -2,7 +2,6 @@ import TeacherAvatar from './TeacherAvatar';
 import { useApp } from '../context/AppContext';
 import React, { useState } from 'react';
 import {
-  ArrowRight,
   CalendarDays,
   CheckCircle2,
   ClipboardList,
@@ -26,42 +25,12 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
   const visiblePersonalItems = showAllTasks ? personalItems : personalItems.slice(0, 1);
   const visibleItemCount = visibleTodayItems.length + visiblePersonalItems.length;
 
-  const primaryTarget =
-    p.totalStudents === 0
-      ? 'schueler'
-      : p.freeDayGreeting || isPreview
-        ? 'wochenplanung'
-        : p.attendanceRequired && !p.attendanceRecorded
-          ? 'anwesenheit'
-          : p.currentLesson
-            ? 'cockpit'
-            : 'wochenplanung';
-
-  const primaryLabel =
-    p.totalStudents === 0
-      ? 'Kinder hinzufügen'
-      : p.freeDayGreeting
-        ? 'Planung ansehen'
-        : isPreview
-          ? 'Tag vorbereiten'
-        : p.attendanceRequired && !p.attendanceRecorded
-          ? 'Anwesenheit prüfen'
-          : p.currentLesson
-            ? 'Unterricht öffnen'
-            : p.nextLesson
-              ? 'Nächste Stunde ansehen'
-              : 'Tagesplan öffnen';
-
-  const primaryContext =
-    p.totalStudents === 0 || p.freeDayGreeting || isPreview || (p.attendanceRequired && !p.attendanceRecorded)
-      ? null
-      : p.currentLesson
-        ? 'Jetzt: ' + (p.currentLesson.fach || 'Unterricht') + (p.currentLesson.zeit ? ' · ' + p.currentLesson.zeit : '')
-        : p.nextLesson
-          ? 'Als Nächstes: ' + (p.nextLesson.fach || 'Unterricht') + (p.nextLesson.zeit ? ' · ' + p.nextLesson.zeit : '')
-          : p.todayLessonsList.length
-            ? 'Für heute ist Unterricht eingetragen.'
-            : 'Für heute ist noch kein Unterricht eingetragen.';
+  const lesson = p.freeDayGreeting ? null : isPreview
+    ? p.todayLessonsList[0] : p.currentLesson || p.nextLesson;
+  const lessonLabel = isPreview ? 'Erste Stunde' : p.currentLesson ? 'Jetzt im Unterricht' : 'Nächste Stunde';
+  const lessonAction = !isPreview && !p.freeDayGreeting && p.currentLesson ? 'cockpit' : 'wochenplanung';
+  const attendanceOpen = !isPreview && p.attendanceRequired && !p.attendanceRecorded;
+  const openCount = p.openAttendanceCount;
 
   const attendanceValue =
     p.privacyMode
@@ -74,7 +43,9 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
           ? 'Heute nicht erforderlich'
           : p.attendanceRecorded
             ? `${p.presentCount} / ${p.totalStudents} anwesend`
-            : 'Noch nicht geprüft';
+            : openCount
+              ? (openCount === 1 ? '1 Kind noch offen' : `${openCount} Kinder noch offen`)
+              : 'Noch nicht geprüft';
 
   return (
     <section aria-label="Heute" data-dashboard-overview data-dashboard-quality-round="1" className="space-y-4 text-[var(--text)]">
@@ -102,21 +73,49 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
 
         </div>
 
-        <div className="shrink-0 sm:max-w-sm">
-          <div className="flex flex-col items-start gap-2">
-            <button
-              type="button"
-              onClick={() => p.onNavigate(primaryTarget)}
-              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--btn-text,#fff)] transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] sm:w-auto"
-            >
-              {primaryTarget === 'cockpit' ? <Play size={20} /> : primaryTarget === 'wochenplanung' ? <CalendarDays size={20} /> : <Users size={20} />}
-              {primaryLabel}
-              <ArrowRight size={18} />
-            </button>
-            {primaryContext && <p className="text-xs font-medium text-[var(--text2)]">{primaryContext}</p>}
-          </div>
-        </div>
       </header>
+
+      <section aria-label="Unterricht und Anwesenheit" data-dashboard-day-priority className="grid gap-3 sm:grid-cols-2">
+        <div className="flex min-w-0 flex-col items-start gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--text2)]">
+            <CalendarDays size={18} aria-hidden="true" />
+            {lesson ? lessonLabel : 'Unterricht'}
+          </h2>
+          <p className="break-words text-lg font-semibold">
+            {lesson?.fach || (p.freeDayGreeting ? 'Schulfrei' : !p.todayLessonsList.length ? 'Kein Unterricht eingetragen' : 'Keine weitere Stunde für heute')}
+          </p>
+          {lesson?.zeit && <p className="text-sm text-[var(--text2)]">{lesson.zeit}</p>}
+          {lesson?.thema && !p.privacyMode && <p className="break-words text-sm text-[var(--text2)]">{lesson.thema}</p>}
+          {p.currentLesson && p.nextLesson && !isPreview && !p.freeDayGreeting && (
+            <p className="text-sm text-[var(--text2)]">Danach: {p.nextLesson.fach}{p.nextLesson.zeit ? ' · ' + p.nextLesson.zeit : ''}</p>
+          )}
+          <button type="button" onClick={() => p.onNavigate(lessonAction)} className={button + ' mt-auto w-full sm:w-auto'}>
+            {lessonAction === 'cockpit' && <Play size={16} aria-hidden="true" className="mr-2" />}
+            {lessonAction === 'cockpit' ? 'Unterricht öffnen' : p.freeDayGreeting ? 'Planung ansehen' : 'Wochenplan öffnen'}
+          </button>
+        </div>
+
+        <div data-dashboard-attendance-status
+          className={`flex min-w-0 flex-col items-start gap-2 rounded-xl border bg-[var(--surface)] p-4 ${attendanceOpen ? 'border-amber-500' : 'border-[var(--border)]'}`}>
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--text2)]">
+            <Users size={18} aria-hidden="true" />
+            Anwesenheit · {dayLabel}
+          </h2>
+          <p role="status" className="text-lg font-semibold">{attendanceValue}</p>
+          {!isPreview && !p.privacyMode && p.attendanceRecorded && p.absentCount > 0 && (
+            <p className="text-sm text-[var(--text2)]">{p.absentCount} abwesend</p>
+          )}
+          {!isPreview && (p.attendanceRequired || !p.totalStudents) && (
+            <button type="button" data-dashboard-attendance-action
+              onClick={() => p.onNavigate(p.totalStudents ? 'anwesenheit' : 'schueler')}
+              className={attendanceOpen
+                ? 'mt-auto inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--btn-text,#fff)] hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] sm:w-auto'
+                : button + ' mt-auto w-full sm:w-auto'}>
+              {p.totalStudents === 0 ? 'Kinder hinzufügen' : attendanceOpen ? 'Anwesenheit prüfen' : 'Anwesenheit ansehen'}
+            </button>
+          )}
+        </div>
+      </section>
 
       <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-5">
         <section
@@ -184,13 +183,6 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
             </div>
           )}
 
-          <button
-            type="button"
-            className={button + ' w-full sm:w-auto'}
-            onClick={() => p.onNavigate('wochenplanung')}
-          >
-            Wochenplan öffnen
-          </button>
         </section>
 
         <section
@@ -269,7 +261,7 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
             )}
           </div>
 
-          {p.actionItems.length > visibleItemCount && (
+          {(showAllTasks || p.actionItems.length > visibleItemCount) && (
             <button
               type="button"
               className={button + ' w-full'}
@@ -280,34 +272,6 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
             </button>
           )}
 
-          {primaryTarget === 'anwesenheit' && !isPreview ? (
-            <div data-dashboard-attendance-status role="status" aria-label={`Anwesenheit ${dayLabel}: ${attendanceValue}`}
-              className="min-h-12 rounded-lg border border-amber-500 bg-[var(--surface2)] px-3 py-2 text-left ring-1 ring-amber-400/30">
-              <span className="flex items-center gap-2 text-xs font-semibold text-[var(--text3)]">
-                <Users size={15} />
-                Anwesenheit · {dayLabel}
-              </span>
-              <strong className="mt-1 block text-sm text-[var(--text)]">{attendanceValue}</strong>
-              {!p.privacyMode && p.attendanceRecorded && p.absentCount > 0 && (
-                <span className="mt-1 block text-xs text-[var(--text2)]">{p.absentCount} abwesend</span>
-              )}
-            </div>
-          ) : (
-            <button type="button" disabled={isPreview}
-              onClick={() => p.onNavigate(p.totalStudents ? 'anwesenheit' : 'schueler')}
-              className={`min-h-12 w-full rounded-lg border px-3 py-2 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${!isPreview && p.attendanceRequired && !p.attendanceRecorded && p.totalStudents > 0
-                ? 'border-amber-500 bg-[var(--surface2)] ring-1 ring-amber-400/30'
-                : 'border-[var(--border)] bg-[var(--surface2)] hover:bg-[var(--surface)]'}`}>
-              <span className="flex items-center gap-2 text-xs font-semibold text-[var(--text3)]">
-                <Users size={15} />
-                Anwesenheit · {dayLabel}
-              </span>
-              <strong className="mt-1 block text-sm text-[var(--text)]">{attendanceValue}</strong>
-              {!p.privacyMode && p.attendanceRecorded && p.absentCount > 0 && (
-                <span className="mt-1 block text-xs text-[var(--text2)]">{p.absentCount} abwesend</span>
-              )}
-            </button>
-          )}
         </section>
       </div>
 

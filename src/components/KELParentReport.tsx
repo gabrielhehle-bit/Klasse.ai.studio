@@ -21,6 +21,7 @@ export interface KELParentReportOptions {
   showSignatures: boolean;
   subjects: string[];
   subjectAreas?: Record<string, string[]>;
+  learningSemester?: '1' | '2' | 'both';
   sharedNoteIds: string[];
   showGoalProgress: boolean;
   progressMeetingId: string;
@@ -108,7 +109,9 @@ export default function KELParentReport({
   })).filter(row => row.hasData);
 
   const learning = options.subjects.map(subject => {
-    const documented = getStudentAssessmentDomainPerformance(app, studentId, subject, 'both');
+    const documented = options.learningSemester
+      ? getStudentAssessmentDomainPerformance(app, studentId, subject, options.learningSemester)
+      : getStudentAssessmentDomainPerformance(app, studentId, subject, 'both');
     const selected = options.subjectAreas?.[subject];
     return {
       subject,

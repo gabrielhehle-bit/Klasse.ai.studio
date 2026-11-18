@@ -2,7 +2,7 @@
  * A sidebar is a viewport presentation preference, never a stored widget
  * rectangle. Keep the per-class width modest enough to leave working space.
  */
-export const DEFAULT_COCKPIT_SIDEBAR_WIDTH = 320;
+export const DEFAULT_COCKPIT_SIDEBAR_WIDTH = 304;
 export const COMPACT_COCKPIT_SIDEBAR_WIDTH = 292;
 export const LEGACY_COCKPIT_SIDEBAR_WIDTH = 420;
 export const COCKPIT_SIDEBAR_DOCK_GAP = 6;

@@ -17,7 +17,7 @@ test('Redesign preserves exactly the nine known cards, their names and their pos
   assert.deepEqual(ids, originalOrder);
   assert.deepEqual(labels, originalTitles);
   assert.match(overview, /grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3/);
-  assert.match(overview, /TILES\.map\(tile =>/);
+  assert.match(overview, /matchingTiles\.map\(tile =>/);
   assert.match(overview, /onClick=\{\(\) => onSelectCategory\(tile\.id\)\}/);
   assert.match(overview, /data-settings-destination=\{tile\.id\}/);
   assert.match(overview, /Bereich öffnen/);

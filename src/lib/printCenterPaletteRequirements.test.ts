@@ -6,7 +6,7 @@ const printCenter = readFileSync('src/components/PrintCenter.tsx', 'utf8');
 
 test('Vier globale Farbschemata ändern Vorschau und echten Browserdruck, nicht nur den Auswahlbutton', () => {
   assert.match(printCenter, /data-print-theme=\{printTheme\}/);
-  assert.match(printCenter, /kl-print-sheet bg-white font-sans/);
+  assert.match(printCenter, /data-print-preview-paper[\s\S]{0,370}className=\{`kl-print-sheet[^`]*bg-white font-sans/);
   assert.match(printCenter, /kl-print-sheet print-center-overlay hidden print:block/);
   for (const palette of ['monochrome', 'slate', 'indigo', 'emerald']) {
     assert.match(printCenter, new RegExp(`data-print-theme="${palette}"`));

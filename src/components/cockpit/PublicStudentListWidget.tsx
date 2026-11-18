@@ -178,6 +178,11 @@ export function PublicStudentListWidget({
           const cardTone = isRecentlyAwarded
             ? (socialMode ? 'border-sky-300 bg-sky-50/90 ring-2 ring-sky-200/80' : 'border-emerald-300 bg-emerald-50/90 ring-2 ring-emerald-200/80')
             : 'border-slate-200 bg-white hover:border-slate-300';
+          const undoAward = () => {
+            if (getTodayPoints(student.id) > 0) removeParticipation(student.id);
+            setLastAwardedId(null);
+            setRecentlyAwardedId(null);
+          };
           if (compactGrid) {
             return (
               <div key={student.id} role="listitem"
@@ -208,6 +213,11 @@ export function PublicStudentListWidget({
                     <span className={`text-[10px] tabular-nums ${points > 0 ? 'font-semibold text-emerald-800' : 'text-slate-500'}`} aria-label={`${points} Pluspunkte`}>{socialMode ? `${points} ⭐` : points}</span>
                   </div>
                 </div>
+                {awarded && (
+                  <button type="button" onClick={undoAward} title="Letzte Vergabe rückgängig machen"
+                    className="min-h-11 min-w-11 shrink-0 rounded-lg border border-slate-300 bg-slate-50 text-sm font-semibold text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
+                    aria-label={`Letzten Pluspunkt für ${labels.get(student.id)} rückgängig machen`}>↶</button>
+                )}
                 <button type="button" onClick={event => addParticipation(student.id, event, (subject) => {
                   setLastAwardedId(student.id);
                   setRecentlyAwardedId(student.id);
@@ -274,11 +284,7 @@ export function PublicStudentListWidget({
                 <div className="flex shrink-0 flex-wrap justify-end gap-1">
                   {awarded && !dense && (
                     <button type="button"
-                      onClick={() => {
-                        if (getTodayPoints(student.id) > 0) removeParticipation(student.id);
-                        setLastAwardedId(null);
-                        setRecentlyAwardedId(null);
-                      }}
+                      onClick={undoAward}
                       className="min-h-11 min-w-11 rounded-lg border border-slate-300 bg-slate-50 px-2 text-sm font-semibold text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
                       aria-label={`Letzten Pluspunkt für ${labels.get(student.id)} rückgängig machen`}>↶</button>
                   )}

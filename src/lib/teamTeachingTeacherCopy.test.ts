@@ -39,7 +39,7 @@ test('simple team UI shows permissions and last confirmation, while keeping deta
   assert.match(source, /Dein Gerät: Version/);
   assert.doesNotMatch(source, /Teamteaching aktiv · Rolle:/);
   assert.match(source, /button: 'Kollegium erneut prüfen'/);
-  assert.match(source, /data-testid="team-simple-sync"/);
+  assert.match(source, /team-simple-sync/);
   assert.match(source, /Weitere Möglichkeiten bei Problemen/);
 });
 

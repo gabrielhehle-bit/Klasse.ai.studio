@@ -303,7 +303,7 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
 
     <section className={card} aria-label="Notenstand aller Fächer" data-dossier-subject-grid data-klassio-area>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div><h2 className="flex items-center gap-2 text-base font-black text-slate-900"><BarChart3 size={18} className="text-indigo-600"/>Alle Fächer auf einen Blick</h2><p className="mt-1 text-xs text-slate-500">Bewertung, Trend, Mitarbeit und Hausübungen direkt pro Fach. Ohne Nachweis keine Bewertung.</p></div>
+        <div><h2 className="flex items-center gap-2 text-base font-black text-slate-900"><BarChart3 size={18} className="text-indigo-600"/>Alle Fächer auf einen Blick</h2><p className="mt-1 text-xs text-slate-500">Bewertung, Trend, Mitarbeit und Hausübungen direkt pro Fach. Einzelne Lernnachweise und der Bewertungsstand werden getrennt angezeigt.</p></div>
         <div className="flex flex-wrap gap-2">
           {hiddenSubjectCount>0 && <button type="button" onClick={()=>setShowAllSubjects(true)} aria-expanded={showAllSubjects} data-show-empty-subjects
             className="inline-flex min-h-10 items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100">
@@ -331,7 +331,7 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
             <div className="mt-3 grid grid-cols-[1fr_5.5rem] items-center gap-3">
               <div>
                 <div className="h-1.5 overflow-hidden rounded-full bg-slate-100" aria-label={`Bewertungsstand ${cardData.fach}`}><div className="h-full rounded-full bg-indigo-500 transition-all" style={{width:`${cardData.normalizedCurrent??0}%`}}/></div>
-                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[0.65rem] text-slate-600"><span>{cardData.assessmentCount} {cardData.assessmentCount===1?'Nachweis':'Nachweise'}</span><span className={cardData.participation.hasData?'':'text-slate-400'}>{participationText}</span><span className={!cardData.homework.tracked?'text-slate-400':cardData.homework.missing>0?'font-bold text-rose-700':''}>{homeworkText}</span></div>
+                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[0.65rem] text-slate-600"><span>{cardData.assessmentCount === 0 && (cardData.avg !== null || cardData.hasFinal) ? 'Keine Einzelbewertung erfasst' : `${cardData.assessmentCount} ${cardData.assessmentCount === 1 ? 'Nachweis' : 'Nachweise'}`}</span><span className={cardData.participation.hasData?'':'text-slate-400'}>{participationText}</span><span className={!cardData.homework.tracked?'text-slate-400':cardData.homework.missing>0?'font-bold text-rose-700':''}>{homeworkText}</span></div>
               </div>
               <div data-subject-sparkline className="h-9 text-indigo-500">{points?<svg viewBox="0 0 100 30" preserveAspectRatio="none" className="h-full w-full overflow-visible" aria-label={`Verlauf ${cardData.fach}`}><polyline points={points} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/><circle cx="100" cy={27-(Math.max(0,Math.min(100,cardData.trendValues[cardData.trendValues.length-1]))*0.22)} r="3" fill="currentColor"/></svg>:<div className="flex h-full items-center justify-center rounded-lg bg-slate-50 px-1 text-center text-[0.58rem] font-semibold leading-tight text-slate-400">Trend ab 2</div>}</div>
             </div>

@@ -26,10 +26,10 @@ test('Verdiente Badges werden nur bei aktivem Schalter gezeigt, keine versteckte
 });
 
 test('Schmalere Seitenleiste bewahrt benutzerdefinierte Breiten und kann 16 Kinder zweispaltig zeigen', () => {
-  assert.equal(DEFAULT_COCKPIT_SIDEBAR_WIDTH, 320);
+  assert.equal(DEFAULT_COCKPIT_SIDEBAR_WIDTH, 304);
   assert.equal(COMPACT_COCKPIT_SIDEBAR_WIDTH, 292);
-  assert.equal(getCockpitSidebarPreferredWidth(undefined), 320);
-  assert.equal(getCockpitSidebarPreferredWidth(420), 320);
+  assert.equal(getCockpitSidebarPreferredWidth(undefined), 304);
+  assert.equal(getCockpitSidebarPreferredWidth(420), 304);
   assert.equal(getCockpitSidebarPreferredWidth(380), 380);
   assert.equal(clampCockpitSidebarWidth(190), 292);
   const grid = getCompactStudentGridLayout(304, 520, 16);

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
+import { getConfiguredGradebookSubjects } from '../lib/sek1Subjects';
 import { BarChart3, Target, Activity, MessagesSquare, MessageSquareText, ChevronRight } from 'lucide-react';
 
 type PerformanceItem = {
@@ -11,12 +12,6 @@ type PerformanceItem = {
 };
 
 const assessmentItems: PerformanceItem[] = [
-  {
-    id: 'noten',
-    title: 'Notenmappe',
-    description: 'Bewertungen, Mitarbeit und Zeugnisnoten erfassen und auswerten.',
-    icon: BarChart3,
-  },
   {
     id: 'verbal',
     title: 'Verbale Beurteilung',
@@ -77,8 +72,11 @@ function PerformanceCard({
   );
 }
 
-export default function LeistungenHub() {
+export default function LeistungenHub({ onOpenGradebook }: { onOpenGradebook: (subject: string) => void }) {
   const { app, setPage } = useApp();
+  const [subject, setSubject] = React.useState('');
+  const subjects = getConfiguredGradebookSubjects(app);
+  const selectedSubject = subjects.includes(subject) ? subject : '';
   const visibleDevelopmentItems = developmentItems.filter(
     item => !item.klassenvorstandOnly || app.klassenvorstand,
   );
@@ -90,8 +88,33 @@ export default function LeistungenHub() {
           <h1 className="text-xl font-semibold tracking-tight text-[var(--text)] sm:text-2xl">Leistungen</h1>
           <p className="mt-1 text-sm text-[var(--text2)]">{app.klassenbezeichnung || 'Deine Klasse'} · {app.schuljahr}</p>
         </div>
-        <p className="text-sm text-[var(--text2)]">Bewertungen und Lernentwicklung</p>
       </header>
+
+      <section aria-labelledby="leistungen-notenmappe" data-performance-gradebook
+        className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
+        <div className="flex items-start gap-3">
+          <BarChart3 size={22} aria-hidden="true" className="mt-0.5 shrink-0 text-[var(--accent)]" />
+          <div>
+            <h2 id="leistungen-notenmappe" className="text-lg font-semibold text-[var(--text)]">Notenmappe</h2>
+            <p className="mt-1 text-sm text-[var(--text2)]">Bewertungen, Mitarbeit und Zeugnisnoten erfassen und auswerten.</p>
+          </div>
+        </div>
+        <form onSubmit={event => { event.preventDefault(); onOpenGradebook(selectedSubject); }} className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+          {subjects.length > 0 && (
+            <div className="w-full min-w-0 sm:max-w-xs">
+              <label htmlFor="leistungen-fach" className="mb-1 block text-sm font-semibold text-[var(--text)]">Fach wählen</label>
+              <select id="leistungen-fach" value={selectedSubject} onChange={event => setSubject(event.target.value)}
+                className="min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
+                <option value="">Automatisch auswählen</option>
+                {subjects.map(fach => <option key={fach} value={fach}>{fach}</option>)}
+              </select>
+            </div>
+          )}
+          <button type="submit" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--btn-text,#fff)] hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]">
+            Notenmappe öffnen <ChevronRight size={17} aria-hidden="true" />
+          </button>
+        </form>
+      </section>
 
       <section className="space-y-3" aria-labelledby="leistungen-bewerten">
         <div className="px-1">

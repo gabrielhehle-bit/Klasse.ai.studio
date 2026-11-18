@@ -7,7 +7,7 @@ const cockpit = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
 const list = readFileSync('src/components/cockpit/PublicStudentListWidget.tsx', 'utf8');
 
 test('Tafel-Fokus nutzt die bestehende Seitenleistensteuerung', () => {
-  assert.match(cockpit, /aria-label=\{sidebarMode === "hidden" \? "Schülerliste wieder anzeigen" : "Tafel groß anzeigen"\}/);
+  assert.match(cockpit, /aria-label=\{sidebarMode === "hidden" \? "Schülerliste einblenden" : "Schülerliste ausblenden"\}/);
   assert.match(cockpit, /changeSidebarMode\(sidebarMode === "hidden" \? prevSidebarMode : "hidden"\)/);
   assert.match(cockpit, /<CockpitWidgetDock/);
   assert.match(cockpit, /boardPageIds\.map/);

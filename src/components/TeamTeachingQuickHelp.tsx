@@ -1,4 +1,5 @@
 import React from 'react';
+import { getTeamComparisonCode } from '../lib/teacherTeamSetup';
 import type { TeamDeviceAuthorization } from '../hooks/useTeamDeviceAuthorization';
 
 type CheckStep =
@@ -44,9 +45,7 @@ export default function TeamTeachingQuickHelp({
 
   // This is only a short visual comparison, not a password or an access token.
   // Access to the shared class still requires the verified account and device key.
-  const teamCode = sharedClassId
-    ? sharedClassId.replace(/[^a-z0-9]/gi, '').slice(0, 10).toUpperCase()
-    : '';
+  const teamCode = getTeamComparisonCode(sharedClassId);
   const canTest = Boolean(
     sharedClassId && serverConfirmed && deviceAuthorization === 'authorized'
     && teamSyncStatus === 'synced',

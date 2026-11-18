@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { isDiagnosticAlert } from '../lib/diagnosticData';
 import { filterPrintTemplates } from '../lib/printTemplateSearch';
@@ -233,7 +233,14 @@ export default function PrintCenter() {
   const [printTheme, setPrintTheme] = useState<'monochrome' | 'slate' | 'indigo' | 'emerald'>('monochrome');
   const [showMainHeader, setShowMainHeader] = useState(true);
   const [customHeaderTitle, setCustomHeaderTitle] = useState('');
-  const [previewZoom, setPreviewZoom] = useState<number>(0.7);
+  const [previewZoomOverride, setPreviewZoom] = useState<number | null>(null);
+  const [previewFrameWidth, setPreviewFrameWidth] = useState(0);
+  const previewFrame = useRef<HTMLDivElement>(null);
+  const previewWidthMm = printOrientation === 'portrait' ? 210 : 297;
+  const previewHeightMm = printOrientation === 'portrait' ? 297 : 210;
+  const fitPreview = previewZoomOverride === null;
+  const fitZoom = previewFrameWidth > 0 ? Math.min(1, Math.floor(previewFrameWidth / (previewWidthMm * 96 / 25.4) * 100) / 100) : 0.3;
+  const previewZoom = previewZoomOverride ?? fitZoom;
   const [tischPreviewMode, setTischPreviewMode] = useState<'detail' | 'bogen'>('detail');
   const [tischPreviewIndex, setTischPreviewIndex] = useState(0);
 
@@ -352,6 +359,7 @@ export default function PrintCenter() {
   const [elternblattShowBehavior, setElternblattShowBehavior] = useState(true);
   const [elternblattShowParticipation, setElternblattShowParticipation] = useState(true);
   const [elternblattShowLearning, setElternblattShowLearning] = useState(true);
+  const [elternblattLearningSemester, setElternblattLearningSemester] = useState<'1' | '2' | 'both'>('both');
   const [elternblattShowNotes, setElternblattShowNotes] = useState(false);
   const [elternblattShowSignatures, setElternblattShowSignatures] = useState(true);
   const [elternblattSubjects, setElternblattSubjects] = useState<string[]>(['Deutsch', 'Mathematik']);
@@ -387,7 +395,7 @@ export default function PrintCenter() {
     period: elternblattPeriod, showMood: elternblattShowMood, showBehavior: elternblattShowBehavior,
     showParticipation: elternblattShowParticipation, showLearning: elternblattShowLearning,
     showNotes: elternblattShowNotes, showSignatures: elternblattShowSignatures,
-    subjects: elternblattSubjects, subjectAreas: elternblattSubjectAreas,
+    subjects: elternblattSubjects, subjectAreas: elternblattSubjectAreas, learningSemester: elternblattLearningSemester,
     sharedNoteIds: elternblattSharedNoteIds,
     showGoalProgress: elternblattShowGoalProgress,
     progressMeetingId: selectedElternblattMeeting?.id || '',
@@ -402,6 +410,7 @@ export default function PrintCenter() {
     if (activeTemplate === 'kel_elternblatt') {
       setPrintTheme('slate');
     } else {
+      setElternblattLearningSemester('both');
       // A previous print session must never carry parent-approved private notes
       // into a newly selected document or a later KEL print session.
       setElternblattShowNotes(false);
@@ -744,6 +753,48 @@ export default function PrintCenter() {
     setDossierPreviewOpen(false);
   }, [app?.activeClassId]);
 
+  useEffect(() => {
+    const request = app.activePrintKelMeeting;
+    if (!request) return;
+    const student = students.find(entry => entry.id === app.activePrintStudentId);
+    const meeting = app.activePrintTemplate === 'kel_elternblatt' && request.classId === app.activeClassId && student
+      ? listKelParentMeetingSources(app.kelGespraeche, student.id, app.schuljahr || '')
+        .find(entry => entry.id === request.meetingId)
+      : undefined;
+    if (meeting && student) {
+      const draft = draftKelParentMeetingText(meeting);
+      const planKey = JSON.stringify([app.schuljahr || '', request.semester, meeting.id]);
+      const plan = student.kelPraesentationAuswahl?.[planKey];
+      const matches = plan?.classId === request.classId && plan?.studentId === student.id && plan?.semester === request.semester;
+      const semester = request.semester === '2' ? '2' : '1';
+      const subjectAreas = Object.fromEntries(
+        (matches && plan.visible.learning ? plan.selectedSubjects : []).flatMap(subject => {
+          const selected = plan.subjectAreaSelection?.[subject];
+          const documented = getStudentAssessmentDomainPerformance(app, student.id, subject, semester);
+          const areas = documented.map(area => area.area).filter(area => !selected || selected.includes(area));
+          return areas.length ? [[subject, areas]] : [];
+        }),
+      );
+      const subjects = Object.keys(subjectAreas);
+      setElternblattSavedMeetingId(meeting.id);
+      setElternblattMeetingSourceDate(draft.sourceDate);
+      setElternblattStrengthsText(typeof meeting.gespraechStaerke === 'string' ? meeting.gespraechStaerke.trim() : '');
+      setElternblattGoalsText(draft.goalsText);
+      setElternblattAgreementsText(draft.agreementsText);
+      setElternblattShowMood(false);
+      setElternblattShowBehavior(false);
+      setElternblattShowParticipation(false);
+      setElternblattSubjects(subjects);
+      setElternblattSubjectAreas(subjectAreas);
+      setElternblattShowLearning(subjects.length > 0);
+      setElternblattLearningSemester(semester);
+    }
+    setApp(previous => previous.activePrintKelMeeting === request
+      ? { ...previous, activePrintKelMeeting: undefined }
+      : previous);
+  }, [app.activePrintKelMeeting, app.activePrintStudentId, app.activePrintTemplate, app.activeClassId,
+    app.kelGespraeche, app.schuljahr, students, setApp]);
+
   const applyPreset = (preset: 'klassisch' | 'raster' | 'ausflug' | 'kel') => {
     setBypassOrientationAutoSet(true);
     if (preset === 'klassisch') {
@@ -818,16 +869,22 @@ export default function PrintCenter() {
     }
   }, [activeTemplate, bypassOrientationAutoSet, selectedChildPlan?.orientierung]);
 
-  // Automatically adjust zoom when orientation changes, ensuring standard default fits nicely
   useEffect(() => {
-    if (activeTemplate === 'smart_tools' && activeSmartTool === 'tischschilder' && tischPreviewMode === 'detail') {
-      setPreviewZoom(0.85);
-    } else if (printOrientation === 'landscape') {
-      setPreviewZoom(0.55);
-    } else {
-      setPreviewZoom(0.7);
-    }
-  }, [printOrientation, activeTemplate, activeSmartTool]);
+    setPreviewZoom(null);
+  }, [printOrientation, activeTemplate, activeSmartTool, tischPreviewMode]);
+
+  useEffect(() => {
+    const frame = previewFrame.current;
+    if (!frame) return;
+    const measure = () => {
+      const style = getComputedStyle(frame);
+      setPreviewFrameWidth(frame.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, []);
 
   // Keep the KEL paper layout isolated from generic school print headers.
   useEffect(() => {
@@ -1916,7 +1973,7 @@ export default function PrintCenter() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
           {/* Left Panel: Configuration Controls (Screen-only) */}
-          <div id="print-center-configuration" className="lg:col-span-5 space-y-6 no-print scroll-mt-4">
+          <div id="print-center-configuration" tabIndex={-1} className="min-w-0 lg:col-span-5 space-y-6 no-print scroll-mt-4">
             <div className="space-y-1">
               <h2 className="text-base font-semibold text-slate-900">2. Angaben auswählen</h2>
               <p className="text-sm leading-relaxed text-slate-600">Passe das Dokument an. Das Papierformat ist bereits voreingestellt.</p>
@@ -2925,6 +2982,7 @@ export default function PrintCenter() {
                         setElternblattSharedNoteIds([]);
                         setElternblattShowGoalProgress(false);
                         setElternblattSharedProgressKeys([]);
+                        setElternblattLearningSemester('both');
                         setElternblattSubjectAreas({});
                         setElternblattStrengthsText('');
                         setElternblattGoalsText('');
@@ -2995,7 +3053,9 @@ export default function PrintCenter() {
                         Bei vielen Bereichen entstehen zusätzliche A4-Seiten; keine Auswahl wird abgeschnitten.
                       </p>
                       {elternblattSubjects.map(fach => {
-                        const available = getStudentAssessmentDomainPerformance(app, elternblattSelectedStudentId, fach, 'both');
+                        const available = elternblattLearningSemester === 'both'
+                          ? getStudentAssessmentDomainPerformance(app, elternblattSelectedStudentId, fach, 'both')
+                          : getStudentAssessmentDomainPerformance(app, elternblattSelectedStudentId, fach, elternblattLearningSemester);
                         const selected = elternblattSubjectAreas[fach] ?? available.slice(0, 4).map(area => area.area);
                         return (
                           <div key={fach} data-kel-parent-area-subject={fach} className="space-y-1.5 border-t border-slate-100 pt-2">
@@ -4426,13 +4486,22 @@ export default function PrintCenter() {
           </div>
 
           {/* Right Panel: Interactive Live PDF Simulator (A4 Aspect Ratio Sheet inside editor Frame) */}
-          <div id="print-center-preview" className="lg:col-span-7 space-y-3 scroll-mt-4">
+          <div id="print-center-preview" className="min-w-0 lg:col-span-7 space-y-3 scroll-mt-4">
             {/* Primary Action Bar above Preview */}
             <div className="bg-slate-900 text-white p-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 no-print shadow-md">
               <div className="flex items-center gap-2">
                 <FileText size={16} className="text-emerald-400" />
                 <span className="text-xs font-black uppercase tracking-wider text-slate-200">SCHRITT 3: Vorschau &amp; Druck</span>
               </div>
+
+              <button type="button" onClick={() => {
+                const configuration = document.getElementById('print-center-configuration');
+                configuration?.focus({ preventScroll: true });
+                configuration?.scrollIntoView({ block: 'start' });
+              }}
+                className="inline-flex min-h-11 items-center rounded-xl border border-slate-600 px-3 text-sm font-semibold text-white hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-white lg:hidden">
+                Angaben bearbeiten
+              </button>
 
               <button
                 type="button"
@@ -4459,17 +4528,17 @@ export default function PrintCenter() {
             <div className="flex flex-wrap justify-between items-center gap-2 no-print pt-1">
               <div className="flex flex-wrap items-center gap-2 text-slate-600">
                 <span className="text-xs font-black uppercase tracking-wider">
-                  {isTischPreview && tischPreviewMode === 'detail' ? 'Tischschild · vergrößerte Einzelvorschau' : 'A4-Vorschau (verkleinerte Ansicht)'}
+                  {isTischPreview && tischPreviewMode === 'detail' ? 'Tischschild · Einzelvorschau' : 'A4-Vorschau'}
                 </span>
                 {isTischPreview && (
                   <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
                     <button type="button" aria-pressed={tischPreviewMode === 'detail'}
-                      onClick={() => { setTischPreviewMode('detail'); setPreviewZoom(0.85); }}
+                      onClick={() => setTischPreviewMode('detail')}
                       className={`min-h-9 rounded-lg px-3 text-xs font-bold ${tischPreviewMode === 'detail' ? 'bg-indigo-600 text-white' : 'text-slate-700 hover:bg-slate-100'}`}>
                       Einzelansicht
                     </button>
                     <button type="button" aria-pressed={tischPreviewMode === 'bogen'}
-                      onClick={() => { setTischPreviewMode('bogen'); setPreviewZoom(0.7); }}
+                      onClick={() => setTischPreviewMode('bogen')}
                       className={`min-h-9 rounded-lg px-3 text-xs font-bold ${tischPreviewMode === 'bogen' ? 'bg-indigo-600 text-white' : 'text-slate-700 hover:bg-slate-100'}`}>
                       Alle Karten
                     </button>
@@ -4493,22 +4562,22 @@ export default function PrintCenter() {
                 <div data-testid="print-preview-zoom-controls" className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-1.5">
                   <button
                     type="button"
-                    aria-pressed={previewZoom === (isTischPreview && tischPreviewMode === 'detail' ? 0.85 : printOrientation === 'portrait' ? 0.7 : 0.55)}
-                    onClick={() => setPreviewZoom(isTischPreview && tischPreviewMode === 'detail' ? 0.85 : printOrientation === 'portrait' ? 0.7 : 0.55)}
-                    className={`min-h-10 rounded-lg border px-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 ${previewZoom === (isTischPreview && tischPreviewMode === 'detail' ? 0.85 : printOrientation === 'portrait' ? 0.7 : 0.55) ? 'border-indigo-700 bg-indigo-700 text-white' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}
+                    aria-pressed={fitPreview}
+                    onClick={() => setPreviewZoom(null)}
+                    className={`min-h-11 rounded-lg border px-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 ${fitPreview ? 'border-indigo-700 bg-indigo-700 text-white' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}
                   >
                     Seite einpassen
                   </button>
                   <button
                     type="button"
-                    aria-pressed={previewZoom === 1}
+                    aria-pressed={previewZoomOverride === 1}
                     onClick={() => setPreviewZoom(1)}
-                    className={`min-h-10 rounded-lg border px-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 ${previewZoom === 1 ? 'border-indigo-700 bg-indigo-700 text-white' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}
+                    className={`min-h-11 rounded-lg border px-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 ${previewZoomOverride === 1 ? 'border-indigo-700 bg-indigo-700 text-white' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}
                   >
                     100 % Zoom
                   </button>
                   <details data-testid="print-preview-fine-zoom" className="w-full sm:w-auto">
-                    <summary className="flex min-h-10 cursor-pointer items-center px-2 text-xs font-semibold text-slate-700">
+                    <summary className="flex min-h-11 cursor-pointer items-center px-2 text-xs font-semibold text-slate-700">
                       Zoom fein einstellen ({Math.round(previewZoom * 100)} %)
                     </summary>
                     <div className="flex items-center gap-3 px-2 pb-2">
@@ -4516,9 +4585,9 @@ export default function PrintCenter() {
                       <input
                         id="print-preview-zoom-slider"
                         type="range"
-                        min="0.3"
+                        min="0.2"
                         max="1.2"
-                        step="0.05"
+                        step="0.01"
                         value={previewZoom}
                         onChange={(event) => setPreviewZoom(parseFloat(event.target.value))}
                         className="w-32 accent-indigo-600"
@@ -4545,45 +4614,27 @@ export default function PrintCenter() {
             )}
 
             {/* Simulated Frame with dynamic scaling */}
-            <div className="bg-slate-100 rounded-2xl p-3 md:rounded-3xl md:p-8 flex min-h-[320px] flex-col items-center justify-start overflow-auto shadow-inner border border-slate-200/60 no-print flex-1 w-full scrollbar-thin sm:min-h-[440px]" style={{ maxHeight: '85vh' }}>
+            <div ref={previewFrame} data-print-preview-frame role="region" aria-label="Druckvorschau" tabIndex={0}
+              className="max-h-[85dvh] min-h-[320px] w-full overflow-auto rounded-2xl border border-slate-200/60 bg-slate-100 p-3 shadow-inner no-print scrollbar-thin [scrollbar-gutter:stable] focus-visible:outline-2 focus-visible:outline-emerald-600 sm:min-h-[440px] md:rounded-3xl md:p-8">
+              <div className="mx-auto" style={{ width: `${previewWidthMm * previewZoom}mm` }}>
               {isMultiPageTemplate ? (
                 /* Multi-page template rendering as a column of beautiful A4 sheets */
-                <div 
-                  style={{
-                    transform: `scale(${previewZoom})`,
-                    transformOrigin: 'top center',
-                    width: printOrientation === 'portrait' ? '210mm' : '297mm',
-                    marginBottom: `calc((1 - ${previewZoom}) * -100%)`, // dynamic offset of scaling whitespace
-                  }}
-                  className={`interactive-dossier-preview ${printOrientation === 'landscape' ? 'landscape' : ''} shrink-0 transition-all duration-300 flex flex-col gap-6 pb-20`}
+                <div data-print-preview-paper
+                  style={{ width: `${previewWidthMm}mm`, zoom: previewZoom }}
+                  className={`interactive-dossier-preview ${printOrientation === 'landscape' ? 'landscape' : ''}`}
                 >
                   <div className="kl-print-sheet">{renderPreviewTemplate(true)}</div>
                 </div>
               ) : (
-                /* Single-page template rendering with scroll backup on overflow */
-                <div 
+                <div data-print-preview-paper
                   style={{
-                    width: `${(printOrientation === 'portrait' ? 210 : 297) * previewZoom}mm`,
-                    height: `${(printOrientation === 'portrait' ? 297 : 210) * previewZoom}mm`,
-                    overflow: 'auto',
-                    position: 'relative',
+                    width: `${previewWidthMm}mm`,
+                    minHeight: `${previewHeightMm}mm`,
+                    padding: `${printMargin}mm`,
+                    zoom: previewZoom,
                   }}
-                  className="shrink-0 transition-all duration-300 shadow-2xl rounded-sm border border-slate-350 bg-white scrollbar-none"
+                  className={`kl-print-sheet rounded-sm border border-slate-200 bg-white font-sans text-black select-none single-sheet-preview ${getFontSizeClass()}`}
                 >
-                  <div 
-                    style={{
-                      width: printOrientation === 'portrait' ? '210mm' : '297mm',
-                      minHeight: printOrientation === 'portrait' ? '297mm' : '210mm',
-                      height: 'auto',
-                      padding: `${printMargin}mm`,
-                      transform: `scale(${previewZoom})`,
-                      transformOrigin: 'top left',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                    }}
-                    className={`kl-print-sheet bg-white font-sans text-black select-none shrink-0 single-sheet-preview ${getFontSizeClass()}`}
-                  >
                     {/* 1. Dynamic Print Header */}
                     {showMainHeader && activeTemplate !== 'kel_elternblatt' && activeTemplate !== 'klassenbuch' && activeTemplate !== 'schueler_wochenplan' && activeTemplate !== 'materialabholung' && (
                       <PrintHeader title={customHeaderTitle || undefined} />
@@ -4599,9 +4650,9 @@ export default function PrintCenter() {
                       <span>Dokument gedruckt im Schul-Druckzentrum</span>
                       <span>Seite 1 / 1</span>
                     </div>}
-                  </div>
                 </div>
               )}
+              </div>
             </div>
 
             {/* --- HIDDEN RAW PRINT ELEMENT (Active when window.print() is called) --- */}

@@ -502,6 +502,7 @@ async function main() {
     if (await evaluate(client, 'Array.from(document.querySelectorAll("h3")).some(h=>h.textContent?.trim()==="Jahresplanung bearbeiten")')) {
       await clickButton(client, 'Abbrechen');
     }
+    let savedLessonStripe;
     for (const [page, selector, key] of [
       ['Jahresplanung', '[data-yearly-header]', 'yearly'],
       ['Wochenplan', '[data-weekly-header]', 'weekly'],
@@ -515,6 +516,10 @@ async function main() {
           'document.querySelectorAll("[data-planning-week-overview] [data-planning-day-summary]").length===5');
         await waitFor(client, 'planning home reflects the saved weekly lesson and not just the empty timetable',
           'Array.from(document.querySelectorAll("[data-planning-day-summary]")).some(day=>day.textContent.includes('+q(topic)+'))');
+        await waitFor(client, 'planning preview uses the same subject stripe as the saved weekly lesson', `(() => {
+          const lesson = [...document.querySelectorAll('[data-planning-day-summary] [data-klassio-subject-card]')].find(entry => entry.textContent.includes(${q(topic)}));
+          return lesson && getComputedStyle(lesson).borderLeftColor === ${q(savedLessonStripe)} && parseFloat(getComputedStyle(lesson).borderLeftWidth) >= 4;
+        })()`);
         console.log('✓ planning home mirrors the actual stored weekly plan in five daily summaries');
       }
       if (key === 'weekly') {
@@ -575,6 +580,7 @@ async function main() {
               mobileFachTint.border !== mobileFachTint.expectedBorder || mobileFachTint.actualWidth < 4) {
             throw new Error('Mobile lesson card lost its fach tint or stripe: ' + JSON.stringify(mobileFachTint));
           }
+          savedLessonStripe = mobileFachTint.border;
           console.log('✓ mobile day card keeps its subject background and stripe in actual Chrome CSS');
           const weekdayHelpBadge = await evaluate(client,
             '(() => {const tabs=Array.from(document.querySelectorAll("section[aria-label=\\\"Tagesansicht des Wochenplans\\\"] [aria-label=\\\"Wochentag auswählen\\\"] button"));' +
@@ -695,12 +701,29 @@ async function main() {
           await sleep(200);
           if(key === 'yearly' && !await evaluate(client, 'document.querySelector(".yearly-plan-shell table").parentElement.getBoundingClientRect().height>=400')) throw new Error('Yearly mobile table is too short to work in.');
         }
-        const layout = await evaluate(client, '(() => {const surface=document.querySelector('+q(selector)+');const buttons=Array.from(surface.querySelectorAll("button")).filter(b=>b.getBoundingClientRect().width>0);return {overflow:document.documentElement.scrollWidth>innerWidth+3,heading:surface.querySelector("h1")?.textContent.trim(),smallTargets:buttons.filter(b=>b.getBoundingClientRect().height<43).map(b=>b.textContent.trim()),selected:Array.from(surface.querySelectorAll("[data-planning-view] button[aria-pressed=true]")).map(b=>b.textContent.trim())};})()');
+        const layout = await evaluate(client, '(() => {const surface=document.querySelector('+q(selector)+');const controls=Array.from(surface.querySelectorAll("button, #planning-week-picker")).filter(b=>b.getBoundingClientRect().width>0);return {overflow:document.documentElement.scrollWidth>innerWidth+3,heading:surface.querySelector("h1")?.textContent.trim(),smallTargets:controls.filter(b=>b.getBoundingClientRect().height<43).map(b=>b.getAttribute("id")||b.textContent.trim()),selected:Array.from(surface.querySelectorAll("[data-planning-view] button[aria-pressed=true]")).map(b=>b.textContent.trim())};})()');
         if(layout.overflow || !layout.heading || layout.smallTargets.length) throw new Error(page+' layout at '+width+': '+JSON.stringify(layout));
         await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-'+key+'-'+width+'.png'));
       }
       console.log('✓ '+page+': responsive controls and no page overflow at 390/820/1440px.');
     }
+    const originalWeek = await evaluate(client, `document.querySelector('#planning-week-picker').value`);
+    const alternateWeek = await evaluate(client, `(() => {
+      const picker = document.querySelector('#planning-week-picker');
+      const next = [...picker.options].find(option => option.value !== picker.value);
+      if (!next) return null;
+      picker.value = next.value;
+      picker.dispatchEvent(new Event('change', { bubbles: true }));
+      return next.value;
+    })()`);
+    if (!alternateWeek) throw new Error('The planning page has no alternative week to choose.');
+    await waitFor(client, 'week selector changes the preview to the selected week', `document.querySelector('#planung-wochenblick').textContent.trim().endsWith('KW ${alternateWeek}') && !document.querySelector('[data-planning-week-overview]').textContent.includes(${q(topic)})`);
+    await evaluate(client, `document.querySelector('[data-planning-next-actions] button').click()`);
+    await waitFor(client, 'weekly plan opens in the chosen week', `document.querySelector('[data-weekly-header] button[title="Woche wählen"]')?.textContent.trim() === 'KW ${alternateWeek}'`);
+    await clickSidebar(client, 'Planung');
+    await waitFor(client, 'planning preview keeps the chosen week on return', `document.querySelector('#planning-week-picker')?.value === ${q(alternateWeek)}`);
+    await clickButton(client, 'Diese Woche', true);
+    await waitFor(client, 'current week restores the original saved preview', `document.querySelector('#planning-week-picker')?.value === ${q(originalWeek)} && document.querySelector('[data-planning-week-overview]')?.textContent.includes(${q(topic)})`);
     if (uncaught.length) throw new Error('Uncaught browser exceptions:\n' + uncaught.join('\n---\n'));
     console.log('Klassio planning browser E2E passed.');
   } catch (error) {

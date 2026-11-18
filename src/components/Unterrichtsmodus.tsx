@@ -8364,7 +8364,7 @@ ${content}
       />
       {/* HEADER ROOM */}
       <header
-        className={`w-full px-2 sm:px-3 min-h-12 py-0.5 flex justify-between items-center relative z-[500] shrink-0 border shadow-sm backdrop-blur-xl rounded-xl gap-1.5 overflow-visible ${currentIsLight ? "bg-white/90 border-slate-200" : "bg-black/60 border-white/10"} dim-in-focus`}
+        className={`w-full px-2 min-h-11 flex justify-between items-center relative z-[500] shrink-0 border shadow-sm backdrop-blur-xl rounded-xl gap-1.5 overflow-visible ${currentIsLight ? "bg-white/90 border-slate-200" : "bg-black/60 border-white/10"} dim-in-focus`}
       >
         {/* Left: Branding & Status */}
         <div className="flex items-center gap-1.5 flex-initial min-w-0">
@@ -8467,7 +8467,7 @@ ${content}
         })()}
 
         {/* Right: Actions, Clock & Controls */}
-        <div className="flex flex-nowrap items-center justify-end gap-1 sm:gap-1.5 flex-1 min-w-0 py-0.5">
+        <div className="flex flex-nowrap items-center justify-end gap-1 sm:gap-1.5 flex-1 min-w-0">
           <button
             type="button"
             onClick={openCockpitHelp}
@@ -9957,12 +9957,14 @@ ${content}
                           {/* Tafel priorisieren: nur die vorhandene Schüler-Seitenleiste umschalten. */}
                           <button type="button"
                             onClick={() => changeSidebarMode(sidebarMode === "hidden" ? prevSidebarMode : "hidden")}
-                            aria-label={sidebarMode === "hidden" ? "Schülerliste wieder anzeigen" : "Tafel groß anzeigen"}
-                            aria-pressed={sidebarMode === "hidden"}
-                            title={sidebarMode === "hidden" ? "Schülerliste wieder anzeigen" : "Mehr Platz für die Tafel – Schülerliste ausblenden"}
-                            className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-2.5 text-xs font-semibold transition-colors ${sidebarMode === "hidden" ? "border-accent bg-accent-soft text-accent" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>
-                            {sidebarMode === "hidden" ? <Users size={15} /> : <Maximize2 size={15} />}
-                            <span className="hidden lg:inline">{sidebarMode === "hidden" ? "Schülerliste" : "Tafel groß"}</span>
+                            aria-label={sidebarMode === "hidden" ? "Schülerliste einblenden" : "Schülerliste ausblenden"}
+                            aria-expanded={sidebarMode !== "hidden"}
+                            aria-controls={sidebarMode !== "hidden" ? "klassio-cockpit-students" : undefined}
+                            data-cockpit-student-toggle
+                            title={sidebarMode === "hidden" ? "Schülerliste einblenden" : "Schülerliste ausblenden"}
+                            className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-2.5 text-xs font-semibold transition-colors ${sidebarMode !== "hidden" ? "border-accent bg-accent-soft text-accent" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>
+                            <Users size={15} aria-hidden="true" />
+                            <span className="hidden lg:inline">Schülerliste</span>
                           </button>
 
                           {/* Secondary Actions: Dropdown Menu (••• Optionen) */}
@@ -10099,24 +10101,6 @@ ${content}
                                 <div className="px-2 pt-1 text-[8.5px] font-black uppercase tracking-wider text-slate-400">
                                   Ansicht
                                 </div>
-
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (sidebarMode === "hidden") {
-                                      changeSidebarMode(prevSidebarMode || "expanded");
-                                    } else {
-                                      changeSidebarMode("hidden");
-                                    }
-                                    setIsMoreOptionsMenuOpen(false);
-                                  }}
-                                  className={`w-full min-h-11 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
-                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
-                                  }`}
-                                >
-                                  <Users size={12} className="text-amber-500 shrink-0" />
-                                  <span>{sidebarMode !== "hidden" ? "Schülerliste ausblenden" : "Schülerliste einblenden"}</span>
-                                </button>
 
                                 <label className={`flex min-h-11 w-full shrink-0 cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold leading-5 ${currentIsLight ? "border-slate-200 bg-slate-50 text-slate-800" : "border-white/10 bg-white/5 text-white"}`}
                                   title="Lehrperson schaltet die öffentliche Anzeige der aktuellen Verhaltensstufe an oder aus. Keine privaten Notizen.">
@@ -12710,17 +12694,6 @@ ${content}
                     </div>
                   )}
 
-                  {sidebarMode === "hidden" && cockpitView === "cockpit" && (
-                    <button type="button"
-                      onClick={() => changeSidebarMode(prevSidebarMode || "expanded")}
-                      className="klassio-student-edge-tab absolute right-0 top-1/2 z-[160] flex min-h-12 -translate-y-1/2 items-center gap-1 rounded-l-2xl border border-r-0 border-slate-200 bg-white px-2.5 text-sm font-bold text-slate-800 shadow-lg"
-                      aria-label="Schülerliste einblenden"
-                      title="Schülerliste einblenden">
-                      <span aria-hidden="true">👥</span>
-                      <span>{app.schueler?.length || 0}</span>
-                    </button>
-                  )}
-                  {/* Schülerliste bleibt zusätzlich über das Dock erreichbar. */}
                 </div>
 
                 {/* RIGHT COLUMN: STUDENT LIST SIDEBAR */}
@@ -12728,6 +12701,7 @@ ${content}
                   {sidebarMode !== "hidden" && (
                     <motion.div
                       ref={sidebarRef}
+                      id="klassio-cockpit-students"
                       initial={{ width: 0, opacity: 0, x: 24 }}
                       animate={{
                         width: sidebarMode === "mini" ? COMPACT_COCKPIT_SIDEBAR_WIDTH : sidebarResizePreview ?? sidebarPreferredWidth,
@@ -12779,8 +12753,9 @@ ${content}
                                 showEarnedBadgesInCockpit: prev.boardSettings?.showEarnedBadgesInCockpit !== true,
                               },
                             }))}
-                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600 ${app.boardSettings?.showEarnedBadgesInCockpit ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-100'}`}>
+                            className={`flex min-h-11 shrink-0 items-center justify-center gap-1 rounded-lg px-2 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600 ${app.boardSettings?.showEarnedBadgesInCockpit ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-100'}`}>
                             <Trophy size={16} aria-hidden="true" />
+                            <span>Badges</span>
                           </button>
                           <button type="button"
                             aria-label={sidebarMode === "mini" ? "Schüler-Seitenleiste groß anzeigen" : "Schüler-Seitenleiste kompakt anzeigen"}
@@ -12795,8 +12770,6 @@ ${content}
                             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600">
                             <Settings2 size={16} />
                           </button>
-                          <button type="button" onClick={() => changeSidebarMode("hidden")} aria-label="Schülerliste schließen" title="Schülerliste schließen"
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600"><X size={16} /></button>
                         </div>
                         <div role="group" aria-label="Pluspunkt-Art" className="mt-1 flex gap-1 rounded-lg bg-slate-100 p-0.5">
                           {([['subject', 'Mitarbeit'], ['social', 'Sozialverhalten']] as const).map(([kind, label]) => <button key={kind} type="button"
@@ -12887,8 +12860,6 @@ ${content}
                 handleOpenWidgetInCockpitLayout(id as CockpitWidgetConfig["type"]);
               }}
               onAddWidget={() => { if (isAddWidgetMenuOpen) { setIsAddWidgetMenuOpen(false); } else { openWidgetLibrary(); } }}
-              onToggleSidebar={() => changeSidebarMode(sidebarMode === "hidden" ? (prevSidebarMode || "expanded") : "hidden")}
-              sidebarOpen={sidebarMode !== "hidden"}
               onToggleMascot={() => {
                 const mascot = cockpitWidgets.find(widget => widget.type === "pet");
                 if (mascot?.visible) {
