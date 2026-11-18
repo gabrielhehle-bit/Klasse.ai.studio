@@ -255,9 +255,11 @@ try{
   await c.send('Emulation.setDeviceMetricsOverride',{width:1440,height:980,deviceScaleFactor:1,mobile:false});
   await click(c,'[data-menu-id="kel"]');
   await until(c,'KEL portal','Boolean(document.querySelector("[data-kel-shared-dossier-portal]"))');
-  const first=await evalPage(c,'Array.from(document.querySelectorAll("button[aria-label]")).find(b=>b.getAttribute("aria-label")?.startsWith("Schülerdossier und KEL für"))?.getAttribute("aria-label")');
+  const first=await evalPage(c,'document.querySelector("button[data-kel-child] h2")?.textContent.trim()');
   if(!first)throw new Error('Demo dossier entry not found');
-  await click(c,'button[aria-label^="Schülerdossier und KEL für"]');
+  await click(c,'button[data-kel-child]');
+  await until(c,'KEL opens conversation preparation','Boolean(document.querySelector(\'button[title="KEL schließen"]\'))');
+  await click(c,'button[title="KEL schließen"]');
   await until(c,'dossier main tabs','Boolean(document.querySelector("[data-student-dossier-areas] [role=tablist]"))');
   await usePhone(c);
   const dossier=await evalPage(c,'(() => {const list=document.querySelector("[data-student-dossier-areas] [role=tablist]");' +
@@ -369,7 +371,7 @@ try{
   await c.send('Emulation.setTouchEmulationEnabled',{enabled:false});
   await c.send('Emulation.setDeviceMetricsOverride',
     {width:1440,height:980,deviceScaleFactor:1,mobile:false});
-  const pupilName=first.replace(/^Schülerdossier und KEL für /,'').replace(/ öffnen$/,'');
+  const pupilName=first;
   if(!pupilName)throw new Error('Cannot resolve selected synthetic pupil from KEL button');
   const controlChange=async (selector,value)=>{
     const expression='(() => {const el=document.querySelector('+q(selector)+');' +
