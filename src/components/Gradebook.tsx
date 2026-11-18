@@ -31,7 +31,7 @@ import AssessmentValueInput from './gradebook/AssessmentValueInput';
 import ParticipationPointsInput from './gradebook/ParticipationPointsInput';
 import { setGradebookParticipationTotal } from '../lib/participationAward';
 import { AssessmentItemModal } from './gradebook/AssessmentItemModal';
-import { faecherFuerKlasse } from '../lib/sek1Subjects';
+import { faecherFuerKlasse, getConfiguredGradebookSubjects } from '../lib/sek1Subjects';
 import { istSekundarstufe } from '../lib/sek1Navigation';
 
 // Shared, touch-friendly presentation for the existing gradebook actions.
@@ -144,11 +144,12 @@ const getCurrentSubject = (app: any) => {
   return null;
 };
 
-export default function Gradebook({ initialSection = 'grades' }: { initialSection?: 'grades' | 'overview' } = {}) {
+export default function Gradebook({ initialSection = 'grades', initialSubject }: { initialSection?: 'grades' | 'overview'; initialSubject?: string } = {}) {
   const { app, setApp, setPage } = useApp();
   const [activeFach, setActiveFach] = useState<string>(() => {
+    const validFaecher = getConfiguredGradebookSubjects(app);
+    if (initialSubject && validFaecher.includes(initialSubject)) return initialSubject;
     const currentSubject = getCurrentSubject(app);
-    const validFaecher = faecherFuerKlasse(app).filter(f => !app.faecher || app.faecher.includes(f));
     
     if (currentSubject && validFaecher.includes(currentSubject)) {
       return currentSubject;
@@ -168,7 +169,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
 
     if (!allPossible.includes(activeFach)) {
       const currentSubject = getCurrentSubject(app);
-      const validFaecher = faecherFuerKlasse(app).filter(f => !app.faecher || app.faecher.includes(f));
+      const validFaecher = getConfiguredGradebookSubjects(app);
       if (currentSubject && validFaecher.includes(currentSubject)) {
         setActiveFach(currentSubject);
       } else if (validFaecher.length > 0) {

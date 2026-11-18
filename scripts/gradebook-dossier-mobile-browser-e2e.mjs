@@ -112,13 +112,37 @@ try{
   await until(c,'first-run setup','document.body?.textContent.toLowerCase().includes("willkommen bei klassio")');
   await clickText(c,'Beispielklasse erkunden');
   await until(c,'sample teacher dashboard','Array.from(document.querySelectorAll("button")).some(b=>b.textContent?.trim()==="Heute")');
-  // The desktop sidebar intentionally hides secondary destinations under "Mehr".
-  if(!await evalPage(c,'Boolean(document.querySelector("[data-menu-id=noten]"))')) {
-    await click(c,'button[aria-label^="Mehr ("]');
-  }
-  await until(c,'gradebook available in sidebar','Boolean(document.querySelector("[data-menu-id=noten]"))');
-  await click(c,'[data-menu-id="noten"]');
-  await until(c,'real gradebook table','Boolean(document.querySelector("[data-gradebook-scroll-container]"))');
+  const openGradebookFromSidebar=async()=>{
+    if(!await evalPage(c,'Boolean(document.querySelector("[data-menu-id=noten]"))')) {
+      await click(c,'button[aria-label^="Mehr ("]');
+    }
+    await until(c,'gradebook available in sidebar','Boolean(document.querySelector("[data-menu-id=noten]"))');
+    await click(c,'[data-menu-id="noten"]');
+    await until(c,'real gradebook table','Boolean(document.querySelector("[data-gradebook-scroll-container]"))');
+  };
+  await openGradebookFromSidebar();
+  const defaultSubject=await evalPage(c,'document.querySelector("#gradebook-active-subject").value');
+  await click(c,'[data-menu-id="leistungen"]');
+  await until(c,'performance page shows the gradebook shortcut','Boolean(document.querySelector("#leistungen-fach"))');
+  await usePhone(c);
+  await until(c,'gradebook shortcut fits a phone with 44px controls',`(() => {
+    const shortcut = document.querySelector('[data-performance-gradebook]');
+    return innerWidth === 390 && [...shortcut.querySelectorAll('select, button')].every(control => {
+      const rect = control.getBoundingClientRect();
+      return rect.height >= 43.5 && rect.left >= 0 && rect.right <= innerWidth + 1;
+    });
+  })()`);
+  const chosenSubject=await evalPage(c,`[...document.querySelector('#leistungen-fach').options].find(option => option.value && option.value !== ${q(defaultSubject)})?.value`);
+  if(!chosenSubject)throw new Error('No configured alternative subject in the performance page');
+  await fill(c,'Fach wählen',chosenSubject);
+  await click(c,'[data-performance-gradebook] button[type="submit"]');
+  await until(c,'gradebook lands directly on the chosen subject',`document.querySelector('#gradebook-active-subject')?.value === ${q(chosenSubject)}`);
+  await c.send('Emulation.setTouchEmulationEnabled',{enabled:false});
+  await c.send('Emulation.setDeviceMetricsOverride',{width:1440,height:980,deviceScaleFactor:1,mobile:false});
+  await click(c,'[data-menu-id="leistungen"]');
+  await until(c,'performance page clears the one-time subject choice',`document.querySelector('#leistungen-fach')?.value === ''`);
+  await openGradebookFromSidebar();
+  await until(c,'direct sidebar link retains its default subject',`document.querySelector('#gradebook-active-subject')?.value === ${q(defaultSubject)}`);
   // Set up an assessment through the actual Gradebook UI in this disposable demo vault.
   // Unlike a CSS probe, these rows exercise input validation, committing and readback.
   const initiallyEmpty = await evalPage(c,

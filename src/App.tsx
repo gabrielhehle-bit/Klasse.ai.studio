@@ -266,6 +266,16 @@ function AppContent() {
   // Sek-I-Klassen bekommen eine fokussierte Arbeitsoberfläche. Versteckte Legacy-/Widget-Links
   // dürfen keine nicht unterstützten Module öffnen; die Daten selbst bleiben unberührt.
   const currentPage = sek1Seite(requestedPage, app.schulart);
+  const [gradebookEntry, setGradebookEntry] = useState<{ classId: string | undefined; subject: string } | null>(null);
+
+  React.useEffect(() => {
+    if (currentPage !== 'noten' || gradebookEntry?.classId !== app.activeClassId) setGradebookEntry(null);
+  }, [currentPage, app.activeClassId, gradebookEntry?.classId]);
+
+  const openGradebook = (subject: string) => {
+    setGradebookEntry(subject ? { classId: app.activeClassId, subject } : null);
+    setPage('noten');
+  };
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showDiagnostikAnleitung, setShowDiagnostikAnleitung] = useState(false);
@@ -723,7 +733,7 @@ function AppContent() {
       case 'dashboard': return istSekundarstufe(app.schulart) ? <Sek1Dashboard /> : <Dashboard />;
       case 'klasse': return <KlasseHub />;
       case 'planung': return <PlanungHub />;
-      case 'leistungen': return <LeistungenHub />;
+      case 'leistungen': return <LeistungenHub key={app.activeClassId || 'class'} onOpenGradebook={openGradebook} />;
       case 'unterricht': return null; // Legacy alias is resolved to 'cockpit' above.
       case 'lehrerzimmer': return <Lehrerzimmer />;
       case 'teamteaching': return <ClassTeam />;
@@ -736,7 +746,7 @@ function AppContent() {
       case 'dossier': return istSekundarstufe(app.schulart)
         ? <Sek1DossierHub key={app.activeClassId || 'class'} />
         : <StudentDossierHub />;
-      case 'noten': return <Gradebook />;
+      case 'noten': return <Gradebook key={app.activeClassId || 'class'} initialSubject={gradebookEntry?.classId === app.activeClassId ? gradebookEntry?.subject : undefined} />;
       case 'ki-helfer': 
       case 'ki-paedagogik':
       case 'ki-wissen':

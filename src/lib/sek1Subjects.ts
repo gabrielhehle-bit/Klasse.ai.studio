@@ -16,6 +16,10 @@ export function faecherFuerKlasse(app: {schulart?: string | null; faecher?: stri
   return FAECHER_ALLE;
 }
 
+export function getConfiguredGradebookSubjects(app: Parameters<typeof faecherFuerKlasse>[0]): string[] {
+  return faecherFuerKlasse(app).filter(fach => !app.faecher || app.faecher.includes(fach));
+}
+
 export function fachVorschlaege(schulart: string | null | undefined): readonly string[] {
   return istSekundarstufe(schulart) ? SEK1_FACHVORSCHLAEGE : FAECHER_ALLE;
 }
