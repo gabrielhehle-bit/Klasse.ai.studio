@@ -352,6 +352,7 @@ export default function PrintCenter() {
   const [elternblattShowBehavior, setElternblattShowBehavior] = useState(true);
   const [elternblattShowParticipation, setElternblattShowParticipation] = useState(true);
   const [elternblattShowLearning, setElternblattShowLearning] = useState(true);
+  const [elternblattLearningSemester, setElternblattLearningSemester] = useState<'1' | '2' | 'both'>('both');
   const [elternblattShowNotes, setElternblattShowNotes] = useState(false);
   const [elternblattShowSignatures, setElternblattShowSignatures] = useState(true);
   const [elternblattSubjects, setElternblattSubjects] = useState<string[]>(['Deutsch', 'Mathematik']);
@@ -387,7 +388,7 @@ export default function PrintCenter() {
     period: elternblattPeriod, showMood: elternblattShowMood, showBehavior: elternblattShowBehavior,
     showParticipation: elternblattShowParticipation, showLearning: elternblattShowLearning,
     showNotes: elternblattShowNotes, showSignatures: elternblattShowSignatures,
-    subjects: elternblattSubjects, subjectAreas: elternblattSubjectAreas,
+    subjects: elternblattSubjects, subjectAreas: elternblattSubjectAreas, learningSemester: elternblattLearningSemester,
     sharedNoteIds: elternblattSharedNoteIds,
     showGoalProgress: elternblattShowGoalProgress,
     progressMeetingId: selectedElternblattMeeting?.id || '',
@@ -402,6 +403,7 @@ export default function PrintCenter() {
     if (activeTemplate === 'kel_elternblatt') {
       setPrintTheme('slate');
     } else {
+      setElternblattLearningSemester('both');
       // A previous print session must never carry parent-approved private notes
       // into a newly selected document or a later KEL print session.
       setElternblattShowNotes(false);
@@ -743,6 +745,48 @@ export default function PrintCenter() {
     setStUrkundeStudentId('all');
     setDossierPreviewOpen(false);
   }, [app?.activeClassId]);
+
+  useEffect(() => {
+    const request = app.activePrintKelMeeting;
+    if (!request) return;
+    const student = students.find(entry => entry.id === app.activePrintStudentId);
+    const meeting = app.activePrintTemplate === 'kel_elternblatt' && request.classId === app.activeClassId && student
+      ? listKelParentMeetingSources(app.kelGespraeche, student.id, app.schuljahr || '')
+        .find(entry => entry.id === request.meetingId)
+      : undefined;
+    if (meeting && student) {
+      const draft = draftKelParentMeetingText(meeting);
+      const planKey = JSON.stringify([app.schuljahr || '', request.semester, meeting.id]);
+      const plan = student.kelPraesentationAuswahl?.[planKey];
+      const matches = plan?.classId === request.classId && plan?.studentId === student.id && plan?.semester === request.semester;
+      const semester = request.semester === '2' ? '2' : '1';
+      const subjectAreas = Object.fromEntries(
+        (matches && plan.visible.learning ? plan.selectedSubjects : []).flatMap(subject => {
+          const selected = plan.subjectAreaSelection?.[subject];
+          const documented = getStudentAssessmentDomainPerformance(app, student.id, subject, semester);
+          const areas = documented.map(area => area.area).filter(area => !selected || selected.includes(area));
+          return areas.length ? [[subject, areas]] : [];
+        }),
+      );
+      const subjects = Object.keys(subjectAreas);
+      setElternblattSavedMeetingId(meeting.id);
+      setElternblattMeetingSourceDate(draft.sourceDate);
+      setElternblattStrengthsText(typeof meeting.gespraechStaerke === 'string' ? meeting.gespraechStaerke.trim() : '');
+      setElternblattGoalsText(draft.goalsText);
+      setElternblattAgreementsText(draft.agreementsText);
+      setElternblattShowMood(false);
+      setElternblattShowBehavior(false);
+      setElternblattShowParticipation(false);
+      setElternblattSubjects(subjects);
+      setElternblattSubjectAreas(subjectAreas);
+      setElternblattShowLearning(subjects.length > 0);
+      setElternblattLearningSemester(semester);
+    }
+    setApp(previous => previous.activePrintKelMeeting === request
+      ? { ...previous, activePrintKelMeeting: undefined }
+      : previous);
+  }, [app.activePrintKelMeeting, app.activePrintStudentId, app.activePrintTemplate, app.activeClassId,
+    app.kelGespraeche, app.schuljahr, students, setApp]);
 
   const applyPreset = (preset: 'klassisch' | 'raster' | 'ausflug' | 'kel') => {
     setBypassOrientationAutoSet(true);
@@ -2925,6 +2969,7 @@ export default function PrintCenter() {
                         setElternblattSharedNoteIds([]);
                         setElternblattShowGoalProgress(false);
                         setElternblattSharedProgressKeys([]);
+                        setElternblattLearningSemester('both');
                         setElternblattSubjectAreas({});
                         setElternblattStrengthsText('');
                         setElternblattGoalsText('');
@@ -2995,7 +3040,9 @@ export default function PrintCenter() {
                         Bei vielen Bereichen entstehen zusätzliche A4-Seiten; keine Auswahl wird abgeschnitten.
                       </p>
                       {elternblattSubjects.map(fach => {
-                        const available = getStudentAssessmentDomainPerformance(app, elternblattSelectedStudentId, fach, 'both');
+                        const available = elternblattLearningSemester === 'both'
+                          ? getStudentAssessmentDomainPerformance(app, elternblattSelectedStudentId, fach, 'both')
+                          : getStudentAssessmentDomainPerformance(app, elternblattSelectedStudentId, fach, elternblattLearningSemester);
                         const selected = elternblattSubjectAreas[fach] ?? available.slice(0, 4).map(area => area.area);
                         return (
                           <div key={fach} data-kel-parent-area-subject={fach} className="space-y-1.5 border-t border-slate-100 pt-2">

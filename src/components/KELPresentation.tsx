@@ -4,7 +4,7 @@ import {
   X, Maximize2, Minimize2, ChevronLeft, ChevronRight, FileText, Printer,
   Heart, Star, Target, BookOpen, GraduationCap, Users, MessageSquare,
   CheckCircle2, Settings2, Eye, EyeOff, Clock, ShieldCheck, Loader2,
-  Save, Award, Sparkles, CalendarDays
+  Save, Sparkles
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { exportSchuelerPDF } from '../lib/exportService';
@@ -14,6 +14,8 @@ import AssessmentDomainDonuts from './dossier/AssessmentDomainDonuts';
 import KELSubjectPage, { type KelSubjectChartType } from './KELSubjectPage';
 import { getStudentAssessmentDomainPerformance } from '../lib/assessmentDomainPerformance';
 import { getStudentAttendanceSummary } from '../lib/studentMetrics';
+import { formatKelAgreement, getKelConversationText, type KelConversationText } from '../lib/kelConversationText';
+import { toLocalDateKey } from '../lib/localDate';
 
 interface KELPresentationProps {
   student: any;
@@ -202,7 +204,7 @@ export default function KELPresentation({
   berechne,
   STANDARD_KEL_BEREICHE,
 }: KELPresentationProps) {
-  const { app, setApp } = useApp();
+  const { app, setApp, setPage } = useApp();
   const [view, setView] = useState<'slides' | 'prepare'>('prepare');
   const [slideIndex, setSlideIndex] = useState(0);
   const [subjectPreviewRequest, setSubjectPreviewRequest] = useState<string | null>(null);
@@ -212,8 +214,12 @@ export default function KELPresentation({
   const [isExporting, setIsExporting] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(15 * 60);
   const [timerActive, setTimerActive] = useState(false);
-  const [agreementDraft, setAgreementDraft] = useState('');
+  const [conversationDraft, setConversationDraft] = useState(() => getKelConversationText());
   const [agreementSaved, setAgreementSaved] = useState(false);
+  const updateConversation = (field: keyof KelConversationText, value: string) => {
+    setConversationDraft(previous => ({ ...previous, [field]: value }));
+    setAgreementSaved(false);
+  };
   const slideContainerRef = useRef<HTMLDivElement>(null);
   const t = UI[selectedLang] || UI.de;
 
@@ -268,10 +274,23 @@ export default function KELPresentation({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectionScope]);
 
+  const savedConversation = getKelConversationText(latestKel);
+  const conversationDirty = Object.keys(savedConversation).some(key => {
+    const field = key as keyof KelConversationText;
+    return savedConversation[field] !== conversationDraft[field];
+  });
+  const agreementText = formatKelAgreement(conversationDraft);
+  const childPrompt = ({
+    de: 'Worauf bist du stolz? Was möchtest du uns zeigen?',
+    en: 'What are you proud of? What would you like to show us?',
+    tr: 'Neyle gurur duyuyorsun? Bize ne göstermek istersin?',
+    bks: 'Na šta si ponosan ili ponosna? Šta nam želiš pokazati?',
+    ar: 'بماذا تشعر بالفخر؟ ماذا تود أن ترينا؟',
+  })[selectedLang] || 'Worauf bist du stolz? Was möchtest du uns zeigen?';
+
   useEffect(() => {
-    setAgreementDraft(latestKel?.vereinbarungen || '');
-    setAgreementSaved(false);
-  }, [latestKel?.id, latestKel?.vereinbarungen]);
+    setConversationDraft(getKelConversationText(latestKel));
+  }, [latestKel, selectionScope]);
 
   useEffect(() => {
     if (!timerActive) return;
@@ -297,7 +316,7 @@ export default function KELPresentation({
   );
 
   const strengths = useMemo(() => {
-    const values: string[] = [];
+    const values: string[] = [conversationDraft.gespraechStaerke.trim()].filter(Boolean);
     for (const item of student.foerderprofil?.staerken || []) {
       const text = safeText(item);
       if (text) values.push(text);
@@ -307,7 +326,7 @@ export default function KELPresentation({
       if (text) values.push(text);
     }
     return [...new Set(values)].slice(0, 6);
-  }, [student.badges, student.foerderprofil?.staerken]);
+  }, [student.badges, student.foerderprofil?.staerken, conversationDraft.gespraechStaerke]);
 
   const childVoice = useMemo(() => {
     const values = Object.values(latestKel?.selbsteinschaetzungKind || {})
@@ -316,8 +335,8 @@ export default function KELPresentation({
     const goals = Array.isArray(latestKel?.zieleKind)
       ? latestKel.zieleKind.map((entry: any) => safeText(entry)).filter(Boolean)
       : [];
-    return [...new Set([...values, ...goals])].slice(0, 4);
-  }, [latestKel]);
+    return [...new Set([conversationDraft.kindStimme.trim(), ...values, ...goals].filter(Boolean))].slice(0, 4);
+  }, [latestKel, conversationDraft.kindStimme]);
 
   const teacherVoice = useMemo(() => {
     const values = Object.values(latestKel?.einschaetzungLehrperson || {})
@@ -326,7 +345,14 @@ export default function KELPresentation({
     return [...new Set(values)].slice(0, 4);
   }, [latestKel]);
 
-  const parentVoice = safeText(latestKel?.elternEindruck);
+  const parentVoice = conversationDraft.elternEindruck.trim();
+  const parentPrompt = ({
+    de: 'Was beobachtet ihr zu Hause?',
+    en: 'What have you noticed at home?',
+    tr: 'Evde neler gözlemliyorsunuz?',
+    bks: 'Šta primjećujete kod kuće?',
+    ar: 'ماذا تلاحظون في المنزل؟',
+  })[selectedLang] || 'Was beobachtet ihr zu Hause?';
 
   const learningSubjects = useMemo(() => {
     const preferred = ['Deutsch', 'Mathematik', 'Sachunterricht'];
@@ -338,8 +364,8 @@ export default function KELPresentation({
       const value = berechne(app, student.id, fach, sem);
       const record = app.noten?.[student.id]?.[fach]?.[sem];
       const evidence = [
-        ...(record?.sa || []), ...(record?.lzk || []), ...(record?.wp || []), ...(record?.aufgaben || []),
-      ].filter((item: any) => item !== null && item !== undefined && item !== '').length;
+        ...(record?.sa || []), ...(record?.lzk || []).filter((_: unknown, index: number) => record.lzkParticipation?.[index] !== false), ...(record?.wp || []), ...(record?.aufgaben || []),
+      ].filter((item: any) => item !== null && item !== undefined && !['', 'e', 'f', 'x', '-'].includes(String(item).trim().toLowerCase())).length;
       const hasParticipation = app.mitarbeit?.[student.id]?.[fach]?.[sem] !== undefined || record?.miDirekt !== undefined;
       const hasData = value !== null || evidence > 0 || hasParticipation;
       const mode = getAssessmentMode(app, fach);
@@ -365,6 +391,19 @@ export default function KELPresentation({
       }) : [];
   const chosenAssessments = scopeMatches
     ? pickKelAssessments(availableAssessments, selectedAssessmentIds) : [];
+  const subjectDetails = new Map(chosenLearningSubjects.map(subject => {
+    const domains = getStudentAssessmentDomainPerformance(app, student.id, subject.fach, sem === '2' ? '2' : '1');
+    const selectedAreas = subjectAreaSelection[subject.fach];
+    const areas = selectedAreas ? domains.filter(area => selectedAreas.includes(area.area)) : domains;
+    const note = subjectNoteVisible[subject.fach] ? (subjectNotes[subject.fach] || '').trim() : '';
+    return [subject.fach, { areas, note }] as const;
+  }));
+  const subjectsWithDetails = chosenLearningSubjects.filter(subject => {
+    const detail = subjectDetails.get(subject.fach);
+    return Boolean(detail?.areas.length || detail?.note);
+  });
+  const visibleSubjectSummary = chosenLearningSubjects.filter(subject => subject.value !== null);
+
   const toggleSubject = (fach: string) => {
     setSelectedSubjects(previous => previous.includes(fach)
       ? previous.filter(item => item !== fach) : [...previous, fach]);
@@ -479,11 +518,13 @@ export default function KELPresentation({
       { id: 'path', type: 'path', title: t.path, subtitle: 'Stärken · Sichtweisen · Lernen · nächste Schritte' },
     ];
     if (visible.strengths && strengths.length) list.push({ id: 'strengths', type: 'strengths', title: t.strengths });
-    if (visible.voices && (childVoice.length || parentVoice || teacherVoice.length)) list.push({ id: 'voices', type: 'voices', title: t.voices });
+    if (visible.voices) list.push({ id: 'voices', type: 'voices', title: t.voices });
     if (visible.learning && chosenLearningSubjects.length) {
-      list.push({ id: 'learning', type: 'learning', title: t.learning, subtitle: 'Die Fachübersicht aus demselben Schülerdossier' });
+      if (visibleSubjectSummary.length || (!visible.subjectPages && subjectsWithDetails.length)) {
+        list.push({ id: 'learning', type: 'learning', title: t.learning });
+      }
       if (visible.subjectPages) {
-        for (const subject of chosenLearningSubjects) {
+        for (const subject of subjectsWithDetails) {
           list.push({
             id: 'subject-' + subject.fach, type: 'subject', subject: subject.fach,
             title: subject.fach, subtitle: 'Meine Lernbereiche · Nachweise · Gesprächsnotizen',
@@ -499,7 +540,7 @@ export default function KELPresentation({
     if (visible.goals) list.push({ id: 'goals', type: 'goals', title: t.goals, subtitle: 'Gemeinsam konkret und überprüfbar vereinbaren' });
     if (visible.closing) list.push({ id: 'closing', type: 'closing', title: t.closing });
     return list;
-  }, [student.vorname, student.nachname, t, visible, strengths.length, childVoice.length, parentVoice, teacherVoice.length, chosenLearningSubjects.length, chosenLearningSubjects, chosenAssessments.length, kelAreas.length, selectedPortfolio.length, attendance.hasData, ikmRecord]);
+  }, [student.vorname, student.nachname, t, visible, strengths.length, childVoice.length, parentVoice, teacherVoice.length, chosenLearningSubjects.length, visibleSubjectSummary, subjectsWithDetails, chosenAssessments.length, kelAreas.length, selectedPortfolio.length, attendance.hasData, ikmRecord]);
 
   // Enabling subjectPages creates slides on the next render. Wait for the
   // requested subject slide to exist before switching to presentation mode.
@@ -541,15 +582,19 @@ export default function KELPresentation({
   const formatTimer = (seconds: number) => `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
 
   const saveAgreement = () => {
-    const text = agreementDraft.trim();
+    if (!scopeMatches || !conversationDirty) return;
+    const values = getKelConversationText(conversationDraft);
+    const newMeetingId = `kel-${crypto.randomUUID()}`;
     setApp(previous => {
+      if (previous.activeClassId !== app.activeClassId || previous.schuljahr !== app.schuljahr
+        || !previous.schueler.some(entry => entry.id === student.id)) return previous;
       const list = [...(previous.kelGespraeche || [])];
-      const index = latestKel ? list.findIndex((entry: any) => entry.id === latestKel.id) : -1;
+      const index = latestKel ? list.findIndex(entry => entry.id === latestKel.id && entry.schuelerId === student.id) : -1;
+      if (latestKel && index < 0) return previous;
       let nextStudents = previous.schueler;
       if (index >= 0) {
-        list[index] = { ...list[index], vereinbarungen: text };
+        list[index] = { ...list[index], ...values };
       } else {
-        const newMeetingId = `kel-${Date.now()}`;
         // A plan prepared before the first KEL protocol follows this explicitly
         // created meeting; saving a preparation never creates a fake protocol.
         const oldKey = JSON.stringify([previous.schuljahr || '', sem, 'vorbereitung']);
@@ -564,15 +609,13 @@ export default function KELPresentation({
         list.push({
           id: newMeetingId,
           schuelerId: student.id,
-          datum: new Date().toISOString().slice(0, 10),
+          datum: toLocalDateKey(),
           schuljahr: previous.schuljahr || '',
-          teilnehmer: [student.vorname, 'Eltern', 'Lehrperson'],
+          teilnehmer: [],
           selbsteinschaetzungKind: {},
           einschaetzungLehrperson: {},
-          elternEindruck: '',
           zieleKind: [],
-          vereinbarungen: text,
-          naechsterTermin: '',
+          ...values,
           unterschriftKind: false,
           unterschriftEltern: false,
           unterschriftLehrperson: false,
@@ -583,7 +626,19 @@ export default function KELPresentation({
         schueler: nextStudents };
     });
     setAgreementSaved(true);
-    window.setTimeout(() => setAgreementSaved(false), 1800);
+  };
+
+  const openParentSheet = () => {
+    if (!scopeMatches || !latestKel || conversationDirty) return;
+    savePresentationSelection();
+    setApp(previous => previous.activeClassId !== app.activeClassId
+      || !previous.schueler.some(entry => entry.id === student.id) ? previous : ({
+      ...previous,
+      activePrintTemplate: 'kel_elternblatt',
+      activePrintStudentId: student.id,
+      activePrintKelMeeting: { classId: previous.activeClassId, meetingId: latestKel.id, semester: sem },
+    }));
+    setPage('drucken');
   };
 
   const exportPowerPoint = async () => {
@@ -624,25 +679,30 @@ export default function KELPresentation({
         }
         if (slideData.type === 'strengths') { addBullets(slide, strengths, 1.0, 1.55, 11.3, 5.1); continue; }
         if (slideData.type === 'voices') {
-          slide.addText(`${t.child}\n${childVoice.join('\n') || 'Noch keine eigene Aussage dokumentiert.'}`, { x: 0.75, y: 1.55, w: 3.8, h: 4.9, fontSize: 15, bold: false, color: colors.ink, margin: 0.18, fit: 'shrink', fill: { color: 'FFF7ED' }, line: { color: 'FED7AA', pt: 1 } });
-          slide.addText(`${t.parents}\n${parentVoice || 'Noch kein Elterneindruck dokumentiert.'}`, { x: 4.75, y: 1.55, w: 3.8, h: 4.9, fontSize: 15, color: colors.ink, margin: 0.18, fit: 'shrink', fill: { color: 'F0FDF4' }, line: { color: 'BBF7D0', pt: 1 } });
-          slide.addText(`${t.teacher}\n${teacherVoice.join('\n') || 'Noch keine Gesprächsaussage dokumentiert.'}`, { x: 8.75, y: 1.55, w: 3.8, h: 4.9, fontSize: 15, color: colors.ink, margin: 0.18, fit: 'shrink', fill: { color: 'EEF2FF' }, line: { color: 'C7D2FE', pt: 1 } });
+          slide.addText(`${t.child}\n${childVoice.join('\n') || childPrompt}`, { x: 0.75, y: 1.55, w: 3.8, h: 4.9, fontSize: 15, bold: false, color: colors.ink, margin: 0.18, fit: 'shrink', fill: { color: 'FFF7ED' }, line: { color: 'FED7AA', pt: 1 } });
+          slide.addText(`${t.parents}\n${parentVoice || parentPrompt}`, { x: 4.75, y: 1.55, w: 3.8, h: 4.9, fontSize: 15, color: colors.ink, margin: 0.18, fit: 'shrink', fill: { color: 'F0FDF4' }, line: { color: 'BBF7D0', pt: 1 } });
+          if (teacherVoice.length) slide.addText(`${t.teacher}\n${teacherVoice.join('\n') || ''}`, { x: 8.75, y: 1.55, w: 3.8, h: 4.9, fontSize: 15, color: colors.ink, margin: 0.18, fit: 'shrink', fill: { color: 'EEF2FF' }, line: { color: 'C7D2FE', pt: 1 } });
           continue;
         }
         if (slideData.type === 'learning') {
-          const rows = chosenLearningSubjects.map(item => `${item.fach}: ${item.label}${item.evidence ? ` · ${item.evidence} dokumentierte Leistungsnachweise` : ''}`);
-          addBullets(slide, rows, 0.95, 1.55, 11.5, 5.0);
+          const rows = visibleSubjectSummary.map(item => `${item.fach}: ${item.label}${item.evidence ? ` · ${item.evidence} dokumentierte Leistungsnachweise` : ''}`);
+          const details = visible.subjectPages ? [] : subjectsWithDetails.flatMap(subject => {
+            const detail = subjectDetails.get(subject.fach);
+            return [
+              ...(detail?.areas || []).map(area => `${subject.fach} · ${area.area}: ${area.percent}%`),
+              ...(detail?.note ? [`${subject.fach}: ${detail.note}`] : []),
+            ];
+          });
+          addBullets(slide, [...rows, ...details], 0.95, 1.55, 11.5, 5.0);
           continue;
         }
         if (slideData.type === 'subject' && slideData.subject) {
           const subject = chosenLearningSubjects.find(entry => entry.fach === slideData.subject);
           if (!subject) continue;
-          const allDomains = getStudentAssessmentDomainPerformance(app, student.id, subject.fach, sem === '2' ? '2' : '1');
-          const chosenDomains = Object.prototype.hasOwnProperty.call(subjectAreaSelection, subject.fach)
-            ? allDomains.filter(area => subjectAreaSelection[subject.fach].includes(area.area))
-            : allDomains;
-          const safeNote = subjectNoteVisible[subject.fach] ? (subjectNotes[subject.fach] || '').trim() : '';
-          slide.addText(`Fachstand: ${subject.label} · ${subject.evidence} dokumentierte Nachweise`,
+          const detail = subjectDetails.get(subject.fach);
+          const chosenDomains = detail?.areas || [];
+          const safeNote = detail?.note || '';
+          if (subject.value !== null) slide.addText(`Fachstand: ${subject.label}`,
             { x: 0.8, y: 1.4, w: 11.8, h: 0.4, fontSize: 14, bold: true, color: colors.ink, margin: 0 });
           if (chosenDomains.length) {
             const domains = chosenDomains.slice(0, 7);
@@ -657,13 +717,10 @@ export default function KELPresentation({
               valAxisMinVal: 0, valAxisMaxVal: 100,
               catAxisLabelFontSize: 10,
             });
-          } else {
-            slide.addText('Noch keine auswertbaren Lernbereiche dokumentiert.',
-              { x: 1.0, y: 2.4, w: 11, h: 0.6, fontSize: 16, color: colors.muted, margin: 0 });
           }
           if (safeNote) {
             slide.addText('Gesprächsnotiz: ' + safeNote.slice(0, 1000),
-              { x: 0.9, y: 5.2, w: 11.3, h: 1.35, fontSize: 13, color: colors.ink,
+              { x: 0.9, y: chosenDomains.length ? 5.2 : 2.0, w: 11.3, h: chosenDomains.length ? 1.35 : 4.2, fontSize: 16, color: colors.ink,
                 margin: 0.16, fit: 'shrink', fill: { color: 'FFFBEB' }, line: { color: 'FDE68A', pt: 1 } });
           }
           continue;
@@ -728,11 +785,14 @@ export default function KELPresentation({
         }
         if (slideData.type === 'goals') {
           addBullets(slide, documentedGoals, 0.75, 1.55, 5.75, 4.85);
-          slide.addText(`Unsere Vereinbarung\n\n${agreementDraft || 'Im Gespräch gemeinsam festlegen.'}`, { x: 6.8, y: 1.55, w: 5.75, h: 4.85, fontSize: 16, color: colors.ink, margin: 0.18, fit: 'shrink', fill: { color: 'FFFFFF' }, line: { color: colors.line, pt: 1 } });
+          slide.addText(`Unsere Vereinbarung\n\n${agreementText || 'Was ist unser nächster Schritt?'}`, { x: 6.8, y: 1.55, w: 5.75, h: 4.85, fontSize: 16, color: colors.ink, margin: 0.18, fit: 'shrink', fill: { color: 'FFFFFF' }, line: { color: colors.line, pt: 1 } });
           continue;
         }
         if (slideData.type === 'closing') {
-          const closing = [agreementDraft || 'Eine konkrete Vereinbarung gemeinsam festhalten.', latestKel?.naechsterTermin ? `Nächster gemeinsamer Blick: ${latestKel.naechsterTermin}` : 'Einen Zeitpunkt für den nächsten Rückblick vereinbaren.', 'Mit einer Stärke und einem machbaren nächsten Schritt aus dem Gespräch gehen.'];
+          const closing = [
+            strengths[0] ? `Eine Stärke: ${strengths[0]}` : '',
+            ...(agreementText ? agreementText.split('\n') : ['Was nehmen wir uns gemeinsam vor?']),
+          ].filter(Boolean);
           addBullets(slide, closing, 1.2, 1.75, 10.9, 4.7);
         }
       }
@@ -748,7 +808,7 @@ export default function KELPresentation({
 
   const slideOptions: Array<{ key: keyof VisibleConfig; label: string; help: string; available: boolean }> = [
     { key: 'strengths', label: 'Stärken', help: 'Dokumentierte Stärken und Badges', available: strengths.length > 0 },
-    { key: 'voices', label: 'Sichtweisen', help: 'Aussagen von Kind, Eltern und Lehrperson aus dem KEL-Protokoll', available: Boolean(childVoice.length || parentVoice || teacherVoice.length) },
+    { key: 'voices', label: 'Sichtweisen', help: 'Aussagen von Kind, Eltern und Lehrperson aus dem KEL-Protokoll', available: true },
     { key: 'learning', label: 'Lernstand', help: 'Nur die unten ausdrücklich ausgewählten Fächer', available: learningSubjects.length > 0 },
     { key: 'subjectPages', label: 'Einzelfolien je Fach', help: 'Je ausgewähltem Fach Lernbereichsdiagramme und freigegebene Gesprächsnotizen', available: chosenLearningSubjects.length > 0 },
     { key: 'individualGrades', label: 'Einzelne Bewertungen', help: 'Nur die unten einzeln ausgewählten Leistungsnachweise', available: availableAssessments.length > 0 },
@@ -759,6 +819,37 @@ export default function KELPresentation({
     { key: 'goals', label: 'Ziele & Vereinbarung', help: 'Gemeinsame nächste Schritte', available: true },
     { key: 'closing', label: 'Abschluss', help: 'Vereinbarung und nächster Rückblick', available: true },
   ];
+
+  const renderField = (field: keyof KelConversationText, label: string) => (
+    <label className="block space-y-1.5 text-sm font-semibold text-slate-800">
+      {label}
+      <textarea rows={2} maxLength={field === 'vereinbarungen' ? 12000 : undefined}
+        value={conversationDraft[field]} onChange={event => updateConversation(field, event.target.value)}
+        className="w-full resize-y rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-normal outline-none focus:ring-2 focus:ring-indigo-500"/>
+    </label>
+  );
+  const renderAgreementFields = () => (
+    <div className="grid gap-3">
+      {renderField('vereinbarungen', 'Was machen wir?')}
+      {renderField('vereinbarungUnterstuetzung', 'Wer hilft und wie?')}
+      {renderField('vereinbarungErfolgskriterium', 'Woran erkennen wir den Fortschritt?')}
+      <label className="block space-y-1.5 text-sm font-semibold text-slate-800">
+        Wann schauen wir wieder darauf?
+        <input type="text" placeholder="z. B. 25.11.2026" value={conversationDraft.naechsterTermin}
+          onChange={event => updateConversation('naechsterTermin', event.target.value)}
+          className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-normal outline-none focus:ring-2 focus:ring-indigo-500"/>
+      </label>
+    </div>
+  );
+  const renderSaveConversation = () => (
+    <div className="mt-4 flex flex-wrap items-center gap-3">
+      <button type="button" onClick={saveAgreement} disabled={!conversationDirty}
+        className="min-h-11 rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
+        Gespräch speichern
+      </button>
+      {agreementSaved && !conversationDirty && <span role="status" className="text-sm font-semibold text-emerald-700">Gespeichert</span>}
+    </div>
+  );
 
   const renderSlide = () => {
     if (!currentSlide) return null;
@@ -806,24 +897,27 @@ export default function KELPresentation({
 
     if (currentSlide.type === 'voices') return <SlideShell title={currentSlide.title} subtitle="Drei Perspektiven dürfen nebeneinander stehen – ohne automatische Wertung.">
       <div className="grid w-full grid-cols-1 gap-4 lg:grid-cols-3">
-        <VoiceCard icon={<Heart size={20} />} label={t.child} items={childVoice} empty="Noch keine eigene Aussage dokumentiert." tone="amber" />
-        <VoiceCard icon={<Users size={20} />} label={t.parents} items={parentVoice ? [parentVoice] : []} empty="Noch kein Elterneindruck dokumentiert." tone="emerald" />
-        <VoiceCard icon={<MessageSquare size={20} />} label={t.teacher} items={teacherVoice} empty="Noch keine Gesprächsaussage dokumentiert." tone="indigo" />
+        <VoiceCard icon={<Heart size={20} />} label={t.child} items={childVoice} empty={childPrompt} tone="amber" />
+        <VoiceCard icon={<Users size={20} />} label={t.parents} items={parentVoice ? [parentVoice] : []} empty={parentPrompt} tone="emerald" />
+        {teacherVoice.length > 0 && <VoiceCard icon={<MessageSquare size={20} />} label={t.teacher} items={teacherVoice} empty="" tone="indigo" />}
       </div>
     </SlideShell>;
 
     if (currentSlide.type === 'learning') return <SlideShell title={currentSlide.title} subtitle={currentSlide.subtitle}>
       <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {chosenLearningSubjects.map(item => <div key={item.fach} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm">
+        {visibleSubjectSummary.map(item => <div key={item.fach} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm">
           <p className="text-xs font-black uppercase tracking-wider text-slate-500">{item.fach}</p>
           <p className="mt-2 text-2xl font-black text-slate-950">{item.label}</p>
           <p className="mt-2 text-xs font-semibold text-slate-500">{item.evidence ? `${item.evidence} dokumentierte Leistungsnachweise` : 'Gesamtstand aus der Notenmappe'}{item.hasParticipation ? ' · Mitarbeit dokumentiert' : ''}</p>
         </div>)}
       </div>
       {!visible.subjectPages && <div className="mt-4 grid w-full grid-cols-1 gap-3 lg:grid-cols-2" data-kel-selected-assessment-domains>
-        {chosenLearningSubjects.map(item => (
-          <AssessmentDomainDonuts key={item.fach} studentId={student.id} subject={item.fach}
-            semester={sem === '2' ? '2' : '1'} compact hideWhenEmpty />
+        {subjectsWithDetails.map(item => (
+          <div key={item.fach} className="space-y-2">
+            <AssessmentDomainDonuts studentId={student.id} subject={item.fach}
+              semester={sem === '2' ? '2' : '1'} selectedAreas={subjectAreaSelection[item.fach]} compact hideWhenEmpty />
+            {subjectDetails.get(item.fach)?.note && <p className="whitespace-pre-wrap rounded-xl bg-amber-50 p-3 text-left text-sm">{item.fach}: {subjectDetails.get(item.fach)?.note}</p>}
+          </div>
         ))}
       </div>}
       <p className="mt-5 text-center text-xs font-semibold text-slate-500">
@@ -919,17 +1013,16 @@ export default function KELPresentation({
         </div>
         <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-5 text-left">
           <div className="mb-3 flex items-center justify-between gap-2"><div className="flex items-center gap-2 text-emerald-700"><Save size={18} /><p className="text-xs font-black uppercase tracking-wider">Unsere Vereinbarung</p></div>{agreementSaved && <span className="text-xs font-bold text-emerald-700">Gespeichert ✓</span>}</div>
-          <textarea value={agreementDraft} onChange={event => { setAgreementDraft(event.target.value); setAgreementSaved(false); }} placeholder="Zum Beispiel: Wir lesen an vier Tagen pro Woche zehn Minuten gemeinsam …" className="min-h-44 w-full resize-y rounded-xl border border-emerald-200 bg-white p-3 text-sm font-medium text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500" />
-          <button type="button" onClick={saveAgreement} className="mt-3 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-black text-white">Vereinbarung speichern</button>
+          {renderAgreementFields()}
+          {renderSaveConversation()}
         </div>
       </div>
     </SlideShell>;
 
     if (currentSlide.type === 'closing') return <SlideShell title={currentSlide.title} subtitle="Ein guter Abschluss ist kurz, konkret und positiv.">
-      <div className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-4 md:grid-cols-2">
         <ClosingCard icon={<Star size={22} />} label="Eine Stärke" text={strengths[0] || 'Was heute besonders positiv aufgefallen ist.'} />
-        <ClosingCard icon={<Target size={22} />} label="Ein nächster Schritt" text={agreementDraft || documentedGoals[0] || 'Gemeinsam einen machbaren nächsten Schritt festlegen.'} />
-        <ClosingCard icon={<CalendarDays size={22} />} label="Nächster Rückblick" text={latestKel?.naechsterTermin || 'Gemeinsam einen passenden Zeitpunkt vereinbaren.'} />
+        <ClosingCard icon={<Target size={22} />} label="Unsere Vereinbarung" text={agreementText || 'Was nehmen wir uns gemeinsam vor?'} />
       </div>
       <div className="mx-auto mt-6 max-w-3xl rounded-2xl border border-indigo-100 bg-indigo-50 p-5 text-center text-base font-black text-indigo-900">Danke, dass wir gemeinsam auf Lernen, Entwicklung und die nächsten Schritte geschaut haben.</div>
     </SlideShell>;
@@ -942,7 +1035,7 @@ export default function KELPresentation({
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <button type="button" onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700" title="KEL schließen"><X size={16} /></button>
-          <div className="min-w-0"><p className="text-[0.58rem] font-black uppercase tracking-[0.18em] text-indigo-600">KEL-Präsentation</p><h2 className="truncate text-sm font-black text-slate-900">{student.vorname} {student.nachname}</h2></div>
+          <div className="min-w-0"><p className="text-[0.58rem] font-black uppercase tracking-[0.18em] text-indigo-600">KEL-Gespräch</p><h2 className="truncate text-sm font-black text-slate-900">{student.vorname} {student.nachname}</h2></div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-xl border border-slate-200 bg-slate-100 p-1">
@@ -955,6 +1048,8 @@ export default function KELPresentation({
           <button type="button" onClick={() => setShowConfig(true)} className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700"><Settings2 size={13} /> Folien</button>
           <button type="button" onClick={exportPowerPoint} disabled={isExporting} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-800 disabled:opacity-50">{isExporting ? <Loader2 size={13} className="animate-spin" /> : <FileText size={13} />} PowerPoint</button>
           <button type="button" onClick={() => exportSchuelerPDF(student.id, app)} className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700"><Printer size={13} /> Dossier-PDF</button>
+          <button type="button" onClick={openParentSheet} disabled={!latestKel || conversationDirty}
+            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 disabled:opacity-40"><Printer size={13}/> Elternblatt ansehen</button>
           {view === 'slides' && <button type="button" onClick={() => setIsFullscreen(true)} className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-black text-white"><Maximize2 size={13} /> Präsentieren</button>}
         </div>
       </div>
@@ -975,27 +1070,19 @@ export default function KELPresentation({
     {view === 'prepare' ? <main className="flex-1 overflow-y-auto p-4 md:p-6">
       <div className="mx-auto max-w-6xl space-y-4">
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wider text-indigo-600">Vorbereitung</p><h1 className="mt-1 text-2xl font-black text-slate-950">Ein Gespräch, keine Datenshow</h1><p className="mt-2 max-w-3xl text-sm text-slate-600">Die Präsentation startet bei Stärken und Sichtweisen, zeigt nur ausgewählte Lerninformationen und endet mit einer gemeinsamen Vereinbarung.</p></div><span className="rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-black text-indigo-700">{slides.length} Folien</span></div>
-        </section>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <PrepCard icon={<Heart size={18} />} title="Kind im Mittelpunkt" value={`${strengths.length} Stärken · ${childVoice.length} Kind-Aussagen`} text="Die Präsentation beginnt nicht mit Noten oder Fehlzeiten." />
-          <PrepCard icon={<BookOpen size={18} />} title="Ausgewählte Lernnachweise" value={`${chosenLearningSubjects.length} Fächer · ${chosenAssessments.length} Einzelbewertungen · ${selectedPortfolio.length} Portfolioeinträge`} text="Portfolio wird nur gezeigt, wenn ein Eintrag ausdrücklich für KEL markiert wurde." />
-          <PrepCard icon={<ShieldCheck size={18} />} title="Geschützte Informationen" value="Keine Klassenvergleiche" text="Interne Notizen, Klassenkasse und sensible Hintergrunddaten bleiben außerhalb der Elternansicht." />
-        </div>
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-base font-black text-slate-950">Datenstand</h2>
-          <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-            <DataBadge label="KEL-Einschätzung" available={kelAreas.length > 0} detail={`${kelAreas.length} Bereiche`} />
-            <DataBadge label="Portfolio für KEL" available={selectedPortfolio.length > 0} detail={`${selectedPortfolio.length} Einträge`} />
-            <DataBadge label="Lernstand" available={learningSubjects.length > 0} detail={`${learningSubjects.length} Fächer`} />
-            <DataBadge label="Diagnostik" available={Boolean(ikmRecord)} detail={ikmRecord ? 'vorhanden, standardmäßig verborgen' : 'nicht vorhanden'} />
+          <h1 className="text-2xl font-black text-slate-950">Gespräch vorbereiten</h1>
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
+            {renderField('gespraechStaerke', 'Das gelingt schon')}
+            {renderField('kindStimme', 'Das sagt das Kind')}
+            {renderField('elternEindruck', 'Das sagen die Eltern')}
           </div>
+          <p className="mt-2 text-sm text-slate-600">Leere Felder kannst du gemeinsam im Gespräch ergänzen.</p>
         </section>
         <section className="space-y-4 rounded-3xl border border-indigo-200 bg-white p-5 shadow-sm" data-testid="kel-gradebook-preparation">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="text-base font-black text-slate-950">Notenmappe für dieses Gespräch auswählen</h2>
-              <p className="mt-1 text-xs text-slate-600">Nur für {student.vorname} · ganzes Schuljahr. Fächer und einzelne Bewertungen erscheinen erst, wenn du sie selbst auswählst. Es werden keine anderen Kinder oder Klassenvergleiche gezeigt.</p>
+              <p className="mt-1 text-xs text-slate-600">Nur für {student.vorname} · ganzes Schuljahr. Wähle aus, welche Fachstände und einzelnen Arbeiten ihr besprechen möchtet. Es werden keine anderen Kinder oder Klassenvergleiche gezeigt.</p>
             </div>
             <button type="button" onClick={() => setShowConfig(true)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold">Weitere Folien wählen</button>
           </div>
@@ -1017,7 +1104,7 @@ export default function KELPresentation({
               <div>
                 <h3 className="text-base font-black text-slate-900">Fachseiten individuell gestalten</h3>
                 <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                  Jedes ausgewählte Fach erhält eine eigene Präsentationsseite mit denselben Lernbereichsdaten wie im Schülerdossier.
+                  Eine Fachfolie erscheint, sobald du einen dokumentierten Lernbereich oder eine Gesprächsnotiz dafür freigibst.
                   Diagramm, Lernbereiche, Reihenfolge und Gesprächsnotizen lassen sich getrennt festlegen.
                 </p>
               </div>
@@ -1088,11 +1175,11 @@ export default function KELPresentation({
                       <p className="text-[0.68rem] text-slate-500">
                         Interne Schülernotizen werden nicht automatisch übernommen. Nur bewusst freigegebener Text erscheint in der Elternpräsentation.
                       </p>
-                      <button type="button" onClick={() => {
+                      <button type="button" disabled={!subjectsWithDetails.some(subject => subject.fach === item.fach)} onClick={() => {
                         setVisible(previous => ({ ...previous, learning: true, subjectPages: true }));
                         setSelectionSaved(false);
                         setSubjectPreviewRequest(item.fach);
-                      }} className="min-h-10 rounded-lg bg-indigo-50 px-4 text-xs font-bold text-indigo-800 hover:bg-indigo-100">
+                      }} className="min-h-10 rounded-lg bg-indigo-50 px-4 text-xs font-bold text-indigo-800 hover:bg-indigo-100 disabled:opacity-40">
                         Fachseite ansehen
                       </button>
                     </div>
@@ -1142,10 +1229,9 @@ export default function KELPresentation({
           <p className="text-xs text-slate-500">Die Auswahl wird in den verschlüsselten Kinddaten gespeichert, nicht als Kopie der Bewertungen. Wenn sich eine Bewertung oder ihre Bezeichnung ändert, wird sie zur Sicherheit erst nach erneuter Auswahl sichtbar. Bildschirm und PowerPoint nutzen dieselbe Freigabe.</p>
         </section>
         <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-base font-black text-slate-950">Vereinbarung vorbereiten</h2>
-          <p className="mt-1 text-xs text-slate-500">Du kannst hier vorformulieren; gespeichert wird erst ausdrücklich.</p>
-          <textarea value={agreementDraft} onChange={event => { setAgreementDraft(event.target.value); setAgreementSaved(false); }} className="mt-3 min-h-36 w-full resize-y rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Gemeinsames Ziel oder nächste Vereinbarung …" />
-          <button type="button" onClick={saveAgreement} className="mt-3 rounded-xl bg-indigo-700 px-4 py-2 text-xs font-black text-white">Vereinbarung speichern</button>
+          <h2 className="mb-4 text-base font-black text-slate-950">Gemeinsame Vereinbarung</h2>
+          {renderAgreementFields()}
+          {renderSaveConversation()}
         </section>
       </div>
     </main> : <main ref={slideContainerRef} tabIndex={0} className={`flex flex-1 flex-col bg-slate-950 outline-none ${isFullscreen ? 'fixed inset-0 z-[120] p-4 md:p-6' : 'min-h-0 p-4 md:p-6'}`}>
@@ -1163,7 +1249,7 @@ export default function KELPresentation({
       <div className="mx-auto mt-3 flex w-full max-w-6xl items-center justify-between gap-3">
         <button type="button" disabled={slideIndex === 0} onClick={() => setSlideIndex(previous => Math.max(0, previous - 1))} className="flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-xs font-black text-slate-300 disabled:opacity-30"><ChevronLeft size={14} /> Zurück</button>
         <div className="flex gap-1">{slides.map((slide, index) => <button key={slide.id} type="button" aria-label={`Folie ${index + 1}: ${slide.title}`} onClick={() => setSlideIndex(index)} className={`h-2 rounded-full transition-all ${index === slideIndex ? 'w-7 bg-indigo-500' : 'w-2 bg-slate-700'}`} />)}</div>
-        {slideIndex < slides.length - 1 ? <button type="button" onClick={() => setSlideIndex(previous => Math.min(slides.length - 1, previous + 1))} className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white">Weiter <ChevronRight size={14} /></button> : <button type="button" onClick={onClose} className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white">Gespräch abschließen</button>}
+        {slideIndex < slides.length - 1 ? <button type="button" onClick={() => setSlideIndex(previous => Math.min(slides.length - 1, previous + 1))} className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white">Weiter <ChevronRight size={14} /></button> : <button type="button" onClick={() => { setIsFullscreen(false); setView('prepare'); }} className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white">Zur Vorbereitung</button>}
       </div>
     </main>}
   </div>;
@@ -1191,13 +1277,5 @@ function Metric({ label, value }: { label: string; value: number }) {
 }
 
 function ClosingCard({ icon, label, text }: { icon: React.ReactNode; label: string; text: string }) {
-  return <div className="rounded-3xl border border-slate-200 bg-white p-5 text-center shadow-sm"><div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-700">{icon}</div><p className="mt-3 text-xs font-black uppercase tracking-wider text-slate-500">{label}</p><p className="mt-2 text-sm font-black leading-relaxed text-slate-900">{text}</p></div>;
-}
-
-function PrepCard({ icon, title, value, text }: { icon: React.ReactNode; title: string; value: string; text: string }) {
-  return <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700">{icon}</div><p className="mt-3 text-xs font-black uppercase tracking-wider text-slate-500">{title}</p><p className="mt-2 text-xl font-black text-slate-950">{value}</p><p className="mt-2 text-xs leading-relaxed text-slate-500">{text}</p></div>;
-}
-
-function DataBadge({ label, available, detail }: { label: string; available: boolean; detail: string }) {
-  return <div className={`rounded-2xl border p-3 ${available ? 'border-emerald-100 bg-emerald-50' : 'border-slate-200 bg-slate-50'}`}><div className="flex items-center gap-2">{available ? <CheckCircle2 size={15} className="text-emerald-700" /> : <Award size={15} className="text-slate-400" />}<p className="text-xs font-black text-slate-800">{label}</p></div><p className="mt-2 text-[11px] font-semibold text-slate-500">{detail}</p></div>;
+  return <div className="rounded-3xl border border-slate-200 bg-white p-5 text-center shadow-sm"><div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-700">{icon}</div><p className="mt-3 text-xs font-black uppercase tracking-wider text-slate-500">{label}</p><p className="mt-2 whitespace-pre-wrap break-words text-sm font-black leading-relaxed text-slate-900">{text}</p></div>;
 }

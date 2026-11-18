@@ -393,6 +393,47 @@ try {
   }
   if (pageTexts.some(text => !text.trim())) throw new Error('Unexpected completely blank KEL PDF page');
   console.log('PASS Multi-page A4 KEL PDF preserves full text and signature fields');
+
+  await client.send('Emulation.setEmulatedMedia', { media: 'screen' });
+  await clickSelector(client, '[data-menu-id="kel"]');
+  await waitFor(client, 'KEL child picker', 'Boolean(document.querySelector("[data-kel-shared-dossier-portal]"))');
+  const nextChildId = await evaluate(client,
+    'Array.from(document.querySelectorAll("[data-kel-child]")).map(b=>b.getAttribute("data-kel-child")).find(id=>id!==' + q(sampleStudentId) + ')');
+  if (!nextChildId) throw new Error('A second sample child is required for the new conversation');
+  await clickSelector(client, '[data-kel-child=' + q(nextChildId) + ']');
+  await waitFor(client, 'direct conversation preparation', 'Array.from(document.querySelectorAll("h1")).some(h=>h.textContent==="Gespräch vorbereiten")');
+
+  // A selected subject without a released note or selected learning areas may
+  // still have a reportable overall grade, but must never get an empty slide.
+  const emptySubjectLabel = await evaluate(client,
+    'Array.from(document.querySelectorAll("[data-testid=kel-gradebook-preparation] label")).find(l=>l.textContent.includes(": noch keine Gesamtbewertung"))?.textContent.trim()');
+  if (!emptySubjectLabel) throw new Error('No ungraded sample subject available');
+  const emptySubject = emptySubjectLabel.split(':')[0];
+  await clickCheckbox(client, emptySubjectLabel);
+  await clickButton(client, 'Vorschau ansehen');
+  await waitFor(client, 'child prompt slide available',
+    'Boolean(Array.from(document.querySelectorAll("[aria-label^=Folie]")).find(b=>b.getAttribute("aria-label").includes("So sehen wir es")))');
+  if (await evaluate(client, 'Array.from(document.querySelectorAll("[aria-label^=Folie]")).some(b=>b.getAttribute("aria-label").endsWith(' + q(': ' + emptySubject) + '))')) {
+    throw new Error('A subject without selected conversation material generated a slide');
+  }
+  await clickSelector(client, '[aria-label^="Folie"][aria-label$="So sehen wir es"]');
+  await waitFor(client, 'undocumented child perspective becomes a live prompt',
+    'document.body.innerText.includes("Worauf bist du stolz? Was möchtest du uns zeigen?")');
+  await clickSelector(client, '[aria-label^="Folie"][aria-label$="Meine nächsten Schritte"]');
+  await fillInput(client, 'Was machen wir?', 'Wir spielen zusammen Anlautspiele.');
+  await fillInput(client, 'Wer hilft und wie?', 'Die Lehrperson legt die Karten bereit.');
+  await fillInput(client, 'Woran erkennen wir den Fortschritt?', 'Das Kind nennt die ersten Laute.');
+  await fillInput(client, 'Wann schauen wir wieder darauf?', '25.11.2026');
+  await clickButton(client, 'Gespräch speichern');
+  await waitFor(client, 'conversation saved before printing',
+    'Array.from(document.querySelectorAll("button")).some(b=>b.textContent.trim()==="Elternblatt ansehen"&&!b.disabled)');
+  await clickSelector(client, '[aria-label^="Folie"][aria-label$="Das nehmen wir mit"]');
+  await waitFor(client, 'closing slide shows the saved agreement and follow-up',
+    'document.body.innerText.includes("Wir spielen zusammen Anlautspiele.") && document.body.innerText.includes("25.11.2026")');
+  await clickButton(client, 'Elternblatt ansehen');
+  await waitFor(client, 'same child and agreement copied into the parent sheet',
+    'document.querySelector("#kel-parent-student")?.value===' + q(nextChildId) + ' && document.querySelector("#kel-parent-agreements")?.value.includes("Die Lehrperson legt die Karten bereit.") && document.querySelector("#kel-parent-agreements")?.value.includes("25.11.2026")');
+
 } finally {
   client.close();
 }
