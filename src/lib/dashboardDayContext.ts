@@ -1,3 +1,4 @@
+import { parseLessonTimeRange } from './lessonTimeSlots';
 import { checkHoliday, getFerien, type Bundesland } from './ferienOesterreich';
 
 export type DashboardPreviewMode = 'automatik' | 'heute' | 'morgen';
@@ -99,4 +100,20 @@ export function getDashboardFreeDayMessage(
     };
   }
   return null;
+}
+
+
+export function getDashboardLessonFocus<T extends { fach?: string; zeit?: string }>(
+  lessons: readonly T[],
+  minuteOfDay: number,
+): { current: T | null; next: T | null } {
+  const timed = lessons.flatMap(lesson => {
+    const time = parseLessonTimeRange(lesson.zeit);
+    return lesson.fach?.trim() && time ? [{ lesson, ...time }] : [];
+  }).sort((a, b) => a.start - b.start);
+
+  return {
+    current: timed.find(slot => slot.start <= minuteOfDay && minuteOfDay < slot.end)?.lesson ?? null,
+    next: timed.find(slot => slot.start > minuteOfDay)?.lesson ?? null,
+  };
 }

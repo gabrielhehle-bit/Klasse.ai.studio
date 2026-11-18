@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { getDashboardDisplayDate, getDashboardFreeDayMessage } from './dashboardDayContext';
+import { getDashboardDisplayDate, getDashboardFreeDayMessage, getDashboardLessonFocus } from './dashboardDayContext';
 
 const on = (year: number, month: number, day: number, hour = 9) => new Date(year, month - 1, day, hour, 0, 0);
 const sameDate = (date: Date) => [date.getFullYear(), date.getMonth() + 1, date.getDate()].join('-');
@@ -71,10 +71,22 @@ test('Main and simple dashboard show a free-day message without hiding tasks or 
   assert.match(full, /freeDayGreeting && \(/);
   assert.match(simple, /p\.freeDayGreeting && \(/);
   assert.match(simple, /p\.actionItems/);
-  assert.match(simple, /p\.freeDayGreeting \|\| isPreview\s*\? 'wochenplanung'/);
+  assert.match(simple, /!isPreview && !p\.freeDayGreeting && p\.currentLesson \? 'cockpit' : 'wochenplanung'/);
   assert.match(simple, /Planung ansehen/);
   assert.match(simple, /p\.freeDayGreeting \? \(/);
   assert.match(simple, /Heute ist kein regulärer Unterricht vorgesehen/);
   assert.match(simple, /p\.todayLessonsList/);
   assert.doesNotMatch(dashboard.slice(dashboard.indexOf('const { date: anzeigeDatum'), dashboard.indexOf('const heute = currentTime')), /day === 0[^;]*Montag/);
+});
+
+
+test('dashboard lesson focus skips unplanned slots and uses the actual start of the next lesson', () => {
+  const deutsch = { fach: 'Deutsch', zeit: '08:00–08:50' };
+  const mathe = { fach: 'Mathematik', zeit: '09:45–10:35' };
+  const lessons = [mathe, { fach: '', zeit: '08:50–09:45' }, deutsch, { fach: 'Musik', zeit: '' }];
+
+  assert.deepEqual(getDashboardLessonFocus(lessons, 8 * 60), { current: deutsch, next: mathe });
+  assert.deepEqual(getDashboardLessonFocus(lessons, 8 * 60 + 50), { current: null, next: mathe });
+  assert.deepEqual(getDashboardLessonFocus(lessons, 9 * 60 + 45), { current: mathe, next: null });
+  assert.deepEqual(getDashboardLessonFocus(lessons, 10 * 60 + 35), { current: null, next: null });
 });

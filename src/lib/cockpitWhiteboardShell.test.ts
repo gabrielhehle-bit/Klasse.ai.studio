@@ -32,9 +32,9 @@ test('shared writing surface can draw and erase, without overwriting widget layo
 });
 
 test('right student list stays class-local, resizable, visible on touch, and uses existing public list', () => {
-  assert.equal(DEFAULT_COCKPIT_SIDEBAR_WIDTH, 320);
-  assert.equal(clampCockpitSidebarWidth(undefined), 320);
-  assert.equal(clampCockpitSidebarWidth(NaN), 320);
+  assert.equal(DEFAULT_COCKPIT_SIDEBAR_WIDTH, 304);
+  assert.equal(clampCockpitSidebarWidth(undefined), 304);
+  assert.equal(clampCockpitSidebarWidth(NaN), 304);
   assert.equal(clampCockpitSidebarWidth(150), 292);
   assert.equal(clampCockpitSidebarWidth(900), 620);
   assert.equal(resizeCockpitSidebarWidth(420, 100, 50), 470);
@@ -43,9 +43,9 @@ test('right student list stays class-local, resizable, visible on touch, and use
   assert.match(board, /cockpitStudentSidebarWidthByClass/);
   assert.match(board, /sidebarResizePreview \?\? sidebarPreferredWidth/);
   assert.match(board, /onPointerDown=\{handleSidebarResizeStart\}/);
-  assert.match(board, /aria-label="Schülerliste schließen"/);
+  assert.match(board, /data-cockpit-student-toggle/);
   assert.match(board, /<StudentListWidgetContent[\s\S]*?sidebarCompact=\{sidebarMode === "mini"\}/);
-  assert.match(dock, /onToggleSidebar/);
+  assert.doesNotMatch(dock, /onToggleSidebar/);
   assert.match(css, /@media \(max-width: 960px\)/);
   assert.doesNotMatch(board, /const adaptSidebarToViewport/);
 });

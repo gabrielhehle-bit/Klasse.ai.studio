@@ -81,7 +81,7 @@ test('dossier and KEL use the same domain data but KEL only shows opted-in subje
   const modal = readFileSync('src/components/gradebook/AssessmentItemModal.tsx', 'utf8');
   assert.match(dossier, /AssessmentDomainDonuts studentId=\{student.id\} subject=\{s.fach\}/);
   assert.match(presentation, /data-kel-selected-assessment-domains/);
-  assert.match(presentation, /chosenLearningSubjects\.map\(item => \(/);
+  assert.match(presentation, /subjectsWithDetails\.map\(item => \(/);
   assert.match(presentation, /compact hideWhenEmpty/);
   assert.match(modal, /Teilbereich in \{subject\}/);
   assert.match(modal, /Zahlen und Operationen/);

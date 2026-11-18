@@ -1,5 +1,6 @@
 import type { KELGespraech } from '../types';
 import { normalizeKelMeetings } from './kelData';
+import { formatKelAgreement } from './kelConversationText';
 
 /** Only current-class-child, current-school-year, dated records may be offered. */
 export function listKelParentMeetingSources(
@@ -36,7 +37,7 @@ export function draftKelParentMeetingText(meeting: KELGespraech): KelParentMeeti
     : [];
   return {
     goalsText: goals.join('\n'),
-    agreementsText: typeof meeting.vereinbarungen === 'string' ? meeting.vereinbarungen.trim() : '',
+    agreementsText: formatKelAgreement(meeting),
     sourceDate: /^\d{4}-\d{2}-\d{2}$/.test(meeting.datum) ? meeting.datum : '',
   };
 }

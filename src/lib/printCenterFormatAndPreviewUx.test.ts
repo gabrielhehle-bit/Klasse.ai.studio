@@ -48,12 +48,13 @@ test('the preview offers two teacher-friendly sizes with fine zoom collapsed by 
   assert.match(zoomControls, /data-testid="print-preview-fine-zoom"/);
   assert.match(zoomControls, /<details/);
   assert.doesNotMatch(zoomControls, /<details[^>]*\sopen(?:\s|>)/);
-  assert.match(zoomControls, /aria-pressed=\{previewZoom === 1\}/);
+  assert.match(zoomControls, /aria-pressed=\{previewZoomOverride === 1\}/);
+  assert.match(zoomControls, /aria-pressed=\{fitPreview\}/);
   assert.match(zoomControls, /border-indigo-700 bg-indigo-700 text-white/);
   assert.match(print, /Seitenränder \(mm\)/);
   assert.doesNotMatch(print, /Seitenränder \(Zoll\/mm\)/);
   assert.match(zoomControls, /id="print-preview-zoom-slider"/);
-  assert.match(zoomControls, /min="0\.3"/);
+  assert.match(zoomControls, /min="0\.2"/);
   assert.match(zoomControls, /max="1\.2"/);
   assert.match(zoomControls, /onChange=\{\(event\) => setPreviewZoom\(parseFloat\(event\.target\.value\)\)\}/);
   assert.match(zoomControls, /Nur die Ansicht – nicht die Druckgröße/);

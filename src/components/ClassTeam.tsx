@@ -31,13 +31,12 @@ import { mergeTeamClassRevisions } from '../lib/teamTeachingMerge';
 import { hasRecoverableLocalClassData, prepareLocalTeamRecoveryRoom } from '../lib/teamTeachingRecovery';
 import { assertTeamTeachingDevicePersisted } from '../lib/teamTeachingDevice';
 import type { ClassRoom } from '../types';
-import ClassTeamStatus from './ClassTeamStatus';
 import TeamTeachingQuickHelp from './TeamTeachingQuickHelp';
 import EmailAccountLogin from './EmailAccountLogin';
 import { ACCOUNT_SESSION_CHANGED_EVENT } from '../lib/accountSyncService';
 import { useTeamDeviceAuthorization } from '../hooks/useTeamDeviceAuthorization';
 import { teamSyncPresentation } from '../lib/teamSyncPresentation';
-import { getTeacherTeamNextAction, getTeacherTeamStepNumber, type TeacherTeamNextAction } from '../lib/teacherTeamSetup';
+import { getTeacherTeamNextAction, getTeacherTeamStepNumber, getTeamComparisonCode, type TeacherTeamNextAction } from '../lib/teacherTeamSetup';
 import { teacherClassPermission, teacherClassWorkingStatus } from '../lib/teamTeachingTeacherCopy';
 
 const TEAM_CONNECTION_ERROR = 'Die Verbindung zum Klassenteam ist gerade unterbrochen. Sie wird automatisch erneut geprüft.';
@@ -66,6 +65,7 @@ export default function ClassTeam() {
   const liveAppRef = React.useRef(app);
   liveAppRef.current = app;
   const [shared, setShared] = React.useState<SharedClassSummary[]>([]);
+  const [serverUnreachable, setServerUnreachable] = React.useState(false);
   const [colleagues, setColleagues] = React.useState<TeamTeachingColleague[]>([]);
   const [schoolUsers, setSchoolUsers] = React.useState<TeamTeachingColleague[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -129,12 +129,14 @@ export default function ClassTeam() {
         listTeamTeachingSchoolUsers(),
       ]);
       setShared(classes);
+      setServerUnreachable(false);
       setColleagues(users);
       setSchoolUsers(allSchoolUsers);
       setTeamUserId(session.me.user.userId);
       setTeamDeviceId(session.device.deviceId);
       setNeedsSchoolLogin(false);
     } catch (cause: any) {
+      setServerUnreachable(true);
       const schoolLoginRequired = cause?.status === 403;
       setNeedsSchoolLogin(cause?.status === 401 || schoolLoginRequired);
       setError(cause?.status === 401
@@ -156,10 +158,13 @@ export default function ClassTeam() {
   }, [load]);
   React.useEffect(() => {
     const reconnect = () => { if (!needsSchoolLogin) void load(); };
+    const disconnect = () => setServerUnreachable(true);
     window.addEventListener('online', reconnect);
+    window.addEventListener('offline', disconnect);
     window.addEventListener('focus', reconnect);
     return () => {
       window.removeEventListener('online', reconnect);
+      window.removeEventListener('offline', disconnect);
       window.removeEventListener('focus', reconnect);
     };
   }, [load, needsSchoolLogin]);
@@ -170,8 +175,10 @@ export default function ClassTeam() {
       if (document.visibilityState !== 'visible') return;
       void listSharedClasses().then(classes => {
         setShared(classes);
+        setServerUnreachable(false);
         setError(previous => previous === TEAM_CONNECTION_ERROR ? null : previous);
       }).catch((cause) => {
+        setServerUnreachable(true);
         if (cause?.status === 401 || cause?.status === 403) void load();
         else if (cause instanceof TypeError) setError(TEAM_CONNECTION_ERROR);
       });
@@ -466,8 +473,12 @@ export default function ClassTeam() {
     setBusy('smart-sync');
     setError(null);
     try {
-      const latestList = await listSharedClasses();
+      const latestList = await listSharedClasses().catch(cause => {
+        setServerUnreachable(true);
+        throw cause;
+      });
       setShared(latestList);
+      setServerUnreachable(false);
       const remote = latestList.find(item => item.id === activeSharedId);
       const now = syncActiveClass(liveAppRef.current).classes.find(room => room.id === activeRoom.id);
       if (!remote || !now?.teamTeaching || now.teamTeaching.sharedClassId !== activeSharedId) {
@@ -826,6 +837,7 @@ export default function ClassTeam() {
     .sort((a, b) => Number(b.devices.length > 0) - Number(a.devices.length > 0)
       || a.displayName.localeCompare(b.displayName, 'de-AT'));
   const teamSyncStatus = teamSyncPresentation(activeRoom)?.status;
+  const serverConfirmed = Boolean(activeSummary) && !serverUnreachable;
   const nextAction = getTeacherTeamNextAction({
     needsSchoolLogin,
     hasActiveClass: Boolean(activeRoom),
@@ -834,7 +846,7 @@ export default function ClassTeam() {
     hasConnectedTeam: Boolean(activeSharedId),
     deviceAuthorized: deviceAuthorization === 'authorized',
     deviceChecking: deviceAuthorization === 'checking' || deviceAuthorization === 'unknown',
-    serverSummaryLoaded: Boolean(activeSummary),
+    serverSummaryLoaded: serverConfirmed,
     deviceRequestPending: Boolean(ownDeviceRequest),
     teamRole: activeRoom?.teamTeaching?.role,
     teamMemberCount: activeSummary?.members.length,
@@ -853,16 +865,17 @@ export default function ClassTeam() {
     activate: { title: 'Klasse für Zusammenarbeit freigeben', text: 'Deine bestehende Klasse wird verschlüsselt für das Klassenteam freigegeben. Bestehende Einträge bleiben erhalten.', button: 'Diese Klasse gemeinsam nutzen' },
     reconnect: { title: 'Bestehende Teamklasse verbinden', text: 'Diese Klasse gehört bereits zu einem Team. Verbinde den vorhandenen gemeinsamen Stand, statt eine zweite Klasse anzulegen.', button: reconnectableTeam ? 'Bestehende Teamklasse öffnen' : 'Verbindung erneut prüfen' },
     'checking-device': { title: 'Gerätefreigabe wird geprüft', text: 'KLASSIO prüft, ob dieses Gerät den verschlüsselten Teamstand öffnen darf. Bestehende Einträge bleiben erhalten.', button: 'Erneut prüfen' },
-    'check-connection': { title: 'Teamserver noch nicht bestätigt', text: 'Die gemeinsame Klasse ist lokal bekannt, aber der Serverstand konnte noch nicht bestätigt werden. Nicht neu freigeben und keine lokale Version überschreiben.', button: 'Teamverbindung prüfen' },
-    'request-device': { title: 'Dieses Gerät freigeben lassen', text: 'Bitte jetzt die Gerätefreigabe anfordern. Eine schon berechtigte Teamlehrperson bestätigt den Prüfcode in ihrem Klassenteam.', button: 'Gerätefreigabe anfordern' },
+    'check-connection': { title: 'Teamserver noch nicht bestätigt', text: 'Die gemeinsame Klasse ist lokal bekannt, aber der Serverstand konnte noch nicht bestätigt werden. Nicht neu freigeben und keine lokale Version überschreiben.', button: 'Verbindung erneut prüfen' },
+    'request-device': { title: 'Dieses Gerät freigeben lassen', text: 'Bitte jetzt die Gerätefreigabe anfordern. Eine schon berechtigte Teamlehrperson bestätigt den Prüfcode in ihrem Klassenteam.', button: 'Freigabe anfordern' },
     'await-device': { title: 'Auf Freigabe warten', text: 'Eine berechtigte Kollegin oder ein Kollege muss im Klassenteam „Gerät freigeben“ auswählen und den Prüfcode abgleichen.', button: 'Freigabe erneut prüfen' },
     'add-colleague': { title: 'Kollegin oder Kollegen hinzufügen', text: 'Wähle unten eine Lehrperson deiner Schule. Sie erhält Bearbeitungsrechte nur für die ausdrücklich geteilte Klasse.', button: 'Lehrperson auswählen' },
     'colleague-first-login': { title: 'Kollegin oder Kollegen anmelden lassen', text: 'Die zweite Lehrperson öffnet KLASSIO mit ihrer eigenen verifizierten Schulmail und geht zu „Klassenteam“. Danach erscheint sie hier automatisch in der Liste. Ihr müsst nichts koppeln oder Codes austauschen.', button: 'Kollegium erneut prüfen' },
     'resolve-conflict': { title: 'Zwei unterschiedliche Klassenstände', text: 'Bitte entscheidet, ob auf diesem Gerät noch eigene Eingaben vorhanden sind, die im Team fehlen. Beide Möglichkeiten sind unten erklärt.' },
     'compare-versions': { title: 'Gemeinsamen Stand prüfen', text: 'Ein Klick: KLASSIO prüft den Serverstand und sendet oder lädt Änderungen, wenn das ohne Konflikt möglich ist. Bei gleichzeitigen Änderungen wird nichts überschrieben.', button: 'Jetzt synchronisieren' },
-    ready: { title: 'Klassenteam verbunden', text: 'Dieses Gerät hat einen bestätigten gemeinsamen Klassenstand. Änderungen werden jetzt automatisch abgeglichen; du musst nichts von Hand senden.' },
+    ready: { title: 'Team synchronisiert', text: teacherClassWorkingStatus(nextAction) },
   };
   const guide = guidance[nextAction];
+  const comparisonCode = getTeamComparisonCode(activeSharedId || knownTeamReference);
   const onGuideAction = () => {
     switch (nextAction) {
       case 'join-invited':
@@ -886,7 +899,7 @@ export default function ClassTeam() {
         else void prepareSafeMerge();
         break;
       case 'compare-versions': void synchronizeTeamSimply(); break;
-      case 'ready': void synchronizeTeamSimply(); break;
+      case 'ready': break;
     }
   };
 
@@ -909,11 +922,76 @@ export default function ClassTeam() {
       </header>
 
       {error && <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm font-semibold text-rose-700">{error}</div>}
-      {error === TEAM_CONNECTION_ERROR && <button type="button" onClick={() => void load()} className="rounded-xl border border-[var(--border)] px-4 py-2 font-bold">Verbindung erneut prüfen</button>}
       {needsSchoolLogin && (
         <EmailAccountLogin />
       )}
       {notice && <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm font-semibold">{notice}</div>}
+
+      <section data-testid="team-setup-guide" aria-label="Teamteaching Schritt für Schritt"
+        className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm sm:p-6">
+        <h2 className="text-lg font-black text-[var(--text)]">Aktuelle Klasse: {activeRoom?.name || 'Keine Klasse'}</h2>
+        {comparisonCode && (
+          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl bg-[var(--surface2)] px-3 py-2 text-sm">
+            <span>Team-Kurzcode <strong data-testid="team-comparison-code">{comparisonCode}</strong></span>
+            {activeRoom?.teamTeaching && <span>Stand auf diesem Gerät <strong data-testid="team-comparison-revision">{activeRoom.teamTeaching.revision}</strong></span>}
+          </div>
+        )}
+        {stepNumber < 3 && <p className="mt-4 text-sm font-bold text-[var(--text)]">Teamteaching in drei Schritten</p>}
+        {stepNumber < 3 && <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label={`Schritt ${stepNumber} von 3`}>
+          {['1. Klasse verbinden', '2. Lehrperson hinzufügen', '3. Gemeinsam arbeiten'].map((step, index) => (
+            <div key={step} className={`rounded-xl border px-3 py-2 text-xs font-bold ${stepNumber === index + 1
+              ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text)]'
+              : 'border-[var(--border)] text-[var(--text2)]'}`}
+              aria-current={stepNumber === index + 1 ? 'step' : undefined}>{step}</div>
+          ))}
+        </div>}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-black text-[var(--text)]" data-testid="team-setup-next-action" data-team-next-action={nextAction} role="status">{guide.title}</h3>
+            <p className="mt-1 text-sm leading-relaxed text-[var(--text2)]">{guide.text}</p>
+            {nextAction === 'colleague-first-login' && (
+              <p className="mt-2 text-xs font-semibold text-[var(--text2)]">
+                Tipp: Jede Lehrperson verwendet ihr eigenes Konto. Es wird kein gemeinsames Passwort benötigt.
+              </p>
+            )}
+            {activeRoom?.teamTeaching && (
+              <div className="mt-2 space-y-1 text-xs text-[var(--text2)]" data-testid="team-simple-working-status">
+                <p>{teacherClassPermission(activeRoom.teamTeaching.role)}</p>
+                <p>Letzter bestätigter Team-Abgleich: {formatTeamDate(activeRoom.teamTeaching.lastSyncedAt)}</p>
+                {nextAction === 'ready' && <p>Auf beiden Geräten Team-Kurzcode und Stand vergleichen.</p>}
+              </div>
+            )}
+            {nextAction === 'await-device' && ownDeviceRequest && (
+              <p className="mt-2 text-sm">Deine Anfrage ist gesendet. Dein Prüfcode: <strong>{ownDeviceRequest.verificationCode}</strong></p>
+            )}
+          </div>
+          {nextAction === 'resolve-conflict' && (
+            <div data-testid="team-conflict-quick-help" className="w-full rounded-xl border border-amber-300 bg-amber-50 p-4 text-slate-950">
+              <p className="text-sm font-black">Hast du auf diesem Gerät etwas eingetragen, das die andere Lehrperson noch nicht sieht?</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <button type="button" onClick={() => void pull()} disabled={Boolean(busy)}
+                  className="min-h-12 rounded-xl bg-[var(--accent)] px-4 py-3 text-left text-sm font-bold text-white disabled:opacity-55">
+                  Nein – gemeinsame Klasse laden
+                </button>
+                <button type="button" onClick={onGuideAction} disabled={Boolean(busy)}
+                  className="min-h-12 rounded-xl border border-amber-500 bg-white px-4 py-3 text-left text-sm font-bold text-slate-950 disabled:opacity-55">
+                  Ja – beide Änderungen vergleichen
+                </button>
+              </div>
+              <p className="mt-3 text-xs font-medium leading-5">
+                Beim Laden bleiben bisherige ungesendete Eingaben als „Konfliktkopie“ in der Klassenauswahl erhalten. Sie werden nicht automatisch ins Klassenteam übernommen.
+              </p>
+            </div>
+          )}
+          {guide.button && (
+            <button type="button" onClick={onGuideAction} disabled={Boolean(busy)}
+              data-testid={nextAction === 'compare-versions' ? 'team-simple-sync' : undefined}
+              className="min-h-11 w-full rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-black text-white disabled:opacity-55 sm:w-auto">
+              {busy ? 'Wird geprüft …' : guide.button}
+            </button>
+          )}
+        </div>
+      </section>
 
       {activeSharedId && activeSummary?.myRole === 'owner'
         && deviceAuthorization === 'unauthorized' && (
@@ -988,68 +1066,12 @@ export default function ClassTeam() {
         </section>
       )}
 
-      <section data-testid="team-setup-guide" aria-label="Teamteaching Schritt für Schritt"
-        className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm sm:p-6">
-        <h2 className="text-lg font-black text-[var(--text)]">Teamteaching in drei Schritten</h2>
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label={`Schritt ${stepNumber} von 3`}>
-          {['1. Klasse verbinden', '2. Lehrperson hinzufügen', '3. Gemeinsam arbeiten'].map((step, index) => (
-            <div key={step} className={`rounded-xl border px-3 py-2 text-xs font-bold ${stepNumber === index + 1
-              ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text)]'
-              : 'border-[var(--border)] text-[var(--text2)]'}`}
-              aria-current={stepNumber === index + 1 ? 'step' : undefined}>{step}</div>
-          ))}
-        </div>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <h3 className="font-black text-[var(--text)]" data-testid="team-setup-next-action">{guide.title}</h3>
-            <p className="mt-1 text-sm leading-relaxed text-[var(--text2)]">{guide.text}</p>
-            {nextAction === 'colleague-first-login' && (
-              <p className="mt-2 text-xs font-semibold text-[var(--text2)]">
-                Tipp: Jede Lehrperson verwendet ihr eigenes Konto. Es wird kein gemeinsames Passwort benötigt.
-              </p>
-            )}
-            {nextAction === 'ready' && activeRoom?.teamTeaching && (
-              <p className="mt-2 text-xs font-semibold text-[var(--text2)]">
-                {teacherClassPermission(activeRoom.teamTeaching.role)}
-              </p>
-            )}
-          </div>
-          {nextAction === 'resolve-conflict' && (
-            <div data-testid="team-conflict-quick-help" className="w-full rounded-xl border border-amber-300 bg-amber-50 p-4 text-slate-950">
-              <p className="text-sm font-black">Hast du auf diesem Gerät etwas eingetragen, das die andere Lehrperson noch nicht sieht?</p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <button type="button" onClick={() => void pull()} disabled={Boolean(busy)}
-                  className="min-h-12 rounded-xl bg-[var(--accent)] px-4 py-3 text-left text-sm font-bold text-white disabled:opacity-55">
-                  Nein – gemeinsame Klasse laden
-                </button>
-                <button type="button" onClick={onGuideAction} disabled={Boolean(busy)}
-                  className="min-h-12 rounded-xl border border-amber-500 bg-white px-4 py-3 text-left text-sm font-bold text-slate-950 disabled:opacity-55">
-                  Ja – beide Änderungen vergleichen
-                </button>
-              </div>
-              <p className="mt-3 text-xs font-medium leading-5">
-                Beim Laden bleiben bisherige ungesendete Eingaben als „Konfliktkopie“ in der Klassenauswahl erhalten. Sie werden nicht automatisch ins Klassenteam übernommen.
-              </p>
-            </div>
-          )}
-          {guide.button && (
-            <button type="button" onClick={onGuideAction} disabled={Boolean(busy)}
-              className="min-h-11 w-full rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-black text-white disabled:opacity-55 sm:w-auto">
-              {busy ? 'Wird geprüft …' : guide.button}
-            </button>
-          )}
-        </div>
-        <p className="mt-3 text-xs font-medium text-[var(--text2)]">
-          Nach dem Einrichten laufen Änderungen automatisch im Hintergrund. Erst „Team synchronisiert“ bestätigt den gemeinsamen Stand. Bei gleichzeitigen Änderungen wird nichts ungefragt überschrieben.
-        </p>
-      </section>
-
       <div data-testid="team-two-teachers-help">
         <TeamTeachingQuickHelp
           sharedClassId={activeSharedId}
-          serverConfirmed={Boolean(activeSummary)}
+          serverConfirmed={serverConfirmed}
           deviceAuthorization={deviceAuthorization}
-          teamSyncStatus={teamSyncStatus}
+          teamSyncStatus={teamSyncStatus === 'synced' && nextAction !== 'ready' ? 'pending' : teamSyncStatus}
         />
       </div>
 
@@ -1062,80 +1084,39 @@ export default function ClassTeam() {
         </div>)}
       </section>}
 
-      {activeSharedId && deviceAuthorization === 'unauthorized' && <section className="rounded-2xl border border-amber-400 bg-amber-50 p-5 text-slate-900" aria-label="Freigabe für dieses Gerät">
-        <h2 className="font-black">Dieses Gerät braucht noch eine Freigabe</h2>
-        {ownDeviceRequest ? <p className="mt-2 text-sm">Deine Anfrage ist gesendet. Bitte eine Teamlehrperson, im Klassenteam auf „Gerät freigeben“ zu klicken. Dein Prüfcode: <strong>{ownDeviceRequest.verificationCode}</strong></p>
-          : <><p className="mt-2 text-sm">Bitte eine Teamlehrperson, die diese Klasse noch öffnen kann, dein Gerät zu bestätigen. Deine vorhandenen Einträge bleiben erhalten.</p>
-            <button type="button" disabled={Boolean(busy)} onClick={() => void requestDeviceAccess()} className="mt-3 rounded-xl bg-[var(--accent)] px-4 py-2 font-black text-white disabled:opacity-50">Freigabe anfordern</button></>}
-      </section>}
-
-      <section className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="font-black text-[var(--text)]">Aktuelle Klasse: {activeRoom?.name || 'Keine Klasse'}</h2>
-            <ClassTeamStatus />
-            {activeRoom?.teamTeaching ? (
-              <div className="mt-2 space-y-2" data-testid="team-simple-working-status" aria-live="polite">
-                <p className="text-sm font-semibold text-[var(--text)]">{teacherClassWorkingStatus(nextAction)}</p>
-                <p className="text-sm text-[var(--text2)]">{teacherClassPermission(activeRoom.teamTeaching.role)}</p>
-                <p className="text-xs text-[var(--text2)]">
-                  Letzter bestätigter Team-Abgleich: {formatTeamDate(activeRoom.teamTeaching.lastSyncedAt)}
-                </p>
-                <details data-testid="team-technical-details" className="rounded-xl border border-[var(--border)] bg-[var(--surface2)] p-3">
-                  <summary className="min-h-7 cursor-pointer text-xs font-semibold text-[var(--text2)]">
-                    Technische Informationen bei Problemen
-                  </summary>
-                  <div className="mt-3 space-y-1 text-xs text-[var(--text2)]">
-                    <p className="font-semibold text-[var(--text)]">Gemeinsamer Teamstand: Version {activeSummary?.revision ?? 'wird geprüft'}</p>
-                    <p>{activeSummary?.contentUpdatedAt
-                      ? 'Zuletzt inhaltlich geändert am ' + formatTeamDate(activeSummary.contentUpdatedAt) + ' von '
-                        + (activeSummary.members.find(member => member.userId === activeSummary.contentUpdatedBy)?.displayName || 'einer Teamlehrperson')
-                      : 'Der genaue Zeitpunkt der letzten Inhaltsänderung ist für diese ältere Teamversion nicht erfasst.'}</p>
-                    <p>Dein Gerät: Version {activeRoom.teamTeaching.revision} · zuletzt abgeglichen am {formatTeamDate(activeRoom.teamTeaching.lastSyncedAt)}</p>
-                    <p className="font-semibold">{activeRoom.teamTeaching.lastSyncedHash
-                      ? classRoomFingerprint(activeRoom) === activeRoom.teamTeaching.lastSyncedHash
-                        ? 'Keine ungesendeten lokalen Inhaltsänderungen erkannt.'
-                        : 'Du hast lokale Änderungen, die noch nicht bestätigt wurden.'
-                      : 'Dieses Gerät hat noch keinen bestätigten Teamstand. Senden ist gesperrt.'}</p>
-                  </div>
-                </details>
-              </div>
-            ) : (
-              <p className="mt-1 text-sm text-[var(--text2)]">Noch nicht für gemeinsame Bearbeitung freigegeben.</p>
-            )}
-            {activeRoom?.teamTeaching?.syncMessage && (
-              <p className="mt-2 max-w-2xl text-xs leading-5 text-[var(--text2)]">
-                {activeRoom.teamTeaching.syncMessage}
-              </p>
-            )}
-          </div>
-          {!activeRoom?.teamTeaching ? (
-            knownTeamReference ? (
-              <div className="flex max-w-xl flex-col gap-2">
-                <p className="text-sm font-semibold text-amber-800">Diese Klasse ist bereits geteilt, aber auf diesem Gerät noch nicht mit dem Klassenteam verbunden. Die angezeigte Wochenplanung kann deshalb älter sein.</p>
-                {reconnectableTeam
-                  ? <button onClick={() => void adopt(reconnectableTeam)} disabled={Boolean(busy)} className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">Teamklasse verbinden und neueste Planung laden</button>
-                  : <p className="text-xs font-semibold text-rose-700">Die ursprüngliche Teamklasse ist mit diesem Schulkonto derzeit nicht erreichbar. Bitte Mitgliedschaft und Schulmail prüfen; keine neue Teamklasse erstellen.</p>}
-              </div>
-            ) : (
-              <button onClick={enableSharing} disabled={!activeRoom || busy === 'enable'} className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">
-                {busy === 'enable' ? 'Wird vorbereitet …' : 'Gemeinsame Klasse aktivieren'}
-              </button>
-            )
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              <button onClick={() => void synchronizeTeamSimply()} disabled={Boolean(busy)} data-testid="team-simple-sync" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-black text-white disabled:opacity-50"><RefreshCw size={16}/> {busy === 'smart-sync' ? 'Prüfe Teamstand …' : 'Jetzt synchronisieren'}</button>
-              <details className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm"><summary className="cursor-pointer font-semibold">Weitere Möglichkeiten bei Problemen</summary><div className="mt-3 flex flex-wrap gap-2">
+      {activeRoom?.teamTeaching && (
+        <section aria-label="Weitere Informationen und Werkzeuge" className="space-y-2">
+          <details data-testid="team-technical-details" className="rounded-xl border border-[var(--border)] bg-[var(--surface2)] p-3">
+            <summary className="min-h-7 cursor-pointer text-xs font-semibold text-[var(--text2)]">
+              Technische Informationen bei Problemen
+            </summary>
+            <div className="mt-3 space-y-1 text-xs text-[var(--text2)]">
+              <p className="font-semibold text-[var(--text)]">Gemeinsamer Teamstand: Version {activeSummary?.revision ?? 'wird geprüft'}</p>
+              <p>{activeSummary?.contentUpdatedAt
+                ? 'Zuletzt inhaltlich geändert am ' + formatTeamDate(activeSummary.contentUpdatedAt) + ' von '
+                  + (activeSummary.members.find(member => member.userId === activeSummary.contentUpdatedBy)?.displayName || 'einer Teamlehrperson')
+                : 'Der genaue Zeitpunkt der letzten Inhaltsänderung ist für diese ältere Teamversion nicht erfasst.'}</p>
+              <p>Dein Gerät: Version {activeRoom.teamTeaching.revision} · zuletzt abgeglichen am {formatTeamDate(activeRoom.teamTeaching.lastSyncedAt)}</p>
+              <p className="font-semibold">{activeRoom.teamTeaching.lastSyncedHash
+                ? classRoomFingerprint(activeRoom) === activeRoom.teamTeaching.lastSyncedHash
+                  ? 'Keine ungesendeten lokalen Inhaltsänderungen erkannt.'
+                  : 'Du hast lokale Änderungen, die noch nicht bestätigt wurden.'
+                : 'Dieses Gerät hat noch keinen bestätigten Teamstand. Senden ist gesperrt.'}</p>
+            </div>
+          </details>
+          {activeRoom.teamTeaching.syncMessage && <p className="px-2 text-xs text-[var(--text2)]">{activeRoom.teamTeaching.syncMessage}</p>}
+          <details data-testid="team-manual-controls" className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm">
+            <summary className="cursor-pointer font-semibold">Weitere Möglichkeiten bei Problemen</summary>
+            <div className="mt-3 flex flex-wrap gap-2">
               <button onClick={showLatestChanges} disabled={Boolean(busy)} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-bold disabled:opacity-50">Änderungen vergleichen</button>
               {activeRoom.teamTeaching.role !== 'viewer' && <button onClick={() => void prepareSafeMerge()} disabled={Boolean(busy) || !activeRoom.teamTeaching.lastSyncedHash} className="inline-flex items-center gap-2 rounded-xl border border-indigo-400 px-3 py-2 text-sm font-bold disabled:opacity-50">Änderungen zusammenführen</button>}
               <button onClick={() => void showHistory()} disabled={Boolean(busy) || historyBusy} aria-expanded={historyVisible} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-bold disabled:opacity-50">{historyVisible ? 'Versionsgeschichte schließen' : 'Versionsgeschichte'}</button>
               <button onClick={pull} disabled={Boolean(busy)} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-bold"><Download size={16}/> Neueste Version laden</button>
               {activeRoom.teamTeaching.role !== 'viewer' && <button onClick={push} disabled={Boolean(busy) || activeRoom.teamTeaching.syncStatus === 'conflict' || !activeRoom.teamTeaching.lastSyncedHash} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-bold disabled:opacity-50"><Upload size={16}/> Änderungen senden</button>}
-              </div></details>
             </div>
-          )}
-        </div>
-      </section>
+          </details>
+        </section>
+      )}
 
       {activeSharedId && mergePreview && (
         <section aria-label="Sicheres Zusammenführen" className="rounded-[1.75rem] border border-indigo-400 bg-[var(--surface)] p-5 space-y-4">

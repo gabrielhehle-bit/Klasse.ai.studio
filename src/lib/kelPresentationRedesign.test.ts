@@ -6,7 +6,7 @@ const source = readFileSync('src/components/KELPresentation.tsx', 'utf8');
 
 test('KEL core presentation starts with conversation flow instead of ranking data', () => {
   assert.match(source, /Schön, dass wir heute gemeinsam hinschauen/);
-  assert.match(source, /Ein Gespräch, keine Datenshow/);
+  assert.match(source, /Gespräch vorbereiten/);
   assert.match(source, /Heute geht es nicht darum, dich mit anderen zu vergleichen/);
   assert.doesNotMatch(source, /overallClassSchnitt|classAvgAttendance|Klasse Ø|Klassen-Ø/);
   assert.doesNotMatch(source, /gesamtSchnitt/);
@@ -38,7 +38,7 @@ test('learning slide respects assessment mode and does not invent a cross-subjec
 
 test('meeting agreement is only persisted by an explicit save action', () => {
   assert.match(source, /const saveAgreement = \(\) =>/);
-  assert.match(source, /Vereinbarung speichern/);
+  assert.match(source, /Gespräch speichern/);
   assert.doesNotMatch(source, /onChange=.*setApp/);
 });
 

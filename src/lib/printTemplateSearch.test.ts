@@ -54,7 +54,8 @@ test('every template selection and current document controls lead to real settin
   assert.match(code, /data-testid="print-selected-template"/);
   assert.match(code, /Angaben einstellen/);
   assert.match(code, /A4-Vorschau ansehen/);
-  assert.match(code, /A4-Vorschau \(verkleinerte Ansicht\)/);
+  assert.match(code, /data-print-preview-frame role="region" aria-label="Druckvorschau"/);
+  assert.match(code, /Angaben bearbeiten/);
   const jumps = code.match(/document\.getElementById\('print-center-configuration'\)\?\.scrollIntoView/g) || [];
   assert.ok(jumps.length >= 3, 'quick access, catalogue selection and step bar should all link to settings');
   assert.match(code, /document\.getElementById\('print-center-preview'\)\?\.scrollIntoView/);

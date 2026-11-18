@@ -10,8 +10,9 @@ test('the default simplified mode hides advanced and support cards as well as ta
   assert.match(settings, /const einfachModus = \(app\.settings as any\)\?\.einfachModus !== false/);
   assert.match(settings, /einfachModus=\{einfachModus\}/);
   assert.match(dashboard, /einfachModus: boolean/);
-  assert.match(dashboard, /TILES\.map\(tile => \{/);
-  assert.match(dashboard, /if \(einfachModus && \(tile\.id === 'support' \|\| tile\.id === 'advanced'\)\) return null/);
+  assert.match(dashboard, /TILES\.filter\(tile => !einfachModus \|\| \(tile\.id !== 'support' && tile\.id !== 'advanced'\)\)/);
+  assert.match(dashboard, /filterClassHubItems\(visibleTiles\.map/);
+  assert.match(dashboard, /matchingTiles\.map\(tile => \{/);
   assert.match(dashboard, /data-testid="settings-simple-mode-footnote"/);
   assert.match(header, /cat\.id !== 'advanced' && cat\.id !== 'support'/);
   assert.match(header, /setEinfachModus\(!einfachModus\)/);

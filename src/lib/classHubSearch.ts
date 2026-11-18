@@ -25,3 +25,17 @@ export function filterClassHubItems<T extends ClassHubSearchable>(
     return words.every(word => searchable.includes(word));
   });
 }
+
+export function findClassHubStudents<T extends { vorname: string; nachname: string }>(
+  students: readonly T[],
+  query: string,
+): T[] {
+  const words = normalizeSearch(query).trim().split(/[\s,]+/).filter(Boolean);
+  if (words.length === 0) return [];
+  return students.filter(student => {
+    const name = normalizeSearch(`${student.vorname} ${student.nachname}`);
+    return words.every(word => name.includes(word));
+  }).sort((a, b) =>
+    a.nachname.localeCompare(b.nachname, 'de-AT') || a.vorname.localeCompare(b.vorname, 'de-AT'),
+  );
+}

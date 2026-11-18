@@ -297,6 +297,10 @@ export interface KELGespraech {
   selbsteinschaetzungKind: Record<string, { wert: 1 | 2 | 3 | 4; kommentar?: string }>;
   einschaetzungLehrperson: Record<string, { wert: 1 | 2 | 3 | 4; kommentar?: string }>;
   elternEindruck: string;
+  kindStimme?: string;
+  gespraechStaerke?: string;
+  vereinbarungUnterstuetzung?: string;
+  vereinbarungErfolgskriterium?: string;
   zieleKind: { id: string; ziel: string; woranErkennbar: string; bisWann: string; fortschritt?: KELGoalProgressEntry[] }[];
   vereinbarungen: string;
   naechsterTermin: string;
@@ -1493,6 +1497,7 @@ export interface AppState {
   retiredClasses?: ClassRoom[];
   activePrintTemplate?: string;
   activePrintStudentId?: string;
+  activePrintKelMeeting?: { classId: string; meetingId: string; semester: string };
   openPrintModalOnLoad?: boolean;
   selectedRoom?: string;
   demoModusAktiv?: boolean;

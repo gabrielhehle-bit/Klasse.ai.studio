@@ -2519,8 +2519,6 @@ html body [data-style] .klassio-cockpit-shell .klassio-whiteboard {
 }
 .klassio-cockpit-shell .klassio-board-toolbox,
 html body [data-style] .klassio-cockpit-shell .klassio-board-toolbox,
-.klassio-cockpit-shell .klassio-student-edge-tab,
-html body [data-style] .klassio-cockpit-shell .klassio-student-edge-tab,
 .klassio-cockpit-shell .klassio-minimized-strip,
 html body [data-style] .klassio-cockpit-shell .klassio-minimized-strip {
   background-color: rgba(255, 255, 255, 0.97) !important;
@@ -2528,13 +2526,6 @@ html body [data-style] .klassio-cockpit-shell .klassio-minimized-strip {
   border-color: #e2e8f0 !important;
   -webkit-text-fill-color: #0f172a !important;
   color-scheme: light;
-}
-.klassio-cockpit-shell .klassio-student-edge-tab {
-  transition: transform 160ms ease, box-shadow 160ms ease;
-}
-.klassio-cockpit-shell .klassio-student-edge-tab:hover {
-  transform: translateY(-50%) translateX(-2px);
-  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.18);
 }
 @media (max-width: 760px) {
   .klassio-cockpit-shell .klassio-dock-row {
@@ -2676,10 +2667,6 @@ html body [data-style] .klassio-widget-library .klassio-widget-primary.bg-succes
   visibility: hidden;
   pointer-events: none;
   transition: opacity 160ms ease, transform 160ms ease, visibility 160ms linear;
-}
-.klassio-cockpit-shell[data-widget-library-open="true"] .klassio-student-edge-tab {
-  opacity: 0.2;
-  pointer-events: none;
 }
 .klassio-cockpit-shell[data-widget-library-open="true"] .klassio-student-sidebar {
   visibility: hidden;

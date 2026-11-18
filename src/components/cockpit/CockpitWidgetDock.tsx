@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { LayoutGrid, PawPrint, Settings2, UsersRound } from 'lucide-react';
+import { LayoutGrid, PawPrint, Settings2 } from 'lucide-react';
 import {
   COCKPIT_QUICKBAR_ITEMS,
   addCockpitQuickbarItem,
@@ -15,8 +15,6 @@ type Props = {
   onReset: () => void;
   onOpenWidget: (id: CockpitQuickbarId) => void;
   onAddWidget: () => void;
-  onToggleSidebar: () => void;
-  sidebarOpen: boolean;
   onToggleMascot: () => void;
   mascotVisible: boolean;
   activeTypes: readonly string[];
@@ -29,8 +27,8 @@ type Props = {
 
 /** The dock only sends commands; it never copies, resets or writes widget layouts. */
 export function CockpitWidgetDock({
-  settings, onChange, onReset, onOpenWidget, onAddWidget, onToggleSidebar,
-  sidebarOpen, onToggleMascot, mascotVisible, activeTypes, minimizedTypes = [], onRestoreMinimized, hasClass,
+  settings, onChange, onReset, onOpenWidget, onAddWidget,
+  onToggleMascot, mascotVisible, activeTypes, minimizedTypes = [], onRestoreMinimized, hasClass,
   reservedRightPx = 0,
 }: Props) {
   const [editing, setEditing] = useState(false);
@@ -219,13 +217,6 @@ export function CockpitWidgetDock({
           className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border text-slate-700 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:opacity-40 ${mascotVisible ? 'border-accent bg-accent-soft text-accent' : 'border-slate-200 bg-white hover:bg-slate-100'}`}>
           <PawPrint className="h-4 w-4" aria-hidden="true" />
           <span className="sr-only">Klassenmaskottchen</span>
-        </button>
-        <button type="button" onClick={onToggleSidebar}
-          aria-label={sidebarOpen ? 'Schülerliste ausblenden' : 'Schülerliste einblenden'}
-          aria-expanded={sidebarOpen} title={sidebarOpen ? 'Schülerliste ausblenden' : 'Schülerliste öffnen'}
-          className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border text-slate-700 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring ${sidebarOpen ? 'border-accent bg-accent-soft text-accent' : 'border-slate-200 bg-white hover:bg-slate-100'}`}>
-          <UsersRound className="h-4 w-4" aria-hidden="true" />
-          <span className="sr-only">Schülerliste</span>
         </button>
         </div>
 

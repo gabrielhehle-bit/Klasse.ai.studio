@@ -63,11 +63,13 @@ const ModalPortal = ({ children }: { children: React.ReactNode }) => {
 interface StudentDossierProps {
   schuelerId: string;
   onBack?: () => void;
+  backLabel?: string;
   onStudentChange?: (id: string) => void;
   /** Optional deep link from class-year report management, no persisted navigation state. */
   initialReportView?: boolean;
   /** Share the identical dossier screen with KEL without copying dossier data. */
   initialTab?: DossierTab;
+  openKelOnEntry?: boolean;
 }
 
 export type MainAreaId = 
@@ -207,7 +209,7 @@ export const getActiveMainArea = (tab: DossierTab): MainAreaId => {
   return 'uebersicht';
 };
 
-export default function StudentDossier({ schuelerId, onBack, onStudentChange, initialReportView = false, initialTab }: StudentDossierProps) {
+export default function StudentDossier({ schuelerId, onBack, backLabel = 'Zur Schülerauswahl', onStudentChange, initialReportView = false, initialTab, openKelOnEntry = false }: StudentDossierProps) {
   const { app, setApp, setPage } = useApp();
   const student = app.schueler.find(s => s.id === schuelerId);
   
@@ -231,7 +233,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
 
   const activeMainArea = getActiveMainArea(activeTab);
 
-  const [presentationModeActive, setPresentationModeActive] = useState<boolean>(false);
+  const [presentationModeActive, setPresentationModeActive] = useState(openKelOnEntry);
   // All dossier tabs read/write the original first bucket as one school year.
   // Do not delete any historical encrypted second-bucket records.
   const sem: '1' | '2' = '1';
@@ -356,7 +358,8 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
               type="button"
               onClick={onBack}
               className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border transition ${app.dossierFocusMode?'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700':'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}
-              title="Zur Schülerauswahl"
+              title={backLabel}
+              aria-label={backLabel}
             >
               <ArrowLeft size={15} />
             </button>

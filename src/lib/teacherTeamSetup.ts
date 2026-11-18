@@ -42,6 +42,8 @@ export function getTeacherTeamNextAction(state: TeacherTeamSetupState): TeacherT
   if (!state.hasConnectedTeam) return state.hasSharedClassReference ? 'reconnect' : 'activate';
   if (state.deviceChecking) return 'checking-device';
   if (!state.serverSummaryLoaded) return 'check-connection';
+  if (state.serverRevision !== undefined && state.localRevision !== undefined
+      && state.serverRevision < state.localRevision) return 'check-connection';
   if (!state.deviceAuthorized) return state.deviceRequestPending ? 'await-device' : 'request-device';
   if (state.teamHasConflict) return 'resolve-conflict';
   if (state.teamRole === 'owner' && state.teamMemberCount !== undefined && state.teamMemberCount < 2) {
@@ -56,4 +58,9 @@ export function getTeacherTeamStepNumber(action: TeacherTeamNextAction): 1 | 2 |
   if (['sign-in', 'choose-class', 'join-invited', 'activate', 'reconnect', 'request-device', 'await-device', 'checking-device', 'check-connection'].includes(action)) return 1;
   if (['add-colleague', 'colleague-first-login'].includes(action)) return 2;
   return 3;
+}
+
+/** Visual reference shared by the class overview and the two-person test. */
+export function getTeamComparisonCode(sharedClassId?: string): string {
+  return (sharedClassId || '').replace(/[^a-z0-9]/gi, '').slice(0, 10).toUpperCase();
 }

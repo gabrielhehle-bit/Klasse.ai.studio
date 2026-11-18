@@ -232,6 +232,31 @@ try {
   if(mobileFormats.length!==10 || mobileFormats.some(r=>r.height<44 || r.width<44 || r.left< -1 || r.right>361)){
     throw new Error('Print-format phone controls are too small or clipped: '+JSON.stringify(mobileFormats));
   }
+  const fittedPaper = `(() => {
+    const frame = document.querySelector('[data-print-preview-frame]');
+    const paper = frame?.querySelector('[data-print-preview-paper]');
+    if (!paper) return false;
+    const box = paper.getBoundingClientRect();
+    const frameBox = frame.getBoundingClientRect();
+    return box.width > 0 && box.left >= frameBox.left && box.right <= frameBox.right && frame.scrollWidth <= frame.clientWidth + 1;
+  })()`;
+  await clickButton(client, 'Hochformat');
+  await clickButton(client, 'Seite einpassen');
+  await waitFor(client, 'portrait preview fits the actual phone frame', fittedPaper);
+  const portraitZoom = await evaluate(client, 'Number(document.querySelector("#print-preview-zoom-slider").value)');
+  await clickButton(client, 'Querformat');
+  await waitFor(client, 'landscape preview fits the phone frame after orientation change',
+    `Number(document.querySelector('#print-preview-zoom-slider').value) < ${portraitZoom} && ${fittedPaper}`);
+  await clickButton(client, '100 % Zoom');
+  await waitFor(client, '100 percent preview scrolls inside its frame only', `(() => {
+    const frame = document.querySelector('[data-print-preview-frame]');
+    return frame.scrollWidth > frame.clientWidth && document.documentElement.scrollWidth <= innerWidth + 1;
+  })()`);
+  await clickButton(client, 'Seite einpassen');
+  await waitFor(client, 'fit removes side scrolling again', fittedPaper);
+  await clickButton(client, 'Angaben bearbeiten');
+  await waitFor(client, 'preview links back to the actual configuration', 'document.activeElement?.id === "print-center-configuration"');
+  await clickButton(client, 'Hochformat');
   await evaluate(client, 'window.scrollTo(0,0)');
   const mobileShot=await client.send('Page.captureScreenshot', {format:'png',captureBeyondViewport:false});
   await fs.writeFile('/tmp/klassio-kel-parent-mobile.png',Buffer.from(mobileShot.data,'base64'));
@@ -258,7 +283,7 @@ try {
     'document.querySelector("#print-preview-zoom-slider")?.value === "1" && document.querySelector("[data-testid=print-preview-zoom-controls] button[aria-pressed=true]")?.textContent.includes("100 % Zoom")');
   await clickButton(client, 'Seite einpassen');
   await waitFor(client, 'fitted print preview selected',
-    'document.querySelector("#print-preview-zoom-slider")?.value === "0.7" && document.querySelector("[data-testid=print-preview-zoom-controls] button[aria-pressed=true]")?.textContent.includes("Seite einpassen")');
+    `document.querySelector('[data-testid=print-preview-zoom-controls] button[aria-pressed=true]')?.textContent.includes('Seite einpassen') && ${fittedPaper}`);
   console.log('PASS A4 preview chooses fit or 100 percent without modifying the printed document');
   // No child's private record should appear until the teacher explicitly
   // chooses the recipient. Printing must be blocked in the empty state.
@@ -393,6 +418,47 @@ try {
   }
   if (pageTexts.some(text => !text.trim())) throw new Error('Unexpected completely blank KEL PDF page');
   console.log('PASS Multi-page A4 KEL PDF preserves full text and signature fields');
+
+  await client.send('Emulation.setEmulatedMedia', { media: 'screen' });
+  await clickSelector(client, '[data-menu-id="kel"]');
+  await waitFor(client, 'KEL child picker', 'Boolean(document.querySelector("[data-kel-shared-dossier-portal]"))');
+  const nextChildId = await evaluate(client,
+    'Array.from(document.querySelectorAll("[data-kel-child]")).map(b=>b.getAttribute("data-kel-child")).find(id=>id!==' + q(sampleStudentId) + ')');
+  if (!nextChildId) throw new Error('A second sample child is required for the new conversation');
+  await clickSelector(client, '[data-kel-child=' + q(nextChildId) + ']');
+  await waitFor(client, 'direct conversation preparation', 'Array.from(document.querySelectorAll("h1")).some(h=>h.textContent==="Gespräch vorbereiten")');
+
+  // A selected subject without a released note or selected learning areas may
+  // still have a reportable overall grade, but must never get an empty slide.
+  const emptySubjectLabel = await evaluate(client,
+    'Array.from(document.querySelectorAll("[data-testid=kel-gradebook-preparation] label")).find(l=>l.textContent.includes(": noch keine Gesamtbewertung"))?.textContent.trim()');
+  if (!emptySubjectLabel) throw new Error('No ungraded sample subject available');
+  const emptySubject = emptySubjectLabel.split(':')[0];
+  await clickCheckbox(client, emptySubjectLabel);
+  await clickButton(client, 'Vorschau ansehen');
+  await waitFor(client, 'child prompt slide available',
+    'Boolean(Array.from(document.querySelectorAll("[aria-label^=Folie]")).find(b=>b.getAttribute("aria-label").includes("So sehen wir es")))');
+  if (await evaluate(client, 'Array.from(document.querySelectorAll("[aria-label^=Folie]")).some(b=>b.getAttribute("aria-label").endsWith(' + q(': ' + emptySubject) + '))')) {
+    throw new Error('A subject without selected conversation material generated a slide');
+  }
+  await clickSelector(client, '[aria-label^="Folie"][aria-label$="So sehen wir es"]');
+  await waitFor(client, 'undocumented child perspective becomes a live prompt',
+    'document.body.innerText.includes("Worauf bist du stolz? Was möchtest du uns zeigen?")');
+  await clickSelector(client, '[aria-label^="Folie"][aria-label$="Meine nächsten Schritte"]');
+  await fillInput(client, 'Was machen wir?', 'Wir spielen zusammen Anlautspiele.');
+  await fillInput(client, 'Wer hilft und wie?', 'Die Lehrperson legt die Karten bereit.');
+  await fillInput(client, 'Woran erkennen wir den Fortschritt?', 'Das Kind nennt die ersten Laute.');
+  await fillInput(client, 'Wann schauen wir wieder darauf?', '25.11.2026');
+  await clickButton(client, 'Gespräch speichern');
+  await waitFor(client, 'conversation saved before printing',
+    'Array.from(document.querySelectorAll("button")).some(b=>b.textContent.trim()==="Elternblatt ansehen"&&!b.disabled)');
+  await clickSelector(client, '[aria-label^="Folie"][aria-label$="Das nehmen wir mit"]');
+  await waitFor(client, 'closing slide shows the saved agreement and follow-up',
+    'document.body.innerText.includes("Wir spielen zusammen Anlautspiele.") && document.body.innerText.includes("25.11.2026")');
+  await clickButton(client, 'Elternblatt ansehen');
+  await waitFor(client, 'same child and agreement copied into the parent sheet',
+    'document.querySelector("#kel-parent-student")?.value===' + q(nextChildId) + ' && document.querySelector("#kel-parent-agreements")?.value.includes("Die Lehrperson legt die Karten bereit.") && document.querySelector("#kel-parent-agreements")?.value.includes("25.11.2026")');
+
 } finally {
   client.close();
 }

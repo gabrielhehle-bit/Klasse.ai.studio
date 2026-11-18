@@ -99,10 +99,10 @@ test('Druckzentrum: Dossier-Druckpfad nutzt sandboxed srcdoc statt document.writ
 
 test('Tischschilder: lesbare Einzelvorschau blättert durch echte Kinder, Sammeldruck bleibt unverändert', () => {
   assert.match(printCenter, /tischPreviewMode, setTischPreviewMode\] = useState<'detail' \| 'bogen'>\('detail'\)/);
-  assert.match(printCenter, /Tischschild · vergrößerte Einzelvorschau/);
+  assert.match(printCenter, /Tischschild · Einzelvorschau/);
   assert.match(printCenter, /Einzelansicht/);
   assert.match(printCenter, /Alle Karten/);
-  assert.match(printCenter, /setPreviewZoom\(0\.85\)/);
+  assert.match(printCenter, /onClick=\{\(\) => setTischPreviewMode\('detail'\)\}/);
   assert.match(printCenter, /Vorheriges Tischschild/);
   assert.match(printCenter, /Nächstes Tischschild/);
   assert.match(printCenter, /const previewList = previewOneCard \? list\.slice\(safeTischPreviewIndex, safeTischPreviewIndex \+ 1\) : list/);

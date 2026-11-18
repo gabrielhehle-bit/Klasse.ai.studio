@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { filterClassHubItems } from './classHubSearch';
+import { filterClassHubItems, findClassHubStudents } from './classHubSearch';
 
 const items = [
   { id: 'sitzplan', title: 'Sitzplan & Gruppen', description: 'Sitzplätze organisieren.', keywords: 'Platztausch Tische' },
@@ -32,6 +32,18 @@ test('Class Hub keeps original visible list for an empty query and returns a rea
   assert.deepEqual(filterClassHubItems(items, ''), items);
   assert.deepEqual(filterClassHubItems(items, '   '), items);
   assert.deepEqual(filterClassHubItems(items, 'nichtspassendes'), []);
+});
+
+test('Class Hub finds names in either order and keeps the roster order intact', () => {
+  const roster = [
+    { id: '1', vorname: 'Émilie', nachname: 'Müller' },
+    { id: '2', vorname: 'Anna', nachname: 'Müller' },
+  ];
+  assert.deepEqual(findClassHubStudents(roster, 'MULLER, emilie').map(student => student.id), ['1']);
+  assert.deepEqual(findClassHubStudents(roster, 'müll').map(student => student.id), ['2', '1']);
+  assert.deepEqual(findClassHubStudents(roster, ' '), []);
+  assert.deepEqual(findClassHubStudents([], 'anna'), []);
+  assert.deepEqual(roster.map(student => student.id), ['1', '2']);
 });
 
 test('Class Hub filters only visible options and never bypasses class-teacher permissions', () => {

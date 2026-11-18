@@ -397,6 +397,24 @@ async function main() {
     await evaluate(client, `Array.from(document.querySelectorAll('#klassio-mobile-quick-mode .kqm-sheet[data-sheet="more"] .kqm-action')).find(button=>button.querySelector('strong')?.textContent==='Klassenmaskottchen').click()`);
     await waitFor(client, 'Mimi selection survives leaving and returning',
       `document.querySelector('[data-mobile-mascot-settings] button[aria-label="Katze Mimi auswählen"]')?.getAttribute('aria-pressed')==='true'`);
+    await evaluate(client, `document.querySelector('button[aria-label="Zurück zur Übersicht"]').click()`);
+    await waitFor(client, 'settings search is tappable on a phone', `(() => {
+      const search = document.querySelector('#settings-search');
+      if (!search) return false;
+      const rect = search.getBoundingClientRect();
+      return rect.height >= 43.5 && rect.left >= 0 && rect.right <= innerWidth + 1;
+    })()`);
+    await evaluate(client, `(() => {
+      const search = document.querySelector('#settings-search');
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(search, 'schriftgrosse');
+      search.dispatchEvent(new Event('input', { bubbles: true }));
+    })()`);
+    await waitFor(client, 'settings search finds display with unaccented German input', `(() => {
+      const cards = document.querySelectorAll('[data-settings-destination]');
+      return cards.length === 1 && cards[0].dataset.settingsDestination === 'display';
+    })()`);
+    await evaluate(client, `document.querySelector('[data-settings-destination="display"]').click()`);
+    await waitFor(client, 'settings search result opens the actual display section', `document.querySelector('#klassio-settings-mobile-category')?.value === 'display' && Boolean(document.querySelector('[data-mobile-mascot-settings]'))`);
     await saveScreenshot(client);
     console.log('KLASSIO mobile attendance and mascot settings browser paths passed.');
 
