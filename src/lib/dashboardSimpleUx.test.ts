@@ -51,11 +51,11 @@ test('compact Heute dashboard separates important items from personal tasks', ()
   const sectionIndex = source.indexOf('aria-label="Wichtig und offen"');
   const importantIndex = source.indexOf('Heute wichtig', sectionIndex);
   const personalIndex = source.indexOf('Meine offenen Aufgaben', sectionIndex);
-  const attendanceIndex = source.indexOf('<Users size={15} />', sectionIndex);
+  const attendanceIndex = source.indexOf('data-dashboard-attendance-status');
   assert.ok(sectionIndex >= 0, 'Wichtig-Sektion fehlt');
   assert.ok(importantIndex >= 0, 'Heute-wichtig-Bereich fehlt');
   assert.ok(personalIndex >= 0, 'Aufgaben-Bereich fehlt');
-  assert.ok(attendanceIndex > personalIndex, 'Anwesenheit darf die Aufgabenbereiche nicht überdecken');
+  assert.ok(attendanceIndex >= 0 && attendanceIndex < sectionIndex, 'Anwesenheit muss vor den Aufgaben stehen');
   assert.match(source, /item\.category/);
   assert.match(source, /p\.nextLesson/);
 });

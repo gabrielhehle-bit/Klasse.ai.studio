@@ -18,12 +18,12 @@ import {
   formatLocalDateKey,
 } from "../lib/utils";
 import { getFerien } from "../lib/ferienOesterreich";
-import { getDashboardDisplayDate, getDashboardFreeDayMessage } from "../lib/dashboardDayContext";
+import { getDashboardDisplayDate, getDashboardLessonFocus, getDashboardFreeDayMessage } from "../lib/dashboardDayContext";
 import type { Bundesland } from "../lib/ferienOesterreich";
 import { VM_ZEITEN, STUNDEN_INFO, FAECHER_ALLE, AESTHETIC_THEMES, DASHBOARD_CURATED_FONTS, DASHBOARD_FONT_SIZES, MAX_LESSON_SLOTS, LESSON_SLOT_NUMBERS } from "../constants";
 import { berechne } from "../lib/GradeUtils";
 import { isDiagnosticAlert } from "../lib/diagnosticData";
-import { isAttendanceCompleteForDay, isAttendanceRequiredForDay } from "../lib/dashboardAttendance";
+import { countStudentsWithOpenAttendanceForDay, isAttendanceRequiredForDay } from "../lib/dashboardAttendance";
 import { QRCodeCanvas } from "qrcode.react";
 import {
   Users,
@@ -142,7 +142,7 @@ import { memo } from "react";
 import DashboardKlassenglasWidget from "./DashboardKlassenglasWidget";
 import FlowerPuzzleWidget from "./FlowerPuzzleWidget";
 import { DashboardInteractionWidget } from "./DashboardInteractionWidget";
-import DashboardTodayOverview, { DashboardDayMode } from "./DashboardTodayOverview";
+import DashboardTodayOverview, { DashboardDayMode, type LessonSummary } from "./DashboardTodayOverview";
 import { useLehrerzimmerUnread } from "../hooks/useLehrerzimmerUnread";
 
 // Memoized widgets
@@ -2222,8 +2222,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
         app?.calendarOverrides?.[formatLocalDateKey(currentTime)] as 'school' | 'free' | undefined,
       )
     : null;
-  const weekDiff = getKW(scheduleDatum) - getKW(heute);
-  const kw = (app?.currentKW || getKW(heute)) + weekDiff;
+  const kw = getKW(scheduleDatum);
   const tagName = getTodayName(scheduleDatum);
 
   const specialEventsForDay = React.useMemo(() => {
@@ -2645,8 +2644,6 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
   };
 
   const nextHourData = getHourData(displayHourIdx);
-  const currentHourData = getHourData(currentIdx);
-  const upcomingHourData = getHourData(nextIdx);
 
   const dateStr = heute.toDateString();
   let hash = 0;
@@ -2826,21 +2823,10 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     });
   }, [app?.anwesenheit, app?.schueler, displayedDateKey]);
 
-  const attendanceRecordedToday = React.useMemo(() => {
-    if (!attendanceRequiredToday) return false;
-    return isAttendanceCompleteForDay(
-      app?.schueler || [],
-      app?.anwesenheit,
-      displayedDateKey,
-      displayedActiveHours,
-    );
-  }, [
-    app?.anwesenheit,
-    app?.schueler,
-    attendanceRequiredToday,
-    displayedDateKey,
-    displayedActiveHours,
-  ]);
+  const openAttendanceCount = attendanceRequiredToday
+    ? countStudentsWithOpenAttendanceForDay(app.schueler || [], app.anwesenheit, displayedDateKey, displayedActiveHours)
+    : 0;
+  const attendanceRecordedToday = attendanceRequiredToday && openAttendanceCount === 0;
 
   const [simpleDashboardMode, setSimpleDashboardMode] = useState<boolean>(() => {
     const saved = localStorage.getItem("dashboard_simple_mode");
@@ -2852,7 +2838,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
   }, [simpleDashboardMode]);
 
   const todayLessonsList = React.useMemo(() => {
-    const list: any[] = [];
+    const list: LessonSummary[] = [];
     const tagPlan = tagName ? (app?.wochenplanung?.[kw]?.[tagName] || {}) : {};
     const stammItems = app?.stammplan?.[tagName] || {};
     for (let id = 1; id <= MAX_LESSON_SLOTS; id++) {
@@ -2862,14 +2848,16 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
           id,
           hourNum: id,
           fach,
-          zeit: (app.stundenZeiten || STUNDEN_INFO)[id] || "",
+          zeit: app.stundenZeiten?.[id] ?? STUNDEN_INFO[id] ?? "",
           thema: tagPlan[id - 1]?.thema || "",
-          isCurrent: dashboardDayLabel === 'Heute' && currentIdx === (id - 1),
         });
       }
     }
     return list;
-  }, [app?.wochenplanung, app?.stammplan, kw, tagName, currentIdx, dashboardDayLabel, app?.stundenZeiten]);
+  }, [app?.wochenplanung, app?.stammplan, kw, tagName, app?.stundenZeiten]);
+  const lessonFocus = dashboardDayLabel === 'Heute' && !dashboardFreeDay
+    ? getDashboardLessonFocus(todayLessonsList, heute.getHours() * 60 + heute.getMinutes())
+    : { current: null, next: null };
 
   const openTasksCount = React.useMemo(() => {
     const denkzettel = (app?.denkzettelNotes || []).filter((n: any) => !n.completed).length;
@@ -4726,12 +4714,13 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
         presentCount={Math.max(0, (app?.schueler || []).length - missingToday.length)}
         attendanceRecorded={attendanceRecordedToday}
         attendanceRequired={attendanceRequiredToday}
+        openAttendanceCount={openAttendanceCount}
 
         todayLessonCount={todayLessonsList.length}
-        currentLesson={currentHourData}
-        nextLesson={upcomingHourData}
+        currentLesson={lessonFocus.current}
+        nextLesson={lessonFocus.next}
         todayEventsCount={specialEventsForDay.length}
-        todayLessonsList={todayLessonsList}
+        todayLessonsList={todayLessonsList.map(lesson => ({ ...lesson, isCurrent: lesson === lessonFocus.current }))}
 
         openTasksCount={openTasksCount}
         openCollectionsCount={openCollectionsCount}

@@ -17,7 +17,7 @@ test('Heute redesign retains the established lesson / task / attendance / quick-
 test('daily navigation, attendance and privacy remain unchanged without state writes', () => {
   assert.match(today, /p\.totalStudents === 0/);
   assert.match(today, /p\.attendanceRequired && !p\.attendanceRecorded/);
-  assert.match(today, /onClick=\{\(\) => p\.onNavigate\(primaryTarget\)\}/);
+  assert.match(today, /onClick=\{\(\) => p\.onNavigate\(lessonAction\)\}/);
   for (const target of ['profil', 'wochenplanung', 'verhalten', 'orga']) {
     assert.ok(today.includes(`p.onNavigate('${target}')`), 'Missing navigation target: ' + target);
   }
@@ -39,14 +39,15 @@ test('time column is readable on narrow screens, primary actions remain touch-si
   assert.match(today, /sm:grid-cols-\[6rem_minmax\(0,1fr\)\]/);
   assert.match(today, /min-h-11 w-full items-center justify-center/);
   assert.match(today, /aria-expanded=\{showAllTasks\}/);
-  assert.match(today, /disabled=\{isPreview\}/);
+  assert.match(today, /!isPreview && \(p\.attendanceRequired \|\| !p\.totalStudents\)/);
   assert.match(today, /focus-visible:outline/);
 });
 
-test('screenshot review: avoids duplicated attendance call to action', () => {
-  assert.match(today, /primaryTarget === 'anwesenheit' && !isPreview/);
-  assert.match(today, /data-dashboard-attendance-status role="status"/);
-  assert.match(today, /Anwesenheit \$\{dayLabel\}: \$\{attendanceValue\}/);
+test('Heute displays attendance before secondary sections with a single dedicated action', () => {
+  const priority = today.indexOf('data-dashboard-day-priority');
+  const attendance = today.indexOf('data-dashboard-attendance-status');
+  assert.ok(priority >= 0 && attendance > priority && attendance < today.indexOf('aria-label="Heutiger Unterricht"'));
+  assert.equal(today.match(/data-dashboard-attendance-action/g)?.length, 1);
   assert.match(today, /onClick=\{\(\) => p\.onNavigate\(p\.totalStudents \? 'anwesenheit' : 'schueler'\)\}/);
 });
 

@@ -91,6 +91,7 @@ export interface DashboardTodayOverviewProps {
   presentCount: number;
   attendanceRecorded: boolean;
   attendanceRequired: boolean;
+  openAttendanceCount?: number;
 
   // Mein Tag Card
   todayLessonCount: number;
