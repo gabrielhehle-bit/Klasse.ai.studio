@@ -4176,7 +4176,10 @@ async function main() {
             await evaluate(client,`(() => {const s=document.querySelector('#gradebook-active-subject');s.value='Mathematik';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
             await clickSelector(client,'button[aria-label='+q('Bewertungen für '+title+' eintragen')+']');
             await waitFor(client,'LZK exemption survives encrypted reload',`document.querySelector(${q(field(0))})?.disabled`);
-            await waitFor(client,'quick entry starts at the first participating child',`document.activeElement===document.querySelector(${q(field(1))})`);
+            // The excluded field is disabled, and the next child already has a
+            // valid zero. Quick entry resumes at the first missing result.
+            const firstBlank = `Array.from(document.querySelectorAll('[data-gradebook-column-entry] input[data-col]:not(:disabled)')).find(input => input.dataset.col === ${q(col)} && input.getClientRects().length > 0 && input.value.trim() === '')`;
+            await waitFor(client,'quick entry starts at the first unfilled participating child',`(() => { const target = ${firstBlank}; return !!target && document.activeElement === target; })()`);
             await waitFor(client,'SPF class-average choice survives encrypted reload',`document.querySelector(${q(zeroChoice)}).checked&&document.querySelector(${q(field(1))}).value==='0'`);
             await clickGradebookOption(participation);
             await waitFor(client,'restoring participation restores full column coverage', coverageMatches(afterSecondEntry, beforeColumnCoverage.expected));

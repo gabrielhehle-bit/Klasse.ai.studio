@@ -2,7 +2,7 @@ import type { SensitivityLevel } from './noisemeterAlgorithm';
 /** Class-local, purely teacher-controlled mascot. Contains no student data or grades. */
 export type ClassMascotKind = 'otter' | 'dog' | 'cat' | 'elf';
 export type ClassMascotMood = 'happy' | 'calm' | 'sleepy' | 'proud';
-export type ClassMascotAction = 'praise' | 'calm' | 'encourage';
+export type ClassMascotAction = 'praise' | 'calm' | 'encourage' | 'greet' | 'move' | 'ready';
 export type ClassMascotAccessory = 'none' | 'scarf' | 'glasses' | 'star';
 export type ClassMascotSeason = 'none' | 'spring' | 'summer' | 'autumn' | 'winter';
 /** Local UI signal: a brief surprise is never persisted or broadcast via account sync. */
@@ -10,9 +10,38 @@ export const MASCOT_SURPRISE_EVENT = 'klassio:mascot-surprise';
 /** Classroom ritual gestures are intentionally ephemeral; teacher-selected mood still syncs. */
 export const MASCOT_RITUAL_EVENT = 'klassio:mascot-class-ritual';
 
+export const MASCOT_RITUALS = [
+  { action: 'praise', icon: '⭐', label: 'Geschafft!', title: 'Gemeinsamen Erfolg feiern' },
+  { action: 'calm', icon: '🌿', label: 'Ruhepause', title: 'Ruhige Haltung zeigen' },
+  { action: 'encourage', icon: '💛', label: 'Mut machen', title: 'Freundliche Haltung zeigen' },
+  { action: 'greet', icon: '👋', label: 'Klasse begrüßen', title: 'Guten Morgen sagen' },
+  { action: 'move', icon: '🙌', label: 'Bewegungspause', title: 'Drei kurze Bewegungen zum Mitmachen' },
+  { action: 'ready', icon: '✏️', label: 'Arbeitsstart', title: 'Die Klasse in die Arbeitsphase begleiten' },
+] as const satisfies ReadonlyArray<{ action: ClassMascotAction; icon: string; label: string; title: string }>;
+
 export function isClassMascotAction(value: unknown): value is ClassMascotAction {
-  return value === 'praise' || value === 'calm' || value === 'encourage';
+  return MASCOT_RITUALS.some(ritual => ritual.action === value);
 }
+
+interface MascotClassroomCue {
+  text: string;
+  durationMs: number;
+}
+
+/** Cues are transient. These actions never change a class's saved mascot mood or stars. */
+export const MASCOT_CLASSROOM_CUES: Partial<Record<ClassMascotAction, readonly MascotClassroomCue[]>> = {
+  greet: [{ text: 'Guten Morgen, liebe Klasse!', durationMs: 7000 }],
+  move: [
+    { text: 'Streckt die Arme nach oben.', durationMs: 8000 },
+    { text: 'Lasst die Schultern kreisen.', durationMs: 8000 },
+    { text: 'Schüttelt die Hände aus.', durationMs: 8000 },
+  ],
+  ready: [
+    { text: 'Schau auf den Arbeitsauftrag.', durationMs: 5000 },
+    { text: 'Leg dein Material bereit.', durationMs: 7000 },
+    { text: 'Beginne mit der ersten Aufgabe.', durationMs: 5000 },
+  ],
+};
 
 export interface ClassMascotState {
   version: 1;

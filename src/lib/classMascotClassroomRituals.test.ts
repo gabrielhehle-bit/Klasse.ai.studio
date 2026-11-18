@@ -7,14 +7,14 @@ import ClassMascotArtwork from '../components/cockpit/ClassMascotArtwork';
 import ClassMascotWidget from '../components/cockpit/ClassMascotWidget';
 import { initialAppState } from './appState';
 import {
-  DEFAULT_CLASS_MASCOT, isClassMascotAction, MASCOT_RITUAL_EVENT,
+  DEFAULT_CLASS_MASCOT, isClassMascotAction, MASCOT_CLASSROOM_CUES, MASCOT_RITUAL_EVENT,
   reactToMascotAction, type ClassMascotAction, type ClassMascotKind,
 } from './classMascot';
 
 const kinds: ClassMascotKind[] = ['otter', 'dog', 'cat', 'elf'];
-const actions: ClassMascotAction[] = ['praise', 'calm', 'encourage'];
+const actions: ClassMascotAction[] = ['praise', 'calm', 'encourage', 'greet', 'move', 'ready'];
 
-test('Every KLASSIO mascot performs three short, teacher-controlled classroom rituals as transparent SVG', () => {
+test('Every KLASSIO mascot performs teacher-controlled classroom rituals as transparent SVG', () => {
   const artwork = readFileSync('src/components/cockpit/ClassMascotArtwork.tsx', 'utf8');
   const css = readFileSync('src/index.css', 'utf8');
   for (const kind of kinds) {
@@ -50,7 +50,7 @@ test('Teacher menu triggers local gesture while only conscious mood changes the 
   assert.match(widget, /window\.removeEventListener\(MASCOT_RITUAL_EVENT, triggerRitual\)/);
   assert.match(widget, /if \(!isClassMascotAction\(action\)\) return;/);
   assert.match(widget, /setRitualAction\(null\)/);
-  assert.match(widget, /\[app\.activeClassId, state\.quietMode\]/);
+  assert.match(widget, /\[app\.activeClassId, state\.quietMode, stopRitual\]/);
   assert.match(settings, /window\.dispatchEvent\(new CustomEvent\(MASCOT_RITUAL_EVENT, \{ detail: ritual\.action \}\)\)/);
   assert.match(settings, /classMascot: reactToMascotAction\(normalizeClassMascot\(prev\.classMascot\), ritual\.action\)/);
   assert.doesNotMatch(widget, /setApp\(|localStorage|sessionStorage|fetch\(|Audio\(|speechSynthesis/);
@@ -64,4 +64,13 @@ test('Teacher menu triggers local gesture while only conscious mood changes the 
   assert.equal(reactToMascotAction(DEFAULT_CLASS_MASCOT, 'calm').mood, 'calm');
   assert.equal(reactToMascotAction(DEFAULT_CLASS_MASCOT, 'encourage').mood, 'happy');
   assert.ok(!('ritualAction' in praised) && !('ritualTick' in praised));
+});
+
+test('Guided classroom rituals carry their own timed cues and do not change saved mascot state', () => {
+  for (const [action, steps, totalMs] of [['greet', 1, 7000], ['move', 3, 24000], ['ready', 3, 17000]] as const) {
+    const cues = MASCOT_CLASSROOM_CUES[action];
+    assert.equal(cues?.length, steps);
+    assert.equal(cues?.reduce((total, cue) => total + cue.durationMs, 0), totalMs);
+    assert.strictEqual(reactToMascotAction(DEFAULT_CLASS_MASCOT, action), DEFAULT_CLASS_MASCOT);
+  }
 });

@@ -1342,7 +1342,7 @@ html body .cockpit-free-mascot .class-mascot-details .text-teal-950 { color: #13
 }
 
 /* Class rituals are manually triggered by the teacher. The character stays at its
-   saved cockpit position; each gesture ends on its own without a new overlay. */
+   saved cockpit position and each gesture ends on its own. */
 @keyframes class-mascot-ritual-cheer {
   0%, 100% { transform: translateY(0) scale(1); }
   19%, 55% { transform: translateY(-5px) scale(1.035, .98); }
@@ -1375,7 +1375,14 @@ html body .cockpit-free-mascot .class-mascot-details .text-teal-950 { color: #13
   transform-origin: center center;
   animation: class-mascot-ritual-breathe 5.2s ease-in-out 1;
 }
-.class-mascot-ritual-encourage { animation-name: class-mascot-ritual-courage; }
+.class-mascot-ritual-encourage,
+.class-mascot-ritual-greet { animation-name: class-mascot-ritual-courage; }
+.class-mascot-ritual-move {
+  animation-name: class-mascot-ritual-cheer;
+  animation-duration: 2.4s;
+  animation-iteration-count: 2;
+}
+.class-mascot-ritual-ready { animation-name: class-mascot-ritual-breathe; }
 .class-mascot-ritual-accent {
   transform-box: fill-box;
   transform-origin: center;

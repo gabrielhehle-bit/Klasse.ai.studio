@@ -224,6 +224,45 @@ async function main() {
     const subjectAfter=await evaluate(client,`document.querySelector('.klassio-student-sidebar [role="listitem"] [aria-label$="Pluspunkte"]')?.textContent`);
     if(subjectBefore!==subjectAfter)throw Error('Subject award not undone');
 
+    await clickLabel(client, 'Klassenmaskottchen einblenden');
+    const mascot = `document.querySelector('[data-widget-type="pet"]')`;
+    await waitFor(client, 'class mascot appears', `Boolean(${mascot}?.querySelector('.class-mascot-character'))`);
+    const openMascotMenu = () => evaluate(client, `${mascot}.querySelector('.mascot-quick-actions .cockpit-widget-menu-trigger').click()`);
+    const mascotQuietButton = `${mascot}.querySelector('[role="menuitemcheckbox"]')`;
+    const mascotPraiseButton = `Array.from(${mascot}.querySelectorAll('[role="menuitem"]')).find(button => button.textContent.includes('Geschafft!'))`;
+    await evaluate(client, `${mascot}.querySelector('.class-mascot-character').focus()`);
+    await openMascotMenu();
+    await waitFor(client, 'quick mascot actions are visible', `${mascotQuietButton}?.getBoundingClientRect().width > 0 && Boolean(${mascotPraiseButton})`);
+    await evaluate(client, `${mascotPraiseButton}.click()`);
+    await waitFor(client, 'praise from board menu plays the ritual', `Boolean(${mascot}.querySelector('[data-mascot-ritual="praise"]'))`);
+    await openMascotMenu();
+    await evaluate(client, `${mascotQuietButton}.click()`);
+    await openMascotMenu();
+    await waitFor(client, 'quiet mode disables rituals immediately', `${mascotQuietButton}?.getAttribute('aria-checked') === 'true' && ${mascotPraiseButton}?.disabled`);
+    await evaluate(client, `${mascotQuietButton}.click()`);
+    await openMascotMenu();
+    await waitFor(client, 'quiet mode can be turned off on the board', `${mascotQuietButton}?.getAttribute('aria-checked') === 'false' && !${mascotPraiseButton}?.disabled`);
+    const playMascotAction = label => evaluate(client,
+      `Array.from(${mascot}.querySelectorAll('[role="menuitem"]')).find(button => button.textContent.includes(${q(label)})).click()`);
+    const mascotCue = action => `${mascot}.querySelector('[data-mascot-cue="${action}"]')`;
+    await playMascotAction('Klasse begrüßen');
+    await waitFor(client, 'greeting cue appears on the board', `${mascotCue('greet')}?.textContent.includes('Guten Morgen')`);
+    await openMascotMenu();
+    await playMascotAction('Bewegungspause');
+    await waitFor(client, 'movement replaces greeting with the first exercise', `!${mascotCue('greet')} && ${mascotCue('move')}?.textContent.includes('1 von 3')`);
+    await waitFor(client, 'movement advances to the next exercise', `${mascotCue('move')}?.textContent.includes('2 von 3') && ${mascotCue('move')}?.textContent.includes('Schultern')`, 13000);
+    await evaluate(client, `${mascotCue('move')}.querySelector('[aria-label="Ritual beenden"]').click()`);
+    await waitFor(client, 'movement can be stopped from the board', `!${mascotCue('move')}`);
+    await openMascotMenu();
+    await playMascotAction('Arbeitsstart');
+    await waitFor(client, 'work routine starts with the assignment', `${mascotCue('ready')}?.textContent.includes('Arbeitsauftrag')`);
+    await openMascotMenu();
+    await evaluate(client, `${mascotQuietButton}.click()`);
+    await waitFor(client, 'quiet mode clears an active cue', `!${mascotCue('ready')}`);
+    await openMascotMenu();
+    await evaluate(client, `${mascotQuietButton}.click()`);
+    await clickLabel(client, 'Klassenmaskottchen ausblenden');
+
     console.log('✓ Cockpit visual QA passed for '+WIDTH+'×'+HEIGHT+'. Board primary, students restorable, award modes distinct.');
   } catch(error) {
     try {await screenshot(client,'FAIL');}catch{}

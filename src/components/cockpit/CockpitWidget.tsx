@@ -1,7 +1,7 @@
 import { resizeWidgetRect, type WidgetResizeDirection } from '../../lib/widgetResize';
 import React, { useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { normalizeClassMascot } from "../../lib/classMascot";
+import { MASCOT_CLASSROOM_CUES, MASCOT_RITUAL_EVENT, MASCOT_RITUALS, normalizeClassMascot, reactToMascotAction, type ClassMascotAction } from "../../lib/classMascot";
 import { X, Settings, PenTool, SlidersHorizontal, Check, Maximize2, Minimize2, LockKeyhole, MoreHorizontal, Rocket, Minus } from "lucide-react";
 import { CockpitWidgetConfig } from "../../types";
 import { useApp } from "../../context/AppContext";
@@ -169,7 +169,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   isMinimized = false,
   layoutLocked = false,
 }) => {
-  const { app, calculateWidgetFontSize } = useApp();
+  const { app, setApp, calculateWidgetFontSize } = useApp();
   const isDirect = !!widget.settings?.isDirectMode;
   const isFreeMascot = widget.type === "pet" && !isDirect;
   const activeStageRef = isFreeMascot && mascotStageRef ? mascotStageRef : stageRef;
@@ -499,7 +499,8 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   const minHPercent = stageSize.height > 0 ? Math.min(100, (safeMinSize.minH / stageSize.height) * 100) : 0;
   // A freestanding mascot uses the board stage, not an oversized widget
   // rectangle elsewhere in the cockpit. x/y stay board-local and persistent.
-  const mascotSize = normalizeClassMascot(app.classMascot).displaySize || 220;
+  const mascot = normalizeClassMascot(app.classMascot);
+  const mascotSize = mascot.displaySize || 220;
   const mascotPixels = Math.max(1, Math.min(mascotSize, stageSize.width || mascotSize, stageSize.height || mascotSize));
   const mascotWPercent = stageSize.width > 0 ? (mascotPixels / stageSize.width) * 100 : 25;
   const mascotHPercent = stageSize.height > 0 ? (mascotPixels / stageSize.height) * 100 : 25;
@@ -649,6 +650,34 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     }
   };
 
+  const mascotToolbarTop = stageSize.height * renderedY / 100;
+  const mascotMenuOpensUp = mascotToolbarTop > (stageSize.height - 44) / 2;
+  const mascotMenuSpace = mascotMenuOpensUp ? mascotToolbarTop : stageSize.height - mascotToolbarTop - 44;
+  const mascotActionClass = "flex min-h-11 w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100 focus-visible:outline focus-visible:outline-accent disabled:opacity-50 dark:hover:bg-white/10";
+
+  function closeMascotActions() {
+    setShowWidgetMenu(false);
+    widgetMenuAreaRef.current?.querySelector<HTMLButtonElement>('.cockpit-widget-menu-trigger')?.focus();
+  }
+
+  function playMascotRitual(action: ClassMascotAction) {
+    if (mascot.quietMode) return;
+    if (!MASCOT_CLASSROOM_CUES[action]) setApp(previous => ({
+      ...previous,
+      classMascot: reactToMascotAction(normalizeClassMascot(previous.classMascot), action),
+    }));
+    window.dispatchEvent(new CustomEvent(MASCOT_RITUAL_EVENT, { detail: action }));
+    closeMascotActions();
+  }
+
+  function toggleMascotQuiet() {
+    setApp(previous => {
+      const current = normalizeClassMascot(previous.classMascot);
+      return { ...previous, classMascot: { ...current, quietMode: !current.quietMode } };
+    });
+    closeMascotActions();
+  }
+
   const widgetNode = (
     <div
       ref={widgetRef}
@@ -790,7 +819,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
         </div>
 
         {/* Compact widget menu: editing stays inside the widget without a wide button bar. */}
-        <div ref={widgetMenuAreaRef} className="relative flex items-center gap-1.5 shrink-0 ml-auto pointer-events-auto">
+        <div ref={isFreeMascot ? undefined : widgetMenuAreaRef} className="relative flex items-center gap-1.5 shrink-0 ml-auto pointer-events-auto">
           {headerExtra}
 
           <button
@@ -817,7 +846,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
             <MoreHorizontal size={16} strokeWidth={2.5} />
           </button>
 
-          {showWidgetMenu && (
+          {showWidgetMenu && !isFreeMascot && (
             <div
               onPointerDown={(e) => e.stopPropagation()}
               role="menu"
@@ -1057,6 +1086,38 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
           {children}
         </div>
       </div>
+
+      {isFreeMascot && (
+        <div ref={widgetMenuAreaRef}
+          className={`mascot-quick-actions absolute right-0 top-0 z-50 ${isFocused || showWidgetMenu ? "visible pointer-events-auto" : "invisible pointer-events-none group-hover:visible group-hover:pointer-events-auto group-focus-within:visible group-focus-within:pointer-events-auto"}`}>
+          <button type="button" aria-label="Klassenrituale und Tafelruhe" aria-expanded={showWidgetMenu} aria-haspopup="menu"
+            className="cockpit-widget-menu-trigger grid h-11 w-11 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+            onClick={event => { event.stopPropagation(); setShowWidgetMenu(open => !open); }}>
+            <MoreHorizontal size={20} aria-hidden="true" />
+          </button>
+          {showWidgetMenu && (
+            <div role="menu" aria-label="Klassenrituale und Tafelruhe"
+              style={{ maxHeight: stageSize.height > 0 ? Math.max(44, mascotMenuSpace - 8) : "45dvh" }}
+              className={`absolute w-56 max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-1.5 text-slate-800 shadow-xl dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 ${mascotMenuOpensUp ? "bottom-full mb-1" : "top-full mt-1"} ${renderedX < 50 ? "left-0" : "right-0"}`}>
+              <button type="button" role="menuitemcheckbox" aria-checked={mascot.quietMode === true}
+                className={mascotActionClass}
+                onClick={event => { event.stopPropagation(); toggleMascotQuiet(); }}>
+                <span aria-hidden="true">🌙</span>
+                <span className="flex-1">Tafelruhe</span>
+                <span aria-hidden="true" className="text-xs">{mascot.quietMode ? "Ein" : "Aus"}</span>
+              </button>
+              {MASCOT_RITUALS.map(ritual => (
+                <button key={ritual.action} type="button" role="menuitem" title={ritual.title}
+                  disabled={mascot.quietMode} className={mascotActionClass}
+                  onClick={event => { event.stopPropagation(); playMascotRitual(ritual.action); }}>
+                  <span aria-hidden="true">{ritual.icon}</span>
+                  {ritual.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* All frame edges/corners resize without covering the toolbar controls. */}
       {!layoutLocked && !isDirect && !isMaximized && !isFreeMascot && (
