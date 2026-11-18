@@ -224,6 +224,26 @@ async function main() {
     const subjectAfter=await evaluate(client,`document.querySelector('.klassio-student-sidebar [role="listitem"] [aria-label$="Pluspunkte"]')?.textContent`);
     if(subjectBefore!==subjectAfter)throw Error('Subject award not undone');
 
+    await clickLabel(client, 'Klassenmaskottchen einblenden');
+    const mascot = `document.querySelector('[data-widget-type="pet"]')`;
+    await waitFor(client, 'class mascot appears', `Boolean(${mascot}?.querySelector('.class-mascot-character'))`);
+    const openMascotMenu = () => evaluate(client, `${mascot}.querySelector('.cockpit-widget-menu-trigger').click()`);
+    const mascotQuietButton = `${mascot}.querySelector('[role="menuitemcheckbox"]')`;
+    const mascotPraiseButton = `Array.from(${mascot}.querySelectorAll('[role="menuitem"]')).find(button => button.textContent.includes('Geschafft!'))`;
+    await evaluate(client, `${mascot}.querySelector('.class-mascot-character').focus()`);
+    await openMascotMenu();
+    await waitFor(client, 'quick mascot actions are visible', `${mascotQuietButton}?.getBoundingClientRect().width > 0 && Boolean(${mascotPraiseButton})`);
+    await evaluate(client, `${mascotPraiseButton}.click()`);
+    await waitFor(client, 'praise from board menu plays the ritual', `Boolean(${mascot}.querySelector('[data-mascot-ritual="praise"]'))`);
+    await openMascotMenu();
+    await evaluate(client, `${mascotQuietButton}.click()`);
+    await openMascotMenu();
+    await waitFor(client, 'quiet mode disables rituals immediately', `${mascotQuietButton}?.getAttribute('aria-checked') === 'true' && ${mascotPraiseButton}?.disabled`);
+    await evaluate(client, `${mascotQuietButton}.click()`);
+    await openMascotMenu();
+    await waitFor(client, 'quiet mode can be turned off on the board', `${mascotQuietButton}?.getAttribute('aria-checked') === 'false' && !${mascotPraiseButton}?.disabled`);
+    await clickLabel(client, 'Klassenmaskottchen ausblenden');
+
     console.log('✓ Cockpit visual QA passed for '+WIDTH+'×'+HEIGHT+'. Board primary, students restorable, award modes distinct.');
   } catch(error) {
     try {await screenshot(client,'FAIL');}catch{}

@@ -10,6 +10,12 @@ export const MASCOT_SURPRISE_EVENT = 'klassio:mascot-surprise';
 /** Classroom ritual gestures are intentionally ephemeral; teacher-selected mood still syncs. */
 export const MASCOT_RITUAL_EVENT = 'klassio:mascot-class-ritual';
 
+export const MASCOT_RITUALS = [
+  { action: 'praise', icon: '⭐', label: 'Geschafft!', title: 'Gemeinsamen Erfolg feiern' },
+  { action: 'calm', icon: '🌿', label: 'Ruhepause', title: 'Ruhige Haltung zeigen' },
+  { action: 'encourage', icon: '💛', label: 'Mut machen', title: 'Freundliche Haltung zeigen' },
+] as const satisfies ReadonlyArray<{ action: ClassMascotAction; icon: string; label: string; title: string }>;
+
 export function isClassMascotAction(value: unknown): value is ClassMascotAction {
   return value === 'praise' || value === 'calm' || value === 'encourage';
 }

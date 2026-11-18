@@ -1,7 +1,7 @@
 import { resizeWidgetRect, type WidgetResizeDirection } from '../../lib/widgetResize';
 import React, { useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { normalizeClassMascot } from "../../lib/classMascot";
+import { MASCOT_RITUAL_EVENT, MASCOT_RITUALS, normalizeClassMascot, reactToMascotAction, type ClassMascotAction } from "../../lib/classMascot";
 import { X, Settings, PenTool, SlidersHorizontal, Check, Maximize2, Minimize2, LockKeyhole, MoreHorizontal, Rocket, Minus } from "lucide-react";
 import { CockpitWidgetConfig } from "../../types";
 import { useApp } from "../../context/AppContext";
@@ -168,7 +168,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   isMinimized = false,
   layoutLocked = false,
 }) => {
-  const { app, calculateWidgetFontSize } = useApp();
+  const { app, setApp, calculateWidgetFontSize } = useApp();
   const isDirect = !!widget.settings?.isDirectMode;
   const isFreeMascot = widget.type === "pet" && !isDirect;
   const activeStageRef = isFreeMascot && mascotStageRef ? mascotStageRef : stageRef;
@@ -498,7 +498,8 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   const minHPercent = stageSize.height > 0 ? Math.min(100, (safeMinSize.minH / stageSize.height) * 100) : 0;
   // A freestanding mascot uses the board stage, not an oversized widget
   // rectangle elsewhere in the cockpit. x/y stay board-local and persistent.
-  const mascotSize = normalizeClassMascot(app.classMascot).displaySize || 220;
+  const mascot = normalizeClassMascot(app.classMascot);
+  const mascotSize = mascot.displaySize || 220;
   const mascotPixels = Math.max(1, Math.min(mascotSize, stageSize.width || mascotSize, stageSize.height || mascotSize));
   const mascotWPercent = stageSize.width > 0 ? (mascotPixels / stageSize.width) * 100 : 25;
   const mascotHPercent = stageSize.height > 0 ? (mascotPixels / stageSize.height) * 100 : 25;
@@ -647,6 +648,34 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       }
     }
   };
+
+  const mascotToolbarTop = stageSize.height * renderedY / 100;
+  const mascotMenuOpensUp = mascotToolbarTop > (stageSize.height - 44) / 2;
+  const mascotMenuSpace = mascotMenuOpensUp ? mascotToolbarTop : stageSize.height - mascotToolbarTop - 44;
+  const mascotActionClass = "flex min-h-11 w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100 focus-visible:outline focus-visible:outline-accent disabled:opacity-50 dark:hover:bg-white/10";
+
+  function closeMascotActions() {
+    setShowWidgetMenu(false);
+    widgetMenuAreaRef.current?.querySelector<HTMLButtonElement>('.cockpit-widget-menu-trigger')?.focus();
+  }
+
+  function playMascotRitual(action: ClassMascotAction) {
+    if (mascot.quietMode) return;
+    setApp(previous => ({
+      ...previous,
+      classMascot: reactToMascotAction(normalizeClassMascot(previous.classMascot), action),
+    }));
+    window.dispatchEvent(new CustomEvent(MASCOT_RITUAL_EVENT, { detail: action }));
+    closeMascotActions();
+  }
+
+  function toggleMascotQuiet() {
+    setApp(previous => {
+      const current = normalizeClassMascot(previous.classMascot);
+      return { ...previous, classMascot: { ...current, quietMode: !current.quietMode } };
+    });
+    closeMascotActions();
+  }
 
   const widgetNode = (
     <div
@@ -821,12 +850,37 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
               onPointerDown={(e) => e.stopPropagation()}
               role="menu"
               aria-label="Widget-Aktionen"
-              className={`cockpit-widget-action-menu absolute right-0 top-full z-[80] mt-1 w-56 max-w-[calc(100cqw-0.5rem)] rounded-2xl border p-1.5 shadow-2xl ${
+              style={isFreeMascot && stageSize.height > 0 ? { maxHeight: Math.max(44, mascotMenuSpace - 8) } : undefined}
+              className={`cockpit-widget-action-menu absolute z-[80] rounded-2xl border p-1.5 shadow-2xl ${
+                isFreeMascot
+                  ? `w-56 max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain ${mascotMenuOpensUp ? "bottom-full mb-1" : "top-full mt-1"} ${renderedX < 50 ? "left-0" : "right-0"}`
+                  : "right-0 top-full mt-1 w-56 max-w-[calc(100cqw-0.5rem)]"
+              } ${
                 currentIsLight
                   ? "bg-white border-slate-200 text-slate-800"
                   : "bg-zinc-900 border-white/10 text-zinc-100"
               }`}
             >
+              {isFreeMascot && (
+                <>
+                  <button type="button" role="menuitemcheckbox" aria-checked={mascot.quietMode === true}
+                    className={mascotActionClass}
+                    onClick={event => { event.stopPropagation(); toggleMascotQuiet(); }}>
+                    <span aria-hidden="true">🌙</span>
+                    <span className="flex-1">Tafelruhe</span>
+                    <span aria-hidden="true" className="text-xs">{mascot.quietMode ? "Ein" : "Aus"}</span>
+                  </button>
+                  {MASCOT_RITUALS.map(ritual => (
+                    <button key={ritual.action} type="button" role="menuitem" title={ritual.title}
+                      disabled={mascot.quietMode} className={mascotActionClass}
+                      onClick={event => { event.stopPropagation(); playMascotRitual(ritual.action); }}>
+                      <span aria-hidden="true">{ritual.icon}</span>
+                      {ritual.label}
+                    </button>
+                  ))}
+                  <div role="separator" className="my-1 h-px bg-slate-200 dark:bg-white/15" />
+                </>
+              )}
               {!layoutLocked && (widget.type === "drawing" || widget.type === "instruction") && (
                 <button role="menuitem"
                   type="button"
