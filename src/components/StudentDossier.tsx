@@ -68,6 +68,7 @@ interface StudentDossierProps {
   initialReportView?: boolean;
   /** Share the identical dossier screen with KEL without copying dossier data. */
   initialTab?: DossierTab;
+  openKelOnEntry?: boolean;
 }
 
 export type MainAreaId = 
@@ -207,7 +208,7 @@ export const getActiveMainArea = (tab: DossierTab): MainAreaId => {
   return 'uebersicht';
 };
 
-export default function StudentDossier({ schuelerId, onBack, onStudentChange, initialReportView = false, initialTab }: StudentDossierProps) {
+export default function StudentDossier({ schuelerId, onBack, onStudentChange, initialReportView = false, initialTab, openKelOnEntry = false }: StudentDossierProps) {
   const { app, setApp, setPage } = useApp();
   const student = app.schueler.find(s => s.id === schuelerId);
   
@@ -231,7 +232,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
 
   const activeMainArea = getActiveMainArea(activeTab);
 
-  const [presentationModeActive, setPresentationModeActive] = useState<boolean>(false);
+  const [presentationModeActive, setPresentationModeActive] = useState(openKelOnEntry);
   // All dossier tabs read/write the original first bucket as one school year.
   // Do not delete any historical encrypted second-bucket records.
   const sem: '1' | '2' = '1';

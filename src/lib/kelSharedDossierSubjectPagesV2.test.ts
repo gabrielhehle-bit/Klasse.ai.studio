@@ -19,13 +19,14 @@ test('KEL opens exactly the same dossier component and KEL reflection as the cla
   assert.match(dossier, /initialTab\?: DossierTab/);
   assert.match(dossier, /useState<DossierTab>\(initialTab \|\|/);
   assert.match(dossier, /<KELPresentation/);
-  assert.match(kel, /Ein gemeinsamer Datenstand/);
+  assert.match(kel, /openKelOnEntry/);
 });
 
-test('KEL has a distinct slide for every chosen subject, including those without marks', () => {
+test('KEL creates subject slides only for selected domains or released discussion notes', () => {
   assert.match(presentation, /\| 'subject'/);
   assert.match(presentation, /subjectPages: true/);
-  assert.match(presentation, /for \(const subject of chosenLearningSubjects\)/);
+  assert.match(presentation, /for \(const subject of subjectsWithDetails\)/);
+  assert.match(presentation, /detail\?\.areas\.length \|\| detail\?\.note/);
   assert.match(presentation, /type: 'subject', subject: subject\.fach/);
   assert.match(presentation, /<KELSubjectPage/);
   assert.doesNotMatch(presentation, /if \(!hasData\) return \[\]/);

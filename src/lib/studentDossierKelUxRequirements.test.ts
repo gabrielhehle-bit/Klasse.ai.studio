@@ -24,7 +24,7 @@ test('Dossierübersicht zeigt alle Fächer und die drei Alltagsdiagramme', () =>
 });
 
 test('KEL shows one clear preparation/presentation switch with an explicit choice of visible content', () => {
-  assert.match(kel, /Ein Gespräch, keine Datenshow/);
+  assert.match(kel, /Gespräch vorbereiten/);
   assert.match(kel, /setView\('prepare'\)/);
   assert.match(kel, /setView\('slides'\)/);
   assert.match(kel, /Weitere Folien wählen/);

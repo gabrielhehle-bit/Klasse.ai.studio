@@ -54,3 +54,26 @@ test('legacy or malformed goals and empty agreements remain empty, with no inven
   ],'anna','2026/27')[0];
   assert.deepEqual(draftKelParentMeetingText(meeting), { goalsText:'',agreementsText:'',sourceDate:'2026-11-01' });
 });
+
+test('the parent sheet carries the conversation agreement and follow-up without copying family impressions', () => {
+  const meeting = listKelParentMeetingSources([{
+    id: 'structured',
+    schuelerId: 'student-1',
+    schuljahr: '2026/27',
+    datum: '2026-11-18',
+    vereinbarungen: 'Wir spielen Anlautspiele.',
+    vereinbarungUnterstuetzung: 'Die Lehrperson legt die Karten bereit.',
+    vereinbarungErfolgskriterium: 'Das Kind nennt die ersten Laute.',
+    naechsterTermin: '2026-11-25',
+    elternEindruck: 'Interne Rückmeldung',
+  }], 'student-1', '2026/27')[0];
+
+  const draft = draftKelParentMeetingText(meeting);
+  assert.deepEqual(draft.agreementsText.split('\n'), [
+    'Wir spielen Anlautspiele.',
+    'Unterstützung: Die Lehrperson legt die Karten bereit.',
+    'Daran erkennen wir den Fortschritt: Das Kind nennt die ersten Laute.',
+    'Nächster Rückblick: 25.11.2026',
+  ]);
+  assert.doesNotMatch(draft.agreementsText, /Interne Rückmeldung/);
+});

@@ -349,10 +349,9 @@ const KELGespraeche: React.FC = () => {
         <header className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-extrabold uppercase tracking-wider text-indigo-700">KEL-Gespräche · Vorbereitung</p>
-            <h1 className="mt-1 text-2xl font-black text-slate-950">Schülerdossier & KEL-Präsentation</h1>
+            <h1 className="mt-1 text-2xl font-black text-slate-950">KEL-Gespräche vorbereiten</h1>
             <p className="mt-2 max-w-2xl text-sm text-slate-600">
-              Ein gemeinsamer Datenstand: Das KEL öffnet dasselbe Schülerdossier wie unter „Klasse“.
-              Dort kannst du Bereiche dokumentieren und die Elternpräsentation individuell vorbereiten.
+              Wähle ein Kind aus, um das Gespräch vorzubereiten. Die Lerninformationen kommen aus dem Schülerdossier.
             </p>
           </div>
           <button type="button" onClick={() => { setKelTab('protokolle'); setSelectedStudentId(null); }}
@@ -372,9 +371,9 @@ const KELGespraeche: React.FC = () => {
               .sort((a, b) => b.datum.localeCompare(a.datum));
             const lastMeeting = studentMeetings[0];
             return (
-              <button type="button" key={student.id} onClick={() => setSelectedStudentId(student.id)}
+              <button type="button" key={student.id} data-kel-child={student.id} onClick={() => setSelectedStudentId(student.id)}
                 className="flex min-h-32 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-indigo-300 hover:bg-indigo-50"
-                aria-label={`Schülerdossier und KEL für ${student.vorname} ${student.nachname} öffnen`}>
+                aria-label={`KEL-Gespräch für ${student.vorname} ${student.nachname} öffnen`}>
                 <div className="flex items-center gap-3">
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-sm font-black text-indigo-700">
                     {student.vorname?.[0]}{student.nachname?.[0]}
@@ -1556,6 +1555,7 @@ const KELGespraeche: React.FC = () => {
         key={selectedStudentId}
         schuelerId={selectedStudentId}
         initialTab="kel_reflexion"
+        openKelOnEntry
         onBack={() => setSelectedStudentId(null)}
         onStudentChange={setSelectedStudentId}
       /></div>;
