@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync('src/components/Gradebook.tsx', 'utf8');
+const assessmentModal = readFileSync('src/components/gradebook/AssessmentItemModal.tsx', 'utf8');
 const begin = source.indexOf('id="gradebook-tools-menu"');
 const end = source.indexOf('</motion.aside>', begin);
 const drawer = source.slice(begin, end);
@@ -40,4 +41,15 @@ test('The compact header keeps one subject selector and mobile primary actions',
   assert.match(source, /id="gradebook-add-assessment-trigger"/);
   assert.match(source, /aria-haspopup="dialog"/);
   assert.match(source, /id="gradebook-tools-menu"/);
+});
+
+
+test('Assessment editor stays above sticky gradebook headers, even in fullscreen', () => {
+  assert.match(assessmentModal, /import \{ createPortal \} from 'react-dom'/);
+  assert.match(assessmentModal, /return createPortal\(/);
+  assert.match(assessmentModal, /document\.body\s*\)/);
+  assert.match(assessmentModal, /id="assessment-item-modal-backdrop"[\s\S]*?className="fixed inset-0 z-\[10000\]/);
+  assert.match(assessmentModal, /id="assessment-item-modal-content"\s+role="dialog"\s+aria-modal="true"/);
+  assert.match(source, /data-gradebook-compact-toolbar className="relative z-\[80\]/);
+  assert.match(source, /'fixed inset-0 z-\[9000\]/);
 });
