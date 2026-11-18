@@ -10,6 +10,7 @@ export const COCKPIT_REGULAR_WIDGETS = [
   { id: 'homework', label: 'Hausübungen', sources: ['homework'] },
   { id: 'starsreview', label: 'Sterne der Woche', sources: ['starsreview'] },
   { id: 'dictionary', label: 'Bildwörterbuch', sources: ['dictionary'] },
+  { id: 'waldruhe', label: 'Waldruhe', sources: ['waldruhe'] },
   { id: 'breathing', label: 'Atempause', sources: ['breathing'] },
 ];
 

@@ -380,6 +380,12 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                         category: "tools",
                                       },
                                       {
+                                        type: "waldruhe",
+                                        label: "🌲 Waldruhe",
+                                        desc: "In ruhigen Arbeitsphasen kommen Waldtiere auf die Lichtung",
+                                        category: "tools",
+                                      },
+                                      {
                                         type: "noisemeter",
                                         label: "🔊 Lautstärkemesser",
                                         desc: "Lautstärkekontrolle visualisiert",
@@ -613,6 +619,7 @@ const COCKPIT_WIDGET_SETTINGS_IDS = new Set<string>([
   "scoreboard",
   "starsreview",
   "noisemeter",
+  "waldruhe",
   "vocabulary",
   "spellingdetective",
   "wordbuilder",

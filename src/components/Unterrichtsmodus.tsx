@@ -328,6 +328,7 @@ import { TimelineWidgetContent } from "./cockpit/TimelineWidgetContent";
 import { ClockWidgetContent } from "./cockpit/ClockWidgetContent";
 import { PhasesWidgetContent } from "./cockpit/PhasesWidgetContent";
 import { TrafficLightWidgetContent } from "./cockpit/TrafficLightWidgetContent";
+import { WaldruheWidget } from "./cockpit/widgets/WaldruheWidget";
 import { NoiseMeterWidgetContent } from "./cockpit/NoiseMeterWidgetContent";
 import { NoiseScaleWidgetContent } from "./cockpit/NoiseScaleWidgetContent";
 import { MusicSoundsStudio } from "./cockpit/widgets/MusicSoundsStudio";
@@ -1703,6 +1704,7 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
   },
   { id: "widget-classweeklyplan", type: "classweeklyplan", x: 0, y: 0, w: 100, h: 100, visible: false },
   { id: "widget-homework", type: "homework", x: 30, y: 22, w: 50, h: 58, visible: false },
+  { id: "widget-waldruhe", type: "waldruhe", x: 22, y: 16, w: 58, h: 62, visible: false },
   {
     id: "widget-noisemeter",
     type: "noisemeter",
@@ -2661,6 +2663,7 @@ const loadAndSanitizeLayout = (layout: any): CockpitWidgetConfig[] => {
     "classweeklyplan",
     "homework",
     "noisemeter",
+    "waldruhe",
     "vocabulary",
     "studentlist",
     "kidattendance",
@@ -3789,6 +3792,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       "classweeklyplan",
     "homework",
       "noisemeter",
+    "waldruhe",
       "vocabulary",
       "studentlist",
       "kidattendance",
@@ -4175,7 +4179,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       w.id !== id ? w : {
         ...w,
         ...updates,
-        ...(((w.type === "weather" && updates.settings) || (w.type === "zahlenraum" && updates.settings) || (w.type === "anschauung" && updates.settings) || (w.type === "numberline" && updates.settings) || (w.type === "wortsatzwerkstatt" && updates.settings) || (w.type === "soundmachine" && updates.settings) || (w.type === "drawing" && updates.settings) || (w.type === "aiquiz" && updates.settings) || (w.type === "riddle" && updates.settings) || (w.type === "groups" && updates.settings) || (w.type === "wheel" && updates.settings) || (w.type === "sounds" && updates.settings) || (w.type === "klassenglas" && updates.settings) || (w.type === "randomname" && updates.settings) || (w.type === "timer" && updates.settings) || (w.type === "clockpuzzle" && updates.settings) || (w.type === "trafficlight" && updates.settings) || (w.type === "stopwatch" && updates.settings) || (w.type === "dictionary" && updates.settings) || (w.type === "piano" && updates.settings) || (w.type === "bodyparts" && updates.settings) || (w.type === "compass" && updates.settings) || (w.type === "weekdays" && updates.settings) || (w.type === "flagquiz" && updates.settings) || (w.type === "trafficquiz" && updates.settings) || (w.type === "watercycle" && updates.settings) || (w.type === "constellation" && updates.settings) || (w.type === "planetarium" && updates.settings) || (w.type === "geometry" && updates.settings) || (w.type === "wordchain" && updates.settings) || (w.type === "wordgrid" && updates.settings) || (w.type === "wordscramble" && updates.settings) || (w.type === "secretcode" && updates.settings) || (w.type === "wordexplorer" && updates.settings) || (w.type === "patternmaker" && updates.settings) || (w.type === "rhymemachine" && updates.settings) || (w.type === "alphabetsoup" && updates.settings) || (w.type === "morsecode" && updates.settings) || (w.type === "punctuationzoo" && updates.settings) || (w.type === "estimationjar" && updates.settings) || (w.type === "angledetective" && updates.settings))
+        ...(((w.type === "weather" && updates.settings) || (w.type === "zahlenraum" && updates.settings) || (w.type === "anschauung" && updates.settings) || (w.type === "numberline" && updates.settings) || (w.type === "wortsatzwerkstatt" && updates.settings) || (w.type === "soundmachine" && updates.settings) || (w.type === "drawing" && updates.settings) || (w.type === "aiquiz" && updates.settings) || (w.type === "riddle" && updates.settings) || (w.type === "groups" && updates.settings) || (w.type === "wheel" && updates.settings) || (w.type === "sounds" && updates.settings) || (w.type === "klassenglas" && updates.settings) || (w.type === "randomname" && updates.settings) || (w.type === "timer" && updates.settings) || (w.type === "clockpuzzle" && updates.settings) || (w.type === "waldruhe" && updates.settings) || (w.type === "trafficlight" && updates.settings) || (w.type === "stopwatch" && updates.settings) || (w.type === "dictionary" && updates.settings) || (w.type === "piano" && updates.settings) || (w.type === "bodyparts" && updates.settings) || (w.type === "compass" && updates.settings) || (w.type === "weekdays" && updates.settings) || (w.type === "flagquiz" && updates.settings) || (w.type === "trafficquiz" && updates.settings) || (w.type === "watercycle" && updates.settings) || (w.type === "constellation" && updates.settings) || (w.type === "planetarium" && updates.settings) || (w.type === "geometry" && updates.settings) || (w.type === "wordchain" && updates.settings) || (w.type === "wordgrid" && updates.settings) || (w.type === "wordscramble" && updates.settings) || (w.type === "secretcode" && updates.settings) || (w.type === "wordexplorer" && updates.settings) || (w.type === "patternmaker" && updates.settings) || (w.type === "rhymemachine" && updates.settings) || (w.type === "alphabetsoup" && updates.settings) || (w.type === "morsecode" && updates.settings) || (w.type === "punctuationzoo" && updates.settings) || (w.type === "estimationjar" && updates.settings) || (w.type === "angledetective" && updates.settings))
           ? { settings: { ...(w.settings || {}), ...updates.settings } }
           : {}),
         hasBeenOpened: true,
@@ -12212,6 +12216,17 @@ ${content}
                                         </div>
                                       );
                                     }
+
+                                    case "waldruhe":
+                                      return (
+                                        <WaldruheWidget
+                                          widget={widget}
+                                          isMinimized={isMinimized}
+                                          showSettings={widgetSettingsOpenId === widget.id}
+                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
+                                          onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
+                                        />
+                                      );
 
                                     case "noisemeter":
                                       return (

@@ -41,6 +41,7 @@ const OPTIMAL_WIDGET_SIZES: Record<string, { w: number; h: number }> = {
   randomname: { w: 50, h: 70 },
   classweeklyplan: { w: 100, h: 100 },
   homework: { w: 55, h: 62 },
+  waldruhe: { w: 58, h: 62 },
   noisemeter: { w: 28, h: 42 },
   vocabulary: { w: 35, h: 48 },
   studentlist: { w: 25, h: 65 },

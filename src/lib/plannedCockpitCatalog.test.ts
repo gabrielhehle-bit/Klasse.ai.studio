@@ -30,7 +30,7 @@ test('Cockpit-Zielkatalog: Quellen überschneiden sich nicht und bleiben bisher 
     assert.ok(defaultTypes.includes(alias), `Vor einer Zusammenführung prüfen: ${alias}`);
     assert.ok(getPlannedCockpitWidgetForLegacyType(alias));
   }
-  assert.equal(defaultTypes.length, 113, 'Alle Bibliothekswidgets einschließlich Mathe-Karten und historische Schülerliste vollständig inventarisieren');
+  assert.equal(defaultTypes.length, 114, 'Alle Bibliothekswidgets einschließlich Mathe-Karten und historische Schülerliste vollständig inventarisieren');
   const knownTypesBlock = source.slice(
     source.indexOf('const knownTypes = ['),
     source.indexOf('];', source.indexOf('const knownTypes = [')),
