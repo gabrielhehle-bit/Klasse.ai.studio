@@ -32,7 +32,8 @@ test('Mascot uses character-sized hit area, viewport bounds and saved class-loca
   const art = renderToStaticMarkup(React.createElement(ClassMascotWidget, {
     app: { ...initialAppState, classMascot: DEFAULT_CLASS_MASCOT },
   }));
-  assert.match(host, /normalizeClassMascot\(app\.classMascot\)\.displaySize/);
+  assert.match(host, /const mascot = normalizeClassMascot\(app\.classMascot\)/);
+  assert.match(host, /const mascotSize = mascot\.displaySize/);
   assert.match(host, /Math\.min\(mascotSize, stageSize\.width \|\| mascotSize, stageSize\.height \|\| mascotSize\)/);
   assert.match(host, /width: isFreeMascot \? `\$\{mascotPixels\}px`/);
   assert.match(host, /height: isFreeMascot \? `\$\{mascotPixels\}px`/);
