@@ -51,12 +51,13 @@ const hub = readFileSync('src/components/PlanungHub.tsx', 'utf8');
 const check = readFileSync('src/components/PlanungsZentrale.tsx', 'utf8');
 
 test('planning home shows a date-aware, read-only five-day preview from selected KW', () => {
-  assert.match(hub, /const activeKW = app.currentKW \|\| getKW\(new Date\(\)\)/);
+  assert.match(hub, /resolveWeeklyPlanOpeningWeek\('planung', app\.currentKW, calendarKW\)/);
   assert.match(hub, /getPlanningWeekOverview\(app.wochenplanung\?\.\[activeKW\]\)/);
   assert.match(hub, /data-planning-week-overview/);
   assert.match(hub, /data-planning-day-summary=\{day.day\}/);
   assert.match(hub, /setPage\('wochenplanung'\)/);
-  assert.doesNotMatch(hub, /setApp\(/);
+  assert.match(hub, /setApp\(previous => previous\.currentKW === week\s*\? previous\s*:\s*\{ \.\.\.previous, currentKW: week \}\)/);
+  assert.equal((hub.match(/setApp\(/g) || []).length, 1);
   assert.match(check, /getPlanningWeekOverview\(app.wochenplanung\?\.\[nextKW\]\)/);
 });
 

@@ -2,6 +2,9 @@ import React from 'react';
 import { useApp } from '../context/AppContext';
 import { getKW, getStartYear, kwToMonday, kwYear } from '../lib/utils';
 import { getPlanningWeekOverview, summarizePlanningWeekPreparation } from '../lib/planningWeekOverview';
+import { resolveWeeklyPlanOpeningWeek } from '../lib/planningWeekNavigation';
+import { buildSchoolYearWeekList } from '../lib/weeklyPlanData';
+import { getFachThemeStyles } from '../lib/fachColorUtils';
 import {
   LayoutDashboard,
   CalendarDays,
@@ -92,18 +95,26 @@ function PlanningCard({
 }
 
 export default function PlanungHub() {
-  const { app, setPage } = useApp();
+  const { app, setApp, setPage } = useApp();
   const visiblePreparationItems = preparationItems.filter(
     item => !item.klassenvorstandOnly || app.klassenvorstand,
   );
-  const activeKW = app.currentKW || getKW(new Date());
-  const selectedYear = kwYear(activeKW, getStartYear(app.schuljahr), app.bundesland || 'VBG');
-  const monday = kwToMonday(activeKW, selectedYear);
+  const now = new Date();
+  const calendarKW = getKW(now);
+  const activeKW = resolveWeeklyPlanOpeningWeek('planung', app.currentKW, calendarKW);
+  const schoolWeeks = React.useMemo(() => buildSchoolYearWeekList(app.schuljahr, app.bundesland), [app.schuljahr, app.bundesland]);
+  const selectedWeek = schoolWeeks.find(week => week.kw === activeKW);
+  const monday = selectedWeek?.monday ?? kwToMonday(activeKW, kwYear(activeKW, getStartYear(app.schuljahr), app.bundesland));
+  const currentWeek = schoolWeeks.find(week => week.kw === calendarKW &&
+    week.monday <= now && now < new Date(week.monday.getFullYear(), week.monday.getMonth(), week.monday.getDate() + 7));
+  const selectWeek = (week: number) => setApp(previous => previous.currentKW === week
+    ? previous
+    : { ...previous, currentKW: week });
   const weekOverview = getPlanningWeekOverview(app.wochenplanung?.[activeKW]);
   const plannedLessons = weekOverview.reduce((sum, day) => sum + day.lessons.length, 0);
   const unlabelledLessons = weekOverview.reduce((sum, day) => sum + day.missingTopics, 0);
   const preparation = summarizePlanningWeekPreparation(weekOverview);
-  const isCurrentCalendarWeek = activeKW === getKW(new Date());
+  const isCurrentCalendarWeek = currentWeek?.kw === activeKW;
 
   return (
     <div data-planning-hub className="mx-auto w-full max-w-6xl space-y-6 px-4 py-5 sm:px-6 sm:py-6">
@@ -112,14 +123,13 @@ export default function PlanungHub() {
           <h1 className="text-xl font-semibold tracking-tight text-[var(--text)] sm:text-2xl">Planung</h1>
           <p className="mt-1 text-sm text-[var(--text2)]">{app.klassenbezeichnung || 'Deine Klasse'} · {app.schuljahr}</p>
         </div>
-        <p className="text-sm text-[var(--text2)]">Woche, Schuljahr und Vorbereitung</p>
       </header>
 
       <section data-planning-week-overview aria-labelledby="planung-wochenblick"
         className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
-            <h2 id="planung-wochenblick" className="text-base font-semibold text-[var(--text)]">
+            <h2 id="planung-wochenblick" aria-live="polite" className="text-base font-semibold text-[var(--text)]">
               Ausgewählte Planungswoche · KW {activeKW}
             </h2>
             <p className="text-xs text-[var(--text2)]">
@@ -142,6 +152,26 @@ export default function PlanungHub() {
               Unterrichtsmodus öffnen
             </button>
           </div>
+        </div>
+        <div className="flex flex-wrap items-end gap-2" data-planning-week-navigation>
+          <div className="w-full min-w-0 sm:w-auto">
+            <label htmlFor="planning-week-picker" className="mb-1 block text-sm font-semibold text-[var(--text)]">Planungswoche wählen</label>
+            <select id="planning-week-picker" value={activeKW} onChange={event => selectWeek(Number(event.target.value))}
+              className="min-h-11 w-full max-w-full rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-3 py-2 text-sm text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
+              {!selectedWeek && <option value={activeKW}>KW {activeKW}</option>}
+              {schoolWeeks.map(week => (
+                <option key={week.monday.toISOString()} value={week.kw}>
+                  KW {week.kw} · {week.monday.toLocaleDateString('de-AT', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </option>
+              ))}
+            </select>
+          </div>
+          {currentWeek && (
+            <button type="button" onClick={() => selectWeek(currentWeek.kw)} disabled={isCurrentCalendarWeek}
+              className="min-h-11 rounded-xl border border-[var(--border)] px-3 text-sm font-semibold text-[var(--text)] hover:bg-[var(--surface2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] disabled:opacity-60">
+              Diese Woche
+            </button>
+          )}
         </div>
         <div data-testid="planning-preparation-status" role="status"
           className="flex flex-wrap items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface2)] p-3">
@@ -174,11 +204,18 @@ export default function PlanungHub() {
                 </p>
                 {day.lessons.length ? (
                   <ul className="mt-2 space-y-1 text-xs text-[var(--text2)]">
-                    {day.lessons.slice(0, 2).map(lesson => (
-                      <li key={lesson.hour} className="truncate" title={`${lesson.hour}. ${lesson.subject}: ${lesson.topic || 'Thema fehlt'}`}>
-                        {lesson.hour}. {lesson.subject} · {lesson.topic || 'Thema fehlt'}
-                      </li>
-                    ))}
+                    {day.lessons.slice(0, 2).map(lesson => {
+                      const fachTheme = getFachThemeStyles(lesson.subject, app.fachConfig);
+                      return (
+                        <li key={lesson.hour} data-klassio-subject-card={lesson.subject} data-klassio-subject-stripe="true"
+                          style={{ '--fach-card-bg': fachTheme.bgLight, '--fach-card-stripe': fachTheme.hex } as React.CSSProperties}
+                          className="min-w-0 rounded-md border-l-4 border-solid px-2 py-1.5"
+                          title={`${lesson.hour}. ${lesson.subject}: ${lesson.topic || 'Thema fehlt'}`}>
+                          <span className="block break-words font-semibold text-[var(--text)]">{lesson.hour}. {lesson.subject}</span>
+                          <span className="mt-0.5 line-clamp-2 break-words">{lesson.topic || 'Thema fehlt'}</span>
+                        </li>
+                      );
+                    })}
                     {day.lessons.length > 2 && <li className="text-[var(--text3)]">+ {day.lessons.length - 2} weitere</li>}
                   </ul>
                 ) : (
@@ -192,8 +229,7 @@ export default function PlanungHub() {
           })}
         </div>
         <p className="text-xs text-[var(--text3)]">
-          Nur gespeicherte Wochenplan-Einträge; offene Stammplanfelder werden nicht als fertige Planung gezählt.
-          Zum Bearbeiten im Wochenplan „Tagesplan“ wählen.
+          Hier siehst du die gespeicherten Einträge. Zum Bearbeiten öffne den Wochenplan.
         </p>
       </section>
 

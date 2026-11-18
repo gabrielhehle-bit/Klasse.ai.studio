@@ -858,7 +858,7 @@ export default function WeeklyPlan() {
   };
   
   const startYear = getStartYear(app.schuljahr);
-  const year = kwYear(activeKW, startYear);
+  const year = kwYear(activeKW, startYear, app.bundesland);
   const monday = kwToMonday(activeKW, year);
   const friday = new Date(monday);
   friday.setDate(monday.getDate() + 4);
