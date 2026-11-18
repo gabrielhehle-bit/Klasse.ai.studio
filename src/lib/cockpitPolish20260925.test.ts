@@ -16,7 +16,7 @@ test('cockpit keeps template creation visible while reducing themed outer frame'
   assert.match(surface, /Vorlage erstellen/);
   assert.match(surface, /setVorlagenStartTab\("create"\)/);
   assert.match(surface, /overflow-hidden flex flex-col p-1 sm:p-1\.5 gap-1/);
-  assert.match(surface, /min-h-12 py-0\.5/);
+  assert.match(surface, /px-2 min-h-11 flex justify-between/);
   assert.match(surface, /klassio-whiteboard flex-1 relative/);
 });
 
@@ -33,11 +33,11 @@ test('writing tools float vertically instead of consuming teaching-board height'
   assert.match(css, /\.klassio-cockpit-shell \.klassio-board-toolbox/);
 });
 
-test('student list has an always-discoverable right-edge tab with real class count', () => {
-  assert.match(surface, /klassio-student-edge-tab/);
-  assert.match(surface, /aria-label="Schülerliste einblenden"/);
-  assert.match(surface, /\{app\.schueler\?\.length \|\| 0\}/);
-  assert.match(surface, /changeSidebarMode\(prevSidebarMode \|\| "expanded"\)/);
+test('student list uses one discoverable toggle in the board toolbar', () => {
+  assert.equal(surface.match(/data-cockpit-student-toggle/g)?.length, 1);
+  assert.match(surface, /aria-expanded=\{sidebarMode !== "hidden"\}/);
+  assert.doesNotMatch(surface, /klassio-student-edge-tab/);
+  assert.doesNotMatch(dock, /onToggleSidebar/);
 });
 
 test('dock floats above the board and favorites are removed only through deliberate edit UI', () => {
