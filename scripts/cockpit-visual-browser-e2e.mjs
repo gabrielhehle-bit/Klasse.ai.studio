@@ -242,6 +242,25 @@ async function main() {
     await evaluate(client, `${mascotQuietButton}.click()`);
     await openMascotMenu();
     await waitFor(client, 'quiet mode can be turned off on the board', `${mascotQuietButton}?.getAttribute('aria-checked') === 'false' && !${mascotPraiseButton}?.disabled`);
+    const playMascotAction = label => evaluate(client,
+      `Array.from(${mascot}.querySelectorAll('[role="menuitem"]')).find(button => button.textContent.includes(${q(label)})).click()`);
+    const mascotCue = action => `${mascot}.querySelector('[data-mascot-cue="${action}"]')`;
+    await playMascotAction('Klasse begrüßen');
+    await waitFor(client, 'greeting cue appears on the board', `${mascotCue('greet')}?.textContent.includes('Guten Morgen')`);
+    await openMascotMenu();
+    await playMascotAction('Bewegungspause');
+    await waitFor(client, 'movement replaces greeting with the first exercise', `!${mascotCue('greet')} && ${mascotCue('move')}?.textContent.includes('1 von 3')`);
+    await waitFor(client, 'movement advances to the next exercise', `${mascotCue('move')}?.textContent.includes('2 von 3') && ${mascotCue('move')}?.textContent.includes('Schultern')`, 13000);
+    await evaluate(client, `${mascotCue('move')}.querySelector('[aria-label="Ritual beenden"]').click()`);
+    await waitFor(client, 'movement can be stopped from the board', `!${mascotCue('move')}`);
+    await openMascotMenu();
+    await playMascotAction('Arbeitsstart');
+    await waitFor(client, 'work routine starts with the assignment', `${mascotCue('ready')}?.textContent.includes('Arbeitsauftrag')`);
+    await openMascotMenu();
+    await evaluate(client, `${mascotQuietButton}.click()`);
+    await waitFor(client, 'quiet mode clears an active cue', `!${mascotCue('ready')}`);
+    await openMascotMenu();
+    await evaluate(client, `${mascotQuietButton}.click()`);
     await clickLabel(client, 'Klassenmaskottchen ausblenden');
 
     console.log('✓ Cockpit visual QA passed for '+WIDTH+'×'+HEIGHT+'. Board primary, students restorable, award modes distinct.');

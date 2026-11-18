@@ -1,7 +1,7 @@
 import { resizeWidgetRect, type WidgetResizeDirection } from '../../lib/widgetResize';
 import React, { useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { MASCOT_RITUAL_EVENT, MASCOT_RITUALS, normalizeClassMascot, reactToMascotAction, type ClassMascotAction } from "../../lib/classMascot";
+import { MASCOT_CLASSROOM_CUES, MASCOT_RITUAL_EVENT, MASCOT_RITUALS, normalizeClassMascot, reactToMascotAction, type ClassMascotAction } from "../../lib/classMascot";
 import { X, Settings, PenTool, SlidersHorizontal, Check, Maximize2, Minimize2, LockKeyhole, MoreHorizontal, Rocket, Minus } from "lucide-react";
 import { CockpitWidgetConfig } from "../../types";
 import { useApp } from "../../context/AppContext";
@@ -661,7 +661,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
 
   function playMascotRitual(action: ClassMascotAction) {
     if (mascot.quietMode) return;
-    setApp(previous => ({
+    if (!MASCOT_CLASSROOM_CUES[action]) setApp(previous => ({
       ...previous,
       classMascot: reactToMascotAction(normalizeClassMascot(previous.classMascot), action),
     }));

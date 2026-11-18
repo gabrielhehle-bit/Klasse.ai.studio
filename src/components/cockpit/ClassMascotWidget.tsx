@@ -1,6 +1,6 @@
 import React from 'react';
 import type { AppState } from '../../types';
-import { isClassMascotAction, MASCOT_RITUAL_EVENT, MASCOT_SURPRISE_EVENT, normalizeClassMascot, type ClassMascotAction } from '../../lib/classMascot';
+import { isClassMascotAction, MASCOT_CLASSROOM_CUES, MASCOT_RITUAL_EVENT, MASCOT_SURPRISE_EVENT, normalizeClassMascot, type ClassMascotAction } from '../../lib/classMascot';
 import {
   calculateRawVolume,
   cleanupMediaStream,
@@ -17,9 +17,8 @@ interface Props {
 }
 
 /**
- * Deliberately only the transparent character: no name, action panel, settings
- * gear, or widget background. Optional live noise feedback is a tiny local
- * status pill beneath the figure and never stores or transmits audio.
+ * A transparent figure with temporary classroom cues and an optional local
+ * noise indicator. The microphone never stores or transmits audio.
  */
 export default function ClassMascotWidget({ app }: Props) {
   const state = normalizeClassMascot(app.classMascot);
@@ -35,6 +34,7 @@ export default function ClassMascotWidget({ app }: Props) {
   const surpriseTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const [ritualAction, setRitualAction] = React.useState<ClassMascotAction | null>(null);
   const [ritualTick, setRitualTick] = React.useState(0);
+  const [cueIndex, setCueIndex] = React.useState(0);
   const ritualTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Live level is intentionally session-local. The microphone stream, analyser
@@ -169,28 +169,43 @@ export default function ClassMascotWidget({ app }: Props) {
     return stopLiveNoise;
   }, [app.activeClassId, state.liveNoiseEnabled, startLiveNoise, stopLiveNoise]);
 
+  const stopRitual = React.useCallback(() => {
+    if (ritualTimer.current !== null) clearTimeout(ritualTimer.current);
+    ritualTimer.current = null;
+    setRitualAction(null);
+    setCueIndex(0);
+  }, []);
+
   const triggerRitual = React.useCallback((event: Event) => {
     const action = (event as CustomEvent<unknown>).detail;
     if (!isClassMascotAction(action)) return;
     if (state.quietMode) return;
     // Only the latest chosen ritual may finish; never queue background surprises.
-    if (ritualTimer.current !== null) clearTimeout(ritualTimer.current);
+    stopRitual();
     if (surpriseTimer.current !== null) clearTimeout(surpriseTimer.current);
     if (reactionTimer.current !== null) clearTimeout(reactionTimer.current);
     setSurpriseActive(false);
     setReactionActive(false);
     setRitualTick(tick => tick + 1);
     setRitualAction(action);
-    ritualTimer.current = setTimeout(() => {
-      setRitualAction(null);
-      ritualTimer.current = null;
-    }, action === 'calm' ? 5400 : 1750);
-  }, [state.quietMode]);
+
+    const cues = MASCOT_CLASSROOM_CUES[action];
+    function showCue(index: number) {
+      const cue = cues?.[index];
+      if (!cue) {
+        stopRitual();
+        return;
+      }
+      setCueIndex(index);
+      ritualTimer.current = setTimeout(() => showCue(index + 1), cue.durationMs);
+    }
+    if (cues) showCue(0);
+    else ritualTimer.current = setTimeout(stopRitual, action === 'calm' ? 5400 : 1750);
+  }, [state.quietMode, stopRitual]);
 
   const triggerSurprise = React.useCallback(() => {
     if (state.quietMode) return;
-    if (ritualTimer.current !== null) clearTimeout(ritualTimer.current);
-    setRitualAction(null);
+    stopRitual();
     if (surpriseTimer.current !== null) clearTimeout(surpriseTimer.current);
     setSurpriseTick(tick => tick + 1);
     setSurpriseActive(true);
@@ -198,7 +213,7 @@ export default function ClassMascotWidget({ app }: Props) {
       setSurpriseActive(false);
       surpriseTimer.current = null;
     }, 1900);
-  }, [state.quietMode]);
+  }, [state.quietMode, stopRitual]);
 
   React.useEffect(() => {
     window.addEventListener(MASCOT_SURPRISE_EVENT, triggerSurprise);
@@ -215,14 +230,13 @@ export default function ClassMascotWidget({ app }: Props) {
   // A shared cockpit component can remain mounted while switching classes:
   // reset temporary gesture state instead of showing the previous class's ritual.
   React.useEffect(() => {
-    if (ritualTimer.current !== null) clearTimeout(ritualTimer.current);
+    stopRitual();
     if (surpriseTimer.current !== null) clearTimeout(surpriseTimer.current);
     if (reactionTimer.current !== null) clearTimeout(reactionTimer.current);
-    setRitualAction(null);
     setSurpriseActive(false);
     setReactionActive(false);
     setCoveringEars(false);
-  }, [app.activeClassId, state.quietMode]);
+  }, [app.activeClassId, state.quietMode, stopRitual]);
 
   const reactToTap = () => {
     if (state.quietMode) return;
@@ -234,6 +248,9 @@ export default function ClassMascotWidget({ app }: Props) {
       reactionTimer.current = null;
     }, 750);
   };
+
+  const cues = !state.quietMode && ritualAction ? MASCOT_CLASSROOM_CUES[ritualAction] : undefined;
+  const cue = cues?.[cueIndex];
 
   const liveLabel = noisePermission === 'active'
     ? `LIVE ${Math.round(liveVolume)}`
@@ -278,7 +295,21 @@ export default function ClassMascotWidget({ app }: Props) {
         </span>
       </button>
 
-      {state.liveNoiseEnabled && (
+      {cue && (
+        <div data-mascot-cue={ritualAction}
+          className="absolute inset-x-1 bottom-1 flex items-center gap-1 rounded-xl border border-emerald-900/20 bg-white px-2 py-1 text-slate-900 shadow-md">
+          <div role="status" className="min-w-0 flex-1 text-center text-[clamp(.75rem,7cqw,1.125rem)] font-bold leading-tight">
+            {cues && cues.length > 1 && <span className="block text-xs font-semibold text-emerald-800">{cueIndex + 1} von {cues.length}</span>}
+            {cue.text}
+          </div>
+          <button type="button" aria-label="Ritual beenden" onClick={stopRitual}
+            className="pointer-events-auto grid h-11 w-11 shrink-0 place-items-center rounded-lg text-xl text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-700">
+            <span aria-hidden="true">×</span>
+          </button>
+        </div>
+      )}
+
+      {state.liveNoiseEnabled && !cue && (
         <div
           data-mascot-live-noise={noisePermission}
           aria-label={noisePermission === 'active'

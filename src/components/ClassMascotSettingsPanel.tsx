@@ -4,7 +4,7 @@ import { Cloud, CloudOff, Loader2, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import type { AppState } from '../types';
 import { UNTERRICHTSMODUS_THEMES } from '../lib/unterrichtsmodusThemes';
-import { MASCOT_OPTIONS, MASCOT_RITUAL_EVENT, MASCOT_RITUALS, MASCOT_SURPRISE_EVENT, normalizeClassMascot, reactToMascotAction, selectClassMascot } from '../lib/classMascot';
+import { MASCOT_CLASSROOM_CUES, MASCOT_OPTIONS, MASCOT_RITUAL_EVENT, MASCOT_RITUALS, MASCOT_SURPRISE_EVENT, normalizeClassMascot, reactToMascotAction, selectClassMascot } from '../lib/classMascot';
 import ClassMascotArtwork from './cockpit/ClassMascotArtwork';
 
 interface ClassMascotSettingsPanelProps {
@@ -96,14 +96,14 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                             Gemeinsame Klassenrituale
                         </h3>
                         <p className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>
-                            Nur du löst die kurze Geste aus. Die gewählte Haltung bleibt danach erhalten; keine Bewertung einzelner Kinder.
+                            Starte ein Ritual, wenn es in deinen Unterricht passt. Bei Bewegung und Arbeitsstart zeigt das Maskottchen kurze Schritte zum Mitmachen.
                         </p>
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                             {MASCOT_RITUALS.map(ritual => (
                                 <button key={ritual.action} type="button" title={ritual.title}
                                     disabled={normalizeClassMascot(app.classMascot).quietMode}
                                     onClick={() => {
-                                        setApp(prev => ({
+                                        if (!MASCOT_CLASSROOM_CUES[ritual.action]) setApp(prev => ({
                                             ...prev,
                                             classMascot: reactToMascotAction(normalizeClassMascot(prev.classMascot), ritual.action),
                                         }));

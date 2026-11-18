@@ -54,7 +54,7 @@ test('Tafelruhe schaltet alle kurzzeitigen Reaktionen ab, ohne Verschieben oder 
   const widget = readFileSync('src/components/cockpit/ClassMascotWidget.tsx', 'utf8');
   const settings = readFileSync('src/components/ClassMascotSettingsPanel.tsx', 'utf8');
   assert.match(widget, /if \(state\.quietMode\) return;/);
-  assert.match(widget, /\[app\.activeClassId, state\.quietMode\]/);
+  assert.match(widget, /\[app\.activeClassId, state\.quietMode, stopRitual\]/);
   assert.match(widget, /animationEnabled=\{state\.animationEnabled && !state\.quietMode\}/);
   assert.match(widget, /reactionActive=\{reactionActive && !state\.quietMode\}/);
   assert.match(widget, /surpriseActive=\{surpriseActive && !state\.quietMode\}/);
