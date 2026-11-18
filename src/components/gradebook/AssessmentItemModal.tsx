@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { LERNZIELE_BY_STUFE } from '../LernzielTracker';
 import { formatLocalDateKey } from '../../lib/utils';
@@ -129,15 +130,19 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
     if (saved !== false) onClose();
   };
 
-  return (
+  // Render outside the gradebook's sticky headers and fullscreen stacking context.
+  return createPortal(
     <AnimatePresence>
       <div 
         id="assessment-item-modal-backdrop"
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs"
+        className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs"
         onClick={onClose}
       >
         <motion.div
           id="assessment-item-modal-content"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="assessment-item-modal-title"
           initial={{ opacity: 0, scale: 0.96, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 10 }}
@@ -152,7 +157,7 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
                 <TypeIcon className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-lg font-black text-slate-900 leading-tight">
+                <h3 id="assessment-item-modal-title" className="text-lg font-black text-slate-900 leading-tight">
                   {isNew ? `${currentTypeInfo.singular} erstellen` : `${currentTypeInfo.singular} bearbeiten`}
                 </h3>
                 <p className="text-xs font-semibold text-slate-500 mt-0.5">
@@ -462,6 +467,7 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
           </form>
         </motion.div>
       </div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 };
