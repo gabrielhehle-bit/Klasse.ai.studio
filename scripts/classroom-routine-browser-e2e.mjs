@@ -497,6 +497,20 @@ async function main() {
         priorities?.querySelector('[data-dashboard-attendance-status] [role=status]') &&
         fullPlan && (priorities.compareDocumentPosition(fullPlan) & Node.DOCUMENT_POSITION_FOLLOWING));
     })()`);
+    for (const width of [360, 820, 1360]) {
+      await client.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
+      await waitFor(client, `today priority cards fit with 44px targets at ${width}px`, `(() => {
+        const cards = document.querySelector('[data-dashboard-day-priority]');
+        const bounds = cards?.getBoundingClientRect();
+        const buttons = Array.from(cards?.querySelectorAll('button') ?? []);
+        return innerWidth === ${width} && bounds?.width > 0 && bounds.left >= -1 && bounds.right <= innerWidth + 1 &&
+          buttons.length > 0 && buttons.every(button => {
+            const rect = button.getBoundingClientRect();
+            return rect.width >= 43.5 && rect.height >= 43.5 && rect.left >= bounds.left - 1 && rect.right <= bounds.right + 1;
+          });
+      })()`);
+    }
+    await client.send('Emulation.setDeviceMetricsOverride', { width: WIDTH, height: 1000, deviceScaleFactor: 1, mobile: true });
     await waitFor(client, 'phone navigation toggle',
       'Boolean(document.querySelector("button[aria-label=\\\"Navigation öffnen\\\"]"))', 15000);
     const menuOpened = await evaluate(client,
@@ -3855,7 +3869,7 @@ async function main() {
     for (const width of [360, 820, 1360]) {
       await client.send('Emulation.setDeviceMetricsOverride', {width, height:1000, deviceScaleFactor:1, mobile:false});
       await sleep(350);
-      const layout = await evaluate(client, `(() => {const hub=document.querySelector('[data-dashboard-overview]');const header=hub.querySelector('header');return {overflow:document.documentElement.scrollWidth>innerWidth+3,heading:hub.querySelector('h1').textContent.trim(),hasDayLabel:/Heute|Morgen|Vorschau/.test(header.textContent),smallTarget:Array.from(hub.querySelectorAll('header button, [data-dashboard-day-priority] button')).filter(button=>button.getBoundingClientRect().width>0 && getComputedStyle(button).display!=='none').some(button=>button.getBoundingClientRect().height<44)};})()`);
+      const layout = await evaluate(client, `(() => {const hub=document.querySelector('[data-dashboard-overview]');const header=hub.querySelector('header');return {overflow:document.documentElement.scrollWidth>innerWidth+3,heading:hub.querySelector('h1').textContent.trim(),hasDayLabel:/Heute|Morgen|Vorschau/.test(header.textContent),smallTarget:Array.from(header.querySelectorAll('button')).filter(button=>button.getBoundingClientRect().width>0 && getComputedStyle(button).display!=='none').some(button=>button.getBoundingClientRect().height<44)};})()`);
       if(layout.overflow || layout.smallTarget || !layout.heading || !layout.hasDayLabel) throw new Error('Daily overview layout failed at '+width+': '+JSON.stringify(layout));
       await saveScreenshot(client);
     }
