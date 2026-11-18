@@ -232,6 +232,31 @@ try {
   if(mobileFormats.length!==10 || mobileFormats.some(r=>r.height<44 || r.width<44 || r.left< -1 || r.right>361)){
     throw new Error('Print-format phone controls are too small or clipped: '+JSON.stringify(mobileFormats));
   }
+  const fittedPaper = `(() => {
+    const frame = document.querySelector('[data-print-preview-frame]');
+    const paper = frame?.querySelector('[data-print-preview-paper]');
+    if (!paper) return false;
+    const box = paper.getBoundingClientRect();
+    const frameBox = frame.getBoundingClientRect();
+    return box.width > 0 && box.left >= frameBox.left && box.right <= frameBox.right && frame.scrollWidth <= frame.clientWidth + 1;
+  })()`;
+  await clickButton(client, 'Hochformat');
+  await clickButton(client, 'Seite einpassen');
+  await waitFor(client, 'portrait preview fits the actual phone frame', fittedPaper);
+  const portraitZoom = await evaluate(client, 'Number(document.querySelector("#print-preview-zoom-slider").value)');
+  await clickButton(client, 'Querformat');
+  await waitFor(client, 'landscape preview fits the phone frame after orientation change',
+    `Number(document.querySelector('#print-preview-zoom-slider').value) < ${portraitZoom} && ${fittedPaper}`);
+  await clickButton(client, '100 % Zoom');
+  await waitFor(client, '100 percent preview scrolls inside its frame only', `(() => {
+    const frame = document.querySelector('[data-print-preview-frame]');
+    return frame.scrollWidth > frame.clientWidth && document.documentElement.scrollWidth <= innerWidth + 1;
+  })()`);
+  await clickButton(client, 'Seite einpassen');
+  await waitFor(client, 'fit removes side scrolling again', fittedPaper);
+  await clickButton(client, 'Angaben bearbeiten');
+  await waitFor(client, 'preview links back to the actual configuration', 'document.activeElement?.id === "print-center-configuration"');
+  await clickButton(client, 'Hochformat');
   await evaluate(client, 'window.scrollTo(0,0)');
   const mobileShot=await client.send('Page.captureScreenshot', {format:'png',captureBeyondViewport:false});
   await fs.writeFile('/tmp/klassio-kel-parent-mobile.png',Buffer.from(mobileShot.data,'base64'));
@@ -258,7 +283,7 @@ try {
     'document.querySelector("#print-preview-zoom-slider")?.value === "1" && document.querySelector("[data-testid=print-preview-zoom-controls] button[aria-pressed=true]")?.textContent.includes("100 % Zoom")');
   await clickButton(client, 'Seite einpassen');
   await waitFor(client, 'fitted print preview selected',
-    'document.querySelector("#print-preview-zoom-slider")?.value === "0.7" && document.querySelector("[data-testid=print-preview-zoom-controls] button[aria-pressed=true]")?.textContent.includes("Seite einpassen")');
+    `document.querySelector('[data-testid=print-preview-zoom-controls] button[aria-pressed=true]')?.textContent.includes('Seite einpassen') && ${fittedPaper}`);
   console.log('PASS A4 preview chooses fit or 100 percent without modifying the printed document');
   // No child's private record should appear until the teacher explicitly
   // chooses the recipient. Printing must be blocked in the empty state.
