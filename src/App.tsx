@@ -721,7 +721,7 @@ function AppContent() {
     switch (currentPage) {
       case 'cockpit': return null;
       case 'dashboard': return istSekundarstufe(app.schulart) ? <Sek1Dashboard /> : <Dashboard />;
-      case 'klasse': return <KlasseHub />;
+      case 'klasse': return <KlasseHub key={app.activeClassId || 'class'} />;
       case 'planung': return <PlanungHub />;
       case 'leistungen': return <LeistungenHub />;
       case 'unterricht': return null; // Legacy alias is resolved to 'cockpit' above.
