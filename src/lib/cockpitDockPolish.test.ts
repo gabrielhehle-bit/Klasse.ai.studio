@@ -17,7 +17,7 @@ test('Widget-Dock nutzt eine einheitliche Icon-Sprache für Systemaktionen', () 
   assert.match(dock, /LayoutGrid/);
   assert.match(dock, /Settings2/);
   assert.match(dock, /PawPrint/);
-  assert.match(dock, /UsersRound/);
+  assert.doesNotMatch(dock, /onToggleSidebar/);
   assert.doesNotMatch(dock, /}>⚙️<\/button>/);
   assert.doesNotMatch(dock, /}>🐾<\/button>/);
   assert.doesNotMatch(dock, /}>👥<\/button>/);

@@ -41,6 +41,6 @@ test('Seltene Vorlage-Aktion bleibt zugänglich, die Tafel behält ihre Bedienun
   assert.match(cockpit, /aria-label="Vorlage erstellen"/);
   assert.match(cockpit, /setVorlagenStartTab\("create"\); setIsVorlagenModalOpen\(true\); setIsMoreOptionsMenuOpen\(false\)/);
   assert.match(cockpit, /aria-label=\{isFullscreen \? "Vollbild beenden" : "Vollbild öffnen"\}/);
-  assert.match(cockpit, /Tafel groß anzeigen/);
+  assert.match(cockpit, /data-cockpit-student-toggle/);
   assert.equal((cockpit.match(/aria-label="Vorlage erstellen"/g) || []).length, 1);
 });
