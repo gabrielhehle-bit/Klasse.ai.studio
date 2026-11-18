@@ -10,9 +10,9 @@ test('Simple help lives inside the existing class team page, not a separate site
   assert.match(page, /data-testid="team-two-teachers-help"/);
   assert.match(page, /<TeamTeachingQuickHelp/);
   assert.match(page, /sharedClassId=\{activeSharedId\}/);
-  assert.match(page, /serverConfirmed=\{Boolean\(activeSummary\)\}/);
+  assert.match(page, /serverConfirmed=\{serverConfirmed\}/);
   assert.match(page, /deviceAuthorization=\{deviceAuthorization\}/);
-  assert.match(page, /teamSyncStatus=\{teamSyncStatus\}/);
+  assert.match(page, /teamSyncStatus=\{teamSyncStatus === 'synced' && nextAction !== 'ready'/);
 });
 
 test('Teachers use different school accounts but join exactly one existing shared class', () => {

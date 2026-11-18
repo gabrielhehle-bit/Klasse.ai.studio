@@ -38,6 +38,7 @@ test('A second teacher with an invitation is guided to join, not to create a sep
 test('Unverified device and missing team server cannot show green readiness', () => {
   assert.equal(getTeacherTeamNextAction(team({ deviceChecking: true })), 'checking-device');
   assert.equal(getTeacherTeamNextAction(team({ serverSummaryLoaded: false })), 'check-connection');
+  assert.equal(getTeacherTeamNextAction(team({ serverRevision: 3 })), 'check-connection');
   assert.equal(getTeacherTeamNextAction(team({ deviceAuthorized: false })), 'request-device');
   assert.equal(getTeacherTeamNextAction(team({ deviceAuthorized: false, deviceRequestPending: true })), 'await-device');
 });
@@ -61,7 +62,7 @@ test('Teacher setup surface links to the existing secure class sharing actions',
   assert.match(source, /teamSyncPresentation\(activeRoom\)/);
   assert.match(source, /case 'activate': void enableSharing\(\)/);
   assert.match(source, /case 'request-device': void requestDeviceAccess\(\)/);
-  assert.match(source, /case 'ready': void synchronizeTeamSimply\(\)/);
+  assert.match(source, /case 'compare-versions': void synchronizeTeamSimply\(\)/);
   assert.match(source, /id="team-teacher-search"/);
   assert.match(source, /requestTeamTeachingDeviceAccess\(summary\.id\)/);
   assert.match(source, /Versionsgeschichte/);
@@ -71,7 +72,7 @@ test('Teacher setup surface links to the existing secure class sharing actions',
 
 test('teacher can sync with one main action while advanced controls remain available', () => {
   const source = readFileSync('src/components/ClassTeam.tsx', 'utf8');
-  assert.match(source, /data-testid="team-simple-sync"/);
+  assert.match(source, /team-simple-sync/);
   assert.match(source, /const synchronizeTeamSimply = async/);
   assert.match(source, /const latestList = await listSharedClasses\(\)/);
   assert.match(source, /remote\.revision > now\.teamTeaching\.revision/);

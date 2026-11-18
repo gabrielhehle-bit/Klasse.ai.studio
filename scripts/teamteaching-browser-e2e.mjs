@@ -297,6 +297,11 @@ async function openClassTeam(client) {
   await waitFor(client, 'class team workspace', 'document.body?.innerText.includes("Eine Klasse gemeinsam führen")', 30000);
 }
 
+async function revealManualTeamControls(client) {
+  const opened = await evaluate(client, '(() => { const details = document.querySelector("[data-testid=team-manual-controls]"); if (!details) return false; if (!details.open) details.querySelector("summary").click(); return details.open; })()');
+  if (!opened) throw new Error(client.name + ': manual team tools could not be opened');
+}
+
 async function reloadExistingTeamVault(client, password) {
   await evaluate(client, 'window.__klassioBeforeTeamReload = true');
   client.allowTeamTestReload = true;
@@ -408,6 +413,7 @@ async function main() {
       const manualStatus = await evaluate(berta,
         'document.body?.innerText.slice(0,1800)');
       console.log('DIAGNOSTIC teacher B Klassenteam: ' + manualStatus);
+      await revealManualTeamControls(berta);
       await clickButton(berta, 'Neueste Version laden');
       await clickSidebar(berta, 'Wochenplan');
       const visibleAfterManual = await evaluate(berta,
@@ -417,12 +423,27 @@ async function main() {
     }
     console.log('✓ Cross-account weekly lesson shared automatically without manual send');
 
+    await openClassTeam(anna);
     await openClassTeam(berta);
+    const confirmedClass = '[data-testid=team-setup-next-action][data-team-next-action=ready]';
+    const readComparison = 'JSON.stringify([document.querySelector("[data-testid=team-comparison-code]")?.textContent.trim(), document.querySelector("[data-testid=team-comparison-revision]")?.textContent.trim()])';
+    const teamComparisons = await Promise.all([anna, berta].map(async client => {
+      await waitFor(client, 'team page shows a confirmed synchronized class',
+        'Boolean(document.querySelector(' + q(confirmedClass) + '))', 30000);
+      return JSON.parse(await evaluate(client, readComparison));
+    }));
+    if (!teamComparisons[0].every(Boolean) || JSON.stringify(teamComparisons[0]) !== JSON.stringify(teamComparisons[1])) {
+      throw new Error('The two teacher accounts do not show the same team reference and revision');
+    }
+    console.log('✓ Both school accounts show the same team reference, revision and confirmed status');
+
+    await revealManualTeamControls(berta);
     await clickButton(berta, 'Änderungen senden');
     await waitFor(berta, 'editor can push encrypted class', 'document.body?.innerText.includes("Änderungen wurden verschlüsselt")', 30000);
     console.log('✓ Lehrkraft B: editor write path accepted');
 
     await openClassTeam(anna);
+    await revealManualTeamControls(anna);
     await clickButton(anna, 'Neueste Version laden');
     await waitFor(anna, 'owner pulls second teacher revision', 'document.body?.innerText.includes("Neuester verschlüsselter Stand wurde geladen")', 30000);
     console.log('✓ Lehrkraft A: pulled newest encrypted revision');
