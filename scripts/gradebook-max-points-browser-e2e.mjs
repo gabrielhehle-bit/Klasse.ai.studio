@@ -114,6 +114,27 @@ async function usePhone(c){
   await sleep(400);
 }
 
+async function assertAssessmentOverlay(c, variant) {
+  const result = await evalPage(c, `(() => {
+    const backdrop = document.querySelector('#assessment-item-modal-backdrop');
+    const dialog = document.querySelector('#assessment-item-modal-content');
+    if (!backdrop || !dialog) return null;
+    const rect = dialog.getBoundingClientRect();
+    const atCenter = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    return {
+      inBodyPortal: backdrop.parentElement === document.body,
+      zIndex: Number(getComputedStyle(backdrop).zIndex),
+      topmost: dialog.contains(atCenter),
+      insideViewport: rect.left >= 0 && rect.right <= innerWidth + 1 && rect.top >= 0 && rect.bottom <= innerHeight + 1,
+      modal: dialog.getAttribute('aria-modal')
+    };
+  })()`);
+  if (!result || !result.inBodyPortal || result.zIndex <= 9000 || !result.topmost || !result.insideViewport || result.modal !== 'true') {
+    throw new Error('Assessment modal is obscured (' + variant + '): ' + JSON.stringify(result));
+  }
+  console.log('PASS Assessment modal overlays sticky table (' + variant + ')');
+}
+
 const c=await openBrowser();
 try {
   await c.send('Page.navigate',{url:BASE_URL});
@@ -142,6 +163,11 @@ try {
   await until(c,'new assessment menu','Boolean(document.querySelector("#gradebook-add-assessment-menu"))');
   await click(c,'#gradebook-add-assessment-menu button[aria-label="Lernzielkontrolle für die Klasse anlegen"]');
   await until(c,'new assessment editor','Boolean(document.querySelector("#assessment-item-modal-content"))');
+  await assertAssessmentOverlay(c, 'desktop');
+  await usePhone(c);
+  await assertAssessmentOverlay(c, 'mobile 390px');
+  await c.send('Emulation.setDeviceMetricsOverride',{width:1440,height:980,deviceScaleFactor:1,mobile:false});
+  await c.send('Emulation.setTouchEmulationEnabled',{enabled:false});
   await click(c,'input[name="assessment-item-mode"][value="points"]');
   await until(c,'point maximum input','Boolean(document.querySelector("#assessment-item-max-points-input"))');
   await fill(c,'Bezeichnung / Titel','Chrome-Punktetest');
@@ -225,6 +251,12 @@ try {
   if(finalMax!=='24')throw new Error('Invalid maximum overwrote saved maximum: '+finalMax);
   await click(c,'#btn-cancel-assessment-modal');
   console.log('PASS A maximum smaller than an existing result is blocked without data loss');
+  await click(c,'button[aria-label="Notenmappe im Vollbild öffnen"]');
+  await until(c,'gradebook fullscreen is active','document.querySelector("[data-gradebook-fullscreen]")?.getAttribute("data-gradebook-fullscreen")==="true"');
+  await openOptions();
+  await assertAssessmentOverlay(c, 'fullscreen');
+  await click(c,'#btn-cancel-assessment-modal');
+  await click(c,'button[aria-label="Vollbild beenden"]');
   console.log('PASS KLASSIO Issue #571 focused browser coverage completed');
 } finally {
   c.close();
