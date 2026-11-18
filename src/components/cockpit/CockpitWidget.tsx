@@ -818,7 +818,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
         </div>
 
         {/* Compact widget menu: editing stays inside the widget without a wide button bar. */}
-        <div ref={widgetMenuAreaRef} className="relative flex items-center gap-1.5 shrink-0 ml-auto pointer-events-auto">
+        <div ref={isFreeMascot ? undefined : widgetMenuAreaRef} className="relative flex items-center gap-1.5 shrink-0 ml-auto pointer-events-auto">
           {headerExtra}
 
           <button
@@ -845,42 +845,17 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
             <MoreHorizontal size={16} strokeWidth={2.5} />
           </button>
 
-          {showWidgetMenu && (
+          {showWidgetMenu && !isFreeMascot && (
             <div
               onPointerDown={(e) => e.stopPropagation()}
               role="menu"
               aria-label="Widget-Aktionen"
-              style={isFreeMascot && stageSize.height > 0 ? { maxHeight: Math.max(44, mascotMenuSpace - 8) } : undefined}
-              className={`cockpit-widget-action-menu absolute z-[80] rounded-2xl border p-1.5 shadow-2xl ${
-                isFreeMascot
-                  ? `w-56 max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain ${mascotMenuOpensUp ? "bottom-full mb-1" : "top-full mt-1"} ${renderedX < 50 ? "left-0" : "right-0"}`
-                  : "right-0 top-full mt-1 w-56 max-w-[calc(100cqw-0.5rem)]"
-              } ${
+              className={`cockpit-widget-action-menu absolute right-0 top-full z-[80] mt-1 w-56 max-w-[calc(100cqw-0.5rem)] rounded-2xl border p-1.5 shadow-2xl ${
                 currentIsLight
                   ? "bg-white border-slate-200 text-slate-800"
                   : "bg-zinc-900 border-white/10 text-zinc-100"
               }`}
             >
-              {isFreeMascot && (
-                <>
-                  <button type="button" role="menuitemcheckbox" aria-checked={mascot.quietMode === true}
-                    className={mascotActionClass}
-                    onClick={event => { event.stopPropagation(); toggleMascotQuiet(); }}>
-                    <span aria-hidden="true">🌙</span>
-                    <span className="flex-1">Tafelruhe</span>
-                    <span aria-hidden="true" className="text-xs">{mascot.quietMode ? "Ein" : "Aus"}</span>
-                  </button>
-                  {MASCOT_RITUALS.map(ritual => (
-                    <button key={ritual.action} type="button" role="menuitem" title={ritual.title}
-                      disabled={mascot.quietMode} className={mascotActionClass}
-                      onClick={event => { event.stopPropagation(); playMascotRitual(ritual.action); }}>
-                      <span aria-hidden="true">{ritual.icon}</span>
-                      {ritual.label}
-                    </button>
-                  ))}
-                  <div role="separator" className="my-1 h-px bg-slate-200 dark:bg-white/15" />
-                </>
-              )}
               {!layoutLocked && (widget.type === "drawing" || widget.type === "instruction") && (
                 <button role="menuitem"
                   type="button"
@@ -1110,6 +1085,38 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
           {children}
         </div>
       </div>
+
+      {isFreeMascot && (
+        <div ref={widgetMenuAreaRef}
+          className={`mascot-quick-actions absolute right-0 top-0 z-50 ${isFocused || showWidgetMenu ? "visible pointer-events-auto" : "invisible pointer-events-none group-hover:visible group-hover:pointer-events-auto group-focus-within:visible group-focus-within:pointer-events-auto"}`}>
+          <button type="button" aria-label="Klassenrituale und Tafelruhe" aria-expanded={showWidgetMenu} aria-haspopup="menu"
+            className="cockpit-widget-menu-trigger grid h-11 w-11 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+            onClick={event => { event.stopPropagation(); setShowWidgetMenu(open => !open); }}>
+            <MoreHorizontal size={20} aria-hidden="true" />
+          </button>
+          {showWidgetMenu && (
+            <div role="menu" aria-label="Klassenrituale und Tafelruhe"
+              style={{ maxHeight: stageSize.height > 0 ? Math.max(44, mascotMenuSpace - 8) : "45dvh" }}
+              className={`absolute w-56 max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-1.5 text-slate-800 shadow-xl dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 ${mascotMenuOpensUp ? "bottom-full mb-1" : "top-full mt-1"} ${renderedX < 50 ? "left-0" : "right-0"}`}>
+              <button type="button" role="menuitemcheckbox" aria-checked={mascot.quietMode === true}
+                className={mascotActionClass}
+                onClick={event => { event.stopPropagation(); toggleMascotQuiet(); }}>
+                <span aria-hidden="true">🌙</span>
+                <span className="flex-1">Tafelruhe</span>
+                <span aria-hidden="true" className="text-xs">{mascot.quietMode ? "Ein" : "Aus"}</span>
+              </button>
+              {MASCOT_RITUALS.map(ritual => (
+                <button key={ritual.action} type="button" role="menuitem" title={ritual.title}
+                  disabled={mascot.quietMode} className={mascotActionClass}
+                  onClick={event => { event.stopPropagation(); playMascotRitual(ritual.action); }}>
+                  <span aria-hidden="true">{ritual.icon}</span>
+                  {ritual.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* All frame edges/corners resize without covering the toolbar controls. */}
       {!layoutLocked && !isDirect && !isMaximized && !isFreeMascot && (

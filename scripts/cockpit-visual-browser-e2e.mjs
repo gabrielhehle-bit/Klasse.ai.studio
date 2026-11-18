@@ -227,7 +227,7 @@ async function main() {
     await clickLabel(client, 'Klassenmaskottchen einblenden');
     const mascot = `document.querySelector('[data-widget-type="pet"]')`;
     await waitFor(client, 'class mascot appears', `Boolean(${mascot}?.querySelector('.class-mascot-character'))`);
-    const openMascotMenu = () => evaluate(client, `${mascot}.querySelector('.cockpit-widget-menu-trigger').click()`);
+    const openMascotMenu = () => evaluate(client, `${mascot}.querySelector('.mascot-quick-actions .cockpit-widget-menu-trigger').click()`);
     const mascotQuietButton = `${mascot}.querySelector('[role="menuitemcheckbox"]')`;
     const mascotPraiseButton = `Array.from(${mascot}.querySelectorAll('[role="menuitem"]')).find(button => button.textContent.includes('Geschafft!'))`;
     await evaluate(client, `${mascot}.querySelector('.class-mascot-character').focus()`);
