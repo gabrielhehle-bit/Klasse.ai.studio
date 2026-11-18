@@ -5,13 +5,13 @@ import { getStudentAttendanceSummary, getStudentBehaviorSummary, getStudentNotes
 import { sek1GradeEntries, sek1GradebookComments } from '../lib/sek1StudentData';
 import { formatLocalDateKey, logObservation } from '../lib/utils';
 
-export default function Sek1StudentDossier({ studentId, onBack }: { studentId: string; onBack: () => void }) {
+export default function Sek1StudentDossier({ studentId, onBack, backLabel = 'Zur Klassenliste' }: { studentId: string; onBack: () => void; backLabel?: string }) {
   const { app, setApp, setPage } = useApp();
   const [note, setNote] = useState('');
   const [category, setCategory] = useState<'Notiz' | 'Verhalten'>('Notiz');
   const [semester, setSemester] = useState<'1' | '2'>('1');
   const student = app.schueler.find(s => s.id === studentId);
-  if (!student) return <div className="rounded-xl border border-[var(--border)] p-5"><p>Dieses Kind ist in der aktuellen Klasse nicht vorhanden.</p><button onClick={onBack} className="mt-3 underline">Zur Klassenliste</button></div>;
+  if (!student) return <div className="rounded-xl border border-[var(--border)] p-5"><p>Dieses Kind ist in der aktuellen Klasse nicht vorhanden.</p><button type="button" onClick={onBack} className="mt-3 underline">{backLabel}</button></div>;
   const attendance = getStudentAttendanceSummary(app, studentId);
   const behavior = getStudentBehaviorSummary(app, studentId);
   const grades = sek1GradeEntries(app, studentId, semester);
@@ -25,7 +25,7 @@ export default function Sek1StudentDossier({ studentId, onBack }: { studentId: s
   };
   return (
     <article className="mx-auto w-full max-w-5xl space-y-5">
-      <button type="button" onClick={onBack} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-bold text-[var(--text)] hover:bg-[var(--surface2)]"><ArrowLeft size={16}/> Zur Klassenliste</button>
+      <button type="button" onClick={onBack} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-bold text-[var(--text)] hover:bg-[var(--surface2)]"><ArrowLeft size={16}/> {backLabel}</button>
       <header className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
         <p className="text-xs font-bold uppercase tracking-wide text-[var(--text2)]">{app.klassenbezeichnung} · Schülerdossier</p>
         <h2 className="mt-1 text-2xl font-black text-[var(--text)]">{student.vorname} {student.nachname}</h2>

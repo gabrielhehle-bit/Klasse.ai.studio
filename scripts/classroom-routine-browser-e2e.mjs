@@ -540,6 +540,24 @@ async function main() {
     const topButtons = result.topbarVisible.filter(x => !x.label.includes('Navigation'));
     if (topButtons.some(x => x.r && x.r.right > WIDTH + 3)) throw new Error('Phone toolbar action is clipped.');
     await checkRoutine(client);
+    await client.send('Emulation.setDeviceMetricsOverride', { width: 1360, height: 1000, deviceScaleFactor: 1, mobile: false });
+    await openPage(client, 'Klasse');
+    await waitFor(client, 'class overview opens with a student dossier search', `Boolean(document.querySelector('#class-student-search'))`);
+    await setInputByLabel(client, 'Schülerdossier finden', 'Pichler, anna');
+    const studentResult = 'section[aria-labelledby="class-student-search-label"] li button';
+    await waitFor(client, 'class search finds Anna Pichler in reverse order', `document.querySelector(${q(studentResult)})?.textContent.trim() === 'Anna Pichler'`);
+    for (const width of [360, 820, 1360]) {
+      await client.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
+      await waitFor(client, `class search stays tappable at ${width}px`, `(() => {
+        const input = document.querySelector('#class-student-search').getBoundingClientRect();
+        const result = document.querySelector(${q(studentResult)}).getBoundingClientRect();
+        return innerWidth === ${width} && [input, result].every(rect => rect.height >= 43.5 && rect.left >= 0 && rect.right <= innerWidth + 1);
+      })()`);
+    }
+    await clickSelector(client, studentResult);
+    await waitFor(client, 'class search opens the matching dossier directly', `Boolean(document.querySelector('[data-student-dossier-nav]')?.textContent.includes('Anna Pichler'))`);
+    await clickSelector(client, '[data-student-dossier-nav] button[aria-label="Zur Klassenübersicht"]');
+    await waitFor(client, 'class overview restores the student search on return', `document.querySelector('#class-student-search')?.value === 'Pichler, anna'`);
     // Exercise the single sidebar view switch twice at a normal laptop viewport.
     await client.send('Emulation.setDeviceMetricsOverride', {
       width: 1280, height: 720, deviceScaleFactor: 1, mobile: false,

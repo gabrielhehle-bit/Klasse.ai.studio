@@ -3,9 +3,12 @@ import { useApp } from '../context/AppContext';
 import { Users, UserCheck, Armchair, Wallet, MessagesSquare, Heart, Notebook, ChevronRight, UserPlus, FileText, ContactRound, BarChart3, ArrowLeft, Search, X } from 'lucide-react';
 import { toLocalDateKey } from '../lib/localDate';
 import { countStudentsWithAttendanceForDay } from '../lib/dashboardAttendance';
-import { filterClassHubItems } from '../lib/classHubSearch';
+import { filterClassHubItems, findClassHubStudents } from '../lib/classHubSearch';
+import { istSekundarstufe } from '../lib/sek1Navigation';
+import { SCHULARTEN } from '../lib/schularten';
 import ClassDossier from './ClassDossier';
 import StudentDossier from './StudentDossier';
+import Sek1StudentDossier from './Sek1StudentDossier';
 
 type HubItem = {
   id: string;
@@ -51,28 +54,29 @@ function ClassCard({
 }
 
 export default function KlasseHub() {
-  const { app, setPage } = useApp();
+  const { app, setPage, switchClass } = useApp();
   const [showClassDossier, setShowClassDossier] = React.useState(false);
   const [selectedStudentId, setSelectedStudentId] = React.useState<string | null>(null);
   const [functionQuery, setFunctionQuery] = React.useState('');
+  const [studentQuery, setStudentQuery] = React.useState('');
   const students = app.schueler || [];
+  const classes = app.classes || [];
+  const matchingStudents = findClassHubStudents(students, studentQuery);
   const today = toLocalDateKey();
   const recordedToday = countStudentsWithAttendanceForDay(students, app.anwesenheit, today);
   const className = app.klassenbezeichnung?.trim();
   const schoolYear = app.schuljahr?.replace(/^(\d{4})\/\d{2}(\d{2})$/, '$1/$2');
   const attendanceLabel = recordedToday > 0 ? `${recordedToday} von ${students.length} erfasst` : 'Heute noch offen';
 
-  React.useEffect(() => {
-    setShowClassDossier(false);
-    setSelectedStudentId(null);
-    setFunctionQuery('');
-  }, [app.activeClassId]);
-
-  if (selectedStudentId) {
+  if (selectedStudentId && students.some(student => student.id === selectedStudentId)) {
+    if (istSekundarstufe(app.schulart)) {
+      return <Sek1StudentDossier key={selectedStudentId} studentId={selectedStudentId} onBack={() => setSelectedStudentId(null)} backLabel={showClassDossier ? 'Zum Klassendossier' : 'Zur Klassenübersicht'} />;
+    }
     return (
       <StudentDossier
         schuelerId={selectedStudentId}
         onBack={() => setSelectedStudentId(null)}
+        backLabel={showClassDossier ? 'Zum Klassendossier' : 'Zur Klassenübersicht'}
         onStudentChange={setSelectedStudentId}
       />
     );
@@ -201,7 +205,7 @@ export default function KlasseHub() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-5 sm:px-6 sm:py-6" data-class-hub>
-      <header className="flex flex-col gap-4 border-b border-[var(--border)] pb-5 sm:flex-row sm:items-center sm:justify-between">
+      <header className="flex flex-col gap-4 border-b border-[var(--border)] pb-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight text-[var(--text)] break-words">
             {className ? `Klasse ${className}` : 'Deine Klasse'}
@@ -210,6 +214,20 @@ export default function KlasseHub() {
             {students.length} {students.length === 1 ? 'Kind' : 'Kinder'}{schoolYear && <> · Schuljahr {schoolYear}</>}
           </p>
         </div>
+        {classes.length > 1 && (
+          <div className="w-full min-w-0 sm:w-56">
+            <label htmlFor="class-hub-picker" className="mb-1 block text-sm font-semibold text-[var(--text)]">Klasse wechseln</label>
+            <select id="class-hub-picker" value={app.activeClassId || ''}
+              onChange={event => switchClass(event.target.value)}
+              className="min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
+              {classes.map(room => (
+                <option key={room.id} value={room.id}>
+                  {[room.name || `${room.stufe}. Schulstufe`, SCHULARTEN.find(option => option.id === room.schulart)?.label, room.schuljahr].filter(Boolean).join(' · ')}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         {students.length > 0 && (
           <button type="button" onClick={() => setPage('anwesenheit')}
             className="group flex min-h-14 items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-left transition-colors hover:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
@@ -223,6 +241,38 @@ export default function KlasseHub() {
           </button>
         )}
       </header>
+
+      {students.length > 0 && (
+        <section aria-labelledby="class-student-search-label" className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 sm:p-4">
+          <label id="class-student-search-label" htmlFor="class-student-search" className="mb-2 block text-sm font-semibold text-[var(--text)]">Schülerdossier finden</label>
+          <div className="relative">
+            <Search size={18} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text3)]" />
+            <input id="class-student-search" type="search" autoComplete="off" value={studentQuery}
+              onChange={event => setStudentQuery(event.target.value)} placeholder="Vor- oder Nachname"
+              className="min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface2)] py-2 pl-10 pr-3 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text3)] focus-visible:ring-2 focus-visible:ring-[var(--accent)]" />
+          </div>
+          {studentQuery.trim() && (
+            <>
+              <p role="status" className="mt-2 text-sm text-[var(--text2)]">
+                {matchingStudents.length ? `${matchingStudents.length} Treffer` : 'Keine passenden Namen in dieser Klasse.'}
+              </p>
+              {matchingStudents.length > 0 && (
+                <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+                  {matchingStudents.map(student => (
+                    <li key={student.id}>
+                      <button type="button" onClick={() => setSelectedStudentId(student.id)}
+                        className="flex min-h-11 w-full items-center justify-between gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-left text-sm font-semibold text-[var(--text)] hover:border-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
+                        <span className="min-w-0 break-words">{student.vorname} {student.nachname}</span>
+                        <ChevronRight size={17} aria-hidden="true" className="shrink-0 text-[var(--text3)]" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </section>
+      )}
 
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 sm:p-4" data-class-function-search>
         <label htmlFor="class-function-search" className="mb-2 block text-sm font-semibold text-[var(--text)]">Was möchtest du erledigen?</label>
