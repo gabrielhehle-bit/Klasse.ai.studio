@@ -525,7 +525,7 @@ async function main() {
     berta.deviceApprovalCode = null;
     await waitFor(berta, 'editor approval confirmed', 'document.body?.innerText.includes("ist freigegeben")');
     await waitFor(anna, 'owner device resumes decrypted team sync after editor approval',
-      'Boolean(document.querySelector("[data-team-sync-status=synced]"))', 30000);
+      'Boolean(document.querySelector(' + q(confirmedClass) + '))', 30000);
     await clickSidebar(anna, 'Wochenplan');
     await waitFor(anna, 'latest editor lesson survives owner key recovery',
       'document.body?.innerText.includes(' + q(recoveredTopic) + ')');
@@ -567,7 +567,7 @@ async function main() {
     console.log('✓ Both keys lost: owner created independent encrypted restart; original team and revision unchanged');
 
     await waitFor(anna, 'editor in colleague picker for new class',
-      'document.querySelector("[data-testid=team-simple-working-status]")?.textContent.includes("Deine Klasse ist freigegeben") || document.body?.innerText.includes("Berta")', 30000);
+      'Array.from(document.querySelectorAll("button")).some(button=>!button.disabled && button.getBoundingClientRect().width>0 && button.textContent.includes("Berta"))', 30000);
     await clickButton(anna, 'Berta');
     await waitFor(anna, 'editor added to new recovery team',
       'document.body?.innerText.includes("wurde als Teamlehrkraft hinzugefügt")', 30000);
@@ -580,9 +580,9 @@ async function main() {
     await waitFor(berta, 'editor adopts the new team class',
       'document.body?.innerText.includes("Aktuelle Klasse: E2E 1A – Neustart")', 45000);
     console.log('RECOVERY BERTA DIAGNOSTIC: ' + JSON.stringify(await evaluate(berta,
-      '({badge:document.querySelector("[data-team-sync-status]")?.outerHTML,working:document.querySelector("[data-testid=team-simple-working-status]")?.innerText,errors:Array.from(document.querySelectorAll(".text-rose-700")).map(x=>x.innerText).slice(0,5),body:document.body?.innerText.slice(-800)})')));
+      '({badge:document.querySelector("[data-team-next-action]")?.outerHTML,working:document.querySelector("[data-testid=team-simple-working-status]")?.innerText,errors:Array.from(document.querySelectorAll(".text-rose-700")).map(x=>x.innerText).slice(0,5),body:document.body?.innerText.slice(-800)})')));
     await waitFor(berta, 'editor successfully opens new class with owner content',
-      'Boolean(document.querySelector("[data-team-sync-status=synced]"))', 45000);
+      'Boolean(document.querySelector(' + q(confirmedClass) + '))', 45000);
     await clickSidebar(berta, 'Wochenplan');
     await waitFor(berta, 'owner lesson preserved for new editor after key-loss restart',
       'document.body?.innerText.includes(' + q(recoveredTopic) + ')', 30000);
