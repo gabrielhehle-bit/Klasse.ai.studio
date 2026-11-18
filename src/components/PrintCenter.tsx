@@ -4568,7 +4568,7 @@ export default function PrintCenter() {
 
             {/* Simulated Frame with dynamic scaling */}
             <div ref={previewFrame} data-print-preview-frame role="region" aria-label="Druckvorschau" tabIndex={0}
-              className="max-h-[85dvh] min-h-[320px] w-full overflow-auto rounded-2xl border border-slate-200/60 bg-slate-100 p-3 shadow-inner no-print scrollbar-thin focus-visible:outline-2 focus-visible:outline-emerald-600 sm:min-h-[440px] md:rounded-3xl md:p-8">
+              className="max-h-[85dvh] min-h-[320px] w-full overflow-auto rounded-2xl border border-slate-200/60 bg-slate-100 p-3 shadow-inner no-print scrollbar-thin [scrollbar-gutter:stable] focus-visible:outline-2 focus-visible:outline-emerald-600 sm:min-h-[440px] md:rounded-3xl md:p-8">
               <div className="mx-auto" style={{ width: `${previewWidthMm * previewZoom}mm` }}>
               {isMultiPageTemplate ? (
                 /* Multi-page template rendering as a column of beautiful A4 sheets */
