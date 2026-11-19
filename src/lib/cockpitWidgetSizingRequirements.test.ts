@@ -37,8 +37,8 @@ test("Cockpit-Widgets: jeder Typ erhält eine sichere Mindestgröße", () => {
   assert.match(widgetLayout, /minH: 180/);
   assert.match(widgetLayout, /getWidgetMinSizeConfig/);
   assert.match(cockpitWidget, /const safeMinSize = getWidgetMinSizeConfig\(widget\.type\)/);
-  assert.match(cockpitWidget, /Math\.max\(5, widget\.w, minWPercent\)/);
-  assert.match(cockpitWidget, /Math\.max\(5, widget\.h, minHPercent\)/);
+  assert.match(cockpitWidget, /Math\.max\(5, geometry\.w, minWPercent\)/);
+  assert.match(cockpitWidget, /Math\.max\(5, Math\.min\(geometry\.h, visibleBottom\), minHPercent\)/);
 });
 
 test("Cockpit-Widgets: Größen-Voreinstellungen werden gemeinsam und dauerhaft im Layout gespeichert", () => {

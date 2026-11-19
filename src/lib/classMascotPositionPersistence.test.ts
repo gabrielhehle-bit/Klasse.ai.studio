@@ -10,7 +10,7 @@ test('Freies Maskottchen behält seinen Anker auch neben Rand, ehemaliger Tabuzo
   assert.deepEqual(sanitizeClassMascotPosition(-4, 125), { x: 0, y: 100 });
   assert.deepEqual(sanitizeClassMascotPosition(NaN, Infinity), { x: 50, y: 50 });
   const source = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
-  assert.match(source, /if \(w\.type === "pet"\) \{[\s\S]{0,320}sanitizeClassMascotPosition\(x, y\)/);
+  assert.match(source, /normalizeCockpitWidgetGeometry\(w, w\.type === "pet"\)/);
   assert.match(source, /const sanitized = rawSanitized;/);
   assert.match(source, /must never invent a different arrangement/);
   assert.match(source, /mascotPortalTarget=\{mascotPortalTarget\}/);

@@ -242,6 +242,110 @@ async function checkAssignmentCountdown(client) {
     `${timer}?.dataset.timerWidgetStatus === 'expired'`);
 }
 
+async function dragWidgetTo(client, type, left, top) {
+  const points = await evaluate(client, `(() => {
+    const stage = document.getElementById('widget-board-stage');
+    const widget = stage.querySelector('[data-widget-type="' + ${q(type)} + '"]');
+    const board = stage.getBoundingClientRect();
+    const frame = widget.getBoundingClientRect();
+    const x = frame.left + 22;
+    const y = frame.top + 22;
+    if (!widget.firstElementChild.contains(document.elementFromPoint(x, y))) return null;
+    return { x, y, toX: board.left + stage.clientLeft + stage.clientWidth * ${left} / 100 + 22,
+      toY: board.top + stage.clientTop + stage.clientHeight * ${top} / 100 + 22 };
+  })()`);
+  if (!points) throw Error('Widget header is not reachable: ' + type);
+  const { x, y, toX, toY } = points;
+  await client.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 });
+  for (const progress of [0.3, 0.6, 1]) {
+    await client.send('Input.dispatchMouseEvent', {
+      type: 'mouseMoved', x: x + (toX - x) * progress, y: y + (toY - y) * progress, button: 'left', buttons: 1,
+    });
+  }
+  await client.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: toX, y: toY, button: 'left', buttons: 0, clickCount: 1 });
+  await waitFor(client, type + ' moves to the requested corner', `(() => {
+    const frame = document.querySelector('#widget-board-stage [data-widget-type="' + ${q(type)} + '"]');
+    return Math.abs(parseFloat(frame.style.left) - ${left}) < 0.4 && Math.abs(parseFloat(frame.style.top) - ${top}) < 0.4;
+  })()`);
+}
+
+async function checkWidgetGeometry(client) {
+  await clickLabel(client, 'Schülerliste ausblenden', true);
+  const widget = type => `document.querySelector('#widget-board-stage [data-widget-type="${type}"]')`;
+  const geometry = (...types) => `JSON.stringify([${types.map(widget).join(',')}].map(node =>
+    node && [node.style.left, node.style.top, node.style.width, node.style.height]))`;
+  const undo = 'Widget-Anordnung rückgängig machen';
+  const undoSelector = `document.querySelector('button[aria-label="${undo}"]')`;
+  const initialTimer = await evaluate(client, geometry('timer'));
+  await dragWidgetTo(client, 'timer', 5, 6);
+  await clickLabel(client, undo);
+  await waitFor(client, 'one undo reverts the entire pointer gesture', `${geometry('timer')} === ${q(initialTimer)} && !${undoSelector}`);
+  await dragWidgetTo(client, 'timer', 5, 6);
+
+  await evaluate(client, `document.querySelector('[data-dock-favorite-id="waldruhe"]').click()`);
+  await waitFor(client, 'Waldruhe opens beside the timer', `Boolean(${widget('waldruhe')})`);
+  await sleep(350);
+  await dragWidgetTo(client, 'waldruhe', 8, 14);
+  const both = geometry('timer', 'waldruhe');
+  const overlap = await evaluate(client, both);
+  const isOverlap = `${both} === ${q(overlap)}`;
+  const arrange = async () => {
+    await clickLabel(client, 'Cockpit-Einstellungen');
+    await clickButton(client, 'Automatisch anordnen');
+    await waitFor(client, 'automatic arrangement changes the overlapping windows', `!(${isOverlap})`);
+  };
+  await arrange();
+  await clickLabel(client, undo);
+  await waitFor(client, 'one undo recovers both intentionally overlapping windows', isOverlap);
+
+  const openSlots = async () => {
+    await clickLabel(client, 'Cockpit-Einstellungen');
+    await clickButton(client, 'Layouts & Schnell-Slots');
+  };
+  const slotButton = async action => {
+    const clicked = await evaluate(client, `(() => {
+      const dialog = document.querySelector('[aria-label="Layouts und Schnell-Slots"]');
+      const label = Array.from(dialog.querySelectorAll('span')).find(node => node.textContent === 'A');
+      const button = Array.from(label.parentElement.parentElement.querySelectorAll('button'))
+        .find(node => node.textContent.trim() === ${q(action)});
+      if (!button || button.disabled) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!clicked) throw Error('Slot A action unavailable: ' + action);
+  };
+  await openSlots();
+  await slotButton('Speichern');
+  await clickLabel(client, 'Layouts und Schnell-Slots schließen');
+  await arrange();
+  await openSlots();
+  await slotButton('Laden');
+  await waitFor(client, 'a layout slot restores the exact overlap', `${isOverlap} && !${undoSelector}`);
+
+  const selectPage = page => evaluate(client, `Array.from(document.querySelectorAll('[aria-label="Tafelseiten"] [role="tab"]'))
+    .find(node => node.textContent.trim() === ${q(page)}).click()`);
+  await selectPage('1');
+  await waitFor(client, 'the first page has its own geometry', `!(${isOverlap}) &&
+    document.querySelector('[aria-label="Tafelseiten"] [aria-selected="true"]').textContent.trim() === '1'`);
+  await selectPage('2');
+  await waitFor(client, 'both widgets keep their positions after a page round trip', isOverlap);
+
+  await evaluate(client, 'window.__beforeGeometryReload = true');
+  for (let attempt = 0; attempt < 20 && await evaluate(client, 'window.__beforeGeometryReload === true'); attempt++) {
+    await client.send('Page.reload');
+    await sleep(500);
+  }
+  await waitFor(client, 'the browser reloads from saved data', `!window.__beforeGeometryReload &&
+    (Boolean(document.querySelector('input[placeholder="Passwort eingeben"]')) || Boolean(document.querySelector('.topbar')))`);
+  if (await evaluate(client, `Boolean(document.querySelector('input[placeholder="Passwort eingeben"]'))`)) {
+    await fill(client, 'Passwort eingeben', VAULT_PASSWORD);
+    await clickButton(client, 'Tresor entsperren');
+  }
+  await waitFor(client, 'the app is ready after reload', `Boolean(document.querySelector('.topbar'))`);
+  await clickButton(client, 'Lehrercockpit');
+  await waitFor(client, 'saved upper-left positions and overlap survive an actual reload', isOverlap);
+}
+
 async function main() {
   await waitForChrome();
   const target=await (await fetch(DEBUG_URL+'/json/new?'+encodeURIComponent(BASE_URL),{method:'PUT'})).json();
@@ -689,6 +793,7 @@ async function main() {
     if (process.env.KLASSIO_E2E_FAKE_MIC === '1') await checkWaldruheMicrophone(client, forest, forestProgress);
 
     await checkAssignmentCountdown(client);
+    await checkWidgetGeometry(client);
 
     console.log('✓ Cockpit visual QA passed for '+WIDTH+'×'+HEIGHT+'. Board primary, students restorable, award modes distinct.');
   } catch(error) {

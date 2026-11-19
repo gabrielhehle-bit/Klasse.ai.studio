@@ -1,4 +1,5 @@
 import { resizeWidgetRect, type WidgetResizeDirection } from '../../lib/widgetResize';
+import { getCockpitWidgetUsableHeight, type CockpitWidgetGeometry } from '../../lib/cockpitWidgetGeometry';
 import React, { useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { MASCOT_CLASSROOM_CUES, MASCOT_RITUAL_EVENT, MASCOT_RITUALS, normalizeClassMascot, reactToMascotAction, type ClassMascotAction } from "../../lib/classMascot";
@@ -12,6 +13,8 @@ import { getCockpitWidgetCanonicalDisplayLabel, getCockpitWidgetCatalogEntry, ge
 interface CockpitWidgetProps {
   widget: CockpitWidgetConfig;
   onUpdate: (updates: Partial<CockpitWidgetConfig>) => void;
+  onGeometryChange?: (updates: Partial<CockpitWidgetGeometry>) => void;
+  geometryScope?: string;
   onClose: () => void;
   onMinimize?: () => void;
   onFocus: () => void;
@@ -152,6 +155,8 @@ const OPTIMAL_WIDGET_SIZES: Record<string, { w: number; h: number }> = {
 export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   widget,
   onUpdate,
+  onGeometryChange = onUpdate,
+  geometryScope,
   onClose,
   onMinimize,
   onFocus,
@@ -178,7 +183,9 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   const contentViewportRef = useRef<HTMLDivElement>(null);
   const [contentPixels, setContentPixels] = useState({ width: 0, height: 0 });
   const dragStartPos = useRef({ x: 0, y: 0, left: 0, top: 0 });
-  const resizeStartPos = useRef({ startX: 0, startY: 0, startW: 0, startH: 0, left: 0, top: 0 });
+  const [geometryPreview, setGeometryPreview] = useState<Partial<CockpitWidgetGeometry> | null>(null);
+  const cancelGeometryGesture = useRef<(() => void) | null>(null);
+  useEffect(() => () => cancelGeometryGesture.current?.(), [geometryScope, widget.id]);
   const suppressMascotTap = useRef(false);
   const suppressMascotTapTimer = useRef<number | null>(null);
   useEffect(() => () => { if (suppressMascotTapTimer.current !== null) clearTimeout(suppressMascotTapTimer.current); }, []);
@@ -295,77 +302,10 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       const yNum = Math.max(0, Math.min(widget.y, 100 - hNum));
 
       onFocus();
-      onUpdate({ x: xNum, y: yNum, w: wNum, h: hNum });
+      onGeometryChange({ x: xNum, y: yNum, w: wNum, h: hNum });
       setShowExactSizeInputs(false);
       setShowSizeConfig(false);
     }
-  };
-
-  const handlePointerDownDrag = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!e.isPrimary || e.button !== 0 || isMaximized || layoutLocked) return;
-    onFocus();
-
-    const stage = stageRef.current;
-    if (!stage) return;
-    const stageRect = stage.getBoundingClientRect();
-
-    const currentLeft = (widget.x / 100) * stageRect.width;
-    const currentTop = (widget.y / 100) * stageRect.height;
-
-    dragStartPos.current = {
-      x: e.clientX,
-      y: e.clientY,
-      left: currentLeft,
-      top: currentTop,
-    };
-
-    const target = e.currentTarget;
-    target.setPointerCapture(e.pointerId);
-    setIsDragging(true);
-
-    const handlePointerMove = (moveEvent: PointerEvent) => {
-      const deltaX = moveEvent.clientX - dragStartPos.current.x;
-      const deltaY = moveEvent.clientY - dragStartPos.current.y;
-
-      // Follow the pointer 1:1. Deliberately no grid/magnet snapping here:
-      // precise free placement is the default classroom interaction.
-      let newLeftPixels = dragStartPos.current.left + deltaX;
-      let newTopPixels = dragStartPos.current.top + deltaY;
-
-      const widgetRect = widgetRef.current?.getBoundingClientRect();
-      const widgetWidth =
-        widgetRect?.width || (widget.w / 100) * stageRect.width;
-      const widgetHeight =
-        widgetRect?.height || (widget.h / 100) * stageRect.height;
-
-      newLeftPixels = Math.max(
-        0,
-        Math.min(stageRect.width - widgetWidth, newLeftPixels),
-      );
-      newTopPixels = Math.max(
-        0,
-        Math.min(stageRect.height - widgetHeight, newTopPixels),
-      );
-
-      onUpdate({
-        x: (newLeftPixels / stageRect.width) * 100,
-        y: (newTopPixels / stageRect.height) * 100,
-      });
-    };
-
-    const finishDrag = (endEvent: PointerEvent) => {
-      if (target.hasPointerCapture(endEvent.pointerId)) {
-        target.releasePointerCapture(endEvent.pointerId);
-      }
-      target.removeEventListener("pointermove", handlePointerMove);
-      target.removeEventListener("pointerup", finishDrag);
-      target.removeEventListener("pointercancel", finishDrag);
-      setIsDragging(false);
-    };
-
-    target.addEventListener("pointermove", handlePointerMove);
-    target.addEventListener("pointerup", finishDrag);
-    target.addEventListener("pointercancel", finishDrag);
   };
 
   // Absolute percentages resolve against the stage padding box, excluding its border.
@@ -380,6 +320,69 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       width: stage.clientWidth * scaleX, height: stage.clientHeight * scaleY };
   };
 
+  const trackGeometryGesture = (
+    event: React.PointerEvent<HTMLElement>,
+    setInteracting: (interacting: boolean) => void,
+    previewAt: (move: PointerEvent) => Partial<CockpitWidgetGeometry>,
+  ) => {
+    cancelGeometryGesture.current?.();
+    const target = event.currentTarget;
+    const pointerId = event.pointerId;
+    const { clientX, clientY } = event;
+    let lastPreview: Partial<CockpitWidgetGeometry> | null = null;
+    target.setPointerCapture(pointerId);
+    setInteracting(true);
+
+    const move = (next: PointerEvent) => {
+      if (next.pointerId !== pointerId) return;
+      lastPreview = next.clientX === clientX && next.clientY === clientY ? null : previewAt(next);
+      setGeometryPreview(lastPreview);
+    };
+    const cleanup = () => {
+      target.removeEventListener("pointermove", move);
+      target.removeEventListener("pointerup", finish);
+      target.removeEventListener("pointercancel", finish);
+      target.removeEventListener("lostpointercapture", finish);
+      if (target.hasPointerCapture(pointerId)) target.releasePointerCapture(pointerId);
+      cancelGeometryGesture.current = null;
+      setInteracting(false);
+      setGeometryPreview(null);
+    };
+    const finish = (end: PointerEvent) => {
+      if (end.pointerId !== pointerId) return;
+      if (end.type === "pointerup" && lastPreview) onGeometryChange(lastPreview);
+      cleanup();
+    };
+
+    target.addEventListener("pointermove", move);
+    target.addEventListener("pointerup", finish);
+    target.addEventListener("pointercancel", finish);
+    target.addEventListener("lostpointercapture", finish);
+    cancelGeometryGesture.current = cleanup;
+  };
+
+  const handlePointerDownDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!e.isPrimary || e.button !== 0 || isMaximized || layoutLocked) return;
+    onFocus();
+
+    const stageRect = getResizeStageRect();
+    const rect = widgetRef.current?.getBoundingClientRect();
+    if (!stageRect || !rect || stageRect.width <= 0 || stageRect.height <= 0) return;
+    dragStartPos.current = {
+      x: e.clientX, y: e.clientY,
+      left: rect.left - stageRect.left, top: rect.top - stageRect.top,
+    };
+    const usableHeight = getCockpitWidgetUsableHeight(widget.type, stageRect.height);
+
+    trackGeometryGesture(e, setIsDragging, move => {
+      const deltaX = move.clientX - dragStartPos.current.x;
+      const deltaY = move.clientY - dragStartPos.current.y;
+      const newLeftPixels = Math.max(0, Math.min(stageRect.width - rect.width, dragStartPos.current.left + deltaX));
+      const newTopPixels = Math.max(0, Math.min(usableHeight - rect.height, dragStartPos.current.top + deltaY));
+      return { x: newLeftPixels / stageRect.width * 100, y: newTopPixels / stageRect.height * 100 };
+    });
+  };
+
   const handlePointerDownResize = (e: React.PointerEvent<HTMLElement>) => {
     if (!e.isPrimary || e.button !== 0 || isMaximized || layoutLocked) return;
     e.preventDefault();
@@ -387,46 +390,19 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     onFocus();
 
     const stageRect = getResizeStageRect();
-    if (!stageRect) return;
-
     const rect = widgetRef.current?.getBoundingClientRect();
-    if (!rect || stageRect.width <= 0 || stageRect.height <= 0) return;
+    if (!stageRect || !rect || stageRect.width <= 0 || stageRect.height <= 0) return;
     const direction = (e.currentTarget.dataset.widgetResize || 'se') as WidgetResizeDirection;
-    const pointerId = e.pointerId;
-    resizeStartPos.current = {
-      startX: e.clientX, startY: e.clientY,
-      startW: rect.width, startH: rect.height,
-      left: rect.left - stageRect.left, top: rect.top - stageRect.top,
-    };
-
-    const target = e.currentTarget;
-    target.setPointerCapture(e.pointerId);
-    setIsResizing(true);
-
-    const handlePointerMove = (moveEvent: PointerEvent) => {
-      if (moveEvent.pointerId !== pointerId) return;
-      const origin = resizeStartPos.current;
-      const next = resizeWidgetRect({ x: origin.left, y: origin.top, w: origin.startW, h: origin.startH }, direction,
-        moveEvent.clientX - origin.startX, moveEvent.clientY - origin.startY,
-        stageRect, getWidgetMinSizeConfig(widget.type));
-      onUpdate({ x: next.x / stageRect.width * 100, y: next.y / stageRect.height * 100,
-        w: next.w / stageRect.width * 100, h: next.h / stageRect.height * 100 });
-    };
-
-    const finishResize = (endEvent: PointerEvent) => {
-      if (endEvent.pointerId !== pointerId) return;
-      if (target.hasPointerCapture(endEvent.pointerId)) {
-        target.releasePointerCapture(endEvent.pointerId);
-      }
-      target.removeEventListener("pointermove", handlePointerMove);
-      target.removeEventListener("pointerup", finishResize);
-      target.removeEventListener("pointercancel", finishResize);
-      setIsResizing(false);
-    };
-
-    target.addEventListener("pointermove", handlePointerMove);
-    target.addEventListener("pointerup", finishResize);
-    target.addEventListener("pointercancel", finishResize);
+    const origin = { x: rect.left - stageRect.left, y: rect.top - stageRect.top, w: rect.width, h: rect.height };
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const bounds = { width: stageRect.width, height: getCockpitWidgetUsableHeight(widget.type, stageRect.height) };
+    trackGeometryGesture(e, setIsResizing, move => {
+      const next = resizeWidgetRect(origin, direction, move.clientX - startX, move.clientY - startY,
+        bounds, getWidgetMinSizeConfig(widget.type));
+      return { x: next.x / stageRect.width * 100, y: next.y / stageRect.height * 100,
+        w: next.w / stageRect.width * 100, h: next.h / stageRect.height * 100 };
+    });
   };
 
   const applyPersistentSize = (targetW: number, targetH: number, moveToBoardInset = false) => {
@@ -453,7 +429,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     const y = moveToBoardInset ? Math.max(0, Math.min(4, 100 - h)) : Math.max(0, Math.min(widget.y, 100 - h));
     setIsMaximized(false);
     onFocus();
-    onUpdate({ x, y, w, h });
+    onGeometryChange({ x, y, w, h });
     setSizeInputWidth(Math.round(w).toString());
     setSizeInputHeight(Math.round(h).toString());
   };
@@ -489,10 +465,11 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     const stage = getResizeStageRect();
     const rect = widgetRef.current?.getBoundingClientRect();
     if (!stage || !rect || stage.width <= 0 || stage.height <= 0) return;
+    const bounds = { width: stage.width, height: getCockpitWidgetUsableHeight(widget.type, stage.height) };
     const next = resizeWidgetRect({ x: rect.left - stage.left, y: rect.top - stage.top, w: rect.width, h: rect.height },
-      direction, dx / 100 * stage.width, dy / 100 * stage.height, stage, getWidgetMinSizeConfig(widget.type));
+      direction, dx / 100 * stage.width, dy / 100 * stage.height, bounds, getWidgetMinSizeConfig(widget.type));
     onFocus();
-    onUpdate({ x: next.x / stage.width * 100, y: next.y / stage.height * 100,
+    onGeometryChange({ x: next.x / stage.width * 100, y: next.y / stage.height * 100,
       w: next.w / stage.width * 100, h: next.h / stage.height * 100 });
   };
 
@@ -514,10 +491,13 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   const mascotPixels = Math.max(1, Math.min(mascotSize, stageSize.width || mascotSize, stageSize.height || mascotSize));
   const mascotWPercent = stageSize.width > 0 ? (mascotPixels / stageSize.width) * 100 : 25;
   const mascotHPercent = stageSize.height > 0 ? (mascotPixels / stageSize.height) * 100 : 25;
-  const renderedW = isFreeMascot ? mascotWPercent : isDirect ? 100 : isMaximized ? 96 : Math.max(5, widget.w, minWPercent);
-  const renderedH = isFreeMascot ? mascotHPercent : isDirect ? 100 : isMaximized ? 96 : Math.max(5, widget.h, minHPercent);
-  const renderedX = isFreeMascot ? Math.max(0, Math.min(widget.x, 100 - renderedW)) : isDirect ? 0 : isMaximized ? 2 : Math.max(0, Math.min(widget.x, 100 - renderedW));
-  const renderedY = isFreeMascot ? Math.max(0, Math.min(widget.y, 100 - renderedH)) : isDirect ? 0 : isMaximized ? 2 : Math.max(0, Math.min(widget.y, 100 - renderedH));
+  const geometry = geometryPreview ? { ...widget, ...geometryPreview } : widget;
+  const visibleBottom = stageSize.height > 0
+    ? getCockpitWidgetUsableHeight(widget.type, stageSize.height) / stageSize.height * 100 : 100;
+  const renderedW = isFreeMascot ? mascotWPercent : isDirect ? 100 : isMaximized ? 96 : Math.max(5, geometry.w, minWPercent);
+  const renderedH = isFreeMascot ? mascotHPercent : isDirect ? 100 : isMaximized ? 96 : Math.max(5, Math.min(geometry.h, visibleBottom), minHPercent);
+  const renderedX = isFreeMascot ? Math.max(0, Math.min(widget.x, 100 - renderedW)) : isDirect ? 0 : isMaximized ? 2 : Math.max(0, Math.min(geometry.x, 100 - renderedW));
+  const renderedY = isFreeMascot ? Math.max(0, Math.min(widget.y, 100 - renderedH)) : isDirect ? 0 : isMaximized ? 2 : Math.max(0, Math.min(geometry.y, visibleBottom - renderedH));
   const scaleX = renderedW / opt.w;
   const scaleY = renderedH / opt.h;
   const contentScale = Math.min(4, Math.min(scaleX, scaleY));

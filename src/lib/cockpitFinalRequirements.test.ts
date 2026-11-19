@@ -128,7 +128,10 @@ test("Cockpit: Widgets folgen beim Verschieben frei dem Zeiger ohne Magnetraster
   assert.match(drag, /dragStartPos\.current\.left \+ deltaX/);
   assert.match(drag, /dragStartPos\.current\.top \+ deltaY/);
   assert.doesNotMatch(drag, /GRID_SIZE|Math\.round\(newLeftPixels|Math\.round\(newTopPixels/);
-  assert.match(drag, /pointercancel/);
+  assert.match(drag, /trackGeometryGesture\(e, setIsDragging/);
+  const gesture = cockpitWidget.slice(cockpitWidget.indexOf("const trackGeometryGesture"), dragStart);
+  assert.match(gesture, /addEventListener\("pointercancel", finish\)/);
+  assert.match(gesture, /end\.type === "pointerup" && lastPreview\) onGeometryChange/);
 });
 
 test("Cockpit: Widgets schließen verändert die weiße Smartboard-Fläche nicht", () => {
@@ -286,8 +289,9 @@ test("Cockpit: Resize ist touch- und tastatursicher und räumt Pointer-Abbrüche
   assert.match(cockpitWidget, /aria-label="Widget-Größe ändern"/);
   assert.match(cockpitWidget, /w-11 h-11/);
   assert.match(cockpitWidget, /onKeyDown=\{handleResizeKeyDown\}/);
-  assert.match(cockpitWidget, /target\.addEventListener\("pointercancel", finishResize\)/);
-  assert.match(cockpitWidget, /target\.removeEventListener\("pointercancel", finishResize\)/);
+  assert.match(cockpitWidget, /trackGeometryGesture\(e, setIsResizing/);
+  assert.match(cockpitWidget, /target\.addEventListener\("pointercancel", finish\)/);
+  assert.match(cockpitWidget, /target\.removeEventListener\("pointercancel", finish\)/);
   assert.match(cockpitWidget, /if \(!e\.isPrimary \|\| e\.button !== 0/);
 });
 
