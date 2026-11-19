@@ -20,7 +20,7 @@ test('Four original surprise props remain inside transparent SVG, never download
   const settings = readFileSync('src/components/ClassMascotSettingsPanel.tsx', 'utf8');
   const widget = readFileSync('src/components/cockpit/ClassMascotWidget.tsx', 'utf8');
   assert.match(widget, /onClick=\{reactToTap\}/);
-  assert.match(widget, /onDoubleClick=\{triggerSurprise\}/);
+  assert.doesNotMatch(widget, /onDoubleClick=\{triggerSurprise\}/);
   assert.match(widget, /surpriseTimer\.current = setTimeout/);
   assert.match(widget, /window\.addEventListener\(MASCOT_SURPRISE_EVENT, triggerSurprise\)/);
   assert.match(settings, /window\.dispatchEvent\(new Event\(MASCOT_SURPRISE_EVENT\)\)/);

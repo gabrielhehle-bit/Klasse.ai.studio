@@ -21,11 +21,11 @@ test('Freistehendes Maskottchen: Figur direkt verschieben, Tap-Reaktion ohne Men
 });
 
 test('Die Figur bleibt ohne Kartenhintergrund; Werkzeugstreifen und Namenszeile sind dauerhaft ausgeblendet', () => {
-  const css = readFileSync('src/index.css', 'utf8');
-  assert.match(css, /\.cockpit-free-mascot \.mascot-widget-resize \{\s*display: none !important;/);
+  const host = readFileSync('src/components/cockpit/CockpitWidget.tsx', 'utf8');
+  assert.doesNotMatch(host, /mascot-widget-toolbar|mascot-widget-resize/);
   const widget = readFileSync('src/components/cockpit/ClassMascotWidget.tsx', 'utf8');
   assert.match(widget, /class-mascot-character[^"]*touch-none cursor-grab/);
-  assert.match(widget, /Klassenmaskottchen verschieben/);
+  assert.match(widget, /Ziehen oder Pfeiltasten zum Verschieben/);
   assert.match(widget, /onClick=\{reactToTap\}/);
   assert.match(widget, /reactionTimer\.current = setTimeout/);
   assert.doesNotMatch(widget, /title="Maskottchen|setDetailsOpen/);

@@ -40,12 +40,12 @@ test('Die Figur bleibt freistehend und lässt sich ohne sichtbare Extra-Bedienun
   assert.match(host, /handleMascotKeyDown/);
   assert.match(host, /onKeyDown=\{isFreeMascot \? handleMascotKeyDown : undefined\}/);
   assert.match(host, /target\.closest\('\.class-mascot-character'\)/);
-  assert.match(host, /if \(!isFreeMascot \|\| layoutLocked \|\| isMaximized\) return;/);
+  assert.match(host, /if \(!isFreeMascot\) return;/);
   assert.match(host, /const step = event\.shiftKey \? 1 : 10;/);
   const html = renderToStaticMarkup(React.createElement(ClassMascotWidget, {
     app: { ...initialAppState, classMascot: DEFAULT_CLASS_MASCOT },
   }));
-  assert.match(html, /Klassenmaskottchen verschieben: ziehen oder Pfeiltasten nutzen/);
+  assert.match(html, /Ziehen oder Pfeiltasten zum Verschieben/);
   assert.match(html, /class-mascot-freestanding pointer-events-none/);
   assert.doesNotMatch(html, /class-mascot-details|class-mascot-settings|floating-classpet-outer/);
 });
