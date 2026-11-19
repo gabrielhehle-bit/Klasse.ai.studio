@@ -578,11 +578,15 @@ async function checkDayTimeline(client) {
       const now = ${nowCard}, next = ${nextCard};
       const panel = now.parentElement.parentElement;
       return {
-        cards: [now, next].map(card => ({ width: card.clientWidth, height: card.clientHeight, scrollWidth: card.scrollWidth })),
+        cards: [now, next].map(card => ({
+          width: card.clientWidth, height: card.clientHeight, scrollWidth: card.scrollWidth,
+          subjectSize: parseFloat(getComputedStyle(card.querySelector('p')).fontSize),
+        })),
         panel: { height: panel.clientHeight, scrollHeight: panel.scrollHeight },
       };
     })()`);
-    const cardsFit = dimensions.cards.every(card => card.width >= 110 && card.height >= 70 && card.scrollWidth <= card.width + 1);
+    const cardsFit = dimensions.cards.every(card => card.width >= 110 && card.height >= 70
+      && card.subjectSize >= 20 && card.scrollWidth <= card.width + 1);
     if (!cardsFit || dimensions.panel.scrollHeight > dimensions.panel.height + 1) {
       throw Error('Timeline cards do not fit at the default size: ' + JSON.stringify(dimensions));
     }

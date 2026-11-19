@@ -110,7 +110,7 @@ export const TimelineWidget: React.FC<TimelineWidgetProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`flex h-full w-full flex-col gap-1.5 overflow-hidden select-none p-2 ${frameColors}`}
+      className={`flex h-full w-full flex-col gap-1.5 overflow-hidden rounded-b-2xl select-none p-2 ${frameColors}`}
     >
       <div id={panelId} className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
         {empty ? (
@@ -213,7 +213,7 @@ export const TimelineWidget: React.FC<TimelineWidgetProps> = ({
                   className={`flex min-w-0 flex-col justify-between rounded-xl border border-t-[3px] ${roomyTimeline ? 'p-5 sm:p-6' : short ? 'p-1.5' : 'p-2.5'}`}
                 >
                   <h3 className={`font-bold ${roomyTimeline ? 'text-lg' : 'text-sm'}`}>{label}</h3>
-                  <p className={`py-0.5 font-black tracking-tight leading-tight break-words [overflow-wrap:anywhere] ${subjectSize}`}>
+                  <p className={`py-0.5 font-black tracking-tight leading-tight [overflow-wrap:anywhere] ${subjectSize}`}>
                     {title}
                   </p>
                   <div className={`flex flex-wrap items-baseline gap-x-2 gap-y-0.5 font-semibold ${roomyTimeline ? 'text-lg' : 'text-xs'}`}>
@@ -251,7 +251,7 @@ export const TimelineWidget: React.FC<TimelineWidgetProps> = ({
             }
             setShowDay(!showDay);
           }}
-          className={`flex min-h-11 shrink-0 items-center gap-2 self-end rounded-xl border px-3 text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${buttonColors}`}
+          className={`flex min-h-11 shrink-0 items-center gap-2 self-start rounded-xl border px-3 text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${buttonColors}`}
         >
           {showDay && <ArrowLeft size={15} aria-hidden="true" />}
           {showDay ? 'Jetzt und als Nächstes' : 'Tagesverlauf'}

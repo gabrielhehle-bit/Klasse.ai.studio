@@ -36,5 +36,5 @@ test('Tagesablauf-Hilfe erklärt Datenquelle, Seiten und Korrekturweg', () => {
 test('Tagesablauf nutzt seine große Ansicht für lesbare Hauptinformation', () => {
   assert.match(timeline, /const roomyTimeline = isFullscreen \|\| \(size\.width >= 820 && size\.height >= 500\)/);
   assert.match(timeline, /roomyTimeline[\s\S]*text-4xl sm:text-5xl/);
-  assert.match(timeline, /leading-tight break-words \[overflow-wrap:anywhere\]/);
+  assert.match(timeline, /leading-tight \[overflow-wrap:anywhere\]/);
 });

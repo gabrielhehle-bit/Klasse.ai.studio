@@ -150,7 +150,7 @@ test("Uhr, Ampel, Lautstärke, Tagesablauf und To-Do bleiben touch-sicher", () =
 
   assert.doesNotMatch(timelineWidget, /min-h-8 min-w-8/);
   assert.match(timelineWidget, /min-h-11 min-w-11 rounded-xl/);
-  assert.match(timelineWidget, /leading-tight break-words \[overflow-wrap:anywhere\]/);
+  assert.match(timelineWidget, /leading-tight \[overflow-wrap:anywhere\]/);
 
   assert.doesNotMatch(todoWidget, /min-h-9 rounded-lg border px-3/);
   assert.match(todoWidget, /min-h-11 min-w-11 p-1\.5 rounded/);
