@@ -1454,6 +1454,12 @@ html body .cockpit-free-mascot .class-mascot-details .text-teal-950 { color: #13
   }
 }
 
+/* The painted Waldruhe backdrops are independent of the board theme. */
+html body [data-practice-root="waldruhe"] [data-waldruhe-scene-label] {
+  color: #ffffff !important;
+  background-color: rgb(7 36 33 / 92%) !important;
+}
+
 /* Strong, theme-independent contrast inside dark classroom cockpit designs. */
 .cockpit-contrast-dark .text-slate-400,
 .cockpit-contrast-dark .text-neutral-400 { color: #cbd5e1 !important; }
