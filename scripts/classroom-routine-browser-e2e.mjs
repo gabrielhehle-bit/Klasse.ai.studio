@@ -824,7 +824,7 @@ async function main() {
     await clickButton(client, 'Laut', true);
     await waitFor(client, 'Waldruhe waits when the class gets louder', `${waldruhePanel}?.textContent.includes('Der Wald wartet')`);
     await clickSelector(client, waldruheWidget + ' .cockpit-widget-settings-trigger');
-    await clickSelector(client, waldruheWidget + ' input[type="checkbox"]');
+    await clickSelector(client, waldruheWidget + ' input[aria-label="Tiere verstecken sich bei Lärm"]');
     await waitFor(client, 'the animal hides when that option is enabled', `${waldruhePanel}?.textContent.includes('0 von 5 Tieren')`);
     await clickButton(client, 'Test beenden', true);
     await clickSelector(client, waldruheWidget + ' button[aria-label="Widget-Menü öffnen"]');

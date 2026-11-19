@@ -115,6 +115,48 @@ async function metrics(client) {
   })()`);
 }
 
+async function checkWaldruheMicrophone(client, forest, forestProgress) {
+  const origin = new URL(BASE_URL).origin;
+  const capturePermission = { permission: { name: 'microphone' }, origin };
+  await client.send('Browser.setPermission', { ...capturePermission, setting: 'granted' });
+  await evaluate(client, `(() => {
+    const devices = navigator.mediaDevices;
+    const original = devices.getUserMedia.bind(devices);
+    window.__waldruheTracks = [];
+    devices.getUserMedia = async constraints => {
+      const stream = await original(constraints);
+      window.__waldruheTracks.push(...stream.getAudioTracks());
+      return stream;
+    };
+  })()`);
+
+  await evaluate(client, `document.querySelector('[data-widget-type="waldruhe"] .cockpit-widget-settings-trigger').click()`);
+  await evaluate(client, `(() => {
+    const choice = ${forest}.querySelector('select[aria-label="Leisezeit pro Tier"]');
+    choice.value = '5';
+    choice.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`);
+  await clickButton(client, 'Fertig');
+  await clickButton(client, 'Mikrofon starten');
+  await waitFor(client, 'real microphone path opens a live Chromium audio track',
+    `window.__waldruheTracks.length === 1 && window.__waldruheTracks[0].readyState === 'live' && ${forest}?.textContent.includes('Mikrofon stoppen')`);
+  await waitFor(client, 'quiet microphone samples advance the five-second timer',
+    `${forestProgress} >= 5 && ${forest}?.querySelector('[role="progressbar"]').getAttribute('aria-valuemax') === '50'`);
+  await waitFor(client, 'loud microphone samples pause the timer', `${forest}?.textContent.includes('Ruhezeit pausiert')`, 10000);
+  const pausedAt = await evaluate(client, forestProgress);
+  await sleep(550);
+  if (await evaluate(client, forestProgress) !== pausedAt) throw Error('Waldruhe microphone: loud sound advanced the timer');
+  await waitFor(client, 'quiet microphone samples resume the timer', `${forestProgress} > ${pausedAt}`, 12000);
+  await waitFor(client, 'a Waldruhe animal appears from real analyser input', `${forest}?.textContent.includes('1 von 5 Tieren')`, 12000);
+  await clickButton(client, 'Mikrofon stoppen');
+  await waitFor(client, 'stop releases the captured audio track', `window.__waldruheTracks[0].readyState === 'ended' && !${forest}?.querySelector('[role="progressbar"]')`);
+
+  await client.send('Browser.setPermission', { ...capturePermission, setting: 'denied' });
+  await clickButton(client, 'Mikrofon starten');
+  await waitFor(client, 'denied microphone permission shows the fall-back hint',
+    `${forest}?.querySelector('[role="alert"]')?.textContent.includes('Erlaube das Mikrofon') && window.__waldruheTracks.length === 1`);
+}
+
 async function main() {
   await waitForChrome();
   const target=await (await fetch(DEBUG_URL+'/json/new?'+encodeURIComponent(BASE_URL),{method:'PUT'})).json();
@@ -384,8 +426,33 @@ async function main() {
     await clickButton(client, 'Leise');
     await waitFor(client, 'quiet resumes from the previous progress', `${forestProgress} > ${pausedForestProgress}`);
     await waitFor(client, 'the first animal appears after quiet time', `${forest}?.textContent.includes('1 von 5 Tieren')`);
+    const openForestSettings = () => evaluate(client, `document.querySelector('[data-widget-type="waldruhe"] .cockpit-widget-settings-trigger').click()`);
+    const selectScene = scene => evaluate(client, `(() => {
+      const choice = ${forest}.querySelector('select[aria-label="Schauplatz"]');
+      choice.value = ${q(scene)};
+      choice.dispatchEvent(new Event('change', { bubbles: true }));
+    })()`);
+    await openForestSettings();
+    await selectScene('aquarium');
+    await clickButton(client, 'Fertig');
+    await waitFor(client, 'aquarium has its own quiet progress', `${forest}.dataset.waldruheScene === 'aquarium' && ${forest}.textContent.includes('0 von 5 Tieren')`);
+    await waitFor(client, 'the first aquarium animal appears in its own scene', `${forest}.querySelector('figcaption')?.textContent === 'Neonfisch'`);
+    await screenshot(client, 'waldruhe-aquarium');
+    await openForestSettings();
+    await evaluate(client, `Array.from(${forest}.querySelectorAll('label')).find(label => label.textContent.includes('Ruhezeit anzeigen')).querySelector('input').click()`);
+    await waitFor(client, 'the teacher can hide the countdown', `!${forest}.querySelector('[role="progressbar"]') && ${forest}.querySelector('figcaption')?.textContent === 'Neonfisch'`);
+    await evaluate(client, `Array.from(${forest}.querySelectorAll('label')).find(label => label.textContent.includes('Ruhezeit anzeigen')).querySelector('input').click()`);
+    await selectScene('forest');
+    await clickButton(client, 'Fertig');
+    await waitFor(client, 'the forest keeps its own animal when returning', `${forest}.dataset.waldruheScene === 'forest' && ${forest}.querySelector('figcaption')?.textContent === 'Igel'`);
+    await openForestSettings();
+    await selectScene('aquarium');
+    await clickButton(client, 'Fertig');
+    await waitFor(client, 'the aquarium also retains its animal when returning', `${forest}.dataset.waldruheScene === 'aquarium' && ${forest}.querySelector('figcaption')?.textContent === 'Neonfisch'`);
     await clickButton(client, 'Test beenden');
     await waitFor(client, 'stopping clears the countdown and the animals', `!${forest}?.querySelector('[role="progressbar"]') && ${forest}?.textContent.includes('0 von 5 Tieren')`);
+
+    if (process.env.KLASSIO_E2E_FAKE_MIC === '1') await checkWaldruheMicrophone(client, forest, forestProgress);
 
     console.log('✓ Cockpit visual QA passed for '+WIDTH+'×'+HEIGHT+'. Board primary, students restorable, award modes distinct.');
   } catch(error) {

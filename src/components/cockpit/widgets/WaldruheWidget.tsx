@@ -2,15 +2,46 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CockpitWidgetConfig } from '../../../types';
 import { calculateRawVolume, cleanupMediaStream, computeSmoothedVolume } from '../../../lib/noisemeterAlgorithm';
 
-const animals = [
+const forestAnimals = [
   { name: 'Igel', icon: '🦔', x: 18, y: 72 },
   { name: 'Eichhörnchen', icon: '🐿️', x: 52, y: 64 },
   { name: 'Reh', icon: '🦌', x: 34, y: 39 },
   { name: 'Fuchs', icon: '🦊', x: 79, y: 72 },
   { name: 'Eule', icon: '🦉', x: 81, y: 32 },
 ];
+const scenes = {
+  forest: {
+    label: 'Waldlichtung',
+    background: '/cockpit/waldruhe.webp',
+    idle: 'Wer wohnt im Wald?',
+    waiting: 'Der Wald wartet …',
+    quiet: 'Der Wald lauscht …',
+    animals: forestAnimals,
+  },
+  aquarium: {
+    label: 'Aquarium',
+    background: '/cockpit/waldruhe-aquarium.webp',
+    idle: 'Wer lebt im Aquarium?',
+    waiting: 'Das Aquarium wartet …',
+    quiet: 'Ganz ruhig im Aquarium …',
+    animals: [
+      { name: 'Neonfisch', icon: '🐠', x: 27, y: 47 },
+      { name: 'Guppy', icon: '🐟', x: 69, y: 34 },
+      { name: 'Garnele', icon: '🦐', x: 76, y: 70 },
+      { name: 'Rennschnecke', icon: '🐌', x: 31, y: 74 },
+      { name: 'Panzerwels', icon: '🐟', x: 51, y: 63 },
+    ],
+  },
+} as const;
+type Scene = keyof typeof scenes;
+const emptyRound = () => ({ count: 0, quietMs: 0, loudMs: 0, loud: false });
+const emptyProgress = () => ({ forest: emptyRound(), aquarium: emptyRound() });
+const emptyDisplay = () => ({
+  forest: { count: 0, quietTenths: 0 },
+  aquarium: { count: 0, quietTenths: 0 },
+});
 const thresholds = [12, 18, 26, 35, 48];
-const durations = [5, 15, 30, 60];
+const durations = [5, 15, 30, 60, 120, 180, 300];
 const button = 'min-h-11 rounded-lg border border-slate-300 bg-white px-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700';
 
 type Mode = 'idle' | 'requesting' | 'live' | 'demo';
@@ -28,26 +59,32 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
   const tolerance = Number.isInteger(saved?.tolerance) && saved.tolerance >= 1 && saved.tolerance <= 5 ? saved.tolerance as number : 3;
   const seconds = durations.includes(saved?.seconds) ? saved.seconds as number : 15;
   const hideAnimals = saved?.hideAnimals === true;
-  const settings = { tolerance, seconds, hideAnimals };
+  const scene: Scene = saved?.scene === 'aquarium' ? 'aquarium' : 'forest';
+  const showCountdown = saved?.showCountdown !== false;
+  const settings = { tolerance, seconds, hideAnimals, scene, showCountdown };
   const options = useRef(settings);
   options.current = settings;
 
   const [mode, setMode] = useState<Mode>('idle');
-  const [count, setCount] = useState(0);
+  const [display, setDisplay] = useState(emptyDisplay);
   const [signal, setSignal] = useState<Signal>('quiet');
-  const [quietTenths, setQuietTenths] = useState(0);
   const [demoLoud, setDemoLoud] = useState(false);
   const [error, setError] = useState('');
   const demoSignal = useRef(false);
-  const progress = useRef({ count: 0, quietMs: 0, loudMs: 0, loud: false });
+  const progress = useRef(emptyProgress());
   const session = useRef<{ stream?: MediaStream; audio?: AudioContext; timer?: number }>({});
 
   const reset = useCallback(() => {
-    progress.current = { count: 0, quietMs: 0, loudMs: 0, loud: false };
-    setCount(0);
+    progress.current = emptyProgress();
+    setDisplay(emptyDisplay());
     setSignal('quiet');
-    setQuietTenths(0);
   }, []);
+
+  const resetScene = () => {
+    progress.current[scene] = emptyRound();
+    setDisplay(previous => ({ ...previous, [scene]: { count: 0, quietTenths: 0 } }));
+    setSignal('quiet');
+  };
 
   const release = useCallback(() => {
     const current = session.current;
@@ -82,7 +119,14 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
       const elapsed = Math.min(250, now - previous);
       previous = now;
       if (document.hidden) return;
-      const round = progress.current;
+      const currentScene = options.current.scene;
+      const round = progress.current[currentScene];
+      const updateDisplay = () => {
+        const { count, quietMs } = round;
+        const quietTenths = Math.floor(quietMs / 100);
+        setDisplay(previous => previous[currentScene].count === count && previous[currentScene].quietTenths === quietTenths
+          ? previous : { ...previous, [currentScene]: { count, quietTenths } });
+      };
       const loud = isLoud(round.loud);
       setSignal(loud === null ? 'unavailable' : loud ? 'loud' : 'quiet');
       if (loud === null) {
@@ -95,22 +139,20 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
         if (options.current.hideAnimals && round.loudMs >= 1800) {
           round.loudMs = 0;
           round.quietMs = 0;
-          setQuietTenths(0);
           round.count = Math.max(0, round.count - 1);
-          setCount(round.count);
+          updateDisplay();
         }
         return;
       }
       round.loudMs = 0;
-      if (round.count === animals.length) return;
+      if (round.count === scenes[currentScene].animals.length) return;
       round.quietMs += elapsed;
       const required = nextMode === 'demo' ? 3000 : options.current.seconds * 1000;
       if (round.quietMs >= required) {
         round.quietMs = 0;
         round.count += 1;
-        setCount(round.count);
       }
-      setQuietTenths(Math.floor(round.quietMs / 100));
+      updateDisplay();
     }, 100);
   }
 
@@ -182,22 +224,25 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
     onUpdate({ settings: { ...widget.settings, waldruhe: { ...settings, ...changes } } });
   }
 
+  const setting = scenes[scene];
+  const animals = setting.animals;
+  const { count, quietTenths } = display[scene];
   const running = mode === 'live' || mode === 'demo';
   const allAnimals = count === animals.length;
   const requiredTenths = mode === 'demo' ? 30 : seconds * 10;
   const reachedTenths = Math.min(quietTenths, requiredTenths);
   const remainingSeconds = Math.ceil((requiredTenths - reachedTenths) / 10);
-  const message = mode === 'idle' ? 'Wer wohnt im Wald?'
+  const message = mode === 'idle' ? setting.idle
     : mode === 'requesting' ? 'Mikrofon wird angefragt …'
     : allAnimals ? 'Alle Tiere sind da!'
     : signal === 'unavailable' ? 'Mikrofonsignal fehlt'
-    : signal === 'loud' ? 'Der Wald wartet …'
-    : count === 0 ? 'Der Wald lauscht …' : 'Schau, wer da ist!';
+    : signal === 'loud' ? setting.waiting
+    : count === 0 ? setting.quiet : 'Schau, wer da ist!';
 
   return (
-    <div data-practice-root="waldruhe" className="flex h-full min-h-0 w-full flex-col gap-2 overflow-auto p-2 text-slate-900 dark:text-slate-100">
+    <div data-practice-root="waldruhe" data-waldruhe-scene={scene} className="flex h-full min-h-0 w-full flex-col gap-2 overflow-auto p-2 text-slate-900 dark:text-slate-100">
       <div className="relative isolate min-h-32 flex-1 overflow-hidden rounded-xl bg-emerald-950 bg-cover bg-center [container-type:inline-size]"
-        style={{ backgroundImage: 'linear-gradient(#06281999, transparent 55%, #06281966), url(/cockpit/waldruhe.webp)' }}>
+        style={{ backgroundImage: `linear-gradient(#06281999, transparent 55%, #06281966), url(${setting.background})` }}>
         <p className="absolute left-3 top-2 text-lg font-bold text-white drop-shadow-md min-[700px]:text-xl" role="status">{message}</p>
         {animals.slice(0, count).map(animal => (
           <figure key={animal.name} className="absolute m-0 -translate-x-1/2 -translate-y-1/2 text-center"
@@ -211,7 +256,7 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
         </p>
       </div>
 
-      {running && !allAnimals && (
+      {running && !allAnimals && showCountdown && (
         <div className="shrink-0 space-y-1.5 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-800 dark:bg-slate-900 dark:text-slate-100">
           <div className="flex flex-wrap items-center justify-between gap-x-2 font-semibold">
             <span>{signal === 'unavailable' ? 'Kein Mikrofonsignal' : signal === 'loud' ? 'Ruhezeit pausiert' : 'Nächstes Tier'}</span>
@@ -228,18 +273,29 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
 
       {showSettings && (
         <div className="grid shrink-0 grid-cols-2 gap-x-2 gap-y-1 rounded-lg border border-slate-300 bg-slate-50 p-2 text-sm text-slate-900">
+          <label className="col-span-2 font-semibold">Schauplatz
+            <select aria-label="Schauplatz" className={'block w-full ' + button} value={scene}
+              onChange={event => updateSettings({ scene: event.target.value === 'aquarium' ? 'aquarium' : 'forest' })}>
+              <option value="forest">Waldlichtung</option>
+              <option value="aquarium">Aquarium</option>
+            </select>
+          </label>
           <label>Lautstärkegrenze ({tolerance}/5)
             <input className="block min-h-9 w-full accent-emerald-700" type="range" min={1} max={5} value={tolerance}
               onChange={event => updateSettings({ tolerance: Number(event.target.value) })} />
           </label>
           <label>Leisezeit pro Tier
-            <select className={'block w-full ' + button} value={seconds} onChange={event => updateSettings({ seconds: Number(event.target.value) })}>
-              {durations.map(duration => <option key={duration} value={duration}>{duration} Sekunden</option>)}
+            <select aria-label="Leisezeit pro Tier" className={'block w-full ' + button} value={seconds} onChange={event => updateSettings({ seconds: Number(event.target.value) })}>
+              {durations.map(duration => <option key={duration} value={duration}>{duration < 60 ? duration + ' Sekunden' : duration / 60 + (duration === 60 ? ' Minute' : ' Minuten')}</option>)}
             </select>
           </label>
           <label className="flex min-h-11 items-center gap-1.5">
-            <input type="checkbox" checked={hideAnimals} onChange={event => updateSettings({ hideAnimals: event.target.checked })} />
+            <input type="checkbox" aria-label="Tiere verstecken sich bei Lärm" checked={hideAnimals} onChange={event => updateSettings({ hideAnimals: event.target.checked })} />
             Tiere verstecken sich bei Lärm
+          </label>
+          <label className="flex min-h-11 items-center gap-1.5">
+            <input type="checkbox" checked={showCountdown} onChange={event => updateSettings({ showCountdown: event.target.checked })} />
+            Ruhezeit anzeigen
           </label>
           <button type="button" className={button} onClick={onCloseSettings}>Fertig</button>
           <p className="col-span-2">Höhere Stufen lassen mehr Geräusche zu. Der Ton wird nur auf diesem Gerät ausgewertet.</p>
@@ -255,7 +311,7 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
         <button type="button" className={button} onClick={mode === 'demo' ? stop : startDemo}>
           {mode === 'demo' ? 'Test beenden' : 'Ohne Mikrofon testen'}
         </button>
-        {running && <button type="button" className={button} onClick={reset}>Neu beginnen</button>}
+        {running && <button type="button" className={button} onClick={resetScene}>Neu beginnen</button>}
         {mode === 'demo' && (
           <div role="group" aria-label="Lautstärke im Test simulieren" className="flex gap-1">
             <button type="button" className={button + ' aria-pressed:border-emerald-700 aria-pressed:bg-emerald-100'} aria-pressed={!demoLoud} onClick={() => setTestVolume(false)}>Leise</button>
