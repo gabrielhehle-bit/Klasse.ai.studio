@@ -219,7 +219,7 @@ import { CockpitVorlagenModal } from "./cockpit/CockpitVorlagenModal";
 import { BoardTextEditor } from "./cockpit/BoardTextEditor";
 import { BoardInk, type BoardInkHandle, type InkItem } from "./cockpit/BoardInk";
 import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
-import { COCKPIT_REGULAR_WIDGETS, getRegularCockpitGroups } from "../lib/cockpitRegularCatalog";
+import { COCKPIT_CORE_WIDGETS, getRegularCockpitGroups } from "../lib/cockpitRegularCatalog";
 import ClassroomWeeklyPlanWidget from "./cockpit/widgets/ClassroomWeeklyPlanWidget";
 import HomeworkWidget from "./cockpit/widgets/HomeworkWidget";
 import StarsReviewWidget from "./cockpit/widgets/StarsReviewWidget";
@@ -3537,13 +3537,10 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   };
 
   const openWidgetLibrary = () => {
-    const favoriteCount = (favoritesBySubject[getResolvedFavFolder()] || []).length;
     setWidgetSearch("");
     setIsWidgetConfigurationOpen(false);
     setIsMoreOptionsMenuOpen(false);
-    setActiveWidgetCategory(
-      favoriteCount > 0 ? "favorites" : recentWidgetTypes.length > 0 ? "recent" : "core",
-    );
+    setActiveWidgetCategory("core");
     setIsAddWidgetMenuOpen(true);
   };
 
@@ -9095,7 +9092,7 @@ ${content}
                                 <header className="klassio-widget-library-header flex min-w-0 items-center gap-2 border-b border-slate-200 pb-3">
                                   <div className="klassio-widget-library-heading min-w-0 shrink-0">
                                     <h2 className="text-base font-black text-slate-900 dark:text-white"><span className="sm:hidden">Widgets</span><span className="hidden sm:inline">Widget-Bibliothek</span></h2>
-                                    <p className="hidden text-xs text-slate-500 md:block">Favoriten, zuletzt verwendet oder gezielt suchen.</p>
+                                    <p className="hidden text-xs text-slate-500 md:block">Kernwidgets, Fachwerkzeuge und Favoriten.</p>
                                   </div>
                                   <div className="klassio-widget-library-search relative min-w-0 flex-1">
                                     <input
@@ -9104,9 +9101,7 @@ ${content}
                                       placeholder="Widget suchen … z. B. Timer, Gruppen, Brüche"
                                       value={widgetSearch}
                                       onChange={(e) => {
-                                        const nextSearch = e.target.value;
-                                        setWidgetSearch(nextSearch);
-                                        if (nextSearch.trim() && activeWidgetCategory !== "legacy") setActiveWidgetCategory("core");
+                                        setWidgetSearch(e.target.value);
                                       }}
                                       autoFocus
                                       className={`min-h-11 w-full rounded-xl border px-4 pr-14 text-sm font-semibold outline-none transition-all placeholder:text-slate-400 ${
@@ -9518,23 +9513,24 @@ ${content}
                                 <aside className="klassio-widget-library-sidebar min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-2">
                                   <div className="mb-2 px-2 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Schnellzugriff</div>
                                   {[
+                                    { id: "core", label: "🧩 Kernwidgets" },
                                     { id: "favorites", label: "⭐ Favoriten" },
                                     { id: "recent", label: "🕘 Zuletzt verwendet" },
-                                    { id: "core", label: "🧩 Kernwidgets" },
                                     { id: "struct", label: "🗂️ Ablauf & Organisation" },
                                     { id: "interactivity", label: "👥 Klasse & Interaktion" },
                                     { id: "mathe", label: "🔢 Mathematik" },
                                     { id: "deutsch", label: "📖 Deutsch" },
                                     { id: "sachunterricht", label: "🌍 Sachunterricht" },
                                     { id: "tools", label: "🛠️ Werkzeuge" },
-                                    { id: "mindfulness", label: "🍃 Spiele & Fokus" },
+                                    { id: "mindfulness", label: "🍃 Ruhe & Alltag" },
+                                    { id: "play", label: "🎲 Spiele" },
                                     { id: "legacy", label: "▦ Weitere Widgets" },
                                   ].filter(cat => ["favorites", "recent", "core", "legacy"].includes(cat.id) || getRegularCockpitGroups(cat.id).length > 0).map((cat) => {
                                     const allAvailableWidgets = COCKPIT_WIDGET_LIBRARY_ITEMS;
 
                                     let count = 0;
                                     if (cat.id === "core") {
-                                      count = COCKPIT_REGULAR_WIDGETS.length;
+                                      count = COCKPIT_CORE_WIDGETS.length;
                                     } else if (cat.id === "legacy") {
                                       count = allAvailableWidgets.length;
                                     } else if (cat.id === "recent") {
@@ -9552,12 +9548,13 @@ ${content}
                                     return (
                                       <button
                                         key={cat.id}
+                                        aria-pressed={!widgetSearch.trim() && activeWidgetCategory === cat.id}
                                         onClick={() => {
                                           setActiveWidgetCategory(cat.id);
                                           if (widgetSearch) setWidgetSearch("");
                                         }}
                                         className={`mb-1 flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold transition-all cursor-pointer ${
-                                          activeWidgetCategory === cat.id
+                                          !widgetSearch.trim() && activeWidgetCategory === cat.id
                                             ? "bg-accent text-accent-text shadow"
                                             : currentIsLight
                                               ? "text-slate-500 hover:bg-slate-200 hover:text-slate-800"
@@ -9566,7 +9563,7 @@ ${content}
                                       >
                                         <span className="min-w-0 truncate">{cat.label}</span>
                                         <span
-                                          className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${activeWidgetCategory === cat.id ? "bg-white/20 text-white" : "bg-white text-slate-400 border border-slate-200"}`}
+                                          className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${!widgetSearch.trim() && activeWidgetCategory === cat.id ? "bg-white/20 text-white" : "bg-white text-slate-400 border border-slate-200"}`}
                                         >
                                           {count}
                                         </span>
@@ -9640,19 +9637,18 @@ ${content}
                                     const query = widgetSearch
                                       .toLowerCase()
                                       .trim();
-                                    if (activeWidgetCategory !== "legacy" && (Boolean(query) || !["favorites", "recent"].includes(activeWidgetCategory))) {
+                                    if (activeWidgetCategory !== "legacy" && (query || !["favorites", "recent"].includes(activeWidgetCategory))) {
                                       const regularGroups = getRegularCockpitGroups(activeWidgetCategory, query);
                                       return (
                                         <>
                                           <div className="col-span-full rounded-2xl border border-accent/20 bg-accent-soft px-4 py-3" role={query ? "status" : undefined}>
-                                            <p className="text-sm font-black text-slate-900">{query ? `${regularGroups.length} Treffer` : `${regularGroups.length} Kernwidgets`}</p>
-                                            <p className="mt-0.5 text-xs text-slate-600">
-                                              Die wichtigsten Unterrichtswerkzeuge. Verwandte Varianten findest du im jeweiligen Eintrag.
+                                            <p className="text-sm font-black text-slate-900">
+                                              {query ? `${regularGroups.length} Treffer` : activeWidgetCategory === "core" ? "Kernwidgets" : `${regularGroups.length} Werkzeuge`}
                                             </p>
                                           </div>
                                           {regularGroups.length === 0 && (
                                             <div className="col-span-full rounded-xl border border-slate-200 p-4 text-sm text-slate-600" role="status">
-                                              Kein Kernwidget gefunden. Unter „Weitere Widgets“ kannst du auch Spezialwerkzeuge durchsuchen.
+                                              Keine passenden Widgets gefunden
                                             </div>
                                           )}
                                           {regularGroups.map((group) => {
@@ -9663,10 +9659,11 @@ ${content}
                                             const primaryType = primary?.type || String(group.id);
                                             const primaryLabel = primary?.label || `🧩 ${group.label}`;
                                             const icon = primaryLabel.split(" ")[0] || "🧩";
-                                            const description = group.id === "clockpuzzle" ? "Uhr ablesen, Zeitaufträge und Wort-Uhr in einem Lernwidget" : group.id === "trafficlight" ? "Arbeitsampel, Lautstärkevorgabe und Live-Pegel in einem Widget" : group.id === "klassenglas" ? "Ein Klassenziel als Glas, Zielring oder Thermometer" : group.id === "randomname" ? "Namen ziehen, Glücksrad und faire Aufrufe in einem Widget" : group.id === "timer" ? "Timer, Stoppuhr und Uhrzeit in einem Widget" : primary?.desc || (variants.length > 1
+                                            const description = group.id === "clockpuzzle" ? "Uhr ablesen, Zeitaufträge und Wort-Uhr in einem Lernwidget" : group.id === "trafficlight" ? "Arbeitsampel, Lautstärkevorgabe und Live-Pegel in einem Widget" : group.id === "klassenglas" ? "Ein Klassenziel als Glas, Zielring oder Thermometer" : group.id === "randomname" ? "Namen ziehen, Glücksrad und faire Aufrufe in einem Widget" : group.id === "timer" ? "Timer, Stoppuhr und Uhrzeit in einem Widget" : group.id === "groups" ? "Gruppen bilden oder ein Kind auswählen" : primary?.desc || (variants.length > 1
                                               ? `${variants.length} Varianten für den Unterricht`
                                               : "Unterrichts-Widget");
-                                            const expanded = expandedCoreWidget === group.id;
+                                            const hasSeparateVariants = variants.length > 1 && !["timer", "randomname", "klassenglas", "trafficlight", "clockpuzzle"].includes(group.id);
+                                            const expanded = expandedCoreWidget === group.id || Boolean(query);
                                             const isFav = (favoritesBySubject[getResolvedFavFolder()] || []).includes(primaryType);
                                             const isPinned = quickBarSettings.itemIds.includes(primaryType as CockpitQuickbarId);
                                             const primaryWidget = cockpitWidgets.find(widget => widget.type === primaryType);
@@ -9715,7 +9712,7 @@ ${content}
                                                     {isPinned ? <Check size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
                                                     <span>Leiste</span>
                                                   </button>
-                                                  {variants.length > 1 && !["timer", "randomname", "klassenglas", "trafficlight", "clockpuzzle"].includes(group.id) && (
+                                                  {hasSeparateVariants && !query && (
                                                     <button type="button" data-widget-card-action="variants"
                                                       onClick={() => setExpandedCoreWidget(expanded ? null : group.id)}
                                                       aria-label={`Varianten von ${group.label} ${expanded ? "schließen" : "anzeigen"}`}
@@ -9723,6 +9720,17 @@ ${content}
                                                       className="flex min-h-11 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50">
                                                       <span aria-hidden="true">{expanded ? "▴" : "▾"}</span>
                                                       <span>Varianten</span>
+                                                    </button>
+                                                  )}
+                                                  {group.id === "groups" && (
+                                                    <button type="button" data-widget-card-action="selection"
+                                                      onClick={() => {
+                                                        handleOpenWidgetInCockpitLayout("randomname");
+                                                        setIsAddWidgetMenuOpen(false);
+                                                      }}
+                                                      aria-label="Zufallsauswahl öffnen"
+                                                      className="min-h-11 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-700 hover:border-accent">
+                                                      Kind ziehen
                                                     </button>
                                                   )}
                                                   <button type="button" data-widget-card-action="primary"
@@ -9736,10 +9744,10 @@ ${content}
                                                       isActive ? "bg-success text-white hover:bg-success-hover" : "bg-accent text-accent-text hover:bg-accent-hover"
                                                     }`}>
                                                     <span aria-hidden="true">{isMinimized ? "↥" : isActive ? "↗" : "＋"}</span>
-                                                    <span>{isMinimized ? "Wiederherstellen" : isActive ? "Anzeigen" : "Öffnen"}</span>
+                                                    <span>{group.id === "groups" && !isActive ? "Gruppen bilden" : isMinimized ? "Wiederherstellen" : isActive ? "Anzeigen" : "Öffnen"}</span>
                                                   </button>
                                                 </div>
-                                                {variants.length > 1 && !["timer", "randomname", "klassenglas", "trafficlight", "clockpuzzle"].includes(group.id) && expanded && (
+                                                {hasSeparateVariants && expanded && (
                                                   <div className="w-full border-t border-slate-100 pt-2">
                                                     <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Varianten</p>
                                                     <div className="flex flex-wrap gap-1.5">
@@ -9765,10 +9773,7 @@ ${content}
 
                                     const filteredList =
                                       allAvailableWidgets.filter((item) => {
-                                        if (query) {
-                                          return matchesCockpitWidgetSearch(item, query);
-                                        }
-
+                                        if (query) return matchesCockpitWidgetSearch(item, query);
                                         let matchesCategory = false;
                                         if (activeWidgetCategory === "legacy") {
                                           matchesCategory = true;
@@ -9852,10 +9857,9 @@ ${content}
                                       <>
                                         {renderedFoldersHeader}
                                         {query && (
-                                          <div className="col-span-full flex min-h-11 items-center justify-between gap-3 rounded-xl border border-accent/20 bg-accent-soft px-3 py-2 text-xs text-slate-700" role="status">
-                                            <span className="min-w-0 truncate font-semibold">Suche in {activeWidgetCategory === "legacy" ? "weiteren Widgets" : "deinen Widgets"}: „{widgetSearch.trim()}“</span>
-                                            <span className="shrink-0 rounded-full bg-white px-2 py-1 font-black text-accent">{filteredList.length} Treffer</span>
-                                          </div>
+                                          <p className="col-span-full rounded-xl border border-accent/20 bg-accent-soft px-3 py-2 text-sm font-semibold text-slate-900" role="status">
+                                            {filteredList.length} Treffer
+                                          </p>
                                         )}
                                         {filteredList.length === 0 && (
                                           <div className="col-span-full py-10 flex flex-col items-center justify-center text-center opacity-70">

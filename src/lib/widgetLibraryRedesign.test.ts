@@ -15,7 +15,7 @@ test('widget library is a focused modal with search, settings and close in one h
   assert.match(surface, /isWidgetConfigurationOpen \? "flex" : "hidden"/);
 });
 
-test('favorites and recent appear before subject/category navigation', () => {
+test('core, favorites and recent appear before subject navigation', () => {
   const start = surface.indexOf('klassio-widget-library-sidebar');
   const end = surface.indexOf('const allAvailableWidgets = COCKPIT_WIDGET_LIBRARY_ITEMS;', start);
   assert.ok(start >= 0 && end > start);
@@ -24,7 +24,7 @@ test('favorites and recent appear before subject/category navigation', () => {
   const recent = sidebar.indexOf('🕘 Zuletzt verwendet');
   const core = sidebar.indexOf('🧩 Kernwidgets');
   const all = sidebar.indexOf('▦ Weitere Widgets');
-  assert.ok(favorites >= 0 && recent > favorites && core > recent && all > core);
+  assert.ok(core >= 0 && favorites > core && recent > favorites && all > recent);
   assert.match(surface, /activeWidgetCategory === "recent"/);
   assert.match(surface, /recentWidgetTypes\.includes\(item\.type\)/);
   assert.match(surface, /Noch keine zuletzt verwendeten Widgets/);
@@ -77,11 +77,11 @@ test('teaching dock fully steps back while widget library is open', () => {
   assert.match(css, /pointer-events: none/);
 });
 
-test('opening the library prioritizes favorites, then recent, then core without changing widget layouts', () => {
+test('opening the library starts on the smaller core selection without changing widget layouts', () => {
   assert.match(surface, /const openWidgetLibrary = \(\) =>/);
-  assert.match(surface, /favoriteCount > 0 \? "favorites" : recentWidgetTypes\.length > 0 \? "recent" : "core"/);
   assert.match(surface, /setWidgetSearch\(""\)/);
   const helper = surface.slice(surface.indexOf('const openWidgetLibrary'), surface.indexOf('const [isWidgetPickerOpen'));
+  assert.match(helper, /setActiveWidgetCategory\("core"\)/);
   assert.doesNotMatch(helper, /cockpitLayout\s*:/);
   assert.doesNotMatch(helper, /setCockpitWidgets/);
 });

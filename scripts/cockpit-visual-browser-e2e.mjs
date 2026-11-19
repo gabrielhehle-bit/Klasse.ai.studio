@@ -428,7 +428,28 @@ async function main() {
 
     await clickLabel(client, 'Klassenmaskottchen ausblenden');
 
+    const dockIds = `Array.from(document.querySelectorAll('[data-dock-favorite-id]')).map(button => button.dataset.dockFavoriteId).join(',')`;
+    await waitFor(client, 'the default dock starts with attendance and Waldruhe',
+      `${dockIds} === 'kidattendance,waldruhe,timeline,instruction,timer'`);
+    await clickLabel(client, 'Ich bin da! öffnen');
+    await waitFor(client, 'attendance opens directly from the dock', `Boolean(document.querySelector('[data-widget-type="kidattendance"]'))`);
+    await clickLabel(client, 'Ich bin da! einklappen');
+    await waitFor(client, 'attendance stays restorable from the dock',
+      `document.querySelector('[data-dock-favorite-id="kidattendance"]').dataset.minimized === 'true'`);
     await clickButton(client, 'Widget hinzufügen');
+    const picker = `document.querySelector('[aria-label="Widget-Bibliothek"]')`;
+    const coreCards = `Array.from(${picker}.querySelectorAll('[data-testid^="cockpit-core-group-"]')).map(card => card.dataset.testid.replace('cockpit-core-group-', '')).join(',')`;
+    await waitFor(client, 'the picker starts with six core widgets, including attendance and Waldruhe',
+      `${coreCards} === 'kidattendance,waldruhe,timeline,instruction,timer,groups'`);
+    await waitFor(client, 'one core card provides distinct actions for groups and drawing a name',
+      `Boolean(${picker}.querySelector('[data-testid="cockpit-core-group-groups"] [data-widget-card-action="selection"]')) &&
+        ${picker}.querySelector('[data-testid="cockpit-core-group-groups"] [data-widget-card-action="primary"]').textContent.includes('Gruppen bilden')`);
+    await screenshot(client, 'widget-kernwidgets');
+    await fill(client, 'Widget suchen', 'Wasserkreislauf');
+    await waitFor(client, 'a specialist subject tool is directly discoverable from the core picker',
+      `Boolean(${picker}.querySelector('button[aria-label="Wasserkreislauf-Puzzle öffnen"]'))`);
+    await fill(client, 'Widget suchen', 'Stoppuhr');
+    await waitFor(client, 'stopwatch search returns one integrated timer entry', `${coreCards} === 'timer'`);
     await fill(client, 'Widget suchen', 'Shy Safari');
     await waitFor(client, 'Waldruhe is findable under Shy Safari',
       `Boolean(document.querySelector('button[aria-label="Waldruhe (Shy Safari) öffnen"]'))`);

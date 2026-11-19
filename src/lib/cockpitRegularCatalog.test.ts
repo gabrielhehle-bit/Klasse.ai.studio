@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { COCKPIT_REGULAR_WIDGETS, getRegularCockpitGroups } from './cockpitRegularCatalog';
+import { COCKPIT_CORE_WIDGETS, COCKPIT_REGULAR_WIDGETS, getRegularCockpitGroups } from './cockpitRegularCatalog';
 import { COCKPIT_WIDGET_LIBRARY_ITEMS } from './cockpitWidgetCatalog';
 
 test('regular selection has 26 unique, available entries while retaining every legacy entry', () => {
@@ -24,15 +24,23 @@ test('search groups old names without opening or converting saved variants', () 
   ]) {
     assert.deepEqual(getRegularCockpitGroups('core', query).map(group => group.id), [id]);
   }
-  assert.equal(getRegularCockpitGroups('core', 'Zahnputz').length, 0);
-  assert.ok(COCKPIT_WIDGET_LIBRARY_ITEMS.some(item => item.type === 'toothbrush'));
+  assert.deepEqual(getRegularCockpitGroups('core', 'Zahnputz').map(group => group.id), ['toothbrush']);
+  assert.deepEqual(getRegularCockpitGroups('mathe', 'Wasserkreislauf').map(group => group.id), ['watercycle']);
 });
 
-test('regular categories partition the same selection and global search crosses categories', () => {
+test('six core cards start with attendance and Waldruhe', () => {
+  assert.deepEqual(COCKPIT_CORE_WIDGETS.map(group => group.id), [
+    'kidattendance', 'waldruhe', 'timeline', 'instruction', 'timer', 'groups',
+  ]);
+  assert.deepEqual(getRegularCockpitGroups('core', '   '), COCKPIT_CORE_WIDGETS);
+});
+
+test('subject categories cover every catalog type once across their grouped entries', () => {
   const categories = [...new Set(COCKPIT_WIDGET_LIBRARY_ITEMS.map(item => item.category))];
-  const ids = categories.flatMap(category => getRegularCockpitGroups(category).map(group => group.id));
-  assert.equal(ids.length, 26);
-  assert.equal(new Set(ids).size, 26);
+  const groups = categories.flatMap(category => getRegularCockpitGroups(category));
+  assert.equal(new Set(groups.map(group => group.id)).size, groups.length);
+  const types = groups.flatMap(group => group.sources);
+  assert.equal(types.length, COCKPIT_WIDGET_LIBRARY_ITEMS.length);
+  assert.deepEqual(new Set(types), new Set(COCKPIT_WIDGET_LIBRARY_ITEMS.map(item => item.type)));
   assert.deepEqual(getRegularCockpitGroups('mathe', 'Hausübungen').map(group => group.id), ['homework']);
-  assert.equal(getRegularCockpitGroups('core', '   ').length, 26);
 });

@@ -778,7 +778,7 @@ async function main() {
     // The normal picker stays small; exact legacy names remain available separately.
     await clickButton(client, 'Widget hinzufügen');
     await clickButton(client, 'Kernwidgets');
-    await waitFor(client, 'regular picker has 26 grouped entries', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length === 26`);
+    await waitFor(client, 'regular picker has six core entries', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length === 6`);
     await waitFor(client, 'student-list resize grip is removed while choosing widgets', `!document.querySelector('[aria-label="Breite der Schülerliste ändern"]')`);
     await sleep(250);
     await evaluate(client, `document.querySelector('button[aria-label="Widget-Voreinstellungen öffnen"]').click()`);
@@ -800,10 +800,9 @@ async function main() {
     await sleep(250);
     await setInputByLabel(client, 'Widget suchen', 'Bruch');
     await waitFor(client, 'fraction search shows one group', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length === 1 && Boolean(document.querySelector('[data-testid="cockpit-core-group-fractionvisualizer"]'))`);
-    await evaluate(client, `document.querySelector('button[aria-label="Varianten von Brüche anzeigen"]').click()`);
     await waitFor(client, 'fraction variants are available inside their group', `Array.from(document.querySelectorAll('[data-testid="cockpit-core-group-fractionvisualizer"] button')).some(button => button.textContent.includes('Bruch-Kuchen'))`);
     await setInputByLabel(client, 'Widget suchen', 'Zahnputz');
-    await waitFor(client, 'special topic stays outside regular search', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length === 0 && document.body.innerText.includes('Kein Kernwidget gefunden')`);
+    await waitFor(client, 'special topic appears in global search', `Boolean(document.querySelector('[data-testid="cockpit-core-group-toothbrush"]'))`);
     await clickButton(client, 'Weitere Widgets');
     await setInputByLabel(client, 'Widget suchen', 'Zahnputz');
     await waitFor(client, 'special topic remains accessible', `Boolean(document.querySelector('button[aria-label="Zahnputz-Station öffnen"]'))`);
