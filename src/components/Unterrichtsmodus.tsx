@@ -11758,11 +11758,6 @@ ${content}
                                       return (
                                         <InstructionWidgetContent
                                           widget={widget}
-                                          hasActiveCountdown={countdown.run?.status === "running" || countdown.run?.status === "paused"}
-                                          onStartCountdown={() => {
-                                            const timer = cockpitWidgets.find(item => item.type === "timer");
-                                            countdown.start(300, countdown.run?.alarm ?? getCockpitTimerPreferences(timer?.settings).alarm);
-                                          }}
                                           onUpdate={(updates) =>
                                             handleUpdateWidgetPos(
                                               widget.id,
@@ -11778,6 +11773,11 @@ ${content}
                                           onCloseSettings={() =>
                                             setWidgetSettingsOpenId(null)
                                           }
+                                          hasActiveCountdown={countdown.run?.status === "running" || countdown.run?.status === "paused"}
+                                          onStartCountdown={() => {
+                                            const timer = cockpitWidgets.find(item => item.type === "timer");
+                                            countdown.start(300, countdown.run?.alarm ?? getCockpitTimerPreferences(timer?.settings).alarm);
+                                          }}
                                         />
                                       );
 
