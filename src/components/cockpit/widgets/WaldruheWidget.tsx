@@ -266,16 +266,16 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
     <div data-practice-root="waldruhe" data-waldruhe-scene={scene} className="flex h-full min-h-0 w-full flex-col gap-2 overflow-auto p-2 text-slate-900 dark:text-slate-100">
       <div className="relative isolate min-h-32 flex-1 overflow-hidden rounded-xl bg-emerald-950 bg-cover bg-center [container-type:size]"
         style={{ backgroundImage: `linear-gradient(#06281999, transparent 55%, #06281966), url(${setting.background})` }}>
-        <p className="absolute left-3 top-2 text-lg font-bold text-white drop-shadow-md min-[700px]:text-xl" role="status">{message}</p>
+        <p data-waldruhe-scene-label className="absolute left-2 top-2 max-w-[calc(100%-1rem)] rounded-lg px-2 py-0.5 text-sm font-bold leading-snug sm:text-base" role="status">{message}</p>
         {animals.slice(0, count).map(animal => (
           <figure key={animal.name} data-waldruhe-animal={animal.artwork} className="absolute m-0 -translate-x-1/2 -translate-y-1/2 text-center"
             style={{ left: animal.x + '%', top: animal.y + '%' }}>
             <img alt="" draggable={false} src={`/cockpit/waldruhe-tiere/${animal.artwork}.webp`}
               className="mx-auto block h-[min(27cqh,clamp(3rem,19cqw,8rem))] w-auto max-w-[23cqw] object-contain drop-shadow-md motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500" />
-            <figcaption className="rounded-full bg-emerald-950 px-1.5 text-[clamp(.65rem,2.4cqw,1rem)] font-semibold text-white">{animal.name}</figcaption>
+            <figcaption data-waldruhe-scene-label className="rounded-full px-1.5 text-[clamp(.72rem,2.7cqw,1rem)] font-semibold">{animal.name}</figcaption>
           </figure>
         ))}
-        <p className="absolute bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-emerald-950 px-2 py-0.5 text-xs font-semibold text-white" aria-live="polite">
+        <p data-waldruhe-scene-label className="absolute bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold" aria-live="polite">
           {count} von {animals.length} Tieren
         </p>
       </div>

@@ -453,7 +453,11 @@ async function main() {
       if (!img || !img.complete || !img.naturalWidth) return false;
       const rect = img.getBoundingClientRect();
       const scene = img.closest('figure').parentElement.getBoundingClientRect();
-      return rect.width >= 24 && rect.height >= 24 &&
+      const labels = Array.from(img.closest('figure').parentElement.querySelectorAll('[data-waldruhe-scene-label]'));
+      const labelsLegible = labels.length >= 3 && labels.every(label =>
+        getComputedStyle(label).color === 'rgb(255, 255, 255)' &&
+        getComputedStyle(label).backgroundColor === 'rgba(7, 36, 33, 0.92)');
+      return labelsLegible && rect.width >= 24 && rect.height >= 24 &&
         rect.left >= scene.left && rect.right <= scene.right &&
         rect.top >= scene.top && rect.bottom <= scene.bottom;
     })()`;
