@@ -524,6 +524,51 @@ async function main() {
     await waitFor(client, 'all five woodland animals have visible artwork and separate labels',
       fullHabitat('forest', ['igel', 'eichhoernchen', 'reh', 'fuchs', 'eule']));
     await screenshot(client, 'waldruhe-waldlichtung-komplett');
+    await openForestSettings();
+    await waitFor(client, 'the Vorarlberg meadow is listed in the habitat settings',
+      `${forest}.querySelector('select[aria-label="Schauplatz"] option[value="meadow"]')?.textContent === 'Vorarlberger Bergwiese'`);
+    await selectScene('meadow');
+    await clickButton(client, 'Fertig');
+    await waitFor(client, 'the meadow starts a separate round with its own landscape',
+      `(async () => {
+        if (${forest}.dataset.waldruheScene !== 'meadow' || !${forest}.textContent.includes('0 von 5 Tieren')) return false;
+        const landscape = ${forest}.querySelector('[data-waldruhe-landscape]');
+        const url = new URL('/cockpit/waldruhe-bergwiese.webp', location.href).href;
+        if (!getComputedStyle(landscape).backgroundImage.includes(url)) return false;
+        const backdrop = new Image();
+        backdrop.src = url;
+        await backdrop.decode();
+        return backdrop.naturalWidth >= 1000;
+      })()`);
+    await waitFor(client, 'the chamois is the first alpine animal to appear', animalArtworkVisible('gaemse'));
+    await openForestSettings();
+    await selectScene('aquarium');
+    await clickButton(client, 'Fertig');
+    await waitFor(client, 'the aquarium is still complete after visiting the meadow',
+      `${forest}.dataset.waldruheScene === 'aquarium' && ${forest}.textContent.includes('5 von 5 Tieren')`);
+    await openForestSettings();
+    await selectScene('meadow');
+    await clickButton(client, 'Fertig');
+    await waitFor(client, 'the meadow resumes with its chamois instead of starting over',
+      `${forest}.dataset.waldruheScene === 'meadow' && ${forest}.querySelector('figcaption')?.textContent === 'Gämse'`);
+    const alpineAnimals = ['gaemse', 'steinbock', 'alpendohle', 'schmetterling', 'murmeltier'];
+    await waitFor(client, 'all five alpine animals are visible, with the marmot appearing last',
+      fullHabitat('meadow', alpineAnimals));
+    const marmot = `${forest}.querySelector('[data-waldruhe-animal="murmeltier"] img')`;
+    await waitFor(client, 'the marmot finishes emerging from its burrow',
+      `getComputedStyle(${marmot}).animationName === 'waldruhe-murmeltier-emerge' &&
+        ${marmot}.getAnimations().every(animation => animation.playState === 'finished')`);
+    await screenshot(client, 'waldruhe-bergwiese-komplett');
+    await clickButton(client, 'Neu beginnen');
+    await waitFor(client, 'restarting resets the meadow round', `${forest}.textContent.includes('0 von 5 Tieren')`);
+    await openForestSettings();
+    await selectScene('forest');
+    await clickButton(client, 'Fertig');
+    await waitFor(client, 'resetting the meadow leaves the forest round complete',
+      `${forest}.dataset.waldruheScene === 'forest' && ${forest}.textContent.includes('5 von 5 Tieren')`);
+    await openForestSettings();
+    await selectScene('meadow');
+    await clickButton(client, 'Fertig');
     await clickButton(client, 'Test beenden');
     await waitFor(client, 'stopping clears the countdown and the animals', `!${forest}?.querySelector('[role="progressbar"]') && ${forest}?.textContent.includes('0 von 5 Tieren')`);
 

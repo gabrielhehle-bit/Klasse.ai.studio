@@ -40,14 +40,29 @@ const scenes = {
       { name: 'Panzerwels', artwork: 'panzerwels', row: 2, column: 5, movement: 'hover' },
     ] satisfies readonly Animal[],
   },
+  meadow: {
+    label: 'Vorarlberger Bergwiese',
+    background: '/cockpit/waldruhe-bergwiese.webp',
+    idle: 'Wer lebt auf der Bergwiese?',
+    waiting: 'Die Bergwiese wartet …',
+    quiet: 'Die Bergwiese lauscht …',
+    animals: [
+      { name: 'Gämse', artwork: 'gaemse', row: 2, column: 5 },
+      { name: 'Steinbock', artwork: 'steinbock', row: 1, column: 2 },
+      { name: 'Alpendohle', artwork: 'alpendohle', row: 1, column: 8, movement: 'hover' },
+      { name: 'Schmetterling', artwork: 'schmetterling', row: 2, column: 1 },
+      { name: 'Murmeltier', artwork: 'murmeltier', row: 2, column: 9 },
+    ] satisfies readonly Animal[],
+  },
 } as const;
 type Scene = keyof typeof scenes;
+const sceneNames = Object.keys(scenes) as Scene[];
+const resolveScene = (value: unknown): Scene => sceneNames.find(name => name === value) ?? 'forest';
+const emptySceneState = <T,>(create: () => T) =>
+  Object.fromEntries(sceneNames.map(name => [name, create()])) as Record<Scene, T>;
 const emptyRound = () => ({ count: 0, quietMs: 0, loudMs: 0, aboveMs: 0, aboveLimit: false });
-const emptyProgress = () => ({ forest: emptyRound(), aquarium: emptyRound() });
-const emptyDisplay = () => ({
-  forest: { count: 0, quietTenths: 0 },
-  aquarium: { count: 0, quietTenths: 0 },
-});
+const emptyProgress = () => emptySceneState(emptyRound);
+const emptyDisplay = () => emptySceneState(() => ({ count: 0, quietTenths: 0 }));
 const thresholds = [12, 18, 26, 35, 48];
 const workModes = [
   { label: 'Stillarbeit', tolerance: 1 },
@@ -73,7 +88,7 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
   const tolerance = Number.isInteger(saved?.tolerance) && saved.tolerance >= 1 && saved.tolerance <= 5 ? saved.tolerance as number : 3;
   const seconds = durations.includes(saved?.seconds) ? saved.seconds as number : 15;
   const hideAnimals = saved?.hideAnimals === true;
-  const scene: Scene = saved?.scene === 'aquarium' ? 'aquarium' : 'forest';
+  const scene = resolveScene(saved?.scene);
   const showCountdown = saved?.showCountdown !== false;
   const noiseGraceMs = noiseGraceOptions.includes(saved?.noiseGraceMs) ? saved.noiseGraceMs as number : 1000;
   const settings = { tolerance, seconds, hideAnimals, scene, showCountdown, noiseGraceMs };
@@ -315,9 +330,8 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
         <div className="grid shrink-0 grid-cols-2 gap-x-2 gap-y-1 rounded-lg border border-slate-300 bg-slate-50 p-2 text-sm text-slate-900">
           <label className="col-span-2 font-semibold">Schauplatz
             <select aria-label="Schauplatz" className={'block w-full ' + button} value={scene}
-              onChange={event => updateSettings({ scene: event.target.value === 'aquarium' ? 'aquarium' : 'forest' })}>
-              <option value="forest">Waldlichtung</option>
-              <option value="aquarium">Aquarium</option>
+              onChange={event => updateSettings({ scene: resolveScene(event.target.value) })}>
+              {sceneNames.map(name => <option key={name} value={name}>{scenes[name].label}</option>)}
             </select>
           </label>
           <fieldset className="col-span-2 min-w-0 rounded-lg border border-slate-200 bg-white p-2">
