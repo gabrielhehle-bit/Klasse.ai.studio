@@ -372,7 +372,13 @@ async function verifyRandomPickerInRealBrowser(client) {
     String.raw`(() => {const button=document.querySelector('button[aria-label="Kinder für diese Unterrichtsphase auswählen"]');if(!button)return false;button.click();return true;})()`);
   if (!opened) throw new Error('Could not open real random-name lesson selection.');
   await waitFor(client, 'real empty class selector and page count',
-    String.raw`(() => {const d=document.querySelector('section[role="dialog"][aria-label="Kinder für die Zufallsauswahl auswählen"]');return !!d && d.textContent.includes('Keine anwesenden Kinder') && d.textContent.includes('Seite 1 von 1');})()`);
+    String.raw`(() => {
+      const dialog = document.querySelector('section[role="dialog"][aria-label="Kinder für die Zufallsauswahl auswählen"]');
+      const roster = dialog?.querySelector('[aria-label="Auswählbare Kinder auf dieser Seite"]');
+      return Boolean(roster) && !roster.querySelector('button')
+        && dialog.textContent.includes('Für diese Auswahl ist kein Kind verfügbar.')
+        && dialog.textContent.includes('Seite 1 von 1');
+    })()`);
   for (const [width, height] of [[1440, 1100], [1024, 768], [640, 720]]) {
     await client.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
     await sleep(200);
