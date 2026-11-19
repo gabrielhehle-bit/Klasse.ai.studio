@@ -434,9 +434,7 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                                 />
                             </label>
                             <p className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>
-                                Bei Tafelruhe bleibt das Maskottchen sichtbar und verschiebbar,
-                                bleibt bei einem Tipp und bei hohem Live-Pegel ruhig.
-                                Der Live-Pegel kann weiter angezeigt werden; deine ausgewählte Stimmung, das Accessoire und die Jahreszeit bleiben erhalten.
+                                Bei Tafelruhe kannst du das Haustier weiter verschieben. Die Figur bleibt dabei ruhig.
                             </p>
                             {onRecenterMascot && (
                                 <button
