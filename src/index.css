@@ -1460,12 +1460,18 @@ html body [data-practice-root="waldruhe"] [data-waldruhe-scene-label] {
   background-color: rgb(7 36 33 / 92%) !important;
 }
 
+[data-waldruhe-scene="meadow"] [data-waldruhe-landscape] {
+  background-position: center 43%;
+}
+
 .waldruhe-animal-art img {
   filter: drop-shadow(0 2px 3px rgb(3 19 19 / 65%));
 }
 
 [data-waldruhe-scene="forest"] .waldruhe-animal-art::before,
-[data-waldruhe-animal="rennschnecke"] .waldruhe-animal-art::before {
+[data-waldruhe-animal="rennschnecke"] .waldruhe-animal-art::before,
+[data-waldruhe-animal="gaemse"] .waldruhe-animal-art::before,
+[data-waldruhe-animal="steinbock"] .waldruhe-animal-art::before {
   position: absolute;
   right: 15%;
   bottom: 0;
@@ -1492,6 +1498,10 @@ html body [data-practice-root="waldruhe"] [data-waldruhe-scene-label] {
     animation: waldruhe-hover 4s ease-in-out infinite alternate;
   }
 
+  [data-waldruhe-animal="murmeltier"] img {
+    animation: waldruhe-murmeltier-emerge 950ms ease-out both;
+  }
+
   [data-waldruhe-still="true"] [data-waldruhe-movement] {
     animation-play-state: paused;
   }
@@ -1500,6 +1510,11 @@ html body [data-practice-root="waldruhe"] [data-waldruhe-scene-label] {
 @keyframes waldruhe-appear {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+@keyframes waldruhe-murmeltier-emerge {
+  from { transform: translateY(28%); clip-path: inset(0 0 28%); }
+  to { transform: translateY(0); clip-path: inset(0); }
 }
 
 @keyframes waldruhe-swim {
