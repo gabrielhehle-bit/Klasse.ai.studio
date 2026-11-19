@@ -11,13 +11,18 @@ const q = JSON.stringify;
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 class CdpClient {
-  constructor(url) { this.url=url; this.id=0; this.pending=new Map(); }
+  constructor(url) { this.url=url; this.id=0; this.pending=new Map(); this.navigationCount=0; }
   async connect() {
     await new Promise((resolve,reject)=>{
       this.ws=new WebSocket(this.url);
       this.ws.onopen=resolve; this.ws.onerror=reject;
       this.ws.onmessage=event=>{
         const msg=JSON.parse(String(event.data));
+        if (msg.method === 'Page.frameNavigated' && !msg.params.frame?.parentId) this.navigationCount++;
+        if (msg.method === 'Page.javascriptDialogOpening' && msg.params.type === 'beforeunload') {
+          // Keep the page open while the encrypted write finishes, then retry.
+          void this.send('Page.handleJavaScriptDialog', { accept: false }).catch(() => {});
+        }
         const p=this.pending.get(msg.id);
         if (!p) return;
         this.pending.delete(msg.id);
@@ -354,13 +359,14 @@ async function checkWidgetGeometry(client) {
   await selectPage('2');
   await waitFor(client, 'both widgets keep their positions after a page round trip', isOverlap);
 
-  await evaluate(client, 'window.__beforeGeometryReload = true');
-  for (let attempt = 0; attempt < 20 && await evaluate(client, 'window.__beforeGeometryReload === true'); attempt++) {
+  const beforeReload = client.navigationCount;
+  for (let attempt = 0; attempt < 20 && client.navigationCount === beforeReload; attempt++) {
     await client.send('Page.reload');
     await sleep(500);
   }
-  await waitFor(client, 'the browser reloads from saved data', `!window.__beforeGeometryReload &&
-    (Boolean(document.querySelector('input[placeholder="Passwort eingeben"]')) || Boolean(document.querySelector('.topbar')))`);
+  if (client.navigationCount === beforeReload) throw Error('Encrypted save did not permit a safe real reload');
+  await waitFor(client, 'the browser reloads from saved data',
+    `Boolean(document.querySelector('input[placeholder="Passwort eingeben"]')) || Boolean(document.querySelector('.topbar'))`);
   if (await evaluate(client, `Boolean(document.querySelector('input[placeholder="Passwort eingeben"]'))`)) {
     await fill(client, 'Passwort eingeben', VAULT_PASSWORD);
     await clickButton(client, 'Tresor entsperren');
