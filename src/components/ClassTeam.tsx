@@ -915,7 +915,7 @@ export default function ClassTeam() {
               Jede Lehrperson nutzt ihr eigenes Schulkonto. Nur ausdrücklich hinzugefügte Kolleg:innen erhalten Zugriff auf die verschlüsselte Klasse.
             </p>
             <p data-testid="team-autosave-explanation" className="mt-2 max-w-2xl text-xs font-semibold leading-relaxed text-[var(--text2)]">
-              Ihr arbeitet in derselben Klasse. Bei bestehender Verbindung erscheinen gespeicherte Änderungen automatisch bei allen Teammitgliedern. „Team synchronisiert“ bestätigt, dass deine Eingaben im Team angekommen sind.
+              Ihr arbeitet in derselben Klasse. Bei bestehender Verbindung erscheinen gespeicherte Änderungen automatisch bei allen Teammitgliedern. Erst „Team synchronisiert“ bestätigt den gemeinsamen Stand.
             </p>
           </div>
         </div>
