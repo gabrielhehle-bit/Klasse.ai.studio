@@ -437,7 +437,7 @@ async function verifyDirectCockpitNavigation(client) {
     String.raw`(() => {
       const selectors=[
         'button[aria-label="Vollbild öffnen"],button[aria-label="Vollbild beenden"]',
-        'button[aria-label="Weitere Optionen und Layout-Werkzeuge"]'
+        'button[aria-label="Cockpit-Einstellungen"]'
       ];
       const controls=selectors.map(selector=>{
         const button=document.querySelector(selector);
@@ -452,13 +452,13 @@ async function verifyDirectCockpitNavigation(client) {
   }
 
   const openedCockpitOptions = await evaluate(client,
-    String.raw`(() => {const b=document.querySelector('button[aria-label="Weitere Optionen und Layout-Werkzeuge"]');if(!b)return false;b.click();return true;})()`);
+    String.raw`(() => {const b=document.querySelector('button[aria-label="Cockpit-Einstellungen"]');if(!b)return false;b.click();return true;})()`);
   if (!openedCockpitOptions) throw new Error('Could not open cockpit options menu.');
   await waitFor(client, 'cockpit options menu open',
-    String.raw`Boolean(document.querySelector('[role="menu"][aria-label="Weitere Cockpit-Optionen"]'))`);
+    String.raw`Boolean(document.querySelector('[role="menu"][aria-label="Cockpit-Einstellungen"]'))`);
   const optionsTouch = await evaluate(client,
     String.raw`(() => {
-      const menu=document.querySelector('[role="menu"][aria-label="Weitere Cockpit-Optionen"]');
+      const menu=document.querySelector('[role="menu"][aria-label="Cockpit-Einstellungen"]');
       if(!menu)return {error:'missing options menu'};
       const controls=[...menu.querySelectorAll('button')].filter(button=>!button.disabled).map(button=>{
         const r=button.getBoundingClientRect();
@@ -474,7 +474,7 @@ async function verifyDirectCockpitNavigation(client) {
   }
 
   const openedSlots = await evaluate(client,
-    String.raw`(() => {const menu=document.querySelector('[role="menu"][aria-label="Weitere Cockpit-Optionen"]');const b=[...(menu?.querySelectorAll('button')||[])].find(button=>(button.textContent||'').includes('Layouts & Schnell-Slots'));if(!b)return false;b.click();return true;})()`);
+    String.raw`(() => {const menu=document.querySelector('[role="menu"][aria-label="Cockpit-Einstellungen"]');const b=[...(menu?.querySelectorAll('button')||[])].find(button=>(button.textContent||'').includes('Layouts & Schnell-Slots'));if(!b)return false;b.click();return true;})()`);
   if (!openedSlots) throw new Error('Could not open layouts and quick slots.');
   await waitFor(client, 'layout slots dialog open',
     String.raw`Boolean(document.querySelector('[role="dialog"][aria-label="Layouts und Schnell-Slots"]'))`);
@@ -549,10 +549,10 @@ async function verifyDirectCockpitNavigation(client) {
     String.raw`(() => {const dock=document.querySelector('nav[aria-label="Meine Widget-Favoriten"]');return !!dock&&dock.querySelectorAll('.klassio-dock-favorite').length>=6;})()`);
   await evaluate(client,
     String.raw`(() => {document.querySelector('nav[aria-label="Meine Widget-Favoriten"] button[aria-label="Meine Widget-Leiste anpassen"]')?.click();return true;})()`);
-  await clickButton(client, 'Optionen', true);
-  await waitFor(client, 'design and birthday stay in cockpit options',
+  await evaluate(client, `document.querySelector('button[aria-label="Cockpit-Einstellungen"]').click()`);
+  await waitFor(client, 'design and birthday stay in cockpit settings',
     'document.body?.innerText.includes("Design & Farben") && document.body?.innerText.includes("Geburtstag")');
-  await clickButton(client, 'Optionen', true);
+  await evaluate(client, `document.querySelector('button[aria-label="Cockpit-Einstellungen"]').click()`);
   const openedPaperTools = await evaluate(client,
     String.raw`(() => {const b=document.querySelector('button[aria-controls="klassio-board-tools"]');if(!b)return false;b.click();return true;})()`);
   if (!openedPaperTools) throw new Error('Could not reopen writing and paper tools.');
