@@ -11,13 +11,18 @@ const q = JSON.stringify;
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 class CdpClient {
-  constructor(url) { this.url=url; this.id=0; this.pending=new Map(); }
+  constructor(url) { this.url=url; this.id=0; this.pending=new Map(); this.navigationCount=0; }
   async connect() {
     await new Promise((resolve,reject)=>{
       this.ws=new WebSocket(this.url);
       this.ws.onopen=resolve; this.ws.onerror=reject;
       this.ws.onmessage=event=>{
         const msg=JSON.parse(String(event.data));
+        if (msg.method === 'Page.frameNavigated' && !msg.params.frame?.parentId) this.navigationCount++;
+        if (msg.method === 'Page.javascriptDialogOpening' && msg.params.type === 'beforeunload') {
+          // Keep the page open while the encrypted write finishes, then retry.
+          void this.send('Page.handleJavaScriptDialog', { accept: false }).catch(() => {});
+        }
         const p=this.pending.get(msg.id);
         if (!p) return;
         this.pending.delete(msg.id);
@@ -240,6 +245,135 @@ async function checkAssignmentCountdown(client) {
   await clickLabel(client, 'Unterrichtstimer anzeigen');
   await waitFor(client, 'opening the timer after the alarm shows the finished session',
     `${timer}?.dataset.timerWidgetStatus === 'expired'`);
+}
+
+async function dragWidgetTo(client, type, left, top) {
+  const widgetSelector = `#widget-board-stage [data-widget-type="${type}"]`;
+  const frameExpression = `document.querySelector(${q(widgetSelector)})`;
+  const measureDrag = `(() => {
+    const stage = document.getElementById('widget-board-stage');
+    const widget = ${frameExpression};
+    if (!stage || !widget) return null;
+    for (let node = widget; node; node = node.parentElement) {
+      if (node.getAnimations().some(animation => animation.playState !== 'finished' &&
+        Number.isFinite(animation.effect?.getComputedTiming().endTime))) return null;
+    }
+    const board = stage.getBoundingClientRect();
+    const frame = widget.getBoundingClientRect();
+    const y = frame.top + 22;
+    const x = [0.56, 0.48, 0.64, 0.32, 0.14].map(fraction => frame.left + frame.width * fraction).find(candidate => {
+      const target = document.elementFromPoint(candidate, y);
+      return widget.firstElementChild.contains(target) && !target.closest('button');
+    });
+    if (x === undefined) return null;
+    return { x, y, toX: board.left + stage.clientLeft + stage.clientWidth * ${left} / 100 + x - frame.left,
+      toY: board.top + stage.clientTop + stage.clientHeight * ${top} / 100 + 22 };
+  })()`;
+  await waitFor(client, type + ' header is ready for dragging', measureDrag, 5000);
+  const points = await evaluate(client, measureDrag);
+  if (!points) throw Error('Widget header is not reachable: ' + type);
+  const { x, y, toX, toY } = points;
+  await client.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
+  await client.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 });
+  await waitFor(client, type + ' starts dragging', `${frameExpression}?.dataset.widgetInteracting === 'dragging'`, 3000);
+  for (const progress of [0.3, 0.6, 1]) {
+    await client.send('Input.dispatchMouseEvent', {
+      type: 'mouseMoved', x: x + (toX - x) * progress, y: y + (toY - y) * progress, button: 'left', buttons: 1,
+    });
+  }
+  const isAtCorner = `(() => {
+    const frame = ${frameExpression};
+    return Math.abs(parseFloat(frame.style.left) - ${left}) < 0.4 && Math.abs(parseFloat(frame.style.top) - ${top}) < 0.4;
+  })()`;
+  try {
+    await waitFor(client, type + ' previews the position while dragging', isAtCorner, 3000);
+  } catch (error) {
+    console.log('Widget drag state', await evaluate(client, `({pointer: ${q(points)}, frame: ${frameExpression}.getAttribute('style'), interaction: ${frameExpression}.dataset.widgetInteracting})`));
+    throw error;
+  } finally {
+    await client.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: toX, y: toY, button: 'left', clickCount: 1 });
+  }
+  await waitFor(client, type + ' keeps the position after release',
+    `${isAtCorner} && !${frameExpression}?.hasAttribute('data-widget-interacting')`, 3000);
+}
+
+async function checkWidgetGeometry(client) {
+  await clickLabel(client, 'Schülerliste ausblenden', true);
+  await waitFor(client, 'the board has expanded before measuring geometry',
+    `!document.querySelector('.klassio-student-sidebar') && document.getElementById('widget-board-stage').clientWidth > innerWidth - 40`);
+  const widget = type => `document.querySelector('#widget-board-stage [data-widget-type="${type}"]')`;
+  const geometry = (...types) => `JSON.stringify([${types.map(widget).join(',')}].map(node =>
+    node && [node.style.left, node.style.top, node.style.width, node.style.height]))`;
+  const undo = 'Widget-Anordnung rückgängig machen';
+  const undoSelector = `document.querySelector('button[aria-label="${undo}"]')`;
+  const initialTimer = await evaluate(client, geometry('timer'));
+  await dragWidgetTo(client, 'timer', 5, 6);
+  await clickLabel(client, undo);
+  await waitFor(client, 'one undo reverts the entire pointer gesture', `${geometry('timer')} === ${q(initialTimer)} && !${undoSelector}`);
+  await dragWidgetTo(client, 'timer', 5, 6);
+
+  await evaluate(client, `document.querySelector('[data-dock-favorite-id="waldruhe"]').click()`);
+  await waitFor(client, 'Waldruhe opens beside the timer', `Boolean(${widget('waldruhe')})`);
+  await dragWidgetTo(client, 'waldruhe', 8, 14);
+  const both = geometry('timer', 'waldruhe');
+  const overlap = await evaluate(client, both);
+  const isOverlap = `${both} === ${q(overlap)}`;
+  const arrange = async () => {
+    await clickLabel(client, 'Cockpit-Einstellungen');
+    await clickButton(client, 'Automatisch anordnen');
+    await waitFor(client, 'automatic arrangement changes the overlapping windows', `!(${isOverlap})`);
+  };
+  await arrange();
+  await clickLabel(client, undo);
+  await waitFor(client, 'one undo recovers both intentionally overlapping windows', isOverlap);
+
+  const openSlots = async () => {
+    await clickLabel(client, 'Cockpit-Einstellungen');
+    await clickButton(client, 'Layouts & Schnell-Slots');
+  };
+  const slotButton = async action => {
+    const clicked = await evaluate(client, `(() => {
+      const dialog = document.querySelector('[aria-label="Layouts und Schnell-Slots"]');
+      const label = Array.from(dialog.querySelectorAll('span')).find(node => node.textContent === 'A');
+      const button = Array.from(label.parentElement.parentElement.querySelectorAll('button'))
+        .find(node => node.textContent.trim() === ${q(action)});
+      if (!button || button.disabled) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!clicked) throw Error('Slot A action unavailable: ' + action);
+  };
+  await openSlots();
+  await slotButton('Speichern');
+  await clickLabel(client, 'Layouts und Schnell-Slots schließen');
+  await arrange();
+  await openSlots();
+  await slotButton('Laden');
+  await waitFor(client, 'a layout slot restores the exact overlap', `${isOverlap} && !${undoSelector}`);
+
+  const selectPage = page => evaluate(client, `Array.from(document.querySelectorAll('[aria-label="Tafelseiten"] [role="tab"]'))
+    .find(node => node.textContent.trim() === ${q(page)}).click()`);
+  await selectPage('1');
+  await waitFor(client, 'the first page has its own geometry', `!(${isOverlap}) &&
+    document.querySelector('[aria-label="Tafelseiten"] [aria-selected="true"]').textContent.trim() === '1'`);
+  await selectPage('2');
+  await waitFor(client, 'both widgets keep their positions after a page round trip', isOverlap);
+
+  const beforeReload = client.navigationCount;
+  for (let attempt = 0; attempt < 20 && client.navigationCount === beforeReload; attempt++) {
+    await client.send('Page.reload');
+    await sleep(500);
+  }
+  if (client.navigationCount === beforeReload) throw Error('Encrypted save did not permit a safe real reload');
+  await waitFor(client, 'the browser reloads from saved data',
+    `Boolean(document.querySelector('input[placeholder="Passwort eingeben"]')) || Boolean(document.querySelector('.topbar'))`);
+  if (await evaluate(client, `Boolean(document.querySelector('input[placeholder="Passwort eingeben"]'))`)) {
+    await fill(client, 'Passwort eingeben', VAULT_PASSWORD);
+    await clickButton(client, 'Tresor entsperren');
+  }
+  await waitFor(client, 'the app is ready after reload', `Boolean(document.querySelector('.topbar'))`);
+  await clickButton(client, 'Lehrercockpit');
+  await waitFor(client, 'saved upper-left positions and overlap survive an actual reload', isOverlap);
 }
 
 async function main() {
@@ -689,6 +823,7 @@ async function main() {
     if (process.env.KLASSIO_E2E_FAKE_MIC === '1') await checkWaldruheMicrophone(client, forest, forestProgress);
 
     await checkAssignmentCountdown(client);
+    await checkWidgetGeometry(client);
 
     console.log('✓ Cockpit visual QA passed for '+WIDTH+'×'+HEIGHT+'. Board primary, students restorable, award modes distinct.');
   } catch(error) {

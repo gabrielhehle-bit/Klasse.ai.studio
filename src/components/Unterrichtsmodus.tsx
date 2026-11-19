@@ -61,6 +61,7 @@ import {
   Play,
   Pause,
   RotateCcw,
+  Undo2,
   Volume2,
   VolumeX,
   MessageSquare,
@@ -171,7 +172,8 @@ import { UnterrichtsmodusThemePicker } from "./UnterrichtsmodusThemePicker";
 import ClassMascotSettingsPanel from "./ClassMascotSettingsPanel";
 import { ClassPetCanvas } from "./ClassPetCanvas";
 import ClassMascotWidget from "./cockpit/ClassMascotWidget";
-import { centerClassMascotInViewport, normalizeClassMascot, sanitizeClassMascotPosition } from "../lib/classMascot";
+import { centerClassMascotInViewport, normalizeClassMascot } from "../lib/classMascot";
+import { applyCockpitGeometryChanges, getCockpitGeometryChanges, normalizeCockpitWidgetGeometry, type CockpitWidgetGeometry, type CockpitWidgetGeometryChange } from "../lib/cockpitWidgetGeometry";
 import { ALL_WIDGET_CONFIG } from "./WidgetConfig";
 
 const Attendance = React.lazy(() => import("./Attendance"));
@@ -2780,64 +2782,14 @@ const loadAndSanitizeLayout = (layout: any): CockpitWidgetConfig[] => {
     const rawSanitized: CockpitWidgetConfig[] = layout
       .filter((w: any) => w && knownTypes.includes(w.type))
       .map((w: any) => {
-        let wWidth =
-          typeof w.w === "number" && !isNaN(w.w)
-            ? Math.max(12, Math.min(100, w.w))
-            : 25;
-        let hHeight =
-          typeof w.h === "number" && !isNaN(w.h)
-            ? Math.max(10, Math.min(100, w.h))
-            : 20;
-
-        // Existing installations saved the previous tiny pet widget at 26 x 38.
-        // Expand that exact legacy default for the new readable maskottchen UI.
-        if (w.type === "pet" && wWidth === 26 && hHeight === 38) {
-          wWidth = 44;
-          hHeight = 66;
-        }
-
-        if (
-          (w.type === "randomname" || w.type === "wheel") &&
-          wWidth === 50 &&
-          hHeight === 70
-        ) {
-          wWidth = 100;
-          hHeight = 100;
-          w.x = 0;
-          w.y = 0;
-        }
-
-        let x = typeof w.x === "number" && !isNaN(w.x) ? w.x : 50;
-        let y = typeof w.y === "number" && !isNaN(w.y) ? w.y : 50;
-
-        if (w.type === "pet") {
-          // The mascot is a transparent, pixel-sized character on the entire
-          // cockpit, NOT the former 44×66% widget card. Preserve its saved
-          // anchor even next to the viewport edge or the old "tabu" zone.
-          ({ x, y } = sanitizeClassMascotPosition(x, y));
-        } else {
-          // Conventional widget layout remains unchanged.
-          x = Math.max(0, Math.min(100 - wWidth, x));
-          y = Math.max(0, Math.min(100 - hHeight, y));
-
-          if (x < 21 && y < 14) {
-            if (x < 10) {
-              y = Math.min(100 - hHeight, y + 16);
-            } else {
-              x = 22;
-            }
-          }
-        }
+        const geometry = normalizeCockpitWidgetGeometry(w, w.type === "pet");
 
         return {
           id:
             w.id ||
             `widget-${w.type}-${Math.random().toString(36).substring(2, 5)}`,
           type: w.type,
-          x,
-          y,
-          w: wWidth,
-          h: hHeight,
+          ...geometry,
           visible: w.type === "studentlist" ? false : !!w.visible,
           hasBeenOpened: !!w.hasBeenOpened,
           settings: w.settings || {},
@@ -3075,6 +3027,19 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     boardPageIds,
   );
   const boardPageStorageKey = getCockpitBoardPageStorageKey(boardTextClassKey, activeBoardPageId);
+  const currentGeometryPageRef = useRef(boardPageStorageKey);
+  currentGeometryPageRef.current = boardPageStorageKey;
+  const [geometryUndoByPage, setGeometryUndoByPage] = useState<Record<string, CockpitWidgetGeometryChange[][]>>({});
+  const geometryUndo = geometryUndoByPage[boardPageStorageKey]?.at(-1);
+  const forgetGeometryUndo = useCallback((pageKey: string) => {
+    setGeometryUndoByPage(previous => {
+      if (!previous[pageKey]) return previous;
+      const next = { ...previous };
+      delete next[pageKey];
+      return next;
+    });
+  }, []);
+
   const randomNameDefaults = getRandomNameWidgetPreferences(app.boardSettings?.cockpitRandomNameDefaultsByClass?.[boardTextClassKey]);
   const checkInDefaults = getCheckInPreferences(app.boardSettings?.cockpitCheckInDefaultsByClass?.[boardTextClassKey]);
   const groupDefaults = getGroupWidgetPreferences(app.boardSettings?.cockpitGroupDefaultsByClass?.[boardTextClassKey]);
@@ -3387,6 +3352,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     setTimerToCloseId(null);
     setIsBoardPageMenuOpen(false);
     setConfirmDeleteBoardPage(false);
+    forgetGeometryUndo(boardPageStorageKey);
     setCockpitWidgets(nextLayout);
 
     setApp((prev: any) => {
@@ -3436,6 +3402,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     boardPageIds,
     boardPageStorageKey,
     boardTextClassKey,
+    forgetGeometryUndo,
     getSavedBoardPageLayout,
     setApp,
     showToast,
@@ -4352,23 +4319,6 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       }
     }
 
-    // Restore these teaching tools inside the currently usable board, including
-    // after zoom changed its measurements. Keep the dock clear of resize grips.
-    if (useOld && ['riddle', 'randomname', 'rhythm', 'soundmemory', 'guitartuner', 'tonetrainer', 'animalvoice', 'challenge', 'secretagent', 'weightscale', 'reflexgame', 'clockpuzzle', 'geometry', 'shapepuzzle', 'angledetective', 'estimationjar', 'divrobot', 'bodyparts', 'compass', 'weekdays', 'trafficquiz', 'watercycle', 'constellation', 'planetarium', 'flagquiz', 'geographyquiz', 'wastebin'].includes(String(type))) {
-      const area = measureCockpitUsableBoardArea();
-      if (area) {
-        const size = getWidgetMinSizeConfig(String(type));
-        const width = Math.max(size.minW, Math.min(area.usableWidthPx, placement.w / 100 * area.boardRect.width));
-        const height = Math.max(size.minH, Math.min(area.usableHeightPx, placement.h / 100 * area.boardRect.height));
-        placement = {
-          x: Math.max(0, Math.min(placement.x / 100 * area.boardRect.width, area.usableWidthPx - width)) / area.boardRect.width * 100,
-          y: Math.max(0, Math.min(placement.y / 100 * area.boardRect.height, area.usableHeightPx - height)) / area.boardRect.height * 100,
-          w: width / area.boardRect.width * 100,
-          h: height / area.boardRect.height * 100,
-        };
-      }
-    }
-
     const updated = cockpitWidgets.map((widget) => {
       if (widget.type !== type) return widget;
       return {
@@ -4409,6 +4359,49 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
         "info",
       );
     }
+  };
+
+  const applyGeometryEdit = (changes: CockpitWidgetGeometryChange[], direction: "apply" | "undo") => {
+    if (currentGeometryPageRef.current !== boardPageStorageKey) return false;
+    if (applyCockpitGeometryChanges(cockpitWidgets, changes, direction) === cockpitWidgets) return false;
+    setCockpitWidgets(current => applyCockpitGeometryChanges(current, changes, direction));
+    setApp(previous => {
+      const classKey = previous.activeClassId || "unassigned";
+      const pageId = normalizeCockpitActiveBoardPage(
+        previous.boardSettings?.cockpitActiveBoardPageByClass?.[classKey],
+        normalizeCockpitBoardPageIds(previous.boardSettings?.cockpitBoardPagesByClass?.[classKey]),
+      );
+      if (getCockpitBoardPageStorageKey(classKey, pageId) !== boardPageStorageKey) return previous;
+      const saved = previous.cockpitLayout?.length ? previous.cockpitLayout : cockpitWidgets;
+      const layout = applyCockpitGeometryChanges(saved, changes, direction);
+      if (layout !== saved) return { ...previous, cockpitLayout: layout };
+      const sanitized = loadAndSanitizeLayout(saved);
+      const repairedLayout = applyCockpitGeometryChanges(sanitized, changes, direction);
+      return repairedLayout === sanitized ? previous : { ...previous, cockpitLayout: repairedLayout };
+    });
+    return true;
+  };
+
+  const commitGeometryEdit = (updated: CockpitWidgetConfig[]) => {
+    const changes = getCockpitGeometryChanges(cockpitWidgets, updated);
+    if (!applyGeometryEdit(changes, "apply")) return;
+    setGeometryUndoByPage(previous => ({
+      ...previous,
+      [boardPageStorageKey]: [...(previous[boardPageStorageKey] || []).slice(-19), changes],
+    }));
+  };
+
+  const undoGeometryEdit = () => {
+    if (!geometryUndo) return;
+    if (!applyGeometryEdit(geometryUndo, "undo")) {
+      forgetGeometryUndo(boardPageStorageKey);
+      return;
+    }
+    setGeometryUndoByPage(previous => ({
+      ...previous,
+      [boardPageStorageKey]: (previous[boardPageStorageKey] || []).slice(0, -1),
+    }));
+    showToast("Widget-Anordnung wiederhergestellt.", "success");
   };
 
   const handleAutoArrangeWidgets = () => {
@@ -4466,11 +4459,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       };
     });
 
-    setCockpitWidgets(updated);
-    setApp((previous: any) => ({
-      ...previous,
-      cockpitLayout: updated,
-    }));
+    commitGeometryEdit(updated);
     showToast(
       visibleOnes.length === 1
         ? "Widget wurde passend auf der Tafelfläche platziert."
@@ -4550,6 +4539,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const restoreCockpitLayout = (layout: unknown) => {
     const loaded = loadAndSanitizeLayout(layout);
     const cloned = JSON.parse(JSON.stringify(loaded)) as CockpitWidgetConfig[];
+    forgetGeometryUndo(boardPageStorageKey);
     resetCockpitTransientUi();
     setCockpitWidgets(cloned);
     setApp((previous: any) =>
@@ -9064,6 +9054,14 @@ ${content}
                             <span className="hidden md:inline">Schreiben</span>
                           </button>
 
+                          {geometryUndo && (
+                            <button type="button" onClick={undoGeometryEdit}
+                              aria-label="Widget-Anordnung rückgängig machen" title="Widget-Anordnung rückgängig machen"
+                              className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
+                              <Undo2 size={17} aria-hidden="true" />
+                            </button>
+                          )}
+
                           {boardTool !== 'select' && (
                             <span className="hidden rounded-md bg-indigo-50 px-2 py-1 text-[10px] font-bold text-indigo-700 lg:inline">
                               {boardTool === 'text' ? 'Text' : boardTool === 'pen' ? 'Stift' : 'Radierer'}
@@ -10769,6 +10767,10 @@ ${content}
                                 onMinimize={() => setMinimizedWidgetIds(current => current.includes(widget.id) ? current : [...current, widget.id])}
                                 onUpdate={(updates) =>
                                   handleUpdateWidgetPos(widget.id, updates)
+                                }
+                                geometryScope={boardPageStorageKey}
+                                onGeometryChange={(geometry: Partial<CockpitWidgetGeometry>) =>
+                                  commitGeometryEdit(cockpitWidgets.map(current => current.id === widget.id ? { ...current, ...geometry } : current))
                                 }
                                 showSettingsButton={cockpitWidgetSupportsSettings(String(widget.type))}
                                 settingsOpen={
