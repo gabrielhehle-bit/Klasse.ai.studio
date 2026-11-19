@@ -9522,7 +9522,7 @@ ${content}
                                     { id: "deutsch", label: "📖 Deutsch" },
                                     { id: "sachunterricht", label: "🌍 Sachunterricht" },
                                     { id: "tools", label: "🛠️ Werkzeuge" },
-                                    { id: "mindfulness", label: "🍃 Ruhe & Alltag" },
+                                    { id: "mindfulness", label: "🍃 Spiele & Fokus" },
                                     { id: "play", label: "🎲 Spiele" },
                                     { id: "legacy", label: "▦ Weitere Widgets" },
                                   ].filter(cat => ["favorites", "recent", "core", "legacy"].includes(cat.id) || getRegularCockpitGroups(cat.id).length > 0).map((cat) => {
