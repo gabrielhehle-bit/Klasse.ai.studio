@@ -14,6 +14,7 @@ const durations = [5, 15, 30, 60];
 const button = 'min-h-11 rounded-lg border border-slate-300 bg-white px-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700';
 
 type Mode = 'idle' | 'requesting' | 'live' | 'demo';
+type Signal = 'quiet' | 'loud' | 'unavailable';
 interface Props {
   widget: CockpitWidgetConfig;
   isMinimized: boolean;
@@ -33,7 +34,8 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
 
   const [mode, setMode] = useState<Mode>('idle');
   const [count, setCount] = useState(0);
-  const [waiting, setWaiting] = useState(false);
+  const [signal, setSignal] = useState<Signal>('quiet');
+  const [quietTenths, setQuietTenths] = useState(0);
   const [demoLoud, setDemoLoud] = useState(false);
   const [error, setError] = useState('');
   const demoSignal = useRef(false);
@@ -43,7 +45,8 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
   const reset = useCallback(() => {
     progress.current = { count: 0, quietMs: 0, loudMs: 0, loud: false };
     setCount(0);
-    setWaiting(false);
+    setSignal('quiet');
+    setQuietTenths(0);
   }, []);
 
   const release = useCallback(() => {
@@ -78,18 +81,21 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
       const now = performance.now();
       const elapsed = Math.min(250, now - previous);
       previous = now;
+      if (document.hidden) return;
       const round = progress.current;
       const loud = isLoud(round.loud);
-      if (loud === null || document.hidden) return;
-      if (round.loud !== loud) {
-        round.loud = loud;
-        setWaiting(loud);
+      setSignal(loud === null ? 'unavailable' : loud ? 'loud' : 'quiet');
+      if (loud === null) {
+        round.loudMs = 0;
+        return;
       }
+      round.loud = loud;
       if (loud) {
         round.loudMs += elapsed;
         if (options.current.hideAnimals && round.loudMs >= 1800) {
           round.loudMs = 0;
           round.quietMs = 0;
+          setQuietTenths(0);
           round.count = Math.max(0, round.count - 1);
           setCount(round.count);
         }
@@ -104,6 +110,7 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
         round.count += 1;
         setCount(round.count);
       }
+      setQuietTenths(Math.floor(round.quietMs / 100));
     }, 100);
   }
 
@@ -175,10 +182,16 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
     onUpdate({ settings: { ...widget.settings, waldruhe: { ...settings, ...changes } } });
   }
 
+  const running = mode === 'live' || mode === 'demo';
+  const allAnimals = count === animals.length;
+  const requiredTenths = mode === 'demo' ? 30 : seconds * 10;
+  const reachedTenths = Math.min(quietTenths, requiredTenths);
+  const remainingSeconds = Math.ceil((requiredTenths - reachedTenths) / 10);
   const message = mode === 'idle' ? 'Wer wohnt im Wald?'
     : mode === 'requesting' ? 'Mikrofon wird angefragt …'
-    : waiting ? 'Der Wald wartet …'
-    : count === animals.length ? 'Alle Tiere sind da!'
+    : allAnimals ? 'Alle Tiere sind da!'
+    : signal === 'unavailable' ? 'Mikrofonsignal fehlt'
+    : signal === 'loud' ? 'Der Wald wartet …'
     : count === 0 ? 'Der Wald lauscht …' : 'Schau, wer da ist!';
 
   return (
@@ -189,7 +202,7 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
         {animals.slice(0, count).map(animal => (
           <figure key={animal.name} className="absolute m-0 -translate-x-1/2 -translate-y-1/2 text-center"
             style={{ left: animal.x + '%', top: animal.y + '%' }}>
-            <span aria-hidden="true" className="block text-[clamp(1.65rem,8cqw,4.75rem)] leading-none drop-shadow-md">{animal.icon}</span>
+            <span aria-hidden="true" className="block text-[clamp(1.65rem,8cqw,4.75rem)] leading-none drop-shadow-md motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-500">{animal.icon}</span>
             <figcaption className="rounded-full bg-emerald-950 px-1.5 text-[clamp(.65rem,2.4cqw,1rem)] font-semibold text-white">{animal.name}</figcaption>
           </figure>
         ))}
@@ -197,6 +210,21 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
           {count} von {animals.length} Tieren
         </p>
       </div>
+
+      {running && !allAnimals && (
+        <div className="shrink-0 space-y-1.5 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-800 dark:bg-slate-900 dark:text-slate-100">
+          <div className="flex flex-wrap items-center justify-between gap-x-2 font-semibold">
+            <span>{signal === 'unavailable' ? 'Kein Mikrofonsignal' : signal === 'loud' ? 'Ruhezeit pausiert' : 'Nächstes Tier'}</span>
+            <span className="tabular-nums">{remainingSeconds} s</span>
+          </div>
+          <div role="progressbar" aria-label="Ruhezeit bis zum nächsten Tier" aria-valuemin={0}
+            aria-valuemax={requiredTenths} aria-valuenow={reachedTenths}
+            className="h-2 overflow-hidden rounded-full bg-slate-300 dark:bg-slate-700">
+            <div aria-hidden="true" className={`h-full rounded-full motion-safe:transition-[width] motion-safe:duration-100 ${signal === 'quiet' ? 'bg-emerald-600' : 'bg-amber-600'}`}
+              style={{ width: `${100 * reachedTenths / requiredTenths}%` }} />
+          </div>
+        </div>
+      )}
 
       {showSettings && (
         <div className="grid shrink-0 grid-cols-2 gap-x-2 gap-y-1 rounded-lg border border-slate-300 bg-slate-50 p-2 text-sm text-slate-900">
@@ -227,7 +255,7 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
         <button type="button" className={button} onClick={mode === 'demo' ? stop : startDemo}>
           {mode === 'demo' ? 'Test beenden' : 'Ohne Mikrofon testen'}
         </button>
-        {(mode === 'live' || mode === 'demo') && <button type="button" className={button} onClick={reset}>Neu beginnen</button>}
+        {running && <button type="button" className={button} onClick={reset}>Neu beginnen</button>}
         {mode === 'demo' && (
           <div role="group" aria-label="Lautstärke im Test simulieren" className="flex gap-1">
             <button type="button" className={button + ' aria-pressed:border-emerald-700 aria-pressed:bg-emerald-100'} aria-pressed={!demoLoud} onClick={() => setTestVolume(false)}>Leise</button>

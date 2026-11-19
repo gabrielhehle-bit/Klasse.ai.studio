@@ -381,7 +381,7 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                       },
                                       {
                                         type: "waldruhe",
-                                        label: "🌲 Waldruhe",
+                                        label: "🌲 Waldruhe (Shy Safari)",
                                         desc: "In ruhigen Arbeitsphasen kommen Waldtiere auf die Lichtung",
                                         category: "tools",
                                       },
