@@ -4,7 +4,7 @@ import { Cloud, CloudOff, Loader2, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import type { AppState } from '../types';
 import { UNTERRICHTSMODUS_THEMES } from '../lib/unterrichtsmodusThemes';
-import { MASCOT_CLASSROOM_CUES, MASCOT_OPTIONS, MASCOT_RITUAL_EVENT, MASCOT_RITUALS, MASCOT_SURPRISE_EVENT, normalizeClassMascot, reactToMascotAction, selectClassMascot } from '../lib/classMascot';
+import { MASCOT_OPTIONS, MASCOT_SURPRISE_EVENT, normalizeClassMascot, selectClassMascot } from '../lib/classMascot';
 import ClassMascotArtwork from './cockpit/ClassMascotArtwork';
 
 interface ClassMascotSettingsPanelProps {
@@ -67,7 +67,7 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                 </header>
                 <div className="min-h-0 flex flex-1 flex-col gap-5 overflow-y-auto overscroll-contain p-4 sm:p-5">
                     {/* Preview belongs only to the options panel. The board stays one freely painted character. */}
-                    <section aria-label="Maskottchenprofil und Klassenrituale" className="space-y-3 rounded-2xl border p-4"
+                    <section aria-label="Maskottchenprofil" className="space-y-3 rounded-2xl border p-4"
                         style={{ borderColor: currentTheme.colors.border, backgroundColor: currentTheme.colors.surface }}>
                         <div className="flex items-center gap-4">
                             <span className="block h-32 w-32 shrink-0" aria-hidden="true">
@@ -92,30 +92,9 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                                 </p>
                             </div>
                         </div>
-                        <h3 className="text-xs font-black" style={{ color: currentTheme.colors.textPrimary }}>
-                            Gemeinsame Klassenrituale
-                        </h3>
                         <p className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>
-                            Wähle ein Ritual für die Tafel. Beim Flüsterlesen stellst du dort die Dauer ein. Beim Aufräumen und in der Abschlussrunde schaltest du die Hinweise selbst weiter.
+                            Doppelklick oder Doppeltipp auf das Haustier öffnet seine Aktionen auf der Tafel.
                         </p>
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                            {MASCOT_RITUALS.map(ritual => (
-                                <button key={ritual.action} type="button" title={ritual.title}
-                                    disabled={normalizeClassMascot(app.classMascot).quietMode}
-                                    onClick={() => {
-                                        if (!MASCOT_CLASSROOM_CUES[ritual.action]) setApp(prev => ({
-                                            ...prev,
-                                            classMascot: reactToMascotAction(normalizeClassMascot(prev.classMascot), ritual.action),
-                                        }));
-                                        window.dispatchEvent(new CustomEvent(MASCOT_RITUAL_EVENT, { detail: ritual.action }));
-                                        onClose();
-                                    }}
-                                    className="min-h-11 rounded-xl border-2 px-2 py-2 text-xs font-black disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2"
-                                    style={{ color: currentTheme.colors.textPrimary, borderColor: currentTheme.colors.border }}>
-                                    <span aria-hidden="true">{ritual.icon} </span>{ritual.label}
-                                </button>
-                            ))}
-                        </div>
                         <div className="space-y-2 border-t pt-3" style={{ borderColor: currentTheme.colors.border }}>
                             <h3 className="text-xs font-black" style={{ color: currentTheme.colors.textPrimary }}>
                                 Eine kleine Überraschung
@@ -366,7 +345,7 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                                         <span className="block">🎤 Live-Pegel & Ohren-Reaktion</span>
                                         <span className="mt-0.5 block text-[11px] font-medium"
                                             style={{ color: currentTheme.colors.textSecondary }}>
-                                            Zeigt den aktuellen relativen Pegel direkt beim Maskottchen.
+                                        Bei hoher Lautstärke hält sich das Haustier die Ohren zu.
                                         </span>
                                     </span>
                                     <input
@@ -455,9 +434,7 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                                 />
                             </label>
                             <p className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>
-                                Bei Tafelruhe bleibt das Maskottchen sichtbar und verschiebbar,
-                                reagiert aber nicht auf Tippen, Doppeltippen, Klassenrituale oder einen hohen Live-Pegel.
-                                Der Live-Pegel kann weiter angezeigt werden; deine ausgewählte Stimmung, das Accessoire und die Jahreszeit bleiben erhalten.
+                                Bei Tafelruhe kannst du das Haustier weiter verschieben. Die Figur bleibt dabei ruhig.
                             </p>
                             {onRecenterMascot && (
                                 <button

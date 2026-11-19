@@ -7,7 +7,7 @@ import ClassMascotArtwork from '../components/cockpit/ClassMascotArtwork';
 import ClassMascotWidget from '../components/cockpit/ClassMascotWidget';
 import { initialAppState } from './appState';
 import {
-  DEFAULT_CLASS_MASCOT, isClassMascotAction, MASCOT_CLASSROOM_CUES, MASCOT_READING_MINUTES, MASCOT_RITUAL_EVENT,
+  DEFAULT_CLASS_MASCOT, isClassMascotAction, MASCOT_RITUAL_EVENT,
   reactToMascotAction, type ClassMascotAction, type ClassMascotKind,
 } from './classMascot';
 
@@ -40,7 +40,7 @@ test('Every KLASSIO mascot performs teacher-controlled classroom rituals as tran
 
 test('Teacher menu triggers local gesture while only conscious mood changes the encrypted AppState', () => {
   const widget = readFileSync('src/components/cockpit/ClassMascotWidget.tsx', 'utf8');
-  const settings = readFileSync('src/components/ClassMascotSettingsPanel.tsx', 'utf8');
+  const host = readFileSync('src/components/cockpit/CockpitWidget.tsx', 'utf8');
   assert.equal(MASCOT_RITUAL_EVENT, 'klassio:mascot-class-ritual');
   for (const action of actions) assert.equal(isClassMascotAction(action), true);
   for (const untrusted of ['unknown', null, undefined, {}, 23, 'praises']) {
@@ -51,8 +51,8 @@ test('Teacher menu triggers local gesture while only conscious mood changes the 
   assert.match(widget, /if \(!isClassMascotAction\(action\)\) return;/);
   assert.match(widget, /setRitualAction\(null\)/);
   assert.match(widget, /\[app\.activeClassId, state\.quietMode, stopRitual\]/);
-  assert.match(settings, /window\.dispatchEvent\(new CustomEvent\(MASCOT_RITUAL_EVENT, \{ detail: ritual\.action \}\)\)/);
-  assert.match(settings, /classMascot: reactToMascotAction\(normalizeClassMascot\(prev\.classMascot\), ritual\.action\)/);
+  assert.match(host, /window\.dispatchEvent\(new CustomEvent\(MASCOT_RITUAL_EVENT, \{ detail: action \}\)\)/);
+  assert.match(host, /reactToMascotAction\(current, action\)/);
   assert.doesNotMatch(widget, /setApp\(|localStorage|sessionStorage|fetch\(|Audio\(|speechSynthesis/);
   const board = renderToStaticMarkup(React.createElement(ClassMascotWidget, {
     app: { ...initialAppState, classMascot: DEFAULT_CLASS_MASCOT },
@@ -66,24 +66,18 @@ test('Teacher menu triggers local gesture while only conscious mood changes the 
   assert.ok(!('ritualAction' in praised) && !('ritualTick' in praised));
 });
 
-test('Guided classroom rituals carry their own timed cues and do not change saved mascot state', () => {
-  for (const [action, steps, totalMs] of [['greet', 1, 7000], ['move', 3, 24000], ['ready', 3, 17000]] as const) {
-    const cues = MASCOT_CLASSROOM_CUES[action];
-    assert.equal(cues?.length, steps);
-    assert.equal(cues?.reduce((total, cue) => total + (cue.durationMs ?? 0), 0), totalMs);
-    assert.strictEqual(reactToMascotAction(DEFAULT_CLASS_MASCOT, action), DEFAULT_CLASS_MASCOT);
-  }
-});
-
-test('Reading, tidying and reflection are transient and leave manual steps open for the teacher', () => {
-  assert.deepEqual(MASCOT_READING_MINUTES, [2, 4, 6]);
-  for (const action of ['read', 'tidy', 'reflect'] as const) {
+test('Silent activities need neither a cue card nor a timer', () => {
+  const widget = readFileSync('src/components/cockpit/ClassMascotWidget.tsx', 'utf8');
+  assert.doesNotMatch(widget, /data-mascot-cue|role="timer"|setInterval|cueClock|Ritual pausieren/);
+  for (const action of ['greet', 'move', 'ready', 'read', 'tidy', 'reflect'] as const) {
     assert.equal(isClassMascotAction(action), true);
-    const cues = MASCOT_CLASSROOM_CUES[action];
-    assert.equal(cues?.length, 3);
-    assert.ok(cues?.every(cue => cue.durationMs === undefined));
     assert.strictEqual(reactToMascotAction(DEFAULT_CLASS_MASCOT, action), DEFAULT_CLASS_MASCOT);
   }
+  const art = (action: ClassMascotAction) => renderToStaticMarkup(React.createElement(ClassMascotArtwork, {
+    kind: 'otter', mood: 'happy', name: 'Olivia', ritualAction: action,
+  }));
+  assert.match(art('read'), /data-mascot-reading-book/);
+  assert.match(art('tidy'), /data-mascot-ritual-accent="tidy"/);
 });
 
 test('Mimi shows three reading poses without idle motion and the book belongs to Mimi', () => {

@@ -2,7 +2,7 @@ import { resizeWidgetRect, type WidgetResizeDirection } from '../../lib/widgetRe
 import { getCockpitWidgetUsableHeight, type CockpitWidgetGeometry } from '../../lib/cockpitWidgetGeometry';
 import React, { useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { MASCOT_CLASSROOM_CUES, MASCOT_RITUAL_EVENT, MASCOT_RITUALS, normalizeClassMascot, reactToMascotAction, type ClassMascotAction } from "../../lib/classMascot";
+import { MASCOT_RITUAL_EVENT, MASCOT_RITUALS, normalizeClassMascot, reactToMascotAction, type ClassMascotAction } from "../../lib/classMascot";
 import { X, Settings, PenTool, SlidersHorizontal, Check, Maximize2, Minimize2, LockKeyhole, MoreHorizontal, Rocket, Minus } from "lucide-react";
 import { CockpitWidgetConfig } from "../../types";
 import { useApp } from "../../context/AppContext";
@@ -187,6 +187,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   const cancelGeometryGesture = useRef<(() => void) | null>(null);
   useEffect(() => () => cancelGeometryGesture.current?.(), [geometryScope, widget.id]);
   const suppressMascotTap = useRef(false);
+  const lastMascotTap = useRef<{ time: number; x: number; y: number; pointerType: string } | null>(null);
   const suppressMascotTapTimer = useRef<number | null>(null);
   useEffect(() => () => { if (suppressMascotTapTimer.current !== null) clearTimeout(suppressMascotTapTimer.current); }, []);
 
@@ -199,6 +200,10 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
 
+  useEffect(() => {
+    if (isFreeMascot && showWidgetMenu) widgetMenuAreaRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+  }, [isFreeMascot, showWidgetMenu]);
+
   // Widget menus behave like real popovers: Escape or a click/tap outside closes
   // them. This is especially important on Smartboards where a menu otherwise
   // easily stays open over the lesson content.
@@ -209,6 +214,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       const target = event.target;
       if (!(target instanceof Node)) return;
       if (widgetMenuAreaRef.current?.contains(target)) return;
+      if (isFreeMascot && target instanceof Element && target.closest('.class-mascot-character')) return;
       setShowWidgetMenu(false);
       setShowSizeConfig(false);
       setShowExactSizeInputs(false);
@@ -219,6 +225,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       setShowWidgetMenu(false);
       setShowSizeConfig(false);
       setShowExactSizeInputs(false);
+      if (isFreeMascot) widgetRef.current?.querySelector<HTMLButtonElement>('.class-mascot-character')?.focus();
     };
 
     document.addEventListener("pointerdown", closeOnOutsidePointer);
@@ -227,7 +234,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       document.removeEventListener("pointerdown", closeOnOutsidePointer);
       window.removeEventListener("keydown", closeOnEscape);
     };
-  }, [showWidgetMenu, showSizeConfig]);
+  }, [isFreeMascot, showWidgetMenu, showSizeConfig]);
 
   // The check-in widget can request a temporary larger teaching view without
   // persisting width, height or position into a class layout / backup.
@@ -534,7 +541,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   const legacyPadding = getLegacyWidgetPadding(contentPixels.width, contentPixels.height);
 
   // Moving a free-standing mascot should feel like picking up the animal, not dragging
-  // an invisible widget rectangle. A short tap must still open mascot interactions.
+  // an invisible widget rectangle. A short tap is distinct from a drag and a double tap.
   const handleMascotPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!isFreeMascot || layoutLocked || isMaximized || !event.isPrimary || event.button !== 0) return;
     const target = event.target;
@@ -588,10 +595,22 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       // Some touch browsers dispatch a delayed synthetic click after pointerup.
       // Keep the drag click suppressed briefly, then allow a new deliberate tap.
       if (dragging) {
+        lastMascotTap.current = null;
         suppressMascotTapTimer.current = window.setTimeout(() => {
           suppressMascotTap.current = false;
           suppressMascotTapTimer.current = null;
         }, 500);
+      } else if (up.type === 'pointercancel') {
+        lastMascotTap.current = null;
+      } else {
+        const tap = { time: performance.now(), x: up.clientX, y: up.clientY, pointerType: up.pointerType };
+        const previous = lastMascotTap.current;
+        const slop = tap.pointerType === 'mouse' ? 9 : 24;
+        if (previous?.pointerType === tap.pointerType && tap.time - previous.time <= 380 &&
+          Math.hypot(tap.x - previous.x, tap.y - previous.y) <= slop) {
+          lastMascotTap.current = null;
+          setShowWidgetMenu(true);
+        } else lastMascotTap.current = tap;
       }
     };
 
@@ -603,9 +622,16 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   // The freestanding character is draggable with a finger or mouse. Give keyboard
   // users the same precise movement without exposing a toolbar or a large hit area.
   const handleMascotKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (!isFreeMascot || layoutLocked || isMaximized) return;
+    if (!isFreeMascot) return;
     const target = event.target;
     if (!(target instanceof Element) || !target.closest('.class-mascot-character')) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      event.stopPropagation();
+      setShowWidgetMenu(true);
+      return;
+    }
+    if (layoutLocked || isMaximized) return;
     const delta = {
       ArrowLeft: [-1, 0], ArrowRight: [1, 0],
       ArrowUp: [0, -1], ArrowDown: [0, 1],
@@ -633,30 +659,43 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     if (target instanceof Element && target.closest('.class-mascot-character')) {
       event.preventDefault();
       event.stopPropagation();
-      suppressMascotTap.current = false;
-      if (suppressMascotTapTimer.current !== null) {
-        clearTimeout(suppressMascotTapTimer.current);
-        suppressMascotTapTimer.current = null;
-      }
     }
   };
 
-  const mascotToolbarTop = stageSize.height * renderedY / 100;
-  const mascotMenuOpensUp = mascotToolbarTop > (stageSize.height - 44) / 2;
-  const mascotMenuSpace = mascotMenuOpensUp ? mascotToolbarTop : stageSize.height - mascotToolbarTop - 44;
+  const handleMascotDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.target;
+    if (event.button !== 0 || suppressMascotTap.current || !(target instanceof Element) ||
+      !target.closest('.class-mascot-character')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setShowWidgetMenu(true);
+  };
+
+  const mascotLeft = stageSize.width * renderedX / 100;
+  const mascotTop = stageSize.height * renderedY / 100;
+  const mascotRightSpace = stageSize.width - mascotLeft - mascotPixels;
+  const mascotBottomSpace = stageSize.height - mascotTop - mascotPixels;
+  const mascotMenuWidth = Math.min(224, Math.max(1, stageSize.width - 16));
+  const mascotMenuBeside = Math.max(mascotLeft, mascotRightSpace) >= mascotMenuWidth + 8;
+  const mascotMenuAbove = mascotTop > mascotBottomSpace;
+  const mascotMenuLeft = mascotMenuBeside
+    ? mascotRightSpace >= mascotLeft ? mascotPixels + 8 : -mascotMenuWidth - 8
+    : Math.max(8, Math.min(mascotLeft, stageSize.width - mascotMenuWidth - 8)) - mascotLeft;
+  const mascotMenuSpace = (mascotMenuAbove ? mascotTop : mascotBottomSpace) + (mascotMenuBeside ? mascotPixels : 0);
   const mascotActionClass = "flex min-h-11 w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100 focus-visible:outline focus-visible:outline-accent disabled:opacity-50 dark:hover:bg-white/10";
 
   function closeMascotActions() {
     setShowWidgetMenu(false);
-    widgetMenuAreaRef.current?.querySelector<HTMLButtonElement>('.cockpit-widget-menu-trigger')?.focus();
+    widgetRef.current?.querySelector<HTMLButtonElement>('.class-mascot-character')?.focus();
   }
 
-  function playMascotRitual(action: ClassMascotAction) {
-    if (mascot.quietMode) return;
-    if (!MASCOT_CLASSROOM_CUES[action]) setApp(previous => ({
-      ...previous,
-      classMascot: reactToMascotAction(normalizeClassMascot(previous.classMascot), action),
-    }));
+  function playMascotRitual(action: ClassMascotAction | null) {
+    if (action && mascot.quietMode) return;
+    if (action) setApp(previous => {
+      const current = normalizeClassMascot(previous.classMascot);
+      const next = reactToMascotAction(current, action);
+      return next === current ? previous : { ...previous, classMascot: next };
+    });
     window.dispatchEvent(new CustomEvent(MASCOT_RITUAL_EVENT, { detail: action }));
     closeMascotActions();
   }
@@ -713,11 +752,9 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       onClick={onFocus}
       onKeyDown={isFreeMascot ? handleMascotKeyDown : undefined}
     >
-      {/* Ordinary widgets use an in-flow header. The freestanding mascot's controls overlay
-          only when intentionally focused/hovered, leaving its artwork centered in the slot. */}
-      <div
+      {!isFreeMascot && <div
         onPointerDown={isDirect || isMaximized || layoutLocked ? undefined : handlePointerDownDrag}
-        className={`${isFreeMascot ? "mascot-widget-toolbar absolute inset-x-0 top-0 w-full h-11 border-0 bg-transparent text-inherit opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100" : isDirect ? "absolute top-0 left-0 right-0 h-11 opacity-40 hover:opacity-100 pointer-events-auto border-b-0 bg-black/10 dark:bg-white/10 text-slate-400 backdrop-blur-md rounded-t-xl" : "w-full relative h-11 " + "opacity-100 pointer-events-auto " + (currentIsLight ? "bg-white/95 border-slate-200/60 text-slate-700 shadow-sm backdrop-blur-xl rounded-t-[23px]" : "bg-zinc-900/95 border-white/10 text-neutral-200 shadow-sm backdrop-blur-xl rounded-t-[23px]")} z-40 ${viewportDensity === "tight" && !isFreeMascot ? "px-1.5 py-0.5" : "px-3 py-1"} flex items-center justify-between select-none shrink-0 border-b transition-all duration-300 ${isDirect || isMaximized || layoutLocked ? "cursor-default" : "cursor-grab active:cursor-grabbing"}`}
+        className={`${isDirect ? "absolute top-0 left-0 right-0 h-11 opacity-40 hover:opacity-100 pointer-events-auto border-b-0 bg-black/10 dark:bg-white/10 text-slate-400 backdrop-blur-md rounded-t-xl" : "w-full relative h-11 " + "opacity-100 pointer-events-auto " + (currentIsLight ? "bg-white/95 border-slate-200/60 text-slate-700 shadow-sm backdrop-blur-xl rounded-t-[23px]" : "bg-zinc-900/95 border-white/10 text-neutral-200 shadow-sm backdrop-blur-xl rounded-t-[23px]")} z-40 ${viewportDensity === "tight" ? "px-1.5 py-0.5" : "px-3 py-1"} flex items-center justify-between select-none shrink-0 border-b transition-all duration-300 ${isDirect || isMaximized || layoutLocked ? "cursor-default" : "cursor-grab active:cursor-grabbing"}`}
         style={{ touchAction: isDirect || layoutLocked ? "auto" : "none" }}
       >
         {/* Left Side: status dot, Title, and Pen icon button placed directly right next to the title label */}
@@ -810,7 +847,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
         </div>
 
         {/* Compact widget menu: editing stays inside the widget without a wide button bar. */}
-        <div ref={isFreeMascot ? undefined : widgetMenuAreaRef} className="relative flex items-center gap-1.5 shrink-0 ml-auto pointer-events-auto">
+        <div ref={widgetMenuAreaRef} className="relative flex items-center gap-1.5 shrink-0 ml-auto pointer-events-auto">
           {headerExtra}
 
           <button
@@ -1045,7 +1082,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
             </form>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* Widget Content Area */}
       <div ref={contentViewportRef} className="flex-grow overflow-hidden relative min-h-0 min-w-0">
@@ -1055,6 +1092,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
           className="cockpit-widget-content absolute inset-0 flex min-h-0 min-w-0 flex-col overflow-auto"
           onPointerDown={isFreeMascot ? handleMascotPointerDown : undefined}
           onClickCapture={isFreeMascot ? handleMascotClickCapture : undefined}
+          onDoubleClick={isFreeMascot ? handleMascotDoubleClick : undefined}
           style={
             !isLegacyScaled
               ? {
@@ -1078,35 +1116,35 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
         </div>
       </div>
 
-      {isFreeMascot && (
-        <div ref={widgetMenuAreaRef}
-          className={`mascot-quick-actions absolute right-0 top-0 z-50 ${isFocused || showWidgetMenu ? "visible pointer-events-auto" : "invisible pointer-events-none group-hover:visible group-hover:pointer-events-auto group-focus-within:visible group-focus-within:pointer-events-auto"}`}>
-          <button type="button" aria-label="Klassenrituale und Tafelruhe" aria-expanded={showWidgetMenu} aria-haspopup="menu"
-            className="cockpit-widget-menu-trigger grid h-11 w-11 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
-            onClick={event => { event.stopPropagation(); setShowWidgetMenu(open => !open); }}>
-            <MoreHorizontal size={20} aria-hidden="true" />
+      {isFreeMascot && showWidgetMenu && (
+        <div ref={widgetMenuAreaRef} role="menu" aria-label="Haustier-Aktionen"
+          style={{
+            width: stageSize.width > 0 ? mascotMenuWidth : 224,
+            left: mascotMenuLeft,
+            ...(mascotMenuAbove ? { bottom: mascotMenuBeside ? 0 : 'calc(100% + 8px)' }
+              : { top: mascotMenuBeside ? 0 : 'calc(100% + 8px)' }),
+            maxHeight: stageSize.height > 0 ? Math.max(44, mascotMenuSpace - 8) : "45dvh",
+          }}
+          className="mascot-quick-actions pointer-events-auto absolute z-50 max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-1.5 text-slate-800 shadow-xl dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">
+          <button type="button" role="menuitem" className={mascotActionClass}
+            onClick={event => { event.stopPropagation(); playMascotRitual(null); }}>
+            Normal
           </button>
-          {showWidgetMenu && (
-            <div role="menu" aria-label="Klassenrituale und Tafelruhe"
-              style={{ maxHeight: stageSize.height > 0 ? Math.max(44, mascotMenuSpace - 8) : "45dvh" }}
-              className={`absolute w-56 max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-1.5 text-slate-800 shadow-xl dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 ${mascotMenuOpensUp ? "bottom-full mb-1" : "top-full mt-1"} ${renderedX < 50 ? "left-0" : "right-0"}`}>
-              <button type="button" role="menuitemcheckbox" aria-checked={mascot.quietMode === true}
-                className={mascotActionClass}
-                onClick={event => { event.stopPropagation(); toggleMascotQuiet(); }}>
-                <span aria-hidden="true">🌙</span>
-                <span className="flex-1">Tafelruhe</span>
-                <span aria-hidden="true" className="text-xs">{mascot.quietMode ? "Ein" : "Aus"}</span>
-              </button>
-              {MASCOT_RITUALS.map(ritual => (
-                <button key={ritual.action} type="button" role="menuitem" title={ritual.title}
-                  disabled={mascot.quietMode} className={mascotActionClass}
-                  onClick={event => { event.stopPropagation(); playMascotRitual(ritual.action); }}>
-                  <span aria-hidden="true">{ritual.icon}</span>
-                  {ritual.label}
-                </button>
-              ))}
-            </div>
-          )}
+          <button type="button" role="menuitemcheckbox" aria-checked={mascot.quietMode === true}
+            className={mascotActionClass}
+            onClick={event => { event.stopPropagation(); toggleMascotQuiet(); }}>
+            <span aria-hidden="true">🌙</span>
+            <span className="flex-1">Tafelruhe</span>
+            <span aria-hidden="true" className="text-xs">{mascot.quietMode ? "Ein" : "Aus"}</span>
+          </button>
+          {MASCOT_RITUALS.map(ritual => (
+            <button key={ritual.action} type="button" role="menuitem" title={ritual.title}
+              disabled={mascot.quietMode} className={mascotActionClass}
+              onClick={event => { event.stopPropagation(); playMascotRitual(ritual.action); }}>
+              <span aria-hidden="true">{ritual.icon}</span>
+              {ritual.label}
+            </button>
+          ))}
         </div>
       )}
 
@@ -1129,7 +1167,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
           style={{ touchAction: 'none' }} />)
       )}
       {/* Touch- and keyboard-safe resize handle bottom right */}
-      {!layoutLocked && !isDirect && !isMaximized && (
+      {!layoutLocked && !isDirect && !isMaximized && !isFreeMascot && (
         <button
           type="button"
           onPointerDown={handlePointerDownResize}
@@ -1138,7 +1176,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
           data-widget-resize="se"
           aria-label="Widget-Größe ändern"
           title="Ziehen zum Ändern · Pfeiltasten für feine Anpassung"
-          className={`cockpit-widget-resize-handle absolute bottom-0 right-0 w-11 h-11 cursor-se-resize flex items-end justify-end p-2 group z-50 touch-none rounded-tl-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${isFreeMascot ? "mascot-widget-resize opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-within:opacity-100" : ""}`}
+          className="cockpit-widget-resize-handle absolute bottom-0 right-0 w-11 h-11 cursor-se-resize flex items-end justify-end p-2 group z-50 touch-none rounded-tl-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
           style={{ touchAction: "none" }}
         >
           <svg

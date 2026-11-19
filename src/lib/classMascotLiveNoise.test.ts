@@ -45,7 +45,7 @@ test('Livepegel bleibt lokal und löst die Ohren-Pose erst oberhalb der gewählt
   assert.match(widget, /getSensitivityMultiplier/);
   assert.match(widget, /threshold - 8/);
   assert.match(widget, /coveringEars=\{coveringEars && !state\.quietMode\}/);
-  assert.match(widget, /data-mascot-live-noise=\{noisePermission\}/);
+  assert.match(widget, /data-mascot-live-noise=\{state\.liveNoiseEnabled \? noisePermission : undefined\}/);
   assert.doesNotMatch(widget, /localStorage|sessionStorage|fetch\(|MediaRecorder|audio\.src|Blob\(/);
 });
 

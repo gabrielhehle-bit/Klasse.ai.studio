@@ -39,13 +39,13 @@ test('Vier originelle freigestellte Figuren haben je vier anatomisch verschieden
   }
 });
 
-test('Die Maskottchenkonfiguration zeigt eine aktuelle Vorschau und kontrollierte Rituale nur im Dialog', () => {
+test('Die Maskottchenkonfiguration zeigt die Vorschau und verweist auf das Aktionsmenü der Tafel', () => {
   const settings = readFileSync('src/components/ClassMascotSettingsPanel.tsx', 'utf8');
   const board = readFileSync('src/components/cockpit/ClassMascotWidget.tsx', 'utf8');
   const styles = readFileSync('src/index.css', 'utf8');
-  assert.match(settings, /Maskottchenprofil und Klassenrituale/);
-  assert.match(settings, /Gemeinsame Klassenrituale/);
-  assert.match(settings, /reactToMascotAction\(normalizeClassMascot\(prev\.classMascot\), ritual\.action\)/);
+  assert.match(settings, /aria-label="Maskottchenprofil"/);
+  assert.match(settings, /Doppelklick oder Doppeltipp auf das Haustier/);
+  assert.doesNotMatch(settings, /MASCOT_RITUALS\.map/);
   assert.match(settings, /<ClassMascotArtwork[\s\S]*?mood=\{normalizeClassMascot\(app\.classMascot\)\.mood\}/);
   assert.doesNotMatch(board, /Gemeinsame Klassenrituale|Maskottchenprofil und Klassenrituale/);
   assert.match(styles, /class-mascot-gaze/);

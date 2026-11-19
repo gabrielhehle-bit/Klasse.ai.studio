@@ -18,7 +18,7 @@ test('Every current and legacy widget uses the same measured and theme-safe cock
   assert.match(frame, /data-widget-content=\{widget\.type\}/);
   assert.match(frame, /ref=\{contentViewportRef\}/);
   assert.match(frame, /observer\.observe\(viewport\)/);
-  assert.match(frame, /viewportDensity === "tight" && !isFreeMascot/);
+  assert.match(frame, /!isFreeMascot && <div[\s\S]*?viewportDensity === "tight"/);
   assert.match(frame, /viewportDensity !== "tight"/);
   assert.match(css, /button\.text-white:not\(:disabled\)/);
   assert.match(css, /:focus-visible/);

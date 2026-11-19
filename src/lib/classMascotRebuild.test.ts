@@ -72,14 +72,13 @@ test('the transparent mascot rests freely in the cockpit with no visible options
   assert.match(widget, /ClassMascotArtwork/);
   assert.match(host, /isFreeMascot = widget\.type === "pet"/);
   assert.match(host, /cockpit-free-mascot rounded-none border-0 bg-transparent shadow-none/);
-  assert.match(host, /mascot-widget-toolbar/);
+  assert.doesNotMatch(host, /mascot-widget-toolbar/);
   assert.match(styles, /html body \.cockpit-widget-container\.cockpit-free-mascot/);
   assert.match(styles, /background-color: transparent !important/);
   assert.match(styles, /prefers-reduced-motion/);
-  assert.match(styles, /\.cockpit-free-mascot \.mascot-widget-resize \{\s*display: none !important;/);
+  assert.match(host, /isFreeMascot && showWidgetMenu &&/);
   assert.match(artwork, /<svg viewBox=/);
   assert.doesNotMatch(widget, /fixed bottom-|floating-classpet-outer/);
-  assert.match(widget, /state\.liveNoiseEnabled &&/);
   const defaultMarkup = renderToStaticMarkup(React.createElement(ClassMascotWidget, {
     app: { ...initialAppState, classMascot: DEFAULT_CLASS_MASCOT },
   }));
@@ -87,7 +86,8 @@ test('the transparent mascot rests freely in the cockpit with no visible options
   const liveMarkup = renderToStaticMarkup(React.createElement(ClassMascotWidget, {
     app: { ...initialAppState, classMascot: { ...DEFAULT_CLASS_MASCOT, liveNoiseEnabled: true } },
   }));
-  assert.match(liveMarkup, /class-mascot-live-noise/);
+  assert.doesNotMatch(liveMarkup, /class-mascot-live-noise/);
+  assert.match(liveMarkup, /data-mascot-live-noise="idle"/);
 });
 
 test('the real React widget renders all four figures with no always-visible control panel', () => {

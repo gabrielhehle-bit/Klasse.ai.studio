@@ -28,9 +28,9 @@ const ritualMotion: Partial<Record<ClassMascotAction, ClassMascotAction>> = {
   reflect: 'greet',
 };
 
-function MimiReadingBook({ phase }: { phase: MascotReadingPhase }) {
+function MascotReadingBook({ phase, mimi = false }: { phase: MascotReadingPhase; mimi?: boolean }) {
   return (
-    <g key={phase} data-mimi-book={phase === 'reading' ? 'open' : 'closed'}
+    <g key={phase} data-mascot-reading-book data-mimi-book={mimi ? phase === 'reading' ? 'open' : 'closed' : undefined}
       className={`mimi-book mimi-book-${phase}`} pointerEvents="none" aria-hidden="true">
       <ellipse cx="126" cy="165" rx="36" ry="4" fill="#475569" opacity=".16" />
       <g className="mimi-book-spread">
@@ -234,7 +234,15 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
       </g>
       </g>
       </g>
-      {mimiScene && <MimiReadingBook phase={mimiScene} />}
+      {mimiScene ? <MascotReadingBook phase={mimiScene} mimi />
+        : ritualAction === 'read' && <MascotReadingBook phase="reading" />}
+      {ritualAction === 'tidy' && (
+        <g data-mascot-ritual-accent="tidy" aria-hidden="true" pointerEvents="none" strokeLinejoin="round">
+          <path d="M136 143l4-13 18 5-4 12" fill="#FFF3D5" stroke="#A9845F" strokeWidth="2" />
+          <path d="M123 145h41l-4 20h-33z" fill="#CF9B66" stroke="#744C34" strokeWidth="2" />
+          <path d="M130 152h27m-25 6h23" stroke="#F5D38C" strokeWidth="2" strokeLinecap="round" />
+        </g>
+      )}
       {/* The teacher chooses a single tiny seasonal detail, not a background,
           automatic calendar event or decoration outside this transparent SVG. */}
       {season === 'spring' && (

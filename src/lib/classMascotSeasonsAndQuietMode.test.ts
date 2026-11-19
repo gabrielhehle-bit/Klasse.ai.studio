@@ -73,5 +73,5 @@ test('Tafelruhe schaltet alle kurzzeitigen Reaktionen ab, ohne Verschieben oder 
   assert.match(board, /class-mascot-freestanding pointer-events-none/);
   assert.match(board, /data-mascot-season-accent="winter"/);
   assert.doesNotMatch(board, /class-mascot-idle|class-mascot-react-otter|data-mascot-surprise|data-mascot-ritual/);
-  assert.match(board, /Klassenmaskottchen in Tafelruhe; verschieben/);
+  assert.match(board, /Klassenmaskottchen in Tafelruhe/);
 });

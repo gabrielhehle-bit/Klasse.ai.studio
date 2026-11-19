@@ -683,41 +683,59 @@ async function main() {
 
     await clickLabel(client, 'Klassenmaskottchen einblenden');
     const mascot = `document.querySelector('[data-widget-type="pet"]')`;
-    await waitFor(client, 'class mascot appears', `Boolean(${mascot}?.querySelector('.class-mascot-character'))`);
-    const openMascotMenu = () => evaluate(client, `${mascot}.querySelector('.mascot-quick-actions .cockpit-widget-menu-trigger').click()`);
-    const mascotQuietButton = `${mascot}.querySelector('[role="menuitemcheckbox"]')`;
-    const mascotPraiseButton = `Array.from(${mascot}.querySelectorAll('[role="menuitem"]')).find(button => button.textContent.includes('Geschafft!'))`;
-    await evaluate(client, `${mascot}.querySelector('.class-mascot-character').focus()`);
+    const character = `${mascot}?.querySelector('.class-mascot-character')`;
+    const menu = `${mascot}?.querySelector('[role="menu"][aria-label="Haustier-Aktionen"]')`;
+    const action = name => `${mascot}.querySelector('[data-mascot-ritual="' + ${q(name)} + '"]')`;
+    const pointOnMascot = () => evaluate(client, `(() => {
+      const character = ${character};
+      const box = character.getBoundingClientRect();
+      for (const yRatio of [.46, .37, .55, .62]) {
+        const x = box.left + box.width / 2;
+        const y = box.top + box.height * yRatio;
+        if (character.contains(document.elementFromPoint(x, y))) return { x, y };
+      }
+      throw Error('The mascot artwork cannot receive a click');
+    })()`);
+    const mouseClick = async (point, clickCount = 1) => {
+      await client.send('Input.dispatchMouseEvent', { type: 'mousePressed', ...point, button: 'left', clickCount });
+      await client.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point, button: 'left', clickCount });
+    };
+    const openMascotMenu = async () => {
+      const point = await pointOnMascot();
+      await mouseClick(point);
+      await mouseClick(point, 2);
+      await waitFor(client, 'double-click opens the actions menu', `Boolean(${menu})`);
+    };
+    const selectMascotAction = label => evaluate(client,
+      `Array.from(${menu}.querySelectorAll('button')).find(button => button.textContent.trim().includes(${q(label)})).click()`);
+    const mascotHasNoOverlay = `${mascot}.querySelector('[data-practice-root="pet"]').textContent.trim() === ''
+      && !${mascot}.querySelector('[role="timer"], [data-mascot-cue], .cockpit-widget-menu-trigger, [data-widget-resize]')`;
+
+    await waitFor(client, 'class mascot appears', `Boolean(${character})`);
+    const initialPoint = await pointOnMascot();
+    await client.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...initialPoint });
+    await mouseClick(initialPoint);
+    await waitFor(client, 'hover and a single click leave only the mascot visible',
+      `!${menu} && ${mascotHasNoOverlay} && ${mascot}.querySelector('[data-practice-root="pet"]').dataset.mascotReaction === 'true'`);
     await openMascotMenu();
-    await waitFor(client, 'quick mascot actions are visible', `${mascotQuietButton}?.getBoundingClientRect().width > 0 && Boolean(${mascotPraiseButton})`);
-    await evaluate(client, `${mascotPraiseButton}.click()`);
-    await waitFor(client, 'praise from board menu plays the ritual', `Boolean(${mascot}.querySelector('[data-mascot-ritual="praise"]'))`);
+    await waitFor(client, 'the opened menu sits beside the mascot artwork', `(() => {
+      const m = ${menu}.getBoundingClientRect();
+      const c = ${character}.getBoundingClientRect();
+      return m.right <= c.left || m.left >= c.right || m.bottom <= c.top || m.top >= c.bottom;
+    })()`);
+    await selectMascotAction('Klasse begrüßen');
+    await waitFor(client, 'greeting is a silent gesture with the menu closed',
+      `Boolean(${action('greet')}) && !${menu} && ${mascotHasNoOverlay}`);
+
     await openMascotMenu();
-    await evaluate(client, `${mascotQuietButton}.click()`);
+    await selectMascotAction('Tafelruhe');
+    await waitFor(client, 'quiet mode clears the activity entirely', `!${action('greet')} && !${menu}`);
     await openMascotMenu();
-    await waitFor(client, 'quiet mode disables rituals immediately', `${mascotQuietButton}?.getAttribute('aria-checked') === 'true' && ${mascotPraiseButton}?.disabled`);
-    await evaluate(client, `${mascotQuietButton}.click()`);
-    await openMascotMenu();
-    await waitFor(client, 'quiet mode can be turned off on the board', `${mascotQuietButton}?.getAttribute('aria-checked') === 'false' && !${mascotPraiseButton}?.disabled`);
-    const playMascotAction = label => evaluate(client,
-      `Array.from(${mascot}.querySelectorAll('[role="menuitem"]')).find(button => button.textContent.includes(${q(label)})).click()`);
-    const mascotCue = action => `${mascot}.querySelector('[data-mascot-cue="${action}"]')`;
-    await playMascotAction('Klasse begrüßen');
-    await waitFor(client, 'greeting cue appears on the board', `${mascotCue('greet')}?.textContent.includes('Guten Morgen')`);
-    await openMascotMenu();
-    await playMascotAction('Bewegungspause');
-    await waitFor(client, 'movement replaces greeting with the first exercise', `!${mascotCue('greet')} && ${mascotCue('move')}?.textContent.includes('1 von 3')`);
-    await waitFor(client, 'movement advances to the next exercise', `${mascotCue('move')}?.textContent.includes('2 von 3') && ${mascotCue('move')}?.textContent.includes('Schultern')`, 13000);
-    await evaluate(client, `${mascotCue('move')}.querySelector('[aria-label="Ritual beenden"]').click()`);
-    await waitFor(client, 'movement can be stopped from the board', `!${mascotCue('move')}`);
-    await openMascotMenu();
-    await playMascotAction('Arbeitsstart');
-    await waitFor(client, 'work routine starts with the assignment', `${mascotCue('ready')}?.textContent.includes('Arbeitsauftrag')`);
-    await openMascotMenu();
-    await evaluate(client, `${mascotQuietButton}.click()`);
-    await waitFor(client, 'quiet mode clears an active cue', `!${mascotCue('ready')}`);
-    await openMascotMenu();
-    await evaluate(client, `${mascotQuietButton}.click()`);
+    await waitFor(client, 'quiet mode can be turned off from the double-click menu',
+      `${menu}.querySelector('[role="menuitemcheckbox"]').getAttribute('aria-checked') === 'true'
+        && Array.from(${menu}.querySelectorAll('[role="menuitem"]')).find(button => button.textContent.includes('Geschafft!')).disabled`);
+    await selectMascotAction('Tafelruhe');
+
     await clickButton(client, 'Widget hinzufügen');
     await clickLabel(client, 'Widget-Voreinstellungen öffnen');
     await clickButton(client, 'Klassenmaskottchen ändern');
@@ -728,71 +746,36 @@ async function main() {
     await clickLabel(client, 'Klassenmaskottchen-Einstellungen schließen');
     await waitFor(client, 'Mimi is visible with her curved tail', `Boolean(${mascot}?.querySelector('[data-mascot-kind="cat"] [data-mimi-tail]'))`);
 
-    await openMascotMenu();
-    await playMascotAction('Flüsterlesen');
-    const cueButton = (action, label) => evaluate(client, `${mascotCue(action)}.querySelector(${q('[aria-label="' + label + '"]')}).click()`);
-    const readingTimer = `${mascotCue('read')}?.querySelector('[role="timer"]')?.textContent.trim()`;
-    await waitFor(client, 'reading offers a choice of minutes', `Boolean(${mascotCue('read')}?.querySelector('[aria-label="2 Minuten lesen"]'))`);
-    await waitFor(client, 'Mimi has a closed book while the time is selected', `Boolean(${mascot}.querySelector('[data-mimi-reading="ready"] [data-mimi-book="closed"]'))`);
-    await cueButton('read', '2 Minuten lesen');
-    await waitFor(client, 'reading starts on the board', `${readingTimer} === '2:00' || ${readingTimer} === '1:59'`);
-    await waitFor(client, 'Mimi opens her book on start', `(() => {
-      const scene = ${mascot}.querySelector('[data-mimi-reading="reading"]');
-      const book = scene?.querySelector('[data-mimi-book="open"] .mimi-book-spread');
-      const cue = ${mascotCue('read')};
-      if (!book || !cue) return false;
-      const bounds = book.getBoundingClientRect();
-      return getComputedStyle(book).opacity === '1' && bounds.width >= 20 && bounds.bottom <= cue.getBoundingClientRect().top + 1;
+    await client.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+    const touchPoint = await pointOnMascot();
+    const tapMascot = async () => {
+      await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [touchPoint] });
+      await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    };
+    await tapMascot();
+    if (await evaluate(client, `Boolean(${menu})`)) throw Error('A single touch opened the mascot menu');
+    await tapMascot();
+    await waitFor(client, 'a double tap on the Smartboard opens the actions menu', `Boolean(${menu})`);
+    await selectMascotAction('Flüsterlesen');
+    await client.send('Emulation.setTouchEmulationEnabled', { enabled: false });
+    await waitFor(client, 'Mimi immediately opens her book without a timer or card', `(() => {
+      const book = ${mascot}.querySelector('[data-mimi-reading="reading"] [data-mimi-book="open"] .mimi-book-spread');
+      return book && getComputedStyle(book).opacity === '1' && book.getBoundingClientRect().width >= 20
+        && !${menu} && ${mascotHasNoOverlay};
     })()`);
     await screenshot(client, 'mimi-reading');
-    await cueButton('read', 'Ritual pausieren');
-    await waitFor(client, 'reading pause is shown', `${mascotCue('read')}?.textContent.includes('Pausiert')`);
-    const pausedTime = await evaluate(client, readingTimer);
-    await sleep(1250);
-    if (await evaluate(client, readingTimer) !== pausedTime) throw Error('Reading countdown continued while paused');
-    await cueButton('read', 'Ritual fortsetzen');
-    await waitFor(client, 'reading countdown resumes', `${readingTimer} !== ${q(pausedTime)} && !${mascotCue('read')}?.textContent.includes('Pausiert')`, 4000);
-
     await openMascotMenu();
-    await playMascotAction('Aufräumen');
-    await waitFor(client, 'tidying replaces the reading countdown', `!${mascotCue('read')} && ${mascotCue('tidy')}?.textContent.includes('Hefte und Stifte')`);
-    await cueButton('tidy', 'Nächster Schritt');
-    await waitFor(client, 'tidying advances from its board control', `${mascotCue('tidy')}?.textContent.includes('2 von 3')`);
-    await cueButton('tidy', 'Nächster Schritt');
-    await waitFor(client, 'tidying reaches the last step', `${mascotCue('tidy')}?.textContent.includes('Boden sauber')`);
-    await cueButton('tidy', 'Ritual abschließen');
-    await waitFor(client, 'tidying can finish from the board', `!${mascotCue('tidy')}`);
-
+    await selectMascotAction('Aufräumen');
+    await waitFor(client, 'choosing another action replaces the book with a visible basket',
+      `Boolean(${mascot}.querySelector('[data-mascot-ritual-accent="tidy"]')) && !${mascot}.querySelector('[data-mimi-book]') && ${mascotHasNoOverlay}`);
     await openMascotMenu();
-    await playMascotAction('Abschlussrunde');
-    await waitFor(client, 'reflection prompts appear', `${mascotCue('reflect')}?.textContent.includes('heute gelernt')`);
-    await cueButton('reflect', 'Nächster Schritt');
-    await waitFor(client, 'reflection advances at the teacher’s pace', `${mascotCue('reflect')}?.textContent.includes('gut geklappt')`);
-    await cueButton('reflect', 'Ritual beenden');
-    await waitFor(client, 'reflection can be stopped', `!${mascotCue('reflect')}`);
-
+    await selectMascotAction('Abschlussrunde');
+    await waitFor(client, 'reflection never puts a question card over the pet',
+      `Boolean(${action('reflect')}) && !${menu} && ${mascotHasNoOverlay}`);
     await openMascotMenu();
-    await playMascotAction('Flüsterlesen');
-    // Accelerate only the next two-minute reading timeout. All UI transitions
-    // still go through the real timer callback and the click below.
-    await evaluate(client, `(() => {
-      const timeout = window.setTimeout;
-      window.setTimeout = (callback, delay, ...args) => {
-        if (delay > 110_000 && delay <= 120_000) {
-          window.setTimeout = timeout;
-          return timeout(callback, 700, ...args);
-        }
-        return timeout(callback, delay, ...args);
-      };
-    })()`);
-    await cueButton('read', '2 Minuten lesen');
-    await waitFor(client, 'Mimi closes the book when the timer ends', `(() => {
-      const book = ${mascot}.querySelector('[data-mimi-reading="finished"] [data-mimi-book="closed"] .mimi-book-cover');
-      return book && getComputedStyle(book).opacity === '1' && ${mascotCue('read')}?.textContent.includes('Lesezeit vorbei');
-    })()`);
-    await screenshot(client, 'mimi-finished');
-    await cueButton('read', 'Ritual abschließen');
-    await waitFor(client, 'Mimi returns to her normal pose with no book', `!${mascot}.querySelector('[data-mimi-book]')`);
+    await selectMascotAction('Normal');
+    await waitFor(client, 'Normal clears the activity and leaves Mimi visible',
+      `!${mascot}.querySelector('[data-mascot-ritual]') && Boolean(${character}) && ${mascotHasNoOverlay}`);
 
     await clickLabel(client, 'Klassenmaskottchen ausblenden');
 

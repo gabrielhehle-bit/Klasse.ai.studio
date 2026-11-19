@@ -11,7 +11,7 @@ test('Maskottchen steht frei und seine unsichtbare Widgetfläche blockiert keine
   const host = readFileSync('src/components/cockpit/CockpitWidget.tsx', 'utf8');
   const styles = readFileSync('src/index.css', 'utf8');
   const widget = readFileSync('src/components/cockpit/ClassMascotWidget.tsx', 'utf8');
-  assert.match(host, /mascot-widget-toolbar absolute inset-x-0 top-0/);
+  assert.doesNotMatch(host, /mascot-widget-toolbar/);
   assert.match(host, /cockpit-free-mascot rounded-none border-0 bg-transparent shadow-none/);
   assert.match(styles, /\.cockpit-widget-container\.cockpit-free-mascot \{\s*pointer-events: none !important;/);
   assert.match(styles, /\.cockpit-free-mascot \.class-mascot-character \{\s*pointer-events: none;/);
@@ -23,7 +23,7 @@ test('Maskottchen steht frei und seine unsichtbare Widgetfläche blockiert keine
   assert.match(art, /\{kind === 'dog' &&/);
   assert.match(art, /\{kind === 'cat' &&/);
   assert.match(art, /\{kind === 'elf' &&/);
-  assert.match(styles, /\.cockpit-free-mascot \.mascot-widget-resize \{\s*display: none !important;/);
+  assert.match(host, /!layoutLocked && !isDirect && !isMaximized && !isFreeMascot/);
   assert.match(widget, /class-mascot-freestanding pointer-events-none/);
   assert.match(widget, /class-mascot-character pointer-events-none mx-auto/);
   assert.match(widget, /style=\{\{ width: `min\(100%, \$\{state\.displaySize\}px\)` \}\}/);
