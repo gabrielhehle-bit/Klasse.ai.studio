@@ -245,20 +245,27 @@ async function checkAssignmentCountdown(client) {
 async function dragWidgetTo(client, type, left, top) {
   const widgetSelector = `#widget-board-stage [data-widget-type="${type}"]`;
   const frameExpression = `document.querySelector(${q(widgetSelector)})`;
-  await waitFor(client, type + ' frame is ready for dragging',
-    `${frameExpression}?.getAnimations().every(animation => animation.playState === 'finished')`);
-  const points = await evaluate(client, `(() => {
+  const measureDrag = `(() => {
     const stage = document.getElementById('widget-board-stage');
     const widget = ${frameExpression};
+    if (!stage || !widget) return null;
+    for (let node = widget; node; node = node.parentElement) {
+      if (node.getAnimations().some(animation => animation.playState !== 'finished' &&
+        Number.isFinite(animation.effect?.getComputedTiming().endTime))) return null;
+    }
     const board = stage.getBoundingClientRect();
     const frame = widget.getBoundingClientRect();
-    const x = frame.left + 50;
     const y = frame.top + 22;
-    const target = document.elementFromPoint(x, y);
-    if (!widget.firstElementChild.contains(target) || target.closest('button')) return null;
-    return { x, y, toX: board.left + stage.clientLeft + stage.clientWidth * ${left} / 100 + 50,
+    const x = [0.56, 0.48, 0.64, 0.32, 0.14].map(fraction => frame.left + frame.width * fraction).find(candidate => {
+      const target = document.elementFromPoint(candidate, y);
+      return widget.firstElementChild.contains(target) && !target.closest('button');
+    });
+    if (x === undefined) return null;
+    return { x, y, toX: board.left + stage.clientLeft + stage.clientWidth * ${left} / 100 + x - frame.left,
       toY: board.top + stage.clientTop + stage.clientHeight * ${top} / 100 + 22 };
-  })()`);
+  })()`;
+  await waitFor(client, type + ' header is ready for dragging', measureDrag, 5000);
+  const points = await evaluate(client, measureDrag);
   if (!points) throw Error('Widget header is not reachable: ' + type);
   const { x, y, toX, toY } = points;
   await client.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
@@ -287,6 +294,8 @@ async function dragWidgetTo(client, type, left, top) {
 
 async function checkWidgetGeometry(client) {
   await clickLabel(client, 'Schülerliste ausblenden', true);
+  await waitFor(client, 'the board has expanded before measuring geometry',
+    `!document.querySelector('.klassio-student-sidebar') && document.getElementById('widget-board-stage').clientWidth > innerWidth - 40`);
   const widget = type => `document.querySelector('#widget-board-stage [data-widget-type="${type}"]')`;
   const geometry = (...types) => `JSON.stringify([${types.map(widget).join(',')}].map(node =>
     node && [node.style.left, node.style.top, node.style.width, node.style.height]))`;
