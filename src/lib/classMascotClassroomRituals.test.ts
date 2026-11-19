@@ -7,7 +7,7 @@ import ClassMascotArtwork from '../components/cockpit/ClassMascotArtwork';
 import ClassMascotWidget from '../components/cockpit/ClassMascotWidget';
 import { initialAppState } from './appState';
 import {
-  DEFAULT_CLASS_MASCOT, isClassMascotAction, MASCOT_CLASSROOM_CUES, MASCOT_RITUAL_EVENT,
+  DEFAULT_CLASS_MASCOT, isClassMascotAction, MASCOT_CLASSROOM_CUES, MASCOT_READING_MINUTES, MASCOT_RITUAL_EVENT,
   reactToMascotAction, type ClassMascotAction, type ClassMascotKind,
 } from './classMascot';
 
@@ -70,7 +70,18 @@ test('Guided classroom rituals carry their own timed cues and do not change save
   for (const [action, steps, totalMs] of [['greet', 1, 7000], ['move', 3, 24000], ['ready', 3, 17000]] as const) {
     const cues = MASCOT_CLASSROOM_CUES[action];
     assert.equal(cues?.length, steps);
-    assert.equal(cues?.reduce((total, cue) => total + cue.durationMs, 0), totalMs);
+    assert.equal(cues?.reduce((total, cue) => total + (cue.durationMs ?? 0), 0), totalMs);
+    assert.strictEqual(reactToMascotAction(DEFAULT_CLASS_MASCOT, action), DEFAULT_CLASS_MASCOT);
+  }
+});
+
+test('Reading, tidying and reflection are transient and leave manual steps open for the teacher', () => {
+  assert.deepEqual(MASCOT_READING_MINUTES, [2, 4, 6]);
+  for (const action of ['read', 'tidy', 'reflect'] as const) {
+    assert.equal(isClassMascotAction(action), true);
+    const cues = MASCOT_CLASSROOM_CUES[action];
+    assert.equal(cues?.length, 3);
+    assert.ok(cues?.every(cue => cue.durationMs === undefined));
     assert.strictEqual(reactToMascotAction(DEFAULT_CLASS_MASCOT, action), DEFAULT_CLASS_MASCOT);
   }
 });

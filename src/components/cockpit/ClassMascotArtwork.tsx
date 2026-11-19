@@ -19,6 +19,12 @@ interface Props {
 }
 
 /** Original, self-contained SVG designs. No third-party character assets or network requests. */
+const ritualMotion: Partial<Record<ClassMascotAction, ClassMascotAction>> = {
+  read: 'calm',
+  tidy: 'ready',
+  reflect: 'greet',
+};
+
 export default function ClassMascotArtwork({ kind, mood, name, animationEnabled = false, reactionActive = false, reactionTick = 0, accessory = 'none', season = 'none', surpriseActive = false, surpriseTick = 0, ritualAction = null, ritualTick = 0, coveringEars = false }: Props) {
   const colors = {
     otter: { fur: '#B87346', light: '#F4D3A2', inner: '#D58D8A', blush: '#D88677' },
@@ -63,7 +69,7 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
       <g data-mascot-posture={posture} className={`class-mascot-pose class-mascot-pose-${posture}`} transform={poseTransform}>
       {/* Gesture animates an inner drawing group, never the cockpit position or touch target. */}
       <g key={ritualTick} data-mascot-ritual={ritualAction || undefined}
-        className={ritualAction ? `class-mascot-ritual class-mascot-ritual-${ritualAction}` : undefined}>
+        className={ritualAction ? `class-mascot-ritual class-mascot-ritual-${ritualMotion[ritualAction] ?? ritualAction}` : undefined}>
       {/* Restart the brief reaction on consecutive taps, without moving the widget itself. */}
       <g key={reactionTick} className={reactionActive ? `class-mascot-react class-mascot-react-${kind}` : undefined}>
       {mood === 'proud' && <g fill="#F7C84B"><path d="M28 42l3 7 8 1-6 5 2 8-7-4-7 4 2-8-6-5 8-1z"/><path d="M148 37l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/></g>}

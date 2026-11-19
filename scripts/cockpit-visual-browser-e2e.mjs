@@ -261,6 +261,39 @@ async function main() {
     await waitFor(client, 'quiet mode clears an active cue', `!${mascotCue('ready')}`);
     await openMascotMenu();
     await evaluate(client, `${mascotQuietButton}.click()`);
+    await openMascotMenu();
+    await playMascotAction('Flüsterlesen');
+    const cueButton = (action, label) => evaluate(client, `${mascotCue(action)}.querySelector(${q('[aria-label="' + label + '"]')}).click()`);
+    const readingTimer = `${mascotCue('read')}?.querySelector('[role="timer"]')?.textContent.trim()`;
+    await waitFor(client, 'reading offers a choice of minutes', `Boolean(${mascotCue('read')}?.querySelector('[aria-label="2 Minuten lesen"]'))`);
+    await cueButton('read', '2 Minuten lesen');
+    await waitFor(client, 'reading starts on the board', `${readingTimer} === '2:00' || ${readingTimer} === '1:59'`);
+    await cueButton('read', 'Ritual pausieren');
+    await waitFor(client, 'reading pause is shown', `${mascotCue('read')}?.textContent.includes('Pausiert')`);
+    const pausedTime = await evaluate(client, readingTimer);
+    await sleep(1250);
+    if (await evaluate(client, readingTimer) !== pausedTime) throw Error('Reading countdown continued while paused');
+    await cueButton('read', 'Ritual fortsetzen');
+    await waitFor(client, 'reading countdown resumes', `${readingTimer} !== ${q(pausedTime)} && !${mascotCue('read')}?.textContent.includes('Pausiert')`, 4000);
+
+    await openMascotMenu();
+    await playMascotAction('Aufräumen');
+    await waitFor(client, 'tidying replaces the reading countdown', `!${mascotCue('read')} && ${mascotCue('tidy')}?.textContent.includes('Hefte und Stifte')`);
+    await cueButton('tidy', 'Nächster Schritt');
+    await waitFor(client, 'tidying advances from its board control', `${mascotCue('tidy')}?.textContent.includes('2 von 3')`);
+    await cueButton('tidy', 'Nächster Schritt');
+    await waitFor(client, 'tidying reaches the last step', `${mascotCue('tidy')}?.textContent.includes('Boden sauber')`);
+    await cueButton('tidy', 'Ritual abschließen');
+    await waitFor(client, 'tidying can finish from the board', `!${mascotCue('tidy')}`);
+
+    await openMascotMenu();
+    await playMascotAction('Abschlussrunde');
+    await waitFor(client, 'reflection prompts appear', `${mascotCue('reflect')}?.textContent.includes('heute gelernt')`);
+    await cueButton('reflect', 'Nächster Schritt');
+    await waitFor(client, 'reflection advances at the teacher’s pace', `${mascotCue('reflect')}?.textContent.includes('gut geklappt')`);
+    await cueButton('reflect', 'Ritual beenden');
+    await waitFor(client, 'reflection can be stopped', `!${mascotCue('reflect')}`);
+
     await clickLabel(client, 'Klassenmaskottchen ausblenden');
 
     console.log('✓ Cockpit visual QA passed for '+WIDTH+'×'+HEIGHT+'. Board primary, students restorable, award modes distinct.');

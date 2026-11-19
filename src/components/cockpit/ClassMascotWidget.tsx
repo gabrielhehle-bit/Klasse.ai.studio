@@ -1,6 +1,7 @@
 import React from 'react';
+import { Check, ChevronRight, Pause, Play, X } from 'lucide-react';
 import type { AppState } from '../../types';
-import { isClassMascotAction, MASCOT_CLASSROOM_CUES, MASCOT_RITUAL_EVENT, MASCOT_SURPRISE_EVENT, normalizeClassMascot, type ClassMascotAction } from '../../lib/classMascot';
+import { isClassMascotAction, MASCOT_CLASSROOM_CUES, MASCOT_READING_MINUTES, MASCOT_RITUAL_EVENT, MASCOT_SURPRISE_EVENT, normalizeClassMascot, type ClassMascotAction } from '../../lib/classMascot';
 import {
   calculateRawVolume,
   cleanupMediaStream,
@@ -9,6 +10,13 @@ import {
   type NoisePermissionState,
 } from '../../lib/noisemeterAlgorithm';
 import ClassMascotArtwork from './ClassMascotArtwork';
+
+interface CueClock {
+  remainingMs: number;
+  endsAt: number | null;
+}
+
+const cueButtonClass = 'pointer-events-auto grid h-11 min-w-11 place-items-center rounded-lg px-1 text-sm font-bold text-emerald-900 hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-700';
 
 interface Props {
   app: AppState;
@@ -36,6 +44,8 @@ export default function ClassMascotWidget({ app }: Props) {
   const [ritualTick, setRitualTick] = React.useState(0);
   const [cueIndex, setCueIndex] = React.useState(0);
   const ritualTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [cueClock, setCueClock] = React.useState<CueClock | null>(null);
+  const [clockNow, setClockNow] = React.useState(0);
 
   // Live level is intentionally session-local. The microphone stream, analyser
   // buffers and current level never enter app state, backups or account sync.
@@ -174,7 +184,34 @@ export default function ClassMascotWidget({ app }: Props) {
     ritualTimer.current = null;
     setRitualAction(null);
     setCueIndex(0);
+    setCueClock(null);
   }, []);
+
+  const showCue = React.useCallback((action: ClassMascotAction, index: number, durationOverride?: number) => {
+    const cue = MASCOT_CLASSROOM_CUES[action]?.[index];
+    if (!cue) {
+      stopRitual();
+      return;
+    }
+    const duration = durationOverride ?? cue.durationMs;
+    const now = Date.now();
+    setCueIndex(index);
+    setClockNow(now);
+    setCueClock(duration === undefined ? null : { remainingMs: duration, endsAt: now + duration });
+  }, [stopRitual]);
+
+  React.useEffect(() => {
+    if (!ritualAction || cueClock?.endsAt == null) return;
+    const timer = setTimeout(
+      () => showCue(ritualAction, cueIndex + 1),
+      Math.max(0, cueClock.endsAt - Date.now()),
+    );
+    const ticker = ritualAction === 'read' ? setInterval(() => setClockNow(Date.now()), 200) : undefined;
+    return () => {
+      clearTimeout(timer);
+      if (ticker !== undefined) clearInterval(ticker);
+    };
+  }, [cueClock, cueIndex, ritualAction, showCue]);
 
   const triggerRitual = React.useCallback((event: Event) => {
     const action = (event as CustomEvent<unknown>).detail;
@@ -189,19 +226,9 @@ export default function ClassMascotWidget({ app }: Props) {
     setRitualTick(tick => tick + 1);
     setRitualAction(action);
 
-    const cues = MASCOT_CLASSROOM_CUES[action];
-    function showCue(index: number) {
-      const cue = cues?.[index];
-      if (!cue) {
-        stopRitual();
-        return;
-      }
-      setCueIndex(index);
-      ritualTimer.current = setTimeout(() => showCue(index + 1), cue.durationMs);
-    }
-    if (cues) showCue(0);
+    if (MASCOT_CLASSROOM_CUES[action]) showCue(action, 0);
     else ritualTimer.current = setTimeout(stopRitual, action === 'calm' ? 5400 : 1750);
-  }, [state.quietMode, stopRitual]);
+  }, [showCue, state.quietMode, stopRitual]);
 
   const triggerSurprise = React.useCallback(() => {
     if (state.quietMode) return;
@@ -251,6 +278,23 @@ export default function ClassMascotWidget({ app }: Props) {
 
   const cues = !state.quietMode && ritualAction ? MASCOT_CLASSROOM_CUES[ritualAction] : undefined;
   const cue = cues?.[cueIndex];
+  const isReading = ritualAction === 'read';
+  const chooseReadingTime = isReading && cueIndex === 0;
+  const isLastCue = cueIndex === (cues?.length ?? 0) - 1;
+  const isPaused = cueClock?.endsAt === null;
+  const readingSeconds = cueClock
+    ? Math.ceil(Math.max(0, cueClock.endsAt === null ? cueClock.remainingMs : cueClock.endsAt - clockNow) / 1000)
+    : 0;
+  const readingTime = `${Math.floor(readingSeconds / 60)}:${String(readingSeconds % 60).padStart(2, '0')}`;
+  const toggleCuePause = () => {
+    const now = Date.now();
+    setClockNow(now);
+    setCueClock(clock => {
+      if (!clock) return null;
+      if (clock.endsAt === null) return { ...clock, endsAt: now + clock.remainingMs };
+      return { endsAt: null, remainingMs: Math.max(0, clock.endsAt - now) };
+    });
+  };
 
   const liveLabel = noisePermission === 'active'
     ? `LIVE ${Math.round(liveVolume)}`
@@ -297,15 +341,45 @@ export default function ClassMascotWidget({ app }: Props) {
 
       {cue && (
         <div data-mascot-cue={ritualAction}
-          className="absolute inset-x-1 bottom-1 flex items-center gap-1 rounded-xl border border-emerald-900/20 bg-white px-2 py-1 text-slate-900 shadow-md">
-          <div role="status" className="min-w-0 flex-1 text-center text-[clamp(.75rem,7cqw,1.125rem)] font-bold leading-tight">
-            {cues && cues.length > 1 && <span className="block text-xs font-semibold text-emerald-800">{cueIndex + 1} von {cues.length}</span>}
+          className="absolute inset-x-1 bottom-1 rounded-xl border border-emerald-900/20 bg-white px-1 py-1 text-slate-900 shadow-md">
+          <div role="status" className="px-1 text-center text-[clamp(.82rem,7cqw,1.125rem)] font-bold leading-tight">
+            {!isReading && cues && cues.length > 1 && <span className="block text-xs font-semibold text-emerald-800">{cueIndex + 1} von {cues.length}</span>}
             {cue.text}
+            {isPaused && <span className="block text-xs text-slate-600">Pausiert</span>}
           </div>
-          <button type="button" aria-label="Ritual beenden" onClick={stopRitual}
-            className="pointer-events-auto grid h-11 w-11 shrink-0 place-items-center rounded-lg text-xl text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-700">
-            <span aria-hidden="true">×</span>
-          </button>
+          {isReading && cueClock && (
+            <div role="timer" aria-label="Verbleibende Lesezeit" className="text-center text-2xl font-black tabular-nums text-emerald-900">
+              {readingTime}
+            </div>
+          )}
+          {chooseReadingTime && (
+            <div role="group" aria-label="Dauer der Lesezeit" className="flex justify-evenly">
+              {MASCOT_READING_MINUTES.map(minutes => (
+                <button key={minutes} type="button" className={cueButtonClass}
+                  aria-label={minutes + ' Minuten lesen'} onClick={() => showCue('read', 1, minutes * 60_000)}>
+                  {minutes} min
+                </button>
+              ))}
+            </div>
+          )}
+          <div role="group" aria-label="Ritualsteuerung" className="flex justify-center">
+            {cueClock && (
+              <button type="button" aria-label={isPaused ? 'Ritual fortsetzen' : 'Ritual pausieren'}
+                title={isPaused ? 'Fortsetzen' : 'Pausieren'} onClick={toggleCuePause} className={cueButtonClass}>
+                {isPaused ? <Play size={19} aria-hidden="true" /> : <Pause size={19} aria-hidden="true" />}
+              </button>
+            )}
+            {!chooseReadingTime && !(isReading && cueClock) && ritualAction && (!cueClock || !isLastCue) && (
+              <button type="button" aria-label={isLastCue ? 'Ritual abschließen' : 'Nächster Schritt'}
+                title={isLastCue ? 'Abschließen' : 'Weiter'} onClick={() => showCue(ritualAction, cueIndex + 1)} className={cueButtonClass}>
+                {isLastCue ? <Check size={22} aria-hidden="true" /> : <ChevronRight size={22} aria-hidden="true" />}
+              </button>
+            )}
+            <button type="button" aria-label="Ritual beenden" title="Beenden" onClick={stopRitual}
+              className={cueButtonClass}>
+              <X size={20} aria-hidden="true" />
+            </button>
+          </div>
         </div>
       )}
 

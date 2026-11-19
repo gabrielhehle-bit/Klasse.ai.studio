@@ -96,7 +96,7 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                             Gemeinsame Klassenrituale
                         </h3>
                         <p className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>
-                            Starte ein Ritual, wenn es in deinen Unterricht passt. Bei Bewegung und Arbeitsstart zeigt das Maskottchen kurze Schritte zum Mitmachen.
+                            Wähle ein Ritual für die Tafel. Beim Flüsterlesen stellst du dort die Dauer ein. Beim Aufräumen und in der Abschlussrunde schaltest du die Hinweise selbst weiter.
                         </p>
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                             {MASCOT_RITUALS.map(ritual => (

@@ -2,7 +2,7 @@ import type { SensitivityLevel } from './noisemeterAlgorithm';
 /** Class-local, purely teacher-controlled mascot. Contains no student data or grades. */
 export type ClassMascotKind = 'otter' | 'dog' | 'cat' | 'elf';
 export type ClassMascotMood = 'happy' | 'calm' | 'sleepy' | 'proud';
-export type ClassMascotAction = 'praise' | 'calm' | 'encourage' | 'greet' | 'move' | 'ready';
+export type ClassMascotAction = 'praise' | 'calm' | 'encourage' | 'greet' | 'move' | 'ready' | 'read' | 'tidy' | 'reflect';
 export type ClassMascotAccessory = 'none' | 'scarf' | 'glasses' | 'star';
 export type ClassMascotSeason = 'none' | 'spring' | 'summer' | 'autumn' | 'winter';
 /** Local UI signal: a brief surprise is never persisted or broadcast via account sync. */
@@ -11,6 +11,9 @@ export const MASCOT_SURPRISE_EVENT = 'klassio:mascot-surprise';
 export const MASCOT_RITUAL_EVENT = 'klassio:mascot-class-ritual';
 
 export const MASCOT_RITUALS = [
+  { action: 'read', icon: '📖', label: 'Flüsterlesen', title: 'Lesen mit einem sichtbaren Timer' },
+  { action: 'tidy', icon: '🧺', label: 'Aufräumen', title: 'Die Klasse Schritt für Schritt beim Aufräumen begleiten' },
+  { action: 'reflect', icon: '💬', label: 'Abschlussrunde', title: 'Drei kurze Fragen am Ende der Stunde' },
   { action: 'praise', icon: '⭐', label: 'Geschafft!', title: 'Gemeinsamen Erfolg feiern' },
   { action: 'calm', icon: '🌿', label: 'Ruhepause', title: 'Ruhige Haltung zeigen' },
   { action: 'encourage', icon: '💛', label: 'Mut machen', title: 'Freundliche Haltung zeigen' },
@@ -25,7 +28,7 @@ export function isClassMascotAction(value: unknown): value is ClassMascotAction 
 
 interface MascotClassroomCue {
   text: string;
-  durationMs: number;
+  durationMs?: number;
 }
 
 /** Cues are transient. These actions never change a class's saved mascot mood or stars. */
@@ -41,7 +44,24 @@ export const MASCOT_CLASSROOM_CUES: Partial<Record<ClassMascotAction, readonly M
     { text: 'Leg dein Material bereit.', durationMs: 7000 },
     { text: 'Beginne mit der ersten Aufgabe.', durationMs: 5000 },
   ],
+  read: [
+    { text: 'Buch auf! Wie lange lesen wir?' },
+    { text: 'Lest leise für euch.' },
+    { text: 'Lesezeit vorbei. Legt ein Lesezeichen ein.' },
+  ],
+  tidy: [
+    { text: 'Legt die Hefte und Stifte an ihren Platz.' },
+    { text: 'Räumt euren Tisch frei.' },
+    { text: 'Schaut unter den Tisch. Ist der Boden sauber?' },
+  ],
+  reflect: [
+    { text: 'Was hast du heute gelernt?' },
+    { text: 'Was hat heute gut geklappt?' },
+    { text: 'Was möchtest du noch üben?' },
+  ],
 };
+
+export const MASCOT_READING_MINUTES = [2, 4, 6] as const;
 
 export interface ClassMascotState {
   version: 1;
