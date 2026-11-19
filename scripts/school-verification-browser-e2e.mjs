@@ -537,7 +537,7 @@ async function verifyDirectCockpitNavigation(client) {
     String.raw`(() => {const b=document.querySelector('nav[aria-label="Meine Widget-Favoriten"] button[aria-label="Meine Widget-Leiste anpassen"]');if(!b)return false;b.click();return true;})()`);
   if (!openedDockSettings) throw new Error('Could not open new dock settings.');
   await waitFor(client, 'favorite choices above the dock',
-    String.raw`(() => {const panel=document.querySelector('[role="dialog"][aria-label="Widget-Leiste anpassen"]');return !!panel&&panel.textContent.includes('Wochenplan')&&panel.textContent.includes('Glücksrad');})()`);
+    String.raw`(() => {const panel=document.querySelector('[role="dialog"][aria-label="Widget-Leiste anpassen"]');return !!panel&&panel.textContent.includes('Ich bin da!')&&panel.textContent.includes('Waldruhe');})()`);
   const disabledFavorites = await evaluate(client,
     String.raw`(() => {const panel=document.querySelector('[role="dialog"][aria-label="Widget-Leiste anpassen"]');const input=panel?.querySelector('input[type="checkbox"]');if(!input||!input.checked)return false;input.click();return true;})()`);
   if (!disabledFavorites) throw new Error('Could not hide favorite shortcuts.');
@@ -546,7 +546,7 @@ async function verifyDirectCockpitNavigation(client) {
   await clickButton(client, 'Standard wiederherstellen');
   await clickButton(client, 'Ja, Standard laden');
   await waitFor(client, 'dock reset restores favorites',
-    String.raw`(() => {const dock=document.querySelector('nav[aria-label="Meine Widget-Favoriten"]');return !!dock&&dock.querySelectorAll('.klassio-dock-favorite').length>=6;})()`);
+    String.raw`(() => {const dock=document.querySelector('nav[aria-label="Meine Widget-Favoriten"]');return !!dock&&Array.from(dock.querySelectorAll('[data-dock-favorite-id]')).map(b=>b.dataset.dockFavoriteId).join(',')==='kidattendance,waldruhe,timeline,instruction,timer';})()`);
   await evaluate(client,
     String.raw`(() => {document.querySelector('nav[aria-label="Meine Widget-Favoriten"] button[aria-label="Meine Widget-Leiste anpassen"]')?.click();return true;})()`);
   await evaluate(client, `document.querySelector('button[aria-label="Cockpit-Einstellungen"]').click()`);
