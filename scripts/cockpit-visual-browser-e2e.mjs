@@ -364,6 +364,29 @@ async function main() {
 
     await clickLabel(client, 'Klassenmaskottchen ausblenden');
 
+    await clickButton(client, 'Widget hinzufügen');
+    await fill(client, 'Widget suchen', 'Shy Safari');
+    await waitFor(client, 'Waldruhe is findable under Shy Safari',
+      `Boolean(document.querySelector('button[aria-label="Waldruhe (Shy Safari) öffnen"]'))`);
+    await clickLabel(client, 'Waldruhe (Shy Safari) öffnen');
+    const forest = `document.querySelector('[data-practice-root="waldruhe"]')`;
+    const forestProgress = `Number(${forest}?.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow'))`;
+    await waitFor(client, 'Waldruhe opens with its updated title',
+      `Boolean(${forest}) && document.querySelector('[data-widget-type="waldruhe"]')?.getAttribute('data-widget-title')?.includes('Waldruhe (Shy Safari)')`);
+    await clickButton(client, 'Ohne Mikrofon testen');
+    await waitFor(client, 'quiet time visibly advances', `${forestProgress} >= 5`);
+    await clickButton(client, 'Laut');
+    await waitFor(client, 'loud signal pauses the quiet countdown', `${forest}?.textContent.includes('Ruhezeit pausiert')`);
+    const pausedForestProgress = await evaluate(client, forestProgress);
+    await sleep(650);
+    if (await evaluate(client, forestProgress) !== pausedForestProgress) throw Error('Waldruhe gained quiet time during the loud signal');
+    await screenshot(client, 'waldruhe-paused');
+    await clickButton(client, 'Leise');
+    await waitFor(client, 'quiet resumes from the previous progress', `${forestProgress} > ${pausedForestProgress}`);
+    await waitFor(client, 'the first animal appears after quiet time', `${forest}?.textContent.includes('1 von 5 Tieren')`);
+    await clickButton(client, 'Test beenden');
+    await waitFor(client, 'stopping clears the countdown and the animals', `!${forest}?.querySelector('[role="progressbar"]') && ${forest}?.textContent.includes('0 von 5 Tieren')`);
+
     console.log('✓ Cockpit visual QA passed for '+WIDTH+'×'+HEIGHT+'. Board primary, students restorable, award modes distinct.');
   } catch(error) {
     try {await screenshot(client,'FAIL');}catch{}

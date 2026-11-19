@@ -813,9 +813,9 @@ async function main() {
     await waitFor(client, 'student-list resize grip returns after closing the picker', `Boolean(document.querySelector('[aria-label="Breite der Schülerliste ändern"]'))`);
     await clickButton(client, 'Widget hinzufügen');
     await clickButton(client, 'Kernwidgets');
-    await setInputByLabel(client, 'Widget suchen', 'Waldruhe');
-    await waitFor(client, 'Waldruhe is listed as a core widget', `Boolean(document.querySelector('button[aria-label="Waldruhe öffnen"]'))`);
-    await clickSelector(client, 'button[aria-label="Waldruhe öffnen"]');
+    await setInputByLabel(client, 'Widget suchen', 'Shy Safari');
+    await waitFor(client, 'Waldruhe is listed as a core widget', `Boolean(document.querySelector('button[aria-label="Waldruhe (Shy Safari) öffnen"]'))`);
+    await clickSelector(client, 'button[aria-label="Waldruhe (Shy Safari) öffnen"]');
     const waldruheWidget = '[data-widget-type="waldruhe"]';
     const waldruhePanel = `document.querySelector('[data-practice-root="waldruhe"]')`;
     await waitFor(client, 'Waldruhe opens on the classroom board', `Boolean(${waldruhePanel})`);

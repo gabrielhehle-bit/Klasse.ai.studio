@@ -1,5 +1,5 @@
 import { PLANNED_COCKPIT_WIDGETS } from '../components/cockpit/plannedCockpitCatalog';
-import { COCKPIT_WIDGET_LIBRARY_ITEMS, matchesCockpitWidgetSearch } from './cockpitWidgetCatalog';
+import { COCKPIT_WIDGET_LIBRARY_ITEMS, getCockpitWidgetCanonicalDisplayLabel, matchesCockpitWidgetSearch } from './cockpitWidgetCatalog';
 
 // Selection only: saved types, layouts and per-widget settings are not migrated.
 export const COCKPIT_REGULAR_WIDGETS = [
@@ -10,7 +10,7 @@ export const COCKPIT_REGULAR_WIDGETS = [
   { id: 'homework', label: 'Hausübungen', sources: ['homework'] },
   { id: 'starsreview', label: 'Sterne der Woche', sources: ['starsreview'] },
   { id: 'dictionary', label: 'Bildwörterbuch', sources: ['dictionary'] },
-  { id: 'waldruhe', label: 'Waldruhe', sources: ['waldruhe'] },
+  { id: 'waldruhe', label: getCockpitWidgetCanonicalDisplayLabel('waldruhe'), sources: ['waldruhe'] },
   { id: 'breathing', label: 'Atempause', sources: ['breathing'] },
 ];
 
