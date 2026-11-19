@@ -21,6 +21,7 @@ interface Props {
   onCompactToggle?: () => void;
   socialMode?: boolean;
   onBadgeRequest?: (studentId: string) => void;
+  isBirthday?: (student: Student) => boolean;
 }
 
 /**
@@ -45,6 +46,7 @@ export function PublicStudentListWidget({
   onCompactToggle,
   socialMode = false,
   onBadgeRequest,
+  isBirthday,
 }: Props) {
   const students = app.schueler ?? [];
   const containerRef = useRef<HTMLElement>(null);
@@ -175,9 +177,13 @@ export function PublicStudentListWidget({
             : undefined;
           const isRecentlyAwarded = recentlyAwardedId === student.id;
           const earnedBadges = getCockpitEarnedBadges(student, showEarnedBadges, compactGrid ? 2 : 3);
+          const birthday = isBirthday?.(student) === true;
+          const displayName = labels.get(student.id);
+          const birthdayIcon = birthday ? <span role="img" aria-label="Geburtstag" className="shrink-0 text-sm leading-none">🎂</span> : undefined;
+          const name = birthday ? <span className="cockpit-birthday-name">{displayName}</span> : displayName;
           const cardTone = isRecentlyAwarded
             ? (socialMode ? 'border-sky-300 bg-sky-50/90 ring-2 ring-sky-200/80' : 'border-emerald-300 bg-emerald-50/90 ring-2 ring-emerald-200/80')
-            : 'border-slate-200 bg-white hover:border-slate-300';
+            : birthday ? 'cockpit-birthday-card' : 'border-slate-200 bg-white hover:border-slate-300';
           const undoAward = () => {
             if (getTodayPoints(student.id) > 0) removeParticipation(student.id);
             setLastAwardedId(null);
@@ -185,12 +191,13 @@ export function PublicStudentListWidget({
           };
           if (compactGrid) {
             return (
-              <div key={student.id} role="listitem"
+              <div key={student.id} role="listitem" data-birthday-student={birthday || undefined}
                 className={`flex min-h-0 min-w-0 items-center justify-between gap-1.5 rounded-lg border px-1.5 py-0.5 ${cardTone}`}>
                 <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
                   <div className="flex min-w-0 items-center gap-0.5">
+                    {birthdayIcon}
                     <span className="min-w-0 flex-1 truncate text-xs font-semibold leading-tight text-slate-900" title={labels.get(student.id)}>
-                      {onBadgeRequest ? <button type="button" className="max-w-full truncate text-left font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600" aria-label={`Badges für ${labels.get(student.id)} vergeben`} title="Badges vergeben" onClick={() => onBadgeRequest(student.id)}>{labels.get(student.id)}</button> : labels.get(student.id)}
+                      {onBadgeRequest ? <button type="button" className="max-w-full truncate text-left font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600" aria-label={`Badges für ${labels.get(student.id)} vergeben`} title="Badges vergeben" onClick={() => onBadgeRequest(student.id)}>{name}</button> : name}
                     </span>
                     {(earnedBadges.visible.length > 0 || earnedBadges.more > 0) && <button type="button" onClick={() => setBadgeDetailsStudentId(student.id)}
                       aria-label={`Verdiente Badges von ${labels.get(student.id)} ansehen`} title="Verdiente Badges ansehen"
@@ -230,7 +237,7 @@ export function PublicStudentListWidget({
             );
           }
           return (
-            <div key={student.id} role="listitem"
+            <div key={student.id} role="listitem" data-birthday-student={birthday || undefined}
               style={gridMode || sidebarCompact ? { minHeight: sidebarCompact ? 48 : 58 } : undefined}
               className={`min-w-0 shadow-sm transition-[border-color,background-color,box-shadow] duration-150 ${cardTone} ${sidebar ? 'rounded-lg border px-2 py-1' : gridMode ? 'rounded-2xl border-2 px-1.5 py-1' : dense ? 'rounded-xl border px-1.5 py-0.5' : 'rounded-2xl border-2 px-3 py-2'}`}>
               <div className="flex min-w-0 items-center justify-between gap-1">
@@ -259,8 +266,9 @@ export function PublicStudentListWidget({
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="flex min-w-0 items-center gap-1">
+                      {birthdayIcon}
                       <span className={`min-w-0 flex-1 truncate font-extrabold leading-tight text-slate-900 ${gridMode ? 'text-xs sm:text-sm' : dense ? 'text-xs' : 'text-base'}`} title={labels.get(student.id)}>
-                        {onBadgeRequest ? <button type="button" className="max-w-full truncate text-left font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600" aria-label={`Badges für ${labels.get(student.id)} vergeben`} onClick={() => onBadgeRequest(student.id)}>{labels.get(student.id)}</button> : labels.get(student.id)}
+                        {onBadgeRequest ? <button type="button" className="max-w-full truncate text-left font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600" aria-label={`Badges für ${labels.get(student.id)} vergeben`} onClick={() => onBadgeRequest(student.id)}>{name}</button> : name}
                       </span>
                       {(earnedBadges.visible.length > 0 || earnedBadges.more > 0) && <button type="button" onClick={() => setBadgeDetailsStudentId(student.id)}
                         aria-label={`Verdiente Badges von ${labels.get(student.id)} ansehen`} title="Verdiente Badges ansehen"

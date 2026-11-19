@@ -12810,6 +12810,10 @@ ${content}
                           getTodayPoints={sidebarParticipationKind === "social" ? sid => getSocialStars(app, sid) : getTodayPoints}
                           addParticipation={sidebarParticipationKind === "social" ? addSocialParticipation : addParticipation}
                           removeParticipation={sidebarParticipationKind === "social" ? removeSocialParticipation : removeParticipation}
+                          isBirthday={student =>
+                            app.unterrichtsmodus_geburtstagskinder?.includes(student.id) === true ||
+                            checkIsAutoBirthday(student.geburtstag || student.geburtsdatum)
+                          }
                           onBehaviorStageChange={setStudentBehavior}
                           sidebar
                           sidebarCompact={sidebarMode === "mini"}
