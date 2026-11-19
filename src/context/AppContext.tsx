@@ -7,7 +7,7 @@ import { removeStudentFromAppState } from '../lib/studentState';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import localforage from 'localforage';
-import { AppState, Student } from '../types';
+import { AppState, ClassRoom, Student } from '../types';
 import { DEFAULT_TAGEPLAN, FAECHER_ALLE, STUNDEN_INFO, DEFAULT_YEARLY_SUBJECTS, DEFAULT_FACH_COLORS } from '../constants';
 import { getKW, getCurrentSchuljahr } from '../lib/utils';
 import { toLocalDateKey } from '../lib/localDate';
@@ -57,9 +57,10 @@ import {
   type AccountSyncStatus,
 } from '../lib/accountSyncService';
 import { registerActiveAppStateGetter } from '../services/aiService';
-import { ensureRegisteredTeamTeachingDevice, pullSharedClass, pushSharedClass } from '../lib/teamTeachingService';
+import { ensureRegisteredTeamTeachingDevice, pullSharedClass, pullSharedClassRevision, pushSharedClass } from '../lib/teamTeachingService';
 import { classRoomFingerprint } from '../lib/teamTeachingCrypto';
-import { adoptAcknowledgedTeamRoom, shouldAcknowledgeMatchingTeamSnapshot } from '../lib/teamTeachingProjection';
+import { mergeTeamClassRevisions } from '../lib/teamTeachingMerge';
+import { adoptAcknowledgedTeamRoom, stageMergedTeamRoom, shouldAcknowledgeMatchingTeamSnapshot } from '../lib/teamTeachingProjection';
 import { normalizeSchulart } from '../lib/schularten';
 
 localforage.config({
@@ -979,15 +980,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, [isLoaded, isVaultUnlocked]);
 
-  const activeTeamSharedId = app.classes
-    ?.find(room => room.id === app.activeClassId)
-    ?.teamTeaching?.sharedClassId;
+  const activeTeamRoom = app.classes?.find(room => room.id === app.activeClassId);
+  const activeTeamSharedId = activeTeamRoom?.teamTeaching?.sharedClassId;
+  const teamContentHash = React.useMemo(
+    () => activeTeamSharedId && activeTeamRoom ? classRoomFingerprint(activeTeamRoom) : undefined,
+    [activeTeamRoom, activeTeamSharedId],
+  );
+  const pendingTeamHash = teamContentHash !== activeTeamRoom?.teamTeaching?.lastSyncedHash
+    ? teamContentHash : undefined;
+  const teamRevision = activeTeamRoom?.teamTeaching?.revision;
+  const requestTeamSyncRef = useRef<(() => void) | null>(null);
 
   // Teamteaching: encrypted class-only sync with optimistic revision protection.
   useEffect(() => {
     if (!isLoaded || !isVaultUnlocked || !activeTeamSharedId) return;
 
     let active = true;
+    let unresolvedMerge: string | undefined;
 
     const setLocalTeamStatus = (
       status: 'idle' | 'syncing' | 'synced' | 'conflict' | 'error',
@@ -1013,7 +1022,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
     };
 
-    const applyRemoteRoom = (remoteRoom: any, expectedLocalId: string, expectedRevision: number, expectedHash: string) => {
+    const applyRemoteRoom = (
+      remoteRoom: ClassRoom,
+      expectedLocalId: string,
+      expectedRevision: number,
+      expectedHash: string,
+      mergedRoom?: ClassRoom,
+    ) => {
       setApp(prev => {
         const current = syncActiveClass(prev);
         const stillActive = current.classes?.find(room => room.id === expectedLocalId);
@@ -1024,15 +1039,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           || stillActive.teamTeaching.revision !== expectedRevision
           || classRoomFingerprint(stillActive) !== expectedHash
           || remoteRoom.id !== expectedLocalId) return prev;
-        const room = {
-          ...remoteRoom,
-          teamTeaching: {
-            ...remoteRoom.teamTeaching,
-            syncStatus: 'synced' as const,
-            syncMessage: undefined,
-          },
-        };
-        return adoptAcknowledgedTeamRoom({ ...current, activeClassId: undefined }, room);
+        const state = { ...current, activeClassId: undefined };
+        return mergedRoom
+          ? stageMergedTeamRoom(state, remoteRoom, mergedRoom)
+          : adoptAcknowledgedTeamRoom(state, remoteRoom);
       });
     };
 
@@ -1092,15 +1102,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const baseline = latestMeta.lastSyncedHash;
         const meta = latestMeta;
 
-        // Adding a colleague/device bumps the server revision even if the
-        // encrypted class contents did NOT change. Do not label a teacher's
-        // unsent weekly lesson as a conflicting edit in this case.
-        const metadataOnlyRevision = Boolean(
-          baseline && remoteHash === baseline && remote.detail.revision > meta.revision
-        );
-        // Two devices can reach exactly the same class content despite a prior
-        // 409 conflict. Accept the server receipt instead of leaving the second
-        // teacher permanently blocked by a conflict that no longer exists.
         if (shouldAcknowledgeMatchingTeamSnapshot(
           localHash, remoteHash, meta.revision, remote.detail.revision,
           meta.syncStatus, Boolean(baseline),
@@ -1108,37 +1109,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
           applyRemoteRoom(remote.room, latestRoom.id, meta.revision, localHash);
           return;
         }
-        if (meta.syncStatus === 'conflict' && localHash !== baseline && remoteHash !== baseline) {
-          // Genuine competing lesson changes: no automatic overwrite.
-          return;
-        }
 
         if (remote.detail.revision > meta.revision) {
-          if (baseline && localHash !== baseline) {
-            if (metadataOnlyRevision && meta.role !== 'viewer') {
-              setLocalTeamStatus('syncing', 'Neue Teamfreigabe erkannt. Deine lokale Wochenplanung wird ohne Überschreiben abgeglichen.');
-              try {
-                const ready = {
-                  ...latestRoom,
-                  teamTeaching: { ...meta, revision: remote.detail.revision, role: remote.detail.myRole },
-                };
-                const pushed = await pushSharedClass(ready);
-                if (active) updateAfterPush(pushed.revision, localHash, pushed);
-              } catch (error: any) {
-                setLocalTeamStatus(
-                  error?.code === 'REVISION_CONFLICT' || error?.status === 409 ? 'conflict' : 'error',
-                  error instanceof Error ? error.message : 'Der gemeinsame Wochenplan konnte noch nicht übertragen werden.',
-                );
-              }
-              return;
-            }
-            setLocalTeamStatus(
-              'conflict',
-              'Die Klasse wurde gleichzeitig auf einem anderen Gerät geändert. Deine lokale Änderung wurde nicht überschrieben.',
-            );
+          if (localHash === baseline || (!baseline && meta.revision === 0)) {
+            applyRemoteRoom(remote.room, latestRoom.id, meta.revision, localHash);
             return;
           }
-          applyRemoteRoom(remote.room, latestRoom.id, meta.revision, localHash);
+          const mergeAttempt = JSON.stringify([meta.revision, remote.detail.revision, localHash, baseline]);
+          if (meta.syncStatus === 'conflict' && unresolvedMerge === mergeAttempt) return;
+          if (baseline && remote.detail.myRole !== 'viewer') {
+            try {
+              const historical = remoteHash === baseline
+                ? remote.room : (await pullSharedClassRevision(activeTeamSharedId, meta.revision)).room;
+              if (!active) return;
+              const project = (room: ClassRoom) => adoptAcknowledgedTeamRoom(
+                { ...latest, activeClassId: undefined }, { ...room, teamTeaching: remote.room.teamTeaching },
+              ).classes.find(item => item.id === room.id)!;
+              const rawBaseline = classRoomFingerprint(historical) === baseline;
+              const base = rawBaseline ? historical : project(historical);
+              const head = rawBaseline ? remote.room : project(remote.room);
+              if (classRoomFingerprint(base) === baseline) {
+                const merged = mergeTeamClassRevisions(base, latestRoom, head);
+                if (merged.room) {
+                  applyRemoteRoom(remote.room, latestRoom.id, meta.revision, localHash, merged.room);
+                  return;
+                }
+              }
+            } catch (error: any) {
+              // Old rooms can lack an archived baseline. Keep both edits for manual review;
+              // a temporary network or authorization failure must still retry normally.
+              if (error?.status !== 404) throw error;
+            }
+          }
+          unresolvedMerge = mergeAttempt;
+          setLocalTeamStatus('conflict', 'Einige Einträge brauchen einen Abgleich im Klassenteam. Deine Eingaben sind lokal gespeichert.');
           return;
         }
 
@@ -1172,8 +1176,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           } catch (error: any) {
             if (error?.code === 'REVISION_CONFLICT' || error?.status === 409) {
               setLocalTeamStatus(
-                'conflict',
-                'Eine andere Lehrperson hat gleichzeitig gespeichert. Nichts wurde überschrieben.',
+                'idle',
+                'Die Änderungen werden mit dem aktuellen Teamstand abgeglichen.',
               );
             } else {
               setLocalTeamStatus('error', error instanceof Error ? error.message : 'Teamteaching-Sync fehlgeschlagen.');
@@ -1225,6 +1229,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
     const reconnectWhenOnline = () => { connectTeamEvents(); void syncOnce(); };
     const refreshWhenFocused = () => { if (document.visibilityState === 'visible') void syncOnce(); };
+    requestTeamSyncRef.current = () => void syncOnce();
     connectTeamEvents();
     const startup = window.setTimeout(() => void syncOnce(), 650);
     const interval = window.setInterval(() => void syncOnce(), 2500);
@@ -1233,6 +1238,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     document.addEventListener('visibilitychange', refreshWhenFocused);
     return () => {
       active = false;
+      requestTeamSyncRef.current = null;
       teamEvents?.close();
       window.clearTimeout(startup);
       window.clearInterval(interval);
@@ -1241,6 +1247,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       document.removeEventListener('visibilitychange', refreshWhenFocused);
     };
   }, [activeTeamSharedId, isLoaded, isVaultUnlocked, setApp]);
+
+  // A saved classroom edit wakes the team sync immediately; the interval only
+  // backs up dropped events, reconnects and edits made during an in-flight request.
+  useEffect(() => {
+    if (!isLoaded || !isVaultUnlocked || !pendingTeamHash) return;
+    const timer = window.setTimeout(() => requestTeamSyncRef.current?.(), 180);
+    return () => window.clearTimeout(timer);
+  }, [activeTeamSharedId, isLoaded, isVaultUnlocked, pendingTeamHash, teamRevision]);
 
   // Tab Close & Refresh Intercept: Ensure synced / pending changes are secured
   useEffect(() => {

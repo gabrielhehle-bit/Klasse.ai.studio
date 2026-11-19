@@ -45,6 +45,24 @@ export function adoptAcknowledgedTeamRoom(state: AppState, receivedRoom: ClassRo
   };
 }
 
+/** Adopt the remote baseline and keep the merged result pending until its write is acknowledged. */
+export function stageMergedTeamRoom(state: AppState, remote: ClassRoom, merged: ClassRoom): AppState {
+  const acknowledged = adoptAcknowledgedTeamRoom(state, remote);
+  const meta = acknowledged.classes.find(room => room.id === remote.id)?.teamTeaching;
+  if (!meta) return acknowledged;
+  const staged = adoptAcknowledgedTeamRoom(
+    { ...acknowledged, activeClassId: undefined }, { ...merged, teamTeaching: meta },
+  );
+  return {
+    ...staged,
+    classes: staged.classes.map(room => room.id !== remote.id || !room.teamTeaching
+      || room.teamTeaching.lastSyncedHash === meta.lastSyncedHash ? room : {
+      ...room,
+      teamTeaching: { ...meta, syncStatus: 'idle' },
+    }),
+  };
+}
+
 /**
  * A previously conflicting device can accept the authoritative server receipt
  * without discarding local work when the encrypted class CONTENT already matches.

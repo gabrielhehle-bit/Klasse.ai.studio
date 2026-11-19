@@ -319,6 +319,53 @@ async function reloadExistingTeamVault(client, password) {
   await waitFor(client, 'same shared class restored', 'document.body?.innerText.includes("E2E 1A")', 45000);
 }
 
+async function checkParallelWeeklyEdits(anna, berta) {
+  const entries = [
+    { client: anna, slot: 0, topic: 'E2E Paralleländerung Lehrkraft A' },
+    { client: berta, slot: 1, topic: 'E2E Paralleländerung Lehrkraft B' },
+  ];
+  const heldWrites = new Map();
+  for (const { client } of entries) {
+    client.on('Fetch.requestPaused', ({ requestId }) => heldWrites.set(client, requestId));
+    await client.send('Fetch.enable', {
+      patterns: [{ urlPattern: '*/api/teamteaching/classes/*/snapshot' }],
+    });
+  }
+
+  try {
+    await Promise.all(entries.map(async ({ client, slot, topic }) => {
+      const opened = await evaluate(client, `(() => {
+        const cells = Array.from(document.querySelectorAll('svg.lucide-plus')).map(svg => {
+          let cell = svg.parentElement;
+          while (cell && !cell.classList.contains('group/cell')) cell = cell.parentElement;
+          return cell?.classList.contains('min-h-[5.3125rem]') ? cell : undefined;
+        }).filter(Boolean);
+        cells[${slot}]?.click();
+        return Boolean(cells[${slot}]);
+      })()`);
+      if (!opened) throw new Error(client.name + ': missing empty weekly cell for concurrent edit');
+      await waitFor(client, 'parallel lesson form opens', 'document.body.innerText.includes("Einheit planen")');
+      await setInputByLabel(client, 'Was wird gelernt?', topic);
+      await clickButton(client, 'Einheit speichern');
+    }));
+
+    // Both requests must be prepared against the same server revision before
+    // either can write. This reliably reproduces the real 409/retry path.
+    const deadline = Date.now() + 15000;
+    while (heldWrites.size < entries.length && Date.now() < deadline) await sleep(100);
+    if (heldWrites.size < entries.length) throw new Error('Both team writes must race on the same revision.');
+    await Promise.all(entries.map(({ client }) =>
+      client.send('Fetch.continueRequest', { requestId: heldWrites.get(client) })
+    ));
+  } finally {
+    await Promise.all(entries.map(({ client }) => client.send('Fetch.disable')));
+  }
+
+  const seesBoth = entries.map(({ topic }) => 'document.body.innerText.includes(' + q(topic) + ')').join(' && ');
+  await Promise.all(entries.map(({ client }) => waitFor(client, 'both parallel edits appear automatically', seesBoth)));
+  console.log('✓ Parallel weekly edits from both accounts automatically merge into the shared class');
+}
+
 async function main() {
   await fs.rm(SMTP_CODES, { force: true }).catch(() => {});
 
@@ -422,6 +469,7 @@ async function main() {
       throw failure;
     }
     console.log('✓ Cross-account weekly lesson shared automatically without manual send');
+    await checkParallelWeeklyEdits(anna, berta);
 
     await openClassTeam(anna);
     await openClassTeam(berta);

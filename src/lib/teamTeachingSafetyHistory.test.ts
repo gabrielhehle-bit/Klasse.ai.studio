@@ -100,6 +100,21 @@ test('Disjoint weekly lessons merge without erasing either colleague, same lesso
   assert.equal(resolved.room?.wochenplanung[39].Mittwoch[0].thema, 'Zahlen');
 });
 
+test('A newly planned week and independently added notes can be merged on both devices', () => {
+  const original = { id: 'original', text: 'Vorhanden' };
+  const localNote = { id: 'local', text: 'Von A' };
+  const remoteNote = { id: 'remote', text: 'Von B' };
+  const base = room({}, [original]);
+  const local = room({ 39: { Mittwoch: { 0: { thema: 'Lesen' } } } }, [localNote, original]);
+  const remote = room({ 39: { Mittwoch: { 1: { thema: 'Rechnen' } } } }, [original, remoteNote]);
+  const merged = mergeTeamClassRevisions(base, local, remote);
+  assert.deepEqual(merged.conflicts, []);
+  assert.deepEqual(merged.room?.wochenplanung, {
+    39: { Mittwoch: { 0: { thema: 'Lesen' }, 1: { thema: 'Rechnen' } } },
+  });
+  assert.deepEqual(merged.room?.notes, [localNote, original, remoteNote]);
+});
+
 test('Concurrent changes to the same sensitive array cannot be silently combined or overwritten', () => {
   const base = room({}, [{ id: 'n1', content: 'Original' }]);
   const local = room({}, [{ id: 'n1', content: 'Lokal' }]);
