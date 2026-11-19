@@ -11,6 +11,8 @@ import {
 
 type Props = {
   settings: CockpitQuickbarSettings;
+  editing: boolean;
+  setEditing: React.Dispatch<React.SetStateAction<boolean>>;
   onChange: (update: (settings: CockpitQuickbarSettings) => CockpitQuickbarSettings) => void;
   onReset: () => void;
   onOpenWidget: (id: CockpitQuickbarId) => void;
@@ -27,11 +29,10 @@ type Props = {
 
 /** The dock only sends commands; it never copies, resets or writes widget layouts. */
 export function CockpitWidgetDock({
-  settings, onChange, onReset, onOpenWidget, onAddWidget,
+  settings, editing, setEditing, onChange, onReset, onOpenWidget, onAddWidget,
   onToggleMascot, mascotVisible, activeTypes, minimizedTypes = [], onRestoreMinimized, hasClass,
   reservedRightPx = 0,
 }: Props) {
-  const [editing, setEditing] = useState(false);
   const [availableWidth, setAvailableWidth] = useState(0);
   const [draggedFavoriteId, setDraggedFavoriteId] = useState<CockpitQuickbarId | null>(null);
   const [search, setSearch] = useState('');
@@ -83,7 +84,7 @@ export function CockpitWidgetDock({
     };
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [editing]);
+  }, [editing, setEditing]);
 
   // A short favorite list may show labels; larger lists stay compact and use tooltips.
   // This prevents truncated names and keeps the dock readable on the board edge.

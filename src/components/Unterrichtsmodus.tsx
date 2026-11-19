@@ -3029,7 +3029,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const isLayoutLocked = false;
   const isLayoutEditing = true;
   const [isMoreOptionsMenuOpen, setIsMoreOptionsMenuOpen] = useState(false);
-  const [isQuickBarSettingsOpen, setIsQuickBarSettingsOpen] = useState(false);
+  const [isDockSettingsOpen, setIsDockSettingsOpen] = useState(false);
   const [showBoardTools, setShowBoardTools] = useState(false);
   const [isAddWidgetMenuOpen, setIsAddWidgetMenuOpen] = useState(false);
   const [isWidgetConfigurationOpen, setIsWidgetConfigurationOpen] = useState(false);
@@ -3116,7 +3116,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       delete next[boardTextClassKey];
       return { ...prev, boardSettings: { ...(prev.boardSettings || {}), cockpitQuickbarByClass: next } };
     });
-    setIsQuickBarSettingsOpen(false);
+    setIsDockSettingsOpen(false);
   };
   const boardInkItems: InkItem[] = Array.isArray((app.boardSettings as any)?.cockpitInkByClass?.[boardPageStorageKey])
     ? ((app.boardSettings as any).cockpitInkByClass[boardPageStorageKey] as InkItem[])
@@ -3189,7 +3189,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     setWidgetSettingsOpenId(null);
     setIsAddWidgetMenuOpen(false);
     setIsWidgetConfigurationOpen(false);
-    setIsQuickBarSettingsOpen(false);
+    setIsDockSettingsOpen(false);
     setIsMoreOptionsMenuOpen(false);
     setIsSlotMenuOpen(false);
     setTimerToCloseId(null);
@@ -3235,7 +3235,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     setWidgetSettingsOpenId(null);
     setIsAddWidgetMenuOpen(false);
     setIsWidgetConfigurationOpen(false);
-    setIsQuickBarSettingsOpen(false);
+    setIsDockSettingsOpen(false);
     setIsMoreOptionsMenuOpen(false);
     setIsSlotMenuOpen(false);
     setTimerToCloseId(null);
@@ -3289,7 +3289,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     setWidgetSettingsOpenId(null);
     setIsAddWidgetMenuOpen(false);
     setIsWidgetConfigurationOpen(false);
-    setIsQuickBarSettingsOpen(false);
+    setIsDockSettingsOpen(false);
     setIsMoreOptionsMenuOpen(false);
     setIsSlotMenuOpen(false);
     setTimerToCloseId(null);
@@ -3377,7 +3377,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     setWidgetSettingsOpenId(null);
     setIsAddWidgetMenuOpen(false);
     setIsWidgetConfigurationOpen(false);
-    setIsQuickBarSettingsOpen(false);
+    setIsDockSettingsOpen(false);
     setIsMoreOptionsMenuOpen(false);
     setIsSlotMenuOpen(false);
     setTimerToCloseId(null);
@@ -3440,7 +3440,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     setIsBoardTextEditing(false);
     setBoardTool('select');
-    setIsQuickBarSettingsOpen(false);
+    setIsDockSettingsOpen(false);
   }, [boardTextClassKey]);
 
   useEffect(() => {
@@ -4519,7 +4519,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     setWidgetSettingsOpenId(null);
     setIsAddWidgetMenuOpen(false);
     setIsWidgetConfigurationOpen(false);
-    setIsQuickBarSettingsOpen(false);
+    setIsDockSettingsOpen(false);
     setIsMoreOptionsMenuOpen(false);
     setIsSlotMenuOpen(false);
     setTimerToCloseId(null);
@@ -7098,6 +7098,11 @@ ${content}
 
   const [pendingParticipation, setPendingParticipation] = useState<{ sid: string; classId: string; event?: React.MouseEvent; onAwarded?: (subject: string) => void; inSidebar: boolean } | null>(null);
   const [isParticipationSettingsOpen, setIsParticipationSettingsOpen] = useState(false);
+  const openParticipationSettings = () => {
+    if (sidebarMode === "hidden") changeSidebarMode(prevSidebarMode);
+    setPendingParticipation(null);
+    setIsParticipationSettingsOpen(true);
+  };
   const [participationResetVersion, setParticipationResetVersion] = useState(0);
   const [badgeStudentId, setBadgeStudentId] = useState<string | null>(null);
   const lastParticipationAward = useRef<{ id: string; sid: string; classId: string; subject: string } | null>(null);
@@ -9983,60 +9988,34 @@ ${content}
                                     ? "bg-white border-slate-200 hover:bg-slate-50 text-slate-700"
                                     : "bg-zinc-900 border-white/10 hover:bg-zinc-800 text-white/80"
                               }`}
-                              aria-label="Weitere Optionen und Layout-Werkzeuge"
-                              title="Weitere Optionen & Layout-Werkzeuge"
+                              aria-label="Cockpit-Einstellungen"
+                              aria-expanded={isMoreOptionsMenuOpen}
+                              aria-controls={isMoreOptionsMenuOpen ? "klassio-cockpit-settings" : undefined}
+                              title="Cockpit-Einstellungen"
                             >
-                              <MoreHorizontal size={14} />
-                              <span className="hidden sm:inline text-[9px] font-black uppercase tracking-wider">Optionen</span>
+                              <Settings2 size={15} aria-hidden="true" />
+                              <span className="hidden sm:inline text-xs font-semibold">Einstellungen</span>
                             </button>
 
                             {isMoreOptionsMenuOpen && (
                               <div
                                 role="menu"
-                                aria-label="Weitere Cockpit-Optionen"
+                                aria-label="Cockpit-Einstellungen"
+                                id="klassio-cockpit-settings"
+                                onKeyDown={event => {
+                                  if (event.key !== "Escape") return;
+                                  setIsMoreOptionsMenuOpen(false);
+                                  document.querySelector<HTMLButtonElement>('button[aria-controls="klassio-cockpit-settings"]')?.focus();
+                                }}
                                 className={`absolute right-0 top-12 w-[min(20rem,calc(100vw-1rem))] max-h-[min(72vh,calc(100dvh-6rem))] overflow-y-auto overscroll-contain rounded-2xl border p-2.5 shadow-2xl flex flex-col gap-1.5 z-[1000] ${
                                   currentIsLight
                                     ? "bg-white border-slate-200 text-slate-800 animate-in fade-in slide-in-from-top-2 duration-150"
                                     : "bg-zinc-900 border-white/10 text-white animate-in fade-in slide-in-from-top-2 duration-150"
                                 }`}
                               >
-                                <div className="px-2 py-1 text-[8.5px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-white/5">
-                                  Gestaltung & Unterricht
-                                </div>
+                                <h3 data-cockpit-settings-section="board" className="border-b border-slate-200 px-2 py-1.5 text-xs font-semibold text-slate-600 dark:border-white/10 dark:text-slate-300">Tafel</h3>
                                 <button type="button" onClick={() => { setIsThemePickerOpen(true); setIsMoreOptionsMenuOpen(false); }}
                                   className="w-full min-h-11 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100">🎨 Design & Farben</button>
-                                <button type="button" onClick={() => { setIsBirthdayCelebrationOpen(true); setIsMoreOptionsMenuOpen(false); }}
-                                  className="w-full min-h-11 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100">🎂 Geburtstag</button>
-                                <button type="button" aria-expanded={isQuickBarSettingsOpen}
-                                  onClick={() => setIsQuickBarSettingsOpen(open => !open)}
-                                  className="w-full min-h-11 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100"
-                                >▤ Widget-Leiste {isQuickBarSettingsOpen ? '▴' : '▾'}</button>
-                                {isQuickBarSettingsOpen && (
-                                  <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800"
-                                    aria-label="Widget-Leiste">
-                                    <div className="flex min-h-11 items-center justify-between gap-3">
-                                      <div>
-                                        <p className="font-bold">Widget-Leiste anzeigen</p>
-                                        <p className="mt-0.5 text-[11px] text-slate-500">{quickBarSettings.itemIds.length} Widgets angeheftet</p>
-                                      </div>
-                                      <label className="relative inline-flex min-h-11 min-w-14 cursor-pointer items-center">
-                                        <input type="checkbox" className="peer sr-only" checked={quickBarSettings.enabled}
-                                          disabled={!app.activeClassId}
-                                          onChange={event => updateQuickBarSettings(settings => ({ ...settings, enabled: event.target.checked }))} />
-                                        <span className="h-7 w-12 rounded-full bg-slate-300 transition-colors peer-checked:bg-indigo-600" />
-                                        <span className="absolute left-1 h-5 w-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
-                                        <span className="sr-only">Widget-Leiste anzeigen</span>
-                                      </label>
-                                    </div>
-                                    <p className="rounded-lg bg-white p-2 leading-relaxed text-slate-600">
-                                      Favoriten verwaltest du direkt über das ⚙️ in der unteren Leiste. Dort kannst du alle Widgets suchen, hinzufügen, sortieren und sicher entfernen.
-                                    </p>
-                                  </div>
-                                )}
-                                <div className="px-2 py-1 text-[8.5px] font-black uppercase tracking-wider text-slate-400">
-                                  Weitere Funktionen
-                                </div>
-
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -10101,11 +10080,7 @@ ${content}
                                   <span>Widgets immer verschiebbar</span>
                                 </div>
 
-                                <div className="h-px bg-slate-100 dark:bg-white/5 my-0.5" />
-                                <div className="px-2 pt-1 text-[8.5px] font-black uppercase tracking-wider text-slate-400">
-                                  Ansicht
-                                </div>
-
+                                <h3 data-cockpit-settings-section="students" className="border-b border-slate-200 px-2 py-1.5 text-xs font-semibold text-slate-600 dark:border-white/10 dark:text-slate-300">Schülerliste</h3>
                                 <label className={`flex min-h-11 w-full shrink-0 cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold leading-5 ${currentIsLight ? "border-slate-200 bg-slate-50 text-slate-800" : "border-white/10 bg-white/5 text-white"}`}
                                   title="Lehrperson schaltet die öffentliche Anzeige der aktuellen Verhaltensstufe an oder aus. Keine privaten Notizen.">
                                   <input type="checkbox" className="h-5 w-5 shrink-0 accent-indigo-600"
@@ -10162,6 +10137,23 @@ ${content}
                                   </span>
                                 </label>
 
+                                <button type="button" className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent dark:hover:bg-white/10"
+                                  onClick={() => { setIsMoreOptionsMenuOpen(false); openParticipationSettings(); }}>
+                                  <Settings2 size={15} aria-hidden="true" /> Mitarbeit einstellen
+                                </button>
+                                <h3 data-cockpit-settings-section="widgets" className="border-b border-slate-200 px-2 py-1.5 text-xs font-semibold text-slate-600 dark:border-white/10 dark:text-slate-300">Widgets</h3>
+                                <button type="button" className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50 dark:hover:bg-white/10" disabled={!app.activeClassId}
+                                  onClick={() => { setIsMoreOptionsMenuOpen(false); setIsDockSettingsOpen(true); }}>
+                                  <Layout size={15} aria-hidden="true" /> Widget-Leiste anpassen
+                                </button>
+                                <button type="button" className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent dark:hover:bg-white/10"
+                                  onClick={() => { openWidgetLibrary(); setIsWidgetConfigurationOpen(true); }}>
+                                  <Settings2 size={15} aria-hidden="true" /> Widget-Voreinstellungen
+                                </button>
+                                <button type="button" className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent dark:hover:bg-white/10"
+                                  onClick={() => { setIsMoreOptionsMenuOpen(false); setIsMascotSettingsOpen(true); }}>
+                                  <span aria-hidden="true">🐾</span> Klassenmaskottchen einstellen
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -10178,6 +10170,9 @@ ${content}
                                   <span>{cockpitWidgets.some(widget => widget.type === "pet" && widget.visible) ? "Klassenmaskottchen schließen" : "Klassenmaskottchen öffnen"}</span>
                                 </button>
 
+                                <h3 data-cockpit-settings-section="actions" className="border-b border-slate-200 px-2 py-1.5 text-xs font-semibold text-slate-600 dark:border-white/10 dark:text-slate-300">Im Unterricht</h3>
+                                <button type="button" onClick={() => { setIsBirthdayCelebrationOpen(true); setIsMoreOptionsMenuOpen(false); }}
+                                  className="w-full min-h-11 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100">🎂 Geburtstag</button>
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -12781,7 +12776,7 @@ ${content}
                             {sidebarMode === "mini" ? <Maximize2 size={16} /> : <Columns3 size={16} />}
                           </button>
                           <button type="button" aria-label="Mitarbeit-Einstellungen der Schüler-Seitenleiste öffnen" title="Schülerliste einstellen"
-                            onClick={() => { setPendingParticipation(null); setIsParticipationSettingsOpen(true); }}
+                            onClick={openParticipationSettings}
                             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600">
                             <Settings2 size={16} />
                           </button>
@@ -12860,6 +12855,8 @@ ${content}
           {cockpitView === "cockpit" && (
             <CockpitWidgetDock
               settings={quickBarSettings}
+              editing={isDockSettingsOpen}
+              setEditing={setIsDockSettingsOpen}
               onChange={updateQuickBarSettings}
               onReset={resetQuickBarSettings}
               onOpenWidget={(id) => {

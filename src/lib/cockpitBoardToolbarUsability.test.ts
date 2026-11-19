@@ -28,20 +28,22 @@ test('Cockpit-Kopfaktionen bleiben mindestens 44px groß und eindeutig beschrift
     '{isMoreOptionsMenuOpen &&',
   );
   assert.match(optionsTrigger, /min-h-11 min-w-11/);
-  assert.match(optionsTrigger, /aria-label="Weitere Optionen und Layout-Werkzeuge"/);
+  assert.match(optionsTrigger, /aria-label="Cockpit-Einstellungen"/);
 });
 
 test('Cockpit-Optionen haben eine benannte Menüfläche und keine 40px-Aktionszeilen mehr', () => {
   const options = between(
-    'role="menu"\n                                aria-label="Weitere Cockpit-Optionen"',
+    'role="menu"\n                                aria-label="Cockpit-Einstellungen"',
     '{/* Layout Slot Menu Modal if opened */}',
   );
   assert.match(options, /min-h-11/);
   assert.match(options, /aria-label="Vorlage erstellen"/);
   assert.match(options, /setVorlagenStartTab\("create"\)/);
-  assert.match(options, /Widget-Leiste anzeigen/);
-  assert.match(options, /relative inline-flex min-h-11 min-w-14/);
-  assert.match(options, /alle Widgets suchen, hinzufügen, sortieren und sicher entfernen/);
+  assert.match(options, /data-cockpit-settings-section="board"/);
+  assert.match(options, /data-cockpit-settings-section="students"/);
+  assert.match(options, /data-cockpit-settings-section="widgets"/);
+  assert.match(options, /setIsDockSettingsOpen\(true\)/);
+  assert.match(options, /setIsWidgetConfigurationOpen\(true\)/);
   assert.doesNotMatch(options, /min-h-(?:9|10)/);
 });
 

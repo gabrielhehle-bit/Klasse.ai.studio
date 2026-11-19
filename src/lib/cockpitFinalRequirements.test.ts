@@ -143,7 +143,7 @@ test("Cockpit: alte Tafel liegt ausschließlich im Archiv", () => {
   assert.match(teachingSurface, /Alte Tafelinhalte öffnen/);
   assert.doesNotMatch(teachingSurface, /Bisherige Tafelinhalte öffnen/);
   const archiveIndex = teachingSurface.indexOf("Alte Tafelinhalte öffnen");
-  const optionsIndex = teachingSurface.lastIndexOf("Weitere Funktionen", archiveIndex);
+  const optionsIndex = teachingSurface.lastIndexOf('data-cockpit-settings-section="actions"', archiveIndex);
   assert.ok(optionsIndex >= 0 && archiveIndex > optionsIndex);
 });
 
@@ -209,7 +209,7 @@ test("Cockpit: erfindet weder Klasse noch Klassentier im frischen Zustand", () =
   assert.doesNotMatch(teachingSurface, /const isEnabled = app\.classPet\?\.enabled \?\? true/);
 });
 
-test("Cockpit: sekundäre Ansichtssteuerung liegt gesammelt unter Optionen", () => {
+test("Cockpit: Ansichtssteuerung liegt gesammelt in den Cockpit-Einstellungen", () => {
   for (const label of [
     "Schülerliste einblenden",
     "Schülerliste ausblenden",
@@ -221,7 +221,7 @@ test("Cockpit: sekundäre Ansichtssteuerung liegt gesammelt unter Optionen", () 
   ]) {
     assert.ok(teachingSurface.includes(label), `Ansichtsoption fehlt: ${label}`);
   }
-  assert.match(teachingSurface, />\s*Ansicht\s*</);
+  assert.match(teachingSurface, /data-cockpit-settings-section="students"/);
   assert.doesNotMatch(teachingSurface, /Functional Controls Buttons Cluster/);
 });
 

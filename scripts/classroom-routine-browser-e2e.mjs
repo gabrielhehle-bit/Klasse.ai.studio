@@ -3854,11 +3854,11 @@ async function main() {
     console.log('✓ Music block: all memory sizes solved by real oscillator pitches; real rhythm/rest/duplicate rules; eight pitches/three timbres, octave, three hearing lengths and three melody excerpts; six robot programs and six guitar strings, real analyser flat/sharp/silence plus denied mic; native frames, full close/restoration and no leaked contexts.');
 
     // Class behavior uses the pupil scale: 1 is positive and must be above 5.
-    await clickSelector(client, '[aria-label="Weitere Optionen und Layout-Werkzeuge"]');
+    await clickSelector(client, '[aria-label="Cockpit-Einstellungen"]');
     const publicBehaviorOption='[aria-label="Verhalten der Kinder öffentlich in der Schülerliste anzeigen"]';
     await waitFor(client, 'public behavior option is visible', `Boolean(document.querySelector(${q(publicBehaviorOption)}))`);
     if(!await evaluate(client, `document.querySelector(${q(publicBehaviorOption)}).checked`))await clickSelector(client,publicBehaviorOption);
-    await clickSelector(client, '[aria-label="Weitere Optionen und Layout-Werkzeuge"]');
+    await clickSelector(client, '[aria-label="Cockpit-Einstellungen"]');
     const behaviorButton='[aria-label="Öffentliche Schülerliste und Pluspunkte"] button[aria-label^="Verhalten von"]';
     await waitFor(client,'public behavior controls available',`Boolean(document.querySelector(${q(behaviorButton)}))`);
     const behaviorChild=await evaluate(client,`document.querySelector(${q(behaviorButton)}).getAttribute('aria-label').match(/^Verhalten von (.+):/)[1]`);

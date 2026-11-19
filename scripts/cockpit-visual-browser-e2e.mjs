@@ -163,6 +163,31 @@ async function main() {
     const restored=await metrics(client);
     console.log('RESTORED '+JSON.stringify(restored));
     if(restored.studentCount!==opened.studentCount||Math.abs(restored.board.w-opened.board.w)>18)throw Error('Sidebar restore changed the board/card state');
+    const openCockpitSettings = () => clickLabel(client, 'Cockpit-Einstellungen');
+    const cockpitSettings = '#klassio-cockpit-settings';
+    await openCockpitSettings();
+    await waitFor(client, 'one cockpit settings entry groups board, pupil list and widgets',
+      `Array.from(document.querySelectorAll('${cockpitSettings} [data-cockpit-settings-section]')).map(x=>x.dataset.cockpitSettingsSection).join(',')==='board,students,widgets,actions'`);
+    await clickButton(client, 'Widget-Leiste anpassen');
+    await waitFor(client, 'central entry opens the existing dock editor',
+      `Boolean(document.querySelector('[role="dialog"][aria-label="Widget-Leiste anpassen"]')) && !document.querySelector('${cockpitSettings}')`);
+    await clickLabel(client, 'Widget-Leiste schließen');
+    await openCockpitSettings();
+    await clickButton(client, 'Widget-Voreinstellungen');
+    await waitFor(client, 'central entry opens widget defaults directly',
+      `document.querySelector('#cockpit-widget-settings')?.getClientRects().length > 0 && !document.querySelector('${cockpitSettings}')`);
+    await clickLabel(client, 'Widget-Bibliothek schließen');
+    await openCockpitSettings();
+    await clickButton(client, 'Mitarbeit einstellen');
+    await waitFor(client, 'central entry opens pupil participation settings',
+      `Boolean(document.querySelector('[role="dialog"][aria-label="Mitarbeit einstellen"]')) && !document.querySelector('${cockpitSettings}')`);
+    await clickLabel(client, 'Mitarbeit-Einstellungen schließen');
+    await openCockpitSettings();
+    await clickButton(client, 'Klassenmaskottchen einstellen');
+    await waitFor(client, 'central entry opens mascot settings',
+      `Boolean(document.querySelector('[aria-label="Klassenmaskottchen-Einstellungen"]')) && !document.querySelector('${cockpitSettings}')`);
+    await clickLabel(client, 'Klassenmaskottchen-Einstellungen schließen');
+
     const modes=await evaluate(client,
       `Array.from(document.querySelectorAll('.klassio-student-sidebar [role=group][aria-label="Pluspunkt-Art"] button')).map(b=>b.textContent.trim())`);
     if(modes.length!==2||!modes[0].startsWith('Mitarbeit')||modes[1]!=='Sozialverhalten')throw Error('Mode labels incorrect: '+JSON.stringify(modes));
