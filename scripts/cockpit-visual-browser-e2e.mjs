@@ -235,9 +235,18 @@ async function checkWaldruheMicrophone(client, forest, forestProgress) {
     `${forest}?.querySelector('[role="alert"]')?.textContent.includes('Erlaube das Mikrofon') && window.__waldruheTracks.length === 3`);
 }
 
+async function searchWidget(client, query) {
+  await clickButton(client, 'Widget hinzufügen');
+  await fill(client, 'Widget suchen', query);
+}
+
 async function checkAssignmentCountdown(client) {
   const dock = `document.querySelector('[data-cockpit-countdown-status]')`;
   const timer = `document.querySelector('[data-timer-widget-status]')`;
+  const endOfCountdown = `(() => {
+    const key = Object.keys(sessionStorage).find(entry => entry.startsWith('klassio-cockpit-countdown:'));
+    return key ? JSON.parse(sessionStorage.getItem(key)).endsAt : null;
+  })()`;
   await evaluate(client, `document.querySelector('[data-dock-favorite-id="instruction"]').click()`);
   await waitFor(client, 'the assignment editor is open',
     `Boolean(document.querySelector('[aria-label="Arbeitsauftrag Haupttext"]'))`);
@@ -250,6 +259,20 @@ async function checkAssignmentCountdown(client) {
   await clickLabel(client, 'Unterrichtstimer anzeigen');
   await waitFor(client, 'the timer widget displays the existing countdown',
     `${timer}?.dataset.timerWidgetStatus === 'running'`);
+  const initialDeadline = await evaluate(client, endOfCountdown);
+  await searchWidget(client, 'Stoppuhr');
+  await waitFor(client, 'the result names the stopwatch and its shared widget',
+    `document.querySelector('[data-testid="cockpit-core-group-timer"] h3')?.textContent === 'Stoppuhr · Timer'`);
+  await clickLabel(client, 'Stoppuhr öffnen');
+  const stopwatch = `document.querySelector('[data-time-tool-panel="stopwatch"]')`;
+  await waitFor(client, 'search opens the stopwatch while the existing countdown keeps running',
+    `${stopwatch}?.hidden === false && ${dock}.dataset.cockpitCountdownStatus === 'running' && ${endOfCountdown} === ${initialDeadline}`);
+  await evaluate(client, `${stopwatch}.querySelector('[data-stopwatch-action="start"]').click()`);
+  await searchWidget(client, 'Countdown');
+  await clickLabel(client, 'Timer öffnen');
+  await waitFor(client, 'opening the countdown keeps the running stopwatch mounted',
+    `${stopwatch}.hidden && Boolean(${stopwatch}.querySelector('[data-stopwatch-action="stop"]'))
+      && ${timer}.dataset.timerWidgetStatus === 'running' && ${endOfCountdown} === ${initialDeadline}`);
   await clickLabel(client, 'Unterrichtstimer pausieren');
   await waitFor(client, 'pausing in the dock also pauses the widget',
     `${timer}?.dataset.timerWidgetStatus === 'paused' && ${dock}?.dataset.cockpitCountdownStatus === 'paused'`);
@@ -265,10 +288,6 @@ async function checkAssignmentCountdown(client) {
     `!${timer} && ${dock}?.dataset.cockpitCountdownStatus === 'running' &&
       document.querySelector('[role="tablist"][aria-label="Tafelseiten"] [aria-selected="true"]').textContent.trim() === '2'`);
   await screenshot(client, 'arbeitsauftrag-timer-tafelseite');
-  const endOfCountdown = `(() => {
-    const key = Object.keys(sessionStorage).find(entry => entry.startsWith('klassio-cockpit-countdown:'));
-    return key ? JSON.parse(sessionStorage.getItem(key)).endsAt : null;
-  })()`;
   const deadline = await evaluate(client, endOfCountdown);
   await clickLabel(client, 'Lehrercockpit schließen · Zurück zu Heute');
   await waitFor(client, 'the cockpit closes with a countdown active', `!document.getElementById('widget-board-stage')`);
@@ -502,6 +521,30 @@ async function checkAttendanceScope(client) {
     `parseInt(${groupCount}, 10) === ${oldCount} &&
       Number(${random}.querySelector('[data-fair-student-count]').dataset.fairStudentCount) === ${oldCount} &&
       ${group}.querySelector('[data-group-student]').dataset.groupStudent === ${q(checkedInId)}`);
+}
+
+async function checkRandomModeSearch(client) {
+  const studio = `document.querySelector('[data-random-selection-studio]')`;
+  const picker = `document.querySelector('[aria-label="Widget-Bibliothek"]')`;
+  const wheel = `${studio}.querySelector('[data-random-selection-panel="wheel"]')`;
+  const winner = `${wheel}.querySelector('[title="Klicken für nochmal drehen"]')`;
+  const activeMode = mode => `${studio}?.querySelector('[data-random-selection-mode="' + ${q(mode)} + '"][aria-pressed="true"]')`;
+  await searchWidget(client, 'Glücksrad');
+  await waitFor(client, 'the result names the wheel and its shared widget',
+    `document.querySelector('[data-testid="cockpit-core-group-randomname"] h3')?.textContent === 'Glücksrad · Zufallsauswahl'`);
+  await clickLabel(client, 'Glücksrad öffnen');
+  await waitFor(client, 'search opens the wheel in the existing selection widget', `Boolean(${activeMode('wheel')})`);
+  await evaluate(client, `${wheel}.querySelector('button[aria-label="Glücksrad drehen"]').click()`);
+  await waitFor(client, 'the wheel is drawing', `${studio}.getAttribute('aria-busy') === 'true'`);
+  await searchWidget(client, 'Faire Runde');
+  await clickLabel(client, 'Faire Runde öffnen');
+  await waitFor(client, 'search does not switch away from an ongoing draw',
+    `Boolean(${picker}) && Boolean(${activeMode('wheel')})`);
+  await waitFor(client, 'the protected draw finishes normally', `Boolean(${winner}) && ${studio}.getAttribute('aria-busy') === 'false'`);
+  const result = await evaluate(client, `${winner}.textContent`);
+  await clickLabel(client, 'Faire Runde öffnen');
+  await waitFor(client, 'the same result opens the fair round after the draw',
+    `!${picker} && Boolean(${activeMode('fair')}) && ${wheel}.hidden && ${winner}.textContent === ${q(result)}`);
 }
 
 async function main() {
@@ -965,6 +1008,7 @@ async function main() {
     await checkAssignmentCountdown(client);
     await checkWidgetGeometry(client);
     await checkAttendanceScope(client);
+    await checkRandomModeSearch(client);
 
     console.log('✓ Cockpit visual QA passed for '+WIDTH+'×'+HEIGHT+'. Board primary, students restorable, award modes distinct.');
   } catch(error) {

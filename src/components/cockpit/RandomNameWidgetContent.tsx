@@ -9,13 +9,14 @@ export interface RandomNameWidgetProps {
   onUpdate?: (updates: Partial<CockpitWidgetConfig>) => void;
   showSettings?: boolean;
   onCloseSettings?: () => void;
+  onBusyChange?: (busy: boolean) => void;
 }
 
 export const RandomNameWidgetContent: React.FC<RandomNameWidgetProps> = ({
   widget,
   app,
   currentIsLight,
-  onUpdate, showSettings, onCloseSettings,
+  onUpdate, showSettings, onCloseSettings, onBusyChange,
 }) => {
   return (
     <RandomSelectionStudio
@@ -25,6 +26,7 @@ export const RandomNameWidgetContent: React.FC<RandomNameWidgetProps> = ({
       onUpdate={onUpdate}
       showSettings={showSettings}
       onCloseSettings={onCloseSettings}
+      onBusyChange={onBusyChange}
     />
   );
 };

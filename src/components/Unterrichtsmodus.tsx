@@ -224,7 +224,7 @@ import { CockpitVorlagenModal } from "./cockpit/CockpitVorlagenModal";
 import { BoardTextEditor } from "./cockpit/BoardTextEditor";
 import { BoardInk, type BoardInkHandle, type InkItem } from "./cockpit/BoardInk";
 import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
-import { COCKPIT_CORE_WIDGETS, getRegularCockpitGroups } from "../lib/cockpitRegularCatalog";
+import { COCKPIT_CORE_WIDGETS, getRegularCockpitGroups, type CockpitWidgetModeTarget } from "../lib/cockpitRegularCatalog";
 import ClassroomWeeklyPlanWidget from "./cockpit/widgets/ClassroomWeeklyPlanWidget";
 import HomeworkWidget from "./cockpit/widgets/HomeworkWidget";
 import StarsReviewWidget from "./cockpit/widgets/StarsReviewWidget";
@@ -2979,6 +2979,10 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   // Minimize is intentionally session-local: it never rewrites the saved
   // widget rectangle or stops timers. Closing remains the persistent action.
   const [minimizedWidgetIds, setMinimizedWidgetIds] = useState<string[]>([]);
+  const randomSelectionBusy = useRef(false);
+  const setRandomSelectionBusy = useCallback((busy: boolean) => {
+    randomSelectionBusy.current = busy;
+  }, []);
   useEffect(() => { setMinimizedWidgetIds([]); }, [app.activeClassId]);
   // Widgets bleiben immer frei verschiebbar. So muss im Unterricht kein
   // separater Layout-Modus ein- oder ausgeschaltet werden.
@@ -4192,21 +4196,26 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
 
   const handleOpenWidgetInCockpitLayout = (
     type: CockpitWidgetConfig["type"],
-    openCountdown = false,
+    requestedMode?: CockpitWidgetModeTarget,
   ) => {
+    // Only the sidebar may provide public plus points now.
+    if (type === "studentlist") return;
+    const targetWidget = cockpitWidgets.find(widget => widget.type === type);
+    if (!targetWidget) return;
+    const activeMode = requestedMode?.type === type ? requestedMode : undefined;
+    if (activeMode?.type === "randomname" && randomSelectionBusy.current &&
+      normalizeRandomSelectionMode(targetWidget.settings?.randomSelectionMode) !== activeMode.mode) {
+      showToast("Die Ziehung läuft. Danach kannst du den Modus wechseln.", "info");
+      return;
+    }
     setMinimizedWidgetIds(current =>
       current.filter(id => cockpitWidgets.find(widget => widget.id === id)?.type !== type),
     );
-    // Only the sidebar may provide public plus points now.
-    if (type === "studentlist") return;
     setRecentWidgetTypes((previous) => {
       const updatedRecent = [String(type), ...previous.filter((entry) => entry !== type)].slice(0, 5);
       localStorage.setItem("cockpit_recent_widget_types", JSON.stringify(updatedRecent));
       return updatedRecent;
     });
-
-    const targetWidget = cockpitWidgets.find(widget => widget.type === type);
-    if (!targetWidget) return;
 
     const def = DEFAULT_COCKPIT_LAYOUT.find((candidate) => candidate.type === type);
     const useOld =
@@ -4322,6 +4331,17 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
 
     const updated = cockpitWidgets.map((widget) => {
       if (widget.type !== type) return widget;
+      const settings = isWhiteboard
+        ? getDrawingOpeningSettings(widget.settings, Boolean(useOld))
+        : type === "kidattendance" && !useOld
+          ? { ...(widget.settings || {}), ...checkInPreset }
+        : type === "groups" && !useOld
+          ? { ...(widget.settings || {}), ...groupPreset }
+        : type === "classweeklyplan" && !useOld
+          ? { ...(widget.settings || {}), ...weeklyPreset }
+        : type === "randomname" && !useOld
+          ? { ...(widget.settings || {}), ...randomPreset }
+        : widget.settings;
       return {
         ...widget,
         visible: true,
@@ -4330,19 +4350,9 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
         y: placement.y,
         w: placement.w,
         h: placement.h,
-        settings: type === "timer" && openCountdown
-          ? { ...widget.settings, timeToolMode: "timer" }
-          : isWhiteboard
-          ? getDrawingOpeningSettings(widget.settings, Boolean(useOld))
-          : type === "kidattendance" && !useOld
-            ? { ...(widget.settings || {}), ...checkInPreset }
-          : type === "groups" && !useOld
-            ? { ...(widget.settings || {}), ...groupPreset }
-          : type === "classweeklyplan" && !useOld
-            ? { ...(widget.settings || {}), ...weeklyPreset }
-          : type === "randomname" && !useOld
-            ? { ...(widget.settings || {}), ...randomPreset }
-          : widget.settings,
+        settings: activeMode?.type === "timer" ? { ...settings, timeToolMode: activeMode.mode }
+          : activeMode?.type === "randomname" ? { ...settings, randomSelectionMode: activeMode.mode }
+          : settings,
       };
     });
 
@@ -4353,6 +4363,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     }));
     const opened = updated.find((widget) => widget.type === type);
     if (opened) bringToFront(opened.id);
+    if (activeMode) setWidgetSettingsOpenId(null);
 
     if (usedOverlapFallback) {
       showToast(
@@ -4360,6 +4371,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
         "info",
       );
     }
+    return true;
   };
 
   const applyGeometryEdit = (changes: CockpitWidgetGeometryChange[], direction: "apply" | "undo") => {
@@ -9652,6 +9664,9 @@ ${content}
                                             </div>
                                           )}
                                           {regularGroups.map((group) => {
+                                            const searchMode = group.openMode;
+                                            const title = searchMode && searchMode.label !== group.label
+                                              ? `${searchMode.label} · ${group.label}` : group.label;
                                             const variants = group.sources
                                               .map((type) => allAvailableWidgets.find((item) => item.type === type))
                                               .filter((item): item is (typeof allAvailableWidgets)[number] => Boolean(item));
@@ -9682,7 +9697,7 @@ ${content}
                                                 </div>
                                                 <div className="min-w-0 flex-1">
                                                   <div className="flex items-center gap-2">
-                                                    <h3 className="truncate text-sm font-black text-slate-900">{group.label}</h3>
+                                                    <h3 className="truncate text-sm font-black text-slate-900">{title}</h3>
                                                     {isMinimized
                                                       ? <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-accent">minimiert</span>
                                                       : isActive && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">offen</span>}
@@ -9736,10 +9751,11 @@ ${content}
                                                   )}
                                                   <button type="button" data-widget-card-action="primary"
                                                     onClick={() => {
-                                                      handleOpenWidgetInCockpitLayout(primaryType as CockpitWidgetConfig["type"]);
-                                                      setIsAddWidgetMenuOpen(false);
+                                                      if (handleOpenWidgetInCockpitLayout(group.id, searchMode)) {
+                                                        setIsAddWidgetMenuOpen(false);
+                                                      }
                                                     }}
-                                                    aria-label={isMinimized ? `${group.label} wiederherstellen` : isActive ? `${group.label} auf der Tafel anzeigen` : `${group.label} öffnen`}
+                                                    aria-label={searchMode ? `${searchMode.label} öffnen` : isMinimized ? `${group.label} wiederherstellen` : isActive ? `${group.label} auf der Tafel anzeigen` : `${group.label} öffnen`}
                                                     title={isMinimized ? "Wiederherstellen" : isActive ? "Auf der Tafel anzeigen" : "Auf der Tafel öffnen"}
                                                     className={`klassio-widget-primary flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-black transition-colors ${
                                                       isActive ? "bg-success text-white hover:bg-success-hover" : "bg-accent text-accent-text hover:bg-accent-hover"
@@ -11745,6 +11761,7 @@ ${content}
                                           widget={widget}
                                           app={app}
                                           currentIsLight={currentIsLight}
+                                          onBusyChange={setRandomSelectionBusy}
                                           onUpdate={updates => handleUpdateWidgetPos(widget.id, updates)}
                                           showSettings={widgetSettingsOpenId === widget.id}
                                           onCloseSettings={() => setWidgetSettingsOpenId(null)}
@@ -12863,7 +12880,7 @@ ${content}
           {cockpitView === "cockpit" && (
             <CockpitWidgetDock
               settings={quickBarSettings}
-              timerControl={<CockpitCountdownDock countdown={countdown} onOpen={() => handleOpenWidgetInCockpitLayout("timer", true)} />}
+              timerControl={<CockpitCountdownDock countdown={countdown} onOpen={() => handleOpenWidgetInCockpitLayout("timer", { type: "timer", mode: "timer" })} />}
               editing={isDockSettingsOpen}
               setEditing={setIsDockSettingsOpen}
               onChange={updateQuickBarSettings}

@@ -1,15 +1,11 @@
-import React, { useRef, useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { CockpitWidgetConfig } from '../../../types';
-import { getTimeToolSettings, normalizeTimeToolMode, updateTimeToolSettings, TimeToolMode } from '../../../lib/timeToolsSettings';
+import { getTimeToolSettings, normalizeTimeToolMode, updateTimeToolSettings, TIME_TOOL_MODES, TIME_TOOL_LABELS, TimeToolMode } from '../../../lib/timeToolsSettings';
 import { TimerWidget, TimerWidgetProps } from './TimerWidget';
 import { StopwatchWidget } from './StopwatchWidget';
 import { ClockWidget } from './ClockWidget';
 
-const modes: { id: TimeToolMode; label: string }[] = [
-  { id: 'timer', label: 'Timer' },
-  { id: 'stopwatch', label: 'Stoppuhr' },
-  { id: 'clock', label: 'Uhrzeit' },
-];
+const modes = TIME_TOOL_MODES.map(id => ({ id, label: TIME_TOOL_LABELS[id] }));
 
 export const TimeToolsStudio: React.FC<TimerWidgetProps> = ({ widget, countdown, onUpdate, currentIsLight,
   showSettings, onOpenSettings, onCloseSettings }) => {
@@ -18,6 +14,9 @@ export const TimeToolsStudio: React.FC<TimerWidgetProps> = ({ widget, countdown,
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const [visited, setVisited] = useState<TimeToolMode[]>([mode]);
+  useLayoutEffect(() => {
+    setVisited(previous => previous.includes(mode) ? previous : [...previous, mode]);
+  }, [mode]);
   const persist = (next: Record<string, any>) => {
     settingsRef.current = next;
     onUpdate?.({ settings: next });
@@ -30,7 +29,6 @@ export const TimeToolsStudio: React.FC<TimerWidgetProps> = ({ widget, countdown,
   });
   const switchMode = (next: TimeToolMode) => {
     onCloseSettings?.();
-    setVisited(previous => previous.includes(next) ? previous : [...previous, next]);
     persist({ ...settingsRef.current, timeToolMode: next });
   };
   const common = { currentIsLight, onOpenSettings, onCloseSettings };

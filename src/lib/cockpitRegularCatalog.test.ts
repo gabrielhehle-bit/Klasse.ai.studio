@@ -28,6 +28,29 @@ test('search groups old names without opening or converting saved variants', () 
   assert.deepEqual(getRegularCockpitGroups('mathe', 'Wasserkreislauf').map(group => group.id), ['watercycle']);
 });
 
+test('search results open the requested tool mode inside the integrated widget', () => {
+  for (const [query, type, mode, label] of [
+    ['Stoppuhr', 'timer', 'stopwatch', 'Stoppuhr'],
+    ['Stoppu', 'timer', 'stopwatch', 'Stoppuhr'],
+    ['Stop Uhr', 'timer', 'stopwatch', 'Stoppuhr'],
+    ['Countdown', 'timer', 'timer', 'Timer'],
+    ['Uhrzeit', 'timer', 'clock', 'Uhrzeit'],
+    ['Glücksrad', 'randomname', 'wheel', 'Glücksrad'],
+    ['gluecksrad', 'randomname', 'wheel', 'Glücksrad'],
+    ['Faire Runde', 'randomname', 'fair', 'Faire Runde'],
+    ['fair-call', 'randomname', 'fair', 'Faire Runde'],
+    ['Namen ziehen', 'randomname', 'names', 'Namen ziehen'],
+  ]) {
+    const result = getRegularCockpitGroups('core', query).find(group => group.id === type);
+    assert.deepEqual(result?.openMode, { type, mode, label }, query);
+  }
+  assert.ok(COCKPIT_CORE_WIDGETS.every(group => group.openMode === undefined));
+  const general = getRegularCockpitGroups('core', 'Zufallsauswahl').find(group => group.id === 'randomname');
+  assert.ok(general);
+  assert.equal(general.openMode, undefined);
+  assert.equal(getRegularCockpitGroups('mathe', 'Wasserkreislauf')[0].openMode, undefined);
+});
+
 test('six core cards start with attendance and Waldruhe', () => {
   assert.deepEqual(COCKPIT_CORE_WIDGETS.map(group => group.id), [
     'kidattendance', 'waldruhe', 'timeline', 'instruction', 'timer', 'groups',
