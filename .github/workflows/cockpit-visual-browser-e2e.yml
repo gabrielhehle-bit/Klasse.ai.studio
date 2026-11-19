@@ -45,6 +45,7 @@ jobs:
           KLASSIO_DATA_DIR: /tmp/klassio-cockpit-visual-data
           KLASSIO_E2E_BASE_URL: http://localhost:3100/login
           KLASSIO_E2E_ACCESS_CODE: ci-cockpit-visual-access-2026
+          KLASSIO_E2E_FAKE_MIC: "1"
           KLASSIO_E2E_WIDTH: ${{ matrix.width }}
           KLASSIO_CHROME_DEBUG_URL: http://127.0.0.1:9292
         run: |
@@ -55,7 +56,22 @@ jobs:
           SERVER_PID=$!
           CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
           if [ -z "$CHROME_BIN" ]; then echo "Chrome binary not found"; exit 1; fi
+          # An actual Chromium capture device reads synthetic PCM: three
+          # seconds of silence, three seconds of noise, then nine of silence.
+          python3 - <<'PYTHON'
+          from array import array
+          from random import Random
+          import wave
+
+          rate = 48_000
+          rng = Random(42)
+          loud = array("h", (rng.randint(-23_000, 23_000) for _ in range(3 * rate)))
+          with wave.open("/tmp/klassio-waldruhe-mic.wav", "wb") as capture:
+              capture.setparams((1, 2, rate, 0, "NONE", "not compressed"))
+              capture.writeframes(bytes(3 * rate * 2) + loud.tobytes() + bytes(9 * rate * 2))
+          PYTHON
           "$CHROME_BIN" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage \
+            --use-fake-device-for-media-stream --use-file-for-fake-audio-capture=/tmp/klassio-waldruhe-mic.wav \
             --remote-debugging-port=9292 --remote-allow-origins=* \
             --user-data-dir=/tmp/klassio-cockpit-visual-chrome about:blank \
             > /tmp/klassio-cockpit-visual-chrome.log 2>&1 &
