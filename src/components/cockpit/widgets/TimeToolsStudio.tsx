@@ -11,7 +11,7 @@ const modes: { id: TimeToolMode; label: string }[] = [
   { id: 'clock', label: 'Uhrzeit' },
 ];
 
-export const TimeToolsStudio: React.FC<TimerWidgetProps> = ({ widget, onUpdate, currentIsLight,
+export const TimeToolsStudio: React.FC<TimerWidgetProps> = ({ widget, countdown, onUpdate, currentIsLight,
   showSettings, onOpenSettings, onCloseSettings }) => {
   const settings = widget.settings || {};
   const mode = normalizeTimeToolMode(settings.timeToolMode);
@@ -50,7 +50,7 @@ export const TimeToolsStudio: React.FC<TimerWidgetProps> = ({ widget, onUpdate, 
       {/* Keep visited tools mounted: switching must not reset a live countdown or its alarm. */}
       {(mode === 'timer' || visited.includes('timer')) && (
         <div hidden={mode !== 'timer'} className="min-h-0 flex-1" data-time-tool-panel="timer">
-          <TimerWidget {...common} widget={toolWidget('timer')} onUpdate={updates => updateTool('timer', updates)}
+          <TimerWidget {...common} countdown={countdown} widget={toolWidget('timer')} onUpdate={updates => updateTool('timer', updates)}
             showSettings={mode === 'timer' && showSettings} />
         </div>
       )}

@@ -5,12 +5,14 @@ import {
   Clock, Check, Settings2, RefreshCw, MoreHorizontal, X
 } from 'lucide-react';
 import { CockpitWidgetConfig } from '../../../types';
-import { useApp } from '../../../context/AppContext';
 import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
-import { MAX_CLASS_TIMER_SECONDS, adjustClassTimerMinute, normalizeClassTimerSeconds, classTimerOwnsShortcut } from '../../../lib/classTimerInput';
+import { adjustClassTimerMinute, normalizeClassTimerSeconds, classTimerOwnsShortcut } from '../../../lib/classTimerInput';
+import { getCockpitTimerPreferences, type CockpitAlarmSound } from '../../../lib/cockpitCountdown';
+import { useCockpitCountdownSeconds, type CockpitCountdown } from '../useCockpitCountdown';
 
 export interface TimerWidgetProps {
   widget: CockpitWidgetConfig;
+  countdown: CockpitCountdown;
   onUpdate?: (updates: Partial<CockpitWidgetConfig>) => void;
   currentIsLight: boolean;
   showSettings?: boolean;
@@ -18,9 +20,8 @@ export interface TimerWidgetProps {
   onCloseSettings?: () => void;
 }
 
-type TimerStatus = 'ready' | 'running' | 'paused' | 'expired';
 type VisualMode = 'ring' | 'progress' | 'minimal';
-type AlarmSound = 'bell' | 'bowl' | 'beep';
+type AlarmSound = CockpitAlarmSound;
 
 const PRESET_LIST = [
   { label: '1 Min', shortLabel: '1m', seconds: 60 },
@@ -33,33 +34,28 @@ const PRESET_LIST = [
 
 export const TimerWidget: React.FC<TimerWidgetProps> = ({
   widget,
+  countdown,
   onUpdate,
   currentIsLight,
   showSettings: externalShowSettings,
   onOpenSettings,
   onCloseSettings,
 }) => {
-  const { setApp } = useApp();
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef);
   useWidgetOverflowGuard('TimerWidget', containerRef);
 
-  // Settings from widget.settings
-  const savedSettings = widget.settings || {};
-  const defaultDuration = typeof savedSettings.preferredDuration === 'number' && Number.isInteger(savedSettings.preferredDuration) && savedSettings.preferredDuration >= 1 && savedSettings.preferredDuration <= MAX_CLASS_TIMER_SECONDS ? savedSettings.preferredDuration : 300;
-  const initialVisualMode: VisualMode = savedSettings.visualMode || 'ring';
-  const initialAlarmSound: AlarmSound = savedSettings.alarmSound || 'bell';
-  const initialIsMuted: boolean = savedSettings.isMuted ?? false;
-
-  // Local state
-  const [initialSeconds, setInitialSeconds] = useState<number>(defaultDuration);
-  const [remainingSeconds, setRemainingSeconds] = useState<number>(defaultDuration);
-  const [status, setStatus] = useState<TimerStatus>('ready');
-  const [endTimestamp, setEndTimestamp] = useState<number | null>(null);
-
-  const [visualMode, setVisualMode] = useState<VisualMode>(initialVisualMode);
-  const [alarmSound, setAlarmSound] = useState<AlarmSound>(initialAlarmSound);
-  const [isMuted, setIsMuted] = useState<boolean>(initialIsMuted);
+  const preferences = getCockpitTimerPreferences(widget.settings);
+  const [readySeconds, setReadySeconds] = useState(preferences.duration);
+  useEffect(() => setReadySeconds(preferences.duration), [preferences.duration]);
+  const { run } = countdown;
+  const countdownSeconds = useCockpitCountdownSeconds(run);
+  const status = run?.status ?? 'ready';
+  const initialSeconds = run?.duration ?? readySeconds;
+  const remainingSeconds = countdownSeconds ?? readySeconds;
+  const alarm = run && run.status !== 'expired' ? run.alarm : preferences.alarm;
+  const { sound: alarmSound, muted: isMuted } = alarm;
+  const visualMode: VisualMode = widget.settings?.visualMode || 'ring';
 
   // Overlays / Popovers
   const [isCustomTimeOpen, setIsCustomTimeOpen] = useState(false);
@@ -75,10 +71,6 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
   };
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
-  // Audio Context
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const hasAlarmTriggeredRef = useRef(false);
-
   const persistSettings = useCallback((updates: Record<string, any>) => {
     if (onUpdate) {
       onUpdate({
@@ -89,152 +81,6 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
       });
     }
   }, [onUpdate, widget.settings]);
-
-  // Audio Engine: Pure Web Audio API (100% offline, leak-free)
-  const getAudioContext = useCallback(() => {
-    if (!audioCtxRef.current) {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) {
-        audioCtxRef.current = new AudioCtx();
-      }
-    }
-    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
-      audioCtxRef.current.resume().catch(() => {});
-    }
-    return audioCtxRef.current;
-  }, []);
-
-  const playAlarmSound = useCallback((soundType: AlarmSound) => {
-    if (isMuted) return;
-    try {
-      const ctx = getAudioContext();
-      if (!ctx) return;
-      const now = ctx.currentTime;
-
-      if (soundType === 'bowl') {
-        const freqs = [261.63, 523.25, 784.88];
-        freqs.forEach((freq, idx) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq + (idx * 0.75), now);
-          const volume = idx === 0 ? 0.35 : 0.15 / idx;
-          gain.gain.setValueAtTime(0.001, now);
-          gain.gain.linearRampToValueAtTime(volume, now + 0.08);
-          gain.gain.exponentialRampToValueAtTime(0.0001, now + 3.5);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(now);
-          osc.stop(now + 3.5);
-        });
-      } else if (soundType === 'beep') {
-        [0, 0.18].forEach((delay, idx) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(idx === 0 ? 880 : 1046.5, now + delay);
-          gain.gain.setValueAtTime(0.001, now + delay);
-          gain.gain.linearRampToValueAtTime(0.22, now + delay + 0.03);
-          gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.35);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(now + delay);
-          osc.stop(now + delay + 0.35);
-        });
-      } else {
-        const partials = [1, 1.25, 1.5, 2, 2.5, 3];
-        const baseFreq = 392;
-        partials.forEach((p, idx) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(baseFreq * p + (idx === 0 ? 0 : (idx % 2 === 0 ? 1.5 : -1.5)), now);
-          const vol = 0.28 / (idx + 1);
-          gain.gain.setValueAtTime(0.001, now);
-          gain.gain.linearRampToValueAtTime(vol, now + 0.02);
-          const decay = 2.8 / (p * 0.7);
-          gain.gain.exponentialRampToValueAtTime(0.0001, now + decay);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(now);
-          osc.stop(now + decay);
-        });
-      }
-    } catch {
-      // Graceful fallback
-    }
-  }, [getAudioContext, isMuted]);
-
-  useEffect(() => {
-    return () => {
-      if (audioCtxRef.current) {
-        try {
-          audioCtxRef.current.close().catch(() => {});
-        } catch {}
-        audioCtxRef.current = null;
-      }
-    };
-  }, []);
-
-  const syncToBoardSettings = useCallback((running: boolean, end: number | null, total: number) => {
-    setApp((prev) => ({
-      ...prev,
-      boardSettings: {
-        ...prev.boardSettings,
-        timerRunning: running,
-        timerEnd: end ?? undefined,
-        timerTotal: total,
-      },
-    }));
-  }, [setApp]);
-
-  // High-precision Tick Engine
-  useEffect(() => {
-    if (status !== 'running' || !endTimestamp) return;
-
-    const interval = setInterval(() => {
-      const now = Date.now();
-      const diff = Math.max(0, Math.ceil((endTimestamp - now) / 1000));
-      setRemainingSeconds(diff);
-
-      if (diff === 0) {
-        setStatus('expired');
-        setEndTimestamp(null);
-        syncToBoardSettings(false, null, initialSeconds);
-
-        if (!hasAlarmTriggeredRef.current) {
-          hasAlarmTriggeredRef.current = true;
-          playAlarmSound(alarmSound);
-        }
-      }
-    }, 250);
-
-    return () => clearInterval(interval);
-  }, [status, endTimestamp, initialSeconds, alarmSound, playAlarmSound, syncToBoardSettings]);
-
-  // Page Visibility API - zero drift
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && status === 'running' && endTimestamp) {
-        const now = Date.now();
-        const diff = Math.max(0, Math.ceil((endTimestamp - now) / 1000));
-        setRemainingSeconds(diff);
-
-        if (diff === 0) {
-          setStatus('expired');
-          setEndTimestamp(null);
-          syncToBoardSettings(false, null, initialSeconds);
-          if (!hasAlarmTriggeredRef.current) {
-            hasAlarmTriggeredRef.current = true;
-            playAlarmSound(alarmSound);
-          }
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [status, endTimestamp, initialSeconds, alarmSound, playAlarmSound, syncToBoardSettings]);
 
   // Keyboard Shortcuts (Space, R)
   useEffect(() => {
@@ -258,105 +104,32 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   });
 
-  const handleStart = () => {
-    const totalToRun = remainingSeconds > 0 ? remainingSeconds : initialSeconds;
-    const target = Date.now() + totalToRun * 1000;
-    setRemainingSeconds(totalToRun);
-    setEndTimestamp(target);
-    setStatus('running');
-    hasAlarmTriggeredRef.current = false;
-    syncToBoardSettings(true, target, totalToRun);
-  };
-
-  const handlePause = () => {
-    if (status === 'running' && endTimestamp) {
-      const now = Date.now();
-      const currentRemaining = Math.max(0, Math.ceil((endTimestamp - now) / 1000));
-      setRemainingSeconds(currentRemaining);
-      setEndTimestamp(null);
-      setStatus('paused');
-      syncToBoardSettings(false, null, initialSeconds);
-    }
-  };
-
-  const handleResume = () => {
-    if (remainingSeconds > 0) {
-      const target = Date.now() + remainingSeconds * 1000;
-      setEndTimestamp(target);
-      setStatus('running');
-      syncToBoardSettings(true, target, initialSeconds);
-    } else {
-      handleStart();
-    }
-  };
-
+  const handleStart = () => countdown.start(readySeconds, alarm);
+  const handlePause = countdown.pause;
+  const handleResume = countdown.resume;
   const handleReset = () => {
-    setStatus('ready');
-    setEndTimestamp(null);
-    setRemainingSeconds(initialSeconds);
-    hasAlarmTriggeredRef.current = false;
-    syncToBoardSettings(false, null, initialSeconds);
+    setReadySeconds(initialSeconds);
+    countdown.reset();
   };
+  const handleRestartSameTime = () => countdown.start(initialSeconds, alarm);
 
-  const handleRestartSameTime = () => {
-    const target = Date.now() + initialSeconds * 1000;
-    setRemainingSeconds(initialSeconds);
-    setEndTimestamp(target);
-    setStatus('running');
-    hasAlarmTriggeredRef.current = false;
-    syncToBoardSettings(true, target, initialSeconds);
-  };
-
-  const handleSelectPreset = (secs: number) => {
-    setInitialSeconds(secs);
-    setRemainingSeconds(secs);
-    setEndTimestamp(null);
-    setStatus('ready');
-    hasAlarmTriggeredRef.current = false;
-    persistSettings({ preferredDuration: secs });
-    syncToBoardSettings(false, null, secs);
+  const handleSelectPreset = (total: number) => {
+    setReadySeconds(total);
+    countdown.reset();
+    persistSettings({ preferredDuration: total });
     setShowMoreMenu(false);
   };
 
-  const handleAddMinute = () => {
-    if (status === 'running' && endTimestamp) {
-      const now = Date.now();
-      const currentRemaining = Math.max(0, Math.ceil((endTimestamp - now) / 1000));
-      const newEnd = now + adjustClassTimerMinute(currentRemaining, 1) * 1000;
-      setEndTimestamp(newEnd);
-      const newRemaining = Math.ceil((newEnd - Date.now()) / 1000);
-      setRemainingSeconds(newRemaining);
-      syncToBoardSettings(true, newEnd, initialSeconds);
+  const handleAdjustMinute = (delta: 1 | -1) => {
+    if (status === 'ready' || status === 'expired') {
+      setReadySeconds(adjustClassTimerMinute(status === 'expired' ? initialSeconds : readySeconds, delta));
+      if (status === 'expired') countdown.reset();
     } else {
-      const newSecs = adjustClassTimerMinute(remainingSeconds, 1);
-      setRemainingSeconds(newSecs);
-      if (status === 'ready') setInitialSeconds(newSecs);
+      countdown.adjust(delta);
     }
   };
-
-  const handleSubtractMinute = () => {
-    if (status === 'running' && endTimestamp) {
-      const newEnd = Math.max(Date.now(), endTimestamp - 60 * 1000);
-      setEndTimestamp(newEnd);
-      const newRemaining = Math.max(0, Math.ceil((newEnd - Date.now()) / 1000));
-      setRemainingSeconds(newRemaining);
-      if (newRemaining === 0) {
-        setStatus('expired');
-        setEndTimestamp(null);
-        syncToBoardSettings(false, null, initialSeconds);
-        if (!hasAlarmTriggeredRef.current) {
-          hasAlarmTriggeredRef.current = true;
-          playAlarmSound(alarmSound);
-        }
-      } else {
-        syncToBoardSettings(true, newEnd, initialSeconds);
-      }
-    } else {
-      const newSecs = adjustClassTimerMinute(remainingSeconds, -1);
-      setRemainingSeconds(newSecs);
-      if (status === 'ready') setInitialSeconds(newSecs);
-    }
-  };
+  const handleAddMinute = () => handleAdjustMinute(1);
+  const handleSubtractMinute = () => handleAdjustMinute(-1);
 
   const handleApplyCustomTime = () => {
     let total: number;
@@ -367,31 +140,23 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
       return;
     }
     setCustomTimeError('');
-    setInitialSeconds(total);
-    setRemainingSeconds(total);
-    setEndTimestamp(null);
-    setStatus('ready');
-    hasAlarmTriggeredRef.current = false;
     setIsCustomTimeOpen(false);
-    setShowMoreMenu(false);
-    persistSettings({ preferredDuration: total });
-    syncToBoardSettings(false, null, total);
+    handleSelectPreset(total);
   };
 
   const handleToggleMute = () => {
-    const nextMuted = !isMuted;
-    setIsMuted(nextMuted);
-    persistSettings({ isMuted: nextMuted });
+    const muted = !isMuted;
+    persistSettings({ isMuted: muted });
+    countdown.setAlarm({ sound: alarmSound, muted });
   };
 
-  const handleSelectSound = (snd: AlarmSound) => {
-    setAlarmSound(snd);
-    persistSettings({ alarmSound: snd });
-    playAlarmSound(snd);
+  const handleSelectSound = (sound: AlarmSound) => {
+    persistSettings({ alarmSound: sound });
+    countdown.setAlarm({ sound, muted: isMuted });
+    countdown.preview({ sound, muted: isMuted });
   };
 
   const handleSelectVisualMode = (mode: VisualMode) => {
-    setVisualMode(mode);
     persistSettings({ visualMode: mode });
   };
 
@@ -431,7 +196,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
 
   return (
     <div
-      ref={containerRef}
+      ref={containerRef} data-timer-widget-status={status}
       tabIndex={0}
       aria-label="Countdown-Timer: Leertaste startet oder pausiert bei fokussiertem Widget, R setzt zurück"
       className={`relative flex flex-col justify-between w-full h-full select-none overflow-hidden transition-colors duration-300 ${

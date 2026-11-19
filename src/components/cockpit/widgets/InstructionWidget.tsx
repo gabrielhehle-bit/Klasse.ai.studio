@@ -18,6 +18,8 @@ export interface InstructionWidgetProps {
   isSplit?: boolean;
   showSettings?: boolean;
   onCloseSettings?: () => void;
+  onStartCountdown?: () => void;
+  hasActiveCountdown?: boolean;
 }
 
 // Social Form Options
@@ -53,6 +55,8 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
   currentIsLight,
   showSettings: externalShowSettings,
   onCloseSettings,
+  onStartCountdown,
+  hasActiveCountdown,
 }) => {
   const settings = widget.settings || {};
 
@@ -158,7 +162,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
   }, []);
 
   // Save changes & switch to student view
-  const handleSaveAndShow = useCallback(() => {
+  const handleSaveAndShow = useCallback((startTimer = false) => {
     const trimmedTask = draftTaskText.trim();
 
     const updatedSettings = {
@@ -168,7 +172,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
       details: draftDetails.trim(),
       socialForm: draftSocialForm,
       materials: draftMaterials,
-      timeEstimate: draftTimeEstimate.trim(),
+      timeEstimate: startTimer ? "5 Minuten" : draftTimeEstimate.trim(),
       bonusTask: draftBonusTask.trim(),
       checklist: draftChecklist,
       fontSizeScale: draftFontSizeScale,
@@ -189,6 +193,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
       }));
     }
 
+    if (startTimer) onStartCountdown?.();
     setIsEditing(false);
     onCloseSettings?.();
   }, [
@@ -207,6 +212,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
     onUpdate,
     setApp,
     onCloseSettings,
+    onStartCountdown,
   ]);
 
   // Cancel edit without saving
@@ -645,7 +651,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                 )}
                 <button
                   type="button"
-                  onClick={handleSaveAndShow}
+                  onClick={() => handleSaveAndShow()}
                   className="min-h-11 px-4 rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95"
                 >
                   <Eye size={16} />
@@ -653,6 +659,13 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                 </button>
               </div>
             </div>
+
+            {onStartCountdown && (
+              <button type="button" onClick={() => handleSaveAndShow(true)} disabled={!draftTaskText.trim()}
+                className="min-h-11 rounded-xl border border-accent bg-accent-soft px-3 text-sm font-bold text-accent hover:bg-accent/10 disabled:opacity-50">
+                {hasActiveCountdown ? 'Anzeigen und Timer auf 5 Min. neu starten' : 'Anzeigen und 5 Min. starten'}
+              </button>
+            )}
 
             {/* Subject (Optional) + Quick Chips */}
             <div>
@@ -1003,7 +1016,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
 
             <button
               type="button"
-              onClick={handleSaveAndShow}
+              onClick={() => handleSaveAndShow()}
               className="flex-1 min-h-[46px] rounded-xl bg-accent hover:bg-accent-hover text-accent-text font-black text-sm flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all active:scale-98"
             >
               <Eye size={18} />
