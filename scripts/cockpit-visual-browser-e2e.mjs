@@ -401,11 +401,13 @@ async function checkAttendanceScope(client) {
     `Boolean(document.querySelector('#widget-board-stage [data-widget-type="kidattendance"]'))`);
   const openCorrection = () => clickLabel(client, 'Anwesenheit bearbeiten: Da, Fehlt oder Entschuldigt');
   const correction = `document.querySelector('[aria-label="Lehrer-Anwesenheitskorrektur"]')`;
+  const closeCorrection = () => evaluate(client, `Array.from(${correction}.querySelectorAll('button'))
+    .find(button => button.textContent.trim() === 'Schließen').click()`);
   const attendanceRows = `Array.from(${correction}.querySelectorAll('[aria-label^="Anwesenheit von "]'))`;
   await openCorrection();
   await waitFor(client, 'three example pupils are available for attendance', `${attendanceRows}.length >= 3`);
   await evaluate(client, `${attendanceRows}[1].querySelector('button[aria-label$=": Entschuldigt"]').click()`);
-  await clickButton(client, 'Fertig');
+  await closeCorrection();
   await clickLabel(client, 'Ich bin da! einklappen');
 
   await openFromGroupCard('primary');
@@ -427,7 +429,7 @@ async function checkAttendanceScope(client) {
   await evaluate(client, `document.querySelector('[data-dock-favorite-id="kidattendance"]').click()`);
   await openCorrection();
   await evaluate(client, `${attendanceRows}[0].querySelector('button[aria-label$=": Da"]').click()`);
-  await clickButton(client, 'Fertig');
+  await closeCorrection();
   await clickLabel(client, 'Ich bin da! einklappen');
   const afterCheckIn = q('1 da · ' + (oldCount - 1) + ' offen');
   await waitFor(client, 'the same new check-in appears live in both participant pools',
