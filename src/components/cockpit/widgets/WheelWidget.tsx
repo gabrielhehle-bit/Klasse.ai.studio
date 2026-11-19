@@ -7,10 +7,8 @@ import {
 import { CockpitWidgetConfig, AppState } from '../../../types';
 import { useApp } from '../../../context/AppContext';
 import { getActiveClassContext } from '../../../lib/activeClassContext';
-import {
-  getDisplayStudentName,
-  getPresentStudents,
-} from '../studentSelectionUtils';
+import { getCockpitStudentPool, normalizeCockpitStudentScope } from '../../../lib/cockpitStudentScope';
+import { getDisplayStudentName } from '../studentSelectionUtils';
 import { availableWheelIndices, wheelTargetRotation } from '../../../lib/wheelWidgetModel';
 
 export interface WheelWidgetProps {
@@ -188,7 +186,14 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
   // Schülerliste (falls Schüler-Modus aktiv)
   const activeClass = getActiveClassContext(app);
   const allStudents = activeClass.students;
-  const presentStudents = getPresentStudents(allStudents, app);
+  const studentScope = normalizeCockpitStudentScope(settings.studentScope);
+  const { students: presentStudents } = useMemo(
+    () => getCockpitStudentPool(allStudents, app, studentScope),
+    [allStudents, app, studentScope],
+  );
+  const studentPoolKey = mode === 'students' ? JSON.stringify([activeClass.classId, presentStudents.map(student => student.id)]) : '';
+  const studentPoolKeyRef = useRef(studentPoolKey);
+  studentPoolKeyRef.current = studentPoolKey;
 
   // Historie für "Ohne Zurücklegen" (flüchtig im Speicher)
   const [drawnHistory, setDrawnHistory] = useState<number[]>([]);
@@ -231,6 +236,14 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
   // Timeout- und Audio-Referenzen für sauberen Unmount
   const timeoutsRef = useRef<number[]>([]);
   const audioCtxRef = useRef<AudioContext | null>(null);
+
+  useEffect(() => {
+    timeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+    timeoutsRef.current = [];
+    spinningRef.current = false;
+    setIsSpinning(false);
+    setWinner(null);
+  }, [studentPoolKey]);
 
   const getAudioContext = useCallback(() => {
     if (!soundEnabled) return null;
@@ -345,6 +358,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
 
     // Abschluss nach Ablauf der Drehdauer
     const finishId = window.setTimeout(() => {
+      if (studentPoolKeyRef.current !== studentPoolKey) return;
       spinningRef.current = false;
       setIsSpinning(false);
       setWinner(chosenWinner);
@@ -360,7 +374,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
     }, duration);
 
     timeoutsRef.current.push(finishId);
-  }, [hasEnoughItems, baseItems, availableIndices, rotationAngle, getAudioContext, soundEnabled, noRepeat]);
+  }, [hasEnoughItems, baseItems, availableIndices, rotationAngle, getAudioContext, soundEnabled, noRepeat, studentPoolKey]);
 
   // Native spin button and the focused wheel handle keyboard input locally;
   // a global listener must not steal Enter or Space from the whiteboard.
@@ -418,6 +432,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
   return (
     <div
       ref={containerRef}
+      data-wheel-student-count={mode === 'students' ? presentStudents.length : undefined}
       className={`relative flex flex-col justify-between w-full h-full ${isSmall ? 'p-1' : 'p-1.5 sm:p-2'} rounded-2xl overflow-hidden select-none border transition-colors duration-200 ${
         currentIsLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-950 border-white/10'
       }`}
@@ -438,7 +453,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
                   ? 'Freie Auswahloptionen'
                   : mode === 'numbers'
                     ? `Zahlen 1 bis ${numberRange}`
-                    : 'Spielerische Schülerauswahl'}
+                    : `${presentStudents.length} zur Auswahl`}
               </span>
             )}
           </div>
@@ -628,7 +643,7 @@ export const WheelWidget: React.FC<WheelWidgetProps> = ({
               {mode === 'students' && allStudents.length === 0
                 ? 'In dieser Klasse sind noch keine Kinder eingetragen.'
                 : mode === 'students'
-                  ? 'Aktuell sind weniger als zwei Kinder anwesend.'
+                  ? 'Für das Schülerrad müssen mindestens zwei Kinder ausgewählt sein.'
                   : 'Das Glücksrad benötigt mindestens zwei Einträge. Bitte Optionen hinzufügen.'}
             </p>
             <button

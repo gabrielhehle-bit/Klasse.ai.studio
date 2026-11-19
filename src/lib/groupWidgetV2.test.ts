@@ -93,13 +93,13 @@ test('Widget 2: all groups are accessible together in expanded view, never silen
 
 test('Widget 2: rapid picker updates do not get overwritten by group edits', () => {
   assert.match(widget, /only persist fields changed by this group action/i);
-  const persist = widget.slice(widget.indexOf('const persistState'), widget.indexOf('// Die Auswahl kommt aus'));
+  const persist = widget.slice(widget.indexOf('const persistState'), widget.indexOf('const studentScope'));
   assert.doesNotMatch(persist, /mode: updatedMode|targetValue: updatedValue/);
   assert.match(persist, /\.\.\.\(persistNamingStyle \? \{ namingStyle: updatedNamingStyle \} : \{\}\)/);
   assert.match(widget, /const namingStyle: 'numbered'/);
   assert.match(widget, /setPausedStudentIds\(next\)/);
   assert.doesNotMatch(widget, /setPausedStudentIds\(prev =>/);
-  assert.match(widget, /studentScope === 'all' \? allStudents : presentStudents\)\.map/);
+  assert.match(widget, /candidates\.map\(\(st\)/);
   assert.match(surface, /w\.type === "groups" && updates\.settings/);
   assert.match(surface, /settings: \{ \.\.\.\(w\.settings \|\| \{\}\), \.\.\.updates\.settings \}/);
 });

@@ -1,3 +1,5 @@
+import { normalizeCockpitStudentScope, type CockpitStudentScope } from './cockpitStudentScope';
+
 /**
  * Transient classroom random picker. Never manufactures pupils or writes attendance.
  * The caller supplies pupils from the currently active class and today's absence filter.
@@ -46,7 +48,7 @@ export function randomSelectionPage<T>(
 /** Configuration of new widget instances. Existing instance settings are independent. */
 export interface RandomNameWidgetPreferences {
   selectionMode: 'independent' | 'round';
-  studentScope: 'present' | 'all';
+  studentScope: CockpitStudentScope;
   soundEnabled: boolean;
   animationEnabled: boolean;
   startSize: 'compact' | 'standard' | 'large';
@@ -56,7 +58,7 @@ export function getRandomNameWidgetPreferences(settings: unknown): RandomNameWid
   const value = settings && typeof settings === 'object' ? settings as Record<string, unknown> : {};
   return {
     selectionMode: value.selectionMode === 'round' ? 'round' : 'independent',
-    studentScope: value.studentScope === 'all' ? 'all' : 'present',
+    studentScope: normalizeCockpitStudentScope(value.studentScope),
     soundEnabled: value.soundEnabled !== false,
     animationEnabled: value.animationEnabled !== false,
     startSize: value.startSize === 'compact' || value.startSize === 'standard' ? value.startSize : 'large',

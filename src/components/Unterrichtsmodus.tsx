@@ -231,6 +231,7 @@ import StarsReviewWidget from "./cockpit/widgets/StarsReviewWidget";
 import { getCheckInMode, getCheckInPreferences } from "../lib/checkInWidgetMode";
 import { normalizeRandomSelectionMode } from "../lib/randomSelectionSettings";
 import { getRandomNameWidgetPreferences } from "../lib/randomNameWidgetModel";
+import { COCKPIT_STUDENT_SCOPES } from "../lib/cockpitStudentScope";
 import { getGroupWidgetPreferences, applyGroupWidgetPreference, type GroupWidgetPreferences } from "../lib/groupWidgetPreferences";
 import { getClassroomWeeklyWidgetPreferences } from "../lib/classroomWeeklyWidgetPreferences";
 import { COCKPIT_PAPERS, getCockpitPaperStyle, normalizeCockpitPaperSpacing, type CockpitPaper } from "../lib/cockpitPaper";
@@ -9314,10 +9315,7 @@ ${content}
                                             <legend className="text-sm font-black">Zufallsauswahl · Voreinstellungen</legend>
                                             <div className="rounded-xl border-2 border-accent/30 bg-accent-soft p-3" role="group" aria-label="Teilnehmende Kinder festlegen">
                                               <p className="mb-2 text-sm font-black">Wer soll gezogen werden?</p>
-                                              {([
-                                                ["present", "Heute anwesende Kinder", "Kinder, die heute als abwesend markiert sind, werden nicht gezogen."],
-                                                ["all", "Alle Kinder der Klasse", "Auch als abwesend markierte Kinder können gezogen werden."],
-                                              ] as const).map(([scope, label, detail]) => (
+                                              {COCKPIT_STUDENT_SCOPES.map(({ value: scope, label, description: detail }) => (
                                                 <label key={scope} className="mb-2 flex min-h-11 items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 last:mb-0">
                                                   <input type="radio" name="cockpit-random-scope" value={scope}
                                                     checked={randomNameDefaults.studentScope === scope}
@@ -9428,10 +9426,7 @@ ${content}
                                         ) : (
                                           <fieldset className="space-y-3">
                                             <legend className="text-sm font-black">Gruppen bilden · Wer wird eingeteilt?</legend>
-                                            {([
-                                              ["present", "Heute anwesende Kinder", "Kinder mit erfasster Abwesenheit werden nicht eingeteilt."],
-                                              ["all", "Alle Kinder der Klasse", "Auch abwesend erfasste Kinder werden berücksichtigt."],
-                                            ] as const).map(([scope, label, detail]) => (
+                                            {COCKPIT_STUDENT_SCOPES.map(({ value: scope, label, description: detail }) => (
                                               <label key={scope} className="flex min-h-11 items-start gap-3 rounded-xl border border-slate-200 bg-white p-3">
                                                 <input type="radio" name="cockpit-group-scope" value={scope}
                                                   checked={groupDefaults.studentScope === scope}

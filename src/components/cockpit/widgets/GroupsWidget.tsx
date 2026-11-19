@@ -9,11 +9,10 @@ import {
 import { CockpitWidgetConfig, AppState } from '../../../types';
 import { useApp } from '../../../context/AppContext';
 import { getActiveClassContext } from '../../../lib/activeClassContext';
+import { getCockpitStudentPool, normalizeCockpitStudentScope } from '../../../lib/cockpitStudentScope';
 import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
-import {
-  getDisplayStudentName,
-  getPresentStudents
-} from '../studentSelectionUtils';
+import { getDisplayStudentName } from '../studentSelectionUtils';
+import { CockpitStudentScopeControl } from '../CockpitStudentScopeControl';
 import {
   GroupingMode,
   GeneratedGroup,
@@ -64,11 +63,6 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
   // Die aktive Klasse ist die einzige Quelle; leere Klassen bleiben leer.
   const activeClass = getActiveClassContext(app);
   const allStudents = activeClass.students;
-
-  // Automatisch ermittelte anwesende Schüler
-  const presentStudents = useMemo(() => {
-    return getPresentStudents(activeClass.students, app);
-  }, [app?.schueler, app]);
 
   // Settings aus dem Widget oder Standardwerte
   const savedSettings = widget?.settings || {};
@@ -206,14 +200,12 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     }
   }, [onUpdate, widget, propSetGeneratedGroups, setApp, allStudents]);
 
-  // Die Auswahl kommt aus "Widget hinzufügen > Widget-Einstellungen".
-  // Bestehende Layouts ohne studentScope behalten den bisherigen Standard.
-  const studentScope = widget?.settings?.studentScope === 'all' ? 'all' : 'present';
+  const studentScope = normalizeCockpitStudentScope(savedSettings.studentScope);
+  const { students: candidates, present, open } = getCockpitStudentPool(allStudents, app, studentScope);
   const activeStudentIds = useMemo(() => {
     const pausedSet = new Set(pausedStudentIds);
-    const candidates = studentScope === 'all' ? allStudents : presentStudents;
     return candidates.filter(s => !pausedSet.has(s.id)).map(s => s.id);
-  }, [allStudents, presentStudents, pausedStudentIds, studentScope]);
+  }, [candidates, pausedStudentIds]);
 
   // Gruppen erstellen oder neu mischen
   const handleGenerate = useCallback((overrideMode?: GroupingMode, overrideVal?: number) => {
@@ -222,7 +214,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
 
     if (activeStudentIds.length === 0) {
       setFeedbackMessage({
-        text: studentScope === 'all' ? 'Keine Kinder in der Klasse verfügbar.' : 'Keine anwesenden Schüler verfügbar.',
+        text: 'Für diese Einteilung ist kein Kind ausgewählt.',
         type: 'error'
       });
       return;
@@ -276,7 +268,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
         type: 'success'
       });
     }
-  }, [mode, targetValue, namingStyle, pausedStudentIds, notTogether, keepTogether, activeStudentIds, studentScope, persistState, groups, allStudents, groupBodySize.width, groupBodySize.height]);
+  }, [mode, targetValue, namingStyle, pausedStudentIds, notTogether, keepTogether, activeStudentIds, persistState, groups, allStudents, groupBodySize.width, groupBodySize.height]);
 
   const undoMix = () => {
     if (!previousGroups) return;
@@ -480,16 +472,18 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
         </div>
       )}
 
-      {/* The teaching surface contains actions and results only.
-          All group size, count, roster and pair preferences live under
-          Widget hinzufügen → Widget-Einstellungen. */}
+      {/* Choose today's participants beside the action. Other preferences live in the picker. */}
       <div className={`shrink-0 flex flex-wrap items-center justify-between border-b ${compactGroupWidget ? 'gap-1 px-2 py-1' : 'gap-2 p-2 sm:p-3'} ${
         currentIsLight ? 'bg-white border-stone-200' : 'bg-stone-900/90 border-stone-800'
       }`}>
         <div className="min-w-0">
           <p className={`${compactGroupWidget ? 'text-[10px]' : 'text-xs'} font-black`}>{groups.length > 0 && !compactGroupWidget ? "Nächste Einteilung: " : ""}{mode === 'count' ? `${targetValue} Gruppen` : `${targetValue}er-Gruppen`}</p>
-          <p className={`${compactGroupWidget ? 'text-[10px]' : 'text-xs'} opacity-70`}>{activeStudentIds.length} Kinder {compactGroupWidget ? '' : (studentScope === 'all' ? 'aus der Klasse' : 'heute anwesend')}</p>
+          <p data-group-participant-count className={`${compactGroupWidget ? 'text-[10px]' : 'text-xs'} opacity-70`}>
+            {activeStudentIds.length} {activeStudentIds.length === 1 ? 'Kind macht' : 'Kinder machen'} mit
+          </p>
         </div>
+        {onUpdate && <CockpitStudentScopeControl scope={studentScope} present={present} open={open} currentIsLight={currentIsLight}
+          onChange={scope => onUpdate({ settings: { studentScope: scope } })} />}
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
           {!isExpanded && groups.length > 0 && (
             <button type="button" onClick={() => setIsExpanded(true)}
@@ -503,8 +497,8 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
               className="min-h-11 rounded-xl border border-accent px-3 text-xs font-bold text-accent dark:text-accent"
               title="Vorherige Gruppeneinteilung wiederherstellen">↶ Rückgängig</button>
           )}
-          <button type="button" onClick={() => handleGenerate()}
-            className={`${compactGroupWidget ? 'min-h-11 px-3 py-1 text-xs' : 'min-h-11 px-4 py-2 text-sm'} shrink-0 rounded-xl bg-accent font-black text-accent-text hover:bg-accent-hover`}>
+          <button type="button" onClick={() => handleGenerate()} disabled={activeStudentIds.length === 0}
+            className={`${compactGroupWidget ? 'min-h-11 px-3 py-1 text-xs' : 'min-h-11 px-4 py-2 text-sm'} shrink-0 rounded-xl bg-accent font-black text-accent-text hover:bg-accent-hover disabled:opacity-50`}>
             {groups.length === 0 ? 'Gruppen bilden' : 'Neu mischen'}
           </button>
         </div>
@@ -578,7 +572,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                   Kinder, die temporär nicht eingeteilt werden sollen:
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-48 overflow-y-auto pr-1">
-                  {(studentScope === 'all' ? allStudents : presentStudents).map((st) => {
+                  {candidates.map((st) => {
                     const isPaused = pausedStudentIds.includes(st.id);
                     return (
                       <button
@@ -632,7 +626,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                       className="min-h-11 min-w-[8rem] flex-1 text-xs p-1.5 rounded-lg border bg-white dark:bg-stone-800 border-stone-300 dark:border-stone-700 cursor-pointer"
                     >
                       <option value="">Kind 1</option>
-                      {presentStudents.map((s) => (
+                      {candidates.map((s) => (
                         <option key={s.id} value={s.id}>{getDisplayStudentName(s, allStudents)}</option>
                       ))}
                     </select>
@@ -643,7 +637,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                       className="min-h-11 min-w-[8rem] flex-1 text-xs p-1.5 rounded-lg border bg-white dark:bg-stone-800 border-stone-300 dark:border-stone-700 cursor-pointer"
                     >
                       <option value="">Kind 2</option>
-                      {presentStudents.map((s) => (
+                      {candidates.map((s) => (
                         <option key={s.id} value={s.id}>{getDisplayStudentName(s, allStudents)}</option>
                       ))}
                     </select>
@@ -692,7 +686,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                       className="min-h-11 min-w-[8rem] flex-1 text-xs p-1.5 rounded-lg border bg-white dark:bg-stone-800 border-stone-300 dark:border-stone-700 cursor-pointer"
                     >
                       <option value="">Kind 1</option>
-                      {presentStudents.map((s) => (
+                      {candidates.map((s) => (
                         <option key={s.id} value={s.id}>{getDisplayStudentName(s, allStudents)}</option>
                       ))}
                     </select>
@@ -703,7 +697,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                       className="min-h-11 min-w-[8rem] flex-1 text-xs p-1.5 rounded-lg border bg-white dark:bg-stone-800 border-stone-300 dark:border-stone-700 cursor-pointer"
                     >
                       <option value="">Kind 2</option>
-                      {presentStudents.map((s) => (
+                      {candidates.map((s) => (
                         <option key={s.id} value={s.id}>{getDisplayStudentName(s, allStudents)}</option>
                       ))}
                     </select>
@@ -798,9 +792,10 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
             </div>
             <h4 className="text-sm sm:text-base font-extrabold mb-1">Bereit für die Einteilung</h4>
             <p className="text-xs text-stone-500 max-w-xs mb-3">
-              {activeStudentIds.length} Kinder {studentScope === 'all' ? 'aus der Klasse' : 'anwesend'}. Tippe oben auf „Gruppen bilden“. Die gewünschte Gruppengröße stellst du im Zahnrad der Widget-Auswahl ein.
+              {activeStudentIds.length === 0
+                ? 'Für diese Einteilung ist kein Kind ausgewählt.'
+                : 'Die Gruppengröße stellst du im Zahnrad der Widget-Auswahl ein.'}
             </p>
-            <p className="text-xs font-semibold text-accent">Mit „Gruppen bilden“ oben starten.</p>
           </div>
         ) : !groupLayout.fits && !isExpanded ? (
           <div role="status" className="flex h-full min-h-0 flex-col items-center justify-center gap-3 rounded-xl bg-accent-soft p-3 text-center text-slate-900">
@@ -937,7 +932,6 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
           <span>
             <strong>{groups.length} Gruppen</strong> ({groups.reduce((sum, group) => sum + group.studentIds.length, 0)} eingeteilte Kinder)
           </span>
-          <span className="font-semibold">{studentScope === 'all' ? 'Gesamte Klasse' : 'Heute anwesend'}</span>
         </div>
       )}
     </div>

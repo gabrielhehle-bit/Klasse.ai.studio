@@ -70,7 +70,7 @@ test('group configuration and manual student swaps/moves are preserved across pa
   assert.match(widget, /selectedStudentForAction && !isSourceGroupOfSelected/);
   assert.match(widget, /setGroupPage\(0\)/);
   assert.match(widget, /persistState\(/);
-  assert.match(widget, /studentScope === 'all' \? allStudents : presentStudents/);
+  assert.match(widget, /getCockpitStudentPool\(allStudents, app, studentScope\)/);
 });
 
 test('25 children in only two groups: all are visible in non-scrolling group segments', () => {

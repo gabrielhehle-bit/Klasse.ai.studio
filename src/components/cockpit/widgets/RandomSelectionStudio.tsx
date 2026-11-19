@@ -5,6 +5,9 @@ import { getRandomSelectionSettings, normalizeRandomSelectionMode, updateRandomS
 import { RandomNameWidget } from './RandomNameWidget';
 import { WheelWidget } from './WheelWidget';
 import { FairCallWidget } from './FairCallWidget';
+import { getActiveClassContext } from '../../../lib/activeClassContext';
+import { getCockpitStudentPool, normalizeCockpitStudentScope } from '../../../lib/cockpitStudentScope';
+import { CockpitStudentScopeControl } from '../CockpitStudentScopeControl';
 
 interface Props {
   widget: CockpitWidgetConfig;
@@ -24,6 +27,8 @@ export const RandomSelectionStudio: React.FC<Props> = ({ widget, app, currentIsL
   showSettings, onCloseSettings }) => {
   const settings = widget.settings || {};
   const mode = normalizeRandomSelectionMode(settings.randomSelectionMode);
+  const studentScope = normalizeCockpitStudentScope(settings.studentScope);
+  const { present, open } = getCockpitStudentPool(getActiveClassContext(app).students, app, studentScope);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const [visited, setVisited] = useState<RandomSelectionMode[]>([mode]);
@@ -37,11 +42,13 @@ export const RandomSelectionStudio: React.FC<Props> = ({ widget, app, currentIsL
     onUpdate?.({ settings: next });
   };
   const updateTool = (tool: RandomSelectionMode, updates: Partial<CockpitWidgetConfig>) => {
-    if (updates.settings) persist(updateRandomSelectionSettings(settingsRef.current, tool, updates.settings));
+    if (!updates.settings) return;
+    const { studentScope: sharedScope, ...toolSettings } = updates.settings;
+    persist(updateRandomSelectionSettings(settingsRef.current, tool, toolSettings));
   };
   const toolWidget = (tool: RandomSelectionMode): CockpitWidgetConfig => ({ ...widget,
     type: tool === 'names' ? 'randomname' : tool === 'fair' ? 'faircall' : 'wheel',
-    settings: getRandomSelectionSettings(settings, tool),
+    settings: { ...getRandomSelectionSettings(settings, tool), studentScope },
   });
   const switchMode = (next: RandomSelectionMode) => {
     if (busy) return;
@@ -62,6 +69,12 @@ export const RandomSelectionStudio: React.FC<Props> = ({ widget, app, currentIsL
           {tool.label}
         </button>)}
       </div>
+      {onUpdate && (mode !== 'wheel' || getRandomSelectionSettings(settings, 'wheel').mode === 'students') && (
+        <div className="shrink-0 px-1 pb-1">
+          <CockpitStudentScopeControl scope={studentScope} present={present} open={open} currentIsLight={currentIsLight}
+            disabled={busy} onChange={scope => persist({ ...settingsRef.current, studentScope: scope })} />
+        </div>
+      )}
       {/* Session results and temporary participant choices survive tool switches, not closing the widget. */}
       {(mode === 'names' || visited.includes('names')) && <div hidden={mode !== 'names'} className="min-h-0 flex-1" data-random-selection-panel="names">
         <RandomNameWidget {...common} widget={toolWidget('names')} onBusyChange={busyHandlers.names} />
@@ -78,7 +91,7 @@ export const RandomSelectionStudio: React.FC<Props> = ({ widget, app, currentIsL
       {mode === 'fair' && showSettings && <section role="dialog" aria-label="Faire-Runde-Einstellungen"
         className={`absolute inset-2 z-50 flex flex-col gap-4 overflow-y-auto rounded-2xl border p-4 shadow-xl ${currentIsLight ? 'bg-white text-slate-900' : 'bg-zinc-900 text-white'}`}>
         <h3 className="font-bold">Faire Runde</h3>
-        <p className="text-sm">Anwesende Kinder werden einmal pro Runde aufgerufen. Einzelne Kinder kannst du in der Runden-Übersicht pausieren.</p>
+        <p className="text-sm">Teilnehmende Kinder werden einmal pro Runde aufgerufen. Einzelne Kinder kannst du in der Runden-Übersicht pausieren.</p>
         <button type="button" aria-pressed={getRandomSelectionSettings(settings, 'fair').soundEnabled !== false}
           className="min-h-11 rounded-xl border px-3 font-bold" onClick={() => updateTool('fair', {
             settings: { soundEnabled: getRandomSelectionSettings(settingsRef.current, 'fair').soundEnabled === false },
