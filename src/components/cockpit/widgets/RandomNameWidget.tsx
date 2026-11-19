@@ -9,7 +9,8 @@ import {
 } from '../../../lib/randomNameWidgetModel';
 import { useApp } from '../../../context/AppContext';
 import { getActiveClassContext } from '../../../lib/activeClassContext';
-import { getDisplayStudentName, getPresentStudents } from '../studentSelectionUtils';
+import { getCockpitStudentPool } from '../../../lib/cockpitStudentScope';
+import { getDisplayStudentName } from '../studentSelectionUtils';
 
 export interface RandomNameWidgetProps {
   widget: CockpitWidgetConfig;
@@ -86,14 +87,11 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
   // app.schueler is the active class roster. An empty roster NEVER creates demo pupils.
   const activeClass = getActiveClassContext(app);
   const allStudents = activeClass.students;
-  const presentStudents = useMemo(
-    () => getPresentStudents(allStudents, app),
-    [allStudents, app, dayKey],
-  );
-  // Only the central Widget hinzufügen settings can change this class-local
-  // attendance scope. The session participant selector remains transient.
   const { soundEnabled, animationEnabled, selectionMode, studentScope } = getRandomNameWidgetPreferences(widget.settings);
-  const selectableStudents: typeof presentStudents = studentScope === 'all' ? allStudents : presentStudents;
+  const { students: selectableStudents } = useMemo(
+    () => getCockpitStudentPool(allStudents, app, studentScope, dayKey),
+    [allStudents, app, studentScope, dayKey],
+  );
 
   const [sessionExcludedIds, setSessionExcludedIds] = useState<string[]>([]);
   const [sessionScope, setSessionScope] = useState(scopeKey);
@@ -292,14 +290,12 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
             className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-300"
             aria-label="Kinderauswahl schließen"><X size={20} /></button>
         </div>
-        <p className="text-xs sm:text-sm">{studentScope === 'present'
-          ? 'Nur heute anwesende Kinder. Für alle Kinder ändere die zentrale Einstellung unter Widget hinzufügen → Zufallsauswahl.'
-          : 'Alle Kinder der Klasse – auch abwesende. Du kannst einzelne Kinder für diese Unterrichtsphase pausieren.'} Die Auswahl wird nicht dauerhaft gespeichert.</p>
+        <p className="text-xs sm:text-sm">Du kannst einzelne Kinder für diese Unterrichtsphase pausieren. Diese Pausen gelten für die Sitzung.</p>
         <p className="text-sm font-semibold" role="status">
-          {eligibleStudents.length} von {selectableStudents.length} {studentScope === 'all' ? 'Kindern der Klasse' : 'anwesenden Kindern'} aktiv
+          {eligibleStudents.length} von {selectableStudents.length} Kindern aktiv
           {selectionMode === 'round' && ` · ${remainingCount} noch nicht gezogen`}
         </p>
-        <div className="grid min-h-0 grid-cols-1 gap-2 sm:grid-cols-2" aria-label="Anwesende Kinder auf dieser Seite">
+        <div className="grid min-h-0 grid-cols-1 gap-2 sm:grid-cols-2" aria-label="Auswählbare Kinder auf dieser Seite">
           {selectionPage.items.map(student => {
             const excluded = excludedIds.includes(student.id);
             return (
@@ -319,7 +315,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
             );
           })}
         </div>
-        {selectableStudents.length === 0 && <p role="status">{studentScope === 'all' ? 'Keine Kinder in dieser Klasse.' : 'Keine anwesenden Kinder in dieser Klasse.'}</p>}
+        {selectableStudents.length === 0 && <p role="status">Für diese Auswahl ist kein Kind verfügbar.</p>}
         <nav className="flex shrink-0 items-center justify-between gap-2" aria-label="Seiten der Kinderauswahl">
           <button type="button" disabled={selectionPage.page === 0}
             onClick={() => setSelectorPage(page => Math.max(0, page - 1))}
@@ -348,8 +344,9 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
       <div className={`flex shrink-0 items-center justify-between gap-1 ${veryCompact ? 'min-h-9' : ''}`}>
         <div className="min-w-0">
           {!veryCompact && <span className={`block font-semibold opacity-75 ${compact ? 'text-[10px]' : 'text-xs'}`}>
-            {selectionMode === 'round' ? 'Jedes Kind einmal' : 'Zufällig · Wiederholungen möglich'} · {studentScope === 'all' ? 'Ganze Klasse' : 'Heute anwesend'}
+            {selectionMode === 'round' ? 'Jedes Kind einmal' : 'Zufällig · Wiederholungen möglich'}
           </span>}
+          <span className="text-xs font-semibold" data-random-participant-count>{eligibleStudents.length} zur Auswahl</span>
         </div>
         <button type="button" onClick={() => { setSelectorPage(0); setShowPupilSelector(true); }}
           className={`flex shrink-0 items-center justify-center rounded-xl border border-slate-300 px-2 text-xs font-bold min-h-11 min-w-11`}
@@ -367,7 +364,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
         ) : eligibleStudents.length === 0 ? (
           <span role="status" className="break-words text-sm font-bold">
             {allStudents.length === 0 ? 'In dieser Klasse sind noch keine Kinder angelegt.'
-              : selectableStudents.length === 0 ? studentScope === 'all' ? 'In dieser Klasse sind keine Kinder zur Auswahl vorhanden.' : 'Heute sind keine Kinder zur Auswahl anwesend.'
+              : selectableStudents.length === 0 ? 'Für diese Auswahl ist kein Kind verfügbar.'
               : 'Alle Kinder sind pausiert. Wähle mindestens ein Kind aus.'}
           </span>
         ) : roundComplete && !selectedName ? (

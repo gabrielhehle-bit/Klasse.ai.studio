@@ -9,6 +9,7 @@ import { useApp } from '../../../context/AppContext';
 import { getTodayIsoDate } from '../../../lib/kidAttendanceAlgorithm';
 import { reconcileFairCallRound, isFairCallRoundComplete } from '../../../lib/classroomRoutineState';
 import { getActiveClassContext } from '../../../lib/activeClassContext';
+import { getCockpitStudentPool, normalizeCockpitStudentScope } from '../../../lib/cockpitStudentScope';
 import {
   getDisplayStudentName,
   isStudentAbsentToday,
@@ -81,10 +82,11 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
   }, []);
   const scopeKey = `${activeClass.classId || ""}:${dayKey}`;
 
-  // Nur anwesende Schüler
-  const presentStudents = useMemo(() => {
-    return allStudents.filter((s) => !isStudentAbsentToday(s.id, app));
-  }, [allStudents, app, dayKey]);
+  const studentScope = normalizeCockpitStudentScope(widget.settings?.studentScope);
+  const { students: presentStudents } = useMemo(
+    () => getCockpitStudentPool(allStudents, app, studentScope, dayKey),
+    [allStudents, app, studentScope, dayKey],
+  );
 
   const presentStudentIds = useMemo(() => {
     return presentStudents.map((s) => s.id);
@@ -360,6 +362,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
       ref={containerRef}
       data-practice-root="faircall" role="region" aria-label="Fair-Call" tabIndex={0}
       data-fair-called={calledCount} data-fair-current={currentId || ""} data-fair-remaining={remainingIds.length}
+      data-fair-student-count={totalInRoundCount}
       className={`relative flex flex-col justify-between w-full h-full p-3 sm:p-5 rounded-2xl overflow-hidden select-none transition-colors duration-200 border ${
         currentIsLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-950 border-white/10'
       }`}
@@ -456,7 +459,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
               Alle waren einmal dran!
             </h3>
             <p className="text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400 mt-1 max-w-[280px]">
-              Jedes anwesende Kind dieser Runde wurde aufgerufen.
+              Jedes teilnehmende Kind dieser Runde wurde aufgerufen.
             </p>
             <button
               type="button"
@@ -528,7 +531,7 @@ export const FairCallWidget: React.FC<FairCallWidgetProps> = ({
                     Wer ist als Nächstes dran?
                   </p>
                   <p className="text-xs font-bold text-slate-400 mt-1">
-                    {eligibleRemainingIds.length === 0 ? "Alle offenen Kinder sind pausiert oder abwesend. Prüfe die Übersicht." : "Klicke auf „Nächstes Kind“ oder fokussiere dieses Widget und drücke Leertaste."}
+                    {eligibleRemainingIds.length === 0 ? "Für diese Runde ist gerade kein weiteres Kind verfügbar." : "Klicke auf „Nächstes Kind“ oder fokussiere dieses Widget und drücke Leertaste."}
                   </p>
                 </div>
               )}

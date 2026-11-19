@@ -9,7 +9,7 @@ const cockpit = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
 
 test('random widget never imports a demo roster or reveals mood data on the public board', () => {
   assert.doesNotMatch(widget, /DEFAULT_MOCK_STUDENTS|DEFAULT_MOCK_SCHUELER|MOCK_STUDENTS/);
-  assert.match(widget, /getPresentStudents\(allStudents, app\)/);
+  assert.match(widget, /getCockpitStudentPool\(allStudents, app, studentScope, dayKey\)/);
   assert.doesNotMatch(widget, /befinden|moodByStudent|moodValue|privateMood/);
   assert.match(widget, /app\?\.activeClassId/);
   assert.match(widget, /getTodayIsoDate/);

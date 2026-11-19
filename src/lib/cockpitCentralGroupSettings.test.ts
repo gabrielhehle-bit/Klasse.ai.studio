@@ -5,18 +5,18 @@ import { readFileSync } from 'node:fs';
 const widget = readFileSync('src/components/cockpit/widgets/GroupsWidget.tsx', 'utf8');
 const surface = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
 
-test('Grouping roster defaults to its historical present-students path', () => {
-  assert.match(widget, /studentScope = widget\?\.settings\?\.studentScope === 'all' \? 'all' : 'present'/);
-  assert.match(widget, /studentScope === 'all' \? allStudents : presentStudents/);
+test('Grouping uses daily check-ins and disables generation when the selected pool is empty', () => {
+  assert.match(widget, /normalizeCockpitStudentScope\(savedSettings\.studentScope\)/);
+  assert.match(widget, /getCockpitStudentPool\(allStudents, app, studentScope\)/);
   assert.match(widget, /candidates\.filter\(s => !pausedSet\.has\(s\.id\)\)\.map\(s => s\.id\)/);
   assert.match(widget, /generateStudentGroups\(activeStudentIds, config\)/);
+  assert.match(widget, /disabled=\{activeStudentIds\.length === 0\}/);
 });
 
-test('Both roster choices live inside Widget hinzufügen settings and preserve current groups', () => {
+test('Roster defaults remain in Widget hinzufügen and preserve current groups', () => {
   const picker = surface.slice(surface.indexOf('aria-label="Widget-Einstellungen im Menü Widget hinzufügen"'), surface.indexOf('Category Switcher Tab Bar'));
   assert.match(picker, /Gruppen bilden · Wer wird eingeteilt\?/);
-  assert.match(picker, /Heute anwesende Kinder/);
-  assert.match(picker, /Alle Kinder der Klasse/);
+  assert.match(picker, /COCKPIT_STUDENT_SCOPES\.map/);
   assert.match(picker, /saveSetting\("studentScope", scope\)/);
   assert.match(picker, /Gruppenaufteilung/);
   assert.match(picker, /Kinder pro Gruppe/);
@@ -46,8 +46,9 @@ test('Group pause, pair constraints and naming options render only in Widget hin
   assert.match(surface, /settingsInPicker=\{isAddWidgetMenuOpen && isWidgetConfigurationOpen && selectedWidgetConfiguration === "groups"\}/);
   assert.match(adapter, /settingsInPicker\?: boolean/);
   assert.match(adapter, /onClosePickerSettings\?: \(\) => void/);
-  const main = widget.slice(widget.indexOf('The teaching surface contains actions and results only.'), widget.indexOf('OPTIONEN MODAL'));
+  const main = widget.slice(widget.indexOf('Choose today\'s participants'), widget.indexOf('OPTIONEN MODAL'));
   assert.match(main, /onClick=\{\(\) => handleGenerate\(\)\}/);
+  assert.match(main, /onUpdate\(\{ settings: \{ studentScope: scope \} \}\)/);
   assert.doesNotMatch(main, /setTargetValue\(|setMode\(|setShowOptions\(|Settings2|MoreHorizontal/);
   assert.match(widget, /const targetValue = typeof savedSettings\.targetValue/);
   assert.match(widget, /const mode: GroupingMode = savedSettings\.mode === 'count'/);

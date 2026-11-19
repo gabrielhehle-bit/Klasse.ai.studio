@@ -1,7 +1,8 @@
 import { getGroupName, type GeneratedGroup } from './groupsAlgorithm';
+import { normalizeCockpitStudentScope, type CockpitStudentScope } from './cockpitStudentScope';
 /** Settings for NEW group widgets; existing widget instances are never rewritten implicitly. */
 export interface GroupWidgetPreferences {
-  studentScope: 'present' | 'all';
+  studentScope: CockpitStudentScope;
   mode: 'size' | 'count';
   targetValue: number;
   startSize: 'compact' | 'standard' | 'large';
@@ -15,7 +16,7 @@ export function getGroupWidgetPreferences(input: unknown): GroupWidgetPreference
   const targetValue = typeof raw === 'number' && Number.isFinite(raw)
     ? Math.max(2, Math.min(30, Math.floor(raw))) : 4;
   return {
-    studentScope: value.studentScope === 'all' ? 'all' : 'present',
+    studentScope: normalizeCockpitStudentScope(value.studentScope),
     mode,
     targetValue,
     startSize: value.startSize === 'compact' || value.startSize === 'standard' ? value.startSize : 'large',

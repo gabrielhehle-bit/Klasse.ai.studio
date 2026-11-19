@@ -376,6 +376,81 @@ async function checkWidgetGeometry(client) {
   await waitFor(client, 'saved upper-left positions and overlap survive an actual reload', isOverlap);
 }
 
+async function checkAttendanceScope(client) {
+  const group = `document.querySelector('#widget-board-stage [data-widget-type="groups"]')`;
+  const random = `document.querySelector('#widget-board-stage [data-widget-type="randomname"]')`;
+  const scope = widget => `${widget}?.querySelector('select[aria-label="Teilnehmende Kinder"]')`;
+  const setScope = (widget, value) => evaluate(client, `(() => {
+    const control = ${scope(widget)};
+    control.value = ${q(value)};
+    control.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`);
+  const groupCount = `${group}?.querySelector('[data-group-participant-count]').textContent.trim()`;
+  const randomCount = `${random}?.querySelector('[data-random-participant-count]').textContent.trim()`;
+  const checkInCount = widget => `${widget}?.querySelector('[data-cockpit-check-in-count]').textContent.trim()`;
+  const groupCard = `document.querySelector('[data-testid="cockpit-core-group-groups"]')`;
+  const openFromGroupCard = async action => {
+    await clickButton(client, 'Widget hinzufügen');
+    await waitFor(client, 'group card is open in the widget library', `Boolean(${groupCard})`);
+    await evaluate(client, `${groupCard}.querySelector('[data-widget-card-action="' + ${q(action)} + '"]').click()`);
+  };
+
+  await clickLabel(client, 'Neue Tafelseite hinzufügen');
+  await clickLabel(client, 'Ich bin da! öffnen');
+  await waitFor(client, 'attendance is on the new board page',
+    `Boolean(document.querySelector('#widget-board-stage [data-widget-type="kidattendance"]'))`);
+  const openCorrection = () => clickLabel(client, 'Anwesenheit bearbeiten: Da, Fehlt oder Entschuldigt');
+  const correction = `document.querySelector('[aria-label="Lehrer-Anwesenheitskorrektur"]')`;
+  const attendanceRows = `Array.from(${correction}.querySelectorAll('[aria-label^="Anwesenheit von "]'))`;
+  await openCorrection();
+  await waitFor(client, 'three example pupils are available for attendance', `${attendanceRows}.length >= 3`);
+  await evaluate(client, `${attendanceRows}[1].querySelector('button[aria-label$=": Entschuldigt"]').click()`);
+  await clickButton(client, 'Fertig');
+  await clickLabel(client, 'Ich bin da! einklappen');
+
+  await openFromGroupCard('primary');
+  await waitFor(client, 'group widget shows the historical inclusion rule', `${scope(group)}?.value === 'present'`);
+  const oldCount = await evaluate(client, `parseInt(${groupCount}, 10)`);
+  const attendanceText = await evaluate(client, checkInCount(group));
+  if (!(oldCount >= 2) || attendanceText !== '0 da · ' + oldCount + ' offen') {
+    throw Error('Example attendance does not have the expected open and absent pupils: ' + attendanceText);
+  }
+  await setScope(group, 'checked-in');
+  await waitFor(client, 'group creation is disabled with no checked-in children',
+    `${groupCount} === '0 Kinder machen mit' && Array.from(${group}.querySelectorAll('button')).find(b => b.textContent.trim() === 'Gruppen bilden')?.disabled`);
+  await openFromGroupCard('selection');
+  await waitFor(client, 'random selection is open', `Boolean(${scope(random)})`);
+  await setScope(random, 'checked-in');
+  await waitFor(client, 'random drawing is disabled with no checked-in children',
+    `${randomCount} === '0 zur Auswahl' && ${random}.querySelector('button[aria-label="Zufälliges Kind ziehen"]')?.disabled`);
+
+  await evaluate(client, `document.querySelector('[data-dock-favorite-id="kidattendance"]').click()`);
+  await openCorrection();
+  await evaluate(client, `${attendanceRows}[0].querySelector('button[aria-label$=": Da"]').click()`);
+  await clickButton(client, 'Fertig');
+  await clickLabel(client, 'Ich bin da! einklappen');
+  const afterCheckIn = q('1 da · ' + (oldCount - 1) + ' offen');
+  await waitFor(client, 'the same new check-in appears live in both participant pools',
+    `${checkInCount(group)} === ${afterCheckIn} && ${checkInCount(random)} === ${afterCheckIn}
+      && ${groupCount} === '1 Kind macht mit' && ${randomCount} === '1 zur Auswahl'`);
+  await evaluate(client, `Array.from(${group}.querySelectorAll('button')).find(b => b.textContent.trim() === 'Gruppen bilden').click()`);
+  await waitFor(client, 'group generation uses exactly the single checked-in child',
+    `${group}.querySelectorAll('[data-group-student]').length === 1`);
+  const checkedInId = await evaluate(client, `${group}.querySelector('[data-group-student]').dataset.groupStudent`);
+  await evaluate(client, `${random}.querySelector('button[aria-label="Zufälliges Kind ziehen"]').click()`);
+  await waitFor(client, 'random drawing uses the same checked-in child',
+    `${random}.querySelector('[data-practice-root="randomname"]').dataset.randomCurrent === ${q(checkedInId)}`);
+  await evaluate(client, `${random}.querySelector('[data-random-selection-mode="fair"]').click()`);
+  await waitFor(client, 'fair selection keeps the same participant choice',
+    `${scope(random)}?.value === 'checked-in' && ${random}.querySelector('[data-fair-student-count]')?.dataset.fairStudentCount === '1'`);
+  await setScope(random, 'present');
+  await setScope(group, 'present');
+  await waitFor(client, 'the inclusive choice adds the open pupils but keeps absences out',
+    `parseInt(${groupCount}, 10) === ${oldCount} &&
+      Number(${random}.querySelector('[data-fair-student-count]').dataset.fairStudentCount) === ${oldCount} &&
+      ${group}.querySelector('[data-group-student]').dataset.groupStudent === ${q(checkedInId)}`);
+}
+
 async function main() {
   await waitForChrome();
   const target=await (await fetch(DEBUG_URL+'/json/new?'+encodeURIComponent(BASE_URL),{method:'PUT'})).json();
@@ -824,6 +899,7 @@ async function main() {
 
     await checkAssignmentCountdown(client);
     await checkWidgetGeometry(client);
+    await checkAttendanceScope(client);
 
     console.log('✓ Cockpit visual QA passed for '+WIDTH+'×'+HEIGHT+'. Board primary, students restorable, award modes distinct.');
   } catch(error) {

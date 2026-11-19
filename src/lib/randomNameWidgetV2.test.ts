@@ -92,13 +92,14 @@ test('Widget 4: pupils with equal first name and initial remain individually ide
   assert.doesNotMatch(widget, /\{student\.id\}<\/span>/);
 });
 
-test('Widget 4: central attendance scope is predictable and invalid scope falls back to present-only', () => {
+test('Widget 4: attendance scope supports checked-in children and preserves old defaults', () => {
   assert.equal(getRandomNameWidgetPreferences(undefined).studentScope, 'present');
   assert.equal(getRandomNameWidgetPreferences({ studentScope: 'all' }).studentScope, 'all');
+  assert.equal(getRandomNameWidgetPreferences({ studentScope: 'checked-in' }).studentScope, 'checked-in');
   assert.equal(getRandomNameWidgetPreferences({ studentScope: 'invalid' }).studentScope, 'present');
   assert.match(picker, /saveRandomPreset\("studentScope", scope\)/);
   assert.match(picker, /Wer soll gezogen werden\?/);
-  assert.match(widget, /const selectableStudents: typeof presentStudents = studentScope === 'all' \? allStudents : presentStudents/);
+  assert.match(widget, /getCockpitStudentPool\(allStudents, app, studentScope, dayKey\)/);
   assert.match(widget, /randomSelectionPage\(selectableStudents, selectorPage, pageSize\)/);
   assert.match(widget, /live\.studentScope !== initialPool\.studentScope/);
 });

@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { createRequire } from 'node:module';
 import { build } from 'esbuild';
 import { initialAppState } from './appState';
+import { getTodayIsoDate } from './kidAttendanceAlgorithm';
 
 // Exercise the real component and eager useMemo; isolate the unrelated vault provider.
 const bundled = await build({
@@ -21,16 +22,18 @@ const { GroupsWidget } = module.exports;
 const students = [
   { id: 'present', vorname: 'Anna', nachname: 'Test' },
   { id: 'absent', vorname: 'Ben', nachname: 'Test', abwesend: true },
+  { id: 'open', vorname: 'Sam', nachname: 'Test' },
 ];
 const app = { ...initialAppState, activeClassId: 'test', schueler: students,
+  anwesenheit: { present: { [getTodayIsoDate()]: { 1: 'a' } } },
   classes: [{ id: 'test', name: 'Testklasse', schueler: students }] } as any;
 
-for (const [scope, expected] of [['present', 1], ['all', 2]] as const) {
+for (const [scope, expected] of [['present', 2], ['checked-in', 1], ['all', 3]] as const) {
   test(`Groups widget initializes its active class before reading the ${scope} roster`, () => {
     const html = renderToStaticMarkup(React.createElement(GroupsWidget, {
       app, currentIsLight: true,
       widget: { id: 'groups-test', type: 'groups', settings: { studentScope: scope } } as any,
     }));
-    assert.match(html, new RegExp(`${expected} Kinder`));
+    assert.match(html, new RegExp(`${expected} ${expected === 1 ? 'Kind macht' : 'Kinder machen'} mit`));
   });
 }
