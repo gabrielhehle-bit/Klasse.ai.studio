@@ -56,8 +56,8 @@ test('Batch 3: neutrale Auswahl- und Aktionsakzente folgen der Profilfarbe', () 
 
 test('Batch 3: semantische Zustandsfarben und Touchziele bleiben erhalten', () => {
   // Timetable subject/status colors still carry meaning.
-  assert.match(timeline, /bg-amber-500/);
-  assert.match(timeline, /bg-emerald-600/);
+  assert.match(timeline, /getFachThemeStyles\(/);
+  assert.match(timeline, /borderTopColor: theme\.hex/);
   assert.match(timeline, /min-h-11 min-w-11/);
 
   // Absence/substitution warnings in duties remain amber/rose instead of being themed away.
