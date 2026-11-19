@@ -870,7 +870,7 @@ export default function ClassTeam() {
     'await-device': { title: 'Auf Freigabe warten', text: 'Eine berechtigte Kollegin oder ein Kollege muss im Klassenteam „Gerät freigeben“ auswählen und den Prüfcode abgleichen.', button: 'Freigabe erneut prüfen' },
     'add-colleague': { title: 'Kollegin oder Kollegen hinzufügen', text: 'Wähle unten eine Lehrperson deiner Schule. Sie erhält Bearbeitungsrechte nur für die ausdrücklich geteilte Klasse.', button: 'Lehrperson auswählen' },
     'colleague-first-login': { title: 'Kollegin oder Kollegen anmelden lassen', text: 'Die zweite Lehrperson öffnet KLASSIO mit ihrer eigenen verifizierten Schulmail und geht zu „Klassenteam“. Danach erscheint sie hier automatisch in der Liste. Ihr müsst nichts koppeln oder Codes austauschen.', button: 'Kollegium erneut prüfen' },
-    'resolve-conflict': { title: 'Zwei unterschiedliche Klassenstände', text: 'Bitte entscheidet, ob auf diesem Gerät noch eigene Eingaben vorhanden sind, die im Team fehlen. Beide Möglichkeiten sind unten erklärt.' },
+    'resolve-conflict': { title: 'Gleichzeitige Änderungen prüfen', text: 'Einige eurer Eingaben brauchen eine Entscheidung. Unter „Änderungen zusammenführen“ könnt ihr sie vergleichen.' },
     'compare-versions': { title: 'Gemeinsamen Stand prüfen', text: 'Ein Klick: KLASSIO prüft den Serverstand und sendet oder lädt Änderungen, wenn das ohne Konflikt möglich ist. Bei gleichzeitigen Änderungen wird nichts überschrieben.', button: 'Jetzt synchronisieren' },
     ready: { title: 'Team synchronisiert', text: teacherClassWorkingStatus(nextAction) },
   };
@@ -915,7 +915,7 @@ export default function ClassTeam() {
               Jede Lehrperson nutzt ihr eigenes Schulkonto. Nur ausdrücklich hinzugefügte Kolleg:innen erhalten Zugriff auf die verschlüsselte Klasse.
             </p>
             <p data-testid="team-autosave-explanation" className="mt-2 max-w-2xl text-xs font-semibold leading-relaxed text-[var(--text2)]">
-              Änderungen werden automatisch auf diesem Gerät gespeichert und bei bestehender Verbindung im Klassenteam abgeglichen. Du musst nicht nach jeder Eingabe auf „Senden“ oder „Laden“ klicken. Erst „Team synchronisiert“ bestätigt den gemeinsamen Stand.
+              Ihr arbeitet in derselben Klasse. Bei bestehender Verbindung erscheinen gespeicherte Änderungen automatisch bei allen Teammitgliedern. „Team synchronisiert“ bestätigt, dass deine Eingaben im Team angekommen sind.
             </p>
           </div>
         </div>

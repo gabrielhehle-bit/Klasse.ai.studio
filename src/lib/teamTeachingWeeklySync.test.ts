@@ -4,7 +4,7 @@ import { initialAppState, syncActiveClass } from './appState';
 import { accountSyncState, hasSharedClassAccountDrift, mergeAccountSyncState } from './accountSyncService';
 import { decryptSharedClass, encryptSharedClass, generateSharedClassKey } from './teamTeachingCrypto';
 import { classRoomFingerprint } from './teamTeachingCrypto';
-import { adoptAcknowledgedTeamRoom, shouldAcknowledgeMatchingTeamSnapshot } from './teamTeachingProjection';
+import { adoptAcknowledgedTeamRoom, stageMergedTeamRoom, shouldAcknowledgeMatchingTeamSnapshot } from './teamTeachingProjection';
 
 const oldPlan = { 39: { Montag: { 0: { fach: 'Deutsch', thema: 'Alte Kopie im persönlichen Konto' } } } };
 const newPlan = { 39: { Montag: { 0: { fach: 'Deutsch', thema: 'Neu im Team geplant' } } } };
@@ -127,4 +127,19 @@ test('Already identical class contents clear an obsolete team conflict safely', 
   assert.equal(shouldAcknowledgeMatchingTeamSnapshot(same, same, 4, 4, 'synced', true), false);
   assert.equal(shouldAcknowledgeMatchingTeamSnapshot(same, 'other-changes', 3, 4, 'conflict', true), false);
   assert.equal(shouldAcknowledgeMatchingTeamSnapshot(same, same, 5, 4, 'conflict', true), false);
+});
+
+test('A merged classroom uses the latest server revision and stays pending until it is saved', () => {
+  const state = asTeam(makeState(oldPlan));
+  const remote = asTeam(makeState(newPlan)).classes[0];
+  remote.teamTeaching.revision = 4;
+  const merged = { ...remote, wochenplanung: { ...newPlan, 40: oldPlan[39] } };
+  const staged = stageMergedTeamRoom({ ...state, activeClassId: undefined }, remote, merged);
+  const pending = staged.classes[0];
+  assert.equal(pending.teamTeaching?.revision, 4);
+  assert.equal(pending.teamTeaching?.syncStatus, 'idle');
+  assert.notEqual(pending.teamTeaching?.lastSyncedHash, classRoomFingerprint(pending));
+  const acknowledged = adoptAcknowledgedTeamRoom({ ...state, activeClassId: undefined }, remote);
+  assert.equal(pending.teamTeaching?.lastSyncedHash, classRoomFingerprint(acknowledged.classes[0]));
+  assert.deepEqual(staged.wochenplanung, merged.wochenplanung);
 });
