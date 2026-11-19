@@ -626,7 +626,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                       className="min-h-11 min-w-[8rem] flex-1 text-xs p-1.5 rounded-lg border bg-white dark:bg-stone-800 border-stone-300 dark:border-stone-700 cursor-pointer"
                     >
                       <option value="">Kind 1</option>
-                      {presentStudents.map((s) => (
+                      {candidates.map((s) => (
                         <option key={s.id} value={s.id}>{getDisplayStudentName(s, allStudents)}</option>
                       ))}
                     </select>
@@ -637,7 +637,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                       className="min-h-11 min-w-[8rem] flex-1 text-xs p-1.5 rounded-lg border bg-white dark:bg-stone-800 border-stone-300 dark:border-stone-700 cursor-pointer"
                     >
                       <option value="">Kind 2</option>
-                      {presentStudents.map((s) => (
+                      {candidates.map((s) => (
                         <option key={s.id} value={s.id}>{getDisplayStudentName(s, allStudents)}</option>
                       ))}
                     </select>
@@ -686,7 +686,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                       className="min-h-11 min-w-[8rem] flex-1 text-xs p-1.5 rounded-lg border bg-white dark:bg-stone-800 border-stone-300 dark:border-stone-700 cursor-pointer"
                     >
                       <option value="">Kind 1</option>
-                      {presentStudents.map((s) => (
+                      {candidates.map((s) => (
                         <option key={s.id} value={s.id}>{getDisplayStudentName(s, allStudents)}</option>
                       ))}
                     </select>
@@ -697,7 +697,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                       className="min-h-11 min-w-[8rem] flex-1 text-xs p-1.5 rounded-lg border bg-white dark:bg-stone-800 border-stone-300 dark:border-stone-700 cursor-pointer"
                     >
                       <option value="">Kind 2</option>
-                      {presentStudents.map((s) => (
+                      {candidates.map((s) => (
                         <option key={s.id} value={s.id}>{getDisplayStudentName(s, allStudents)}</option>
                       ))}
                     </select>
