@@ -547,6 +547,83 @@ async function checkRandomModeSearch(client) {
     `!${picker} && Boolean(${activeMode('fair')}) && ${wheel}.hidden && ${winner}.textContent === ${q(result)}`);
 }
 
+async function checkDayTimeline(client) {
+  const timeline = `document.querySelector('#widget-board-stage [data-widget-type="timeline"]')`;
+  const nowCard = `${timeline}?.querySelector('section[aria-label="Jetzt"]')`;
+  const nextCard = `${timeline}?.querySelector('section[aria-label="Als Nächstes"]')`;
+  const setClock = (day, hour, minute) => evaluate(client, `(() => {
+    window.__timelineTime = new window.__timelineDate(2026, 8, ${day}, ${hour}, ${minute}).getTime();
+    window.dispatchEvent(new Event('focus'));
+  })()`);
+
+  await clickLabel(client, 'Neue Tafelseite hinzufügen');
+  await evaluate(client, `(() => {
+    window.__timelineDate = window.Date;
+    window.__timelineTime = new Date(2026, 8, 14, 9, 44).getTime();
+    window.Date = new Proxy(window.Date, {
+      construct: (target, args) => Reflect.construct(target, args.length ? args : [window.__timelineTime]),
+    });
+  })()`);
+
+  try {
+    await evaluate(client, `document.querySelector('[data-dock-favorite-id="timeline"]').click()`);
+    await waitFor(client, 'the cards show the current lesson and the next break time', `(() => {
+      const now = ${nowCard}, next = ${nextCard};
+      return now?.textContent.includes('08:50–09:45') && next?.textContent.includes('09:45–10:00')
+        && next.querySelector('p').textContent === 'Pause'
+        && getComputedStyle(next).borderTopColor === 'rgb(245, 158, 11)'
+        && !${timeline}.querySelector('[aria-current="time"]');
+    })()`);
+    const dimensions = await evaluate(client, `(() => {
+      const now = ${nowCard}, next = ${nextCard};
+      const panel = now.parentElement.parentElement;
+      return {
+        cards: [now, next].map(card => ({
+          width: card.clientWidth, height: card.clientHeight, scrollWidth: card.scrollWidth,
+          subjectSize: parseFloat(getComputedStyle(card.querySelector('p')).fontSize),
+        })),
+        panel: { height: panel.clientHeight, scrollHeight: panel.scrollHeight },
+      };
+    })()`);
+    const cardsFit = dimensions.cards.every(card => card.width >= 110 && card.height >= 70
+      && card.subjectSize >= 20 && card.scrollWidth <= card.width + 1);
+    if (!cardsFit || dimensions.panel.scrollHeight > dimensions.panel.height + 1) {
+      throw Error('Timeline cards do not fit at the default size: ' + JSON.stringify(dimensions));
+    }
+    await screenshot(client, 'tagesablauf-jetzt-und-als-naechstes');
+    await setClock(14, 9, 45);
+    await waitFor(client, 'at the boundary the break becomes current and the next lesson moves up',
+      `${nowCard}?.querySelector('p').textContent === 'Pause' &&
+       ${nextCard}?.textContent.includes('10:00–10:50')`);
+    await clickButton(client, 'Tagesverlauf');
+    await waitFor(client, 'the optional day overview marks the current break',
+      `${timeline}?.querySelector('[aria-current="time"]')?.getAttribute('aria-label') === 'Pause' && !${nowCard}`);
+    await evaluate(client, `${timeline}.querySelector('[aria-current="time"]').click()`);
+    await waitFor(client, 'the selected break still shows its details',
+      `${timeline}.querySelector('[aria-pressed="true"][aria-current="time"]') && ${timeline}.textContent.includes('09:45–10:00')`);
+    await clickButton(client, 'Jetzt und als Nächstes');
+    await setClock(14, 7, 55);
+    await waitFor(client, 'before school the cards show when the first lesson starts',
+      `${nowCard}?.textContent.includes('Vor Unterrichtsbeginn') && ${nextCard}?.textContent.includes('08:00–08:50')`);
+    await setClock(14, 18, 0);
+    await waitFor(client, 'after school the cards show the end of the day',
+      `${nowCard}?.textContent.includes('Schulschluss') && ${nextCard}?.textContent.includes('Heute nichts mehr')`);
+    await setClock(19, 10, 0);
+    await waitFor(client, 'an empty Saturday shows a clear empty state',
+      `${timeline}.textContent.includes('Heute kein Unterricht eingetragen') && !${nowCard} && !${nextCard}`);
+  } catch (error) {
+    await screenshot(client, 'tagesablauf-FAIL').catch(() => {});
+    throw error;
+  } finally {
+    await evaluate(client, `(() => {
+      window.Date = window.__timelineDate;
+      delete window.__timelineDate;
+      delete window.__timelineTime;
+      window.dispatchEvent(new Event('focus'));
+    })()`);
+  }
+}
+
 async function main() {
   await waitForChrome();
   const target=await (await fetch(DEBUG_URL+'/json/new?'+encodeURIComponent(BASE_URL),{method:'PUT'})).json();
@@ -992,6 +1069,7 @@ async function main() {
     await checkWidgetGeometry(client);
     await checkAttendanceScope(client);
     await checkRandomModeSearch(client);
+    await checkDayTimeline(client);
 
     console.log('✓ Cockpit visual QA passed for '+WIDTH+'×'+HEIGHT+'. Board primary, students restorable, award modes distinct.');
   } catch(error) {
