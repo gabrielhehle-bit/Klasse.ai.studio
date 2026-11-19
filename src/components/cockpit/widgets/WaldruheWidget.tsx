@@ -202,6 +202,9 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
 
       const analyser = audio.createAnalyser();
       analyser.fftSize = 256;
+      // The sample loop already smooths the level. A second decay inside the
+      // analyser would make a short noise count as sustained even after it ended.
+      analyser.smoothingTimeConstant = 0;
       audio.createMediaStreamSource(stream).connect(analyser);
       const samples = new Uint8Array(analyser.frequencyBinCount);
       let volume = 0;
