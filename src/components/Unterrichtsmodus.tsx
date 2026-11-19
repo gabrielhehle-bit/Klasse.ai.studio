@@ -4199,14 +4199,14 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     requestedMode?: CockpitWidgetModeTarget,
   ) => {
     // Only the sidebar may provide public plus points now.
-    if (type === "studentlist") return false;
+    if (type === "studentlist") return;
     const targetWidget = cockpitWidgets.find(widget => widget.type === type);
-    if (!targetWidget) return false;
+    if (!targetWidget) return;
     const activeMode = requestedMode?.type === type ? requestedMode : undefined;
     if (activeMode?.type === "randomname" && randomSelectionBusy.current &&
       normalizeRandomSelectionMode(targetWidget.settings?.randomSelectionMode) !== activeMode.mode) {
       showToast("Die Ziehung läuft. Danach kannst du den Modus wechseln.", "info");
-      return false;
+      return;
     }
     setMinimizedWidgetIds(current =>
       current.filter(id => cockpitWidgets.find(widget => widget.id === id)?.type !== type),
