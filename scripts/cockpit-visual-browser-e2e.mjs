@@ -243,30 +243,46 @@ async function checkAssignmentCountdown(client) {
 }
 
 async function dragWidgetTo(client, type, left, top) {
+  const widgetSelector = `#widget-board-stage [data-widget-type="${type}"]`;
+  const frameExpression = `document.querySelector(${q(widgetSelector)})`;
+  await waitFor(client, type + ' frame is ready for dragging',
+    `${frameExpression}?.getAnimations().every(animation => animation.playState === 'finished')`);
   const points = await evaluate(client, `(() => {
     const stage = document.getElementById('widget-board-stage');
-    const widget = stage.querySelector('[data-widget-type="' + ${q(type)} + '"]');
+    const widget = ${frameExpression};
     const board = stage.getBoundingClientRect();
     const frame = widget.getBoundingClientRect();
-    const x = frame.left + 22;
+    const x = frame.left + 50;
     const y = frame.top + 22;
-    if (!widget.firstElementChild.contains(document.elementFromPoint(x, y))) return null;
-    return { x, y, toX: board.left + stage.clientLeft + stage.clientWidth * ${left} / 100 + 22,
+    const target = document.elementFromPoint(x, y);
+    if (!widget.firstElementChild.contains(target) || target.closest('button')) return null;
+    return { x, y, toX: board.left + stage.clientLeft + stage.clientWidth * ${left} / 100 + 50,
       toY: board.top + stage.clientTop + stage.clientHeight * ${top} / 100 + 22 };
   })()`);
   if (!points) throw Error('Widget header is not reachable: ' + type);
   const { x, y, toX, toY } = points;
-  await client.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 });
+  await client.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
+  await client.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 });
+  await waitFor(client, type + ' starts dragging', `${frameExpression}?.dataset.widgetInteracting === 'dragging'`, 3000);
   for (const progress of [0.3, 0.6, 1]) {
     await client.send('Input.dispatchMouseEvent', {
       type: 'mouseMoved', x: x + (toX - x) * progress, y: y + (toY - y) * progress, button: 'left', buttons: 1,
     });
   }
-  await client.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: toX, y: toY, button: 'left', buttons: 0, clickCount: 1 });
-  await waitFor(client, type + ' moves to the requested corner', `(() => {
-    const frame = document.querySelector('#widget-board-stage [data-widget-type="' + ${q(type)} + '"]');
+  const isAtCorner = `(() => {
+    const frame = ${frameExpression};
     return Math.abs(parseFloat(frame.style.left) - ${left}) < 0.4 && Math.abs(parseFloat(frame.style.top) - ${top}) < 0.4;
-  })()`);
+  })()`;
+  try {
+    await waitFor(client, type + ' previews the position while dragging', isAtCorner, 3000);
+  } catch (error) {
+    console.log('Widget drag state', await evaluate(client, `({pointer: ${q(points)}, frame: ${frameExpression}.getAttribute('style'), interaction: ${frameExpression}.dataset.widgetInteracting})`));
+    throw error;
+  } finally {
+    await client.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: toX, y: toY, button: 'left', clickCount: 1 });
+  }
+  await waitFor(client, type + ' keeps the position after release',
+    `${isAtCorner} && !${frameExpression}?.hasAttribute('data-widget-interacting')`, 3000);
 }
 
 async function checkWidgetGeometry(client) {
@@ -284,7 +300,6 @@ async function checkWidgetGeometry(client) {
 
   await evaluate(client, `document.querySelector('[data-dock-favorite-id="waldruhe"]').click()`);
   await waitFor(client, 'Waldruhe opens beside the timer', `Boolean(${widget('waldruhe')})`);
-  await sleep(350);
   await dragWidgetTo(client, 'waldruhe', 8, 14);
   const both = geometry('timer', 'waldruhe');
   const overlap = await evaluate(client, both);

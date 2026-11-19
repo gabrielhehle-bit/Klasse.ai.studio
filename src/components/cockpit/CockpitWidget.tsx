@@ -363,6 +363,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
 
   const handlePointerDownDrag = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!e.isPrimary || e.button !== 0 || isMaximized || layoutLocked) return;
+    e.preventDefault();
     onFocus();
 
     const stageRect = getResizeStageRect();
