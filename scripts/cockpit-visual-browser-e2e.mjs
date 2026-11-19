@@ -452,14 +452,30 @@ async function main() {
       const img = ${forest}.querySelector('[data-waldruhe-animal="' + ${q(animal)} + '"] img');
       if (!img || !img.complete || !img.naturalWidth) return false;
       const rect = img.getBoundingClientRect();
-      const scene = img.closest('figure').parentElement.getBoundingClientRect();
-      const labels = Array.from(img.closest('figure').parentElement.querySelectorAll('[data-waldruhe-scene-label]'));
+      const scene = img.closest('[data-waldruhe-landscape]').getBoundingClientRect();
+      const labels = Array.from(img.closest('[data-waldruhe-landscape]').querySelectorAll('[data-waldruhe-scene-label]'));
       const labelsLegible = labels.length >= 3 && labels.every(label =>
         getComputedStyle(label).color === 'rgb(255, 255, 255)' &&
         getComputedStyle(label).backgroundColor === 'rgba(7, 36, 33, 0.92)');
       return labelsLegible && rect.width >= 24 && rect.height >= 24 &&
         rect.left >= scene.left && rect.right <= scene.right &&
         rect.top >= scene.top && rect.bottom <= scene.bottom;
+    })()`;
+    const fullHabitat = (scene, animals) => `(() => {
+      if (${forest}.dataset.waldruheScene !== ${q(scene)}) return false;
+      const habitat = ${forest}.querySelector('[data-waldruhe-landscape]');
+      const figures = Array.from(habitat.querySelectorAll('figure'));
+      if (figures.map(figure => figure.dataset.waldruheAnimal).join(',') !== ${q(animals.join(','))}) return false;
+      const bounds = habitat.getBoundingClientRect();
+      const labels = Array.from(habitat.querySelectorAll('[data-waldruhe-scene-label]'), label => label.getBoundingClientRect());
+      return labels.every((label, index) =>
+        label.left >= bounds.left && label.right <= bounds.right &&
+        label.top >= bounds.top && label.bottom <= bounds.bottom &&
+        labels.slice(index + 1).every(other =>
+          label.right <= other.left || label.left >= other.right ||
+          label.bottom <= other.top || label.top >= other.bottom)) &&
+        figures.every(figure => getComputedStyle(figure).opacity === '1') &&
+        ${animals.map(animalArtworkVisible).join(' && ')};
     })()`;
     await waitFor(client, 'the hedgehog illustration is visible in the scene', animalArtworkVisible('igel'));
     await screenshot(client, 'waldruhe-waldtiere');
@@ -487,6 +503,27 @@ async function main() {
     await selectScene('aquarium');
     await clickButton(client, 'Fertig');
     await waitFor(client, 'the aquarium also retains its animal when returning', `${forest}.dataset.waldruheScene === 'aquarium' && ${forest}.querySelector('figcaption')?.textContent === 'Neonfisch'`);
+    const swimmingFish = `${forest}.querySelector('[data-waldruhe-movement="swim"]')`;
+    await waitFor(client, 'aquarium fish move gently during quiet time',
+      `getComputedStyle(${swimmingFish}).animationName === 'waldruhe-swim' && getComputedStyle(${swimmingFish}).animationPlayState === 'running'`);
+    await clickButton(client, 'Laut');
+    await waitFor(client, 'aquarium movement pauses in a loud classroom',
+      `getComputedStyle(${swimmingFish}).animationPlayState === 'paused'`);
+    await client.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+    await waitFor(client, 'reduced motion disables swimming and reveal animations',
+      `getComputedStyle(${swimmingFish}).animationName === 'none' &&
+        getComputedStyle(${swimmingFish}.closest('figure')).animationName === 'none'`);
+    await client.send('Emulation.setEmulatedMedia', { features: [] });
+    await clickButton(client, 'Leise');
+    await waitFor(client, 'all five aquarium animals have visible artwork and separate labels',
+      fullHabitat('aquarium', ['neonfisch', 'guppy', 'garnele', 'rennschnecke', 'panzerwels']));
+    await screenshot(client, 'waldruhe-aquarium-komplett');
+    await openForestSettings();
+    await selectScene('forest');
+    await clickButton(client, 'Fertig');
+    await waitFor(client, 'all five woodland animals have visible artwork and separate labels',
+      fullHabitat('forest', ['igel', 'eichhoernchen', 'reh', 'fuchs', 'eule']));
+    await screenshot(client, 'waldruhe-waldlichtung-komplett');
     await clickButton(client, 'Test beenden');
     await waitFor(client, 'stopping clears the countdown and the animals', `!${forest}?.querySelector('[role="progressbar"]') && ${forest}?.textContent.includes('0 von 5 Tieren')`);
 

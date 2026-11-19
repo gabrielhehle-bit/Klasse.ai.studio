@@ -2,12 +2,20 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CockpitWidgetConfig } from '../../../types';
 import { calculateRawVolume, cleanupMediaStream, computeSmoothedVolume } from '../../../lib/noisemeterAlgorithm';
 
-const forestAnimals = [
-  { name: 'Igel', artwork: 'igel', x: 18, y: 72 },
-  { name: 'Eichhörnchen', artwork: 'eichhoernchen', x: 52, y: 64 },
-  { name: 'Reh', artwork: 'reh', x: 34, y: 39 },
-  { name: 'Fuchs', artwork: 'fuchs', x: 79, y: 72 },
-  { name: 'Eule', artwork: 'eule', x: 81, y: 32 },
+type Animal = {
+  name: string;
+  artwork: string;
+  row: 1 | 2;
+  column: number;
+  movement?: 'swim' | 'hover';
+};
+
+const forestAnimals: readonly Animal[] = [
+  { name: 'Igel', artwork: 'igel', row: 2, column: 1 },
+  { name: 'Eichhörnchen', artwork: 'eichhoernchen', row: 2, column: 5 },
+  { name: 'Reh', artwork: 'reh', row: 1, column: 2 },
+  { name: 'Fuchs', artwork: 'fuchs', row: 2, column: 9 },
+  { name: 'Eule', artwork: 'eule', row: 1, column: 8 },
 ];
 const scenes = {
   forest: {
@@ -25,12 +33,12 @@ const scenes = {
     waiting: 'Das Aquarium wartet …',
     quiet: 'Ganz ruhig im Aquarium …',
     animals: [
-      { name: 'Neonfisch', artwork: 'neonfisch', x: 27, y: 47 },
-      { name: 'Guppy', artwork: 'guppy', x: 69, y: 34 },
-      { name: 'Garnele', artwork: 'garnele', x: 76, y: 70 },
-      { name: 'Rennschnecke', artwork: 'rennschnecke', x: 31, y: 74 },
-      { name: 'Panzerwels', artwork: 'panzerwels', x: 51, y: 63 },
-    ],
+      { name: 'Neonfisch', artwork: 'neonfisch', row: 1, column: 2, movement: 'swim' },
+      { name: 'Guppy', artwork: 'guppy', row: 1, column: 8, movement: 'swim' },
+      { name: 'Garnele', artwork: 'garnele', row: 2, column: 9, movement: 'hover' },
+      { name: 'Rennschnecke', artwork: 'rennschnecke', row: 2, column: 1 },
+      { name: 'Panzerwels', artwork: 'panzerwels', row: 2, column: 5, movement: 'hover' },
+    ] satisfies readonly Animal[],
   },
 } as const;
 type Scene = keyof typeof scenes;
@@ -248,7 +256,7 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
 
   const threshold = thresholds[tolerance - 1];
   const setting = scenes[scene];
-  const animals = setting.animals;
+  const animals: readonly Animal[] = setting.animals;
   const { count, quietTenths } = display[scene];
   const running = mode === 'live' || mode === 'demo';
   const allAnimals = count === animals.length;
@@ -264,36 +272,44 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
 
   return (
     <div data-practice-root="waldruhe" data-waldruhe-scene={scene} className="flex h-full min-h-0 w-full flex-col gap-2 overflow-auto p-2 text-slate-900 dark:text-slate-100">
-      <div className="relative isolate min-h-32 flex-1 overflow-hidden rounded-xl bg-emerald-950 bg-cover bg-center [container-type:size]"
-        style={{ backgroundImage: `linear-gradient(#06281999, transparent 55%, #06281966), url(${setting.background})` }}>
-        <p data-waldruhe-scene-label className="absolute left-2 top-2 max-w-[calc(100%-1rem)] rounded-lg px-2 py-0.5 text-sm font-bold leading-snug sm:text-base" role="status">{message}</p>
-        {animals.slice(0, count).map(animal => (
-          <figure key={animal.name} data-waldruhe-animal={animal.artwork} className="absolute m-0 -translate-x-1/2 -translate-y-1/2 text-center"
-            style={{ left: animal.x + '%', top: animal.y + '%' }}>
-            <img alt="" draggable={false} src={`/cockpit/waldruhe-tiere/${animal.artwork}.webp`}
-              className="mx-auto block h-[min(27cqh,clamp(3rem,19cqw,8rem))] w-auto max-w-[23cqw] object-contain drop-shadow-md motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500" />
-            <figcaption data-waldruhe-scene-label className="rounded-full px-1.5 text-[clamp(.72rem,2.7cqw,1rem)] font-semibold">{animal.name}</figcaption>
-          </figure>
-        ))}
-        <p data-waldruhe-scene-label className="absolute bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold" aria-live="polite">
-          {count} von {animals.length} Tieren
-        </p>
-      </div>
-
-      {running && !allAnimals && showCountdown && (
-        <div className="shrink-0 space-y-1.5 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-800 dark:bg-slate-900 dark:text-slate-100">
-          <div className="flex flex-wrap items-center justify-between gap-x-2 font-semibold">
-            <span>{signal === 'unavailable' ? 'Kein Mikrofonsignal' : signal === 'loud' ? 'Ruhezeit pausiert' : 'Nächstes Tier'}</span>
-            <span className="tabular-nums">{remainingSeconds} s</span>
-          </div>
-          <div role="progressbar" aria-label="Ruhezeit bis zum nächsten Tier" aria-valuemin={0}
-            aria-valuemax={requiredTenths} aria-valuenow={reachedTenths}
-            className="h-2 overflow-hidden rounded-full bg-slate-300 dark:bg-slate-700">
-            <div aria-hidden="true" className={`h-full rounded-full motion-safe:transition-[width] motion-safe:duration-100 ${signal === 'quiet' ? 'bg-emerald-600' : 'bg-amber-600'}`}
-              style={{ width: `${100 * reachedTenths / requiredTenths}%` }} />
-          </div>
+      <div className="relative isolate flex min-h-44 flex-1 flex-col gap-1 overflow-hidden rounded-xl bg-emerald-950 bg-cover bg-center p-1.5 [container-type:size] [overflow-anchor:none]"
+        data-waldruhe-landscape data-waldruhe-still={signal !== 'quiet' || !running}
+        style={{ backgroundImage: `linear-gradient(#071e24b3, transparent 32%, transparent 68%, #071e2480), url(${setting.background})` }}>
+        <div className="flex items-start justify-between gap-1">
+          <p data-waldruhe-scene-label className="rounded-lg px-2 py-0.5 text-[clamp(.75rem,3.4cqw,1.125rem)] font-bold leading-snug" role="status">{message}</p>
+          <p data-waldruhe-scene-label className="shrink-0 whitespace-nowrap rounded-lg px-2 py-0.5 text-[clamp(.6875rem,2.8cqw,.9375rem)] font-semibold leading-snug" aria-live="polite">
+            {count} von {animals.length} Tieren
+          </p>
         </div>
-      )}
+        <div className="grid min-h-0 flex-1 grid-cols-12 grid-rows-2 gap-y-1">
+          {animals.slice(0, count).map(animal => (
+            <figure key={animal.name} data-waldruhe-animal={animal.artwork}
+              className="m-0 flex min-h-0 min-w-0 flex-col items-center justify-end gap-0.5 text-center"
+              style={{ gridColumn: `${animal.column} / span 4`, gridRow: animal.row }}>
+              <div className="waldruhe-animal-art relative flex min-h-0 w-full flex-1 justify-center">
+                <img alt="" draggable={false} src={`/cockpit/waldruhe-tiere/${animal.artwork}.webp`}
+                  data-waldruhe-movement={animal.movement}
+                  className="relative block h-full w-full max-w-[15rem] object-contain object-bottom" />
+              </div>
+              <figcaption data-waldruhe-scene-label className="max-w-full shrink-0 rounded-full px-1.5 text-[clamp(.625rem,2.8cqw,1rem)] font-semibold leading-snug">{animal.name}</figcaption>
+            </figure>
+          ))}
+        </div>
+        <div className="flex min-h-6 items-center">
+          {running && !allAnimals && showCountdown && (
+            <div data-waldruhe-scene-label className="flex w-full items-center gap-2 rounded-lg px-2 py-0.5 text-[clamp(.6875rem,2.7cqw,.9375rem)] font-semibold">
+              <span>{signal === 'unavailable' ? 'Kein Mikrofonsignal' : signal === 'loud' ? 'Ruhezeit pausiert' : 'Nächstes Tier'}</span>
+              <div role="progressbar" aria-label="Ruhezeit bis zum nächsten Tier" aria-valuemin={0}
+                aria-valuemax={requiredTenths} aria-valuenow={reachedTenths}
+                className="h-1.5 min-w-4 flex-1 overflow-hidden rounded-full bg-white/30">
+                <div aria-hidden="true" className={`h-full rounded-full motion-safe:transition-[width] motion-safe:duration-100 ${signal === 'quiet' ? 'bg-emerald-300' : 'bg-amber-300'}`}
+                  style={{ width: `${100 * reachedTenths / requiredTenths}%` }} />
+              </div>
+              <span className="shrink-0 tabular-nums">{remainingSeconds} s</span>
+            </div>
+          )}
+        </div>
+      </div>
 
       {showSettings && (
         <div className="grid shrink-0 grid-cols-2 gap-x-2 gap-y-1 rounded-lg border border-slate-300 bg-slate-50 p-2 text-sm text-slate-900">
